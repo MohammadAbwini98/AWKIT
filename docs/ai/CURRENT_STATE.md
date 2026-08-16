@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Event correlation and navigation dedup measured — both already correct (2026-08-16)
+
+Brief §11 and §12 were investigated by measurement. **Neither is defective**, and no code changed.
+
+**§11 navigation deduplication — not a defect.** A real `POST /login → 303 → /form` redirect chain
+produced exactly **one** `framenavigated` event and one recorded URL. `upsertUrl` additionally
+dedups identical URLs inside `URL_DEDUPE_WINDOW_MS`. §11's feared outcome — "several accidental
+navigation nodes" for one transition — cannot occur here at all, because navigation never becomes
+flow nodes (`awkit-76x`).
+
+**§12 event correlation — already implemented and working.** `recordActionFromPage`
+(`RecorderService.ts:1385`) collapses consecutive fills on the same field. Measured on a full login
+journey: **15 raw init-script emissions → 5 recorded actions**. Typing `"alice"` emits five
+per-keystroke fills and records one.
+
+**A harness trap worth remembering.** The first measurement appeared to show a severe correlation
+defect — 15 uncoalesced actions — because the harness exposed its **own** `__awtkit_recordAction`
+binding and therefore measured the raw init-script emission, never reaching `recordActionFromPage`.
+This is the trap already recorded in AI memory as "the harness bypasses `recordActionFromPage`", and
+it produced a confident wrong finding for the third time this session. A correlation harness **must**
+call `recordActionFromPage`.
+
+One genuine low-severity residue: after focus leaves a field, a redundant `fill` echo is recorded
+(`fill Username="alice"`, `press Tab`, `fill Username="alice"`), because coalescing only merges with
+the *immediately* previous action. Filed as `awkit-ty4` and **deliberately not fixed** — the obvious
+narrowing ("drop a fill whose value matches the last fill on that target") would break a legitimate
+re-fill after a Clear action, and shipping a risky narrowing is worse than documented, idempotent
+noise. Also confirmed correct-by-design: a recorded password value is empty because secret redaction
+is working, not because the value was lost.
+
+`verify:roadmap-dashboard` 158/158. No product code changed. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **206 total / 197 closed / 9 outstanding**.
+
 ## Popup coverage measured; recorded URLs proven separate from replay (2026-08-16)
 
 Continuing `awkit-n7n`. Two claims that had been asserted from reading are now **executed**, and one

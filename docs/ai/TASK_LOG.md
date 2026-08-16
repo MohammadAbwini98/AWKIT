@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Event correlation and nav dedup measured; neither defective (awkit-n7n)
+
+- **Task:** Fix brief sections 11 (navigation dedup) and 12 (event correlation).
+- **Outcome: nothing to fix. Both are already correct, proven by measurement, and no code changed.**
+- **Section 11 - not a defect:** a real `POST /login -> 303 -> /form` chain produced exactly ONE
+  `framenavigated` and one recorded URL; `upsertUrl` also dedups identical URLs within
+  `URL_DEDUPE_WINDOW_MS`. The feared "several accidental navigation nodes" cannot occur because
+  navigation never becomes flow nodes (`awkit-76x`).
+- **Section 12 - not a defect:** `recordActionFromPage` (RecorderService.ts:1385) already collapses
+  consecutive fills on the same field. Measured: 15 raw init-script emissions -> 5 recorded actions
+  for a full login journey; typing "alice" emits 5 per-keystroke fills and records 1.
+- **THIRD wrong finding this session, same root cause.** The first harness exposed its OWN
+  `__awtkit_recordAction` binding, so it measured the raw init-script emission and never reached
+  `recordActionFromPage` - appearing to show 15 uncoalesced actions. This is the trap already in AI
+  memory ("the harness bypasses recordActionFromPage"). Any correlation harness MUST call
+  `recordActionFromPage`.
+- **Genuine residue, deliberately NOT fixed (`awkit-ty4`, P3):** after focus leaves a field a
+  redundant `fill` echo is recorded, because coalescing only merges with the immediately previous
+  action. The obvious narrowing would break a legitimate re-fill after a Clear action, so shipping it
+  on limited remaining budget was the wrong trade against idempotent noise.
+- **Confirmed correct-by-design:** a recorded password value is empty because secret redaction works.
+- **Tests run:** `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `npm run build`, `verify:runner`, recorder verifiers - no product code changed.
+- **Still open in awkit-n7n:** mock-site navigation lab and the 34-item regression matrix.
+
+---
+
 ## 2026-08-16 - Claude - Popup coverage executed; URL/replay boundary measured (awkit-n7n)
 
 - **Task:** Continue `awkit-n7n` - execute the popup claims I had only asserted, and answer the open
