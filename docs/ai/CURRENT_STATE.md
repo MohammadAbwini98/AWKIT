@@ -1,5 +1,46 @@
 # CURRENT_STATE
 
+## Step 2 retried — the flake is CAPTURED and causally linked to the deletion (2026-08-16)
+
+The retry reproduced the abort on the first run, and the self-describing diagnostic added in
+`b79cb8a` earned its keep immediately:
+
+```text
+Flow capsule suite ABORTED after 12/16 checks.
+Last check to run: "Flow Loop first save preserves authored configuration, style,
+and exactly one promoted Conditional exit". Checks 13-16 never executed.
+Reason: page.waitForFunction: Timeout 30000ms exceeded.
+```
+
+**The deletion itself is correct.** Broad coverage came out exactly as predicted: Flow
+**112 observed / 0 retired / 0 unexpected**, Workflow **58 / 0 / 0**, and Workflow was fully green
+end to end (capsule 17/17, exit 0).
+
+**But the deletion reliably triggers a latent race in the Flow focused suite:**
+
+| Condition | Flow capsule |
+|---|---|
+| before deletion | 16/16 ×4 |
+| with deletion | **aborted 12/16 ×2** |
+| after revert | 16/16 |
+
+Four clean runs before, two aborts with it applied, clean again on revert. That is causal, not
+coincidence. The 16 retired assertions were **masking** the race: each failing assertion spent time
+waiting, and removing them let the focused suite start against a less-settled state. So this is a
+real race the noise was hiding — not a defect the deletion introduced.
+
+Reverted again, because a consistently red `verify:flow-designer` is worse than the allowlisted noise
+it removes. Filed `awkit-r9f3` (P1) with the exact location: the `waitForFunction` following the
+first-save check in `scripts/lib/verify-flow-loop-capsule-gui.mjs`, which should synchronize on
+observable saved state rather than a fixed predicate. `awkit-7h0w` restored to P1 — it is now
+identified, not merely suspected.
+
+Order is now unambiguous: fix `awkit-r9f3`, then retry step 2. The recipe and numbers (112 / 58) in
+`awkit-8z0` were **re-confirmed** this session.
+
+`verify:flow-designer` 16/16 and `verify:roadmap-dashboard` 158/158 on the reverted tree. Ledger
+unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **215 total / 204 closed / 11 outstanding**.
+
 ## Nine clean GUI runs — the flake did not reproduce (2026-08-16)
 
 Ran the capsule suites repeatedly to catch a partial result. **It never occurred.** Nine consecutive
