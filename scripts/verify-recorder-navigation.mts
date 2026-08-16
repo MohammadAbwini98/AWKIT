@@ -27,6 +27,7 @@ import { spawn } from "node:child_process";
 
 import { RecorderService } from "@src/recorder/RecorderService";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
+import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
 
 const PORT = Number(process.env.MOCK_SITE_PORT ?? 4598);
 const base = `http://127.0.0.1:${PORT}`;
@@ -211,6 +212,65 @@ async function main(): Promise<void> {
       buildRecordedFlow.length <= 3,
       `arity ${buildRecordedFlow.length}`
     );
+
+    /* ── Action-caused navigation must NOT gain a step (awkit-rit) ─────────────────────────────
+       The other half of the awkit-76x contract, and the half that was unguarded: mutation M1 —
+       forcing every navigation to count as independent — survived the entire recorder suite,
+       because nothing recorded a real action that CAUSES navigation. A regression there would give
+       every click-caused navigation a redundant Navigate step, exactly what §9 warns against.
+
+       This needs the init script and the real `recordActionFromPage` wiring, so it runs on its own
+       context: a click on a link is a recorded action, and the navigation it causes is explained by
+       that action and must stay implicit. */
+    const causalContext = await browser.newContext();
+    const causal = new RecorderService() as unknown as {
+      isRecording: boolean;
+      urlSessionId: string;
+      recordedUrls: { url: string }[];
+      actions: { type: string; name: string }[];
+      attachUrlCapture(page: unknown): void;
+      recordActionFromPage(page: unknown, action: unknown, frame?: unknown): void;
+    };
+    causal.isRecording = true;
+    causal.urlSessionId = "verify-navigation-causal";
+    causal.recordedUrls = [];
+    causal.actions = [];
+
+    await causalContext.exposeBinding("__awtkit_recordAction", async (src: { page: unknown; frame: unknown }, a: unknown) => {
+      causal.recordActionFromPage(src.page, a, src.frame);
+    });
+    await causalContext.exposeBinding("__awtkit_recordSignal", () => undefined);
+    await causalContext.addInitScript({ content: getRecorderInitScriptContent() });
+
+    const causalPage = await causalContext.newPage();
+    causal.attachUrlCapture(causalPage);
+    await causalPage.goto(`${base}/`);
+    await settle();
+
+    const urlsAfterOpen = causal.recordedUrls.length;
+    check("the causal harness reaches captureUrl at all", urlsAfterOpen >= 1, `${urlsAfterOpen} url(s)`);
+
+    const gotosBefore = causal.actions.filter((a) => a.type === "goto").length;
+    await causalPage.getByRole("link", { name: /smart wait/i }).first().click()
+      .catch(async () => { await causalPage.locator('a[href="/smart-waits"]').first().click(); });
+    await causalPage.waitForLoadState("load").catch(() => undefined);
+    await settle();
+
+    const clickSteps = causal.actions.filter((a) => a.type === "click").length;
+    const gotosAfter = causal.actions.filter((a) => a.type === "goto").length;
+    const navigated = causal.recordedUrls.length > urlsAfterOpen;
+
+    // Each precondition is asserted, so a silent failure to click or navigate cannot masquerade as
+    // "no redundant goto was added".
+    check("the click was recorded as an action", clickSteps >= 1, causal.actions.map((a) => a.type).join(", "));
+    check("the click actually caused a navigation", navigated, `urls: ${causal.recordedUrls.length}`);
+    check(
+      "action-caused navigation adds NO redundant goto step",
+      gotosAfter === gotosBefore,
+      `goto steps ${gotosBefore} -> ${gotosAfter}: ${causal.actions.map((a) => a.type).join(", ")}`
+    );
+
+    await causalContext.close();
   } finally {
     await browser.close();
     server.kill();

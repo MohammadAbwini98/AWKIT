@@ -230,8 +230,8 @@ try {
   // (protected paths close the no-lease gap): total 196 to 197, closed 192 to 193, still four.
   // `awkit-6ab` (watched gitignored paths): total 197 to 198, closed 193 to 194, still four.
   check(
-    "9 outstanding / 198 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 198,
+    "8 outstanding / 199 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 199,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

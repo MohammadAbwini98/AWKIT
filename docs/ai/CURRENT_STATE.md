@@ -1,5 +1,35 @@
 # CURRENT_STATE
 
+## Action-caused navigation is now guarded — the surviving mutation is dead (2026-08-16)
+
+`awkit-rit` is fixed. The `awkit-76x` navigation contract had a proven half and an unproven half:
+mutation **M1** — forcing every navigation to count as independent, so each click-caused navigation
+gains a redundant `goto` — survived the entire recorder suite. That is the regression brief §9 warns
+against most directly, and nothing in the repository would have caught it.
+
+`verify:recorder-navigation` now records a **real action that causes navigation**: its own context
+with the init script and the real `recordActionFromPage` wiring, a click on a link, and an assertion
+that no `goto` step is added. Both preconditions are asserted too — that the click was recorded, and
+that it actually navigated — so a silent failure to click or navigate cannot masquerade as "no
+redundant step was added".
+
+**24/24, and the mutation results invert:**
+
+| Mutation | Before | Now |
+|---|---|---|
+| M1 — every navigation treated as independent | **SURVIVED** | **KILLED** (`goto steps 0 -> 1: click, goto`) |
+| M2 — never emit a step | killed | killed |
+| M3 — never mark the causal action | not tested | **KILLED** |
+
+The diagnosis the bead asked for: the earlier harness never reached `captureUrl` because it lacked
+the init-script/action wiring needed for a click to be recorded as an action at all. Building the
+causal case inside the harness that provably reaches `captureUrl` — rather than debugging the one
+that did not — was the shorter path.
+
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **207 total / 199 closed / 8 outstanding**.
+
+
 ## Independent navigation now becomes a replayable step (2026-08-16)
 
 `awkit-76x` is fixed. A recorded flow previously contained exactly ONE navigation step - the opening

@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Guard action-caused navigation; kill the surviving mutation (awkit-rit)
+
+- **Task:** Close the mutation gap left by `awkit-76x` - M1 (every navigation treated as
+  independent) survived the whole recorder suite.
+- **Diagnosis the bead asked for:** the earlier harness never reached `captureUrl` because it had no
+  init-script/action wiring, so no click was ever recorded as an action. Rather than debug it,
+  the causal case was built inside `verify-recorder-navigation`, whose harness provably reaches
+  `captureUrl`.
+- **Implementation:** a second context with the init script + real `recordActionFromPage`, a click
+  on a link that navigates, and an assertion that NO goto step is added - plus assertions that the
+  click was recorded and that it actually navigated, so a silent no-op cannot pass as success.
+- **Tests run:** `verify:recorder-navigation` **24/24** (was 20). Mutations: **M1 KILLED** (was
+  surviving), M2 killed, M3 (never mark the causal action) killed - 3/3.
+  `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `npm run build`, `verify:recorder`, `verify:popup` - test-only change, no
+  product code touched this time.
+- **Result:** `awkit-rit` closed. Tracker 207 / 199 closed / 8 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Independent navigation becomes a replayable step (awkit-76x)
 
 - **Task:** Fix `awkit-76x` - independent mid-recording navigation had no representation in the flow.
