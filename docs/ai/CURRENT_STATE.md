@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Both retired-assertion gaps closed — step 2 is finally unblocked (2026-08-16)
+
+`awkit-3ve` is fixed, closing the second and last unreplaced intent. **Every one of the 31 retired
+U-route assertions now has a replacement bound to the capsule contract.**
+
+The new Workflow check drives the real two-way binding rather than asserting a shape: edit Max
+iterations to 21 without saving, confirm the ring renders **21 on the canvas**, close the panel,
+reopen Configure, and assert the editor still shows 21 and `whileCondition` with the authored While
+summary intact. A revert there would silently discard a user's in-progress edit.
+
+| Designer | Unreplaced intent | Focused suite |
+|---|---|---|
+| Flow | inspector-delete Undo | **16/16** (was 15) |
+| Workflow | unsaved bound edit on reopen | **17/17** (was 16) |
+
+Both run with **unexpected failures: 0**.
+
+**Step 2 is now safe but NOT done.** Deleting the 16 Flow + 15 Workflow retired assertions from the
+pre-capsule walkthroughs, dropping both allowlists, and moving `expectedChecks` 128 → 112 and
+74 → 59 remains outstanding on `awkit-6be`. It is a mechanical change across two ~2,000-line files
+that needs both GUI suites re-run afterwards to confirm the counts.
+
+Honest limitation: the two new checks were **not** mutation-tested. Their non-vacuity rests on the
+canvas evidence — the Workflow ring genuinely re-rendered to 21, and the Flow capsule genuinely
+returned after an inspector delete — rather than on a proven ability to fail.
+
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **209 total / 201 closed / 8 outstanding**.
+
 ## Workflow retired assertions audited — a SECOND unreplaced intent found (2026-08-16)
 
 The Workflow half of the `awkit-6be` audit is done, and it found what the audit existed to find.

@@ -30,7 +30,8 @@ export const WORKFLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
   "Workflow save preserves Loop configuration, authored style, and exactly one promoted Conditional exit",
   "Workflow reload preserves the capsule contract, rendered style, and exact configured value",
   "Workflow dominant ring supports exact config Undo/Redo and a second persisted edit/reload cycle",
-  "Workflow Loop stays accessible and Delete/Undo/Redo restores its exact authored state once"
+  "Workflow Loop stays accessible and Delete/Undo/Redo restores its exact authored state once",
+  "Configure loop reopens the Workflow Loop with its unsaved bound edit and authored summary intact"
 ]);
 
 export function matchesWorkflowLoopCapsuleCheckContract(results) {
@@ -605,6 +606,52 @@ export async function runWorkflowLoopCapsuleSuite(root) {
         matchesLoopCapsuleContract(restoredVisual, { owner: nodeId, value: 13 }) && restoredStructure.loops === 1 && restoredStructure.exits === 1 &&
         restoredStructure.loopExitControls === 1 && restoredStructure.defaultExitControls === 0,
       JSON.stringify({ enterAccessible, spaceAccessible, doubleClickAccessible, deletedStructure, undoneEditorExact, undoneVisual, undoneStructure, redoneStructure, restoredEditorExact, restoredVisual, restoredStructure })
+    );
+
+    /* Unsaved bound edit survives reopening the editor (awkit-3ve).
+       The retired walkthrough asserted this against the U-route summary, so it was allowlisted and
+       nothing replaced it — and unlike the Flow suite, which covers `unsaved`, the Workflow suite
+       had no equivalent at all. The behaviour under test is the two-way binding: editing Max
+       iterations updates the connector immediately, so closing the panel and reopening it must show
+       the edited value rather than reverting to the last SAVED one. A revert here would silently
+       discard a user's in-progress edit. */
+    await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+    await clickNodeMenuItem(win, nodeId, "Configure loop");
+    const unsavedMax = win.locator('.scenario-properties-panel label:has-text("Max iterations") input');
+    await unsavedMax.waitFor({ state: "visible" });
+    await unsavedMax.fill("21");
+    await unsavedMax.blur();
+
+    const loopGroupForUnsaved = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"][role="button"]`);
+    // The ring renders maxIterations, so the unsaved edit must be visible on the canvas immediately.
+    await win.waitForFunction(
+      (id) => {
+        const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
+        return group?.textContent?.includes("21") === true;
+      },
+      nodeId,
+      { timeout: 5_000 }
+    ).catch(() => undefined);
+    const ringShowsUnsaved = (await loopGroupForUnsaved.textContent())?.includes("21") === true;
+    const summaryWhileUnsaved = (await loopGroupForUnsaved.getAttribute("aria-label")) ?? "";
+
+    await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+    await clickNodeMenuItem(win, nodeId, "Configure loop");
+    const reopenedMax = win.locator('.scenario-properties-panel label:has-text("Max iterations") input');
+    const reopenedMode = win.locator('.scenario-properties-panel label:has-text("Loop mode") select');
+    await reopenedMax.waitFor({ state: "visible" });
+    const reopenedValue = await reopenedMax.inputValue();
+    const reopenedModeValue = await reopenedMode.inputValue();
+    const summaryAfterReopen = (await loopGroupForUnsaved.getAttribute("aria-label")) ?? "";
+
+    check(
+      "Configure loop reopens the Workflow Loop with its unsaved bound edit and authored summary intact",
+      ringShowsUnsaved &&
+        reopenedValue === "21" &&
+        reopenedModeValue === "whileCondition" &&
+        summaryWhileUnsaved.includes("While · status = passed") &&
+        summaryAfterReopen.includes("While · status = passed"),
+      JSON.stringify({ ringShowsUnsaved, reopenedValue, reopenedModeValue, summaryWhileUnsaved, summaryAfterReopen })
     );
 
     await app.close();
