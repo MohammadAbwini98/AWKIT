@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## GUI harness cleanup EPERM fixed — but the flake is NOT fully resolved (2026-08-16)
+
+One real defect behind `awkit-2js` is found and fixed. **The flake itself is not closed**, because
+evidence after the fix shows a second, independent cause.
+
+**Fixed.** `isolatedLaunchEnv().cleanup()` called `rmSync(dataRoot, { recursive: true, force: true })`.
+`force` swallows `ENOENT` but not the Windows file-lock errors, and Electron does not release every
+handle under the profile the instant `app.close()` resolves — so cleanup threw `EPERM` intermittently,
+aborting the calling suite mid-run and producing a partial result that read exactly like a product
+regression. It now passes Node's own bounded retry (`maxRetries: 10, retryDelay: 100`), which covers
+`EBUSY/EMFILE/ENFILE/ENOTEMPTY/EPERM` with a linear backoff — no hand-rolled loop, no fixed sleep.
+Shared harness code, so every GUI verifier benefits.
+
+**Not resolved.** Post-fix runs: Workflow **17/17 twice** (was 12/13 three times), but Flow returned
+**11/12** on one run and **16/16** on the next — a partial result *after* the fix. So a second
+independent source of partial capsule-suite results remains. Filed as `awkit-7h0w` with the lead: a
+`Timeout (ms)` string appeared in the partial run's diagnostics, so a Playwright action/wait timeout
+is the likely abort path rather than a filesystem error. Capture the full stack of a partial run —
+earlier diagnostics were lost to over-filtered greps — identify which await times out, and
+synchronize on observable state rather than raising the timeout.
+
+This still blocks `awkit-6be` step 2: the deletion cannot be validated against a non-deterministic
+suite. The step-2 recipe and its confirmed numbers (112 / 58) remain in `awkit-8z0`.
+
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **213 total / 203 closed / 10 outstanding**.
+
 ## Recorder work resolved; tranche closed with honest accounting (2026-08-16)
 
 `awkit-n7n` and `awkit-s1c` are closed. **All substantive Recorder engineering from the hardening

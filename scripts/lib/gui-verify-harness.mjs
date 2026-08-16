@@ -43,7 +43,15 @@ export function isolatedLaunchEnv(label = "awkit-gui", extraEnv = {}) {
     env,
     dataRoot,
     cleanup() {
-      rmSync(dataRoot, { recursive: true, force: true });
+      // `force: true` swallows ENOENT but NOT the Windows file-lock errors, and Electron does not
+      // release every handle under the profile the instant `app.close()` resolves. A bare rmSync
+      // therefore throws EPERM intermittently — which aborted the calling suite mid-run and made it
+      // report a partial result (12/13) that read exactly like a product regression.
+      //
+      // `maxRetries` is Node's own bounded retry for precisely this set (EBUSY, EMFILE, ENFILE,
+      // ENOTEMPTY, EPERM) with a linear backoff, so no hand-rolled loop and no fixed sleep. Shared
+      // harness code, so this covers every GUI verifier rather than the one where it was noticed.
+      rmSync(dataRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   };
 }
