@@ -83,6 +83,7 @@ async function main(): Promise<void> {
       isRecording: boolean;
       urlSessionId: string;
       recordedUrls: { url: string }[];
+      actions: { type: string; name: string }[];
       attachUrlCapture(page: unknown): void;
     };
     svc.isRecording = true;
@@ -163,6 +164,23 @@ async function main(): Promise<void> {
       `got ${JSON.stringify(finalUrls)}`
     );
     check("about:blank was never recorded", !finalUrls.some((u) => u.startsWith("about:")));
+
+    /* ── Independent navigation becomes a step; action-caused navigation does not (awkit-76x) ──
+       Every navigation above arrived with NO recorded action to explain it - this harness drives
+       the browser directly - so each one is independent by definition and must produce a `goto`
+       step, or replay could never reach those pages. The opening navigation is excluded because the
+       session's explicit start `goto` already covers it. */
+    const gotoSteps = (svc.actions ?? []).filter((a) => a.type === "goto");
+    check(
+      "independent navigations each produce a goto step",
+      gotoSteps.length >= 4,
+      `${gotoSteps.length}: ${gotoSteps.map((g) => g.name).join(" | ")}`
+    );
+    check(
+      "the opening navigation does NOT get a duplicate goto step",
+      !gotoSteps.some((g) => g.name.endsWith("/form")),
+      gotoSteps.map((g) => g.name).join(" | ")
+    );
 
     /* ── The boundary between recorded URLs and the replayable flow ────────────────────────────
        Everything above measures the URL HISTORY. This block pins the separate, easily-missed fact

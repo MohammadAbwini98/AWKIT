@@ -224,6 +224,50 @@ export class RecorderService {
     }
   }
 
+  /**
+   * Was this navigation caused by something the user already did, or did it arrive on its own?
+   *
+   * A recorded action on the page since its last navigation is the causal evidence: click Login and
+   * the URL changes, and replay reproduces the navigation by replaying the click. Nothing recorded
+   * since means the transition came from outside the recorded actions — the address bar, the back
+   * button, or a redirect that landed somewhere the click did not explain — and replay has no way to
+   * reach the new page unless the navigation is recorded as a step of its own.
+   *
+   * Deliberately a SEQUENCE rule rather than a time window. "Did an action happen since the last
+   * navigation" is deterministic; "did an action happen within N milliseconds" is a race that fails
+   * differently on a slow machine.
+   */
+  private pagesWithActionSinceNavigation = new WeakSet<Page>();
+
+  /** The session's opening navigation already has an explicit `goto`; never emit a second one. */
+  private initialNavigationRecorded = false;
+
+  /**
+   * Emit a navigation step for a transition the recorded actions cannot explain.
+   *
+   * This is the third case in the navigation model: action-caused navigation stays implicit (the
+   * triggering action replays it, and Playwright's auto-waiting carries it), while INDEPENDENT
+   * navigation needs a step or replay silently diverges from what was recorded. Emitting a step
+   * after every URL change instead would produce exactly the redundant Navigate nodes this
+   * deliberately avoids.
+   */
+  private recordIndependentNavigation(page: Page, maskedUrl: string): void {
+    // Popups announce themselves through their own registration and `switchToPopup`; a second
+    // navigation step for the same event would contradict it.
+    for (const popup of this.popupPages.values()) if (popup === page) return;
+    if (this.popupRegistrations.has(page)) return;
+
+    this.actions.push({
+      id: randomUUID(),
+      type: "goto",
+      name: `Navigate to ${maskedUrl}`,
+      valueSource: { type: "static", value: maskedUrl }
+    });
+    this.lastActionPage = page;
+    this.lastActionAt = Date.now();
+    this.scheduleDraftPersist();
+  }
+
   /** Record a navigated URL (masked + deduped) and enrich the title best-effort. */
   private captureUrl(page: Page, rawUrl: string): void {
     if (!this.isRecording) return;
@@ -231,6 +275,17 @@ export class RecorderService {
     if (/^(chrome-error|chrome|devtools|about|data|blob):/i.test(rawUrl)) return;
 
     const url = RecorderService.maskUrl(rawUrl);
+
+    // Causal attribution runs on EVERY main-frame navigation, before the URL-history dedupe below —
+    // revisiting a known URL still needs a step when nothing the user did explains the move.
+    const causedByRecordedAction = this.pagesWithActionSinceNavigation.has(page);
+    this.pagesWithActionSinceNavigation.delete(page);
+    if (!this.initialNavigationRecorded) {
+      this.initialNavigationRecorded = true;
+    } else if (!causedByRecordedAction) {
+      this.recordIndependentNavigation(page, url);
+    }
+
     const source = this.recordedUrls.some((entry) => entry.sessionId === this.urlSessionId) ? "navigation" : "manual_url_entry";
     const record = this.upsertUrl(url, source, this.urlSessionId);
     if (!record) return;
@@ -497,6 +552,7 @@ export class RecorderService {
   private async cleanup(): Promise<void> {
     this.isRecording = false;
     this.lastActionPage = null;
+    this.initialNavigationRecorded = false;
     this.popupCounter = 0;
     this.popupPages.clear();
     this.popupRegistrations.clear();
@@ -609,6 +665,9 @@ export class RecorderService {
         name: `Navigate to ${target}`,
         valueSource: { type: "static", value: target }
       });
+      // The opening navigation now has its step; anything further that no action explains is a
+      // genuine independent navigation.
+      this.initialNavigationRecorded = true;
       // Start the think-time clock from the initial navigation so a wait before the first
       // interaction is captured too (only when wait capture is enabled).
       this.lastActionAt = Date.now();
@@ -1375,6 +1434,9 @@ export class RecorderService {
     // closed browser — is what guarantees nothing on a protected page is ever recorded.
     if (!this.isRecording) return;
     const now = Date.now();
+    // Causal evidence for the next navigation on this page: if the URL changes after this, the
+    // change is explained by an action the user actually performed and needs no step of its own.
+    this.pagesWithActionSinceNavigation.add(sourcePage);
     // Determine the page alias from the popup registry (main page = 'main').
     const pageAlias = (() => {
       for (const [alias, p] of this.popupPages) {

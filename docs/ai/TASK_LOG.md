@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Independent navigation becomes a replayable step (awkit-76x)
+
+- **Task:** Fix `awkit-76x` - independent mid-recording navigation had no representation in the flow.
+- **Implementation:** `captureUrl` distinguishes action-caused from independent navigation using a
+  SEQUENCE rule, not a time window: did a recorded action occur on this page since its last
+  navigation? Action-caused stays implicit; independent emits a `goto` step. Popups are excluded
+  (their registration + `switchToPopup` already represent the move) and the opening navigation is
+  excluded (the explicit start `goto` covers it).
+- **Why not a time window:** "an action within N ms" is a race that fails differently on a slow
+  machine; "an action since the last navigation" is deterministic.
+- **Tests run:** `verify:recorder-navigation` **20/20** (was 18); `verify:recorder` 217/217;
+  `verify:recorder-hover` 265/265; `verify:recorder-actions` 20/20; `verify:popup` 12/12;
+  `npm run build` PASS; `verify:roadmap-dashboard` 158/158.
+- **HALF THE CONTRACT IS UNPROVEN - `awkit-rit`.** Mutation M2 (never emit) is killed. Mutation M1 -
+  force every navigation to count as independent, so each emits a redundant goto - SURVIVES the
+  entire recorder suite. If the causal rule regresses, every click-caused navigation gains a
+  redundant Navigate step (exactly what brief section 9 warns against) and nothing catches it. A
+  first harness to test this failed because `captureUrl` never fired in it; diagnose that first.
+- **Result:** `awkit-76x` closed, `awkit-rit` filed. Tracker 207 / 197 closed / 10 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Event correlation and nav dedup measured; neither defective (awkit-n7n)
 
 - **Task:** Fix brief sections 11 (navigation dedup) and 12 (event correlation).

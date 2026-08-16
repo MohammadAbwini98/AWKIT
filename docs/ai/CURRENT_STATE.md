@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Independent navigation now becomes a replayable step (2026-08-16)
+
+`awkit-76x` is fixed. A recorded flow previously contained exactly ONE navigation step - the opening
+`goto` - so any navigation the recorded actions could not explain left replay silently diverging
+from what the user did.
+
+`captureUrl` now distinguishes the two cases the navigation model actually has, using a **sequence
+rule rather than a time window**: a navigation is action-caused when a recorded action occurred on
+that page since its last navigation, and independent when none did. "Did an action happen since the
+last navigation" is deterministic; "did an action happen within N milliseconds" is a race that fails
+differently on a slow machine. Action-caused navigation stays implicit - the triggering action
+replays it and Playwright's auto-waiting carries it - while independent navigation (address bar,
+back button, a redirect landing somewhere the click did not explain) emits a `goto` step. Popup
+pages are excluded because their own registration and `switchToPopup` already represent the
+transition, and the session's opening navigation is excluded because the explicit start `goto`
+already covers it.
+
+`verify:recorder-navigation` is **20/20**, up from 18.
+
+**Half of this contract is proven and half is NOT, which is worth stating plainly.** Mutation M2
+(never emit a step) is killed by the new checks. Mutation M1 - forcing every navigation to count as
+independent, so each one emits a redundant `goto` - **SURVIVES** the entire recorder suite
+(`verify:recorder` 217, `verify:recorder-hover` 265, `verify:recorder-actions` 20, `verify:popup`
+12). Nothing in the repository would catch the causal rule regressing into exactly the redundant
+Navigate steps brief §9 warns against. Filed as `awkit-rit`; a first harness attempt failed because
+`captureUrl` never fired in it, and that must be diagnosed before the assertion is written.
+
+Regression suites after the change: `verify:recorder` 217/217, `verify:recorder-hover` 265/265,
+`verify:recorder-actions` 20/20, `verify:popup` 12/12, `npm run build` PASS,
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **207 total / 197 closed / 10 outstanding**.
+
+
 ## Event correlation and navigation dedup measured — both already correct (2026-08-16)
 
 Brief §11 and §12 were investigated by measurement. **Neither is defective**, and no code changed.
