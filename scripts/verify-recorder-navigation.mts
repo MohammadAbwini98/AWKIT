@@ -270,6 +270,37 @@ async function main(): Promise<void> {
       `goto steps ${gotosBefore} -> ${gotosAfter}: ${causal.actions.map((a) => a.type).join(", ")}`
     );
 
+    /* ── Per-keystroke input coalesces into ONE fill action (awkit-s1c) ────────────────────────
+       Brief §12 warns that one semantic user action must not become several recorded steps.
+       `recordActionFromPage` already collapses consecutive fills on the same field, and this pins
+       that measurement so it cannot regress unnoticed.
+
+       Worth knowing for anyone writing a harness here: a harness that exposes its OWN
+       `__awtkit_recordAction` binding measures the RAW init-script emission — five actions for five
+       keystrokes — and will appear to show a coalescing defect that does not exist. It must call
+       `recordActionFromPage`, as this one does. That mistake produced a confident wrong finding
+       before it was caught. */
+    await causalPage.goto(`${base}/login`);
+    await settle();
+    const beforeTyping = causal.actions.length;
+    await causalPage.locator("input").first().click();
+    await causalPage.keyboard.type("alice");
+    await settle();
+
+    const typed = causal.actions.slice(beforeTyping);
+    const fills = typed.filter((a) => a.type === "fill");
+    check(
+      "typing five characters records ONE fill action, not one per keystroke",
+      fills.length === 1,
+      `${fills.length} fill(s) from ${typed.length} action(s): ${typed.map((a) => a.type).join(", ")}`
+    );
+    // Non-vacuity: a run that recorded nothing at all would also have "not one per keystroke".
+    check(
+      "the coalesced fill was actually recorded",
+      fills.length >= 1,
+      typed.map((a) => a.type).join(", ")
+    );
+
     await causalContext.close();
   } finally {
     await browser.close();

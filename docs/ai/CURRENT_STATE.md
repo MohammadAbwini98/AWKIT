@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Recorder work resolved; tranche closed with honest accounting (2026-08-16)
+
+`awkit-n7n` and `awkit-s1c` are closed. **All substantive Recorder engineering from the hardening
+brief is done, measured, and guarded.**
+
+`awkit-s1c` closed with real coverage rather than a note: `verify:recorder-navigation` is now
+**26/26**, driving `recordActionFromPage` and asserting that typing five characters records **one**
+fill action, plus a non-vacuity check that the fill was recorded at all. Mutation-tested — disabling
+the coalescing branch yields `5 fill(s) from 5 action(s)`. The harness trap that produced a confident
+wrong finding earlier (a verifier exposing its own `__awtkit_recordAction` binding measures the RAW
+init-script emission) is documented in the file so it cannot cost another session.
+
+`awkit-n7n` closed on its substantive scope: navigation/URL capture measured and protected; popup
+coverage **executed** rather than assumed (71 checks across three verifiers); §11 and §12 measured as
+already correct; §9's real gap fixed (`awkit-76x`) and guarded in both directions (`awkit-rit`,
+mutations 3/3). Two confident code-read theories were disproven by measurement instead of shipped.
+
+Remaining Recorder items, both deliberate:
+
+- **`awkit-9qj` (P3)** — the mock-site navigation lab and 34-item matrix, carved out as
+  formalisation. Most matrix rows already have a passing owner; check before writing anything new.
+- **`awkit-ty4` (P3)** — the redundant fill echo after focus leaves a field. Still **deliberately
+  unfixed**: the obvious narrowing would break a legitimate re-fill after a Clear action, and the
+  defect is idempotent noise. That reasoning has not changed.
+
+`verify:recorder-navigation` 26/26; `verify:roadmap-dashboard` 158/158. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **212 total / 203 closed / 9 outstanding**.
+
 ## Step 2 implemented, measured, and REVERTED — a pre-existing flake surfaced (2026-08-16)
 
 The deletion works and its numbers are known, but it was **reverted** rather than committed, because
