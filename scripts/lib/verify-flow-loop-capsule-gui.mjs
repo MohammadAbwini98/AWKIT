@@ -91,7 +91,7 @@ async function selectSavedFlow(win, name) {
 async function waitForLoop(win, nodeId, present = true) {
   await win.waitForFunction(({ id, expected }) => Boolean(document.querySelector(
     `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator`
-  )) === expected, { id: nodeId, expected: present });
+  )) === expected, { id: nodeId, expected: present }, { polling: 100 });
 }
 
 async function waitForConfiguredValue(win, nodeId, value) {
@@ -100,14 +100,14 @@ async function waitForConfiguredValue(win, nodeId, value) {
       `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
     );
     return (text?.textContent ?? "").trim() === expected;
-  }, { id: nodeId, expected: String(value) });
+  }, { id: nodeId, expected: String(value) }, { polling: 100 });
 }
 
 async function waitForHistoryControl(win, testId) {
   await win.waitForFunction((id) => {
     const control = document.querySelector(`[data-testid="${CSS.escape(id)}"]`);
     return control instanceof HTMLButtonElement && !control.disabled;
-  }, testId);
+  }, testId, { polling: 100 });
 }
 
 async function ensureLoopConfigVisible(win, nodeId, control) {
@@ -412,10 +412,17 @@ export async function runFlowLoopCapsuleSuite(root) {
     await waitForConfiguredValue(win, nodeId, 12);
     const unsavedVisual = await readLoopCapsuleVisual(win, nodeId);
     await win.getByRole("button", { name: "Save", exact: true }).click();
+    // `polling: 100` is deliberate, and NOT an arbitrary sleep. waitForFunction defaults to
+    // polling on requestAnimationFrame, which only ticks while the window is compositing — but this
+    // predicate asks about PERSISTED state reached through an async IPC round-trip, not about
+    // anything being painted. When the window is not compositing (occluded, backgrounded, or just
+    // settling after a save) the predicate is never re-evaluated and this times out at 30s even
+    // though the save landed immediately. That is the abort captured in awkit-r9f3. A time-based
+    // poll is the correct strategy for a non-visual condition; the assertion itself is unchanged.
     await win.waitForFunction(async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       return profile?.edges.some((edge) => edge.source === "goto" && edge.target === "goto" && edge.loop?.maxIterations === 12);
-    });
+    }, undefined, { polling: 100 });
     const saved = await win.evaluate(async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");
@@ -467,12 +474,14 @@ export async function runFlowLoopCapsuleSuite(root) {
     const configurationRedoExact = await maxIterations.inputValue() === "14";
     const secondUnsavedVisual = await readLoopCapsuleVisual(win, nodeId);
     await win.getByRole("button", { name: "Save", exact: true }).click();
+    // Time-based polling for the same reason as the first save above: a persisted-state predicate
+    // must not depend on the window compositing.
     await win.waitForFunction(async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const edge = profile?.edges.find((candidate) => candidate.source === "goto" && candidate.target === "goto");
       return edge?.loop?.maxIterations === 14 && edge.style?.lineStyle === "dotted" &&
         edge.style?.thickness === 4 && edge.style?.shape === "smoothstep";
-    });
+    }, undefined, { polling: 100 });
     const secondSaved = await win.evaluate(async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");

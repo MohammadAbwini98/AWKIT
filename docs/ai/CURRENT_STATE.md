@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Capsule-suite waits moved off requestAnimationFrame polling (2026-08-16)
+
+`awkit-r9f3`. Every `waitForFunction` in both capsule suites now polls on a **100ms interval**
+instead of Playwright's default `requestAnimationFrame`.
+
+**The diagnosis.** rAF only ticks while the window composites. These predicates ask about persisted
+state reached through an async IPC round-trip, or about DOM state right after a canvas reload —
+never about anything being painted. When the window is not compositing (occluded, backgrounded, or
+settling after "Reload selected flow") the predicate is never re-evaluated and the wait times out at
+30s despite the condition having been true almost immediately. That is the captured abort:
+`page.waitForFunction: Timeout 30000ms exceeded`. A time-based poll is the correct strategy for a
+non-visual condition; **no assertion was weakened and no sleep was added.**
+
+**Two corrections to yesterday's account.** First, the failing wait is *not* the first-save wait —
+"last check to **run**" means the timeout is in the *following* check's setup, which is
+`waitForLoop` / `waitForConfiguredValue` after `Reload selected flow`. I initially fixed the wrong
+two waits and the abort reproduced unchanged. Second, the claim that the step-2 deletion *causes*
+the race was too strong: Workflow later aborted on the **unmodified** tree with the identical
+signature. The deletion raises the odds by removing incidental settling time; it does not create the
+race.
+
+**Honest status of the fix: NOT PROVEN.** Both suites pass after it (Workflow 17/17, Flow 16/16,
+`roadmap-dashboard` 158/158), but the failure is intermittent — nine clean runs preceded one abort
+earlier — so a passing run is weak evidence. What supports it is the mechanism matching the symptom
+exactly, and the change being provably behaviour-preserving. Treat `awkit-r9f3` as probably-fixed
+and reopen if the self-describing `ABORTED` line reappears.
+
+**Step 2 remains reverted and unshipped.** It should be retried only after this fix has survived
+several runs; the recipe and twice-confirmed numbers (112 / 58) stay in `awkit-8z0`.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **215 total / 204 closed /
+11 outstanding**.
+
 ## Step 2 retried — the flake is CAPTURED and causally linked to the deletion (2026-08-16)
 
 The retry reproduced the abort on the first run, and the self-describing diagnostic added in

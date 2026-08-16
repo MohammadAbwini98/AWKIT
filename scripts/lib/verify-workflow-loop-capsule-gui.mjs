@@ -99,13 +99,13 @@ async function clickNodeMenuItem(win, nodeId, label) {
 async function waitForLoop(win, nodeId, present = true) {
   await win.waitForFunction(({ id, expected }) => Boolean(document.querySelector(
     `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator`
-  )) === expected, { id: nodeId, expected: present });
+  )) === expected, { id: nodeId, expected: present }, { polling: 100 });
 }
 
 async function waitForValue(win, nodeId, value) {
   await win.waitForFunction(({ id, expected }) => (document.querySelector(
     `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
-  )?.textContent ?? "").trim() === expected, { id: nodeId, expected: String(value) });
+  )?.textContent ?? "").trim() === expected, { id: nodeId, expected: String(value) }, { polling: 100 });
 }
 
 async function fitAndStabilize(win, nodeIds) {
@@ -472,10 +472,16 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     await maxIterations.fill("12");
     await waitForValue(win, nodeId, 12);
     await win.getByRole("button", { name: "Save", exact: true }).click();
+    // `polling: 100` is deliberate, not an arbitrary sleep. waitForFunction defaults to polling on
+    // requestAnimationFrame, which only ticks while the window composites — but this predicate asks
+    // about PERSISTED state reached through an async IPC round-trip, not about anything painted.
+    // With a non-compositing window it is never re-evaluated and times out at 30s despite the save
+    // having landed. That is awkit-r9f3, captured on the Flow suite at the identically-named
+    // "save preserves Loop configuration" check. The assertion itself is unchanged.
     await win.waitForFunction(async () => {
       const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
       return profile?.edges.some((edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === 12);
-    });
+    }, undefined, { polling: 100 });
     const persisted = await readPersistedWorkflowLoop(win, nodeId);
     check(
       "Workflow save preserves Loop configuration, authored style, and exactly one promoted Conditional exit",
@@ -528,7 +534,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     await win.waitForFunction(async () => {
       const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
       return profile?.edges.some((edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === 13);
-    });
+    }, undefined, { polling: 100 });
     const secondPersisted = await readPersistedWorkflowLoop(win, nodeId);
 
     await reopenWorkflowFixture(win);
