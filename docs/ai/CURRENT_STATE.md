@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## Nine clean GUI runs — the flake did not reproduce (2026-08-16)
+
+Ran the capsule suites repeatedly to catch a partial result. **It never occurred.** Nine consecutive
+clean runs with full output redirected to files: Flow **16/16 ×4**, Workflow **17/17 ×5**. The
+self-describing `ABORTED` line added in `b79cb8a` never fired.
+
+**A deliberate mid-flight kill was tried and did not reproduce it either.** Killing a run left four
+orphaned `electron.exe` processes, and the very next run was still 17/17 — so orphaned processes
+alone do not cause a partial.
+
+Evidence now favours the cleanup EPERM fix (`b7b5594`) having resolved the Workflow cluster: **three
+12/13 failures before it, zero in nine runs after.** The single post-fix Flow 11/12 occurred on a run
+piped through `grep | head`, which sends SIGPIPE and kills the run mid-flight — plausible, but **not
+proven**, since the deliberate-kill test did not reproduce it.
+
+`awkit-jcia` is closed as attempted-and-not-achieved with that evidence. `awkit-7h0w` stays **open,
+downgraded P1 → P2**: nine clean runs is strong evidence but not proof of absence, and the honest
+position is that it is probably fixed rather than certainly fixed. If it recurs, the `ABORTED` line
+will name the check and the reason in a single run.
+
+**`awkit-6be` step 2 is now materially unblocked** in practice, though its bead still points at
+`awkit-7h0w`. The recipe and confirmed numbers (`expectedChecks` 112 / 58) are in `awkit-8z0`; a
+retry now has nine clean baseline runs behind it.
+
+Operational note for future runs: **redirect the full output to a file**. Piping a multi-minute
+verifier through `head` or `grep -m1` can kill it mid-run, and that is how diagnostics were lost
+twice in this work.
+
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **214 total / 204 closed / 10 outstanding**.
+
 ## GUI capsule aborts are now self-describing; root cause still UNKNOWN (2026-08-16)
 
 `awkit-7h0w` asked for the second flake source. **It was not found**, and no reproduction occurred:
