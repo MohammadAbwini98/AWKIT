@@ -51,6 +51,20 @@ const focusedTotal = capsule.results?.length ?? 0;
 const focusedContractMatches = matchesFlowLoopCapsuleCheckContract(capsule.results);
 console.log(`\nFlow capsule checks: ${focusedPassed}/${focusedTotal}`);
 console.log(`Preserved broad checks observed: ${broad.totalChecks}; retired U-route failures: ${broad.retiredFailures.length}; unexpected failures: ${broad.unexpectedFailures.length}`);
+// An ABORTED suite returns fewer results than it has names, which previously printed as an ordinary
+// "12/13" and read like product failures. Say so explicitly and name the check it stopped after, so
+// an intermittent abort is diagnosable from a single run instead of needing someone to be watching.
+// The suite already logs the underlying error; this makes the partial result self-describing. awkit-7h0w.
+if (capsule.error || focusedTotal < FLOW_LOOP_CAPSULE_CHECK_NAMES.length) {
+  const lastRan = capsule.results?.[focusedTotal - 1]?.name ?? "(none)";
+  const reason = capsule.error ?? "(suite returned no error; it stopped without throwing)";
+  console.error(
+    `Flow capsule suite ABORTED after ${focusedTotal}/${FLOW_LOOP_CAPSULE_CHECK_NAMES.length} checks. ` +
+      `Last check to run: "${lastRan}". Checks ${focusedTotal + 1}-${FLOW_LOOP_CAPSULE_CHECK_NAMES.length} never executed. ` +
+      `Reason: ${reason}`
+  );
+}
+
 if (!focusedContractMatches) {
   console.error(`Flow capsule check contract mismatch: expected exactly ${FLOW_LOOP_CAPSULE_CHECK_NAMES.length} unique named checks in canonical order.`);
 }

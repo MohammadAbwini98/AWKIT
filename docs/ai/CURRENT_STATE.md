@@ -1,5 +1,35 @@
 # CURRENT_STATE
 
+## GUI capsule aborts are now self-describing; root cause still UNKNOWN (2026-08-16)
+
+`awkit-7h0w` asked for the second flake source. **It was not found**, and no reproduction occurred:
+three clean runs since the cleanup fix (Workflow 17/17 ×3, Flow 16/16 ×2). What changed is that the
+next partial run will explain itself instead of needing someone watching.
+
+The bead's lead was right and pointed at my own mistake: the focused suite already logged its abort
+reason, and I had lost it twice to over-filtered greps. But the wrappers ignored `capsule.error`
+entirely, so a partial run printed as an ordinary `12/13` and read like product failures. Both now
+emit:
+
+```text
+<Designer> capsule suite ABORTED after N/M checks. Last check to run: "<name>".
+Checks N+1-M never executed. Reason: <error>
+```
+
+**Proven non-vacuous** with a forced-abort probe: `ABORTED after 1/17 checks. Last check to run:
+"Workflow Loop default renders the appr…" Reason: forced abort probe`. The probe was reverted; the
+message stays silent on a clean run.
+
+Filed `awkit-jcia` (P1) for the actual capture: run until a partial result appears and read the
+self-describing line. Its first instruction is to redirect the full run to a file and **not** grep it
+down to a summary regex — the mistake that cost this investigation twice.
+
+`awkit-7h0w` stays open. `awkit-6be` step 2 remains blocked on it, with the recipe and confirmed
+numbers (112 / 58) preserved in `awkit-8z0`.
+
+`verify:workflow-builder` 17/17, 0 unexpected; `verify:roadmap-dashboard` 158/158. Ledger unchanged
+at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **214 total / 203 closed / 11 outstanding**.
+
 ## GUI harness cleanup EPERM fixed — but the flake is NOT fully resolved (2026-08-16)
 
 One real defect behind `awkit-2js` is found and fixed. **The flake itself is not closed**, because
