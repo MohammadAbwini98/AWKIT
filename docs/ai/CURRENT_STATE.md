@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## The polling fix did NOT resolve the capsule flake (2026-08-16)
+
+Soak-tested `awkit-r9f3` as planned. **It reproduced on the fourth run, after the fix**, with the
+identical signature:
+
+```text
+Workflow capsule suite ABORTED after 13/17 checks.
+Last check to run: "Workflow save preserves Loop configuration, authored style,
+and exactly one promoted Conditional exit". Checks 14-17 never executed.
+Reason: page.waitForFunction: Timeout 30000ms exceeded.
+```
+
+Soak record after the fix: Flow **16/16 ×2**, Workflow **17/17 ×1**, Workflow **ABORT ×1**.
+
+**So requestAnimationFrame polling was not the cause.** The predicate is being evaluated on a 100ms
+interval and simply never becomes true — a 30s timeout cannot distinguish "slow" from "false
+forever", which is what made this look like a timing flake for so long.
+
+The evidence does narrow it further, though. Checks 14-17 never run, so the timeout is in check 14's
+setup, which goes through `reopenWorkflowFixture()`: a full `win.reload({waitUntil:
+"domcontentloaded"})`, then a conditional re-sign-in, then `setViewportSize`, then re-selecting the
+workflow. A wait issued after that reload hangs indefinitely if the fixture was not re-selected (the
+wrong workflow left in `WF_SELECT`) or the preload bridge is not yet available — the condition is
+then false forever, not merely late. Filed as `awkit-be5o` (P1) with the next step: assert the
+workflow selection and `window.playwrightFlowStudio` availability **before** the wait, so a
+never-true predicate fails fast and truthfully instead of timing out.
+
+**The polling change is kept but credited with nothing.** It is behaviour-preserving and removes a
+real fragility (a non-visual predicate should not depend on compositing), but it demonstrably does
+not fix this. `awkit-r9f3` stays open.
+
+Step 2 remains reverted; it must not be retried while the suite it depends on is still
+non-deterministic. Recipe and numbers (112 / 58) stay in `awkit-8z0`.
+
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **216 total / 204 closed / 12 outstanding**.
+
 ## Capsule-suite waits moved off requestAnimationFrame polling (2026-08-16)
 
 `awkit-r9f3`. Every `waitForFunction` in both capsule suites now polls on a **100ms interval**
