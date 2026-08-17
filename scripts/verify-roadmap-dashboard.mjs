@@ -229,9 +229,18 @@ try {
   // audit) likewise: total 195 to 196, closed 191 to 192, outstanding still four. `awkit-mtt`
   // (protected paths close the no-lease gap): total 196 to 197, closed 192 to 193, still four.
   // `awkit-6ab` (watched gitignored paths): total 197 to 198, closed 193 to 194, still four.
+  // The Recorder hardening brief (interaction capture, multi-tab, navigation/URL tracking,
+  // validation) then filed 19 issues and closed 15 of them: total 198 to 217, closed 194 to 209,
+  // outstanding four to eight. `outstanding` is every non-closed status, not just `open` — the eight
+  // are four `blocked` (the pre-existing owner-gated `awkit-7bu`/`az7`/`cey`/`cm8`) plus four `open`
+  // (`awkit-a53k` suspected Workflow self-loop render bug, `awkit-6be` retired U-route intent,
+  // `awkit-8z0` its step-2 retry, `awkit-9qj` the Recorder navigation lab). `bd stats` prints
+  // "Open 4" for the same tracker; that counts only `open`, so do not pin against it.
+  // Four of those closures were the flake-chain consolidation (`awkit-2js`, `awkit-7h0w`,
+  // `awkit-be5o`, `awkit-r9f3` superseded by `awkit-a53k`); the fifteenth was `awkit-ty4`.
   check(
-    "13 outstanding / 204 closed",
-    beads.stats.outstanding === 13 && beads.stats.closed === 204,
+    "8 outstanding / 209 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 209,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

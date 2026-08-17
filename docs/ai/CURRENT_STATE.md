@@ -1,5 +1,44 @@
 # CURRENT_STATE
 
+## One flake bead, and the fill echo done properly (2026-08-17)
+
+Two clean-ups, both prompted by the fair question of why Recorder issues kept opening.
+
+**The flake chain is consolidated.** One investigation had produced five P1 beads, which is tracker
+damage, not diligence — the count implied five defects where there was one. `awkit-2js`,
+`awkit-7h0w`, `awkit-be5o` and `awkit-r9f3` are closed as **superseded by `awkit-a53k`**, which
+holds the single real question: does the persisted Workflow self-loop edge fail to render after
+reopening. Nine outstanding went to five, five P1s to one. Nothing was closed as fixed that is not
+fixed; each closure names its successor.
+
+**`awkit-ty4` is fixed, not shortcut.** The fill echo is now suppressed by a *value-preserving
+actions* rule in `src/recorder/RecorderService.ts`: a repeat `fill` on the same stable target with an
+identical `valueSource` is dropped only when every action recorded since the earlier fill is
+incapable of changing the field — `hover`, or a `press` of a navigation/selection key (`Tab`,
+`Shift+Tab`, arrows, `Home`/`End`, `PageUp`/`PageDown`). Anything else — a click, `Backspace`, any
+printable key — means the field may genuinely have been re-entered, so the second fill is kept.
+
+That distinction is the whole fix, and it is mutation-proven. Collapsing the rule to the naive
+value-only form (`if (sameValue)`) fails exactly the two cases that caused the original deferral:
+
+```text
+FAIL a re-fill after a Clear CLICK is kept (not an echo)
+FAIL a re-fill after Backspace is kept (the key could have edited the field)
+```
+
+`scripts/verify-recorder-navigation.mts` carries a 6-case matrix for it and is now **32/32**.
+Note for future edits there: `findLastIndex` is unavailable at this lib target, so the reverse scan
+is an explicit loop; and a `WeakSet` keyed by page rejects a string, which is a harness bug, not a
+product one.
+
+Regression this round: `verify:recorder-navigation` **32/32**, `verify:recorder` **217/217**,
+`verify:recorder-actions` **20/20**, `npm run build` clean, `verify:roadmap-dashboard` **158/158**.
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **217 total / 209 closed / 8 outstanding** (4 open, 4 owner-gated `blocked`).
+
+Still open and unchanged by this round: `awkit-a53k` (P1, the suspected product bug), `awkit-6be`
+(P2), `awkit-8z0` (P2, the step-2 retry recipe, still reverted), `awkit-9qj` (P3).
+
 ## The "flake" is a SUSPECTED PRODUCT BUG, captured not inferred (2026-08-16)
 
 `awkit-be5o` is fixed: three waits in the Workflow capsule suite are now bounded and

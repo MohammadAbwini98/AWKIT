@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-17 - Claude - Consolidate the flake bead chain and fix the fill echo (awkit-ty4)
+
+- **Task:** Two things the owner asked for after questioning why Recorder issues kept opening:
+  consolidate the duplicated flake beads, and fix `awkit-ty4` properly rather than with the risky
+  value-only shortcut that caused it to be deferred.
+- **Consolidation:** closed `awkit-2js`, `awkit-7h0w`, `awkit-be5o` and `awkit-r9f3` as **superseded
+  by `awkit-a53k`**. One investigation had produced five P1 beads for one suspected defect, which
+  overstates the defect count. Outstanding 9 -> 5, P1s 5 -> 1. Nothing was closed as fixed that is
+  not fixed; each closure names its successor.
+- **awkit-ty4 implementation:** a *value-preserving actions* rule in `src/recorder/RecorderService.ts`.
+  A repeat `fill` on the same stable target with an identical `valueSource` is dropped only when every
+  action recorded since the earlier fill cannot change the field - `hover`, or a `press` of a
+  navigation/selection key (`Tab`, `Shift+Tab`, arrows, `Home`/`End`, `PageUp`/`PageDown`). A click,
+  `Backspace`, or any printable key means the field may genuinely have been re-entered, so the second
+  fill is kept.
+- **Mutation evidence:** collapsing the rule to the naive `if (sameValue)` form fails exactly the two
+  cases that caused the original deferral - "a re-fill after a Clear CLICK is kept (not an echo)" and
+  "a re-fill after Backspace is kept (the key could have edited the field)". Restoring the rule
+  returns green.
+- **Gotchas recorded:** `findLastIndex` is unavailable at this lib target (TS2550), so the reverse
+  scan is an explicit loop; a `WeakSet` keyed by page rejects a string, which was a harness bug of
+  mine, not a product one.
+- **Tests run:** `verify:recorder-navigation` **32/32** (6 new echo cases), `verify:recorder`
+  **217/217**, `verify:recorder-actions` **20/20**, `npm run build` clean,
+  `verify:roadmap-dashboard` **158/158**, `check-memory` PASS.
+- **Files:** `src/recorder/RecorderService.ts`, `scripts/verify-recorder-navigation.mts`,
+  `scripts/verify-roadmap-dashboard.mjs` (baseline moved to 8 outstanding / 209 closed - the parser
+  counts every non-closed status, so it is 4 `open` + 4 owner-gated `blocked`, not `bd stats`' "Open 4"),
+  `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
+- **Result:** tracker at **217 total / 209 closed / 8 outstanding**. Still open: `awkit-a53k` (P1,
+  the suspected Workflow self-loop render bug), `awkit-6be` (P2), `awkit-8z0` (P2, step 2 still
+  reverted), `awkit-9qj` (P3). Ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-16 - Claude - Audit the retired U-route assertions; deletion BLOCKED by a real gap
 
 - **Task:** Fix the 31 retired U-route assertions (16 Flow + 15 Workflow) that run, fail, and are
