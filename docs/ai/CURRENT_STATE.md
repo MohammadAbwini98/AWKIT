@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## The "flake" is a SUSPECTED PRODUCT BUG, captured not inferred (2026-08-16)
+
+`awkit-be5o` is fixed: three waits in the Workflow capsule suite are now bounded and
+self-describing. The very next failing run explained itself, and the answer reframes the whole
+investigation.
+
+```text
+Loop indicator never appeared within 12000ms. Actual:
+{"selectedWorkflow":"verify-workflow-loop-capsule","loopEdgePresent":false,
+ "canvasNodes":5,"onLoginCard":false}
+```
+
+Read that carefully. The fixture reloaded **correctly** — right workflow selected, not stranded on
+the login card, canvas rendered. What is missing is the **self-loop edge itself**. And the
+immediately preceding `waitForPersistedMaxIterations(win, 13)` **succeeded**, so `maxIterations=13`
+was genuinely written to disk before the reload.
+
+So the loop edge exists in the saved workflow and intermittently **does not render** after reopening
+it. Filed as `awkit-a53k` (P1). If that reproduces outside the verifier it is a **user-facing
+defect**: save a Workflow loop, reopen the workflow, and the loop is missing from the canvas while
+still present in the JSON.
+
+This is why the bead insisted on making never-true predicates fail fast. Three separate
+investigations — including two of my own confident explanations, rAF polling and orphaned processes —
+treated a **logic** problem as a **timing** one, because a 30s timeout cannot distinguish "slow" from
+"false forever". Bounded waits with state dumps produced the answer on the first failing run.
+
+`awkit-r9f3` stays open but is now downstream of `awkit-a53k`. The next step is recorded on the
+bead: after a failing reload, dump the loaded workflow profile from the renderer alongside the
+rendered edge count, to establish whether the edge is missing from the loaded model or
+present-but-unrendered. **Do not assume a harness issue — the diagnostics now exonerate the fixture
+restore.**
+
+Step 2 stays reverted; it must not ship on top of a suite whose failures may be a real product
+defect. Recipe and numbers (112 / 58) remain in `awkit-8z0`.
+
+Soak record this round: Workflow **17/17 ×5**, **abort ×3** across three rounds.
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **217 total / 204 closed / 13 outstanding**.
+
 ## The polling fix did NOT resolve the capsule flake (2026-08-16)
 
 Soak-tested `awkit-r9f3` as planned. **It reproduced on the fourth run, after the fix**, with the

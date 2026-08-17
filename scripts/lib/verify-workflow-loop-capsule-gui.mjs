@@ -96,16 +96,67 @@ async function clickNodeMenuItem(win, nodeId, label) {
   await item.click();
 }
 
-async function waitForLoop(win, nodeId, present = true) {
-  await win.waitForFunction(({ id, expected }) => Boolean(document.querySelector(
-    `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator`
-  )) === expected, { id: nodeId, expected: present }, { polling: 100 });
+/** Bounded and self-describing for the same reason as `waitForValue` — see awkit-be5o. */
+async function waitForLoop(win, nodeId, present = true, { timeout = 12_000 } = {}) {
+  try {
+    await win.waitForFunction(({ id, expected }) => Boolean(document.querySelector(
+      `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator`
+    )) === expected, { id: nodeId, expected: present }, { polling: 100, timeout });
+  } catch {
+    const state = await win.evaluate((id) => {
+      const select = document.querySelector('label.sb-toolbar-field select');
+      return {
+        selectedWorkflow: select instanceof HTMLSelectElement ? select.value : "(no select found)",
+        loopEdgePresent: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`)),
+        canvasNodes: document.querySelectorAll(".awkit-flow-node").length,
+        onLoginCard: Boolean(document.querySelector(".awkit-login-card"))
+      };
+    }, nodeId).catch((error) => ({ readFailed: String(error) }));
+
+    throw new Error(
+      `Loop indicator ${present ? "never appeared" : "never disappeared"} within ${timeout}ms. ` +
+        `Actual: ${JSON.stringify(state)}. A selectedWorkflow other than "verify-workflow-loop-capsule", ` +
+        `canvasNodes=0, or onLoginCard=true all mean the fixture did not come back after reload - ` +
+        `a never-true condition, not slowness.`
+    );
+  }
 }
 
-async function waitForValue(win, nodeId, value) {
-  await win.waitForFunction(({ id, expected }) => (document.querySelector(
-    `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
-  )?.textContent ?? "").trim() === expected, { id: nodeId, expected: String(value) }, { polling: 100 });
+/**
+ * Same fail-fast-and-explain treatment as `waitForPersistedMaxIterations`, for the DOM side.
+ *
+ * This is the wait that actually hangs (awkit-be5o): it runs right after `reopenWorkflowFixture()`
+ * reloads the window, and if the fixture came back with the wrong workflow selected — or the loop
+ * edge did not re-render — the indicator never appears and the default 30s timeout reports only
+ * `page.waitForFunction: Timeout 30000ms exceeded`, which says nothing about which of those it was.
+ * On expiry we read back the selected workflow, whether the loop edge exists, and the value actually
+ * rendered, so the next failure names its own cause.
+ */
+async function waitForValue(win, nodeId, value, { timeout = 12_000 } = {}) {
+  try {
+    await win.waitForFunction(({ id, expected }) => (document.querySelector(
+      `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
+    )?.textContent ?? "").trim() === expected, { id: nodeId, expected: String(value) }, { polling: 100, timeout });
+  } catch {
+    const state = await win.evaluate((id) => {
+      const select = document.querySelector('label.sb-toolbar-field select');
+      const edge = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
+      return {
+        selectedWorkflow: select instanceof HTMLSelectElement ? select.value : "(no select found)",
+        loopEdgePresent: Boolean(edge),
+        indicatorPresent: Boolean(edge?.querySelector(".awkit-loop-indicator")),
+        renderedValue: (edge?.querySelector(".awkit-loop-indicator-value")?.textContent ?? "").trim() || null,
+        canvasNodes: document.querySelectorAll(".awkit-flow-node").length
+      };
+    }, nodeId).catch((error) => ({ readFailed: String(error) }));
+
+    throw new Error(
+      `Loop indicator never showed value ${value} within ${timeout}ms after reload. Actual: ` +
+        `${JSON.stringify(state)}. selectedWorkflow other than "verify-workflow-loop-capsule" means ` +
+        `reopenWorkflowFixture restored the wrong fixture; loopEdgePresent=false means the loop edge ` +
+        `did not re-render at all. Neither is slowness, so waiting longer cannot help.`
+    );
+  }
 }
 
 async function fitAndStabilize(win, nodeIds) {
@@ -176,6 +227,50 @@ async function reopenWorkflowFixture(win) {
   }
   await win.locator(WF_SELECT).waitFor({ state: "visible" });
   await win.selectOption(WF_SELECT, "verify-workflow-loop-capsule");
+}
+
+/**
+ * Wait for a Save to actually reach the persisted workflow, and say what went wrong when it does not.
+ *
+ * A bare `waitForFunction(... maxIterations === n)` after clicking Save cannot tell "the save is
+ * slow" from "the save never happened" — both present as `Timeout 30000ms exceeded`. That
+ * indistinguishability is what made this read as a timing flake across several investigations
+ * (awkit-be5o): if the Save click is swallowed — a toast or the properties panel intercepting it —
+ * the persisted value stays at its previous number FOREVER, and no amount of waiting or faster
+ * polling changes that.
+ *
+ * So the timeout is short, and on expiry the ACTUAL persisted state is read back and reported. A
+ * never-true predicate now fails in seconds naming the value it found, instead of burning 30s and
+ * looking like flakiness.
+ */
+async function waitForPersistedMaxIterations(win, expected, { timeout = 10_000 } = {}) {
+  try {
+    await win.waitForFunction(
+      async (want) => {
+        const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
+        return profile?.edges.some(
+          (edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === want
+        );
+      },
+      expected,
+      { polling: 100, timeout }
+    );
+  } catch (error) {
+    const actual = await win.evaluate(async () => {
+      const bridge = window.playwrightFlowStudio;
+      if (!bridge?.workflows?.get) return { bridge: false };
+      const profile = await bridge.workflows.get("verify-workflow-loop-capsule");
+      const edge = profile?.edges.find((e) => e.source === "workflow-node-1" && e.target === "workflow-node-1");
+      return { bridge: true, found: Boolean(profile), maxIterations: edge?.loop?.maxIterations ?? null };
+    }).catch((readError) => ({ readFailed: String(readError) }));
+
+    throw new Error(
+      `Save did not persist maxIterations=${expected} within ${timeout}ms. Actual persisted state: ` +
+        `${JSON.stringify(actual)}. If maxIterations is still the previous value the Save click was ` +
+        `swallowed (toast or properties panel intercepting) rather than being slow; if bridge=false ` +
+        `the preload API was unavailable after a reload.`
+    );
+  }
 }
 
 async function readPersistedWorkflowLoop(win, nodeId) {
@@ -478,10 +573,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     // With a non-compositing window it is never re-evaluated and times out at 30s despite the save
     // having landed. That is awkit-r9f3, captured on the Flow suite at the identically-named
     // "save preserves Loop configuration" check. The assertion itself is unchanged.
-    await win.waitForFunction(async () => {
-      const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
-      return profile?.edges.some((edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === 12);
-    }, undefined, { polling: 100 });
+    await waitForPersistedMaxIterations(win, 12);
     const persisted = await readPersistedWorkflowLoop(win, nodeId);
     check(
       "Workflow save preserves Loop configuration, authored style, and exactly one promoted Conditional exit",
@@ -531,10 +623,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     }
     const configurationRedoExact = await reloadedMaxIterations.inputValue() === "13";
     await win.getByRole("button", { name: "Save", exact: true }).click();
-    await win.waitForFunction(async () => {
-      const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
-      return profile?.edges.some((edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === 13);
-    }, undefined, { polling: 100 });
+    await waitForPersistedMaxIterations(win, 13);
     const secondPersisted = await readPersistedWorkflowLoop(win, nodeId);
 
     await reopenWorkflowFixture(win);
