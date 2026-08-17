@@ -301,6 +301,55 @@ async function main(): Promise<void> {
       typed.map((a) => a.type).join(", ")
     );
 
+    /* ── The change/blur echo is dropped, but a real re-entry is not (awkit-ty4) ───────────────
+       Typing then leaving a field records the value twice: the browser's change event replays a
+       value already captured, and coalescing cannot absorb it because the Tab sits between.
+
+       The naive rule — drop any fill whose value matches the last fill on that target — is wrong,
+       which is why this defect was deferred twice rather than patched. `fill A / click Clear /
+       fill A` is a REAL sequence and dropping the second breaks replay on any form with a reset
+       control. The rule that works asks what happened IN BETWEEN: only focus/pointer moves that
+       cannot mutate a value (navigation keys, hover) permit the drop.
+
+       Cases B and C are the ones that matter. If a future "simplification" collapses this to a
+       value comparison, they fail. */
+    {
+      const echoSvc = new RecorderService() as unknown as {
+        isRecording: boolean;
+        actions: { type: string }[];
+        lastActionPage: unknown;
+        recordActionFromPage(page: unknown, action: unknown): void;
+      };
+      const fakePage = { id: "echo-probe" };
+      const loc = (name: string) => ({ strategy: "role", value: "textbox", name });
+      const fill = (name: string, value: string) => ({
+        type: "fill", name: `Fill ${name}`, locator: loc(name), valueSource: { type: "static", value }
+      });
+      const press = (key: string) => ({ type: "press", name: `Press ${key}`, valueSource: { type: "static", value: key } });
+      const click = (name: string) => ({ type: "click", name: `Click ${name}`, locator: loc(name) });
+
+      const run = (sequence: unknown[]): number => {
+        echoSvc.isRecording = true;
+        echoSvc.actions = [];
+        echoSvc.lastActionPage = fakePage;
+        for (const step of sequence) echoSvc.recordActionFromPage(fakePage, step);
+        return echoSvc.actions.length;
+      };
+
+      check("the change/blur echo after Tab is dropped",
+        run([fill("Username", "alice"), press("Tab"), fill("Username", "alice")]) === 2);
+      check("a re-fill after a Clear CLICK is kept (not an echo)",
+        run([fill("Username", "alice"), click("Clear"), fill("Username", "alice")]) === 3);
+      check("a re-fill after Backspace is kept (the key could have edited the field)",
+        run([fill("Username", "alice"), press("Backspace"), fill("Username", "alice")]) === 3);
+      check("a different value after Tab is kept",
+        run([fill("Username", "alice"), press("Tab"), fill("Username", "bob")]) === 3);
+      check("consecutive typing still coalesces to one fill",
+        run([fill("U", "a"), fill("U", "al"), fill("U", "ali"), fill("U", "alice")]) === 1);
+      check("an identical value on a DIFFERENT field is kept",
+        run([fill("Username", "alice"), press("Tab"), fill("Password", "alice")]) === 3);
+    }
+
     await causalContext.close();
   } finally {
     await browser.close();

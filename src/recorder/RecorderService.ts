@@ -1464,6 +1464,57 @@ export class RecorderService {
         context: right.context
       });
     };
+    /**
+     * Drop the change/blur echo a field emits when focus leaves it.
+     *
+     * Typing "alice" then Tab records: fill Username="alice", press Tab, fill Username="alice". The
+     * trailing fill is the browser's change event replaying a value already captured, and the
+     * coalescing below cannot absorb it because the Tab sits between them.
+     *
+     * The tempting rule — "drop any fill whose value matches the last fill on that target" — is
+     * WRONG, and that is why this was deferred rather than patched. It would silently discard a
+     * legitimate re-entry: fill A, click Clear, fill A again is a real sequence, and dropping the
+     * second breaks replay against any form with a reset control.
+     *
+     * So the question is not whether the values match, it is whether anything IN BETWEEN could have
+     * changed the field. Only actions that move focus or the pointer without mutating a value
+     * qualify: navigation keypresses and hovers. A click, a Backspace/Delete/Escape, another fill —
+     * anything that might have altered the control — makes the later fill meaningful and it is kept.
+     */
+    const VALUE_PRESERVING_KEYS = new Set([
+      "Tab", "Shift+Tab",
+      "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+      "Home", "End", "PageUp", "PageDown"
+    ]);
+    const cannotChangeFieldValue = (candidate: RecordedAction): boolean => {
+      if (candidate.type === "hover") return true;
+      if (candidate.type !== "press") return false;
+      const key = typeof candidate.valueSource?.value === "string" ? candidate.valueSource.value : "";
+      return VALUE_PRESERVING_KEYS.has(key);
+    };
+
+    if (action.type === "fill" && sourcePage === this.lastActionPage) {
+      // Explicit reverse scan: `findLastIndex` needs an es2023 lib target this project does not set.
+      let previousFillIndex = -1;
+      for (let i = this.actions.length - 1; i >= 0; i -= 1) {
+        const candidate = this.actions[i] as RecordedAction;
+        if (candidate.type === "fill" && sameStableTarget(candidate.locator, action.locator)) {
+          previousFillIndex = i;
+          break;
+        }
+      }
+      if (previousFillIndex !== -1 && previousFillIndex !== this.actions.length - 1) {
+        const previousFill = this.actions[previousFillIndex] as RecordedAction;
+        const between = this.actions.slice(previousFillIndex + 1);
+        const sameValue =
+          JSON.stringify(previousFill.valueSource ?? null) === JSON.stringify(action.valueSource ?? null);
+        if (sameValue && between.every(cannotChangeFieldValue)) {
+          this.scheduleDraftPersist();
+          return; // echo of a value already recorded; nothing between it could have changed the field
+        }
+      }
+    }
+
     if (
       action.type === "fill" &&
       last &&
