@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("218 issues parse", beads.stats.total === 218, `got ${beads.stats.total}`);
+  check("219 issues parse", beads.stats.total === 219, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -246,8 +246,11 @@ try {
   // (31 retired U-route assertions deleted, both allow-lists emptied, expectedChecks 112/58).
   // Then 5/213 of 218 on 2026-08-18: awkit-v35n closed (the capsule suites now fail on the app's own
   // save-error toast instead of waiting out a timeout).
-    "5 outstanding / 213 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 213,
+  // Then 5/214 of 219 on 2026-08-18: awkit-9qj closed (Recorder navigation lab + regression matrix)
+  // and awkit-gc0g filed for a pre-existing stale assertion the matrix run surfaced - one in, one
+  // out, so outstanding held while total and closed each rose by one.
+    "5 outstanding / 214 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 214,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

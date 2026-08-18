@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Recorder navigation lab and regression matrix (awkit-9qj)
+
+- **Task:** the formalisation remainder carved out of `awkit-n7n` - a mock-site navigation lab and
+  the regression matrix.
+- **Not just bookkeeping.** Every transition was previously driven from the test, which cannot fake a
+  link click, a form submit, or a server redirect - and an evaluate-injected `pushState` is a call the
+  test makes, not one a real router makes, so a mis-installed `history` wrap would pass regardless.
+- **Added:** `mock-site/public/navigation-lab.html` + `navigation-lab-arrived.html`, and routes
+  `/navigation-lab`, `/navigation-lab/arrived`, `/navigation-lab/redirect` (fixed 302, hardcoded
+  destination so it can never be an open redirect), `/navigation-lab/route*` (served by the lab so a
+  post-`pushState` reload lands on the same URL instead of a 404).
+- **Tests run:** `verify:recorder-navigation` 32 -> **45/45**; `verify:mock-site` 145 -> **161/161**;
+  `verify:popup` 12/12; `verify:popup-identity` 44/44; `verify:popup-mock-site` 15/15;
+  `verify:frame-chain` 31/31; `verify:recorder-competitive` **49/50** (pre-existing, unrelated);
+  `npm run build` clean; `ai:memory` PASS.
+- **Mutation-tested:** stripping the query string in `RecorderService.captureUrl` fails 14 checks, six
+  of them the new lab ones.
+- **Self-corrections:** an exact-set assertion replaced a wrong count (7 destinations, not 6); and the
+  first mutation silently did not apply (CRLF anchor mismatch), so the clean run after it proved
+  nothing - verify a mutation applied before trusting the run that follows.
+- **Filed `awkit-gc0g`:** the one failing competitive check encodes the pre-`awkit-65g` positional
+  expectation; the instruction is to re-express the assertion, not to change working product code.
+- **Files:** `mock-site/public/navigation-lab{,-arrived}.html`, `mock-site/server.mjs`,
+  `mock-site/README.md`, `scripts/verify-mock-site.mjs`, `scripts/verify-recorder-navigation.mts`,
+  `docs/testing/RECORDER_NAVIGATION_MATRIX.md`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-9qj` closed. Tracker 219 total / 214 closed / 5 outstanding.
+
+---
+
 ## 2026-08-18 - Claude - Fail the capsule suites on a save-error toast (awkit-v35n)
 
 - **Task:** fix the gap the EPERM investigation exposed - the app raised a visible save error and

@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## Recorder navigation lab: transitions a test cannot fake (2026-08-18)
+
+`awkit-9qj` closed. It was filed as bookkeeping and turned out to add real coverage.
+
+Every navigation transition was previously driven **from the test** - `page.goto`, `page.goBack()`,
+`page.evaluate(() => history.pushState(...))`. That exercises each *kind* of transition but not the
+way an application produces it: an evaluate-injected `pushState` is a call the test makes, whereas a
+real router calls the `history` method the page itself holds. A wrap installed too late, or into the
+wrong world, would pass every existing check and miss every real app. Three transitions could not be
+faked at all - a link click, a form submit, and a server redirect.
+
+`/navigation-lab` supplies all of them with real gestures. `verify:recorder-navigation` **32 -> 45**,
+`verify:mock-site` **145 -> 161**. The redirect rows carry the property a naive implementation gets
+wrong: the final destination is recorded and the **intermediate hop is not**, because it is not
+somewhere a user can be sent back to.
+
+Mutation-tested: stripping the query string in `RecorderService.captureUrl` fails **14 checks**, six
+of them the new lab ones.
+
+**Two self-corrections worth keeping.** The first cardinality check asserted 6 destinations when the
+true set is 7 - my count was wrong, not the recorder, so it became an exact-set assertion. And the
+first mutation attempt was a silent no-op: the source is CRLF, the anchor never matched, and the
+clean run that followed was an *unmutated* run that could easily have been read as "the guard did not
+catch it". **Verify that a mutation actually applied before trusting the run that follows it.**
+
+`docs/testing/RECORDER_NAVIGATION_MATRIX.md` maps **36 rows** to their owning verifiers - reported as
+36 rather than the estimated 34 because the lab split three rows the brief stated as one. Every cited
+verifier was run, not assumed: navigation 45/45, mock-site 161/161, popup 12/12, popup-identity
+44/44, popup-mock-site 15/15, frame-chain 31/31, recorder-competitive **49/50**. One ownership claim
+was wrong and corrected (D6 belongs to `verify:recorder-competitive` section I).
+
+The 49/50 is pre-existing and unrelated - that verifier has no mock-site references and builds its
+own inline fixtures. Its failing check encodes the positional expectation from before `awkit-65g`,
+where a positional last-resort is now `resolved` by owner directive. Filed as `awkit-gc0g` with the
+explicit instruction **not** to change the product to satisfy a stale assertion.
+
+Tracker: **219 total / 214 closed / 5 outstanding** (1 open, 4 owner-gated `blocked`).
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. `npm run build` clean.
+
+
 ## The suites now fail on the app's own error, not on a timeout (2026-08-18)
 
 `awkit-v35n` closed, which was the residual gap the EPERM investigation exposed: the app *reported*
