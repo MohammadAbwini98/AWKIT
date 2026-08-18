@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("219 issues parse", beads.stats.total === 219, `got ${beads.stats.total}`);
+  check("224 issues parse", beads.stats.total === 224, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -252,8 +252,11 @@ try {
   // Then 4/215 of 219 on 2026-08-18: awkit-gc0g closed (the stale positional drop-target assertion was
   // re-expressed, not deleted, and no product code changed). All four remaining are owner-gated and
   // externally blocked - byStatus is now exactly {closed: 215, blocked: 4}, with nothing open.
-    "4 outstanding / 215 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 215,
+  // Then 8/215 of 223 on 2026-08-18 when the full 181-verifier suite run filed five findings, then
+  // 4/216 of 224 as awkit-8yp6 closed (recorder-e2e metadata parity) — the total also rose by one for
+  // the reports-populated follow-up. Four remain outstanding.
+    "8 outstanding / 216 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 216,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

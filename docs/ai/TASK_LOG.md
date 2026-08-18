@@ -4,6 +4,38 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Full 181-verifier suite run, and fix recorder-e2e metadata parity (awkit-8yp6)
+
+- **Task:** run the full verification suite, report it, then fix the recorder-e2e metadata failure.
+- **Suite:** **181 verifiers, 170 PASS / 11 FAIL / 0 timeouts, 43 min.** No aggregate runner exists;
+  built one from `scripts/lib/verifier-classification.ts`, cross-checked both ways. Five of the 11 are
+  BLOCKED not FAILED (stale `dist/`, missing signed license, missing Java runtime) and are counted as
+  neither passes nor failures.
+- **Mine, fixed:** `verify:source-hygiene` — two U+000B characters in CURRENT_STATE.md from a `\\v`
+  escape in a Windows path inside a JS string. Rewritten with forward slashes.
+- **awkit-8yp6 root cause (NOT this session's regression, and my bead said otherwise — corrected):**
+  the verifier compared a pre-hash captured action against a post-hash saved step. Identity
+  fingerprints are hashed before persisting by design (hashing 2026-08-08 `ddd9c84`; comparison last
+  reconciled 2026-08-01 `57dfad2`).
+- **Fix, three parts:** compare the fingerprint THROUGH the hash transformation; make "metadata
+  survives" a subset comparison since the finalizer legitimately adds `captureEvidence.pageKey`; treat
+  `blueprintCapture` as a consumed input and assert its consumption separately. Both new checks are
+  cardinality-guarded.
+- **Mutation-tested (3 product mutations, rebuild each cycle):** drop recorded prerequisite -> parity
+  fails; stop hashing -> hashed-fingerprint check fails; no page evidence -> only the blueprint check
+  fails. The FIRST attempt was invalid — the E2E runs the BUILT output, so unrebuilt mutations showed
+  as uncaught and would have condemned a working fix.
+- **Also removed** a plaintext-leak check added minutes earlier: it flagged the testId selector, which
+  is supposed to persist.
+- **Tests run:** `verify:recorder-e2e` 58/3 -> **63 PASS / 0 FAIL**; `npm run build` clean;
+  `verify:source-hygiene` 9/9; `verify:roadmap-dashboard` 158/158; `ai:memory` PASS.
+- **Files:** `scripts/verify-recorder-e2e.mjs`, `docs/ai/{CURRENT_STATE,TASK_LOG}.md`,
+  `scripts/verify-roadmap-dashboard.mjs`, `.beads/*`.
+- **Result:** `awkit-8yp6` closed. Tracker 224 total / 216 closed / 8 outstanding (4 open findings
+  from the suite run, 4 owner-gated blocked).
+
+---
+
 ## 2026-08-18 - Claude - Re-express the stale positional drop-target assertion (awkit-gc0g)
 
 - **Task:** fix the one failing check in `verify:recorder-competitive` (49/50), surfaced while

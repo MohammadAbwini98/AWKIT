@@ -1,5 +1,58 @@
 # CURRENT_STATE
 
+## Full suite run, and the recorder-e2e metadata failure resolved (2026-08-18)
+
+Ran every registered verifier — **181 of them, 170 PASS / 11 FAIL / 0 timeouts, 43 minutes**. There
+is no aggregate runner in the repo, so the driver was built from
+`scripts/lib/verifier-classification.ts` and cross-checked both ways (181 registered, none missing
+from `package.json`, none unregistered).
+
+**Of the 11: five are blocked, not failed** — four packaged-application verifiers correctly refuse a
+stale `dist/` (the freshness guard doing its job) or need a signed license, and
+`verify:oracle-drivers-gui` wants a Java runtime this machine has not got. None counts as a pass or
+a failure. Five were filed as findings. One was mine and is fixed below.
+
+**`verify:source-hygiene` was mine, and instructive.** Two literal U+000B characters reached
+`CURRENT_STATE.md` because a patch script wrote the Windows path `'...\\workflows\\verify-...'` inside
+a JS string, where `\\v` is a vertical-tab escape. The document rendered perfectly. Fixed with forward
+slashes; the guard earned its keep.
+
+**`verify:recorder-e2e` is fixed: 58 PASS / 3 FAIL -> 63 PASS / 0 FAIL, and it was NOT this session's
+regression.** My own bead named two of my commits as plausible causes; that was wrong and is
+corrected on the bead. The verifier compared a **pre-hash** captured action against a **post-hash**
+saved step. Identity fingerprints are SHA-256 hashed before persisting by design — `FlowProfile.ts`
+says every token is a hash, never raw page text, so it is safe to persist. Hashing landed 2026-08-08
+(`ddd9c84`); the comparison was last reconciled 2026-08-01 (`57dfad2`). It has been structurally
+unsatisfiable ever since.
+
+Three distinct causes, found by making the failure name its own field rather than by reasoning:
+
+1. **`identity.fingerprint` is hashed on purpose** — now compared *through* that transformation, by
+   reproducing the product algorithm. Equality still fails if one token changes or stops being hashed.
+2. **The finalizer legitimately ADDS fields** (`identity.captureEvidence.pageKey`). "Metadata
+   survives" is a claim about **loss**, so the comparison is now a subset check — strict for every
+   recorded key, silent about enrichment.
+3. **`locator.blueprintCapture` is a consumed INPUT**, not persisted metadata: it becomes
+   `captureEvidence.pageKey` plus one shared `PageBlueprint`. Excluded *and* asserted separately, so
+   the exclusion cannot hide a capture that went nowhere.
+
+**Mutation-tested, and the first attempt was invalid in the dangerous direction.** The E2E launches
+Electron against the **built** output, so mutating `src/**` without rebuilding reported all three
+mutations as uncaught — which would have condemned a working fix. With a rebuild in each cycle: drop
+a recorded `prerequisite` -> parity fails; stop hashing -> the hashed-fingerprint check fails; stamp
+no page evidence -> only the blueprint-consumption check fails.
+
+Also removed a plaintext-leak check I had added minutes earlier: it flagged `recorder-full-name`,
+which is the testId selector and is *supposed* to persist. A check that fires on correct behaviour
+teaches people to ignore it.
+
+**Still open from the suite run:** `awkit-fbwn` (branding sanity check demands removing the
+license-issuer boundary — re-express, never grant), `awkit-syyd` (protected-login count stale after
+independent-navigation recording), `awkit-1kct` (reports-populated 1 FAIL, unidentified),
+`awkit-zc88` (pre-existing type narrowing in `verify-write-queue.mts`). Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## A stale assertion re-expressed, not deleted (2026-08-18)
 
 `awkit-gc0g` closed. `verify:recorder-competitive` was 49/50; its failing check asserted that an
