@@ -20,6 +20,7 @@
 // Run after `npm run build`:
 //   npm run verify:recorder-e2e
 import { _electron as electron } from "playwright";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
   copyFile,
@@ -125,7 +126,24 @@ function recorderMetadataFromAction(action) {
     ? {
       ...action.locator,
       resolution: action.locator.resolution ?? (action.locator.quality?.isUnique === false ? "needs-review" : "resolved"),
-      resolvedBy: action.locator.resolvedBy ?? "recorder"
+      resolvedBy: action.locator.resolvedBy ?? "recorder",
+      // The finalizer hashes the identity fingerprint before persisting it (privacy contract in
+      // FlowProfile.ts). Compare through that transformation, not around it — see hashFingerprintMirror.
+      identity: action.locator.identity
+        ? {
+          ...action.locator.identity,
+          fingerprint: action.locator.identity.fingerprint
+            ? hashFingerprintMirror(action.locator.identity.fingerprint)
+            : undefined
+        }
+        : undefined,
+      // `blueprintCapture` is a capture-time INPUT that the finalizer consumes, not metadata it is
+      // meant to persist: buildRecordedFlow turns it into identity.captureEvidence.pageKey plus one
+      // shared PageBlueprint record, and deliberately never writes the raw capture onto the step
+      // (never at all for sensitive actions). Persisting it per step would duplicate a whole document
+      // fingerprint on every action. Excluded here and asserted separately by
+      // `blueprintCaptureWasConsumed`, so the exclusion cannot hide a capture that went nowhere.
+      blueprintCapture: undefined
     }
     : undefined;
   return {
@@ -139,6 +157,89 @@ function recorderMetadataFromAction(action) {
     opensPopup: action.opensPopup,
     popupExpectation: action.popupExpectation
   };
+}
+
+/**
+ * Mirror of the finalizer's identity hashing — `hashFingerprint` in src/runner/locatorFingerprint.ts.
+ *
+ * Why this exists, and why comparing raw-to-raw was wrong. Persisted identity fingerprints are
+ * SHA-256 hashed on purpose: FlowProfile.ts states every token is a hash, "never raw page
+ * text/labels/attribute values — so it is safe to persist inside a saved flow". `buildRecordedFlow`
+ * applies that when it materialises a step. This comparison was last reconciled on 2026-08-01 and
+ * the hashing landed on 2026-08-08, so ever since it has compared a PRE-hash captured action against
+ * a POST-hash saved step and reported the privacy transformation as metadata loss.
+ *
+ * The fix is not to skip the field. Skipping it would let a real loss — the fingerprint being dropped
+ * outright — pass unnoticed, which is the whole thing this check exists to prevent. Instead the
+ * expected hashed form is computed here and compared for EQUALITY, so the assertion still fails if a
+ * single token changes, disappears, or stops being hashed.
+ *
+ * Duplicated rather than imported because this verifier is plain `.mjs` and the hashing lives in
+ * TypeScript. The duplication is self-policing: if this mirror and the product ever disagree, this
+ * equality check is what fails.
+ */
+function hashFingerprintMirror(fingerprint) {
+  const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
+  const hashTokens = (value) =>
+    [...new Set(String(value ?? "").split(/\s+/).filter(Boolean).map(hash))].sort().join(" ");
+  return {
+    tag: fingerprint.tag,
+    role: fingerprint.role,
+    name: hashTokens(fingerprint.name),
+    text: hashTokens(fingerprint.text),
+    attributes: Object.fromEntries(Object.entries(fingerprint.attributes ?? {}).map(([k, v]) => [k, hash(v)])),
+    ancestry: (fingerprint.ancestry ?? []).map(hash)
+  };
+}
+
+/**
+ * A recorded `blueprintCapture` must leave its trace in the saved step.
+ *
+ * Excluding it from the "metadata survives" comparison is only honest if the transformation it feeds
+ * is asserted somewhere. The observable in-flow consequence is hashed page-identity evidence:
+ * buildRecordedFlow computes a pageKey from the capture's url/title/frame and stamps it into
+ * `identity.captureEvidence`. If the capture were silently discarded, that key would be absent.
+ */
+function blueprintCaptureWasConsumed(actions, flow) {
+  const steps = flow?.nodes?.slice(1, -1) ?? [];
+  if (steps.length !== actions.length) return `step count ${steps.length} != action count ${actions.length}`;
+  let asserted = 0;
+  for (let index = 0; index < steps.length; index += 1) {
+    if (!actions[index]?.locator?.blueprintCapture) continue;
+    const identity = steps[index]?.locator?.identity;
+    // The finalizer only stamps evidence when the step carries an identity contract at all.
+    if (!identity) continue;
+    asserted += 1;
+    const pageKey = identity.captureEvidence?.pageKey;
+    if (typeof pageKey !== "string" || !/^[0-9a-f]{64}$/.test(pageKey)) {
+      return `step[${index}] recorded a blueprintCapture but the saved step has no hashed ` +
+        `captureEvidence.pageKey (got ${JSON.stringify(pageKey)})`;
+    }
+  }
+  if (asserted === 0) return "no recorded action carried a blueprintCapture, so nothing was proven";
+  return null;
+}
+
+function identityFingerprintsSurviveHashed(actions, flow) {
+  const steps = flow?.nodes?.slice(1, -1) ?? [];
+  if (steps.length !== actions.length) return `step count ${steps.length} != action count ${actions.length}`;
+  let compared = 0;
+  for (let index = 0; index < steps.length; index += 1) {
+    const recorded = actions[index]?.locator?.identity?.fingerprint;
+    if (!recorded) continue;
+    const savedFingerprint = steps[index]?.locator?.identity?.fingerprint;
+    // A dropped fingerprint must never read as "hashed".
+    if (!savedFingerprint) return `step[${index}] lost its identity fingerprint entirely`;
+    compared += 1;
+    const expected = JSON.stringify(hashFingerprintMirror(recorded));
+    const actual = JSON.stringify(savedFingerprint);
+    if (expected !== actual) {
+      return `step[${index}] fingerprint is not the hashed form of what was recorded: expected ${expected.slice(0, 240)} got ${actual.slice(0, 240)}`;
+    }
+  }
+  // Cardinality: "every fingerprint matches" is also true when there are none to check.
+  if (compared === 0) return "no recorded action carried an identity fingerprint, so nothing was proven";
+  return null;
 }
 
 function recorderMetadataFromStep(step) {
@@ -155,13 +256,101 @@ function recorderMetadataFromStep(step) {
   };
 }
 
+/**
+ * Does every field the recorder produced survive into the saved step, unchanged?
+ *
+ * Deliberately a SUBSET comparison, not string equality of the two objects. "Metadata survives the
+ * save" is a claim about LOSS, and the finalizer legitimately ADDS fields a raw captured action never
+ * had — `identity.captureEvidence.pageKey` is one, hashed page-identity evidence computed while
+ * materialising the step. Demanding byte-identical objects made this check fail for enrichment, which
+ * is the opposite of what it is for.
+ *
+ * It stays strict where strictness matters: any key present on the recorded side must exist on the
+ * saved side with an equal value, so a dropped or rewritten field still fails. Fields the finalizer
+ * transforms on purpose are compared THROUGH that transformation instead of around it — see
+ * `hashFingerprintMirror` and the dedicated hashed-fingerprint check.
+ */
 function recorderMetadataMatches(actions, flow) {
   const steps = flow?.nodes?.slice(1, -1) ?? [];
-  return steps.length === actions.length &&
-    steps.every(
-      (step, index) =>
-        JSON.stringify(recorderMetadataFromStep(step)) === JSON.stringify(recorderMetadataFromAction(actions[index]))
-    );
+  if (steps.length !== actions.length) return false;
+  return steps.every(
+    (step, index) =>
+      deepSubsetDifference(recorderMetadataFromAction(actions[index]), recorderMetadataFromStep(step), "") === null
+  );
+}
+
+/** First recorded field that is missing or different on the saved side, or null. */
+function deepSubsetDifference(recorded, saved, path) {
+  const show = (value) => (JSON.stringify(value) ?? "undefined").slice(0, 200);
+  const isPlain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  if (recorded === undefined) return null;
+  if (!isPlain(recorded) || !isPlain(saved)) {
+    return JSON.stringify(recorded) === JSON.stringify(saved)
+      ? null
+      : `${path || "(root)"}: recorded=${show(recorded)} saved=${show(saved)}`;
+  }
+  for (const key of Object.keys(recorded)) {
+    if (recorded[key] === undefined) continue; // JSON.stringify omits these, so they are not metadata
+    const here = path ? `${path}.${key}` : key;
+    if (saved[key] === undefined) return `${here}: LOST — recorded=${show(recorded[key])}, absent from the saved step`;
+    const deeper = deepSubsetDifference(recorded[key], saved[key], here);
+    if (deeper) return deeper;
+  }
+  return null;
+}
+
+/**
+ * Say WHICH step and WHICH field diverged.
+ *
+ * `recorderMetadataMatches` answers only true/false, so a failure reported "metadata did not survive
+ * the save" and nothing else — three checks failing with no way to tell a lost field from a
+ * normalization difference without re-running by hand. The comparison is a JSON string equality over
+ * nine fields; this reports the first field that actually differs.
+ */
+/**
+ * Walk to the first differing LEAF, so the report names a field rather than dumping two objects.
+ *
+ * Reporting the whole `locator` object was useless: both sides begin identically and the divergence
+ * is buried past any sensible truncation. Recursing also distinguishes the two cases that matter —
+ * a value that CHANGED versus a key present on one side only.
+ */
+function firstLeafDifference(recorded, saved, path) {
+  const show = (value) => (JSON.stringify(value) ?? "undefined").slice(0, 200);
+  if (JSON.stringify(recorded) === JSON.stringify(saved)) return null;
+  const isPlain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  if (!isPlain(recorded) || !isPlain(saved)) {
+    return `${path || "(root)"}: recorded=${show(recorded)} saved=${show(saved)}`;
+  }
+  const keys = [...new Set([...Object.keys(recorded), ...Object.keys(saved)])];
+  for (const key of keys) {
+    const here = path ? `${path}.${key}` : key;
+    // Align with JSON semantics: JSON.stringify OMITS undefined-valued keys, so a key that exists
+    // with value undefined on one side only is invisible to the comparison being explained. Reporting
+    // it sent the first read of this failure to a red herring.
+    if (recorded[key] === undefined && saved[key] === undefined) continue;
+    if (recorded[key] === undefined) return `${here}: MISSING from recorded, saved=${show(saved[key])}`;
+    if (saved[key] === undefined) return `${here}: present in recorded=${show(recorded[key])}, MISSING from saved`;
+    const deeper = firstLeafDifference(recorded[key], saved[key], here);
+    if (deeper) return deeper;
+  }
+  // Same keys, same leaves, different JSON string => the order of keys differs.
+  return `${path || "(root)"}: same keys and values but different key ORDER (recorded=${Object.keys(recorded).join(",")} saved=${Object.keys(saved).join(",")})`;
+}
+
+function firstMetadataMismatch(actions, flow) {
+  const steps = flow?.nodes?.slice(1, -1) ?? [];
+  if (steps.length !== actions.length) {
+    return `step count ${steps.length} != action count ${actions.length}`;
+  }
+  for (let index = 0; index < steps.length; index += 1) {
+    const fromStep = recorderMetadataFromStep(steps[index]);
+    const fromAction = recorderMetadataFromAction(actions[index]);
+    const leaf = deepSubsetDifference(fromAction, fromStep, "");
+    if (leaf) {
+      return `step[${index}] (${fromAction.type} "${fromAction.name}") ${leaf}`;
+    }
+  }
+  return "(no leaf difference found — the mismatch is key ORDER, which JSON string equality also catches)";
 }
 
 function businessActionSequence(actions) {
@@ -584,7 +773,17 @@ try {
       savedFlow.edges.length === savedFlow.nodes.length - 1,
     `nodes=${savedFlow.nodes.length} edges=${savedFlow.edges.length}`
   );
-  check("Recorder locator/value/wait metadata survives initial save", recorderMetadataMatches(capturedActions, savedFlow));
+  check("Recorder locator/value/wait metadata survives initial save", recorderMetadataMatches(capturedActions, savedFlow), firstMetadataMismatch(capturedActions, savedFlow));
+  check(
+    "Recorded identity fingerprints are persisted as the HASHED form, not dropped and not raw",
+    identityFingerprintsSurviveHashed(capturedActions, savedFlow) === null,
+    identityFingerprintsSurviveHashed(capturedActions, savedFlow) ?? "ok"
+  );
+  check(
+    "A recorded blueprintCapture is consumed into hashed page-identity evidence, not discarded",
+    blueprintCaptureWasConsumed(capturedActions, savedFlow) === null,
+    blueprintCaptureWasConsumed(capturedActions, savedFlow) ?? "ok"
+  );
   await writeFile(
     path.join(evidenceDir, "recorded-actions-and-flow.json"),
     `${JSON.stringify({ capturedActions, savedFlow }, null, 2)}\n`,
@@ -596,7 +795,7 @@ try {
   const replayWin = await launchMainWindow("restart-and-replay", false);
   const persisted = await replayWin.evaluate((id) => window.playwrightFlowStudio.flows.get(id), savedFlow.id);
   requireCheck("Recorded flow persists across a full Electron restart", Boolean(persisted), savedFlow.id);
-  check("Persisted flow still carries Recorder metadata", recorderMetadataMatches(capturedActions, persisted));
+  check("Persisted flow still carries Recorder metadata", recorderMetadataMatches(capturedActions, persisted), firstMetadataMismatch(capturedActions, persisted));
 
   await navClick(replayWin, "Flows");
   const libraryRow = replayWin.locator(".wl-table tbody tr", { hasText: flowName });
@@ -626,7 +825,7 @@ try {
   await replayWin.getByText(`Flow saved successfully: ${flowName}`, { exact: true }).waitFor({ timeout: 20_000 });
   const afterDesignerSave = await replayWin.evaluate((id) => window.playwrightFlowStudio.flows.get(id), savedFlow.id);
   await replayWin.screenshot({ path: path.join(evidenceDir, "05-designer-saved.png"), fullPage: true });
-  check("Flow Designer no-op save preserves all Recorder-owned metadata", recorderMetadataMatches(capturedActions, afterDesignerSave));
+  check("Flow Designer no-op save preserves all Recorder-owned metadata", recorderMetadataMatches(capturedActions, afterDesignerSave), firstMetadataMismatch(capturedActions, afterDesignerSave));
   check(
     "Flow Designer no-op save preserves node and connector order",
     beforeDesignerSave.nodes.map((node) => node.id).join(",") === afterDesignerSave.nodes.map((node) => node.id).join(",") &&
