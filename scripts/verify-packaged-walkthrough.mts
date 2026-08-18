@@ -48,12 +48,19 @@ import {
   resolveIssuerKey,
   sanitizeAppEnv
 } from "./helpers/packaged-license.mts";
+import {
+  portableExePath as resolvePortableExePath,
+  setupExeName,
+  setupExePath as resolveSetupExePath
+} from "./helpers/packaged-artifacts.mjs";
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
 const exePath = join(unpackedDir, "SpecterStudio.exe");
-const portableExePath = join(root, "dist", "SpecterStudio 0.1.0.exe");
-const setupExePath = join(root, "dist", "SpecterStudio Setup 0.1.0.exe");
+// Both resolved from package.json — see scripts/helpers/packaged-artifacts.mjs. Hardcoding 0.1.0
+// meant this gate examined July artifacts while the app moved on to 0.1.13.
+const portableExePath = resolvePortableExePath(root);
+const setupExePath = resolveSetupExePath(root);
 const latestYmlPath = join(root, "dist", "latest.yml");
 const fixturesRoot = join(root, "resources", "test-fixtures", "mock-site");
 
@@ -745,7 +752,13 @@ async function main(): Promise<void> {
     `packaged ${new Date(packagedStamp.mtimeMs).toISOString()} >= newest source ${new Date(newestSource.mtimeMs).toISOString()}`
   );
   check("portable EXE exists", existsSync(portableExePath), portableExePath);
-  check("NSIS installer exists", existsSync(setupExePath), setupExePath);
+  // Names the command that produces it: a gate failing for want of a build is a build step, not a
+  // defect in the app. This used to "pass" by pointing at a 0.1.0 installer built in July.
+  check(
+    "NSIS installer exists",
+    existsSync(setupExePath),
+    existsSync(setupExePath) ? setupExePath : `${setupExePath} — run \`npm run package:installer\` first`
+  );
   check("mock-site fixtures exist", existsSync(join(fixturesRoot, "workflows", "mock-simple-workflow.json")));
 
   console.log("\nPart B — local mock site (loopback only)");
@@ -1186,7 +1199,12 @@ async function main(): Promise<void> {
       hash.update(await readFile(setupExePath));
       const actual = hash.digest("base64");
       // electron-builder writes the URL-safe (dash-separated) artifact name into latest.yml.
-      check("latest.yml declares the Setup artifact", yml.includes("SpecterStudio-Setup-0.1.0.exe") || yml.includes("SpecterStudio Setup 0.1.0.exe"));
+      const setupName = setupExeName(root);
+      check(
+        "latest.yml declares the Setup artifact",
+        yml.includes(setupName) || yml.includes(setupName.replace(/ /g, "-")),
+        `expected ${setupName}`
+      );
       check("NSIS installer sha512 matches latest.yml (bit-exact build)", declared === actual, `declared ${declared.slice(0, 16)}… vs actual ${actual.slice(0, 16)}…`);
     } else {
       check("NSIS installer + latest.yml present for integrity check", false);

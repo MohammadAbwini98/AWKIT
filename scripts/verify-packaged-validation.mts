@@ -26,10 +26,14 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 
+import { portableExePath as resolvePortableExePath } from "./helpers/packaged-artifacts.mjs";
+
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
 const exePath = join(unpackedDir, "SpecterStudio.exe");
-const portableExePath = join(root, "dist", "SpecterStudio 0.1.0.exe");
+// Resolved from package.json, not hardcoded — see scripts/helpers/packaged-artifacts.mjs for why
+// this gate spent months hashing a July 30 artifact of a different version.
+const portableExePath = resolvePortableExePath(root);
 
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const baseDir = join(tmpdir(), "awkit-packaged-validation");

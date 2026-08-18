@@ -15,6 +15,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
+import { portableExePath as resolvePortableExePath } from "./helpers/packaged-artifacts.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PKG_ROOT = path.resolve(process.argv[2] || path.join(ROOT, "dist", "win-unpacked"));
@@ -197,10 +199,11 @@ const sizes = {
   appAsarUnpacked: dirSize(asarUnpacked)
 };
 
-const portableCandidates = fs.existsSync(path.join(ROOT, "dist"))
-  ? fs.readdirSync(path.join(ROOT, "dist")).filter((f) => f.endsWith(".exe") && !/Setup/i.test(f))
-  : [];
-const portable = portableCandidates[0] ? path.join(ROOT, "dist", portableCandidates[0]) : null;
+// Was readdirSync(dist)[0] — directory order, which on Windows put "SpecterStudio 0.1.0.exe" ahead
+// of the 0.1.13 build that had just been produced, so the report described the wrong artifact.
+// Resolved from package.json instead; absent means absent, never "whichever file sorts first".
+const resolvedPortable = resolvePortableExePath(ROOT);
+const portable = fs.existsSync(resolvedPortable) ? resolvedPortable : null;
 
 // ── Report ───────────────────────────────────────────────────────────────────────────────────
 const failed = checks.filter((c) => !c.ok);

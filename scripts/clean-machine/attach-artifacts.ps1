@@ -22,8 +22,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$portable = "SpecterStudio 0.1.0.exe"
-$setup = "SpecterStudio Setup 0.1.0.exe"
+# Derived from package.json, never hardcoded: a pinned version stages a stale build onto the clean
+# machine, and the run then certifies software nobody is shipping.
+$appVersion = (Get-Content -Raw (Join-Path $PSScriptRoot "..\..\package.json") | ConvertFrom-Json).version
+$portable = "SpecterStudio $appVersion.exe"
+$setup = "SpecterStudio Setup $appVersion.exe"
 $stage = Join-Path $VmRoot "artifact-stage"
 $iso = Join-Path $VmRoot "artifacts.iso"
 

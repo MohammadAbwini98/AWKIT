@@ -119,8 +119,16 @@ $result = Invoke-Command -VMName $VMName -Credential $cred -ScriptBlock {
   if (-not $dvd) { throw "artifacts DVD not found - run attach-artifacts.ps1 first" }
   $out["4 source DVD"] = $dvd
 
-  Copy-Item "$dvd\SpecterStudio 0.1.0.exe" (Join-Path $portDir "SpecterStudio 0.1.0.exe") -Force
-  Copy-Item "$dvd\SpecterStudio Setup 0.1.0.exe" (Join-Path $instDir "SpecterStudio Setup 0.1.0.exe") -Force
+  # Discovered from the DVD, not hardcoded. This runs ON the clean machine, where there is no
+  # package.json to read, so the version is whatever attach-artifacts.ps1 staged. A pinned 0.1.0
+  # here copied a July build that the run then certified. Exactly one match is required:
+  # ambiguity means the DVD was staged wrong, which is worth failing on.
+  $portableSrc = @(Get-ChildItem "$dvdSpecterStudio *.exe" -File | Where-Object { $_.Name -notmatch "Setup" })
+  $setupSrc = @(Get-ChildItem "$dvdSpecterStudio Setup *.exe" -File)
+  if ($portableSrc.Count -ne 1) { throw ("expected exactly one portable artifact on the DVD, found " + $portableSrc.Count) }
+  if ($setupSrc.Count -ne 1) { throw ("expected exactly one installer artifact on the DVD, found " + $setupSrc.Count) }
+  Copy-Item $portableSrc[0].FullName (Join-Path $portDir $portableSrc[0].Name) -Force
+  Copy-Item $setupSrc[0].FullName (Join-Path $instDir $setupSrc[0].Name) -Force
   $out["4 portable folder"] = $portDir
   $out["4 installer folder"] = $instDir
 

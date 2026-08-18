@@ -128,8 +128,10 @@ Shot "s1-environment.png"
 Write-Host ""
 Write-Host "Section 2 - artifact hashes verified ON the test machine" -ForegroundColor Cyan
 
-$portableName = "SpecterStudio 0.1.0.exe"
-$setupName = "SpecterStudio Setup 0.1.0.exe"
+# Derived from package.json — see attach-artifacts.ps1 for why a pinned version is a defect here.
+$appVersion = (Get-Content -Raw (Join-Path $PSScriptRoot "..\..\package.json") | ConvertFrom-Json).version
+$portableName = "SpecterStudio $appVersion.exe"
+$setupName = "SpecterStudio Setup $appVersion.exe"
 $hostHashes = @{}
 foreach ($n in @($portableName, $setupName)) {
   $f = Join-Path $DistDir $n

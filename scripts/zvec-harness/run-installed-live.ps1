@@ -11,11 +11,18 @@
   fail here and that failure is the reportable result.
 #>
 param(
-  [string]$Installer = "dist\SpecterStudio Setup 0.1.0.exe"
+  # Empty by default and resolved from package.json below, so the harness installs the version this
+  # repository actually builds. A pinned default silently exercised a July 0.1.0 installer.
+  [string]$Installer = ""
 )
 
 $ErrorActionPreference = "Continue"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+
+if (-not $Installer) {
+  $appVersion = (Get-Content -Raw (Join-Path $root "package.json") | ConvertFrom-Json).version
+  $Installer = "distSpecterStudio Setup $appVersion.exe"
+}
 Set-Location $root
 . (Join-Path $root "scripts\lib\nsis-per-user-install.ps1")
 
