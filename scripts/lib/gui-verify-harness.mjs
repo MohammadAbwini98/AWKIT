@@ -87,37 +87,63 @@ export async function resolveMainWindow(app, timeoutMs = 40000) {
  * empty %LOCALAPPDATA% (see isolatedLaunchEnv) — on a profile that already has a user this would show
  * the login form instead and time out. Resolves once `.app-shell` has mounted.
  */
+/** The app renders failures as `app-toast app-toast-error` (app/renderer/components/shared/Toast.tsx). */
+export const ERROR_TOAST_SELECTOR = ".app-toast-error";
+
 /**
- * Poll an ASYNC predicate from Node, because `page.waitForFunction` cannot.
+ * Wait for persisted state, and fail the MOMENT the app says the save failed.
  *
- * `waitForFunction(async () => …)` does NOT await the predicate. It receives a Promise, a Promise is
- * always truthy, and so the wait is satisfied on its very first poll no matter what the predicate
- * would have resolved to. Measured against real Playwright, not assumed:
+ * The suites used to click Save and then wait for the state to appear, which cannot tell "the save
+ * is still in flight" from "the save failed and the app already said so". A real EPERM save loss hid
+ * behind that for three investigations: the app raised "Failed to save changes. EPERM ..." within
+ * milliseconds, the suite waited out its whole timeout, and the failure surfaced several checks later
+ * somewhere unrelated. The toast auto-dismisses, so reading the DOM after the timeout finds an empty
+ * toast list - the evidence is gone by the time anything looks. It has to be sampled on every poll.
  *
- *     async-always-false predicate: resolved after 105ms
- *     sync-always-false  predicate: timed out after 3010ms
- *
- * Every persisted-state wait in the GUI capsule suites was written async - the state is reached
- * through an async IPC round-trip, so it had to be - and every one of them was therefore inert. They
- * carried careful comments about `polling: 100` versus requestAnimationFrame, which was sound
- * reasoning about a wait that was not waiting at all. That is how a save that never landed could be
- * reported as persisted and the failure surface four checks later as an unexplained reload flake.
- *
- * `page.evaluate` DOES await a returned Promise, so the polling loop lives out here in Node.
- * `describe` is called only on expiry, to read back the state that never became true.
+ * Only toasts that appear AFTER this call starts are fatal. A stale error toast left on screen by an
+ * earlier step would otherwise abort a save that is perfectly healthy.
  */
-export async function waitForAsyncCondition(win, predicate, arg, options = {}) {
-  const { timeout = 10_000, interval = 100, label = "condition", describe } = options;
+export async function waitForPersistedState(win, predicate, arg, options = {}) {
+  const { timeout = 10_000, interval = 100, label = "persisted state", describe } = options;
+  const readErrorToasts = () =>
+    win
+      .evaluate(
+        (selector) =>
+          [...document.querySelectorAll(selector)].map((node) => (node.textContent ?? "").trim()).filter(Boolean),
+        ERROR_TOAST_SELECTOR
+      )
+      .catch(() => []);
+
+  const baseline = new Set(await readErrorToasts());
   const deadline = Date.now() + timeout;
+  let lastToast = null;
+
   for (;;) {
+    // The predicate is read FIRST: a save that lands in the same tick as some unrelated error toast
+    // is a success, and should be reported as one.
     const value = await win.evaluate(predicate, arg);
     if (value) return value;
+
+    const toasts = await readErrorToasts();
+    const fresh = toasts.filter((text) => !baseline.has(text));
+    if (fresh.length > 0) {
+      const error = new Error(
+        `${label} failed: the app reported an error while waiting - ${JSON.stringify(fresh)}. ` +
+          `This is the app's own message, not an inference; the save did not merely run late.`
+      );
+      error.errorToast = fresh;
+      error.awkitAppReportedError = true;
+      throw error;
+    }
+    if (toasts.length > 0) lastToast = toasts;
+
     if (Date.now() >= deadline) {
       const detail = describe ? await describe().catch((error) => ({ describeFailed: String(error) })) : null;
       const error = new Error(
         `${label} never became true within ${timeout}ms` +
           (detail === null ? "" : `. Actual: ${JSON.stringify(detail)}`)
       );
+      error.observedToast = lastToast;
       error.awkitWaitTimedOut = true;
       throw error;
     }

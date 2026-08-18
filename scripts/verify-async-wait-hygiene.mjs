@@ -18,7 +18,7 @@
  * cost was three separate investigations into a "flaky reload", because the instrument reported a
  * save as persisted at exactly the moment it had not been.
  *
- * The correct construction is `waitForAsyncCondition` in `scripts/lib/gui-verify-harness.mjs`, which
+ * The correct construction is `waitForPersistedState` in `scripts/lib/gui-verify-harness.mjs`, which
  * polls from Node through `page.evaluate` — evaluate DOES await a returned Promise.
  *
  * This file scans source text; it never launches a browser or the app, which is why it is
@@ -29,6 +29,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+
+import { ERROR_TOAST_SELECTOR, waitForPersistedState } from "./lib/gui-verify-harness.mjs";
 
 const REPO_ROOT = process.cwd();
 const SCAN_ROOTS = ["scripts", "src", "app", "tests", "tools"];
@@ -113,7 +115,7 @@ const FIXTURES = [
   ],
   [
     "the correct helper may take an async predicate",
-    "await waitForAsyncCondition(win, async () => true, undefined, { timeout: 10 });",
+    "await waitForPersistedState(win, async () => true, undefined, { timeout: 10 });",
     false
   ]
 ];
@@ -124,7 +126,7 @@ for (const [label, snippet, shouldFlag] of FIXTURES) {
   check(label, flagged === shouldFlag, `flagged=${flagged}, expected=${shouldFlag}`);
 }
 
-const helperOnly = findWaitForFunctionCalls("await waitForAsyncCondition(win, async () => true);");
+const helperOnly = findWaitForFunctionCalls("await waitForPersistedState(win, async () => true);");
 check(
   "the helper is not mistaken for a waitForFunction call site",
   helperOnly.length === 0,
@@ -221,6 +223,76 @@ try {
   );
 } finally {
   rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+}
+
+console.log("Helper behaviour (the construction the scan points people at):");
+{
+  /*
+   * The static scan proves nobody writes the broken construction. These prove the replacement is
+   * worth being pointed at - a helper that is merely present, and wrong, is how this started. The
+   * stand-in page's evaluate() awaits its callback, exactly as Playwright's evaluate does.
+   */
+  const makeWin = ({ persistedAfter = Infinity, toastsByCall = [] }) => {
+    let predicateCalls = 0;
+    let toastCalls = 0;
+    return {
+      evaluate: async (fn, arg) => {
+        if (arg === ERROR_TOAST_SELECTOR) {
+          const value = toastsByCall[toastCalls] ?? [];
+          toastCalls += 1;
+          return value;
+        }
+        predicateCalls += 1;
+        return predicateCalls >= persistedAfter;
+      }
+    };
+  };
+
+  const started = Date.now();
+  let reported = null;
+  try {
+    await waitForPersistedState(
+      makeWin({ toastsByCall: [[], ["Failed to save changes. EPERM: operation not permitted, rename"]] }),
+      async () => false,
+      undefined,
+      { timeout: 5000, interval: 10, label: "persisted maxIterations=12" }
+    );
+  } catch (error) {
+    reported = error;
+  }
+  check("an app error toast fails the wait", reported?.awkitAppReportedError === true, String(reported?.message).slice(0, 80));
+  check("it fails fast rather than at the timeout", Date.now() - started < 1000, `${Date.now() - started}ms`);
+  check("the failure carries the app's own message", String(reported?.message).includes("EPERM"));
+
+  // A stale toast from an earlier step must not abort a save that is perfectly healthy.
+  const stale = ["Failed to save changes. EPERM: operation not permitted, rename"];
+  let staleError = null;
+  let satisfied = null;
+  try {
+    satisfied = await waitForPersistedState(
+      makeWin({ persistedAfter: 3, toastsByCall: [stale, stale, stale, stale] }),
+      async () => false,
+      undefined,
+      { timeout: 5000, interval: 10, label: "persisted" }
+    );
+  } catch (error) {
+    staleError = error;
+  }
+  check("a pre-existing error toast does not abort a healthy save", staleError === null && satisfied === true);
+
+  let timedOut = null;
+  try {
+    await waitForPersistedState(makeWin({}), async () => false, undefined, {
+      timeout: 300,
+      interval: 20,
+      label: "persisted maxIterations=12",
+      describe: async () => ({ observed: "still the seed" })
+    });
+  } catch (error) {
+    timedOut = error;
+  }
+  check("a silent never-true condition still times out", timedOut?.awkitWaitTimedOut === true);
+  check("and the timeout reports the described state", String(timedOut?.message).includes("still the seed"));
 }
 
 console.log(`\n${passed}/${passed + failed} async wait hygiene checks passed`);

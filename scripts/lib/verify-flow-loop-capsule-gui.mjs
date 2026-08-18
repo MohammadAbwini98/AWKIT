@@ -10,7 +10,7 @@ import {
   rejectsLoopURouteHybrid,
   waitForLoopCapsuleLayoutStable
 } from "./loop-capsule-visual-oracle.mjs";
-import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun, waitForAsyncCondition } from "./gui-verify-harness.mjs";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun, waitForPersistedState } from "./gui-verify-harness.mjs";
 
 export const FLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
   "Flow Loop default renders the approved capsule, dominant ring, configured value, and sweep",
@@ -419,7 +419,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     // settling after a save) the predicate is never re-evaluated and this times out at 30s even
     // though the save landed immediately. That is the abort captured in awkit-r9f3. A time-based
     // poll is the correct strategy for a non-visual condition; the assertion itself is unchanged.
-    await waitForAsyncCondition(win, async () => {
+    await waitForPersistedState(win, async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       return profile?.edges.some((edge) => edge.source === "goto" && edge.target === "goto" && edge.loop?.maxIterations === 12);
     }, undefined, {
@@ -483,7 +483,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     await win.getByRole("button", { name: "Save", exact: true }).click();
     // Time-based polling for the same reason as the first save above: a persisted-state predicate
     // must not depend on the window compositing.
-    await waitForAsyncCondition(win, async () => {
+    await waitForPersistedState(win, async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const edge = profile?.edges.find((candidate) => candidate.source === "goto" && candidate.target === "goto");
       return edge?.loop?.maxIterations === 14 && edge.style?.lineStyle === "dotted" &&

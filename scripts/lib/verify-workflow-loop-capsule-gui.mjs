@@ -15,7 +15,7 @@ import {
   isolatedLaunchEnv,
   resolveMainWindow,
   signInFirstRun,
-  waitForAsyncCondition
+  waitForPersistedState
 } from "./gui-verify-harness.mjs";
 
 const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
@@ -357,33 +357,17 @@ async function reopenWorkflowFixture(win) {
  */
 async function waitForPersistedMaxIterations(win, expected, { timeout = 10_000 } = {}) {
   try {
-    // A bespoke poll rather than `waitForAsyncCondition`, for one reason: the app's failure toast
-    // auto-dismisses. Waiting the full timeout and then reading the DOM captured an empty toast list
-    // and a status bar reading only "Save failed" - the fact of the failure without its cause. This
-    // samples the toast on every poll and keeps the last one seen, so the message that names the
-    // error survives long enough to be reported.
-    let observedToast = null;
-    const deadline = Date.now() + timeout;
-    for (;;) {
-      const snapshot = await win.evaluate(async (want) => {
+    await waitForPersistedState(
+      win,
+      async (want) => {
         const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
-        const persisted = profile?.edges.some(
+        return profile?.edges.some(
           (edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === want
         ) ?? false;
-        return {
-          persisted,
-          toast: [...document.querySelectorAll(".app-toast")].map((node) => (node.textContent ?? "").trim()).filter(Boolean)
-        };
-      }, expected);
-      if (snapshot.persisted) break;
-      if (snapshot.toast.length > 0) observedToast = snapshot.toast;
-      if (Date.now() >= deadline) {
-        const error = new Error(`persisted maxIterations=${expected} never became true within ${timeout}ms`);
-        error.observedToast = observedToast;
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+      },
+      expected,
+      { timeout, label: `persisted maxIterations=${expected}` }
+    );
     // Read the FILESYSTEM at the instant the app says the save landed. If these ever disagree, the
     // "persisted" confirmation was a conversation the app had with itself.
     lastPersistObservation = { expected, at: new Date().toISOString(), disk: readDiskWorkflow() };
@@ -422,7 +406,7 @@ async function waitForPersistedMaxIterations(win, expected, { timeout = 10_000 }
 
     throw new Error(
       `Save did not persist maxIterations=${expected} within ${timeout}ms. Actual persisted state: ` +
-        `${JSON.stringify(actual)}. Toast seen while waiting: ${JSON.stringify(error?.observedToast ?? null)}. ` +
+        `${JSON.stringify(actual)}. App error toast: ${JSON.stringify(error?.errorToast ?? error?.observedToast ?? null)}. ` +
         `On disk: ${JSON.stringify(readDiskWorkflow())}. Read this in order: ` +
         `domLoopPresent=false means the loop was gone from the canvas BEFORE the save, so nothing was ` +
         `lost - it was never there to save. domLoopPresent=true with a null persisted maxIterations ` +
