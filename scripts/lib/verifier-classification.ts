@@ -275,6 +275,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Mutation-queue coalescing, ordering, delete-supersedes-upsert, bounded overflow and no-blind-replay, in-process against the in-memory store."
   },
+  "verify:async-wait-hygiene": {
+    class: "static-source-validation",
+    why: "Scans source text for Playwright waits handed an async predicate, which waitForFunction never awaits; parses source only, launches nothing."
+  },
   "verify:source-hygiene": {
     class: "static-source-validation",
     why: "Scans every TypeScript source for literal control characters (invisible delimiters); parses source only, executes nothing."

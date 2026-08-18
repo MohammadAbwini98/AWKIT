@@ -1,5 +1,5 @@
 import { _electron as electron } from "playwright";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   loopCapsuleMovedWithNode,
@@ -10,7 +10,13 @@ import {
   rejectsLoopURouteHybrid,
   waitForLoopCapsuleLayoutStable
 } from "./loop-capsule-visual-oracle.mjs";
-import { DEFAULT_CREDS, isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./gui-verify-harness.mjs";
+import {
+  DEFAULT_CREDS,
+  isolatedLaunchEnv,
+  resolveMainWindow,
+  signInFirstRun,
+  waitForAsyncCondition
+} from "./gui-verify-harness.mjs";
 
 const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
 
@@ -96,6 +102,126 @@ async function clickNodeMenuItem(win, nodeId, label) {
   await item.click();
 }
 
+/**
+ * The on-disk workflow, read from Node - deliberately NOT through the app's own bridge.
+ *
+ * `workflows.get` is the app's view of what it saved. If the app were to report a save that never
+ * reached the filesystem, asking the app would agree with the app and prove nothing. This reads the
+ * JSON the app claims to have written, so the two can be compared at the moment of failure.
+ */
+let activeDataRoot = null;
+let lastPersistObservation = null;
+
+function readDiskWorkflow() {
+  if (!activeDataRoot) return { available: false, reason: "suite did not record its data root" };
+  const file = path.join(activeDataRoot, "SpecterStudio", "workflows", "verify-workflow-loop-capsule.json");
+  try {
+    const raw = JSON.parse(readFileSync(file, "utf8"));
+    const edges = Array.isArray(raw.edges) ? raw.edges : [];
+    return {
+      available: true,
+      mtimeMs: statSync(file).mtimeMs,
+      edges: edges.map((edge) => `${edge.source}->${edge.target}:${edge.type}#${edge.id}`),
+      loop: edges.find((edge) => edge.source === edge.target) ?? null
+    };
+  } catch (error) {
+    return { available: false, error: String(error) };
+  }
+}
+
+/**
+ * The decisive dump for awkit-a53k: the PERSISTED model beside the RENDERED DOM.
+ *
+ * `loopEdgePresent: false` alone cannot say whether the self-loop edge never reached the renderer or
+ * reached it and failed to paint - and that is the entire open question. Reading both sides at the
+ * moment of failure separates the three possibilities:
+ *   - persistedLoop set, domLoopEdge null   -> reopen drops a persisted edge (the suspected product bug)
+ *   - persistedLoop null                    -> the edge did not survive persistence across the reload
+ *   - domLoopEdge set, hasIndicator false   -> the edge renders and only its indicator does not
+ * Reading the profile through the same preload bridge the app uses keeps this honest: it is the
+ * app's own view of what it saved, not a second parser's opinion of the JSON on disk.
+ */
+async function readModelVsDom(win, nodeId) {
+  return win.evaluate(async (id) => {
+    const select = document.querySelector('label.sb-toolbar-field select');
+    const bridge = window.playwrightFlowStudio;
+    let profile = null;
+    let profileError = null;
+    if (bridge?.workflows?.get) {
+      try {
+        profile = await bridge.workflows.get("verify-workflow-loop-capsule");
+      } catch (error) {
+        profileError = String(error);
+      }
+    }
+    const domEdges = [...document.querySelectorAll("g.awkit-flow-edge")].map((edge) => ({
+      id: edge.getAttribute("data-id"),
+      source: edge.getAttribute("data-source"),
+      target: edge.getAttribute("data-target"),
+      kind: edge.getAttribute("data-connector-kind"),
+      hasIndicator: Boolean(edge.querySelector(".awkit-loop-indicator"))
+    }));
+    return {
+      selectedWorkflow: select instanceof HTMLSelectElement ? select.value : "(no select found)",
+      onLoginCard: Boolean(document.querySelector(".awkit-login-card")),
+      bridgeAvailable: Boolean(bridge?.workflows?.get),
+      profileError,
+      persistedFound: Boolean(profile),
+      persistedNodes: profile?.nodes?.map((node) => node.id) ?? null,
+      persistedEdges: profile?.edges?.map((edge) => `${edge.source}->${edge.target}:${edge.type}#${edge.id}`) ?? null,
+      persistedLoop: profile?.edges?.find((edge) => edge.source === id && edge.target === id) ?? null,
+      domNodes: [...document.querySelectorAll(".awkit-flow-node")].map((node) => node.getAttribute("data-id")),
+      domEdges,
+      domLoopEdge: domEdges.find((edge) => edge.source === id && edge.target === id) ?? null
+    };
+  }, nodeId).catch((error) => ({ readFailed: String(error) }))
+    .then((state) => ({ ...state, disk: readDiskWorkflow(), lastPersistObservation }));
+}
+
+/**
+ * Names which of the awkit-a53k possibilities the dump actually shows.
+ *
+ * Order matters, and the first version of this got it wrong in a way worth keeping written down.
+ * The predicate being waited on is a DOM predicate, so the DOM is read FIRST and the persisted
+ * profile is only ever used to explain a DOM edge that is missing. Ordering it the other way made a
+ * pre-save wait - where a null persistedLoop is entirely normal, because nothing has been saved yet -
+ * report "PERSISTENCE: absent from the saved profile" while the edge and its indicator were both
+ * sitting in the canvas. A verdict that confident and that wrong at the decisive moment is exactly
+ * the failure mode this whole investigation kept hitting.
+ */
+function verdictFor(state) {
+  if (!state || state.readFailed) return "the diagnostic read itself failed, so nothing is decided";
+  if (state.onLoginCard || state.selectedWorkflow !== "verify-workflow-loop-capsule") {
+    return "the fixture did not come back after reload - harness restore, not the render path";
+  }
+  if (state.domLoopEdge?.hasIndicator) {
+    return "NOT A RENDER FAULT: the loop edge and its indicator are both in the canvas, so the " +
+      "predicate is looking for something the DOM no longer calls by that name (selector drift)";
+  }
+  if (state.domLoopEdge) return "INDICATOR: the loop edge rendered and only its indicator did not";
+  if (!state.persistedFound) return "the workflow profile could not be read back at all";
+  if (state.persistedLoop) {
+    return "RENDER: the loop edge is in the saved profile but absent from the canvas (awkit-a53k confirmed)";
+  }
+  if (state.disk?.available && state.disk.loop) {
+    return "LOAD: the loop edge is on disk but neither the app's profile nor the canvas has it - " +
+      "the reopen read stale or empty state over a file that was written correctly";
+  }
+  if (state.lastPersistObservation) {
+    const observed = state.lastPersistObservation;
+    if (observed.disk?.available && observed.disk.loop) {
+      return "REVERTED: the loop edge WAS on disk when the save was confirmed (maxIterations=" +
+        observed.expected + ") and is gone from disk now - something rewrote the file after the save";
+    }
+    return "SAVE NEVER REACHED DISK: the app reported maxIterations=" + observed.expected +
+      " as persisted, but the file on disk had no self-loop edge at that moment and still does not. " +
+      "The app's own bridge agreed with the app; the filesystem did not. That is data loss, not a " +
+      "render fault";
+  }
+  return "the loop is in neither the canvas nor the saved profile - it was never created, or this " +
+    "wait ran before any save, in which case a null persistedLoop is expected and says nothing";
+}
+
 /** Bounded and self-describing for the same reason as `waitForValue` — see awkit-be5o. */
 async function waitForLoop(win, nodeId, present = true, { timeout = 12_000 } = {}) {
   try {
@@ -103,21 +229,13 @@ async function waitForLoop(win, nodeId, present = true, { timeout = 12_000 } = {
       `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator`
     )) === expected, { id: nodeId, expected: present }, { polling: 100, timeout });
   } catch {
-    const state = await win.evaluate((id) => {
-      const select = document.querySelector('label.sb-toolbar-field select');
-      return {
-        selectedWorkflow: select instanceof HTMLSelectElement ? select.value : "(no select found)",
-        loopEdgePresent: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`)),
-        canvasNodes: document.querySelectorAll(".awkit-flow-node").length,
-        onLoginCard: Boolean(document.querySelector(".awkit-login-card"))
-      };
-    }, nodeId).catch((error) => ({ readFailed: String(error) }));
+    const state = await readModelVsDom(win, nodeId);
 
     throw new Error(
       `Loop indicator ${present ? "never appeared" : "never disappeared"} within ${timeout}ms. ` +
-        `Actual: ${JSON.stringify(state)}. A selectedWorkflow other than "verify-workflow-loop-capsule", ` +
-        `canvasNodes=0, or onLoginCard=true all mean the fixture did not come back after reload - ` +
-        `a never-true condition, not slowness.`
+        `VERDICT: ${verdictFor(state)}. Actual: ${JSON.stringify(state)}. A selectedWorkflow other than ` +
+        `"verify-workflow-loop-capsule", empty domNodes, or onLoginCard=true all mean the fixture did ` +
+        `not come back after reload - a never-true condition, not slowness.`
     );
   }
 }
@@ -138,23 +256,17 @@ async function waitForValue(win, nodeId, value, { timeout = 12_000 } = {}) {
       `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
     )?.textContent ?? "").trim() === expected, { id: nodeId, expected: String(value) }, { polling: 100, timeout });
   } catch {
-    const state = await win.evaluate((id) => {
-      const select = document.querySelector('label.sb-toolbar-field select');
-      const edge = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
-      return {
-        selectedWorkflow: select instanceof HTMLSelectElement ? select.value : "(no select found)",
-        loopEdgePresent: Boolean(edge),
-        indicatorPresent: Boolean(edge?.querySelector(".awkit-loop-indicator")),
-        renderedValue: (edge?.querySelector(".awkit-loop-indicator-value")?.textContent ?? "").trim() || null,
-        canvasNodes: document.querySelectorAll(".awkit-flow-node").length
-      };
-    }, nodeId).catch((error) => ({ readFailed: String(error) }));
+    const state = await readModelVsDom(win, nodeId);
+    const renderedValue = await win.evaluate((id) => (document.querySelector(
+      `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
+    )?.textContent ?? "").trim() || null, nodeId).catch(() => null);
 
     throw new Error(
-      `Loop indicator never showed value ${value} within ${timeout}ms after reload. Actual: ` +
+      `Loop indicator never showed value ${value} within ${timeout}ms after reload. ` +
+        `VERDICT: ${verdictFor(state)}. renderedValue: ${JSON.stringify(renderedValue)}. Actual: ` +
         `${JSON.stringify(state)}. selectedWorkflow other than "verify-workflow-loop-capsule" means ` +
-        `reopenWorkflowFixture restored the wrong fixture; loopEdgePresent=false means the loop edge ` +
-        `did not re-render at all. Neither is slowness, so waiting longer cannot help.`
+        `reopenWorkflowFixture restored the wrong fixture; a null domLoopEdge means the loop edge did ` +
+        `not re-render at all. Neither is slowness, so waiting longer cannot help.`
     );
   }
 }
@@ -245,30 +357,78 @@ async function reopenWorkflowFixture(win) {
  */
 async function waitForPersistedMaxIterations(win, expected, { timeout = 10_000 } = {}) {
   try {
-    await win.waitForFunction(
-      async (want) => {
+    // A bespoke poll rather than `waitForAsyncCondition`, for one reason: the app's failure toast
+    // auto-dismisses. Waiting the full timeout and then reading the DOM captured an empty toast list
+    // and a status bar reading only "Save failed" - the fact of the failure without its cause. This
+    // samples the toast on every poll and keeps the last one seen, so the message that names the
+    // error survives long enough to be reported.
+    let observedToast = null;
+    const deadline = Date.now() + timeout;
+    for (;;) {
+      const snapshot = await win.evaluate(async (want) => {
         const profile = await window.playwrightFlowStudio.workflows.get("verify-workflow-loop-capsule");
-        return profile?.edges.some(
+        const persisted = profile?.edges.some(
           (edge) => edge.source === "workflow-node-1" && edge.target === "workflow-node-1" && edge.loop?.maxIterations === want
-        );
-      },
-      expected,
-      { polling: 100, timeout }
-    );
+        ) ?? false;
+        return {
+          persisted,
+          toast: [...document.querySelectorAll(".app-toast")].map((node) => (node.textContent ?? "").trim()).filter(Boolean)
+        };
+      }, expected);
+      if (snapshot.persisted) break;
+      if (snapshot.toast.length > 0) observedToast = snapshot.toast;
+      if (Date.now() >= deadline) {
+        const error = new Error(`persisted maxIterations=${expected} never became true within ${timeout}ms`);
+        error.observedToast = observedToast;
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    // Read the FILESYSTEM at the instant the app says the save landed. If these ever disagree, the
+    // "persisted" confirmation was a conversation the app had with itself.
+    lastPersistObservation = { expected, at: new Date().toISOString(), disk: readDiskWorkflow() };
   } catch (error) {
+    // Read every layer the save passes through, because the previous message could only say the
+    // save had not landed - not whether the click reached the button, whether the edge still existed
+    // to be saved, or whether the app reported an error. Each of those is a different defect.
     const actual = await win.evaluate(async () => {
       const bridge = window.playwrightFlowStudio;
       if (!bridge?.workflows?.get) return { bridge: false };
       const profile = await bridge.workflows.get("verify-workflow-loop-capsule");
       const edge = profile?.edges.find((e) => e.source === "workflow-node-1" && e.target === "workflow-node-1");
-      return { bridge: true, found: Boolean(profile), maxIterations: edge?.loop?.maxIterations ?? null };
+      const saveButton = [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Save");
+      const domLoop = document.querySelector('g.awkit-flow-edge[data-source="workflow-node-1"][data-target="workflow-node-1"]');
+      return {
+        bridge: true,
+        found: Boolean(profile),
+        maxIterations: edge?.loop?.maxIterations ?? null,
+        persistedEdges: profile?.edges?.map((e) => `${e.source}->${e.target}:${e.type}`) ?? null,
+        // Was there still a loop on screen to save at the moment the save was expected?
+        domLoopPresent: Boolean(domLoop),
+        domLoopValue: (domLoop?.querySelector(".awkit-loop-indicator-value")?.textContent ?? "").trim() || null,
+        // Did the click have a button to land on, and is the app claiming anything went wrong?
+        saveButtonPresent: Boolean(saveButton),
+        saveButtonDisabled: saveButton instanceof HTMLButtonElement ? saveButton.disabled : null,
+        // The app renders failures through .app-toast (see components/shared/Toast.tsx). The first
+        // version of this read [role=status] and captured the status BAR ("Workflow state" + "Valid"
+        // + "Save failed") instead of the message that names the cause.
+        toasts: [...document.querySelectorAll(".app-toast")]
+          .map((node) => (node.textContent ?? "").trim()).filter(Boolean).slice(0, 5),
+        statusText: [...document.querySelectorAll("[role='status'], [role='alert']")]
+          .map((node) => (node.textContent ?? "").trim()).filter(Boolean).slice(0, 5),
+        propertiesPanelOpen: Boolean(document.querySelector(".scenario-properties-panel"))
+      };
     }).catch((readError) => ({ readFailed: String(readError) }));
 
     throw new Error(
       `Save did not persist maxIterations=${expected} within ${timeout}ms. Actual persisted state: ` +
-        `${JSON.stringify(actual)}. If maxIterations is still the previous value the Save click was ` +
-        `swallowed (toast or properties panel intercepting) rather than being slow; if bridge=false ` +
-        `the preload API was unavailable after a reload.`
+        `${JSON.stringify(actual)}. Toast seen while waiting: ${JSON.stringify(error?.observedToast ?? null)}. ` +
+        `On disk: ${JSON.stringify(readDiskWorkflow())}. Read this in order: ` +
+        `domLoopPresent=false means the loop was gone from the canvas BEFORE the save, so nothing was ` +
+        `lost - it was never there to save. domLoopPresent=true with a null persisted maxIterations ` +
+        `means the app had the loop on screen and did not write it, which is data loss. A non-empty ` +
+        `toasts array may name the refusal. saveButtonDisabled=true means the app did not consider ` +
+        `there to be anything to save.`
     );
   }
 }
@@ -321,6 +481,8 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     console.log(`${passed ? "  ✓" : "  ✗"} ${name}${resolvedDetail ? ` — ${resolvedDetail}` : ""}`);
   };
   const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-workflow-loop-capsule-gui");
+  activeDataRoot = dataRoot;
+  lastPersistObservation = null;
   seedWorkflow(dataRoot);
   const app = await electron.launch({ args: [root, `--user-data-dir=${path.join(dataRoot, "electron-user-data")}`], cwd: root, env });
   try {

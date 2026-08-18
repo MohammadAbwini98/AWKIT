@@ -10,7 +10,7 @@ import {
   rejectsLoopURouteHybrid,
   waitForLoopCapsuleLayoutStable
 } from "./loop-capsule-visual-oracle.mjs";
-import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./gui-verify-harness.mjs";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun, waitForAsyncCondition } from "./gui-verify-harness.mjs";
 
 export const FLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
   "Flow Loop default renders the approved capsule, dominant ring, configured value, and sweep",
@@ -419,10 +419,17 @@ export async function runFlowLoopCapsuleSuite(root) {
     // settling after a save) the predicate is never re-evaluated and this times out at 30s even
     // though the save landed immediately. That is the abort captured in awkit-r9f3. A time-based
     // poll is the correct strategy for a non-visual condition; the assertion itself is unchanged.
-    await win.waitForFunction(async () => {
+    await waitForAsyncCondition(win, async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       return profile?.edges.some((edge) => edge.source === "goto" && edge.target === "goto" && edge.loop?.maxIterations === 12);
-    }, undefined, { polling: 100 });
+    }, undefined, {
+      label: "first save persisted maxIterations=12",
+      describe: async () => win.evaluate(async () => {
+        const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
+        return { edges: profile?.edges?.map((edge) => `${edge.source}->${edge.target}:${edge.type}`) ?? null,
+          loop: profile?.edges?.find((edge) => edge.source === "goto" && edge.target === "goto")?.loop ?? null };
+      })
+    });
     const saved = await win.evaluate(async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");
@@ -476,12 +483,18 @@ export async function runFlowLoopCapsuleSuite(root) {
     await win.getByRole("button", { name: "Save", exact: true }).click();
     // Time-based polling for the same reason as the first save above: a persisted-state predicate
     // must not depend on the window compositing.
-    await win.waitForFunction(async () => {
+    await waitForAsyncCondition(win, async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const edge = profile?.edges.find((candidate) => candidate.source === "goto" && candidate.target === "goto");
       return edge?.loop?.maxIterations === 14 && edge.style?.lineStyle === "dotted" &&
         edge.style?.thickness === 4 && edge.style?.shape === "smoothstep";
-    }, undefined, { polling: 100 });
+    }, undefined, {
+      label: "second save persisted maxIterations=14 with authored style",
+      describe: async () => win.evaluate(async () => {
+        const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
+        return profile?.edges?.find((edge) => edge.source === "goto" && edge.target === "goto") ?? null;
+      })
+    });
     const secondSaved = await win.evaluate(async () => {
       const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
       const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");

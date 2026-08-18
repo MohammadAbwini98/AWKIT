@@ -245,6 +245,7 @@
     "verify:semantic-rebuild": "tsx scripts/verify-semantic-rebuild.mts",
     "verify:semantic-rebuild-live": "tsx scripts/verify-semantic-rebuild-live.mts",
     "verify:semantic-ui-gui": "node scripts/verify-semantic-ui-gui.mjs",
+    "verify:async-wait-hygiene": "node scripts/verify-async-wait-hygiene.mjs",
     "verify:source-hygiene": "tsx scripts/verify-source-hygiene.mts",
     "verify:reports-settings-a11y": "tsx scripts/verify-reports-settings-a11y.mts"
   },

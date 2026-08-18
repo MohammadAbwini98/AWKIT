@@ -87,6 +87,44 @@ export async function resolveMainWindow(app, timeoutMs = 40000) {
  * empty %LOCALAPPDATA% (see isolatedLaunchEnv) — on a profile that already has a user this would show
  * the login form instead and time out. Resolves once `.app-shell` has mounted.
  */
+/**
+ * Poll an ASYNC predicate from Node, because `page.waitForFunction` cannot.
+ *
+ * `waitForFunction(async () => …)` does NOT await the predicate. It receives a Promise, a Promise is
+ * always truthy, and so the wait is satisfied on its very first poll no matter what the predicate
+ * would have resolved to. Measured against real Playwright, not assumed:
+ *
+ *     async-always-false predicate: resolved after 105ms
+ *     sync-always-false  predicate: timed out after 3010ms
+ *
+ * Every persisted-state wait in the GUI capsule suites was written async - the state is reached
+ * through an async IPC round-trip, so it had to be - and every one of them was therefore inert. They
+ * carried careful comments about `polling: 100` versus requestAnimationFrame, which was sound
+ * reasoning about a wait that was not waiting at all. That is how a save that never landed could be
+ * reported as persisted and the failure surface four checks later as an unexplained reload flake.
+ *
+ * `page.evaluate` DOES await a returned Promise, so the polling loop lives out here in Node.
+ * `describe` is called only on expiry, to read back the state that never became true.
+ */
+export async function waitForAsyncCondition(win, predicate, arg, options = {}) {
+  const { timeout = 10_000, interval = 100, label = "condition", describe } = options;
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const value = await win.evaluate(predicate, arg);
+    if (value) return value;
+    if (Date.now() >= deadline) {
+      const detail = describe ? await describe().catch((error) => ({ describeFailed: String(error) })) : null;
+      const error = new Error(
+        `${label} never became true within ${timeout}ms` +
+          (detail === null ? "" : `. Actual: ${JSON.stringify(detail)}`)
+      );
+      error.awkitWaitTimedOut = true;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+}
+
 export async function signInFirstRun(win, creds = DEFAULT_CREDS) {
   await win.waitForSelector(".awkit-login-card", { timeout: 20000 });
   await win.fill("#awkit-setup-display", creds.displayName);
