@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Repair the typecheck:scripts baseline, 13 diagnostics to 0 (awkit-zc88)
+
+- **Scope was larger than the bead:** it named one diagnostic (the suite driver kept only the last
+  four output lines); there were 13 across six files. A documented baseline of nine from 2026-08-07,
+  grown to 13 - what a red gate does when nothing is checking.
+- **The bead's proposed fix was wrong:** it said to annotate `thrown` as `NodeJS.ErrnoException |
+  null`; that annotation was already present. The real cause is that flow analysis never sees an
+  assignment made inside a `.catch` callback, so it narrows the declared `null` to `never`.
+- **Fixes, all in verifier scripts, no product code:** `?? undefined` for seven `string | null` ->
+  `string | undefined` details; capture the rejection as a value via `.then(() => null, ...)` for the
+  four `never` narrowings; braces to discard `selectOption`'s resolved values; spread the raw
+  capture-time fingerprint, whose product type is deliberately `Record<string, unknown>`.
+- **Nothing silenced:** zero `any` / `as any` / `@ts-expect-error` / `@ts-ignore` in the diff.
+- **Tests run:** `verify:all-typecheck` **0 errors, exit 0** (was 13); every affected verifier at its
+  previous count - write-queue 29/29, blueprint-recovery 52/52, locator-guard 35/35, frame-chain
+  31/31, closed-shadow 23/23, recorder-competitive 54/54; `verify:roadmap-dashboard` 158/158;
+  `ai:memory` PASS.
+- **Files:** `scripts/verify-{write-queue,blueprint-recovery,locator-guard,frame-chain,closed-shadow,
+  recorder-competitive}.mts`, `docs/ai/KNOWN_ISSUES.md` (entry marked RESOLVED),
+  `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-zc88` closed. Tracker 224 total / 220 closed / 4 outstanding, nothing open.
+
+---
+
 ## 2026-08-18 - Claude - Scope the reports Open-action locator (awkit-1kct)
 
 - **Task:** identify and fix the unnamed failing check in `verify:reports-populated-gui` (154/1/3).

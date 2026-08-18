@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## The scripts typecheck gate is green for the first time since 2026-08-07
+
+`awkit-zc88` closed. `npm run typecheck:scripts` and `verify:all-typecheck` now pass with **0
+errors**, and the `KNOWN_ISSUES.md` entry is marked RESOLVED - the gate may be cited as green.
+
+**The bead understated the scope, and its proposed fix was wrong.** It named one diagnostic, because
+the suite driver kept only the last four output lines and that error happened to be last. There were
+**13**, across six files. It also proposed annotating `thrown` as `NodeJS.ErrnoException | null` -
+an annotation that was already present at both sites.
+
+It was a documented baseline of **nine** from 2026-08-07, grown to 13. That growth is what a red gate
+does: nothing was checking, so new mismatches joined quietly. An argument for repairing a baseline
+rather than recording it.
+
+All 13 were in verifier scripts; **no product code changed**:
+
+- **TS2345 x7** - `textContent()` yields `string | null`, the detail parameter takes
+  `string | undefined`. Converted with `?? undefined`.
+- **TS2339 x4** - a `let` initialised to `null` and assigned inside a `.catch` callback. Flow analysis
+  never sees that assignment and narrows to `never`. Fixed by capturing the rejection **as a value**
+  via `.then(() => null, ...)`, removing the analysis problem instead of asserting past it.
+- **TS2322** - `selectOption` resolves to the selected values where the callback contract is
+  `Promise<void>`; braces discard it explicitly.
+- **TS2322** - `blueprintCapture.fingerprint` is deliberately `Record<string, unknown>` in
+  `RecorderTypes.ts` (raw capture-time JSON, hashed later) and an interface has no implicit index
+  signature. The fixture spreads it; the product type is left as its author intended.
+
+**Nothing was silenced** - the diff contains zero `any`, `as any`, `@ts-expect-error` or
+`@ts-ignore`. A suppressed diagnostic leaves the gate green while the mismatch it reported is still
+there. Behaviour is unchanged, verified by running every affected verifier at its previous count:
+write-queue 29/29, blueprint-recovery 52/52, locator-guard 35/35, frame-chain 31/31, closed-shadow
+23/23, recorder-competitive 54/54.
+
+Tracker: **224 total / 220 closed / 4 outstanding**, and `byStatus` is exactly
+`{closed: 220, blocked: 4}` - **nothing is open**. The four remaining need an authorized operator or
+an owner decision: `awkit-7bu` (real Oracle 19c rerun), `awkit-cm8` (four Oracle external gates),
+`awkit-cey` (authorized real-IdP Chrome handoff), `awkit-az7` (System Reports OS shell launches,
+whose case list now carries a staleness note). Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## The last suite finding was an ambiguous locator, not a missing button (2026-08-18)
 
 `awkit-1kct` closed. `verify:reports-populated-gui` was 154 PASS / 1 FAIL / 3 NOT RUN on

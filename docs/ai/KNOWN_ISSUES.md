@@ -72,15 +72,35 @@ hashed fingerprint signal (not as the Playwright-facing locator) so logical reor
 
 ---
 
-## OPEN: `typecheck:scripts` is red on nine pre-existing verifier diagnostics (2026-08-07)
+## RESOLVED: `typecheck:scripts` baseline repaired (opened 2026-08-07, closed 2026-08-18)
 
-The app build remains green, but `npm run typecheck:scripts` currently reports nine diagnostics in
-older verifier files: `verify-blueprint-recovery.mts`, `verify-closed-shadow.mts`,
-`verify-frame-chain.mts`, `verify-locator-guard.mts`, and `verify-recorder-competitive.mts`. The
-failures are `TS2322`/`TS2345` type mismatches; live focused verifiers still execute successfully
-because `tsx` does not typecheck them. The `awkit-c2z` browser verifier is not among the diagnostics
-and passes 20/20. Do not claim the combined scripts typecheck gate is green until this baseline is
-repaired and `npm run typecheck:scripts` passes.
+`npm run typecheck:scripts` and `npm run verify:all-typecheck` now **pass with 0 errors**. The gate
+may be cited as green.
+
+The baseline had grown from the nine diagnostics recorded here to **13**, across six files -
+`verify-blueprint-recovery.mts`, `verify-closed-shadow.mts`, `verify-frame-chain.mts`,
+`verify-locator-guard.mts`, `verify-recorder-competitive.mts` and `verify-write-queue.mts`. Growth
+was the predictable consequence of a red gate: nothing was checking, so new mismatches joined
+quietly. That is the argument for repairing a baseline rather than documenting it.
+
+All 13 were in verifier scripts; **no product code changed**. Four shapes:
+
+- **TS2345 x7** - `textContent()` yields `string | null` while the detail parameter takes
+  `string | undefined`. Converted with `?? undefined`.
+- **TS2339 x4** (`verify-write-queue.mts`) - a `let` initialised to `null` and assigned inside a
+  `.catch` callback; TypeScript's flow analysis never sees that assignment and narrows to `never`.
+  Fixed by capturing the rejection **as a value** (`.then(() => null, (e) => e as NodeJS.ErrnoException)`),
+  which removes the analysis problem instead of asserting past it.
+- **TS2322** (`verify-recorder-competitive.mts`) - `selectOption` resolves to the selected values
+  where the callback contract is `Promise<void>`; braces discard it explicitly.
+- **TS2322** (`verify-blueprint-recovery.mts`) - `blueprintCapture.fingerprint` is deliberately
+  `Record<string, unknown>` in `RecorderTypes.ts` (raw capture-time JSON, hashed later), and an
+  interface has no implicit index signature. The fixture spreads it; the product type is untouched.
+
+**Nothing was silenced.** No `any`, no `as any`, no `@ts-expect-error` - a suppressed diagnostic
+leaves the gate green while the mismatch it reported is still there. Behaviour is unchanged: all six
+affected verifiers pass at their previous counts (write-queue 29/29, blueprint-recovery 52/52,
+locator-guard 35/35, frame-chain 31/31, closed-shadow 23/23, recorder-competitive 54/54).
 
 ---
 

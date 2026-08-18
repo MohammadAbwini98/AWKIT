@@ -261,8 +261,10 @@ try {
   // granting SuperUser the license-issuer permissions; the boundary is now the thing under test).
   // Then 5/219 of 224 on 2026-08-18: awkit-1kct closed (the reports Open-action check was a page-wide
   // ambiguous locator with a swallowed strict-mode error, not a missing button).
-    "5 outstanding / 219 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 219,
+  // Then 4/220 of 224 on 2026-08-18: awkit-zc88 closed (the typecheck:scripts baseline repaired, 13
+  // diagnostics to 0). Nothing is open — all four remaining are owner-gated and externally blocked.
+    "4 outstanding / 220 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 220,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
