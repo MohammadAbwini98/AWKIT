@@ -1587,7 +1587,24 @@ try {
   check("SYS-REP-008 corrupt report is skipped and only the real report renders", (await cards.count()) === 1);
   const cardText = await cards.first().innerText();
   check("SYS-REP-008 report card uses the stored report contract", cardText.includes("Fixture Workflow Alpha") && cardText.includes("failed") && cardText.includes("1 instance"), cardText);
-  check("SYS-REP-008 Open action is available for a real stored report", await win.getByRole("button", { name: /Open/ }).isVisible().catch(() => false));
+  /*
+   * Scoped to the card and anchored, and no swallowed error.
+   *
+   * This was a page-wide `getByRole("button", { name: /Open/ })` with `.catch(() => false)`. The Run
+   * Artifacts page carries other controls whose names contain "Open", so the unanchored pattern matched
+   * more than one element and Playwright's strict mode threw — which the catch turned into a plain
+   * failing check that could not say why. The counts are reported either way, so an ambiguity here
+   * names itself instead of looking like a missing button.
+   */
+  const cardOpenAction = cards.first().getByRole("button", { name: /^Open$/ });
+  const cardOpenMatches = await cardOpenAction.count();
+  const pageWideOpenMatches = await win.getByRole("button", { name: /Open/ }).count();
+  console.log(`    · Open controls: ${cardOpenMatches} in the report card, ${pageWideOpenMatches} page-wide matching /Open/`);
+  check(
+    "SYS-REP-008 Open action is available for a real stored report",
+    cardOpenMatches === 1 && (await cardOpenAction.isVisible().catch(() => false)),
+    `card matches=${cardOpenMatches}, page-wide /Open/ matches=${pageWideOpenMatches}`
+  );
 
   // Electron's Playwright adapter does not consistently emit Page.download for renderer-created
   // blob URLs. Observe the same anchor click + Blob bytes without suppressing the actual click, then
