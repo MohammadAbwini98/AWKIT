@@ -165,7 +165,46 @@ try {
 check("SETTINGS_BRANDING_MANAGE has the documented id", Permission.SETTINGS_BRANDING_MANAGE === "settings.appearance.branding.manage");
 check("branding permission is marked sensitive", SENSITIVE_PERMISSIONS.has(Permission.SETTINGS_BRANDING_MANAGE));
 check("SuperUser holds the branding permission", BUILTIN_ROLES.SuperUser.permissions.includes(Permission.SETTINGS_BRANDING_MANAGE));
-check("SuperUser holds every permission (sanity)", ALL_PERMISSIONS.every((p) => BUILTIN_ROLES.SuperUser.permissions.includes(p)));
+/*
+ * awkit-fbwn. This was `ALL_PERMISSIONS.every((p) => SuperUser.permissions.includes(p))` and it FAILED,
+ * because SuperUser deliberately does not hold the two license-issuer permissions. Satisfying it as
+ * written would have meant GRANTING them — removing a security boundary to make a test green.
+ *
+ * Permissions.ts builds SUPER_USER_PERMISSIONS as ALL_PERMISSIONS minus ISSUER_PERMISSIONS on purpose:
+ * "so a direct grant or the Super User's broad permission set can never become a signing-key boundary
+ * bypass". The Issuer role holds them, exclusively (UserAdminService rejects an Issuer who also holds
+ * any other role), and the issuer route requires that exact role.
+ *
+ * The original sanity intent is kept, not dropped: no permission should quietly exist that SuperUser
+ * has lost. It is now expressed as an EXACT SET DIFFERENCE, so a newly added permission accidentally
+ * omitted from SuperUser still fails — while the one deliberate exclusion is stated once and becomes
+ * the thing under test rather than the thing contradicted.
+ *
+ * The two names are restated here rather than imported (ISSUER_PERMISSIONS is not exported), so
+ * widening the boundary in the product shows up here as a failure needing review instead of being
+ * mirrored silently.
+ */
+const ISSUER_ONLY_PERMISSIONS: readonly Permission[] = [Permission.PAGE_LICENSE_ISSUER, Permission.LICENSE_ISSUE];
+const superUserPermissions = new Set<Permission>(BUILTIN_ROLES.SuperUser.permissions);
+const withheldFromSuperUser = ALL_PERMISSIONS.filter((p) => !superUserPermissions.has(p));
+
+check(
+  "SuperUser holds every permission except the issuer-only pair",
+  ALL_PERMISSIONS.filter((p) => !ISSUER_ONLY_PERMISSIONS.includes(p)).every((p) => superUserPermissions.has(p)),
+  `withheld: [${withheldFromSuperUser.join(", ")}]`
+);
+check(
+  "the ONLY permissions withheld from SuperUser are the issuer pair (signing-key boundary intact)",
+  withheldFromSuperUser.length === ISSUER_ONLY_PERMISSIONS.length &&
+    ISSUER_ONLY_PERMISSIONS.every((p) => withheldFromSuperUser.includes(p)),
+  `withheld: [${withheldFromSuperUser.join(", ")}]`
+);
+check(
+  "the Issuer role holds exactly that pair, so neither permission is orphaned nor bundled with others",
+  BUILTIN_ROLES.Issuer.permissions.length === ISSUER_ONLY_PERMISSIONS.length &&
+    ISSUER_ONLY_PERMISSIONS.every((p) => BUILTIN_ROLES.Issuer.permissions.includes(p)),
+  `Issuer: [${BUILTIN_ROLES.Issuer.permissions.join(", ")}]`
+);
 check("Administrator does NOT hold the branding permission", !BUILTIN_ROLES.Administrator.permissions.includes(Permission.SETTINGS_BRANDING_MANAGE));
 check("Operator does NOT hold the branding permission", !BUILTIN_ROLES.Operator.permissions.includes(Permission.SETTINGS_BRANDING_MANAGE));
 check("Viewer does NOT hold the branding permission", !BUILTIN_ROLES.Viewer.permissions.includes(Permission.SETTINGS_BRANDING_MANAGE));
