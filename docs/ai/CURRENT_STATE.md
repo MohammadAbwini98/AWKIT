@@ -1,5 +1,64 @@
 # CURRENT_STATE
 
+## The flake was two real defects, and one of them loses user data (2026-08-18)
+
+The "intermittent Workflow self-loop render failure" does not exist. Soaking with instrumentation
+that reads the persisted model, the DOM, and the filesystem together produced the answer on the
+first failing run, and it is worse than a render bug.
+
+**Defect 1 - PRODUCT, user-facing data loss.** `JsonProfileStore.atomicWrite` wrote a temp file and
+renamed it over the target **once**, with no retry. The app's own toast, captured mid-flight:
+
+```text
+Failed to save changes. EPERM: operation not permitted, rename
+'...workflowserify-workflow-loop-capsule.json.<pid>.<ts>.<rand>.tmp' -> '...workflowserify-workflow-loop-capsule.json'
+```
+
+On Windows that rename routinely collides with antivirus, the search indexer, or a backup agent
+holding the destination for a few milliseconds. When it did, the save was discarded, the user saw a
+toast flash past, and the profile silently reverted. This affected **every** profile the store
+persists - flows, workflows, data sources, reports. Fixed by reusing `app/main/atomicReplace.ts`,
+the policy already proven for `ui-settings.json` under `awkit-4qs`: retry `EPERM`/`EBUSY` only,
+short linear backoff, rethrow the original errno on terminal failure. One implementation, not two.
+
+**Defect 2 - the instrument that hid it.** `page.waitForFunction` does **not** await an async
+predicate: it receives a Promise, a Promise is truthy, and the wait satisfies on its first poll.
+Measured against real Playwright rather than reasoned about:
+
+```text
+async-always-false predicate: resolved after 105ms
+sync-always-false  predicate: timed out after 3010ms
+```
+
+Three persisted-state waits were written async, because the state is only reachable through an async
+IPC round-trip. All three were inert for their whole lifetime while carrying careful comments about
+`polling: 100` versus `requestAnimationFrame` - correct reasoning defending a wait that never
+waited. So a failed save was reported as persisted and surfaced four checks later as a phantom
+reload fault. `waitForAsyncCondition` in `gui-verify-harness.mjs` polls from Node through
+`page.evaluate`, which does await.
+
+**Both are guarded, both mutation-tested.** `verify:profile-store` 18 -> **26**, driving failures
+through `atomicReplace`'s existing `renameImpl`/`sleep` seams: retry cardinality
+(`retries=2, attempts=3` - "it succeeded" is equally true when the rename never failed), bounded
+give-up at 5, previous file intact, no temp leftovers, and `ENOSPC` **not** retried. Removing the
+retry kills the suite at exactly that check. New `verify:async-wait-hygiene` **16/16** collects every
+`waitForFunction` site and then classifies, strips comments so it does not report the documentation
+about the bug as the bug, and asserts the one file it skips is one it would flag.
+
+**Soak:** 12 Workflow + 6 Flow runs all green. The three soaks immediately before the fix each failed
+on run 1. Also worth recording: `canvasNodes: 5` in the original evidence was a *fully* rendered
+canvas (3 workflow nodes plus start/end), and "ABORTED after 13/17 checks" counts results, not
+passes - check 13 had recorded a FAIL. Both misreadings pointed the investigation at rendering.
+
+`verify:roadmap-dashboard` 158/158, `npm run build` clean, `verify:write-queue` 29/29.
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **218 total / 210 closed / 8 outstanding** (4 open, 4 owner-gated `blocked`).
+
+`awkit-8z0` is now genuinely unblocked - the Workflow suite is stable and its failures mean
+something. Residual gap on `awkit-v35n`: neither capsule suite asserts the absence of a save-error
+toast, so a future save failure with a different cause would again surface as a downstream timeout.
+
+
 ## One flake bead, and the fill echo done properly (2026-08-17)
 
 Two clean-ups, both prompted by the fair question of why Recorder issues kept opening.

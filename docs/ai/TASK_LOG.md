@@ -4,6 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Root-cause the capsule flake: an EPERM save loss behind a vacuous wait (awkit-a53k)
+
+- **Task:** soak the Workflow capsule suite with a model-vs-DOM dump until it failed, to decide
+  whether `awkit-a53k` was a render fault; then let `awkit-8z0`/`awkit-6be` fall out behind it.
+- **The premise was false.** The first captured failure showed the persisted profile as the pristine
+  seed with an mtime byte-identical to the seed mtime - the file was never written. Check 13 had
+  recorded a FAIL, not a pass ("13/17 checks" counts results). Not a render fault.
+- **Defect 1 (PRODUCT, data loss):** `JsonProfileStore.atomicWrite` did tmp-write + a SINGLE rename,
+  no retry. Captured from the app own toast: `EPERM: operation not permitted, rename <...>.tmp ->
+  <...>.json`. Routine Windows contention (antivirus, indexer, backup agent) discarded the save; the
+  user saw a toast flash past and the profile reverted. Affects every profile the store persists.
+  Fixed by reusing `app/main/atomicReplace.ts` (the policy proven for `ui-settings.json`, awkit-4qs).
+- **Defect 2 (INSTRUMENT):** `page.waitForFunction` does not await an async predicate - measured,
+  async-always-false resolves in 105ms while sync-always-false times out at 3010ms. Three
+  persisted-state waits (1 Workflow, 2 Flow) were inert for their whole lifetime. Fixed with
+  `waitForAsyncCondition` (polls from Node via `page.evaluate`, which does await).
+- **Method note:** the diagnostic caught a bug in its own verdict logic before it could mislead -
+  it ordered persistence before DOM, so a pre-save wait reported "absent from the saved profile"
+  while the edge was on screen. DOM first; the profile only ever explains a missing DOM edge.
+- **Tests run:** `verify:profile-store` **26/26** (was 18; new retry checks mutation-tested - removing
+  the retry exits 1 at that check), `verify:async-wait-hygiene` **16/16** (new, mutation-tested by
+  reverting a real call site), `verify:write-queue` 29/29, `verify:verifier-classification`
+  reconciled (181), `verify:roadmap-dashboard` 158/158, `npm run build` clean.
+  **Soak: 12 Workflow + 6 Flow runs green**, against three pre-fix soaks that each failed on run 1.
+- **Files:** `src/storage/ProfileStore.ts`, `scripts/verify-profile-store.mts`,
+  `scripts/verify-async-wait-hygiene.mjs` (new), `scripts/lib/gui-verify-harness.mjs`,
+  `scripts/lib/verify-workflow-loop-capsule-gui.mjs`, `scripts/lib/verify-flow-loop-capsule-gui.mjs`,
+  `scripts/lib/verifier-classification.ts`, `package.json`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-a53k` closed; `awkit-v35n` filed (no suite asserts the absence of a save-error
+  toast). Tracker 218 total / 210 closed / 8 outstanding. `awkit-8z0` is now genuinely unblocked.
+
+---
+
 ## 2026-08-17 - Claude - Consolidate the flake bead chain and fix the fill echo (awkit-ty4)
 
 - **Task:** Two things the owner asked for after questioning why Recorder issues kept opening:

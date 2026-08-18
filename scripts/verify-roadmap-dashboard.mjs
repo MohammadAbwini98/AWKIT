@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("217 issues parse", beads.stats.total === 217, `got ${beads.stats.total}`);
+  check("218 issues parse", beads.stats.total === 218, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -239,8 +239,11 @@ try {
   // Four of those closures were the flake-chain consolidation (`awkit-2js`, `awkit-7h0w`,
   // `awkit-be5o`, `awkit-r9f3` superseded by `awkit-a53k`); the fifteenth was `awkit-ty4`.
   check(
-    "8 outstanding / 209 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 209,
+    // Then 8/210 of 218 on 2026-08-18: awkit-a53k closed (root cause was a vacuous async wait hiding
+  // a real EPERM save failure, not the render fault it was filed as) and awkit-v35n filed for the
+  // residual gap - one in, one out, so outstanding held while total and closed each rose by one.
+    "8 outstanding / 210 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 210,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
