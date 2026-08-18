@@ -155,7 +155,7 @@ renamed it over the target **once**, with no retry. The app's own toast, capture
 
 ```text
 Failed to save changes. EPERM: operation not permitted, rename
-'...workflowserify-workflow-loop-capsule.json.<pid>.<ts>.<rand>.tmp' -> '...workflowserify-workflow-loop-capsule.json'
+'...workflows/verify-workflow-loop-capsule.json.<pid>.<ts>.<rand>.tmp' -> '...workflows/verify-workflow-loop-capsule.json'
 ```
 
 On Windows that rename routinely collides with antivirus, the search indexer, or a backup agent
