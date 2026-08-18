@@ -213,6 +213,26 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/recorder-sensitive") return serveStatic(res, "recorder-sensitive.html");
   if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");
   if (req.method === "GET" && path === "/async-results") return serveStatic(res, "async-results.html");
+  // ── Recorder Navigation Lab ────────────────────────────────────────────────
+  /**
+   * A server redirect whose destination is a hardcoded constant — nothing from the request reaches
+   * `Location`, so this can never become an open redirect (same shape as the popup lab's J2 hop).
+   * The Recorder must record the FINAL url and never the intermediate one.
+   *
+   * MUST stay ahead of the two static handlers below, which would otherwise try to serve a file
+   * named `redirect` and 404 before this is reached.
+   */
+  if (req.method === "GET" && path === "/navigation-lab/redirect") {
+    res.writeHead(302, { Location: "/navigation-lab/arrived?via=redirect" });
+    res.end();
+    return;
+  }
+  if (req.method === "GET" && path === "/navigation-lab/arrived") return serveStatic(res, "navigation-lab-arrived.html");
+  // SPA routes pushed by the lab's own script (`/navigation-lab/route-a`, `route-b`) must still
+  // serve the lab on a reload, or the reload check would land on a 404 instead of the same URL.
+  if (req.method === "GET" && (path === "/navigation-lab" || path.startsWith("/navigation-lab/route"))) {
+    return serveStatic(res, "navigation-lab.html");
+  }
   // ── Multi-Window / Popup Lab ───────────────────────────────────────────────
   /**
    * Scenario J2: a popup that redirects once BEFORE the user can interact with it. The destination

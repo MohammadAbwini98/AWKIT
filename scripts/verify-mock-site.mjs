@@ -277,6 +277,24 @@ try {
   check("smart wait JSON example exists", /beforeWaits/.test((await page.getByTestId("smart-wait-json-example").textContent()) ?? ""));
 
   console.log("Async results / empty state scenarios:");
+  // ── Recorder Navigation Lab ───────────────────────────────────────────────
+  // Structural only: that the controls and routes EXIST with stable selectors. What the Recorder
+  // does with each transition is verify:recorder-navigation's job, and duplicating it here would
+  // mean two places to update and one of them silently rotting.
+  await page.goto(`${BASE}/navigation-lab`);
+  for (const id of ["nav-link", "nav-redirect", "nav-form", "nav-who", "nav-submit", "nav-pushstate",
+    "nav-replacestate", "nav-hash", "nav-back", "nav-forward", "nav-reload", "nav-reset", "nav-status"]) {
+    check(`navigation lab exposes ${id}`, await page.getByTestId(id).isVisible());
+  }
+  await page.goto(`${BASE}/navigation-lab/arrived?via=redirect&who=alice`);
+  check("navigation lab arrival page reports how it was reached",
+    (await page.getByTestId("arrived-via").textContent())?.trim() === "redirect");
+  check("navigation lab arrival page reports the submitted visitor",
+    (await page.getByTestId("arrived-who").textContent())?.trim() === "alice");
+  // The SPA routes must serve the lab, not a 404, or a reload lands somewhere else entirely.
+  await page.goto(`${BASE}/navigation-lab/route-a?step=1`);
+  check("a pushed SPA route still serves the navigation lab on reload",
+    await page.getByTestId("nav-status").isVisible());
   await page.goto(`${BASE}/async-results`);
   await page.getByRole("heading", { name: "Async Results and Empty State Lab" }).waitFor();
   // Speed the fixtures up so the verifier stays fast but still exercises the loader.

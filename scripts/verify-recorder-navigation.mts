@@ -351,6 +351,161 @@ async function main(): Promise<void> {
     }
 
     await causalContext.close();
+
+    /* ── The same transitions, driven by REAL user gestures on the navigation lab (awkit-9qj) ──
+       Everything above drives navigation from the test: `page.goto`, `page.goBack()`, and
+       `page.evaluate(() => history.pushState(...))`. That proves the capture path handles each KIND of
+       transition, but not that it handles them as a user produces them, and the difference is not
+       cosmetic: an evaluate-injected `pushState` is a call the test makes, whereas a real router calls
+       the `history` method the page itself holds a reference to. A wrap that were installed too late,
+       or into the wrong world, could pass every check above and still miss every real application.
+
+       Three transitions have no representation above at all, because a test cannot fake them: a link
+       click, a form submit, and a server redirect. The lab supplies all three. */
+    const labContext = await browser.newContext();
+    const labSvc = new RecorderService() as unknown as {
+      isRecording: boolean;
+      urlSessionId: string;
+      recordedUrls: { url: string }[];
+      actions: { type: string; name: string }[];
+      attachUrlCapture(page: unknown): void;
+    };
+    labSvc.isRecording = true;
+    labSvc.urlSessionId = "verify-navigation-lab";
+    labSvc.recordedUrls = [];
+
+    const lab = await labContext.newPage();
+    labSvc.attachUrlCapture(lab);
+
+    const labSeen = (): string[] => labSvc.recordedUrls.map((u) => String(u.url).replace(base, ""));
+    const labSettle = () => new Promise((r) => setTimeout(r, 400));
+    const labStep = async (label: string, run: () => Promise<void>): Promise<string[]> => {
+      const before = new Set(labSeen());
+      await run();
+      await labSettle();
+      const added = labSeen().filter((u) => !before.has(u));
+      console.log(`    [lab:${label}] added: ${added.length ? added.join(", ") : "(nothing)"}`);
+      return added;
+    };
+
+    await lab.goto(`${base}/navigation-lab`);
+    await labSettle();
+    check("the navigation lab itself is recorded on arrival", labSeen().includes("/navigation-lab"), labSeen().join(", "));
+
+    const clickNav = await labStep("link click", async () => {
+      await lab.getByTestId("nav-link").click();
+      await lab.getByTestId("arrival-heading").waitFor();
+    });
+    check(
+      "a link CLICK navigation is recorded",
+      clickNav.includes("/navigation-lab/arrived"),
+      clickNav.join(", ")
+    );
+
+    await lab.goBack();
+    await labSettle();
+
+    const formNav = await labStep("form submit", async () => {
+      await lab.getByTestId("nav-who").fill("alice");
+      await lab.getByTestId("nav-submit").click();
+      await lab.getByTestId("arrival-heading").waitFor();
+    });
+    check(
+      "a FORM SUBMIT navigation is recorded with its query string",
+      formNav.some((u) => u.startsWith("/navigation-lab/arrived?") && u.includes("who=alice") && u.includes("via=form")),
+      formNav.join(", ")
+    );
+
+    await lab.goto(`${base}/navigation-lab`);
+    await labSettle();
+
+    const redirectNav = await labStep("server redirect", async () => {
+      await lab.getByTestId("nav-redirect").click();
+      await lab.getByTestId("arrival-heading").waitFor();
+    });
+    check(
+      "a SERVER REDIRECT records its final destination",
+      redirectNav.includes("/navigation-lab/arrived?via=redirect"),
+      redirectNav.join(", ")
+    );
+    // The property that matters, and the one a naive implementation gets wrong: the intermediate hop
+    // is not somewhere the user can be sent back to, so recording it would corrupt replay.
+    check(
+      "the intermediate redirect hop is NOT recorded",
+      !labSeen().includes("/navigation-lab/redirect"),
+      labSeen().join(", ")
+    );
+
+    await lab.goto(`${base}/navigation-lab`);
+    await labSettle();
+
+    const labPush = await labStep("page-script pushState", async () => {
+      await lab.getByTestId("nav-pushstate").click();
+    });
+    check(
+      "a pushState called by the PAGE's own script is recorded",
+      labPush.includes("/navigation-lab/route-a?step=1"),
+      labPush.join(", ")
+    );
+
+    const labReplace = await labStep("page-script replaceState", async () => {
+      await lab.getByTestId("nav-replacestate").click();
+    });
+    check(
+      "a replaceState called by the PAGE's own script is recorded",
+      labReplace.includes("/navigation-lab/route-b?step=2"),
+      labReplace.join(", ")
+    );
+
+    const labHash = await labStep("hash link click", async () => {
+      await lab.getByTestId("nav-hash").click();
+    });
+    check(
+      "a hash link CLICK is recorded and keeps its fragment",
+      labHash.length === 1 && labHash[0]?.endsWith("#section-2") === true,
+      labHash.join(", ")
+    );
+
+    const labBack = await labStep("in-page back button", async () => {
+      await lab.getByTestId("nav-back").click();
+    });
+    check("the page's own Back button adds no new record", labBack.length === 0, labBack.join(", "));
+
+    const labForward = await labStep("in-page forward button", async () => {
+      await lab.getByTestId("nav-forward").click();
+    });
+    check("the page's own Forward button adds no new record", labForward.length === 0, labForward.join(", "));
+
+    const labReload = await labStep("in-page reload button", async () => {
+      await lab.getByTestId("nav-reload").click();
+      await lab.getByTestId("nav-status").waitFor();
+    });
+    check("the page's own Reload button adds no new record", labReload.length === 0, labReload.join(", "));
+
+    // Cardinality, for the same reason as the matrix above: every "no new record" check is also
+    // satisfied by a capture path that stopped recording entirely partway through.
+    const labFinal = labSeen();
+    const labExpected = [
+      "/navigation-lab",
+      "/navigation-lab/arrived",
+      "/navigation-lab/arrived?who=alice&via=form",
+      "/navigation-lab/arrived?via=redirect",
+      "/navigation-lab/route-a?step=1",
+      "/navigation-lab/route-b?step=2",
+      "/navigation-lab/route-b?step=2#section-2"
+    ].sort();
+    check(
+      "the lab recorded exactly these seven destinations and nothing else",
+      JSON.stringify([...labFinal].sort()) === JSON.stringify(labExpected),
+      `got ${JSON.stringify([...labFinal].sort())}`
+    );
+    check(
+      "no redirect hop, about:blank, or 404 route leaked into the lab's set",
+      !labFinal.some((u) => u.startsWith("about:") || u === "/navigation-lab/redirect"),
+      labFinal.join(", ")
+    );
+
+    await labContext.close();
   } finally {
     await browser.close();
     server.kill();

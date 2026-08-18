@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Recorder Navigation Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1>Recorder Navigation Lab</h1>
+      <p class="hint">
+        Expected behavior: every control below changes the URL through a real user gesture, and the Recorder
+        records exactly one entry per distinct destination - never a duplicate for a URL already visited.
+        Related AWKIT features: Recorder navigation/URL tracking, navigation de-duplication, and the
+        distinction between a navigation the user caused and one the page performed on its own.
+      </p>
+      <p class="hint">
+        Why this page exists rather than driving the same transitions from the test: <code>pushState</code>,
+        <code>replaceState</code> and <code>hashchange</code> here are called by <strong>this page's own
+        script</strong>, exactly as a real SPA router would. A transition injected by
+        <code>page.evaluate</code> runs in a different context and can be captured even when a real
+        application's call is missed, so it cannot prove the wrap actually holds.
+      </p>
+
+      <section class="control-row" aria-label="Document navigation">
+        <h2>Document navigation</h2>
+        <a id="navLink" data-testid="nav-link" href="/navigation-lab/arrived">Go to the arrival page</a>
+        <a id="navRedirect" data-testid="nav-redirect" href="/navigation-lab/redirect">Go via a server redirect</a>
+      </section>
+
+      <form
+        id="navForm"
+        data-testid="nav-form"
+        class="control-row"
+        method="get"
+        action="/navigation-lab/arrived"
+        aria-label="Form submit navigation"
+      >
+        <label for="who">Who is visiting</label>
+        <input id="who" data-testid="nav-who" name="who" type="text" value="recorder" />
+        <input type="hidden" name="via" value="form" />
+        <button data-testid="nav-submit" type="submit">Submit and navigate</button>
+      </form>
+
+      <section class="control-row" aria-label="In-page routing">
+        <h2>In-page routing</h2>
+        <button id="pushRoute" data-testid="nav-pushstate" type="button">Push SPA route</button>
+        <button id="replaceRoute" data-testid="nav-replacestate" type="button">Replace SPA route</button>
+        <a id="hashLink" data-testid="nav-hash" href="#section-2">Jump to section 2</a>
+      </section>
+
+      <section class="control-row" aria-label="History controls">
+        <h2>History</h2>
+        <button id="goBack" data-testid="nav-back" type="button">Back</button>
+        <button id="goForward" data-testid="nav-forward" type="button">Forward</button>
+        <button id="reloadPage" data-testid="nav-reload" type="button">Reload</button>
+        <button id="resetLab" data-testid="nav-reset" type="button">Reset log</button>
+      </section>
+
+      <section aria-label="Current location">
+        <p>Current URL: <output id="navStatus" data-testid="nav-status">(reading)</output></p>
+        <ul id="navLog" data-testid="nav-log"></ul>
+      </section>
+
+      <section id="section-1" aria-label="Section one">
+        <h2>Section 1</h2>
+        <p data-testid="section-1-body">The hash link below moves to section 2 without a document navigation.</p>
+      </section>
+      <section id="section-2" aria-label="Section two">
+        <h2>Section 2</h2>
+        <p data-testid="section-2-body">A hash-only move must stay distinguishable from its base URL.</p>
+      </section>
+    </main>
+
+    <script>
+      // Deliberately plain page script with no timers: every transition below is synchronous and
+      // driven by a real click, so a run is reproducible and never depends on a delay settling.
+      (function () {
+        var status = document.getElementById("navStatus");
+        var log = document.getElementById("navLog");
+
+        function record(label) {
+          var here = location.pathname + location.search + location.hash;
+          status.textContent = here;
+          var item = document.createElement("li");
+          item.setAttribute("data-testid", "nav-log-entry");
+          item.textContent = label + " -> " + here;
+          log.appendChild(item);
+        }
+
+        record("loaded");
+
+        // pushState / replaceState called from PAGE script — the whole point of this lab.
+        document.getElementById("pushRoute").addEventListener("click", function () {
+          history.pushState({ step: 1 }, "", "/navigation-lab/route-a?step=1");
+          record("pushState");
+        });
+        document.getElementById("replaceRoute").addEventListener("click", function () {
+          history.replaceState({ step: 2 }, "", "/navigation-lab/route-b?step=2");
+          record("replaceState");
+        });
+
+        document.getElementById("goBack").addEventListener("click", function () {
+          history.back();
+        });
+        document.getElementById("goForward").addEventListener("click", function () {
+          history.forward();
+        });
+        document.getElementById("reloadPage").addEventListener("click", function () {
+          location.reload();
+        });
+        document.getElementById("resetLab").addEventListener("click", function () {
+          log.textContent = "";
+          record("reset");
+        });
+
+        window.addEventListener("hashchange", function () {
+          record("hashchange");
+        });
+        window.addEventListener("popstate", function () {
+          record("popstate");
+        });
+      })();
+    </script>
+  </body>
+</html>

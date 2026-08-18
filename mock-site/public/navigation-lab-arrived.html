@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Navigation Lab Arrival</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1 data-testid="arrival-heading">Arrived</h1>
+      <p class="hint">
+        Expected behavior: this is the destination for the Navigation Lab's link click, form submit, and
+        server redirect. The query string states how the visit arrived, so a recorded URL can be checked
+        against the route that produced it rather than merely against the path.
+      </p>
+      <p>Arrived via: <output id="arrivedVia" data-testid="arrived-via">(unknown)</output></p>
+      <p>Visitor: <output id="arrivedWho" data-testid="arrived-who">(none)</output></p>
+      <a data-testid="arrival-back-link" href="/navigation-lab">Back to the Navigation Lab</a>
+    </main>
+
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        document.getElementById("arrivedVia").textContent = params.get("via") || "link";
+        document.getElementById("arrivedWho").textContent = params.get("who") || "(none)";
+      })();
+    </script>
+  </body>
+</html>
