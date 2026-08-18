@@ -134,7 +134,9 @@ async function main(): Promise<void> {
   console.log("D — Native <select>");
   {
     const html = `<label for="country">Country</label><select id="country"><option value="us">United States</option><option value="ca">Canada</option></select>`;
-    const action = await capture(html, (p) => p.selectOption("#country", "ca"));
+    const action = await capture(html, async (p) => {
+      await p.selectOption("#country", "ca");
+    });
     console.log(`    · select → type=${action?.type} strategy=${action?.locator?.strategy} value=${JSON.stringify(val(action))} recorded=${action?.valueSource?.value}`);
     check("select: if recorded, the locator is unique", !action || unique(action), JSON.stringify(action?.locator?.quality));
     check("select: if recorded, the locator is not a utility/hash selector", !action || !UTILITY_OR_HASH.test(val(action)), val(action));

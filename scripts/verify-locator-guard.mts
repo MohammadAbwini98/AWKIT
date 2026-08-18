@@ -223,7 +223,7 @@ async function main() {
       try {
         const r = await exec.execute({ ...step, timeoutMs: 4000 });
         check("[6] the guarded step passes unchanged", r.status === "passed", r.error);
-        check("[6] it clicked the recorded index (not another sibling)", (await page.locator("#gp-result").textContent()) === "clicked-2", await page.locator("#gp-result").textContent());
+        check("[6] it clicked the recorded index (not another sibling)", (await page.locator("#gp-result").textContent()) === "clicked-2", (await page.locator("#gp-result").textContent()) ?? undefined);
         check("[6] the runtime emitted a verified guarded-positional event", events.some((e) => e.type === "guarded-positional"));
       } finally {
         await close();
@@ -241,7 +241,7 @@ async function main() {
         const r = await exec.execute({ ...step, timeoutMs: 4000 });
         check(`[7] ${label} aborts the sensitive action`, r.status === "failed", `status=${r.status}`);
         check(`[7] ${label} abort is SENSITIVE_TARGET_IDENTITY_CHANGED`, (r.error ?? "").includes("SENSITIVE_TARGET_IDENTITY_CHANGED"), r.error);
-        check(`[7] ${label} clicked NOTHING (refused before the side effect)`, (await page.locator("#gp-result").textContent()) === "", await page.locator("#gp-result").textContent());
+        check(`[7] ${label} clicked NOTHING (refused before the side effect)`, (await page.locator("#gp-result").textContent()) === "", (await page.locator("#gp-result").textContent()) ?? undefined);
       } finally {
         await close();
       }
@@ -258,7 +258,7 @@ async function main() {
         const r = await exec.execute({ ...step, timeoutMs: 4000 });
         check("[8] a changed target aborts", r.status === "failed", `status=${r.status}`);
         check("[8] the abort is SENSITIVE_TARGET_IDENTITY_CHANGED", (r.error ?? "").includes("SENSITIVE_TARGET_IDENTITY_CHANGED"), r.error);
-        check("[8] clicked NOTHING (no fallback to another sibling)", (await page.locator("#gp-result").textContent()) === "", await page.locator("#gp-result").textContent());
+        check("[8] clicked NOTHING (no fallback to another sibling)", (await page.locator("#gp-result").textContent()) === "", (await page.locator("#gp-result").textContent()) ?? undefined);
       } finally {
         await close();
       }
@@ -278,7 +278,7 @@ async function main() {
       try {
         const r = await exec.execute({ ...fillStep, timeoutMs: 5000 });
         check("[9] unchanged: the guarded fill executes", r.status === "passed", r.error);
-        check("[9] it filled the recorded input (index 1), not the other", (await page.locator("#fill-result").textContent()) === "filled-1=acct-9001", await page.locator("#fill-result").textContent());
+        check("[9] it filled the recorded input (index 1), not the other", (await page.locator("#fill-result").textContent()) === "filled-1=acct-9001", (await page.locator("#fill-result").textContent()) ?? undefined);
       } finally {
         await close();
       }
@@ -295,7 +295,7 @@ async function main() {
         const r = await exec.execute({ ...fillStep, timeoutMs: 4000 });
         check("[9] a changed target identity aborts the sensitive fill", r.status === "failed", `status=${r.status}`);
         check("[9] the abort is SENSITIVE_TARGET_IDENTITY_CHANGED", (r.error ?? "").includes("SENSITIVE_TARGET_IDENTITY_CHANGED"), r.error);
-        check("[9] it filled NOTHING (refused before the side effect)", (await page.locator("#fill-result").textContent()) === "", await page.locator("#fill-result").textContent());
+        check("[9] it filled NOTHING (refused before the side effect)", (await page.locator("#fill-result").textContent()) === "", (await page.locator("#fill-result").textContent()) ?? undefined);
       } finally {
         await close();
       }

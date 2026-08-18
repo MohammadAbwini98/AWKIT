@@ -318,7 +318,7 @@ async function main() {
       try {
         const r = await exec.execute({ ...mockStep, timeoutMs: 6000 });
         check("[9] replay descends both mock-site frames and clicks the leaf", r.status === "passed", r.error);
-        check("[9] the deep click is mirrored to the top document (nested-mirror=yes)", (await page.locator('[data-testid="nested-mirror"]').textContent()) === "yes", await page.locator('[data-testid="nested-mirror"]').textContent());
+        check("[9] the deep click is mirrored to the top document (nested-mirror=yes)", (await page.locator('[data-testid="nested-mirror"]').textContent()) === "yes", (await page.locator('[data-testid="nested-mirror"]').textContent()) ?? undefined);
       } finally {
         await close();
       }

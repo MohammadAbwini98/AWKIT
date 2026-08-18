@@ -83,7 +83,7 @@ function capturingClick(id: string, o: CaptureOver = {}): RecordedAction {
       visible: true,
       enabled: true,
       boundingRegion: { relativeX: 0.1, relativeY: 0.2, relativeWidth: 0.3, relativeHeight: 0.04 },
-      fingerprint: fp,
+      fingerprint: { ...fp },
       url: o.url ?? `https://shop.example.com/checkout?session=${PII_QUERY_TOKEN}#frag`,
       title: o.title ?? "Checkout - Acme Store",
       documentStructure: o.documentStructure ?? "div=5|form=1|input=1"

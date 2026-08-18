@@ -104,15 +104,17 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // 5b. Retries are BOUNDED. An always-failing transient error must stop and rethrow.
   {
     let calls = 0;
-    let thrown: NodeJS.ErrnoException | null = null;
-    await replaceFileAtomically("t", "target", {
+    const thrown = await replaceFileAtomically("t", "target", {
       attempts: 4,
       sleep: noSleep,
       renameImpl: async () => {
         calls += 1;
         throw errno("EPERM");
       }
-    }).catch((e) => { thrown = e as NodeJS.ErrnoException; });
+    }).then(
+      () => null,
+      (error: unknown) => error as NodeJS.ErrnoException
+    );
     check("persistent EPERM stops after exactly `attempts` tries", calls === 4, `attempts=${calls}`);
     check("persistent EPERM propagates the ORIGINAL errno", thrown?.code === "EPERM", `code=${thrown?.code}`);
   }
@@ -121,14 +123,16 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // turning a clear immediate failure (disk full, missing temp) into a slow one.
   for (const code of ["ENOENT", "ENOSPC", "EACCES", "EXDEV"]) {
     let calls = 0;
-    let thrown: NodeJS.ErrnoException | null = null;
-    await replaceFileAtomically("t", "target", {
+    const thrown = await replaceFileAtomically("t", "target", {
       sleep: noSleep,
       renameImpl: async () => {
         calls += 1;
         throw errno(code);
       }
-    }).catch((e) => { thrown = e as NodeJS.ErrnoException; });
+    }).then(
+      () => null,
+      (error: unknown) => error as NodeJS.ErrnoException
+    );
     check(`${code} fails on the FIRST attempt (not retried)`, calls === 1, `attempts=${calls}`);
     check(`${code} propagates unchanged`, thrown?.code === code, `code=${thrown?.code}`);
   }

@@ -318,7 +318,7 @@ async function main() {
         const r = await exec.execute({ ...mockStep, timeoutMs: 6000 });
         check("[8] replay clicks the closed-root control on the mock-site page", r.status === "passed", r.error);
         await rp.waitForFunction(() => (window as unknown as { __csLab?: string }).__csLab === "applied", { timeout: 2000 }).catch(() => undefined);
-        check("[8] the closed-root click is reflected (cs-result=applied)", (await rp.locator('[data-testid="cs-result"]').textContent()) === "applied", await rp.locator('[data-testid="cs-result"]').textContent());
+        check("[8] the closed-root click is reflected (cs-result=applied)", (await rp.locator('[data-testid="cs-result"]').textContent()) === "applied", (await rp.locator('[data-testid="cs-result"]').textContent()) ?? undefined);
       } finally {
         await close();
       }
