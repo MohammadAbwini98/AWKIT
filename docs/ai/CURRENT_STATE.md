@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## A stale assertion re-expressed, not deleted (2026-08-18)
+
+`awkit-gc0g` closed. `verify:recorder-competitive` was 49/50; its failing check asserted that an
+ambiguous positional drop target is `needs-review`. That expectation predates `awkit-65g`, where the
+owner directive changed the policy on purpose: the recorder builds a unique selector and **adopts a
+positional last-resort as `resolved`**, rather than pausing.
+
+Confirmed from source rather than from memory - `buildRecordedFlow` routes a unique-but-positional
+locator straight to `resolved` (only the sensitive branch can still demand review), and
+`verify:locator-guard` independently asserts the same for the sensitive case.
+
+**The check was neither deleted nor satisfied by changing the product.** Its intent - an
+index-chosen target must never be silently indistinguishable from a strong locator - is still worth
+protecting, so it is asserted against the representation that now carries it: the locator declares
+`disambiguation: positional`, is low confidence with a non-empty warning, and carries guard evidence
+(fingerprint + candidate selector + the sibling set the index was chosen from) so replay **re-proves**
+identity instead of trusting a position.
+
+**The mutation test taught something the old check had obscured.** Dropping the guard hashing fails
+three of the five new checks - including "adopted as resolved" - because without re-provable evidence
+the recorder correctly falls back:
+
+```text
+"resolution":"needs-review",
+"reviewReason":"the drop target is identified only by position - review before running"
+```
+
+So `resolved` is **conditional on guard evidence existing**. That is the real contract; the old
+assertion had simply pinned the unguarded branch's outcome while this fixture takes the guarded one.
+
+`verify:recorder-competitive` **49/50 -> 54/54** (one assertion became five), `verify:locator-guard`
+35/35 unaffected, `npm run build` clean.
+
+Tracker: **219 total / 215 closed / 4 outstanding**, and `byStatus` is now exactly
+`{closed: 215, blocked: 4}` - **nothing is open**. All four remaining are owner-gated and externally
+blocked: `awkit-7bu` (real Oracle 19c rerun), `awkit-az7` (two owner-decision OS shell launches),
+`awkit-cey` (authorized real-IdP Chrome handoff), `awkit-cm8` (four Oracle external gates).
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## Recorder navigation lab: transitions a test cannot fake (2026-08-18)
 
 `awkit-9qj` closed. It was filed as bookkeeping and turned out to add real coverage.

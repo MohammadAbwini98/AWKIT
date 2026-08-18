@@ -249,8 +249,11 @@ try {
   // Then 5/214 of 219 on 2026-08-18: awkit-9qj closed (Recorder navigation lab + regression matrix)
   // and awkit-gc0g filed for a pre-existing stale assertion the matrix run surfaced - one in, one
   // out, so outstanding held while total and closed each rose by one.
-    "5 outstanding / 214 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 214,
+  // Then 4/215 of 219 on 2026-08-18: awkit-gc0g closed (the stale positional drop-target assertion was
+  // re-expressed, not deleted, and no product code changed). All four remaining are owner-gated and
+  // externally blocked - byStatus is now exactly {closed: 215, blocked: 4}, with nothing open.
+    "4 outstanding / 215 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 215,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

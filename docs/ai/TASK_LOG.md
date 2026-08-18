@@ -4,6 +4,32 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Re-express the stale positional drop-target assertion (awkit-gc0g)
+
+- **Task:** fix the one failing check in `verify:recorder-competitive` (49/50), surfaced while
+  running the verifiers cited by the navigation matrix.
+- **Diagnosis, from source:** the check asserted `resolution === "needs-review"` for an ambiguous
+  positional drop target. Since `awkit-65g` the recorder adopts a positional last-resort as
+  `resolved` by owner directive - `buildRecordedFlow` routes a unique-but-positional locator there,
+  and `verify:locator-guard` asserts the same for the sensitive case. A stale assertion, not a
+  regression.
+- **Fix:** re-expressed, not deleted, and no product code changed. Five checks now assert the intent
+  against the current representation: adopted as resolved by the recorder; declares
+  `disambiguation: positional`; low confidence with a non-empty warning; carries guard fingerprint +
+  candidate selector; and the guard records the ambiguous sibling set the index came from.
+- **Mutation-tested, and it was instructive:** dropping the guard hashing fails three of the five,
+  including "adopted as resolved", because without re-provable evidence the recorder correctly falls
+  back to needs-review. `resolved` is conditional on the guard existing - the old check had pinned
+  the unguarded branch while this fixture takes the guarded one.
+- **Tests run:** `verify:recorder-competitive` 49/50 -> **54/54**; `verify:locator-guard` **35/35**;
+  `npm run build` clean; `verify:roadmap-dashboard` 158/158; `ai:memory` PASS.
+- **Files:** `scripts/verify-recorder-competitive.mts`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-gc0g` closed. Tracker 219 total / 215 closed / 4 outstanding, with **nothing
+  open** - all four remaining are owner-gated and externally blocked.
+
+---
+
 ## 2026-08-18 - Claude - Recorder navigation lab and regression matrix (awkit-9qj)
 
 - **Task:** the formalisation remainder carved out of `awkit-n7n` - a mock-site navigation lab and
