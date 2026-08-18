@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## Step 2 landed: no permanently-failing assertion remains in either designer (2026-08-18)
+
+With the Workflow suite finally stable, `awkit-6be` step 2 was applied and validated end to end.
+The 31 retired U-route assertions are **deleted**, not allow-listed. An assertion that always fails
+is worse than no assertion: it teaches everyone to read a red line as normal.
+
+```text
+Flow      capsule 16/16   broad observed 112   retired 0   unexpected 0
+Workflow  capsule 17/17   broad observed  58   retired 0   unexpected 0
+```
+
+Excised by a string/template/comment-aware paren scanner (argument lists contain parentheses inside
+string literals, so a naive counter cuts in the wrong place): Flow 135 -> 119 raw `check(` calls,
+Workflow 80 -> 64. Both `supersededURouteChecks` arrays are now `[]` and `expectedChecks` moved
+128 -> 112 and 74 -> 58, exactly the numbers `awkit-8z0` had recorded.
+
+**The empty allow-list makes the gate stricter, not weaker.** `legacy-gui-verifier-coverage.mjs`
+computes `pass` as `retiredFailures.length === failedChecks.length`, so with nothing allow-listed any
+failure is now unexpected; `expectedChecks` feeds `harnessFailed`, so a truncated or early-exit child
+cannot look green.
+
+**One deliberate deviation from the recipe.** Each `Two ... Loops render independently` name occurs
+twice - the real assertion, and a fallback `check(name, false, "no second node found")` in an `else`
+that guards fixture setup. The excision removed the real assertion, correctly. Rather than delete the
+fixture guard and lose a genuine signal, its name was corrected to state what it actually asserts.
+Deleting it would have repeated the exact mistake this whole investigation was about.
+
+Tracker: **218 total / 212 closed / 6 outstanding** (2 open, 4 owner-gated `blocked`).
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. `verify:roadmap-dashboard` 158/158.
+
+
 ## The flake was two real defects, and one of them loses user data (2026-08-18)
 
 The "intermittent Workflow self-loop render failure" does not exist. Soaking with instrumentation

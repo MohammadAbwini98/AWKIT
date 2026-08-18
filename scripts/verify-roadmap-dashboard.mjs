@@ -242,8 +242,10 @@ try {
     // Then 8/210 of 218 on 2026-08-18: awkit-a53k closed (root cause was a vacuous async wait hiding
   // a real EPERM save failure, not the render fault it was filed as) and awkit-v35n filed for the
   // residual gap - one in, one out, so outstanding held while total and closed each rose by one.
-    "8 outstanding / 210 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 210,
+  // Then 6/212 of 218 on 2026-08-18: awkit-8z0 and awkit-6be closed together when step 2 landed
+  // (31 retired U-route assertions deleted, both allow-lists emptied, expectedChecks 112/58).
+    "6 outstanding / 212 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 212,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

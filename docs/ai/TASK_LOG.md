@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Delete the retired U-route assertions (awkit-6be step 2, awkit-8z0)
+
+- **Task:** apply the step-2 recipe now that the Workflow capsule suite is stable.
+- **Change:** excised the 16 retired U-route `check(` calls from each pre-capsule walkthrough with a
+  string/template/comment-aware paren scanner (Flow 135 -> 119, Workflow 80 -> 64), emptied both
+  `supersededURouteChecks` arrays, and moved `expectedChecks` 128 -> 112 and 74 -> 58.
+- **Deviation, deliberate:** the two `Two ... Loops render independently` names each occur twice - the
+  real assertion plus a fallback `check(name, false, ...)` guarding fixture setup. The real assertion
+  was removed; the guard was RENAMED to state what it asserts rather than deleted, so a fixture
+  regression still fails loudly.
+- **Order honoured:** the one retired intent with no focused replacement (inspector-delete + Undo) was
+  added to the focused Flow suite first, in an earlier session, before any deletion.
+- **Tests run:** `verify:flow-designer` exit 0 - capsule **16/16**, broad observed **112**, retired 0,
+  unexpected 0. `verify:workflow-builder` exit 0 - capsule **17/17**, broad observed **58**, retired 0,
+  unexpected 0. `verify:roadmap-dashboard` 158/158, `ai:memory` PASS.
+- **Note:** the empty allow-list strengthens the gate - `pass` requires `failedChecks.length === 0`,
+  and `expectedChecks` feeds `harnessFailed` so a truncated run cannot pass.
+- **Files:** `scripts/verify-flow-designer-gui{,.pre-capsule}.mjs`,
+  `scripts/verify-workflow-builder-gui{,.pre-capsule}.mjs`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-8z0` and `awkit-6be` closed. Tracker 218 total / 212 closed / 6 outstanding.
+
+---
+
 ## 2026-08-18 - Claude - Root-cause the capsule flake: an EPERM save loss behind a vacuous wait (awkit-a53k)
 
 - **Task:** soak the Workflow capsule suite with a model-vs-DOM dump until it failed, to decide
