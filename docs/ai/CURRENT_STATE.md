@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## The last suite finding was an ambiguous locator, not a missing button (2026-08-18)
+
+`awkit-1kct` closed. `verify:reports-populated-gui` was 154 PASS / 1 FAIL / 3 NOT RUN on
+`SYS-REP-008 Open action is available for a real stored report`. The Open action was always present.
+
+The check was a page-wide `getByRole("button", { name: /Open/ })` with `.catch(() => false)`. The
+pattern is unanchored and unscoped, the Run Artifacts page carries a second control whose name
+contains "Open", so Playwright strict mode threw on multiple matches and the catch turned that into a
+bare failing check with no explanation. It now scopes to the report card, anchors on `/^Open$/`,
+asserts exactly one match, and prints both counts:
+
+```text
+· Open controls: 1 in the report card, 2 page-wide matching /Open/
+```
+
+**Mutation-tested with a rebuild** (this verifier drives the built app): renaming the card action to
+"Reveal" fails with `card matches=0, page-wide /Open/ matches=1`. The page-wide count dropping 2 -> 1
+independently corroborates that the second match was a different Open control - the thing that made
+the original assertion ambiguous.
+
+**A correction worth recording.** When filing this I wrote that the 3 NOT RUN were the owner-decision
+OS shell launches from `awkit-az7`. That was wrong. They are SYS-REP-007 (live queued/running
+distribution) and SYS-REP-011 (backpressure), both marked PROVEN ELSEWHERE by
+`verify:reports-live-engine`, and SYS-REP-006 (retention message), measured unreachable in one session
+because a second sql.js connection cannot mutate the running app's in-memory database. All three carry
+reasons; none is an OS shell launch. `awkit-az7`'s case list therefore looks stale, and a note saying
+so was added there rather than changing an owner-gated item.
+
+`verify:reports-populated-gui` **155 PASS / 0 FAIL / 3 NOT RUN**.
+
+Tracker: **224 total / 219 closed / 5 outstanding** - `awkit-zc88` (P3, a one-line type annotation in
+`verify-write-queue.mts`) plus four owner-gated blocked items. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+**All five findings from the 181-verifier suite run are now resolved.** Four were stale or defective
+assertions rather than product defects: the branding permission boundary, the protected-login action
+count, the recorder-e2e identity hashing, and this locator ambiguity. Only the U+000B control
+character was a real defect in shipped content, and it was mine.
+
+
 ## A verifier that demanded a security regression, re-expressed (2026-08-18)
 
 `awkit-fbwn` closed. `verify:branding` was 46/47 on `SuperUser holds every permission (sanity)`.

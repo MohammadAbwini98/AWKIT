@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Scope the reports Open-action locator (awkit-1kct)
+
+- **Task:** identify and fix the unnamed failing check in `verify:reports-populated-gui` (154/1/3).
+- **Diagnosis:** `SYS-REP-008 Open action is available for a real stored report` used a page-wide
+  `getByRole("button", { name: /Open/ })` with `.catch(() => false)`. Two controls on the page match
+  the unanchored pattern, so strict mode threw and the catch hid it. Not a product defect.
+- **Fix:** scoped to the report card, anchored `/^Open$/`, asserts exactly one match plus visibility,
+  and prints both counts so a future ambiguity names itself. Measured: 1 in the card, 2 page-wide.
+- **Mutation-tested (with rebuild, since this drives the built app):** renaming the card action to
+  "Reveal" fails with `card matches=0, page-wide /Open/ matches=1`.
+- **Correction:** the bead claimed the 3 NOT RUN were awkit-az7's OS shell launches. Wrong - they are
+  SYS-REP-007 and SYS-REP-011 (both PROVEN ELSEWHERE by `verify:reports-live-engine`) and SYS-REP-006
+  (measured unreachable in one session). A note was added to awkit-az7; it was not otherwise changed.
+- **Tests run:** `verify:reports-populated-gui` **155 PASS / 0 FAIL / 3 NOT RUN**;
+  `verify:roadmap-dashboard` 158/158; `ai:memory` PASS; `npm run build` clean.
+- **Files:** `scripts/verify-reports-populated-gui.mts`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-1kct` closed. Tracker 224 total / 219 closed / 5 outstanding. All five findings
+  from the full-suite run are resolved.
+
+---
+
 ## 2026-08-18 - Claude - Re-express the branding permission sanity check (awkit-fbwn)
 
 - **Task:** fix `verify:branding` 46/47, where `SuperUser holds every permission (sanity)` failed.

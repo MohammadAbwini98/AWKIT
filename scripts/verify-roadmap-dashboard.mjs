@@ -259,8 +259,10 @@ try {
   // identical action, plus the OTP wait now gating on the attribute it asserts).
   // Then 6/218 of 224 on 2026-08-18: awkit-fbwn closed (the branding sanity check no longer demands
   // granting SuperUser the license-issuer permissions; the boundary is now the thing under test).
-    "6 outstanding / 218 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 218,
+  // Then 5/219 of 224 on 2026-08-18: awkit-1kct closed (the reports Open-action check was a page-wide
+  // ambiguous locator with a swallowed strict-mode error, not a missing button).
+    "5 outstanding / 219 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 219,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
