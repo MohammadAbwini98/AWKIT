@@ -255,8 +255,10 @@ try {
   // Then 8/215 of 223 on 2026-08-18 when the full 181-verifier suite run filed five findings, then
   // 4/216 of 224 as awkit-8yp6 closed (recorder-e2e metadata parity) — the total also rose by one for
   // the reports-populated follow-up. Four remain outstanding.
-    "8 outstanding / 216 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 216,
+  // Then 7/217 of 224 on 2026-08-18: awkit-syyd closed (protected-login count re-expressed against the
+  // identical action, plus the OTP wait now gating on the attribute it asserts).
+    "7 outstanding / 217 closed",
+    beads.stats.outstanding === 7 && beads.stats.closed === 217,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## Protected-login: a stale count and a wait that watched the wrong signal (2026-08-18)
+
+`awkit-syyd` closed. Both halves fixed, both diagnosed by measurement.
+
+**The reported failure** asserted a raw draft length after unpausing. An evidence line now prints
+what the draft actually gains, which settled it in one run:
+
+```text
+after unpausing, the draft gained: [goto:Navigate to .../mock/sso-text-app, click:Click Open Reports]
+```
+
+Two actions, hence 4/3. The test itself navigates between unpausing and recording, and since
+`eeb7a21` an independent navigation is correctly captured as a replayable step. The feature is right;
+the count was stale. Re-expressed to count occurrences of the **identical action** by
+type + name + locator - strictly stronger than a length test, which would pass if some entirely
+different action were appended.
+
+**The second failure was not dismissed as a flake.** `main page shows verified after manual OTP entry`
+waited for the visible text `Verified` and then asserted the `data-authenticated` **attribute** - two
+separate DOM updates, so the assertion could lose that race. Same family as the vacuous waits fixed
+earlier today: wait for one thing, assert another. It now gates on the attribute it asserts, with a
+deliberately synchronous predicate.
+
+**Mutation-tested**, and the first attempt was a bad mutation rather than a passing check: setting
+`isRecording = false` at the top of `ignoreCurrentProtectedDetection` was overwritten by that
+method's own resume a few lines later. Mutating the real resume point fails the check with
+`identical action 1/2; added after unpausing: []`.
+
+Soak: 5 runs green before the OTP fix, 3 after. `verify:protected-login-recorder` 56/57 -> **57/57**,
+`verify:async-wait-hygiene` 22/22.
+
+Tracker: **224 total / 217 closed / 7 outstanding** - `awkit-fbwn` (branding sanity check versus the
+license-issuer boundary), `awkit-1kct` (reports-populated, unidentified check), `awkit-zc88` (P3 type
+narrowing), plus four owner-gated blocked items. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## Full suite run, and the recorder-e2e metadata failure resolved (2026-08-18)
 
 Ran every registered verifier — **181 of them, 170 PASS / 11 FAIL / 0 timeouts, 43 minutes**. There

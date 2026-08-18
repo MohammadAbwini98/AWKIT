@@ -4,6 +4,24 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Protected-login: stale count and wrong-signal wait (awkit-syyd)
+
+- **Part 1:** the check asserted a raw draft length after unpausing; the test navigates in between, and
+  since `eeb7a21` that independent navigation is a recorded step. Measured with a new evidence line:
+  the draft gains `[goto:..., click:Click Open Reports]`. Re-expressed to count the identical action by
+  type+name+locator - stronger than a length test, not weaker.
+- **Part 2 (not dismissed as a flake):** the OTP check waited on the visible text and asserted the
+  `data-authenticated` attribute. It now waits on the attribute it asserts, synchronous predicate.
+- **Mutation-tested:** mutating the real resume point fails the check (`identical action 1/2; added
+  after unpausing: []`). The first attempt was a BAD mutation - overwritten by the resume below it.
+- **Tests run:** `verify:protected-login-recorder` 56/57 -> **57/57**, soaked 5 runs before and 3 after;
+  `verify:async-wait-hygiene` 22/22; `verify:roadmap-dashboard` 158/158; `ai:memory` PASS.
+- **Files:** `scripts/verify-protected-login-recorder.mts`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-syyd` closed. Tracker 224 total / 217 closed / 7 outstanding.
+
+---
+
 ## 2026-08-18 - Claude - Full 181-verifier suite run, and fix recorder-e2e metadata parity (awkit-8yp6)
 
 - **Task:** run the full verification suite, report it, then fix the recorder-e2e metadata failure.
