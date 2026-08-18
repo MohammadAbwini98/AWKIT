@@ -17,31 +17,20 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const supersededURouteChecks = [
-  "A fresh Workflow Loop shows its authoritative Count × 3 default instead of runtime progress",
-  "Workflow Loop label updates to the authored While condition and never presents an iteration counter",
-  "Workflow Loop renders one continuous rounded return path, one path direction layer, and one compact static marker",
-  "Workflow Loop direction moves continuously on the real return path while its marker and authored label stay stationary",
-  "A non-circular saved shape cannot collapse a semantic Workflow Loop into an ordinary edge",
-  "Workflow Loop path and marker remain attached and proportionate without restarting motion at 25%, 100%, and 200% zoom",
-  "Dragging the real Workflow node keeps its attached return path and marker aligned without creating another node",
-  "Two Workflow Loops render independently with distinct identities, routes, and authored summaries",
-  "Workflow Loop direction becomes static while its path, arrow, marker, and authored label remain readable under reduced motion",
-  "Reduced motion freezes both independent Workflow Loop direction paths without hiding either summary",
-  "Saved Workflow Loop restores its While summary, direction path, and single Conditional exit after reload",
-  "The compact Workflow Loop marker is a reliable direct configuration target",
-  "Configure loop reopens the existing Workflow Loop with its immediate unsaved bound edit and authored summary intact",
-  "Reconfigured Workflow Loop persists with one Conditional exit and keeps its path-following direction motion after reload",
-  "Undo restores a keyboard-deleted Workflow Loop with its authored state",
-  "Workflow Loop Undo restores the configured connector and exactly one emphasized Loop exit"
-];
+// Emptied 2026-08-18 (awkit-6be step 2). The 16 retired U-route assertions were DELETED from the
+// pre-capsule walkthrough rather than left failing behind an allow-list: an assertion that always
+// fails teaches readers to ignore a red line. Their intent is carried by the focused capsule suite
+// above, audited name by name; the one intent with no replacement (inspector-delete + Undo) was
+// added to that suite first. Keep this array — a future retirement should be visible as a diff
+// against an empty list, not as a new concept.
+const supersededURouteChecks = [];
 
 console.log("Workflow Builder: preserved broad GUI coverage");
 const broad = runLegacyGuiCoverage({
   root,
   script: "verify-workflow-builder-gui.pre-capsule.mjs",
   supersededChecks: supersededURouteChecks,
-  expectedChecks: 74
+  expectedChecks: 58
 });
 
 console.log("\nWorkflow Builder: approved 7282178 Loop capsule contract");
