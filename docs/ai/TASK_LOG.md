@@ -4,6 +4,32 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Fail the capsule suites on a save-error toast (awkit-v35n)
+
+- **Task:** fix the gap the EPERM investigation exposed - the app raised a visible save error and
+  every downstream check proceeded as though the save had worked.
+- **Change:** `waitForPersistedState` in `scripts/lib/gui-verify-harness.mjs` polls the persisted
+  state and reads `.app-toast-error` on every poll, failing immediately with the app's own message.
+  All four Save clicks (2 Flow, 2 Workflow) are followed by a persist wait, so one helper covers all.
+- **Three details that decide whether it works:** sampled during the wait (the toast auto-dismisses,
+  and reading afterwards captured only the status bar); only toasts appearing after the wait starts
+  are fatal (a stale one would abort a healthy save); the predicate is read before the toast (a save
+  landing alongside an unrelated error is a success).
+- **Consolidation:** `waitForAsyncCondition` had no callers left, so it was removed rather than left
+  exported and unused; `verify:async-wait-hygiene` now points at the surviving construction.
+- **Tests run:** `verify:async-wait-hygiene` 16 -> **22/22** (six behavioural checks against a
+  stand-in page whose `evaluate` awaits); mutation-tested - disabling the guard fails exactly those
+  three checks and reproduces the original symptom (5004ms timeout instead of an immediate failure).
+  `verify:flow-designer` exit 0 (16/16, broad 112, retired 0, unexpected 0);
+  `verify:workflow-builder` exit 0 (17/17, broad 58, retired 0, unexpected 0);
+  `verify:roadmap-dashboard` 158/158; `ai:memory` PASS.
+- **Files:** `scripts/lib/gui-verify-harness.mjs`, `scripts/lib/verify-flow-loop-capsule-gui.mjs`,
+  `scripts/lib/verify-workflow-loop-capsule-gui.mjs`, `scripts/verify-async-wait-hygiene.mjs`,
+  `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-v35n` closed. Tracker 218 total / 213 closed / 5 outstanding.
+
+---
+
 ## 2026-08-18 - Claude - Delete the retired U-route assertions (awkit-6be step 2, awkit-8z0)
 
 - **Task:** apply the step-2 recipe now that the Workflow capsule suite is stable.

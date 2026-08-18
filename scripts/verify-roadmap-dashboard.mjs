@@ -244,8 +244,10 @@ try {
   // residual gap - one in, one out, so outstanding held while total and closed each rose by one.
   // Then 6/212 of 218 on 2026-08-18: awkit-8z0 and awkit-6be closed together when step 2 landed
   // (31 retired U-route assertions deleted, both allow-lists emptied, expectedChecks 112/58).
-    "6 outstanding / 212 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 212,
+  // Then 5/213 of 218 on 2026-08-18: awkit-v35n closed (the capsule suites now fail on the app's own
+  // save-error toast instead of waiting out a timeout).
+    "5 outstanding / 213 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 213,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

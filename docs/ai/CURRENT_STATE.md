@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## The suites now fail on the app's own error, not on a timeout (2026-08-18)
+
+`awkit-v35n` closed, which was the residual gap the EPERM investigation exposed: the app *reported*
+the failed save immediately, and every check carried on regardless.
+
+All four Save clicks (2 Flow, 2 Workflow) are followed by a persist wait, so one shared helper
+covers every save. `waitForPersistedState` polls the persisted state and reads `.app-toast-error`
+on **every poll**, failing at once with the app's own message instead of waiting out its timeout.
+
+Three details decide whether this works at all:
+
+- **Sampled during the wait, never read after it.** The toast auto-dismisses. Reading afterwards
+  captured only the status bar - `Save failed`, the fact of the failure without its cause.
+- **Only toasts that appear after the wait starts are fatal.** A stale toast from an earlier step
+  would otherwise abort a perfectly healthy save.
+- **The predicate is read before the toast**, so a save landing in the same tick as some unrelated
+  error is reported as the success it is.
+
+`waitForAsyncCondition` was removed rather than left exported with no callers - dead code that looks
+live is what this whole chain was about. `verify:async-wait-hygiene` 16 -> **22 checks**, the six new
+ones proving the helper behaviourally against a stand-in page whose `evaluate` awaits. Mutation-
+tested: disabling the guard fails exactly those three checks and reproduces the original symptom -
+`never became true within 5000ms`, after 5004ms.
+
+```text
+Flow      capsule 16/16   broad observed 112   retired 0   unexpected 0   exit 0
+Workflow  capsule 17/17   broad observed  58   retired 0   unexpected 0   exit 0
+```
+
+Tracker: **218 total / 213 closed / 5 outstanding** (1 open, 4 owner-gated `blocked`).
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. `verify:roadmap-dashboard` 158/158.
+
+
 ## Step 2 landed: no permanently-failing assertion remains in either designer (2026-08-18)
 
 With the Workflow suite finally stable, `awkit-6be` step 2 was applied and validated end to end.
