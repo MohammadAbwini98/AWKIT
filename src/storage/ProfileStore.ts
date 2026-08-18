@@ -1,6 +1,8 @@
 import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
+import { replaceFileAtomically, type AtomicReplaceOptions } from "../../app/main/atomicReplace";
+
 export interface ProfileStore<TProfile extends { id: string }> {
   list(): Promise<TProfile[]>;
   get(id: string): Promise<TProfile | null>;
@@ -17,6 +19,12 @@ export interface JsonProfileStoreOptions<TProfile extends { id: string }> {
   seedFolder?: string;
   extension?: string;
   createClone?: (profile: TProfile, nextId: string) => TProfile;
+  /**
+   * Passed straight to `replaceFileAtomically`. Production leaves it unset and takes the shared
+   * defaults; verifiers use the `renameImpl` / `sleep` seams to force transient and permanent
+   * rename failures deterministically, instead of trying to provoke a real EPERM from the OS.
+   */
+  atomicReplace?: AtomicReplaceOptions;
 }
 
 export class JsonProfileStore<TProfile extends { id: string }> implements ProfileStore<TProfile> {
@@ -184,12 +192,18 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
   private async atomicWrite(path: string, contents: string): Promise<void> {
     const tmp = `${path}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
     await writeFile(tmp, contents, "utf8");
-    try {
-      await rename(tmp, path);
-    } catch (error) {
-      await rm(tmp, { force: true }).catch(() => undefined);
-      throw error;
-    }
+    // The rename is retried on transient Windows contention. A single unretried rename here lost a
+    // user's save outright: a soak of the Workflow capsule suite reproduced
+    //   EPERM: operation not permitted, rename '<...>.json.<pid>.<ts>.<rand>.tmp' -> '<...>.json'
+    // with the edited workflow visibly on the canvas and the Save button enabled, roughly one run in
+    // four. The renderer surfaced it as a "Failed to save changes" toast that auto-dismissed, so the
+    // change was gone with only a few seconds of on-screen warning. Antivirus, the search indexer and
+    // backup agents all open files for a few milliseconds on Windows, which is routine rather than
+    // exceptional. Same policy and helper as the settings writer (awkit-4qs); see
+    // app/main/atomicReplace.ts for why only EPERM/EBUSY are retried and why the backoff is linear
+    // and short. On a terminal failure it removes the temp and rethrows the ORIGINAL error, so the
+    // behaviour callers already depend on is unchanged.
+    await replaceFileAtomically(tmp, path, this.options.atomicReplace ?? {});
   }
 
   private pathForId(id: string): string {

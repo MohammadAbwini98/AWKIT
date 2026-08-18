@@ -5,7 +5,7 @@
 // id-rename update), and S1 (concurrent-save race).
 //
 // Run: npx tsx scripts/verify-profile-store.mts
-import { mkdtemp, readdir, rm, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, readdir, rename, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JsonProfileStore } from "../src/storage/ProfileStore";
@@ -174,6 +174,98 @@ async function main() {
     check("approval binding + unknown future fields survive profile-store create/get", JSON.stringify(readBack) === JSON.stringify(flow));
     const updated = await store.update(flow.id, structuredClone(flow));
     check("approval binding + unknown future fields survive profile-store update", JSON.stringify(updated) === JSON.stringify(flow));
+    await rm(folder, { recursive: true, force: true });
+  }
+
+  {
+    /*
+     * Transient rename failures must not lose a save.
+     *
+     * A single unretried `rename` here cost a real save: soaking the Workflow capsule suite
+     * reproduced "EPERM: operation not permitted, rename '<...>.tmp' -> '<...>.json'" about one run
+     * in four, with the edited workflow on screen and Save enabled. The renderer showed a
+     * "Failed to save changes" toast that auto-dismissed, so the only lasting trace was a workflow
+     * that had silently reverted. These drive the failure through the injected rename rather than
+     * hoping the OS produces one.
+     */
+    const folder = await mkdtemp(join(tmpdir(), "awkit-profile-retry-"));
+    const profile = { id: "retry-fixture", name: "first" } as { id: string; name: string };
+
+    let attempts = 0;
+    const retries: number[] = [];
+    const failTwiceThenSucceed = async (from: string, to: string): Promise<void> => {
+      attempts += 1;
+      if (attempts <= 2) {
+        const error = new Error("EPERM: operation not permitted, rename") as NodeJS.ErrnoException;
+        error.code = "EPERM";
+        throw error;
+      }
+      await rename(from, to);
+    };
+
+    const retrying = new JsonProfileStore<{ id: string; name: string }>({
+      folder,
+      atomicReplace: {
+        renameImpl: failTwiceThenSucceed,
+        sleep: async () => undefined,
+        onRetry: (attempt) => retries.push(attempt)
+      }
+    });
+
+    await retrying.create(profile);
+    const afterRetry = await retrying.get(profile.id);
+    check("a save survives two transient EPERM renames", afterRetry?.name === "first", JSON.stringify(afterRetry));
+    // Cardinality: "it succeeded" is also true when the rename never failed. Assert it actually retried.
+    check("it retried rather than succeeding first time", retries.length === 2 && attempts === 3, `retries=${retries.length}, attempts=${attempts}`);
+
+    let permanent: NodeJS.ErrnoException | null = null;
+    let permanentAttempts = 0;
+    const alwaysEperm = new JsonProfileStore<{ id: string; name: string }>({
+      folder,
+      atomicReplace: {
+        renameImpl: async () => {
+          permanentAttempts += 1;
+          const error = new Error("EPERM: operation not permitted, rename") as NodeJS.ErrnoException;
+          error.code = "EPERM";
+          throw error;
+        },
+        sleep: async () => undefined
+      }
+    });
+    try {
+      await alwaysEperm.update(profile.id, { id: profile.id, name: "second" });
+    } catch (error) {
+      permanent = error as NodeJS.ErrnoException;
+    }
+    check("a persistent EPERM still fails, with the original errno", permanent?.code === "EPERM", String(permanent));
+    check("it gave up after a bounded number of attempts", permanentAttempts === 5, `attempts=${permanentAttempts}`);
+    const unchanged = await alwaysEperm.get(profile.id);
+    check("a failed save leaves the previous file intact", unchanged?.name === "first", JSON.stringify(unchanged));
+    const leftovers = (await readdir(folder)).filter((entry) => entry.endsWith(".tmp"));
+    check("no temp files are left behind by a failed save", leftovers.length === 0, leftovers.join(", "));
+
+    let nonTransientAttempts = 0;
+    let nonTransient: NodeJS.ErrnoException | null = null;
+    const enospc = new JsonProfileStore<{ id: string; name: string }>({
+      folder,
+      atomicReplace: {
+        renameImpl: async () => {
+          nonTransientAttempts += 1;
+          const error = new Error("ENOSPC: no space left on device") as NodeJS.ErrnoException;
+          error.code = "ENOSPC";
+          throw error;
+        },
+        sleep: async () => undefined
+      }
+    });
+    try {
+      await enospc.update(profile.id, { id: profile.id, name: "third" });
+    } catch (error) {
+      nonTransient = error as NodeJS.ErrnoException;
+    }
+    check("a non-transient error is NOT retried", nonTransientAttempts === 1, `attempts=${nonTransientAttempts}`);
+    check("and it is reported immediately with its own errno", nonTransient?.code === "ENOSPC", String(nonTransient));
+
     await rm(folder, { recursive: true, force: true });
   }
 
