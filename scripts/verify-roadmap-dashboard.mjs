@@ -257,8 +257,10 @@ try {
   // the reports-populated follow-up. Four remain outstanding.
   // Then 7/217 of 224 on 2026-08-18: awkit-syyd closed (protected-login count re-expressed against the
   // identical action, plus the OTP wait now gating on the attribute it asserts).
-    "7 outstanding / 217 closed",
-    beads.stats.outstanding === 7 && beads.stats.closed === 217,
+  // Then 6/218 of 224 on 2026-08-18: awkit-fbwn closed (the branding sanity check no longer demands
+  // granting SuperUser the license-issuer permissions; the boundary is now the thing under test).
+    "6 outstanding / 218 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 218,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

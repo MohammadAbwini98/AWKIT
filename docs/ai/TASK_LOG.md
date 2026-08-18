@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Re-express the branding permission sanity check (awkit-fbwn)
+
+- **Task:** fix `verify:branding` 46/47, where `SuperUser holds every permission (sanity)` failed.
+- **Why no product change:** satisfying it would have granted SuperUser `page.licenseIssuer` and
+  `license.issue`, removing a deliberate signing-key boundary. Confirmed at three layers:
+  `SUPER_USER_PERMISSIONS` = ALL minus ISSUER_PERMISSIONS (with the reason in a comment), the `Issuer`
+  role holds exactly those two, and `UserAdminService` enforces Issuer exclusivity.
+- **Bead instruction corrected:** it proposed asserting no built-in role holds them. Wrong - the
+  `Issuer` role does, by design. Checked before writing.
+- **Fix:** one assertion became three - SuperUser holds all non-issuer permissions; the ONLY withheld
+  permissions are that pair (exact set difference, so the original sanity intent survives); the Issuer
+  role holds exactly that pair. Names restated rather than imported so a boundary change is visible.
+- **Mutation-tested:** M1 grant SuperUser the pair -> boundary check fails (the change the OLD
+  assertion demanded); M2 withhold a third -> all three fail; M3 empty the Issuer role -> orphan check
+  fails. Each caught by its intended check.
+- **Tests run:** `verify:branding` **49/49**, `verify:licensing` 183/183, `verify:authz` 92/92,
+  `verify:recorder-authz` 58/58, `verify:roadmap-dashboard` 158/158, `ai:memory` PASS.
+- **Files:** `scripts/verify-branding.mts`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** `awkit-fbwn` closed. Tracker 224 total / 218 closed / 6 outstanding.
+
+---
+
 ## 2026-08-18 - Claude - Protected-login: stale count and wrong-signal wait (awkit-syyd)
 
 - **Part 1:** the check asserted a raw draft length after unpausing; the test navigates in between, and

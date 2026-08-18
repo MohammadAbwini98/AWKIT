@@ -1,5 +1,49 @@
 # CURRENT_STATE
 
+## A verifier that demanded a security regression, re-expressed (2026-08-18)
+
+`awkit-fbwn` closed. `verify:branding` was 46/47 on `SuperUser holds every permission (sanity)`.
+Satisfying that as written would have meant **granting SuperUser the license-issuer permissions** -
+removing a security boundary to turn a test green. No product code changed.
+
+Confirmed from source at three layers rather than from memory:
+
+- `Permissions.ts` builds `SUPER_USER_PERMISSIONS` as `ALL_PERMISSIONS` minus `ISSUER_PERMISSIONS`,
+  documented: "so a direct grant or the Super User's broad permission set can never become a
+  signing-key boundary bypass".
+- The `Issuer` built-in role holds exactly those two.
+- `UserAdminService` rejects an Issuer who also holds any other role, and the issuer route requires
+  that exact role.
+
+**The bead's own instruction was wrong and was caught before it shipped.** It proposed asserting the
+issuer permissions are held by *no* built-in role. They are held by the `Issuer` role by design.
+
+**The sanity intent is kept, not dropped.** One assertion became three: SuperUser holds every
+permission except the issuer pair; the **only** permissions withheld are that pair (an exact set
+difference, so a newly withheld permission still fails); and the `Issuer` role holds exactly that
+pair, so neither is orphaned nor bundled with unrelated power. The two names are restated in the
+verifier rather than imported, so widening the boundary in the product surfaces as a failure needing
+review instead of being mirrored silently.
+
+**Mutation-tested, three mutations, each caught by its intended check:**
+
+```text
+M1 grant SuperUser the issuer permissions  -> boundary check FAILS   (48/49)
+M2 withhold a third permission             -> all three FAIL         (46/49)
+M3 empty the Issuer role                   -> orphan check FAILS     (48/49)
+```
+
+M1 is the change the old assertion demanded. It now fails - the verifier has flipped from requiring a
+security regression to forbidding one.
+
+`verify:branding` **49/49**; adjacent gates unaffected - `verify:licensing` 183/183, `verify:authz`
+92/92, `verify:recorder-authz` 58/58.
+
+Tracker: **224 total / 218 closed / 6 outstanding** - `awkit-1kct` (reports-populated, failing check
+still unidentified), `awkit-zc88` (P3 type narrowing), plus four owner-gated blocked items. Ledger
+unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## Protected-login: a stale count and a wait that watched the wrong signal (2026-08-18)
 
 `awkit-syyd` closed. Both halves fixed, both diagnosed by measurement.
