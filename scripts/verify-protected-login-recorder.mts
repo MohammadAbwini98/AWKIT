@@ -265,13 +265,43 @@ try {
     `${recorder.getActions().length}/${preDetectionCount}`
   );
 
+  /*
+   * Count the IDENTICAL ACTION, not the draft length.
+   *
+   * This assertion is about one thing: an action that was dropped while paused is recorded once the
+   * pause is lifted. A raw `length === preDetectionCount + 1` only expressed that while nothing else
+   * could be added in between — and something can be, since `eeb7a21`: the `goto` on the line below is
+   * an INDEPENDENT navigation (no recorded action explains it), so the recorder now correctly captures
+   * it as a replayable step. The draft therefore grows by two, and the check failed 4/3 while both the
+   * feature and the behaviour under test were right.
+   *
+   * Matching on type + name + locator is also strictly stronger than a count: a length test passes if
+   * some entirely different action is appended, whereas this fails unless THIS action arrives exactly
+   * once. The added actions are reported as evidence so an unexpected extra is still visible.
+   */
+  const matchesIdenticalAction = (candidate: RecordedAction): boolean =>
+    candidate.type === identicalAction.type &&
+    candidate.name === identicalAction.name &&
+    candidate.locator?.strategy === identicalAction.locator?.strategy &&
+    candidate.locator?.value === identicalAction.locator?.value;
+
+  const identicalBeforeUnpause = recorder.getActions().filter(matchesIdenticalAction).length;
+  const draftBeforeUnpause = recorder.getActions().length;
+
   recorder.ignoreCurrentProtectedDetection();
   await recorderPage.goto(`${BASE}/mock/sso-text-app`);
   recorderInternals.recordActionFromPage(recorderPage, identicalAction);
+
+  const addedAfterUnpause = recorder
+    .getActions()
+    .slice(draftBeforeUnpause)
+    .map((action) => `${action.type}:${action.name}`);
+  console.log(`    · after unpausing, the draft gained: [${addedAfterUnpause.join(", ")}]`);
   check(
     "the identical private action records after unpausing",
-    recorder.getActions().length === preDetectionCount + 1,
-    `${recorder.getActions().length}/${preDetectionCount + 1}`
+    recorder.getActions().filter(matchesIdenticalAction).length === identicalBeforeUnpause + 1,
+    `identical action ${recorder.getActions().filter(matchesIdenticalAction).length}/${identicalBeforeUnpause + 1}; ` +
+      `added after unpausing: [${addedAfterUnpause.join(", ")}]`
   );
   await recorder.cancelRecording();
   recorder = undefined;
@@ -326,7 +356,16 @@ try {
   const otpDetect = await detectRecorderProtectedLogin(otpPopup);
   check("recorder detects OTP popup (mfa)", otpDetect.detected && otpDetect.reason === "mfa", `${otpDetect.detected}/${otpDetect.reason}`);
   await otpPopup.getByTestId("popup-complete").click();
-  await page.getByTestId("auth-status").filter({ hasText: "Verified" }).waitFor({ timeout: 2000 });
+  // Wait for the SIGNAL THIS CHECK ASSERTS, not a neighbouring one. The page updates the visible
+  // text and the data-authenticated attribute separately, so waiting on the text and then reading the
+  // attribute can lose that race — seen once as an intermittent failure of this exact check while five
+  // consecutive runs passed. Predicate is deliberately synchronous: waitForFunction does not await an
+  // async one (see verify:async-wait-hygiene).
+  await page.waitForFunction(
+    () => document.querySelector("[data-testid=\"auth-status\"]")?.getAttribute("data-authenticated") === "true",
+    undefined,
+    { timeout: 2000, polling: 100 }
+  );
   check("main page shows verified after manual OTP entry", (await page.getByTestId("auth-status").getAttribute("data-authenticated")) === "true");
 
   console.log("Mock session-reuse scenario:");
