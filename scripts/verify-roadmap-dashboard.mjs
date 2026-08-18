@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("224 issues parse", beads.stats.total === 224, `got ${beads.stats.total}`);
+  check("227 issues parse", beads.stats.total === 227, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -263,8 +263,11 @@ try {
   // ambiguous locator with a swallowed strict-mode error, not a missing button).
   // Then 4/220 of 224 on 2026-08-18: awkit-zc88 closed (the typecheck:scripts baseline repaired, 13
   // diagnostics to 0). Nothing is open — all four remaining are owner-gated and externally blocked.
-    "4 outstanding / 220 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 220,
+  // Then 5/222 of 227 on 2026-08-18: packaging 0.1.13 surfaced three findings (awkit-joa3 hardcoded
+  // artifact pin, awkit-6e2u directory-order selection, awkit-dz5w missing vendorResources); the two
+  // artifact-resolution ones are fixed, awkit-dz5w remains open.
+    "5 outstanding / 222 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 222,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

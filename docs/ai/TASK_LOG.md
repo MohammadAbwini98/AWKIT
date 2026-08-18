@@ -4,6 +4,35 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-18 - Claude - Package 0.1.13 and fix six artifact version pins (awkit-joa3, awkit-6e2u)
+
+- **Packaged:** `npm run package:portable` produced `dist/SpecterStudio 0.1.13.exe` (213,019,011
+  bytes) plus `dist/win-unpacked`. All four pre-pack gates passed; unsigned (no signing identity).
+  The write-lease guard caught the regenerated `resources/dependency-manifest.{json,sig}` as an
+  unclaimed protected write - resolved by taking a release lease, not by working around it.
+- **Found:** six version pins across five files, not the two filed. Two verifiers plus three
+  clean-machine PowerShell scripts and the zvec install harness.
+- **Impact:** `verify:packaged-validation` reported 86 checks passing against a July 30 artifact of a
+  different version; `verify:zvec-packaged-assets` reached the same file via `readdirSync(dist)[0]`.
+- **Fix:** one shared resolver (`scripts/helpers/packaged-artifacts.mjs` + `.d.mts`) deriving the name
+  from package.json as `package-portable.ps1` does, never falling back to another `.exe`.
+  `setup-offline.ps1` discovers from the DVD (no package.json on the guest) and requires exactly one
+  match.
+- **Tests run:** `verify:packaged-validation` **87/0** (was 86/1 against the wrong file);
+  `verify:zvec-packaged-assets` now names 0.1.13 (still red on the separate `awkit-dz5w`);
+  `verify:packaged-walkthrough` **24/1**, correctly red because no 0.1.13 installer exists - it used
+  to pass against a July 29 installer. `verify:all-typecheck` 0 errors. All PowerShell parses.
+- **Not run:** no VM, no `package:installer` - the PowerShell edits are unexercised.
+- **Files:** `scripts/helpers/packaged-artifacts.{mjs,d.mts}` (new), `scripts/verify-packaged-
+  {validation,walkthrough}.mts`, `scripts/verify-zvec-packaged-assets.mjs`,
+  `scripts/clean-machine/{attach-artifacts,run-runbook,setup-offline}.ps1`,
+  `scripts/zvec-harness/run-installed-live.ps1`, `resources/dependency-manifest.{json,sig}`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/*`.
+- **Result:** `awkit-joa3` and `awkit-6e2u` closed; `awkit-dz5w` remains open and undiagnosed.
+  Tracker 227 total / 222 closed / 5 outstanding.
+
+---
+
 ## 2026-08-18 - Claude - Repair the typecheck:scripts baseline, 13 diagnostics to 0 (awkit-zc88)
 
 - **Scope was larger than the bead:** it named one diagnostic (the suite driver kept only the last

@@ -1,5 +1,60 @@
 # CURRENT_STATE
 
+## The packaged gates were validating a July artifact of a different version (2026-08-18)
+
+Packaging 0.1.13 succeeded, and the fresh build immediately exposed why the packaged gates had been
+quiet. **Six** version pins across five files, not the two originally filed:
+
+```text
+verify-packaged-validation.mts        dist/SpecterStudio 0.1.0.exe
+verify-packaged-walkthrough.mts       portable + setup + a latest.yml name assertion
+clean-machine/attach-artifacts.ps1    stages onto the VM ISO
+clean-machine/run-runbook.ps1         hashes on the test machine
+clean-machine/setup-offline.ps1       copies from the DVD, on the guest
+zvec-harness/run-installed-live.ps1   installer default
+```
+
+`verify:packaged-validation` had been computing a SHA-256, confirming bundled Chromium, and
+reporting **86 checks passing against a July 30 artifact of a different version**. Its own freshness
+check was the only thing that ever noticed, and by age rather than identity. `verify:zvec-packaged-
+assets` reached the same wrong file by `readdirSync(dist)[0]` — directory order.
+
+The clean-machine pins are the ones that matter in principle: they stage artifacts onto an ISO, so a
+stale pin hands the clean machine a July build and the run certifies software nobody ships.
+
+**One shared resolver** now decides, in `scripts/helpers/packaged-artifacts.mjs`, deriving the name
+from `package.json` exactly as `package-portable.ps1` does when it writes the file — and deliberately
+**never falling back** to another `.exe`, since falling back is precisely how this survived repeated
+packaging runs. Implementation is `.mjs` so the plain-node zvec verifier can import it, with a
+sibling `.d.mts` so the two tsx verifiers stay type-checked; `verify:all-typecheck` stays at 0.
+`setup-offline.ps1` runs on the clean machine where no `package.json` exists, so it discovers the
+staged artifact and requires **exactly one** match — ambiguity means the DVD was staged wrong.
+
+**Measured effect, both directions:**
+
+```text
+verify:packaged-validation   86 passed / 1 failed (wrong file)  ->  87 passed / 0 failed (0.1.13)
+verify:zvec-packaged-assets  portableExe (SpecterStudio 0.1.0)  ->  (SpecterStudio 0.1.13.exe)
+verify:packaged-walkthrough  25 passed / 0 failed               ->  24 passed / 1 failed
+```
+
+That last line is the fix working, not breaking something. The walkthrough now says
+`NSIS installer exists — dist/SpecterStudio Setup 0.1.13.exe — run npm run package:installer first`.
+It previously passed by pointing at an installer built on **July 29**. Only the portable was built
+here, so the failure is correct and unresolved.
+
+**Caveat worth stating:** all four PowerShell edits parse cleanly (`Parser::ParseFile`) but are
+**unexercised** — no VM was provisioned and no installer was built in this session.
+
+Still open: `awkit-dz5w` — `vendorResources` missing from `dist/win-unpacked/resources/vendor`. That
+concerns the freshly built tree rather than which artifact is selected, and is deliberately
+undiagnosed: either a stale expectation after an `electron-builder.json` change, or something that
+should ship offline and does not.
+
+Tracker: **227 total / 222 closed / 5 outstanding**. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## The scripts typecheck gate is green for the first time since 2026-08-07
 
 `awkit-zc88` closed. `npm run typecheck:scripts` and `verify:all-typecheck` now pass with **0
