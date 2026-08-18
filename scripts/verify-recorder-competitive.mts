@@ -365,7 +365,47 @@ async function main(): Promise<void> {
     const step = flow.nodes.find((n) => n.type === "drag");
     console.log(`    · duplicate target → target=${JSON.stringify(step?.targetLocator?.value)} resolution=${step?.targetLocator?.resolution}`);
     check("pointer: an ambiguous/positional drop target is captured as a drag", action?.type === "drag", JSON.stringify(action));
-    check("pointer: an ambiguous/positional drop target is needs-review, not silently chosen", step?.targetLocator?.resolution === "needs-review", JSON.stringify(step?.targetLocator));
+    /*
+     * awkit-gc0g. This check used to assert `resolution === "needs-review"`. That expectation predates
+     * awkit-65g, where the owner directive changed the policy deliberately: the recorder builds a
+     * unique selector and ADOPTS a positional last-resort as resolved, rather than pausing for review.
+     * `buildRecordedFlow` routes a unique-but-positional locator straight to `resolved`, and
+     * `verify:locator-guard` asserts the same for the sensitive case.
+     *
+     * The intent the old assertion protected is NOT obsolete, so it is not deleted and the product is
+     * not bent back to satisfy it. The intent was: an index-chosen target must never be silently
+     * indistinguishable from a strong locator. That protection now lives in the locator's own
+     * declaration - positional disambiguation, low confidence, an explicit warning - and in the guard
+     * evidence that makes replay RE-PROVE the recorded identity instead of trusting the index. Those
+     * are what the checks below assert.
+     */
+    const dropTarget = step?.targetLocator;
+    check(
+      "pointer: a positional drop target is adopted as resolved (awkit-65g: no pause, no approval)",
+      dropTarget?.resolution === "resolved" && dropTarget?.resolvedBy === "recorder",
+      JSON.stringify(dropTarget)
+    );
+    check(
+      "pointer: it declares itself POSITIONAL rather than passing as an ordinary selector",
+      dropTarget?.quality?.disambiguation === "positional",
+      JSON.stringify(dropTarget?.quality)
+    );
+    check(
+      "pointer: it is low confidence and carries its own warning",
+      dropTarget?.quality?.confidence === "low" && typeof dropTarget?.quality?.warning === "string" &&
+        (dropTarget?.quality?.warning?.length ?? 0) > 0,
+      JSON.stringify(dropTarget?.quality)
+    );
+    check(
+      "pointer: it carries guard evidence, so replay re-proves identity instead of trusting the index",
+      Boolean(dropTarget?.guard?.fingerprint) && Boolean(dropTarget?.guard?.candidateSelector),
+      JSON.stringify(dropTarget?.guard)
+    );
+    check(
+      "pointer: the guard records the ambiguous sibling set the index was chosen from",
+      (dropTarget?.guard?.siblingCount ?? 0) >= 2 && typeof dropTarget?.guard?.index === "number",
+      JSON.stringify(dropTarget?.guard)
+    );
   }
 
   // Shadow-boundary: dropping onto an open-shadow host is supported through the existing architecture
