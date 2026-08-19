@@ -1,5 +1,51 @@
 # CURRENT_STATE
 
+## Recorder brief residuals closed: declared limitations and three-page switching (2026-08-19)
+
+The Recorder hardening brief was re-submitted; it had already been executed as `awkit-n7n` and its
+follow-ups. Auditing it against the code rather than re-running it found exactly two residuals, and
+both are now closed.
+
+**1. Two interactions were silently uncaptured.** The Recorder installs listeners for `click`,
+`keydown`, `change`, `pointer*`, `drop`, `popstate`, `hashchange`, `scroll` and `mouseover` — there
+is **no `dblclick` and no `contextmenu` listener**. Measured through the real capture path:
+
+```text
+double-click  page fired dblclick    → recorder stored 2 click actions
+right-click   page fired contextmenu → recorder stored 0 actions
+single click  (control)              → recorder stored 1 action
+```
+
+A right-click is dropped with no step and no warning. Two clicks will not reliably re-fire
+`dblclick` on replay, so a double-click-driven UI records but does not faithfully replay. The brief
+asked for unsupported gaps to be made explicit; they now are —
+`verify:recorder-competitive` **54 → 58** (section L) and matrix section H. The guards **do not bless**
+the behaviour: if either is implemented properly those checks *should* fail. Whether to implement
+capture is a product decision, filed as its own open bead.
+
+**2. Three-page switching was untested.** Every popup case topped out at two pages, and the
+multiple-popup fixture was asserted only structurally. `verify:popup-identity` **44 → 50** adds
+Suite 8b: three distinct identities, foreign-control isolation on each page, a non-adjacent
+opener → second → first → opener walk, and close-one-leaves-the-others.
+
+**Two mistakes of mine, both caught by measurement rather than shipped.** The first version used the
+opener's *popup-opening* button to prove "this landed on the opener" — which opened a third page and
+made the alias legitimately ambiguous; the product refused correctly and said so. The second version
+was **vacuous**: the fixture's action buttons call `window.close()`, so checking "a foreign control
+must not resolve here" *after* clicking the page's own control passed for free, the page being gone.
+Isolation now runs first, while every page is demonstrably open. A `opener-marker-button` was added
+to the fixture precisely because both existing opener controls have side effects.
+
+Mutation-tested: collapsing `derivePopupAlias` to a constant fails identity-distinctness and the
+switching walk. The isolation checks still pass under it — expected, since they assert *failure* and
+a collapsed alias fails everything, which is exactly why the addressability check exists beside them.
+Neither half alone is sufficient.
+
+`verify:mock-site` 161/161 and `verify:popup-mock-site` 15/15 confirm the fixture change is inert
+elsewhere. Tracker: **228 total / 223 closed / 5 outstanding** (1 open product decision, 4
+owner-gated). Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## The packaged asset gate passes, and the installer exists (2026-08-19)
 
 `npm run package:installer` produced `dist/SpecterStudio Setup 0.1.13.exe` (244,462,040 bytes) plus

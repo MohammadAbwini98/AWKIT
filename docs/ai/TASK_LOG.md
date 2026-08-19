@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Close the Recorder brief residuals (declared limitations, three-page switching)
+
+- **Task:** the Recorder hardening brief was re-submitted. It had already been executed (`awkit-n7n`
+  and follow-ups), so it was audited against the code instead of re-run; two residuals were found.
+- **Residual 1 — silently uncaptured interactions.** Measured through `recordActionFromPage`: a
+  double-click stores TWO clicks; a right-click stores NOTHING; a single click stores one (control).
+  No `dblclick`/`contextmenu` listener exists. Declared and guarded in `verify:recorder-competitive`
+  section L (**54 → 58**) and matrix section H. Guards do not bless the behaviour.
+- **Residual 2 — three-page switching.** `verify:popup-identity` **44 → 50** (Suite 8b): three
+  distinct identities, foreign-control isolation per page, non-adjacent switching walk, close-one.
+- **Two self-caught test defects:** using a popup-opening button as the opener's marker created a
+  third page and a legitimately ambiguous alias (product refused correctly); and checking isolation
+  after clicking self-closing action buttons was VACUOUS. Isolation now runs first; a side-effect-free
+  `opener-marker-button` was added to `mock-site/public/popup/multiple.html`.
+- **Mutation-tested:** collapsing `derivePopupAlias` to a constant fails identity-distinctness and the
+  switching walk.
+- **Tests run:** `verify:popup-identity` **50/50**, `verify:recorder-competitive` **58/58**,
+  `verify:popup-mock-site` 15/15, `verify:mock-site` 161/161, `verify:source-hygiene` 9/9,
+  `ai:memory` PASS.
+- **Files:** `scripts/verify-popup-identity.mts`, `scripts/verify-recorder-competitive.mts`,
+  `mock-site/public/popup/multiple.html`, `mock-site/README.md`,
+  `docs/testing/RECORDER_NAVIGATION_MATRIX.md`, `scripts/verify-roadmap-dashboard.mjs`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** both residuals closed; the dblclick/contextmenu PRODUCT decision filed as an open bead.
+  Tracker 228 total / 223 closed / 5 outstanding.
+
+---
+
 ## 2026-08-19 - Claude - Build the installer and re-express the vendorResources check (awkit-dz5w)
 
 - **Packaged:** `npm run package:installer` -> `dist/SpecterStudio Setup 0.1.13.exe` (244,462,040

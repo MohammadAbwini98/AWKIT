@@ -92,6 +92,54 @@ Navigate steps. C4 is the boundary that is easiest to lose by accident: URL hist
 | E5 | Open order does not decide identity (reversed order resolves alike) | `verify:popup-identity` | PASS |
 | E6 | A timer-opened popup with no click still gets a stable alias | `verify:popup-identity` | PASS |
 
+## G. Multi-page switching (4)
+
+| # | Behaviour | Owner | Status |
+|---|---|---|---|
+| G1 | Three pages (opener + two popups) hold three distinct identities | `verify:popup-identity` (Suite 8b) | PASS |
+| G2 | A control belonging to another page does not resolve under an alias | `verify:popup-identity` (Suite 8b) | PASS |
+| G3 | Non-adjacent switching opener → second → first → opener reaches each page | `verify:popup-identity` (Suite 8b) | PASS |
+| G4 | Closing one popup leaves its sibling and the opener addressable | `verify:popup-identity` (Suite 8b) | PASS |
+
+Three pages is where identity stops being a coin flip: with two, a bug that simply picks "the other
+page" still looks correct half the time. G2 and G3 are deliberately a pair — G2 proves foreign
+controls do **not** resolve, G3 proves own controls **do**. Neither alone is sufficient, because a
+registry that failed everything would satisfy G2 and one that resolved everything would satisfy G3.
+
+Ordering trap worth keeping: the fixture's action buttons call `window.close()`, so checking
+isolation *after* clicking a page's own control passes for free — the page is gone. Isolation runs
+first, while every page is demonstrably open.
+
+## H. Declared limitations — interactions the Recorder does NOT capture (3)
+
+These are measured, not assumed, and are guarded so the gap stays loud instead of silent.
+
+| # | Behaviour | Owner | Status |
+|---|---|---|---|
+| H1 | A double-click records **two click actions**, not a double-click | `verify:recorder-competitive` (section L) | PASS (limitation) |
+| H2 | No action type claims double-click semantics the runtime cannot replay | `verify:recorder-competitive` (section L) | PASS |
+| H3 | A right-click records **nothing** — context menus are not captured | `verify:recorder-competitive` (section L) | PASS (limitation) |
+
+The Recorder installs listeners for `click`, `keydown`, `change`, `pointer*`, `drop`, `popstate`,
+`hashchange`, `scroll` and `mouseover`. There is **no `dblclick` and no `contextmenu` listener**.
+
+Measured with the real capture path (through `recordActionFromPage`, not the raw init script):
+
+```text
+double-click  page fired dblclick    → recorder stored 2 click actions
+right-click   page fired contextmenu → recorder stored 0 actions
+single click  (control)              → recorder stored 1 action
+```
+
+**What this costs.** Two clicks replayed with a gap between them will not reliably re-fire
+`dblclick`, so a double-click-driven UI records but does not faithfully replay. A right-click is
+dropped with no step and no warning — the user sees nothing recorded and is told nothing.
+
+The section-L checks exist to make that visible, **not to bless it**. If either interaction is ever
+implemented properly those checks SHOULD fail; that is the signal to update this table. The control
+check (a single click records exactly one action) is what stops the two counts being satisfied by a
+recorder that has stopped capturing altogether.
+
 ## F. Frames (2)
 
 | # | Behaviour | Owner | Status |
