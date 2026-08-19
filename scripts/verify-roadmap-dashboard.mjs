@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("230 issues parse", beads.stats.total === 230, `got ${beads.stats.total}`);
+  check("231 issues parse", beads.stats.total === 231, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -279,8 +279,12 @@ try {
   // out, so the total rose by two, closed by one, and outstanding by one. Move this pin deliberately
   // when a bead changes state, and remember that `bd close` does NOT rewrite the export — only
   // `bd export -o .beads/issues.jsonl` does; plain `bd export` prints to STDOUT and leaves it stale.
-    "5 outstanding / 225 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 225,
+  // Then 5/226 of 231 on 2026-08-19: awkit-xd6s filed and closed in the same session - the dashboard
+  // License Issuer view had been registered in views.js, which the application imports, so the whole
+  // issuer page compiled into out/renderer and shipped in the v0.1.15 artifact. One in, one out, so
+  // total and closed each rose by one and outstanding held.
+    "5 outstanding / 226 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 226,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

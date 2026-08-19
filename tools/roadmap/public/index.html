@@ -12,6 +12,11 @@
     -->
     <link rel="stylesheet" href="/app.css" />
     <link rel="stylesheet" href="/dashboard.css" />
+    <!--
+      Issuer-only styles. Kept out of dashboard.css because the application imports that file to
+      render the same report views in-app; anything left there ships in the build.
+    -->
+    <link rel="stylesheet" href="/license-issuer.css" />
   </head>
   <body>
     <div id="root">

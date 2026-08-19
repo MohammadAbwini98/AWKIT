@@ -59,7 +59,8 @@ const STATIC_ROUTES = new Map([
   ["/icons.js", "icons.js"],
   ["/views.js", "views.js"],
   ["/graph.js", "graph.js"],
-  ["/license-issuer.js", "license-issuer.js"]
+  ["/license-issuer.js", "license-issuer.js"],
+  ["/license-issuer.css", "license-issuer.css"]
 ]);
 
 const MIME = {

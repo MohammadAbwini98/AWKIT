@@ -126,7 +126,7 @@ try {
   const serverSrc = read("tools", "roadmap", "server.mjs");
   const issuerViewSrc = read("tools", "roadmap", "public", "license-issuer.js");
   const dashboardSrc = read("tools", "roadmap", "public", "dashboard.js");
-  const cssSrc = read("tools", "roadmap", "public", "dashboard.css");
+  const cssSrc = read("tools", "roadmap", "public", "license-issuer.css");
 
   const registry = /export const VIEWS = \[([\s\S]*)\];\s*$/.exec(viewsSrc)?.[1] ?? "";
   check("the view registry was located", registry.length > 0);
@@ -138,27 +138,51 @@ try {
     ),
     viewIds.join(", ")
   );
-  check("a ninth view was added, not a replacement", viewIds.length === 9, `${viewIds.length} views`);
-  check('the side-menu label is exactly "Licenses Issue"', /label: "Licenses Issue"/.test(registry));
-  check("the issuer view is registered under its own id", viewIds.includes("licenses-issue"));
+  // THE defect this file exists to prevent, and it shipped once. `views.js` is imported by
+  // `app/renderer/pages/ImplementationRoadmap.tsx` to render the same reports inside SpecterStudio,
+  // so a view registered there is compiled into the application — which is how the issuer page, its
+  // API calls and its Issue button reached `app.asar` in v0.1.15. The issuer must be composed by the
+  // standalone shell, which nothing in the application imports.
   check(
-    "the issuer view renders through the dedicated module, not an inline renderer",
-    /render: renderLicenseIssuer/.test(registry) &&
-      viewsSrc.includes('import { renderLicenseIssuer } from "./license-issuer.js"')
+    "views.js carries only the eight report views the application embeds",
+    viewIds.length === 8 && !viewIds.includes("licenses-issue"),
+    viewIds.join(", ")
   );
+  check(
+    "views.js does not reach the issuer module at all",
+    !viewsSrc.includes("license-issuer") && !viewsSrc.includes("renderLicenseIssuer"),
+    "a static import compiles the page into the application even if a filter hides the view"
+  );
+  check(
+    "the standalone shell composes the issuer view on top of them",
+    dashboardSrc.includes('import { renderLicenseIssuer } from "./license-issuer.js"') &&
+      dashboardSrc.includes("render: renderLicenseIssuer") &&
+      /const DASHBOARD_VIEWS = \[/.test(dashboardSrc)
+  );
+  check('the side-menu label is exactly "Licenses Issue"', /label: "Licenses Issue"/.test(dashboardSrc));
+  check("the issuer view is registered under its own id", /id: "licenses-issue"/.test(dashboardSrc));
   check(
     "the page heading and subtitle name the tool, while the menu keeps the owner's label",
-    /title: "License Issuer"/.test(registry) &&
-      /subtitle: \(\) => "Generate signed machine-bound AWKIT licenses"/.test(registry)
+    /title: "License Issuer"/.test(dashboardSrc) &&
+      /subtitle: \(\) => "Generate signed machine-bound AWKIT licenses"/.test(dashboardSrc)
   );
   check(
-    "the routing shell needs no change to reach it",
-    dashboardSrc.includes("VIEWS.some((v) => v.id === id)") && !dashboardSrc.includes("licenses-issue"),
-    "the nav is built from VIEWS; a special case here would mean the registry is not authoritative"
+    "every nav entry, route and render path reads the composed list",
+    ["DASHBOARD_VIEWS.some(", "of DASHBOARD_VIEWS)", "DASHBOARD_VIEWS.find("].every((call) =>
+      dashboardSrc.includes(call)
+    ),
+    "a consumer still reading VIEWS would silently drop the issuer from the nav or the router"
   );
   check(
-    "the module is served from the explicit static allowlist",
-    serverSrc.includes('["/license-issuer.js", "license-issuer.js"]')
+    "both issuer assets are served from the explicit static allowlist",
+    serverSrc.includes('["/license-issuer.js", "license-issuer.js"]') &&
+      serverSrc.includes('["/license-issuer.css", "license-issuer.css"]')
+  );
+  check(
+    "only the standalone page loads the issuer stylesheet",
+    read("tools", "roadmap", "public", "index.html").includes('href="/license-issuer.css"') &&
+      !read("tools", "roadmap", "public", "dashboard.css").includes("rm-issuer"),
+    "dashboard.css is imported by the application, so issuer rules left there ship in the build"
   );
 
   /* Every icon this page names must exist, for the same reason views.js is checked: icon() falls
@@ -913,6 +937,48 @@ try {
     "the issuer key custody rule still guards every signing path",
     read("src", "licensing", "issuer", "LicenseIssuerService.ts").includes("evaluateKeyCustody(this.options.keyPath)")
   );
+
+  /* ----------------------------------------------------------------------
+     The check that would actually have caught the v0.1.15 leak.
+
+     Asserting that `tools/**` is absent from the packaging globs proved nothing: the application
+     imports `tools/roadmap/public/views.js` as SOURCE, so the bundler compiled the issuer straight
+     into `out/renderer` and from there into `app.asar` while that glob check stayed green. Read the
+     built artifact, not the configuration that is supposed to produce it.
+     ---------------------------------------------------------------------- */
+  const rendererDir = join(REPO_ROOT, "out", "renderer", "assets");
+  const ISSUER_MARKERS = [
+    "Licenses Issue",
+    "licenses-issue",
+    "/api/license-issuer",
+    "Issue License",
+    "Parse Request",
+    "rm-issuer-columns"
+  ];
+  if (!existsSync(rendererDir)) {
+    blockedCheck("the built renderer bundle carries no issuer surface", "out/renderer is absent — run npm run build");
+  } else {
+    const bundles = readdirSync(rendererDir).filter((name) => /\.(js|css)$/.test(name));
+    check("the renderer bundle scan found something to scan", bundles.length >= 2, bundles.join(", "));
+    const leaks: string[] = [];
+    for (const name of bundles) {
+      const text = readFileSync(join(rendererDir, name), "utf8");
+      for (const marker of ISSUER_MARKERS) if (text.includes(marker)) leaks.push(`${name}: ${marker}`);
+    }
+    check(
+      "the built renderer bundle carries no issuer surface",
+      leaks.length === 0,
+      leaks.join(" | ") || "nothing"
+    );
+    // Non-vacuity: the same scan must still find the report views it is NOT supposed to exclude,
+    // otherwise an empty or renamed bundle would read as a clean result.
+    const anyBundle = bundles.map((name) => readFileSync(join(rendererDir, name), "utf8")).join("");
+    check(
+      "that scan can still see the roadmap views it is not excluding",
+      anyBundle.includes("Roadmap Phases") && anyBundle.includes("Work Queue"),
+      "a scan that finds nothing at all proves nothing about what is absent"
+    );
+  }
   check(
     "no environment variable disables licensing for the dashboard",
     !bridgeSrc.includes("AWKIT_TEST_LICENSE_BYPASS") &&

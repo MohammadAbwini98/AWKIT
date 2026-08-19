@@ -14,6 +14,34 @@
 import { ROADMAP_SERVER_RESTART_MESSAGE, clear, el, formatClock, plural, readApiPayload } from "./dom.js";
 import { icon } from "./icons.js";
 import { VIEWS } from "./views.js";
+import { renderLicenseIssuer } from "./license-issuer.js";
+
+
+/**
+ * The views this page shows: the eight report views, plus the License Issuer.
+ *
+ * The issuer is registered HERE and not in views.js on purpose. The application imports views.js to
+ * render the same reports inside SpecterStudio, so a view registered there is compiled into the
+ * shipped build — which is exactly how the issuer page, its API calls and its Issue button once
+ * reached app.asar. Nothing in the application imports this file, so this is the boundary.
+ */
+const LICENSE_ISSUER_VIEW = {
+  // "Licenses Issue" is the owner's wording for the menu; the page heading names the tool.
+  id: "licenses-issue",
+  label: "Licenses Issue",
+  icon: "key-round",
+  title: "License Issuer",
+  subtitle: () => "Generate signed machine-bound AWKIT licenses",
+  count: () => null,
+  render: renderLicenseIssuer
+};
+
+const sourcesIndex = VIEWS.findIndex((view) => view.id === "sources");
+const DASHBOARD_VIEWS = [
+  ...VIEWS.slice(0, sourcesIndex === -1 ? VIEWS.length : sourcesIndex),
+  LICENSE_ISSUER_VIEW,
+  ...VIEWS.slice(sourcesIndex === -1 ? VIEWS.length : sourcesIndex)
+];
 
 const THEME_KEY = "awkit-roadmap-theme";
 const THEME_MODES = ["system", "light", "dark"];
@@ -90,7 +118,7 @@ applyTheme();
 
 function viewFromHash() {
   const id = window.location.hash.replace(/^#\/?/, "");
-  return VIEWS.some((v) => v.id === id) ? id : "overview";
+  return DASHBOARD_VIEWS.some((v) => v.id === id) ? id : "overview";
 }
 
 function navigate(id) {
@@ -282,7 +310,7 @@ function setLive(status, label) {
 function renderNav() {
   const snap = state.snap;
   clear(dom.nav);
-  for (const view of VIEWS) {
+  for (const view of DASHBOARD_VIEWS) {
     const count = snap ? view.count(snap) : null;
     dom.nav.appendChild(
       el(
@@ -312,7 +340,7 @@ function render() {
   const snap = state.snap;
   if (!snap) return;
 
-  const view = VIEWS.find((v) => v.id === state.viewId) ?? VIEWS[0];
+  const view = DASHBOARD_VIEWS.find((v) => v.id === state.viewId) ?? DASHBOARD_VIEWS[0];
   dom.title.textContent = view.title;
   dom.subtitle.textContent = view.subtitle(snap);
   dom.freshness.textContent = `snapshot ${formatClock(snap.generatedAt)}`;
