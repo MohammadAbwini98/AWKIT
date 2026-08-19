@@ -114,11 +114,23 @@ first, while every page is demonstrably open.
 
 These are measured, not assumed, and are guarded so the gap stays loud instead of silent.
 
+**`GAP` is not a pass.** H1 and H3 are *known-gap sentinels*: they hold only while the defect is
+present. `verify:recorder-competitive` tallies them **separately** from its check count and prints
+them as `GAP`, never `✓` — a headline of "58/58 passed" that quietly included two "the defect is
+still here" assertions would eventually be read as "recorder pointer handling is green". The
+headline is now 56/56 checks plus 2 sentinels named as such.
+
+A sentinel that stops holding **fails the run** and says what to do: measured by suppressing the
+second click of a double-click, which produced `CHANGED … Convert this sentinel into a positive
+assertion and update awkit-bxyo` and exit 1. Implementation therefore cannot land without forcing
+these to be rewritten as positive assertions. H2 is an ordinary check, not a sentinel: it holds
+before and after the fix.
+
 | # | Behaviour | Owner | Status |
 |---|---|---|---|
-| H1 | A double-click records **two click actions**, not a double-click | `verify:recorder-competitive` (section L) | PASS (limitation) |
+| H1 | A double-click records **two click actions**, not a double-click | `verify:recorder-competitive` (section L) | **GAP** — defect present |
 | H2 | No action type claims double-click semantics the runtime cannot replay | `verify:recorder-competitive` (section L) | PASS |
-| H3 | A right-click records **nothing** — context menus are not captured | `verify:recorder-competitive` (section L) | PASS (limitation) |
+| H3 | A right-click records **nothing** — context menus are not captured | `verify:recorder-competitive` (section L) | **GAP** — defect present |
 
 The Recorder installs listeners for `click`, `keydown`, `change`, `pointer*`, `drop`, `popstate`,
 `hashchange`, `scroll` and `mouseover`. There is **no `dblclick` and no `contextmenu` listener**.

@@ -1,5 +1,50 @@
 # CURRENT_STATE
 
+## Recorder pointer checkpoint: what is closed and what is an open defect (2026-08-19)
+
+```text
+Three-page popup switching ........ PASS / CLOSED
+Popup identity distinctness ....... PASS
+Cross-page isolation .............. PASS
+Close-one-preserves-others ........ PASS
+
+Double-click semantic capture ..... OPEN PRODUCT DEFECT
+Right-click semantic capture ...... OPEN PRODUCT DEFECT
+Double-click replay fidelity ...... NOT IMPLEMENTED
+Right-click replay fidelity ....... NOT IMPLEMENTED
+```
+
+**The verifier tally no longer absorbs the defects.** `verify:recorder-competitive` reported
+*58/58 passed* while two of those assertions existed only to prove the Recorder still loses
+interactions. That number would eventually be read as "recorder pointer handling is green", which is
+the opposite of what it meant. Known-gap sentinels are now tallied separately and printed as `GAP`:
+
+```text
+56/56 recorder-competitive checks passed
+2 known-gap sentinel(s) still holding — these are NOT passes. They assert that an open defect
+remains present (awkit-bxyo …). When that work lands they must become positive assertions.
+```
+
+A sentinel that stops holding **fails the run**. Measured by suppressing the second click of a
+double-click: `CHANGED … Convert this sentinel into a positive assertion and update awkit-bxyo`,
+exit 1. So the implementation cannot land while leaving these as gap assertions.
+
+**The next engineering step is one pointer-interaction-semantics tranche**, not two unrelated fixes.
+The model must distinguish the semantic action from ordinary click metadata — a dedicated action
+kind, or a shared pointer action carrying button and click-count — with the boundary that two
+ordinary clicks never stand in for a double-click and a right-click is never silently discarded.
+It covers the whole chain: browser event → semantic normalization → recorded action model →
+Flow/step conversion → save/reload/import-export → validation → runtime replay → reports.
+
+Right-click needs **both** cases: a page-owned `contextmenu` handler, which is replayable, and the
+case where the browser's native menu would appear — capturing the user's semantic action without
+inventing support for automating browser chrome the runtime cannot legitimately replay. If that
+surface is not replayable, the model should say so rather than imply coverage.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **228 total / 223 closed /
+5 outstanding** (`awkit-bxyo` plus the four owner-gated items).
+
+
 ## Recorder brief residuals closed: declared limitations and three-page switching (2026-08-19)
 
 The Recorder hardening brief was re-submitted; it had already been executed as `awkit-n7n` and its

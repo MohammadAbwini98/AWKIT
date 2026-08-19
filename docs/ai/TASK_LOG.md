@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Stop the verifier tally absorbing two known Recorder defects
+
+- **Owner objection, and it was right:** `verify:recorder-competitive` reported 58/58 PASS while two
+  of those assertions existed only to prove the Recorder still drops interactions. Left alone, that
+  number reads as "recorder pointer handling is green".
+- **Change:** known-gap sentinels are tallied separately from checks and printed as `GAP`, never `✓`.
+  Headline is now **56/56 checks + 2 sentinels**, with a summary line stating they are NOT passes and
+  naming the open bead.
+- **Sentinels are live, not decorative:** one that stops holding FAILS the run and says to convert it
+  into a positive assertion. Measured by suppressing the second click of a double-click →
+  `CHANGED … update awkit-bxyo`, exit 1.
+- **Matrix section H** reclassified from `PASS (limitation)` to `GAP — defect present`, with the
+  distinction written down.
+- **awkit-bxyo** now carries the agreed tranche design: one pointer-interaction-semantics tranche,
+  full chain from browser event through replay and reports, both right-click cases (page-owned
+  handler and native menu), and the model boundary that two clicks never stand in for a double-click.
+- **Tests run:** `verify:recorder-competitive` **56/56 + 2 GAP** (exit 0); mutation → exit 1 as
+  designed; `verify:source-hygiene` 9/9; `verify:roadmap-dashboard` 158/158; `ai:memory` PASS.
+- **Files:** `scripts/verify-recorder-competitive.mts`,
+  `docs/testing/RECORDER_NAVIGATION_MATRIX.md`, `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/*`.
+- **Result:** checkpoint recorded truthfully. Three-page switching CLOSED; double-click and
+  right-click remain OPEN PRODUCT DEFECTS with replay fidelity NOT IMPLEMENTED.
+
+---
+
 ## 2026-08-19 - Claude - Close the Recorder brief residuals (declared limitations, three-page switching)
 
 - **Task:** the Recorder hardening brief was re-submitted. It had already been executed (`awkit-n7n`
