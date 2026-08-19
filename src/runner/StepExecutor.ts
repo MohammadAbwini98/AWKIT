@@ -185,7 +185,11 @@ export class StepExecutor {
    * bypass is never enabled automatically. The URL is deliberately not interpolated into the message:
    * it can carry tokens in query parameters.
    */
-  private async navigate(page: Page, url: string, options: { timeout: number }): Promise<void> {
+  private async navigate(
+    page: Page,
+    url: string,
+    options: { timeout: number; waitUntil?: "domcontentloaded" | "load" | "networkidle" | "commit" }
+  ): Promise<void> {
     try {
       await this.limitOp("navigation", () => page.goto(url, options));
     } catch (error) {
@@ -1733,7 +1737,11 @@ export class StepExecutor {
         const url = await this.resolveStepValue(step, step.url);
         if (!url) throw new Error(`Step ${step.id} is missing a URL.`);
         assertNavigableUrl(url);
-        await this.navigate(this.activePage, url, { timeout: step.timeoutMs ?? 30_000 });
+        await this.navigate(this.activePage, url, {
+          timeout: step.timeoutMs ?? 30_000,
+          // Absent = Playwright's default ("load"). Existing flows are unaffected.
+          ...(step.waitUntil ? { waitUntil: step.waitUntil } : {})
+        });
         return { status: "passed" };
       }
 

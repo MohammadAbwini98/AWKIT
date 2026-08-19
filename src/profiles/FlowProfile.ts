@@ -721,6 +721,15 @@ export interface FlowStep {
     valueSource?: ValueSource;
     maxIterations?: number;
   };
+  /**
+   * Load condition for a `goto` step. Absent = Playwright's default (`'load'`).
+   *
+   * `'load'` waits for every subresource, so a single hanging third-party asset — a webfont from a
+   * dead CDN, an ad script — blocks the navigation until it times out even though the document
+   * itself arrived. `'domcontentloaded'` is the escape hatch for those pages. Mirrors
+   * {@link PopupExpectation.waitUntil}.
+   */
+  waitUntil?: "domcontentloaded" | "load" | "networkidle" | "commit";
   /** Canvas node size (px) for the Flow Designer. */
   size?: { width: number; height: number };
   /** Type-specific designer configuration (wait/assertion/screenshot/scroll/loop/runFlow). */

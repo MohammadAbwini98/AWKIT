@@ -70,6 +70,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     opensPopup: data.opensPopup,
     popupExpectation: data.popupExpectation,
     dialogExpectation: data.dialogExpectation,
+    waitUntil: data.waitUntil,
     safety: data.safety,
     value: data.value || undefined,
     valueSource,
@@ -201,6 +202,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     opensPopup: step.opensPopup,
     popupExpectation: step.popupExpectation,
     dialogExpectation: step.dialogExpectation,
+    waitUntil: step.waitUntil,
     safety: step.safety,
     // A step can carry a bare `value` (e.g. a condition expression) with no `valueSource`. Mark it
     // "none" so the save path re-serializes the value WITHOUT fabricating a static `valueSource`, and

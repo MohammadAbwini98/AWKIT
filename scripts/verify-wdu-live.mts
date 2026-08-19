@@ -302,7 +302,11 @@ async function main(): Promise<void> {
     "add an item, then delete it, asserting list state both times",
     [
       flow("todo", [
-        goto("open", `${BASE}/To-Do-List/index.html`),
+        // MEASURED: this page's HTML returns 200 in ~471ms, but its Font Awesome webfont from
+        // cdnjs.cloudflare.com never completes, so the default `load` condition never fires and the
+        // navigation times out at 30s. An EXTERNAL-SITE condition, not a product defect — but it is
+        // what motivated `waitUntil` on `goto` (awkit-omlc).
+        { ...goto("open", `${BASE}/To-Do-List/index.html`), waitUntil: "domcontentloaded" },
         fill("type", byPlaceholder("Add new todo"), "Automate with SpecterStudio"),
         { id: "enter", type: "press", name: "enter", locator: byPlaceholder("Add new todo"), value: "Enter" },
         assertVisible("added", byText("Automate with SpecterStudio")),
@@ -615,8 +619,12 @@ async function main(): Promise<void> {
       click("trigger", byId("show-toast")),
       { id: "shown", type: "assertText", name: "toast carries the show class", locator: byId("toast"),
         config: { assertionType: "attribute", attributeName: "class", comparisonOperator: "contains", expectedValue: "show" } },
-      { id: "settle", type: "wait", name: "let the auto-dismiss run",
-        beforeWaits: [{ type: "domStable", stableForMs: 3000, timeoutMs: 15000 } as never] },
+      // `domStable` is the wrong instrument on THIS page: the Moving Target button animates
+      // continuously, so the DOM never goes quiet (measured — it never stabilised for 3s in 15s).
+      // Watching `#toast.show` instead turns the class change into an ordinary visibility wait: once
+      // the class is dropped the selector matches nothing, which reads as hidden.
+      { id: "settle", type: "wait", name: "wait for the toast to auto-dismiss",
+        beforeWaits: [{ type: "elementHidden", locator: byCss("#toast.show"), timeoutMs: 20000 } as never] },
       { id: "dismissed", type: "assertText", name: "show class has been dropped", locator: byId("toast"),
         config: { assertionType: "attribute", attributeName: "class", comparisonOperator: "equals", expectedValue: "toast" } }
     ])
@@ -887,6 +895,153 @@ async function main(): Promise<void> {
       goto("open", AI),
       click("toDelivery", byId("checkout-step1-next")),
       assertVisible("cartError", byId("cart-empty-error"))
+    ])
+  ], "pass");
+
+
+  // ══ CAPSTONE: RESTAURANT BOOKING PORTAL ════════════════════════════════════════════════════════
+  console.log("\nCAPSTONE — RESTAURANT BOOKING PORTAL");
+  const BOOK = `${BASE}/Restaurant-Booking/index.html`;
+
+  // The calendar's selectable days move with the real date, and slot availability is API-backed and
+  // varies per date (measured: on one day 7pm and 9pm were unavailable, on the next 6pm and 7pm).
+  // So both are chosen POSITIONALLY-AMONG-AVAILABLE rather than hardcoded — a hardcoded date would
+  // expire and a hardcoded slot would be flaky. `:nth-match` keeps the locator unambiguous, which
+  // the product requires.
+  const firstFreeDay = byCss(":nth-match(#cal-grid button:not([disabled]), 1)");
+  const firstFreeSlot = byCss(":nth-match(.slot:not([disabled]), 1)");
+
+  // Reusable opening leg: choose party size + table type and advance to the date step.
+  const partyLeg = (id: string, size: string, type: string): FlowStep[] => [
+    goto(`${id}-open`, BOOK),
+    { id: `${id}-size`, type: "select", name: "party size", locator: byId("party-size"), value: size, selectionMode: "value" },
+    click(`${id}-type`, byId(type))
+  ];
+
+  // ── Deposit rules ─────────────────────────────────────────────────────────────────────────────
+  // MEASURED: Standard = Free, Group (7+) = £20, Private (2+) = £50.
+  await acceptance("WDU-B01", "Booking: Deposit rules", "each table type shows its own deposit", [
+    flow("book-deposit", [
+      ...partyLeg("std", "4", "type-standard"),
+      assertText("depositStandard", byId("deposit-amount"), "Free"),
+      click("pickPrivate", byId("type-private")),
+      assertText("depositPrivate", byId("deposit-amount"), "50"),
+      { id: "sizeGroup", type: "select", name: "party of eight", locator: byId("party-size"), value: "8", selectionMode: "value" },
+      click("pickGroup", byId("type-group")),
+      assertText("depositGroup", byId("deposit-amount"), "20")
+    ])
+  ], "pass");
+
+  // ── Full happy path, composed from reusable legs ──────────────────────────────────────────────
+  await acceptance("WDU-B02", "Booking: Full reservation", "party, date, slot, details, review, confirm, reference", [
+    flow("book-party", [
+      ...partyLeg("go", "4", "type-standard"),
+      assertText("deposit", byId("deposit-amount"), "Free"),
+      click("next1", byId("step1-next")),
+      assertVisible("onStep2", byId("step-2"))
+    ]),
+    flow("book-datetime", [
+      click("pickDay", firstFreeDay),
+      assertText("dateChosen", byId("selected-date-label"), "Selected:"),
+      // Slot availability arrives asynchronously; wait for a free one rather than sleeping.
+      { id: "slotsReady", type: "wait", name: "an available slot exists",
+        beforeWaits: [{ type: "elementEnabled", locator: firstFreeSlot, timeoutMs: 20000 } as never] },
+      click("pickSlot", firstFreeSlot),
+      click("next2", byId("step2-next")),
+      assertVisible("onStep3", byId("step-3"))
+    ]),
+    flow("book-details", [
+      fill("name", byId("booking-name"), "Specter Studio"),
+      fill("email", byId("booking-email"), "specter.studio@example.com"),
+      fill("phone", byId("booking-phone"), "07700900123"),
+      click("next3", byId("step3-next")),
+      assertVisible("onStep4", byId("step-4"))
+    ]),
+    flow("book-confirm", [
+      // State must have survived every step transition.
+      assertText("reviewParty", byId("review-party"), "4"),
+      assertText("reviewName", byId("review-name"), "Specter Studio"),
+      assertText("reviewEmail", byId("review-email"), "specter.studio@example.com"),
+      click("confirm", byId("confirm-booking")),
+      assertVisible("success", byId("booking-success")),
+      assertText("successName", byId("success-name"), "Specter Studio"),
+      { id: "reference", type: "readText", name: "capture the reservation reference", locator: byId("booking-ref"), outputs: { bookingRef: "" } }
+    ])
+  ], "pass");
+
+  // ── Details validation — expected APPLICATION rejection, not a runner failure ──────────────────
+  await acceptance("WDU-B03", "Booking: Details validation", "bad name, email and phone are each reported", [
+    flow("book-invalid", [
+      ...partyLeg("inv", "2", "type-standard"),
+      click("next1", byId("step1-next")),
+      click("pickDay", firstFreeDay),
+      { id: "slotsReady", type: "wait", name: "an available slot exists",
+        beforeWaits: [{ type: "elementEnabled", locator: firstFreeSlot, timeoutMs: 20000 } as never] },
+      click("pickSlot", firstFreeSlot),
+      click("next2", byId("step2-next")),
+      fill("name", byId("booking-name"), "X"),
+      fill("email", byId("booking-email"), "not-an-email"),
+      fill("phone", byId("booking-phone"), "123"),
+      click("next3", byId("step3-next")),
+      assertVisible("nameErr", byId("name-error")),
+      assertVisible("emailErr", byId("email-error")),
+      assertVisible("phoneErr", byId("phone-error")),
+      // ...and the app must NOT have advanced.
+      assertVisible("stillStep3", byId("step-3"))
+    ])
+  ], "pass");
+
+  // ── Back/Next state preservation ──────────────────────────────────────────────────────────────
+  await acceptance("WDU-B04", "Booking: Navigation", "Back preserves earlier answers", [
+    flow("book-back", [
+      ...partyLeg("nav", "6", "type-private"),
+      click("next1", byId("step1-next")),
+      click("back2", byId("step2-back")),
+      assertVisible("backOnStep1", byId("step-1")),
+      // The deposit is derived from the still-selected private table, so it proves state survived.
+      assertText("depositKept", byId("deposit-amount"), "50")
+    ])
+  ], "pass");
+
+  // ── Start another reservation ─────────────────────────────────────────────────────────────────
+  await acceptance("WDU-B05", "Booking: Restart", "a confirmed booking can be followed by a new one", [
+    flow("book-restart", [
+      ...partyLeg("re", "2", "type-standard"),
+      click("next1", byId("step1-next")),
+      click("pickDay", firstFreeDay),
+      { id: "slotsReady", type: "wait", name: "an available slot exists",
+        beforeWaits: [{ type: "elementEnabled", locator: firstFreeSlot, timeoutMs: 20000 } as never] },
+      click("pickSlot", firstFreeSlot),
+      click("next2", byId("step2-next")),
+      fill("name", byId("booking-name"), "Second Booking"),
+      fill("email", byId("booking-email"), "second@example.com"),
+      fill("phone", byId("booking-phone"), "07700900124"),
+      click("next3", byId("step3-next")),
+      click("confirm", byId("confirm-booking")),
+      assertVisible("success", byId("booking-success")),
+      click("again", byId("booking-restart")),
+      assertVisible("backToStart", byId("step-1"))
+    ])
+  ], "pass");
+
+  // ── Boundary: a Standard table tops out at 6 guests ───────────────────────────────────────────
+  // MEASURED: choosing 8 guests with a Standard table leaves the wizard on step 1 — the site blocks
+  // the transition. Asserted as "did not advance", which is the observable contract.
+  await acceptance("WDU-B06", "Booking: Boundary", "8 guests on a Standard table cannot advance", [
+    flow("book-boundary", [
+      ...partyLeg("bnd", "8", "type-standard"),
+      click("next1", byId("step1-next")),
+      assertVisible("stillStep1", byId("step-1"))
+    ])
+  ], "pass");
+
+  // Negative control for WDU-B06: the SAME party size with a Group table DOES advance, so B06
+  // cannot be passing merely because step 1 is always visible.
+  await acceptance("WDU-B07", "Booking: Boundary", "negative control — 8 guests on a Group table does advance", [
+    flow("book-boundary-ok", [
+      ...partyLeg("ok", "8", "type-group"),
+      click("next1", byId("step1-next")),
+      assertVisible("onStep2", byId("step-2"))
     ])
   ], "pass");
 

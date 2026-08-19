@@ -73,6 +73,21 @@ async function main() {
     return { status: result.status, error: result.error, ms: Date.now() - start, logs: logger.entries.map((entry) => entry.message) };
   }
 
+  // Navigate to a served fixture so `goto` has a real URL (setContent bypasses navigation).
+  async function runNavigation(html: string, waitUntil: FlowStep["waitUntil"], timeoutMs: number) {
+    await page.route("https://fixture.invalid/page", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: html })
+    );
+    const logger = new MemoryRunnerLogger();
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx, undefined, logger);
+    const result = await exec.execute({
+      id: "GT", type: "goto", name: "navigate", url: "https://fixture.invalid/page",
+      timeoutMs, ...(waitUntil ? { waitUntil } : {})
+    });
+    await page.unroute("https://fixture.invalid/page");
+    return { status: result.status, error: result.error };
+  }
+
   // Runs a step with a cancellation token that fires mid-wait, so we can prove Stop interrupts
   // immediately (the step ends far before the wait's own timeout).
   async function runCancellable(html: string, step: FlowStep, cancelAfterMs: number): Promise<{ status: string; error?: string; ms: number }> {
@@ -868,6 +883,26 @@ async function main() {
         rowLocator: { strategy: "css", value: "#t tbody tr" }, minRows: 5, timeoutMs: 6000 } as never]
     });
     check("[W-LC5] tableHasRows counts past 1 with an EXPLICIT rowLocator", explicitRows.status === "passed", `${explicitRows.status} ${explicitRows.error ?? ""}`);
+  }
+
+  // ── goto must be able to choose its load condition (awkit-omlc) ──────────────────────────────
+  // Playwright's default `waitUntil: "load"` waits for EVERY subresource, so one hanging
+  // third-party asset blocks navigation even though the document already arrived. Measured on a
+  // live page whose webfont CDN never answered: goto timed out at 30s while domcontentloaded
+  // succeeded immediately. A route that never fulfils reproduces that deterministically.
+  {
+    await page.route("**/never-answers.woff2", () => { /* deliberately never fulfilled or aborted */ });
+    const stalling = `<html><head><style>@font-face{font-family:x;src:url('/never-answers.woff2');}</style></head>
+      <body><h1 id="ready" style="font-family:x">document arrived</h1></body></html>`;
+
+    const dcl = await runNavigation(stalling, "domcontentloaded", 8000);
+    check("[W-GT1] goto with waitUntil domcontentloaded completes despite a hanging subresource", dcl.status === "passed", `${dcl.status} ${dcl.error ?? ""}`);
+
+    // Non-vacuity: the SAME page under the default load condition must NOT complete, or [W-GT1]
+    // would be proving nothing about waitUntil at all.
+    const load = await runNavigation(stalling, undefined, 3000);
+    check("[W-GT2] non-vacuity — the same page under the default condition times out", load.status === "failed", `${load.status}`);
+    await page.unroute("**/never-answers.woff2");
   }
 
   await browser.close();

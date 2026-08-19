@@ -85,6 +85,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   popupExpectation?: PopupExpectation;
   /** Native JS dialog this step answers (`FlowStep.dialogExpectation`). Armed before the action. */
   dialogExpectation?: DialogExpectation;
+  /** Load condition for a `goto` step (`FlowStep.waitUntil`). */
+  waitUntil?: FlowStep["waitUntil"];
   /**
    * The step's full `outputs` map, preserved verbatim. The panel edits a single {@link outputKey},
    * but a step may declare several typed outputs; carrying the map here keeps the rest untouched
@@ -239,6 +241,7 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   opensPopup: undefined,
   popupExpectation: undefined,
   dialogExpectation: undefined,
+  waitUntil: undefined,
   valueSourceType: "static",
   value: stepType === "goto" ? "${BASE_URL}/login" : "",
   valueSourceOriginal: undefined,
