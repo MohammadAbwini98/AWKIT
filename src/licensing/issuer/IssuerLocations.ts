@@ -11,8 +11,17 @@
  */
 import { join } from "node:path";
 
-/** The initial (and today only) trusted signing key. See crypto/TrustedKeys.ts. */
-export const DEFAULT_ISSUER_KEY_ID = "key1";
+/**
+ * The key the issuer signs with. It must be one of `TRUSTED_KEYS` — `LicenseIssuerService` refuses to
+ * load a key this list does not name, and refuses one whose private half does not match the public
+ * half recorded there.
+ *
+ * `key2` since 2026-08-19. `key1` remains trusted for VERIFICATION of licenses it already signed, but
+ * its private half is not on this issuer workstation, so it can no longer sign. Rotating this constant
+ * is the whole of "start issuing with the next key" — but the new public half must ship in a build
+ * first, or every license it signs is `UNKNOWN_KEY` in the field.
+ */
+export const DEFAULT_ISSUER_KEY_ID = "key2";
 
 /** Operator override for the external key location. Never set this to a repository path. */
 export const ISSUER_KEY_PATH_ENV = "SPECTER_ISSUER_KEY";

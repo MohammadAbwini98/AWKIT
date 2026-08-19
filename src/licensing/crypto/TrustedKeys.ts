@@ -21,14 +21,30 @@ export interface TrustedKey {
 }
 
 /**
- * Production trusted keys. `key1` is the initial SpecterStudio licensing key (Ed25519). The private half
- * was generated offline and stored outside the repo; only this public half ships.
+ * Production trusted keys. Every private half was generated offline and stored outside the repo; only
+ * these public halves ship.
+ *
+ * - `key1` — the initial SpecterStudio licensing key. **Verification only from 2026-08-19**: its
+ *   private half is not present on the current issuer workstation, so nothing new is signed with it.
+ *   It stays here because licenses it already signed must keep validating; remove it only once every
+ *   one of those has expired.
+ * - `key2` — the active signing key from 2026-08-19. `DEFAULT_ISSUER_KEY_ID` in
+ *   `issuer/IssuerLocations.ts` names it, which is what makes it the one the issuer actually uses.
+ *
+ * A build must ship this list before it will accept anything signed by a key in it. An installation
+ * running an older build does not know `key2` and reports `UNKNOWN_KEY` -> INVALID_SIGNATURE for
+ * licenses signed with it — so a rotation is a release, not a local edit.
  */
 export const TRUSTED_KEYS: readonly TrustedKey[] = [
   {
     keyId: "key1",
     algorithm: "Ed25519",
     publicKeySpkiB64: "MCowBQYDK2VwAyEA4fwgg7+CJ2uSNVfy4XGtMoCkL3Zz+MqkP/4vfgag/JU="
+  },
+  {
+    keyId: "key2",
+    algorithm: "Ed25519",
+    publicKeySpkiB64: "MCowBQYDK2VwAyEAp3pA/iUPJVmWBvaTB9K77+QwYyANYqSAiaAd9AgbHuw="
   }
 ];
 
