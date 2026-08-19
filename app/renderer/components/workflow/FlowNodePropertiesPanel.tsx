@@ -1106,8 +1106,19 @@ export function FlowNodePropertiesPanel({
                     <option value="value">Input value</option>
                     <option value="count">Element count</option>
                     <option value="url">Page URL</option>
+                    <option value="attribute">Element attribute</option>
                   </select>
                 </label>
+                {data.assertionType === "attribute" ? (
+                  <label>
+                    Attribute name
+                    <input
+                      value={data.attributeName}
+                      placeholder="aria-pressed"
+                      onChange={(e) => set({ attributeName: e.target.value })}
+                    />
+                  </label>
+                ) : null}
                 {data.assertionType !== "visible" ? (
                   <>
                     <label>

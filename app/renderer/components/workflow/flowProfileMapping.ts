@@ -238,6 +238,8 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined
     // A "visible" assertion has no comparison operator; only value-comparing assertions do.
     comparisonOperator: inSection("assertion") && data.assertionType !== "visible" ? data.comparisonOperator : undefined,
     expectedValue: inSection("assertion") ? data.expectedValue || undefined : undefined,
+    // Only an `attribute` assertion carries an attribute name; other types must not persist one.
+    attributeName: inSection("assertion") && data.assertionType === "attribute" ? data.attributeName || undefined : undefined,
     screenshotName: inSection("screenshot") ? data.screenshotName || undefined : undefined,
     fullPage: inSection("screenshot") ? data.fullPage : undefined,
     scrollTarget: inSection("scroll") ? data.scrollTarget : undefined,
@@ -387,6 +389,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     assertionType: step.config?.assertionType ?? (step.type === "assertVisible" ? "visible" : "text"),
     comparisonOperator: step.config?.comparisonOperator ?? "equals",
     expectedValue: step.config?.expectedValue ?? "",
+    attributeName: step.config?.attributeName ?? "",
     screenshotName: step.config?.screenshotName ?? "",
     fullPage: step.config?.fullPage ?? false,
     scrollTarget: step.config?.scrollTarget ?? "page",

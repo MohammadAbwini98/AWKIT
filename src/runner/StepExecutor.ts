@@ -791,7 +791,10 @@ export class StepExecutor {
         }
         case "tableHasRows": {
           const table = this.waitLocator(wait.tableLocator);
-          const rows = wait.rowLocator ? this.waitLocator(wait.rowLocator) : table.locator("tbody tr, [role=row]");
+          // `waitLocator` appends `.first()`, which is right for the CONTAINER and fatal for the
+          // thing being COUNTED: it caps count() at 1, so any minRows > 1 could never be satisfied
+          // and the wait always burned its full timeout reporting "rows=1". Count the set itself.
+          const rows = wait.rowLocator ? this.locatorFactory.create(wait.rowLocator) : table.locator("tbody tr, [role=row]");
           await this.waitForPredicate(
             async () => (await rows.count()) >= wait.minRows,
             timeout,
@@ -801,7 +804,8 @@ export class StepExecutor {
         }
         case "listHasItems": {
           const list = this.waitLocator(wait.listLocator);
-          const items = wait.itemLocator ? this.waitLocator(wait.itemLocator) : list.locator("li, [role=listitem]");
+          // Same defect as `tableHasRows` above: the counted locator must not be `.first()`.
+          const items = wait.itemLocator ? this.locatorFactory.create(wait.itemLocator) : list.locator("li, [role=listitem]");
           await this.waitForPredicate(
             async () => (await items.count()) >= wait.minItems,
             timeout,
@@ -2623,6 +2627,13 @@ export class StepExecutor {
     } else if (assertionType === "count") {
       // Count assertions legitimately target many elements — no single-match resolution.
       actual = String(await this.locatorFactory.create(step.locator).count());
+    } else if (assertionType === "attribute") {
+      const attributeName = cfg.attributeName?.trim();
+      if (!attributeName) throw new Error(`Step ${step.id} is an attribute assertion but names no attribute (config.attributeName).`);
+      const raw = await (await this.locatorFactory.resolve(step)).getAttribute(attributeName, { timeout });
+      // An absent attribute is NOT the same state as an empty one: reporting `null` as "" would let
+      // `expectedValue: ""` pass for an attribute the element never had.
+      actual = raw ?? "(absent)";
     } else if (assertionType === "value") {
       actual = await (await this.locatorFactory.resolve(step)).inputValue({ timeout });
     } else {

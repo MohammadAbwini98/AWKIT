@@ -526,6 +526,13 @@ async function main(): Promise<void> {
   // ── File Upload ──────────────────────────────────────────────────────────────────────────────
   const fixture = join(await mkdtemp(join(tmpdir(), "wdu-fixture-")), "specter-upload.txt");
   await writeFile(fixture, "SpecterStudio upload fixture — harmless deterministic test artifact.\n", "utf8");
+  // The AI Playground validator only accepts .jpg/.png/.pdf, so it needs a real PNG.
+  const imageFixture = join(await mkdtemp(join(tmpdir(), "wdu-img-")), "specter-fixture.png");
+  await writeFile(
+    imageFixture,
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64")
+  );
+
   await acceptance(
     "WDU-C20",
     "File Upload",
@@ -539,6 +546,349 @@ async function main(): Promise<void> {
     ],
     "pass"
   );
+
+
+  // ══ AI TESTING PLAYGROUND ══════════════════════════════════════════════════════════════════════
+  console.log("\nAI TESTING PLAYGROUND");
+  const AI = `${BASE}/AI-Playground/index.html`;
+
+  // 1. Dynamic Selectors — classes are regenerated per load, so semantic locators only.
+  await acceptance("WDU-A01", "AI: Dynamic Selectors", "log in through regenerated classes using semantic locators", [
+    flow("ai-dynamic", [
+      goto("open", AI),
+      fill("user", byPlaceholder("Username"), "admin"),
+      fill("pass", byPlaceholder("Password"), "password123"),
+      click("submit", byRole("button", "Login")),
+      assertVisible("ok", byId("dynamic-success"))
+    ])
+  ], "pass");
+
+  // 2. Flaky Loader — variable delay; state-based wait only.
+  await acceptance("WDU-A02", "AI: Flaky Loader", "wait out a variable-delay loader", [
+    flow("ai-flaky", [
+      goto("open", AI),
+      click("load", byId("trigger-flaky")),
+      assertVisible("content", byId("flaky-content")),
+      click("action", byId("flaky-action"))
+    ])
+  ], "pass");
+
+  // 3. Multi-Step Form — full journey with per-step validation.
+  await acceptance("WDU-A03", "AI: Multi-Step Form", "complete all three steps", [
+    flow("ai-multistep", [
+      goto("open", AI),
+      fill("name", byId("ms-name"), "Specter Studio"),
+      fill("email", byId("ms-email"), "specter@example.com"),
+      click("next1", byId("ms-next-1")),
+      { id: "selectCountry", type: "select", name: "country", locator: byId("ms-country"), value: "UK", selectionMode: "value" },
+      fill("phone", byId("ms-phone"), "07700900123"),
+      click("next2", byId("ms-next-2")),
+      fill("comments", byId("ms-comments"), "Automated end to end."),
+      { id: "terms", type: "check", name: "accept terms", locator: byId("ms-terms") },
+      click("submit", byId("ms-submit")),
+      assertVisible("done", byId("step-done"))
+    ])
+  ], "pass");
+
+  // 3b. NEGATIVE: a one-word name and a malformed email must be rejected by the app itself.
+  await acceptance("WDU-A04", "AI: Multi-Step Form", "single-word name and bad email are rejected (expected validation)", [
+    flow("ai-multistep-invalid", [
+      goto("open", AI),
+      fill("name", byId("ms-name"), "Specter"),
+      fill("email", byId("ms-email"), "not-an-email"),
+      click("next1", byId("ms-next-1")),
+      assertVisible("nameErr", byId("ms-name-err")),
+      assertVisible("emailErr", byId("ms-email-err"))
+    ])
+  ], "pass");
+
+  // 4. Auto-Dismiss Toast — catch it while shown, then prove it was dismissed.
+  //
+  // MEASURED: the site hides this toast with `opacity: 0` ALONE — `visibility` stays `visible` and
+  // `display` stays `block`. Playwright's visibility model (bounding box + visibility + display)
+  // therefore correctly reports it as visible forever, so an `elementHidden` wait can never fire.
+  // The dismissal IS observable in the DOM as the `show` class being dropped, which is exactly the
+  // "assert the attribute, not the pixel" lesson the playground is teaching. Not a product defect.
+  await acceptance("WDU-A05", "AI: Auto-Dismiss Toast", "toast is shown, then dismissed (asserted on class, not pixels)", [
+    flow("ai-toast", [
+      goto("open", AI),
+      click("trigger", byId("show-toast")),
+      { id: "shown", type: "assertText", name: "toast carries the show class", locator: byId("toast"),
+        config: { assertionType: "attribute", attributeName: "class", comparisonOperator: "contains", expectedValue: "show" } },
+      { id: "settle", type: "wait", name: "let the auto-dismiss run",
+        beforeWaits: [{ type: "domStable", stableForMs: 3000, timeoutMs: 15000 } as never] },
+      { id: "dismissed", type: "assertText", name: "show class has been dropped", locator: byId("toast"),
+        config: { assertionType: "attribute", attributeName: "class", comparisonOperator: "equals", expectedValue: "toast" } }
+    ])
+  ], "pass");
+
+  // 5. Re-Enable Delay — disabled then enabled; elementEnabled, never a sleep.
+  await acceptance("WDU-A06", "AI: Re-Enable Delay", "wait for the button to re-enable", [
+    flow("ai-reenable", [
+      goto("open", AI),
+      click("first", byId("reenable-btn")),
+      { id: "reenabled", type: "wait", name: "button re-enables",
+        beforeWaits: [{ type: "elementEnabled", locator: byId("reenable-btn"), timeoutMs: 20000 } as never] },
+      click("second", byId("reenable-btn"))
+    ])
+  ], "pass");
+
+  // 6. Moving Target — Playwright waits for positional stability before clicking.
+  await acceptance("WDU-A07", "AI: Moving Target", "click a continuously moving button", [
+    flow("ai-moving", [
+      goto("open", AI),
+      click("catch", byId("moving-btn"), { timeoutMs: 25000 })
+    ])
+  ], "pass");
+
+  // 7. Conditional Validation — the extra field may or may not appear.
+  await acceptance("WDU-A08", "AI: Conditional Validation", "handle the conditional verification field", [
+    flow("ai-conditional", [
+      goto("open", AI),
+      fill("email", byId("cond-email"), "specter@example.com"),
+      click("submit", byId("cond-submit")),
+      assertVisible("result", byId("cond-result"))
+    ])
+  ], "pass");
+
+  // 8. Race Condition — whichever finishes first, the DOM must report one settled winner.
+  await acceptance("WDU-A09", "AI: Race Condition", "assert a settled winner rather than a guess", [
+    flow("ai-race", [
+      goto("open", AI),
+      click("a", byId("race-a")),
+      click("b", byId("race-b")),
+      { id: "settled", type: "wait", name: "a winner is declared",
+        beforeWaits: [{ type: "elementVisible", locator: byId("race-result"), timeoutMs: 20000 } as never] },
+      assertVisible("winner", byId("race-result"))
+    ])
+  ], "pass");
+
+  // 9. Lazy-Rendered Element
+  await acceptance("WDU-A10", "AI: Lazy-Rendered Element", "wait for an element that does not exist yet", [
+    flow("ai-lazy", [
+      goto("open", AI),
+      click("reveal", byId("reveal-btn")),
+      assertVisible("appeared", byId("lazy-element"))
+    ])
+  ], "pass");
+
+  // 10. iFrame Login — a srcdoc frame, scoped through the product's own LocatorContext.
+  await acceptance("WDU-A11", "AI: iFrame Login", "log in entirely inside the iframe", [
+    flow("ai-iframe", [
+      goto("open", AI),
+      fill("user", { strategy: "id", value: "frame-username", context: { frame: { selector: "#login-frame" } } } as never, "admin"),
+      fill("pass", { strategy: "id", value: "frame-password", context: { frame: { selector: "#login-frame" } } } as never, "password123"),
+      click("submit", { strategy: "id", value: "frame-submit", context: { frame: { selector: "#login-frame" } } } as never),
+      assertVisible("result", { strategy: "id", value: "frame-result", context: { frame: { selector: "#login-frame" } } } as never)
+    ])
+  ], "pass");
+
+  // 11. Shadow DOM Widget — an OPEN shadow root on <wdu-shadow-form>.
+  await acceptance("WDU-A12", "AI: Shadow DOM Widget", "interact with a control inside an open shadow root", [
+    flow("ai-shadow", [
+      goto("open", AI),
+      fill("input", byCss("wdu-shadow-form input"), "specter"),
+      click("submit", byCss("wdu-shadow-form button")),
+      assertVisible("result", byCss("wdu-shadow-form #shadow-result"))
+    ])
+  ], "pass");
+
+  // 12. Employee Directory — filter, then assert exact values and row count.
+  await acceptance("WDU-A13", "AI: Employee Directory", "filter the table and assert the surviving rows", [
+    flow("ai-directory", [
+      goto("open", AI),
+      fill("filter", byId("table-filter"), "Engineering"),
+      { id: "rowCount", type: "assertText", name: "five engineers remain",
+        locator: byCss("#employee-tbody tr:visible"), value: "5",
+        config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "5" } },
+      assertText("salary", byCss("#employee-tbody tr:has-text('Daniel Wright') td:nth-child(3)"), "55,000")
+    ])
+  ], "pass");
+
+  // 13. File Upload Validator — assert the echoed metadata.
+  await acceptance("WDU-A14", "AI: File Upload Validator", "upload a valid file and assert the echoed metadata", [
+    flow("ai-upload", [
+      goto("open", AI),
+      { id: "choose", type: "uploadFile", name: "choose the fixture", locator: byId("file-input"), value: imageFixture },
+      click("validate", byId("file-submit")),
+      assertText("name", byId("file-result"), "specter-fixture.png")
+    ])
+  ], "pass");
+
+  // 14. Priority Board — drag between columns, then assert the board state.
+  await acceptance("WDU-A15", "AI: Priority Board", "drag a task to another column and assert board state", [
+    flow("ai-board", [
+      goto("open", AI),
+      { id: "drag", type: "drag", name: "move task 1 to In Progress", locator: byId("task-1"), targetLocator: byId("inprogress-column") },
+      assertVisible("moved", byCss("#inprogress-column #task-1"))
+    ])
+  ], "pass");
+
+  // 15. Stale Element — the list re-renders; the locator must re-resolve rather than hold a handle.
+  await acceptance("WDU-A16", "AI: Stale Element", "act on a list that re-renders under the locator", [
+    flow("ai-stale", [
+      goto("open", AI),
+      click("rerender", byId("stale-refresh")),
+      click("item", byCss("#stale-list li[data-index='1']")),
+      assertVisible("log", byId("stale-log"))
+    ])
+  ], "pass");
+
+  // 16. Invisible Success — MEASURED: after a valid submit, #ghost-result carries the text
+  // "Form submitted successfully..." while computed `visibility` is `hidden`. So a TEXT assertion
+  // passes (the trap) and a VISIBILITY assertion must fail (the detection). Both directions are
+  // asserted, because either one alone would be satisfied by the wrong thing.
+  // MEASURED: for this visibility:hidden node, `textContent` holds "Form submitted successfully..."
+  // but `innerText` — which the product's text assertion uses — returns "". So SpecterStudio cannot
+  // be fooled from either direction: the text assertion sees nothing and the visibility assertion
+  // refuses. Both are asserted as NEGATIVE cases, because a green run here would mean the product
+  // had accepted an invisible success as a real one.
+  await acceptance("WDU-A17", "AI: Invisible Success", "the text assertion is NOT fooled (innerText is empty)", [
+    flow("ai-ghost-text", [
+      goto("open", AI),
+      fill("email", byId("ghost-email"), "specter@example.com"),
+      click("submit", byId("ghost-submit")),
+      assertText("textSaysSuccess", byId("ghost-result"), "successfully")
+    ])
+  ], { failingStep: "textSaysSuccess", errorMatches: /Assertion failed: ""/ });
+
+  await acceptance("WDU-A17b", "AI: Invisible Success", "...and SpecterStudio still reports it INVISIBLE (detection)", [
+    flow("ai-ghost-visible", [
+      goto("open", AI),
+      fill("email", byId("ghost-email"), "specter@example.com"),
+      click("submit", byId("ghost-submit")),
+      assertVisible("result", byId("ghost-result"))
+    ])
+  ], { failingStep: "result", errorMatches: /not visible/i });
+
+  // 18. Network States — success and error are different outcomes, not one "done".
+  await acceptance("WDU-A18", "AI: Network States", "a successful request settles the result region", [
+    flow("ai-net-success", [
+      goto("open", AI),
+      click("go", byId("net-success")),
+      assertVisible("result", byId("net-result"))
+    ])
+  ], "pass");
+
+  await acceptance("WDU-A19", "AI: Network States", "an error response is reported as an error, not a hang", [
+    flow("ai-net-error", [
+      goto("open", AI),
+      click("go", byId("net-error")),
+      assertVisible("result", byId("net-result"))
+    ])
+  ], "pass");
+
+  // 19. JS Dialog Traps — the capability added by awkit-azxy.
+  await acceptance("WDU-A20", "AI: JS Dialog Traps", "alert, confirm and prompt all answered by the flow", [
+    flow("ai-dialogs", [
+      goto("open", AI),
+      click("alertBtn", byId("dialog-alert"), { dialogExpectation: { action: "accept", dialogKind: "alert" } }),
+      click("confirmBtn", byId("dialog-confirm"), { dialogExpectation: { action: "accept", dialogKind: "confirm" } }),
+      assertText("confirmed", byId("dialog-result"), "Confirmed"),
+      click("promptBtn", byId("dialog-prompt"), { dialogExpectation: { action: "accept", dialogKind: "prompt", promptText: "SpecterStudio" } }),
+      assertText("prompted", byId("dialog-result"), "Hello, SpecterStudio")
+    ])
+  ], "pass");
+
+  // 21. Attribute vs Visual State — the capability added by awkit-1ugn.
+  // EXTERNAL-SITE NONDETERMINISM: measured over six consecutive clicks, aria-pressed read
+  // false, false, true, true, true, false while the button TEXT toggled correctly every time.
+  // That desync is the challenge's deliberate defect, so asserting any post-click value would be a
+  // flaky test. What is deterministic live is the initial state, which is what proves the product
+  // can read and compare an attribute at all. The desync DETECTION itself is pinned deterministically
+  // in verify:assertions [A3]/[A4], where a fixture holds the attribute stale on purpose.
+  await acceptance("WDU-A21", "AI: Attribute vs Visual State", "read and assert aria-pressed (initial state — post-click value is site-nondeterministic)", [
+    flow("ai-attr", [
+      goto("open", AI),
+      { id: "before", type: "assertText", name: "starts unpressed", locator: byId("attr-toggle"),
+        config: { assertionType: "attribute", attributeName: "aria-pressed", comparisonOperator: "equals", expectedValue: "false" } },
+      { id: "textReads", type: "assertText", name: "the visible text reads Inactive", locator: byId("attr-toggle"),
+        config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "Inactive" } }
+    ])
+  ], "pass");
+
+  // The negative direction, live: asserting the WRONG attribute value must fail, so WDU-A21 cannot
+  // be passing because attribute comparison silently succeeds.
+  await acceptance("WDU-A21b", "AI: Attribute vs Visual State", "negative control — a wrong attribute value must fail", [
+    flow("ai-attr-negative", [
+      goto("open", AI),
+      { id: "wrong", type: "assertText", name: "claim it starts pressed", locator: byId("attr-toggle"),
+        config: { assertionType: "attribute", attributeName: "aria-pressed", comparisonOperator: "equals", expectedValue: "true" } }
+    ])
+  ], { failingStep: "wrong", errorMatches: /"false" equals "true"/ });
+
+  // 22. Mutation Observer — wait for the state, never the clock.
+  await acceptance("WDU-A22", "AI: Mutation Observer", "wait for asynchronously added items to reach a count", [
+    flow("ai-mutation", [
+      goto("open", AI),
+      click("startMutation", byId("mutation-start")),
+      { id: "grew", type: "wait", name: "list reaches ten items",
+        beforeWaits: [{ type: "listHasItems", listLocator: byId("mutation-list"), itemLocator: byCss("#mutation-list li"), minItems: 10, timeoutMs: 30000 } as never] },
+      { id: "itemCount", type: "assertText", name: "ten items present", locator: byCss("#mutation-list li"), value: "10",
+        config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "10" } }
+    ])
+  ], "pass");
+
+  // 23. API Intercept — a live GET whose result must settle the UI.
+  await acceptance("WDU-A23", "AI: API Intercept", "a live fetch settles the result region", [
+    flow("ai-intercept", [
+      goto("open", AI),
+      click("fetch", byId("intercept-trigger")),
+      assertVisible("result", byId("intercept-result"))
+    ])
+  ], "pass");
+
+  // 24. New Tab / Popup — popup identity through the product's popup model.
+  await acceptance("WDU-A24", "AI: New Tab / Popup", "capture the popup and assert content, then return to the opener", [
+    flow("ai-popup", [
+      goto("open", AI),
+      click("openTab", byId("new-tab-btn"), {
+        opensPopup: true,
+        popupExpectation: { popupAlias: "popup-1", timeoutMs: 15000, waitUntil: "domcontentloaded" }
+      }),
+      { id: "switchTo", type: "switchToPopup", name: "switch to the popup",
+        popupExpectation: { popupAlias: "popup-1", timeoutMs: 15000 } },
+      assertVisible("popupBody", byCss("body")),
+      { id: "back", type: "switchToMainPage", name: "return to the opener" },
+      assertVisible("openerStatus", byId("new-tab-status"))
+    ])
+  ], "pass");
+
+  // 25. Shop & Checkout — the capstone as a REUSABLE multi-flow composition. This is the Page
+  // Object Model challenge's real analogue in a visual product: composed, reusable flows rather
+  // than one monolith repeating the same actions.
+  await acceptance("WDU-A25", "AI: Shop & Checkout Flow", "full capstone: cart, details, review, confirm", [
+    flow("shop-cart", [
+      goto("open", AI),
+      click("add1", byId("add-to-cart-1")),
+      click("add2", byId("add-to-cart-2")),
+      assertText("cartCount", byId("cart-count"), "2"),
+      click("toDelivery", byId("checkout-step1-next"))
+    ]),
+    flow("shop-details", [
+      fill("name", byId("checkout-name"), "Specter Studio"),
+      fill("email", byId("checkout-email"), "specter@example.com"),
+      fill("address", byId("checkout-address"), "1 Automation Way"),
+      fill("city", byId("checkout-city"), "London"),
+      fill("postcode", byId("checkout-postcode"), "SW1A 1AA"),
+      click("toReview", byId("checkout-step2-next"))
+    ]),
+    flow("shop-confirm", [
+      assertVisible("review", byId("checkout-step-3")),
+      click("confirmOrder", byId("checkout-confirm")),
+      assertVisible("success", byId("checkout-success")),
+      { id: "orderId", type: "readText", name: "capture the order id", locator: byId("checkout-order-id"), outputs: { orderId: "" } }
+    ])
+  ], "pass");
+
+  // 25b. NEGATIVE: an empty cart must be refused by the app's own validation.
+  await acceptance("WDU-A26", "AI: Shop & Checkout Flow", "empty cart is refused (expected validation)", [
+    flow("shop-empty", [
+      goto("open", AI),
+      click("toDelivery", byId("checkout-step1-next")),
+      assertVisible("cartError", byId("cart-empty-error"))
+    ])
+  ], "pass");
 
   // ══ SUMMARY ════════════════════════════════════════════════════════════════════════════════════
   const tally = results.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r.outcome]: (acc[r.outcome] ?? 0) + 1 }), {});

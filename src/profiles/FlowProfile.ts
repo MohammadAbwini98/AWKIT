@@ -761,9 +761,18 @@ export interface NodeConfig {
   clearBeforeFill?: boolean;
   selectMultiple?: boolean;
   waitType?: "time" | "selector" | "navigation" | "networkIdle" | "textVisible";
-  assertionType?: "visible" | "text" | "value" | "count" | "url";
+  assertionType?: "visible" | "text" | "value" | "count" | "url" | "attribute";
   comparisonOperator?: "equals" | "contains" | "greaterThan" | "lessThan";
   expectedValue?: string;
+  /**
+   * Which attribute an `attribute` assertion reads (e.g. `aria-pressed`, `disabled`, `href`).
+   * Required by that assertion type and ignored by every other one.
+   *
+   * An ABSENT attribute and an attribute set to the empty string are different states, so the
+   * absent case compares as the literal `"(absent)"` rather than as `""` — otherwise
+   * `expectedValue: ""` would silently pass for an attribute that was never set at all.
+   */
+  attributeName?: string;
   screenshotName?: string;
   fullPage?: boolean;
   scrollTarget?: "page" | "element";

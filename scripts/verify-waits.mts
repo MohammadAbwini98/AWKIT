@@ -810,6 +810,66 @@ async function main() {
     check("[W-AV4] ...and honours its timeout instead of returning at once", never.ms >= 1000, `${never.ms}ms`);
   }
 
+  // ── counting waits must actually COUNT (awkit-380d) ──────────────────────────────────────────
+  // `waitLocator()` appends `.first()`. That is correct for the CONTAINER and fatal for the set
+  // being counted: with an explicit rowLocator/itemLocator, count() was capped at 1, so any
+  // minRows/minItems > 1 could never be satisfied and the wait burned its whole timeout. Measured
+  // against a list that genuinely reached 10 items in ~8s, a 30s wait still reported items=1.
+  {
+    const growingList = `<ul id="items"><li>one</li></ul>
+      <script>
+        var n = 1;
+        var t = setInterval(function () {
+          n += 1;
+          document.getElementById('items').insertAdjacentHTML('beforeend', '<li>item ' + n + '</li>');
+          if (n >= 6) clearInterval(t);
+        }, 120);
+      </script>
+      <button id="b">go</button>`;
+
+    const explicitItems = await run(growingList, {
+      id: "LC1", type: "click", name: "wait for six items", locator: { strategy: "id", value: "b" },
+      beforeWaits: [{ type: "listHasItems", listLocator: { strategy: "id", value: "items" },
+        itemLocator: { strategy: "css", value: "#items li" }, minItems: 6, timeoutMs: 6000 } as never]
+    });
+    check("[W-LC1] listHasItems counts past 1 with an EXPLICIT itemLocator", explicitItems.status === "passed", `${explicitItems.status} ${explicitItems.error ?? ""}`);
+
+    // The default branch was never broken — keeping it here proves the fix did not regress it and
+    // that [W-LC1] is testing the explicit path specifically.
+    const defaultItems = await run(growingList, {
+      id: "LC2", type: "click", name: "wait for six items, default item locator", locator: { strategy: "id", value: "b" },
+      beforeWaits: [{ type: "listHasItems", listLocator: { strategy: "id", value: "items" }, minItems: 6, timeoutMs: 6000 } as never]
+    });
+    check("[W-LC2] ...and still counts with the DEFAULT item locator", defaultItems.status === "passed", `${defaultItems.status} ${defaultItems.error ?? ""}`);
+
+    // Non-vacuity: an unreachable target must still time out, so [W-LC1] cannot be passing because
+    // the predicate became trivially true.
+    const unreachable = await run(growingList, {
+      id: "LC3", type: "click", name: "wait for more items than exist", locator: { strategy: "id", value: "b" },
+      beforeWaits: [{ type: "listHasItems", listLocator: { strategy: "id", value: "items" },
+        itemLocator: { strategy: "css", value: "#items li" }, minItems: 99, timeoutMs: 1500 } as never]
+    });
+    check("[W-LC3] non-vacuity — an unreachable minItems still fails", unreachable.status === "failed", unreachable.status);
+    check("[W-LC4] ...and reports the real count it observed, not 1", /items=6/.test(unreachable.error ?? ""), unreachable.error);
+
+    const growingTable = `<table id="t"><tbody><tr><td>one</td></tr></tbody></table>
+      <script>
+        var n = 1;
+        var t2 = setInterval(function () {
+          n += 1;
+          document.querySelector('#t tbody').insertAdjacentHTML('beforeend', '<tr><td>row ' + n + '</td></tr>');
+          if (n >= 5) clearInterval(t2);
+        }, 120);
+      </script>
+      <button id="b">go</button>`;
+    const explicitRows = await run(growingTable, {
+      id: "LC5", type: "click", name: "wait for five rows", locator: { strategy: "id", value: "b" },
+      beforeWaits: [{ type: "tableHasRows", tableLocator: { strategy: "id", value: "t" },
+        rowLocator: { strategy: "css", value: "#t tbody tr" }, minRows: 5, timeoutMs: 6000 } as never]
+    });
+    check("[W-LC5] tableHasRows counts past 1 with an EXPLICIT rowLocator", explicitRows.status === "passed", `${explicitRows.status} ${explicitRows.error ?? ""}`);
+  }
+
   await browser.close();
 
   console.log(`\n${passed} passed, ${failed} failed`);
