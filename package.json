@@ -135,6 +135,7 @@
     "verify:assertions": "tsx scripts/verify-assertions.mts",
     "verify:storage-assertions": "tsx scripts/verify-storage-assertions.mts",
     "verify:click-and-hold": "tsx scripts/verify-click-and-hold.mts",
+    "verify:recorder-upload": "tsx scripts/verify-recorder-upload.mts",
     "verify:dialogs": "tsx scripts/verify-dialogs.mts",
     "verify:wdu-live": "tsx scripts/verify-wdu-live.mts",
     "verify:waits": "tsx scripts/verify-waits.mts",

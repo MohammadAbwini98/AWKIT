@@ -3247,7 +3247,25 @@ export function installRecorderCapture(): void {
     if (tag === "input") {
       const input = target as HTMLInputElement;
       const type = (input.type || "text").toLowerCase();
-      if (type === "checkbox") {
+      if (type === "file") {
+        // A file chooser is an `uploadFile`, never a `fill`: Playwright refuses to type into an
+        // input[type=file], so a recorded fill is unrunnable by construction. And the value the DOM
+        // exposes is `C:akepath<name>` — the browser deliberately withholds the real path, so
+        // there is nothing here that could stand in for one.
+        //
+        // The step is therefore recorded with NO value and the chosen file name in its title.
+        // `uploadFile` requires a value, so the existing validator refuses the flow BEFORE a browser
+        // launches and names the step that needs a path — instead of failing at replay, or worse,
+        // saving a fake path that looks supplied.
+        var chosen = input.files && input.files.length > 0 ? input.files[0].name : "";
+        // No `valueSource` at all, deliberately. An empty static one would satisfy the validator's
+        // required-value rule and the flow would save clean, which is the failure mode being fixed.
+        record({
+          type: "uploadFile",
+          name: chosen ? "Upload " + chosen : "Upload file to " + label,
+          locator
+        });
+      } else if (type === "checkbox") {
         record({ type: input.checked ? "check" : "uncheck", name: (input.checked ? "Check " : "Uncheck ") + label, locator });
       } else if (type === "radio") {
         if (input.checked) record({ type: "radio", name: "Select " + label, locator });
@@ -3300,6 +3318,9 @@ export function installRecorderCapture(): void {
       const type = tag === "input" ? ((target as HTMLInputElement).type || "text").toLowerCase() : "";
       // checkbox/radio fire 'input' too but are recorded as check/uncheck/radio by 'change'.
       if (type === "checkbox" || type === "radio") return;
+      // A file input fires 'input' AND 'change' for one selection. 'change' records the upload; this
+      // handler used to add a second action for the same gesture, both of them unrunnable fills.
+      if (type === "file") return;
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
       const interaction = captureInteraction(event, target, g, shadow);
       const blueprintCapture = captureBlueprint(target);
