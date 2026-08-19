@@ -73,7 +73,63 @@ check(
   `playwright + playwright-core (${fs.existsSync(pwCoreNested) ? "nested" : "hoisted"})`
 );
 check("appAsarPresent", fs.existsSync(asar), asar);
-check("vendorResources", fs.existsSync(path.join(RES, "vendor")), path.join(RES, "vendor"));
+/*
+ * What SHOULD reach resources/vendor, derived from electron-builder.json rather than assumed.
+ *
+ * This was `existsSync(RES/vendor)`, and it failed on a correct build. The vendor extraResources
+ * entry excludes browsers/**, the dependency manifest, its signature, offline-browser-policy.json and
+ * trust/**; what remains — vendor/native-modules and vendor/npm-cache — is empty. So electron-builder
+ * copies nothing and omits the empty directory, exactly as it should. The bundled Chromium ships
+ * through the OTHER entry (resources/ -> resources/), which is why the package is complete without it.
+ *
+ * Asserting mere existence therefore demanded a directory the build config says should not be there.
+ * Deriving the expectation from the config keeps the original intent — vendor content must reach the
+ * package — while staying true today, and it fails in BOTH directions: a file that should ship and
+ * does not, or a directory present when nothing should have been staged. If someone drops a real file
+ * into vendor/native-modules tomorrow, this turns red until the package carries it.
+ */
+function globToRegExp(pattern) {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  return new RegExp("^" + escaped.replace(/\*\*\//g, "(?:.*/)?").replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$");
+}
+
+function vendorFilesThatShouldShip() {
+  const builder = JSON.parse(fs.readFileSync(path.join(ROOT, "electron-builder.json"), "utf8"));
+  const entry = (builder.extraResources ?? []).find((e) => e && e.from === "vendor");
+  if (!entry) return { entryFound: false, files: [] };
+  const filters = Array.isArray(entry.filter) ? entry.filter : ["**/*"];
+  const includes = filters.filter((f) => !f.startsWith("!")).map(globToRegExp);
+  const excludes = filters.filter((f) => f.startsWith("!")).map((f) => globToRegExp(f.slice(1)));
+
+  const vendorRoot = path.join(ROOT, "vendor");
+  const found = [];
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else {
+        const rel = path.relative(vendorRoot, full).split(path.sep).join("/");
+        if (includes.some((r) => r.test(rel)) && !excludes.some((r) => r.test(rel))) found.push(rel);
+      }
+    }
+  };
+  walk(vendorRoot);
+  return { entryFound: true, files: found };
+}
+
+const vendorPlan = vendorFilesThatShouldShip();
+const vendorDir = path.join(RES, "vendor");
+const vendorMissing = vendorPlan.files.filter((rel) => !fs.existsSync(path.join(vendorDir, rel)));
+check(
+  "vendorResources",
+  vendorPlan.entryFound &&
+    vendorMissing.length === 0 &&
+    fs.existsSync(vendorDir) === vendorPlan.files.length > 0,
+  vendorPlan.entryFound
+    ? `${vendorPlan.files.length} file(s) survive the vendor filters, ${vendorMissing.length} missing from the package; resources/vendor ${fs.existsSync(vendorDir) ? "present" : "absent"}`
+    : "electron-builder.json has no extraResources entry with from=vendor"
+);
 check("appResources", fs.existsSync(path.join(RES, "resources", "sample-flows")), "resources/resources/sample-flows");
 check("oracleBridge", fs.existsSync(path.join(RES, "resources", "oracle-jdbc", "manifest.json")), "resources/resources/oracle-jdbc");
 
