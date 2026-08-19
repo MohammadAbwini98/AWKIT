@@ -41,6 +41,8 @@ export const STEP_REQUIREMENTS: Record<StepType, StepRequirement> = {
   /** `locator` is the drag source; the drop target is `targetLocator` (enforced at runtime). */
   drag: { requiresLocator: true, requiresValue: false },
   hover: { requiresLocator: true, requiresValue: false },
+  dblclick: { requiresLocator: true, requiresValue: false },
+  contextMenu: { requiresLocator: true, requiresValue: false },
   scroll: { requiresLocator: false, requiresValue: true },
 
   // ---- input ----

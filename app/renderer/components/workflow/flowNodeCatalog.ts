@@ -59,6 +59,8 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "radio", label: "Select Radio", description: "Select a radio option", icon: Radio, requiresLocator: true, requiresValue: true },
   { type: "scroll", label: "Scroll", description: "Scroll the page", icon: ScrollText, requiresValue: true },
   { type: "hover", label: "Hover", description: "Hover over an element", icon: MousePointer2, requiresLocator: true },
+  { type: "dblclick", label: "Double Click", description: "Double-click an element", icon: MousePointer2, requiresLocator: true },
+  { type: "contextMenu", label: "Right Click", description: "Right-click an element (context menu gesture)", icon: MousePointer2, requiresLocator: true },
   { type: "wait", label: "Wait", description: "Pause execution", icon: Timer, requiresValue: true },
   { type: "uploadFile", label: "Upload File", description: "Upload a file", icon: FileUp, requiresLocator: true, requiresValue: true },
   { type: "downloadFile", label: "Download File", description: "Capture a download", icon: FileDown, requiresLocator: true },

@@ -2847,6 +2847,9 @@ export function installRecorderCapture(): void {
   // click after it emits a `drag`.
   let suppressClickAfterDrag = false;
   const onClickCapture = (event: Event): void => {
+    // The second click of a double-click is redundant noise: the `dblclick` listener below records
+    // the gesture, and the FIRST click is coalesced away by RecorderService when it arrives.
+    if (typeof (event as MouseEvent).detail === "number" && (event as MouseEvent).detail >= 2) return;
     if (suppressClickAfterDrag) {
       suppressClickAfterDrag = false;
       return;
@@ -2869,6 +2872,39 @@ export function installRecorderCapture(): void {
     record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction, blueprintCapture } });
   };
   window.addEventListener("click", onClickCapture, true);
+  // ── Double-click ─────────────────────────────────────────────────────────────
+  // A dblclick is its own gesture, not two clicks: replaying two clicks with a gap between them
+  // does not reliably re-fire `dblclick`, so a UI that only responds to double-clicks would record
+  // and then silently do nothing on replay.
+  const onDblClickCapture = (event: Event): void => {
+    if (insideClosedHostRetarget(event)) return;
+    const captured = generateForEvent(event, true);
+    if (!captured) return;
+    const { target, generated: g, shadow } = captured;
+    const label = g.accessibleName || tagOf(target) || "element";
+    const interaction = captureInteraction(event, target, g, shadow);
+    const blueprintCapture = captureBlueprint(target);
+    attachBlueprintIdentityEvidence(g.locator, blueprintCapture);
+    record({ type: "dblclick", name: "Double click " + label, locator: { ...g.locator, interaction, blueprintCapture } });
+  };
+  window.addEventListener("dblclick", onDblClickCapture, true);
+
+  // ── Context menu (right-click) ───────────────────────────────────────────────
+  // Captures the GESTURE only. Whatever a user picks from a native browser menu is invisible to the
+  // page, so no action claims it — see the replayability measurement in the navigation matrix.
+  // Recorded whether or not the page calls preventDefault: the user's action is the same either way.
+  const onContextMenuCapture = (event: Event): void => {
+    if (insideClosedHostRetarget(event)) return;
+    const captured = generateForEvent(event, true);
+    if (!captured) return;
+    const { target, generated: g, shadow } = captured;
+    const label = g.accessibleName || tagOf(target) || "element";
+    const interaction = captureInteraction(event, target, g, shadow);
+    const blueprintCapture = captureBlueprint(target);
+    attachBlueprintIdentityEvidence(g.locator, blueprintCapture);
+    record({ type: "contextMenu", name: "Right click " + label, locator: { ...g.locator, interaction, blueprintCapture } });
+  };
+  window.addEventListener("contextmenu", onContextMenuCapture, true);
 
   // ── Drag and drop (native HTML5 DnD) ─────────────────────────────────────────
   // Capture a drag gesture as ONE `drag` action carrying the source locator (from dragstart) and the
@@ -3097,6 +3133,8 @@ export function installRecorderCapture(): void {
   installClosedRootCapture = (root: ShadowRoot): void => {
     try {
       root.addEventListener("click", onClickCapture, true);
+      root.addEventListener("dblclick", onDblClickCapture, true);
+      root.addEventListener("contextmenu", onContextMenuCapture, true);
       root.addEventListener("change", onChangeCapture, true);
     } catch {
       /* detached/invalid root — ignore */

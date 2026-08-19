@@ -77,6 +77,8 @@ const META: Record<StepType, RegistryMeta> = {
   radio: { category: "input", sections: ["locator", "value", "execution"], executable: true },
   scroll: { category: "interaction", sections: ["scroll", "execution"], executable: true },
   hover: { category: "interaction", sections: ["locator", "execution"], executable: true },
+  dblclick: { category: "interaction", sections: ["locator", "execution"], executable: true },
+  contextMenu: { category: "interaction", sections: ["locator", "execution"], executable: true },
   wait: {
     category: "control",
     sections: ["wait", "execution"],

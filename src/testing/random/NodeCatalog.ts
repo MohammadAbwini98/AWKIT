@@ -106,6 +106,8 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
     note: "Drag-and-drop needs a source AND a target locator; recorder-produced only. Not generated unattended — the randomizer has no second-locator concept."
   },
   hover: { type: "hover", role: "action", requiresLocator: true, requiresValue: false, weight: 3 },
+  dblclick: { type: "dblclick", role: "action", requiresLocator: true, requiresValue: false, weight: 2 },
+  contextMenu: { type: "contextMenu", role: "action", requiresLocator: true, requiresValue: false, weight: 2 },
   scroll: { type: "scroll", role: "action", requiresLocator: false, requiresValue: true, weight: 3 },
 
   // ---- input ----

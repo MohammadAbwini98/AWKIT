@@ -80,6 +80,8 @@ export function isSensitiveInteractionStep(step: DecisionStep): boolean {
  */
 export const PREREQUISITE_TRIAL_MODES: Readonly<Record<string, "pointer" | "predicate">> = Object.freeze({
   click: "pointer",
+  dblclick: "pointer",
+  contextMenu: "pointer",
   hover: "pointer",
   check: "pointer",
   uncheck: "pointer",

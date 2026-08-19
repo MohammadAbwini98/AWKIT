@@ -2,6 +2,12 @@ export type StepType =
   | "start"
   | "goto"
   | "click"
+  /** Double-click. Distinct from two `click` steps on purpose: two ordinary clicks replayed with a
+      gap between them do not reliably re-fire `dblclick`, so they cannot stand in for this. */
+  | "dblclick"
+  /** Right-click / context menu. Captures the GESTURE only — whatever a user picks from a native
+      browser menu is invisible to the page, the recorder and replay alike, so no step claims it. */
+  | "contextMenu"
   | "press"
   | "drag"
   | "fill"

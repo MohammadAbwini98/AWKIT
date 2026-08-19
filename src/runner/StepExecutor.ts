@@ -1610,6 +1610,18 @@ export class StepExecutor {
         await (await this.locatorFactory.resolve(step)).hover({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
       }
+      case "dblclick": {
+        await (await this.resolveDirectActionTarget(step)).dblclick({ timeout: step.timeoutMs ?? 10_000 });
+        return { status: "passed" };
+      }
+
+      case "contextMenu": {
+        // A synthetic right-click dispatches `contextmenu` WITHOUT opening a native menu — measured
+        // in both headless and headed Chromium, where the following ordinary click still succeeded.
+        // So this cannot leave a blocking menu that poisons the steps after it.
+        await (await this.resolveDirectActionTarget(step)).click({ button: "right", timeout: step.timeoutMs ?? 10_000 });
+        return { status: "passed" };
+      }
 
       case "click": {
         // Arm popup capture BEFORE the click so a fast popup isn't missed.

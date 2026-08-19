@@ -1515,6 +1515,28 @@ export class RecorderService {
       }
     }
 
+    /*
+     * A double-click absorbs the click that opened it.
+     *
+     * The browser fires click(detail 1) → click(detail 2) → dblclick. The init script drops the
+     * detail-2 click in-page, which leaves exactly one ordinary click sitting in front of the
+     * gesture. Removing it here rather than in the page keeps coalescing in its documented owner —
+     * the same division of labour as the fill echo below — and means the harness path and the real
+     * recorder path cannot disagree about how many actions a double-click produces.
+     *
+     * Deliberately narrow: only the IMMEDIATELY preceding action, only on the same page, only when
+     * it is a click on the same stable target. A click on something else stays, because the user
+     * really did click something else.
+     */
+    if (
+      action.type === "dblclick" &&
+      last &&
+      last.type === "click" &&
+      sourcePage === this.lastActionPage &&
+      sameStableTarget(last.locator, action.locator)
+    ) {
+      this.actions.pop();
+    }
     if (
       action.type === "fill" &&
       last &&

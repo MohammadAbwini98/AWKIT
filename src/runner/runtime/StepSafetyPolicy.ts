@@ -38,7 +38,7 @@ const READ_TYPES = new Set([
 const LOCAL_SESSION_TYPES = new Set(["saveSession", "reuseSession", "autoSecureLogin", "protectedLoginHandoff", "manualAction"]);
 
 /** UI-mutating types: safe to retry unless the keyword fallback flags a business commit. */
-const UI_MUTATION_TYPES = new Set(["click", "drag", "fill", "check", "uncheck", "radio", "select", "upload", "keyboard", "press", "hover"]);
+const UI_MUTATION_TYPES = new Set(["click", "dblclick", "contextMenu", "drag", "fill", "check", "uncheck", "radio", "select", "upload", "keyboard", "press", "hover"]);
 
 /** Container/composite types: re-running the whole body automatically is not safe. */
 const CONTAINER_TYPES = new Set(["loop", "runFlow"]);
