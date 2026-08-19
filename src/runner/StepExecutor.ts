@@ -1988,8 +1988,17 @@ export class StepExecutor {
       }
 
       case "assertVisible": {
-        const visible = await (await this.locatorFactory.resolve(step)).isVisible({ timeout: step.timeoutMs ?? 10_000 });
-        if (!visible) throw new Error(`Element for step ${step.id} is not visible.`);
+        // `isVisible()` is an IMMEDIATE check — it ignores the timeout it is given (measured: it
+        // returned false after 23ms against a 10s timeout on an element that appeared at 1.5s).
+        // Using it here made the step race every element that becomes visible asynchronously — a
+        // fading modal, an AJAX render — while `step.timeoutMs` looked like it was doing something.
+        // `waitFor` is the auto-waiting form and honours the timeout for real.
+        const timeout = step.timeoutMs ?? 10_000;
+        try {
+          await (await this.locatorFactory.resolve(step)).waitFor({ state: "visible", timeout });
+        } catch {
+          throw new Error(`Element for step ${step.id} is not visible.`);
+        }
         this.mapOutputs(step, outputs, { assertionResult: true });
         return { status: "passed" };
       }

@@ -164,3 +164,4 @@ resources/embedded-roadmap-snapshot.json
 
 # Machine-local Codex sandbox policy; never publish a workstation's access mode.
 .codex/config.toml
+wdu-live-results.json

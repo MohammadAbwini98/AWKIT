@@ -785,6 +785,31 @@ async function main() {
     await page.unroute("**/api/**");
   }
 
+  // ── assertVisible must WAIT for a late element (awkit-dctr) ───────────────────────────────────
+  // `isVisible()` is an immediate check that ignores the timeout handed to it — measured returning
+  // false after 23ms against a 10s timeout. `assertVisible` used it, so it raced every element that
+  // becomes visible asynchronously while `timeoutMs` looked like it was doing something. These
+  // checks fail if that call is ever restored: [W-AV1] because the element is still hidden at t=0,
+  // and [W-AV2] because the verdict would arrive in ~20ms instead of after the real wait.
+  {
+    const lateHtml = `<div id="late" style="display:none">here</div>
+      <script>setTimeout(function(){document.getElementById('late').style.display='block';},900);</script>`;
+    const late = await run(lateHtml, {
+      id: "AV1", type: "assertVisible", name: "late element", locator: { strategy: "id", value: "late" }, timeoutMs: 8000
+    });
+    check("[W-AV1] assertVisible waits for an element that appears later", late.status === "passed", `${late.status} ${late.error ?? ""}`);
+    check("[W-AV2] ...and really waited rather than passing instantly", late.ms >= 700, `${late.ms}ms`);
+
+    // Non-vacuity + the negative direction: an element that NEVER appears must still fail, and must
+    // fail at its own timeout rather than immediately.
+    const neverHtml = `<div id="ghost" style="display:none">never</div>`;
+    const never = await run(neverHtml, {
+      id: "AV2", type: "assertVisible", name: "absent element", locator: { strategy: "id", value: "ghost" }, timeoutMs: 1200
+    });
+    check("[W-AV3] assertVisible still fails for an element that never becomes visible", never.status === "failed", never.status);
+    check("[W-AV4] ...and honours its timeout instead of returning at once", never.ms >= 1000, `${never.ms}ms`);
+  }
+
   await browser.close();
 
   console.log(`\n${passed} passed, ${failed} failed`);
