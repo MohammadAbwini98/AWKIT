@@ -209,6 +209,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     pageAlias: data.pageAlias,
     opensPopup: data.opensPopup,
     popupExpectation: data.popupExpectation,
+    dialogExpectation: data.dialogExpectation,
     loop: data.loop,
     message: data.message
   };
@@ -355,6 +356,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     pageAlias: step.pageAlias,
     opensPopup: step.opensPopup,
     popupExpectation: step.popupExpectation,
+    dialogExpectation: step.dialogExpectation,
     outputsOriginal: step.outputs,
     loop: step.loop,
     message: step.message,

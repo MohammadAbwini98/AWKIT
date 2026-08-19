@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, ElementIdentityContract, FlowStep, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DialogExpectation, DynamicIdMode, ElementIdentityContract, FlowStep, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -83,6 +83,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   opensPopup?: boolean;
   /** Popup the step opens (`FlowStep.popupExpectation`); required downstream by switchToPopup/closePopup. */
   popupExpectation?: PopupExpectation;
+  /** Native JS dialog this step answers (`FlowStep.dialogExpectation`). Armed before the action. */
+  dialogExpectation?: DialogExpectation;
   /**
    * The step's full `outputs` map, preserved verbatim. The panel edits a single {@link outputKey},
    * but a step may declare several typed outputs; carrying the map here keeps the rest untouched
@@ -234,6 +236,7 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   pageAlias: undefined,
   opensPopup: undefined,
   popupExpectation: undefined,
+  dialogExpectation: undefined,
   valueSourceType: "static",
   value: stepType === "goto" ? "${BASE_URL}/login" : "",
   valueSourceOriginal: undefined,

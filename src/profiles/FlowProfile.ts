@@ -618,6 +618,51 @@ export interface PopupExpectation {
   closeBehavior?: "returnToMain" | "continueOnPopup";
 }
 
+/** Which kind of native JavaScript dialog a {@link DialogExpectation} applies to. */
+export type DialogKind = "alert" | "confirm" | "prompt" | "beforeunload";
+
+/**
+ * How a step handles the native JavaScript dialog its own action triggers.
+ *
+ * A dialog is MODAL and SYNCHRONOUS: `alert()`/`confirm()`/`prompt()` block the page's script until
+ * something answers them, so this cannot be a step of its own that runs afterwards — by then the
+ * action that opened it would still be blocked. The expectation is therefore armed immediately
+ * BEFORE the action and settled immediately after, exactly like {@link PopupExpectation}.
+ *
+ * Without an expectation Playwright AUTO-DISMISSES every dialog, which silently turns `confirm()`
+ * into `false` and `prompt()` into `null` while the action itself still reports success. That is why
+ * {@link required} defaults to true: a step that declares a dialog and does not get one fails.
+ */
+export interface DialogExpectation {
+  /** What to do with the dialog. `accept` answers OK/Yes; `dismiss` answers Cancel/No. */
+  action: "accept" | "dismiss";
+  /**
+   * Restrict the expectation to one kind of dialog. Absent = any kind.
+   * A dialog of a different kind is left for the next expectation rather than being consumed.
+   */
+  dialogKind?: DialogKind;
+  /**
+   * Text typed into a `prompt()` before accepting. Ignored by other dialog kinds and by `dismiss`,
+   * because a dismissed prompt returns `null` no matter what was typed.
+   */
+  promptText?: string;
+  /** Assert the dialog's message. Compared with {@link messageMatch}. */
+  expectedMessage?: string;
+  /** How {@link expectedMessage} is compared. Default: `'contains'`. */
+  messageMatch?: "equals" | "contains";
+  /** Max ms to wait for the dialog after the action. Default: 5000. */
+  timeoutMs?: number;
+  /**
+   * Fail the step when no dialog appeared. Default: **true** — a step that declares a dialog and
+   * silently gets none is the exact failure this contract exists to make visible.
+   */
+  required?: boolean;
+  /** Flow-output key the observed dialog message is written to, for later assertions. */
+  messageOutputKey?: string;
+  /** Flow-output key the observed `prompt()` default value is written to. */
+  defaultValueOutputKey?: string;
+}
+
 /** Side-effect classification for a step (Phase 3 explicit safety metadata). */
 export type SideEffectLevel = "none" | "read" | "safeMutation" | "dangerousMutation" | "externalCommit" | "unknown";
 
@@ -704,6 +749,12 @@ export interface FlowStep {
    * Also used by `switchToPopup` steps that explicitly arm popup capture.
    */
   popupExpectation?: PopupExpectation;
+  /**
+   * How this step answers the native JavaScript dialog its own action triggers. Armed before the
+   * action because the dialog blocks the page synchronously. Absent = Playwright's default, which
+   * auto-dismisses. See {@link DialogExpectation}.
+   */
+  dialogExpectation?: DialogExpectation;
 }
 
 export interface NodeConfig {

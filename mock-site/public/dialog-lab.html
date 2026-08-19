@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dialog Lab — AWKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="lab">
+      <h1>Dialog Lab</h1>
+      <p>
+        Native JavaScript dialogs. Each control opens exactly one dialog and writes the outcome the
+        page actually observed into <code>dialog-result</code>, so a test can never confuse
+        "the dialog was answered" with "the click happened".
+      </p>
+
+      <section data-testid="dialog-basics">
+        <h2>Basic dialogs</h2>
+        <button type="button" data-testid="open-alert">Open alert</button>
+        <button type="button" data-testid="open-confirm">Open confirm</button>
+        <button type="button" data-testid="open-prompt">Open prompt</button>
+        <button type="button" data-testid="dialog-reset">Reset</button>
+        <p data-testid="dialog-result">idle</p>
+        <p data-testid="dialog-count">handled: 0</p>
+      </section>
+
+      <section data-testid="dialog-sequence">
+        <h2>Two dialogs from one gesture</h2>
+        <p>
+          Opens a <code>confirm</code> and then, only if it was accepted, a <code>prompt</code>.
+          A step that answers only the first must not silently pass the second.
+        </p>
+        <button type="button" data-testid="open-chained">Open chained dialogs</button>
+        <p data-testid="chained-result">idle</p>
+      </section>
+
+      <section data-testid="dialog-none">
+        <h2>No dialog</h2>
+        <p>A control that opens no dialog at all — the negative case for a declared expectation.</p>
+        <button type="button" data-testid="open-nothing">No dialog here</button>
+        <p data-testid="nothing-result">idle</p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var handled = 0;
+        var result = document.querySelector('[data-testid="dialog-result"]');
+        var count = document.querySelector('[data-testid="dialog-count"]');
+
+        function report(text) {
+          handled += 1;
+          result.textContent = text;
+          count.textContent = "handled: " + handled;
+        }
+
+        document.querySelector('[data-testid="open-alert"]').addEventListener("click", function () {
+          // alert() returns undefined either way; what proves it was answered is that the script
+          // below it resumed at all — a blocked page never reaches this line.
+          window.alert("Alert from the dialog lab.");
+          report("alert acknowledged");
+        });
+
+        document.querySelector('[data-testid="open-confirm"]').addEventListener("click", function () {
+          var accepted = window.confirm("Proceed with the dialog lab?");
+          report(accepted ? "confirm accepted" : "confirm dismissed");
+        });
+
+        document.querySelector('[data-testid="open-prompt"]').addEventListener("click", function () {
+          var answer = window.prompt("Enter a value:", "default-value");
+          // null is a DISMISSED prompt; "" is an ACCEPTED but empty one. They must stay distinct.
+          report(answer === null ? "prompt dismissed" : "prompt answered: " + answer);
+        });
+
+        document.querySelector('[data-testid="dialog-reset"]').addEventListener("click", function () {
+          handled = 0;
+          result.textContent = "idle";
+          count.textContent = "handled: 0";
+        });
+
+        document.querySelector('[data-testid="open-chained"]').addEventListener("click", function () {
+          var node = document.querySelector('[data-testid="chained-result"]');
+          if (!window.confirm("First of two. Continue?")) {
+            node.textContent = "chain stopped at confirm";
+            return;
+          }
+          var answer = window.prompt("Second of two. Value:", "");
+          node.textContent = answer === null ? "chain stopped at prompt" : "chain completed: " + answer;
+        });
+
+        document.querySelector('[data-testid="open-nothing"]').addEventListener("click", function () {
+          document.querySelector('[data-testid="nothing-result"]').textContent = "clicked, no dialog";
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { Locator, Page } from "playwright";
-import type { AsyncCompletionMode, FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
+import type { AsyncCompletionMode, DialogExpectation, FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
 import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
 import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
@@ -60,6 +60,24 @@ interface ArmedLoader {
   /** Resolves once the loader appears within the grace window, or (never rejecting) after it. */
   appearance: Promise<{ appeared: boolean }>;
   grace: number;
+}
+
+/**
+ * A native JavaScript dialog expectation armed before a step's action.
+ *
+ * The handler is attached to the page BEFORE the action runs because `alert()`/`confirm()`/
+ * `prompt()` block the page's script until answered — a handler attached afterwards would never
+ * run, and Playwright's default auto-dismiss would already have answered for us.
+ */
+interface ArmedDialog {
+  /** Detaches the listener. Always called, even when the action throws. */
+  dispose: () => void;
+  /** What the page actually showed, or `undefined` when no dialog appeared. */
+  observed: () => { kind: string; message: string; defaultValue: string } | undefined;
+  /** A handling error (e.g. the dialog was already closed) recorded out-of-band. */
+  error: () => string | undefined;
+  /** Resolves once a dialog has been handled, or after `timeoutMs` with nothing. */
+  settled: Promise<void>;
 }
 
 /** Tracks the timestamp of the most recent request start (for `quietPeriod` completion). */
@@ -530,6 +548,106 @@ export class StepExecutor {
   /** Quiet window (ms) with no new request start that ends a `quietPeriod` completion. */
   private static readonly QUIET_PERIOD_MS = 750;
 
+  /** Default max wait (ms) for a declared dialog that omits `timeoutMs`. */
+  private static readonly DEFAULT_DIALOG_TIMEOUT_MS = 5_000;
+
+  /**
+   * Attach a one-shot dialog handler to `page` for the step about to run.
+   *
+   * Playwright auto-dismisses any dialog that has no listener, so arming must happen before the
+   * action. The listener answers the FIRST dialog matching `expectation.dialogKind` and then stops
+   * handling, leaving any later dialog to Playwright's default — a step declares one dialog, not a
+   * standing policy for the page.
+   */
+  private armDialog(page: Page, step: FlowStep, expectation: DialogExpectation): ArmedDialog {
+    let observed: { kind: string; message: string; defaultValue: string } | undefined;
+    let handlingError: string | undefined;
+    let resolveSettled!: () => void;
+    const settled = new Promise<void>((resolve) => {
+      resolveSettled = resolve;
+    });
+
+    const handler = (dialog: import("playwright").Dialog): void => {
+      // Already answered one dialog for this step, or this is not the kind we declared. It must
+      // still be DISMISSED explicitly: Playwright only auto-dismisses when no listener is attached
+      // at all, so ignoring it here would leave the page blocked on a modal forever (measured — the
+      // action then times out instead of continuing). Dismissing reproduces the default exactly.
+      if (observed || (expectation.dialogKind && dialog.type() !== expectation.dialogKind)) {
+        dialog.dismiss().catch(() => undefined);
+        return;
+      }
+      observed = { kind: dialog.type(), message: dialog.message(), defaultValue: dialog.defaultValue() };
+      const answer =
+        expectation.action === "accept"
+          ? dialog.accept(dialog.type() === "prompt" ? (expectation.promptText ?? "") : undefined)
+          : dialog.dismiss();
+      answer
+        .catch((error: unknown) => {
+          handlingError = error instanceof Error ? error.message : String(error);
+        })
+        .finally(() => resolveSettled());
+    };
+
+    page.on("dialog", handler);
+    const timer = setTimeout(resolveSettled, expectation.timeoutMs ?? StepExecutor.DEFAULT_DIALOG_TIMEOUT_MS);
+    // Never let the arming timer hold the process open past the run.
+    timer.unref?.();
+
+    return {
+      dispose: () => {
+        clearTimeout(timer);
+        page.off("dialog", handler);
+      },
+      observed: () => observed,
+      error: () => handlingError,
+      settled
+    };
+  }
+
+  /**
+   * Settle an armed dialog after the action: assert it appeared, assert its message, and publish
+   * the observed values as flow outputs. Throws — a declared-but-absent dialog is a step failure,
+   * because the alternative is the silent auto-dismiss this contract exists to replace.
+   */
+  private async settleDialog(
+    armed: ArmedDialog,
+    step: FlowStep,
+    expectation: DialogExpectation,
+    outputs: Record<string, unknown>
+  ): Promise<void> {
+    await armed.settled;
+    const observed = armed.observed();
+    const handlingError = armed.error();
+    if (handlingError) {
+      throw new Error(`Step ${step.id} could not answer the ${observed?.kind ?? "javascript"} dialog: ${handlingError}`);
+    }
+    if (!observed) {
+      if (expectation.required === false) {
+        this.log("info", step, "No JavaScript dialog appeared; the expectation was optional.");
+        return;
+      }
+      const kind = expectation.dialogKind ? `${expectation.dialogKind} ` : "";
+      throw new Error(
+        `Step ${step.id} expected a ${kind}JavaScript dialog to ${expectation.action}, but none appeared within ` +
+          `${expectation.timeoutMs ?? StepExecutor.DEFAULT_DIALOG_TIMEOUT_MS}ms.`
+      );
+    }
+
+    if (expectation.expectedMessage !== undefined) {
+      const match = expectation.messageMatch ?? "contains";
+      const ok = match === "equals" ? observed.message === expectation.expectedMessage : observed.message.includes(expectation.expectedMessage);
+      if (!ok) {
+        throw new Error(
+          `Step ${step.id} dialog message assertion failed: "${observed.message}" ${match} "${expectation.expectedMessage}".`
+        );
+      }
+    }
+
+    if (expectation.messageOutputKey) outputs[expectation.messageOutputKey] = observed.message;
+    if (expectation.defaultValueOutputKey) outputs[expectation.defaultValueOutputKey] = observed.defaultValue;
+    this.log("info", step, `Handled ${observed.kind} dialog (${expectation.action}): ${this.evidenceMasker.maskText(observed.message)}`);
+  }
+
   /** A `loaderHidden` wait that opts into the two-phase appearance→completion lifecycle. */
   private static isLoaderLifecycle(wait: WaitCondition): wait is Extract<WaitCondition, { type: "loaderHidden" }> {
     return (
@@ -587,11 +705,20 @@ export class StepExecutor {
         }
       }
 
+      // A native dialog blocks the page synchronously, so its handler must be listening before the
+      // action rather than after it. Without this Playwright auto-dismisses, which turns confirm()
+      // into false and prompt() into null while the action itself still reports success.
+      const armedDialog = step.dialogExpectation ? this.armDialog(stepPage, step, step.dialogExpectation) : undefined;
+
       try {
         const result = await this.executeStep(step, outputs);
+        if (armedDialog && step.dialogExpectation) {
+          await this.settleDialog(armedDialog, step, step.dialogExpectation, outputs);
+        }
         await this.resolveAfterWaits(step, mode, armedResponses, armedLoaders, deferred, quiet);
         return result;
       } finally {
+        armedDialog?.dispose();
         quiet?.dispose();
         for (const armed of armedStreams) {
           const summary = armed.observer.summary();

@@ -132,6 +132,7 @@
     "verify:blueprint-recovery": "tsx scripts/verify-blueprint-recovery.mts",
     "verify:blueprint-recovery-browser": "tsx scripts/verify-blueprint-recovery-browser.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
+    "verify:dialogs": "tsx scripts/verify-dialogs.mts",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:smart-wait-causality": "tsx scripts/verify-smart-wait-causality.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",

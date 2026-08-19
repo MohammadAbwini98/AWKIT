@@ -69,6 +69,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     pageAlias: data.pageAlias,
     opensPopup: data.opensPopup,
     popupExpectation: data.popupExpectation,
+    dialogExpectation: data.dialogExpectation,
     safety: data.safety,
     value: data.value || undefined,
     valueSource,
@@ -198,6 +199,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     pageAlias: step.pageAlias,
     opensPopup: step.opensPopup,
     popupExpectation: step.popupExpectation,
+    dialogExpectation: step.dialogExpectation,
     safety: step.safety,
     // A step can carry a bare `value` (e.g. a condition expression) with no `valueSource`. Mark it
     // "none" so the save path re-serializes the value WITHOUT fabricating a static `valueSource`, and
