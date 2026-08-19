@@ -214,6 +214,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");
   if (req.method === "GET" && path === "/async-results") return serveStatic(res, "async-results.html");
   if (req.method === "GET" && path === "/dialog-lab") return serveStatic(res, "dialog-lab.html");
+  if (req.method === "GET" && path === "/storage-lab") return serveStatic(res, "storage-lab.html");
   // ── Recorder Navigation Lab ────────────────────────────────────────────────
   /**
    * A server redirect whose destination is a hardcoded constant — nothing from the request reaches

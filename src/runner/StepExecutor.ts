@@ -2642,6 +2642,21 @@ export class StepExecutor {
       // An absent attribute is NOT the same state as an empty one: reporting `null` as "" would let
       // `expectedValue: ""` pass for an attribute the element never had.
       actual = raw ?? "(absent)";
+    } else if (assertionType === "storage") {
+      const storageKey = cfg.storageKey?.trim();
+      if (!storageKey) throw new Error(`Step ${step.id} is a storage assertion but names no key (config.storageKey).`);
+      const area = cfg.storageArea ?? "local";
+      // Read through the page so the value comes from the SAME origin the flow is on. A missing key
+      // returns null from the Storage API; it is reported as "(absent)" so an empty stored string
+      // stays distinguishable from a key that was never written (see NodeConfig.storageKey).
+      const raw = await this.activePage.evaluate(
+        ([kind, key]) => {
+          const store = kind === "session" ? window.sessionStorage : window.localStorage;
+          return store.getItem(key);
+        },
+        [area, storageKey] as const
+      );
+      actual = raw ?? "(absent)";
     } else if (assertionType === "value") {
       actual = await (await this.locatorFactory.resolve(step)).inputValue({ timeout });
     } else {
@@ -2649,7 +2664,10 @@ export class StepExecutor {
     }
 
     if (!this.compareValues(actual, expected, operator)) {
-      throw new Error(`Assertion failed: "${actual}" ${operator} "${expected}".`);
+      // Compare the RAW value, report a masked one. A storage value is far more likely than an
+      // element's text to be a session blob, and the failure message lands in the run report.
+      const reported = assertionType === "storage" ? this.evidenceMasker.maskText(actual) : actual;
+      throw new Error(`Assertion failed: "${reported}" ${operator} "${expected}".`);
     }
   }
 

@@ -35,6 +35,9 @@ export class SecretMasker {
   maskText(text: string): string {
     return scrubRegistered(text)
       .replace(/(password|passwd|pwd|secret|token|api[_-]?key)=([^&\s]+)/gi, "$1=[masked]")
+      // JSON-shaped pairs, e.g. a serialized session blob read out of browser storage. The
+      // query-string pattern above never matched that form and left the value in the clear.
+      .replace(/("(?:password|passwd|pwd|secret|token|api[_-]?key|authorization)"\s*:\s*)"[^"]*"/gi, '$1"[masked]"')
       .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/g, "$1[masked]");
   }
 

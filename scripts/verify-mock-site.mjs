@@ -488,6 +488,34 @@ try {
   await pointerReorder("[data-testid='pointer-item-a']", "[data-testid='pointer-item-c']");
   check("a second pointer drag after reset works (a before c)", (await page.getByTestId("pointer-order").textContent()) === "b,a,c");
 
+  console.log("Storage Lab:");
+  await page.goto(`${BASE}/storage-lab`);
+  await page.getByRole("heading", { name: "Storage Lab" }).waitFor();
+  const readStore = (area, key) =>
+    page.evaluate(([a, k]) => (a === "session" ? window.sessionStorage : window.localStorage).getItem(k), [area, key]);
+  await page.getByTestId("storage-reset-all").click();
+  check("storage lab starts with no session key", (await readStore("local", "awkit-session")) === null);
+  await page.getByTestId("storage-signin").click();
+  const session = await readStore("local", "awkit-session");
+  check("sign in writes a JSON session blob to localStorage", typeof session === "string" && session.includes("lab-operator"), String(session));
+  await page.getByTestId("storage-signout").click();
+  check("sign out removes the key entirely (not blanks it)", (await readStore("local", "awkit-session")) === null);
+  // The scenario's whole point: the banner claims a session the store does not hold.
+  await page.getByTestId("storage-fake-signin").click();
+  check("fake sign in updates only the banner", (await page.getByTestId("storage-status").textContent())?.includes("signed in"));
+  check("...and leaves storage untouched", (await readStore("local", "awkit-session")) === null);
+  await page.getByTestId("storage-write-empty").click();
+  check("write empty stores an empty string, not a missing key", (await readStore("local", "awkit-empty")) === "");
+  await page.getByTestId("storage-remove-empty").click();
+  check("remove deletes that key", (await readStore("local", "awkit-empty")) === null);
+  await page.getByTestId("storage-write-session").click();
+  check("session-only write lands in sessionStorage", (await readStore("session", "awkit-scope")) === "session-only-value");
+  check("...and not in localStorage", (await readStore("local", "awkit-scope")) === null);
+  await page.getByTestId("storage-write-delayed").click();
+  check("the delayed banner claims success immediately", (await page.getByTestId("storage-delayed-status").textContent()) === "saved");
+  await page.getByTestId("storage-delayed-confirmed").filter({ hasText: "preference stored" }).waitFor({ timeout: 5000 });
+  check("...and the key only appears after the page's own confirmation", (await readStore("local", "awkit-delayed")) === "theme=dark");
+
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);
   check("index lists the Runner Lab scenario", await page.getByTestId("scenario-runner-lab").isVisible());

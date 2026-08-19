@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Storage Lab — AWKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="lab">
+      <h1>Storage Lab</h1>
+      <p>
+        Browser storage that the visible UI can contradict. Every control writes to
+        <code>localStorage</code> or <code>sessionStorage</code> and reports what it BELIEVES it did
+        in <code>storage-status</code> — the point of the scenario is that the banner and the store
+        can disagree, so an assertion that reads the banner proves nothing about the store.
+      </p>
+
+      <section data-testid="storage-session">
+        <h2>Session round trip</h2>
+        <p>
+          Sign in to write <code>awkit-session</code> as a JSON blob carrying a token. Sign out
+          removes the key entirely. <em>Fake sign-in</em> updates only the banner and never touches
+          storage — the case that a UI-only assertion passes and a storage assertion must not.
+        </p>
+        <button type="button" data-testid="storage-signin">Sign in</button>
+        <button type="button" data-testid="storage-signout">Sign out</button>
+        <button type="button" data-testid="storage-fake-signin">Fake sign in</button>
+        <p data-testid="storage-status">signed out</p>
+      </section>
+
+      <section data-testid="storage-empty">
+        <h2>Empty value vs missing key</h2>
+        <p>
+          <em>Write empty</em> sets <code>awkit-empty</code> to the empty string; <em>Remove</em>
+          deletes it. The two states are different and a storage assertion must be able to tell them
+          apart — an absent key reads as <code>(absent)</code>, never as <code>""</code>.
+        </p>
+        <button type="button" data-testid="storage-write-empty">Write empty</button>
+        <button type="button" data-testid="storage-remove-empty">Remove</button>
+        <p data-testid="storage-empty-status">idle</p>
+      </section>
+
+      <section data-testid="storage-session-area">
+        <h2>sessionStorage is a different area</h2>
+        <p>
+          <em>Write session-only</em> writes <code>awkit-scope</code> to
+          <code>sessionStorage</code> only. Reading the same key from <code>localStorage</code> must
+          still report it absent, so the area selector is load-bearing rather than decorative.
+        </p>
+        <button type="button" data-testid="storage-write-session">Write session-only</button>
+        <p data-testid="storage-scope-status">idle</p>
+      </section>
+
+      <section data-testid="storage-delayed">
+        <h2>Written after a delay</h2>
+        <p>
+          Writes <code>awkit-delayed</code> 600&nbsp;ms after the click, while the banner says
+          "saved" immediately. A flow must synchronise on an observable page signal before asserting
+          the store, not on the optimistic banner.
+        </p>
+        <button type="button" data-testid="storage-write-delayed">Save preference</button>
+        <p data-testid="storage-delayed-status">idle</p>
+        <p data-testid="storage-delayed-confirmed"></p>
+      </section>
+
+      <section data-testid="storage-reset">
+        <h2>Reset</h2>
+        <button type="button" data-testid="storage-reset-all">Clear all lab keys</button>
+        <p data-testid="storage-reset-status">idle</p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var status = document.querySelector('[data-testid="storage-status"]');
+        var emptyStatus = document.querySelector('[data-testid="storage-empty-status"]');
+        var scopeStatus = document.querySelector('[data-testid="storage-scope-status"]');
+        var delayedStatus = document.querySelector('[data-testid="storage-delayed-status"]');
+        var delayedConfirmed = document.querySelector('[data-testid="storage-delayed-confirmed"]');
+        var resetStatus = document.querySelector('[data-testid="storage-reset-status"]');
+
+        document.querySelector('[data-testid="storage-signin"]').addEventListener("click", function () {
+          window.localStorage.setItem(
+            "awkit-session",
+            JSON.stringify({ user: "lab-operator", token: "tok-abcdef0123456789", expires: 4102444800000 })
+          );
+          status.textContent = "signed in as lab-operator";
+        });
+
+        document.querySelector('[data-testid="storage-signout"]').addEventListener("click", function () {
+          window.localStorage.removeItem("awkit-session");
+          status.textContent = "signed out";
+        });
+
+        // The whole point of the scenario: the banner claims a session that storage does not hold.
+        document.querySelector('[data-testid="storage-fake-signin"]').addEventListener("click", function () {
+          status.textContent = "signed in as lab-operator";
+        });
+
+        document.querySelector('[data-testid="storage-write-empty"]').addEventListener("click", function () {
+          window.localStorage.setItem("awkit-empty", "");
+          emptyStatus.textContent = "wrote empty string";
+        });
+
+        document.querySelector('[data-testid="storage-remove-empty"]').addEventListener("click", function () {
+          window.localStorage.removeItem("awkit-empty");
+          emptyStatus.textContent = "removed key";
+        });
+
+        document.querySelector('[data-testid="storage-write-session"]').addEventListener("click", function () {
+          window.sessionStorage.setItem("awkit-scope", "session-only-value");
+          scopeStatus.textContent = "wrote to sessionStorage";
+        });
+
+        document.querySelector('[data-testid="storage-write-delayed"]').addEventListener("click", function () {
+          delayedStatus.textContent = "saved";
+          delayedConfirmed.textContent = "";
+          window.setTimeout(function () {
+            window.localStorage.setItem("awkit-delayed", "theme=dark");
+            // The observable signal a flow may synchronise on — written only AFTER the store is.
+            delayedConfirmed.textContent = "preference stored";
+          }, 600);
+        });
+
+        document.querySelector('[data-testid="storage-reset-all"]').addEventListener("click", function () {
+          ["awkit-session", "awkit-empty", "awkit-delayed"].forEach(function (key) {
+            window.localStorage.removeItem(key);
+          });
+          window.sessionStorage.removeItem("awkit-scope");
+          status.textContent = "signed out";
+          emptyStatus.textContent = "idle";
+          scopeStatus.textContent = "idle";
+          delayedStatus.textContent = "idle";
+          delayedConfirmed.textContent = "";
+          resetStatus.textContent = "cleared";
+        });
+      })();
+    </script>
+  </body>
+</html>

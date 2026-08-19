@@ -1107,6 +1107,7 @@ export function FlowNodePropertiesPanel({
                     <option value="count">Element count</option>
                     <option value="url">Page URL</option>
                     <option value="attribute">Element attribute</option>
+                    <option value="storage">Browser storage</option>
                   </select>
                 </label>
                 {data.assertionType === "attribute" ? (
@@ -1118,6 +1119,32 @@ export function FlowNodePropertiesPanel({
                       onChange={(e) => set({ attributeName: e.target.value })}
                     />
                   </label>
+                ) : null}
+                {data.assertionType === "storage" ? (
+                  <>
+                    <label>
+                      Storage area
+                      <select
+                        value={data.storageArea}
+                        onChange={(e) => set({ storageArea: e.target.value as FlowDesignerNodeData["storageArea"] })}
+                      >
+                        <option value="local">localStorage</option>
+                        <option value="session">sessionStorage</option>
+                      </select>
+                    </label>
+                    <label>
+                      Storage key
+                      <input
+                        value={data.storageKey}
+                        placeholder="wdu-session"
+                        onChange={(e) => set({ storageKey: e.target.value })}
+                      />
+                    </label>
+                    <span className="form-message">
+                      A key that is not present compares as "(absent)", so an empty stored value stays
+                      distinguishable from one that was never written.
+                    </span>
+                  </>
                 ) : null}
                 {data.assertionType !== "visible" ? (
                   <>

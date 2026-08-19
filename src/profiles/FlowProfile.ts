@@ -770,7 +770,7 @@ export interface NodeConfig {
   clearBeforeFill?: boolean;
   selectMultiple?: boolean;
   waitType?: "time" | "selector" | "navigation" | "networkIdle" | "textVisible";
-  assertionType?: "visible" | "text" | "value" | "count" | "url" | "attribute";
+  assertionType?: "visible" | "text" | "value" | "count" | "url" | "attribute" | "storage";
   comparisonOperator?: "equals" | "contains" | "greaterThan" | "lessThan";
   expectedValue?: string;
   /**
@@ -782,6 +782,23 @@ export interface NodeConfig {
    * `expectedValue: ""` would silently pass for an attribute that was never set at all.
    */
   attributeName?: string;
+  /**
+   * Which browser storage area a `storage` assertion reads. Defaults to `local`.
+   *
+   * Storage is per-origin, so the assertion reads the area of whatever page is active when the
+   * step runs — the same rule every other page-scoped assertion already follows.
+   */
+  storageArea?: "local" | "session";
+  /**
+   * Key a `storage` assertion looks up. Required by that assertion type and ignored by every
+   * other one.
+   *
+   * A MISSING key and a key holding the empty string are different states, so the missing case
+   * compares as the literal `"(absent)"` rather than as `""` — the same rule {@link attributeName}
+   * follows, and for the same reason: `expectedValue: ""` must not silently pass for a key the
+   * page never wrote.
+   */
+  storageKey?: string;
   screenshotName?: string;
   fullPage?: boolean;
   scrollTarget?: "page" | "element";
