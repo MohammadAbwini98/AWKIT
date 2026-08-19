@@ -17,13 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-96o6",
-      "agent": "Security & Trust-Boundary Specialist",
-      "state": "in-progress",
-      "claimedAt": "2026-08-19T17:26:18.594Z",
-      "note": "write lease: app/main/licensing/**, docs/**, package.json, scripts/**, src/licensing/**, tools/license-issuer/**, tools/roadmap/**"
-    }
-  ]
+  "claims": []
 }

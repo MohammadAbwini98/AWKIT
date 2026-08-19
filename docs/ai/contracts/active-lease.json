@@ -1,7 +1,7 @@
 {
   "task": "awkit-96o6",
   "holder": "security",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/**",
     "scripts/**",
@@ -26,5 +26,7 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-19T17:36:43.853Z",
+  "released_reason": "License Issuer complete; production-key E2E reported BLOCKED"
 }
