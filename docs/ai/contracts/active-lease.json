@@ -1,12 +1,12 @@
 {
-  "task": "awkit-package-portable",
+  "task": "awkit-package-installer",
   "holder": "release",
   "status": "released",
   "allowed_paths": [
     "resources/**"
   ],
-  "acquired_at": "2026-08-18T18:50:34.979Z",
-  "acquired_at_commit": "616abd0",
+  "acquired_at": "2026-08-19T07:59:56.686Z",
+  "acquired_at_commit": "34aed6a",
   "baseline_dirty": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -19,11 +19,11 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1787078712820.4238"
+    "build": "dir(1):native-hosts:1787126188306.5886"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-08-18T18:50:47.941Z",
-  "released_reason": "manifest regeneration committed"
+  "released_at": "2026-08-19T07:59:57.078Z",
+  "released_reason": "installer manifest committed"
 }
