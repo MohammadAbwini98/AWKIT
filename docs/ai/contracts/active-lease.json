@@ -1,7 +1,7 @@
 {
   "task": "awkit-96o6",
   "holder": "security",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/**",
     "scripts/**",
@@ -35,5 +35,7 @@
       "via": "bash",
       "resolved": false
     }
-  ]
+  ],
+  "released_at": "2026-08-19T19:07:44.159Z",
+  "released_reason": "handoff complete"
 }
