@@ -1,6 +1,72 @@
 # CURRENT_STATE
 
-## Recorder pointer checkpoint: what is closed and what is an open defect (2026-08-19)
+## Pointer interaction semantics implemented: double-click and right-click (2026-08-19)
+
+`awkit-bxyo` is **closed**. The two interactions the Recorder silently lost are now captured,
+converted, persisted, validated and replayed as first-class semantics — the whole chain, not the
+capture half.
+
+```text
+Double-click semantic capture ..... IMPLEMENTED / CLOSED
+Right-click semantic capture ...... IMPLEMENTED / CLOSED
+Double-click replay fidelity ...... PASS  (live browser, observable effect)
+Right-click replay fidelity ....... PASS  (live browser, observable effect)
+
+Three-page popup switching ........ PASS / CLOSED
+Popup identity distinctness ....... PASS
+Cross-page isolation .............. PASS
+Close-one-preserves-others ........ PASS
+```
+
+**Model: two distinct `StepType`s, `dblclick` and `contextMenu`** — not one pointer step carrying
+`button` plus a click-count. That matches how the repo already models `click`/`hover`/`check`/
+`radio`/`drag`, and because `StepType` is a **closed union** the compiler forced every exhaustive map
+to be updated rather than silently defaulting: `StepRequirements`, `StepSafetyPolicy`
+(`UI_MUTATION_TYPES`, so both are retry-safe), `PREREQUISITE_TRIAL_MODES` (pointer), both flow node
+catalogs, and the randomized-test `NodeCatalog`.
+
+**Capture, and the one subtlety.** A double-click arrives *after* its constituent clicks. The init
+script drops the second click in-page (`event.detail >= 2`) and the surviving **first** click is
+coalesced away in `RecorderService.recordActionFromPage` — the documented owner of coalescing, which
+is why the harness path and the real recorder path cannot disagree about how many actions a gesture
+produces. The coalescing is deliberately narrow: immediately-preceding action, same page, same stable
+target. Both listeners are also installed inside closed shadow roots, since `composedPath` retargets.
+
+**The boundary is structural, not a comment.** The model captures the *gesture* and never claims the
+native menu's contents: whatever a user picks from an OS-level menu is invisible to the page, the
+recorder and replay alike, so no step implies it. That is written into the `StepType` union.
+
+**Replay is asserted by observable effect, not by a `passed` status.** A passed step only proves the
+executor did not throw. `verify:runner` reads the fixture's own result element *and* a click counter —
+the counter is the discriminator, because a flow replaying two ordinary clicks would move it and
+never set the double-click result. Mutation-tested both ways: two-clicks-instead-of-`dblclick` and
+ordinary-click-instead-of-`contextMenu` each fail their intended check.
+
+**The sentinels are gone, which was the point.** `verify:recorder-competitive` went from *56/56 plus
+2 known-gap sentinels* to **60/60 with zero sentinels**. A sentinel that keeps passing is a defect
+that keeps shipping; converting them was the only honest end state. The single-click control check
+stays — every other assertion is a **count**, and a count of 0 or 1 is also what a recorder that had
+stopped capturing altogether would produce.
+
+Verified: `npm run build` clean · `verify:recorder-competitive` **60/60** · `verify:recorder-flow`
+**38/38** (was 33) · `verify:runner` **108 passed / 0 failed** live.
+
+Not measured, deliberately: whether a *physical* right-click renders the native menu in the
+Recorder's headed window. It does not move the design — the `contextmenu` listener fires either way
+and the user's selection is unobservable in both cases.
+
+`docs/testing/RECORDER_NAVIGATION_MATRIX.md` section H is rewritten from *Declared limitations —
+GAP, defect present* to **ten PASS rows**.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **228 total / 224 closed /
+4 outstanding** (the four owner-gated items; no open work items remain).
+
+
+## Recorder pointer checkpoint: what is closed and what is an open defect (2026-08-19) — SUPERSEDED
+
+> **Superseded the same day by the section above.** The two defects it records as open were
+> implemented and closed (`awkit-bxyo`); the sentinels it describes are now positive assertions.
+> Kept because the reasoning about why a tally must not absorb known-gap assertions still holds.
 
 ```text
 Three-page popup switching ........ PASS / CLOSED

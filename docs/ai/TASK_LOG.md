@@ -4,6 +4,44 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Implement pointer interaction semantics (double-click, right-click)
+
+- **Closes `awkit-bxyo`.** The two interactions the Recorder silently lost are now first-class across
+  the whole chain: capture → normalization → action model → Flow/step conversion → save/reload →
+  validation → safety policy → replay.
+- **Model:** two distinct `StepType`s, `dblclick` and `contextMenu`, not one pointer step carrying
+  `button` + click-count — matching the existing `click`/`hover`/`check`/`radio`/`drag` modelling.
+  The closed union made the compiler find every exhaustive map: `StepRequirements`,
+  `StepSafetyPolicy`, `PREREQUISITE_TRIAL_MODES`, both flow node catalogs, `NodeCatalog`.
+- **Capture subtlety:** a double-click arrives after its own clicks. The init script drops the second
+  click in-page (`detail >= 2`); the surviving first click is coalesced in
+  `RecorderService.recordActionFromPage`, the documented owner, so the harness and real recorder
+  paths cannot disagree. Narrow by design: immediately-preceding, same page, same stable target.
+  Both listeners are installed inside closed shadow roots too.
+- **Boundary held structurally:** the gesture is captured, the native menu's *contents* never are.
+- **Sentinels converted, not kept:** `verify:recorder-competitive` 56/56 + 2 GAP → **60/60, zero
+  sentinels**. The single-click control stays, because every other assertion is a count.
+- **A verifier bug found on the way:** the competitive harness measured its own per-call accumulator
+  rather than the recorder's action list, reporting a double-click as `["click","dblclick"]` when the
+  service correctly held `["dblclick"]`. Now reads `bindingRecorder.getActions()`.
+- **Files:** `src/profiles/FlowProfile.ts`, `src/profiles/interactionPrerequisiteDecision.ts`,
+  `src/validation/StepRequirements.ts`, `src/runner/StepExecutor.ts`,
+  `src/runner/runtime/StepSafetyPolicy.ts`, `src/recorder/recorderInitScript.ts`,
+  `src/recorder/RecorderService.ts`, `src/testing/random/NodeCatalog.ts`,
+  `app/renderer/components/workflow/flowNodeCatalog.ts`, `.../flowNodeRegistry.ts`,
+  `mock-site/public/recorder-lab.html`, `scripts/verify-recorder-competitive.mts`,
+  `scripts/verify-recorder-flow.mts`, `scripts/verify-runner.mts`,
+  `docs/testing/RECORDER_NAVIGATION_MATRIX.md` (section H → 10 PASS rows).
+- **Tests run:** `npm run build` clean · `verify:recorder-competitive` **60/60** ·
+  `verify:recorder-flow` **38/38** · `verify:runner` **108 passed / 0 failed** (live) ·
+  `verify:roadmap-dashboard` · `ai:memory`. Replay assertions mutation-tested both ways.
+- **Not run:** clean-machine GUI walkthrough; packaged-EXE gates. **Not measured, deliberately:**
+  whether a physical right-click renders the native menu in the Recorder's headed window — the
+  `contextmenu` listener fires either way and the selection is unobservable in both cases.
+- **Result:** tracker **228 total / 224 closed / 4 outstanding** (owner-gated only; no open items).
+
+---
+
 ## 2026-08-19 - Claude - Stop the verifier tally absorbing two known Recorder defects
 
 - **Owner objection, and it was right:** `verify:recorder-competitive` reported 58/58 PASS while two

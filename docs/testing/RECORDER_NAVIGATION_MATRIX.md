@@ -110,15 +110,25 @@ Ordering trap worth keeping: the fixture's action buttons call `window.close()`,
 isolation *after* clicking a page's own control passes for free — the page is gone. Isolation runs
 first, while every page is demonstrably open.
 
-## H. Declared limitations — interactions the Recorder does NOT capture (3)
+## H. Pointer gesture semantics — double-click and context menu (10)
 
-These are measured, not assumed, and are guarded so the gap stays loud instead of silent.
+This section used to be titled *Declared limitations*, and H1/H3 were **known-gap sentinels**:
+assertions that held only while the recorder lost these two interactions. They are now ordinary
+positive assertions, which is the only honest end state — a sentinel that keeps passing is a defect
+that keeps shipping. The gap closed on 2026-08-19 (`awkit-bxyo`); the history is kept below because
+the measurement that framed the model is still the reason the model looks the way it does.
 
-**`GAP` is not a pass.** H1 and H3 are *known-gap sentinels*: they hold only while the defect is
-present. `verify:recorder-competitive` tallies them **separately** from its check count and prints
-them as `GAP`, never `✓` — a headline of "58/58 passed" that quietly included two "the defect is
-still here" assertions would eventually be read as "recorder pointer handling is green". The
-headline is now 56/56 checks plus 2 sentinels named as such.
+### What was wrong, measured through the real capture path
+
+```text
+double-click  page fired dblclick    → recorder stored 2 click actions
+right-click   page fired contextmenu → recorder stored 0 actions
+single click  (control)              → recorder stored 1 action
+```
+
+Two clicks replayed with a gap between them do not reliably re-fire `dblclick`, so a
+double-click-driven UI recorded but did not faithfully replay; a right-click was dropped with no step
+and no warning.
 
 ### Native context menu — replayability, measured 2026-08-19
 
@@ -134,49 +144,48 @@ no preventDefault (native menu)       contextmenu fires, handler runs  -> replay
 
 **The decisive line is the last one.** A synthetic right-click does not leave a blocking native menu,
 so a recorded right-click cannot corrupt every step after it. That was the risk that would have made
-the interaction unsafe to replay, and it does not exist.
+the interaction unsafe to replay, and it does not exist — so `contextMenu` is an ordinary executable
+step, not a captured-but-non-executable one. H9 re-proves that property at replay rather than
+trusting the probe.
 
-A right-click is therefore safe to capture and replay, and validation must not mark it
-non-executable. What the model must never claim is the contents of the menu: if a user physically
-right-clicks while recording, whatever they choose from the OS-level menu — open link in new tab,
-copy, save as — is invisible to the page, to the recorder, and to replay. **Capture the gesture,
-never imply the selection.**
+What the model must never claim is the contents of the menu: if a user physically right-clicks while
+recording, whatever they choose from the OS-level menu — open link in new tab, copy, save as — is
+invisible to the page, to the recorder, and to replay. **Capture the gesture, never imply the
+selection.** That boundary is written into the `StepType` union itself.
 
 Deliberately not measured: whether a *physical* right-click renders the native menu in the Recorder's
 headed window. It does not move the design — the `contextmenu` listener fires either way, and the
 user's selection is unobservable in both cases.
 
-A sentinel that stops holding **fails the run** and says what to do: measured by suppressing the
-second click of a double-click, which produced `CHANGED … Convert this sentinel into a positive
-assertion and update awkit-bxyo` and exit 1. Implementation therefore cannot land without forcing
-these to be rewritten as positive assertions. H2 is an ordinary check, not a sentinel: it holds
-before and after the fix.
+### The model
+
+`dblclick` and `contextMenu` are **distinct `StepType`s**, matching how the repo already models
+`click`/`hover`/`check`/`radio`/`drag` rather than overloading one pointer step with a `button` and a
+click-count. The closed union is what forced every exhaustive map — validation, safety policy,
+prerequisite trial modes, both node catalogs — to be updated rather than silently defaulting.
 
 | # | Behaviour | Owner | Status |
 |---|---|---|---|
-| H1 | A double-click records **two click actions**, not a double-click | `verify:recorder-competitive` (section L) | **GAP** — defect present |
-| H2 | No action type claims double-click semantics the runtime cannot replay | `verify:recorder-competitive` (section L) | PASS |
-| H3 | A right-click records **nothing** — context menus are not captured | `verify:recorder-competitive` (section L) | **GAP** — defect present |
+| H1 | A double-click records **one `dblclick` action**, not two clicks | `verify:recorder-competitive` (section L) | PASS |
+| H2 | The click that opened the double-click is absorbed, not left behind | `verify:recorder-competitive` (section L) | PASS |
+| H3 | A right-click records **one `contextMenu` action** rather than being discarded | `verify:recorder-competitive` (section L) | PASS |
+| H4 | The right-click gesture is not mistaken for an ordinary click | `verify:recorder-competitive` (section L) | PASS |
+| H5 | A right-click is recorded even when the page leaves the native menu alone | `verify:recorder-competitive` (section L) | PASS |
+| H6 | An ordinary single click still records exactly one click action (control) | `verify:recorder-competitive` (section L) | PASS |
+| H7 | Both gestures survive conversion and a save/reload round trip with their own step types | `verify:recorder-flow` | PASS |
+| H8 | Conversion never invents a double-click — two clicks stay two clicks | `verify:recorder-flow` | PASS |
+| H9 | Replay produces real `dblclick` and `contextmenu` behaviour in a live browser | `verify:runner` | PASS |
+| H10 | A step after a context menu still runs and takes effect | `verify:runner` | PASS |
 
-The Recorder installs listeners for `click`, `keydown`, `change`, `pointer*`, `drop`, `popstate`,
-`hashchange`, `scroll` and `mouseover`. There is **no `dblclick` and no `contextmenu` listener**.
+H6 is the control and stays: every other assertion here is about a **count**, and a count of 0 or 1
+is also what a recorder that had stopped capturing altogether would produce. H8 is its mirror on the
+conversion side — coalescing that was too eager would satisfy H2 while destroying ordinary clicks.
 
-Measured with the real capture path (through `recordActionFromPage`, not the raw init script):
-
-```text
-double-click  page fired dblclick    → recorder stored 2 click actions
-right-click   page fired contextmenu → recorder stored 0 actions
-single click  (control)              → recorder stored 1 action
-```
-
-**What this costs.** Two clicks replayed with a gap between them will not reliably re-fire
-`dblclick`, so a double-click-driven UI records but does not faithfully replay. A right-click is
-dropped with no step and no warning — the user sees nothing recorded and is told nothing.
-
-The section-L checks exist to make that visible, **not to bless it**. If either interaction is ever
-implemented properly those checks SHOULD fail; that is the signal to update this table. The control
-check (a single click records exactly one action) is what stops the two counts being satisfied by a
-recorder that has stopped capturing altogether.
+**Replay is asserted by observable effect, not by status.** A `passed` step proves the executor did
+not throw. H9 reads the fixture's own result element and its click counter, because the counter is
+the discriminator: a flow that replayed two ordinary clicks would move the counter and never set the
+double-click result. Mutation-tested both ways — replacing `dblclick()` with two clicks, and
+`contextMenu` with an ordinary click, each fails its intended check.
 
 ## F. Frames (2)
 

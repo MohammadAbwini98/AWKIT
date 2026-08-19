@@ -270,8 +270,12 @@ try {
   // electron-builder.json). Nothing is open — the four remaining are owner-gated and externally blocked.
   // Then 5/223 of 228 on 2026-08-19: the Recorder brief's two residuals were closed by adding coverage,
   // and the double-click / context-menu PRODUCT decision was filed separately as an open item.
-    "5 outstanding / 223 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 223,
+  // Then 4/224 of 228 on 2026-08-19: awkit-bxyo closed — double-click and right-click are captured,
+  // converted, persisted and replayed as dedicated `dblclick`/`contextMenu` step types, so the two
+  // known-gap sentinels became positive assertions. Nothing is open; the four remaining are
+  // owner-gated and externally blocked.
+    "4 outstanding / 224 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 224,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
