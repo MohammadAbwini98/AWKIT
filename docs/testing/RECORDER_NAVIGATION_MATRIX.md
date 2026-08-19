@@ -120,6 +120,32 @@ them as `GAP`, never `✓` — a headline of "58/58 passed" that quietly include
 still here" assertions would eventually be read as "recorder pointer handling is green". The
 headline is now 56/56 checks plus 2 sentinels named as such.
 
+### Native context menu — replayability, measured 2026-08-19
+
+Before building capture, the question that decides the model: is a **native** browser context menu
+replayable? Probed in headless and headed Chromium, which agreed exactly.
+
+```text
+page-owned handler + preventDefault   contextmenu fires, handler runs  -> replayable
+no preventDefault (native menu)       contextmenu fires, handler runs  -> replayable
+                                      DOM node count unchanged (8)     -> menu is browser chrome
+                                      NEXT ordinary click succeeded    -> nothing is poisoned
+```
+
+**The decisive line is the last one.** A synthetic right-click does not leave a blocking native menu,
+so a recorded right-click cannot corrupt every step after it. That was the risk that would have made
+the interaction unsafe to replay, and it does not exist.
+
+A right-click is therefore safe to capture and replay, and validation must not mark it
+non-executable. What the model must never claim is the contents of the menu: if a user physically
+right-clicks while recording, whatever they choose from the OS-level menu — open link in new tab,
+copy, save as — is invisible to the page, to the recorder, and to replay. **Capture the gesture,
+never imply the selection.**
+
+Deliberately not measured: whether a *physical* right-click renders the native menu in the Recorder's
+headed window. It does not move the design — the `contextmenu` listener fires either way, and the
+user's selection is unobservable in both cases.
+
 A sentinel that stops holding **fails the run** and says what to do: measured by suppressing the
 second click of a double-click, which produced `CHANGED … Convert this sentinel into a positive
 assertion and update awkit-bxyo` and exit 1. Implementation therefore cannot land without forcing
