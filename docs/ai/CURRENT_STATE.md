@@ -1,5 +1,61 @@
 # CURRENT_STATE
 
+## The packaged asset gate passes, and the installer exists (2026-08-19)
+
+`npm run package:installer` produced `dist/SpecterStudio Setup 0.1.13.exe` (244,462,040 bytes) plus
+`latest.yml` and a blockmap. `awkit-dz5w` is closed, and `verify:zvec-packaged-assets` now exits 0:
+**PACKAGED ASSET VERIFICATION PASSED**.
+
+**`vendorResources` was a stale expectation, not an offline-boundary defect** - reading (a) of the
+two the bead deliberately left open. Measured rather than assumed: `electron-builder.json` stages a
+second `extraResources` entry (`from: vendor`) whose filters exclude `browsers/**`, the dependency
+manifest, its signature, `offline-browser-policy.json` and `trust/**`. What remains is
+`vendor/native-modules` and `vendor/npm-cache`, and **both are empty** - zero files survive. So
+electron-builder copies nothing and omits the empty directory, exactly as it should, while
+`existsSync(RES/vendor)` demanded a directory the build config says must not exist.
+
+The bundled Chromium was never at risk: it ships through the OTHER entry, giving
+`resources/resources/browsers/chromium/chrome.exe`, which `verify:packaged-validation` confirms with
+its own check.
+
+**Re-expressed, not deleted, and stronger than before.** The expectation is now DERIVED from
+`electron-builder.json` at run time by applying that entry's own include/exclude globs to the vendor
+tree, then asserting both directions: every file that should ship is present, and `resources/vendor`
+exists **if and only if** something should have been staged. A config change flips the expectation
+automatically instead of leaving a hardcoded belief behind.
+
+**Mutation-tested in both directions**, which mattered because with zero expected files the first
+half is vacuous:
+
+```text
+M1 a vendor file that should ship, absent from the package
+   FAIL — 1 file(s) survive the vendor filters, 1 missing from the package
+M2 resources/vendor present although the config stages nothing
+   FAIL — 0 file(s) survive the vendor filters, resources/vendor present
+```
+
+### Packaged gate state
+
+```text
+packaged-walkthrough    25 PASS / 0 FAIL   Parts D-G BLOCKED (issuer key)
+zvec-packaged-assets    PASSED
+packaged-licensing      24 PASS / 0 FAIL / 2 BLOCKED (issuer key)
+packaged-validation     86 PASS / 1 FAIL   portable EXE aged past the 180-minute window
+```
+
+That last line is the gate working, not a defect: the portable was built the previous evening and the
+installer build regenerates `win-unpacked` without touching it, so the two artifacts drift apart in
+age. **`npm run package:offline` builds both in one pass**, which is what a release run should use.
+
+A correction to an earlier prediction: the `latest.yml declares the Setup artifact` check did NOT
+become reachable when the installer appeared. It sits after Part G, inside the region gated behind
+licensed packaged execution, so it still has never run against a version-correct name.
+
+Tracker: **227 total / 223 closed / 4 outstanding**, `byStatus` exactly `{closed: 223, blocked: 4}` -
+**nothing open**. All four need an authorized operator or an owner decision. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## The packaged gates were validating a July artifact of a different version (2026-08-18)
 
 Packaging 0.1.13 succeeded, and the fresh build immediately exposed why the packaged gates had been

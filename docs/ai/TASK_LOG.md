@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Build the installer and re-express the vendorResources check (awkit-dz5w)
+
+- **Packaged:** `npm run package:installer` -> `dist/SpecterStudio Setup 0.1.13.exe` (244,462,040
+  bytes), `latest.yml`, blockmap. Unsigned. The lease guard caught the regenerated dependency
+  manifest again; resolved with a release lease as before.
+- **Diagnosis (reading (a), measured):** `electron-builder.json`'s `from: vendor` entry excludes
+  `browsers/**`, the manifest, its signature, `offline-browser-policy.json` and `trust/**`; the
+  remaining `vendor/native-modules` and `vendor/npm-cache` are EMPTY. Zero files survive, so
+  electron-builder omits the directory correctly. Chromium ships via the other entry and is
+  independently confirmed by `verify:packaged-validation`.
+- **Fix:** the expectation is derived from `electron-builder.json` at run time and asserts both
+  directions - nothing missing, and `resources/vendor` exists iff something should be staged.
+- **Mutation-tested both ways** (necessary: with 0 expected files the first half is vacuous): a file
+  that should ship but is absent fails; a `resources/vendor` present when nothing is staged fails.
+- **Tests run:** `verify:zvec-packaged-assets` **PASSED, exit 0**; `verify:packaged-walkthrough`
+  **25/0** with D-G BLOCKED; `verify:packaged-validation` 86/1 (portable aged past 180 min - use
+  `npm run package:offline` to build both artifacts together); `verify:roadmap-dashboard` 158/158.
+- **Correction:** I predicted the installer would re-enable the `latest.yml` check. It sits after
+  Part G, inside the licensed-execution block, so it remains unreachable here.
+- **Files:** `scripts/verify-zvec-packaged-assets.mjs`, `resources/dependency-manifest.{json,sig}`,
+  `docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/*`.
+- **Result:** `awkit-dz5w` closed. Tracker 227 total / 223 closed / 4 outstanding, nothing open.
+
+---
+
 ## 2026-08-18 - Claude - Package 0.1.13 and fix six artifact version pins (awkit-joa3, awkit-6e2u)
 
 - **Packaged:** `npm run package:portable` produced `dist/SpecterStudio 0.1.13.exe` (213,019,011

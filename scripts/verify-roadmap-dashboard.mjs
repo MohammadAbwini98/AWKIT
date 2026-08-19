@@ -266,8 +266,10 @@ try {
   // Then 5/222 of 227 on 2026-08-18: packaging 0.1.13 surfaced three findings (awkit-joa3 hardcoded
   // artifact pin, awkit-6e2u directory-order selection, awkit-dz5w missing vendorResources); the two
   // artifact-resolution ones are fixed, awkit-dz5w remains open.
-    "5 outstanding / 222 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 222,
+  // Then 4/223 of 227 on 2026-08-19: awkit-dz5w closed (vendorResources re-expressed against
+  // electron-builder.json). Nothing is open — the four remaining are owner-gated and externally blocked.
+    "4 outstanding / 223 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 223,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
