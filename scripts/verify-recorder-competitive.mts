@@ -25,21 +25,6 @@ import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 let passed = 0;
 let failed = 0;
 
-/*
- * Known-gap sentinels are tallied SEPARATELY from ordinary checks, and deliberately so.
- *
- * A sentinel passes when a defect is still present. Counting one inside the headline number produces
- * a line like "58/58 recorder-competitive checks passed" that reads as "recorder pointer handling is
- * green" while two interactions are silently lost — the number becomes an argument against fixing
- * them. Reported apart, the summary has to say out loud that N assertions exist only because the
- * product is wrong.
- *
- * A sentinel that FAILS still fails the run: it means the behaviour changed, and the correct response
- * is to convert it into a positive assertion, not to adjust it until it passes again.
- */
-let gapsHolding = 0;
-let gapsChanged = 0;
-const GAP_BEAD = "awkit-bxyo";
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
     passed += 1;
@@ -50,25 +35,6 @@ function check(label: string, condition: unknown, detail?: string): void {
   }
 }
 
-/**
- * Record a KNOWN-GAP sentinel: an assertion that holds only while a defect remains unfixed.
- *
- * `condition` is "the gap is still exactly as measured". True means the defect persists — reported as
- * GAP, never as a pass. False means the behaviour moved and this assertion must be rewritten as a
- * positive one; that fails the run.
- */
-function gapSentinel(label: string, condition: unknown, detail?: string): void {
-  if (condition) {
-    gapsHolding += 1;
-    console.log(`  GAP  ${label}${detail ? ` — ${detail}` : ""}`);
-  } else {
-    gapsChanged += 1;
-    console.error(
-      `  CHANGED  ${label} — the measured gap no longer holds. Convert this sentinel into a positive ` +
-        `assertion and update ${GAP_BEAD}.${detail ? ` Detail: ${detail}` : ""}`
-    );
-  }
-}
 
 interface RecordedAction {
   id?: string;
@@ -125,7 +91,11 @@ async function main(): Promise<void> {
    */
   async function captureAll(html: string, interact: (page: Page) => Promise<void>): Promise<RecordedAction[]> {
     await capture(html, interact);
-    return [...recorded];
+    // The SERVICE's list, deliberately — `recorded` accumulates one entry per binding call, so it
+    // still contains actions the service later coalesced away. For "how many actions did this gesture
+    // produce", the recorder's own list is the answer; the accumulator answers a different question
+    // (what the page emitted) and reported a double-click as ["click","dblclick"].
+    return bindingRecorder.getActions() as RecordedAction[];
   }
 
   // ── A. Generated / framework identifiers must never be used ──────────────────
@@ -297,52 +267,61 @@ async function main(): Promise<void> {
     check("keyboard: captured locator is unique", !action || unique(action), JSON.stringify(action?.locator?.quality));
   }
 
-  // ── L. DECLARED LIMITATIONS: double-click and context menu ───────────────────
+  // ── L. Pointer gesture semantics: double-click and context menu ──────────────
   /*
-   * These two record something other than what the user did, and until now nothing said so.
-   * The recorder installs listeners for click, keydown, change, pointer*, drop, popstate,
-   * hashchange, scroll and mouseover — there is no `dblclick` and no `contextmenu` listener.
+   * Both were once known-gap sentinels asserting that these interactions were LOST — a double-click
+   * stored as two clicks, a right-click stored as nothing at all. They are now positive assertions,
+   * which is the only honest end state: a sentinel that keeps passing is a defect that keeps shipping.
    *
-   * Measured, not assumed:
-   *   double-click → the page's dblclick handler fires; the recorder stores TWO click actions
-   *   right-click  → the page's contextmenu handler fires; the recorder stores NOTHING
-   *
-   * These checks exist to make the gap loud rather than to bless it. Two clicks replayed with a gap
-   * between them will not reliably re-fire `dblclick`, so a dblclick-driven UI records but does not
-   * faithfully replay; a right-click is dropped silently, with no step and no warning. If either is
-   * ever implemented properly, these checks SHOULD fail — that is the signal to update them, and the
-   * limitation is recorded in docs/testing/RECORDER_NAVIGATION_MATRIX.md.
+   * The two properties that matter, and neither is implied by the other:
+   *   - the gesture produces ONE action carrying its own semantics, and
+   *   - it does not leave the ordinary click behind, which would replay as an extra interaction.
    */
-  console.log("L — Declared limitations (double-click, context menu)");
+  console.log("L — Pointer gesture semantics (double-click, context menu)");
   {
     const html = `<button data-testid="lim-target" style="padding:20px">Target</button>`;
 
-    // Control FIRST. Every assertion below is about a COUNT, and a count of 0 or 2 is also what a
-    // recorder that has stopped capturing altogether would produce.
+    // Control first: a count of 1 is also what a recorder that has stopped capturing would produce
+    // for the gestures below if they silently emitted nothing.
     const single = await captureAll(html, (p) => p.getByTestId("lim-target").click());
     check(
-      "limits: the control single click records exactly one action (capture is alive)",
+      "pointer: an ordinary single click still records exactly one click action",
       single.length === 1 && single[0]?.type === "click",
       JSON.stringify(single.map((a) => a.type))
     );
 
     const double = await captureAll(html, (p) => p.getByTestId("lim-target").dblclick());
-    gapSentinel(
-      "double-click is captured as two ordinary clicks, not a double-click action",
-      double.length === 2 && double.every((a) => a.type === "click"),
+    check(
+      "pointer: a double-click records ONE dblclick action, not two clicks",
+      double.length === 1 && double[0]?.type === "dblclick",
       JSON.stringify(double.map((a) => a.type))
     );
     check(
-      "limits: no action type claims double-click semantics the runtime cannot replay",
-      !double.some((a) => /dbl|double/i.test(a.type)),
+      "pointer: the click that opened the double-click is absorbed, not left behind",
+      !double.some((a) => a.type === "click"),
       JSON.stringify(double.map((a) => a.type))
     );
 
     const rightClick = await captureAll(html, (p) => p.getByTestId("lim-target").click({ button: "right" }));
-    gapSentinel(
-      "right-click is discarded entirely — no context-menu action is captured",
-      rightClick.length === 0,
+    check(
+      "pointer: a right-click records ONE contextMenu action rather than being discarded",
+      rightClick.length === 1 && rightClick[0]?.type === "contextMenu",
       JSON.stringify(rightClick.map((a) => `${a.type}:${a.name}`))
+    );
+    check(
+      "pointer: the right-click gesture is not mistaken for an ordinary click",
+      !rightClick.some((a) => a.type === "click"),
+      JSON.stringify(rightClick.map((a) => a.type))
+    );
+
+    // A right-click on a page that does NOT preventDefault must record the same gesture: the user's
+    // action is identical, and whether the browser would draw its own menu is not the page's business.
+    const nativeHtml = `<button data-testid="native-target" style="padding:20px">Native</button>`;
+    const native = await captureAll(nativeHtml, (p) => p.getByTestId("native-target").click({ button: "right" }));
+    check(
+      "pointer: a right-click is recorded even when the page leaves the native menu alone",
+      native.length === 1 && native[0]?.type === "contextMenu",
+      JSON.stringify(native.map((a) => a.type))
     );
   }
 
@@ -532,17 +511,7 @@ async function main(): Promise<void> {
 
   await browser.close();
   console.log(`\n${passed}/${passed + failed} recorder-competitive checks passed`);
-  if (gapsHolding > 0 || gapsChanged > 0) {
-    console.log(
-      `${gapsHolding} known-gap sentinel(s) still holding — these are NOT passes. They assert that an ` +
-        `open defect remains present (${GAP_BEAD}: double-click and right-click are not captured ` +
-        `semantically). When that work lands they must become positive assertions.`
-    );
-    if (gapsChanged > 0) {
-      console.error(`${gapsChanged} sentinel(s) no longer describe the product — rewrite them.`);
-    }
-  }
-  process.exit(failed === 0 && gapsChanged === 0 ? 0 : 1);
+  process.exit(failed === 0 ? 0 : 1);
 }
 
 main().catch((error) => {

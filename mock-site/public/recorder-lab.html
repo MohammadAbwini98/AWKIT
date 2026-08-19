@@ -1195,5 +1195,37 @@
       // verify-recorder-gui.mts by killing the renderer or the browser process instead.
 
     </script>
+    <section data-testid="pointer-gestures" aria-label="Pointer gesture lab">
+      <h2>Pointer gestures</h2>
+      <p class="hint">
+        Expected behavior: a double-click and a right-click each produce their OWN observable result,
+        and the click counter proves two ordinary clicks are not the same interaction as one
+        double-click. Related AWKIT features: Recorder pointer semantics and replay fidelity.
+      </p>
+      <button id="pointerDblTarget" data-testid="pointer-dbl-target" type="button">Double-click me</button>
+      <button id="pointerCtxTarget" data-testid="pointer-ctx-target" type="button">Right-click me</button>
+      <button id="pointerReset" data-testid="pointer-reset" type="button">Reset gestures</button>
+      <p>Double-click result: <output data-testid="pointer-dbl-result">none</output></p>
+      <p>Context-menu result: <output data-testid="pointer-ctx-result">none</output></p>
+      <p>Plain clicks seen: <output data-testid="pointer-click-count">0</output></p>
+    </section>
+    <script>
+      (function () {
+        var dbl = document.getElementById('pointerDblTarget');
+        var ctx = document.getElementById('pointerCtxTarget');
+        var dblOut = document.querySelector('[data-testid="pointer-dbl-result"]');
+        var ctxOut = document.querySelector('[data-testid="pointer-ctx-result"]');
+        var countOut = document.querySelector('[data-testid="pointer-click-count"]');
+        var clicks = 0;
+        // The counter is what makes 'two clicks are not a double-click' observable at REPLAY, not
+        // merely at capture: a flow that replayed two clicks would move this and never set dblOut.
+        dbl.addEventListener('click', function () { clicks += 1; countOut.textContent = String(clicks); });
+        dbl.addEventListener('dblclick', function () { dblOut.textContent = 'dblclicked'; });
+        ctx.addEventListener('contextmenu', function (e) { e.preventDefault(); ctxOut.textContent = 'context-menu'; });
+        document.getElementById('pointerReset').addEventListener('click', function () {
+          clicks = 0; countOut.textContent = '0'; dblOut.textContent = 'none'; ctxOut.textContent = 'none';
+        });
+      })();
+    </script>
   </body>
 </html>

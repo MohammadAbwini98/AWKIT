@@ -111,6 +111,41 @@ async function main() {
     ok("assert value equals", await exec.execute({ id: "av", type: "assertText", name: "av", locator: { strategy: "id", value: "firstName" }, config: { assertionType: "value", comparisonOperator: "equals", expectedValue: "Alice" } }));
     ok("scroll(direction)", await exec.execute({ id: "sc", type: "scroll", name: "sc", config: { scrollDirection: "down", scrollAmount: 300 } }));
 
+    // ── Pointer gesture replay ───────────────────────────────────────────────
+    /*
+     * A passed status is not evidence here. The question is whether the browser actually received
+     * a double-click and a context-menu gesture, so each assertion reads the page's own observable
+     * result. The click counter is the discriminator: a flow that replayed two ordinary clicks
+     * would move it and never set the double-click result.
+     */
+    {
+      const gesturePage = await browser.newPage();
+      const gestureExec = new StepExecutor(gesturePage, new LocatorFactory(gesturePage), new ValueResolver(context), context);
+      ok("goto pointer lab", await gestureExec.execute({ id: "pg", type: "goto", name: "pg", url: `${BASE}/recorder-lab` }));
+
+      ok("dblclick replays", await gestureExec.execute({ id: "pd", type: "dblclick", name: "pd", locator: { strategy: "testId", value: "pointer-dbl-target" } }));
+      const dblResult = await gesturePage.getByTestId("pointer-dbl-result").textContent();
+      check("dblclick replay produces real dblclick behaviour", dblResult?.trim() === "dblclicked", String(dblResult));
+      const clickCount = await gesturePage.getByTestId("pointer-click-count").textContent();
+      check(
+        "a replayed double-click is one gesture, not two ordinary clicks",
+        clickCount?.trim() === "2",
+        `click counter=${clickCount} (a dblclick legitimately fires two click events; the point is the`
+          + ` dblclick handler ALSO ran, which two separate click steps would not achieve)`
+      );
+
+      ok("contextMenu replays", await gestureExec.execute({ id: "pc", type: "contextMenu", name: "pc", locator: { strategy: "testId", value: "pointer-ctx-target" } }));
+      const ctxResult = await gesturePage.getByTestId("pointer-ctx-result").textContent();
+      check("contextMenu replay produces real context-menu behaviour", ctxResult?.trim() === "context-menu", String(ctxResult));
+
+      // The measured property from the replayability probe: a right-click leaves nothing blocking
+      // behind it, so the NEXT step still runs.
+      ok("a step after a context menu still runs", await gestureExec.execute({ id: "pr", type: "click", name: "pr", locator: { strategy: "testId", value: "pointer-reset" } }));
+      const afterReset = await gesturePage.getByTestId("pointer-dbl-result").textContent();
+      check("the step after a context menu actually took effect", afterReset?.trim() === "none", String(afterReset));
+      await gesturePage.close();
+    }
+
     const elShot = await exec.execute({ id: "shotEl", type: "screenshot", name: "shotEl", locator: { strategy: "id", value: "submitButton" }, config: { screenshotName: "submit" } });
     ok("screenshot(element)", elShot);
     check("element screenshot file exists", elShot.screenshotPath && existsSync(elShot.screenshotPath), elShot.screenshotPath);

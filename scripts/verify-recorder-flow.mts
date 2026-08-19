@@ -216,6 +216,64 @@ const withDupes = buildRecordedFlow("Dupes", [
 ]);
 check("recorded start/end actions are not duplicated", withDupes.nodes.filter((n) => n.type === "start").length === 1 && withDupes.nodes.filter((n) => n.type === "end").length === 1);
 
+/*
+ * Pointer gestures survive conversion and a persistence round trip.
+ *
+ * Capture is proven in verify:recorder-competitive; this is the next link in the chain. A recorded
+ * gesture is worthless if buildRecordedFlow drops it or flattens it back into a click, and worse if
+ * a save/reload silently rewrites it — the user would see a double-click in the designer and get two
+ * ordinary clicks at replay, which is precisely the failure the dedicated step types exist to stop.
+ */
+{
+  const gestures = buildRecordedFlow("PointerGestures", [
+    { id: "s", type: "goto", name: "Navigate", valueSource: { type: "static", value: "http://localhost/x" } },
+    { id: "d", type: "dblclick", name: "Double click Target", locator: { strategy: "testId", value: "target" } },
+    { id: "r", type: "contextMenu", name: "Right click Target", locator: { strategy: "testId", value: "target" } }
+  ] as unknown as RecordedAction[]);
+
+  const types = gestures.nodes.map((n) => n.type);
+  check(
+    "pointer gestures survive conversion with their own step types",
+    types.includes("dblclick") && types.includes("contextMenu"),
+    JSON.stringify(types)
+  );
+  check(
+    "conversion does not flatten a double-click back into clicks",
+    !types.includes("click"),
+    JSON.stringify(types)
+  );
+
+  const dbl = gestures.nodes.find((n) => n.type === "dblclick");
+  const ctx = gestures.nodes.find((n) => n.type === "contextMenu");
+  check(
+    "each pointer gesture keeps the locator it was recorded against",
+    dbl?.locator?.value === "target" && ctx?.locator?.value === "target",
+    JSON.stringify({ dbl: dbl?.locator?.value, ctx: ctx?.locator?.value })
+  );
+
+  // Round trip through the persisted form. JSON is what actually reaches disk, so serialising and
+  // reparsing is the honest test of survival — an in-memory clone would prove nothing about storage.
+  const reloaded = JSON.parse(JSON.stringify(gestures)) as typeof gestures;
+  const reloadedTypes = reloaded.nodes.map((n) => n.type);
+  check(
+    "pointer gestures survive a save/reload round trip unchanged",
+    JSON.stringify(reloadedTypes) === JSON.stringify(types),
+    JSON.stringify(reloadedTypes)
+  );
+
+  // An older flow that predates these types must still load. The union grew; nothing was renamed.
+  const legacy = buildRecordedFlow("LegacyClicks", [
+    { id: "c1", type: "click", name: "Click A", locator: { strategy: "testId", value: "a" } },
+    { id: "c2", type: "click", name: "Click A again", locator: { strategy: "testId", value: "a" } }
+  ] as unknown as RecordedAction[]);
+  check(
+    "two ordinary clicks are still two clicks — conversion never invents a double-click",
+    legacy.nodes.filter((n) => n.type === "click").length === 2 &&
+      !legacy.nodes.some((n) => n.type === "dblclick"),
+    JSON.stringify(legacy.nodes.map((n) => n.type))
+  );
+}
+
 const passed = results.filter((r) => r.pass).length;
 console.log(`\n${passed}/${results.length} recorder-flow checks passed`);
 process.exit(passed === results.length ? 0 : 1);
