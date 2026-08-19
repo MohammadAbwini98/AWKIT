@@ -4,6 +4,27 @@
 > blocks a commit — but it must be reported truthfully and never described as passed. Release gates
 > govern release claims only. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## External-site acceptance vs deterministic regression
+
+AWKIT's verification set must run **offline**. `verify:wdu-live` is the one gate that does not: it
+drives the public WebDriverUniversity site to prove real-world compatibility. The rule that keeps
+that safe:
+
+- **Live acceptance proves compatibility.** `npm run verify:wdu-live` — 55 cases, real
+  `FlowProfile`s through the real `PlaywrightRunner`. Classified `real-browser`, and deliberately
+  excluded from the deterministic set. A WDU outage or redesign is an EXTERNAL observation, never a
+  product regression.
+- **Every product defect it finds gets a deterministic regression that does not need the internet.**
+  The five defects found in the 2026-08-19 pass are guarded by `verify:dialogs` (mock-site
+  `/dialog-lab`), `verify:assertions` (setContent fixtures) and `verify:waits` (`[W-AV*]`,
+  `[W-LC*]`, `[W-GT*]`).
+- **The matrix is the record.** `docs/testing/WDU_CHALLENGE_MATRIX.md` carries per-layer coverage and
+  states `NOT RUN` explicitly wherever there is no evidence — notably the Recorder column, which is
+  `NOT RUN` for every row. `NOT RUN` is never counted as `PASS`.
+- **Site semantics are separated from product defects** in the matrix, each with the measurement
+  that settled it, so a later reader does not "fix" the product for a third-party behaviour.
+
+
 ## Confirmed
 
 Restored Loop capsule-and-ring coverage (2026-08-15): the canonical

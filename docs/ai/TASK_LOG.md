@@ -4,6 +4,49 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - WebDriverUniversity acceptance; five product defects fixed
+
+- **Objective (`awkit-i91j`):** prove SpecterStudio automates the live WebDriverUniversity challenges
+  end to end through the product, and harden the product wherever a challenge exposed a real gap.
+- **Live inventory first.** 18 classic challenge areas, **27** AI Playground scenarios and the
+  Restaurant Booking capstone. The prompt's scope list named 26 playground scenarios; **27.
+  Accessibility Suite** is newly present and was not attempted.
+- **Five product defects found by execution, not inspection, and all fixed:**
+  - `awkit-azxy` **P0** no JS dialog handling anywhere (Playwright auto-dismissed everything, so
+    `confirm()` was always false and `prompt()` always null while the step reported PASSED).
+  - `awkit-380d` **P0** `tableHasRows`/`listHasItems` capped at 1 by a stray `.first()` on the
+    COUNTED locator, so any `minItems > 1` could never be satisfied.
+  - `awkit-dctr` **P1** `assertVisible` used `isVisible()`, which ignores its timeout — measured
+    returning false after 23ms against a 10s budget.
+  - `awkit-1ugn` **P1** no attribute assertion existed.
+  - `awkit-omlc` **P1** `goto` could not choose `waitUntil`, so one hanging subresource blocked
+    navigation entirely.
+- **Mutation evidence, measured rather than asserted:** removing the dialog arming fails 13 of 18
+  `verify:dialogs` checks; reverting `assertVisible` fails 3 of 4 `[W-AV*]`; reverting the counting
+  waits fails 3 of 5 `[W-LC*]`; disabling the attribute branch fails 5 of 12 `verify:assertions`.
+  Each gate's header records the exact surviving set and why those survivors are meaningful.
+- **Acceptance:** `verify:wdu-live` **55/55**, real `FlowProfile`s through the real
+  `PlaywrightRunner`. Five cases are negative controls that must FAIL to pass.
+- **Three failures triaged to SITE SEMANTICS, not product defects,** each settled by measurement: the
+  auto-dismiss toast hides with `opacity: 0` alone (so it is correctly never "hidden"); the
+  invisible-success node is `visibility: hidden`, where `innerText` returns `""` so the product is
+  fooled by neither assertion; and `aria-pressed` desynchronises nondeterministically live (six
+  clicks: false, false, true, true, true, false), so no live post-click value is asserted.
+- **Honest gaps, filed not hidden:** `awkit-53nb` (Recorder column NOT RUN for every row),
+  `awkit-9fvb` (persistence round trip, DataSource binding, report inspection all NOT RUN),
+  `awkit-7o5n` (no browser-storage assertion, so AI challenge 20 is inexpressible).
+- **Files:** `src/profiles/FlowProfile.ts`, `src/runner/StepExecutor.ts`,
+  `app/renderer/components/workflow/{flowDesignerTypes,flowProfileMapping,flowStepMapping,FlowNodePropertiesPanel}.tsx?`,
+  `mock-site/public/dialog-lab.html` + `server.mjs` + `README.md`,
+  `scripts/verify-{dialogs,assertions,wdu-live,waits,roadmap-dashboard}.*`,
+  `scripts/lib/verifier-classification.ts`, `package.json`,
+  `docs/testing/WDU_CHALLENGE_MATRIX.md`, `docs/ai/*`.
+- **Result:** build PASS; `verify:dialogs` 18/18; `verify:assertions` 12/12; `verify:waits` 83/83;
+  `verify:runner` 111/111; `verify:mock-site` 161/161; `verify:flow-step-mapping` 145/145;
+  `verify:legacy-compat` 152/152; `verify:validation` 151/151; classification reconciled;
+  `verify:wdu-live` 55/55.
+
+
 ## 2026-08-19 - Claude - Stop the dashboard License Issuer leaking into the packaged app; handoff
 
 - **Defect (`awkit-xd6s`, P0, filed and closed):** `app/renderer/pages/ImplementationRoadmap.tsx`

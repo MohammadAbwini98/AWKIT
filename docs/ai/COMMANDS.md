@@ -110,6 +110,15 @@ manifest signing key id, final artifact size and final artifact SHA-256.
 ```bash
 npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (20 checks)
 npm run verify:runner       # tsx scripts/verify-runner.mts — live runner checks vs the mock site
+npm run verify:dialogs      # tsx scripts/verify-dialogs.mts — native alert/confirm/prompt handling
+                            # through the real runner against mock-site /dialog-lab (18 checks)
+npm run verify:assertions   # tsx scripts/verify-assertions.mts — assertion comparison types,
+                            # including the element-attribute assertion (12 checks)
+npm run verify:wdu-live     # tsx scripts/verify-wdu-live.mts — EXTERNAL-SITE acceptance: real
+                            # FlowProfiles through the real runner against webdriveruniversity.com
+                            # (55 cases). NEEDS THE PUBLIC INTERNET and drives a third-party site, so
+                            # it is deliberately NOT part of deterministic verification. A WDU outage
+                            # is not a product regression. Matrix: docs/testing/WDU_CHALLENGE_MATRIX.md
 npm run verify:agent-routing # node scripts/verify-agent-routing.mjs — 119 checks over the
                             # deterministic routing system in tools/agents: registry integrity, the
                             # evidence vocabulary matching the ledger's own LEDGER_STATUSES, the glob

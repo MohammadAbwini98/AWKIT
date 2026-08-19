@@ -1,5 +1,28 @@
 # KNOWN_ISSUES
 
+## WebDriverUniversity findings (2026-08-19)
+
+- **A locator you intend to COUNT must never go through `waitLocator()`.** It appends `.first()`.
+  `tableHasRows` and `listHasItems` did exactly that and were therefore capped at 1 for their whole
+  lifetime (`awkit-380d`), so any `minRows`/`minItems` > 1 could never be satisfied — the wait always
+  burned its full timeout and reported a count of 1. Fixed, guarded by `verify:waits` `[W-LC*]`.
+- **`isVisible()` ignores the timeout you hand it.** It is an immediate check. Measured: `false`
+  after 23ms against a 10s timeout on an element that appeared at 1.5s. Use
+  `waitFor({ state: "visible" })` when you mean to wait (`awkit-dctr`). Anywhere `isVisible()` is
+  used inside a polling loop is fine; a one-shot call with a timeout argument is a bug.
+- **Attaching ANY `page.on("dialog")` listener suppresses Playwright's auto-dismiss**, even a
+  listener that ignores the dialog. A handler that declines to answer therefore leaves the page
+  blocked on a modal until the action times out. Anything that arms a dialog listener must answer
+  every dialog it sees, explicitly dismissing the ones it does not claim.
+- **Playwright's visibility model ignores `opacity`.** An element faded to `opacity: 0` with
+  `visibility: visible` is VISIBLE, so `elementHidden` can never fire for it. Assert the class or
+  attribute instead. Conversely `innerText` returns `""` for a `visibility: hidden` element even
+  when `textContent` is populated — which is why a text assertion cannot be fooled by an invisible
+  success message.
+- **`verify:wdu-live` is an external-site gate.** It needs the public internet and drives a
+  third-party site. Never add it to a gate that must run offline; a WDU outage is not a regression.
+
+
 ## RESOLVED: a focus rule that exists is not a focus indicator that paints (2026-08-19)
 
 Found by driving the real browser on the new License Issuer page, not by reading the CSS. Two

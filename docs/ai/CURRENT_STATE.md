@@ -1,5 +1,67 @@
 # CURRENT_STATE
 
+## WebDriverUniversity acceptance: five product defects found and fixed (2026-08-19)
+
+Driving SpecterStudio against the live WebDriverUniversity challenge site as an automation TARGET
+(never as a runtime dependency) found five real product defects. All five are fixed, each with a
+deterministic regression that does **not** need the internet.
+
+**The defects, in the order they were found.**
+
+1. **`awkit-azxy` (P0) — no JavaScript dialog handling existed anywhere.** No `page.on("dialog")`,
+   no dialog step type, no `StepExecutor` case. Playwright AUTO-DISMISSES a dialog when nothing is
+   listening, so `confirm()` always returned false and `prompt()` always returned null — while the
+   clicking step still reported PASSED. A silent wrong answer, not an error. `FlowStep` now carries
+   `dialogExpectation`, armed BEFORE the action because a dialog blocks the page synchronously.
+   A dialog the expectation does not claim is dismissed EXPLICITLY: attaching any listener suppresses
+   Playwright's auto-dismiss, so ignoring one leaves the page blocked until the action times out.
+2. **`awkit-380d` (P0) — `tableHasRows` and `listHasItems` could never count past 1.** Both built the
+   COUNTED locator with `waitLocator()`, which appends `.first()`. With an explicit row/item locator
+   `count()` was capped at 1, so any `minRows`/`minItems` > 1 could never be satisfied. Measured
+   against a list that genuinely reached 10 items in ~8s: a 30s wait still reported `items=1`.
+3. **`awkit-dctr` (P1) — `assertVisible` never waited.** It called `isVisible({ timeout })`, an
+   IMMEDIATE check that ignores the timeout it is handed. Measured: `false` after **23ms** against a
+   10s timeout on an element that appeared at 1.5s, where `waitFor({state:"visible"})` correctly
+   returned after 1849ms. `step.timeoutMs` was silently inert and the assertion raced anything that
+   appears asynchronously.
+4. **`awkit-1ugn` (P1) — no attribute assertion existed.** `assertionType` was
+   visible|text|value|count|url, so an element's attribute could not be asserted at all. Adds
+   `attribute` + `config.attributeName`. An ABSENT attribute reports as `(absent)` rather than `""`,
+   so `expectedValue: ""` cannot silently pass for an attribute the element never had.
+5. **`awkit-omlc` (P1) — `goto` could not choose its load condition.** One hanging subresource blocked
+   navigation outright. Measured: a challenge page returned its HTML in ~471ms but a webfont from a
+   CDN never completed, so the default `load` condition timed out at 30s while `domcontentloaded`
+   succeeded at once. `FlowStep.waitUntil` mirrors `PopupExpectation.waitUntil`; absent keeps the
+   Playwright default, so saved flows are unaffected.
+
+**Acceptance evidence.** `npm run verify:wdu-live` — **55 cases, 55 PASS**, executed through the real
+`PlaywrightRunner` with real `FlowProfile`s. Five are negative controls that must FAIL to pass, so a
+green run cannot come from assertions that never had teeth. The gate is classified `real-browser` and
+is deliberately **excluded** from deterministic verification: it needs the public internet.
+
+**What is NOT covered — recorded as NOT RUN, never as PASS.** The Recorder column of the matrix is
+`NOT RUN` for every row: no WDU challenge was captured through the Recorder (`awkit-53nb`). Persistence
+round-trip, DataSource binding and run-report inspection are likewise `NOT RUN` for WDU flows
+(`awkit-9fvb`) — round-trip IS proven for the new fields in the deterministic gates, but not end to end
+through the application. AI challenge 20 (localStorage Session) **cannot be expressed** at all: there
+is no browser-storage assertion (`awkit-7o5n`). Six live challenges have no executed case; all are
+listed in the matrix with the reason.
+
+**Live-site delta.** The AI Testing Playground now exposes **27** scenarios, not 26 — **27.
+Accessibility Suite** (29 components) is new and was not attempted.
+
+New scenario: `mock-site/dialog-lab`. New gates: `verify:dialogs` (18), `verify:assertions` (12),
+`verify:wdu-live` (55, external). `verify:waits` grew 72 → 83.
+
+Verified: `npm run build` clean · `verify:dialogs` **18/18** · `verify:assertions` **12/12** ·
+`verify:waits` **83/83** · `verify:runner` **111/111** · `verify:mock-site` **161/161** ·
+`verify:flow-step-mapping` **145/145** · `verify:legacy-compat` **152/152** · `verify:validation`
+**151/151** · `verify:verifier-classification` reconciled (**184** scripts) · `verify:wdu-live`
+**55/55**.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **240 total / 231 closed /
+9 outstanding**.
+
 ## Issuer page kept out of the application build; v0.1.15 released (2026-08-19)
 
 A real packaging defect, found while preparing the handoff rather than by a gate.

@@ -1,5 +1,112 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-19) - WebDriverUniversity acceptance; five product defects fixed
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 240 total / 231 closed / 9 outstanding.**
+- **Epic:** `awkit-i91j` (open — deliberately, see Remaining work). Closed this session:
+  `awkit-azxy`, `awkit-dctr`, `awkit-380d`, `awkit-1ugn`, `awkit-omlc`.
+
+### What was done
+
+SpecterStudio was driven against the live WebDriverUniversity challenge site as an automation
+TARGET. The site is never a runtime dependency: the acceptance gate is excluded from deterministic
+verification, and every defect it found has an offline regression.
+
+Five real product defects were found **by execution, not inspection**, and all five are fixed:
+
+| Bead | Sev | Defect |
+| --- | --- | --- |
+| `awkit-azxy` | P0 | No JS dialog handling existed anywhere. Playwright auto-dismissed every dialog, so `confirm()` was always false and `prompt()` always null — while the clicking step reported PASSED. |
+| `awkit-380d` | P0 | `tableHasRows`/`listHasItems` could never count past 1: the COUNTED locator was built with `.first()`. |
+| `awkit-dctr` | P1 | `assertVisible` used `isVisible()`, which ignores its timeout (measured: false after **23ms** against 10s). |
+| `awkit-1ugn` | P1 | No attribute assertion existed at all. |
+| `awkit-omlc` | P1 | `goto` could not choose `waitUntil`, so one hanging subresource blocked navigation. |
+
+**The authoritative matrix is `docs/testing/WDU_CHALLENGE_MATRIX.md`** — 55 executed cases with
+per-layer coverage, the six live challenges with no executed case, and the external-site
+observations kept separate from product defects.
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:wdu-live                    PASS 55/55        (external site; NOT deterministic)
+verify:dialogs                     PASS 18/18        (new)
+verify:assertions                  PASS 12/12        (new)
+verify:waits                       PASS 83/83        (72 before this session)
+verify:runner                      PASS 111/111
+verify:mock-site                   PASS 161/161
+verify:flow-step-mapping           PASS 145/145
+verify:legacy-compat               PASS 152/152
+verify:validation                  PASS 151/151
+verify:verifier-classification     PASS reconciled, 184 scripts
+verify:roadmap-dashboard           PASS 162/162 - "Sources agree"
+git diff --check                   CLEAN
+```
+
+Mutation-tested rather than assumed, with the measured surviving set recorded in each gate's
+header: removing the dialog arming fails **13 of 18**; reverting `assertVisible` fails **3 of 4**;
+reverting the counting waits fails **3 of 5**; disabling the attribute branch fails **5 of 12**.
+
+### Not run
+
+```text
+Recorder capture of any WDU challenge   NOT RUN - awkit-53nb. The Recorder column of the matrix is
+                                        NOT RUN for EVERY row. Largest remaining gap.
+WDU persistence round trip              NOT RUN - awkit-9fvb
+WDU DataSource / runtime-input binding  NOT RUN - awkit-9fvb
+WDU run-report inspection               NOT RUN - awkit-9fvb
+AI 20 localStorage Session              CANNOT BE EXPRESSED - awkit-7o5n, no storage assertion
+AI 17 Timing Mismatch                   NOT RUN
+AI 27 Accessibility Suite               NOT RUN - newly present on the live site, 29 components
+Accordion, Datepicker, Page Object Model  NOT RUN as standalone challenges (see the matrix)
+verify:e2e-*, packaged gates            NOT RUN - untouched by this change
+```
+
+### Remaining work
+
+1. **`awkit-53nb` — record WDU challenges through the Recorder.** This is the single largest gap and
+   the reason the epic stays open. It must assert the STORED action semantics, not merely that the
+   browser did something: a double-click stored as `dblclick` rather than two clicks, drag retaining
+   source and target, popup steps attributed to the right page alias, iframe steps carrying frame
+   context.
+2. **`awkit-9fvb`** — save/reload/edit/re-save a WDU flow through the app, bind a DataSource, and
+   inspect a real run report.
+3. **`awkit-7o5n`** — browser-storage assertion. Deliberately not attempted here: the surface needs
+   deciding (storage kind, key, JSON path, and redaction of token-shaped values).
+
+### Known risks
+
+- **`verify:wdu-live` needs the public internet and drives a third-party site.** It is classified
+  `real-browser` and is NOT in the deterministic set. Do not add it to any gate that must run
+  offline, and do not let a WDU outage read as a product regression.
+- **The live site changes.** The playground grew from 26 to 27 scenarios between the task's scope
+  list and this run. Re-inventory before trusting the matrix's challenge list.
+- **Three live behaviours are site semantics, not defects** — the opacity-only toast, the
+  `visibility: hidden` success node, and the nondeterministic `aria-pressed`. Each is recorded in the
+  matrix with the measurement that settled it. Do not "fix" the product for these.
+- **`awkit-380d` was a silent-wrong-answer class of bug.** Both counting waits had been capped at 1
+  for their whole lifetime. Anywhere else the codebase builds a locator it intends to COUNT, check it
+  is not going through `waitLocator()`.
+
+### Do not touch
+
+- **`resources/dependency-manifest.json` / `.sig`** and the `package.json` version - owned by
+  `scripts/release-portable.ps1`.
+- **`tools/roadmap/` numbers.** Derived; update the owning source. The bead pins in
+  `scripts/verify-roadmap-dashboard.mjs` were moved to **240 / 231 / 9** this session.
+- **`window.playwrightFlowStudio`** - internal preload contract.
+
+### Recommended next step
+
+`awkit-53nb`: Recorder capture against WDU, asserting stored action semantics. It is the only layer
+of the matrix with no evidence at all, and it is where the previously fragile interaction classes
+(double-click, drag, hover, click-and-hold, popup identity, iframe targeting) would actually be
+exercised rather than authored.
+
 ## HANDOFF (2026-08-19) - Dashboard License Issuer delivered; signing key rotated to key2
 
 ### Transfer
