@@ -1,5 +1,48 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-19) - Signing key rotated to key2; issuance no longer blocked
+
+### Transfer
+
+- **From:** Claude. **To:** next AI coding agent or human maintainer.
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 230 total / 225 closed / 5 outstanding.**
+
+### Delivered
+
+- New Ed25519 pair `key2`, generated on owner instruction. Private half at
+  `%LOCALAPPDATA%\SpecterStudio\issuer-keys\key2.ed25519.pkcs8.b64` (mode 0600, outside the repo and
+  outside any synced folder). Public half in `TRUSTED_KEYS`; `DEFAULT_ISSUER_KEY_ID` now `key2`.
+- The previously BLOCKED end-to-end run is **executed and passing**: a real license issued through the
+  dashboard UI for this machine's real fingerprint, verified, machine-bound, expiry-exact, and imported
+  through `LicenseService`. `verify:roadmap-license-issuer` **139/139, 0 BLOCKED**.
+
+### Three things the next person must know
+
+1. **`key1` is verification-only, not retired.** Its private half is not on this workstation. It stays
+   in `TRUSTED_KEYS` so licenses it already signed keep validating. Remove it only when every one of
+   those has expired — and if the original private half is ever recovered, decide deliberately which
+   key issues, rather than letting both.
+
+2. **A rotation is a release.** An installation running a build from before this commit does not know
+   `key2` and answers `UNKNOWN_KEY` → INVALID_SIGNATURE for anything it signs. **Do not issue a license
+   to a field machine until a build carrying the new `TRUSTED_KEYS` has reached it.** The portable/
+   installer artifacts currently in `dist/` predate this change.
+
+3. **`verify:roadmap-license-issuer` now signs with the production key on every run.** That is what
+   makes its end-to-end section real rather than asserted, but it means each run appends a line to
+   `issuance-history.jsonl` beside the key. The gate deletes the `.dat` it produces (a synthetic
+   all-`a` fingerprint no machine can match) and deliberately does **not** touch the history, which is
+   append-only truth about what the key signed. If that becomes noisy, change the retention policy —
+   never the log.
+
+### Not done, on purpose
+
+No license was installed into this installation's own `%LOCALAPPDATA%\SpecterStudio\Licensing\`. The
+import proof ran against a throwaway store, so the real profile is untouched. If you want the app
+actually licensed here, import the `.dat` in `issuer-output\` through Administration → Licensing.
+
+
 ## HANDOFF (2026-08-19) - Visual License Issuer on the roadmap dashboard
 
 ### Transfer

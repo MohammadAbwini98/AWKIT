@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Rotate the licensing signing key to key2; unblock end-to-end issuance
+
+- **Why:** the issuer reported BLOCKED because `key1`’s PRIVATE half was generated on another
+  workstation and has never been on this machine. Owner instructed generating a new pair.
+- **Done:** `keygen.mts --keyId key2` → private half to `%LOCALAPPDATA%SpecterStudioissuer-keys`
+  (mode 0600, outside the repo, outside any synced folder); public half added to `TRUSTED_KEYS`;
+  `DEFAULT_ISSUER_KEY_ID` moved to `key2`. `key1` KEPT in the trusted list as verification-only so the
+  licenses it already signed keep validating.
+- **End-to-end, executed (previously BLOCKED):** real activation request for THIS machine
+  (`DB8D…37EC`, high confidence, 7 signals) parsed through the page, 1 Hour selected, issued in one
+  press. Signature verifies against the shipped public key; bound to this machine; `EXPIRING_SOON` and
+  operable here; `MACHINE_MISMATCH` on another fingerprint; `EXPIRED` at the exact expiry instant;
+  imported through `LicenseService`/`LicenseStore` and re-read from disk. Double-submit guard exercised
+  in the same press — two extra clicks produced nothing.
+- **Assertion re-expressed, not relaxed:** the "no second signing authority" check had pinned the
+  trusted list to a single `key1`, which conflated one authority with one key and would have failed on
+  any legitimate rotation. It now asserts the dashboard and bridge carry no key list of their own, the
+  issuer key is one the app already trusts, `findTrustedKey` can still answer "no", and every entry is
+  a public Ed25519 key and nothing else.
+- **Verification:** build PASS; `verify:roadmap-license-issuer` **139/139, 0 BLOCKED**;
+  `verify:licensing` **183/183**; `verify:release-key-custody` **58/58**;
+  `verify:roadmap-dashboard` **160/160**; `verify:verifier-classification` reconciled;
+  `verify:source-hygiene` **9/9**; `validate:offline` completed. Build scan: both public halves in
+  `out/main/main.js`, no private key material in `out/`, `resources/` or `vendor/`.
+- **Carried risk:** a rotation is a RELEASE. Builds predating this commit do not know `key2` and answer
+  `UNKNOWN_KEY` → INVALID_SIGNATURE. Nothing may be issued to a field machine until a build carrying
+  the new `TRUSTED_KEYS` reaches it. `dist/` artifacts are stale in this respect.
+- **Files:** `src/licensing/crypto/TrustedKeys.ts`, `src/licensing/issuer/IssuerLocations.ts`,
+  `scripts/verify-roadmap-license-issuer.mts`, `docs/ai/*`.
+
 ## 2026-08-19 - Claude - Visual License Issuer on the Program Status dashboard
 
 - **Task:** add a developer-only "Licenses Issue" page to the roadmap dashboard that issues real

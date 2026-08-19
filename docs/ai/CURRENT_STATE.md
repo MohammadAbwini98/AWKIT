@@ -1,5 +1,63 @@
 # CURRENT_STATE
 
+## Signing key rotated to key2; dashboard issuance proven end to end (2026-08-19)
+
+The License Issuer was BLOCKED because no private signing key existed on this workstation — `key1`’s
+private half was generated elsewhere and this machine never had it. On owner instruction a new pair
+was generated and wired in, which removes the block.
+
+```text
+key2 generated, public half shipped ... IMPLEMENTED AND VERIFIED
+Issuance through the dashboard UI ...... IMPLEMENTED AND VERIFIED (production key)
+Machine binding on a REAL fingerprint .. IMPLEMENTED AND VERIFIED
+Import through LicenseService .......... IMPLEMENTED AND VERIFIED
+```
+
+**What changed.** `tools/license-issuer/keygen.mts --keyId key2` wrote the private half to
+`%LOCALAPPDATA%SpecterStudioissuer-keyskey2.ed25519.pkcs8.b64` (mode 0600, outside the repository,
+outside any synced folder). Its public half went into `TRUSTED_KEYS`, and `DEFAULT_ISSUER_KEY_ID` moved
+to `key2`. **`key1` stays in the trusted list** — licenses it already signed must keep validating; it is
+verification-only now, because its private half is not here. Confirmed in the build: both public halves
+present in `out/main/main.js`, no private key material anywhere in `out/`, `resources/` or `vendor/`.
+
+**A rotation is a release, not a local edit.** An installation running an older build does not know
+`key2` and answers `UNKNOWN_KEY` → INVALID_SIGNATURE for anything it signs. Nothing may be issued to a
+field machine until a build carrying this list reaches it.
+
+**The end-to-end run that was BLOCKED is now executed.** Driven through the real page on
+<http://127.0.0.1:4380>: a genuine activation request for THIS machine (fingerprint `DB8D…37EC`,
+confidence high, 7 signals) parsed, 1 Hour selected, reviewed, issued in one press.
+
+```text
+signature verifies against the shipped public key .. true
+bound to this machine ............................. true
+validated HERE .................................... EXPIRING_SOON, operable, 59m remaining
+validated on another fingerprint .................. MACHINE_MISMATCH
+validated at the exact expiry instant ............. EXPIRED
+imported through LicenseService/LicenseStore ...... ok, re-read from disk as local
+```
+
+`EXPIRING_SOON` rather than `VALID` is correct and not a defect: any license shorter than the 7-day
+expiring-soon window reports it, and it is an operable status. The double-submit guard was exercised in
+the same press — two further clicks during the round trip produced nothing, one file, one licence id.
+
+The import proof used a throwaway store, so the installation’s own
+`%LOCALAPPDATA%SpecterStudioLicensing` was deliberately left untouched: no license was installed
+into the real profile.
+
+**One assertion was re-expressed, not relaxed.** `verify:roadmap-license-issuer` had pinned the trusted
+list to a single `key1`, conflating "one signing authority" with "one key" — it would have failed the
+moment the product legitimately rotated. It now asserts what actually matters: the dashboard and its
+bridge carry no key list of their own, the issuer’s key is one the application already trusts,
+`findTrustedKey` can still answer "no", and every entry is a public Ed25519 key and nothing else.
+
+Verified: `npm run build` clean · `verify:roadmap-license-issuer` **139/139, 0 BLOCKED** ·
+`verify:licensing` **183/183** · `verify:release-key-custody` **58/58** ·
+`verify:roadmap-dashboard` **160/160** · `verify:verifier-classification` reconciled ·
+`verify:source-hygiene` **9/9** · `validate:offline` completed.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Visual License Issuer on the Program Status dashboard (2026-08-19)
 
 The Program Status dashboard gained a ninth view, **Licenses Issue**, so an authorized developer can
