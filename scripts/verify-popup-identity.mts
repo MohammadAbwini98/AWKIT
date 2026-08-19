@@ -732,6 +732,126 @@ async function main(): Promise<void> {
       await t.ctx.close();
     }
 
+    // ─── Suite 8b: three-page switching ───────────────────────────────────────
+    /*
+     * The Recorder hardening brief asks for three-page switching; every existing popup case tops out
+     * at two pages, and the mock-site's multiple-popup fixture was asserted only structurally.
+     *
+     * Three pages is where identity stops being a coin flip: with two, a bug that simply picks "the
+     * other page" still looks right half the time. So this opens opener → popup1 → popup2 and switches
+     * A → C → B → A, proving attribution in BOTH directions at each hop.
+     *
+     * ORDER MATTERS, and getting it wrong made the first version of this suite vacuous. The fixture's
+     * own action buttons call window.close() — clicking a popup's control CLOSES that popup. Checking
+     * "a foreign control must not resolve here" AFTER clicking the page's own control therefore passed
+     * for free, because the page no longer existed. The foreign check runs first, while the page is
+     * demonstrably alive, and the own-control check second.
+     */
+    console.log("\nSuite 8b: three pages, switched in a non-adjacent order");
+    {
+      const t = await makeRunnerTopology(browser);
+
+      const openBoth = async (): Promise<{ first: Page; second: Page }> => {
+        await t.mainPage.goto(`${BASE}/popup/multiple.html`);
+        const firstPromise = t.ctx.waitForEvent("page");
+        await t.mainPage.getByTestId("open-first-popup-button").click();
+        const first = await firstPromise;
+        await first.waitForLoadState("domcontentloaded");
+        const secondPromise = t.ctx.waitForEvent("page");
+        await t.mainPage.getByTestId("open-second-popup-button").click();
+        const second = await secondPromise;
+        await second.waitForLoadState("domcontentloaded");
+        return { first, second };
+      };
+
+      const { first: firstPopup, second: secondPopup } = await openBoth();
+      const firstAlias = derivePopupAlias(new URL(firstPopup.url()));
+      const secondAlias = derivePopupAlias(new URL(secondPopup.url()));
+
+      await test("Three pages produce three distinct identities", async () => {
+        const aliases = t.registry.aliases();
+        assert(aliases.includes(firstAlias), `first popup alias missing from ${JSON.stringify(aliases)}`);
+        assert(aliases.includes(secondAlias), `second popup alias missing from ${JSON.stringify(aliases)}`);
+        assert(
+          new Set([firstAlias, secondAlias, MAIN_PAGE_ALIAS]).size === 3,
+          "opener and its two popups must be three separate identities"
+        );
+      });
+
+      // Isolation first, across all three pages, while every page is still open. A control belonging
+      // to another page must not resolve — this is the half that proves aliases isolate pages rather
+      // than all resolving to whatever page happens to be active.
+      const isolation: Array<{ label: string; alias: string; foreign: string }> = [
+        { label: "opener", alias: MAIN_PAGE_ALIAS, foreign: "action-second-button" },
+        { label: "second popup", alias: secondAlias, foreign: "open-first-popup-button" },
+        { label: "first popup", alias: firstAlias, foreign: "action-second-button" }
+      ];
+      for (const hop of isolation) {
+        await test(`A control from another page does not resolve on the ${hop.label}`, async () => {
+          const result = await t.parent.execute(
+            makeStep({
+              type: "click",
+              pageAlias: hop.alias,
+              locator: { strategy: "testId", value: hop.foreign },
+              timeoutMs: 1500
+            })
+          );
+          assert(
+            result.status === "failed",
+            `${hop.foreign} resolved on the ${hop.label} — aliases are not isolating pages`
+          );
+        });
+      }
+
+      // Then addressability, in a NON-ADJACENT order: opener → second → first → opener.
+      await test("Switching opener → second → first → opener reaches each page in turn", async () => {
+        const hops: Array<{ label: string; alias: string; own: string }> = [
+          { label: "opener", alias: MAIN_PAGE_ALIAS, own: "opener-marker-button" },
+          { label: "second popup", alias: secondAlias, own: "action-second-button" },
+          { label: "first popup", alias: firstAlias, own: "action-first-button" },
+          { label: "opener again", alias: MAIN_PAGE_ALIAS, own: "opener-marker-button" }
+        ];
+        for (const hop of hops) {
+          const result = await t.parent.execute(
+            makeStep({ type: "click", pageAlias: hop.alias, locator: { strategy: "testId", value: hop.own } })
+          );
+          assert(
+            result.status === "passed",
+            `clicking ${hop.own} on the ${hop.label} failed: ${result.error ?? "(no error)"}`
+          );
+        }
+      });
+
+      await test("Closing one popup outright leaves its sibling and the opener addressable", async () => {
+        // Fresh pair: the hops above clicked action buttons, which self-close. Closing here is done
+        // with page.close() so the close is the ONLY thing under test.
+        const reopened = await openBoth();
+        await reopened.second.close();
+
+        const survivor = await t.parent.execute(
+          makeStep({ type: "click", pageAlias: firstAlias, locator: { strategy: "testId", value: "action-first-button" } })
+        );
+        assert(survivor.status === "passed", `sibling popup unusable after a close: ${survivor.error ?? ""}`);
+
+        const opener = await t.parent.execute(
+          makeStep({ type: "click", pageAlias: MAIN_PAGE_ALIAS, locator: { strategy: "testId", value: "opener-marker-button" } })
+        );
+        assert(opener.status === "passed", `opener unusable after a popup closed: ${opener.error ?? ""}`);
+
+        const dead = await t.parent.execute(
+          makeStep({
+            type: "click",
+            pageAlias: secondAlias,
+            locator: { strategy: "testId", value: "action-second-button" },
+            timeoutMs: 1500
+          })
+        );
+        assert(dead.status === "failed", "a closed popup must not still accept steps");
+      });
+
+      await t.ctx.close();
+    }
+
     // ─── Suite 9: no listener or pending-task growth ──────────────────────────
     console.log("\nSuite 9: Listeners and pending tasks do not accumulate");
     {

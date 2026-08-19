@@ -80,6 +80,18 @@ async function main(): Promise<void> {
     return recorded[recorded.length - 1];
   }
 
+  /**
+   * Every action an interaction produced, not just the last.
+   *
+   * `capture` returns the tail, which cannot answer "how many actions did this gesture make?" — and
+   * that count is the whole question for a double-click, where the page fires one `dblclick` and the
+   * recorder stores two clicks.
+   */
+  async function captureAll(html: string, interact: (page: Page) => Promise<void>): Promise<RecordedAction[]> {
+    await capture(html, interact);
+    return [...recorded];
+  }
+
   // ── A. Generated / framework identifiers must never be used ──────────────────
   // Two identical "Go" buttons; only the SECOND carries a generated id, so the recorder must
   // disambiguate the second one WITHOUT latching onto its unstable id.
@@ -247,6 +259,55 @@ async function main(): Promise<void> {
     console.log(`    · after fill + Enter → last action type=${action?.type} strategy=${action?.locator?.strategy}`);
     check("keyboard: an action was captured for the interaction (no crash / silent loss of the fill)", !!action, JSON.stringify(action));
     check("keyboard: captured locator is unique", !action || unique(action), JSON.stringify(action?.locator?.quality));
+  }
+
+  // ── L. DECLARED LIMITATIONS: double-click and context menu ───────────────────
+  /*
+   * These two record something other than what the user did, and until now nothing said so.
+   * The recorder installs listeners for click, keydown, change, pointer*, drop, popstate,
+   * hashchange, scroll and mouseover — there is no `dblclick` and no `contextmenu` listener.
+   *
+   * Measured, not assumed:
+   *   double-click → the page's dblclick handler fires; the recorder stores TWO click actions
+   *   right-click  → the page's contextmenu handler fires; the recorder stores NOTHING
+   *
+   * These checks exist to make the gap loud rather than to bless it. Two clicks replayed with a gap
+   * between them will not reliably re-fire `dblclick`, so a dblclick-driven UI records but does not
+   * faithfully replay; a right-click is dropped silently, with no step and no warning. If either is
+   * ever implemented properly, these checks SHOULD fail — that is the signal to update them, and the
+   * limitation is recorded in docs/testing/RECORDER_NAVIGATION_MATRIX.md.
+   */
+  console.log("L — Declared limitations (double-click, context menu)");
+  {
+    const html = `<button data-testid="lim-target" style="padding:20px">Target</button>`;
+
+    // Control FIRST. Every assertion below is about a COUNT, and a count of 0 or 2 is also what a
+    // recorder that has stopped capturing altogether would produce.
+    const single = await captureAll(html, (p) => p.getByTestId("lim-target").click());
+    check(
+      "limits: the control single click records exactly one action (capture is alive)",
+      single.length === 1 && single[0]?.type === "click",
+      JSON.stringify(single.map((a) => a.type))
+    );
+
+    const double = await captureAll(html, (p) => p.getByTestId("lim-target").dblclick());
+    check(
+      "limits: a double-click records TWO clicks, not a double-click action (declared limitation)",
+      double.length === 2 && double.every((a) => a.type === "click"),
+      JSON.stringify(double.map((a) => a.type))
+    );
+    check(
+      "limits: no action type claims double-click semantics the runtime cannot replay",
+      !double.some((a) => /dbl|double/i.test(a.type)),
+      JSON.stringify(double.map((a) => a.type))
+    );
+
+    const rightClick = await captureAll(html, (p) => p.getByTestId("lim-target").click({ button: "right" }));
+    check(
+      "limits: a right-click records NOTHING — context menus are not captured (declared limitation)",
+      rightClick.length === 0,
+      JSON.stringify(rightClick.map((a) => `${a.type}:${a.name}`))
+    );
   }
 
   // ── P. Pointer-emulated drag (bounded gesture recognizer) ────────────────────

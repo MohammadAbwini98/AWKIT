@@ -14,7 +14,13 @@
       <br/><br/>
       <button id="open-second-popup-button" data-testid="open-second-popup-button" onclick="window.open('/popup/multiple-popup-2.html', '_blank', 'width=400,height=300')">Open Second Popup</button>
       
-      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+      <br/><br/>
+      <!-- Side-effect-free opener marker. The two buttons above OPEN popups, so neither can be used to
+           prove "this step landed on the opener" without creating another page - and a second instance
+           of the same URL makes the popup alias legitimately ambiguous. This one only writes status. -->
+      <button id="opener-marker-button" data-testid="opener-marker-button" onclick="document.getElementById('status').textContent = 'opener marked'">Mark Opener</button>
+
+      <div id="status" data-testid="multiple-status" style="margin-top:20px; font-weight:bold;"></div>
     </main>
     <script>
       let count = 0;
