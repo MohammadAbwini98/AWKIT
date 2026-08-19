@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("240 issues parse", beads.stats.total === 240, `got ${beads.stats.total}`);
+  check("241 issues parse", beads.stats.total === 241, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -288,10 +288,12 @@ try {
   // dialog handling, `awkit-dctr` assertVisible never waited, `awkit-380d` counting waits capped at
   // 1, `awkit-1ugn` no attribute assertion, `awkit-omlc` goto could not choose its load condition)
   // and three honest gap trackers (`awkit-7o5n` no storage assertion, `awkit-53nb` Recorder column
-  // NOT RUN, `awkit-9fvb` persistence/data/report NOT RUN). Five defects closed in the same session.
-  // Net: total 231 -> 240, closed 226 -> 231, outstanding 5 -> 9.
-    "9 outstanding / 231 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 231,
+  // NOT RUN, `awkit-9fvb` persistence/data/report NOT RUN). Six closed in the same session — the five
+  // defects plus the suite task `awkit-7p61`, once the matrix artifact existed.
+  // Net: total 231 -> 241, closed 226 -> 232, outstanding 5 -> 9. The three gap trackers and the
+  // epic `awkit-i91j` stay OPEN on purpose: the Recorder layer has no evidence at all yet.
+    "9 outstanding / 232 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 232,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -59,7 +59,7 @@ Verified: `npm run build` clean · `verify:dialogs` **18/18** · `verify:asserti
 **151/151** · `verify:verifier-classification` reconciled (**184** scripts) · `verify:wdu-live`
 **55/55**.
 
-Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **240 total / 231 closed /
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **241 total / 232 closed /
 9 outstanding**.
 
 ## Issuer page kept out of the application build; v0.1.15 released (2026-08-19)
