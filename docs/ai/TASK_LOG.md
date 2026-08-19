@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Re-audit pointer support; fix two hardcoded-`click` conversion defects
+
+- **Verification task, re-measured rather than re-read.** Capture and replay held under an
+  independent end-to-end probe. Conversion did not: two places still treated `click` as the only
+  pointer gesture, and both were invisible to the passing suite.
+- **Defect 1 — `buildRecordedFlow`:** hover-prerequisite branch gated on `step.type === "click"`, so
+  a hover-gated `dblclick`/`contextMenu` got no injected hover step (replay against a hidden element)
+  AND an unpinnable trigger was written as `resolved` instead of `needs-review` — a false assurance.
+- **Defect 2 — `FlowNodePropertiesPanel`:** both prerequisite-resolution controls disabled unless
+  `stepType === "click"`, the exact hardcoding `PREREQUISITE_TRIAL_MODES` exists to replace. Any
+  `dblclick`/`contextMenu`/`fill`/`select` with an `unknown` prerequisite was permanently blocked
+  with no reachable UI resolution.
+- **Fix:** new `supportsHoverPrerequisite()` in `interactionPrerequisiteDecision.ts` (deliberately
+  not the `"pointer"` trial-mode set); panel asks `supportsAutomaticPrerequisiteTrial()`.
+- **Evidence upgraded:** fixtures now observe events themselves (page-observed `dblclick`/
+  `contextmenu` at CAPTURE, not just recorder output), each negative gets its own observable
+  (left-click counter on the right-click target), and a single-click control runs at replay.
+- **Files:** `src/profiles/interactionPrerequisiteDecision.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`, `mock-site/public/recorder-lab.html`,
+  `scripts/verify-recorder-competitive.mts`, `scripts/verify-recorder-flow.mts`,
+  `scripts/verify-runner.mts`, `scripts/verify-validation.mts`, `scripts/verify-flow-step-mapping.mts`,
+  `scripts/verify-flow-node-catalog-parity.mts`, `docs/testing/RECORDER_NAVIGATION_MATRIX.md`.
+- **Tests run:** build clean · recorder-competitive 64/64 · recorder-flow 50/50 · validation 151/151 ·
+  flow-step-mapping 145/145 · flow-node-catalog-parity 45/45 · runner 111/0 (live) · mock-site 161/161 ·
+  recorder 217/0 · recorder-hover 265/0 · recorder-ambiguity 74/0 · source-hygiene 9/9 ·
+  `git diff --check` clean.
+- **Not run:** two mutations (remove `contextmenu` listener; replay right-click as left click) —
+  a concurrent agent holds the `awkit-96o6` write lease and those paths sit outside its scope;
+  working around the guard was declined. Clean-machine GUI walkthrough and packaged-EXE gates
+  remain unexecuted as before. `verify:roadmap-dashboard` deferred — another agent has uncommitted
+  changes to the sources it parses.
+- **Result:** all four original items now IMPLEMENTED AND VERIFIED, each on its own evidence.
+
+---
+
 ## 2026-08-19 - Claude - Implement pointer interaction semantics (double-click, right-click)
 
 - **Closes `awkit-bxyo`.** The two interactions the Recorder silently lost are now first-class across

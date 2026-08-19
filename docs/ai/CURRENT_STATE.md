@@ -1,5 +1,62 @@
 # CURRENT_STATE
 
+## Pointer support re-audited: two conversion defects found and fixed (2026-08-19)
+
+A verification pass over the double-click / right-click tranche, deliberately re-measuring rather
+than re-reading the previous session's green output. **Capture and replay held. Conversion did not.**
+
+```text
+Double-click semantic capture ..... IMPLEMENTED AND VERIFIED
+Right-click semantic capture ...... IMPLEMENTED AND VERIFIED
+Double-click replay fidelity ...... IMPLEMENTED AND VERIFIED
+Right-click replay fidelity ....... IMPLEMENTED AND VERIFIED
+```
+
+**What the audit found that the passing suite did not.** Two places still hardcoded `click` as the
+only pointer gesture:
+
+1. `buildRecordedFlow` gated its hover-prerequisite branch on `step.type === "click"`. A hover-gated
+   double-click or right-click — a row action menu, a toolbar overflow, any control revealed on
+   hover — skipped **both** arms of that branch: no `hover` step was injected, so replay ran against
+   a still-hidden element; and a trigger that could not be pinned was written out as `resolved`
+   instead of `needs-review`. The second is the worse half: a false assurance, not a missing warning.
+2. `FlowNodePropertiesPanel` disabled both prerequisite-resolution controls unless
+   `stepType === "click"` — the exact hardcoding `PREREQUISITE_TRIAL_MODES` was created to replace,
+   still live in the renderer. Any `dblclick`, `contextMenu`, `fill` or `select` with an `unknown`
+   prerequisite showed both controls disabled, so the validator's `interactionPrerequisiteBlocked`
+   error had **no reachable resolution in the UI**.
+
+Both were proven by measurement before being fixed: at the conversion boundary a hover-gated `click`
+produced `["start","hover","click","end"]` while `dblclick` produced `["start","dblclick","end"]`.
+
+**Fix:** the policy now lives in the module that owns it — `supportsHoverPrerequisite()` in
+`interactionPrerequisiteDecision.ts`, deliberately a different set from the `"pointer"` trial modes
+(`check`/`uncheck`/`radio` arrive through the `change` listener, not a pointer event, and widening to
+them would change behaviour nothing here measures). The panel now asks
+`supportsAutomaticPrerequisiteTrial()` instead of comparing a string.
+
+**Evidence upgraded where it was weakest.** The suite asserted what the *recorder stored*, never what
+the *browser delivered* — so a `dblclick()` that degraded into two spaced clicks would have left every
+assertion arguing about the wrong premise. Fixtures now observe the events themselves, and each
+negative has its own observable: a right-click that also landed a left click is invisible to "the
+context-menu result was set", so a left-click counter catches it. A single-click control at replay
+proves an ordinary click still fires `click` and not `dblclick`.
+
+Verified: build clean · `verify:recorder-competitive` **64/64** · `verify:recorder-flow` **50/50** ·
+`verify:validation` **151/151** · `verify:flow-step-mapping` **145/145** ·
+`verify:flow-node-catalog-parity` **45/45** · `verify:runner` **111/0** live ·
+`verify:mock-site` **161/161** · `verify:recorder` **217/0** · `verify:recorder-hover` **265/0** ·
+`verify:recorder-ambiguity` **74/0** · `verify:source-hygiene` **9/9**.
+
+Mutation-tested: reverting the hover gate to click-only fails 6 checks (the `click` control still
+passing, which is the point); re-hardcoding the UI gate fails its guard; removing the `dblclick`
+listener fails capture. Two further mutations (removing the `contextmenu` listener, replaying
+right-click as a left click) were **NOT RUN** — a concurrent agent holds the write lease for
+`awkit-96o6` and those paths are outside its scope; working around the guard was declined.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## Pointer interaction semantics implemented: double-click and right-click (2026-08-19)
 
 `awkit-bxyo` is **closed**. The two interactions the Recorder silently lost are now captured,

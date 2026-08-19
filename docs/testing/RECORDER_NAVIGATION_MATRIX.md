@@ -110,7 +110,7 @@ Ordering trap worth keeping: the fixture's action buttons call `window.close()`,
 isolation *after* clicking a page's own control passes for free — the page is gone. Isolation runs
 first, while every page is demonstrably open.
 
-## H. Pointer gesture semantics — double-click and context menu (10)
+## H. Pointer gesture semantics — double-click and context menu (18)
 
 This section used to be titled *Declared limitations*, and H1/H3 were **known-gap sentinels**:
 assertions that held only while the recorder lost these two interactions. They are now ordinary
@@ -176,10 +176,38 @@ prerequisite trial modes, both node catalogs — to be updated rather than silen
 | H8 | Conversion never invents a double-click — two clicks stay two clicks | `verify:recorder-flow` | PASS |
 | H9 | Replay produces real `dblclick` and `contextmenu` behaviour in a live browser | `verify:runner` | PASS |
 | H10 | A step after a context menu still runs and takes effect | `verify:runner` | PASS |
+| H11 | The PAGE ITSELF observes a real `dblclick`/`contextmenu` at capture time | `verify:recorder-competitive` (section L) | PASS |
+| H12 | A right-click delivers no ordinary click to the page, at capture and at replay | `verify:recorder-competitive`, `verify:runner` | PASS |
+| H13 | A replayed ordinary click fires `click` and NOT `dblclick` | `verify:runner` | PASS |
+| H14 | A hover-gated pointer gesture gets its hover step injected — every gesture, not just `click` | `verify:recorder-flow` | PASS |
+| H15 | A hover-gated gesture with no pinnable trigger is `needs-review`, never silently `resolved` | `verify:recorder-flow` | PASS |
+| H16 | Both gestures validate as known, locator-requiring steps and stay blockable | `verify:validation` | PASS |
+| H17 | The prerequisite controls ask the domain which types support a trial, never hardcode `click` | `verify:flow-step-mapping` | PASS |
+| H18 | Click / Double Click / Right Click are labelled distinctly wherever a step is named | `verify:flow-node-catalog-parity` | PASS |
 
 H6 is the control and stays: every other assertion here is about a **count**, and a count of 0 or 1
 is also what a recorder that had stopped capturing altogether would produce. H8 is its mirror on the
 conversion side — coalescing that was too eager would satisfy H2 while destroying ordinary clicks.
+
+**H11–H13 exist because the recorder's own output cannot answer the question.** Asserting what the
+recorder stored proves nothing about what the browser delivered: a `dblclick()` that degraded into
+two spaced clicks, or a right-click the page never received, would leave every stored-action
+assertion arguing about the wrong premise. The fixtures therefore observe the events themselves, and
+each negative gets its own observable — a right-click that *also* landed a left click is invisible to
+"the context-menu result was set", so the left-click counter is what catches it.
+
+**H14–H15 were found by audit, not by a failing test.** The hover-prerequisite branch in
+`buildRecordedFlow` was gated on `step.type === "click"`, so a hover-gated double-click or right-click
+skipped both of its arms: no hover step was injected (replay ran against a still-hidden element) and
+an unpinnable trigger was reported as `resolved` rather than `needs-review` — a false assurance, which
+is worse than a missing warning. `click` is kept in the loop as the control: if these ever pass for
+`click` alone, the gate has regressed to type-specific again.
+
+**H17 is the same defect class in the renderer.** Both prerequisite-resolution controls were gated on
+`data.stepType !== "click"` — the exact hardcoding `PREREQUISITE_TRIAL_MODES` was introduced to
+replace. The effect was a permanent block: any `dblclick`, `contextMenu`, `fill` or `select` whose
+prerequisite came back `unknown` showed both controls disabled, so the validator's
+`interactionPrerequisiteBlocked` error had no reachable resolution in the UI.
 
 **Replay is asserted by observable effect, not by status.** A `passed` step proves the executor did
 not throw. H9 reads the fixture's own result element and its click counter, because the counter is
