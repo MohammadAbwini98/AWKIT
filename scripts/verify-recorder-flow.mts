@@ -272,6 +272,74 @@ check("recorded start/end actions are not duplicated", withDupes.nodes.filter((n
       !legacy.nodes.some((n) => n.type === "dblclick"),
     JSON.stringify(legacy.nodes.map((n) => n.type))
   );
+
+  /*
+   * ── Hover prerequisite applies to EVERY pointer gesture, not just `click` ──────────────────
+   *
+   * Found by audit, not by a failing test: the hover-prerequisite branch was gated on
+   * `step.type === "click"`, so a hover-gated double-click or right-click silently skipped BOTH of
+   * its arms. The cost was two different bugs at once — no hover step was injected, so replay ran
+   * against a still-hidden element; and an unpinnable trigger was reported as `resolved` rather
+   * than `needs-review`, which is a false assurance rather than a missing warning.
+   *
+   * `click` is kept in the loop as the control: it is the path that always worked, so if these
+   * assertions ever pass for click alone the gate has regressed to type-specific again.
+   */
+  for (const gesture of ["click", "dblclick", "contextMenu"] as const) {
+    const gated = buildRecordedFlow("Gated", [
+      {
+        id: "g1",
+        type: gesture,
+        name: "Act",
+        locator: {
+          strategy: "testId",
+          value: "row-act",
+          interaction: { requiresHover: true, hoverContainer: { strategy: "testId", value: "row-trigger" } }
+        }
+      }
+    ] as unknown as RecordedAction[]);
+    const hoverIdx = gated.nodes.findIndex((n) => n.type === "hover");
+    const gestureIdx = gated.nodes.findIndex((n) => n.type === gesture);
+    check(
+      `hover-gated ${gesture} gets an injected hover step immediately before it`,
+      hoverIdx >= 0 && hoverIdx === gestureIdx - 1,
+      JSON.stringify(gated.nodes.map((n) => n.type))
+    );
+    check(
+      `the hover step injected for ${gesture} carries the TRIGGER locator, not the gesture's own`,
+      gated.nodes[hoverIdx]?.locator?.value === "row-trigger",
+      JSON.stringify(gated.nodes[hoverIdx]?.locator?.value)
+    );
+
+    const unresolved = buildRecordedFlow("Unresolved", [
+      {
+        id: "u1",
+        type: gesture,
+        name: "Act",
+        locator: {
+          strategy: "testId",
+          value: "row-act",
+          quality: { isUnique: true },
+          interaction: {
+            requiresHover: true,
+            hoverUnresolved: true,
+            hoverReviewReason: "trigger could not be pinned"
+          }
+        }
+      }
+    ] as unknown as RecordedAction[]);
+    const step = unresolved.nodes.find((n) => n.type === gesture);
+    check(
+      `a hover-gated ${gesture} with no pinnable trigger is marked needs-review, never silently resolved`,
+      step?.locator?.resolution === "needs-review" && !!step?.locator?.reviewReason,
+      JSON.stringify({ resolution: step?.locator?.resolution, reason: step?.locator?.reviewReason })
+    );
+    check(
+      `no hover step is fabricated for ${gesture} from the hidden target itself`,
+      !unresolved.nodes.some((n) => n.type === "hover"),
+      JSON.stringify(unresolved.nodes.map((n) => n.type))
+    );
+  }
 }
 
 const passed = results.filter((r) => r.pass).length;

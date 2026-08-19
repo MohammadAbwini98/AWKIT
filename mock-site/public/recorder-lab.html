@@ -1204,26 +1204,43 @@
       </p>
       <button id="pointerDblTarget" data-testid="pointer-dbl-target" type="button">Double-click me</button>
       <button id="pointerCtxTarget" data-testid="pointer-ctx-target" type="button">Right-click me</button>
+      <button id="pointerSingleTarget" data-testid="pointer-single-target" type="button">Single-click me</button>
       <button id="pointerReset" data-testid="pointer-reset" type="button">Reset gestures</button>
       <p>Double-click result: <output data-testid="pointer-dbl-result">none</output></p>
       <p>Context-menu result: <output data-testid="pointer-ctx-result">none</output></p>
+      <p>Single-click result: <output data-testid="pointer-single-result">none</output></p>
       <p>Plain clicks seen: <output data-testid="pointer-click-count">0</output></p>
+      <p>Left clicks on the right-click target: <output data-testid="pointer-ctx-click-count">0</output></p>
     </section>
     <script>
       (function () {
         var dbl = document.getElementById('pointerDblTarget');
         var ctx = document.getElementById('pointerCtxTarget');
+        var single = document.getElementById('pointerSingleTarget');
         var dblOut = document.querySelector('[data-testid="pointer-dbl-result"]');
         var ctxOut = document.querySelector('[data-testid="pointer-ctx-result"]');
+        var singleOut = document.querySelector('[data-testid="pointer-single-result"]');
         var countOut = document.querySelector('[data-testid="pointer-click-count"]');
+        var ctxCountOut = document.querySelector('[data-testid="pointer-ctx-click-count"]');
         var clicks = 0;
+        var ctxClicks = 0;
         // The counter is what makes 'two clicks are not a double-click' observable at REPLAY, not
         // merely at capture: a flow that replayed two clicks would move this and never set dblOut.
         dbl.addEventListener('click', function () { clicks += 1; countOut.textContent = String(clicks); });
         dbl.addEventListener('dblclick', function () { dblOut.textContent = 'dblclicked'; });
         ctx.addEventListener('contextmenu', function (e) { e.preventDefault(); ctxOut.textContent = 'context-menu'; });
+        // A right-click that degraded into an ordinary left click moves THIS counter. Without it,
+        // "the context-menu result was set" is the only evidence, which a left click also leaves
+        // untouched — the negative needs its own observable, not the absence of the positive.
+        ctx.addEventListener('click', function () { ctxClicks += 1; ctxCountOut.textContent = String(ctxClicks); });
+        // The single-click control reports a LEAK loudly rather than staying silent: if a replayed
+        // ordinary click ever fired dblclick, this reads DBL-LEAK instead of clicked.
+        single.addEventListener('click', function () { singleOut.textContent = 'clicked'; });
+        single.addEventListener('dblclick', function () { singleOut.textContent = 'DBL-LEAK'; });
         document.getElementById('pointerReset').addEventListener('click', function () {
-          clicks = 0; countOut.textContent = '0'; dblOut.textContent = 'none'; ctxOut.textContent = 'none';
+          clicks = 0; ctxClicks = 0;
+          countOut.textContent = '0'; ctxCountOut.textContent = '0';
+          dblOut.textContent = 'none'; ctxOut.textContent = 'none'; singleOut.textContent = 'none';
         });
       })();
     </script>

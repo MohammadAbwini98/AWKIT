@@ -137,6 +137,18 @@ async function main() {
       ok("contextMenu replays", await gestureExec.execute({ id: "pc", type: "contextMenu", name: "pc", locator: { strategy: "testId", value: "pointer-ctx-target" } }));
       const ctxResult = await gesturePage.getByTestId("pointer-ctx-result").textContent();
       check("contextMenu replay produces real context-menu behaviour", ctxResult?.trim() === "context-menu", String(ctxResult));
+      // The negative needs its OWN observable. "The context-menu result was set" would also be
+      // consistent with a right-click that additionally landed a left click, and a degraded
+      // left-click-only replay is exactly the regression worth catching.
+      const ctxLeftClicks = await gesturePage.getByTestId("pointer-ctx-click-count").textContent();
+      check("a replayed right-click does not also land an ordinary left click", ctxLeftClicks?.trim() === "0", String(ctxLeftClicks));
+
+      // Single-click control at REPLAY, not just at capture. If an ordinary click ever started
+      // firing dblclick, every "produces real dblclick behaviour" check above would still pass
+      // while the distinction they exist to prove had quietly collapsed.
+      ok("an ordinary click still replays", await gestureExec.execute({ id: "ps", type: "click", name: "ps", locator: { strategy: "testId", value: "pointer-single-target" } }));
+      const singleResult = await gesturePage.getByTestId("pointer-single-result").textContent();
+      check("a replayed ordinary click fires click and NOT dblclick", singleResult?.trim() === "clicked", String(singleResult));
 
       // The measured property from the replayability probe: a right-click leaves nothing blocking
       // behind it, so the NEXT step still runs.

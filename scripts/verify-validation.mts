@@ -576,6 +576,36 @@ console.log("\nRule: unknown interaction prerequisite execution decision");
   }));
   expectCode("sensitive action remains blocked even with automatic decision", sensitive, "interactionPrerequisiteBlocked", { nodeId: "n-click" });
 
+  /*
+   * The trial contract is a property of the STEP TYPE, and `dblclick`/`contextMenu` are pointer
+   * gestures exactly as `click` is. Asserted in both directions per type, because a rule that
+   * accepted everything and a rule that rejected everything would each satisfy one half alone.
+   */
+  for (const gesture of ["dblclick", "contextMenu"] as const) {
+    const runnable = validateFlowDefinition(baseFlow({
+      nodes: [step("n-start", "start"), step(`n-${gesture}`, gesture, { locator }), step("n-end", "end")]
+    }));
+    expectNoCode(`${gesture} with an automatic trial is runnable, not blocked`, runnable, "interactionPrerequisiteBlocked");
+    expectNoCode(`${gesture} with a valid locator raises no locator error`, runnable, "locatorNeedsReview");
+    expectNoCode(`${gesture} is a known step type, not an unsupported one`, runnable, "unknownStepType");
+    expectNoCode(`${gesture} does not report a missing locator`, runnable, "missingRequiredLocator");
+
+    const stillBlocked = validateFlowDefinition(baseFlow({
+      nodes: [
+        step("n-start", "start"),
+        step(`n-${gesture}`, gesture, { locator: { ...locator, executionDecision: { schemaVersion: 1, status: "blocked" } } }),
+        step("n-end", "end")
+      ]
+    }));
+    expectCode(`${gesture} with a blocked decision is still blocked`, stillBlocked, "interactionPrerequisiteBlocked", { nodeId: `n-${gesture}` });
+
+    // The locator requirement is real for these types, not inherited by accident.
+    const noLocator = validateFlowDefinition(baseFlow({
+      nodes: [step("n-start", "start"), step(`n-${gesture}`, gesture), step("n-end", "end")]
+    }));
+    expectCode(`${gesture} without a locator is rejected`, noLocator, "missingRequiredLocator", { nodeId: `n-${gesture}` });
+  }
+
   const legacy = validateFlowDefinition(baseFlow({
     nodes: [step("n-start", "start"), step("n-click", "click", {
       locator: {

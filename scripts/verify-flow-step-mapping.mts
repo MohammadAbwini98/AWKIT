@@ -550,6 +550,30 @@ console.log("\nUnknown interaction prerequisite decision lifecycle (awkit-aek):"
   check("Designer exposes reason-bound confirmation control", panelSource.includes('data-testid="confirm-no-prerequisite"'));
   check("Designer exposes re-record prerequisite control", panelSource.includes('data-testid="rerecord-prerequisite"'));
   check("old duplicate prerequisite-as-locator warning is removed", !panelSource.includes("Interaction prerequisite unresolved — execution blocked"));
+
+  /*
+   * The resolution controls must not re-acquire a hardcoded step type.
+   *
+   * They were gated on `data.stepType !== "click"` while the domain had already moved trial
+   * authority into PREREQUISITE_TRIAL_MODES — the exact hardcoding that module's own comment says
+   * it exists to replace. The effect was a permanent block: a `dblclick`, `contextMenu`, `fill` or
+   * `select` whose prerequisite came back `unknown` showed BOTH controls disabled, so the
+   * validator's `interactionPrerequisiteBlocked` error had no reachable resolution in the UI.
+   *
+   * Asserted as a pair. "Uses the helper" alone would still pass if a type comparison were added
+   * back beside it, and "no type comparison" alone would pass if the gate were deleted entirely.
+   */
+  check(
+    "prerequisite controls ask the domain which types support a trial",
+    panelSource.includes("supportsAutomaticPrerequisiteTrial") && panelSource.includes("trialSupported")
+  );
+  check(
+    "prerequisite controls do not re-hardcode a step type",
+    !/stepType\s*[!=]==?\s*"click"/.test(panelSource),
+    (panelSource.match(/stepType\s*[!=]==?\s*"click"/) ?? []).join()
+  );
+  // Non-vacuity: the two assertions above are only meaningful if the file was actually read.
+  check("the panel source guard actually read the panel", panelSource.length > 2000 && panelSource.includes("interaction-prerequisite-controls"));
 }
 
 console.log("\nRecorder popup/window metadata survives the designer round trip (awkit-4t9, FR-C1 prerequisite):");

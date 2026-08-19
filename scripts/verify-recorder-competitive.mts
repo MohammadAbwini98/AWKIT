@@ -279,7 +279,26 @@ async function main(): Promise<void> {
    */
   console.log("L — Pointer gesture semantics (double-click, context menu)");
   {
-    const html = `<button data-testid="lim-target" style="padding:20px">Target</button>`;
+    /*
+     * The fixture OBSERVES the events itself, independently of the recorder.
+     *
+     * Asserting only the recorder's output answers "what did the recorder store", never "did the
+     * browser actually deliver the gesture we think we performed". Those come apart: a `dblclick()`
+     * that silently degraded into two spaced clicks, or a right-click the page never received, would
+     * leave the recorder assertions below arguing about the wrong premise. Each gesture therefore
+     * proves the page saw it BEFORE the stored actions are examined.
+     */
+    const html =
+      `<button data-testid="lim-target" style="padding:20px">Target</button>` +
+      `<output data-testid="obs-dbl">none</output><output data-testid="obs-ctx">none</output>` +
+      `<output data-testid="obs-click">0</output>` +
+      `<script>(function(){var n=0,t=document.querySelector('[data-testid="lim-target"]');` +
+      `var q=function(s){return document.querySelector('[data-testid="'+s+'"]')};` +
+      `t.addEventListener('click',function(){n++;q('obs-click').textContent=String(n)});` +
+      `t.addEventListener('dblclick',function(){q('obs-dbl').textContent='dblclick'});` +
+      `t.addEventListener('contextmenu',function(e){e.preventDefault();q('obs-ctx').textContent='contextmenu'});` +
+      `})();</script>`;
+    const observed = async (id: string): Promise<string> => (await page.getByTestId(id).textContent())?.trim() ?? "";
 
     // Control first: a count of 1 is also what a recorder that has stopped capturing would produce
     // for the gestures below if they silently emitted nothing.
@@ -289,8 +308,10 @@ async function main(): Promise<void> {
       single.length === 1 && single[0]?.type === "click",
       JSON.stringify(single.map((a) => a.type))
     );
+    check("pointer: the control click fired no dblclick in the page", (await observed("obs-dbl")) === "none", await observed("obs-dbl"));
 
     const double = await captureAll(html, (p) => p.getByTestId("lim-target").dblclick());
+    check("pointer: the page itself observed a real dblclick during capture", (await observed("obs-dbl")) === "dblclick", await observed("obs-dbl"));
     check(
       "pointer: a double-click records ONE dblclick action, not two clicks",
       double.length === 1 && double[0]?.type === "dblclick",
@@ -303,6 +324,12 @@ async function main(): Promise<void> {
     );
 
     const rightClick = await captureAll(html, (p) => p.getByTestId("lim-target").click({ button: "right" }));
+    check("pointer: the page itself observed a real contextmenu during capture", (await observed("obs-ctx")) === "contextmenu", await observed("obs-ctx"));
+    check(
+      "pointer: the right-click delivered no ordinary click to the page",
+      (await observed("obs-click")) === "0",
+      await observed("obs-click")
+    );
     check(
       "pointer: a right-click records ONE contextMenu action rather than being discarded",
       rightClick.length === 1 && rightClick[0]?.type === "contextMenu",

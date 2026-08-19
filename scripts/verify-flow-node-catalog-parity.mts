@@ -229,5 +229,24 @@ check(
 );
 check("the source guard actually read the catalog module", catalogSource.includes("getFlowNodeCatalogItem"));
 
+console.log("\nPointer gestures are named distinctly wherever a step is labelled:");
+/*
+ * Run reports and live history carry `stepType` verbatim, so the three gestures are already distinct
+ * in the execution record. This guards the HUMAN-facing half: the catalog owns every label the
+ * designer and reports render, and a pointer gesture that displayed as a bare "Click" would make
+ * execution evidence read as though an ordinary click had run.
+ */
+{
+  const labels = new Map(
+    (["click", "dblclick", "contextMenu"] as const).map((type) => [type, getFlowNodeCatalogItem(type).label])
+  );
+  check("Click, Double Click and Right Click all have distinct labels", new Set(labels.values()).size === 3, JSON.stringify([...labels]));
+  check("a double-click is not labelled as a plain Click", labels.get("dblclick") !== labels.get("click"), labels.get("dblclick"));
+  check("a right-click is not labelled as a plain Click", labels.get("contextMenu") !== labels.get("click"), labels.get("contextMenu"));
+  check("the double-click label says so in words", /double/i.test(labels.get("dblclick") ?? ""), labels.get("dblclick"));
+  check("the right-click label says so in words", /right/i.test(labels.get("contextMenu") ?? ""), labels.get("contextMenu"));
+  check("neither gesture is labelled Unknown Step", ![...labels.values()].includes(UNKNOWN_FLOW_NODE_LABEL), JSON.stringify([...labels.values()]));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
