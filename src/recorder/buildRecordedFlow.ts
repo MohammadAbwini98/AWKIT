@@ -4,7 +4,8 @@ import { isPositionalLocator } from "../profiles/locatorApproval";
 import {
   automaticInteractionDecision,
   isPrerequisiteOnlyLocatorReview,
-  supportsAutomaticPrerequisiteTrial
+  supportsAutomaticPrerequisiteTrial,
+  supportsHoverPrerequisite
 } from "../profiles/interactionPrerequisiteDecision";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
@@ -330,7 +331,10 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       step.config = { popupAlias: alias };
     }
 
-    if (action.locator?.interaction?.requiresHover && step.type === "click") {
+    // Every pointer gesture, not just `click`. A hover-gated double-click or right-click that skipped
+    // this branch got no hover step and no review flag: it replayed against a still-hidden element,
+    // and an unpinnable trigger was reported as `resolved` — a false assurance rather than a warning.
+    if (action.locator?.interaction?.requiresHover && supportsHoverPrerequisite(step.type)) {
       const hc = action.locator.interaction.hoverContainer;
       if (hc && typeof hc.strategy === "string" && typeof hc.value === "string") {
         // A causal hover trigger was attributed at record time. Inject an explicit, pre-resolved

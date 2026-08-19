@@ -10,7 +10,11 @@ import { defaultOracleNodeConfig } from "./flowDesignerTypes";
 import { locatorContainerChain, type AsyncCompletionMode, type LoaderCompletion, type OracleNodeConfig, type WaitCondition, type WaitHttpMethod } from "@src/profiles/FlowProfile";
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
 import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
-import { createInteractionDecisionBinding, isSensitiveInteractionStep } from "@src/profiles/interactionPrerequisiteDecision";
+import {
+  createInteractionDecisionBinding,
+  isSensitiveInteractionStep,
+  supportsAutomaticPrerequisiteTrial
+} from "@src/profiles/interactionPrerequisiteDecision";
 import { useNavigation } from "../../state/navigation";
 
 /** Completion-policy options for the Async Completion editor. */
@@ -682,6 +686,13 @@ export function FlowNodePropertiesPanel({
                         }
                       };
                       const sensitive = isSensitiveInteractionStep(decisionStep);
+                      // Ask the domain which step types can be proven without acting, rather than
+                      // hardcoding `click`. That hardcoding is the documented reason
+                      // PREREQUISITE_TRIAL_MODES exists, and it had survived here: a dblclick,
+                      // contextMenu, fill or select whose prerequisite came back `unknown` showed
+                      // both resolution controls permanently disabled, so the validator's
+                      // `interactionPrerequisiteBlocked` error could never be cleared.
+                      const trialSupported = supportsAutomaticPrerequisiteTrial(decisionStep);
                       return (
                         <div className="locator-approval-form" data-testid="interaction-prerequisite-controls">
                           <span>
@@ -693,7 +704,7 @@ export function FlowNodePropertiesPanel({
                             type="button"
                             className="toolbar-button"
                             data-testid="try-direct-action"
-                            disabled={sensitive || !data.locatorIdentity || data.stepType !== "click"}
+                            disabled={!trialSupported || !data.locatorIdentity}
                             onClick={() => set({
                               locatorExecutionDecision: {
                                 schemaVersion: 1,
@@ -717,7 +728,7 @@ export function FlowNodePropertiesPanel({
                             type="button"
                             className="toolbar-button"
                             data-testid="confirm-no-prerequisite"
-                            disabled={sensitive || !data.locatorIdentity || data.stepType !== "click" || prerequisiteReason.trim().length < 8}
+                            disabled={!trialSupported || !data.locatorIdentity || prerequisiteReason.trim().length < 8}
                             onClick={() => {
                               const reason = prerequisiteReason.trim();
                               set({

@@ -95,6 +95,28 @@ export function interactionTrialMode(step: DecisionStep): "pointer" | "predicate
   return PREREQUISITE_TRIAL_MODES[step.type];
 }
 
+/**
+ * Step types the Recorder attributes a HOVER PREREQUISITE to, and which therefore take an injected
+ * hover step (or a review flag) during Flow conversion.
+ *
+ * These are the gestures produced by a raw pointer event on the target itself — the recorder's
+ * `click`, `dblclick` and `contextmenu` listeners all run the same `captureInteraction`, so all
+ * three can arrive carrying `requiresHover`. Conversion must treat them alike: a hover-gated
+ * double-click that gets no hover step replays against a hidden element, and one whose trigger
+ * could not be pinned must say so rather than claim `resolved`.
+ *
+ * Deliberately NOT the same set as the `"pointer"` trial modes above. `check`/`uncheck`/`radio`
+ * arrive through the `change` listener rather than a pointer event, and widening injection to them
+ * would change behaviour no measurement here covers. Trial authority and hover attribution are
+ * separate questions about the same step.
+ */
+const HOVER_PREREQUISITE_STEP_TYPES: ReadonlySet<string> = new Set(["click", "dblclick", "contextMenu"]);
+
+/** Whether a hover prerequisite recorded against this step type is honoured during conversion. */
+export function supportsHoverPrerequisite(stepType: string): boolean {
+  return HOVER_PREREQUISITE_STEP_TYPES.has(stepType);
+}
+
 export function supportsAutomaticPrerequisiteTrial(step: DecisionStep): boolean {
   return interactionTrialMode(step) !== undefined && !isSensitiveInteractionStep(step);
 }
