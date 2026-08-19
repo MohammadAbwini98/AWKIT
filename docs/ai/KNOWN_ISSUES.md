@@ -1,5 +1,30 @@
 # KNOWN_ISSUES
 
+## RESOLVED: a focus rule that exists is not a focus indicator that paints (2026-08-19)
+
+Found by driving the real browser on the new License Issuer page, not by reading the CSS. Two
+controls were focusable with **no visible indicator at all**, and both rules looked correct:
+
+1. **Native radio / checkbox.** Chrome does not paint a `box-shadow` on a control that keeps its UA
+   appearance — the computed value comes back `rgba(0,0,0,0) 0px 0px 0px 0px`. `global.css` already
+   clears the UA outline for every `input:focus-visible`, so a shadow-only rule removed the only
+   indicator and replaced it with nothing. **Use an `outline` for radios and checkboxes.**
+2. **Visually-hidden file input.** Its ring is drawn on the visible label via
+   `.rm-issuer-file:focus-visible + .rm-issuer-file-label`, which only matches input-then-label. The
+   DOM had them the other way round, so the selector never matched.
+
+This is the same shape as the recurring `aria-modal`-without-focus-contract defect: the a11y contract
+belongs to the CONCEPT, and each new component re-implements it from scratch. `.rm-issuer-radio` was
+the fourth place in this repository to get keyboard focus wrong in its own way.
+
+**Both are now guarded** by `verify:roadmap-license-issuer`, and both guards fail against the old CSS
+and the old DOM order. Note the guards are static: they assert the outline and the sibling order,
+which is what the browser measurement showed to be the deciding factors. A static check still cannot
+prove a pixel was painted — the measurement is recorded here because it is the real evidence.
+
+**Note for the app itself:** `global.css` clearing the UA outline for ALL inputs means every native
+radio and checkbox in SpecterStudio depends on a replacement ring existing. That was not audited here.
+
 ## OPEN: two issuer implementations, one signing contract (`awkit-vf9r`, 2026-08-19)
 
 `tools/license-issuer/issue-license.mts` re-implements serial-number generation, the license payload

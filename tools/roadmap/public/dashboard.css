@@ -1178,9 +1178,15 @@ html[data-roadmap-standalone] #root {
   overflow-wrap: anywhere;
 }
 
+/*
+ * A native radio/checkbox keeps its UA appearance, and Chrome does not paint a box-shadow on one —
+ * the computed value comes back transparent. global.css already clears the UA outline for every
+ * input, so the first draft of this rule left these controls focusable with NO visible indicator at
+ * all. Measured, not assumed. The ring here must therefore be an outline.
+ */
 .rm-issuer-radio input:focus-visible {
-  box-shadow: var(--awkit-focus-ring);
-  outline: none;
+  outline: 0.125rem solid var(--awkit-accent);
+  outline-offset: 0.125rem;
 }
 
 .rm-issuer-custom {

@@ -21,7 +21,7 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   checks (proving the HTTP tests really traverse the spawned bridge); ignoring the requested
   `validFromUtc` fails 4. The private-key scanner was itself fixed after it matched its own source —
   it now needs a whole PEM block or a PKCS8 Ed25519 prefix, and asserts its needles are non-vacuous.
-- **Verification:** build PASS; `verify:roadmap-license-issuer` **128/128** (new);
+- **Verification:** build PASS; `verify:roadmap-license-issuer` **130/130** (new);
   `verify:licensing` **183/183**; `verify:release-key-custody` **58/58**;
   `verify:roadmap-dashboard` **160/160**; `verify:verifier-classification` reconciled;
   `verify:source-hygiene` **9/9**; `validate:offline` completed; `git diff --check` clean.

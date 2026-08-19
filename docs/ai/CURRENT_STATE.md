@@ -35,7 +35,7 @@ the key and the output folder", used by both `app/main/licensing/issuerRuntime.t
 the dashboard can never report ready against a key the app would not use. `LICENSING_PRODUCT` moved to
 `src/licensing/LicenseTypes.ts` for the same reason and is re-exported from `licenseRuntime`.
 
-**What was proven, and how.** `verify:roadmap-license-issuer` **128/128** drives the real server on an
+**What was proven, and how.** `verify:roadmap-license-issuer` **130/130** drives the real server on an
 ephemeral port over real HTTP, spawning the real bridge — mutating `shell: false` to `true` breaks seven
 checks, which is what shows the chain is real rather than asserted. Issuance semantics (signature,
 binding, exact timestamps, MACHINE_MISMATCH, expiry to the minute, import through
@@ -43,15 +43,24 @@ binding, exact timestamps, MACHINE_MISMATCH, expiry to the minute, import throug
 set** — real signatures over real canonical bytes, the same technique `verify:licensing` already uses.
 Three mutations were run and all failed as intended.
 
+**Two accessibility defects were found by driving the real browser, and fixed.** A native radio or
+checkbox does not paint a `box-shadow` in Chrome, and `global.css` already clears the UA outline for
+every input — so the first draft left the validity radios and the entitlement checkboxes focusable
+with no visible indicator at all. Separately, the visually-hidden file input sat *after* the label
+that draws its ring, so the adjacent-sibling rule never matched. Both rules read as correct; only
+measurement showed otherwise. Both are now guarded, and the guards fail against the old CSS and the
+old DOM order. Live re-check: keyboard focus paints a 2px accent outline on the radios and the
+checkboxes, and the focus ring on the import label.
+
 **BLOCKED, stated plainly.** No authorized signing key exists at
 `%LOCALAPPDATA%SpecterStudioissuer-keyskey1.ed25519.pkcs8.b64` and `SPECTER_ISSUER_KEY` is unset on
 this machine, so no license was issued with the production key and none was imported into a real
 installation. The verifier asserts that state positively — the full chain must answer exactly
 `ISSUER_KEY_MISSING` and write nothing — rather than skipping the case.
 
-Verified: `npm run build` clean · `verify:roadmap-license-issuer` **128/128** ·
+Verified: `npm run build` clean · `verify:roadmap-license-issuer` **130/130** ·
 `verify:licensing` **183/183** · `verify:release-key-custody` **58/58** ·
-`verify:roadmap-dashboard` **160/160** · `verify:verifier-classification` reconciled (183 scripts) ·
+`verify:roadmap-dashboard` **160/160** · `verify:verifier-classification` reconciled (182 scripts, 35 integration) ·
 `verify:source-hygiene` **9/9** · `validate:offline` completed.
 
 Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.

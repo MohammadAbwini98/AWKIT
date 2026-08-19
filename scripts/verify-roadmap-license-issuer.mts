@@ -225,6 +225,28 @@ try {
       return labelled.every((id) => issuerViewSrc.includes(`for: "${id}"`) && issuerViewSrc.includes(`id: "${id}"`));
     })()
   );
+  // Both of these guard a defect that was PRESENT and found by driving a real browser, not by
+  // reading the CSS. A focus rule that exists is not a focus indicator that paints.
+  check(
+    "radio and checkbox focus is an outline, not a box-shadow",
+    /\.rm-issuer-radio input:focus-visible \{[^}]*outline: [^;]*solid/.test(cssSrc) &&
+      !/\.rm-issuer-radio input:focus-visible \{[^}]*outline: none/.test(cssSrc),
+    "a native radio keeps its UA appearance, so Chrome does not paint a box-shadow on one; global.css " +
+      "already clears the UA outline, so a shadow-only rule leaves the control with no indicator at all"
+  );
+  check(
+    "the visually-hidden file input precedes the label that draws its focus ring",
+    (() => {
+      const actions = issuerViewSrc.indexOf('el("div", { class: "rm-issuer-actions" }, [\n      refs.parseButton,');
+      if (actions < 0) return false;
+      const block = issuerViewSrc.slice(actions, actions + 400);
+      return (
+        block.indexOf("refs.fileInput") < block.indexOf("rm-issuer-file-label") &&
+        /\.rm-issuer-file:focus-visible \+ \.rm-issuer-file-label/.test(cssSrc)
+      );
+    })(),
+    "the adjacent-sibling rule only matches input-then-label; reversed, the control shows nothing"
+  );
   check(
     "the radio group is a fieldset with a legend and the status regions are live",
     issuerViewSrc.includes('el("fieldset"') &&

@@ -382,13 +382,16 @@ function build() {
     ]),
     el("label", { class: "rm-issuer-label", for: "rm-issuer-request", text: "Activation request (JSON)" }),
     refs.requestInput,
+    // The input precedes its label on purpose: the visible focus ring for a visually-hidden file
+    // control is drawn on the label through an adjacent-sibling rule, which only matches this way
+    // round. Reversed, the control stays focusable and shows nothing at all — measured, not assumed.
     el("div", { class: "rm-issuer-actions" }, [
       refs.parseButton,
+      refs.fileInput,
       el("label", { class: "rm-button rm-issuer-file-label", for: "rm-issuer-file" }, [
         icon("file-text", 14),
         el("span", { text: "Import file…" })
-      ]),
-      refs.fileInput
+      ])
     ]),
     refs.machineGrid,
     refs.machineEmpty

@@ -13,7 +13,7 @@
 - `awkit-96o6`: **Licenses Issue** view on the Program Status dashboard. Parses an activation request,
   offers 1 Hour / 1 Day / 7 / 30 / 90 / 180 Days / 1 Year / Custom validity, reviews the exact UTC
   window, and issues through the existing `LicenseIssuerService` in a child process.
-  `verify:roadmap-license-issuer` **128/128**, three mutations proven to fail.
+  `verify:roadmap-license-issuer` **130/130**, three mutations proven to fail.
 
 ### The one thing that is NOT proven, and cannot be from here
 
