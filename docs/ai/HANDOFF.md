@@ -1,5 +1,56 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-19) - Visual License Issuer on the roadmap dashboard
+
+### Transfer
+
+- **From:** Claude. **To:** next AI coding agent or human maintainer.
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 230 total / 225 closed / 5 outstanding.**
+
+### Delivered
+
+- `awkit-96o6`: **Licenses Issue** view on the Program Status dashboard. Parses an activation request,
+  offers 1 Hour / 1 Day / 7 / 30 / 90 / 180 Days / 1 Year / Custom validity, reviews the exact UTC
+  window, and issues through the existing `LicenseIssuerService` in a child process.
+  `verify:roadmap-license-issuer` **128/128**, three mutations proven to fail.
+
+### The one thing that is NOT proven, and cannot be from here
+
+**No authorized signing key exists on this workstation.** The issuer-keys folder under
+`%LOCALAPPDATA%\SpecterStudio\` does not exist and `SPECTER_ISSUER_KEY` is unset, so the
+production-key path is **BLOCKED**: no license was signed with `key1`, imported into a real
+installation, or used to run a protected workflow.
+
+Whoever holds the real key should run this once and record the result:
+
+1. On the target machine, export an activation request (Administration -> Licensing).
+2. `npm run roadmap`, open <http://127.0.0.1:4380>, choose **Licenses Issue**.
+3. Paste the request, **Parse Request**, pick **1 Hour**, review, **Issue License**.
+4. **Download License**, import it on the target machine, confirm VALID and the exact expiry.
+5. Confirm a protected workflow runs, and that the same file reports `MACHINE_MISMATCH` elsewhere.
+
+Do not substitute a test key to close this out — a second signing authority is the one thing this
+design refuses.
+
+### Two pre-existing conditions this task deliberately did not change
+
+1. **Two issuer implementations still exist.** `tools/license-issuer/issue-license.mts` (the original
+   CLI) re-implements canonicalisation, serial generation and the payload shape instead of calling
+   `LicenseIssuerService`. The new bridge does NOT add a third — it calls the service — but the CLI
+   remains a drifting duplicate. Filed as `awkit-vf9r`.
+2. **The packaged app does contain an issuer UI** (`app/renderer/pages/admin/LicenseIssuerPage.tsx`,
+   `issuer.ipc.ts`), gated behind the exclusive `Issuer` role plus re-auth. That predates this task
+   (`awkit-0tn`) and was left alone; the dashboard issuer adds no production route, IPC, feature
+   flag, command-line switch, or keyboard shortcut of its own.
+
+### One operational note
+
+`tools/roadmap/server.mjs` now also honours `PORT` when `ROADMAP_PORT` is unset, so a second dashboard
+can run beside one already holding 4380. **Restart `npm run roadmap` after pulling this**: the running
+process serves the old route allowlist, and the new page's API calls will 404 until it does.
+
+
 ## HANDOFF (2026-08-16) - Recorder hardening tranche 1 of N complete
 
 ### Transfer

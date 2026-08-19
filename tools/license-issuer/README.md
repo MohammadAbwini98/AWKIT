@@ -10,6 +10,38 @@ For the UI workflow, a Super User creates the one allowed `Issuer` account. That
 license**. The generated `.dat` is written automatically to
 `%LOCALAPPDATA%\SpecterStudio\issuer-output\`.
 
+## Three front ends, one issuer
+
+| Front end | Where | Calls |
+|---|---|---|
+| In-app **License Issuer** page | packaged app, exclusive `Issuer` role + re-auth | `LicenseIssuerService` |
+| **Licenses Issue** on the Program Status dashboard | `npm run roadmap`, developer tooling | `roadmap-bridge.mts` -> `LicenseIssuerService` |
+| `issue-license.mts` | this folder | its own payload construction (see below) |
+
+`roadmap-bridge.mts` is the trusted adapter the dashboard drives. It exists because the dashboard
+server is plain Node and cannot import TypeScript — not because signing needed a second home. It
+reads exactly one thing from `argv` (a command from a four-name allowlist), takes its JSON payload on
+**stdin**, and writes one JSON line to stdout: a value, or a reason CODE. Never a message, a path, or
+a stack. Run it by hand only for diagnosis:
+
+```
+echo {} | node node_modules/tsx/dist/cli.mjs tools/license-issuer/roadmap-bridge.mts readiness
+```
+
+> **`issue-license.mts` is a known duplicate** (`awkit-vf9r`). It builds the license payload itself
+> rather than calling `LicenseIssuerService`, so it has no key-custody check, no private/public key
+> match, no atomic write and no validity bounds. Prefer either UI. When you change issuance, change
+> the service — do not add a fourth implementation.
+
+## Exact validity windows
+
+`--valid-from` / `--expires` on the CLI, and every preset on the dashboard, resolve to the signed
+`validFromUtc` / `expiresAtUtc` pair. The dashboard resolves its presets **before** sending, so the
+timestamps shown on the review panel are the ones that get signed — including the 1 Hour preset, which
+a day count could not express. The service accepts exactly one of `validityDays` or `validityWindow`,
+truncates both boundaries to the minute, and then requires at least one minute, at most 3650 days, and
+a start no more than 365 days in the future.
+
 ## Key custody (do NOT violate)
 
 - The private key is **never** committed to source control, placed in `resources/`, `.env`, SQLite, or

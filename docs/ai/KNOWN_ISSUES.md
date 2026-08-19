@@ -1,5 +1,24 @@
 # KNOWN_ISSUES
 
+## OPEN: two issuer implementations, one signing contract (`awkit-vf9r`, 2026-08-19)
+
+`tools/license-issuer/issue-license.mts` re-implements serial-number generation, the license payload
+shape and the issuance-history record rather than calling `LicenseIssuerService`. The in-app Issuer
+console and the new dashboard bridge both call the service; the CLI does not. Nothing forces the two
+to agree, so a change to canonicalisation, an added payload field, or a bounds change lands in one and
+not the other — and the CLI is the looser of the two (no custody check, no key/public-key match, no
+atomic write, no bounded validity).
+
+**Do not add a third.** When touching issuance, extend the service and let callers adapt.
+
+## FRAGILE: the roadmap dashboard server must be restarted after a `tools/roadmap` change (2026-08-19)
+
+Routes are an explicit allowlist built at module load. A dashboard process started before a new route
+existed answers plain-text `404` for it, and the page surfaces `readApiPayload`’s restart message rather
+than a real error. This bit during the License Issuer work: the owner’s server on 4380 kept serving the
+old allowlist while the new page was already in the browser. `server.mjs` now also honours `PORT`, so a
+second instance can run beside it, but **restart `npm run roadmap` before any visual verification**.
+
 ## RESOLVED: restored Loop renderer used a stale U-route collision and fit footprint (2026-08-15)
 
 The restored `LoopEdge` rendered the approved 160-unit capsule and 44-unit hit ring, but `FlowCanvas`

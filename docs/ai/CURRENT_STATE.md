@@ -1,5 +1,62 @@
 # CURRENT_STATE
 
+## Visual License Issuer on the Program Status dashboard (2026-08-19)
+
+The Program Status dashboard gained a ninth view, **Licenses Issue**, so an authorized developer can
+turn a machine's activation request into a signed, machine-bound license without hand-running the
+issuer CLI. It is developer tooling: `tools/**` is not packaged, so nothing here reaches a build.
+
+```text
+Licenses Issue side-menu entry ......... IMPLEMENTED AND VERIFIED
+Activation-request parse + review ...... IMPLEMENTED AND VERIFIED
+Exact UTC validity windows ............. IMPLEMENTED AND VERIFIED
+Signed issuance through the real issuer  IMPLEMENTED AND VERIFIED (ephemeral key)
+Issuance with the PRODUCTION key ....... BLOCKED - no authorized key on this workstation
+```
+
+**Architecture — one issuer, three callers.** The page never signs. It POSTs reviewed terms to the
+dashboard server, which rebuilds an allowlisted payload and runs `tools/license-issuer/roadmap-bridge.mts`
+as a short-lived child process; the bridge calls the same `LicenseIssuerService` the in-app Issuer
+console uses. `execFile` with `shell: false`, argv fixed at `[tsx, bridge, command]` where `command` is
+checked against a four-name allowlist, and the request itself travels on **stdin** — so no
+operator-controlled value ever enters a command line at all. The private key is read only inside that
+child; the server never resolves a key path and no response, error, or log carries one.
+
+**Exact expiry, not a day count.** `IssueLicenseInput` now takes either `validityDays` (unchanged, what
+the in-app console sends) or a new `validityWindow: {validFromUtc, expiresAtUtc}` — exactly one. Every
+dashboard preset, including 1 Hour, resolves to a window *before* it is sent, so the timestamps on the
+review panel are byte-for-byte the ones that get signed. `issuedAtUtc` now records the signing moment
+rather than the window start (identical in days mode; correct for a post-dated window). Windows are
+minute-truncated first, then bounded: at least a minute, at most 3650 days, starting no more than 365
+days ahead.
+
+**Shared key location.** `src/licensing/issuer/IssuerLocations.ts` is now the single answer to "where is
+the key and the output folder", used by both `app/main/licensing/issuerRuntime.ts` and the bridge, so
+the dashboard can never report ready against a key the app would not use. `LICENSING_PRODUCT` moved to
+`src/licensing/LicenseTypes.ts` for the same reason and is re-exported from `licenseRuntime`.
+
+**What was proven, and how.** `verify:roadmap-license-issuer` **128/128** drives the real server on an
+ephemeral port over real HTTP, spawning the real bridge — mutating `shell: false` to `true` breaks seven
+checks, which is what shows the chain is real rather than asserted. Issuance semantics (signature,
+binding, exact timestamps, MACHINE_MISMATCH, expiry to the minute, import through
+`LicenseService`/`LicenseStore`) are proven with an **ephemeral Ed25519 key pair injected as the trusted
+set** — real signatures over real canonical bytes, the same technique `verify:licensing` already uses.
+Three mutations were run and all failed as intended.
+
+**BLOCKED, stated plainly.** No authorized signing key exists at
+`%LOCALAPPDATA%SpecterStudioissuer-keyskey1.ed25519.pkcs8.b64` and `SPECTER_ISSUER_KEY` is unset on
+this machine, so no license was issued with the production key and none was imported into a real
+installation. The verifier asserts that state positively — the full chain must answer exactly
+`ISSUER_KEY_MISSING` and write nothing — rather than skipping the case.
+
+Verified: `npm run build` clean · `verify:roadmap-license-issuer` **128/128** ·
+`verify:licensing` **183/183** · `verify:release-key-custody` **58/58** ·
+`verify:roadmap-dashboard` **160/160** · `verify:verifier-classification` reconciled (183 scripts) ·
+`verify:source-hygiene` **9/9** · `validate:offline` completed.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+
 ## Pointer support re-audited: two conversion defects found and fixed (2026-08-19)
 
 A verification pass over the double-click / right-click tranche, deliberately re-measuring rather

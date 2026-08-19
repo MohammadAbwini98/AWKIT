@@ -4,6 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Visual License Issuer on the Program Status dashboard
+
+- **Task:** add a developer-only "Licenses Issue" page to the roadmap dashboard that issues real
+  signed, machine-bound licenses without hand-running the issuer CLI.
+- **Architecture:** page -> dashboard server -> `tools/license-issuer/roadmap-bridge.mts` (child
+  process) -> the existing `LicenseIssuerService`. No signing, no key, and no key path in the browser
+  or in the server process. `execFile` + `shell: false`; argv is the fixed `[tsx, bridge, command]`
+  with `command` allowlisted; the request travels on stdin, so no operator value enters a command line.
+- **Domain change:** `IssueLicenseInput` accepts exactly one of `validityDays` or
+  `validityWindow {validFromUtc, expiresAtUtc}`. Presets (1 Hour ... 1 Year, Custom) resolve to an exact
+  window client-side, so the reviewed timestamps are the signed ones. `issuedAtUtc` is now the signing
+  moment (byte-identical in days mode). New shared `IssuerLocations.ts`; `LICENSING_PRODUCT` moved into
+  the licensing domain and re-exported from `licenseRuntime`.
+- **Red/mutation evidence:** renaming the menu label fails its check; `shell: false` -> `true` fails 7
+  checks (proving the HTTP tests really traverse the spawned bridge); ignoring the requested
+  `validFromUtc` fails 4. The private-key scanner was itself fixed after it matched its own source —
+  it now needs a whole PEM block or a PKCS8 Ed25519 prefix, and asserts its needles are non-vacuous.
+- **Verification:** build PASS; `verify:roadmap-license-issuer` **128/128** (new);
+  `verify:licensing` **183/183**; `verify:release-key-custody` **58/58**;
+  `verify:roadmap-dashboard` **160/160**; `verify:verifier-classification` reconciled;
+  `verify:source-hygiene` **9/9**; `validate:offline` completed; `git diff --check` clean.
+- **BLOCKED:** end-to-end issuance with the PRODUCTION key. No authorized key exists at
+  `%LOCALAPPDATA%SpecterStudioissuer-keyskey1.ed25519.pkcs8.b64` and `SPECTER_ISSUER_KEY` is unset,
+  so no production-signed license was generated, imported, or run. The verifier asserts that state
+  positively (full chain must answer `ISSUER_KEY_MISSING` and write nothing) instead of skipping it.
+  Issuance semantics were proven with an ephemeral Ed25519 key pair injected as the trusted set — real
+  signatures, real validator, no mock.
+- **Files:** `src/licensing/issuer/{IssuerLocations.ts,LicenseIssuerContracts.ts,LicenseIssuerService.ts}`,
+  `src/licensing/LicenseTypes.ts`, `app/main/licensing/{issuerRuntime,licenseRuntime}.ts`,
+  `tools/license-issuer/roadmap-bridge.mts`, `tools/roadmap/{server.mjs,lib/license-issuer.mjs}`,
+  `tools/roadmap/public/{license-issuer.js,views.js,icons.js,dashboard.css}`,
+  `scripts/verify-roadmap-license-issuer.mts`, `scripts/lib/verifier-classification.ts`,
+  `package.json`, `docs/ai/*`, `tools/*/README.md`.
+
 ## 2026-08-19 - Claude - Re-audit pointer support; fix two hardcoded-`click` conversion defects
 
 - **Verification task, re-measured rather than re-read.** Capture and replay held under an

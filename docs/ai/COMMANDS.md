@@ -128,6 +128,16 @@ npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs —
                             # fires, byte-identical determinism, the provenance rules driven against
                             # a claims fixture, server routes (200/304/404/405), the offline rules,
                             # and the 19 global.css class names the page borrows.
+npm run verify:roadmap-license-issuer # tsx scripts/verify-roadmap-license-issuer.mts - 128 checks over
+                            # the dashboard "Licenses Issue" page: the side-menu entry and its route,
+                            # the browser-side boundary (no signing, no key, no key path in any served
+                            # asset), the fixed argv + shell:false + stdin spawn contract, server-side
+                            # payload allowlisting and every rejection reason, then the LIVE server on
+                            # an ephemeral port driving the REAL bridge process, and finally real
+                            # Ed25519 issuance (exact windows, MACHINE_MISMATCH, minute-exact expiry,
+                            # import through LicenseService/LicenseStore) with an EPHEMERAL trusted key.
+                            # integration. Reports BLOCKED - not passed - when no authorized production
+                            # signing key exists on the machine.
                             # static-source-validation: never launches a browser or the app.
                             # NOTE: adding or closing ANY bead moves the hardcoded
                             # 193-total / 187-closed / 6-outstanding baselines here, and
@@ -413,6 +423,7 @@ npm run verify:admin-gui    # node scripts/verify-admin-gui.mjs — REAL Electro
                             # real Licensing page (11; needs build)
 npm run verify:avatar       # tsx scripts/verify-avatar-initials.mts — initials + palette (24)
 npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain/RBAC/gate latch (167)
+npm run verify:roadmap-license-issuer # dashboard License Issuer page + the trusted issuer bridge (128)
 npm run verify:license-dispatch-gate # real ExecutionEngine queue at zero concurrency + production wiring/shell guard
 # E2E QA suites (2026-07-19 assessment — specs/e2e/*, report docs/testing/; all REAL Electron, isolated
 # fresh %LOCALAPPDATA% profiles, run AFTER `npm run build`):

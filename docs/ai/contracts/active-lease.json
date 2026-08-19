@@ -1,15 +1,45 @@
 {
-  "task": "awkit-package-installer",
-  "holder": "release",
-  "status": "released",
+  "task": "awkit-96o6",
+  "holder": "security",
+  "status": "active",
   "allowed_paths": [
-    "resources/**"
+    "app/main/licensing/**",
+    "docs/**",
+    "package.json",
+    "scripts/**",
+    "src/licensing/**",
+    "tools/license-issuer/**",
+    "tools/roadmap/**"
   ],
-  "acquired_at": "2026-08-19T07:59:56.686Z",
-  "acquired_at_commit": "34aed6a",
+  "acquired_at": "2026-08-19T17:26:18.594Z",
+  "acquired_at_commit": "277e3db",
   "baseline_dirty": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "app/main/licensing/issuerRuntime.ts",
+    "app/main/licensing/licenseRuntime.ts",
+    "docs/ai/COMMANDS.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-roadmap-license-issuer.mts",
+    "src/licensing/LicenseTypes.ts",
+    "src/licensing/issuer/IssuerLocations.ts",
+    "src/licensing/issuer/LicenseIssuerContracts.ts",
+    "src/licensing/issuer/LicenseIssuerService.ts",
+    "tools/license-issuer/README.md",
+    "tools/license-issuer/roadmap-bridge.mts",
+    "tools/roadmap/README.md",
+    "tools/roadmap/lib/license-issuer.mjs",
+    "tools/roadmap/public/dashboard.css",
+    "tools/roadmap/public/icons.js",
+    "tools/roadmap/public/license-issuer.js",
+    "tools/roadmap/public/views.js",
+    "tools/roadmap/server.mjs"
   ],
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -19,11 +49,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1787126188306.5886"
+    "build": "dir(1):native-hosts:1787135190898.311"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-19T07:59:57.078Z",
-  "released_reason": "installer manifest committed"
+  "violations": []
 }

@@ -34,6 +34,9 @@ renamed document fails in one place with a clear message instead of degrading si
 | `app/renderer/styles/global.css` | served verbatim at `/app.css`; never parsed |
 | `docs/ai/FEATURES.md` | registered, not parsed — it joins to nothing |
 
+The ninth view, **Licenses Issue**, reads none of these: it is the only page here that is a tool
+rather than a report. See **Security posture** below for what it is allowed to do.
+
 ## Three rules it will not break
 
 **1. Declared fact and derived inference never look alike.** The tracker records no per-issue
@@ -161,6 +164,16 @@ Node 18.16 is the dev runtime, so no `Object.groupBy`, no RegExp `/v`, no type s
   Markdown containing backticks and angle brackets. This is a correctness guard as much as a
   security one, and the verifier asserts no asset contains an `innerHTML` assignment.
 - **No network at runtime.** The verifier asserts no asset contains a remote URL or `@import url(`.
+- **License issuance never happens in this process.** The **Licenses Issue** page POSTs reviewed terms;
+  the server rebuilds an allowlisted payload and runs `tools/license-issuer/roadmap-bridge.mts` with
+  `execFile`, `shell: false`, and a fixed argv of `[tsx, bridge, command]` where `command` is one of four
+  literal names. The request travels on **stdin**, so no operator-controlled value enters a command line
+  at all — a path containing a space, `&`, `(` or `)` stays one literal argument. The private key is read
+  only inside that child process: this server never resolves a key path, and no response, error or log
+  line carries one. Issue requests use the same custom-header + Origin rule as the build action, and a
+  second concurrent issuance receives 409.
+- **With no authorized key, the page says so.** Readiness reports `ready: false` with a reason code and
+  the page renders **BLOCKED**. There is no fallback key, no second signing authority, and no bypass.
 
 ## UI
 
