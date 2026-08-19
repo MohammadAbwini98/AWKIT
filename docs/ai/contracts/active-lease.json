@@ -3,17 +3,16 @@
   "holder": "security",
   "status": "released",
   "allowed_paths": [
+    "app/main/licensing/**",
     "docs/**",
     "scripts/**",
+    "src/licensing/**",
+    "tools/license-issuer/**",
     "tools/roadmap/**"
   ],
-  "acquired_at": "2026-08-19T17:32:24.427Z",
-  "acquired_at_commit": "dc71ef1",
-  "baseline_dirty": [
-    ".claude/launch.json",
-    "docs/ai/contracts/active-lease.json",
-    "tools/roadmap/assignments.json"
-  ],
+  "acquired_at": "2026-08-19T18:02:46.081Z",
+  "acquired_at_commit": "7788a31",
+  "baseline_dirty": [],
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6054:1785324381414.4578",
@@ -27,6 +26,6 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-08-19T17:36:43.853Z",
-  "released_reason": "License Issuer complete; production-key E2E reported BLOCKED"
+  "released_at": "2026-08-19T18:17:31.825Z",
+  "released_reason": "key2 rotation complete and verified"
 }
