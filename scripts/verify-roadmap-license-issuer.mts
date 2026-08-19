@@ -47,7 +47,7 @@ import {
   type LicenseDocument
 } from "../src/licensing/LicenseTypes";
 import { verifyLicenseSignature } from "../src/licensing/crypto/LicenseSignature";
-import type { TrustedKey } from "../src/licensing/crypto/TrustedKeys";
+import { TRUSTED_KEYS, findTrustedKey, type TrustedKey } from "../src/licensing/crypto/TrustedKeys";
 import { validateLicense } from "../src/licensing/LicenseValidator";
 import { LicenseService } from "../src/licensing/LicenseService";
 import { LicenseStore } from "../src/licensing/store/LicenseStore";
@@ -427,14 +427,37 @@ try {
     "the Electron main process resolves the same key through the same contract",
     read("app", "main", "licensing", "issuerRuntime.ts").includes("issuerKeyPathFor(")
   );
+  // "One authority" is NOT "one key" — key rotation is a designed feature, and an earlier draft of
+  // this check pinned the list to a single `key1`, which would have failed the moment the product
+  // legitimately rotated. What must stay true is that the dashboard adds no authority of its own and
+  // cannot sign with anything the application does not already trust.
   check(
-    "no second signing authority was introduced",
-    (() => {
-      const trusted = read("src", "licensing", "crypto", "TrustedKeys.ts");
-      const entries = [...trusted.matchAll(/keyId: "([^"]+)"/g)].map((m) => m[1]);
-      return entries.length === 1 && entries[0] === "key1";
-    })(),
-    "a dashboard-only key would mean two authorities could sign a valid license"
+    "the dashboard and its bridge carry no trusted-key list of their own",
+    !bridgeSrc.includes("TrustedKey") &&
+      !bridgeSrc.includes("trustedKeys") &&
+      !bridgeCallerSrc.includes("trustedKeys") &&
+      !serverSrc.includes("trustedKeys"),
+    "a private key list here would be a second authority by definition"
+  );
+  check(
+    "the key the issuer signs with is one the application already trusts",
+    findTrustedKey(DEFAULT_ISSUER_KEY_ID) !== undefined,
+    `${DEFAULT_ISSUER_KEY_ID} is not in TRUSTED_KEYS, so the service would refuse to load it`
+  );
+  check(
+    "that lookup is not vacuous",
+    findTrustedKey("no-such-key-id") === undefined && TRUSTED_KEYS.length > 0,
+    "findTrustedKey must be able to answer 'no' before its 'yes' means anything"
+  );
+  check(
+    "every trusted entry is a PUBLIC Ed25519 key and nothing more",
+    TRUSTED_KEYS.every(
+      (key) =>
+        key.algorithm === "Ed25519" &&
+        /^MCowBQYDK2Vw[A-Za-z0-9+/=]+$/.test(key.publicKeySpkiB64) &&
+        Object.keys(key).every((field) => ["keyId", "algorithm", "publicKeySpkiB64", "retired"].includes(field))
+    ),
+    "an SPKI Ed25519 public key always starts MCowBQYDK2Vw; a PKCS8 private half does not"
   );
   check(
     "no fallback or generated key exists anywhere in the issuer path",
@@ -562,8 +585,55 @@ try {
   });
   const issueBody = await issueResponse.json();
   if (workstationHasKey) {
-    check("an authorized issuance succeeds over the full chain", issueResponse.status === 200 && issueBody.ok === true, JSON.stringify(issueBody).slice(0, 200));
-    check("the returned document is signed by a trusted key", issueBody.ok === true && verifyLicenseSignature(issueBody.document as LicenseDocument).ok);
+    // The real thing: browser payload -> server -> bridge -> production key -> signed document,
+    // then checked against the PRODUCTION trusted keys rather than the ephemeral set used later.
+    check(
+      "an authorized issuance succeeds over the full chain",
+      issueResponse.status === 200 && issueBody.ok === true,
+      JSON.stringify(issueBody).slice(0, 200)
+    );
+    const live = issueBody.document as LicenseDocument | undefined;
+    check("the returned document is signed by a trusted key", live !== undefined && verifyLicenseSignature(live).ok);
+    check(
+      "it was signed by the key the issuer is configured to use",
+      live?.signingKeyId === DEFAULT_ISSUER_KEY_ID,
+      `${live?.signingKeyId} vs ${DEFAULT_ISSUER_KEY_ID}`
+    );
+    check("it is bound to the fingerprint the browser sent", live?.machineFingerprintHash === FINGERPRINT_A);
+    check(
+      "the exact window the browser reviewed is what got signed",
+      live?.validFromUtc === "2026-08-19T10:00:00.000Z" && live?.expiresAtUtc === "2026-09-18T10:00:00.000Z",
+      `${live?.validFromUtc} -> ${live?.expiresAtUtc}`
+    );
+    check(
+      "the production validator accepts it for that machine",
+      live !== undefined &&
+        validateLicense({
+          license: live,
+          currentFingerprintHash: FINGERPRINT_A,
+          nowMs: Date.parse("2026-08-25T00:00:00.000Z")
+        }).status === LicenseStatus.VALID
+    );
+    check(
+      "the production validator refuses it on another machine",
+      live !== undefined &&
+        validateLicense({
+          license: live,
+          currentFingerprintHash: FINGERPRINT_B,
+          nowMs: Date.parse("2026-08-25T00:00:00.000Z")
+        }).status === LicenseStatus.MACHINE_MISMATCH
+    );
+    check(
+      "the file on disk is byte-identical to what the browser was handed",
+      issueBody.result?.outputPath !== undefined &&
+        existsSync(issueBody.result.outputPath) &&
+        JSON.stringify(JSON.parse(readFileSync(issueBody.result.outputPath, "utf8"))) === JSON.stringify(live),
+      "the download must be the artifact, not a re-serialisation of it"
+    );
+    // Remove the .dat this gate produced: it is a synthetic fingerprint no machine can ever match,
+    // and leaving one behind per run would bury real issuances. The issuance HISTORY entry stays —
+    // that log is append-only truth about what the key signed, and editing it would be a lie.
+    if (typeof issueBody.result?.outputPath === "string") rmSync(issueBody.result.outputPath, { force: true });
   } else {
     check(
       "with no authorized key the full chain fails closed with ISSUER_KEY_MISSING",
