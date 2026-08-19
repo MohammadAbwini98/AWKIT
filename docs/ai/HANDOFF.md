@@ -1,97 +1,183 @@
 # Agent Handoff
 
-## HANDOFF (2026-08-19) - Signing key rotated to key2; issuance no longer blocked
+## HANDOFF (2026-08-19) - Dashboard License Issuer delivered; signing key rotated to key2
 
 ### Transfer
 
-- **From:** Claude. **To:** next AI coding agent or human maintainer.
 - **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
-- **Tracker: 230 total / 225 closed / 5 outstanding.**
+- **Tracker: 231 total / 226 closed / 5 outstanding.**
+- **Work item:** `awkit-96o6` (closed). Also filed and closed: `awkit-xd6s`. Follow-up open: `awkit-vf9r`.
 
-### Delivered
+### Current task and what was completed
 
-- New Ed25519 pair `key2`, generated on owner instruction. Private half at
-  `%LOCALAPPDATA%\SpecterStudio\issuer-keys\key2.ed25519.pkcs8.b64` (mode 0600, outside the repo and
-  outside any synced folder). Public half in `TRUSTED_KEYS`; `DEFAULT_ISSUER_KEY_ID` now `key2`.
-- The previously BLOCKED end-to-end run is **executed and passing**: a real license issued through the
-  dashboard UI for this machine's real fingerprint, verified, machine-bound, expiry-exact, and imported
-  through `LicenseService`. `verify:roadmap-license-issuer` **139/139, 0 BLOCKED**.
+A visual **Licenses Issue** page on the Program Status dashboard, so an authorized developer can turn
+a machine's activation request into a signed, machine-bound license without hand-running the issuer
+CLI — then, on owner instruction, a signing-key rotation that removed the one thing blocking it.
 
-### Three things the next person must know
+1. **Ninth dashboard view, `Licenses Issue`.** Parse an activation request, choose validity, review,
+   issue in one press, download the result. Signing readiness, issuance history, and every rejection
+   reason are surfaced with actionable wording.
+2. **One issuer, three callers.** The page never signs. It POSTs reviewed terms; the dashboard server
+   rebuilds an allowlisted payload and runs `tools/license-issuer/roadmap-bridge.mts` as a
+   short-lived child, which calls the same `LicenseIssuerService` the in-app Issuer console uses.
+   `execFile`, `shell: false`, argv fixed at `[tsx, bridge, command]` with `command` checked against a
+   four-name allowlist, and the request itself on **stdin** — so no operator-controlled value enters a
+   command line at all. The private key is read only inside that child.
+3. **Exact validity windows.** `IssueLicenseInput` now takes exactly one of `validityDays` (unchanged,
+   what the in-app console sends) or `validityWindow {validFromUtc, expiresAtUtc}`. Every preset —
+   including 1 Hour, which a day count cannot express — resolves to a window *before* it is sent, so
+   the timestamps reviewed on screen are the ones signed. `issuedAtUtc` is now the signing moment
+   (byte-identical in days mode, correct for a post-dated window).
+4. **Key rotation to `key2`.** `key1`'s private half was generated on another workstation and has
+   never been on this one, so the issuer had nothing to sign with. A new Ed25519 pair was generated;
+   the private half lives at `%LOCALAPPDATA%\SpecterStudio\issuer-keys\` (mode `0600`, outside the
+   repository and outside any synced folder) and only the public half is committed. **`key1` was kept
+   in `TRUSTED_KEYS`** — verification-only, so licenses it already signed keep validating.
+5. **A packaging leak found, fixed, and guarded.** `app/renderer/pages/ImplementationRoadmap.tsx`
+   imports `VIEWS` from `tools/roadmap/public/views.js` to render the same reports inside
+   SpecterStudio. Registering the issuer there compiled the whole page — its `/api/license-issuer`
+   calls and its **Issue License** button — into `out/renderer` and into `app.asar`, and put a
+   `Licenses Issue` entry in the application's own nav. The issuer view now lives in `dashboard.js`
+   (the standalone shell, which the application never imports) and its styles in a separate
+   `license-issuer.css` that only `index.html` loads. See the risk note below about v0.1.15.
+6. **Two accessibility defects found by driving a real browser and fixed.** A native radio/checkbox
+   does not paint a `box-shadow` in Chrome and `global.css` already clears the UA outline, so the
+   validity radios and entitlement checkboxes had no visible focus at all; and the visually-hidden
+   file input sat *after* the label whose adjacent-sibling rule draws its ring. Both guarded.
 
-1. **`key1` is verification-only, not retired.** Its private half is not on this workstation. It stays
-   in `TRUSTED_KEYS` so licenses it already signed keep validating. Remove it only when every one of
-   those has expired — and if the original private half is ever recovered, decide deliberately which
-   key issues, rather than letting both.
+### Changed files
 
-2. **A rotation is a release.** An installation running a build from before this commit does not know
-   `key2` and answers `UNKNOWN_KEY` → INVALID_SIGNATURE for anything it signs. **Do not issue a license
-   to a field machine until a build carrying the new `TRUSTED_KEYS` has reached it.** The portable/
-   installer artifacts currently in `dist/` predate this change.
+```text
+src/licensing/LicenseTypes.ts                    LICENSING_PRODUCT moved into the domain
+src/licensing/crypto/TrustedKeys.ts              key2 public half added; key1 kept, verification-only
+src/licensing/issuer/IssuerLocations.ts          NEW - single key/output-folder location contract
+src/licensing/issuer/LicenseIssuerContracts.ts   validityWindow, bounds, richer result
+src/licensing/issuer/LicenseIssuerService.ts     resolveValidity(); issuedAtUtc; key read after validation
+app/main/licensing/issuerRuntime.ts              resolves the key through IssuerLocations
+app/main/licensing/licenseRuntime.ts             re-exports LICENSING_PRODUCT
+tools/license-issuer/roadmap-bridge.mts          NEW - trusted argv+stdin adapter over the issuer
+tools/license-issuer/README.md                   three front ends, one issuer; exact windows
+tools/roadmap/server.mjs                         four issuer routes, shared action authorization, body cap
+tools/roadmap/lib/license-issuer.mjs             NEW - allowlisted payload build + the spawn contract
+tools/roadmap/public/license-issuer.js           NEW - the page
+tools/roadmap/public/license-issuer.css          NEW - issuer styles, standalone page only
+tools/roadmap/public/dashboard.js                composes DASHBOARD_VIEWS = reports + the issuer
+tools/roadmap/public/index.html                  loads the issuer stylesheet
+tools/roadmap/public/{views,icons}.js            eight report views unchanged; five icons added
+tools/roadmap/README.md                          security posture for the new action
+scripts/verify-roadmap-license-issuer.mts        NEW - the gate
+scripts/verify-roadmap-dashboard.mjs             bead pins moved to 231/226/5
+scripts/lib/verifier-classification.ts           new verifier classified `integration`
+package.json                                     verify:roadmap-license-issuer registered
+.claude/launch.json                              roadmap-preview entry (autoPort) for a second instance
+docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,COMMANDS}.md
+```
 
-3. **`verify:roadmap-license-issuer` now signs with the production key on every run.** That is what
-   makes its end-to-end section real rather than asserted, but it means each run appends a line to
-   `issuance-history.jsonl` beside the key. The gate deletes the `.dat` it produces (a synthetic
-   all-`a` fingerprint no machine can match) and deliberately does **not** touch the history, which is
-   append-only truth about what the key signed. If that becomes noisy, change the retention policy —
-   never the log.
+### Commands run, with results
 
-### Not done, on purpose
+```text
+npm run build                          PASS
+verify:roadmap-license-issuer          PASS 144/144, 0 BLOCKED   (new)
+verify:licensing                       PASS 183/183
+verify:roadmap-dashboard               PASS 162/162  - Overview reads "Sources agree"
+verify:verifier-classification         PASS - reconciled, 182 scripts
+verify:release-key-custody             PASS 58/58
+verify:source-hygiene                  PASS 9/9
+validate:offline                       PASS
+node scripts/ai-memory/check-memory.mjs PASS
+git diff --check                       CLEAN
+```
 
-No license was installed into this installation's own `%LOCALAPPDATA%\SpecterStudio\Licensing\`. The
-import proof ran against a throwaway store, so the real profile is untouched. If you want the app
-actually licensed here, import the `.dat` in `issuer-output\` through Administration → Licensing.
+Mutation-tested rather than assumed: re-registering the issuer in `views.js` fails three checks,
+including the built-bundle scan naming every leaked marker; renaming the menu label fails its check;
+`shell: false` -> `true` fails **seven** checks, which is what shows the HTTP tests really traverse the spawned bridge rather
+than asserting about it; ignoring the requested `validFromUtc` fails four. The private-key scanner was
+itself repaired after it matched its own source — it now needs a whole PEM block or a PKCS8 Ed25519
+prefix, both assembled from fragments, and asserts its needles are non-vacuous first.
 
+**End-to-end, executed (this was BLOCKED before the rotation).** Driven through the real page: a
+genuine activation request for this machine parsed, 1 Hour selected, issued in one press.
 
-## HANDOFF (2026-08-19) - Visual License Issuer on the roadmap dashboard
+```text
+signature verifies against the shipped public key   true
+bound to the requesting machine                     true
+validated on that machine                           EXPIRING_SOON, operable
+validated on another fingerprint                    MACHINE_MISMATCH
+validated at the exact expiry instant               EXPIRED
+imported through LicenseService / LicenseStore      ok, re-read from disk
+```
 
-### Transfer
+`EXPIRING_SOON` rather than `VALID` is correct for any license shorter than the 7-day window and is an
+operable status — do not read it as a defect. The double-submit guard was exercised in the same press:
+two further clicks during the round trip produced nothing.
 
-- **From:** Claude. **To:** next AI coding agent or human maintainer.
-- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
-- **Tracker: 230 total / 225 closed / 5 outstanding.**
+### Not run
 
-### Delivered
+```text
+verify:e2e-licensing        NOT RUN - real-Electron GUI gate, untouched by this change
+verify:packaged-licensing   NOT RUN - packaged-artifact gate, see the release note below
+verify:e2e-rbac-gui         NOT RUN - real-Electron GUI gate
+clean-machine walkthrough   NOT RUN - manual, optional/non-blocking by owner policy
+```
 
-- `awkit-96o6`: **Licenses Issue** view on the Program Status dashboard. Parses an activation request,
-  offers 1 Hour / 1 Day / 7 / 30 / 90 / 180 Days / 1 Year / Custom validity, reviews the exact UTC
-  window, and issues through the existing `LicenseIssuerService` in a child process.
-  `verify:roadmap-license-issuer` **130/130**, three mutations proven to fail.
+### Remaining work
 
-### The one thing that is NOT proven, and cannot be from here
+1. **`awkit-vf9r` (open)** — `tools/license-issuer/issue-license.mts` still re-implements serial
+   generation, the payload shape and the history record instead of calling `LicenseIssuerService`. The
+   new bridge does not add a third implementation, but the CLI remains a drifting duplicate and is the
+   looser of the two (no custody check, no key match, no atomic write, no bounded validity). Fold it
+   onto the service.
+2. **Verify a packaged build accepts a `key2` license.** `verify:packaged-licensing` exercises the
+   built artifact; it has not been run against a build containing the new trusted list.
+3. **Re-examine the v0.1.15 artifact.** See the risk note below — it shipped with the issuer page
+   compiled in. Decide whether to re-cut it from a commit containing the fix.
+4. **Decide `key1`'s retirement.** It stays only until every license it signed has expired. If its
+   private half is ever recovered, decide deliberately which key issues rather than leaving both live.
 
-**No authorized signing key exists on this workstation.** The issuer-keys folder under
-`%LOCALAPPDATA%\SpecterStudio\` does not exist and `SPECTER_ISSUER_KEY` is unset, so the
-production-key path is **BLOCKED**: no license was signed with `key1`, imported into a real
-installation, or used to run a protected workflow.
+### Known risks and blockers
 
-Whoever holds the real key should run this once and record the result:
+- **The released v0.1.15 portable artifact contains the issuer page.** `dist/SpecterStudio 0.1.15.exe`
+  was packaged from `a3fabe8`, before the leak was fixed, so its `app.asar` carries the issuer page,
+  its API calls and its Issue button, and shows a `Licenses Issue` entry in the in-app roadmap view.
+  **It cannot actually sign there** — no dashboard server, no bridge process, no key — so the fetches
+  fail and nothing is issuable; the exposure is a UI surface that must not exist in a build, not a
+  signing capability. Any build cut from `1d25374` or later is clean; the guard now reads the built
+  bundle, so this cannot recur silently.
 
-1. On the target machine, export an activation request (Administration -> Licensing).
-2. `npm run roadmap`, open <http://127.0.0.1:4380>, choose **Licenses Issue**.
-3. Paste the request, **Parse Request**, pick **1 Hour**, review, **Issue License**.
-4. **Download License**, import it on the target machine, confirm VALID and the exact expiry.
-5. Confirm a protected workflow runs, and that the same file reports `MACHINE_MISMATCH` elsewhere.
+- **A key rotation is a RELEASE, not a local edit.** An installation running a build from before
+  `d6e3903` does not know `key2` and answers `UNKNOWN_KEY` -> `INVALID_SIGNATURE` for anything it
+  signs. **Do not issue a license to a field machine until a build carrying the new `TRUSTED_KEYS`
+  has reached it.**
+- **`verify:roadmap-license-issuer` signs with the production key on every run.** That is what makes
+  its end-to-end section real rather than asserted, but each run appends a line to
+  `issuance-history.jsonl` beside the key. The gate deletes the `.dat` it produces (a synthetic
+  all-`a` fingerprint no machine can match) and deliberately does **not** touch the history, which is
+  append-only truth about what the key signed. If it becomes noisy, change the retention policy —
+  never the log.
+- **The dashboard server must be restarted after any `tools/roadmap` change.** Routes are an allowlist
+  built at module load; a process started before a route existed serves a plain-text `404` for it.
+  `server.mjs` now also honours `PORT`, so a second instance can run beside one already on 4380.
+- **The packaged app already contains an in-app issuer UI** (`LicenseIssuerPage.tsx`, `issuer.ipc.ts`),
+  gated behind the exclusive `Issuer` role plus re-auth. That predates this work and was left alone;
+  the dashboard issuer adds no production route, IPC, feature flag, command-line switch, or shortcut.
 
-Do not substitute a test key to close this out — a second signing authority is the one thing this
-design refuses.
+### Do not touch
 
-### Two pre-existing conditions this task deliberately did not change
+- **`resources/dependency-manifest.json` / `.sig`** and the version in `package.json` — owned by
+  `scripts/release-portable.ps1`. It refuses to stage anything else and fails if the tree holds more
+  than that pair when packaging ends, so leaving unrelated edits uncommitted will break a release
+  mid-flight.
+- **Any private key file.** The repository ships public verification keys only. Never create a
+  fallback or test signing key: the gate asserts none exists, and a second authority is the one thing
+  this design refuses.
+- **`tools/roadmap/` numbers.** The dashboard is derived; update the source that owns the fact.
+- **`window.playwrightFlowStudio`** — internal preload contract, do not rename.
 
-1. **Two issuer implementations still exist.** `tools/license-issuer/issue-license.mts` (the original
-   CLI) re-implements canonicalisation, serial generation and the payload shape instead of calling
-   `LicenseIssuerService`. The new bridge does NOT add a third — it calls the service — but the CLI
-   remains a drifting duplicate. Filed as `awkit-vf9r`.
-2. **The packaged app does contain an issuer UI** (`app/renderer/pages/admin/LicenseIssuerPage.tsx`,
-   `issuer.ipc.ts`), gated behind the exclusive `Issuer` role plus re-auth. That predates this task
-   (`awkit-0tn`) and was left alone; the dashboard issuer adds no production route, IPC, feature
-   flag, command-line switch, or keyboard shortcut of its own.
+### Recommended next step
 
-### One operational note
-
-`tools/roadmap/server.mjs` now also honours `PORT` when `ROADMAP_PORT` is unset, so a second dashboard
-can run beside one already holding 4380. **Restart `npm run roadmap` after pulling this**: the running
-process serves the old route allowlist, and the new page's API calls will 404 until it does.
+Fold `tools/license-issuer/issue-license.mts` onto `LicenseIssuerService` (`awkit-vf9r`), then run
+`verify:packaged-licensing` against a build containing `key2` to close the packaged-artifact gap. Both
+are small, bounded, and independent of each other.
 
 
 ## HANDOFF (2026-08-16) - Recorder hardening tranche 1 of N complete

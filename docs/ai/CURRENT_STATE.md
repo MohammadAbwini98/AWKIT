@@ -1,5 +1,43 @@
 # CURRENT_STATE
 
+## Issuer page kept out of the application build; v0.1.15 released (2026-08-19)
+
+A real packaging defect, found while preparing the handoff rather than by a gate.
+
+**What was wrong.** `app/renderer/pages/ImplementationRoadmap.tsx` imports `VIEWS` from
+`tools/roadmap/public/views.js` so the same eight report views render inside SpecterStudio.
+Registering the License Issuer there compiled the whole page — its `/api/license-issuer` calls and its
+**Issue License** button — into `out/renderer` and into `app.asar`, and put a `Licenses Issue` entry in
+the application’s own navigation. It could not sign there (no dashboard server, no bridge process, no
+key), so the exposure was a UI surface rather than a signing capability — but it must not exist in a
+build at all.
+
+**Why the existing guard missed it.** It asserted `tools/**` is absent from the electron-builder
+globs. True, and irrelevant: the application imports those files as SOURCE, so the bundler pulled them
+in while the check stayed green. **Assert the built artifact, not the configuration meant to produce
+it.** The gate now scans `out/renderer/assets` for six issuer markers and asserts the same scan can
+still see the report views it is not excluding, so an empty or renamed bundle cannot read as clean.
+
+**Fix.** The issuer view is composed in `dashboard.js` — the standalone shell, which nothing in the
+application imports — instead of being registered in `views.js`. Its styles moved out of
+`dashboard.css` (which the app does import) into `license-issuer.css`, loaded only by `index.html`.
+Mutation-proven: re-registering the view in `views.js` fails three checks, the bundle scan naming
+every leaked marker.
+
+**Release state.** The owner packaged **v0.1.15** during this session (`a3fabe8` → `67f066d`,
+`dist/SpecterStudio 0.1.15.exe`). It is the first artifact whose `app.asar` carries the `key2` public
+half, so it can validate key2-signed licenses — and it is also the artifact that shipped with the
+issuer page compiled in, because it was cut before this fix. Re-cutting it is an owner decision,
+recorded in `HANDOFF.md`. Confirmed in that artifact: both public key halves present, **no** private
+key material, and the issuer bridge absent.
+
+Verified: `npm run build` clean · `verify:roadmap-license-issuer` **144/144, 0 BLOCKED** ·
+`verify:roadmap-dashboard` **162/162** · `verify:licensing` **183/183** ·
+`verify:verifier-classification` reconciled · `verify:source-hygiene` **9/9** ·
+`node scripts/ai-memory/check-memory.mjs` PASS.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Signing key rotated to key2; dashboard issuance proven end to end (2026-08-19)
 
 The License Issuer was BLOCKED because no private signing key existed on this workstation — `key1`’s

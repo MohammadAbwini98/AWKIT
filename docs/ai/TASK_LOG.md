@@ -4,6 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-19 - Claude - Stop the dashboard License Issuer leaking into the packaged app; handoff
+
+- **Defect (`awkit-xd6s`, P0, filed and closed):** `app/renderer/pages/ImplementationRoadmap.tsx`
+  imports `VIEWS` from `tools/roadmap/public/views.js` to render the same report views inside
+  SpecterStudio. Registering the issuer there compiled the entire page — its `/api/license-issuer`
+  calls and its **Issue License** button — into `out/renderer` and into `app.asar`, and surfaced a
+  `Licenses Issue` entry in the application’s own navigation.
+- **How it hid:** the existing guard asserted `tools/**` is absent from the electron-builder globs.
+  That was true and irrelevant — the application imports those files as SOURCE, so the bundler pulled
+  them in while the glob check stayed green. **Assert the built artifact, not the configuration that
+  is supposed to produce it.**
+- **Fix:** the issuer view is composed in `dashboard.js` (the standalone shell, which nothing in the
+  application imports) rather than registered in `views.js`; its styles moved to a separate
+  `license-issuer.css` that only `index.html` loads, because the app imports `dashboard.css`.
+- **New guard:** `verify:roadmap-license-issuer` now scans `out/renderer/assets` for six issuer
+  markers, with a non-vacuity assertion that the same scan still sees the report views it is not
+  excluding. Mutation-proven: re-registering the view in `views.js` fails three checks, the bundle
+  scan naming every leaked marker.
+- **Shipped-artifact impact:** `dist/SpecterStudio 0.1.15.exe` was packaged from `a3fabe8`, before the
+  fix, so it carries the issuer page. It cannot sign there (no dashboard server, no bridge, no key),
+  so the exposure is a UI surface rather than a signing capability — but it must not exist in a build.
+  Recorded in HANDOFF as a decision for the owner: re-cut or accept.
+- **Verification:** build PASS; `verify:roadmap-license-issuer` **144/144, 0 BLOCKED`**;
+  `verify:roadmap-dashboard` **162/162**; `verify:licensing` **183/183**;
+  `verify:verifier-classification` reconciled; `verify:source-hygiene` **9/9**;
+  `node scripts/ai-memory/check-memory.mjs` PASS; `git diff --check` clean. Standalone dashboard
+  re-checked live after restart: nav entry present, split stylesheet loading, still "Ready to sign".
+- **Also in this entry:** `docs/ai/HANDOFF.md` consolidated — the two same-day sections for this task
+  were merged into one structured handoff (task, completed work, changed files, commands with
+  results, remaining work, risks, do-not-touch, next step). Older sections untouched.
+- **Files:** `tools/roadmap/public/{views.js,dashboard.js,index.html,dashboard.css,license-issuer.css}`,
+  `tools/roadmap/server.mjs`, `scripts/verify-roadmap-license-issuer.mts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/*`.
+
 ## 2026-08-19 - Claude - Rotate the licensing signing key to key2; unblock end-to-end issuance
 
 - **Why:** the issuer reported BLOCKED because `key1`’s PRIVATE half was generated on another

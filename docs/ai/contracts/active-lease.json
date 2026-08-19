@@ -1,17 +1,14 @@
 {
   "task": "awkit-96o6",
   "holder": "security",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "app/main/licensing/**",
     "docs/**",
     "scripts/**",
-    "src/licensing/**",
-    "tools/license-issuer/**",
     "tools/roadmap/**"
   ],
-  "acquired_at": "2026-08-19T18:02:46.081Z",
-  "acquired_at_commit": "7788a31",
+  "acquired_at": "2026-08-19T19:00:18.339Z",
+  "acquired_at_commit": "67f066d",
   "baseline_dirty": [],
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -21,11 +18,22 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1787135190898.311"
+    "build": "dir(1):native-hosts:1787165636059.1592"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-19T18:17:31.825Z",
-  "released_reason": "key2 rotation complete and verified"
+  "violations": [
+    {
+      "path": ".beads/issues.jsonl",
+      "detectedAt": "2026-08-19T19:00:20.298Z",
+      "via": "bash",
+      "resolved": false
+    },
+    {
+      "path": ".beads/interactions.jsonl",
+      "detectedAt": "2026-08-19T19:05:10.867Z",
+      "via": "bash",
+      "resolved": false
+    }
+  ]
 }
