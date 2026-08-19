@@ -18,6 +18,7 @@
     "roadmap": "node tools/roadmap/server.mjs",
     "dev:roadmap": "node tools/roadmap/server.mjs",
     "verify:roadmap-dashboard": "node scripts/verify-roadmap-dashboard.mjs",
+    "verify:roadmap-license-issuer": "tsx scripts/verify-roadmap-license-issuer.mts",
     "verify:agent-routing": "node scripts/verify-agent-routing.mjs",
     "agent:lease": "node tools/agents/lease-cli.mjs status",
     "agent:lease-grant": "node tools/agents/lease-cli.mjs grant",

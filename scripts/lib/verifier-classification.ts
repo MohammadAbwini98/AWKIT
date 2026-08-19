@@ -234,6 +234,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:ipc-contract": { class: "static-source-validation", why: "Statically parses app/main/ipc + preload for channel-contract drift." },
   "verify:oracle-offline-bundle": { class: "static-source-validation", why: "Audits Oracle offline-bundle integrity over fixtures (no packaged app run)." },
   "verify:oracle-packaging": { class: "static-source-validation", why: "Checks Oracle packaging + path-resolution config." },
+  "verify:roadmap-license-issuer": { class: "integration", why: "Starts the real dashboard server on an ephemeral port and drives the License Issuer routes over HTTP, spawning the real tsx issuer bridge process; then issues real Ed25519-signed licenses through LicenseIssuerService and imports them through LicenseStore/LicenseService. No browser or Electron." },
   "verify:roadmap-dashboard": { class: "static-source-validation", why: "Parses the repo's roadmap/issue/ledger/traceability sources plus the tools/roadmap model and server; never launches a browser or the app." },
   "verify:agent-routing": { class: "static-source-validation", why: "Exercises the tools/agents routing registry, classifier, contract validator and write lease in-process against fixtures — every rejection rule is driven by a contract that violates it, and the write lease runs against a temp file rather than the repository's own. Never launches a browser or the app." },
 

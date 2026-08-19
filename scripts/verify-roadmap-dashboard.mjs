@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("228 issues parse", beads.stats.total === 228, `got ${beads.stats.total}`);
+  check("230 issues parse", beads.stats.total === 230, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -274,8 +274,13 @@ try {
   // converted, persisted and replayed as dedicated `dblclick`/`contextMenu` step types, so the two
   // known-gap sentinels became positive assertions. Nothing is open; the four remaining are
   // owner-gated and externally blocked.
-    "4 outstanding / 224 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 224,
+  // Then 5/225 of 230 on 2026-08-19: the dashboard License Issuer (awkit-96o6) was filed and closed in
+  // one session, and awkit-vf9r was filed OPEN for the pre-existing duplicate issuer CLI. Two in, one
+  // out, so the total rose by two, closed by one, and outstanding by one. Move this pin deliberately
+  // when a bead changes state, and remember that `bd close` does NOT rewrite the export — only
+  // `bd export -o .beads/issues.jsonl` does; plain `bd export` prints to STDOUT and leaves it stale.
+    "5 outstanding / 225 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 225,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
