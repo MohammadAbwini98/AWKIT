@@ -88,6 +88,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:wdu-live": { class: "real-browser", why: "External-site acceptance: real runner against webdriveruniversity.com. NOT part of deterministic verification — needs the public internet." },
   "verify:assertions": { class: "real-browser", why: "Assertion comparison types (incl. element attribute) through StepExecutor against real Chromium." },
   "verify:storage-assertions": { class: "real-browser", why: "Browser-storage assertions (localStorage/sessionStorage, absent-vs-empty, area selection, secret masking) through StepExecutor and the real PlaywrightRunner against the mock site storage lab." },
+  "verify:click-and-hold": { class: "real-browser", why: "Drives the real Recorder init script against the mock site press-and-hold lab and replays the built clickAndHold step through the production StepExecutor in real Chromium." },
   "verify:dialogs": { class: "real-browser", why: "Real Chromium native alert/confirm/prompt handling through the real runner against the mock site." },
   "verify:waits": { class: "real-browser", why: "Live Smart Wait checks against real Chromium." },
   "verify:smart-wait-causality": { class: "real-browser", why: "Drives the injected Recorder observer in real Chromium through causal and background completion signals, flow assembly/round-trip, StepExecutor replay, identity drift diagnostics, and non-fatal optional/advisory semantics." },

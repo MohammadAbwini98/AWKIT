@@ -302,6 +302,13 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       step.config = { routeMode: "switchToLatestTab", urlMatch: "contains", routeWaitUntil: "load" };
     }
 
+    // A press-and-hold carries its measured duration: the duration IS the gesture, so dropping it
+    // here would replay a hold whose length nobody chose.
+    if (action.type === "clickAndHold") {
+      const holdMs = (action.config as { holdMs?: number } | undefined)?.holdMs;
+      if (typeof holdMs === "number" && Number.isFinite(holdMs)) step.config = { ...step.config, holdMs: Math.max(0, Math.round(holdMs)) };
+    }
+
     // ── Secure login / session reuse (protected-login manual handoff) ────────────
     // Auto Secure Login reads its target URL from `step.value`.
     if (action.type === "autoSecureLogin") {

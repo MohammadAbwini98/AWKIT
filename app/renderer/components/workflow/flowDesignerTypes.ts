@@ -133,6 +133,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   assertionType: "visible" | "text" | "value" | "count" | "url" | "attribute" | "storage";
   /** Attribute read by an `attribute` assertion (e.g. `aria-pressed`). Empty for other types. */
   attributeName: string;
+  /** How long a `clickAndHold` step keeps the button down, in milliseconds. */
+  holdMs: number;
   /** Browser storage area read by a `storage` assertion. */
   storageArea: "local" | "session";
   /** Storage key read by a `storage` assertion. Empty for other types. */
@@ -271,6 +273,7 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   waitType: stepType === "wait" ? "time" : "selector",
   assertionType: stepType === "assertVisible" ? "visible" : "text",
   attributeName: "",
+  holdMs: 1000,
   storageArea: "local",
   storageKey: "",
   comparisonOperator: "equals",

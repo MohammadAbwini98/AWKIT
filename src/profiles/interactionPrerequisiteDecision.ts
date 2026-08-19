@@ -110,7 +110,7 @@ export function interactionTrialMode(step: DecisionStep): "pointer" | "predicate
  * would change behaviour no measurement here covers. Trial authority and hover attribution are
  * separate questions about the same step.
  */
-const HOVER_PREREQUISITE_STEP_TYPES: ReadonlySet<string> = new Set(["click", "dblclick", "contextMenu"]);
+const HOVER_PREREQUISITE_STEP_TYPES: ReadonlySet<string> = new Set(["click", "dblclick", "clickAndHold", "contextMenu"]);
 
 /** Whether a hover prerequisite recorded against this step type is honoured during conversion. */
 export function supportsHoverPrerequisite(stepType: string): boolean {

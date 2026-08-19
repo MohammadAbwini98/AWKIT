@@ -3054,6 +3054,143 @@ export function installRecorderCapture(): void {
   window.addEventListener("scroll", cancelPointerDrag, true);
   window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.key === "Escape") cancelPointerDrag(); }, true);
 
+  // ── Press-and-hold (bounded gesture recognizer) ─────────────────────────────
+  // A click-and-hold is its own gesture: a page can render one state on `mousedown` and a
+  // different one on `mouseup`, and an ordinary click passes through both in a few milliseconds
+  // so neither state is ever observable. Recorded as `clickAndHold` — NOT as a click with a
+  // longer duration, which is what "a normal click approximation" would mean.
+  //
+  // Recognized ONLY when all four hold: the primary mouse/pen button went down on a valid source,
+  // the pointer did NOT move past the drag threshold (that is a drag, and the two are mutually
+  // exclusive), the press lasted at least HOLD_MIN_MS, and the page OBSERVABLY REACTED while the
+  // button was down. The last is the load-bearing one: without it every slow click on an inert
+  // button would be reclassified, which is a guess. Duration alone is not evidence of intent.
+  const HOLD_MIN_MS = 500;
+  let pointerHold:
+    | {
+        pointerId: number;
+        startX: number;
+        startY: number;
+        startedAt: number;
+        target: Element;
+        locator: Record<string, unknown>;
+        quality: Quality;
+        name: string;
+        moved: boolean;
+        canceled: boolean;
+        reacted: boolean;
+        observer: MutationObserver | null;
+      }
+    | null = null;
+
+  const endHoldObservation = (): void => {
+    if (pointerHold && pointerHold.observer) {
+      try {
+        pointerHold.observer.disconnect();
+      } catch {
+        /* observer already torn down with the node */
+      }
+      pointerHold.observer = null;
+    }
+  };
+
+  const cancelPointerHold = (): void => {
+    if (pointerHold) {
+      pointerHold.canceled = true;
+      endHoldObservation();
+    }
+  };
+
+  const onPointerDownHold = (event: Event): void => {
+    cancelPointerHold();
+    pointerHold = null;
+    if (!(event instanceof PointerEvent)) return;
+    if (event.button !== 0 || !event.isPrimary) return;
+    if (event.pointerType === "touch") return;
+    if (insideClosedHostRetarget(event)) return;
+    const rawTarget = firstPathElement(event);
+    // Same exclusions as the drag recognizer: text entry, sliders, canvases and resize handles
+    // hold the button down for reasons that are not a press-and-hold gesture.
+    if (!rawTarget || isExcludedPointerDragSource(rawTarget)) return;
+    const captured = generateForEvent(event, false);
+    if (!captured) return;
+    const state = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startedAt: Date.now(),
+      target: captured.target,
+      locator: { ...captured.generated.locator },
+      quality: captured.generated.quality,
+      name: captured.generated.accessibleName || tagOf(captured.target) || "element",
+      moved: false,
+      canceled: false,
+      reacted: false,
+      observer: null as MutationObserver | null
+    };
+    pointerHold = state;
+    // Watch the pressed element itself for the reaction. Scoped to its own subtree and attributes
+    // so unrelated page activity (a clock, a poller) can never be mistaken for a response.
+    try {
+      const observer = new MutationObserver(() => {
+        state.reacted = true;
+      });
+      observer.observe(state.target, { attributes: true, childList: true, characterData: true, subtree: true });
+      state.observer = observer;
+    } catch {
+      /* no observer → no evidence → the gesture fails closed below */
+    }
+  };
+
+  const onPointerMoveHold = (event: Event): void => {
+    if (!pointerHold || !(event instanceof PointerEvent) || event.pointerId !== pointerHold.pointerId) return;
+    const dx = event.clientX - pointerHold.startX;
+    const dy = event.clientY - pointerHold.startY;
+    if (dx * dx + dy * dy > DRAG_MOVE_THRESHOLD_PX * DRAG_MOVE_THRESHOLD_PX) pointerHold.moved = true;
+  };
+
+  const onPointerUpHold = (event: Event): void => {
+    const gesture = pointerHold;
+    pointerHold = null;
+    if (!gesture) return;
+    if (gesture.observer) {
+      try {
+        gesture.observer.disconnect();
+      } catch {
+        /* already gone */
+      }
+      gesture.observer = null;
+    }
+    if (!(event instanceof PointerEvent) || event.pointerId !== gesture.pointerId) return;
+    if (gesture.canceled || gesture.moved || nativeDragFired) return; // cancelled / drag / native DnD
+    if (event.button !== 0) return;
+    if (!gesture.target.isConnected) return; // navigation or detachment mid-gesture
+    const heldMs = Date.now() - gesture.startedAt;
+    if (heldMs < HOLD_MIN_MS) return; // an ordinary click
+    if (!gesture.reacted) return; // no observed response → not evidence of a hold, so record nothing
+    const interaction = captureInteraction(event, gesture.target, { locator: gesture.locator, quality: gesture.quality });
+    const blueprintCapture = captureBlueprint(gesture.target);
+    attachBlueprintIdentityEvidence(gesture.locator, blueprintCapture);
+    record({
+      type: "clickAndHold",
+      name: "Click and hold " + gesture.name,
+      locator: { ...gesture.locator, interaction, blueprintCapture },
+      // Round to 100ms: the measured wall-clock of a human press is not meaningful to the
+      // millisecond, and an unrounded value reads like a precision the capture does not have.
+      config: { holdMs: Math.round(heldMs / 100) * 100 }
+    });
+    // The browser fires an ordinary click on release. It is part of this gesture, not a second one.
+    suppressClickAfterDrag = true;
+  };
+
+  window.addEventListener("pointerdown", onPointerDownHold, true);
+  window.addEventListener("pointermove", onPointerMoveHold, true);
+  window.addEventListener("pointerup", onPointerUpHold, true);
+  window.addEventListener("pointercancel", cancelPointerHold, true);
+  window.addEventListener("lostpointercapture", cancelPointerHold, true);
+  window.addEventListener("scroll", cancelPointerHold, true);
+  window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.key === "Escape") cancelPointerHold(); }, true);
+
   // Capture deliberate shortcuts as ONE canonical action. Ordinary typing is handled exclusively by
   // the input/change listeners below, so a sentence never expands into one action per key. Browser
   // auto-repeat is ignored, pure modifier presses are ignored, and protected inputs fail closed.

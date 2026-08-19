@@ -180,6 +180,73 @@
           window.__pointerDragLab = "";
         })();
       </script>
+      <section data-testid="press-hold-section">
+        <h2>Press and hold</h2>
+        <p>
+          A control that renders one state while the button is DOWN and a different one once it is
+          released — the shape an ordinary click passes straight through, because mousedown and
+          mouseup land within a few milliseconds of each other. <code>hold-observed-ms</code>
+          records how long the page itself measured the button held down, so replay fidelity can be
+          asserted rather than assumed.
+        </p>
+        <div
+          data-testid="hold-box"
+          style="user-select:none;-webkit-user-select:none;padding:16px;max-width:320px;background:#eef1f8;border:1px solid #c9d0e0;border-radius:6px;cursor:pointer"
+        >Press and hold me</div>
+        <p>State: <output data-testid="hold-state">idle</output></p>
+        <p>Held for: <output data-testid="hold-observed-ms">0</output> ms</p>
+        <p>Plain clicks seen: <output data-testid="hold-click-count">0</output></p>
+        <button type="button" data-testid="hold-reset">Reset hold</button>
+
+        <h3>Inert control</h3>
+        <p>
+          Reacts to nothing at all. Holding the button down on it is indistinguishable from a slow
+          click, so the Recorder must record a plain click here — recognising a hold on evidence-free
+          duration alone would be a guess.
+        </p>
+        <div
+          data-testid="inert-box"
+          style="user-select:none;-webkit-user-select:none;padding:16px;max-width:320px;background:#f4f4f4;border:1px solid #ddd;border-radius:6px;cursor:pointer"
+        >Nothing happens here</div>
+      </section>
+
+      <script>
+        (function () {
+          var box = document.querySelector('[data-testid="hold-box"]');
+          var state = document.querySelector('[data-testid="hold-state"]');
+          var observed = document.querySelector('[data-testid="hold-observed-ms"]');
+          var clicks = document.querySelector('[data-testid="hold-click-count"]');
+          var pressedAt = 0;
+          var clickCount = 0;
+
+          box.addEventListener("mousedown", function () {
+            pressedAt = Date.now();
+            state.textContent = "holding";
+            box.style.background = "#cfe9d6";
+          });
+          box.addEventListener("mouseup", function () {
+            if (!pressedAt) return;
+            observed.textContent = String(Date.now() - pressedAt);
+            pressedAt = 0;
+            state.textContent = "released";
+            box.style.background = "#eef1f8";
+          });
+          // Counted, not acted on: a hold must not ALSO register as an ordinary click on replay.
+          box.addEventListener("click", function () {
+            clickCount += 1;
+            clicks.textContent = String(clickCount);
+          });
+          document.querySelector('[data-testid="hold-reset"]').addEventListener("click", function () {
+            pressedAt = 0;
+            clickCount = 0;
+            state.textContent = "idle";
+            observed.textContent = "0";
+            clicks.textContent = "0";
+            box.style.background = "#eef1f8";
+          });
+        })();
+      </script>
+
     </main>
   </body>
 </html>

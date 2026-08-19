@@ -107,6 +107,7 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
   },
   hover: { type: "hover", role: "action", requiresLocator: true, requiresValue: false, weight: 3 },
   dblclick: { type: "dblclick", role: "action", requiresLocator: true, requiresValue: false, weight: 2 },
+  clickAndHold: { type: "clickAndHold", role: "action", requiresLocator: true, requiresValue: false, weight: 1 },
   contextMenu: { type: "contextMenu", role: "action", requiresLocator: true, requiresValue: false, weight: 2 },
   scroll: { type: "scroll", role: "action", requiresLocator: false, requiresValue: true, weight: 3 },
 

@@ -8,6 +8,7 @@ export type NodeCategory = "flow" | "navigation" | "interaction" | "input" | "ca
 export type PropertySection =
   | "locator"
   | "dragTarget"
+  | "hold"
   | "value"
   | "select"
   | "wait"
@@ -78,6 +79,7 @@ const META: Record<StepType, RegistryMeta> = {
   scroll: { category: "interaction", sections: ["scroll", "execution"], executable: true },
   hover: { category: "interaction", sections: ["locator", "execution"], executable: true },
   dblclick: { category: "interaction", sections: ["locator", "execution"], executable: true },
+  clickAndHold: { category: "interaction", sections: ["locator", "hold", "execution"], executable: true },
   contextMenu: { category: "interaction", sections: ["locator", "execution"], executable: true },
   wait: {
     category: "control",

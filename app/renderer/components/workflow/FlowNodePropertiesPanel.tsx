@@ -1094,6 +1094,26 @@ export function FlowNodePropertiesPanel({
             </details>
           ) : null}
 
+          {has("hold") ? (
+            <details className="property-group" open>
+              <summary>Hold</summary>
+              <section className="property-section">
+                <label>
+                  Hold for (ms)
+                  <input
+                    type="number"
+                    min={0}
+                    value={data.holdMs}
+                    onChange={(e) => set({ holdMs: Math.max(0, Number(e.target.value) || 0) })}
+                  />
+                </label>
+                <span className="form-message">
+                  How long the button stays down. This is the gesture itself, not a wait for the page.
+                </span>
+              </section>
+            </details>
+          ) : null}
+
           {has("assertion") ? (
             <details className="property-group" open>
               <summary>Assertion</summary>

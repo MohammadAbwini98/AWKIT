@@ -1754,6 +1754,24 @@ export class StepExecutor {
         return { status: "passed" };
       }
 
+      case "clickAndHold": {
+        // Press, hold, release — as three separate operations, because that is what the page
+        // observes. Playwright's `click` collapses mousedown and mouseup into one gesture, so a
+        // page that renders a distinct pressed state never shows it for long enough to assert.
+        // `holdMs` is the gesture's duration, not a wait for anything, so it is not a Smart Wait.
+        const target = await this.resolveDirectActionTarget(step);
+        const holdMs = Math.max(0, step.config?.holdMs ?? 1000);
+        await target.hover({ timeout: step.timeoutMs ?? 10_000 });
+        await this.activePage.mouse.down();
+        try {
+          await this.activePage.waitForTimeout(holdMs);
+        } finally {
+          // Release even if the hold is interrupted: a button left down poisons every step after it.
+          await this.activePage.mouse.up();
+        }
+        return { status: "passed" };
+      }
+
       case "contextMenu": {
         // A synthetic right-click dispatches `contextmenu` WITHOUT opening a native menu — measured
         // in both headless and headed Chromium, where the following ordinary click still succeeded.

@@ -241,6 +241,7 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined
     expectedValue: inSection("assertion") ? data.expectedValue || undefined : undefined,
     // Only an `attribute` assertion carries an attribute name; other types must not persist one.
     attributeName: inSection("assertion") && data.assertionType === "attribute" ? data.attributeName || undefined : undefined,
+    holdMs: inSection("hold") ? data.holdMs : undefined,
     storageArea: inSection("assertion") && data.assertionType === "storage" ? data.storageArea : undefined,
     storageKey: inSection("assertion") && data.assertionType === "storage" ? data.storageKey || undefined : undefined,
     screenshotName: inSection("screenshot") ? data.screenshotName || undefined : undefined,
@@ -394,6 +395,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     comparisonOperator: step.config?.comparisonOperator ?? "equals",
     expectedValue: step.config?.expectedValue ?? "",
     attributeName: step.config?.attributeName ?? "",
+    holdMs: step.config?.holdMs ?? 1000,
     storageArea: step.config?.storageArea ?? "local",
     storageKey: step.config?.storageKey ?? "",
     screenshotName: step.config?.screenshotName ?? "",

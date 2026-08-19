@@ -8,6 +8,10 @@ export type StepType =
   /** Right-click / context menu. Captures the GESTURE only — whatever a user picks from a native
       browser menu is invisible to the page, the recorder and replay alike, so no step claims it. */
   | "contextMenu"
+  /** Press the primary button on an element, HOLD it, then release. Distinct from `click` on
+      purpose: a page that reacts to `mousedown` and again to `mouseup` observes two different
+      states, and an ordinary click passes through both too fast to be one of them. */
+  | "clickAndHold"
   | "press"
   | "drag"
   | "fill"
@@ -799,6 +803,13 @@ export interface NodeConfig {
    * page never wrote.
    */
   storageKey?: string;
+  /**
+   * How long a `clickAndHold` step keeps the button down, in milliseconds. Default 1000.
+   *
+   * This is not a synchronisation wait — the duration IS the gesture, the same way a drag's
+   * distance is the gesture. Nothing is being waited FOR.
+   */
+  holdMs?: number;
   screenshotName?: string;
   fullPage?: boolean;
   scrollTarget?: "page" | "element";

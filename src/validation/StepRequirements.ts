@@ -42,6 +42,7 @@ export const STEP_REQUIREMENTS: Record<StepType, StepRequirement> = {
   drag: { requiresLocator: true, requiresValue: false },
   hover: { requiresLocator: true, requiresValue: false },
   dblclick: { requiresLocator: true, requiresValue: false },
+  clickAndHold: { requiresLocator: true, requiresValue: false },
   contextMenu: { requiresLocator: true, requiresValue: false },
   scroll: { requiresLocator: false, requiresValue: true },
 
