@@ -20,6 +20,9 @@ import { evaluateKeyCustody } from "../../security/keyCustody";
 import {
   ISSUER_ENTITLEMENTS,
   ISSUER_LICENSE_TYPES,
+  ISSUER_MAX_FUTURE_START_DAYS,
+  ISSUER_MAX_VALIDITY_DAYS,
+  ISSUER_MIN_VALIDITY_MINUTES,
   type IssueLicenseInput,
   type IssuedLicenseResult,
   type IssuerReadiness,
@@ -49,11 +52,65 @@ const FINGERPRINT_HASH = /^[a-f0-9]{64}$/i;
 const CONFIDENCE_LEVELS = new Set(["high", "medium", "limited"]);
 const ENTITLEMENT_SET = new Set<string>(ISSUER_ENTITLEMENTS);
 const LICENSE_TYPE_SET = new Set<string>(ISSUER_LICENSE_TYPES);
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** The window boundaries a caller may state. Anything looser would not round-trip to minute ISO. */
+const WINDOW_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function toMinuteIso(ms: number): string {
   const date = new Date(ms);
   date.setUTCSeconds(0, 0);
   return date.toISOString();
+}
+
+/**
+ * Resolve the requested validity into the two timestamps the signed schema actually carries.
+ *
+ * Both accepted forms converge here so there is one place where a window can be rejected, and one
+ * definition of "too long" regardless of how the caller expressed it. Bounds are applied AFTER
+ * minute-truncation, because truncation is what the license will really say — checking the
+ * caller's un-truncated values would let a 90-second request through as a 1-minute license, or
+ * reject a window that truncates to a legal one.
+ */
+function resolveValidity(input: IssueLicenseInput, nowMs: number): { validFromUtc: string; expiresAtUtc: string } {
+  const hasDays = input.validityDays !== undefined;
+  const hasWindow = input.validityWindow !== undefined;
+  if (hasDays === hasWindow) throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+
+  if (hasDays) {
+    const days = input.validityDays as number;
+    if (!Number.isInteger(days) || days < 1 || days > ISSUER_MAX_VALIDITY_DAYS) {
+      throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+    }
+    const validFromUtc = toMinuteIso(nowMs);
+    return { validFromUtc, expiresAtUtc: toMinuteIso(Date.parse(validFromUtc) + days * DAY_MS) };
+  }
+
+  const window = input.validityWindow as { validFromUtc?: unknown; expiresAtUtc?: unknown };
+  if (!window || typeof window !== "object" || Array.isArray(window)) {
+    throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+  }
+  const from = window.validFromUtc;
+  const until = window.expiresAtUtc;
+  if (typeof from !== "string" || typeof until !== "string") throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+  if (!WINDOW_TIMESTAMP.test(from) || !WINDOW_TIMESTAMP.test(until)) {
+    throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+  }
+  const fromMs = Date.parse(from);
+  const untilMs = Date.parse(until);
+  if (Number.isNaN(fromMs) || Number.isNaN(untilMs)) throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+
+  const validFromUtc = toMinuteIso(fromMs);
+  const expiresAtUtc = toMinuteIso(untilMs);
+  const spanMs = Date.parse(expiresAtUtc) - Date.parse(validFromUtc);
+  if (spanMs < ISSUER_MIN_VALIDITY_MINUTES * 60_000) throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+  if (spanMs > ISSUER_MAX_VALIDITY_DAYS * DAY_MS) throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+  // A window may legitimately start in the past (back-dating cover for an already-elapsed period —
+  // the result is simply a license that is already partly or wholly spent), but a start far in the
+  // future is much more likely a typed year than an intent, so it is refused rather than signed.
+  if (Date.parse(validFromUtc) > nowMs + ISSUER_MAX_FUTURE_START_DAYS * DAY_MS) {
+    throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
+  }
+  return { validFromUtc, expiresAtUtc };
 }
 
 function serialNumber(): string {
@@ -90,9 +147,6 @@ function validateIssueInput(input: unknown, product: string): asserts input is I
     throw new LicenseIssuerError("ACTIVATION_REQUEST_INVALID");
   }
   if (typeof candidate.licenseType !== "string" || !LICENSE_TYPE_SET.has(candidate.licenseType)) {
-    throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
-  }
-  if (!Number.isInteger(candidate.validityDays) || Number(candidate.validityDays) < 1 || Number(candidate.validityDays) > 3650) {
     throw new LicenseIssuerError("ISSUER_OPTIONS_INVALID");
   }
   if (!Array.isArray(candidate.entitlements) || candidate.entitlements.length === 0) {
@@ -135,10 +189,12 @@ export class LicenseIssuerService {
 
   async issue(input: unknown): Promise<IssuedLicenseResult> {
     validateIssueInput(input, this.options.product);
-    const privateKey = await this.loadSigningKey();
     const nowMs = this.now();
-    const validFromUtc = toMinuteIso(nowMs);
-    const expiresAtUtc = toMinuteIso(Date.parse(validFromUtc) + input.validityDays * 24 * 60 * 60 * 1000);
+    // Resolve the window BEFORE reading the key: a request that cannot produce a legal license must
+    // not cause the private key to be opened at all.
+    const { validFromUtc, expiresAtUtc } = resolveValidity(input, nowMs);
+    const privateKey = await this.loadSigningKey();
+    const issuedAtUtc = toMinuteIso(nowMs);
     const licenseId = this.idFactory();
     const payload: LicensePayload = {
       schemaVersion: LICENSE_SCHEMA_VERSION,
@@ -146,7 +202,7 @@ export class LicenseIssuerService {
       serialNumber: serialNumber(),
       product: this.options.product,
       machineFingerprintHash: input.activationRequest.fingerprintHash,
-      issuedAtUtc: validFromUtc,
+      issuedAtUtc,
       validFromUtc,
       expiresAtUtc,
       licenseType: input.licenseType,
@@ -177,6 +233,7 @@ export class LicenseIssuerService {
           product: license.product,
           requestId: input.activationRequest.requestId,
           machineFingerprintHash: license.machineFingerprintHash,
+          licenseType: license.licenseType,
           validFromUtc,
           expiresAtUtc,
           entitlements: license.entitlements,
@@ -196,9 +253,14 @@ export class LicenseIssuerService {
       serialNumber: license.serialNumber,
       licenseType: license.licenseType,
       machineFingerprintHash: license.machineFingerprintHash,
+      issuedAtUtc,
       validFromUtc,
       expiresAtUtc,
       entitlements: [...license.entitlements],
+      product: license.product,
+      issuer: license.issuer,
+      signingKeyId: license.signingKeyId,
+      signatureAlgorithm: license.signatureAlgorithm,
       fileName,
       outputPath
     };

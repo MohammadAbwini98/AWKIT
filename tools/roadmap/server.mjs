@@ -9,8 +9,12 @@
  *   - binds 127.0.0.1 only. The payload includes unfixed security findings from the issue tracker.
  *   - routes are an explicit allowlist. No path is ever joined from request input, so path
  *     traversal is impossible by construction rather than by validation.
- *   - repository data remains read-only. The sole mutation endpoint starts the repository's exact
- *     portable packaging script; the browser cannot supply a command, arguments, path, or env.
+ *   - repository data remains read-only. Two mutation endpoints exist and both run a FIXED command
+ *     with `shell: false`: portable packaging runs the repository's own release script, and the
+ *     License Issuer runs the trusted issuer bridge. In neither case can the browser supply a
+ *     command, an argument, a path, or an environment variable.
+ *   - the private signing key never enters this process. Signing happens in the bridge child
+ *     process; this server sees only the resulting license document and safe reason codes.
  *
  * Liveness is a stat() fingerprint poll rather than fs.watch: on Windows, editors and `bd` write
  * via temp-file + rename, which silently detaches a file-bound watch handle. A dashboard that has
@@ -25,14 +29,23 @@ import { extname, join } from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 
 import { buildSnapshot } from "./lib/model.mjs";
+import {
+  LICENSE_ISSUE_ACTION_HEADER,
+  buildIssuePayload,
+  parseActivationRequestBody,
+  runIssuerBridge
+} from "./lib/license-issuer.mjs";
 import { clearReadCache, contentHash, fingerprintSources } from "./lib/read-cache.mjs";
 import { ASSIGNMENTS_PATH, REPO_ROOT, ROADMAP_ROOT, WATCHED_SOURCE_IDS, sourcePath } from "./lib/sources.mjs";
 
-const PORT = Number(process.env.ROADMAP_PORT ?? 4380);
+// PORT is the harness/preview fallback so a second instance can run beside the owner's 4380 one.
+const PORT = Number(process.env.ROADMAP_PORT ?? process.env.PORT ?? 4380);
 const HOST = "127.0.0.1";
 const POLL_MS = Number(process.env.ROADMAP_POLL_MS ?? 1500);
 const KEEPALIVE_MS = 20_000;
 const PORTABLE_ACTION_HEADER = "package-portable";
+/** Hard cap on any JSON request body this server will read. */
+const MAX_BODY_BYTES = 96 * 1024;
 const RELEASE_VERSION_POLICY = "patch";
 const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "release-portable.ps1");
 
@@ -45,7 +58,8 @@ const STATIC_ROUTES = new Map([
   ["/dom.js", "dom.js"],
   ["/icons.js", "icons.js"],
   ["/views.js", "views.js"],
-  ["/graph.js", "graph.js"]
+  ["/graph.js", "graph.js"],
+  ["/license-issuer.js", "license-issuer.js"]
 ]);
 
 const MIME = {
@@ -195,6 +209,10 @@ const server = createServer(async (req, res) => {
     if (path === "/healthz") return sendJson(res, 200, { ok: true, port: PORT });
 
     if (path === "/api/package-portable") return handlePortableBuild(req, res);
+    if (path === "/api/license-issuer") return handleIssuerReadiness(req, res);
+    if (path === "/api/license-issuer/history") return handleIssuerHistory(req, res);
+    if (path === "/api/license-issuer/parse") return handleIssuerParse(req, res);
+    if (path === "/api/license-issuer/issue") return handleIssuerIssue(req, res);
 
     if (path === "/api/refresh") {
       if (req.method !== "POST") {
@@ -244,10 +262,7 @@ function handlePortableBuild(req, res) {
     return res.end("Method Not Allowed");
   }
 
-  const expectedOrigin = `http://${HOST}:${req.socket.localPort}`;
-  const origin = req.headers.origin;
-  const action = req.headers["x-awkit-roadmap-action"];
-  if (action !== PORTABLE_ACTION_HEADER || (origin && origin !== expectedOrigin)) {
+  if (!isAuthorizedAction(req, PORTABLE_ACTION_HEADER)) {
     return sendJson(res, 403, { ok: false, error: "Portable build request was not authorized." });
   }
   if (portableBuild.state === "running") {
@@ -279,6 +294,149 @@ function handlePortableBuild(req, res) {
   child.once("close", (code) => finishPortableBuild(typeof code === "number" ? code : null, null));
 
   return sendJson(res, 202, { ok: true, build: portableBuildStatus() });
+}
+
+/**
+ * One authorization rule for every mutating action.
+ *
+ * Requiring a non-simple custom header is what stops a hostile page starting one with a plain
+ * cross-origin HTML form: browsers preflight a fetch carrying this header, and this server grants no
+ * CORS permission. The Origin check is additive — a same-origin fetch from the dashboard sends
+ * either no Origin or exactly this one.
+ *
+ * @param {import("node:http").IncomingMessage} req
+ * @param {string} action
+ */
+function isAuthorizedAction(req, action) {
+  const expectedOrigin = `http://${HOST}:${req.socket.localPort}`;
+  const origin = req.headers.origin;
+  return req.headers["x-awkit-roadmap-action"] === action && (!origin || origin === expectedOrigin);
+}
+
+/**
+ * Read a JSON request body, refusing anything oversized before it is buffered in full.
+ * @param {import("node:http").IncomingMessage} req
+ * @returns {Promise<{ok: true, value: unknown}|{ok: false, reason: string}>}
+ */
+function readJsonBody(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let total = 0;
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > MAX_BODY_BYTES) {
+        // Stop buffering but keep the connection readable, so the caller receives a real refusal
+        // instead of a reset socket. Discarded bytes cost nothing; a truncated answer costs clarity.
+        chunks.length = 0;
+        req.resume();
+        return finish({ ok: false, reason: "REQUEST_TOO_LARGE" });
+      }
+      chunks.push(chunk);
+    });
+    req.on("error", () => finish({ ok: false, reason: "REQUEST_INVALID" }));
+    req.on("end", () => {
+      try {
+        const text = Buffer.concat(chunks).toString("utf8");
+        finish({ ok: true, value: text.length === 0 ? {} : JSON.parse(text) });
+      } catch {
+        finish({ ok: false, reason: "REQUEST_INVALID" });
+      }
+    });
+  });
+}
+
+/* ==========================================================================
+   License issuer — a thin, authorizing front end for the trusted bridge.
+
+   Nothing here signs, reads a key, or knows a key path. Every response is either the bridge's own
+   safe value or a reason CODE; no filesystem path, stderr text, or stack ever reaches the browser.
+   ========================================================================== */
+
+/** @type {boolean} single-flight, so a double-submitted form cannot sign twice. */
+let issuanceInFlight = false;
+
+/**
+ * @param {import("node:http").IncomingMessage} req
+ * @param {import("node:http").ServerResponse} res
+ */
+async function handleIssuerReadiness(req, res) {
+  if (req.method !== "GET") {
+    res.writeHead(405, { Allow: "GET", "Content-Type": "text/plain; charset=utf-8" });
+    return res.end("Method Not Allowed");
+  }
+  const result = await runIssuerBridge("readiness");
+  if (!result.ok) return sendJson(res, 200, { ok: false, reason: result.reason });
+  return sendJson(res, 200, { ok: true, readiness: result.value, issuing: issuanceInFlight });
+}
+
+/**
+ * @param {import("node:http").IncomingMessage} req
+ * @param {import("node:http").ServerResponse} res
+ */
+async function handleIssuerHistory(req, res) {
+  if (req.method !== "GET") {
+    res.writeHead(405, { Allow: "GET", "Content-Type": "text/plain; charset=utf-8" });
+    return res.end("Method Not Allowed");
+  }
+  const result = await runIssuerBridge("history");
+  if (!result.ok) return sendJson(res, 200, { ok: false, reason: result.reason });
+  return sendJson(res, 200, { ok: true, ...result.value });
+}
+
+/**
+ * @param {import("node:http").IncomingMessage} req
+ * @param {import("node:http").ServerResponse} res
+ */
+async function handleIssuerParse(req, res) {
+  if (req.method !== "POST") {
+    res.writeHead(405, { Allow: "POST", "Content-Type": "text/plain; charset=utf-8" });
+    return res.end("Method Not Allowed");
+  }
+  if (!isAuthorizedAction(req, LICENSE_ISSUE_ACTION_HEADER)) {
+    return sendJson(res, 403, { ok: false, reason: "NOT_AUTHORIZED" });
+  }
+  const body = await readJsonBody(req);
+  if (!body.ok) return sendJson(res, 400, { ok: false, reason: body.reason });
+  const parsed = parseActivationRequestBody(body.value);
+  if (!parsed.ok) return sendJson(res, 400, { ok: false, reason: parsed.reason });
+  const result = await runIssuerBridge("parse", { activationRequest: parsed.value });
+  if (!result.ok) return sendJson(res, 400, { ok: false, reason: result.reason });
+  return sendJson(res, 200, { ok: true, request: result.value });
+}
+
+/**
+ * @param {import("node:http").IncomingMessage} req
+ * @param {import("node:http").ServerResponse} res
+ */
+async function handleIssuerIssue(req, res) {
+  if (req.method !== "POST") {
+    res.writeHead(405, { Allow: "POST", "Content-Type": "text/plain; charset=utf-8" });
+    return res.end("Method Not Allowed");
+  }
+  if (!isAuthorizedAction(req, LICENSE_ISSUE_ACTION_HEADER)) {
+    return sendJson(res, 403, { ok: false, reason: "NOT_AUTHORIZED" });
+  }
+  const body = await readJsonBody(req);
+  if (!body.ok) return sendJson(res, 400, { ok: false, reason: body.reason });
+  // Validate BEFORE claiming the single-flight slot, so a malformed body cannot lock out a valid one.
+  const payload = buildIssuePayload(body.value);
+  if (!payload.ok) return sendJson(res, 400, { ok: false, reason: payload.reason });
+  if (issuanceInFlight) return sendJson(res, 409, { ok: false, reason: "ISSUANCE_IN_PROGRESS" });
+
+  issuanceInFlight = true;
+  try {
+    const result = await runIssuerBridge("issue", payload.value);
+    if (!result.ok) return sendJson(res, 400, { ok: false, reason: result.reason });
+    return sendJson(res, 200, { ok: true, ...result.value });
+  } finally {
+    issuanceInFlight = false;
+  }
 }
 
 /** @param {number|null} exitCode @param {string|null} errorCode */

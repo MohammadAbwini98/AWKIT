@@ -22,7 +22,7 @@ import { getRuntimeDataRoot } from "../appPaths";
 import { computeMachineFingerprint } from "@src/licensing/MachineFingerprint";
 import { LicenseService, type LicenseStatusReport } from "@src/licensing/LicenseService";
 import { LicenseStore } from "@src/licensing/store/LicenseStore";
-import { LicenseStatus } from "@src/licensing/LicenseTypes";
+import { LICENSING_PRODUCT, LicenseStatus } from "@src/licensing/LicenseTypes";
 import {
   applyLicenseRunGatePolicy,
   type ActiveRunDisposition,
@@ -31,7 +31,9 @@ import {
 import { graceDaysRemaining, type MigrationGraceEvaluation } from "@src/licensing/MigrationGrace";
 import { evaluateMigrationGraceWindow, initializeMigrationGrace } from "./migrationGraceStore";
 
-export const LICENSING_PRODUCT = "SpecterStudio";
+// Re-exported so existing main-process importers keep their path while the value itself lives
+// in the licensing domain, shared with the issuer CLI and the dashboard bridge.
+export { LICENSING_PRODUCT };
 
 /**
  * The ONLY bypass switch, and it is inert in a packaged build. Named so it cannot be mistaken for a

@@ -16,6 +16,15 @@
 /** Bump when the signed-license wire format changes in a non-backwards-compatible way. */
 export const LICENSE_SCHEMA_VERSION = 1 as const;
 
+/**
+ * The product identity every license, activation request and issuer check is matched against.
+ *
+ * One constant, because three runtimes have to agree on it: the Electron main process, the offline
+ * issuer CLI, and the Program Status dashboard's issuer bridge. A license signed for a product
+ * string the app does not recognise is refused, so a drift here is silent until activation fails.
+ */
+export const LICENSING_PRODUCT = "SpecterStudio" as const;
+
 /** Signature algorithms the runtime accepts. Ed25519 is offline, dependency-free (Node crypto), and fast. */
 export type SignatureAlgorithm = "Ed25519";
 

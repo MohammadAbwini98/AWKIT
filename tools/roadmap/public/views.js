@@ -1,5 +1,5 @@
 /**
- * The eight views.
+ * The nine views.
  *
  * Two rules run through all of them, and they are the reason this dashboard can be trusted:
  *
@@ -14,6 +14,7 @@
 import { formatBytes, formatDate, el, frag, plural, relativeTime } from "./dom.js";
 import { icon, iconSpan } from "./icons.js";
 import { renderDependencies } from "./graph.js";
+import { renderLicenseIssuer } from "./license-issuer.js";
 
 /** View-local UI state. Survives a snapshot refresh so a live update never resets your filters. */
 const local = {
@@ -1062,6 +1063,16 @@ export const VIEWS = [
     subtitle: (s) => `${s.agents.coverage.attributed} of ${s.agents.coverage.total} log entries attributed`,
     count: (s) => s.agents.timeline.length,
     render: renderAgents
+  },
+  {
+    // Developer tooling only. The label is the owner's wording and is asserted by the verifier.
+    id: "licenses-issue",
+    label: "Licenses Issue",
+    icon: "key-round",
+    title: "License Issuer",
+    subtitle: () => "Generate signed machine-bound AWKIT licenses",
+    count: () => null,
+    render: renderLicenseIssuer
   },
   {
     id: "sources",
