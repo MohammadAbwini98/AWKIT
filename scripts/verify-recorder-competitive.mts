@@ -24,6 +24,22 @@ import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 
 let passed = 0;
 let failed = 0;
+
+/*
+ * Known-gap sentinels are tallied SEPARATELY from ordinary checks, and deliberately so.
+ *
+ * A sentinel passes when a defect is still present. Counting one inside the headline number produces
+ * a line like "58/58 recorder-competitive checks passed" that reads as "recorder pointer handling is
+ * green" while two interactions are silently lost — the number becomes an argument against fixing
+ * them. Reported apart, the summary has to say out loud that N assertions exist only because the
+ * product is wrong.
+ *
+ * A sentinel that FAILS still fails the run: it means the behaviour changed, and the correct response
+ * is to convert it into a positive assertion, not to adjust it until it passes again.
+ */
+let gapsHolding = 0;
+let gapsChanged = 0;
+const GAP_BEAD = "awkit-bxyo";
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
     passed += 1;
@@ -31,6 +47,26 @@ function check(label: string, condition: unknown, detail?: string): void {
   } else {
     failed += 1;
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
+  }
+}
+
+/**
+ * Record a KNOWN-GAP sentinel: an assertion that holds only while a defect remains unfixed.
+ *
+ * `condition` is "the gap is still exactly as measured". True means the defect persists — reported as
+ * GAP, never as a pass. False means the behaviour moved and this assertion must be rewritten as a
+ * positive one; that fails the run.
+ */
+function gapSentinel(label: string, condition: unknown, detail?: string): void {
+  if (condition) {
+    gapsHolding += 1;
+    console.log(`  GAP  ${label}${detail ? ` — ${detail}` : ""}`);
+  } else {
+    gapsChanged += 1;
+    console.error(
+      `  CHANGED  ${label} — the measured gap no longer holds. Convert this sentinel into a positive ` +
+        `assertion and update ${GAP_BEAD}.${detail ? ` Detail: ${detail}` : ""}`
+    );
   }
 }
 
@@ -291,8 +327,8 @@ async function main(): Promise<void> {
     );
 
     const double = await captureAll(html, (p) => p.getByTestId("lim-target").dblclick());
-    check(
-      "limits: a double-click records TWO clicks, not a double-click action (declared limitation)",
+    gapSentinel(
+      "double-click is captured as two ordinary clicks, not a double-click action",
       double.length === 2 && double.every((a) => a.type === "click"),
       JSON.stringify(double.map((a) => a.type))
     );
@@ -303,8 +339,8 @@ async function main(): Promise<void> {
     );
 
     const rightClick = await captureAll(html, (p) => p.getByTestId("lim-target").click({ button: "right" }));
-    check(
-      "limits: a right-click records NOTHING — context menus are not captured (declared limitation)",
+    gapSentinel(
+      "right-click is discarded entirely — no context-menu action is captured",
       rightClick.length === 0,
       JSON.stringify(rightClick.map((a) => `${a.type}:${a.name}`))
     );
@@ -496,7 +532,17 @@ async function main(): Promise<void> {
 
   await browser.close();
   console.log(`\n${passed}/${passed + failed} recorder-competitive checks passed`);
-  process.exit(failed === 0 ? 0 : 1);
+  if (gapsHolding > 0 || gapsChanged > 0) {
+    console.log(
+      `${gapsHolding} known-gap sentinel(s) still holding — these are NOT passes. They assert that an ` +
+        `open defect remains present (${GAP_BEAD}: double-click and right-click are not captured ` +
+        `semantically). When that work lands they must become positive assertions.`
+    );
+    if (gapsChanged > 0) {
+      console.error(`${gapsChanged} sentinel(s) no longer describe the product — rewrite them.`);
+    }
+  }
+  process.exit(failed === 0 && gapsChanged === 0 ? 0 : 1);
 }
 
 main().catch((error) => {
