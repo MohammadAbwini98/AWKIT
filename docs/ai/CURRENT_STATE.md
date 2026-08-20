@@ -1,5 +1,69 @@
 # CURRENT_STATE
 
+## Smart Wait conditions are validated structurally, not just for timeouts (2026-08-20)
+
+`awkit-jtok` closed — the follow-up the Fixed-time Wait fix deliberately left open. `FlowValidator`
+checked a step's `beforeWaits`/`afterWaits` for **timeouts only**, so a condition missing the fields
+its own type requires was admitted by the run gate and failed once the browser was already open.
+
+**The worse half was never failing at all.** Three condition shapes pass *vacuously* — the wait
+resolves immediately and the step races on, so the flake surfaces somewhere else entirely:
+
+```text
+urlChanged with neither urlContains nor fromUrl   predicate returns true on the first poll
+textVisible with text: ""                          getByText("") matches every element
+response with no method and no urlContains        resolves on whatever response arrives first
+```
+
+`src/validation/WaitConditionContract.ts` derives the per-type requirement for all **15** condition
+types from `StepExecutor.executeWaitCondition`, recursing into `anyOf` branches and naming the
+offending branch in the message.
+
+**Severity is read off the runtime, not chosen.** `runRequiredOrOptional` *swallows* a failure when
+`wait.optional || wait.evidence?.requirement === "optional"`, logging `WAIT_SIGNAL_OPTIONAL_MISSED`
+and continuing. So a malformed **required** condition is an error (`invalidWaitCondition`) and a
+malformed **optional** one is a warning (`degradedWaitCondition`) that does not block the run. The
+runtime's check pointedly does *not* include `"advisory"`; the Recorder stamps `optional: true`
+alongside non-required evidence, so its output resolves correctly, but a hand-authored
+`requirement: "advisory"` with no flag really is required at run time and is reported as an error.
+Mirroring the tidier-but-wrong reading would have under-reported.
+
+**Blast radius was measured before the rule was written, as the bead required.** Across **1,784 JSON
+files** on this machine — the live `%LOCALAPPDATA%` flow store, test fixtures, recorder artifacts and
+mock-site data — **308 FlowProfiles** were found, **120** of them carrying wait conditions, totalling
+**537 conditions**. Newly flagged: **0**. The Recorder builds its conditions from observed signals,
+so every locator, text and count it emits is real.
+
+A zero is only meaningful if the detector fires, so it was proved non-vacuous first: **11/11**
+deliberately broken conditions detected, **21/21** correct ones left clean.
+
+**What does change is the designer.** Five of the seven "Add wait" scaffolds ship deliberately empty
+(`value: ""`, `text: ""`, `urlContains: ""`) for the user to fill in, so a freshly added wait now
+reads as a draft until configured. That is consistent with the rest of the designer — a bare `fill`
+node already reports `missingRequiredLocator` the moment it is dropped on the canvas — and those
+scaffolds genuinely cannot execute: an empty CSS selector reaches Playwright as one.
+
+`validateTimeouts` keeps sole ownership of every timeout, including the `highTimeout` warning the
+contract has no notion of, so one bad timeout still produces one issue. It now **recurses into
+OR-group branches**, closing a gap nothing had covered: a branch timeout of `0` was previously
+checked by no rule at all.
+
+Verified: `verify:wait-validation` **103 PASS / 0 FAIL** (61 → 103) · `verify:runner` **121/0** ·
+`verify:validation` **151/0** · `verify:legacy-compat` **152/0** · `verify:flow-step-mapping`
+**145/0** · `verify:waits` **83/0** · `verify:async-review` **23/0** ·
+`verify:run-report-compatibility` **27/0** · `verify:random-{failures,reporting,lifecycle}`
+**17/0, 13/0, 13/0** · `verify:mock-site` **172/172** · `verify:flow-designer` 16/16 capsule + 112
+broad, 0 unexpected · `verify:roadmap-dashboard` **162/162** · `npm run build` clean.
+
+Mutation-tested three ways, because the subtle decisions are the ones that go decorative: removing
+the rule fails **36 of 103**; collapsing the severity split to always-error fails **4**; checking
+locator *presence* instead of a usable value — the naive implementation — fails **3**, including the
+present-but-empty scaffold case the rule exists for.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **251 total / 247 closed /
+4 outstanding**, and nothing is open again — the four remaining are all blocked on an external
+system or an owner decision.
+
 ## Waits are validated by their subtype, not by one flat table row (2026-08-20)
 
 A Fixed time Wait carrying `Duration (ms) = 2000` was reported as **"requires a value or value

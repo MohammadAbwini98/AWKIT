@@ -22,11 +22,23 @@
   `navigation`/`networkIdle` waits, and excusing a `selector` wait that carried text but no selector.
   Both now read `WaitStepContract`. Prefer a shared framework-agnostic module in `src/validation/`
   over a second implementation shaped to the renderer's data type.
-- **Smart Wait conditions are still unvalidated beyond timeouts** (`awkit-jtok`, OPEN). `FlowValidator`
-  checks `beforeWaits`/`afterWaits` for `timeoutMs` only; no rule checks that a `WaitCondition`
-  carries the fields its own type requires (`tableHasRows` without `tableLocator`, `response` without
-  a matcher, and so on). An imported or hand-edited profile carrying an incomplete condition is
-  admitted by the gate and fails at run time.
+- **A validation gap hides two different failures, and the silent one is worse** (`awkit-jtok`,
+  CLOSED). Smart Wait conditions were checked for timeouts only. Some incomplete conditions THROW
+  (`waitLocator(undefined)`), which at least surfaces - but three shapes pass VACUOUSLY and look
+  fine forever: `urlChanged` with neither `urlContains` nor `fromUrl` returns true on the first poll,
+  `getByText("")` matches every element, and a `response` with no method and no `urlContains`
+  resolves on whatever arrives first. When auditing a wait, ask what it does with NOTHING supplied,
+  not just whether it errors.
+- **PRESENT-but-empty is a different state from absent, and it is the common one.** The designer's
+  "Add wait" scaffolds create `{ strategy: "css", value: "" }` for the user to fill in, and
+  `LocatorFactory.create` only throws on `undefined` - so an empty selector sails through a presence
+  check straight to Playwright. A validator that tests `!== undefined` passes the entire
+  half-configured case. Mutating the check to presence-only failed 3 checks, so it is guarded.
+- **Read severity off the runtime, not off intuition.** `runRequiredOrOptional` swallows an OPTIONAL
+  wait condition's failure and re-throws a required one, so a malformed optional condition cannot
+  fail a run and must not block it. Its check is `optional || evidence?.requirement === "optional"`
+  and pointedly excludes `"advisory"` - so a hand-authored advisory with no `optional` flag really
+  is required at run time. The tidier reading ("anything not required is skippable") under-reports.
 
 ## WebDriverUniversity findings (2026-08-20)
 

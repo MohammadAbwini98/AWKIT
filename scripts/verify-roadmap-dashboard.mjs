@@ -314,8 +314,11 @@ try {
   // them is genuinely open engineering rather than owner-gated; the other four are still BLOCKED on an
   // external system or an owner decision, so a low number here means "little engineering is
   // available", not "nothing is left".
-    "5 outstanding / 246 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 246,
+  // Then 4/247 of 251 the same day: `awkit-jtok` closed - the Smart Wait `WaitCondition` union is now
+  // structurally validated across all 15 condition types. No new issues were filed, so outstanding
+  // returns to the four owner-gated items and NOTHING is open again.
+    "4 outstanding / 247 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 247,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

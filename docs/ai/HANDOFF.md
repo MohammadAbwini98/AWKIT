@@ -1,5 +1,80 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - Smart Wait conditions validated; nothing open
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 251 total / 247 closed / 4 outstanding.**
+- **`awkit-jtok` closed. NOTHING is open.** The four remaining are all BLOCKED on an external system
+  or an owner decision (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`). Zero open means no
+  engineering is available, not that nothing is left.
+
+### What was done
+
+`FlowValidator` checked a step's `beforeWaits`/`afterWaits` for TIMEOUTS ONLY.
+`src/validation/WaitConditionContract.ts` now derives the per-type requirement for all 15
+`WaitCondition` types from `StepExecutor.executeWaitCondition`, recursing into `anyOf` branches.
+
+Two things worth carrying forward:
+
+1. **The dangerous half of this gap was never a failure.** `urlChanged` with neither matcher,
+   `getByText("")` and a `response` with no matcher all pass VACUOUSLY - the wait resolves instantly
+   and the step races on, so the flake lands somewhere unrelated. Auditing for "does it throw" would
+   have found only half the defect.
+2. **Severity was read off the runtime.** `runRequiredOrOptional` swallows an optional condition's
+   failure, so optional defects are warnings (`degradedWaitCondition`) and required ones are errors
+   (`invalidWaitCondition`). Its check excludes `"advisory"`, and that exclusion is mirrored
+   deliberately - see `KNOWN_ISSUES.md`.
+
+### Blast radius, measured before the rule was written
+
+```text
+JSON files scanned                 1,784   (live %LOCALAPPDATA% store, fixtures, recorder artifacts)
+FlowProfiles found                   308
+…carrying wait conditions            120   (537 conditions in total)
+NEWLY flagged                          0
+non-vacuity control            11/11 broken detected, 21/21 correct clean
+```
+
+The one real behaviour change is in the designer: 5 of the 7 "Add wait" scaffolds ship deliberately
+empty, so a freshly added wait reads as a draft until configured — consistent with a bare `fill`
+node already reporting `missingRequiredLocator` the moment it is dropped.
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:wait-validation             PASS 103/0   (61 -> 103)
+verify:runner                      PASS 121/0
+verify:validation                  PASS 151/0
+verify:legacy-compat               PASS 152/0
+verify:flow-step-mapping           PASS 145/0
+verify:waits                       PASS 83/0
+verify:async-review                PASS 23/0
+verify:run-report-compatibility    PASS 27/0
+verify:random-failures             PASS 17/0
+verify:random-reporting            PASS 13/0
+verify:random-lifecycle            PASS 13/0
+verify:mock-site                   PASS 172/172
+verify:flow-designer               PASS 16/16 capsule + 112 broad, 0 unexpected
+verify:verifier-classification     PASS reconciled (193 verifiers)
+verify:roadmap-dashboard           PASS 162/162
+typecheck:scripts                  FAIL - the same 3 PRE-EXISTING diagnostics, untouched files
+mutation: rule removed             36 of 103 checks fail
+mutation: severity collapsed        4 of 103 checks fail
+mutation: locator presence-only     3 of 103 checks fail
+```
+
+### Next agent
+
+No open engineering. The nearest unclaimed ground is the note in `KNOWN_ISSUES.md`: `assertText` has
+seven `assertionType` arms whose config requirements (`attributeName`, `storageKey`) are enforced
+only by a throw inside `executeAssertion`, never by the gate — the same defect class as the two wait
+fixes, one node over. Not filed, because not reproduced.
+
+---
+
 ## HANDOFF (2026-08-20) - Waits validate by subtype; one open follow-up
 
 ### Transfer

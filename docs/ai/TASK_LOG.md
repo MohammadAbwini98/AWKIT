@@ -4,6 +4,52 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Structural validation for Smart Wait conditions (awkit-jtok)
+
+- **Objective:** close the follow-up the Fixed-time Wait fix left open. `FlowValidator` checked a
+  step's `beforeWaits`/`afterWaits` for TIMEOUTS ONLY; nothing checked that a `WaitCondition`
+  carried the fields its own type requires.
+- **Two failure modes, and the second is the dangerous one.** Some conditions THROW without their
+  field (`waitLocator(undefined)`, `waitForTimeout(NaN)` from an absent `delayMs`). Others pass
+  VACUOUSLY: `urlChanged` with neither matcher returns true on the first poll, `getByText("")`
+  matches every element, and a `response` with no method and no `urlContains` resolves on whatever
+  arrives first. Those never look broken - the wait simply never happens.
+- **Fix:** new `src/validation/WaitConditionContract.ts` derives the requirement for all 15
+  condition types from `StepExecutor.executeWaitCondition`, recurses into `anyOf` branches (naming
+  the offending branch), and bounds nesting at 8. Two new codes: `invalidWaitCondition` (error) and
+  `degradedWaitCondition` (warning), following the existing `invalidTimeout`/`highTimeout` pairing.
+- **Severity mirrors the runtime rather than a preference.** `runRequiredOrOptional` swallows an
+  optional condition's failure and re-throws a required one, so optional defects are warnings that
+  do not block. Its check excludes `"advisory"`; the Recorder stamps `optional: true` alongside
+  non-required evidence, but a hand-authored advisory with no flag IS required at run time, so it is
+  an error. The tidier reading would have under-reported.
+- **Blast radius measured BEFORE writing the rule, as the bead required:** 1,784 JSON files scanned
+  (live `%LOCALAPPDATA%` flow store, fixtures, recorder artifacts, mock-site), **308 FlowProfiles**,
+  **120** carrying waits, **537 conditions**, **0 newly flagged**. Proved non-vacuous first - 11/11
+  broken detected, 21/21 correct clean - because a 0 from a dead detector looks identical.
+- **The real impact is the designer:** 5 of 7 "Add wait" scaffolds ship deliberately empty, so a
+  freshly added wait now reads as a draft until configured. Consistent with a bare `fill` node
+  already reporting `missingRequiredLocator` on drop, and those scaffolds genuinely cannot execute.
+- **Timeouts keep ONE owner.** The contract ignores `timeoutMs` entirely so nothing double-counts;
+  `validateTimeouts` now recurses into OR-group branches instead, closing a gap where a branch
+  timeout of 0 was checked by no rule at all.
+- **Mutation evidence (three mutations, all measured):** removing the rule fails **36 of 103**;
+  collapsing the severity split to always-error fails **4**; checking locator presence instead of a
+  usable value fails **3**. Restored: 103/0.
+- **Verification:** build PASS; `verify:wait-validation` **103/0** (61 -> 103); `verify:runner`
+  **121/0**; `verify:validation` **151/0**; `verify:legacy-compat` **152/0**;
+  `verify:flow-step-mapping` **145/0**; `verify:waits` **83/0**; `verify:async-review` **23/0**;
+  `verify:run-report-compatibility` **27/0**; `verify:random-failures` **17/0**;
+  `verify:random-reporting` **13/0**; `verify:random-lifecycle` **13/0**; `verify:mock-site`
+  **172/172**; `verify:flow-designer` 16/16 capsule + 112 broad, 0 unexpected;
+  `verify:verifier-classification` reconciled (193); `verify:roadmap-dashboard` **162/162**.
+  `typecheck:scripts` still FAILs only on the same three pre-existing diagnostics in untouched files.
+- **Files:** `src/validation/WaitConditionContract.ts` (new), `src/validation/FlowValidator.ts`,
+  `scripts/verify-wait-validation.mts`, `scripts/lib/verifier-classification.ts`,
+  `scripts/verify-roadmap-dashboard.mjs` (bead baselines), `docs/ai/*`, `.beads/issues.jsonl`.
+
+---
+
 ## 2026-08-20 - Claude - Validate waits by their configured wait type (awkit-3p6x)
 
 - **Objective:** a Fixed time Wait with `Duration (ms) = 2000` was reported as "requires a value or
