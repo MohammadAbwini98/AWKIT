@@ -16,6 +16,7 @@ import {
   AGENT_IDS,
   WRITER_PRECEDENCE,
   agent,
+  domainForPath,
   pathInScope,
   riskLevelFor
 } from "./routing-matrix.mjs";
@@ -47,11 +48,11 @@ function canonicalOrder(ids) {
  *
  * @param {Record<string, boolean|number>} classification  normalized declared classification
  * @param {Object} [options]
- * @param {readonly string[]} [options.expectedPaths]  paths the task is expected to touch; these
- *   activate an agent through `onOwnedPath` even when no flag names its domain.
+ * @param {readonly string[]} [options.expectedPaths] paths the task is expected to touch
+ * @param {"inspect"|"change"} [options.taskMode] explicit intent; inspection never receives a writer
  * @returns {RoutingResult}
  */
-export function route(classification, { expectedPaths = [] } = {}) {
+export function route(classification, { expectedPaths = [], taskMode = "change" } = {}) {
   const riskLevel = riskLevelFor(classification);
   const crossLayer = Number(classification.cross_layer_count ?? 1);
 
@@ -61,6 +62,19 @@ export function route(classification, { expectedPaths = [] } = {}) {
   const rationale = [
     { agent: "manager", why: "Every task has exactly one orchestrator.", trigger: "always" }
   ];
+
+  // Ownership activates the responsible role for EVERY mapped expected path. Encoding this only on
+  // selected activation rules left Risk-0 tests/** and governance paths without an eligible writer.
+  for (const expectedPath of expectedPaths) {
+    const domain = domainForPath(expectedPath);
+    if (!domain || activated.has(domain.owner)) continue;
+    activated.add(domain.owner);
+    rationale.push({
+      agent: domain.owner,
+      why: `Owns ${domain.glob}.`,
+      trigger: `expected path ${expectedPath}`
+    });
+  }
 
   for (const rule of ACTIVATION_RULES) {
     /** @type {string|null} */
@@ -83,7 +97,7 @@ export function route(classification, { expectedPaths = [] } = {}) {
       if (hit) trigger = `expected path ${hit}`;
     }
 
-    if (trigger) {
+    if (trigger && !activated.has(rule.agent)) {
       activated.add(rule.agent);
       rationale.push({ agent: rule.agent, why: rule.why, trigger });
     }
@@ -113,7 +127,8 @@ export function route(classification, { expectedPaths = [] } = {}) {
     expectedPaths.some((path) => pathInScope(path, agent(id).ownsPaths))
   );
   const narrowed = expectedPaths.length > 0 && owningWriters.length > 0;
-  const writerSequence = narrowed ? owningWriters : activatedWriters;
+  const changeWriterSequence = narrowed ? owningWriters : activatedWriters;
+  const writerSequence = taskMode === "inspect" ? [] : changeWriterSequence;
 
   const consultants = activatedIds.filter((id) => {
     if (id === "qc" || id === "manager") return false;
@@ -128,6 +143,8 @@ export function route(classification, { expectedPaths = [] } = {}) {
 
   return {
     riskLevel,
+    taskMode,
+    expectedPaths: [...expectedPaths],
     activated: activatedIds,
     writerSequence,
     writerSequenceNarrowed: narrowed,

@@ -23,7 +23,7 @@
  *   node tools/agents/render-platform-agents.mjs --write   write every file
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,8 +34,14 @@ import {
   ROLE_SKILLS,
   WRITER_PRECEDENCE,
   agent,
+  disallowedToolsFor,
   toolsFor
 } from "./routing-matrix.mjs";
+import {
+  DELEGATION_FIELDS,
+  DELEGATION_PACKET_FIELDS,
+  REPORT_SECTIONS
+} from "./context-policy.mjs";
 
 /** tools/agents -> tools -> repo root */
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -72,13 +78,11 @@ function triggersFor(agentId) {
  */
 function descriptionFor(a) {
   const triggers = triggersFor(a.id);
-  const when = triggers.length > 0 ? ` Activates when ${triggers[0]}.` : "";
+  const when = triggers.length > 0 ? ` Activates when ${triggers.join("; or ")}.` : "";
   const mode =
     a.defaultMode === "read-only"
       ? " Read-only: advises, never edits."
-      : a.defaultMode === "review"
-        ? " Reviews by default; may own tightly scoped modules."
-        : "";
+      : "";
   return `${a.mandate}${when}${mode}`.replace(/\s+/g, " ").trim();
 }
 
@@ -163,6 +167,22 @@ function roleBody(a) {
     "- **Work in-tree.** No worktrees, no new branches — AWKIT develops on `main` only " +
       "(`docs/ai/BRANCH_AND_COMMIT_POLICY.md`)."
   );
+  lines.push(
+    "- **Protect context.** Do not return giant logs, full files, raw search dumps, repeated project " +
+      "instructions, chain-of-thought, or irrelevant failed hypotheses."
+  );
+  lines.push("");
+  lines.push("## Delegation and report contract");
+  lines.push("");
+  lines.push("The manager sends only this bounded packet:");
+  lines.push("");
+  for (const field of DELEGATION_PACKET_FIELDS) lines.push(`- ${field}`);
+  lines.push("");
+  lines.push(`Separate claims with: ${DELEGATION_FIELDS.join(" / ")}.`);
+  lines.push("");
+  lines.push("Return these concise sections (use `none` when genuinely empty):");
+  lines.push("");
+  for (const section of REPORT_SECTIONS) lines.push(`- ${section}`);
   lines.push("");
   lines.push("Process: `docs/ai/routing/ROUTING_RULES.md`. Data: `docs/ai/routing/ROUTING_MATRIX.md`.");
 
@@ -177,9 +197,13 @@ function roleBody(a) {
 export function renderClaudeAgent(a) {
   const lines = [
     "---",
-    `name: ${a.id}`,
+    `name: ${a.claudeName}`,
     `description: ${descriptionFor(a)}`,
     `tools: ${toolsFor(a.id)}`,
+    `disallowedTools: ${disallowedToolsFor(a.id)}`,
+    `model: ${a.model}`,
+    `maxTurns: ${a.maxTurns}`,
+    `permissionMode: ${a.defaultMode === "read-only" ? "plan" : "default"}`,
     "---",
     ""
   ];
@@ -208,8 +232,8 @@ export function renderAdapter(platform) {
     `> Regenerate with \`npm run agent:render-agents\`; \`verify:agent-routing\` compares this file`,
     "> byte-for-byte against the registry.",
     "",
-    `${platform} has no per-role agent runtime in this repository, so the eleven roles are not emitted`,
-    "as separate executable files here — that would be eleven more documents able to drift while",
+    `${platform} has no per-role agent runtime in this repository, so the ${AGENTS.length} roles are not emitted`,
+    `as separate executable files here — that would be ${AGENTS.length} more documents able to drift while`,
     "executing nothing. This one adapter carries the same registry-derived roster. Claude Code, which",
     "does have a subagent runtime, gets generated definitions under `.claude/agents/`.",
     "",
@@ -257,7 +281,7 @@ export function renderAdapter(platform) {
 export function allGeneratedFiles() {
   return [
     ...AGENTS.map((a) => ({
-      path: join(CLAUDE_AGENTS_DIR, `${a.id}.md`),
+      path: join(CLAUDE_AGENTS_DIR, `${a.claudeName}.md`),
       content: renderClaudeAgent(a)
     })),
     { path: CODEX_ADAPTER, content: renderAdapter("Codex") },
@@ -268,6 +292,24 @@ export function allGeneratedFiles() {
 if (process.argv[1] && process.argv[1].endsWith("render-platform-agents.mjs")) {
   const write = process.argv.includes("--write");
   let drift = 0;
+
+  if (write) {
+    mkdirSync(CLAUDE_AGENTS_DIR, { recursive: true });
+    const wanted = new Set(AGENTS.map((a) => `${a.claudeName}.md`));
+    for (const entry of readdirSync(CLAUDE_AGENTS_DIR, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".md") || wanted.has(entry.name)) continue;
+      const path = join(CLAUDE_AGENTS_DIR, entry.name);
+      let content = "";
+      try {
+        content = readFileSync(path, "utf8");
+      } catch {
+        continue;
+      }
+      if (!content.includes("Generated from `tools/agents/routing-matrix.mjs`")) continue;
+      unlinkSync(path);
+      console.log(`removed .claude/agents/${entry.name}`);
+    }
+  }
 
   for (const file of allGeneratedFiles()) {
     let current = null;

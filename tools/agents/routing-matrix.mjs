@@ -58,52 +58,66 @@ export const NON_PASSING_STATUSES = Object.freeze(["FAIL", "BLOCKED", "NOT RUN"]
  * @typedef {Object} AgentEntry
  * @property {string} id            canonical agent id, used everywhere
  * @property {string} role          human-readable role
- * @property {"read-only"|"writer"|"review"} defaultMode
+ * @property {"read-only"|"writer"} defaultMode
+ * @property {string} claudeName   executable project-scoped Claude identity
+ * @property {"inherit"|"haiku"|"sonnet"|"opus"} model
+ * @property {number} maxTurns
  * @property {string[]} ownsPaths   globs this agent may hold a write lease over
  * @property {string} [agentsMd]    the per-folder AGENTS.md that already governs this area
  * @property {string} mandate       one line: what this agent is answerable for
  */
 
 /**
- * The eleven canonical agents.
+ * The sixteen canonical agents requested by AWKIT's token-aware orchestration architecture.
  *
- * `ownsPaths` is the ONLY place path ownership is written down. It is deliberately anchored to the
- * per-folder `AGENTS.md` files that already exist (`app/main`, `app/renderer`, `src`, `scripts`,
- * `tests`, `mock-site`, `docs`) rather than inventing an eleventh, drifting statement of the same
- * boundaries.
+ * `ownsPaths` is the ONLY hand-edited statement of write ownership. PATH_DOMAINS below must resolve
+ * every one of these globs back to the same owner, and the verifier rejects overlaps. Read-only
+ * specialists deliberately own no product paths: they advise, then a writer applies the change.
  *
  * @type {readonly AgentEntry[]}
  */
 export const AGENTS = Object.freeze([
   {
     id: "manager",
+    claudeName: "awkit-manager",
     role: "Manager / Orchestrator",
     defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 32,
     ownsPaths: [
-      "docs/ai/**",
-      "tools/roadmap/**",
       "tools/agents/**",
-      ".beads/**",
       ".claude/**",
       ".codex/**",
-      ".gemini/**"
+      ".gemini/**",
+      ".agents/**",
+      ".cursor/**",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "GEMINI.md"
     ],
-    agentsMd: "docs/AGENTS.md",
     mandate:
-      "Classifies, routes, grants and revokes the write lease, and reconciles authoritative sources. " +
-      "Denied product code by default so it orchestrates rather than becoming a twelfth implementer."
+      "Owns task decomposition, deterministic routing, context budgets, the serialized write lease, " +
+      "acceptance synthesis and final repository gates; it delegates detailed discovery."
   },
   {
     id: "architect",
+    claudeName: "awkit-system-architect",
     role: "Software Architect",
     defaultMode: "read-only",
-    ownsPaths: ["docs/ai/ARCHITECTURE.md", "docs/ai/DECISIONS.md"],
-    mandate: "Cross-layer contracts, IPC design, schema evolution, concurrency model, dependencies."
+    model: "inherit",
+    maxTurns: 18,
+    ownsPaths: [],
+    mandate:
+      "Analyzes Electron boundaries, IPC, runner/orchestration, persistence contracts, offline " +
+      "packaging, compatibility, concurrency and architectural debt before implementation."
   },
   {
     id: "uiux",
+    claudeName: "awkit-ui-designer",
     role: "UI/UX & Accessibility Specialist",
     defaultMode: "read-only",
+    model: "inherit",
+    maxTurns: 14,
     ownsPaths: [],
     mandate:
       "Design authority for interaction, Hologram tokens, focus, reduced motion and accessibility. " +
@@ -111,16 +125,44 @@ export const AGENTS = Object.freeze([
   },
   {
     id: "frontend",
+    claudeName: "awkit-frontend-engineer",
     role: "React / Renderer Engineer",
     defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 32,
     ownsPaths: ["app/renderer/**"],
     agentsMd: "app/renderer/AGENTS.md",
     mandate: "Renderer: React, both designers, admin screens, renderer state, Hologram styles."
   },
   {
+    id: "software",
+    claudeName: "awkit-software-engineer",
+    role: "General Software Engineer",
+    defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 32,
+    ownsPaths: [
+      "src/branding/**",
+      "src/logging/**",
+      "src/reports/**",
+      "src/roadmap/**",
+      "src/semantic/**",
+      "src/theme/**",
+      "src/utils/**",
+      "src/validation/**"
+    ],
+    agentsMd: "src/AGENTS.md",
+    mandate:
+      "Implements scoped TypeScript product work that does not belong to a narrower owner; never " +
+      "displaces a renderer, runtime, recorder, persistence, security or release specialist."
+  },
+  {
     id: "runtime",
+    claudeName: "awkit-backend-engineer",
     role: "Electron Main / Runner Engineer",
     defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 32,
     ownsPaths: [
       "app/main/**",
       "app/preload.ts",
@@ -129,60 +171,152 @@ export const AGENTS = Object.freeze([
       "src/instances/**"
     ],
     agentsMd: "app/main/AGENTS.md",
-    mandate: "Electron main, IPC implementation, runner, orchestration, execution and concurrency."
-  },
-  {
-    id: "persistence",
-    role: "Data & Persistence Specialist",
-    defaultMode: "writer",
-    ownsPaths: ["src/storage/**", "src/profiles/**", "src/data/**", "src/project/**"],
-    agentsMd: "src/AGENTS.md",
     mandate:
-      "JSON profile compatibility, migrations, atomic writes, unknown-field preservation, " +
-      "import/export and backward compatibility."
+      "Electron main, preload, IPC implementation, runner, execution orchestration, instance state " +
+      "and Windows runtime behavior while preserving offline operation."
   },
   {
     id: "integration",
-    role: "Playwright / Browser / IPC Integration Specialist",
-    defaultMode: "writer",
-    ownsPaths: ["src/recorder/**", "src/session/**", "src/oracle/**"],
-    agentsMd: "src/AGENTS.md",
-    mandate: "Playwright, Chromium, Recorder capture, popups/frames/downloads, live browser sessions."
+    claudeName: "awkit-integration-specialist",
+    role: "Cross-Boundary Integration Specialist",
+    defaultMode: "read-only",
+    model: "inherit",
+    maxTurns: 18,
+    ownsPaths: [],
+    mandate:
+      "Reviews renderer-preload-main, Electron-Playwright, Flow-Workflow-Runner, session, settings, " +
+      "reporting, licensing and packaged-runtime contracts end to end."
   },
   {
-    id: "security",
-    role: "Security & Trust-Boundary Specialist",
-    defaultMode: "review",
-    ownsPaths: ["src/licensing/**", "src/auth/**", "src/secrets/**", "src/security/**"],
+    id: "recorder",
+    claudeName: "awkit-recorder-playwright",
+    role: "Recorder / Playwright Specialist",
+    defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 32,
+    ownsPaths: ["src/recorder/**", "src/session/**", "src/oracle/**"],
+    agentsMd: "src/AGENTS.md",
     mandate:
-      "Auth, licensing, secrets, protected-login handoff, IPC authorization and signing. " +
-      "Prefers review; may own tightly scoped security modules."
+      "Playwright and Chromium recorder semantics, resilient locators, popups, frames, waits, " +
+      "downloads, uploads, browser contexts, session reuse and Feature Test Lab evidence."
   },
   {
     id: "qa",
+    claudeName: "awkit-qa-engineer",
     role: "Quality Assurance Engineer",
     defaultMode: "writer",
-    ownsPaths: ["tests/**", "mock-site/**", "scripts/verify-*", "scripts/validate-*", "src/testing/**"],
+    model: "inherit",
+    maxTurns: 28,
+    ownsPaths: [
+      "tests/**",
+      "mock-site/**",
+      "scripts/verify-*",
+      "scripts/validate-*",
+      "scripts/benchmark-*",
+      "src/testing/**"
+    ],
     agentsMd: "tests/AGENTS.md",
     mandate:
-      "Designs the proof: verifiers, mock-site scenarios, negative and race cases. " +
-      "May never weaken an assertion to obtain green output."
+      "Owns red-to-green proof, regression and negative cases, mock-site scenarios, runtime and GUI " +
+      "evidence, accessibility, concurrency and compatibility verification; never weakens assertions."
   },
   {
     id: "qc",
+    claudeName: "awkit-qc-reviewer",
     role: "Independent Quality Control Reviewer",
     defaultMode: "read-only",
+    model: "inherit",
+    maxTurns: 18,
     ownsPaths: [],
     mandate:
-      "Asks whether the evidence actually proves the requested result. Rejects to the Manager; " +
-      "never silently repairs a defect it found."
+      "Independently reviews requested behavior, architecture, security, offline and data rules, " +
+      "test credibility, code quality and documentation; never self-approves implementation."
+  },
+  {
+    id: "security",
+    claudeName: "awkit-security-engineer",
+    role: "Security & Trust-Boundary Engineer",
+    defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 24,
+    ownsPaths: ["src/licensing/**", "src/auth/**", "src/secrets/**", "src/security/**"],
+    mandate:
+      "Owns tightly scoped licensing, authorization, secret and trust-boundary modules and reviews " +
+      "protected-login handoff, Electron/session security, logging redaction and signing risk."
+  },
+  {
+    id: "researcher",
+    claudeName: "awkit-researcher",
+    role: "Codebase Researcher",
+    defaultMode: "read-only",
+    model: "haiku",
+    maxTurns: 12,
+    ownsPaths: [],
+    mandate:
+      "Uses Graphify, codebase memory, narrow source confirmation, documentation and Git history to " +
+      "return concise evidence for unfamiliar areas without dumping files into the manager context."
+  },
+  {
+    id: "persistence",
+    claudeName: "awkit-data-persistence",
+    role: "Data & Persistence Specialist",
+    defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 28,
+    ownsPaths: ["src/storage/**", "src/profiles/**", "src/data/**", "src/project/**"],
+    agentsMd: "src/AGENTS.md",
+    mandate:
+      "Owns persisted JSON, LOCALAPPDATA storage, migrations, atomic writes, corruption recovery, " +
+      "unknown-field preservation, import/export and old-data compatibility."
+  },
+  {
+    id: "performance",
+    claudeName: "awkit-performance-engineer",
+    role: "Performance / Concurrency Specialist",
+    defaultMode: "read-only",
+    model: "inherit",
+    maxTurns: 18,
+    ownsPaths: [],
+    mandate:
+      "Analyzes workload concurrency, scheduling, backpressure, memory pressure, cancellation and " +
+      "large-workflow regressions without hardcoding host CPU or RAM assumptions."
   },
   {
     id: "release",
+    claudeName: "awkit-build-release",
     role: "Packaging / Offline / Release Engineer",
     defaultMode: "writer",
-    ownsPaths: ["build/**", "resources/**", "package.json", "package-lock.json", "electron-builder*"],
-    mandate: "Packaging, bundled Chromium, signing, offline boundary, installer and portable builds."
+    model: "inherit",
+    maxTurns: 28,
+    ownsPaths: [
+      "build/**",
+      "resources/**",
+      "src/offline/**",
+      "package.json",
+      "package-lock.json",
+      "electron-builder*"
+    ],
+    mandate:
+      "Owns build, packaging, bundled Chromium, offline validation, dependency manifests, signing " +
+      "procedure, source hygiene, NSIS/portable artifacts and packaged-runtime evidence."
+  },
+  {
+    id: "project-state",
+    claudeName: "awkit-project-state",
+    role: "Documentation / Project-State Specialist",
+    defaultMode: "writer",
+    model: "inherit",
+    maxTurns: 24,
+    ownsPaths: [
+      "docs/ai/**",
+      ".beads/**",
+      "tools/roadmap/**",
+      "scripts/lib/verifier-classification.ts"
+    ],
+    agentsMd: "docs/AGENTS.md",
+    mandate:
+      "Reconciles CURRENT_STATE, HANDOFF, TASK_LOG, KNOWN_ISSUES, DEFECTS, Beads, validation ledger, " +
+      "assignments, verifier registry and roadmap sources without editing derived status to fake progress."
   }
 ]);
 
@@ -223,13 +357,18 @@ export const ROLE_SKILLS = Object.freeze({
   architect: ["codebase-review", "graphify"],
   uiux: ["frontend-ui-ux-master"],
   frontend: ["frontend-ui-ux-master", "feature-implementation", "bug-fix", "refactor-safe"],
+  software: ["feature-implementation", "bug-fix", "refactor-safe"],
   runtime: ["feature-implementation", "bug-fix", "refactor-safe"],
-  persistence: ["refactor-safe", "bug-fix"],
-  integration: ["mock-site-maintainer", "bug-fix"],
-  security: ["pr-review", "codebase-review"],
+  integration: ["codebase-review", "graphify"],
+  recorder: ["mock-site-maintainer", "bug-fix"],
   qa: ["test-and-verify", "mock-site-maintainer"],
   qc: ["pr-review", "codebase-review"],
-  release: ["test-and-verify"]
+  security: ["pr-review", "codebase-review"],
+  researcher: ["graphify", "codebase-review"],
+  persistence: ["refactor-safe", "bug-fix"],
+  performance: ["codebase-review", "test-and-verify"],
+  release: ["test-and-verify"],
+  "project-state": ["ai-memory-maintainer", "docs-sync", "git-full-cycle"]
 });
 
 /**
@@ -245,9 +384,23 @@ export const ROLE_SKILLS = Object.freeze({
  * @returns {string}
  */
 export function toolsFor(agentId) {
-  const readOnly = "Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(git status:*), Bash(npm run verify:*), Bash(graphify:*)";
+  const readOnly =
+    "Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(git status:*), " +
+    "Bash(npm run verify:*), Bash(graphify:*), mcp__codebase-memory-mcp__*";
   if (agent(agentId).defaultMode === "read-only") return readOnly;
-  return `Read, Edit, Write, Glob, Grep, Bash(git *), Bash(npm run *), Bash(node *), Bash(graphify:*)`;
+  const writer =
+    "Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), " +
+    "Bash(npm run *), Bash(node *), Bash(graphify:*), mcp__codebase-memory-mcp__*";
+  if (agentId === "manager") return `${writer}, Agent, Bash(git *), Bash(bd *)`;
+  if (agentId === "project-state") return `${writer}, Bash(bd *)`;
+  return writer;
+}
+
+/** Explicit denies survive an accidental widening of a role's allowed tool list. */
+export function disallowedToolsFor(agentId) {
+  if (agent(agentId).defaultMode === "read-only") return "Edit, Write, NotebookEdit, Agent";
+  if (agentId === "manager") return "NotebookEdit";
+  return "Agent, NotebookEdit";
 }
 
 /* ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -263,11 +416,13 @@ export const CLASSIFICATION_FLAGS = Object.freeze([
   "renderer_visual_change",
   "interaction_change",
   "accessibility_change",
+  "general_engineering_change",
   "electron_main_change",
   "ipc_change",
   "runner_change",
   "execution_change",
   "concurrency_change",
+  "performance_change",
   "persisted_shape_change",
   "migration_required",
   "filesystem_write_change",
@@ -284,7 +439,10 @@ export const CLASSIFICATION_FLAGS = Object.freeze([
   "packaging_change",
   "offline_boundary_change",
   "new_dependency",
-  "public_contract_change"
+  "public_contract_change",
+  "broad_investigation",
+  "project_state_change",
+  "agent_infrastructure_change"
 ]);
 
 /* ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -353,13 +511,13 @@ export const PATH_DOMAINS = Object.freeze([
   },
   {
     glob: "src/session/**",
-    owner: "integration",
+    owner: "recorder",
     impliesFlags: ["browser_behavior_change"],
     note: "Session capture and reuse; protected-login handoff lands here."
   },
   {
     glob: "src/recorder/**",
-    owner: "integration",
+    owner: "recorder",
     impliesFlags: ["recorder_change"],
     note: "Recorder capture and locator synthesis."
   },
@@ -407,7 +565,7 @@ export const PATH_DOMAINS = Object.freeze([
   },
   {
     glob: "src/oracle/**",
-    owner: "integration",
+    owner: "recorder",
     impliesFlags: [],
     note: "Oracle JDBC bridge; its own external gates apply."
   },
@@ -417,6 +575,23 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: [],
     note: "Test-only helpers that ship in src for reuse by verifiers."
   },
+
+  // ── General product modules without a narrower specialist ───────────────────────────────────
+  ...[
+    "branding",
+    "logging",
+    "reports",
+    "roadmap",
+    "semantic",
+    "theme",
+    "utils",
+    "validation"
+  ].map((name) => ({
+    glob: `src/${name}/**`,
+    owner: "software",
+    impliesFlags: ["general_engineering_change"],
+    note: "General product module; use a narrower specialist when the task crosses its boundary."
+  })),
 
   // ── Broad ownership ───────────────────────────────────────────────────────────────────────────
   {
@@ -455,6 +630,12 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: [],
     note: "Validators, same registration rule."
   },
+  {
+    glob: "scripts/benchmark-*",
+    owner: "qa",
+    impliesFlags: ["performance_change"],
+    note: "Performance evidence stays independent from the implementation it measures."
+  },
 
   // ── Packaging and the offline boundary ────────────────────────────────────────────────────────
   {
@@ -468,6 +649,12 @@ export const PATH_DOMAINS = Object.freeze([
     owner: "release",
     impliesFlags: ["packaging_change", "offline_boundary_change"],
     note: "Shipped resources. Never a runtime write target."
+  },
+  {
+    glob: "src/offline/**",
+    owner: "release",
+    impliesFlags: ["offline_boundary_change"],
+    note: "Offline-boundary verification and shipped-runtime guarantees."
   },
   {
     glob: "package.json",
@@ -488,64 +675,75 @@ export const PATH_DOMAINS = Object.freeze([
     note: "Installer and portable build configuration."
   },
 
-  // ── Governance ────────────────────────────────────────────────────────────────────────────────
-  // The Architect's two documents sit INSIDE docs/ai/**, so they must precede it — first match wins.
-  {
-    glob: "docs/ai/ARCHITECTURE.md",
-    owner: "architect",
-    impliesFlags: [],
-    note: "Module map and data/runtime flow."
-  },
-  {
-    glob: "docs/ai/DECISIONS.md",
-    owner: "architect",
-    impliesFlags: [],
-    note: "Recorded technical and product decisions."
-  },
+  // ── Governance and agent infrastructure ─────────────────────────────────────────────────────
   {
     glob: "docs/ai/**",
-    owner: "manager",
-    impliesFlags: [],
-    note: "AI memory and governance documents."
+    owner: "project-state",
+    impliesFlags: ["project_state_change"],
+    note: "AI memory and governance documents; architectural advice does not confer write ownership."
   },
   {
     glob: "tools/roadmap/**",
-    owner: "manager",
-    impliesFlags: [],
+    owner: "project-state",
+    impliesFlags: ["project_state_change"],
     note: "Derived dashboard. Never hand-edited to record progress."
   },
   {
     glob: "tools/agents/**",
     owner: "manager",
-    impliesFlags: [],
+    impliesFlags: ["agent_infrastructure_change"],
     note: "This routing system itself."
   },
   {
     glob: ".beads/**",
-    owner: "manager",
-    impliesFlags: [],
+    owner: "project-state",
+    impliesFlags: ["project_state_change"],
     note:
-      "Tracker database and its JSONL export. The Manager files and closes issues, and the export " +
+      "Tracker database and its JSONL export. Project State reconciles the source, and the export " +
       "must be refreshed with `bd export -o .beads/issues.jsonl` before the dashboard reads it."
+  },
+  {
+    glob: "scripts/lib/verifier-classification.ts",
+    owner: "project-state",
+    impliesFlags: ["project_state_change"],
+    note: "Authoritative verifier registry; new verify and validate commands must be classified."
   },
   {
     glob: ".claude/**",
     owner: "manager",
-    impliesFlags: [],
+    impliesFlags: ["agent_infrastructure_change"],
     note: "Claude Code agent/skill/hook configuration. Generated role definitions live here."
   },
   {
     glob: ".codex/**",
     owner: "manager",
-    impliesFlags: [],
+    impliesFlags: ["agent_infrastructure_change"],
     note: "Codex configuration and skills."
   },
   {
     glob: ".gemini/**",
     owner: "manager",
-    impliesFlags: [],
+    impliesFlags: ["agent_infrastructure_change"],
     note: "Gemini / Antigravity configuration and skills."
-  }
+  },
+  {
+    glob: ".agents/**",
+    owner: "manager",
+    impliesFlags: ["agent_infrastructure_change"],
+    note: "Cross-platform agent rules and skills."
+  },
+  {
+    glob: ".cursor/**",
+    owner: "manager",
+    impliesFlags: ["agent_infrastructure_change"],
+    note: "Cursor-compatible agent configuration."
+  },
+  ...["AGENTS.md", "CLAUDE.md", "GEMINI.md"].map((glob) => ({
+    glob,
+    owner: "manager",
+    impliesFlags: ["agent_infrastructure_change"],
+    note: "Root cross-agent instruction surface."
+  }))
 ]);
 
 /* ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -699,6 +897,12 @@ export const ACTIVATION_RULES = Object.freeze([
     why: "Owns app/renderer/**."
   },
   {
+    agent: "software",
+    anyFlag: ["general_engineering_change"],
+    onOwnedPath: true,
+    why: "Handles scoped product modules that have no narrower implementation owner."
+  },
+  {
     agent: "runtime",
     anyFlag: [
       "electron_main_change",
@@ -711,21 +915,15 @@ export const ACTIVATION_RULES = Object.freeze([
     why: "Owns the main process and the execution path."
   },
   {
-    agent: "persistence",
-    anyFlag: ["persisted_shape_change", "migration_required", "filesystem_write_change"],
-    onOwnedPath: true,
-    why: "A persisted shape that changes without this agent is how unknown fields get dropped."
+    agent: "integration",
+    anyFlag: ["ipc_change", "public_contract_change"],
+    why: "Reviews contracts that cross renderer, preload, main, browser and runtime boundaries."
   },
   {
-    agent: "integration",
-    anyFlag: [
-      "playwright_change",
-      "recorder_change",
-      "browser_behavior_change",
-      "mock_site_required"
-    ],
+    agent: "recorder",
+    anyFlag: ["playwright_change", "recorder_change", "browser_behavior_change", "mock_site_required"],
     onOwnedPath: true,
-    why: "Real browser behavior cannot be reasoned about from the renderer alone."
+    why: "Real browser and recorder behavior requires Playwright-specific evidence."
   },
   {
     agent: "security",
@@ -741,10 +939,32 @@ export const ACTIVATION_RULES = Object.freeze([
     why: "Trust boundaries are reviewed, never assumed."
   },
   {
+    agent: "researcher",
+    anyFlag: ["broad_investigation"],
+    why: "Unfamiliar problems begin with one concise, reusable discovery report."
+  },
+  {
+    agent: "persistence",
+    anyFlag: ["persisted_shape_change", "migration_required", "filesystem_write_change"],
+    onOwnedPath: true,
+    why: "A persisted shape that changes without this agent is how unknown fields get dropped."
+  },
+  {
+    agent: "performance",
+    anyFlag: ["performance_change", "concurrency_change"],
+    why: "Performance and concurrency claims need workload, pressure and backpressure analysis."
+  },
+  {
     agent: "release",
     anyFlag: ["packaging_change", "offline_boundary_change", "signing_change", "new_dependency"],
     onOwnedPath: true,
     why: "Offline-first is a release property; a dependency is a packaging decision."
+  },
+  {
+    agent: "project-state",
+    anyFlag: ["project_state_change"],
+    onOwnedPath: true,
+    why: "Repository status is reconciled in authoritative sources, never in derived dashboard output."
   },
   {
     agent: "architect",
@@ -762,6 +982,7 @@ export const ACTIVATION_RULES = Object.freeze([
     agent: "qa",
     anyFlag: [],
     minRisk: 1,
+    onOwnedPath: true,
     why: "Anything above documentation must state how it is proven."
   },
   {
@@ -858,10 +1079,12 @@ export const WRITER_PRECEDENCE = Object.freeze([
   "persistence",
   "security",
   "runtime",
-  "integration",
+  "recorder",
   "frontend",
+  "software",
   "qa",
   "release",
+  "project-state",
   "manager"
 ]);
 
@@ -898,8 +1121,6 @@ export const RISK_2_FLAGS = Object.freeze([
   "execution_change",
   "persisted_shape_change",
   "filesystem_write_change",
-  "recorder_change",
-  "browser_behavior_change",
   "packaging_change",
   "public_contract_change",
   "new_dependency"
@@ -910,8 +1131,13 @@ export const RISK_1_FLAGS = Object.freeze([
   "renderer_visual_change",
   "interaction_change",
   "accessibility_change",
+  "general_engineering_change",
   "playwright_change",
-  "mock_site_required"
+  "recorder_change",
+  "browser_behavior_change",
+  "mock_site_required",
+  "performance_change",
+  "agent_infrastructure_change"
 ]);
 
 /**

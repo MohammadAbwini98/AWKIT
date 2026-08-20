@@ -1,4 +1,11 @@
 {
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node tools/agents/context-status.mjs"
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -58,6 +65,41 @@
           {
             "type": "command",
             "command": "node tools/agents/bash-audit.mjs"
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/agents/bash-audit.mjs"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/agents/compaction-checkpoint.mjs capture",
+            "async": true,
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/agents/compaction-checkpoint.mjs restore",
+            "async": true,
+            "timeout": 15
           }
         ]
       }

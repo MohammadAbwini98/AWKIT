@@ -152,4 +152,4 @@ async function main() {
   process.exit(BLOCK);
 }
 
-main();
+if (process.argv[1]?.endsWith("lease-guard.mjs")) main();

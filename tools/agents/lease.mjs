@@ -22,8 +22,9 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -69,7 +70,7 @@ export const ASSIGNMENTS_PATH = join(REPO_ROOT, "tools", "roadmap", "assignments
  * @param {string} [path]
  * @returns {Lease|null}
  */
-export function readLease(path = LEASE_PATH) {
+export function readLeaseRecord(path = LEASE_PATH) {
   let text;
   try {
     text = readFileSync(path, "utf8");
@@ -87,12 +88,19 @@ export function readLease(path = LEASE_PATH) {
     );
   }
 
-  if (parsed?.status !== "active") return null;
-  if (typeof parsed.holder !== "string" || !Array.isArray(parsed.allowed_paths)) {
+  if (typeof parsed?.status !== "string") {
+    throw new Error("active-lease.json is missing status");
+  }
+  if (parsed.status === "active" && (typeof parsed.holder !== "string" || !Array.isArray(parsed.allowed_paths))) {
     throw new Error("active-lease.json is missing holder or allowed_paths");
   }
 
   return parsed;
+}
+
+export function readLease(path = LEASE_PATH) {
+  const parsed = readLeaseRecord(path);
+  return parsed?.status === "active" ? parsed : null;
 }
 
 /**
@@ -131,6 +139,40 @@ export function dirtyPaths(cwd = REPO_ROOT) {
   } catch {
     return [];
   }
+}
+
+/** Paths committed after the lease's acquired_at_commit, including a clean post-commit tree. */
+export function committedPathsSince(commit, cwd = REPO_ROOT) {
+  if (!commit || commit === "unknown") return [];
+  try {
+    return execFileSync("git", ["diff", "--name-only", `${commit}..HEAD`], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    })
+      .split("\n")
+      .map((path) => path.trim().replace(/\\/g, "/"))
+      .filter(Boolean)
+      .sort();
+  } catch {
+    // An unavailable baseline is not proof of a write. The task gate independently compares the
+    // contract baseline, while the live dirty audit remains active.
+    return [];
+  }
+}
+
+/** Content fingerprints for tracked/untracked baseline-dirty files. */
+export function trackedPathFingerprints(paths, cwd = REPO_ROOT) {
+  const out = {};
+  for (const path of [...new Set(paths ?? [])].sort()) {
+    try {
+      const data = readFileSync(join(cwd, path));
+      out[path] = createHash("sha256").update(data).digest("hex");
+    } catch {
+      out[path] = "absent";
+    }
+  }
+  return out;
 }
 
 /** @returns {string} current HEAD, or "unknown" outside a git checkout. */
@@ -194,11 +236,19 @@ export function leaseAllows(lease, repoRelativePath) {
  * @param {string} params.task
  * @param {string} params.holder
  * @param {readonly string[]} params.allowedPaths
+ * @param {{writerSequence:string[], expectedPaths?:string[]}} params.routing validated route result
  * @param {string} [params.path]
  * @param {string} [params.assignmentsPath]
  * @returns {Lease}
  */
-export function grantLease({ task, holder, allowedPaths, path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH }) {
+export function grantLease({
+  task,
+  holder,
+  allowedPaths,
+  routing,
+  path = LEASE_PATH,
+  assignmentsPath = ASSIGNMENTS_PATH
+}) {
   agent(holder); // throws on an unknown id rather than granting a lease to a typo
 
   if (!Array.isArray(allowedPaths) || allowedPaths.length === 0) {
@@ -213,6 +263,40 @@ export function grantLease({ task, holder, allowedPaths, path = LEASE_PATH, assi
     );
   }
 
+  if (!routing || !Array.isArray(routing.writerSequence)) {
+    throw new Error("grantLease requires the validated deterministic routing result");
+  }
+  if (!routing.writerSequence.includes(holder)) {
+    throw new Error(
+      `"${holder}" is not in routing.writerSequence [${routing.writerSequence.join(", ")}]`
+    );
+  }
+
+  const expectedPaths = Array.isArray(routing.expectedPaths) ? routing.expectedPaths : [];
+  const owned = agent(holder).ownsPaths;
+  const probe = (pattern) => pattern.replace(/\*\*/g, "__lease__").replace(/\*/g, "__lease__");
+  for (const allowedPath of allowedPaths) {
+    if (
+      typeof allowedPath !== "string" ||
+      !allowedPath.trim() ||
+      isAbsolute(allowedPath) ||
+      toRepoRelative(allowedPath) === null ||
+      ["*", "**", ".", "./"].includes(allowedPath.trim())
+    ) {
+      throw new Error(`unsafe lease path ${JSON.stringify(allowedPath)}; use a repo-relative bounded path`);
+    }
+    if (!owned.includes(allowedPath) && !pathInScope(probe(allowedPath), owned)) {
+      throw new Error(`lease path "${allowedPath}" is outside ${holder}'s ownership [${owned.join(", ")}]`);
+    }
+    if (!expectedPaths.includes(allowedPath) && !pathInScope(probe(allowedPath), expectedPaths)) {
+      throw new Error(
+        `lease path "${allowedPath}" is outside routed expected paths [${expectedPaths.join(", ")}]`
+      );
+    }
+  }
+
+  const baselineDirty = dirtyPaths();
+
   /** @type {Lease} */
   const lease = {
     task,
@@ -223,7 +307,8 @@ export function grantLease({ task, holder, allowedPaths, path = LEASE_PATH, assi
     acquired_at_commit: headCommit(),
     // Files already modified when the lease was granted. Without this the Bash audit would report
     // every pre-existing edit as an out-of-lease write the moment the first shell command ran.
-    baseline_dirty: dirtyPaths(),
+    baseline_dirty: baselineDirty,
+    baseline_dirty_fingerprints: trackedPathFingerprints(baselineDirty),
     // Gitignored paths git will never report. Fingerprinted here so a shell write into a secret,
     // a captured session, or the bundled-browser tree is still comparable afterwards.
     baseline_watched_ignored: fingerprintWatchedIgnored(),
@@ -353,12 +438,22 @@ export const SYSTEM_BOOKKEEPING_PATHS = Object.freeze([
  *
  * @param {Lease} lease
  * @param {readonly string[]} currentDirty
+ * @param {{committedPaths?:readonly string[], currentFingerprints?:Record<string,string>}} [evidence]
  * @returns {string[]}
  */
-export function outOfLeaseWrites(lease, currentDirty) {
+export function outOfLeaseWrites(
+  lease,
+  currentDirty,
+  { committedPaths = [], currentFingerprints = {} } = {}
+) {
   const baseline = new Set(lease.baseline_dirty ?? []);
-  return currentDirty
-    .filter((path) => !baseline.has(path))
+  const baselineFingerprints = lease.baseline_dirty_fingerprints;
+  const dirtyAfterGrant = currentDirty.filter((path) => {
+    if (!baseline.has(path)) return true;
+    if (!baselineFingerprints) return false; // backward compatibility for leases predating hashes
+    return baselineFingerprints[path] !== currentFingerprints[path];
+  });
+  return [...new Set([...dirtyAfterGrant, ...committedPaths])]
     .filter((path) => !SYSTEM_BOOKKEEPING_PATHS.includes(path))
     .filter((path) => !leaseAllows(lease, path))
     .sort();

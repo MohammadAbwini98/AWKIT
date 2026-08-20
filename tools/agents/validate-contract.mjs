@@ -17,7 +17,7 @@
  *     override that quietly sets `qc_required: false` is the exact abuse the rule is for.
  */
 
-import { EVIDENCE_STATUSES, agent, pathInScope } from "./routing-matrix.mjs";
+import { AGENT_IDS, EVIDENCE_STATUSES, agent, pathInScope } from "./routing-matrix.mjs";
 import { normalizeClassification } from "./classify.mjs";
 import { route } from "./route.mjs";
 
@@ -63,16 +63,40 @@ export function validateContract(contract) {
     return { ok: false, violations: [{ rule: "shape", message: "contract is not an object" }], routing: null };
   }
 
+  const nonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
+  const sameArray = (left, right) =>
+    Array.isArray(left) && JSON.stringify(left) === JSON.stringify(right);
+
+  if (contract.version !== 1) fail("version", "contract.version must be exactly 1");
+
   // ── Identity ────────────────────────────────────────────────────────────────────────────────
-  if (!contract.task?.id) fail("task.id", "contract has no task.id");
-  if (!contract.task?.objective) fail("task.objective", "contract has no task.objective");
+  if (!nonEmptyString(contract.task?.id)) fail("task.id", "contract has no non-empty task.id");
+  if (!nonEmptyString(contract.task?.title)) fail("task.title", "contract has no non-empty task.title");
+  if (!nonEmptyString(contract.task?.objective)) fail("task.objective", "contract has no non-empty task.objective");
+  const taskMode = contract.task?.mode;
+  if (!["inspect", "change"].includes(taskMode)) {
+    fail("task.mode", `task.mode must be "inspect" or "change", got ${JSON.stringify(taskMode)}`);
+  }
+  if (!Number.isInteger(contract.task?.risk_level) || contract.task.risk_level < 0 || contract.task.risk_level > 3) {
+    fail("task.risk_level", "task.risk_level must be an integer from 0 through 3");
+  }
+  if (contract.repository?.branch !== "main") {
+    fail("repository.branch", "repository.branch must be main");
+  }
+  if (!nonEmptyString(contract.repository?.baseline_commit)) {
+    fail("repository.baseline_commit", "repository.baseline_commit must be a non-empty commit-ish");
+  }
+  if (!Array.isArray(contract.repository?.preserved_paths)) {
+    fail("repository.preserved_paths", "repository.preserved_paths must be an array");
+  }
 
   // ── Classification ──────────────────────────────────────────────────────────────────────────
   const { classification, errors } = normalizeClassification(contract.classification ?? {});
   for (const message of errors) fail("classification", message);
 
   const routing = route(classification, {
-    expectedPaths: contract.routing?.expected_paths ?? []
+    expectedPaths: contract.routing?.expected_paths ?? [],
+    taskMode: taskMode === "inspect" ? "inspect" : "change"
   });
 
   // The contract may declare a HIGHER risk than computed (caution is allowed); never a lower one.
@@ -92,6 +116,10 @@ export function validateContract(contract) {
 
   if (!activated.includes("manager")) fail("manager.absent", "no manager is assigned");
 
+  for (const id of activated) {
+    if (!AGENT_IDS.includes(id)) fail("activation.unknown", `activated agent "${id}" is unknown`);
+  }
+
   for (const required of routing.activated) {
     if (!activated.includes(required)) {
       const reason = routing.rationale.find((r) => r.agent === required);
@@ -100,6 +128,38 @@ export function validateContract(contract) {
         `"${required}" (${agent(required).role}) is mandatory here — ${reason?.trigger ?? "routing rule"} — but is not activated`
       );
     }
+  }
+
+  for (const extra of activated.filter((id) => !routing.activated.includes(id))) {
+    fail("activation.extra", `"${extra}" is activated but deterministic routing does not require it`);
+  }
+  if (new Set(activated).size !== activated.length) {
+    fail("activation.duplicate", "routing.activated_agents contains duplicates");
+  }
+  if (activated.length === routing.activated.length && !sameArray(activated, routing.activated)) {
+    fail("activation.order", `activated_agents must use canonical order [${routing.activated.join(", ")}]`);
+  }
+
+  const consultants = Array.isArray(contract.routing?.consultants) ? contract.routing.consultants : [];
+  for (const missing of routing.consultants.filter((id) => !consultants.includes(id))) {
+    fail("consultant.missing", `routed consultant "${missing}" is absent`);
+  }
+  for (const extra of consultants.filter((id) => !routing.consultants.includes(id))) {
+    fail("consultant.extra", `consultant "${extra}" is not routed`);
+  }
+  if (consultants.length === routing.consultants.length && !sameArray(consultants, routing.consultants)) {
+    fail("consultant.order", `consultants must use canonical order [${routing.consultants.join(", ")}]`);
+  }
+
+  const reviewers = Array.isArray(contract.routing?.reviewers) ? contract.routing.reviewers : [];
+  for (const missing of routing.reviewers.filter((id) => !reviewers.includes(id))) {
+    fail("reviewer.missing", `routed reviewer "${missing}" is absent`);
+  }
+  for (const extra of reviewers.filter((id) => !routing.reviewers.includes(id))) {
+    fail("reviewer.extra", `reviewer "${extra}" is not routed`);
+  }
+  if (reviewers.length === routing.reviewers.length && !sameArray(reviewers, routing.reviewers)) {
+    fail("reviewer.order", `reviewers must use canonical order [${routing.reviewers.join(", ")}]`);
   }
 
   // ── Writer ──────────────────────────────────────────────────────────────────────────────────
@@ -114,6 +174,8 @@ export function validateContract(contract) {
 
   if (Array.isArray(writer)) {
     fail("writer.multiple", "routing.writer must be a single agent — one write lease at a time");
+  } else if (taskMode === "inspect" && writer?.agent_id) {
+    fail("writer.inspect", "an inspect task cannot declare a writer or write lease");
   } else if (!writer?.agent_id) {
     if (touchesProductCode) fail("writer.absent", "the task changes owned paths but names no writer");
   } else {
@@ -132,11 +194,20 @@ export function validateContract(contract) {
     // A lease may never exceed what its holder owns. This is what stops an amendment from quietly
     // widening one agent into the whole repository.
     const owned = agent(writer.agent_id)?.ownsPaths ?? [];
+    const expectedPaths = Array.isArray(contract.routing?.expected_paths)
+      ? contract.routing.expected_paths
+      : [];
     for (const glob of allowed) {
       if (!pathInScope(glob.replace(/\*+$/, "x"), owned) && !owned.includes(glob)) {
         fail(
           "writer.scope_exceeds_ownership",
           `lease path "${glob}" is outside what "${writer.agent_id}" owns [${owned.join(", ")}]`
+        );
+      }
+      if (!pathInScope(glob.replace(/\*+$/, "x"), expectedPaths) && !expectedPaths.includes(glob)) {
+        fail(
+          "writer.scope_exceeds_contract",
+          `lease path "${glob}" is outside routing.expected_paths [${expectedPaths.join(", ")}]`
         );
       }
     }
@@ -274,7 +345,7 @@ export function completionBlockers(contract, { lease = null } = {}) {
     );
   }
 
-  const { ok, violations } = validateContract(contract);
+  const { ok, violations, routing } = validateContract(contract);
   if (!ok) blockers.push(`contract is invalid (${violations.length} violation(s))`);
 
   const evidence = Array.isArray(contract.evidence) ? contract.evidence : [];
@@ -298,12 +369,13 @@ export function completionBlockers(contract, { lease = null } = {}) {
     blockers.push(`qa_status is "${contract.completion?.qa_status ?? "pending"}", not PASS`);
   }
 
-  const qcRequired = (contract.routing?.reviewers ?? []).includes("qc");
+  const qcRequired = routing?.reviewers?.includes("qc") === true;
   if (qcRequired && contract.completion?.qc_status !== "APPROVED") {
     blockers.push(`qc is a reviewer but qc_status is "${contract.completion?.qc_status ?? "pending"}"`);
   }
 
-  const escapes = Array.isArray(contract.scope_escapes) ? contract.scope_escapes : [];
+  const escapes = (Array.isArray(contract.scope_escapes) ? contract.scope_escapes : [])
+    .filter((escape) => escape?.resolved !== true);
   if (escapes.length > 0) {
     blockers.push(`${escapes.length} unresolved scope escape(s) recorded on this contract`);
   }

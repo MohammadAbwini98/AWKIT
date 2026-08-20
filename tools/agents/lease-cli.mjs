@@ -14,8 +14,12 @@
  *   npm run agent:lease-release -- --reason "handing off to qa"
  */
 
-import { amendLease, grantLease, readLease, releaseLease } from "./lease.mjs";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { REPO_ROOT, amendLease, grantLease, readLease, releaseLease } from "./lease.mjs";
 import { agent } from "./routing-matrix.mjs";
+import { validateContract } from "./validate-contract.mjs";
 
 /**
  * @param {string[]} argv
@@ -71,10 +75,36 @@ function main() {
         break;
 
       case "grant": {
+        const task = one(args, "task");
+        const holder = one(args, "holder");
+        const allowedPaths = many(args, "paths");
+        if (!task) throw new Error("--task is required and must name a task contract");
+        const contractPath = join(REPO_ROOT, "docs", "ai", "contracts", `${task}.json`);
+        let contract;
+        try {
+          contract = JSON.parse(readFileSync(contractPath, "utf8"));
+        } catch (error) {
+          throw new Error(`cannot grant without readable task contract ${contractPath}: ${error.message}`);
+        }
+        const validation = validateContract(contract);
+        if (!validation.ok || !validation.routing) {
+          throw new Error(
+            `cannot grant from invalid task contract: ${validation.violations.map((v) => `${v.rule}: ${v.message}`).join("; ")}`
+          );
+        }
+        if (contract.routing?.writer?.agent_id !== holder) {
+          throw new Error(
+            `contract names writer "${contract.routing?.writer?.agent_id ?? "none"}", not "${holder}"`
+          );
+        }
+        if (JSON.stringify([...(contract.routing.writer.allowed_paths ?? [])].sort()) !== JSON.stringify([...allowedPaths].sort())) {
+          throw new Error("--paths must exactly match contract.routing.writer.allowed_paths");
+        }
         const lease = grantLease({
-          task: one(args, "task"),
-          holder: one(args, "holder"),
-          allowedPaths: many(args, "paths")
+          task,
+          holder,
+          allowedPaths,
+          routing: validation.routing
         });
         console.log(`Granted to ${lease.holder} for ${lease.task}:`);
         for (const path of lease.allowed_paths) console.log(`  - ${path}`);

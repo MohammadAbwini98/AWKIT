@@ -37,12 +37,14 @@
 
 import {
   changedWatchedIgnored,
+  committedPathsSince,
   dirtyPaths,
   fingerprintWatchedIgnored,
   leaseAllows,
   outOfLeaseWrites,
   readLease,
   recordViolations,
+  trackedPathFingerprints,
   unclaimedProtectedWrites
 } from "./lease.mjs";
 
@@ -101,7 +103,11 @@ async function main() {
   // Two sources, because git can only see one of them. Tracked paths come from `git status`;
   // gitignored-but-consequential paths come from a fingerprint comparison, since enumerating every
   // ignored file would mean walking node_modules.
-  const tracked = outOfLeaseWrites(lease, dirtyPaths());
+  const currentDirty = dirtyPaths();
+  const tracked = outOfLeaseWrites(lease, currentDirty, {
+    committedPaths: committedPathsSince(lease.acquired_at_commit),
+    currentFingerprints: trackedPathFingerprints(lease.baseline_dirty ?? [])
+  });
   const ignored = changedWatchedIgnored(
     lease.baseline_watched_ignored,
     fingerprintWatchedIgnored()
@@ -129,4 +135,4 @@ async function main() {
   process.exit(REPORT);
 }
 
-main();
+if (process.argv[1]?.endsWith("bash-audit.mjs")) main();
