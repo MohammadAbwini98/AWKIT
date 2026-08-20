@@ -177,7 +177,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:wait-validation": {
     class: "unit",
-    why: "Subtype-aware wait-step contract: engine rules, the designer panel's own validate(), the profile round-trip mapping and a source-level parity check against StepExecutor.executeWait. Pure; no browser or Electron."
+    why: "Both wait contracts. (1) The subtype-aware wait STEP node: engine rules, the designer panel's own validate(), the profile round-trip and a source-level parity check against StepExecutor.executeWait. (2) The Smart Wait CONDITION union in beforeWaits/afterWaits: per-type required fields, the vacuous-match cases, OR-group nesting, and a severity split asserted against runRequiredOrOptional. Pure; no browser or Electron."
   },
   "verify:legacy-compat": {
     class: "integration",

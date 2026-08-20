@@ -23,10 +23,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import type { FlowEdge, FlowProfile, FlowStep, StepLocator } from "@src/profiles/FlowProfile";
-import { executionBlockingErrorsOf, validateFlowDefinition, type FlowValidationCode } from "@src/validation/FlowValidator";
+import type { FlowEdge, FlowProfile, FlowStep, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
+import { executionBlockingErrorsOf, validateFlowDefinition, type FlowValidationCode, type FlowValidationIssue } from "@src/validation/FlowValidator";
 import { STEP_REQUIREMENTS } from "@src/validation/StepRequirements";
 import { WAIT_STEP_TYPES, isUsableWaitDuration, waitStepContractFor } from "@src/validation/WaitStepContract";
+import { MAX_WAIT_CONDITION_DEPTH, WAIT_CONDITION_TYPES, waitConditionLabel } from "@src/validation/WaitConditionContract";
 import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
 import { scenarioForFlow } from "@src/testing/oracle/TestExecutionOracle";
 import { fromFlowStep, toFlowStep, type FlowDesignerNode } from "../app/renderer/components/workflow/flowProfileMapping";
@@ -311,6 +312,194 @@ console.log("\nContract to runtime parity");
     "the duration predicate rejects 0, negatives, NaN and Infinity",
     ![0, -1, Number.NaN, Number.POSITIVE_INFINITY].some((v) => isUsableWaitDuration(v)) && isUsableWaitDuration(2000)
   );
+}
+
+/* ------------------------------------------------------------------ *
+ * 8. Smart Wait CONDITION structural contract (awkit-jtok)
+ * ------------------------------------------------------------------ */
+/*
+ * A different defect from sections 1-7: those are about the wait STEP NODE, this is about the
+ * `WaitCondition` entries in a step's `beforeWaits`/`afterWaits`. The engine checked them for
+ * TIMEOUTS ONLY, so a condition missing the fields its own type requires was admitted by the run
+ * gate and then either threw with the browser already open or - the worse half - passed vacuously.
+ *
+ * Severity is asserted against the RUNTIME's own optional handling, not against a preference:
+ * `runRequiredOrOptional` swallows an optional condition's failure and re-throws a required one.
+ */
+console.log("\nSmart Wait condition structural contract");
+{
+  const conditionIssues = (waits: unknown[]): FlowValidationIssue[] => {
+    const flow: FlowProfile = {
+      id: "cond-probe",
+      name: "cond probe",
+      version: 1,
+      nodes: [{ id: "s", type: "click", name: "Click", locator: LOCATOR, afterWaits: waits as WaitCondition[] } as FlowStep],
+      edges: []
+    };
+    return validateFlowDefinition(flow).issues.filter((i) => i.nodeId === "s");
+  };
+  const codesOf = (waits: unknown[]): string[] => conditionIssues(waits).map((i) => i.code);
+  const reports = (wait: unknown): boolean => codesOf([wait]).includes("invalidWaitCondition");
+  const cleanCondition = (wait: unknown): boolean => conditionIssues([wait]).length === 0;
+
+  // --- Positive controls: every type that genuinely requires a field ---
+  check("loaderHidden with no locator is reported", reports({ type: "loaderHidden" }));
+  check("elementVisible with no locator is reported", reports({ type: "elementVisible" }));
+  check("elementHidden with no locator is reported", reports({ type: "elementHidden" }));
+  check("elementEnabled with no locator is reported", reports({ type: "elementEnabled" }));
+  check("textVisible with no text is reported", reports({ type: "textVisible" }));
+  check("tableHasRows with no table is reported", reports({ type: "tableHasRows", minRows: 1 }));
+  check("listHasItems with no list is reported", reports({ type: "listHasItems", minItems: 1 }));
+  check("fixedDelay with no delayMs is reported", reports({ type: "fixedDelay" }));
+  check("apiPolling with no urlContains is reported", reports({ type: "apiPolling" }));
+  check("anyOf with no branches is reported", reports({ type: "anyOf", conditions: [] }));
+  check("an unknown condition type is reported", reports({ type: "elementSparkles" }));
+
+  // --- The VACUOUS half: conditions that pass without ever waiting ---
+  // These are the dangerous ones - nothing looks wrong, the wait just never happens.
+  check("urlChanged naming neither matcher is reported (returns true on the first poll)", reports({ type: "urlChanged" }));
+  check("response matching nothing is reported (resolves on any first response)", reports({ type: "response" }));
+  check("textVisible with an empty string is reported (getByText('') matches everything)", reports({ type: "textVisible", text: "" }));
+  // A PRESENT-but-empty locator is the designer-scaffold shape; `create()` only throws on undefined.
+  check("a present-but-empty locator is reported, not just an absent one", reports({ type: "elementVisible", locator: { strategy: "css", value: "" } }));
+
+  // --- Bounds ---
+  check("tableHasRows expecting 0 rows is reported", reports({ type: "tableHasRows", tableLocator: LOCATOR, minRows: 0 }));
+  check("listHasItems expecting a fractional count is reported", reports({ type: "listHasItems", listLocator: LOCATOR, minItems: 1.5 }));
+  check("fixedDelay with a negative delay is reported (Math.max clamps it to a no-op)", reports({ type: "fixedDelay", delayMs: -5 }));
+  check("a malformed response status range is reported", reports({ type: "response", urlContains: "/a", statusRange: [299, 200] }));
+
+  // --- Configuration pairs that silently do nothing ---
+  check("apiPolling naming a response field with no terminal values is reported", reports({ type: "apiPolling", urlContains: "/j", responseField: "status" }));
+  check("apiPolling listing terminal values with no field is reported", reports({ type: "apiPolling", urlContains: "/j", terminalValues: ["done"] }));
+  check("mustAppear with no appearance grace is reported", reports({ type: "loaderHidden", locator: LOCATOR, mustAppear: true }));
+  check("an unknown stream transport is reported", reports({ type: "streamActivity", transport: "carrier-pigeon" }));
+
+  // --- Negative controls: correct conditions must stay clean ---
+  const GOOD: unknown[] = [
+    { type: "elementVisible", locator: LOCATOR },
+    { type: "elementHidden", locator: LOCATOR },
+    { type: "elementEnabled", locator: LOCATOR },
+    { type: "loaderHidden", locator: LOCATOR },
+    { type: "loaderHidden", locator: LOCATOR, appearanceGraceMs: 1500, mustAppear: true, completion: "detached" },
+    { type: "textVisible", text: "Saved" },
+    // `toastVisible` genuinely requires nothing - it falls back to `getByRole('alert')`.
+    { type: "toastVisible" },
+    { type: "toastVisible", locator: LOCATOR },
+    { type: "response", urlContains: "/api/x" },
+    { type: "response", method: "POST" },
+    { type: "tableHasRows", tableLocator: LOCATOR, minRows: 1 },
+    { type: "listHasItems", listLocator: LOCATOR, minItems: 3 },
+    { type: "urlChanged", urlContains: "/done" },
+    { type: "urlChanged", fromUrl: "/start" },
+    // `domStable` and the optional bounds all have documented runtime defaults.
+    { type: "domStable" },
+    { type: "domStable", stableForMs: 500 },
+    { type: "fixedDelay", delayMs: 250 },
+    { type: "anyOf", conditions: [{ type: "textVisible", text: "No results" }] },
+    { type: "apiPolling", urlContains: "/job" },
+    { type: "apiPolling", urlContains: "/job", responseField: "state", terminalValues: ["done"] },
+    { type: "streamActivity", transport: "websocket" }
+  ];
+  const falsePositives = GOOD.filter((wait) => !cleanCondition(wait));
+  check(
+    `all ${GOOD.length} correctly-configured conditions stay clean`,
+    falsePositives.length === 0,
+    falsePositives.map((w) => JSON.stringify(w)).join(" | ")
+  );
+
+  // --- Severity mirrors runRequiredOrOptional EXACTLY ---
+  const severityOf = (wait: unknown): string => conditionIssues([wait]).map((i) => i.severity).join(",");
+  check("a REQUIRED malformed condition is an error (the runner re-throws)", severityOf({ type: "elementVisible" }) === "error");
+  check("an OPTIONAL malformed condition is a warning (the runner swallows it)", severityOf({ type: "elementVisible", optional: true }) === "warning");
+  check(
+    "evidence.requirement 'optional' is also a warning",
+    severityOf({ type: "elementVisible", evidence: { requirement: "optional" } }) === "warning"
+  );
+  // The runtime's check is `optional || requirement === 'optional'` - 'advisory' is NOT in it. The
+  // Recorder stamps `optional: true` alongside advisory evidence, but a hand-authored advisory
+  // condition without that flag really is required at run time, so it must be an error.
+  check(
+    "a hand-authored 'advisory' with no optional flag is an ERROR, matching the runtime",
+    severityOf({ type: "elementVisible", evidence: { requirement: "advisory" } }) === "error"
+  );
+  check(
+    "recorder-stamped advisory (optional: true) is a warning",
+    severityOf({ type: "elementVisible", optional: true, evidence: { requirement: "advisory" } }) === "warning"
+  );
+  // A warning must not block the run, or the severity split would be decorative.
+  {
+    const flow: FlowProfile = {
+      id: "opt-flow",
+      name: "opt flow",
+      version: 1,
+      nodes: [
+        { id: "n-start", type: "start", name: "Start" },
+        { id: "n-click", type: "click", name: "Click", locator: LOCATOR, afterWaits: [{ type: "elementVisible", optional: true } as WaitCondition] },
+        { id: "n-end", type: "end", name: "End" }
+      ],
+      edges: [
+        { id: "e1", source: "n-start", target: "n-click", type: "success" },
+        { id: "e2", source: "n-click", target: "n-end", type: "success" }
+      ]
+    };
+    const report = validateFlowDefinition(flow);
+    check(
+      "a degraded OPTIONAL condition is reported but does NOT block the run",
+      executionBlockingErrorsOf(report).length === 0 && report.issues.some((i) => i.code === "degradedWaitCondition")
+    );
+  }
+
+  // --- Nesting: OR-group branches are validated too, and identified ---
+  const nested = conditionIssues([
+    { type: "anyOf", conditions: [{ type: "textVisible", text: "ok" }, { type: "tableHasRows", tableLocator: { strategy: "css", value: "" }, minRows: 1 }] }
+  ]);
+  check("a defect inside an OR-group branch is reported", nested.some((i) => i.code === "invalidWaitCondition"));
+  check("…and the message names the offending branch, not just the group", nested.some((i) => i.message.includes("conditions[1]")), nested.map((i) => i.message).join(" | "));
+  check("a one-branch OR-group is legal and stays clean", cleanCondition({ type: "anyOf", conditions: [{ type: "domStable" }] }));
+
+  // --- Timeouts have exactly ONE owner, at every depth ---
+  // `validateTimeouts` owns them (it also emits `highTimeout`, which the contract has no notion of),
+  // so the contract deliberately ignores `timeoutMs`. Both halves are asserted: no duplicate at the
+  // top level, and no GAP inside a branch, which nothing checked before this change.
+  const topTimeout = codesOf([{ type: "textVisible", text: "ok", timeoutMs: 0 }]);
+  check("a bad top-level condition timeout reports exactly one issue", topTimeout.length === 1, topTimeout.join(", "));
+  check("…and it is invalidTimeout, not invalidWaitCondition", topTimeout[0] === "invalidTimeout", topTimeout.join(", "));
+  const branchTimeout = codesOf([{ type: "anyOf", conditions: [{ type: "textVisible", text: "ok", timeoutMs: 0 }] }]);
+  check("a bad timeout INSIDE an OR-group branch is now reported", branchTimeout.includes("invalidTimeout"), branchTimeout.join(", "));
+  check("a high branch timeout still warns", codesOf([{ type: "anyOf", conditions: [{ type: "domStable", timeoutMs: 20 * 60_000 }] }]).includes("highTimeout"));
+
+  // --- Both phases, and per-condition anchoring ---
+  const bothPhases: FlowProfile = {
+    id: "phases",
+    name: "phases",
+    version: 1,
+    nodes: [
+      {
+        id: "s",
+        type: "click",
+        name: "Click",
+        locator: LOCATOR,
+        beforeWaits: [{ type: "elementVisible" } as WaitCondition],
+        afterWaits: [{ type: "textVisible" } as WaitCondition]
+      } as FlowStep
+    ],
+    edges: []
+  };
+  const phaseIssues = validateFlowDefinition(bothPhases).issues.filter((i) => i.code === "invalidWaitCondition");
+  check("beforeWaits and afterWaits are BOTH validated", phaseIssues.length === 2, String(phaseIssues.length));
+  check(
+    "…and each message names its own phase",
+    phaseIssues.some((i) => i.message.includes("before-wait[0]")) && phaseIssues.some((i) => i.message.includes("after-wait[0]"))
+  );
+
+  // --- Contract covers the whole union ---
+  check(`the contract labels all ${WAIT_CONDITION_TYPES.length} declared condition types`, WAIT_CONDITION_TYPES.every((t) => waitConditionLabel(t) !== `"${t}"`));
+  check("the declared set matches the union exactly", WAIT_CONDITION_TYPES.length === 15, String(WAIT_CONDITION_TYPES.length));
+  // Depth guard: a pathological nest is bounded rather than recursing without limit.
+  let deep: unknown = { type: "domStable" };
+  for (let i = 0; i <= MAX_WAIT_CONDITION_DEPTH + 2; i += 1) deep = { type: "anyOf", conditions: [deep] };
+  check("an over-deep OR-group nest is reported rather than recursed without bound", reports(deep));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
