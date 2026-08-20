@@ -3398,8 +3398,8 @@ export function installRecorderCapture(): void {
       if (type === "file") {
         // A file chooser is an `uploadFile`, never a `fill`: Playwright refuses to type into an
         // input[type=file], so a recorded fill is unrunnable by construction. And the value the DOM
-        // exposes is `C:akepath<name>` — the browser deliberately withholds the real path, so
-        // there is nothing here that could stand in for one.
+        // exposes is the browser placeholder path, not a real one — browsers deliberately withhold
+        // it, so there is nothing here that could stand in for a path the runner could use.
         //
         // The step is therefore recorded with NO value and the chosen file name in its title.
         // `uploadFile` requires a value, so the existing validator refuses the flow BEFORE a browser
