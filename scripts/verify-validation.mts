@@ -41,6 +41,12 @@ import { ALL_FLOW_PATTERNS, resolveConstraints } from "@src/testing/random/Gener
 import { generateFlow } from "@src/testing/random/RandomFlowGenerator";
 import { SeededRandom } from "@src/testing/random/SeededRandom";
 import { NODE_CATALOG } from "@src/testing/random/NodeCatalog";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+import { evaluateBoolean } from "@src/runner/ExpressionEvaluator";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 import { RUNTIME_LOOP_LIMITS } from "@src/testing/random/ConnectorCatalog";
 import { flowNodeCatalog } from "@renderer/components/workflow/flowNodeCatalog";
 import { readFileSync } from "node:fs";
@@ -1024,6 +1030,79 @@ console.log("\nrunFlow target precedence (flowId is canonical; config.targetFlow
     ambigIssues.some((i: any) => i.message.includes("Step Fill email has")),
     ambigIssues.map((i: any) => i.message).join(" || ")
   );
+}
+
+/* ------------------------------------------------------------------ *
+ * 15. Condition expressions are literal-only (the runtime resolves no source)
+ * ------------------------------------------------------------------ */
+/*
+ * `condition` is the ONE value-requiring type where a `valueSource` must not satisfy the rule.
+ * `FlowExecutor` routes a condition node with `evaluateBoolean(step.value ?? "", …)` and never
+ * resolves a source, so a condition bound only to one carries an EMPTY expression at run time — and
+ * `evaluateBoolean("")` returns **true**, so the node silently takes its true branch on every run
+ * instead of failing. The gate was admitting flows that route deterministically wrong.
+ *
+ * This was reachable, not theoretical: the generator's `secret` source deliberately suppresses the
+ * literal, and 6 of 95 generated condition nodes had no expression at all.
+ */
+console.log("\nRule: condition expressions are literal-only");
+{
+  const conditionStep = (extra: Partial<FlowStep>): FlowProfile =>
+    baseFlow({
+      nodes: [step("n-start", "start"), step("n-cond", "condition", extra), step("n-end", "end")],
+      edges: [edge("e1", "n-start", "n-cond"), edge("e2", "n-cond", "n-end")]
+    });
+
+  expectNoCode("a condition with a literal expression is accepted", validateFlowDefinition(conditionStep({ value: 'outcome === "success"' })), "missingRequiredValue");
+
+  // Positive controls: every way of arriving with no expression the runner can read.
+  expectCode("a condition with no expression is reported", validateFlowDefinition(conditionStep({})), "missingRequiredValue", { nodeId: "n-cond" });
+  expectCode("a condition with an empty expression is reported", validateFlowDefinition(conditionStep({ value: "" })), "missingRequiredValue", { nodeId: "n-cond" });
+  expectCode("a condition with a whitespace-only expression is reported", validateFlowDefinition(conditionStep({ value: "   " })), "missingRequiredValue", { nodeId: "n-cond" });
+  // THE defect: accepted before, because `hasRequiredValue` took any valueSource.
+  expectCode(
+    "a condition bound ONLY to a value source is reported (the runner never resolves it)",
+    validateFlowDefinition(conditionStep({ valueSource: { type: "runtimeInput", key: "expr" } })),
+    "missingRequiredValue",
+    { nodeId: "n-cond" }
+  );
+  expectCode(
+    "a condition bound only to a SECRET is reported (the generator's own lossy shape)",
+    validateFlowDefinition(conditionStep({ valueSource: { type: "secret", secretName: "S" } })),
+    "missingRequiredValue",
+    { nodeId: "n-cond" }
+  );
+  // A source alongside a literal is inert, not defective — the literal is what runs.
+  expectNoCode(
+    "a literal expression plus a value source is accepted (the literal is what the runner reads)",
+    validateFlowDefinition(conditionStep({ value: "outcome === \"success\"", valueSource: { type: "runtimeInput", key: "expr" } })),
+    "missingRequiredValue"
+  );
+  // The message must send the user to the right place.
+  const condMessages = validateFlowDefinition(conditionStep({ valueSource: { type: "runtimeInput", key: "expr" } })).issues.map((i) => i.message);
+  check("the message explains that a bound value source is not resolved for a condition", condMessages.some((m) => m.includes("not resolved")), condMessages.join(" | "));
+
+  // Other value-requiring types must NOT have lost the value-source channel.
+  const fillBySource = validateFlowDefinition(
+    baseFlow({
+      nodes: [step("n-start", "start"), step("n-fill", "fill", { locator: { strategy: "css", value: "a" }, valueSource: { type: "secret", secretName: "PASSWORD" } }), step("n-end", "end")],
+      edges: [edge("e1", "n-start", "n-fill"), edge("e2", "n-fill", "n-end")]
+    })
+  );
+  expectNoCode("a secret-backed fill is still accepted (only condition is literal-only)", fillBySource, "missingRequiredValue");
+
+  // Parity with the runtime that made this rule necessary.
+  const flowExecutor = readFileSync(resolve(REPO_ROOT, "src/runner/FlowExecutor.ts"), "utf8");
+  check(
+    "FlowExecutor still routes a condition from step.value with no source resolution",
+    /step\.type === "condition"\)\s*\{[\s\S]{0,200}evaluateBoolean\(step\.value \?\? ""/.test(flowExecutor)
+  );
+  const evaluator = readFileSync(resolve(REPO_ROOT, "src/runner/ExpressionEvaluator.ts"), "utf8");
+  check(
+    "evaluateBoolean still returns TRUE for an empty expression (why this must be an error)",
+    /const expr = expression\.trim\(\);\s*[\r\n]+\s*if \(!expr\) return true;/.test(evaluator)
+  );
+  check("…and it really does, when executed", evaluateBoolean("", () => undefined) === true && evaluateBoolean("   ", () => undefined) === true);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
