@@ -2,6 +2,11 @@
   "env": {
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
   },
+  "permissions": {
+    "allow": [
+      "mcp__codebase-memory-mcp__*"
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "node tools/agents/context-status.mjs"
