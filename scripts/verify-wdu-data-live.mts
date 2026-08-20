@@ -18,6 +18,10 @@
  * Run with: npx tsx scripts/verify-wdu-data-live.mts [--only <substring>]
  */
 import { mkdtemp, mkdir, readFile, writeFile, readdir } from "node:fs/promises";
+import { PlaywrightRunner } from "@src/runner/PlaywrightRunner";
+import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
+import type { InstanceConfig } from "@src/instances/InstanceConfig";
+import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ExecutionEngine } from "@src/runner/ExecutionEngine";
@@ -220,6 +224,230 @@ async function runDataDriven(options: {
   throw new Error(`no run report was written at ${reportPath}`);
 }
 
+/**
+ * The comparable semantic shape of a flow: everything a reader would call the flow's MEANING, and
+ * nothing that is allowed to differ between two equal saves. Compared as a string so a single
+ * assertion covers every field at once rather than one check per field.
+ */
+function semanticShape(flow: FlowProfile): string {
+  return JSON.stringify({
+    id: flow.id,
+    nodes: flow.nodes.map((n) => ({
+      id: n.id,
+      type: n.type,
+      locator: n.locator,
+      targetLocator: n.targetLocator,
+      value: n.value,
+      url: n.url,
+      valueSource: n.valueSource,
+      config: n.config,
+      timeoutMs: n.timeoutMs,
+      waitUntil: n.waitUntil,
+      beforeWaits: n.beforeWaits,
+      afterWaits: n.afterWaits,
+      dialogExpectation: n.dialogExpectation,
+      popupExpectation: n.popupExpectation,
+      opensPopup: n.opensPopup,
+      pageAlias: n.pageAlias,
+      outputs: n.outputs
+    })),
+    edges: flow.edges
+  });
+}
+
+async function replayContext(flowId: string): Promise<InstanceExecutionContext> {
+  const dir = await mkdtemp(join(tmpdir(), "wdu-composite-"));
+  return {
+    executionId: "exec-composite",
+    instanceId: "inst-1",
+    scenarioId: "scen-composite",
+    flowId,
+    instanceOrderNumber: 1,
+    totalInstances: 1,
+    runtimeInputs: {},
+    instanceInputs: {},
+    flowOutputs: {},
+    currentRow: { user: "testuser", pass: "pass123" },
+    paths: {
+      downloads: join(dir, "downloads"),
+      screenshots: join(dir, "screenshots"),
+      logs: join(dir, "logs"),
+      reports: join(dir, "reports"),
+      sessions: join(dir, "sessions")
+    }
+  };
+}
+
+/** Run a composite flow (plus any child flows it invokes) through the real runner. */
+async function replayFlows(
+  flows: FlowProfile[],
+  runtimeInputs: Record<string, unknown>
+): Promise<{ status: string; steps: { stepId: string; status: string; error?: string }[] }> {
+  const scenario = {
+    id: `sc-${flows[0].id}`,
+    name: flows[0].id,
+    executionMode: "sequential",
+    maxParallelFlows: 1,
+    flows: [{ order: 1, flowId: flows[0].id, required: true }],
+    links: [],
+    failurePolicy: { onFlowFailure: "stop", captureScreenshot: false }
+  } as unknown as ScenarioProfile;
+  const runner = new PlaywrightRunner({ flows, productionOffline: false, resourcesRoot: join(process.cwd(), "resources") });
+  const context = await replayContext(flows[0].id);
+  const result = await runner.executeScenario(
+    { ...scenario },
+    { ...context, runtimeInputs },
+    { id: "ic", name: "ic", browser: "chromium", headless: true } as unknown as InstanceConfig
+  );
+  return {
+    status: result.status,
+    steps: result.flows.flatMap((f) => (f.steps ?? []).map((x) => ({ stepId: x.stepId, status: x.status, error: x.error ? String(x.error) : undefined })))
+  };
+}
+
+interface Composite {
+  caseId: string;
+  challenge: string;
+  scenario: string;
+  flow: FlowProfile;
+  children: FlowProfile[];
+  workflow: WorkflowProfile;
+  runtimeInputs: Record<string, unknown>;
+  editStepId: string;
+  categories: Record<string, boolean>;
+}
+
+/** Actions page: explicit wait, complex actions, dialog policy, attribute assertion, conditional, loop. */
+function compositeActions(): Composite {
+  const ACTIONS = `${BASE}/Actions/index.html`;
+  const child = linear("wdu-composite-actions-child", [
+    {
+      id: "childAssert",
+      type: "assertText",
+      name: "the shared child flow asserts the drop landed",
+      locator: { strategy: "id", value: "droppable" },
+      config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "Dropped!" }
+    }
+  ]);
+  const flow = linear("wdu-composite-actions", [
+    { id: "goto", type: "goto", name: "open Actions", valueSource: { type: "static", value: ACTIONS }, waitUntil: "domcontentloaded" },
+    { id: "explicitWait", type: "wait", name: "wait for the double-click box", locator: { strategy: "id", value: "double-click" }, config: { waitType: "selector" }, timeoutMs: 20_000 },
+    { id: "dbl", type: "dblclick", name: "double-click", locator: { strategy: "id", value: "double-click" } },
+    { id: "attr", type: "assertText", name: "the box records the double-click", locator: { strategy: "id", value: "double-click" }, config: { assertionType: "attribute", attributeName: "class", comparisonOperator: "contains", expectedValue: "double" } },
+    { id: "branch", type: "condition", name: "continue", value: "true" },
+    { id: "hover", type: "hover", name: "reveal the menu", locator: { strategy: "css", value: ".dropdown.hover" } },
+    { id: "menuLink", type: "click", name: "click the revealed link", locator: { strategy: "css", value: ".dropdown.hover .dropdown-content a" }, dialogExpectation: { action: "accept", dialogKind: "alert" } },
+    { id: "drag", type: "drag", name: "drag onto the drop zone", locator: { strategy: "id", value: "draggable" }, targetLocator: { strategy: "id", value: "droppable" } },
+    { id: "reuse", type: "runFlow", name: "reuse the shared assertion flow", config: { targetFlowId: child.id } },
+    { id: "hold", type: "clickAndHold", name: "press and hold", locator: { strategy: "id", value: "click-box" }, config: { holdMs: 700 } },
+    { id: "holdResult", type: "assertText", name: "the hold is reported", locator: { strategy: "id", value: "click-box" }, valueSource: { type: "runtimeInput", key: "expectedHoldText" }, config: { assertionType: "text", comparisonOperator: "contains" } },
+    { id: "loop", type: "loop", name: "click the box twice", locator: { strategy: "id", value: "double-click" }, config: { loopType: "fixedCount", iterationCount: 2, loopActionType: "click", loopStopOnFailure: true, maxIterations: 5 } },
+    { id: "shot", type: "screenshot", name: "evidence", config: { screenshotName: "composite-actions", fullPage: false } }
+  ]);
+  return {
+    caseId: "WDU-D07",
+    challenge: "Actions (composite)",
+    scenario: "every applicable field category round-trips and still runs",
+    flow,
+    children: [child],
+    workflow: {
+      id: "wdu-composite-actions-workflow",
+      name: "WDU composite — Actions",
+      version: 1,
+      nodes: [
+        { id: "start", type: "start", alias: "Start", order: 0 },
+        { id: "n1", type: "flowRef", flowId: flow.id, alias: "Composite actions", order: 1, required: true, inputBindings: { expectedHoldText: { type: "runtimeInput", key: "expectedHoldText" } }, retryPolicy: { count: 1, delayMs: 250 }, failurePolicy: "stop" },
+        { id: "end", type: "end", alias: "End", order: 2 }
+      ],
+      edges: [
+        { id: "e1", source: "start", target: "n1", type: "always" },
+        { id: "e2", source: "n1", target: "end", type: "always" }
+      ],
+      runtimeInputs: [{ key: "expectedHoldText", label: "Expected hold text", type: "text", required: true }],
+      execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
+    },
+    runtimeInputs: { expectedHoldText: "Dont release me" },
+    editStepId: "explicitWait",
+    categories: {
+      "explicit wait": flow.nodes.some((n) => n.type === "wait" && n.config?.waitType === "selector"),
+      "complex action (double-click)": flow.nodes.some((n) => n.type === "dblclick"),
+      "complex action (drag)": flow.nodes.some((n) => n.type === "drag" && !!n.targetLocator),
+      "complex action (click-and-hold)": flow.nodes.some((n) => n.type === "clickAndHold" && typeof n.config?.holdMs === "number"),
+      "dialog expectation": flow.nodes.some((n) => !!n.dialogExpectation),
+      "attribute assertion": flow.nodes.some((n) => n.config?.assertionType === "attribute"),
+      conditional: flow.nodes.some((n) => n.type === "condition"),
+      loop: flow.nodes.some((n) => n.type === "loop"),
+      "workflow composition": flow.nodes.some((n) => n.type === "runFlow"),
+      "runtime input": flow.nodes.some((n) => n.valueSource?.type === "runtimeInput"),
+      "failure policy": true,
+      screenshot: flow.nodes.some((n) => n.type === "screenshot")
+    }
+  };
+}
+
+/** AI Playground: popup lifecycle, iframe, storage assertion, upload configuration, session config, DataSource binding. */
+function compositeAiPlayground(uploadFixture: string): Composite {
+  const AI = `${BASE}/AI-Playground/index.html`;
+  const frame = (id: string) => ({ strategy: "id" as const, value: id, context: { frame: { selector: "#login-frame" } } });
+  const flow = linear("wdu-composite-ai", [
+    { id: "goto", type: "goto", name: "open the AI Playground", valueSource: { type: "static", value: AI }, waitUntil: "domcontentloaded" },
+    // DataSource binding: the credentials come from the current row, not from the flow.
+    { id: "user", type: "fill", name: "username", locator: { strategy: "id", value: "ls-username" }, valueSource: { type: "currentRow", path: "$.user" } },
+    { id: "pass", type: "fill", name: "password", locator: { strategy: "id", value: "ls-password" }, valueSource: { type: "currentRow", path: "$.pass" } },
+    { id: "login", type: "click", name: "sign in", locator: { strategy: "id", value: "ls-submit" } },
+    { id: "storage", type: "assertText", name: "the session is in localStorage", config: { assertionType: "storage", storageArea: "local", storageKey: "wdu-session", comparisonOperator: "contains", expectedValue: "testuser" } },
+    { id: "save", type: "saveSession", name: "save the session", config: { sessionName: "wdu-composite", overwriteSession: true, captureScope: "origin" } },
+    // Popup lifecycle: open, switch, assert, return.
+    { id: "openTab", type: "click", name: "open the confirmation tab", locator: { strategy: "id", value: "new-tab-btn" }, opensPopup: true, popupExpectation: { popupAlias: "popup-1", timeoutMs: 20_000, waitUntil: "domcontentloaded" } },
+    { id: "switchTo", type: "switchToPopup", name: "switch to the popup", popupExpectation: { popupAlias: "popup-1", timeoutMs: 20_000 } },
+    { id: "popupRef", type: "assertText", name: "the popup shows its reference", locator: { strategy: "id", value: "popup-order-ref" }, config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "WDU-POPUP" } },
+    { id: "back", type: "switchToMainPage", name: "return to the opener" },
+    // iframe: an interaction scoped to a frame, and asserted inside it.
+    { id: "frameUser", type: "fill", name: "frame username", locator: frame("frame-username"), value: "admin" },
+    { id: "framePass", type: "fill", name: "frame password", locator: frame("frame-password"), value: "password123" },
+    { id: "frameSubmit", type: "click", name: "frame submit", locator: frame("frame-submit") },
+    { id: "frameResult", type: "assertVisible", name: "the frame reports success", locator: frame("frame-result"), timeoutMs: 15_000 },
+    // Upload configuration.
+    { id: "upload", type: "uploadFile", name: "choose the fixture", locator: { strategy: "id", value: "file-input" }, value: uploadFixture },
+    { id: "validate", type: "click", name: "validate the upload", locator: { strategy: "id", value: "file-submit" } },
+    { id: "uploadResult", type: "assertText", name: "the upload is echoed back", locator: { strategy: "id", value: "file-result" }, config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "specter-composite.png" }, timeoutMs: 15_000 }
+  ]);
+  return {
+    caseId: "WDU-D08",
+    challenge: "AI Playground (composite)",
+    scenario: "popup, iframe, storage, upload, session and data binding round-trip and still run",
+    flow,
+    children: [],
+    workflow: {
+      id: "wdu-composite-ai-workflow",
+      name: "WDU composite — AI Playground",
+      version: 1,
+      dataSource: { dataSourceId: "wdu-composite-credentials", rootArrayPath: "$.rows" },
+      nodes: [
+        { id: "start", type: "start", alias: "Start", order: 0 },
+        { id: "n1", type: "flowRef", flowId: flow.id, alias: "Composite AI", order: 1, required: true, inputBindings: {}, dataSourceId: "wdu-composite-credentials", jsonPath: "$.rows", failurePolicy: "continue", retryPolicy: { count: 0, delayMs: 0 } },
+        { id: "end", type: "end", alias: "End", order: 2 }
+      ],
+      edges: [
+        { id: "e1", source: "start", target: "n1", type: "always" },
+        { id: "e2", source: "n1", target: "end", type: "always" }
+      ],
+      runtimeInputs: [],
+      execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: false }
+    },
+    runtimeInputs: {},
+    editStepId: "frameResult",
+    categories: {
+      popup: flow.nodes.some((n) => n.opensPopup) && flow.nodes.some((n) => n.type === "switchToPopup"),
+      iframe: flow.nodes.some((n) => !!n.locator?.context?.frame?.selector),
+      "storage assertion": flow.nodes.some((n) => n.config?.assertionType === "storage"),
+      "upload configuration": flow.nodes.some((n) => n.type === "uploadFile" && !!n.value),
+      "session configuration": flow.nodes.some((n) => n.type === "saveSession" && !!n.config?.sessionName),
+      "DataSource binding": flow.nodes.some((n) => n.valueSource?.type === "currentRow")
+    }
+  };
+}
+
 async function main(): Promise<void> {
   const started = Date.now();
   const root = await mkdtemp(join(tmpdir(), "wdu-data-"));
@@ -243,6 +471,13 @@ async function main(): Promise<void> {
 
   const flowStore = new JsonProfileStore<FlowProfile>({ folder: join(root, "flows") });
   const workflowStore = new JsonProfileStore<WorkflowProfile>({ folder: join(root, "workflows") });
+
+  // A real 1x1 PNG: the AI Playground's validator only accepts .jpg/.png/.pdf.
+  const uploadFixture = join(dataDir, "specter-composite.png");
+  await writeFile(
+    uploadFixture,
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64")
+  );
 
   let sharedReport: ConcurrentRunReport | undefined;
   let sharedReportPath = "";
@@ -573,6 +808,82 @@ async function main(): Promise<void> {
   } finally {
     // nothing to tear down: every engine is local to its run and every artifact is under a temp root
   }
+
+    // ══ [C] Composite persistence round trips — every applicable field category ═════════════
+    //
+    // The acceptance scope lists the categories a persistence round trip has to carry: dialog
+    // expectation, attribute assertion, explicit wait, popup, iframe, complex action, DataSource
+    // binding, runtime input, conditional, loop, workflow composition, upload configuration,
+    // session configuration and failure policy. One flow cannot exercise all of them against one
+    // page, so there are two — and BOTH are executed, not merely round-tripped, because a saved
+    // flow that reloads perfectly and cannot run has not been proven to survive anything.
+    for (const composite of [compositeActions(), compositeAiPlayground(uploadFixture)]) {
+      if (!open(composite.caseId, composite.challenge, composite.scenario)) continue;
+
+      const store = new JsonProfileStore<FlowProfile>({ folder: join(root, `flows-${composite.flow.id}`) });
+      const workflowStoreC = new JsonProfileStore<WorkflowProfile>({ folder: join(root, `workflows-${composite.flow.id}`) });
+
+      // Every category the flow claims to carry must actually be in it, or the round trip below
+      // proves nothing about the categories it never held.
+      for (const [category, present] of Object.entries(composite.categories)) {
+        check(`[C1] the flow carries a ${category}`, present, `${category} missing from the composite flow`);
+      }
+
+      await store.create(composite.flow);
+      for (const child of composite.children) await store.create(child);
+      await workflowStoreC.create(composite.workflow);
+
+      const before = semanticShape(composite.flow);
+      const reloaded = await store.get(composite.flow.id);
+      check("[C2] the composite flow reloads", !!reloaded, "store returned null");
+      check(
+        "[C3] every step's type, locator, value, config and expectations survive save → reload byte for byte",
+        semanticShape(reloaded as FlowProfile) === before,
+        "semantic shape changed across save → reload"
+      );
+      const reloadedWorkflow = await workflowStoreC.get(composite.workflow.id);
+      check(
+        "[C4] the workflow's composition, data binding and failure policy survive too",
+        JSON.stringify(reloadedWorkflow?.nodes) === JSON.stringify(composite.workflow.nodes) &&
+          JSON.stringify(reloadedWorkflow?.dataSource) === JSON.stringify(composite.workflow.dataSource) &&
+          JSON.stringify(reloadedWorkflow?.runtimeInputs) === JSON.stringify(composite.workflow.runtimeInputs),
+        "workflow shape changed across save → reload"
+      );
+
+      // A legitimate edit, re-saved.
+      const edited: FlowProfile = {
+        ...(reloaded as FlowProfile),
+        nodes: (reloaded as FlowProfile).nodes.map((n) => (n.id === composite.editStepId ? { ...n, timeoutMs: 21_000 } : n))
+      };
+      await store.update(composite.flow.id, edited);
+      const reEdited = await store.get(composite.flow.id);
+      check("[C5] an edit re-saves and reloads", reEdited?.nodes.find((n) => n.id === composite.editStepId)?.timeoutMs === 21_000, JSON.stringify(reEdited?.nodes.find((n) => n.id === composite.editStepId)?.timeoutMs));
+      check(
+        "[C6] ...and nothing else moved",
+        semanticShape({ ...(reEdited as FlowProfile), nodes: (reEdited as FlowProfile).nodes.map((n) => (n.id === composite.editStepId ? { ...n, timeoutMs: composite.flow.nodes.find((o) => o.id === composite.editStepId)?.timeoutMs } : n)) }) === before,
+        "an unrelated step changed during the edit"
+      );
+
+      // ...then run the reloaded flow for real.
+      const run = await replayFlows([reEdited as FlowProfile, ...composite.children], composite.runtimeInputs);
+      check("[C7] the reloaded, edited flow runs green against the live site", run.status === "passed", `${run.status}: ${JSON.stringify(run.steps.filter((x) => x.status !== "passed"))}`);
+      check("[C8] every step in it reported a result", run.steps.length >= composite.flow.nodes.length - 2 && run.steps.every((x) => !!x.status), `${run.steps.length} steps`);
+
+      // Export → import → run again.
+      const exported = await store.export(composite.flow.id);
+      const importStore = new JsonProfileStore<FlowProfile>({ folder: join(root, `flows-imported-${composite.flow.id}`) });
+      await importStore.import({ ...exported, id: `${composite.flow.id}-imported` });
+      for (const child of composite.children) await importStore.import(child);
+      const importedBack = await importStore.get(`${composite.flow.id}-imported`);
+      check(
+        "[C9] export → import preserves the semantic shape",
+        semanticShape({ ...(importedBack as FlowProfile), id: composite.flow.id }) === semanticShape({ ...(reEdited as FlowProfile), id: composite.flow.id }),
+        "the imported copy differs from the exported one"
+      );
+      const rerun = await replayFlows([importedBack as FlowProfile, ...composite.children], composite.runtimeInputs);
+      check("[C10] the imported copy runs green too", rerun.status === "passed", `${rerun.status}: ${JSON.stringify(rerun.steps.filter((x) => x.status !== "passed"))}`);
+      close();
+    }
 
   const tally = { PASS: 0, FAIL: 0, BLOCKED: 0, INCONCLUSIVE: 0 } as Record<Outcome, number>;
   for (const r of results) tally[r.outcome] += 1;
