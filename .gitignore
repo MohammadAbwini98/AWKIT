@@ -166,3 +166,4 @@ resources/embedded-roadmap-snapshot.json
 .codex/config.toml
 wdu-live-results.json
 wdu-recorder-results.json
+wdu-data-results.json

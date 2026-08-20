@@ -141,6 +141,7 @@
     "verify:dialogs": "tsx scripts/verify-dialogs.mts",
     "verify:wdu-live": "tsx scripts/verify-wdu-live.mts",
     "verify:wdu-recorder-live": "tsx scripts/verify-wdu-recorder-live.mts",
+    "verify:wdu-data-live": "node scripts/benchmark/run.mjs scripts/verify-wdu-data-live.mts",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:smart-wait-causality": "tsx scripts/verify-smart-wait-causality.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",
