@@ -144,7 +144,12 @@ function valueSourceFor(type: StepType, value: string, ctx: ConfigurationContext
   const { rng, constraints, coverage } = ctx;
   const kinds: Array<ValueSource["type"]> = ["static", "static", "static", "env", "runtimeInput", "instanceVariable"];
   if (constraints.recorderFidelity) {
-    kinds.push("secret", "generated", "flowOutput", "dynamic");
+    // A `condition` is routed by `evaluateBoolean(step.value ?? "", …)`, which never resolves a value
+    // source — so the `secret` kind, which deliberately suppresses the literal below, left the node
+    // with NO expression. `evaluateBoolean("")` returns `true`, so those generated conditions took
+    // their true branch on every run and the corpus routed deterministically wrong while validating
+    // clean. A secret in a routing expression is meaningless anyway; the other kinds still generate.
+    kinds.push(...(type === "condition" ? [] : (["secret"] as Array<ValueSource["type"]>)), "generated", "flowOutput", "dynamic");
   }
   const kind = rng.pick(kinds);
   coverage?.recordGenerated("valueSourceType", kind);
