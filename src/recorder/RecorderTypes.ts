@@ -1,4 +1,4 @@
-import type { ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
+import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -120,6 +120,15 @@ export interface RecordedAction {
     [key: string]: unknown;
   };
   // ── Multi-Window / Popup ───────────────────────────────────────────────────
+  /**
+   * How this action answers the native JavaScript dialog it triggered, observed at record time.
+   *
+   * Playwright AUTO-DISMISSES a dialog when nothing is listening, so before this was captured a
+   * recorded `confirm()` replayed as `false` and a `prompt()` as `null` — and the saved flow said
+   * nothing about the dialog at all. The policy is recorded EXPLICITLY here so it is visible and
+   * editable in the Flow Designer rather than being implied by the runner's default.
+   */
+  dialogExpectation?: DialogExpectation;
   /**
    * Which browser page this action was recorded on. `'main'` = initial recording page;
    * `'popup-1'`, `'popup-2'`, … = auto-assigned popup aliases. Absent for legacy actions.

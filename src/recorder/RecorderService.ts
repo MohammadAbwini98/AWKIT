@@ -19,7 +19,7 @@ import type { SessionCaptureService } from "../session/SessionCaptureService";
 import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
 import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
-import type { FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
+import type { DialogExpectation, FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
 import { buildFrameChain } from "./frameChainCapture";
 import { LocatorFactory } from "../runner/LocatorFactory";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
@@ -172,6 +172,19 @@ export class RecorderService {
   private popupAttributionOf = new Map<Page, { action?: RecordedAction; createdAt: number }>();
   /** Pages already carrying the direct causal popup listener. */
   private popupSources = new WeakSet<Page>();
+  /** Pages already carrying a dialog listener, so re-wiring never doubles the handler. */
+  private dialogSources = new WeakSet<Page>();
+  /**
+   * The most recent action recorded on each page. A dialog is caused by the action that ran just
+   * before it, which is not always a click — a `select` change or a keypress can open one too.
+   */
+  private lastActionByPage = new Map<Page, { action: RecordedAction; at: number }>();
+  /**
+   * A dialog whose triggering action has not landed yet. The in-page capture listener runs in the
+   * CAPTURE phase and the page's own handler in the bubble phase, so the action normally arrives
+   * first — but the binding is async and the dialog event is not, so both orders happen.
+   */
+  private pendingDialogs = new Map<Page, { expectation: DialogExpectation; at: number }>();
   /** Non-secret instrumentation failure surfaced through Recorder status instead of swallowed. */
   private instrumentationError: string | undefined;
   // ── Protected login / popup manual handoff ───────────────────────────────────
@@ -562,6 +575,9 @@ export class RecorderService {
     this.popupAttributionOf.clear();
     this.actionQueue = Promise.resolve();
     this.popupSources = new WeakSet<Page>();
+    this.dialogSources = new WeakSet<Page>();
+    this.lastActionByPage = new Map<Page, { action: RecordedAction; at: number }>();
+    this.pendingDialogs = new Map<Page, { expectation: DialogExpectation; at: number }>();
     this.instrumentationError = undefined;
     await this.closeBrowser();
   }
@@ -736,7 +752,65 @@ export class RecorderService {
     // locators in the page DOM (semantic first; utility-class selectors never) so the
     // recorder saves Playwright-safe locators instead of generic CSS class selectors.
     await context.addInitScript({ content: getRecorderInitScriptContent() });
-    for (const page of context.pages()) this.attachPopupSource(page);
+    for (const page of context.pages()) {
+      this.attachPopupSource(page);
+      this.attachDialogCapture(page);
+    }
+  }
+
+  /**
+   * Observe and ANSWER the native JavaScript dialogs the recorded page opens, and record the policy
+   * on the action that opened them.
+   *
+   * Playwright auto-dismisses a dialog when nothing is listening. That is not a neutral default: the
+   * recorded page's `confirm()` returned false and its `prompt()` returned null while the user was
+   * recording, so the capture never reflected what the site actually does — and the saved flow said
+   * nothing about the dialog either, leaving replay to hit the same silent dismissal.
+   *
+   * The recorder therefore accepts, which is what pressing OK does, and writes an explicit
+   * {@link DialogExpectation} onto the triggering action. Accepting is a DECLARED default the user
+   * can change in the Flow Designer, not hidden behaviour: the saved step carries the policy, so
+   * dismissing instead — or asserting the message, or answering a prompt with real text — is an edit
+   * rather than a re-record.
+   */
+  private attachDialogCapture(page: Page): void {
+    if (this.dialogSources.has(page)) return;
+    this.dialogSources.add(page);
+    page.on("dialog", (dialog) => {
+      const kind = dialog.type() as DialogExpectation["dialogKind"];
+      const defaultValue = typeof dialog.defaultValue === "function" ? dialog.defaultValue() : "";
+      // Answer first, unconditionally: an unanswered dialog blocks the page for the whole session,
+      // recording or not.
+      void dialog.accept(kind === "prompt" ? defaultValue : undefined).catch(() => undefined);
+      if (!this.isRecording) return;
+      // The observed MESSAGE is deliberately not persisted. It is page text that can carry order
+      // numbers, names or balances, and asserting it is a choice the user makes in the designer —
+      // recording it would silently make every replay brittle against copy the site controls.
+      const expectation: DialogExpectation = {
+        action: "accept",
+        ...(kind ? { dialogKind: kind } : {}),
+        ...(kind === "prompt" ? { promptText: defaultValue } : {})
+      };
+      this.attributeDialog(page, expectation);
+    });
+  }
+
+  /** A dialog that lands within this long AFTER its action may still be attributed to it. */
+  private static readonly DIALOG_ATTRIBUTION_LOOKBACK_MS = 2_000;
+  /** How long a dialog waits for its triggering action's binding to arrive. */
+  private static readonly DIALOG_ATTRIBUTION_LAG_MS = 2_000;
+
+  /** Bind an observed dialog to the action that caused it, in whichever order the two arrive. */
+  private attributeDialog(page: Page, expectation: DialogExpectation): void {
+    const now = Date.now();
+    const recent = this.lastActionByPage.get(page);
+    if (recent && now - recent.at <= RecorderService.DIALOG_ATTRIBUTION_LOOKBACK_MS && !recent.action.dialogExpectation) {
+      recent.action.dialogExpectation = expectation;
+      this.scheduleDraftPersist();
+      return;
+    }
+    // The action has not landed yet; the next one recorded on this page claims it.
+    this.pendingDialogs.set(page, { expectation, at: now });
   }
 
   /** Attach the strongest causal popup signal to each page exactly once. */
@@ -856,6 +930,7 @@ export class RecorderService {
     const registration = (async (): Promise<string> => {
       this.attachUrlCapture(opened);
       this.attachPopupSource(opened);
+    this.attachDialogCapture(opened);
       const identityUrl = await this.popupIdentityUrl(opened);
       // Identity-derived alias first; arrival order only as the documented last-resort fallback.
       // Two live popups CAN legitimately share one origin+path — falling back keeps both pages
@@ -1323,6 +1398,10 @@ export class RecorderService {
     this.lastClickByPage.clear();
     this.popupAttributions.clear();
     this.popupAttributionOf.clear();
+    // A dialog attributed to a cleared action, or one still waiting for its action, must not attach
+    // itself to the first action of the continued recording.
+    this.lastActionByPage.clear();
+    this.pendingDialogs.clear();
     this.ambiguityState = null;
     this.ambiguityPage = null;
     if (this.draftTimer) {
@@ -1614,6 +1693,14 @@ export class RecorderService {
     // unrepresentable target for review) is owned by `buildRecordedFlow`, the single pure builder used
     // by BOTH this live session and the test harness, so both paths finalize identically.
     this.actions.push(taggedAction);
+    // A dialog that arrived before this action's binding landed belongs to it.
+    const pendingDialog = this.pendingDialogs.get(sourcePage);
+    if (pendingDialog && now - pendingDialog.at <= RecorderService.DIALOG_ATTRIBUTION_LAG_MS) {
+      taggedAction.dialogExpectation = pendingDialog.expectation;
+      this.pendingDialogs.delete(sourcePage);
+    }
+    // Every action, not just clicks: a `select` change or a keypress can open a dialog too.
+    this.lastActionByPage.set(sourcePage, { action: taggedAction, at: now });
     if (action.type === "click") {
       this.lastClickByPage.set(sourcePage, { action: taggedAction, at: now });
       // Claim a popup that appeared during this click's default action. First committed click wins

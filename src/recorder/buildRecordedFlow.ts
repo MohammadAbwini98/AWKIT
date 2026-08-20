@@ -322,6 +322,10 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       };
     }
 
+    // The dialog policy observed at record time. Armed BEFORE the action by the runner, because a
+    // dialog blocks the page synchronously — see DialogExpectation.
+    if (action.dialogExpectation) step.dialogExpectation = action.dialogExpectation;
+
     // ── Multi-Window / Popup ────────────────────────────────────────────────
     // Map page alias so the runner knows which page object to use for this step.
     if (action.pageAlias && action.pageAlias !== "main") step.pageAlias = action.pageAlias;
