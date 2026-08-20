@@ -53,7 +53,11 @@ function flow(id: string, steps: FlowStep[]): FlowProfile {
   };
 }
 
-async function makeContext(flowId: string, runtimeInputs: Record<string, unknown> = {}): Promise<InstanceExecutionContext> {
+async function makeContext(
+  flowId: string,
+  runtimeInputs: Record<string, unknown> = {},
+  sessionsDir?: string
+): Promise<InstanceExecutionContext> {
   const dir = await mkdtemp(join(tmpdir(), "wdu-live-"));
   return {
     executionId: "exec-wdu",
@@ -70,7 +74,7 @@ async function makeContext(flowId: string, runtimeInputs: Record<string, unknown
       screenshots: join(dir, "screenshots"),
       logs: join(dir, "logs"),
       reports: join(dir, "reports"),
-      sessions: join(dir, "sessions")
+      sessions: sessionsDir ?? join(dir, "sessions")
     }
   };
 }
@@ -80,19 +84,37 @@ const instanceConfig = { id: "ic", name: "ic", browser: "chromium", headless: tr
 /** Execute one or more flows as a real scenario and report per-step outcomes. */
 async function execute(
   flows: FlowProfile[],
-  runtimeInputs: Record<string, unknown> = {}
+  runtimeInputs: Record<string, unknown> = {},
+  /**
+   * Which flows the SCENARIO runs, when that is not simply all of them. A flow invoked by `runFlow`
+   * is handed to the runner so it can be resolved, but must not also run as a top-level step — that
+   * is the difference between a reusable definition and a duplicated one.
+   */
+  entryFlowIds?: string[],
+  /**
+   * Session controls. `sessionsDir` is where a `saveSession` step writes and where a later run
+   * looks; `storageState` starts a run FROM a previously saved state, which is what session reuse
+   * means at the browser-context level.
+   */
+  runOptions: { sessionsDir?: string; storageState?: string } = {}
 ): Promise<{ status: string; steps: { stepId: string; status: string; error?: string }[]; flowErrors: string[] }> {
+  const entries = entryFlowIds ? flows.filter((f) => entryFlowIds.includes(f.id)) : flows;
   const scenario: ScenarioProfile = {
     id: `sc-${flows[0].id}`,
     name: flows[0].id,
     executionMode: "sequential",
     maxParallelFlows: 1,
-    flows: flows.map((f, i) => ({ order: i + 1, flowId: f.id, required: true })),
+    flows: entries.map((f, i) => ({ order: i + 1, flowId: f.id, required: true })),
     links: [],
     failurePolicy: { onFlowFailure: "stop", captureScreenshot: false }
   } as unknown as ScenarioProfile;
   const runner = new PlaywrightRunner({ flows, productionOffline: false, resourcesRoot: join(process.cwd(), "resources") });
-  const result = await runner.executeScenario(scenario, await makeContext(flows[0].id, runtimeInputs), instanceConfig);
+  const config = runOptions.storageState ? { ...instanceConfig, storageState: runOptions.storageState } : instanceConfig;
+  const result = await runner.executeScenario(
+    scenario,
+    await makeContext(flows[0].id, runtimeInputs, runOptions.sessionsDir),
+    config
+  );
   const steps = result.flows.flatMap((f) =>
     (f.steps ?? []).map((s) => ({ stepId: s.stepId, status: s.status, error: s.error ? String(s.error) : undefined }))
   );
@@ -113,12 +135,14 @@ async function acceptance(
   scenario: string,
   flows: FlowProfile[],
   expect: "pass" | { failingStep: string; errorMatches?: RegExp },
-  runtimeInputs: Record<string, unknown> = {}
+  runtimeInputs: Record<string, unknown> = {},
+  entryFlowIds?: string[],
+  runOptions: { sessionsDir?: string; storageState?: string } = {}
 ): Promise<void> {
   if (only && !`${id} ${challenge} ${scenario}`.toLowerCase().includes(only.toLowerCase())) return;
   const label = `${id} — ${challenge} / ${scenario}`;
   try {
-    const run = await execute(flows, runtimeInputs);
+    const run = await execute(flows, runtimeInputs, entryFlowIds, runOptions);
     if (expect === "pass") {
       const bad = run.steps.filter((s) => s.status !== "passed" && s.status !== "skipped");
       const ok = run.status === "passed" && bad.length === 0;
@@ -180,6 +204,34 @@ const assertText = (id: string, locator: FlowStep["locator"], expected: string, 
   config: { assertionType: "text", comparisonOperator: op === "equals" ? "equals" : "contains", expectedValue: expected }
 });
 const assertVisible = (id: string, locator: FlowStep["locator"]): FlowStep => ({ id, type: "assertVisible", name: id, locator });
+/** Numeric comparison against an element's text — used where the value itself is not predictable. */
+const assertNumber = (id: string, locator: FlowStep["locator"], than: string, op: "greaterThan" | "lessThan"): FlowStep => ({
+  id,
+  type: "assertText",
+  name: id,
+  locator,
+  config: { assertionType: "text", comparisonOperator: op, expectedValue: than }
+});
+const assertAttr = (id: string, locator: FlowStep["locator"], attribute: string, expected: string, op: "contains" | "equals" = "contains"): FlowStep => ({
+  id,
+  type: "assertText",
+  name: id,
+  locator,
+  config: { assertionType: "attribute", attributeName: attribute, comparisonOperator: op, expectedValue: expected }
+});
+const assertInputValue = (id: string, locator: FlowStep["locator"], expected: string, op: "contains" | "equals" = "contains"): FlowStep => ({
+  id,
+  type: "assertText",
+  name: id,
+  locator,
+  config: { assertionType: "value", comparisonOperator: op, expectedValue: expected }
+});
+const assertStorage = (id: string, key: string, expected: string, op: "contains" | "equals" = "contains"): FlowStep => ({
+  id,
+  type: "assertText",
+  name: id,
+  config: { assertionType: "storage", storageKey: key, comparisonOperator: op, expectedValue: expected }
+});
 
 const byId = (value: string): FlowStep["locator"] => ({ strategy: "id", value });
 const byCss = (value: string): FlowStep["locator"] => ({ strategy: "css", value });
@@ -1044,6 +1096,638 @@ async function main(): Promise<void> {
       assertVisible("onStep2", byId("step-2"))
     ])
   ], "pass");
+
+  // ══ PREVIOUSLY UNATTEMPTED CHALLENGES ═════════════════════════════════════════════════════════
+  console.log("\nPREVIOUSLY UNATTEMPTED CHALLENGES");
+
+  // ── Accordion & Text Effects ─────────────────────────────────────────────────────────────────
+  // The panels are `max-height: 0; overflow: hidden` at rest, and Playwright's visibility check does
+  // not consider overflow clipping — a clipped panel still reports VISIBLE. So the observable state
+  // is the button's `active` class and the panel's inline `max-height`, both read as attributes.
+  await acceptance(
+    "WDU-C21",
+    "Accordion & Text Effects",
+    "expand and collapse are asserted on real state, not on a clipped element's visibility",
+    [
+      flow("accordion-toggle", [
+        goto("open", `${BASE}/Accordion/index.html`),
+        assertAttr("restClass", byId("manual-testing-accordion"), "class", "accordion", "equals"),
+        click("expand", byId("manual-testing-accordion")),
+        assertAttr("expandedClass", byId("manual-testing-accordion"), "class", "accordion active", "equals"),
+        // The panel's inline max-height is set to its scrollHeight on expand — its presence is the
+        // open state, and it is absent at rest.
+        assertAttr("panelOpen", byId("manual-testing-description"), "style", "max-height", "contains"),
+        click("collapse", byId("manual-testing-accordion")),
+        assertAttr("collapsedClass", byId("manual-testing-accordion"), "class", "accordion", "equals")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-C22",
+    "Accordion & Text Effects",
+    "each panel toggles independently",
+    [
+      flow("accordion-independent", [
+        goto("open", `${BASE}/Accordion/index.html`),
+        click("expandFirst", byId("manual-testing-accordion")),
+        click("expandSecond", byId("cucumber-accordion")),
+        assertAttr("firstStillOpen", byId("manual-testing-accordion"), "class", "accordion active", "equals"),
+        assertAttr("secondOpen", byId("cucumber-accordion"), "class", "accordion active", "equals"),
+        click("collapseFirst", byId("manual-testing-accordion")),
+        assertAttr("firstClosed", byId("manual-testing-accordion"), "class", "accordion", "equals"),
+        assertAttr("secondUnaffected", byId("cucumber-accordion"), "class", "accordion active", "equals")
+      ])
+    ],
+    "pass"
+  );
+
+  // The delayed text. MEASURED: the button says "5 Seconds" but the page's own timer is 10000ms, so
+  // the wait is on the observable text arriving, never on a duration the label claims.
+  await acceptance(
+    "WDU-C23",
+    "Accordion & Text Effects",
+    "text that appears on a timer is waited for, not slept through",
+    [
+      flow("accordion-delayed", [
+        goto("open", `${BASE}/Accordion/index.html`),
+        assertText("loadingAtRest", byId("hidden-text"), "LOADING.. PLEASE WAIT..", "equals"),
+        click("openTimerPanel", byId("click-accordion")),
+        {
+          id: "awaitText",
+          type: "wait",
+          name: "wait for the delayed text to arrive",
+          config: { waitType: "textVisible" },
+          value: "LOADING COMPLETE.",
+          timeoutMs: 30_000
+        },
+        assertText("completed", byId("hidden-text"), "LOADING COMPLETE.", "equals"),
+        assertText("panelText", byId("timeout"), "This text has appeared after 5 seconds!")
+      ])
+    ],
+    "pass"
+  );
+
+  // ── Datepicker ───────────────────────────────────────────────────────────────────────────────
+  // A real widget interaction: open the picker, navigate a month, choose a day, assert the field.
+  // The input is `readonly`, so nothing here types into it and nothing sets its value by script.
+  await acceptance(
+    "WDU-C24",
+    "Datepicker",
+    "open the picker, navigate a month and select a day",
+    [
+      flow("datepicker", [
+        goto("open", `${BASE}/Datepicker/index.html`),
+        click("openPicker", byCss("#datepicker .form-control")),
+        assertVisible("dropdown", byCss(".datepicker.datepicker-dropdown")),
+        click("nextMonth", byCss(".datepicker-days th.next")),
+        // The 15th of the month now on screen. `.old`/`.new` are the adjacent months' spill-over
+        // cells, excluded so the click lands in the month actually being shown.
+        click("pickDay", byCss(".datepicker-days td.day:not(.old):not(.new):text-is('15')")),
+        assertInputValue("fieldValue", byCss("#datepicker .form-control"), "-15-")
+      ])
+    ],
+    "pass"
+  );
+
+  // ── Page Object Model ────────────────────────────────────────────────────────────────────────
+  // SpecterStudio is not a code framework, so the challenge's INTENT — one maintainable definition
+  // of a page's interactions, reused rather than copy-pasted — is expressed the way this product
+  // expresses it: a shared navigation flow invoked by `runFlow` from two different journeys. The
+  // same definition drives both; neither restates it. `pom-nav` is handed to the runner but is not
+  // a scenario entry, which is exactly what makes it a reusable definition rather than a third step.
+  await acceptance(
+    "WDU-C25",
+    "Page Object Model",
+    "one shared navigation flow is reused by two journeys (the POM intent, in product terms)",
+    [
+      flow("pom-nav", [
+        click("toProducts", byCss("#div-main-nav a[href='products.html']")),
+        assertVisible("productsGrid", byId("container-product1"))
+      ]),
+      flow("pom-home", [
+        goto("open", `${BASE}/Page-Object-Model/index.html`),
+        click("findOutMore", byId("button-find-out-more")),
+        assertVisible("modal", byId("myModal")),
+        click("closeModal", byCss("#myModal .modal-footer button:text-is('Close')")),
+        // The modal fades out, and while it is fading it still intercepts pointer events — so the
+        // nav click has to wait for it to be GONE, not merely for the close click to return.
+        {
+          id: "modalGone",
+          type: "wait",
+          name: "the modal has finished closing",
+          beforeWaits: [{ type: "elementHidden", locator: byId("myModal"), timeoutMs: 10_000 } as never]
+        },
+        { id: "useNav", type: "runFlow", name: "reuse the shared navigation flow", config: { targetFlowId: "pom-nav" } }
+      ]),
+      flow("pom-products", [
+        goto("open", `${BASE}/Page-Object-Model/index.html`),
+        { id: "useNavAgain", type: "runFlow", name: "reuse the shared navigation flow", config: { targetFlowId: "pom-nav" } },
+        click("openSpecialOffers", byId("special-offers")),
+        assertVisible("offerModal", byId("myModal"))
+      ])
+    ],
+    "pass",
+    {},
+    ["pom-home", "pom-products"]
+  );
+
+  // ── AI 17. Timing Mismatch ───────────────────────────────────────────────────────────────────
+  // The counter ticks every 300ms and Capture snapshots it. Whether Verify then reports "Match!" or
+  // "Mismatch" is a race the CHALLENGE owns, so asserting either would be asserting luck. The
+  // invariant is the state handoff itself: once a capture has committed, Verify reports against it
+  // and never falls back to "Nothing captured yet." Both legitimate verdicts share "atch"
+  // (M-atch / Mism-atch); the un-captured state does not, and WDU-A17d proves that.
+  await acceptance(
+    "WDU-A17c",
+    "AI: Timing Mismatch",
+    "capture → verify synchronises, over five consecutive cycles",
+    [
+      flow("ai-timing", [
+        goto("open", AI),
+        assertText("initialCaptured", byId("timing-captured"), "—", "equals"),
+        ...Array.from({ length: 5 }, (_, i) => [
+          click(`capture${i}`, byId("timing-capture")),
+          // A committed capture is a NUMBER. "—" is NaN, and NaN > -1 is false, so this fails
+          // precisely when the capture did not commit.
+          assertNumber(`committed${i}`, byId("timing-captured"), "-1", "greaterThan"),
+          click(`verify${i}`, byId("timing-verify")),
+          assertText(`verified${i}`, byId("timing-verify-result"), "atch")
+        ]).flat(),
+        // After five real round trips the live counter has necessarily moved past its starting value.
+        assertNumber("counterAdvanced", byId("timing-counter"), "0", "greaterThan")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A17d",
+    "AI: Timing Mismatch",
+    "negative control — Verify without a Capture reports nothing captured",
+    [
+      flow("ai-timing-negative", [
+        goto("open", AI),
+        click("verifyFirst", byId("timing-verify")),
+        assertText("nothingCaptured", byId("timing-verify-result"), "Nothing captured yet."),
+        // ...and that state does NOT satisfy the invariant WDU-A17c asserts, which is what makes
+        // that assertion load-bearing rather than a phrase that matches anything.
+        assertText("notAVerdict", byId("timing-verify-result"), "atch")
+      ])
+    ],
+    { failingStep: "notAVerdict", errorMatches: /Assertion failed/ }
+  );
+
+  // ── AI 20. localStorage Session ──────────────────────────────────────────────────────────────
+  // Previously inexpressible: there was no browser-storage assertion at all (`awkit-7o5n`).
+  await acceptance(
+    "WDU-A20b",
+    "AI: localStorage Session",
+    "the session is asserted in localStorage, not read off the banner",
+    [
+      flow("ai-localstorage", [
+        goto("open", AI),
+        assertStorage("absentAtRest", "wdu-session", "(absent)", "equals"),
+        fill("user", byId("ls-username"), "testuser"),
+        fill("pass", byId("ls-password"), "pass123"),
+        click("login", byId("ls-submit")),
+        assertVisible("welcome", byId("ls-welcome")),
+        // The UI can lie; the store cannot. Both the user and the token key must be present.
+        assertStorage("sessionUser", "wdu-session", "testuser"),
+        assertStorage("sessionToken", "wdu-session", "token"),
+        click("logout", byId("ls-logout")),
+        assertStorage("clearedOnLogout", "wdu-session", "(absent)", "equals")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A20c",
+    "AI: localStorage Session",
+    "negative control — bad credentials leave no session behind",
+    [
+      flow("ai-localstorage-negative", [
+        goto("open", AI),
+        fill("user", byId("ls-username"), "wrong-user"),
+        fill("pass", byId("ls-password"), "wrong-pass"),
+        click("login", byId("ls-submit")),
+        assertVisible("error", byId("ls-error")),
+        assertStorage("stillAbsent", "wdu-session", "(absent)", "equals"),
+        // Asserting a session that is not there must FAIL, or the checks above prove nothing.
+        assertStorage("mustFail", "wdu-session", "testuser")
+      ])
+    ],
+    { failingStep: "mustFail", errorMatches: /absent/ }
+  );
+
+  // ══ AI 27. ACCESSIBILITY SUITE ════════════════════════════════════════════════════════════════
+  // 29 components, each carrying a deliberate accessibility defect. The scenario is NOT "the page
+  // loaded": every case below drives real interactions and asserts the semantic state — role,
+  // accessible name, label, focus, ARIA attribute, control state — that the defect lives in.
+  //
+  // A note on what is being asserted. Where a component's defect is a MISSING or WRONG attribute,
+  // the case asserts that missing/wrong value deliberately: it is the target site's defect, recorded
+  // as an external observation, and asserting it is how SpecterStudio proves it can SEE the thing an
+  // accessibility test would need to report. Those assertions are marked in the matrix as
+  // site-defect observations, never as SpecterStudio defects.
+  console.log("\nAI 27. ACCESSIBILITY SUITE");
+  const A11Y = `${BASE}/Accessibility-Suite/index.html`;
+
+  await acceptance(
+    "WDU-A27a",
+    "AI: Accessibility Suite",
+    "the suite's component inventory is what the site claims (29)",
+    [
+      flow("a11y-inventory", [
+        goto("open", A11Y),
+        {
+          id: "count",
+          type: "assertText",
+          name: "29 challenge components are present",
+          locator: byCss("section.challenge"),
+          config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "29" }
+        },
+        assertText("tagline", byCss(".tagline"), "29 components"),
+        // Section 14 is the capstone, and it is labelled as one.
+        assertVisible("capstoneBadge", byCss("[data-testid='capstone-badge']"))
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27b",
+    "AI: Accessibility Suite",
+    "roles, accessible names and control state are readable — including where they are wrong",
+    [
+      flow("a11y-semantics", [
+        goto("open", A11Y),
+        // 2. A control whose LABEL says it is locked while nothing marks it disabled.
+        assertText("disabledLabel", byCss("[data-testid='disabled-btn']"), "locked until Step 2"),
+        assertAttr("notActuallyDisabled", byCss("[data-testid='disabled-btn']"), "disabled", "(absent)", "equals"),
+        // 18. Marked aria-hidden but still a real, focusable button.
+        assertAttr("ariaHidden", byCss("[data-testid='aria-hidden-focusable-btn']"), "aria-hidden", "true", "equals"),
+        assertVisible("stillOnScreen", byCss("[data-testid='aria-hidden-focusable-btn']")),
+        // 19. A native button overridden with role="link", and list items stripped of semantics.
+        assertAttr("conflictingRole", byCss("[data-testid='conflicting-role-btn']"), "role", "link", "equals"),
+        {
+          id: "presentationItems",
+          type: "assertText",
+          name: "three list items are stripped to role=presentation",
+          locator: byCss("[data-testid='redundant-role-list'] li[role='presentation']"),
+          config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "3" }
+        },
+        // 4. A span acting as a checkbox with no role and no aria-checked.
+        assertAttr("fakeCheckboxRole", byCss("[data-testid='fake-checkbox']"), "role", "(absent)", "equals"),
+        assertAttr("fakeCheckboxState", byCss("[data-testid='fake-checkbox']"), "aria-checked", "(absent)", "equals"),
+        click("toggleFakeCheckbox", byCss("[data-testid='fake-checkbox']")),
+        // ...and the ONLY thing that changes is a class, which is exactly the defect.
+        assertAttr("visualOnlyState", byCss("[data-testid='fake-checkbox']"), "class", "checked", "contains"),
+        assertAttr("stillNoAriaChecked", byCss("[data-testid='fake-checkbox']"), "aria-checked", "(absent)", "equals"),
+        // 26. An icon button with no accessible name at all.
+        assertAttr("iconNoLabel", byCss("[data-testid='icon-btn-no-name']"), "aria-label", "(absent)", "equals"),
+        click("favourite", byCss("[data-testid='icon-btn-no-name']")),
+        assertAttr("favouritedVisualOnly", byCss("[data-testid='icon-btn-no-name']"), "class", "favourited", "contains"),
+        // 5. The dropdown trigger is deliberately removed from the tab order.
+        assertAttr("navTriggerTabindex", byCss("[data-testid='nav-menu-trigger'] span"), "tabindex", "-1", "equals"),
+        // 24. Positive tabindex values put the visual order and the tab order out of step.
+        assertAttr("cardTabindex", byCss("[data-testid='tabindex-card-number']"), "tabindex", "3", "equals"),
+        assertAttr("nameTabindex", byCss("[data-testid='tabindex-name']"), "tabindex", "1", "equals"),
+        assertAttr("cvvTabindex", byCss("[data-testid='tabindex-cvv']"), "tabindex", "2", "equals")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27c",
+    "AI: Accessibility Suite",
+    "form labels, placeholder-only fields and the unlabelled contact form",
+    [
+      flow("a11y-forms", [
+        goto("open", A11Y),
+        // 3. No label element anywhere — the fields are reachable only by placeholder.
+        {
+          id: "noLabels",
+          type: "assertText",
+          name: "the contact form carries no label element",
+          locator: byCss("#contact-form label"),
+          config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "0" }
+        },
+        // The consequence of no labels, measured: TWO unlabelled fields on this page share the exact
+        // placeholder "Email", so the only "label" the component offers cannot identify either of
+        // them. The product refuses the ambiguous locator rather than guessing, which is the correct
+        // behaviour and also the reason the fill below has to fall back to a test id.
+        {
+          id: "placeholderIsAmbiguous",
+          type: "assertText",
+          name: "two fields share the placeholder that stands in for a label",
+          locator: byCss("input[placeholder='Email']"),
+          config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "2" }
+        },
+        // "Name" IS unique as an exact placeholder, so that one is located the way a user reads it.
+        fill("contactName", { strategy: "placeholder", value: "Name", exact: true }, "Specter Studio"),
+        fill("contactEmail", byCss("[data-testid='contact-email']"), "a11y@example.com"),
+        assertInputValue("nameEntered", byCss("[data-testid='contact-name']"), "Specter Studio", "equals"),
+        assertInputValue("emailEntered", byCss("[data-testid='contact-email']"), "a11y@example.com", "equals"),
+        assertAttr("emailHasNoAriaLabel", byCss("[data-testid='contact-email']"), "aria-label", "(absent)", "equals"),
+        // ...and the error text is not associated with the field it describes.
+        assertAttr("errorNotDescribed", byCss("[data-testid='contact-email']"), "aria-describedby", "(absent)", "equals"),
+        // 15. A newsletter field whose only label is a placeholder that vanishes on typing.
+        assertAttr("newsletterNoLabel", byCss("[data-testid='placeholder-only-input']"), "aria-label", "(absent)", "equals"),
+        fill("newsletter", byCss("[data-testid='placeholder-only-input']"), "news@example.com"),
+        assertInputValue("newsletterEntered", byCss("[data-testid='placeholder-only-input']"), "news@example.com", "equals"),
+        // 10. Every field IS labelled here — the defect is that CSS reorders them, so the reading
+        // order and the visual order disagree. DOM order is first-name first.
+        assertText("domOrderFirst", byCss("[data-testid='visual-reorder-form'] label.field-1"), "First name"),
+        // 11. The error is valid HTML and unreadable prose — no tool flags it, so a test must read it.
+        assertText("jargonError", byCss("[data-testid='cognitive-error']"), "Err 0x4F2")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27d",
+    "AI: Accessibility Suite",
+    "keyboard: focus placement, a real focus trap, and a dropdown that swallows Tab",
+    [
+      flow("a11y-keyboard", [
+        goto("open", A11Y),
+        // 22. Opening the panel moves focus into it — asserted through :focus, not assumed.
+        click("openTrap", byCss("[data-testid='trap-open-btn']")),
+        assertVisible("trapPanel", byCss("[data-testid='keyboard-trap-panel']")),
+        assertVisible("focusMovedIn", byCss("[data-testid='trap-input']:focus")),
+        // Three Tabs cycle input → Save → Close → back to input. That return IS the trap.
+        { id: "tab1", type: "press", name: "Tab", value: "Tab" },
+        assertVisible("focusOnSave", byCss("[data-testid='trap-save-btn']:focus")),
+        { id: "tab2", type: "press", name: "Tab", value: "Tab" },
+        assertVisible("focusOnClose", byCss("[data-testid='trap-close-btn']:focus")),
+        { id: "tab3", type: "press", name: "Tab", value: "Tab" },
+        assertVisible("focusTrapped", byCss("[data-testid='trap-input']:focus")),
+        // Only the mouse gets out.
+        click("closeTrap", byCss("[data-testid='trap-close-btn']")),
+        assertAttr("trapClosed", byCss("[data-testid='keyboard-trap-panel']"), "hidden", "", "equals"),
+        // 23. The plan selector reports its expanded state, and the option updates the trigger.
+        assertAttr("collapsed", byCss("[data-testid='tab-swallow-trigger']"), "aria-expanded", "false", "equals"),
+        click("openPlans", byCss("[data-testid='tab-swallow-trigger']")),
+        assertAttr("expanded", byCss("[data-testid='tab-swallow-trigger']"), "aria-expanded", "true", "equals"),
+        assertVisible("planList", byCss("[data-testid='tab-swallow-list']")),
+        click("choosePro", byCss("[data-testid='tab-swallow-option-2']")),
+        assertText("triggerUpdated", byCss("[data-testid='tab-swallow-trigger']"), "Pro"),
+        assertAttr("collapsedAgain", byCss("[data-testid='tab-swallow-trigger']"), "aria-expanded", "false", "equals"),
+        // 16. Quick actions strip their focus outline; both are still real, reachable buttons.
+        click("archive", byCss("[data-testid='no-focus-outline-btn']")),
+        assertVisible("archiveFocused", byCss("[data-testid='no-focus-outline-btn']:focus"))
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27e",
+    "AI: Accessibility Suite",
+    "dialog, live regions and the mismatched accordion",
+    [
+      flow("a11y-dialog-live", [
+        goto("open", A11Y),
+        // 8. A modal with none of the dialog semantics.
+        assertAttr("noDialogRole", byCss("[data-testid='demo-modal']"), "role", "(absent)", "equals"),
+        assertAttr("noAriaModal", byCss("[data-testid='demo-modal']"), "aria-modal", "(absent)", "equals"),
+        click("openModal", byCss("[data-testid='open-modal-btn']")),
+        assertAttr("modalOpen", byCss("[data-testid='demo-modal']"), "class", "open", "contains"),
+        assertText("modalHeading", byCss("[data-testid='demo-modal'] h3"), "Confirm Booking"),
+        click("closeModal", byCss("[data-testid='close-modal-btn']")),
+        assertAttr("modalClosed", byCss("[data-testid='demo-modal']"), "class", "modal-overlay", "equals"),
+        // 12. Content that changes on click with no live region to announce it.
+        assertText("liveRegionAtRest", byCss("[data-testid='live-region-demo']"), "No updates yet."),
+        assertAttr("noAriaLive", byCss("[data-testid='live-region-demo']"), "aria-live", "(absent)", "equals"),
+        click("triggerUpdate", byCss("[data-testid='trigger-update-btn']")),
+        assertText("liveRegionUpdated", byCss("[data-testid='live-region-demo']"), "Booking confirmed at"),
+        // 20. A payment FAILURE announced politely — the wrong politeness, and observable as one.
+        assertAttr("politeness", byCss("[data-testid='live-region-wrong-politeness']"), "aria-live", "polite", "equals"),
+        click("payNow", byCss("[data-testid='wrong-politeness-trigger']")),
+        assertText("paymentFailed", byCss("[data-testid='live-region-wrong-politeness']"), "Payment failed"),
+        // 21. The trigger claims to control the OTHER panel; the handler opens its own.
+        assertAttr("mismatchedControls", byCss("[data-testid='faq-trigger-1']"), "aria-controls", "faq-panel-2", "equals"),
+        click("openFaq", byCss("[data-testid='faq-trigger-1']")),
+        assertAttr("triggerExpanded", byCss("[data-testid='faq-trigger-1']"), "aria-expanded", "true", "equals"),
+        // The panel that actually opened is panel 1, not the panel 2 it names.
+        assertVisible("panelOneOpened", byCss("[data-testid='faq-panel-1']")),
+        assertAttr("panelTwoStillHidden", byCss("[data-testid='faq-panel-2']"), "hidden", "", "equals"),
+        // 6. Tabs respond to click only, with no tab/tablist roles.
+        assertAttr("noTabRole", byCss("[data-testid='tab-2']"), "role", "(absent)", "equals"),
+        click("secondTab", byCss("[data-testid='tab-2']")),
+        assertAttr("secondTabActive", byCss("[data-testid='tab-2']"), "class", "active", "contains"),
+        assertText("secondPanel", byCss(".tab-panel[data-panel='2']"), "Details content.")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27f",
+    "AI: Accessibility Suite",
+    "capstone — the three-step registration journey completes",
+    [
+      flow("a11y-capstone", [
+        goto("open", A11Y),
+        fill("regName", byCss("[data-testid='reg-name']"), "Specter Studio"),
+        fill("regEmail", byCss("[data-testid='reg-email']"), "capstone@example.com"),
+        click("toStep2", byCss("[data-testid='capstone-step1-next']")),
+        assertAttr("step2Active", byCss("[data-testid='capstone-step-2']"), "class", "active", "contains"),
+        click("pickVip", byCss("[data-testid='ticket-vip']")),
+        assertAttr("vipSelected", byCss("[data-testid='ticket-vip']"), "class", "ticket-selected", "contains"),
+        click("toStep3", byCss("[data-testid='capstone-step2-next']")),
+        assertText("reviewName", byCss("[data-testid='capstone-review-name']"), "Specter Studio"),
+        assertText("reviewTicket", byCss("[data-testid='capstone-review-ticket']"), "VIP"),
+        click("confirm", byCss("[data-testid='capstone-confirm-btn']")),
+        assertText("confirmed", byCss("[data-testid='capstone-confirm-region']"), "Registration confirmed"),
+        // Back navigation preserves the earlier answers.
+        click("backToStep2", byCss("[data-testid='capstone-step3-back']")),
+        assertAttr("backOnStep2", byCss("[data-testid='capstone-step-2']"), "class", "active", "contains"),
+        assertAttr("vipStillSelected", byCss("[data-testid='ticket-vip']"), "class", "ticket-selected", "contains")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27g",
+    "AI: Accessibility Suite",
+    "capstone validation — a bad email is rejected and the journey stays on step 1",
+    [
+      flow("a11y-capstone-validation", [
+        goto("open", A11Y),
+        fill("regName", byCss("[data-testid='reg-name']"), "Specter Studio"),
+        fill("regEmail", byCss("[data-testid='reg-email']"), "not-an-email"),
+        click("tryNext", byCss("[data-testid='capstone-step1-next']")),
+        assertVisible("emailError", byCss("[data-testid='reg-email-error']")),
+        assertText("errorText", byCss("[data-testid='reg-email-error']"), "Invalid email format"),
+        // Rejected means it did NOT advance.
+        assertAttr("stillOnStep1", byCss("[data-testid='capstone-step-1']"), "class", "active", "contains"),
+        assertAttr("step2NotActive", byCss("[data-testid='capstone-step-2']"), "class", "capstone-step", "equals")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27h",
+    "AI: Accessibility Suite",
+    "settings, search and filtering all drive real state",
+    [
+      flow("a11y-composite", [
+        goto("open", A11Y),
+        // 28. Toggle, stepper and save, none of them announcing anything.
+        assertText("fontSizeAtRest", byCss("[data-testid='settings-fontsize-value']"), "16px", "equals"),
+        click("increaseFont", byCss("[data-testid='settings-fontsize-increase']")),
+        click("increaseFontAgain", byCss("[data-testid='settings-fontsize-increase']")),
+        assertText("fontSizeRaised", byCss("[data-testid='settings-fontsize-value']"), "18px", "equals"),
+        click("decreaseFont", byCss("[data-testid='settings-fontsize-decrease']")),
+        assertText("fontSizeLowered", byCss("[data-testid='settings-fontsize-value']"), "17px", "equals"),
+        click("toggleNotifications", byCss("[data-testid='settings-toggle-notifications']")),
+        assertAttr("toggleOn", byCss("[data-testid='settings-toggle-notifications']"), "class", "checked", "contains"),
+        assertAttr("toggleHasNoRole", byCss("[data-testid='settings-toggle-notifications']"), "role", "(absent)", "equals"),
+        click("saveSettings", byCss("[data-testid='settings-save-btn']")),
+        assertText("saved", byCss("[data-testid='settings-save-confirmation']"), "Settings saved.", "equals"),
+        // 29. Search and filter, asserted on the result COUNT and the surviving rows.
+        assertText("allResults", byCss("[data-testid='results-count']"), "6 results", "equals"),
+        { id: "filterPlaywright", type: "check", name: "filter to Playwright", locator: byCss("[data-testid='filter-checkbox-playwright']") },
+        assertText("filtered", byCss("[data-testid='results-count']"), "2 results", "equals"),
+        {
+          id: "filteredRows",
+          type: "assertText",
+          name: "two rows survive the filter",
+          locator: byCss("[data-testid='results-list'] li"),
+          config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "2" }
+        },
+        fill("search", byCss("[data-testid='search-input']"), "Advanced"),
+        assertText("searched", byCss("[data-testid='results-count']"), "1 result", "equals"),
+        click("clearFilters", byCss("[data-testid='clear-filters-btn']")),
+        assertText("cleared", byCss("[data-testid='results-count']"), "6 results", "equals")
+      ])
+    ],
+    "pass"
+  );
+
+  await acceptance(
+    "WDU-A27i",
+    "AI: Accessibility Suite",
+    "the non-interactive components' defects are observable through attribute assertions",
+    [
+      flow("a11y-static", [
+        goto("open", A11Y),
+        // 1. Colour is the only pass/fail signal — the state lives in a class and nowhere else.
+        assertAttr("statusPass", byCss("[data-testid='status-item-1'] span"), "class", "status-pass", "contains"),
+        assertAttr("statusFail", byCss("[data-testid='status-item-2'] span"), "class", "status-fail", "contains"),
+        // 7. Three images: one with no alt, one with alt="", one with verbose alt on a decoration.
+        assertText("galleryNoAlt", byCss("[data-testid='gallery-img-1']"), "no alt attr"),
+        assertText("galleryEmptyAlt", byCss("[data-testid='gallery-img-2']"), 'alt=""'),
+        assertText("galleryVerboseAlt", byCss("[data-testid='gallery-img-3']"), "verbose alt"),
+        // 9. A heading order axe-core flags (h2 → h4) that harms nobody here.
+        assertText("cardTitle", byCss("[data-testid='false-positive-block'] h2"), "Card Title"),
+        assertText("cardSubtitle", byCss("[data-testid='false-positive-block'] h4"), "Card Subtitle"),
+        // 13. A skip link pointing at an id that does not exist.
+        assertAttr("skipHref", byCss("[data-testid='skip-link']"), "href", "#does-not-exist", "equals"),
+        {
+          id: "skipTargetMissing",
+          type: "assertText",
+          name: "the skip link's target does not exist",
+          locator: byCss("#does-not-exist"),
+          config: { assertionType: "count", comparisonOperator: "equals", expectedValue: "0" }
+        },
+        // 17. A link with nothing but position to distinguish it from body text.
+        assertText("inlineLink", byCss("[data-testid='low-contrast-inline-link']"), "Read the full write-up"),
+        assertAttr("inlineLinkHref", byCss("[data-testid='low-contrast-inline-link']"), "href", "#", "equals"),
+        // 25. Alt text that repeats the visible caption word for word.
+        assertAttr("redundantAlt", byCss("[data-testid='redundant-alt-img'] [role='img']"), "aria-label", "Team photo at the WDU conference 2025", "equals"),
+        assertText("caption", byCss("[data-testid='redundant-alt-img'] figcaption"), "Team photo at the WDU conference 2025", "equals"),
+        // 27. A banner whose entire content is a background image.
+        assertVisible("bgBanner", byCss("[data-testid='bg-image-only-content']"))
+      ])
+    ],
+    "pass"
+  );
+
+  // ══ SESSION REUSE ═════════════════════════════════════════════════════════════════════════════
+  // Three separate executions, each with its own browser. The first establishes app-owned session
+  // state and saves it through the product's `saveSession` node; the second starts a FRESH browser
+  // from that saved state and must already be signed in without repeating the login; the third
+  // starts with no session at all and must be signed out. The third is what stops the second from
+  // passing for the wrong reason.
+  //
+  // The session here is the AI Playground's own demo login (testuser/pass123) — a public practice
+  // credential on a practice site. Nothing protected is automated, and no real browser profile is
+  // touched: the state lives in a temp directory created for this run.
+  console.log("\nSESSION REUSE");
+  const sessionsDir = join(await mkdtemp(join(tmpdir(), "wdu-sessions-")), "sessions");
+  const savedSessionFile = join(sessionsDir, "wdu-playground.json");
+
+  await acceptance(
+    "WDU-S01",
+    "Session reuse",
+    "establish app-owned session state and save it through the product",
+    [
+      flow("session-establish", [
+        goto("open", AI),
+        fill("user", byId("ls-username"), "testuser"),
+        fill("pass", byId("ls-password"), "pass123"),
+        click("login", byId("ls-submit")),
+        assertVisible("welcome", byId("ls-welcome")),
+        assertStorage("sessionWritten", "wdu-session", "testuser"),
+        {
+          id: "save",
+          type: "saveSession",
+          name: "save the session",
+          config: { sessionName: "wdu-playground", overwriteSession: true }
+        }
+      ])
+    ],
+    "pass",
+    {},
+    undefined,
+    { sessionsDir }
+  );
+
+  await acceptance(
+    "WDU-S02",
+    "Session reuse",
+    "a fresh execution starting from the saved state is already signed in",
+    [
+      flow("session-reuse", [
+        goto("open", AI),
+        // No login steps at all. The page reads `wdu-session` on load and greets the user itself.
+        assertStorage("sessionRestored", "wdu-session", "testuser"),
+        assertVisible("welcomeWithoutLogin", byId("ls-welcome")),
+        assertText("greeting", byId("ls-welcome"), "Welcome, testuser"),
+        // The login form is put away, which is the page's own confirmation that it accepted the state.
+        assertAttr("formHidden", byId("ls-form"), "class", "hidden", "contains")
+      ])
+    ],
+    "pass",
+    {},
+    undefined,
+    { sessionsDir, storageState: savedSessionFile }
+  );
+
+  await acceptance(
+    "WDU-S03",
+    "Session reuse",
+    "without the saved session the same flow is signed out — so WDU-S02 cannot pass by accident",
+    [
+      flow("session-absent", [
+        goto("open", AI),
+        assertStorage("noSession", "wdu-session", "(absent)", "equals"),
+        assertVisible("loginFormShown", byId("ls-submit")),
+        // Asserting the restored session WITHOUT the saved state must fail.
+        assertStorage("mustFailWithoutSession", "wdu-session", "testuser")
+      ])
+    ],
+    { failingStep: "mustFailWithoutSession", errorMatches: /absent/ }
+  );
 
   // ══ SUMMARY ════════════════════════════════════════════════════════════════════════════════════
   const tally = results.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r.outcome]: (acc[r.outcome] ?? 0) + 1 }), {});
