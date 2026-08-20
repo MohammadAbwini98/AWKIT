@@ -1,5 +1,49 @@
 # CURRENT_STATE
 
+## Packaged licensing executed against a key2 build — 40 PASS / 0 FAIL / 0 BLOCKED (2026-08-20)
+
+The standing external gate is no longer NOT RUN. `verify:packaged-licensing` ran against a portable
+build cut fresh from `ce72080`, and for the first time **no case reported BLOCKED**.
+
+**The artifact was rebuilt on purpose.** The `dist/win-unpacked` tree on disk was the v0.1.15
+vintage, and the gate has **no freshness guard** — it simply runs whatever is in `dist/`. Fingerprinting
+its `app.asar` rather than trusting its mtime showed exactly why that mattered: it carried `key2`, but
+it still contained the issuer-page leak (`/api/license-issuer` ×4, `Licenses Issue` ×2,
+`renderLicenseIssuer` ×2) and had no `dialogExpectation`, so it predated both the leak fix and every
+WDU change. The fresh build reports **0** leak markers and carries the current runtime.
+
+```text
+                                as-released 0.1.15    fresh ce72080 build
+key2 public half                present               present
+issuer-page leak markers        8                     0
+dialogExpectation               absent                present
+```
+
+**The gate found a regression I introduced.** Folding the issuer CLI onto `LicenseIssuerService`
+(`awkit-vf9r`) broke `mintVerificationLicense` three ways at once — it still passed `--out` (removed),
+`--type packaged-verification` (not in `ISSUER_LICENSE_TYPES`), and `--expires` without
+`--valid-from` (the window contract needs both). **It hid behind a BLOCKED case**: both minting
+scenarios report BLOCKED whenever `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is unset, so the break sat
+behind a gate that does not run by default. Fixed in the helper, not by loosening the service.
+
+**Signing is deliberately gated on more than key presence.** `resolveIssuerKey` refuses to infer the
+key from its default location — "do not sign with the production release key on an ordinary developer
+machine". The two signing cases were run only after setting that variable explicitly. They minted
+three short-lived `trial` licences, each identifiable in the append-only ledger by a validity window
+measured in minutes; history went 17 → 20 lines and was deliberately not pruned.
+
+**An installer build is refused from a dirty tree** — `validate-offline-bundle.ps1 -Strict` answers
+"Strict mode requires the dependency manifest to come from a clean source tree." That is the guard
+working: a release artifact must be attributable. `dist/release-provenance.json` records
+`commit: ce72080, treeDirty: false`.
+
+Verified: `verify:packaged-licensing` **40 PASS / 0 FAIL / 0 BLOCKED** ·
+`verify:packaged-walkthrough` **85 passed / 2 failed**, both failures being the un-built NSIS
+installer (a precondition, not a defect) · `npm run build` clean · `git diff --check` clean.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **249 total / 245 closed /
+4 outstanding**, none of them open.
+
 ## Issuer CLI folded onto the one signing authority (2026-08-20)
 
 `awkit-vf9r` closed. `tools/license-issuer/issue-license.mts` was a **second, looser issuer**: it

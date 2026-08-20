@@ -73,9 +73,24 @@ against the shipped public key; tampering with the type or the fingerprint inval
 
 No engineering work is available. Every remaining item needs something this environment cannot
 provide: an authorized operator for the Oracle and IdP gates, or an owner decision for the two shell
-launches. The standing external gates from earlier sessions are also still NOT RUN —
-`verify:packaged-licensing` against a build carrying `key2`, and the decision on whether to re-cut the
-v0.1.15 portable artifact, which shipped with the dashboard issuer page compiled in.
+launches.
+
+**`verify:packaged-licensing` is now EXECUTED** — 40 PASS / 0 FAIL / **0 BLOCKED** against a portable
+build cut fresh from `ce72080` (key2 present, issuer-page leak markers 8 → 0). See the 2026-08-20
+`CURRENT_STATE` entry; it also caught a regression the `awkit-vf9r` fold had left hidden behind that
+gate's BLOCKED cases.
+
+Two owner decisions remain:
+
+1. **Re-cut v0.1.15, or accept it.** The shipped artifact still contains the dashboard issuer page.
+   A clean build now exists and is proven — `dist/SpecterStudio 0.1.15 (ce72080 verification
+   build).exe`, provenance `commit: ce72080, treeDirty: false`. The as-released binary is preserved
+   unchanged at `dist/SpecterStudio 0.1.15.exe` (md5 `2df47c8b…`) and in
+   `C:\awkit-release-evidence\`. Re-cutting is a version decision, which
+   `scripts/release-portable.ps1` owns.
+2. **`verify:packaged-walkthrough` sits at 85/2**, both failures being the un-built NSIS installer.
+   `npm run package:installer` refuses from a dirty tree by design; from a clean tree it should
+   close them.
 
 ## HANDOFF (2026-08-20) - WebDriverUniversity acceptance COMPLETE; nine more defects fixed
 
