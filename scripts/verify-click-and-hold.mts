@@ -189,7 +189,8 @@ async function main(): Promise<void> {
     if (!builtStep) throw new Error("no clickAndHold step was built — [D1] already reported why");
     const replayResult = await exec.execute({ ...builtStep, config: { ...builtStep.config, holdMs: 800 } });
     check("[E1] the recorded step replays green", replayResult.status === "passed", replayResult.error);
-    check("[E2] the page ends in its released state", (await replayPage.getByTestId("hold-state").textContent()) === "released", await replayPage.getByTestId("hold-state").textContent());
+    const holdState = await replayPage.getByTestId("hold-state").textContent();
+    check("[E2] the page ends in its released state", holdState === "released", String(holdState));
     const observedMs = Number(await replayPage.getByTestId("hold-observed-ms").textContent());
     check("[E3] the page itself measured the button held down for the configured time", observedMs >= 700, `${observedMs}ms`);
     check("[E4] ...which an ordinary click could never produce", observedMs >= 700 && observedMs < 5_000, `${observedMs}ms`);

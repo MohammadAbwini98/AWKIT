@@ -16,9 +16,39 @@
  */
 export function installRecorderCapture(): void {
   // Guard against double-install (addInitScript runs per navigation/frame).
+  //
+  // The marker has to die with the listeners, and a Window property does not. `document.write()` on
+  // a loaded document triggers an implicit `document.open()`, which removes EVERY event listener
+  // registered on the Window, the Document and its nodes — but leaves the Window's own properties
+  // untouched. A window-only flag therefore reported "installed" for a page where nothing was
+  // listening any more, and the recorder captured nothing while claiming it was armed. That is
+  // exactly what `window.open('') + document.write(...)` produces, which is how generated report,
+  // print and confirmation tabs are built — WebDriverUniversity's New Tab challenge included.
+  //
+  // `documentElement` IS replaced by `document.open()`, so it is marked as the authoritative
+  // per-document signal. It is null at document-start on a real navigation, so the window flag stays
+  // as the second-install guard for that window, and the element is marked as soon as it exists.
   const w = window as unknown as Record<string, unknown>;
-  if (w.__awtkitCaptureInstalled) return;
+  const markerOf = (): Record<string, unknown> | null =>
+    (document.documentElement as unknown as Record<string, unknown> | null) ?? null;
+  const rootAtEntry = markerOf();
+  if (rootAtEntry) {
+    if (rootAtEntry.__awtkitCaptureInstalled) return;
+  } else if (w.__awtkitCaptureInstalled) {
+    return;
+  }
   w.__awtkitCaptureInstalled = true;
+  const markDocumentRoot = (): void => {
+    const root = markerOf();
+    if (root) root.__awtkitCaptureInstalled = true;
+  };
+  markDocumentRoot();
+  // Document-scoped, so they are cleared by the very `document.open()` this guards against — which
+  // is correct: by then the element is already marked, or the whole script is being reinstalled.
+  if (!rootAtEntry) {
+    document.addEventListener("readystatechange", markDocumentRoot, true);
+    document.addEventListener("DOMContentLoaded", markDocumentRoot, true);
+  }
 
   // Closed roots cannot be traversed by Playwright or exposed by document-level composedPath().
   // Record only which host requested mode:"closed"; never retain or expose the returned root.
@@ -462,8 +492,25 @@ export function installRecorderCapture(): void {
   const STABLE_ATTRS = ["data-testid", "data-test", "data-cy", "name", "role", "type", "aria-label", "title", "alt", "placeholder", "href", "value", "for"];
   const attrTokensFor = (el: Element, cap: number): string[] => {
     const out: string[] = [];
-    for (let i = 0; i < STABLE_ATTRS.length && out.length < cap; i += 1) {
-      const a = STABLE_ATTRS[i];
+    // Radio and checkbox inputs need `value` ranked with `name`, not twelfth.
+    //
+    // Within a radio group `name` is shared by construction and `type` is shared by every member,
+    // so the two highest-ranked attributes an option carries are exactly the two that cannot tell it
+    // from its siblings. `value` — the attribute that identifies WHICH option this is — sat below
+    // `href`, so it never survived the two-attribute cap: every radio in a group generated the same
+    // selector, none resolved to one element, and the whole group fell through to a positional
+    // `:nth-of-type(n)` fallback that breaks the moment an option is added or reordered. Measured on
+    // WebDriverUniversity's five-colour radio group, which has a perfectly stable `value` on each.
+    const order = STABLE_ATTRS.slice();
+    if (tagOf(el) === "input") {
+      const inputType = (attr(el, "type") || "").toLowerCase();
+      if ((inputType === "radio" || inputType === "checkbox") && attr(el, "value")) {
+        order.splice(order.indexOf("value"), 1);
+        order.splice(order.indexOf("name") + 1, 0, "value");
+      }
+    }
+    for (let i = 0; i < order.length && out.length < cap; i += 1) {
+      const a = order[i];
       const v = attr(el, a);
       if (!v) continue;
       if (a === "type" && (v === "text" || v === "button")) continue;
@@ -718,9 +765,43 @@ export function installRecorderCapture(): void {
     const id = (el as HTMLElement).id;
     if (id && !looksGeneratedId(id)) out.push({ strategy: "id", value: id, count: q("#" + ident(id)) });
 
+    // Own text, for anything clickable that is not a button or a link.
+    //
+    // The text candidate above is offered only to buttons and links, so a clickable `li`, `div`,
+    // `td` or `span` — the shape every list, grid and kanban board is built from — went straight to
+    // a positional CSS selector even when its own text identified it uniquely. Measured on
+    // WebDriverUniversity's Stale Element list, whose items re-render every 2.5 seconds with the SAME
+    // text in the same order: `#stale-list li:nth-of-type(2)` was stored where the item's own text
+    // was both unique and stable across every re-render.
+    //
+    // Ranked BELOW id and every stable attribute, and above the positional selectors it exists to
+    // displace — it fills the gap rather than changing what already worked. Form controls are
+    // excluded: their label/placeholder/value paths are better and already offered. Uniqueness is
+    // measured, not assumed, so an element whose text an ancestor also carries verbatim is not
+    // offered this at all.
+    if (tag !== "input" && tag !== "select" && tag !== "textarea" && tag !== "button" && tag !== "a") {
+      // "Own text" means the element's OWN direct text nodes, not the aggregate of its descendants.
+      // A container's concatenated text ("No owner Open panel") is not an identity — it is a summary
+      // of whatever happens to be inside it right now, and treating it as one would let the recorder
+      // attribute a stable trigger to a wrapper that has none.
+      let direct = "";
+      for (let node = el.firstChild; node; node = node.nextSibling) {
+        if (node.nodeType === 3) direct += node.nodeValue || "";
+      }
+      const ownText = norm(direct);
+      if (ownText && ownText.length <= 60 && ownText === norm((el as HTMLElement).textContent)) {
+        out.push({ strategy: "text", value: ownText, exact: true, count: countExactText(ownText) });
+      }
+    }
+
     const scoped = scopedSelector(el);
     if (scoped && (allowPositional || scoped.value.indexOf(":nth-") < 0)) {
-      out.push({ strategy: "css", value: scoped.value, count: scoped.count });
+      // A scoped selector that ends in `:nth-of-type(n)` is positional, and must be flagged as the
+      // fallback it is. Selection takes the first UNIQUE NON-fallback candidate, and this one is
+      // listed ahead of the feature-based compound selector — so an unflagged positional scope won
+      // outright whenever it happened to be unique, which for a radio group is always. The compound
+      // selector right below already draws this distinction for itself; this is the same rule.
+      out.push({ strategy: "css", value: scoped.value, count: scoped.count, fallback: scoped.value.indexOf(":nth-") >= 0 });
     }
 
     // Compound "tree": meaningful features across the element + fewest distinguishing ancestors.
@@ -2862,8 +2943,16 @@ export function installRecorderCapture(): void {
     // Selects/textareas and interactive inputs are recorded by the 'change' handler.
     if (tag === "select" || tag === "textarea") return;
     if (tag === "input") {
-      const type = ((target as HTMLInputElement).type || "text").toLowerCase();
-      if (["checkbox", "radio", "text", "password", "email", "search", "tel", "url", "number", "date"].indexOf(type) >= 0) return;
+      const input = target as HTMLInputElement;
+      const type = (input.type || "text").toLowerCase();
+      // A click on a typeable field is redundant — the 'change'/'input' handlers record the fill, and
+      // recording the click as well would double every keystroke sequence with a stray click.
+      //
+      // A READONLY field is the opposite case: no value will ever change, so no fill is ever
+      // recorded, and the click IS the interaction. That is how every datepicker, custom select and
+      // picker widget is opened — WebDriverUniversity's Datepicker among them — and dropping it left
+      // recordings whose first real action fires against a widget that was never opened.
+      if (!input.readOnly && ["checkbox", "radio", "text", "password", "email", "search", "tel", "url", "number", "date"].indexOf(type) >= 0) return;
     }
     const label = g.accessibleName || tag || "element";
     const interaction = captureInteraction(event, target, g, shadow);
@@ -3030,11 +3119,34 @@ export function installRecorderCapture(): void {
     if (selection && !selection.isCollapsed && String(selection).length > 0) return; // text selection
     if (!gesture.startEl.isConnected) return; // navigation / detachment mid-gesture
     // Identify a CREDIBLE, DISTINCT drop target under the release point — never fabricate from coords.
-    const dropEl = document.elementFromPoint(event.clientX, event.clientY);
-    if (!dropEl) return;
+    //
+    // `elementFromPoint` returns the TOPMOST element, and in nearly every real drag library the
+    // topmost element at the release point is the dragged node itself: jQuery UI, react-draggable,
+    // SortableJS and dnd-kit all move the source (or a drag overlay) under the cursor. Measured on
+    // WebDriverUniversity's Actions challenge, the hit list at the release point was
+    // [p, #draggable, b, p, #droppable, …] — the real drop target sat FIFTH, under the drag ghost,
+    // and the "released on the source itself" guard below discarded the entire gesture.
+    //
+    // So walk the hit list and take the first element that is not the source, inside the source, or
+    // an ancestor of it. This reads what is already under the cursor; it never moves or hides
+    // anything on the page to find out.
+    const hits = typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(event.clientX, event.clientY)
+      : [document.elementFromPoint(event.clientX, event.clientY)];
+    let dropEl: Element | null = null;
+    for (let i = 0; i < hits.length; i += 1) {
+      const hit = hits[i] as Element | null;
+      if (!hit || hit.nodeType !== 1) continue;
+      const tag = tagOf(hit);
+      if (tag === "html" || tag === "body") break; // reached the page ground — no credible target
+      // The source, anything inside it, and anything it sits inside are all "the thing being
+      // dragged" as far as a drop target is concerned.
+      if (hit === gesture.startEl || hit.contains(gesture.startEl) || gesture.startEl.contains(hit)) continue;
+      dropEl = hit;
+      break;
+    }
+    if (!dropEl) return; // nothing under the cursor but the dragged element itself — not a move
     const dropTag = tagOf(dropEl);
-    if (dropTag === "html" || dropTag === "body") return; // no credible target
-    if (dropEl === gesture.startEl) return; // released on the source itself — not a move
     const targetGen = generate(dropEl, { allowPositional: true });
     record({
       type: "drag",
@@ -3073,6 +3185,8 @@ export function installRecorderCapture(): void {
         startY: number;
         startedAt: number;
         target: Element;
+        /** Ancestors captured at press time, so a target the page REPLACES can still be named. */
+        ancestors: Element[];
         locator: Record<string, unknown>;
         quality: Quality;
         name: string;
@@ -3120,6 +3234,12 @@ export function installRecorderCapture(): void {
       startY: event.clientY,
       startedAt: Date.now(),
       target: captured.target,
+      ancestors: (() => {
+        const chain = [];
+        let node = captured.target.parentElement;
+        for (let depth = 0; node && depth < 5 && tagOf(node) !== "html"; depth += 1, node = node.parentElement) chain.push(node);
+        return chain;
+      })(),
       locator: { ...captured.generated.locator },
       quality: captured.generated.quality,
       name: captured.generated.accessibleName || tagOf(captured.target) || "element",
@@ -3136,6 +3256,13 @@ export function installRecorderCapture(): void {
         state.reacted = true;
       });
       observer.observe(state.target, { attributes: true, childList: true, characterData: true, subtree: true });
+      // ...and the parent's DIRECT children only. A page that reacts by REPLACING what was pressed —
+      // jQuery's `.text()` is the common shape, and WebDriverUniversity's Actions challenge does
+      // exactly that — mutates the parent, not the pressed node, so watching the target alone saw
+      // nothing at all. Scoped to `childList` without `subtree`, so an unrelated sibling changing
+      // an attribute is still never mistaken for a response to the press.
+      const pressParent = state.target.parentElement;
+      if (pressParent) observer.observe(pressParent, { childList: true });
       state.observer = observer;
     } catch {
       /* no observer → no evidence → the gesture fails closed below */
@@ -3164,17 +3291,38 @@ export function installRecorderCapture(): void {
     if (!(event instanceof PointerEvent) || event.pointerId !== gesture.pointerId) return;
     if (gesture.canceled || gesture.moved || nativeDragFired) return; // cancelled / drag / native DnD
     if (event.button !== 0) return;
-    if (!gesture.target.isConnected) return; // navigation or detachment mid-gesture
     const heldMs = Date.now() - gesture.startedAt;
     if (heldMs < HOLD_MIN_MS) return; // an ordinary click
-    if (!gesture.reacted) return; // no observed response → not evidence of a hold, so record nothing
-    const interaction = captureInteraction(event, gesture.target, { locator: gesture.locator, quality: gesture.quality });
-    const blueprintCapture = captureBlueprint(gesture.target);
-    attachBlueprintIdentityEvidence(gesture.locator, blueprintCapture);
+    // The page destroying what was pressed is itself a response to the press, and the strongest one
+    // there is. It also means the captured locator now names a node that no longer exists, so the
+    // nearest surviving ancestor becomes the target and its locator is regenerated. Without this the
+    // interaction vanished from the recording entirely: the browser fires no `click` either when
+    // the mousedown target is removed, so nothing at all was left to capture.
+    let element = gesture.target.isConnected ? gesture.target : null;
+    let replaced = false;
+    if (!element) {
+      for (let i = 0; i < gesture.ancestors.length; i += 1) {
+        if (gesture.ancestors[i].isConnected) { element = gesture.ancestors[i]; replaced = true; break; }
+      }
+    }
+    if (!element) return; // the whole branch is gone — navigation or detachment, not a hold
+    if (!gesture.reacted && !replaced) return; // no observed response → not a hold, so record nothing
+    let holdLocator = gesture.locator;
+    let holdQuality = gesture.quality;
+    let holdLabel = gesture.name;
+    if (replaced) {
+      const regenerated = generate(element, { allowPositional: true });
+      holdLocator = { ...regenerated.locator };
+      holdQuality = regenerated.quality;
+      holdLabel = regenerated.accessibleName || tagOf(element) || holdLabel;
+    }
+    const interaction = captureInteraction(event, element, { locator: holdLocator, quality: holdQuality });
+    const blueprintCapture = captureBlueprint(element);
+    attachBlueprintIdentityEvidence(holdLocator, blueprintCapture);
     record({
       type: "clickAndHold",
-      name: "Click and hold " + gesture.name,
-      locator: { ...gesture.locator, interaction, blueprintCapture },
+      name: "Click and hold " + holdLabel,
+      locator: { ...holdLocator, interaction, blueprintCapture },
       // Round to 100ms: the measured wall-clock of a human press is not meaningful to the
       // millisecond, and an unrounded value reads like a precision the capture does not have.
       config: { holdMs: Math.round(heldMs / 100) * 100 }

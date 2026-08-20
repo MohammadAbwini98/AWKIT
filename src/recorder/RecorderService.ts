@@ -931,6 +931,30 @@ export class RecorderService {
       this.attachUrlCapture(opened);
       this.attachPopupSource(opened);
     this.attachDialogCapture(opened);
+      // Instrument BEFORE resolving identity, never after.
+      //
+      // Identity resolution waits up to POPUP_IDENTITY_BUDGET_MS for the popup's URL to settle, and
+      // a `window.open('') + document.write(...)` popup never commits a URL at all — so it always
+      // spends the full budget. Re-injecting after that left a two-second window in which the popup
+      // was on screen, interactive, and recording NOTHING. Instrumentation does not depend on the
+      // alias, so it goes first; an action captured before the alias is known still waits on this
+      // registration in the binding queue and is tagged correctly once it resolves.
+      //
+      // Context init scripts already cover future popup documents; this is the idempotent live
+      // fallback for blank-document lifecycles. Any failure becomes visible in Recorder status.
+      if (!opened.isClosed()) {
+        // Probe the DOCUMENT marker, not the window flag. A popup built with `document.write` keeps
+        // the window flag while `document.open()` destroys every listener, so reading the window
+        // told us the capture was live for a page that was recording nothing.
+        const installed = await opened
+          .evaluate(() => {
+            const root = document.documentElement as unknown as { __awtkitCaptureInstalled?: boolean } | null;
+            return Boolean(root && root.__awtkitCaptureInstalled);
+          })
+          .catch(() => false);
+        if (!installed) await opened.evaluate(getRecorderInitScriptContent()).catch((error) => this.noteInstrumentationError(error));
+      }
+
       const identityUrl = await this.popupIdentityUrl(opened);
       // Identity-derived alias first; arrival order only as the documented last-resort fallback.
       // Two live popups CAN legitimately share one origin+path — falling back keeps both pages
@@ -949,14 +973,6 @@ export class RecorderService {
       this.popupPages.set(alias, opened);
       this.attachProtectedDetection(opened, alias);
       if (identityUrl) this.captureUrl(opened, identityUrl.toString());
-
-      // Context init scripts already cover future popup documents. Verify the marker after the
-      // first meaningful navigation and use an idempotent live fallback for unusual blank-document
-      // lifecycles; any failure becomes visible in Recorder status.
-      if (!opened.isClosed()) {
-        const installed = await opened.evaluate(() => Boolean((window as unknown as { __awtkitCaptureInstalled?: boolean }).__awtkitCaptureInstalled)).catch(() => false);
-        if (!installed) await opened.evaluate(getRecorderInitScriptContent());
-      }
 
       // Attribution: the slot reserved above, claimed by the opening click when it committed. If it
       // is still empty the binding may have landed BEFORE the popup event, so fall back to a click

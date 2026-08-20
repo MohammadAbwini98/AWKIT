@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario W — document.write popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario W — document.write popup</h1>
+      <p>
+        Opens a blank window and builds its whole document with <code>document.write</code> — how
+        generated report, print and confirmation tabs are made, and the shape that broke Recorder
+        capture. <code>document.write</code> on a loaded document triggers an implicit
+        <code>document.open()</code>, which removes EVERY event listener registered on the Window,
+        the Document and its nodes, while leaving the Window's own properties untouched. A
+        window-scoped install flag therefore still read <em>installed</em> for a page that was
+        listening to nothing.
+      </p>
+      <p>
+        The popup never commits a URL either (it stays <code>about:blank</code>), so popup identity
+        resolution always spends its full budget on it — which is why instrumentation must not wait
+        behind that budget.
+      </p>
+
+      <button id="open-written-popup" data-testid="open-written-popup">Open written popup</button>
+      <p data-testid="written-status">idle</p>
+    </main>
+    <script>
+      document.querySelector('[data-testid="open-written-popup"]').addEventListener("click", function () {
+        var html = [
+          "<!doctype html><html><head><title>Written popup</title></head><body>",
+          '<h1 id="written-heading">Generated report</h1>',
+          '<p id="written-ref">REF-WRITTEN-001</p>',
+          '<button id="written-confirm" data-testid="written-confirm">Confirm report</button>',
+          '<p id="written-confirmed" data-testid="written-confirmed">not confirmed</p>',
+          "<scr" + "ipt>",
+          'document.getElementById("written-confirm").addEventListener("click", function () {',
+          'document.getElementById("written-confirmed").textContent = "confirmed";',
+          "});",
+          "<\/scr" + "ipt>",
+          "</body></html>"
+        ].join("");
+        var opened = window.open("", "_blank", "width=600,height=400");
+        opened.document.write(html);
+        opened.document.close();
+        document.querySelector('[data-testid="written-status"]').textContent = "written popup opened";
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Capture Gaps Lab — AWKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .cg-ghost {
+        position: relative;
+        width: 140px;
+        padding: 14px;
+        background: #eef1f8;
+        border: 1px solid #c9d0e0;
+        border-radius: 6px;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      /* Reserves the source's space so lifting it out of the flow reflows nothing. Without this the
+         drop zone slides up the moment the drag starts and the cursor lands where it used to be. */
+      .cg-holder {
+        height: 52px;
+      }
+      .cg-target {
+        width: 200px;
+        min-height: 70px;
+        padding: 14px;
+        margin-top: 14px;
+        background: #f6f6f6;
+        border: 2px dashed #8891a5;
+        border-radius: 6px;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="lab">
+      <h1>Capture Gaps Lab</h1>
+      <p>
+        Four capture shapes that WebDriverUniversity exposed and no earlier fixture had. Each one
+        produced a recording that looked fine and could not replay.
+      </p>
+
+      <section data-testid="cg-drag-ghost">
+        <h2>Drag where the source follows the cursor</h2>
+        <p>
+          The dragged element is repositioned under the pointer, so it — not the drop zone — is the
+          topmost element at the release point. <code>elementFromPoint</code> therefore returns the
+          drag ghost, and a recognizer that reads only the top hit sees "released on the source
+          itself" and discards the whole gesture. This is how jQuery UI, react-draggable and
+          SortableJS all behave; the pointer sortable in <code>/drag-lab</code> does not move its
+          item, which is why it never caught this.
+        </p>
+        <div class="cg-holder" data-testid="cg-holder">
+          <div class="cg-ghost" data-testid="cg-source">Drag me</div>
+        </div>
+        <div class="cg-target" data-testid="cg-target">Drop zone</div>
+        <p>Result: <output data-testid="cg-drag-result">idle</output></p>
+        <button type="button" data-testid="cg-drag-reset">Reset drag</button>
+      </section>
+
+      <section data-testid="cg-radio-group">
+        <h2>Radio group identified only by value</h2>
+        <p>
+          Five options sharing one <code>name</code>, with no id, no label element and no
+          <code>data-testid</code>. Their <code>value</code> is the only attribute that says WHICH
+          option each one is.
+        </p>
+        <form class="cg-colours" id="cg-colours">
+          <input type="radio" name="cg-colour" value="green" />Green<br />
+          <input type="radio" name="cg-colour" value="blue" />Blue<br />
+          <input type="radio" name="cg-colour" value="yellow" />Yellow<br />
+          <input type="radio" name="cg-colour" value="orange" />Orange<br />
+          <input type="radio" name="cg-colour" value="purple" />Purple
+        </form>
+        <p>Chosen: <output data-testid="cg-colour-result">none</output></p>
+      </section>
+
+      <section data-testid="cg-text-list">
+        <h2>Clickable list items identified only by their own text</h2>
+        <p>
+          The list re-renders on a timer with the SAME items in the same order, so a positional
+          selector survives by luck rather than by identity. The wrapper carries the same aggregate
+          text as its children combined — a container's concatenated text is a summary, not an
+          identity, and must not be offered as one.
+        </p>
+        <div data-testid="cg-list-host"></div>
+        <p>Clicked: <output data-testid="cg-list-result">idle</output></p>
+      </section>
+
+      <section data-testid="cg-readonly">
+        <h2>Readonly field that opens a picker</h2>
+        <p>
+          A <code>readonly</code> text input can never fire <code>change</code> or
+          <code>input</code>, so a fill is never recorded for it. Clicking it IS the interaction —
+          the way every datepicker and custom select is opened.
+        </p>
+        <input type="text" data-testid="cg-readonly-input" readonly value="pick a value" />
+        <div data-testid="cg-picker" hidden>
+          <button type="button" data-testid="cg-picker-option">Option A</button>
+        </div>
+        <p>Picked: <output data-testid="cg-picker-result">idle</output></p>
+      </section>
+
+      <section data-testid="cg-destroyed">
+        <h2>Press-and-hold on a control the page replaces</h2>
+        <p>
+          The handler replaces the pressed element's contents on <code>mousedown</code>, so the node
+          the press started on is gone before it ends. The browser fires no <code>click</code> at all
+          in that case, so an unhandled gesture disappears from the recording entirely.
+        </p>
+        <div
+          data-testid="cg-destroy-box"
+          style="user-select:none;-webkit-user-select:none;padding:16px;max-width:320px;background:#eef1f8;border:1px solid #c9d0e0;border-radius:6px;cursor:pointer"
+        >
+          <span data-testid="cg-destroy-inner">Press and hold me</span>
+        </div>
+        <p>State: <output data-testid="cg-destroy-state">idle</output></p>
+        <button type="button" data-testid="cg-destroy-reset">Reset destroy</button>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        // ── drag whose source follows the cursor ──────────────────────────────
+        var source = document.querySelector('[data-testid="cg-source"]');
+        var target = document.querySelector('[data-testid="cg-target"]');
+        var dragResult = document.querySelector('[data-testid="cg-drag-result"]');
+        var dragging = false;
+
+        source.addEventListener("pointerdown", function (e) {
+          if (e.button !== 0) return;
+          dragging = true;
+          source.style.position = "fixed";
+          source.style.zIndex = "999";
+          source.style.pointerEvents = "none"; // reset below, so the release hit-test is honest
+          source.style.pointerEvents = "auto";
+        });
+        window.addEventListener("pointermove", function (e) {
+          if (!dragging) return;
+          // The whole point: the source sits UNDER the cursor for the rest of the gesture.
+          source.style.left = e.clientX - 60 + "px";
+          source.style.top = e.clientY - 20 + "px";
+        });
+        window.addEventListener("pointerup", function (e) {
+          if (!dragging) return;
+          dragging = false;
+          var box = target.getBoundingClientRect();
+          var over = e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;
+          if (over) dragResult.textContent = "dropped on target";
+          source.style.position = "";
+          source.style.left = "";
+          source.style.top = "";
+          source.style.zIndex = "";
+        });
+        document.querySelector('[data-testid="cg-drag-reset"]').addEventListener("click", function () {
+          dragResult.textContent = "idle";
+        });
+
+        // ── radio group ───────────────────────────────────────────────────────
+        var colourResult = document.querySelector('[data-testid="cg-colour-result"]');
+        document.getElementById("cg-colours").addEventListener("change", function (e) {
+          colourResult.textContent = e.target.value;
+        });
+
+        // ── re-rendering text list ────────────────────────────────────────────
+        var host = document.querySelector('[data-testid="cg-list-host"]');
+        var listResult = document.querySelector('[data-testid="cg-list-result"]');
+        var ITEMS = ["Review the changelog", "Fix the build", "Deploy to staging"];
+        function renderList() {
+          host.innerHTML = "<ul>" + ITEMS.map(function (t) { return "<li>" + t + "</li>"; }).join("") + "</ul>";
+          host.querySelectorAll("li").forEach(function (li) {
+            li.addEventListener("click", function () {
+              listResult.textContent = li.textContent;
+            });
+          });
+        }
+        renderList();
+        window.setInterval(renderList, 2500);
+
+        // ── readonly picker ───────────────────────────────────────────────────
+        var readonlyInput = document.querySelector('[data-testid="cg-readonly-input"]');
+        var picker = document.querySelector('[data-testid="cg-picker"]');
+        var pickerResult = document.querySelector('[data-testid="cg-picker-result"]');
+        readonlyInput.addEventListener("click", function () {
+          picker.hidden = false;
+        });
+        document.querySelector('[data-testid="cg-picker-option"]').addEventListener("click", function () {
+          readonlyInput.value = "Option A";
+          pickerResult.textContent = "Option A";
+          picker.hidden = true;
+        });
+
+        // ── press-and-hold on a control that replaces itself ──────────────────
+        var destroyBox = document.querySelector('[data-testid="cg-destroy-box"]');
+        var destroyState = document.querySelector('[data-testid="cg-destroy-state"]');
+        destroyBox.addEventListener("mousedown", function () {
+          // Replaces the pressed <span> outright — the node the press began on is gone.
+          destroyBox.textContent = "holding";
+          destroyState.textContent = "holding";
+        });
+        destroyBox.addEventListener("mouseup", function () {
+          destroyBox.textContent = "released";
+          destroyState.textContent = "released";
+        });
+        document.querySelector('[data-testid="cg-destroy-reset"]').addEventListener("click", function () {
+          destroyBox.innerHTML = '<span data-testid="cg-destroy-inner">Press and hold me</span>';
+          destroyState.textContent = "idle";
+        });
+      })();
+    </script>
+  </body>
+</html>
