@@ -41,7 +41,8 @@ import type {
   FlowProfile,
   FlowStep,
   LoopConnectorConfig,
-  ParallelConnectorConfig
+  ParallelConnectorConfig,
+  WaitCondition
 } from "../profiles/FlowProfile";
 import { connectorKind, validateConnectorStructureDetailed } from "../profiles/FlowProfile";
 import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "../profiles/locatorApproval";
@@ -53,6 +54,12 @@ import {
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
+import {
+  MAX_WAIT_CONDITION_DEPTH,
+  waitConditionBlocks,
+  waitConditionDefects,
+  waitConditionLabel
+} from "./WaitConditionContract";
 
 /* ------------------------------------------------------------------ *
  * Limits
@@ -89,10 +96,12 @@ export type FlowValidationCode =
   | "missingRequiredLocator"
   | "missingRequiredValue"
   | "invalidTimeout"
+  | "invalidWaitCondition"
   | "invalidLoopBounds"
   | "unsupportedOperator"
   | "unsupportedConfiguration"
   | "connectorStructure"
+  | "degradedWaitCondition"
   | "highTimeout"
   | "largeLoopBounds"
   | "locatorNeedsReview"
@@ -124,10 +133,12 @@ export const FLOW_VALIDATION_RULES: Record<FlowValidationCode, RuleSpec> = {
   missingRequiredLocator: { severity: "error", summary: "Step type requires a locator and has none." },
   missingRequiredValue: { severity: "error", summary: "Step type requires a value and has none." },
   invalidTimeout: { severity: "error", summary: "Timeout is zero, negative or not a finite number." },
+  invalidWaitCondition: { severity: "error", summary: "A required Smart Wait condition is missing a field its own type needs, or matches vacuously." },
   invalidLoopBounds: { severity: "error", summary: "Loop iteration bound is outside 1…1000." },
   unsupportedOperator: { severity: "error", summary: "Condition operator is not a known operator." },
   unsupportedConfiguration: { severity: "error", summary: "A configuration literal is outside its permitted set." },
   connectorStructure: { severity: "error", summary: "Structural connector rule (wrapped validateConnectorStructure)." },
+  degradedWaitCondition: { severity: "warning", summary: "An OPTIONAL Smart Wait condition cannot execute as configured; the runner skips it silently." },
   highTimeout: { severity: "warning", summary: "Timeout is unusually high." },
   largeLoopBounds: { severity: "warning", summary: "Loop bound is large enough to make an unattended run very long." },
   locatorNeedsReview: { severity: "error", summary: "Step locator requires manual review or fallback approval before execution." },
@@ -561,6 +572,45 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
 
     validateTimeouts(step, collect, ambiguousNames);
     validateStepLoopBounds(step, collect, ambiguousNames);
+    validateWaitConditions(step, collect, ambiguousNames);
+  }
+}
+
+/**
+ * Structural validation of a step's Smart Wait conditions (`awkit-jtok`).
+ *
+ * Until this rule the engine checked `beforeWaits`/`afterWaits` for TIMEOUTS ONLY, so a condition
+ * missing the fields its own type requires was admitted by the run gate and then either threw once
+ * the browser was open or — the worse half — passed vacuously, turning a wait into a no-op that
+ * shifted the flake somewhere else. `WaitConditionContract` derives the per-type requirement from
+ * `StepExecutor.executeWaitCondition`.
+ *
+ * Severity is not a judgement call: `runRequiredOrOptional` SWALLOWS a failure from an optional
+ * condition (logging `WAIT_SIGNAL_OPTIONAL_MISSED`) and re-throws for a required one, so a malformed
+ * optional condition genuinely cannot stop a run and is reported as a warning.
+ */
+function validateWaitConditions(step: FlowStep, collect: IssueCollector, ambiguousNames: ReadonlySet<string>): void {
+  const phases = [
+    ["a before-wait", step.beforeWaits ?? []],
+    ["an after-wait", step.afterWaits ?? []]
+  ] as const;
+
+  for (const [phaseLabel, waits] of phases) {
+    for (const [index, wait] of waits.entries()) {
+      const blocks = waitConditionBlocks(wait);
+      for (const defect of waitConditionDefects(wait)) {
+        // The branch path is only shown when the defect is inside an OR-group; a plain condition is
+        // already identified by its phase and index, and "[]" would be noise on every message.
+        const where = defect.path === "" ? "" : ` branch ${defect.path}`;
+        collect.node(
+          blocks ? "invalidWaitCondition" : "degradedWaitCondition",
+          step.id,
+          `Step ${labelFor(step, ambiguousNames)} has ${phaseLabel}[${index}]${where} (${waitConditionLabel(defect.type)}) that ${defect.detail}.${
+            blocks ? "" : " It is optional, so the runner will skip it silently rather than fail — the wait simply never happens."
+          }`
+        );
+      }
+    }
   }
 }
 
@@ -584,8 +634,18 @@ function validateTimeouts(step: FlowStep, collect: IssueCollector, ambiguousName
   };
 
   check(step.timeoutMs, "a timeout of");
-  for (const [index, wait] of (step.beforeWaits ?? []).entries()) check(wait.timeoutMs, `a before-wait[${index}] timeout of`);
-  for (const [index, wait] of (step.afterWaits ?? []).entries()) check(wait.timeoutMs, `an after-wait[${index}] timeout of`);
+  // This function owns EVERY timeout in the profile, including the `highTimeout` warning that
+  // `WaitConditionContract` has no notion of — so that module deliberately does not look at
+  // `timeoutMs`, and one bad timeout produces one issue rather than two. It has to recurse, though:
+  // an OR-group's branches are executed by the same resolver and carry their own timeouts, and until
+  // `awkit-jtok` a branch timeout of 0 was checked by nothing at all.
+  const checkNested = (wait: WaitCondition, label: string, depth: number): void => {
+    check(wait.timeoutMs, `${label} timeout of`);
+    if (wait.type !== "anyOf" || depth >= MAX_WAIT_CONDITION_DEPTH) return;
+    for (const [index, child] of (wait.conditions ?? []).entries()) checkNested(child, `${label} branch[${index}]`, depth + 1);
+  };
+  for (const [index, wait] of (step.beforeWaits ?? []).entries()) checkNested(wait, `a before-wait[${index}]`, 0);
+  for (const [index, wait] of (step.afterWaits ?? []).entries()) checkNested(wait, `an after-wait[${index}]`, 0);
 }
 
 function validateStepLoopBounds(step: FlowStep, collect: IssueCollector, ambiguousNames: ReadonlySet<string>): void {
