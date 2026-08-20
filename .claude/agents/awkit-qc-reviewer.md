@@ -1,11 +1,11 @@
 ---
 name: awkit-qc-reviewer
 description: Independently reviews requested behavior, architecture, security, offline and data rules, test credibility, code quality and documentation; never self-approves implementation. Activates when any of `licensing_change`, `auth_change`, `authorization_change`, `secret_handling_change`, `signing_change`, `migration_required`, `concurrency_change`, `packaging_change`; or `risk_level >= 2`; or `cross_layer_count >= 2`. Read-only: advises, never edits.
-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(pr-review), Skill(codebase-review)
-disallowedTools: Edit, Write, Agent, NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
+tools: Read, Glob, Grep, Bash, mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(pr-review), Skill(codebase-review)
+disallowedTools: Edit, Write, Agent, NotebookEdit
 model: inherit
 maxTurns: 18
-permissionMode: plan
+permissionMode: default
 ---
 
 # Independent Quality Control Reviewer

@@ -468,7 +468,13 @@ export const CODEBASE_MEMORY_READ_TOOLS = Object.freeze([
   "mcp__codebase-memory-mcp__detect_changes"
 ]);
 
-/** Exact Graphify reads. The CLI wildcard also includes installers and graph mutations. */
+/**
+ * Exact Graphify read permission rules for `.claude/settings.json`.
+ *
+ * These are command permissions, not Claude subagent tool names. Generated `tools:` frontmatter
+ * must expose the real `Bash` tool; the project permission layer narrows which command prefixes do
+ * not require a prompt, and the PreToolUse lease guard makes the final actor/scope decision.
+ */
 export const GRAPHIFY_READ_TOOLS = Object.freeze([
   "Bash(graphify query:*)",
   "Bash(graphify explain:*)",
@@ -482,7 +488,7 @@ export const GRAPHIFY_READ_TOOLS = Object.freeze([
   "Bash(graphify global path)"
 ]);
 
-const GIT_READ_TOOLS = Object.freeze([
+export const GIT_READ_TOOLS = Object.freeze([
   "Bash(git status:*)",
   "Bash(git diff:*)",
   "Bash(git log:*)",
@@ -491,7 +497,7 @@ const GIT_READ_TOOLS = Object.freeze([
   "Bash(git ls-files:*)"
 ]);
 
-const VERIFICATION_TOOLS = Object.freeze([
+export const VERIFICATION_TOOLS = Object.freeze([
   "Bash(npm run build)",
   "Bash(npm run typecheck)",
   "Bash(npm run typecheck:scripts)",
@@ -500,12 +506,15 @@ const VERIFICATION_TOOLS = Object.freeze([
   "Bash(npm run benchmark:*)"
 ]);
 
-const BEADS_TOOLS = Object.freeze([
+export const BEADS_READ_TOOLS = Object.freeze([
   "Bash(bd show:*)",
   "Bash(bd list:*)",
   "Bash(bd stats:*)",
   "Bash(bd ready:*)",
-  "Bash(bd blocked:*)",
+  "Bash(bd blocked:*)"
+]);
+
+export const BEADS_WRITE_TOOLS = Object.freeze([
   "Bash(bd create:*)",
   "Bash(bd update:*)",
   "Bash(bd close:*)",
@@ -513,12 +522,69 @@ const BEADS_TOOLS = Object.freeze([
   "Bash(bd dep add:*)"
 ]);
 
+export const WRITER_SHELL_TOOLS = Object.freeze([
+  ...VERIFICATION_TOOLS,
+  "Bash(node --check:*)",
+  "Bash(graphify update .)"
+]);
+
+export const RELEASE_SHELL_TOOLS = Object.freeze(["Bash(npm run package:*)"]);
+
+export const PROJECT_STATE_SHELL_TOOLS = Object.freeze([
+  ...BEADS_WRITE_TOOLS,
+  "Bash(npm run ai:memory)",
+  "Bash(npm run ai:memory:check)",
+  "Bash(npm run verify:roadmap-dashboard)",
+  "Bash(node tools/agents/render-docs.mjs --write)"
+]);
+
+export const MANAGER_SHELL_TOOLS = Object.freeze([
+  "Bash(npm run agent:lease)",
+  "Bash(npm run agent:lease-grant:*)",
+  "Bash(npm run agent:lease-amend:*)",
+  "Bash(npm run agent:lease-release:*)",
+  "Bash(node tools/agents/render-platform-agents.mjs --write)",
+  "Bash(npm run agent:check-agents)",
+  "Bash(node tools/agents/task-gate.mjs:*)",
+  "Bash(git add --:*)",
+  "Bash(git commit -m:*)",
+  "Bash(git fetch origin)",
+  "Bash(git push origin main)"
+]);
+
+/** The exact project permission allowlist, after the ten read-only MCP tools. */
+export const CLAUDE_BASH_PERMISSION_RULES = Object.freeze([
+  ...GRAPHIFY_READ_TOOLS,
+  ...GIT_READ_TOOLS,
+  ...BEADS_READ_TOOLS,
+  "Bash(claude --version)",
+  "Bash(claude --help)",
+  "Bash(claude mcp list)",
+  "Bash(npm run agent:lease)",
+  "Bash(node tools/agents/task-gate.mjs:*)",
+  ...WRITER_SHELL_TOOLS,
+  ...RELEASE_SHELL_TOOLS,
+  ...PROJECT_STATE_SHELL_TOOLS,
+  ...MANAGER_SHELL_TOOLS.filter((rule) => ![
+    "Bash(npm run agent:lease)",
+    "Bash(node tools/agents/task-gate.mjs:*)"
+  ].includes(rule))
+]);
+
+export const CODEBASE_MEMORY_MUTATING_TOOLS = Object.freeze([
+  "mcp__codebase-memory-mcp__index_repository",
+  "mcp__codebase-memory-mcp__delete_project",
+  "mcp__codebase-memory-mcp__manage_adr",
+  "mcp__codebase-memory-mcp__ingest_traces"
+]);
+
 /**
  * Tool grants for a generated platform agent definition, derived from mode and mandate.
  *
- * Discovery grants enumerate read-only MCP/Graphify operations because either wildcard also exposes
- * mutators. Skills are lazy exact grants, so their contents do not inflate every specialist's start
- * context. Writers still need a live lease; shell permission is never a substitute for ownership.
+ * Discovery grants enumerate read-only MCP operations because its wildcard also exposes mutators.
+ * `Bash` is a real tool name; exact Graphify/Git/build command rules live in project settings and
+ * are still checked by the role-aware PreToolUse lease guard. Skills are lazy exact grants, so their
+ * contents do not inflate every specialist's start context. Shell permission is never ownership.
  *
  * @param {string} agentId
  * @returns {string}
@@ -526,10 +592,10 @@ const BEADS_TOOLS = Object.freeze([
 export function toolsFor(agentId) {
   const role = agent(agentId);
   const skills = (ROLE_SKILLS[agentId] ?? []).map((skill) => `Skill(${skill})`);
-  const discovery = [...GRAPHIFY_READ_TOOLS, ...CODEBASE_MEMORY_READ_TOOLS, ...skills];
+  const discovery = [...CODEBASE_MEMORY_READ_TOOLS, ...skills];
 
   if (role.defaultMode === "read-only") {
-    return ["Read", "Glob", "Grep", ...GIT_READ_TOOLS, ...discovery].join(", ");
+    return ["Read", "Glob", "Grep", "Bash", ...discovery].join(", ");
   }
 
   const writer = [
@@ -538,53 +604,22 @@ export function toolsFor(agentId) {
     "Write",
     "Glob",
     "Grep",
-    ...GIT_READ_TOOLS,
-    ...VERIFICATION_TOOLS,
-    ...GRAPHIFY_READ_TOOLS,
-    "Bash(graphify update .)",
+    "Bash",
     ...CODEBASE_MEMORY_READ_TOOLS,
     ...skills
   ];
-
-  if (agentId === "release") {
-    writer.push("Bash(npm run package:*)");
-  }
-
-  if (agentId === "project-state") {
-    writer.push(
-      ...BEADS_TOOLS,
-      "Bash(npm run ai:memory)",
-      "Bash(npm run verify:roadmap-dashboard)",
-      "Bash(node tools/agents/render-docs.mjs --write)"
-    );
-  }
 
   if (agentId === "manager") {
     const specialists = AGENTS.filter((entry) => entry.id !== "manager")
       .map((entry) => entry.claudeName)
       .join(", ");
-    writer.push(
-      `Agent(${specialists})`,
-      ...BEADS_TOOLS,
-      "Bash(npm run agent:lease)",
-      "Bash(npm run agent:lease-grant:*)",
-      "Bash(npm run agent:lease-amend:*)",
-      "Bash(npm run agent:lease-release:*)",
-      "Bash(node tools/agents/render-platform-agents.mjs --write)",
-      "Bash(npm run agent:check-agents)",
-      "Bash(node tools/agents/task-gate.mjs:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git fetch origin)",
-      "Bash(git pull --ff-only origin main)",
-      "Bash(git push origin main)"
-    );
+    writer.push(`Agent(${specialists})`);
   }
 
   return writer.join(", ");
 }
 
-const DESTRUCTIVE_GIT_DENIES = Object.freeze([
+export const DESTRUCTIVE_GIT_DENIES = Object.freeze([
   "Bash(git reset:*)",
   "Bash(git clean:*)",
   "Bash(git stash:*)",
@@ -592,13 +627,54 @@ const DESTRUCTIVE_GIT_DENIES = Object.freeze([
   "Bash(git branch:*)",
   "Bash(git switch:*)",
   "Bash(git checkout:*)",
+  "Bash(git merge:*)",
+  "Bash(git rebase:*)",
+  "Bash(git restore:*)",
+  "Bash(git rm:*)",
+  "Bash(git cherry-pick:*)",
   "Bash(git push --force:*)",
   "Bash(git push -f:*)"
 ]);
 
-/** Explicit denies survive an accidental widening of a role's allowed tool list. */
+export const GRAPHIFY_MUTATION_DENIES = Object.freeze([
+  "Bash(graphify add:*)",
+  "Bash(graphify watch:*)",
+  "Bash(graphify cluster-only:*)",
+  "Bash(graphify label:*)",
+  "Bash(graphify extract:*)",
+  "Bash(graphify save-result:*)",
+  "Bash(graphify tree:*)",
+  "Bash(graphify hook install:*)",
+  "Bash(graphify hook uninstall:*)",
+  "Bash(graphify platform install:*)",
+  "Bash(graphify platform uninstall:*)",
+  "Bash(graphify global add:*)",
+  "Bash(graphify global remove:*)",
+  "Bash(graphify clone:*)",
+  "Bash(graphify merge:*)"
+]);
+
+export const CLAUDE_PERMISSION_DENIES = Object.freeze([
+  ...CODEBASE_MEMORY_MUTATING_TOOLS,
+  ...DESTRUCTIVE_GIT_DENIES,
+  ...GRAPHIFY_MUTATION_DENIES,
+  "Bash(node -e:*)",
+  "Bash(node --eval:*)",
+  "Bash(npm exec:*)",
+  "PowerShell(Remove-Item:*)",
+  "PowerShell(Move-Item:*)",
+  "PowerShell(Set-Content:*)",
+  "PowerShell(Out-File:*)",
+  "PowerShell(Start-Process:*)"
+]);
+
+/**
+ * Generated subagent `disallowedTools` accepts tool names, not command permission patterns. Shell
+ * families are denied in `.claude/settings.json` and the PreToolUse guard; placing
+ * `Bash(git reset:*)` here makes Claude remove the entire Bash tool at runtime.
+ */
 export function disallowedToolsFor(agentId) {
-  const denied = ["NotebookEdit", ...DESTRUCTIVE_GIT_DENIES];
+  const denied = ["NotebookEdit"];
   if (agent(agentId).defaultMode === "read-only") denied.unshift("Edit", "Write", "Agent");
   else if (agentId !== "manager") denied.unshift("Agent");
   return denied.join(", ");

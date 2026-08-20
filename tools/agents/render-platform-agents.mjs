@@ -147,6 +147,31 @@ function roleBody(a) {
     lines.push("");
   }
 
+  if (a.id === "manager") {
+    lines.push("## Deterministic orchestration");
+    lines.push("");
+    lines.push(
+      "- Validate the task contract and compute `route()` before delegating. Activate exactly " +
+        "`routing.activated` in canonical order—never the whole roster and never a role chosen only " +
+        "from free-form prose."
+    );
+    lines.push(
+      "- Use project subagents for bounded discovery, review, and specialist implementation. Agent " +
+        "Teams remain disabled unless the task contract documents genuine peer-to-peer coordination " +
+        "that isolated result-returning subagents cannot handle."
+    );
+    lines.push(
+      "- Address specialists by their exact `awkit-*` identity. Preserve each generated agent's " +
+        "frontmatter model; in particular, do not upgrade `awkit-researcher` from Haiku without an " +
+        "explicit risk reason recorded in the task contract."
+    );
+    lines.push(
+      "- Delegate the smallest independently useful packet, accept only the bounded report contract, " +
+        "and keep raw discovery/log volume out of the Manager context."
+    );
+    lines.push("");
+  }
+
   lines.push("## Rules that bind you");
   lines.push("");
   lines.push(
@@ -206,7 +231,10 @@ export function renderClaudeAgent(a) {
     `disallowedTools: ${disallowedToolsFor(a.id)}`,
     `model: ${a.model}`,
     `maxTurns: ${a.maxTurns}`,
-    `permissionMode: ${a.defaultMode === "read-only" ? "plan" : "default"}`,
+    // Read-only is enforced by the explicit tool list (no Edit/Write) plus the role-aware Bash
+    // hook. Claude's `plan` mode removes Bash entirely, including the bounded Graphify reads these
+    // specialists are required to perform, so every generated role uses normal permission lookup.
+    "permissionMode: default",
     "---",
     ""
   ];

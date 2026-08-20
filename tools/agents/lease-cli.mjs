@@ -18,7 +18,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { REPO_ROOT, amendLease, grantLease, readLease, releaseLease } from "./lease.mjs";
+import { validateBaseline } from "./classify.mjs";
 import { agent } from "./routing-matrix.mjs";
+import { verifyPreservedPaths } from "./task-gate.mjs";
 import { validateContract } from "./validate-contract.mjs";
 
 /**
@@ -89,6 +91,20 @@ function main() {
         if (!validation.ok || !validation.routing) {
           throw new Error(
             `cannot grant from invalid task contract: ${validation.violations.map((v) => `${v.rule}: ${v.message}`).join("; ")}`
+          );
+        }
+        try {
+          validateBaseline(contract.repository?.baseline_commit, REPO_ROOT);
+        } catch (error) {
+          throw new Error(
+            `cannot grant from an invalid repository baseline: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+        const preserved = verifyPreservedPaths(contract.repository?.preserved_paths, { cwd: REPO_ROOT });
+        if (preserved.escapes.length > 0) {
+          throw new Error(
+            "cannot grant because preserved user work no longer matches the contract baseline: " +
+              preserved.escapes.map((escape) => `${escape.subject}: ${escape.detail}`).join("; ")
           );
         }
         if (contract.routing?.writer?.agent_id !== holder) {

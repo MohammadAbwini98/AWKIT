@@ -1,8 +1,8 @@
 ---
 name: awkit-manager
 description: Owns task decomposition, deterministic routing, context budgets, the serialized write lease, acceptance synthesis and final repository gates; it delegates detailed discovery. Activates when always — every task has exactly one orchestrator.
-tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run build), Bash(npm run typecheck), Bash(npm run typecheck:scripts), Bash(npm run verify:*), Bash(npm run validate:*), Bash(npm run benchmark:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), Bash(graphify update .), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(ai-memory-maintainer), Skill(docs-sync), Skill(git-full-cycle), Agent(awkit-system-architect, awkit-ui-designer, awkit-frontend-engineer, awkit-software-engineer, awkit-backend-engineer, awkit-integration-specialist, awkit-recorder-playwright, awkit-qa-engineer, awkit-qc-reviewer, awkit-security-engineer, awkit-researcher, awkit-data-persistence, awkit-performance-engineer, awkit-build-release, awkit-project-state), Bash(bd show:*), Bash(bd list:*), Bash(bd stats:*), Bash(bd ready:*), Bash(bd blocked:*), Bash(bd create:*), Bash(bd update:*), Bash(bd close:*), Bash(bd export:*), Bash(bd dep add:*), Bash(npm run agent:lease), Bash(npm run agent:lease-grant:*), Bash(npm run agent:lease-amend:*), Bash(npm run agent:lease-release:*), Bash(node tools/agents/render-platform-agents.mjs --write), Bash(npm run agent:check-agents), Bash(node tools/agents/task-gate.mjs:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch origin), Bash(git pull --ff-only origin main), Bash(git push origin main)
-disallowedTools: NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
+tools: Read, Edit, Write, Glob, Grep, Bash, mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(ai-memory-maintainer), Skill(docs-sync), Skill(git-full-cycle), Agent(awkit-system-architect, awkit-ui-designer, awkit-frontend-engineer, awkit-software-engineer, awkit-backend-engineer, awkit-integration-specialist, awkit-recorder-playwright, awkit-qa-engineer, awkit-qc-reviewer, awkit-security-engineer, awkit-researcher, awkit-data-persistence, awkit-performance-engineer, awkit-build-release, awkit-project-state)
+disallowedTools: NotebookEdit
 model: inherit
 maxTurns: 32
 permissionMode: default
@@ -47,6 +47,13 @@ These already exist. Use them rather than reinventing their procedure:
 - `ai-memory-maintainer`
 - `docs-sync`
 - `git-full-cycle`
+
+## Deterministic orchestration
+
+- Validate the task contract and compute `route()` before delegating. Activate exactly `routing.activated` in canonical order—never the whole roster and never a role chosen only from free-form prose.
+- Use project subagents for bounded discovery, review, and specialist implementation. Agent Teams remain disabled unless the task contract documents genuine peer-to-peer coordination that isolated result-returning subagents cannot handle.
+- Address specialists by their exact `awkit-*` identity. Preserve each generated agent's frontmatter model; in particular, do not upgrade `awkit-researcher` from Haiku without an explicit risk reason recorded in the task contract.
+- Delegate the smallest independently useful packet, accept only the bounded report contract, and keep raw discovery/log volume out of the Manager context.
 
 ## Rules that bind you
 

@@ -49,6 +49,7 @@ export const ASSIGNMENTS_PATH = join(REPO_ROOT, "tools", "roadmap", "assignments
 /**
  * @typedef {Object} Lease
  * @property {string} task
+ * @property {string} contract_path repo-relative in the real repository; absolute only in isolated fixtures
  * @property {string} holder
  * @property {"active"|"released"|"revoked"|"blocked"} status
  * @property {string[]} allowed_paths
@@ -231,14 +232,26 @@ export function contractPathFor(task) {
   return join(REPO_ROOT, "docs", "ai", "contracts", `${task}.json`);
 }
 
+/** Resolve a persisted repo-relative task-contract path (and isolated absolute test fixtures). */
+export function resolveContractPath(path, task) {
+  const candidate = path ?? contractPathFor(task);
+  return isAbsolute(candidate) ? candidate : resolve(REPO_ROOT, candidate);
+}
+
+/** Avoid committing a developer-specific absolute repository path into active-lease.json. */
+export function storedContractPath(path) {
+  return toRepoRelative(path) ?? path;
+}
+
 /** Read the task contract used to authorize a lease lifecycle transition. */
-function readTaskContract(path) {
+function readTaskContract(path, task) {
+  const resolvedPath = resolveContractPath(path, task);
   let contract;
   try {
-    contract = JSON.parse(readFileSync(path, "utf8"));
+    contract = JSON.parse(readFileSync(resolvedPath, "utf8"));
   } catch (error) {
     throw new Error(
-      `cannot preserve write-lease history without readable task contract ${path}: ` +
+      `cannot preserve write-lease history without readable task contract ${resolvedPath}: ` +
         `${error instanceof Error ? error.message : String(error)}`
     );
   }
@@ -256,7 +269,8 @@ function approvedOverridePaths(contract) {
 
 /** Append a bounded immutable snapshot to the task contract before the active record is replaceable. */
 export function archiveLease(lease, contractPath = lease.contract_path ?? contractPathFor(lease.task)) {
-  const contract = readTaskContract(contractPath);
+  const resolvedPath = resolveContractPath(contractPath, lease.task);
+  const contract = readTaskContract(resolvedPath, lease.task);
   if (contract.task?.id !== lease.task) {
     throw new Error(`lease task "${lease.task}" does not match contract task "${contract.task?.id ?? "missing"}"`);
   }
@@ -281,7 +295,7 @@ export function archiveLease(lease, contractPath = lease.contract_path ?? contra
       overrides: [...(lease.overrides ?? [])],
       violations: [...(lease.violations ?? [])]
     });
-    writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`, "utf8");
+    writeFileSync(resolvedPath, `${JSON.stringify(contract, null, 2)}\n`, "utf8");
   }
   lease.archived_at = new Date().toISOString();
   return lease;
@@ -291,7 +305,7 @@ function finalizeLease(
   lease,
   { reason, status = "released", path, assignmentsPath, contractPath }
 ) {
-  const contract = readTaskContract(contractPath);
+  const contract = readTaskContract(contractPath, lease.task);
   const approved = approvedOverridePaths(contract);
   const unresolved = (lease.violations ?? []).filter(
     (violation) => violation?.resolved !== true && !approved.has(violation?.path)
@@ -394,7 +408,7 @@ export function grantLease({
   /** @type {Lease} */
   const lease = {
     task,
-    contract_path: contractPath,
+    contract_path: storedContractPath(contractPath),
     holder,
     status: "active",
     allowed_paths: [...allowedPaths].sort(),

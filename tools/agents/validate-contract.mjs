@@ -76,6 +76,22 @@ export function validateContract(contract) {
   const nonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
   const sameArray = (left, right) =>
     Array.isArray(left) && JSON.stringify(left) === JSON.stringify(right);
+  const object = (value) => value && typeof value === "object" && !Array.isArray(value);
+  const requireObject = (value, name) => {
+    if (!object(value)) fail(name, `${name} must be an object`);
+  };
+  const requireArray = (value, name) => {
+    if (!Array.isArray(value)) fail(name, `${name} must be an array`);
+  };
+
+  requireObject(contract.task, "task");
+  requireObject(contract.repository, "repository");
+  requireObject(contract.classification, "classification");
+  requireObject(contract.routing, "routing");
+  requireArray(contract.acceptance, "acceptance");
+  requireArray(contract.evidence, "evidence");
+  requireObject(contract.git, "git");
+  requireObject(contract.completion, "completion");
 
   if (contract.version !== 1) fail("version", "contract.version must be exactly 1");
 
@@ -95,6 +111,12 @@ export function validateContract(contract) {
   }
   if (!nonEmptyString(contract.repository?.baseline_commit)) {
     fail("repository.baseline_commit", "repository.baseline_commit must be a non-empty commit-ish");
+  }
+  if (!['clean', 'preserved_changes'].includes(contract.repository?.working_tree_expected)) {
+    fail(
+      "repository.working_tree_expected",
+      'repository.working_tree_expected must be "clean" or "preserved_changes"'
+    );
   }
   if (!Array.isArray(contract.repository?.preserved_paths)) {
     fail("repository.preserved_paths", "repository.preserved_paths must be an array");
@@ -144,6 +166,24 @@ export function validateContract(contract) {
   }
 
   // ── Routing ─────────────────────────────────────────────────────────────────────────────────
+  if (contract.routing?.manager !== "manager") {
+    fail("routing.manager", 'routing.manager must be exactly "manager"');
+  }
+  requireArray(contract.routing?.activated_agents, "routing.activated_agents");
+  requireArray(contract.routing?.expected_paths, "routing.expected_paths");
+  requireArray(contract.routing?.consultants, "routing.consultants");
+  requireArray(contract.routing?.reviewers, "routing.reviewers");
+  for (const path of Array.isArray(contract.routing?.expected_paths) ? contract.routing.expected_paths : []) {
+    if (
+      !nonEmptyString(path) ||
+      /^(?:[A-Za-z]:|\/|\\)/.test(path) ||
+      path.includes("\\") ||
+      path.split("/").some((part) => !part || part === "." || part === "..") ||
+      ["*", "**"].includes(path)
+    ) {
+      fail("routing.expected_path", `unsafe or unbounded expected path ${JSON.stringify(path)}`);
+    }
+  }
   const activated = Array.isArray(contract.routing?.activated_agents)
     ? contract.routing.activated_agents
     : [];
@@ -259,8 +299,24 @@ export function validateContract(contract) {
   if (emptyRequired) fail("evidence.no_required", emptyRequired.message);
 
   for (const item of evidence) {
-    if (!item?.id) fail("evidence.id", "an evidence item has no id");
-    if (item?.result && !EVIDENCE_STATUSES.includes(item.result) && item.result !== "pending") {
+    if (!object(item)) {
+      fail("evidence.shape", "each evidence item must be an object");
+      continue;
+    }
+    if (!nonEmptyString(item.id)) fail("evidence.id", "an evidence item has no non-empty id");
+    if (!["build", "verifier", "gui", "packaged", "migration", "security", "inspection"].includes(item.type)) {
+      fail("evidence.type", `evidence "${item.id ?? "unknown"}" has invalid type ${JSON.stringify(item.type)}`);
+    }
+    if (typeof item.required !== "boolean") {
+      fail("evidence.required", `evidence "${item.id ?? "unknown"}" required must be boolean`);
+    }
+    if (item.command !== null && item.command !== undefined && typeof item.command !== "string") {
+      fail("evidence.command", `evidence "${item.id ?? "unknown"}" command must be string or null`);
+    }
+    if (item.artifact !== null && item.artifact !== undefined && typeof item.artifact !== "string") {
+      fail("evidence.artifact", `evidence "${item.id ?? "unknown"}" artifact must be string or null`);
+    }
+    if (!EVIDENCE_STATUSES.includes(item.result) && item.result !== "pending") {
       fail(
         "evidence.status",
         `evidence "${item.id}" has result "${item.result}", which is not one of ` +
@@ -284,7 +340,14 @@ export function validateContract(contract) {
     fail("acceptance.duplicate", "acceptance criterion IDs must be unique");
   }
   for (const criterion of acceptance) {
-    if (!criterion?.id) fail("acceptance.id", "an acceptance criterion has no id");
+    if (!object(criterion)) {
+      fail("acceptance.shape", "each acceptance criterion must be an object");
+      continue;
+    }
+    if (!nonEmptyString(criterion.id)) fail("acceptance.id", "an acceptance criterion has no non-empty id");
+    if (!nonEmptyString(criterion.description)) {
+      fail("acceptance.description", `acceptance "${criterion.id ?? "unknown"}" needs a description`);
+    }
     const needs = Array.isArray(criterion?.evidence_required) ? criterion.evidence_required : [];
     const noLink = requireCardinality(needs, 1, `acceptance "${criterion?.id}" evidence_required`);
     if (noLink) {
@@ -309,12 +372,38 @@ export function validateContract(contract) {
   if (contract.write_lease?.history !== undefined && !Array.isArray(contract.write_lease.history)) {
     fail("write_lease.history", "write_lease.history must be an append-only array when present");
   }
+  for (const entry of Array.isArray(contract.write_lease?.history) ? contract.write_lease.history : []) {
+    if (!object(entry) || !nonEmptyString(entry.id) || !nonEmptyString(entry.task) || !AGENT_IDS.includes(entry.holder)) {
+      fail("write_lease.history_entry", "every lease history entry needs id, task and a canonical holder");
+    }
+    for (const field of ["allowed_paths", "amendments", "overrides", "violations"]) {
+      if (!Array.isArray(entry?.[field])) {
+        fail("write_lease.history_entry", `lease history ${entry?.id ?? "unknown"}.${field} must be an array`);
+      }
+    }
+  }
 
   // ── Git policy ──────────────────────────────────────────────────────────────────────────────
   if (contract.git?.direct_main !== true) {
     fail("git.direct_main", "git.direct_main must be true — AWKIT develops on main only");
   }
-  if (contract.git?.force_push === true) fail("git.force_push", "force_push is never permitted");
+  if (contract.git?.commit_policy !== "coherent") {
+    fail("git.commit_policy", 'git.commit_policy must be "coherent"');
+  }
+  if (contract.git?.force_push !== false) fail("git.force_push", "force_push must be explicitly false");
+  if (contract.git?.destructive_reset !== false) {
+    fail("git.destructive_reset", "destructive_reset must be explicitly false");
+  }
+
+  if (!["pending", "implemented", "rejected", "blocked", "complete"].includes(contract.completion?.status)) {
+    fail("completion.status", `invalid completion.status ${JSON.stringify(contract.completion?.status)}`);
+  }
+  if (!["pending", "PASS", "FAIL", "BLOCKED"].includes(contract.completion?.qa_status)) {
+    fail("completion.qa_status", `invalid completion.qa_status ${JSON.stringify(contract.completion?.qa_status)}`);
+  }
+  if (!["pending", "APPROVED", "REJECTED", "NOT_REQUIRED"].includes(contract.completion?.qc_status)) {
+    fail("completion.qc_status", `invalid completion.qc_status ${JSON.stringify(contract.completion?.qc_status)}`);
+  }
 
   // ── Overrides ───────────────────────────────────────────────────────────────────────────────
   for (const violation of validateOverrides(contract)) violations.push(violation);

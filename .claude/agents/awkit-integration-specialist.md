@@ -1,11 +1,11 @@
 ---
 name: awkit-integration-specialist
 description: Reviews renderer-preload-main, Electron-Playwright, Flow-Workflow-Runner, session, settings, reporting, licensing and packaged-runtime contracts end to end. Activates when any of `ipc_change`, `public_contract_change`. Read-only: advises, never edits.
-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(codebase-review), Skill(graphify)
-disallowedTools: Edit, Write, Agent, NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
+tools: Read, Glob, Grep, Bash, mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(codebase-review), Skill(graphify)
+disallowedTools: Edit, Write, Agent, NotebookEdit
 model: inherit
 maxTurns: 18
-permissionMode: plan
+permissionMode: default
 ---
 
 # Cross-Boundary Integration Specialist
