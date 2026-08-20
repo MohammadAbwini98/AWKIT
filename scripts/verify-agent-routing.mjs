@@ -1806,6 +1806,12 @@ try {
   const claudeSettings = JSON.parse(
     readFileSync(new URL("../.claude/settings.json", import.meta.url), "utf8")
   );
+  check(
+    "project settings explicitly allow the codebase-memory MCP wildcard",
+    Array.isArray(claudeSettings.permissions?.allow) &&
+      claudeSettings.permissions.allow.includes("mcp__codebase-memory-mcp__*"),
+    JSON.stringify(claudeSettings.permissions?.allow ?? [])
+  );
   const hooksFor = (event) =>
     (claudeSettings.hooks?.[event] ?? []).flatMap((group) =>
       (group.hooks ?? []).map((hook) => ({ matcher: group.matcher, ...hook }))
