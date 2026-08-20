@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("255 issues parse", beads.stats.total === 255, `got ${beads.stats.total}`);
+  check("256 issues parse", beads.stats.total === 256, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -329,8 +329,10 @@ try {
   // FEATURE question that fix deliberately did not decide - whether a condition expression should be
   // data-driven at all. So outstanding is 5 and one of them is an open owner decision rather than an
   // external blocker. `runFlow` was checked in the same pass and needed no change.
-    "5 outstanding / 250 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 250,
+  // Then 5/251 of 256: token-aware routing task `awkit-bkfy` filed and closed, so total and closed
+  // each rose by one while outstanding stayed at five.
+    "5 outstanding / 251 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 251,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

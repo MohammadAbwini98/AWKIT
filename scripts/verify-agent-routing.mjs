@@ -21,9 +21,19 @@
  * launches a browser or the Electron app, which is why it is static-source-validation.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 
 import { LEDGER_STATUSES } from "../tools/roadmap/lib/parse-ledger.mjs";
 import {
@@ -97,13 +107,20 @@ function check(label, condition, detail = "") {
 function validContract() {
   return {
     version: 1,
-    task: { id: "awkit-fixture", title: "Fixture", objective: "Prove the rules fire.", risk_level: 1 },
-    repository: { branch: "main", baseline_commit: "HEAD" },
+    task: {
+      id: "awkit-fixture",
+      title: "Fixture",
+      objective: "Prove the rules fire.",
+      risk_level: 1,
+      mode: "change"
+    },
+    repository: { branch: "main", baseline_commit: "HEAD", preserved_paths: [] },
     classification: { renderer_visual_change: true, cross_layer_count: 1 },
     routing: {
       manager: "manager",
       activated_agents: ["manager", "uiux", "frontend", "qa"],
       expected_paths: ["app/renderer/components/Thing.tsx"],
+      consultants: ["uiux"],
       writer: { agent_id: "frontend", allowed_paths: ["app/renderer/components/Thing.tsx"] },
       reviewers: ["qa"]
     },
@@ -122,6 +139,85 @@ function rejects(ruleId, mutate) {
   return violations.some((v) => v.rule === ruleId);
 }
 
+function sameArray(actual, expected) {
+  return JSON.stringify(actual) === JSON.stringify(expected);
+}
+
+function invoke(fn, ...args) {
+  try {
+    return { ok: typeof fn === "function", value: typeof fn === "function" ? fn(...args) : undefined };
+  } catch (error) {
+    return { ok: false, value: undefined, error };
+  }
+}
+
+async function invokeAsync(fn, ...args) {
+  try {
+    if (typeof fn !== "function") return { ok: false, value: undefined };
+    return { ok: true, value: await fn(...args) };
+  } catch (error) {
+    return { ok: false, value: undefined, error };
+  }
+}
+
+function zoneLabel(value) {
+  if (typeof value === "string") return value.toLowerCase();
+  return String(value?.zone ?? value?.id ?? value?.label ?? value?.name ?? value?.action ?? "")
+    .toLowerCase();
+}
+
+function frontmatterValue(content, key) {
+  return content.match(new RegExp(`^${key}:\\s*(.+)$`, "m"))?.[1]?.trim() ?? "";
+}
+
+function probePath(glob) {
+  return glob.replace(/\*\*/g, "__probe__").replace(/\*/g, "__probe__");
+}
+
+function filesBelow(root) {
+  const found = [];
+  const visit = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile()) found.push(path);
+    }
+  };
+  try {
+    visit(root);
+  } catch {
+    /* absent is represented by an empty list */
+  }
+  return found.sort();
+}
+
+function containsForbiddenCheckpointKey(value) {
+  if (Array.isArray(value)) return value.some(containsForbiddenCheckpointKey);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(([key, child]) =>
+    ["transcript", "compact_summary", "messages", "conversation", "session_state"].includes(
+      key.toLowerCase()
+    ) || containsForbiddenCheckpointKey(child)
+  );
+}
+
+async function optionalImport(specifier) {
+  try {
+    return { module: await import(specifier), error: null };
+  } catch (error) {
+    return { module: null, error };
+  }
+}
+
+const [contextPolicyLoad, contextStatusLoad, checkpointLoad, taskGateLoad, leaseExtrasLoad] =
+  await Promise.all([
+    optionalImport("../tools/agents/context-policy.mjs"),
+    optionalImport("../tools/agents/context-status.mjs"),
+    optionalImport("../tools/agents/compaction-checkpoint.mjs"),
+    optionalImport("../tools/agents/task-gate.mjs"),
+    optionalImport("../tools/agents/lease.mjs")
+  ]);
+
 const tempDirs = [];
 function tempFile(name, contents) {
   const dir = mkdtempSync(join(tmpdir(), "awkit-routing-"));
@@ -136,8 +232,81 @@ try {
      1. Registry integrity
      ====================================================================== */
   console.log("Registry:");
-  check("11 agents are registered", AGENTS.length === 11, `got ${AGENTS.length}`);
+  const canonicalAgentIds = [
+    "manager",
+    "architect",
+    "uiux",
+    "frontend",
+    "software",
+    "runtime",
+    "integration",
+    "recorder",
+    "qa",
+    "qc",
+    "security",
+    "researcher",
+    "persistence",
+    "performance",
+    "release",
+    "project-state"
+  ];
+  check("exactly 16 canonical agents are registered", AGENTS.length === 16, `got ${AGENTS.length}`);
+  check(
+    "the canonical roster covers every requested responsibility exactly once",
+    sameArray(AGENT_IDS, canonicalAgentIds),
+    `got [${AGENT_IDS.join(", ")}]`
+  );
   check("agent ids are unique", new Set(AGENT_IDS).size === AGENT_IDS.length);
+  const canonicalClaudeNames = [
+    "awkit-manager",
+    "awkit-system-architect",
+    "awkit-ui-designer",
+    "awkit-frontend-engineer",
+    "awkit-software-engineer",
+    "awkit-backend-engineer",
+    "awkit-integration-specialist",
+    "awkit-recorder-playwright",
+    "awkit-qa-engineer",
+    "awkit-qc-reviewer",
+    "awkit-security-engineer",
+    "awkit-researcher",
+    "awkit-data-persistence",
+    "awkit-performance-engineer",
+    "awkit-build-release",
+    "awkit-project-state"
+  ];
+  const claudeNames = AGENTS.map((a) => a.claudeName);
+  check(
+    "Claude identities are the exact AWKIT-scoped names",
+    sameArray(claudeNames, canonicalClaudeNames),
+    JSON.stringify(claudeNames)
+  );
+  check("Claude identities are unique", new Set(claudeNames).size === claudeNames.length);
+  const intendedModes = {
+    manager: "writer",
+    architect: "read-only",
+    uiux: "read-only",
+    frontend: "writer",
+    software: "writer",
+    runtime: "writer",
+    integration: "read-only",
+    recorder: "writer",
+    qa: "writer",
+    qc: "read-only",
+    security: "writer",
+    researcher: "read-only",
+    persistence: "writer",
+    performance: "read-only",
+    release: "writer",
+    "project-state": "writer"
+  };
+  check(
+    "canonical roles use the intended writer/read-only modes",
+    AGENTS.every((a) => intendedModes[a.id] === a.defaultMode),
+    AGENTS.filter((a) => intendedModes[a.id] !== a.defaultMode)
+      .map((a) => `${a.id}:${a.defaultMode}`)
+      .join(", ")
+  );
   check(
     "every agent states a mandate",
     AGENTS.every((a) => typeof a.mandate === "string" && a.mandate.length > 20)
@@ -186,7 +355,7 @@ try {
      for classification while missing from the manager's ownsPaths entirely, so a lease amendment
      rerouted work to the specialist who already owned it. These checks make that disagreement
      impossible to reintroduce quietly. */
-  const probe = (glob) => glob.replace(/\*\*/g, "__probe__").replace(/\*/g, "__probe__");
+  const probe = probePath;
 
   for (const a of AGENTS) {
     for (const owned of a.ownsPaths) {
@@ -205,6 +374,42 @@ try {
       `path domain "${d.glob}" is inside ${d.owner}'s ownsPaths`,
       pathInScope(probe(d.glob), owned),
       `${d.owner} owns [${owned.join(", ")}]`
+    );
+  }
+
+  const ownershipCollisions = [];
+  for (let leftIndex = 0; leftIndex < AGENTS.length; leftIndex += 1) {
+    const left = AGENTS[leftIndex];
+    for (let rightIndex = leftIndex + 1; rightIndex < AGENTS.length; rightIndex += 1) {
+      const right = AGENTS[rightIndex];
+      for (const leftGlob of left.ownsPaths) {
+        for (const rightGlob of right.ownsPaths) {
+          if (
+            pathInScope(probe(leftGlob), [rightGlob]) ||
+            pathInScope(probe(rightGlob), [leftGlob])
+          ) {
+            ownershipCollisions.push(`${left.id}:${leftGlob} <> ${right.id}:${rightGlob}`);
+          }
+        }
+      }
+    }
+  }
+  check(
+    "canonical path ownership has no cross-agent broad overlap",
+    ownershipCollisions.length === 0,
+    ownershipCollisions.join("; ")
+  );
+
+  for (const domain of PATH_DOMAINS) {
+    const expectedPath = probe(domain.glob);
+    const routed = route(normalizeClassification({}).classification, {
+      expectedPaths: [expectedPath],
+      taskMode: "change"
+    });
+    check(
+      `expected path ${domain.glob} activates its owner ${domain.owner}`,
+      routed.activated.includes(domain.owner),
+      `activated=[${routed.activated.join(", ")}]`
     );
   }
 
@@ -234,8 +439,8 @@ try {
     installedSkills.filter((s) => !Object.values(ROLE_SKILLS).some((l) => l.includes(s))).join(", ")
   );
   check(
-    "read-only agents receive no write tools",
-    AGENTS.filter((a) => a.defaultMode === "read-only").every(
+    "read-only/advisory agents receive no write tools",
+    AGENTS.filter((a) => ["read-only", "advisory", "review"].includes(a.defaultMode)).every(
       (a) => !/\bEdit\b|\bWrite\b/.test(toolsFor(a.id))
     )
   );
@@ -257,6 +462,108 @@ try {
   );
   check("no underscored NOT_RUN variant exists", !EVIDENCE_STATUSES.includes("NOT_RUN"));
   check("INCONCLUSIVE was not reintroduced", !EVIDENCE_STATUSES.includes("INCONCLUSIVE"));
+
+  /* ======================================================================
+     2a. Context budget, specialist concurrency, and evidence contracts
+     ====================================================================== */
+  console.log("Context and delegation policy:");
+  const contextPolicy = contextPolicyLoad.module;
+  check(
+    "context-policy.mjs exists and imports",
+    contextPolicy !== null,
+    contextPolicyLoad.error?.message ?? "missing module"
+  );
+  check(
+    "CONTEXT_POLICY is exported",
+    contextPolicy?.CONTEXT_POLICY && typeof contextPolicy.CONTEXT_POLICY === "object"
+  );
+  check(
+    "CONCURRENCY_POLICY is exported",
+    contextPolicy?.CONCURRENCY_POLICY && typeof contextPolicy.CONCURRENCY_POLICY === "object"
+  );
+  check("contextZoneFor is exported", typeof contextPolicy?.contextZoneFor === "function");
+  check("specialistLimitFor is exported", typeof contextPolicy?.specialistLimitFor === "function");
+
+  const tokenBoundaries = [
+    [0, "normal"],
+    [99_999, "normal"],
+    [100_000, "delegate"],
+    [119_999, "delegate"],
+    [120_000, "warning"],
+    [149_999, "warning"],
+    [150_000, "compact"],
+    [250_000, "compact"]
+  ];
+  for (const [tokens, expected] of tokenBoundaries) {
+    const actual = invoke(contextPolicy?.contextZoneFor, tokens);
+    check(
+      `${tokens.toLocaleString("en-US")} tokens maps to ${expected}`,
+      actual.ok && zoneLabel(actual.value) === expected,
+      `got ${zoneLabel(actual.value) || actual.error?.message || "no result"}`
+    );
+  }
+
+  const routineLimit = invoke(contextPolicy?.specialistLimitFor, {
+    crossLayerCount: 1,
+    broadInvestigation: false
+  });
+  const crossLayerLimit = invoke(contextPolicy?.specialistLimitFor, {
+    crossLayerCount: 2,
+    broadInvestigation: false
+  });
+  const majorLimit = invoke(contextPolicy?.specialistLimitFor, {
+    crossLayerCount: 3,
+    broadInvestigation: true
+  });
+  check("routine work permits at most 2 specialists", routineLimit.value === 2, `${routineLimit.value}`);
+  check("cross-layer work permits at most 3 specialists", crossLayerLimit.value === 3, `${crossLayerLimit.value}`);
+  check("major investigation permits at most 4 specialists", majorLimit.value === 4, `${majorLimit.value}`);
+
+  const concurrencyPolicy = contextPolicy?.CONCURRENCY_POLICY ?? {};
+  const swarmPolicy =
+    concurrencyPolicy.allRoleSwarm ??
+    concurrencyPolicy.allowAllRoleSwarm ??
+    concurrencyPolicy.all_role_swarm;
+  check(
+    "all-role swarms are explicitly prohibited",
+    swarmPolicy === false ||
+      swarmPolicy === "prohibited" ||
+      concurrencyPolicy.allRoleSwarmProhibited === true,
+    JSON.stringify(concurrencyPolicy)
+  );
+
+  const delegationFields = Array.isArray(contextPolicy?.DELEGATION_FIELDS)
+    ? contextPolicy.DELEGATION_FIELDS
+    : [];
+  const reportSections = Array.isArray(contextPolicy?.REPORT_SECTIONS)
+    ? contextPolicy.REPORT_SECTIONS
+    : [];
+  const normalizedDelegation = delegationFields.map((field) => String(field).trim().toUpperCase());
+  const normalizedSections = reportSections.map((section) =>
+    String(section).trim().toLowerCase().replace(/[_-]+/g, " ")
+  );
+  const requiredDelegation = ["FACT", "INFERENCE", "RECOMMENDATION", "UNKNOWN"];
+  const requiredSections = [
+    "summary",
+    "evidence",
+    "changes",
+    "files",
+    "checks",
+    "results",
+    "risks",
+    "unresolved",
+    "next action"
+  ];
+  check(
+    "delegation fields require FACT / INFERENCE / RECOMMENDATION / UNKNOWN",
+    sameArray(normalizedDelegation, requiredDelegation),
+    JSON.stringify(delegationFields)
+  );
+  check(
+    "specialist reports require every concise evidence section",
+    sameArray(normalizedSections, requiredSections),
+    JSON.stringify(reportSections)
+  );
 
   /* ======================================================================
      3. Glob matcher — positive AND negative, because a matcher that under-matches
@@ -379,6 +686,119 @@ try {
   check("a visual change activates qa", visual.activated.includes("qa"));
   check("a visual change does NOT activate qc (Risk 1 fast path)", !visual.activated.includes("qc"));
 
+  /* Representative scenarios pin the MINIMAL set, not just the presence of one specialist. A
+     router that added every plausible role would satisfy inclusion checks while defeating the
+     requested bounded orchestration model. */
+  const uiScenario = route(
+    normalizeClassification({ renderer_visual_change: true }).classification,
+    { expectedPaths: ["app/renderer/components/Thing.tsx"], taskMode: "change" }
+  );
+  check(
+    "UI routes exactly to manager + uiux + frontend + qa",
+    sameArray(uiScenario.activated, ["manager", "uiux", "frontend", "qa"]),
+    uiScenario.activated.join(", ")
+  );
+  check("UI has exactly frontend as writer", sameArray(uiScenario.writerSequence, ["frontend"]));
+  check("UI has exactly uiux as consultant", sameArray(uiScenario.consultants, ["uiux"]));
+  check("UI has exactly qa as reviewer", sameArray(uiScenario.reviewers, ["qa"]));
+
+  const recorderScenario = route(
+    normalizeClassification({ recorder_change: true }).classification,
+    { expectedPaths: ["src/recorder/RecorderService.ts"], taskMode: "change" }
+  );
+  check(
+    "Recorder routes exactly to manager + recorder + qa",
+    sameArray(recorderScenario.activated, ["manager", "recorder", "qa"]),
+    recorderScenario.activated.join(", ")
+  );
+  check(
+    "Recorder does not add the integration-boundary adviser without cross-layer evidence",
+    !recorderScenario.activated.includes("integration")
+  );
+  check("Recorder has exactly recorder as writer", sameArray(recorderScenario.writerSequence, ["recorder"]));
+  check("Recorder has no consultant by default", sameArray(recorderScenario.consultants, []));
+  check("Recorder has exactly qa as reviewer", sameArray(recorderScenario.reviewers, ["qa"]));
+
+  const recorderAcrossIpc = route(
+    normalizeClassification({ recorder_change: true, ipc_change: true, cross_layer_count: 2 }).classification,
+    {
+      expectedPaths: ["src/recorder/RecorderService.ts", "app/main/ipc/recorder.ipc.ts"],
+      taskMode: "change"
+    }
+  );
+  check(
+    "Recorder adds the integration-boundary adviser when IPC evidence is declared",
+    recorderAcrossIpc.activated.includes("integration") && recorderAcrossIpc.consultants.includes("integration"),
+    `activated=[${recorderAcrossIpc.activated.join(", ")}] consultants=[${recorderAcrossIpc.consultants.join(", ")}]`
+  );
+
+  const ipcSecurityScenario = route(
+    normalizeClassification({
+      ipc_change: true,
+      authorization_change: true,
+      cross_layer_count: 2
+    }).classification,
+    {
+      expectedPaths: ["app/main/ipc/security.ipc.ts", "src/security/Authorization.ts"],
+      taskMode: "change"
+    }
+  );
+  check(
+    "IPC/security routes exactly to the six required roles",
+    sameArray(ipcSecurityScenario.activated, [
+      "manager",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "security"
+    ]),
+    ipcSecurityScenario.activated.join(", ")
+  );
+  check(
+    "IPC/security has exactly security then runtime as serialized writers",
+    sameArray(ipcSecurityScenario.writerSequence, ["security", "runtime"]),
+    ipcSecurityScenario.writerSequence.join(" -> ")
+  );
+  check(
+    "IPC/security has exactly integration as consultant",
+    sameArray(ipcSecurityScenario.consultants, ["integration"]),
+    ipcSecurityScenario.consultants.join(", ")
+  );
+  check(
+    "IPC/security has exactly qa and qc as reviewers",
+    sameArray(ipcSecurityScenario.reviewers, ["qa", "qc"]),
+    ipcSecurityScenario.reviewers.join(", ")
+  );
+
+  const broadInspectScenario = route(
+    normalizeClassification({ broad_investigation: true }).classification,
+    { expectedPaths: [], taskMode: "inspect" }
+  );
+  check("broad_investigation is a recognized routing flag", CLASSIFICATION_FLAGS.includes("broad_investigation"));
+  check(
+    "an unfamiliar broad defect starts exactly with manager + researcher",
+    sameArray(broadInspectScenario.activated, ["manager", "researcher"]),
+    broadInspectScenario.activated.join(", ")
+  );
+  check("an unfamiliar inspection starts with no writer", sameArray(broadInspectScenario.writerSequence, []));
+  check(
+    "an unfamiliar inspection has exactly researcher as consultant",
+    sameArray(broadInspectScenario.consultants, ["researcher"]),
+    broadInspectScenario.consultants.join(", ")
+  );
+  check("an unfamiliar inspection starts with no reviewer", sameArray(broadInspectScenario.reviewers, []));
+
+  const licensingOwned = route(
+    normalizeClassification({ licensing_change: true }).classification,
+    { expectedPaths: ["src/licensing/LicenseValidator.ts"], taskMode: "change" }
+  );
+  check(
+    "a security-owned licensing path places security in writerSequence",
+    sameArray(licensingOwned.writerSequence, ["security"]),
+    licensingOwned.writerSequence.join(" -> ")
+  );
+
   const multi = route(
     normalizeClassification({ persisted_shape_change: true, ipc_change: true }).classification
   );
@@ -465,13 +885,13 @@ try {
       scoped.writerSequence.join(" -> ")
     );
 
-    // A documentation task genuinely IS the manager's to write, so it keeps the lease here.
+    // A documentation task belongs to the project-state writer, while manager stays the orchestrator.
     const docsOnly = route(normalizeClassification({}).classification, {
       expectedPaths: ["docs/ai/CURRENT_STATE.md"]
     });
     check(
-      "a documentation task routes the manager as its writer",
-      JSON.stringify(docsOnly.writerSequence) === JSON.stringify(["manager"]),
+      "a documentation task routes project-state as its writer",
+      JSON.stringify(docsOnly.writerSequence) === JSON.stringify(["project-state"]),
       docsOnly.writerSequence.join(" -> ")
     );
     check("a Risk 0 documentation task activates no reviewer", docsOnly.reviewers.length === 0);
@@ -491,17 +911,30 @@ try {
   check("rejects a contract with no manager", rejects("manager.absent", (c) => {
     c.routing.activated_agents = c.routing.activated_agents.filter((x) => x !== "manager");
   }));
+  check("rejects an unknown task mode", rejects("task.mode", (c) => {
+    c.task.mode = "maybe";
+  }));
   check("rejects a missing mandatory specialist", rejects("activation.missing", (c) => {
     c.classification.licensing_change = true;
   }));
+  check("rejects a missing mandatory routed reviewer", rejects("reviewer.missing", (c) => {
+    c.routing.reviewers = [];
+  }));
   check("rejects more than one writer", rejects("writer.multiple", (c) => {
     c.routing.writer = [{ agent_id: "frontend" }, { agent_id: "runtime" }];
+  }));
+  check("an inspect task cannot declare a writer", rejects("writer.inspect", (c) => {
+    c.task.mode = "inspect";
   }));
   check("rejects a writer outside the routed sequence", rejects("writer.unrouted", (c) => {
     c.routing.writer.agent_id = "release";
   }));
   check("rejects a writer with no allowed_paths", rejects("writer.no_paths", (c) => {
     c.routing.writer.allowed_paths = [];
+  }));
+  check("a change task with an owned expected path still requires a writer", rejects("writer.absent", (c) => {
+    c.task.mode = "change";
+    delete c.routing.writer;
   }));
   check("rejects a lease exceeding its holder's ownership", rejects("writer.scope_exceeds_ownership", (c) => {
     c.routing.writer.allowed_paths = ["src/licensing/**"];
@@ -595,6 +1028,25 @@ try {
   qcPending.completion.qc_status = "pending";
   check("pending QC blocks completion when QC is a reviewer", completionBlockers(qcPending).length > 0);
 
+  // The gate must compute mandatory reviewers from route(), not trust the contract's list. Otherwise
+  // a Risk 3 task can erase "qc" from routing.reviewers and make a pending review disappear.
+  const omittedQc = validContract();
+  omittedQc.task.risk_level = 3;
+  omittedQc.classification.authorization_change = true;
+  const omittedQcRoute = route(normalizeClassification(omittedQc.classification).classification, {
+    expectedPaths: omittedQc.routing.expected_paths,
+    taskMode: omittedQc.task.mode
+  });
+  omittedQc.routing.activated_agents = [...omittedQcRoute.activated];
+  omittedQc.routing.reviewers = omittedQcRoute.reviewers.filter((id) => id !== "qc");
+  omittedQc.completion.qc_status = "pending";
+  const omittedQcBlockers = completionBlockers(omittedQc);
+  check(
+    "completion cannot bypass pending routed QC by omitting qc from the contract",
+    omittedQcBlockers.some((blocker) => /\bqc\b/i.test(blocker) && /pending|review/i.test(blocker)),
+    JSON.stringify(omittedQcBlockers)
+  );
+
   /* ======================================================================
      8. Write lease — driven against fixtures, never the real lease file
      ====================================================================== */
@@ -603,10 +1055,19 @@ try {
   const assignPath = tempFile("assignments.json", JSON.stringify({ claims: [] }));
   rmSync(leasePath, { force: true });
 
+  const frontendLeaseRouting = {
+    ...route(normalizeClassification({ renderer_visual_change: true }).classification, {
+      expectedPaths: ["app/renderer/**"],
+      taskMode: "change"
+    }),
+    expectedPaths: ["app/renderer/**"]
+  };
+
   const granted = grantLease({
     task: "awkit-fixture",
     holder: "frontend",
     allowedPaths: ["app/renderer/**"],
+    routing: frontendLeaseRouting,
     path: leasePath,
     assignmentsPath: assignPath
   });
@@ -614,6 +1075,66 @@ try {
   check("the lease allows an in-scope path", leaseAllows(granted, "app/renderer/App.tsx"));
   check("the lease BLOCKS an out-of-scope path", !leaseAllows(granted, "src/runner/exec.ts"));
   check("the lease blocks another specialist's territory", !leaseAllows(granted, "src/licensing/x.ts"));
+
+  const rejectedGrant = (name, params) => {
+    const candidatePath = tempFile(`${name}-lease.json`, "");
+    const candidateAssignments = tempFile(`${name}-assignments.json`, JSON.stringify({ claims: [] }));
+    rmSync(candidatePath, { force: true });
+    try {
+      grantLease({ ...params, path: candidatePath, assignmentsPath: candidateAssignments });
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  const licensingRouting = {
+    ...licensingOwned,
+    expectedPaths: ["src/licensing/**"]
+  };
+  check(
+    "grantLease rejects allowed paths outside the holder's ownership",
+    rejectedGrant("outside-owner", {
+      task: "outside-owner",
+      holder: "frontend",
+      allowedPaths: ["src/licensing/**"],
+      routing: licensingRouting
+    })
+  );
+
+  const runtimeRouting = {
+    ...route(normalizeClassification({ electron_main_change: true }).classification, {
+      expectedPaths: ["app/main/window.ts"],
+      taskMode: "change"
+    }),
+    expectedPaths: ["app/main/window.ts"]
+  };
+  check(
+    "grantLease rejects a holder outside routing.writerSequence",
+    rejectedGrant("unrouted-holder", {
+      task: "unrouted-holder",
+      holder: "frontend",
+      allowedPaths: ["app/renderer/components/Thing.tsx"],
+      routing: runtimeRouting
+    })
+  );
+
+  const narrowFrontendRouting = {
+    ...route(normalizeClassification({ renderer_visual_change: true }).classification, {
+      expectedPaths: ["app/renderer/components/Thing.tsx"],
+      taskMode: "change"
+    }),
+    expectedPaths: ["app/renderer/components/Thing.tsx"]
+  };
+  check(
+    "grantLease rejects holder-owned paths outside the routed contract scope",
+    rejectedGrant("outside-contract", {
+      task: "outside-contract",
+      holder: "frontend",
+      allowedPaths: ["app/renderer/components/Other.tsx"],
+      routing: narrowFrontendRouting
+    })
+  );
 
   check(
     "the holder is mirrored into the claims file",
@@ -746,7 +1267,9 @@ try {
       holder: "runtime",
       status: "active",
       allowed_paths: ["app/main/**"],
+      acquired_at_commit: "baseline-sha",
       baseline_dirty: ["docs/ai/TASK_LOG.md"],
+      baseline_dirty_fingerprints: { "docs/ai/TASK_LOG.md": "baseline" },
       amendments: [],
       overrides: [],
       violations: []
@@ -763,7 +1286,30 @@ try {
     );
     check(
       "a file already dirty when the lease was granted is not blamed on this lease",
-      outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"]).length === 0
+      outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"], {
+        committedPaths: [],
+        currentFingerprints: { "docs/ai/TASK_LOG.md": "baseline" }
+      }).length === 0
+    );
+    check(
+      "an out-of-lease path committed after acquired_at_commit is still detected",
+      sameArray(
+        outOfLeaseWrites(auditLease, [], {
+          committedPaths: ["src/runner/committed-after-lease.ts"],
+          currentFingerprints: {}
+        }),
+        ["src/runner/committed-after-lease.ts"]
+      )
+    );
+    check(
+      "modifying a baseline-dirty file is detected rather than exempt by name",
+      sameArray(
+        outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"], {
+          committedPaths: [],
+          currentFingerprints: { "docs/ai/TASK_LOG.md": "modified" }
+        }),
+        ["docs/ai/TASK_LOG.md"]
+      )
     );
     check(
       "a shared write path is not a violation",
@@ -821,6 +1367,62 @@ try {
 
     // The parser must survive git's real porcelain shapes, not just the simple case.
     check("dirtyPaths is exported for the hook", typeof dirtyPaths === "function");
+
+    const committedPathsSince = leaseExtrasLoad.module?.committedPathsSince;
+    const trackedPathFingerprints = leaseExtrasLoad.module?.trackedPathFingerprints;
+    check("committedPathsSince is exported for the Bash audit", typeof committedPathsSince === "function");
+    check("trackedPathFingerprints is exported for baseline-dirty audit", typeof trackedPathFingerprints === "function");
+
+    let committedProbe = [];
+    let fingerprintChanged = false;
+    let auditProbeError = "helpers unavailable";
+    if (typeof committedPathsSince === "function" && typeof trackedPathFingerprints === "function") {
+      const gitSandbox = mkdtempSync(join(tmpdir(), "awkit-routing-git-"));
+      tempDirs.push(gitSandbox);
+      try {
+        execFileSync("git", ["init"], { cwd: gitSandbox, stdio: "ignore" });
+        execFileSync("git", ["config", "user.name", "AWKIT Routing Verifier"], {
+          cwd: gitSandbox,
+          stdio: "ignore"
+        });
+        execFileSync("git", ["config", "user.email", "routing-verifier@example.invalid"], {
+          cwd: gitSandbox,
+          stdio: "ignore"
+        });
+        writeFileSync(join(gitSandbox, "baseline.txt"), "before\n", "utf8");
+        execFileSync("git", ["add", "baseline.txt"], { cwd: gitSandbox, stdio: "ignore" });
+        execFileSync("git", ["commit", "-m", "baseline"], { cwd: gitSandbox, stdio: "ignore" });
+        const baselineCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+          cwd: gitSandbox,
+          encoding: "utf8"
+        }).trim();
+        const beforeFingerprints = trackedPathFingerprints(["baseline.txt"], gitSandbox);
+
+        mkdirSync(join(gitSandbox, "src"), { recursive: true });
+        writeFileSync(join(gitSandbox, "src", "after.ts"), "export const after = true;\n", "utf8");
+        execFileSync("git", ["add", "src/after.ts"], { cwd: gitSandbox, stdio: "ignore" });
+        execFileSync("git", ["commit", "-m", "after lease"], { cwd: gitSandbox, stdio: "ignore" });
+        committedProbe = committedPathsSince(baselineCommit, gitSandbox);
+
+        writeFileSync(join(gitSandbox, "baseline.txt"), "after\n", "utf8");
+        const afterFingerprints = trackedPathFingerprints(["baseline.txt"], gitSandbox);
+        fingerprintChanged =
+          beforeFingerprints["baseline.txt"] !== afterFingerprints["baseline.txt"];
+        auditProbeError = "";
+      } catch (error) {
+        auditProbeError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    check(
+      "committedPathsSince finds a path committed after the lease baseline",
+      committedProbe.includes("src/after.ts"),
+      auditProbeError || JSON.stringify(committedProbe)
+    );
+    check(
+      "trackedPathFingerprints changes when a baseline-dirty file is modified",
+      fingerprintChanged,
+      auditProbeError
+    );
   }
 
   /* ── Protected paths close the no-lease gap (awkit-mtt) ────────────────────────────────────
@@ -1020,7 +1622,351 @@ try {
   check("the guard ignores payloads with no target", targetPathOf({ tool_input: {} }) === null);
 
   /* ======================================================================
-     9. Rendered documentation agrees with the registry
+     9. Context status, compaction checkpoint, and supported Claude wiring
+     ====================================================================== */
+  console.log("Context lifecycle:");
+  const contextStatus = contextStatusLoad.module;
+  const checkpoint = checkpointLoad.module;
+  check(
+    "context-status.mjs exists and imports",
+    contextStatus !== null,
+    contextStatusLoad.error?.message ?? "missing module"
+  );
+  check("renderStatusLine is exported", typeof contextStatus?.renderStatusLine === "function");
+  check(
+    "compaction-checkpoint.mjs exists and imports",
+    checkpoint !== null,
+    checkpointLoad.error?.message ?? "missing module"
+  );
+  for (const name of ["buildCheckpoint", "captureCheckpoint", "renderCheckpoint", "checkpointPathFor"]) {
+    check(`${name} is exported`, typeof checkpoint?.[name] === "function");
+  }
+
+  const statusPayload = (tokens) => ({
+    model: { display_name: "Claude fixture" },
+    context_window: {
+      context_window_size: 200_000,
+      current_usage: {
+        input_tokens: tokens,
+        output_tokens: 0,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0
+      }
+    }
+  });
+  const nullStatus = invoke(contextStatus?.renderStatusLine, null);
+  check(
+    "status rendering is null-safe",
+    nullStatus.ok && typeof nullStatus.value === "string" && !/undefined|NaN/.test(nullStatus.value),
+    nullStatus.error?.message ?? String(nullStatus.value)
+  );
+  const warningStatus = invoke(contextStatus?.renderStatusLine, statusPayload(120_000));
+  check(
+    "status rendering labels the warning zone",
+    warningStatus.ok && /warning/i.test(String(warningStatus.value)),
+    warningStatus.error?.message ?? String(warningStatus.value)
+  );
+  const compactStatus = invoke(contextStatus?.renderStatusLine, statusPayload(150_000));
+  check(
+    "status rendering labels the compact zone",
+    compactStatus.ok && /compact/i.test(String(compactStatus.value)),
+    compactStatus.error?.message ?? String(compactStatus.value)
+  );
+
+  const statusCli = spawnSync(process.execPath, ["tools/agents/context-status.mjs"], {
+    cwd: process.cwd(),
+    input: JSON.stringify(statusPayload(120_000)),
+    encoding: "utf8"
+  });
+  check(
+    "context-status CLI accepts a spawned Claude payload",
+    statusCli.status === 0 && /warning/i.test(statusCli.stdout),
+    `${statusCli.status}: ${statusCli.stderr || statusCli.stdout}`
+  );
+
+  const checkpointRoot = mkdtempSync(join(tmpdir(), "awkit-checkpoint-"));
+  tempDirs.push(checkpointRoot);
+  const checkpointInput = {
+    taskId: "awkit-fixture",
+    localAppData: checkpointRoot,
+    repository: {
+      root: process.cwd(),
+      branch: "main",
+      head: "fixture-head",
+      dirty: ["scripts/verify-agent-routing.mjs"]
+    },
+    status: { nextAction: "continue the routed task" },
+    transcript: "DO_NOT_PERSIST_TRANSCRIPT",
+    compact_summary: "DO_NOT_PERSIST_SUMMARY",
+    messages: [{ role: "user", content: "DO_NOT_PERSIST_MESSAGE" }]
+  };
+  const checkpointPath = invoke(checkpoint?.checkpointPathFor, {
+    taskId: checkpointInput.taskId,
+    localAppData: checkpointRoot
+  });
+  const checkpointRelative =
+    typeof checkpointPath.value === "string" ? relative(checkpointRoot, checkpointPath.value) : "";
+  const checkpointPathIsLocal =
+    checkpointPath.ok &&
+    typeof checkpointPath.value === "string" &&
+    isAbsolute(checkpointPath.value) &&
+    checkpointRelative !== "" &&
+    checkpointRelative !== ".." &&
+    !checkpointRelative.startsWith(`..${process.platform === "win32" ? "\\\\" : "/"}`) &&
+    !isAbsolute(checkpointRelative);
+  check(
+    "checkpointPathFor confines state beneath injected LOCALAPPDATA",
+    checkpointPathIsLocal,
+    String(checkpointPath.value ?? checkpointPath.error?.message ?? "no path")
+  );
+
+  const builtCheckpoint = invoke(checkpoint?.buildCheckpoint, checkpointInput);
+  check("buildCheckpoint accepts a synthetic repository-state probe", builtCheckpoint.ok);
+  check(
+    "checkpoint data never contains transcript or compact-summary fields",
+    builtCheckpoint.ok &&
+      !containsForbiddenCheckpointKey(builtCheckpoint.value) &&
+      !/DO_NOT_PERSIST_(TRANSCRIPT|SUMMARY|MESSAGE)/.test(JSON.stringify(builtCheckpoint.value)),
+    JSON.stringify(builtCheckpoint.value)
+  );
+  const renderedCheckpoint = invoke(checkpoint?.renderCheckpoint, builtCheckpoint.value);
+  check(
+    "restore output identifies checkpoint state as ephemeral and non-authoritative",
+    renderedCheckpoint.ok &&
+      /ephemeral/i.test(String(renderedCheckpoint.value)) &&
+      /non[- ]authoritative/i.test(String(renderedCheckpoint.value)),
+    renderedCheckpoint.error?.message ?? String(renderedCheckpoint.value)
+  );
+
+  const capturedCheckpoint = checkpointPathIsLocal
+    ? await invokeAsync(checkpoint?.captureCheckpoint, checkpointInput)
+    : { ok: false, value: undefined, error: new Error("unsafe checkpoint path") };
+  const capturedFiles = filesBelow(checkpointRoot);
+  check(
+    "captureCheckpoint writes a local ephemeral checkpoint",
+    capturedCheckpoint.ok && capturedFiles.length > 0,
+    capturedCheckpoint.error?.message ?? JSON.stringify(capturedCheckpoint.value)
+  );
+  const capturedText = capturedFiles
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
+  check(
+    "persisted checkpoint files omit transcript, compact_summary, and messages",
+    capturedFiles.length > 0 &&
+      !/DO_NOT_PERSIST_(TRANSCRIPT|SUMMARY|MESSAGE)/.test(capturedText) &&
+      !/\"(?:transcript|compact_summary|messages)\"\s*:/i.test(capturedText),
+    capturedFiles.join(", ")
+  );
+
+  const checkpointCliEnv = { ...process.env, LOCALAPPDATA: checkpointRoot };
+  const checkpointCaptureCli = spawnSync(
+    process.execPath,
+    ["tools/agents/compaction-checkpoint.mjs", "capture"],
+    {
+      cwd: process.cwd(),
+      env: checkpointCliEnv,
+      input: JSON.stringify({
+        taskId: "awkit-cli-fixture",
+        transcript: "DO_NOT_PERSIST_CLI_TRANSCRIPT",
+        compact_summary: "DO_NOT_PERSIST_CLI_SUMMARY"
+      }),
+      encoding: "utf8"
+    }
+  );
+  check(
+    "PreCompact capture CLI is non-fatal for a spawned hook payload",
+    checkpointCaptureCli.status === 0,
+    `${checkpointCaptureCli.status}: ${checkpointCaptureCli.stderr}`
+  );
+  const checkpointRestoreCli = spawnSync(
+    process.execPath,
+    ["tools/agents/compaction-checkpoint.mjs", "restore"],
+    {
+      cwd: process.cwd(),
+      env: checkpointCliEnv,
+      input: JSON.stringify({ taskId: "awkit-cli-fixture" }),
+      encoding: "utf8"
+    }
+  );
+  check(
+    "PostCompact restore CLI is non-fatal and labels ephemeral non-authoritative state",
+    checkpointRestoreCli.status === 0 &&
+      /ephemeral/i.test(checkpointRestoreCli.stdout) &&
+      /non[- ]authoritative/i.test(checkpointRestoreCli.stdout),
+    `${checkpointRestoreCli.status}: ${checkpointRestoreCli.stderr || checkpointRestoreCli.stdout}`
+  );
+  const allCheckpointText = filesBelow(checkpointRoot)
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
+  check(
+    "spawned checkpoint payloads never persist transcript or compact_summary",
+    !/DO_NOT_PERSIST_CLI_(TRANSCRIPT|SUMMARY)/.test(allCheckpointText)
+  );
+
+  const claudeSettings = JSON.parse(
+    readFileSync(new URL("../.claude/settings.json", import.meta.url), "utf8")
+  );
+  const hooksFor = (event) =>
+    (claudeSettings.hooks?.[event] ?? []).flatMap((group) =>
+      (group.hooks ?? []).map((hook) => ({ matcher: group.matcher, ...hook }))
+    );
+  const leaseHooks = hooksFor("PreToolUse");
+  const bashHooks = hooksFor("PostToolUse");
+  check(
+    "the exact Edit/Write/NotebookEdit lease hook remains wired",
+    leaseHooks.some(
+      (hook) =>
+        hook.matcher === "Edit|Write|NotebookEdit" &&
+        hook.type === "command" &&
+        hook.command === "node tools/agents/lease-guard.mjs"
+    )
+  );
+  check(
+    "the exact Bash post-write audit hook remains wired",
+    bashHooks.some(
+      (hook) =>
+        hook.matcher === "Bash" &&
+        hook.type === "command" &&
+        hook.command === "node tools/agents/bash-audit.mjs"
+    )
+  );
+  const preCompactHooks = hooksFor("PreCompact");
+  const postCompactHooks = hooksFor("PostCompact");
+  check(
+    "PreCompact runs checkpoint capture",
+    preCompactHooks.some((hook) => /compaction-checkpoint\.mjs\s+capture/.test(hook.command ?? ""))
+  );
+  check(
+    "PostCompact runs checkpoint restore",
+    postCompactHooks.some((hook) => /compaction-checkpoint\.mjs\s+restore/.test(hook.command ?? ""))
+  );
+  check(
+    "PreCompact and PostCompact commands are non-blocking",
+    preCompactHooks.length > 0 &&
+      postCompactHooks.length > 0 &&
+      [...preCompactHooks, ...postCompactHooks].every(
+        (hook) => hook.type === "command" && hook.async === true
+      )
+  );
+  check(
+    "statusLine runs context-status.mjs",
+    claudeSettings.statusLine?.type === "command" &&
+      /(?:^|\s)node\s+tools\/agents\/context-status\.mjs(?:\s|$)/.test(
+        claudeSettings.statusLine.command ?? ""
+      )
+  );
+  check(
+    "the locally supported auto-compact override is exactly 75 percent",
+    claudeSettings.env?.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE === "75"
+  );
+  check(
+    "newer absolute autoCompactWindow controls are not asserted into local settings",
+    !("autoCompactWindow" in claudeSettings) &&
+      !("CLAUDE_CODE_AUTO_COMPACT_WINDOW" in (claudeSettings.env ?? {}))
+  );
+  check(
+    "Agent Teams are not globally enabled",
+    !("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" in (claudeSettings.env ?? {})) &&
+      !JSON.stringify(claudeSettings).includes("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
+  );
+
+  /* ======================================================================
+     10. Operational completion gate
+     ====================================================================== */
+  console.log("Task completion gate:");
+  const taskGate = taskGateLoad.module;
+  check(
+    "task-gate.mjs exists and imports",
+    taskGate !== null,
+    taskGateLoad.error?.message ?? "missing module"
+  );
+  check("evaluateTaskGate is exported", typeof taskGate?.evaluateTaskGate === "function");
+
+  const gateBlockers = (result) => [
+    ...(Array.isArray(result?.blockers) ? result.blockers : []),
+    ...(Array.isArray(result?.scopeEscapes) ? result.scopeEscapes : []),
+    ...(Array.isArray(result?.scope_escapes) ? result.scope_escapes : [])
+  ];
+  const gateIsOpen = (result) =>
+    (result?.ok ?? result?.canComplete ?? result?.allowed) === true;
+
+  const inScopeGate = await invokeAsync(taskGate?.evaluateTaskGate, validContract(), {
+    lease: null,
+    changedFiles: ["app/renderer/components/Thing.tsx"],
+    guardedFieldChanges: []
+  });
+  check(
+    "task gate opens for a valid, proven, in-scope change",
+    inScopeGate.ok && gateIsOpen(inScopeGate.value),
+    JSON.stringify(inScopeGate.value ?? inScopeGate.error?.message)
+  );
+
+  const escapedGate = await invokeAsync(taskGate?.evaluateTaskGate, validContract(), {
+    lease: null,
+    changedFiles: ["src/storage/outside.ts"],
+    guardedFieldChanges: []
+  });
+  check(
+    "task gate blocks a derived scope escape since baseline_commit",
+    escapedGate.ok &&
+      !gateIsOpen(escapedGate.value) &&
+      /scope|persistence/i.test(JSON.stringify(gateBlockers(escapedGate.value))),
+    JSON.stringify(escapedGate.value ?? escapedGate.error?.message)
+  );
+
+  const preservedContract = validContract();
+  preservedContract.repository.preserved_paths = ["src/storage/pre-existing.ts"];
+  const preservedGate = await invokeAsync(taskGate?.evaluateTaskGate, preservedContract, {
+    lease: null,
+    changedFiles: ["src/storage/pre-existing.ts"],
+    guardedFieldChanges: []
+  });
+  check(
+    "task gate excludes explicitly preserved pre-existing paths from derived escapes",
+    preservedGate.ok && gateIsOpen(preservedGate.value),
+    JSON.stringify(preservedGate.value ?? preservedGate.error?.message)
+  );
+
+  const guardedGate = await invokeAsync(taskGate?.evaluateTaskGate, validContract(), {
+    lease: null,
+    changedFiles: ["app/renderer/components/Thing.tsx"],
+    guardedFieldChanges: [
+      {
+        path: "package.json",
+        owner: "release",
+        changedGuardedFields: ["dependencies"],
+        changedSharedFields: []
+      }
+    ]
+  });
+  check(
+    "task gate blocks a guarded shared-file field escape",
+    guardedGate.ok &&
+      !gateIsOpen(guardedGate.value) &&
+      /guarded|release|dependencies/i.test(JSON.stringify(gateBlockers(guardedGate.value))),
+    JSON.stringify(guardedGate.value ?? guardedGate.error?.message)
+  );
+
+  const invalidGateContractPath = tempFile(
+    "invalid-task-contract.json",
+    `${JSON.stringify({ task: { id: "invalid" } }, null, 2)}\n`
+  );
+  const taskGateCli = spawnSync(
+    process.execPath,
+    ["tools/agents/task-gate.mjs", invalidGateContractPath],
+    { cwd: process.cwd(), encoding: "utf8" }
+  );
+  const taskGateCliOutput = `${taskGateCli.stdout}\n${taskGateCli.stderr}`;
+  check(
+    "task-gate direct CLI evaluates a contract and reports blockers",
+    taskGateCli.status !== 0 &&
+      !/ERR_MODULE_NOT_FOUND|Cannot find module/i.test(taskGateCliOutput) &&
+      /block|invalid|fail/i.test(taskGateCliOutput),
+    `${taskGateCli.status}: ${taskGateCliOutput}`
+  );
+
+  /* ======================================================================
+     11. Rendered documentation agrees with the registry
      ====================================================================== */
   console.log("Rendered documentation:");
   const matrixDoc = readFileSync(MATRIX_DOC_PATH, "utf8");
@@ -1062,9 +2008,14 @@ try {
     JSON.stringify([...(schema.$defs?.evidenceResult?.enum ?? [])].sort()) ===
       JSON.stringify([...EVIDENCE_STATUSES, "pending"].sort())
   );
+  check(
+    "the contract schema supports explicit inspect/change task mode",
+    sameArray([...(schema.properties?.task?.properties?.mode?.enum ?? [])].sort(), ["change", "inspect"]),
+    JSON.stringify(schema.properties?.task?.properties?.mode)
+  );
 
   /* ======================================================================
-     10. Generated platform agent definitions
+     12. Generated platform agent definitions
      ====================================================================== */
   console.log("Generated platform definitions:");
   const generated = allGeneratedFiles();
@@ -1072,6 +2023,29 @@ try {
     "one definition per agent, plus the two adapters",
     generated.length === AGENTS.length + 2,
     `got ${generated.length}`
+  );
+
+  const claudeDefinitions = generated.filter((file) =>
+    file.path.replace(/\\/g, "/").includes("/.claude/agents/")
+  );
+  const expectedClaudeFiles = canonicalClaudeNames.map((name) => `${name}.md`).sort();
+  const onDiskClaudeFiles = readdirSync(new URL("../.claude/agents", import.meta.url), {
+    withFileTypes: true
+  })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .map((entry) => entry.name)
+    .sort();
+  check(
+    "generated Claude discovery has exactly the 16 AWKIT-scoped definitions and no legacy duplicates",
+    sameArray(onDiskClaudeFiles, expectedClaudeFiles),
+    `got [${onDiskClaudeFiles.join(", ")}]`
+  );
+  check(
+    "allGeneratedFiles uses each registry claudeName",
+    sameArray(
+      claudeDefinitions.map((file) => file.path.replace(/\\/g, "/").split("/").at(-1)).sort(),
+      expectedClaudeFiles
+    )
   );
 
   for (const file of generated) {
@@ -1089,13 +2063,97 @@ try {
     );
   }
 
+  const supportedModelAliases = ["inherit", "haiku", "sonnet", "opus"];
+  for (const a of AGENTS) {
+    const def = claudeDefinitions.find((file) => file.path.endsWith(`${a.claudeName}.md`));
+    const content = def?.content ?? "";
+    const description = frontmatterValue(content, "description");
+    const model = frontmatterValue(content, "model");
+    const maxTurns = Number(frontmatterValue(content, "maxTurns"));
+    const denylist = frontmatterValue(content, "disallowedTools");
+    const tools = frontmatterValue(content, "tools");
+
+    check(
+      `generated ${a.id} uses Claude identity ${a.claudeName}`,
+      frontmatterValue(content, "name") === a.claudeName
+    );
+    check(
+      `generated ${a.claudeName} uses a supported model alias`,
+      supportedModelAliases.includes(model),
+      model || "missing"
+    );
+    check(
+      `generated ${a.claudeName} has a conservative maxTurns bound`,
+      Number.isInteger(maxTurns) && maxTurns >= 1 && maxTurns <= 32,
+      String(maxTurns)
+    );
+    check(
+      `generated ${a.claudeName} carries a non-empty tool denylist`,
+      denylist.length > 0,
+      "missing disallowedTools"
+    );
+    check(
+      `generated ${a.claudeName} can use the documented codebase-memory MCP wildcard`,
+      tools.includes("mcp__codebase-memory-mcp__*"),
+      tools
+    );
+
+    const triggerRules = ACTIVATION_RULES.filter((rule) => rule.agent === a.id);
+    const missingTriggers = [];
+    for (const rule of triggerRules) {
+      for (const flag of rule.anyFlag) {
+        if (!description.includes(flag)) missingTriggers.push(flag);
+      }
+      if (
+        typeof rule.minRisk === "number" &&
+        !(description.includes("risk_level") && description.includes(String(rule.minRisk)))
+      ) {
+        missingTriggers.push(`risk_level >= ${rule.minRisk}`);
+      }
+      if (
+        typeof rule.minCrossLayer === "number" &&
+        !(description.includes("cross_layer_count") && description.includes(String(rule.minCrossLayer)))
+      ) {
+        missingTriggers.push(`cross_layer_count >= ${rule.minCrossLayer}`);
+      }
+      if (rule.onOwnedPath && !/owned path|path it owns|expected path/i.test(description)) {
+        missingTriggers.push("owned expected path");
+      }
+    }
+    if (a.id === "manager" && !/always/i.test(description)) missingTriggers.push("always");
+    check(
+      `generated ${a.claudeName} discovery description includes every trigger`,
+      missingTriggers.length === 0,
+      missingTriggers.join(", ")
+    );
+
+    check(
+      `generated ${a.claudeName} carries the FACT/INFERENCE/RECOMMENDATION/UNKNOWN contract`,
+      requiredDelegation.every((field) => content.includes(field)),
+      requiredDelegation.filter((field) => !content.includes(field)).join(", ")
+    );
+    const lowerContent = content.toLowerCase().replace(/[_-]+/g, " ");
+    check(
+      `generated ${a.claudeName} carries every specialist report section`,
+      requiredSections.every((section) => lowerContent.includes(section)),
+      requiredSections.filter((section) => !lowerContent.includes(section)).join(", ")
+    );
+  }
+
   // A read-only role must not be handed write tools by the GENERATOR either, not merely by the
   // registry — the frontmatter is what the runtime actually reads.
-  for (const a of AGENTS.filter((x) => x.defaultMode === "read-only")) {
-    const def = generated.find((f) => f.path.endsWith(`${a.id}.md`));
+  for (const a of AGENTS.filter((x) => ["read-only", "advisory", "review"].includes(x.defaultMode))) {
+    const def = claudeDefinitions.find((f) => f.path.endsWith(`${a.claudeName}.md`));
     check(
       `the generated ${a.id} definition grants no Edit/Write`,
       def !== undefined && !/^tools:.*\b(Edit|Write)\b/m.test(def.content)
+    );
+    check(
+      `the generated ${a.id} denylist explicitly denies Edit and Write`,
+      def !== undefined &&
+        /^(?:disallowedTools):.*\bEdit\b.*\bWrite\b|^(?:disallowedTools):.*\bWrite\b.*\bEdit\b/m.test(
+          def.content
+        )
     );
   }
 } finally {
