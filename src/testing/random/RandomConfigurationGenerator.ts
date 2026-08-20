@@ -308,6 +308,19 @@ export function buildStepPayload(type: StepType, ctx: ConfigurationContext): Ste
       payload.locator = locator;
       coverage?.recordGenerated("locatorStrategy", locator.strategy);
     }
+  } else if (type === "loop") {
+    // A loop needs a locator whenever its ACTION needs a target, and `nodeConfigFor` emits
+    // `loopActionType: "click"`. Without one, `performLoopAction` computes `base = null` and every
+    // arm is guarded by `if (target)`, so the loop ran its whole iteration count doing nothing and
+    // still reported `passed` — the generated corpus was full of dead loop nodes and nothing said so
+    // until the step-level loop contract started checking. The CATALOG stays `requiresLocator: false`
+    // because it is a type-level statement and a `scroll`- or `customFlow`-action loop genuinely
+    // needs no target; the requirement belongs to the action, which is why it is applied here.
+    const locator = locatorFor(type, ctx);
+    if (locator) {
+      payload.locator = locator;
+      coverage?.recordGenerated("locatorStrategy", locator.strategy);
+    }
   }
 
   if (spec.requiresValue) {
@@ -323,6 +336,24 @@ export function buildStepPayload(type: StepType, ctx: ConfigurationContext): Ste
 
   const config = nodeConfigFor(type, ctx);
   if (config) payload.config = config;
+
+  // A scroll-to-element needs the element. `nodeConfigFor` picks `scrollTarget` at random and the
+  // catalog marks `scroll` as needing no locator (true for a PAGE scroll), so half the generated
+  // scroll nodes named the element target with nothing to scroll to. At run time
+  // `cfg.scrollTarget === "element" && step.locator` is then false and the runner quietly wheels the
+  // page instead — the flow passes having scrolled the wrong thing. Decided here rather than in the
+  // catalog because, as with `loop`, the requirement belongs to the CONFIG and not to the type.
+  if (type === "scroll" && payload.config?.scrollTarget === "element" && payload.locator === undefined) {
+    const locator = locatorFor(type, ctx);
+    if (locator) {
+      payload.locator = locator;
+      coverage?.recordGenerated("locatorStrategy", locator.strategy);
+    } else {
+      // No locator available for this context — fall back to the page target so the generated node
+      // still describes something the runner can actually do.
+      payload.config.scrollTarget = "page";
+    }
+  }
 
   // `runFlow` invariant: `flowId` is canonical (the runner reads `flowId ?? config.targetFlowId`,
   // StepExecutor.ts:955); `config.targetFlowId` is a derived alias and must always agree.
