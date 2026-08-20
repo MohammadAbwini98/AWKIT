@@ -88,9 +88,10 @@ Two owner decisions remain:
    unchanged at `dist/SpecterStudio 0.1.15.exe` (md5 `2df47c8b…`) and in
    `C:\awkit-release-evidence\`. Re-cutting is a version decision, which
    `scripts/release-portable.ps1` owns.
-2. **`verify:packaged-walkthrough` sits at 85/2**, both failures being the un-built NSIS installer.
-   `npm run package:installer` refuses from a dirty tree by design; from a clean tree it should
-   close them.
+2. ~~`verify:packaged-walkthrough` sits at 85/2~~ — **done 2026-08-20**. The installer was built from
+   a clean tree and the gate is **88 PASS / 0 FAIL**, with Part L confirming a bit-exact sha512
+   against a freshly regenerated `latest.yml`. The remaining packaged gate is the clean/offline
+   Windows VM walkthrough, which is a human gate and is not claimed by any script.
 
 ## HANDOFF (2026-08-20) - WebDriverUniversity acceptance COMPLETE; nine more defects fixed
 
