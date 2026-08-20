@@ -2,6 +2,21 @@ import type { StepType } from "@src/profiles/FlowProfile";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { flowNodeCatalog, getFlowNodeCatalogItem, type FlowNodeCatalogItem } from "./flowNodeCatalog";
+import { isUsableWaitDuration, waitStepContractFor } from "@src/validation/WaitStepContract";
+
+/**
+ * Whether a wait node states the input its subtype needs, in designer terms.
+ *
+ * Mirrors `hasWaitStepDuration` over `FlowDesignerNodeData`: a fixed-time wait carries its duration
+ * in "Duration (ms)" (`timeoutMs`) or in a value/value source, and `toFlowStep` writes whichever the
+ * user set. A dynamic binding is accepted unresolved — it is a DataSource/runtime value that does
+ * not exist until the run.
+ */
+function waitStepValueSatisfied(d: FlowDesignerNodeData): boolean {
+  if (d.valueSourceType === "dynamic") return true;
+  if (d.value.trim() !== "") return true;
+  return waitStepContractFor(d.waitType).waitType === "time" && isUsableWaitDuration(d.timeoutMs);
+}
 
 export type NodeCategory = "flow" | "navigation" | "interaction" | "input" | "capture" | "assertion" | "control";
 
@@ -85,10 +100,17 @@ const META: Record<StepType, RegistryMeta> = {
     category: "control",
     sections: ["wait", "execution"],
     executable: true,
-    validate: (d) =>
-      d.waitType !== "time" && !d.locatorValue.trim() && !d.value.trim()
-        ? ["This Wait type needs a selector or text to wait for."]
-        : []
+    // Delegates to the engine's `WaitStepContract` rather than restating the rule: this check used to
+    // demand "a selector or text" from `navigation` and `networkIdle` waits, which need neither, and
+    // accepted a `selector` wait carrying text but no selector, which the runner cannot execute. The
+    // panel and the run gate now read one table, so an inline error means the gate would block too.
+    validate: (d) => {
+      const contract = waitStepContractFor(d.waitType);
+      const messages: string[] = [];
+      if (contract.requiresLocator && !d.locatorValue.trim()) messages.push(contract.missingLocatorHint);
+      if (contract.requiresValue && !waitStepValueSatisfied(d)) messages.push(contract.missingValueHint);
+      return messages;
+    }
   },
   uploadFile: {
     category: "input",

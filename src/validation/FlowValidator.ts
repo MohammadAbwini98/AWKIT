@@ -52,6 +52,7 @@ import {
 } from "../profiles/interactionPrerequisiteDecision";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
+import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
 
 /* ------------------------------------------------------------------ *
  * Limits
@@ -343,9 +344,17 @@ function resolveRunFlowTarget(step: FlowStep): string | undefined {
  * `runFlow` is deliberately special-cased: the runner reads `flowId`/`config.targetFlowId` and
  * never `value`, so a `runFlow` with a resolvable target but no `value` is complete, not defective.
  * Mirroring the renderer's `value`-string check here would report a defect the runner does not have.
+ *
+ * A fixed-time `wait` is the same shape of exception: its duration is normally carried in
+ * `timeoutMs` — the field the designer's "Duration (ms)" box writes — and `executeWait` reads it as
+ * the second of two legal channels. Demanding `value` as well reported a defect the runner does not
+ * have, on the single commonest wait there is.
  */
 function hasRequiredValue(step: FlowStep): boolean {
   if (step.type === "runFlow") return resolveRunFlowTarget(step) !== undefined;
+  // ...but ONLY the fixed-time subtype. A `textVisible` wait needs the text itself; its `timeoutMs`
+  // is how long it may look, not what it looks for, so it falls through to the value check below.
+  if (step.type === "wait" && waitStepContract(step).waitType === "time") return hasWaitStepDuration(step);
   if (isNonEmptyString(step.value)) return true;
   if (step.valueSource !== undefined) return true;
   // A `goto` may carry its destination as `url` instead of `value`.
@@ -484,7 +493,11 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
       collect.node("unsupportedConfiguration", step.id, `Step ${labelFor(step, ambiguousNames)} has an unknown type "${String(step.type)}" that the runner cannot execute.`);
       continue;
     }
-    const requirement = stepRequirement(step.type);
+    // The `wait` node is five different steps behind one type literal, so its flat table row cannot
+    // be the answer for any of them: a Fixed time wait needs a duration and no locator, `selector`
+    // needs a locator and no value, and `navigation`/`networkIdle` need neither. See
+    // `WaitStepContract` for how each subtype's inputs are read off `StepExecutor.executeWait`.
+    const requirement = step.type === "wait" ? waitStepContract(step) : stepRequirement(step.type);
 
     if (requirement.requiresLocator) {
       if (step.locator === undefined) {
@@ -520,7 +533,22 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
       }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {
-      collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) requires a value or value source.`);
+      // A wait names the input it is actually missing — "requires a value or value source" describes
+      // neither a duration nor the text a `textVisible` wait looks for.
+      const detail = step.type === "wait" ? waitStepContract(step).missingValueMessage : "requires a value or value source.";
+      collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) ${detail}`);
+    }
+
+    // A fixed-time duration the runner would hand to `waitForTimeout` as NaN or a negative number.
+    // Reported under the existing timeout rule rather than a new code: it is the same defect
+    // `invalidTimeout` already describes for `timeoutMs`, reached through the other duration channel.
+    const badDuration = step.type === "wait" ? invalidLiteralWaitDuration(step) : undefined;
+    if (badDuration !== undefined) {
+      collect.node(
+        "invalidTimeout",
+        step.id,
+        `Step ${labelFor(step, ambiguousNames)} is a fixed-time wait whose duration "${badDuration}" is not a positive number of milliseconds; the runner would wait for NaN.`
+      );
     }
 
     if (step.type === "runFlow" && context.referenceableFlowIds !== undefined) {
