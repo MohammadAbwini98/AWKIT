@@ -1,5 +1,80 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - Assert Text validated by kind; the class is closed
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 252 total / 248 closed / 4 outstanding.** `awkit-56un` filed and closed the same
+  session. **Nothing is open** - the four remaining are all BLOCKED on an external system or an
+  owner decision (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`).
+
+### What was done
+
+The `assertText` gap that `KNOWN_ISSUES.md` had recorded but NOT reproduced. Reproducing it first was
+the right call: it was three defects, not one, and the biggest was live in the repo's own data.
+
+1. **`config.expectedValue` was invisible to the gate.** The designer writes the expected value
+   there and the runtime reads it FIRST, but `hasRequiredValue` knew only `step.value`/`valueSource`.
+   **8 shipped `mock-site` fixture flows were being flagged** - the same flows
+   `verify:comprehensive-e2e` executes successfully. The validator and the runner had disagreed about
+   the product's own test data for as long as the rule existed.
+2. **`url` and `storage` were required to carry a locator neither resolves** (`activePage.url()`,
+   `page.evaluate`).
+3. **`attribute`/`storage` config was enforced only by a throw inside `executeAssertion`** - after
+   the browser is open - and the designer panel knew about neither field.
+
+`src/validation/AssertionStepContract.ts` refines the requirement per assertion kind, read off the
+executor. `FlowValidator` and `flowNodeRegistry` both consult it.
+
+### Blast radius, measured in both directions
+
+```text
+JSON files scanned                 1,777
+FlowProfiles found                   308
+…carrying assertText nodes            68   (100 nodes: text=93, value=5, url=2)
+RELAXED  (was flagged, now clean)      8   all real shipped fixtures, now pinned as a guard
+TIGHTENED (was clean, now flagged)     0
+```
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:assertion-validation        PASS 77/0    (new)
+verify:comprehensive-e2e           PASS 9/9 cases
+verify:storage-assertions          PASS 32/0    (storage assertions with NO locator, live)
+verify:assertions                  PASS 12/0
+verify:runner                      PASS 121/0
+verify:validation                  PASS 151/0
+verify:wait-validation             PASS 103/0
+verify:legacy-compat               PASS 152/0
+verify:flow-step-mapping           PASS 145/0
+verify:mock-site                   PASS 172/172
+verify:flow-designer               PASS 16/16 capsule + 112 broad, 0 unexpected
+verify:verifier-classification     PASS reconciled (194 verifiers)
+verify:roadmap-dashboard           PASS 162/162
+validate:offline                   PASS (development mode)
+typecheck:scripts                  FAIL - the same 3 PRE-EXISTING diagnostics, untouched files
+mutation: flat rule restored       23 of 77 checks fail
+mutation: expectedValue removed    15 of 77 checks fail
+mutation: panel drift               3 of 77 checks fail
+```
+
+### Next agent
+
+No open engineering, and the defect class that produced the last three fixes is now closed at all
+three sites (`awkit-3p6x` wait node, `awkit-jtok` wait conditions, `awkit-56un` assertions).
+
+`KNOWN_ISSUES.md` carries the two rules worth reusing: **any node whose `config` selects a dispatch
+arm cannot be described by one row in a type-keyed table**, and **the field the designer writes is
+not always the field the validator reads** - trace it from the panel input through `toFlowStep` to
+the executor and assert every channel. Both `loop` (`config.loopType` selects fixedCount / elements /
+dataRows, each with different inputs) and `scroll` are the remaining nodes with that shape; neither
+has been examined, so neither is filed.
+
+---
+
 ## HANDOFF (2026-08-20) - Smart Wait conditions validated; nothing open
 
 ### Transfer

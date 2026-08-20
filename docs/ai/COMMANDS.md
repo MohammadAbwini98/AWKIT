@@ -238,6 +238,15 @@ npm run verify:wait-validation # tsx scripts/verify-wait-validation.mts - BOTH w
                             # (awkit-jtok): per-type required fields across all 15 types, the
                             # vacuous-match cases, OR-group nesting, and a severity split asserted
                             # against runRequiredOrOptional. Pure. (103/103)
+npm run verify:assertion-validation # tsx scripts/verify-assertion-validation.mts - the assertText
+                            # contract refined by assertion KIND (awkit-56un): the
+                            # config.expectedValue channel the designer writes, the url/storage kinds
+                            # that resolve no locator, the attributeName/storageKey fields the
+                            # runtime enforced only by throwing, config literals and impossible
+                            # numeric comparisons, the panel's own validate(), the round-trip, a
+                            # source-level parity check against StepExecutor.executeAssertion, and a
+                            # guard over the 8 shipped mock-site fixtures the old rule flagged.
+                            # Pure. (77/77)
 npm run verify:legacy-compat # tsx scripts/verify-legacy-compat.mts - Legacy Compatibility + suggested-fix
                             # migration, driving FlowValidationService against a real JSON profile store
                             # on a temp dir (atomic writes, grant persistence); no browser. (152/152)

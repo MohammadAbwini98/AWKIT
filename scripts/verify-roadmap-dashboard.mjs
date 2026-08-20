@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("251 issues parse", beads.stats.total === 251, `got ${beads.stats.total}`);
+  check("252 issues parse", beads.stats.total === 252, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -317,8 +317,12 @@ try {
   // Then 4/247 of 251 the same day: `awkit-jtok` closed - the Smart Wait `WaitCondition` union is now
   // structurally validated across all 15 condition types. No new issues were filed, so outstanding
   // returns to the four owner-gated items and NOTHING is open again.
-    "4 outstanding / 247 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 247,
+  // Then 4/248 of 252 the same day: `awkit-56un` filed AND closed - the Assert Text flat rule, wrong
+  // three ways at once (the expectedValue channel, the url/storage locator, and the
+  // attributeName/storageKey config). Filed and closed in one session, so outstanding held at four
+  // and nothing is open.
+    "4 outstanding / 248 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 248,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

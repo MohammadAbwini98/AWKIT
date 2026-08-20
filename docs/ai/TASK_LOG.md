@@ -4,6 +4,54 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Assert Text validated by assertion kind (awkit-56un)
+
+- **Objective:** close the `assertText` config gap recorded in KNOWN_ISSUES after the two wait fixes.
+  It had been noted but NOT reproduced, so reproduction came first - and the defect turned out to be
+  three defects, one of them live in the repo's own fixtures.
+- **Root cause:** `STEP_REQUIREMENTS` is one requirement per step TYPE; `assertText` is seven
+  assertions behind one `config.assertionType` literal. The flat row was wrong three ways:
+  (1) `config.expectedValue` - the box the designer writes (`flowProfileMapping.ts:241`) and the
+  runtime reads FIRST - was invisible to `hasRequiredValue`, so a configured Assert Text reported
+  "requires a value or value source"; (2) `url` and `storage` were required to carry a locator
+  neither resolves (`activePage.url()` / `page.evaluate`); (3) `attribute` needs
+  `config.attributeName` and `storage` needs `config.storageKey`, enforced ONLY by a throw inside
+  `executeAssertion` - after the browser is open - and the designer panel knew about neither.
+- **Fix:** new `src/validation/AssertionStepContract.ts` derives the requirement per kind from
+  `StepExecutor.executeAssertion`. `FlowValidator` consults it for the locator rule, the value rule,
+  the required-config rule and the message; the renderer's `flowNodeRegistry` reads the SAME table.
+  `STEP_REQUIREMENTS` unchanged, so the three-way parity guard still holds.
+- **Blast radius, measured BOTH directions** (the change relaxes two rules and tightens three):
+  1,777 JSON files, 308 FlowProfiles, 68 carrying assertText (100 nodes). **8 RELAXED** - all real
+  shipped `mock-site` fixtures, including the `mock-comprehensive-*` flows the live runner executes.
+  **0 newly flagged.** The 8 are pinned in the verifier as a regression guard with cardinality
+  checks, so an empty fixture directory cannot make it pass vacuously.
+- **Strictness preserved and extended:** an empty expected value stays invalid (`includes("")` is
+  true for any page); `greaterThan`/`lessThan` against a non-numeric LITERAL is now reported
+  (`Number("many")` is NaN, so the assertion can never pass), while the same operator bound to a
+  value source is left alone because it cannot be judged statically.
+- **Runtime agreement was already in the suite, and is now consistent with the gate:**
+  `verify:storage-assertions` executes storage assertions with NO locator and
+  `verify-runner.mts:1141` executes a url assertion with no locator - flows the old validator called
+  invalid. Both still pass, alongside `verify:comprehensive-e2e` 9/9 over the relaxed fixtures.
+- **Mutation evidence (three, one per defect):** restoring the flat rule fails **23 of 77**;
+  removing only the `expectedValue` channel fails **15** (and the fixture guard names all 8 files);
+  making the panel stop reading the shared contract fails **3**. Restored: 77/0.
+- **Verification:** build PASS; `verify:assertion-validation` **77/0** (new, registered +
+  classified, 194 verifiers); `verify:comprehensive-e2e` 9/9; `verify:storage-assertions` **32/0**;
+  `verify:assertions` **12/0**; `verify:runner` **121/0**; `verify:validation` **151/0**;
+  `verify:wait-validation` **103/0**; `verify:legacy-compat` **152/0**; `verify:flow-step-mapping`
+  **145/0**; `verify:mock-site` **172/172**; `verify:flow-designer` 16/16 capsule + 112 broad, 0
+  unexpected; `verify:roadmap-dashboard` **162/162**; `validate:offline` completed.
+  `typecheck:scripts` still FAILs only on the same three pre-existing diagnostics in untouched files.
+- **Files:** `src/validation/AssertionStepContract.ts` (new), `src/validation/FlowValidator.ts`,
+  `app/renderer/components/workflow/flowNodeRegistry.ts`,
+  `scripts/verify-assertion-validation.mts` (new), `scripts/lib/verifier-classification.ts`,
+  `package.json`, `scripts/verify-roadmap-dashboard.mjs` (bead baselines), `docs/ai/*`,
+  `.beads/issues.jsonl`.
+
+---
+
 ## 2026-08-20 - Claude - Structural validation for Smart Wait conditions (awkit-jtok)
 
 - **Objective:** close the follow-up the Fixed-time Wait fix left open. `FlowValidator` checked a

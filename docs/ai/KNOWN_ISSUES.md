@@ -7,10 +7,19 @@
   right for `fill` or `click` and wrong for `wait` - five different steps behind one type literal
   (`awkit-3p6x`). The flat row demanded a value from all five subtypes and a locator from none, so it
   blocked three valid configurations AND let a `selector` wait with no locator reach a runtime
-  failure. Watch for the same shape in any node whose `config` selects a dispatch arm: `assertText`
-  has SEVEN `assertionType` arms (`attribute` needs `config.attributeName`, `storage` needs
-  `config.storageKey`) and today those are enforced only by a throw inside `executeAssertion`, not by
-  the gate.
+  failure. The same shape was then CONFIRMED in `assertText` (`awkit-56un`, CLOSED): seven
+  `assertionType` arms behind one row, where `url`/`storage` were required to carry a locator neither
+  resolves and `attribute`/`storage` had their config enforced only by a throw inside
+  `executeAssertion`. All three sites are now fixed. **The rule to carry forward: any node whose
+  `config` selects a dispatch arm cannot be described by one row in a type-keyed table.**
+- **The field the designer WRITES is not always the field the validator READS.** This produced a live
+  false positive twice. A Fixed time Wait carries its duration in `timeoutMs`, and an Assert Text
+  carries its expected value in `config.expectedValue` - both read first by the runtime, both
+  invisible to `hasRequiredValue`, which knew only `step.value`/`valueSource`. The `assertText` case
+  was flagging **8 of the repo's own shipped mock-site fixtures**, the same flows
+  `verify:comprehensive-e2e` executes successfully - so the validator and the runner disagreed about
+  the product's own test data for as long as the rule existed. When adding a value requirement, trace
+  the field from the panel input through `toFlowStep` to the executor, and assert every channel.
 - **When a fix relaxes a rule, the collateral risk is the OTHER branch silently relaxing too.** The
   first draft of the wait fix let `timeoutMs` satisfy the value requirement for every wait subtype -
   which would have made a `textVisible` wait with a timeout and no text "valid", because a timeout is

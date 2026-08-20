@@ -1,5 +1,78 @@
 # CURRENT_STATE
 
+## Assert Text is validated by assertion kind — and it was wrong three ways (2026-08-20)
+
+`awkit-56un` closed. The third and last instance of one defect class, after `awkit-3p6x` (the wait
+node) and `awkit-jtok` (the Smart Wait conditions): `STEP_REQUIREMENTS` answers one requirement per
+step **type**, and `assertText` is **seven** assertions behind one type literal.
+
+**The headline defect was live in the repo's own data.** `config.expectedValue` — the box the
+designer writes and the runtime reads *first* — was invisible to `hasRequiredValue`, which reads only
+`step.value`/`valueSource`. So an ordinary, fully configured Assert Text node reported "requires a
+value or value source". Measured against real files: **8 shipped `mock-site` fixture flows** were
+being flagged, including `mock-comprehensive-{core,io,popup,connectors,data-consumer}-flow.json` —
+the flows the live runner executes every time `verify:comprehensive-e2e` runs. The validator was
+calling the product's own working fixtures invalid.
+
+Two more, from the same flat row:
+
+```text
+                    demanded (before)          actually needs (executeAssertion)
+url                 locator + step.value       nothing but an expected value — reads activePage.url()
+storage             locator + step.value       config.storageKey — reads through page.evaluate
+attribute           locator + step.value       locator + config.attributeName
+text/value/count    locator + step.value       locator (expectedValue is the real channel)
+```
+
+`attribute` and `storage` each need a config field the gate never checked — the requirement existed
+**only as a throw inside `executeAssertion`**, which fires after the browser is open and earlier
+steps have already applied their side effects. The designer panel did not know about either field,
+so a half-configured attribute assertion read as complete right up until it failed.
+
+`src/validation/AssertionStepContract.ts` refines the requirement per kind, read off the executor.
+`FlowValidator` and the renderer's `flowNodeRegistry` both consult it. `STEP_REQUIREMENTS` is
+**unchanged**, so the three-way parity guard in `verify:validation` still holds — this is a
+step-level refinement, not table drift.
+
+**Blast radius, measured in both directions** (this change relaxes two rules and tightens three):
+
+```text
+JSON files scanned                 1,777
+FlowProfiles found                   308
+…carrying assertText nodes            68   (100 nodes: text=93, value=5, url=2)
+RELAXED  (was flagged, now clean)      8   all of them real shipped fixtures
+TIGHTENED (was clean, now flagged)     0
+```
+
+The 8 relaxed fixtures are pinned as a regression guard inside the verifier, with cardinality checks
+so an empty directory cannot make it pass vacuously — reverting the value channel makes it fail and
+name all eight by file and node id.
+
+Validation stayed strict where it should. An empty expected value is still invalid: with the default
+`contains` operator, `actual.includes("")` is true for every possible page. A `greaterThan` against a
+non-numeric literal is now reported too — `Number("many")` is `NaN` and every comparison with NaN is
+false, so that assertion could never pass however the page behaved — while the same operator bound to
+a **value source** is left alone, because it cannot be judged before the run.
+
+Verified: `verify:assertion-validation` **77 PASS / 0 FAIL** (new) · `verify:comprehensive-e2e`
+**9/9 cases** · `verify:storage-assertions` **32/0** · `verify:assertions` **12/0** ·
+`verify:runner` **121/0** · `verify:validation` **151/0** · `verify:wait-validation` **103/0** ·
+`verify:legacy-compat` **152/0** · `verify:flow-step-mapping` **145/0** · `verify:mock-site`
+**172/172** · `verify:flow-designer` 16/16 capsule + 112 broad, 0 unexpected ·
+`verify:verifier-classification` reconciled (**194**) · `verify:roadmap-dashboard` **162/162** ·
+`npm run build` clean · `validate:offline` completed.
+
+Mutation-tested three ways, one per defect: restoring the flat rule fails **23 of 77**; removing just
+the `expectedValue` channel fails **15**; making the designer panel stop reading the shared contract
+fails **3**.
+
+**The class is now closed across all three sites.** The pattern to keep watching: any node whose
+`config` selects a dispatch arm cannot be described by one row in a type-keyed table, and the field
+the designer writes is not always the field the validator reads.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **252 total / 248 closed /
+4 outstanding**, nothing open — the four are all blocked on an external system or an owner decision.
+
 ## Smart Wait conditions are validated structurally, not just for timeouts (2026-08-20)
 
 `awkit-jtok` closed — the follow-up the Fixed-time Wait fix deliberately left open. `FlowValidator`
