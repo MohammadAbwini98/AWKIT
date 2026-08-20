@@ -17,38 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-i91j",
-      "agent": "Claude",
-      "state": "in-progress",
-      "claimedAt": "2026-08-19T21:07:59Z",
-      "expiresAt": "2026-08-20T21:07:59Z",
-      "note": "WDU acceptance tranche 2 — closing every NOT RUN layer"
-    },
-    {
-      "itemId": "bead:awkit-53nb",
-      "agent": "Claude",
-      "state": "in-progress",
-      "claimedAt": "2026-08-19T21:07:59Z",
-      "expiresAt": "2026-08-20T21:07:59Z",
-      "note": "Recorder capture/replay against WDU"
-    },
-    {
-      "itemId": "bead:awkit-9fvb",
-      "agent": "Claude",
-      "state": "in-progress",
-      "claimedAt": "2026-08-19T21:07:59Z",
-      "expiresAt": "2026-08-20T21:07:59Z",
-      "note": "WDU data binding, persistence and report evidence"
-    },
-    {
-      "itemId": "bead:awkit-7o5n",
-      "agent": "Claude",
-      "state": "in-progress",
-      "claimedAt": "2026-08-19T21:07:59Z",
-      "expiresAt": "2026-08-20T21:07:59Z",
-      "note": "Browser-storage assertion capability"
-    }
-  ]
+  "claims": []
 }

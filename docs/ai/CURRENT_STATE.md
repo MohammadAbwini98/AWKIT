@@ -1,5 +1,103 @@
 # CURRENT_STATE
 
+## WebDriverUniversity acceptance completed: every layer closed, nine more defects fixed (2026-08-20)
+
+The previous pass left four coverage layers and six challenges at `NOT RUN`. All are now executed.
+**100 live acceptance cases, 100 PASS**, across three external gates — up from 55.
+
+| Gate | Cases | Result |
+| --- | ---: | --- |
+| `verify:wdu-live` | 76 | 76 PASS |
+| `verify:wdu-recorder-live` | 16 | 16 PASS (92 checks) |
+| `verify:wdu-data-live` | 8 | 8 PASS (91 checks) |
+
+**Live inventory re-confirmed, not carried forward.** 18 classic areas, 27 AI Playground scenarios,
+29 Accessibility Suite components — unchanged since 2026-08-19, and the component count is now an
+executed assertion (`WDU-A27a`) rather than a note.
+
+**Nine product defects, all found by execution.** Six of them were exposed by driving the REAL
+Recorder against the live site — the layer the previous pass had no evidence for at all.
+
+1. **`awkit-7o5n` (P2) — no browser-storage assertion existed**, so AI 20 (localStorage Session) was
+   inexpressible. Adds `assertionType: "storage"` with `storageArea`/`storageKey`, following the
+   `attribute` precedent: a MISSING key reports as `(absent)`, never `""`, so `expectedValue: ""`
+   cannot silently pass for a key the page never wrote. The failure message masks before it reports —
+   `SecretMasker.maskText` now also catches JSON-shaped pairs, which the query-string pattern never
+   matched, so `"token":"abc"` used to go out in the clear everywhere it appeared.
+2. **`awkit-dhdr` (P1) — no press-and-hold gesture.** A click-and-hold was recorded and replayed as
+   an ordinary click; measured, replay held the button down for **15ms**, so a page that renders one
+   state on `mousedown` and another on `mouseup` never showed either. Adds `clickAndHold` with
+   `config.holdMs`. The Recorder's recognizer requires mutation EVIDENCE, not duration — duration
+   alone would reclassify every slow click on an inert control, which is a guess.
+3. **`awkit-11ii` (P1) — a file chooser was stored as an unrunnable `fill`** carrying
+   `C:\fakepath\<name>`, and stored TWICE. Playwright refuses to type into a file input, so the step
+   was unrunnable by construction — and the flow SAVED CLEAN, because the fake path looked like a
+   supplied value. Now an `uploadFile` with the input's locator, the chosen file name, and NO value
+   source, so `missingRequiredValue` refuses it at preflight instead of at replay.
+4. **`awkit-qlg6` (P1) — the Recorder never captured a dialog.** Nothing listened for
+   `page.on("dialog")`, so Playwright auto-dismissed every one DURING CAPTURE: the user was recording
+   against behaviour the site does not have, and the saved flow carried no policy either. Measured on
+   `dialog-lab`: the page reported `confirm dismissed` where it should report `confirm accepted`.
+5. **`awkit-tj2o` (P1) — a drag whose source follows the cursor recorded nothing.**
+   `elementFromPoint` returns the TOPMOST element, which in jQuery UI, react-draggable, SortableJS
+   and dnd-kit is the dragged node itself. Measured on WDU Actions: the hit list at the release point
+   was `[p, #draggable, b, p, #droppable, …]` — the real target fifth, under the ghost.
+6. **`awkit-e0z6` (P1) — radio/checkbox options with a stable `value` got `:nth-of-type(n)`.** Two
+   causes: `value` ranked twelfth so the two-attribute cap emitted `[name][type]` — the two
+   attributes every member of a group shares — and the scoped positional selector was not flagged as
+   a fallback, so it outranked the feature-based compound selector that had actually resolved.
+7. **`awkit-vzhy` (P1) — the text locator was offered to buttons and links only**, so a clickable
+   `li`/`div`/`td` fell through to a positional selector even when its own text identified it
+   uniquely. "Own text" means the element's own DIRECT text nodes: a container's concatenated text is
+   a summary of what happens to be inside it, not an identity.
+8. **`awkit-n4wr` (P1) — the click on a READONLY text input was dropped** as redundant with its fill.
+   There is no fill: a field whose value cannot change never fires `change`, and the click IS the
+   interaction that opens every datepicker and custom select.
+9. **`awkit-jw46` (P1) — a `document.write` popup recorded nothing.** `document.open()` removes every
+   listener on the Window, the Document and its nodes but leaves the Window's own properties
+   untouched, so the install flag still read "installed" for a page listening to nothing. The marker
+   moved to `documentElement`, which `document.open()` does replace. Instrumentation also moved AHEAD
+   of popup identity resolution: an `about:blank` popup never commits a URL, so it always spent the
+   full 2s budget with the popup on screen, interactive, and recording nothing.
+
+**Layer closure.** Recorder: 16 cases covering every interaction kind in scope, driven through
+`RecorderService.wireContext` with the STORED semantics inspected. Data: a real
+`JsonArrayDataSourceProfile` drives one instance per row through `ExecutionEngine` in both sequential
+and concurrent modes. Persistence: create → save → reload → edit → re-save → execute → export →
+import → execute again, over composites carrying every applicable field category. Reports: the
+`ConcurrentRunReport` inspected semantically, including a negative case that pinpoints which row and
+which step failed. Session: establish → save → fresh browser already signed in → a third run with no
+session signed out.
+
+**Previously unattempted challenges, all executed.** Accordion & Text Effects (3 cases), Datepicker,
+Page Object Model (expressed as a shared `runFlow` reused by two journeys — the POM intent in product
+terms), AI 17 Timing Mismatch (5 cycles per run, 5/5 stable across repeats, with a negative control),
+AI 20 localStorage Session, AI 27 Accessibility Suite (9 cases across all 29 components).
+
+New scenarios: `mock-site/storage-lab`, `mock-site/capture-gaps`,
+`mock-site/popup/document-write.html`, plus a press-and-hold section in `drag-lab`. New gates:
+`verify:storage-assertions` (32), `verify:click-and-hold` (28), `verify:recorder-upload` (13),
+`verify:recorder-dialogs` (18), `verify:recorder-capture-gaps` (28), `verify:wdu-recorder-live` and
+`verify:wdu-data-live` (both external). Every one is mutation-measured; the counts are in each
+file's header and in the matrix.
+
+Verified: `npm run build` clean · `verify:runner` **111/111** · `verify:mock-site` **172/172** ·
+`verify:storage-assertions` **32/32** · `verify:click-and-hold` **28/28** · `verify:recorder-upload`
+**13/13** · `verify:recorder-dialogs` **18/18** · `verify:recorder-capture-gaps` **28/28** ·
+`verify:recorder-locator` **217/217** · `verify:recorder-hover` **265/265** ·
+`verify:recorder-competitive` **64/64** · `verify:recorder-flow` **50/50** ·
+`verify:recorder-navigation` **45/45** · `verify:recorder-actions` **20/20** · `verify:popup`
+**12/12** · `verify:popup-identity` **50/50** · `verify:popup-mock-site` **15/15** ·
+`verify:frame-chain` **31/31** · `verify:closed-shadow` **23/23** · `verify:dialogs` **18/18** ·
+`verify:assertions` **12/12** · `verify:waits` **83/83** · `verify:smart-wait-causality` **33/33** ·
+`verify:validation` **151/151** · `verify:legacy-compat` **152/152** · `verify:flow-step-mapping`
+**145/145** · `verify:flow-node-catalog-parity` **45/45** · `verify:verifier-classification`
+reconciled (**192** scripts) · `verify:wdu-live` **76/76** · `verify:wdu-recorder-live` **16/16** ·
+`verify:wdu-data-live` **8/8**.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **249 total / 244 closed /
+5 outstanding**. The WDU epic `awkit-i91j` is **closed**.
+
 ## WebDriverUniversity acceptance: five product defects found and fixed (2026-08-19)
 
 Driving SpecterStudio against the live WebDriverUniversity challenge site as an automation TARGET

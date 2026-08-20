@@ -1,5 +1,46 @@
 # KNOWN_ISSUES
 
+## WebDriverUniversity findings (2026-08-20)
+
+- **An install marker must die with the listeners it guards.** `document.write()` on a loaded
+  document triggers an implicit `document.open()`, which removes EVERY event listener registered on
+  the Window, the Document and its nodes — but leaves the Window's own properties untouched. A
+  window-scoped `__awtkitCaptureInstalled` flag therefore reported "installed" for a page that was
+  listening to nothing (`awkit-jw46`). Mark `document.documentElement`, which `document.open()`
+  does replace. Note it is `null` at document-start on a real navigation, so the window flag stays
+  as the second-install guard and the element is marked as soon as it exists.
+- **`document.elementFromPoint` returns the drag ghost, not the drop target.** Every mainstream drag
+  library moves the source (or an overlay) under the cursor, so the topmost hit at the release point
+  is the thing being dragged (`awkit-tj2o`). Use `elementsFromPoint` and skip the source, anything
+  inside it, and anything it sits inside. A fixture that does NOT move its item cannot catch this —
+  `drag-lab`'s pointer sortable never did, which is why `capture-gaps` exists.
+- **The browser fires no `click` when the mousedown target is removed.** A control that replaces its
+  own contents on `mousedown` — jQuery's `.text()` is the common shape — produces mousedown and
+  mouseup and NO click, so an unhandled gesture disappears from a recording entirely rather than
+  degrading to a click (`awkit-dhdr`). Resolve to the nearest surviving ancestor and regenerate the
+  locator; the destruction is itself the strongest evidence the page responded.
+- **A locator candidate that is unique is not therefore good.** Selection took the first UNIQUE
+  NON-fallback candidate, and the scoped `:nth-of-type(n)` selector was pushed unflagged — so a
+  positional selector beat the feature-based compound selector whenever it happened to be unique,
+  which for a radio group is always (`awkit-e0z6`). Anything positional must carry `fallback: true`.
+- **Attribute ranking has to account for what an attribute DISTINGUISHES, not just its stability.**
+  In a radio group `name` and `type` are shared by construction, so the two highest-ranked
+  attributes an option carries are exactly the two that cannot tell it from its siblings.
+- **A container's concatenated text is a summary, not an identity.** When offering an element's own
+  text as a locator, use its own DIRECT text nodes — otherwise a wrapper gets a "stable" locator
+  assembled from whatever happens to be inside it right now (`awkit-vzhy`), and a hover-trigger gate
+  that depends on "positional only" silently stops testing anything.
+- **Skipping a click because a fill will cover it is wrong for a READONLY field.** Its value can
+  never change, so no fill is ever recorded and the click IS the interaction — which is how every
+  datepicker and custom select is opened (`awkit-n4wr`).
+- **Playwright's visibility check ignores overflow clipping.** A `max-height: 0; overflow: hidden`
+  panel still reports VISIBLE, so an accordion's open/closed state cannot be asserted with
+  `assertVisible` — assert the class or the inline `max-height` instead (WDU-C21).
+- **An empty static value source satisfies a required-value rule.** `hasRequiredValue` returns true
+  for any `valueSource`, so attaching `{ type: "static", value: "" }` to a step that needs a path
+  makes the flow save clean and fail at replay. Omit the value source entirely when there is no
+  value (`awkit-11ii`).
+
 ## WebDriverUniversity findings (2026-08-19)
 
 - **A locator you intend to COUNT must never go through `waitLocator()`.** It appends `.first()`.

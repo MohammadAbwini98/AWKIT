@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("241 issues parse", beads.stats.total === 241, `got ${beads.stats.total}`);
+  check("249 issues parse", beads.stats.total === 249, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -292,8 +292,20 @@ try {
   // defects plus the suite task `awkit-7p61`, once the matrix artifact existed.
   // Net: total 231 -> 241, closed 226 -> 232, outstanding 5 -> 9. The three gap trackers and the
   // epic `awkit-i91j` stay OPEN on purpose: the Recorder layer has no evidence at all yet.
-    "9 outstanding / 232 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 232,
+  //
+  // Then 5/244 of 249 on 2026-08-20: the WebDriverUniversity acceptance pass COMPLETED. Eight
+  // issues filed, all product defects found by execution — six of them by driving the real Recorder
+  // against the live site (`awkit-dhdr` no press-and-hold gesture, `awkit-11ii` file chooser stored
+  // as an unrunnable fill, `awkit-qlg6` the Recorder never captured a dialog, `awkit-tj2o` a drag
+  // whose source follows the cursor recorded nothing, `awkit-e0z6` positional radio locators,
+  // `awkit-vzhy` text locators offered to buttons and links only, `awkit-n4wr` readonly-field clicks
+  // dropped, `awkit-jw46` document.write popups recorded nothing). All eight closed in the same
+  // session, along with the three gap trackers (`awkit-7o5n`, `awkit-53nb`, `awkit-9fvb`) and the
+  // epic `awkit-i91j`. Net: total 241 -> 249, closed 232 -> 244, outstanding 9 -> 5. The remaining
+  // five are unrelated to WDU: `awkit-vf9r` plus four blocked on external systems or an owner
+  // decision (`awkit-cey`, `awkit-7bu`, `awkit-az7`, `awkit-cm8`).
+    "5 outstanding / 244 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 244,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

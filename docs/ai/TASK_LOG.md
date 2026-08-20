@@ -4,6 +4,45 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - WebDriverUniversity acceptance completed; nine product defects fixed
+
+- **Objective (`awkit-i91j`, `awkit-53nb`, `awkit-9fvb`, `awkit-7o5n`):** close every `NOT RUN`,
+  unsupported or unproven coverage item the previous pass left behind.
+- **Live inventory re-confirmed first**, not carried forward: 18 classic areas, 27 AI Playground
+  scenarios, 29 Accessibility Suite components. Unchanged since 2026-08-19; the component count is
+  now an executed assertion rather than a note.
+- **100 live acceptance cases, 100 PASS** (was 55): `verify:wdu-live` 76, `verify:wdu-recorder-live`
+  16 (92 checks), `verify:wdu-data-live` 8 (91 checks).
+- **Nine product defects found by execution and fixed**, six of them by driving the REAL Recorder:
+  - `awkit-7o5n` **P2** no browser-storage assertion existed, so AI 20 was inexpressible.
+  - `awkit-dhdr` **P1** no press-and-hold gesture — replay held the button down for 15ms, measured.
+  - `awkit-11ii` **P1** a file chooser stored as an unrunnable `fill` with `C:\fakepath\…`, twice.
+  - `awkit-qlg6` **P1** the Recorder never captured a dialog; `confirm()` returned false DURING
+    capture, so the user recorded against behaviour the site does not have.
+  - `awkit-tj2o` **P1** a drag whose source follows the cursor recorded nothing (the ghost is the
+    topmost hit; the real target was fifth in the hit list, measured on WDU Actions).
+  - `awkit-e0z6` **P1** radio/checkbox options with a stable `value` got `:nth-of-type(n)`.
+  - `awkit-vzhy` **P1** the text locator was offered to buttons and links only.
+  - `awkit-n4wr` **P1** the click on a READONLY input was dropped, losing every picker-opening step.
+  - `awkit-jw46` **P1** a `document.write` popup recorded nothing; the install flag survived
+    `document.open()`, and injection sat behind the popup identity budget.
+- **Every fix is mutation-measured**, not asserted: storage 13/7/1 of 32, hold 8/2/2 of 28, upload
+  11/2/4 of 13, dialogs 13/4/1 of 18, capture-gaps 4/2/2/2/1/4/5 of 28.
+- **Previously unattempted challenges, all executed:** Accordion & Text Effects, Datepicker, Page
+  Object Model (a shared `runFlow` reused by two journeys), AI 17 Timing Mismatch (5 cycles per run,
+  5/5 stable across repeats, with a negative control), AI 20 localStorage Session, AI 27
+  Accessibility Suite (9 cases across all 29 components).
+- **Files:** `src/profiles/FlowProfile.ts`, `src/runner/StepExecutor.ts`,
+  `src/runner/runtime/StepSafetyPolicy.ts`, `src/profiles/interactionPrerequisiteDecision.ts`,
+  `src/validation/StepRequirements.ts`, `src/reports/SecretMasker.ts`,
+  `src/recorder/{RecorderService,RecorderTypes,buildRecordedFlow,recorderInitScript}.ts`,
+  `src/testing/random/NodeCatalog.ts`, `app/renderer/components/workflow/*`, `mock-site/*`,
+  seven new/extended `scripts/verify-*`, `docs/testing/WDU_CHALLENGE_MATRIX.md`.
+- **Result: PASS.** Ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED. Tracker 249 / 244 closed /
+  5 outstanding. Epic `awkit-i91j` closed.
+- **Not run, and why:** `verify:all-typecheck` — `typecheck:scripts` has two PRE-EXISTING failures
+  unrelated to this work (present at `2d0b5e5`); `npm run build` is clean.
+
 ## 2026-08-19 - Claude - WebDriverUniversity acceptance; five product defects fixed
 
 - **Objective (`awkit-i91j`):** prove SpecterStudio automates the live WebDriverUniversity challenges

@@ -1,5 +1,50 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - WebDriverUniversity acceptance COMPLETE; nine more defects fixed
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 249 total / 244 closed / 5 outstanding.**
+- **Epic `awkit-i91j` is CLOSED.** Also closed this session: `awkit-53nb`, `awkit-9fvb`,
+  `awkit-7o5n`, `awkit-dhdr`, `awkit-11ii`, `awkit-qlg6`, `awkit-tj2o`, `awkit-e0z6`,
+  `awkit-vzhy`, `awkit-n4wr`, `awkit-jw46`.
+- **No claims are held** in `tools/roadmap/assignments.json`.
+
+### What was done
+
+Every `NOT RUN` layer and every unattempted challenge from the previous pass is now executed:
+**100 live cases, 100 PASS** across `verify:wdu-live` (76), `verify:wdu-recorder-live` (16) and
+`verify:wdu-data-live` (8).
+
+Nine product defects, all found by execution. Six came from driving the REAL Recorder against the
+live site — `awkit-dhdr` (no press-and-hold gesture), `awkit-11ii` (a file chooser stored as an
+unrunnable `fill` with a fake path), `awkit-qlg6` (the Recorder never captured a dialog, so
+`confirm()` returned false while recording), `awkit-tj2o` (a drag whose source follows the cursor
+recorded nothing), `awkit-e0z6`/`awkit-vzhy` (positional locators where a stable one existed),
+`awkit-n4wr` (readonly-field clicks dropped), `awkit-jw46` (`document.write` popups recorded
+nothing). `awkit-7o5n` added the browser-storage assertion that made AI 20 expressible at all.
+
+**The authoritative matrix is `docs/testing/WDU_CHALLENGE_MATRIX.md`** — 100 executed cases with
+per-layer coverage, a layer-coverage summary that explains what a per-row `NR` does and does not
+mean, the external-site observations kept separate from product defects, and the measured mutation
+count for every new gate.
+
+### Remaining work
+
+**None for WDU.** The three external gates are excluded from deterministic verification by design;
+run them when the site or the Recorder changes. The five outstanding tracker items are unrelated:
+`awkit-vf9r` (issuer CLI duplication) and four blocked items needing external systems or an owner
+decision (`awkit-cey`, `awkit-7bu`, `awkit-az7`, `awkit-cm8`).
+
+### Known trap for the next agent
+
+`typecheck:scripts` has two PRE-EXISTING failures unrelated to this work, present at `2d0b5e5`:
+`verify-roadmap-license-issuer.mts` imports two untyped `.mjs` modules, and
+`verify-validation.mts` references a `FlowValidationCode` (`"unknownStepType"`) that
+`FlowValidator.ts` does not declare. `npm run build` is clean; only `verify:all-typecheck` is
+affected.
+
 ## HANDOFF (2026-08-19) - WebDriverUniversity acceptance; five product defects fixed
 
 ### Transfer
