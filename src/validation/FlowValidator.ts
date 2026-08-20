@@ -54,6 +54,7 @@ import {
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
+import { assertionConfigDefects, assertionStepContract, hasAssertionExpectedValue } from "./AssertionStepContract";
 import {
   MAX_WAIT_CONDITION_DEPTH,
   waitConditionBlocks,
@@ -366,6 +367,11 @@ function hasRequiredValue(step: FlowStep): boolean {
   // ...but ONLY the fixed-time subtype. A `textVisible` wait needs the text itself; its `timeoutMs`
   // is how long it may look, not what it looks for, so it falls through to the value check below.
   if (step.type === "wait" && waitStepContract(step).waitType === "time") return hasWaitStepDuration(step);
+  // An assertion states its expected value in `config.expectedValue` — the field the designer's
+  // "Expected value" box writes and the one `executeAssertion` reads FIRST. Checking only
+  // `step.value`/`valueSource` reported an ordinary, fully configured Assert Text node as missing a
+  // value it plainly had.
+  if (step.type === "assertText") return hasAssertionExpectedValue(step);
   if (isNonEmptyString(step.value)) return true;
   if (step.valueSource !== undefined) return true;
   // A `goto` may carry its destination as `url` instead of `value`.
@@ -508,7 +514,13 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     // be the answer for any of them: a Fixed time wait needs a duration and no locator, `selector`
     // needs a locator and no value, and `navigation`/`networkIdle` need neither. See
     // `WaitStepContract` for how each subtype's inputs are read off `StepExecutor.executeWait`.
-    const requirement = step.type === "wait" ? waitStepContract(step) : stepRequirement(step.type);
+    // Two step types are several different steps behind one type literal, so a flat table row cannot
+    // be the answer for any of them. `wait` dispatches on `config.waitType` and `assertText` on
+    // `config.assertionType` — a `url` or `storage` assertion reads the PAGE and never resolves
+    // `step.locator`, while `attribute` and `storage` each need a config field of their own. Both
+    // contracts are read off their executor; see `WaitStepContract` and `AssertionStepContract`.
+    const requirement =
+      step.type === "wait" ? waitStepContract(step) : step.type === "assertText" ? assertionStepContract(step) : stepRequirement(step.type);
 
     if (requirement.requiresLocator) {
       if (step.locator === undefined) {
@@ -546,7 +558,14 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     if (requirement.requiresValue && !hasRequiredValue(step)) {
       // A wait names the input it is actually missing — "requires a value or value source" describes
       // neither a duration nor the text a `textVisible` wait looks for.
-      const detail = step.type === "wait" ? waitStepContract(step).missingValueMessage : "requires a value or value source.";
+      // An assertion names the box the user actually fills in; "a value or value source" sent people
+      // looking for a field the assertion panel does not show.
+      const detail =
+        step.type === "wait"
+          ? waitStepContract(step).missingValueMessage
+          : step.type === "assertText"
+            ? `has no expected value to compare against: set Expected value, or bind a value source.`
+            : "requires a value or value source.";
       collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) ${detail}`);
     }
 
@@ -573,6 +592,35 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     validateTimeouts(step, collect, ambiguousNames);
     validateStepLoopBounds(step, collect, ambiguousNames);
     validateWaitConditions(step, collect, ambiguousNames);
+    validateAssertionConfig(step, collect, ambiguousNames);
+  }
+}
+
+/**
+ * The config an assertion kind cannot run without, and the literals it must choose from.
+ *
+ * `attribute` and `storage` each need a field of their own, and until this rule that requirement
+ * existed ONLY as a throw inside `executeAssertion` — so the flow was admitted by the run gate and
+ * failed after the browser was open and earlier steps had already applied their side effects. The
+ * enum checks cover the quieter half: an unknown `assertionType` silently becomes a text assertion
+ * through the executor's final `else`, and an unknown `comparisonOperator` silently becomes
+ * `contains`, so the step runs and passes or fails as some OTHER assertion than the one written.
+ */
+function validateAssertionConfig(step: FlowStep, collect: IssueCollector, ambiguousNames: ReadonlySet<string>): void {
+  if (step.type !== "assertText") return;
+  const contract = assertionStepContract(step);
+
+  const field = contract.requiredConfigField;
+  if (field !== undefined && !isNonEmptyString(step.config?.[field])) {
+    collect.node(
+      "missingRequiredValue",
+      step.id,
+      `Step ${labelFor(step, ambiguousNames)} is a "${contract.kind}" assertion but names no ${field === "attributeName" ? "attribute" : "storage key"} (config.${field}).`
+    );
+  }
+
+  for (const defect of assertionConfigDefects(step)) {
+    collect.node("unsupportedConfiguration", step.id, `Step ${labelFor(step, ambiguousNames)} ${defect.detail}.`);
   }
 }
 

@@ -3,6 +3,7 @@ import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { flowNodeCatalog, getFlowNodeCatalogItem, type FlowNodeCatalogItem } from "./flowNodeCatalog";
 import { isUsableWaitDuration, waitStepContractFor } from "@src/validation/WaitStepContract";
+import { ASSERTION_CONTRACTS } from "@src/validation/AssertionStepContract";
 
 /**
  * Whether a wait node states the input its subtype needs, in designer terms.
@@ -124,7 +125,16 @@ const META: Record<StepType, RegistryMeta> = {
     category: "assertion",
     sections: ["locator", "assertion", "execution"],
     executable: true,
-    validate: (d) => (d.expectedValue.trim() ? [] : ["Assertion requires an expected value."])
+    // Delegates to the engine's `AssertionStepContract` rather than restating the rule: this check
+    // knew only about the expected value, so an `attribute` assertion with no attribute name and a
+    // `storage` assertion with no key both read as complete in the panel and then threw at run time.
+    validate: (d) => {
+      const messages = d.expectedValue.trim() ? [] : ["Assertion requires an expected value."];
+      const field = ASSERTION_CONTRACTS[d.assertionType]?.requiredConfigField;
+      if (field === "attributeName" && !d.attributeName.trim()) messages.push("An attribute assertion needs the attribute name to read.");
+      if (field === "storageKey" && !d.storageKey.trim()) messages.push("A storage assertion needs the storage key to read.");
+      return messages;
+    }
   },
   assertVisible: { category: "assertion", sections: ["locator", "assertion", "execution"], executable: true },
   screenshot: { category: "capture", sections: ["screenshot", "execution"], executable: true },
