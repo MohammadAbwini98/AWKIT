@@ -183,6 +183,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "The assertText step contract refined by assertion kind: the expectedValue channel the designer writes, the url/storage kinds that resolve no locator, the attributeName/storageKey fields the runtime only enforced by throwing, config literals, the designer panel's own validate(), the profile round-trip, a source-level parity check against StepExecutor.executeAssertion, and a guard over the shipped mock-site fixtures. Pure; no browser or Electron."
   },
+  "verify:loop-scroll-validation": {
+    class: "unit",
+    why: "The loop and scroll step contracts refined by config: the iteration source and scroll distance the designer writes into config rather than value, the SILENT no-op cases (a loop whose action needs a target it does not have still reports passed; a scroll-to-element with no element quietly wheels the page), loop child-flow references, the designer panel's own validate(), the round-trip, a generated-corpus guard, and a source-level parity check against executeLoop/performLoopAction. Pure; no browser or Electron."
+  },
   "verify:legacy-compat": {
     class: "integration",
     why: "Drives FlowValidationService against a real JSON profile store on a temp dir (atomic writes, grant persistence); no browser."
