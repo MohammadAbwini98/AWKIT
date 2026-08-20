@@ -98,10 +98,14 @@ export function isReadOnlyShellCommand(command) {
  * @returns {{allow: boolean, reason: "contract-control-plane"|"lease-required"|"in-scope"|"out-of-scope"}}
  */
 export function decideWrite(lease, relativePath) {
+  if (
+    isContractControlPath(relativePath) &&
+    (!lease || relativePath === `docs/ai/contracts/${lease.task}.json`)
+  ) {
+    return { allow: true, reason: "contract-control-plane" };
+  }
   if (!lease) {
-    return isContractControlPath(relativePath)
-      ? { allow: true, reason: "contract-control-plane" }
-      : { allow: false, reason: "lease-required" };
+    return { allow: false, reason: "lease-required" };
   }
   return leaseAllows(lease, relativePath)
     ? { allow: true, reason: "in-scope" }
