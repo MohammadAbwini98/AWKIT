@@ -379,6 +379,13 @@ function hasRequiredValue(step: FlowStep): boolean {
   // generic `step.value` demand was unsatisfiable from the designer.
   if (step.type === "scroll") return hasScrollDistance(step);
   if (step.type === "loop") return hasLoopIterationSource(step);
+  // A `condition` is the one value-requiring type where a `valueSource` must NOT satisfy the rule.
+  // `FlowExecutor` routes it with `evaluateBoolean(step.value ?? "", …)` and never resolves a source,
+  // so a condition bound only to one carries an EMPTY expression at run time — and `evaluateBoolean`
+  // returns `true` for an empty string, so the node silently takes its true branch on every run
+  // rather than failing. Accepting the binding here admitted a flow that routes deterministically
+  // wrong. Mirroring the runtime means demanding the literal the runtime actually reads.
+  if (step.type === "condition") return isNonEmptyString(step.value);
   if (isNonEmptyString(step.value)) return true;
   if (step.valueSource !== undefined) return true;
   // A `goto` may carry its destination as `url` instead of `value`.
@@ -599,6 +606,8 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
             ? `has no expected value to compare against: set Expected value, or bind a value source.`
             : step.type === "scroll"
               ? "has no scroll distance: set Amount, or bind a value source that resolves to one."
+              : step.type === "condition"
+              ? "has no branch expression the runner can read: a condition is evaluated from its literal expression, and a bound value source is not resolved for it."
               : step.type === "loop"
                 ? "does not say how many times to run: set an iteration count, choose Elements and give it a locator, or loop over data rows."
             : "requires a value or value source.";
