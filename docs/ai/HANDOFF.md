@@ -82,12 +82,13 @@ gate's BLOCKED cases.
 
 Two owner decisions remain:
 
-1. **Re-cut v0.1.15, or accept it.** The shipped artifact still contains the dashboard issuer page.
-   A clean build now exists and is proven — `dist/SpecterStudio 0.1.15 (ce72080 verification
-   build).exe`, provenance `commit: ce72080, treeDirty: false`. The as-released binary is preserved
-   unchanged at `dist/SpecterStudio 0.1.15.exe` (md5 `2df47c8b…`) and in
-   `C:\awkit-release-evidence\`. Re-cutting is a version decision, which
-   `scripts/release-portable.ps1` owns.
+1. ~~Re-cut v0.1.15, or accept it.~~ **Done 2026-08-20 — released as v0.1.16** (`42d5cd3` bump,
+   `2a9d69a` manifest). Issuer-page leak markers 8 → **0**; `verify:packaged-licensing` 40/0/0 and
+   `verify:packaged-walkthrough` 88/0 were re-run against it, and the matching NSIS installer was
+   rebuilt so the bit-exact sha512 check covers the same build. v0.1.15 is preserved unchanged at
+   `dist/SpecterStudio 0.1.15.exe` (md5 `2df47c8b…`) and in `C:/awkit-release-evidence/` as the
+   record of what shipped. **If v0.1.15 reached any field machine it is superseded, not recalled** —
+   that distribution decision remains the owner's.
 2. ~~`verify:packaged-walkthrough` sits at 85/2~~ — **done 2026-08-20**. The installer was built from
    a clean tree and the gate is **88 PASS / 0 FAIL**, with Part L confirming a bit-exact sha512
    against a freshly regenerated `latest.yml`. The remaining packaged gate is the clean/offline

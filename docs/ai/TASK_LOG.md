@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Re-cut the leaky release as v0.1.16
+
+- **Objective:** replace the v0.1.15 artifact, which shipped with the dashboard issuer page compiled
+  into `app.asar`.
+- **Version decision was settled by the tooling, not by preference.** `release-portable.ps1` has no
+  same-version mode: `-BumpType` is patch/minor/major and it always commits a bump. A dry run
+  confirmed 0.1.15 → **0.1.16**. That is also the right answer independently — re-emitting 0.1.15
+  would have produced a second, different binary under an already-released version number.
+- **Released through the guarded pipeline** (`-Force`, since the shell is non-interactive). The
+  script made two commits of its own: `42d5cd3` version bump, `2a9d69a` signed manifest. It refuses
+  to stage anything but that manifest pair, and it verified the tree was clean before starting.
+- **Artifact verified by content, not by name:** leak markers `/api/license-issuer`, `Licenses Issue`
+  and `renderLicenseIssuer` all **0** (were 4/2/2 in v0.1.15); `key2` present; `dialogExpectation`
+  present. Provenance `commit: 42d5cd3, treeDirty: false`.
+- **One scan hit investigated rather than waved through:** `PRIVATE KEY` appears once in the shipped
+  asar and is the detector regex itself; framed `BEGIN … PRIVATE KEY` blocks are 0.
+  `verify:release-key-custody` 58/58 and `verify:source-hygiene` 9/9 agree.
+- **NSIS installer rebuilt to match** (`SpecterStudio Setup 0.1.16.exe`) so the walkthrough's
+  bit-exact sha512 check runs against the same build.
+- **Gates re-run against the re-cut artifact:** packaged-licensing **40/0/0**, packaged-walkthrough
+  **88/0**.
+- **v0.1.15 preserved,** not overwritten — `dist/SpecterStudio 0.1.15.exe` (md5 `2df47c8b…`) plus a
+  copy outside the repo. Superseding is not erasing.
+- **Housekeeping:** the installer run regenerated the manifest after the release had committed it;
+  the only differences were `manifestGeneratedAt` and `sourceCommit`, so it was restored rather than
+  committed as churn.
+- **Files:** `package.json`, `package-lock.json`, `resources/dependency-manifest.*` (all by the
+  release script), `docs/ai/*`.
+
+
 ## 2026-08-20 - Claude - Build the NSIS installer and close the packaged walkthrough
 
 - **Objective:** clear the two remaining `verify:packaged-walkthrough` failures, both of which were

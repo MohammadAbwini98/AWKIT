@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## v0.1.16 re-cut: the issuer-page leak is out of the shipped artifact (2026-08-20)
+
+The defective v0.1.15 build has been superseded. **It was re-cut as v0.1.16, not rebuilt as
+v0.1.15**: `scripts/release-portable.ps1` has no same-version mode — it always computes a next
+version and commits the bump — and that is the correct outcome anyway, because two different binaries
+must never share a version number.
+
+```text
+                              v0.1.15 (as released)   v0.1.16 (re-cut)
+key2 public half              present                 present
+issuer-page leak markers      8                       0
+dialogExpectation             absent                  present
+provenance                    a3fabe8                 42d5cd3, treeDirty false
+```
+
+Both artifacts were produced through the guarded pipeline: `dist/SpecterStudio 0.1.16.exe` (portable,
+released by `release-portable.ps1`) and `dist/SpecterStudio Setup 0.1.16.exe` (NSIS, per-user).
+
+**Packaged gates, re-run against the re-cut build:**
+
+```text
+verify:packaged-licensing     40 PASS / 0 FAIL / 0 BLOCKED
+verify:packaged-walkthrough   88 PASS / 0 FAIL
+verify:release-key-custody    58 PASS / 0 FAIL
+verify:source-hygiene          9 PASS / 0 FAIL
+```
+
+**No private key ships.** A raw scan of the shipped `app.asar` matches the string `PRIVATE KEY`
+exactly once — and it is the *detector*, `{ pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ }`. Framed
+key blocks: **0**. Worth recording because a scan matching its own pattern is the same trap that made
+the issuer-CLI guard read as failing earlier today.
+
+**The v0.1.15 binary is preserved, not overwritten** — `dist/SpecterStudio 0.1.15.exe`
+(md5 `2df47c8b…`) and a copy in `C:/awkit-release-evidence/`. It remains the record of what was
+actually shipped with the leak; superseding it is not the same as erasing it.
+
+**Still NOT claimed:** the clean/offline Windows VM walkthrough is a separate human gate. Nothing
+here proves v0.1.16 on a machine other than this one.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **249 total / 245 closed /
+4 outstanding**, none of them open.
+
 ## Packaged walkthrough closed: 88 PASS / 0 FAIL on a clean-tree installer (2026-08-20)
 
 `npm run package:installer` succeeded once the tree was clean — the strict preflight refuses a
