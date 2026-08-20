@@ -1,5 +1,66 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - Waits validate by subtype; one open follow-up
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** - this was a
+  Flow Designer validation rule, not a validation-campaign case.
+- **Tracker: 251 total / 246 closed / 5 outstanding.**
+- **`awkit-3p6x` closed.** **`awkit-jtok` is OPEN and is real engineering** - the first non-owner-
+  gated open item in a while. The other four remain BLOCKED on an external system or an owner
+  decision (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`).
+
+### What was done
+
+A Fixed time Wait carrying only `Duration (ms) = 2000` was reported as "requires a value or value
+source", so two of them made the flow read "Draft - not runnable (2)". `STEP_REQUIREMENTS` answers
+one requirement per step TYPE, and `wait` is five steps behind one type literal. The flat row
+demanded a value from all five subtypes and a locator from none - so it blocked three valid
+configurations and simultaneously let a `selector` wait with no locator through to a runtime failure.
+
+`src/validation/WaitStepContract.ts` now refines the requirement per subtype, read off
+`StepExecutor.executeWait`. `FlowValidator` and the renderer's `flowNodeRegistry` both consult it, so
+the properties panel and the run gate can no longer disagree. `STEP_REQUIREMENTS` is unchanged, so
+the three-way parity guard in `verify:validation` still holds.
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:wait-validation             PASS 61/0     (new; 20 fail against the original rule)
+verify:runner                      PASS 121/0    (9 new live checks; wait measured 624ms/600ms)
+verify:validation                  PASS 151/0
+verify:legacy-compat               PASS 152/0
+verify:flow-step-mapping           PASS 145/0
+verify:waits                       PASS 83/0
+verify:async-review                PASS 23/0
+verify:mock-site                   PASS 172/172
+verify:flow-designer               PASS 16/16 capsule + 112 broad, 0 unexpected
+verify:verifier-classification     PASS reconciled (193 verifiers)
+verify:roadmap-dashboard           PASS 162/162
+validate:offline                   PASS (development mode)
+git diff --check                   clean
+typecheck:scripts                  FAIL - 3 PRE-EXISTING diagnostics, none in a file this task
+                                   touched (verify-roadmap-license-issuer.mts x2,
+                                   verify-validation.mts x1). No new diagnostic introduced.
+```
+
+### Next agent
+
+`awkit-jtok` is the one open item: the Smart Wait `WaitCondition` union
+(`beforeWaits`/`afterWaits`) is validated for TIMEOUTS ONLY. Nothing checks that a condition carries
+its own required fields. It was deliberately excluded from this fix because it is a new validation
+surface across 17 condition types that could newly flag existing RECORDED flows - decide the blast
+radius before writing the rule, and measure how many stored profiles would change verdict.
+
+`docs/ai/KNOWN_ISSUES.md` records the same shape one node over: `assertText` has seven
+`assertionType` arms whose config requirements (`attributeName`, `storageKey`) are enforced only by a
+throw inside `executeAssertion`, never by the gate. Not filed - not reproduced - but it is the next
+place this defect class would live.
+
+---
+
 ## HANDOFF (2026-08-20) - Issuer CLI folded onto the service; no open work remains
 
 ### Transfer

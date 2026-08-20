@@ -230,6 +230,11 @@ npm run verify:run-report-compatibility # tsx scripts/verify-run-report-compatib
                             # and previously had no way to show this. Pure; no browser. (27/27)
 npm run verify:validation   # tsx scripts/verify-validation.mts - rule-by-rule Flow Validation Engine
                             # checks over pure validator logic; no persistence or browser. (125/125)
+npm run verify:wait-validation # tsx scripts/verify-wait-validation.mts - the SUBTYPE-aware wait-step
+                            # contract (awkit-3p6x): engine rules per wait subtype, the designer
+                            # panel's own validate(), the profile round-trip, and a source-level
+                            # parity check against StepExecutor.executeWait so the validator cannot
+                            # drift from the only thing that runs these steps. Pure. (61/61)
 npm run verify:legacy-compat # tsx scripts/verify-legacy-compat.mts - Legacy Compatibility + suggested-fix
                             # migration, driving FlowValidationService against a real JSON profile store
                             # on a temp dir (atomic writes, grant persistence); no browser. (152/152)

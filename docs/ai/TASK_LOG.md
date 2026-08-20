@@ -4,6 +4,51 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Validate waits by their configured wait type (awkit-3p6x)
+
+- **Objective:** a Fixed time Wait with `Duration (ms) = 2000` was reported as "requires a value or
+  value source"; two of them made the flow read "Draft - not runnable (2)".
+- **Root cause:** `STEP_REQUIREMENTS` is one requirement per step TYPE, but `wait` is five steps
+  behind one type literal. Its flat `requiresValue: true` / `requiresLocator: false` row demanded a
+  value from all five subtypes and a locator from none. Reproduced through the real
+  `validateFlowDefinition` before any edit: all five subtypes reported `missingRequiredValue`, none
+  reported `missingRequiredLocator` - so the same row that blocked three valid configurations also
+  let a `selector` wait with no locator reach a runtime failure.
+- **Fix:** new `src/validation/WaitStepContract.ts` refines the requirement per subtype, read off
+  `StepExecutor.executeWait` rather than invented. `FlowValidator` consults it for the locator rule,
+  the value rule and the message; `hasRequiredValue` gains a fixed-time branch alongside the existing
+  `runFlow`/`goto` ones, since the duration lives in `timeoutMs`. The renderer's `flowNodeRegistry`
+  now reads the SAME table instead of restating the rule - it had been demanding "a selector or text"
+  from `navigation`/`networkIdle` waits and excusing a `selector` wait that carried text but no
+  selector. `STEP_REQUIREMENTS` itself is unchanged, so the three-way parity guard still holds.
+- **Strictness preserved:** missing / zero / negative / NaN / infinite durations remain errors, and a
+  non-numeric literal is now caught too (`Number("soon")` is NaN). An unusable `timeoutMs` reports
+  ONE issue, not two.
+- **Runtime evidence (executed, not assumed):** `verify:runner` runs a fixed-time wait configured the
+  way the designer writes it and MEASURES it - **624ms elapsed for a 600ms duration**, and **1018ms**
+  for the two-wait flow, which completed with both waits recorded as separate passed steps. A
+  `passed` status alone proves nothing here: `waitForTimeout(NaN)` also resolves, instantly.
+- **Mutation evidence:** restoring the original flat rule in both files fails **20 of the 61** checks
+  in `verify:wait-validation`. Restoring the fix returns 61/0.
+- **Deliberately out of scope, filed not half-done:** `awkit-jtok` - the Smart Wait `WaitCondition`
+  union (`beforeWaits`/`afterWaits`) has timeout validation only; no rule checks a condition's own
+  required fields. New surface across 17 types that could newly flag existing recorded flows.
+- **Verification:** build PASS; `verify:wait-validation` **61/0** (new, registered + classified);
+  `verify:runner` **121/0**; `verify:validation` **151/0**; `verify:legacy-compat` **152/0**;
+  `verify:flow-step-mapping` **145/0**; `verify:waits` **83/0**; `verify:async-review` **23/0**;
+  `verify:mock-site` **172/172**; `verify:flow-designer` 16/16 capsule + 112 broad, 0 unexpected;
+  `verify:verifier-classification` reconciled (193 verifiers); `verify:roadmap-dashboard` **162/162**;
+  `validate:offline` completed; `git diff --check` clean. `typecheck:scripts` still FAILs on three
+  pre-existing diagnostics in files this task did not touch (`verify-roadmap-license-issuer.mts` x2,
+  `verify-validation.mts` x1); no new diagnostic was introduced. No mock-site change was needed - the
+  defect is in the validator, not in a page fixture.
+- **Files:** `src/validation/WaitStepContract.ts` (new), `src/validation/FlowValidator.ts`,
+  `app/renderer/components/workflow/flowNodeRegistry.ts`, `scripts/verify-wait-validation.mts` (new),
+  `scripts/verify-runner.mts`, `scripts/lib/verifier-classification.ts`, `package.json`,
+  `scripts/verify-roadmap-dashboard.mjs` (bead-count baselines), `docs/ai/*`, `.beads/issues.jsonl`.
+
+---
+
 ## 2026-08-20 - Claude - Re-cut the leaky release as v0.1.16
 
 - **Objective:** replace the v0.1.15 artifact, which shipped with the dashboard issuer page compiled

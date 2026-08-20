@@ -1,5 +1,65 @@
 # CURRENT_STATE
 
+## Waits are validated by their subtype, not by one flat table row (2026-08-20)
+
+A Fixed time Wait carrying `Duration (ms) = 2000` was reported as **"requires a value or value
+source"**, so a flow with two of them read **"Draft — not runnable (2)"**. The step was complete;
+the rule was not.
+
+`STEP_REQUIREMENTS` answers one requirement per step **type**, which is right for `fill` or `click`
+but wrong for `wait` — five different steps behind one type literal. Its flat row demanded a value
+from every subtype and a locator from none:
+
+```text
+                  demanded (before)      actually needs (StepExecutor.executeWait)
+time              value                  a duration: value/valueSource, else timeoutMs
+selector          value                  a LOCATOR (create(undefined) throws)
+textVisible       value                  the text - correct by accident
+navigation        value                  nothing
+networkIdle       value                  nothing
+```
+
+Measured before the fix: all five subtypes reported `missingRequiredValue`, and **none** reported
+`missingRequiredLocator`. So the same row that blocked three valid configurations also let a
+`selector` wait with no locator through to a runtime failure.
+
+**`src/validation/WaitStepContract.ts`** now refines the requirement per subtype, read off the
+executor rather than invented. `FlowValidator` consults it for both the locator and value rules, and
+the renderer's `flowNodeRegistry` consults the *same* table — that check previously demanded "a
+selector or text" from `navigation`/`networkIdle` waits, so panel and gate disagreed. The flat table
+is deliberately **unchanged**, so the three-way parity guard in `verify:validation` still holds: this
+is a step-level refinement in the same shape as the existing `goto`-carries-`url` and
+`runFlow`-carries-`flowId` exceptions, not table drift.
+
+Validation stayed strict where it should. Missing, zero, negative, NaN and infinite durations are
+still errors, and a literal like `"soon"` is now caught too — `Number("soon")` is `NaN` and
+`waitForTimeout(NaN)` is not a wait. An unusable `timeoutMs` reports **one** issue, not two, so the
+badge cannot double-count a single mistake.
+
+**The runtime was executed, not assumed.** `verify:runner` now runs a fixed-time wait configured
+exactly as the designer writes it and measures the elapsed time: **624ms for a 600ms duration**, and
+1018ms for a two-wait flow. A `passed` status alone would have proved nothing — `waitForTimeout(NaN)`
+also resolves, instantly.
+
+`verify:wait-validation` (new, 61 checks) is **mutation-tested**: restoring the original flat rule in
+both files fails **20 of the 61**.
+
+**Deliberately out of scope, and filed rather than half-done:** `awkit-jtok` — the Smart Wait
+`WaitCondition` union (`beforeWaits`/`afterWaits`) gets **timeout validation only**. No rule checks
+that a condition carries its own required fields. That is a new validation surface across 17
+condition types which could newly flag existing recorded flows, so it needs its own blast-radius
+assessment, not a ride on this fix.
+
+Verified: `verify:wait-validation` **61 PASS / 0 FAIL** · `verify:runner` **121 PASS / 0 FAIL** ·
+`verify:validation` **151/0** · `verify:legacy-compat` **152/0** · `verify:flow-step-mapping`
+**145/0** · `verify:waits` **83/0** · `verify:mock-site` **172/172** · `verify:flow-designer` 16/16
+capsule + 112 broad, 0 unexpected · `verify:roadmap-dashboard` **162/162** · `npm run build` clean ·
+`validate:offline` completed.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** — this defect is a Flow Designer validation
+rule, not a validation-campaign case. Tracker: **251 total / 246 closed / 5 outstanding**, one of
+which (`awkit-jtok`) is now genuinely open engineering rather than owner-gated.
+
 ## v0.1.16 re-cut: the issuer-page leak is out of the shipped artifact (2026-08-20)
 
 The defective v0.1.15 build has been superseded. **It was re-cut as v0.1.16, not rebuilt as

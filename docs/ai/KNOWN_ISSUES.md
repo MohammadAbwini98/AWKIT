@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## Validation (2026-08-20)
+
+- **A requirement table keyed on step TYPE lies about any type that is really several steps.**
+  `STEP_REQUIREMENTS` gives one `{requiresLocator, requiresValue}` answer per `StepType`, which is
+  right for `fill` or `click` and wrong for `wait` - five different steps behind one type literal
+  (`awkit-3p6x`). The flat row demanded a value from all five subtypes and a locator from none, so it
+  blocked three valid configurations AND let a `selector` wait with no locator reach a runtime
+  failure. Watch for the same shape in any node whose `config` selects a dispatch arm: `assertText`
+  has SEVEN `assertionType` arms (`attribute` needs `config.attributeName`, `storage` needs
+  `config.storageKey`) and today those are enforced only by a throw inside `executeAssertion`, not by
+  the gate.
+- **When a fix relaxes a rule, the collateral risk is the OTHER branch silently relaxing too.** The
+  first draft of the wait fix let `timeoutMs` satisfy the value requirement for every wait subtype -
+  which would have made a `textVisible` wait with a timeout and no text "valid", because a timeout is
+  how long it may look, not what it looks for. A relaxation needs a negative control per branch, not
+  one per rule.
+- **Two surfaces validating the same concept will drift, and the flat one wins by being wrong
+  everywhere.** The renderer's `flowNodeRegistry.wait.validate` was already subtype-aware while the
+  engine was not, and it had drifted in its own direction - demanding "a selector or text" from
+  `navigation`/`networkIdle` waits, and excusing a `selector` wait that carried text but no selector.
+  Both now read `WaitStepContract`. Prefer a shared framework-agnostic module in `src/validation/`
+  over a second implementation shaped to the renderer's data type.
+- **Smart Wait conditions are still unvalidated beyond timeouts** (`awkit-jtok`, OPEN). `FlowValidator`
+  checks `beforeWaits`/`afterWaits` for `timeoutMs` only; no rule checks that a `WaitCondition`
+  carries the fields its own type requires (`tableHasRows` without `tableLocator`, `response` without
+  a matcher, and so on). An imported or hand-edited profile carrying an incomplete condition is
+  admitted by the gate and fails at run time.
+
 ## WebDriverUniversity findings (2026-08-20)
 
 - **An install marker must die with the listeners it guards.** `document.write()` on a loaded

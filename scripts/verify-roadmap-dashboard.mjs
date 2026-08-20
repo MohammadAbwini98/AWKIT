@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("249 issues parse", beads.stats.total === 249, `got ${beads.stats.total}`);
+  check("251 issues parse", beads.stats.total === 251, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -308,8 +308,14 @@ try {
   // `LicenseIssuerService`, so all three front ends now share one signing authority. No new issues.
   // NOTHING is open: the remaining four are all BLOCKED on an external system or an owner decision,
   // so a zero here means "no engineering is available", not "nothing is left".
-    "4 outstanding / 245 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 245,
+  // Then 5/246 of 251 on 2026-08-20: the Fixed-time Wait validation defect `awkit-3p6x` was filed and
+  // closed the same session, and `awkit-jtok` was filed OPEN for the Smart Wait `WaitCondition`
+  // structural-validation gap that fix deliberately left out of scope. So outstanding is 5 and ONE of
+  // them is genuinely open engineering rather than owner-gated; the other four are still BLOCKED on an
+  // external system or an owner decision, so a low number here means "little engineering is
+  // available", not "nothing is left".
+    "5 outstanding / 246 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 246,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
