@@ -26,17 +26,21 @@
  * pressed node on `mousedown`. The browser fires no `click` when the mousedown target is removed,
  * so an unhandled gesture disappears from the recording entirely rather than degrading to a click.
  *
- * MUTATION CONTRACT (measured, not asserted). Against 28 checks:
+ * MUTATION CONTRACT (measured, not asserted). Against 29 checks:
  *   [A] drag reads only the topmost hit again ......................... 4 fail
  *   [B] radio/checkbox `value` demoted below `type` again ............. 2 fail
  *   [B] scoped `:nth-` selector unflagged as a fallback again ......... 2 fail
  *   [C] own-text locator restricted to buttons and links again ........ 2 fail
+ *   [C] own text widened back to aggregate descendant text ............ 1 fail ([C5])
  *   [D] readonly inputs skipped like typeable ones again .............. 1 fail
  *   [E] popup install probe reads the window flag again ............... 4 fail
  *   [F] a destroyed press target kills the gesture again .............. 5 fail
  *
- * [D] is deliberately narrow — one check can see it — which is why [D4] asserts the opposite
- * direction: a typeable field must still record only its fill, never a click as well.
+ * [D] and the own-text widening are deliberately narrow — one check each — which is why [D4]
+ * asserts the opposite direction (a typeable field must still record only its fill) and why [C4]
+ * asserts the container click was captured at all. A "must not" satisfied by the absence of its
+ * subject proves nothing, which is exactly what [C5] used to be before it was split out of [C4].
+ * The aggregate-text widening is independently caught by verify:recorder-hover [4c] (2 fail).
  *
  * Run with: npx tsx scripts/verify-recorder-capture-gaps.mts
  */
@@ -207,9 +211,12 @@ async function main(): Promise<void> {
       await p.getByTestId("cg-list-host").click({ position: { x: 2, y: 2 } });
     });
     const hostClick = hostActions.find((x) => x.type === "click");
+    // The container click has to be CAPTURED for this to mean anything — a "must not" that is
+    // satisfied by the absence of the subject proves nothing about the rule.
+    check("[C4] clicking the container is captured at all", !!hostClick, JSON.stringify(hostActions.map((x) => x.type)));
     check(
-      "[C4] a container is never given its children's aggregate text as a locator",
-      !hostClick || hostClick.locator?.strategy !== "text" || !/Review the changelog/.test(String(hostClick.locator?.value)),
+      "[C5] ...and the container is never given its children's aggregate text as a locator",
+      !!hostClick && !(hostClick.locator?.strategy === "text" && /Review the changelog/.test(String(hostClick.locator?.value))),
       primary(hostClick)
     );
 

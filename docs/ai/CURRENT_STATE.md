@@ -8,8 +8,8 @@ The previous pass left four coverage layers and six challenges at `NOT RUN`. All
 | Gate | Cases | Result |
 | --- | ---: | --- |
 | `verify:wdu-live` | 76 | 76 PASS |
-| `verify:wdu-recorder-live` | 16 | 16 PASS (92 checks) |
-| `verify:wdu-data-live` | 8 | 8 PASS (91 checks) |
+| `verify:wdu-recorder-live` | 16 | 16 PASS (95 checks) |
+| `verify:wdu-data-live` | 8 | 8 PASS (92 checks) |
 
 **Live inventory re-confirmed, not carried forward.** 18 classic areas, 27 AI Playground scenarios,
 29 Accessibility Suite components — unchanged since 2026-08-19, and the component count is now an
@@ -77,13 +77,13 @@ AI 20 localStorage Session, AI 27 Accessibility Suite (9 cases across all 29 com
 New scenarios: `mock-site/storage-lab`, `mock-site/capture-gaps`,
 `mock-site/popup/document-write.html`, plus a press-and-hold section in `drag-lab`. New gates:
 `verify:storage-assertions` (32), `verify:click-and-hold` (28), `verify:recorder-upload` (13),
-`verify:recorder-dialogs` (18), `verify:recorder-capture-gaps` (28), `verify:wdu-recorder-live` and
+`verify:recorder-dialogs` (18), `verify:recorder-capture-gaps` (29), `verify:wdu-recorder-live` and
 `verify:wdu-data-live` (both external). Every one is mutation-measured; the counts are in each
 file's header and in the matrix.
 
 Verified: `npm run build` clean · `verify:runner` **111/111** · `verify:mock-site` **172/172** ·
 `verify:storage-assertions` **32/32** · `verify:click-and-hold` **28/28** · `verify:recorder-upload`
-**13/13** · `verify:recorder-dialogs` **18/18** · `verify:recorder-capture-gaps` **28/28** ·
+**13/13** · `verify:recorder-dialogs` **18/18** · `verify:recorder-capture-gaps` **29/29** ·
 `verify:recorder-locator` **217/217** · `verify:recorder-hover` **265/265** ·
 `verify:recorder-competitive` **64/64** · `verify:recorder-flow` **50/50** ·
 `verify:recorder-navigation` **45/45** · `verify:recorder-actions` **20/20** · `verify:popup`

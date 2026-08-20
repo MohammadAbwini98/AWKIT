@@ -12,7 +12,7 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   scenarios, 29 Accessibility Suite components. Unchanged since 2026-08-19; the component count is
   now an executed assertion rather than a note.
 - **100 live acceptance cases, 100 PASS** (was 55): `verify:wdu-live` 76, `verify:wdu-recorder-live`
-  16 (92 checks), `verify:wdu-data-live` 8 (91 checks).
+  16 (95 checks), `verify:wdu-data-live` 8 (92 checks).
 - **Nine product defects found by execution and fixed**, six of them by driving the REAL Recorder:
   - `awkit-7o5n` **P2** no browser-storage assertion existed, so AI 20 was inexpressible.
   - `awkit-dhdr` **P1** no press-and-hold gesture — replay held the button down for 15ms, measured.

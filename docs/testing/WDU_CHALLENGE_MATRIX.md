@@ -31,9 +31,9 @@ executed assertion rather than a note.
 | Suite | Cases | PASS | FAIL | BLOCKED | NOT RUN | INCONCLUSIVE | Checks |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `verify:wdu-live` | 76 | 76 | 0 | 0 | 0 | 0 | per-case |
-| `verify:wdu-recorder-live` | 16 | 16 | 0 | 0 | 0 | 0 | 92 |
-| `verify:wdu-data-live` | 8 | 8 | 0 | 0 | 0 | 0 | 91 |
-| **Total** | **100** | **100** | **0** | **0** | **0** | **0** | **183** |
+| `verify:wdu-recorder-live` | 16 | 16 | 0 | 0 | 0 | 0 | 95 |
+| `verify:wdu-data-live` | 8 | 8 | 0 | 0 | 0 | 0 | 92 |
+| **Total** | **100** | **100** | **0** | **0** | **0** | **0** | **187** |
 
 Previous pass: 55 cases, 55 PASS, with six challenges NOT RUN and four coverage layers NOT RUN.
 
@@ -246,7 +246,7 @@ capstone and all 29 Accessibility Suite components have at least one executed ca
 | `awkit-dhdr` | P1 | No press-and-hold gesture: a click-and-hold was recorded and replayed as an ordinary click, passing through both states in ~15ms. | `verify:click-and-hold`, 28 checks | 8 (recognizer disabled) / 2 (evidence requirement dropped) / 2 (replay collapsed) |
 | `awkit-11ii` | P1 | A file chooser was stored as an unrunnable `fill` carrying `C:\fakepath\…`, twice, and the flow saved clean. | `verify:recorder-upload`, 13 checks | 11 (fall-through restored) / 2 (empty value source) / 4 (duplicate action) |
 | `awkit-qlg6` | P1 | The Recorder never captured a dialog. Playwright auto-dismissed every one during capture, so `confirm()` returned false while recording, and the saved flow carried no policy. | `verify:recorder-dialogs`, 18 checks | 13 (listener removed) / 4 (policy dropped in build) / 1 (message persisted) |
-| `awkit-tj2o` | P1 | A drag whose source follows the cursor recorded nothing — `elementFromPoint` returns the drag ghost, and the source guard discarded the gesture. | `verify:recorder-capture-gaps` [A], 28 checks | 4 |
+| `awkit-tj2o` | P1 | A drag whose source follows the cursor recorded nothing — `elementFromPoint` returns the drag ghost, and the source guard discarded the gesture. | `verify:recorder-capture-gaps` [A], 29 checks | 4 |
 | `awkit-e0z6` | P1 | Radio/checkbox options with a stable `value` got `:nth-of-type(n)`: `value` ranked twelfth, and the scoped positional selector was not flagged as a fallback. | `verify:recorder-capture-gaps` [B] | 2 (value demoted) / 2 (scoped unflagged) |
 | `awkit-vzhy` | P1 | The text locator was offered to buttons and links only, so clickable list items got positional selectors. | `verify:recorder-capture-gaps` [C] | 2 |
 | `awkit-n4wr` | P1 | The click on a READONLY text input was dropped as redundant, losing every picker-opening interaction. | `verify:recorder-capture-gaps` [D] | 1 |

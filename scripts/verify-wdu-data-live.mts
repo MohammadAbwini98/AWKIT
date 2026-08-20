@@ -320,6 +320,34 @@ interface Composite {
 /** Actions page: explicit wait, complex actions, dialog policy, attribute assertion, conditional, loop. */
 function compositeActions(): Composite {
   const ACTIONS = `${BASE}/Actions/index.html`;
+  // Declared up front so the failure-policy category below can READ it. It used to be asserted as a
+  // literal `true`, which is a category guard that cannot fail — it guarded nothing.
+  const workflow: WorkflowProfile = {
+    id: "wdu-composite-actions-workflow",
+    name: "WDU composite — Actions",
+    version: 1,
+    nodes: [
+      { id: "start", type: "start", alias: "Start", order: 0 },
+      {
+        id: "n1",
+        type: "flowRef",
+        flowId: "wdu-composite-actions",
+        alias: "Composite actions",
+        order: 1,
+        required: true,
+        inputBindings: { expectedHoldText: { type: "runtimeInput", key: "expectedHoldText" } },
+        retryPolicy: { count: 1, delayMs: 250 },
+        failurePolicy: "stop"
+      },
+      { id: "end", type: "end", alias: "End", order: 2 }
+    ],
+    edges: [
+      { id: "e1", source: "start", target: "n1", type: "always" },
+      { id: "e2", source: "n1", target: "end", type: "always" }
+    ],
+    runtimeInputs: [{ key: "expectedHoldText", label: "Expected hold text", type: "text", required: true }],
+    execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
+  };
   const child = linear("wdu-composite-actions-child", [
     {
       id: "childAssert",
@@ -350,22 +378,7 @@ function compositeActions(): Composite {
     scenario: "every applicable field category round-trips and still runs",
     flow,
     children: [child],
-    workflow: {
-      id: "wdu-composite-actions-workflow",
-      name: "WDU composite — Actions",
-      version: 1,
-      nodes: [
-        { id: "start", type: "start", alias: "Start", order: 0 },
-        { id: "n1", type: "flowRef", flowId: flow.id, alias: "Composite actions", order: 1, required: true, inputBindings: { expectedHoldText: { type: "runtimeInput", key: "expectedHoldText" } }, retryPolicy: { count: 1, delayMs: 250 }, failurePolicy: "stop" },
-        { id: "end", type: "end", alias: "End", order: 2 }
-      ],
-      edges: [
-        { id: "e1", source: "start", target: "n1", type: "always" },
-        { id: "e2", source: "n1", target: "end", type: "always" }
-      ],
-      runtimeInputs: [{ key: "expectedHoldText", label: "Expected hold text", type: "text", required: true }],
-      execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
-    },
+    workflow,
     runtimeInputs: { expectedHoldText: "Dont release me" },
     editStepId: "explicitWait",
     categories: {
@@ -379,7 +392,9 @@ function compositeActions(): Composite {
       loop: flow.nodes.some((n) => n.type === "loop"),
       "workflow composition": flow.nodes.some((n) => n.type === "runFlow"),
       "runtime input": flow.nodes.some((n) => n.valueSource?.type === "runtimeInput"),
-      "failure policy": true,
+      "failure policy": workflow.nodes.some(
+        (n) => n.type === "flowRef" && !!(n as { failurePolicy?: string }).failurePolicy && !!(n as { retryPolicy?: unknown }).retryPolicy
+      ),
       screenshot: flow.nodes.some((n) => n.type === "screenshot")
     }
   };
@@ -389,6 +404,35 @@ function compositeActions(): Composite {
 function compositeAiPlayground(uploadFixture: string): Composite {
   const AI = `${BASE}/AI-Playground/index.html`;
   const frame = (id: string) => ({ strategy: "id" as const, value: id, context: { frame: { selector: "#login-frame" } } });
+  const aiWorkflow: WorkflowProfile = {
+    id: "wdu-composite-ai-workflow",
+    name: "WDU composite — AI Playground",
+    version: 1,
+    dataSource: { dataSourceId: "wdu-composite-credentials", rootArrayPath: "$.rows" },
+    nodes: [
+      { id: "start", type: "start", alias: "Start", order: 0 },
+      {
+        id: "n1",
+        type: "flowRef",
+        flowId: "wdu-composite-ai",
+        alias: "Composite AI",
+        order: 1,
+        required: true,
+        inputBindings: {},
+        dataSourceId: "wdu-composite-credentials",
+        jsonPath: "$.rows",
+        failurePolicy: "continue",
+        retryPolicy: { count: 0, delayMs: 0 }
+      },
+      { id: "end", type: "end", alias: "End", order: 2 }
+    ],
+    edges: [
+      { id: "e1", source: "start", target: "n1", type: "always" },
+      { id: "e2", source: "n1", target: "end", type: "always" }
+    ],
+    runtimeInputs: [],
+    execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: false }
+  };
   const flow = linear("wdu-composite-ai", [
     { id: "goto", type: "goto", name: "open the AI Playground", valueSource: { type: "static", value: AI }, waitUntil: "domcontentloaded" },
     // DataSource binding: the credentials come from the current row, not from the flow.
@@ -418,23 +462,7 @@ function compositeAiPlayground(uploadFixture: string): Composite {
     scenario: "popup, iframe, storage, upload, session and data binding round-trip and still run",
     flow,
     children: [],
-    workflow: {
-      id: "wdu-composite-ai-workflow",
-      name: "WDU composite — AI Playground",
-      version: 1,
-      dataSource: { dataSourceId: "wdu-composite-credentials", rootArrayPath: "$.rows" },
-      nodes: [
-        { id: "start", type: "start", alias: "Start", order: 0 },
-        { id: "n1", type: "flowRef", flowId: flow.id, alias: "Composite AI", order: 1, required: true, inputBindings: {}, dataSourceId: "wdu-composite-credentials", jsonPath: "$.rows", failurePolicy: "continue", retryPolicy: { count: 0, delayMs: 0 } },
-        { id: "end", type: "end", alias: "End", order: 2 }
-      ],
-      edges: [
-        { id: "e1", source: "start", target: "n1", type: "always" },
-        { id: "e2", source: "n1", target: "end", type: "always" }
-      ],
-      runtimeInputs: [],
-      execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: false }
-    },
+    workflow: aiWorkflow,
     runtimeInputs: {},
     editStepId: "frameResult",
     categories: {
@@ -443,7 +471,10 @@ function compositeAiPlayground(uploadFixture: string): Composite {
       "storage assertion": flow.nodes.some((n) => n.config?.assertionType === "storage"),
       "upload configuration": flow.nodes.some((n) => n.type === "uploadFile" && !!n.value),
       "session configuration": flow.nodes.some((n) => n.type === "saveSession" && !!n.config?.sessionName),
-      "DataSource binding": flow.nodes.some((n) => n.valueSource?.type === "currentRow")
+      "DataSource binding": flow.nodes.some((n) => n.valueSource?.type === "currentRow"),
+      "failure policy": aiWorkflow.nodes.some(
+        (n) => n.type === "flowRef" && (n as { failurePolicy?: string }).failurePolicy === "continue"
+      )
     }
   };
 }

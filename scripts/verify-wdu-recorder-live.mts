@@ -160,6 +160,23 @@ async function pointerDrag(page: Page, from: string, to: string): Promise<void> 
   await page.mouse.up();
 }
 
+/**
+ * Wait for the Recorder to have committed at least `count` actions.
+ *
+ * The capture binding is an async round trip with no signal an outside observer can see, so
+ * something has to bound the wait. Polling the recorder's OWN action list is that bound: it stops
+ * the instant the actions are there, and a fixed settle would have been a guess in both directions —
+ * too short and the read races the binding, too long and every case pays for the worst one. It never
+ * asserts anything; the checks that follow do that, and they fail on their own if this times out.
+ */
+async function settled(session: Session, count: number, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (session.actions.length >= count) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 const typeOf = (actions: RecordedAction[]): string[] => actions.map((a) => a.type);
 const find = (actions: RecordedAction[], type: string): RecordedAction | undefined => actions.find((a) => a.type === type);
 const locatorJson = (action?: RecordedAction): string => JSON.stringify(action?.locator ?? null).slice(0, 300);
@@ -245,7 +262,7 @@ async function main(): Promise<void> {
         await s.page.locator("[name='email']").fill("specter.studio@example.com");
         await s.page.locator("textarea[name='message']").fill("Recorded by SpecterStudio.");
         await s.page.locator("input[type='submit']").click();
-        await s.page.waitForTimeout(1200);
+        await settled(s, 6);
         const a = s.actions;
         check("text entry is captured as fill steps", a.filter((x) => x.type === "fill").length >= 4, JSON.stringify(typeOf(a)));
         const first = a.find((x) => x.type === "fill" && /Specter$/.test(String(x.valueSource?.value ?? "")));
@@ -254,8 +271,8 @@ async function main(): Promise<void> {
         const press = find(a, "press");
         check("the Tab keypress is captured as its own press step", !!press, JSON.stringify(typeOf(a)));
         check("...naming the key", String(press?.valueSource?.value ?? "") === "Tab", JSON.stringify(press?.valueSource));
-        const submit = a.find((x) => x.type === "click" && /submit/i.test(JSON.stringify(x.locator ?? {})) === false ? false : x.type === "click");
-        check("the submit is captured as a click", !!submit, JSON.stringify(typeOf(a)));
+        const submit = a.find((x) => x.type === "click" && /submit/i.test(JSON.stringify(x.locator ?? {})));
+        check("the submit is captured as a click, on the submit control", !!submit, JSON.stringify(a.filter((x) => x.type === "click").map((x) => x.locator?.value)));
         check("the recorded order matches the order performed", typeOf(a).join(",").includes("fill,press,fill"), typeOf(a).join(","));
       } finally {
         await s.close();
@@ -270,7 +287,7 @@ async function main(): Promise<void> {
         await s.page.locator("#text").fill("webdriver");
         await s.page.locator("#password").fill("webdriver123");
         await s.page.locator("#login-button").click();
-        await s.page.waitForTimeout(1500);
+        await settled(s, 3);
         const a = s.actions;
         const login = a.find((x) => x.type === "click");
         check("the login click is captured", !!login, JSON.stringify(typeOf(a)));
@@ -299,7 +316,7 @@ async function main(): Promise<void> {
         await s.page.locator("input[value='option-1']").check();
         await s.page.locator("input[value='option-1']").uncheck();
         await s.page.locator("input[name='color'][value='green']").check();
-        await s.page.waitForTimeout(500);
+        await settled(s, 4);
         const a = s.actions;
         const select = find(a, "select");
         check("the dropdown is stored as a select, not a click", !!select, JSON.stringify(typeOf(a)));
@@ -320,7 +337,7 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/Actions/index.html`);
       try {
         await s.page.locator("#double-click").dblclick();
-        await s.page.waitForTimeout(500);
+        await settled(s, 1);
         const a = s.actions;
         check("exactly one action comes out of the gesture", a.length === 1, JSON.stringify(typeOf(a)));
         check("it is a dblclick", a[0]?.type === "dblclick", JSON.stringify(typeOf(a)));
@@ -350,9 +367,10 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/Actions/index.html`);
       try {
         await s.page.getByText("Hover Over Me First!").hover();
-        await s.page.waitForTimeout(400);
-        await s.page.locator(".dropdown.hover .dropdown-content a").first().click();
-        await s.page.waitForTimeout(800);
+        const revealed = s.page.locator(".dropdown.hover .dropdown-content a").first();
+        await revealed.waitFor({ state: "visible", timeout: 10_000 });
+        await revealed.click();
+        await settled(s, 1);
         const a = s.actions;
         const click = a.find((x) => x.type === "click");
         check("the click on the revealed link is captured", !!click, JSON.stringify(typeOf(a)));
@@ -390,7 +408,7 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/Actions/index.html`);
       try {
         await pressAndHold(s.page, "#click-box", 900);
-        await s.page.waitForTimeout(500);
+        await settled(s, 1);
         const a = s.actions;
         const hold = find(a, "clickAndHold");
         check("the gesture is stored as clickAndHold", !!hold, JSON.stringify(typeOf(a)));
@@ -421,7 +439,7 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/Actions/index.html`);
       try {
         await pointerDrag(s.page, "#draggable", "#droppable");
-        await s.page.waitForTimeout(700);
+        await settled(s, 1);
         const a = s.actions;
         const drag = find(a, "drag");
         check("the gesture is stored as a single drag", !!drag, JSON.stringify(typeOf(a)));
@@ -452,7 +470,7 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/IFrame/index.html`);
       try {
         await s.page.frameLocator("#frame").locator("#button-find-out-more").click();
-        await s.page.waitForTimeout(900);
+        await settled(s, 1);
         const a = s.actions;
         const click = a.find((x) => x.type === "click");
         check("the click inside the frame is captured", !!click, JSON.stringify(typeOf(a)));
@@ -497,14 +515,16 @@ async function main(): Promise<void> {
         const popupPromise = s.page.waitForEvent("popup", { timeout: 20_000 });
         await s.page.locator("#new-tab-btn").click();
         const popup = await popupPromise;
-        await popup.waitForLoadState("domcontentloaded").catch(() => undefined);
-        await popup.waitForTimeout(800);
+        // The popup is built with `document.write`, so it never commits a URL and its load state is
+        // not a signal worth waiting on. Waiting for the control itself is.
+        await popup.locator("#popup-confirm").waitFor({ state: "visible", timeout: 15_000 });
+        await settled(s, 1);
         // Act INSIDE the popup, then come back and act on the opener.
         await popup.locator("#popup-confirm").click();
-        await popup.waitForTimeout(500);
+        await settled(s, 3);
         await s.page.bringToFront();
-        await s.page.locator("#new-tab-btn").click().catch(() => undefined);
-        await s.page.waitForTimeout(800);
+        await s.page.locator("#new-tab-btn").click();
+        await settled(s, 5);
         const a = s.actions;
 
         const opener = a.find((x) => x.type === "click" && x.opensPopup);
@@ -536,7 +556,7 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/File-Upload/index.html`);
       try {
         await s.page.locator("#myFile").setInputFiles(fixture);
-        await s.page.waitForTimeout(600);
+        await settled(s, 1);
         const a = s.actions;
         const upload = find(a, "uploadFile");
         check("the selection is stored as an uploadFile step", !!upload, JSON.stringify(typeOf(a)));
@@ -564,15 +584,28 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/Autocomplete-TextField/autocomplete-textfield.html`);
       try {
         await s.page.locator("#myInput").fill("Ba");
-        await s.page.waitForTimeout(500);
-        await s.page.locator("#myInputautocomplete-list div").first().click();
-        await s.page.waitForTimeout(500);
+        const suggestion = s.page.locator("#myInputautocomplete-list div").first();
+        await suggestion.waitFor({ state: "visible", timeout: 10_000 });
+        await suggestion.click();
+        await settled(s, 2);
         const a = s.actions;
         const fill = find(a, "fill");
-        check("the typed prefix is captured", String(fill?.valueSource?.value ?? "") === "Ba", JSON.stringify(fill?.valueSource));
-        const pick = a.filter((x) => x.type === "click" || x.type === "fill").slice(-1)[0];
-        check("picking a suggestion is captured as its own action", a.some((x) => x.type === "click") || a.filter((x) => x.type === "fill").length > 1, JSON.stringify(typeOf(a)));
-        check("the suggestion action carries a locator", !!pick?.locator, locatorJson(pick));
+        check("the typed prefix is captured as a fill", !!fill, JSON.stringify(typeOf(a)));
+        check("...carrying exactly what was typed", String(fill?.valueSource?.value ?? "") === "Ba", JSON.stringify(fill?.valueSource));
+        const pick = find(a, "click");
+        check("picking a suggestion is captured as its OWN click, not folded into the fill", !!pick, JSON.stringify(typeOf(a)));
+        check("...targeting the suggestion list, not the input it came from", /myInputautocomplete-list/.test(locatorJson(pick)), locatorJson(pick));
+        check("...and it names the suggestion that was chosen", /Bacon/.test(pick?.name ?? ""), pick?.name);
+        // MEASURED, and recorded as a limitation rather than glossed: the suggestion locator is
+        // positional WITHIN the list. The list item's markup is `<strong>Ba</strong>con`, so its own
+        // direct text is only "con" — the unmatched remainder — and the own-text rule correctly
+        // refuses to treat that as an identity. Nothing else on the element distinguishes it. This is
+        // an honest floor for this widget, not a silent positional fallback where a better one exists.
+        check(
+          "...and the recorder does not claim more confidence for it than a positional locator has",
+          pick?.locator?.quality === undefined || pick.locator.quality.confidence !== "high",
+          JSON.stringify(pick?.locator?.quality)
+        );
       } finally {
         await s.close();
       }
@@ -589,7 +622,7 @@ async function main(): Promise<void> {
         await card.getByPlaceholder("Username").fill("admin");
         await card.getByPlaceholder("Password").fill("password123");
         await card.getByRole("button", { name: "Login" }).click();
-        await s.page.waitForTimeout(900);
+        await settled(s, 3);
         const a = s.actions;
         check("actions are captured on the dynamic form", a.length >= 2, JSON.stringify(typeOf(a)));
         // The PRIMARY locator is what replay uses. Ranked alternatives deliberately include a
@@ -627,7 +660,7 @@ async function main(): Promise<void> {
       try {
         await s.page.locator("#button1").waitFor({ state: "visible", timeout: 40_000 });
         await s.page.locator("#button1").click();
-        await s.page.waitForTimeout(900);
+        await settled(s, 1);
         const a = s.actions;
         const click = a.find((x) => x.type === "click");
         check("the click on the late-arriving button is captured", !!click, JSON.stringify(typeOf(a)));
@@ -656,9 +689,10 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, AI);
       try {
         await s.page.locator("#stale-refresh").click();
-        await s.page.waitForTimeout(1200);
-        await s.page.locator("#stale-list li[data-index='1']").click();
-        await s.page.waitForTimeout(700);
+        const item = s.page.locator("#stale-list li[data-index='1']");
+        await item.waitFor({ state: "visible", timeout: 10_000 });
+        await item.click();
+        await settled(s, 2);
         const a = s.actions;
         check("both clicks across the re-render are captured", a.filter((x) => x.type === "click").length >= 2, JSON.stringify(typeOf(a)));
         const post = a.filter((x) => x.type === "click").slice(-1)[0];
@@ -679,14 +713,17 @@ async function main(): Promise<void> {
       const s = await recordOn(browser, `${BASE}/Datepicker/index.html`);
       try {
         await s.page.locator("#datepicker .form-control").click();
-        await s.page.waitForTimeout(500);
+        await s.page
+          .locator(".datepicker.datepicker-dropdown")
+          .waitFor({ state: "visible", timeout: 10_000 })
+          .catch(() => undefined); // absence is handled below as BLOCKED, not as a thrown harness error
         const day = s.page.locator(".datepicker-days td.day:not(.old):not(.new)").nth(14);
         const visible = await day.isVisible().catch(() => false);
         if (!visible) {
           blocked("the bootstrap-datepicker dropdown did not open on the live page");
         } else {
           await day.click();
-          await s.page.waitForTimeout(600);
+          await settled(s, 2);
           const a = s.actions;
           check("opening the picker is captured", a.length >= 1, JSON.stringify(typeOf(a)));
           check("selecting a day is captured as a click, not a fill of the readonly field", a.filter((x) => x.type === "click").length >= 2, JSON.stringify(typeOf(a)));
@@ -711,7 +748,7 @@ async function main(): Promise<void> {
         await s.page.locator("[name='email']").fill("round.trip@example.com");
         await s.page.locator("textarea[name='message']").fill("Round trip.");
         await s.page.locator("input[type='submit']").click();
-        await s.page.waitForTimeout(1200);
+        await settled(s, 5);
         recorded = s.actions;
       } finally {
         await s.close();
