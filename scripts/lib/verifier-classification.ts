@@ -179,6 +179,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Both wait contracts. (1) The subtype-aware wait STEP node: engine rules, the designer panel's own validate(), the profile round-trip and a source-level parity check against StepExecutor.executeWait. (2) The Smart Wait CONDITION union in beforeWaits/afterWaits: per-type required fields, the vacuous-match cases, OR-group nesting, and a severity split asserted against runRequiredOrOptional. Pure; no browser or Electron."
   },
+  "verify:assertion-validation": {
+    class: "unit",
+    why: "The assertText step contract refined by assertion kind: the expectedValue channel the designer writes, the url/storage kinds that resolve no locator, the attributeName/storageKey fields the runtime only enforced by throwing, config literals, the designer panel's own validate(), the profile round-trip, a source-level parity check against StepExecutor.executeAssertion, and a guard over the shipped mock-site fixtures. Pure; no browser or Electron."
+  },
   "verify:legacy-compat": {
     class: "integration",
     why: "Drives FlowValidationService against a real JSON profile store on a temp dir (atomic writes, grant persistence); no browser."
