@@ -1,5 +1,70 @@
 # CURRENT_STATE
 
+## Loop and Scroll: the last two flat rules, and a dead corpus they exposed (2026-08-20)
+
+`awkit-njqg` closed. Checking the two nodes the previous handoff named found real defects in both —
+and `loop` was the worst of the five instances of this class.
+
+**Every Loop configuration was falsely invalid, and the demand was unsatisfiable.** A loop's input is
+its iteration *source* (`config.loopType` plus `iterationCount` / a locator / the workflow data
+source); `executeLoop` reads `step.value` only for a `fill` action. But the flat row said
+`requiresValue: true` against `step.value`, and the Loop panel has **no value field at all**
+(`sections: ["loop", "execution"]`). So a correctly configured Loop node was permanently
+"Draft — not runnable", and there was no field in the UI that could have cleared it.
+
+**A loop with nothing to act on fails SILENTLY.** `performLoopAction` computes
+`const base = step.locator ? create(step.locator) : null` and guards every arm with `if (target)`.
+A click/delete/fill loop with no locator therefore runs its whole iteration count doing nothing,
+reports `passed`, and records the iterations as completed. Nothing anywhere says the loop never
+acted — which is why the gate is the only place it can be caught.
+
+`scroll` had the same value-channel defect (`config.scrollAmount`; again no value field in its panel)
+plus an unchecked `scrollTarget: "element"` with no element, where
+`cfg.scrollTarget === "element" && step.locator` is false and the runner quietly wheels the page
+instead of scrolling to the element.
+
+**The rule then found a defect in the test lab's own corpus.** `verify:validation` drives 54
+generated flows and requires them to validate **completely clean** — and it went red. The random
+generator emits `loopActionType: "click"` with no locator, and picks `scrollTarget: "element"` half
+the time with nothing to scroll to, because `NODE_CATALOG` marks both types as needing no locator
+(true at the *type* level, wrong for those *configs*). The generated corpus had been full of dead
+nodes, and the "validates clean" guard passed because nothing checked. **Fixed in the generator, not
+by relaxing the rule or the guard** — the catalog stays `requiresLocator: false`, because the
+requirement belongs to the config, and the locator is attached where the config is chosen.
+
+**Blast radius, measured in both directions:**
+
+```text
+JSON files scanned                 1,793
+FlowProfiles found                   308      (56 scroll nodes, 39 loop nodes)
+RELAXED  (was flagged, now clean)      9      real shipped mock-site fixtures
+TIGHTENED in live or shipped data      0
+TIGHTENED in one frozen artifact      50      reports/random-tests/roundtrip-defects.json
+```
+
+All 50 are in a single historic report artifact recording a past generator run — not a profile the
+app loads, and not something future runs will reproduce now the generator is fixed.
+
+Verified: `verify:loop-scroll-validation` **88 PASS / 0 FAIL** (new) · `verify:validation` **151/0**
+(the corpus check, red mid-change, green again on the generator fix) · `verify:runner` **121/0** ·
+`verify:comprehensive-e2e` **9/9** · `verify:random-{failures,reporting,lifecycle}` **17/0, 13/0,
+13/0** · `verify:wait-validation` **103/0** · `verify:assertion-validation` **77/0** ·
+`verify:legacy-compat` **152/0** · `verify:flow-step-mapping` **145/0** · `verify:mock-site`
+**172/172** · `verify:flow-designer` 16/16 capsule + 112 broad, 0 unexpected ·
+`verify:verifier-classification` reconciled (**195**) · `verify:roadmap-dashboard` **162/162** ·
+`npm run build` clean.
+
+Mutation-tested four ways, one per claim: restoring the flat rules fails **33 of 88**; removing the
+loop's target requirement fails **5**; removing the scroll-to-element requirement fails **1**;
+reverting the generator fix fails **2**, reporting *10 dead loop nodes* by name.
+
+**Five sites, one root cause, now all closed:** `awkit-3p6x` (wait node), `awkit-jtok` (wait
+conditions), `awkit-56un` (assertions), `awkit-njqg` (loop and scroll). Every node whose `config`
+selects a dispatch arm has been checked. The rules that generalise are in `KNOWN_ISSUES.md`.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **253 total / 249 closed /
+4 outstanding**, nothing open.
+
 ## Assert Text is validated by assertion kind — and it was wrong three ways (2026-08-20)
 
 `awkit-56un` closed. The third and last instance of one defect class, after `awkit-3p6x` (the wait

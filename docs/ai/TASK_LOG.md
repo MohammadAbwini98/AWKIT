@@ -4,6 +4,55 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Loop and Scroll validated by config (awkit-njqg)
+
+- **Objective:** check the two nodes the previous handoff named as having the same shape. Both did.
+- **Loop was the worst of the five.** Its input is the iteration SOURCE in `config`
+  (`loopType` + `iterationCount` / locator / data source), never `step.value`, which `executeLoop`
+  reads only for a `fill` action. The flat `requiresValue: true` meant EVERY loop reported "requires
+  a value or value source" - and the Loop panel has no value field (`sections: [loop, execution]`),
+  so the demand could not be satisfied from the designer at all. A correctly configured Loop node was
+  permanently "Draft - not runnable".
+- **And its failure mode is SILENT.** `performLoopAction` guards every arm with `if (target)`, so a
+  click/delete/fill loop with no locator runs its whole iteration count doing nothing and still
+  reports `passed` with the iterations recorded as completed. `requiresLocator` was false, so nothing
+  checked. An `elements` loop with no locator counts zero and never enters the body.
+- **Scroll:** the same value-channel defect (`config.scrollAmount`, no value field in its panel
+  either), plus `scrollTarget: "element"` with no locator - `cfg.scrollTarget === "element" &&
+  step.locator` is false, so the runner quietly wheels the page instead.
+- **The rule exposed a real defect in the RANDOM TEST LAB.** `verify:validation` requires the 54
+  generated flows to validate completely clean, and it went RED: the generator emits
+  `loopActionType: "click"` with no locator and picks `scrollTarget: "element"` half the time with
+  nothing to scroll to, so the corpus was full of dead nodes and the guard had been passing because
+  nothing checked. **Fixed in the generator, not by relaxing the rule or the guard.** `NODE_CATALOG`
+  stays `requiresLocator: false` - true at the TYPE level, since a scroll- or customFlow-action loop
+  needs no target - and the locator is attached where the config is chosen.
+- **Blast radius, both directions:** 1,793 JSON files, 308 FlowProfiles (56 scroll / 39 loop nodes).
+  **9 RELAXED**, all real shipped mock-site fixtures. **0 newly flagged in live or shipped data**; the
+  50 newly-flagged nodes are all in ONE frozen historic artifact
+  (`reports/random-tests/roundtrip-defects.json`), which records a past generator run.
+- **Also fixed while there:** a `customFlow` loop's `config.targetFlowId` had no reference check,
+  because `missingFlowReference` is keyed on `step.type === "runFlow"`. It now resolves like any
+  other flow reference.
+- **Mutation evidence (four, one per claim):** restoring the flat rules fails **33 of 88**; removing
+  the loop target requirement fails **5**; removing the scroll-to-element requirement fails **1**;
+  reverting the generator fix fails **2**, naming 10 dead loop nodes. Restored: 88/0.
+- **Verification:** build PASS; `verify:loop-scroll-validation` **88/0** (new, registered +
+  classified, 195 verifiers); `verify:validation` **151/0**; `verify:runner` **121/0**;
+  `verify:comprehensive-e2e` 9/9; `verify:random-failures` **17/0**; `verify:random-reporting`
+  **13/0**; `verify:random-lifecycle` **13/0**; `verify:wait-validation` **103/0**;
+  `verify:assertion-validation` **77/0**; `verify:legacy-compat` **152/0**;
+  `verify:flow-step-mapping` **145/0**; `verify:mock-site` **172/172**; `verify:flow-designer` 16/16
+  capsule + 112 broad, 0 unexpected; `verify:roadmap-dashboard` **162/162**. `typecheck:scripts`
+  still FAILs only on the same three pre-existing diagnostics in untouched files.
+- **Files:** `src/validation/{LoopStepContract,ScrollStepContract}.ts` (new),
+  `src/validation/FlowValidator.ts`, `src/testing/random/RandomConfigurationGenerator.ts`,
+  `app/renderer/components/workflow/flowNodeRegistry.ts`,
+  `scripts/verify-loop-scroll-validation.mts` (new), `scripts/lib/verifier-classification.ts`,
+  `package.json`, `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/*`, `.beads/issues.jsonl`.
+
+---
+
 ## 2026-08-20 - Claude - Assert Text validated by assertion kind (awkit-56un)
 
 - **Objective:** close the `assertText` config gap recorded in KNOWN_ISSUES after the two wait fixes.

@@ -247,6 +247,14 @@ npm run verify:assertion-validation # tsx scripts/verify-assertion-validation.mt
                             # source-level parity check against StepExecutor.executeAssertion, and a
                             # guard over the 8 shipped mock-site fixtures the old rule flagged.
                             # Pure. (77/77)
+npm run verify:loop-scroll-validation # tsx scripts/verify-loop-scroll-validation.mts - the loop and
+                            # scroll contracts refined by CONFIG (awkit-njqg): the iteration source
+                            # and scroll distance the designer writes into config rather than value,
+                            # the SILENT no-op cases (a loop whose action needs a target it lacks
+                            # still reports passed; a scroll-to-element with no element wheels the
+                            # page), loop child-flow references, the panel's own validate(), the
+                            # round-trip, a generated-corpus guard, and a source-level parity check
+                            # against executeLoop/performLoopAction. Pure. (88/88)
 npm run verify:legacy-compat # tsx scripts/verify-legacy-compat.mts - Legacy Compatibility + suggested-fix
                             # migration, driving FlowValidationService against a real JSON profile store
                             # on a temp dir (atomic writes, grant persistence); no browser. (152/152)

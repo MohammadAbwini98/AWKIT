@@ -12,6 +12,18 @@
   resolves and `attribute`/`storage` had their config enforced only by a throw inside
   `executeAssertion`. All three sites are now fixed. **The rule to carry forward: any node whose
   `config` selects a dispatch arm cannot be described by one row in a type-keyed table.**
+- **A guarded no-op is invisible everywhere except the gate.** `performLoopAction` guards every arm
+  with `if (target)`, so a `loop` whose action needs a locator it does not have runs its full
+  iteration count doing nothing, reports `passed`, and records the iterations as completed
+  (`awkit-njqg`). A scroll-to-element with no element quietly wheels the page instead. Neither ever
+  appears in a run report, so no amount of live testing would find them - only validation can. When
+  auditing an executor, read what each arm does when its input is ABSENT, not only when it is wrong.
+- **A validation rule that goes red against generated test data may be right about the generator.**
+  Adding the loop/scroll contracts turned `verify:validation`'s "all 54 generated flows validate
+  clean" red. The corpus really was full of dead nodes: the generator emitted click-loops with no
+  locator and element-scrolls with no element, because `NODE_CATALOG` marks both types as needing no
+  locator - true at the TYPE level, wrong for those CONFIGS. The fix belonged in the generator, and
+  relaxing either the rule or the guard would have preserved the defect and thrown away the finding.
 - **The field the designer WRITES is not always the field the validator READS.** This produced a live
   false positive twice. A Fixed time Wait carries its duration in `timeoutMs`, and an Assert Text
   carries its expected value in `config.expectedValue` - both read first by the runtime, both

@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("252 issues parse", beads.stats.total === 252, `got ${beads.stats.total}`);
+  check("253 issues parse", beads.stats.total === 253, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -321,8 +321,11 @@ try {
   // three ways at once (the expectedValue channel, the url/storage locator, and the
   // attributeName/storageKey config). Filed and closed in one session, so outstanding held at four
   // and nothing is open.
-    "4 outstanding / 248 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 248,
+  // Then 4/249 of 253 the same day: `awkit-njqg` filed AND closed - the Loop and Scroll flat rules,
+  // which also exposed dead loop/scroll nodes in the random generator's own corpus. Filed and closed
+  // in one session, so outstanding held at four and nothing is open.
+    "4 outstanding / 249 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 249,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -1,5 +1,84 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - Loop and Scroll done; the flat-table class is fully closed
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 253 total / 249 closed / 4 outstanding.** `awkit-njqg` filed and closed the same
+  session. **Nothing is open** - the four remaining are all BLOCKED on an external system or an
+  owner decision (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`).
+
+### What was done
+
+Checked the two nodes the previous handoff named. Both had the defect, and `loop` was the worst of
+the five instances:
+
+1. **Every Loop configuration was falsely invalid, unsatisfiably so.** A loop's input is its
+   iteration source in `config`; the flat row demanded `step.value`, and the Loop panel has no value
+   field, so the error could not be cleared from the designer at any point.
+2. **A loop with no target fails silently.** Every arm of `performLoopAction` is guarded by
+   `if (target)`: the loop iterates doing nothing and reports `passed`. Nothing in a run report ever
+   reveals it, so validation is the only place it can be caught.
+3. **Scroll** had the same value-channel defect plus an unchecked `scrollTarget: "element"` with no
+   element, where the runner quietly wheels the page instead.
+
+### The rule found a defect in the test lab, and that is worth remembering
+
+`verify:validation` requires the 54 generated flows to validate completely clean, and adding these
+contracts turned it **red**. The corpus genuinely was full of dead nodes - the generator emitted
+click-loops with no locator and element-scrolls with no element. **Fixed in the generator**, not by
+relaxing the rule or the guard; `NODE_CATALOG` keeps `requiresLocator: false` because that is true at
+the type level, and the locator is attached where the config is chosen.
+
+### Blast radius, measured in both directions
+
+```text
+JSON files scanned                 1,793
+FlowProfiles found                   308      (56 scroll nodes, 39 loop nodes)
+RELAXED  (was flagged, now clean)      9      real shipped mock-site fixtures
+TIGHTENED in live or shipped data      0
+TIGHTENED in one frozen artifact      50      reports/random-tests/roundtrip-defects.json
+```
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:loop-scroll-validation      PASS 88/0    (new)
+verify:validation                  PASS 151/0   (red mid-change; green on the generator fix)
+verify:runner                      PASS 121/0
+verify:comprehensive-e2e           PASS 9/9 cases
+verify:random-failures             PASS 17/0
+verify:random-reporting            PASS 13/0
+verify:random-lifecycle            PASS 13/0
+verify:wait-validation             PASS 103/0
+verify:assertion-validation        PASS 77/0
+verify:legacy-compat               PASS 152/0
+verify:flow-step-mapping           PASS 145/0
+verify:mock-site                   PASS 172/172
+verify:flow-designer               PASS 16/16 capsule + 112 broad, 0 unexpected
+verify:verifier-classification     PASS reconciled (195 verifiers)
+verify:roadmap-dashboard           PASS 162/162
+typecheck:scripts                  FAIL - the same 3 PRE-EXISTING diagnostics, untouched files
+mutation: flat rules restored      33 of 88 checks fail
+mutation: loop target guard gone    5 of 88 checks fail
+mutation: scroll element guard gone 1 of 88 checks fail
+mutation: generator fix reverted    2 of 88 checks fail (names 10 dead loop nodes)
+```
+
+### Next agent
+
+**The flat-table defect class is fully closed.** Five sites, one root cause: `awkit-3p6x` (wait
+node), `awkit-jtok` (wait conditions), `awkit-56un` (assertions), `awkit-njqg` (loop and scroll).
+Every node type whose `config` selects a dispatch arm has now been checked against its executor.
+
+No open engineering. `KNOWN_ISSUES.md` carries the four rules that generalise beyond these fixes -
+in particular that a **guarded no-op is invisible outside the gate**, and that a validation rule
+going red against generated test data may be right about the generator.
+
+---
+
 ## HANDOFF (2026-08-20) - Assert Text validated by kind; the class is closed
 
 ### Transfer
