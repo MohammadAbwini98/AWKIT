@@ -23,6 +23,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -37,11 +38,13 @@ import { isAbsolute, join, relative } from "node:path";
 
 import { LEDGER_STATUSES } from "../tools/roadmap/lib/parse-ledger.mjs";
 import {
+  CODEBASE_MEMORY_READ_TOOLS,
   ACTIVATION_RULES,
   AGENTS,
   AGENT_IDS,
   CLASSIFICATION_FLAGS,
   EVIDENCE_STATUSES,
+  GRAPHIFY_READ_TOOLS,
   PATH_DOMAINS,
   PROTECTED_PATHS,
   RISK_3_FLAGS,
@@ -50,6 +53,7 @@ import {
   WATCHED_IGNORED_PATHS,
   WRITER_PRECEDENCE,
   agent,
+  disallowedToolsFor,
   domainForPath,
   matchGlob,
   pathInScope,
@@ -85,10 +89,16 @@ import {
   leaseAllows,
   outOfLeaseWrites,
   readLease,
+  recordViolations,
   unclaimedProtectedWrites,
   releaseLease
 } from "../tools/agents/lease.mjs";
-import { decideWrite, targetPathOf } from "../tools/agents/lease-guard.mjs";
+import {
+  decideWrite,
+  isContractControlPath,
+  isReadOnlyShellCommand,
+  targetPathOf
+} from "../tools/agents/lease-guard.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -225,6 +235,14 @@ function tempFile(name, contents) {
   const path = join(dir, name);
   writeFileSync(path, contents, "utf8");
   return path;
+}
+
+function spawnLeaseGuard(payload) {
+  return spawnSync(process.execPath, ["tools/agents/lease-guard.mjs"], {
+    cwd: process.cwd(),
+    input: typeof payload === "string" ? payload : JSON.stringify(payload),
+    encoding: "utf8"
+  });
 }
 
 try {
@@ -447,6 +465,103 @@ try {
   check(
     "writer agents receive write tools",
     AGENTS.filter((a) => a.defaultMode === "writer").every((a) => /\bEdit\b/.test(toolsFor(a.id)))
+  );
+
+  const expectedCodebaseMemoryReads = [
+    "mcp__codebase-memory-mcp__search_graph",
+    "mcp__codebase-memory-mcp__query_graph",
+    "mcp__codebase-memory-mcp__trace_path",
+    "mcp__codebase-memory-mcp__get_code_snippet",
+    "mcp__codebase-memory-mcp__get_graph_schema",
+    "mcp__codebase-memory-mcp__get_architecture",
+    "mcp__codebase-memory-mcp__search_code",
+    "mcp__codebase-memory-mcp__list_projects",
+    "mcp__codebase-memory-mcp__index_status",
+    "mcp__codebase-memory-mcp__detect_changes"
+  ];
+  const expectedGraphifyReads = [
+    "Bash(graphify query:*)",
+    "Bash(graphify explain:*)",
+    "Bash(graphify path:*)",
+    "Bash(graphify affected:*)",
+    "Bash(graphify god-nodes:*)",
+    "Bash(graphify diagnose multigraph:*)",
+    "Bash(graphify benchmark:*)",
+    "Bash(graphify hook status:*)",
+    "Bash(graphify global list)",
+    "Bash(graphify global path)"
+  ];
+  const destructiveGitDenies = [
+    "Bash(git reset:*)",
+    "Bash(git clean:*)",
+    "Bash(git stash:*)",
+    "Bash(git worktree:*)",
+    "Bash(git branch:*)",
+    "Bash(git switch:*)",
+    "Bash(git checkout:*)",
+    "Bash(git push --force:*)",
+    "Bash(git push -f:*)"
+  ];
+  check(
+    "the MCP discovery grant is exactly the 10 read-only codebase-memory tools",
+    sameArray(CODEBASE_MEMORY_READ_TOOLS, expectedCodebaseMemoryReads),
+    JSON.stringify(CODEBASE_MEMORY_READ_TOOLS)
+  );
+  check(
+    "the Graphify settings policy is exactly the bounded read-only command set",
+    sameArray(GRAPHIFY_READ_TOOLS, expectedGraphifyReads),
+    JSON.stringify(GRAPHIFY_READ_TOOLS)
+  );
+  for (const role of AGENTS) {
+    const roleTools = toolsFor(role.id);
+    const mcpGrants = [...roleTools.matchAll(/mcp__codebase-memory-mcp__[A-Za-z0-9_.*-]+/g)]
+      .map((match) => match[0]);
+    const skillGrants = [...roleTools.matchAll(/Skill\(([^)]+)\)/g)].map((match) => match[1]);
+    check(
+      `${role.id} receives exactly the 10 read-only MCP grants`,
+      sameArray(mcpGrants, expectedCodebaseMemoryReads),
+      JSON.stringify(mcpGrants)
+    );
+    check(
+      `${role.id} receives only its lazy role skills`,
+      sameArray(skillGrants, ROLE_SKILLS[role.id] ?? []),
+      JSON.stringify(skillGrants)
+    );
+    check(
+      `${role.id} has no broad MCP, node, npm, or git grant`,
+      !roleTools.includes("mcp__codebase-memory-mcp__*") &&
+        !/Bash\((?:node|npm|git)(?::\*|\s+\*)\)/.test(roleTools),
+      roleTools
+    );
+    const deniedGit = [...disallowedToolsFor(role.id).matchAll(/Bash\(git[^)]*\)/g)]
+      .map((match) => match[0]);
+    check(
+      `${role.id} carries the exact destructive Git denylist`,
+      sameArray(deniedGit, destructiveGitDenies),
+      JSON.stringify(deniedGit)
+    );
+  }
+
+  const managerAgentGrants = [...toolsFor("manager").matchAll(/Agent\(([^)]*)\)/g)];
+  const delegatedClaudeNames = managerAgentGrants[0]?.[1]
+    ?.split(",")
+    .map((name) => name.trim())
+    .filter(Boolean) ?? [];
+  const expectedDelegatedClaudeNames = AGENTS
+    .filter((entry) => entry.id !== "manager")
+    .map((entry) => entry.claudeName);
+  check(
+    "Manager Agent delegation is restricted to the other 15 AWKIT identities",
+    managerAgentGrants.length === 1 &&
+      sameArray(delegatedClaudeNames, expectedDelegatedClaudeNames) &&
+      delegatedClaudeNames.every((name) => name.startsWith("awkit-")),
+    JSON.stringify(delegatedClaudeNames)
+  );
+  check(
+    "non-manager roles cannot spawn agents",
+    AGENTS.filter((entry) => entry.id !== "manager").every(
+      (entry) => !/Agent\(/.test(toolsFor(entry.id)) && /(?:^|, )Agent(?:,|$)/.test(disallowedToolsFor(entry.id))
+    )
   );
 
   /* ======================================================================
@@ -771,6 +886,83 @@ try {
     ipcSecurityScenario.reviewers.join(", ")
   );
 
+  const oraclePath = "src/oracle/OracleService.ts";
+  const oracleDerived = deriveClassification([oraclePath]);
+  const oracleDeclared = Object.fromEntries(oracleDerived.flags.map((flag) => [flag, true]));
+  oracleDeclared.cross_layer_count = Math.max(1, oracleDerived.crossLayerCount);
+  const oracleScenario = route(normalizeClassification(oracleDeclared).classification, {
+    expectedPaths: [oraclePath],
+    taskMode: "change"
+  });
+  check(
+    "Oracle routes exactly to manager + runtime + QA + QC + security",
+    sameArray(oracleScenario.activated, ["manager", "runtime", "qa", "qc", "security"]),
+    oracleScenario.activated.join(", ")
+  );
+  check("Oracle has exactly runtime as writer", sameArray(oracleScenario.writerSequence, ["runtime"]));
+  check("Oracle has exactly security as consultant", sameArray(oracleScenario.consultants, ["security"]));
+  check("Oracle has exactly QA and QC as reviewers", sameArray(oracleScenario.reviewers, ["qa", "qc"]));
+  const oracleDomain = domainForPath("src/oracle/OracleService.ts");
+  const bridgeDomain = domainForPath("oracle-jdbc-bridge/src/Bridge.java");
+  const nativeDomain = domainForPath("native-hosts/zvec/zvec-host.cjs");
+  const issuerDomain = domainForPath("tools/license-issuer/index.mjs");
+  check(
+    "Oracle, JDBC bridge, native hosts, and license issuer have exact owner/flag contracts",
+    oracleDomain?.owner === "runtime" &&
+      sameArray(oracleDomain.impliesFlags, ["execution_change", "authorization_change"]) &&
+      bridgeDomain?.owner === "runtime" &&
+      sameArray(bridgeDomain.impliesFlags, [
+        "execution_change",
+        "authorization_change",
+        "offline_boundary_change"
+      ]) &&
+      nativeDomain?.owner === "runtime" &&
+      sameArray(nativeDomain.impliesFlags, [
+        "execution_change",
+        "authorization_change",
+        "offline_boundary_change"
+      ]) &&
+      issuerDomain?.owner === "security" &&
+      sameArray(issuerDomain.impliesFlags, [
+        "licensing_change",
+        "signing_change",
+        "secret_handling_change"
+      ])
+  );
+  const routeFromOwnedPath = (path) => {
+    const derived = deriveClassification([path]);
+    const declared = Object.fromEntries(derived.flags.map((flag) => [flag, true]));
+    declared.cross_layer_count = Math.max(1, derived.crossLayerCount);
+    return route(normalizeClassification(declared).classification, {
+      expectedPaths: [path],
+      taskMode: "change"
+    });
+  };
+  const bridgeScenario = routeFromOwnedPath("oracle-jdbc-bridge/src/Bridge.java");
+  check(
+    "Oracle bridge routing adds the offline release adviser without a second writer",
+    sameArray(bridgeScenario.activated, ["manager", "runtime", "qa", "qc", "security", "release"]) &&
+      sameArray(bridgeScenario.writerSequence, ["runtime"]) &&
+      sameArray(bridgeScenario.consultants, ["security", "release"]) &&
+      sameArray(bridgeScenario.reviewers, ["qa", "qc"]),
+    JSON.stringify(bridgeScenario)
+  );
+  const issuerScenario = routeFromOwnedPath("tools/license-issuer/index.mjs");
+  check(
+    "license issuer routing serializes security and requires architecture/release advice plus QA/QC",
+    sameArray(issuerScenario.activated, ["manager", "architect", "qa", "qc", "security", "release"]) &&
+      sameArray(issuerScenario.writerSequence, ["security"]) &&
+      sameArray(issuerScenario.consultants, ["architect", "release"]) &&
+      sameArray(issuerScenario.reviewers, ["qa", "qc"]),
+    JSON.stringify(issuerScenario)
+  );
+  check(
+    "the canonical preload is app/main/preload.ts and is runtime-owned",
+    existsSync(new URL("../app/main/preload.ts", import.meta.url)) &&
+      domainForPath("app/main/preload.ts")?.owner === "runtime" &&
+      domainForPath("app/preload.ts") === null
+  );
+
   const broadInspectScenario = route(
     normalizeClassification({ broad_investigation: true }).classification,
     { expectedPaths: [], taskMode: "inspect" }
@@ -908,6 +1100,30 @@ try {
   check("the baseline fixture is VALID", validateContract(validContract()).ok,
     JSON.stringify(validateContract(validContract()).violations));
 
+  const validPreservedContract = validContract();
+  validPreservedContract.repository.preserved_paths = [{
+    path: "docs/ai/user-note.md",
+    git_status: " M",
+    sha256: "a".repeat(64)
+  }];
+  check(
+    "an exact preserved file fingerprint object is valid",
+    validateContract(validPreservedContract).ok,
+    JSON.stringify(validateContract(validPreservedContract).violations)
+  );
+  check("rejects a legacy preserved path string", rejects("repository.preserved_entry", (c) => {
+    c.repository.preserved_paths = ["docs/ai/user-note.md"];
+  }));
+  check("rejects a preserved glob instead of one exact file", rejects("repository.preserved_path", (c) => {
+    c.repository.preserved_paths = [{ path: "docs/ai/**", git_status: " M", sha256: "a".repeat(64) }];
+  }));
+  check("rejects a preserved file without exact two-character Git status", rejects("repository.preserved_status", (c) => {
+    c.repository.preserved_paths = [{ path: "docs/ai/user-note.md", git_status: "modified", sha256: "a".repeat(64) }];
+  }));
+  check("rejects a preserved file without a SHA-256 fingerprint", rejects("repository.preserved_sha256", (c) => {
+    c.repository.preserved_paths = [{ path: "docs/ai/user-note.md", git_status: " M", sha256: "not-a-sha" }];
+  }));
+
   check("rejects a contract with no manager", rejects("manager.absent", (c) => {
     c.routing.activated_agents = c.routing.activated_agents.filter((x) => x !== "manager");
   }));
@@ -950,11 +1166,20 @@ try {
   check("rejects a foreign evidence status", rejects("evidence.status", (c) => {
     c.evidence[0].result = "INCONCLUSIVE";
   }));
+  check("rejects duplicate evidence IDs", rejects("evidence.duplicate", (c) => {
+    c.evidence.push({ ...c.evidence[0] });
+  }));
   check("rejects acceptance with no evidence link", rejects("acceptance.unproven", (c) => {
     c.acceptance[0].evidence_required = [];
   }));
   check("rejects acceptance citing unknown evidence", rejects("acceptance.dangling", (c) => {
     c.acceptance[0].evidence_required = ["EV-999"];
+  }));
+  check("rejects acceptance citing optional evidence", rejects("acceptance.optional_evidence", (c) => {
+    c.evidence[0].required = false;
+  }));
+  check("rejects duplicate acceptance IDs", rejects("acceptance.duplicate", (c) => {
+    c.acceptance.push({ ...c.acceptance[0] });
   }));
   check("rejects no acceptance criteria", rejects("acceptance.empty", (c) => {
     c.acceptance = [];
@@ -1016,6 +1241,33 @@ try {
   notRun.evidence[0].result = "NOT RUN";
   check("NOT RUN evidence blocks completion", completionBlockers(notRun).length > 0);
 
+  const citedFailure = validContract();
+  citedFailure.evidence[0].result = "FAIL";
+  const citedFailureBlockers = completionBlockers(citedFailure);
+  check(
+    "every acceptance citation must resolve to required PASS evidence",
+    citedFailureBlockers.some((blocker) =>
+      /acceptance "AC-001" is not proven/.test(blocker) && /EV-001/.test(blocker) && /FAIL/.test(blocker)
+    ),
+    JSON.stringify(citedFailureBlockers)
+  );
+  const partiallyProven = validContract();
+  partiallyProven.evidence.push({
+    id: "EV-002",
+    type: "qc",
+    required: true,
+    result: "BLOCKED"
+  });
+  partiallyProven.acceptance[0].evidence_required = ["EV-001", "EV-002"];
+  const partialProofBlockers = completionBlockers(partiallyProven);
+  check(
+    "one passing citation cannot hide a second blocked citation",
+    partialProofBlockers.some((blocker) =>
+      /acceptance "AC-001" is not proven/.test(blocker) && /EV-002/.test(blocker) && /BLOCKED/.test(blocker)
+    ),
+    JSON.stringify(partialProofBlockers)
+  );
+
   check("a fully proven contract has no blockers", completionBlockers(validContract()).length === 0,
     JSON.stringify(completionBlockers(validContract())));
 
@@ -1053,6 +1305,10 @@ try {
   console.log("Write lease:");
   const leasePath = tempFile("active-lease.json", "");
   const assignPath = tempFile("assignments.json", JSON.stringify({ claims: [] }));
+  const leaseContractPath = tempFile(
+    "awkit-fixture.json",
+    `${JSON.stringify(validContract(), null, 2)}\n`
+  );
   rmSync(leasePath, { force: true });
 
   const frontendLeaseRouting = {
@@ -1069,7 +1325,8 @@ try {
     allowedPaths: ["app/renderer/**"],
     routing: frontendLeaseRouting,
     path: leasePath,
-    assignmentsPath: assignPath
+    assignmentsPath: assignPath,
+    contractPath: leaseContractPath
   });
   check("a lease can be granted", granted.status === "active");
   check("the lease allows an in-scope path", leaseAllows(granted, "app/renderer/App.tsx"));
@@ -1079,9 +1336,20 @@ try {
   const rejectedGrant = (name, params) => {
     const candidatePath = tempFile(`${name}-lease.json`, "");
     const candidateAssignments = tempFile(`${name}-assignments.json`, JSON.stringify({ claims: [] }));
+    const candidateContract = validContract();
+    candidateContract.task.id = params.task;
+    const candidateContractPath = tempFile(
+      `${name}-contract.json`,
+      `${JSON.stringify(candidateContract, null, 2)}\n`
+    );
     rmSync(candidatePath, { force: true });
     try {
-      grantLease({ ...params, path: candidatePath, assignmentsPath: candidateAssignments });
+      grantLease({
+        ...params,
+        path: candidatePath,
+        assignmentsPath: candidateAssignments,
+        contractPath: candidateContractPath
+      });
       return false;
     } catch {
       return true;
@@ -1151,7 +1419,13 @@ try {
 
   let noReason = false;
   try {
-    amendLease({ addPaths: ["app/renderer/other.tsx"], reason: "", path: leasePath, assignmentsPath: assignPath });
+    amendLease({
+      addPaths: ["app/renderer/other.tsx"],
+      reason: "",
+      path: leasePath,
+      assignmentsPath: assignPath,
+      contractPath: leaseContractPath
+    });
   } catch {
     noReason = true;
   }
@@ -1161,7 +1435,8 @@ try {
     addPaths: ["app/renderer/deep/Other.tsx"],
     reason: "same domain",
     path: leasePath,
-    assignmentsPath: assignPath
+    assignmentsPath: assignPath,
+    contractPath: leaseContractPath
   });
   check("an in-domain amendment EXTENDS the lease", extended.outcome === "extended");
 
@@ -1169,7 +1444,8 @@ try {
     addPaths: ["src/storage/store.ts"],
     reason: "persistence impact discovered",
     path: leasePath,
-    assignmentsPath: assignPath
+    assignmentsPath: assignPath,
+    contractPath: leaseContractPath
   });
   check("an out-of-domain amendment REROUTES instead of widening", rerouted.outcome === "reroute");
   check("rerouting names the specialist who owns the new path", rerouted.requiredAgents.includes("persistence"));
@@ -1179,6 +1455,117 @@ try {
     "rerouting clears the stale claim",
     JSON.parse(readFileSync(assignPath, "utf8")).claims.length === 0
   );
+
+  /* Lease violations must survive the active-file lifecycle. Refusal and archival are exercised
+     against disposable contract files so this proof never mutates the repository control plane. */
+  {
+    const historyTask = "awkit-history-fixture";
+    const historyLeasePath = tempFile("history-active-lease.json", "");
+    const historyAssignmentsPath = tempFile(
+      "history-assignments.json",
+      `${JSON.stringify({ claims: [] }, null, 2)}\n`
+    );
+    const historyContract = validContract();
+    historyContract.task.id = historyTask;
+    const historyContractPath = tempFile(
+      "history-contract.json",
+      `${JSON.stringify(historyContract, null, 2)}\n`
+    );
+    rmSync(historyLeasePath, { force: true });
+
+    grantLease({
+      task: historyTask,
+      holder: "frontend",
+      allowedPaths: ["app/renderer/**"],
+      routing: frontendLeaseRouting,
+      path: historyLeasePath,
+      assignmentsPath: historyAssignmentsPath,
+      contractPath: historyContractPath
+    });
+    recordViolations(["src/runner/outside.ts"], historyLeasePath);
+
+    let unresolvedReleaseRefused = false;
+    try {
+      releaseLease(
+        "attempt with unresolved violation",
+        historyLeasePath,
+        historyAssignmentsPath,
+        historyContractPath
+      );
+    } catch {
+      unresolvedReleaseRefused = true;
+    }
+    check(
+      "lease release refuses an unresolved violation",
+      unresolvedReleaseRefused && readLease(historyLeasePath)?.status === "active"
+    );
+
+    const overridePending = JSON.parse(readFileSync(historyContractPath, "utf8"));
+    overridePending.write_lease = {
+      ...(overridePending.write_lease ?? {}),
+      overrides: [{
+        timestamp: new Date().toISOString(),
+        reason: "independently reviewed emergency recovery",
+        affected_paths: ["src/runner/outside.ts"],
+        qc_required: true
+      }]
+    };
+    overridePending.completion.qc_status = "pending";
+    writeFileSync(historyContractPath, `${JSON.stringify(overridePending, null, 2)}\n`, "utf8");
+    let unapprovedOverrideRefused = false;
+    try {
+      releaseLease(
+        "attempt before QC approval",
+        historyLeasePath,
+        historyAssignmentsPath,
+        historyContractPath
+      );
+    } catch {
+      unapprovedOverrideRefused = true;
+    }
+    check("a declared override cannot release before QC approval", unapprovedOverrideRefused);
+
+    overridePending.completion.qc_status = "APPROVED";
+    writeFileSync(historyContractPath, `${JSON.stringify(overridePending, null, 2)}\n`, "utf8");
+    const releasedHistoryLease = releaseLease(
+      "QC-approved emergency release",
+      historyLeasePath,
+      historyAssignmentsPath,
+      historyContractPath
+    );
+    const archivedAfterRelease = JSON.parse(readFileSync(historyContractPath, "utf8"));
+    check(
+      "a QC-approved narrow override permits release",
+      releasedHistoryLease?.status === "released" && readLease(historyLeasePath) === null
+    );
+    check(
+      "release archives the violation into durable task-contract history",
+      archivedAfterRelease.write_lease?.history?.some((entry) =>
+        entry.task === historyTask &&
+          entry.status === "released" &&
+          entry.violations?.some((violation) => violation.path === "src/runner/outside.ts")
+      ),
+      JSON.stringify(archivedAfterRelease.write_lease?.history)
+    );
+
+    grantLease({
+      task: historyTask,
+      holder: "frontend",
+      allowedPaths: ["app/renderer/**"],
+      routing: frontendLeaseRouting,
+      path: historyLeasePath,
+      assignmentsPath: historyAssignmentsPath,
+      contractPath: historyContractPath
+    });
+    const historyAfterNextLease = JSON.parse(readFileSync(historyContractPath, "utf8"));
+    check(
+      "granting the next lease cannot erase archived violation history",
+      historyAfterNextLease.write_lease?.history?.some((entry) =>
+        entry.violations?.some((violation) => violation.path === "src/runner/outside.ts")
+      ) && readLease(historyLeasePath)?.violations?.length === 0,
+      JSON.stringify(historyAfterNextLease.write_lease?.history)
+    );
+  }
 
   /* ── Shared write paths: relaxed at edit time, strict on content (awkit-dwo) ───────────────
      package.json is release-owned because it carries the dependency graph, but adding a one-line
@@ -1375,6 +1762,8 @@ try {
 
     let committedProbe = [];
     let fingerprintChanged = false;
+    let invalidBaselineRejected = false;
+    let unavailableGitRejected = false;
     let auditProbeError = "helpers unavailable";
     if (typeof committedPathsSince === "function" && typeof trackedPathFingerprints === "function") {
       const gitSandbox = mkdtempSync(join(tmpdir(), "awkit-routing-git-"));
@@ -1398,6 +1787,12 @@ try {
         }).trim();
         const beforeFingerprints = trackedPathFingerprints(["baseline.txt"], gitSandbox);
 
+        try {
+          committedPathsSince("not-a-valid-commit", gitSandbox);
+        } catch {
+          invalidBaselineRejected = true;
+        }
+
         mkdirSync(join(gitSandbox, "src"), { recursive: true });
         writeFileSync(join(gitSandbox, "src", "after.ts"), "export const after = true;\n", "utf8");
         execFileSync("git", ["add", "src/after.ts"], { cwd: gitSandbox, stdio: "ignore" });
@@ -1408,6 +1803,14 @@ try {
         const afterFingerprints = trackedPathFingerprints(["baseline.txt"], gitSandbox);
         fingerprintChanged =
           beforeFingerprints["baseline.txt"] !== afterFingerprints["baseline.txt"];
+
+        const noGitSandbox = mkdtempSync(join(tmpdir(), "awkit-routing-no-git-"));
+        tempDirs.push(noGitSandbox);
+        try {
+          dirtyPaths(noGitSandbox);
+        } catch {
+          unavailableGitRejected = true;
+        }
         auditProbeError = "";
       } catch (error) {
         auditProbeError = error instanceof Error ? error.message : String(error);
@@ -1423,14 +1826,22 @@ try {
       fingerprintChanged,
       auditProbeError
     );
+    check(
+      "an invalid acquired_at_commit baseline fails closed",
+      invalidBaselineRejected,
+      auditProbeError
+    );
+    check(
+      "unavailable Git state fails closed instead of returning a clean tree",
+      unavailableGitRejected,
+      auditProbeError
+    );
   }
 
-  /* ── Protected paths close the no-lease gap (awkit-mtt) ────────────────────────────────────
-     The guard allows every edit when no lease is held, because failing closed everywhere would
-     block every task that does not use a contract. That is right for ordinary work and wrong for
-     the areas the repository already treats as critical, so those specifically fail closed. The set
-     is DERIVED from RISK_3_FLAGS rather than hand-listed, and these checks pin both the derivation
-     and the fact that it is neither empty nor everything. */
+  /* ── Protected-path audit plus the fail-closed no-lease gate ────────────────────────────────
+     All repository writes now need a lease. The protected set remains independently useful to the
+     post-command audit: when no lease exists it identifies critical already-dirty paths that still
+     need an accountable owner. */
   {
     check(
       "protected paths are derived from the Risk 3 flags, not hand-listed",
@@ -1442,8 +1853,7 @@ try {
         (d) => protectedPathFor(d.glob.replace(/\*\*/g, "probe")) !== null
       )
     );
-    // Non-vacuity in both directions: a set that is empty protects nothing, and a set that is
-    // everything reinstates the fail-closed-everywhere behaviour this deliberately avoids.
+    // Non-vacuity in both directions: this is a focused audit set, not the write gate itself.
     check("the protected set is non-empty", PROTECTED_PATHS.length >= 4, `${PROTECTED_PATHS.length}`);
     check(
       "the protected set is NOT everything",
@@ -1467,23 +1877,41 @@ try {
     );
     check("no unclaimed protected write means silence", unclaimedProtectedWrites(["docs/ai/x.md"]).length === 0);
 
-    // The guard's actual JUDGEMENT, not just its payload parser. Before this was extracted, only
-    // targetPathOf() was covered, so flipping the protected-path branch changed no assertion.
+    // The guard's actual JUDGEMENT, not just its payload parser.
     const held = { holder: "qa", allowed_paths: ["tests/**"], task: "t", status: "active" };
     check(
-      "no lease + ordinary path -> allow",
-      decideWrite(null, "app/renderer/App.tsx").allow === true
+      "no lease + ordinary path fails closed",
+      decideWrite(null, "app/renderer/App.tsx").allow === false &&
+        decideWrite(null, "app/renderer/App.tsx").reason === "lease-required"
     );
     check(
-      "no lease + protected path -> BLOCK",
-      decideWrite(null, "src/licensing/x.ts").allow === false
+      "no lease + protected path also fails closed through the same lease requirement",
+      decideWrite(null, "src/licensing/x.ts").allow === false &&
+        decideWrite(null, "src/licensing/x.ts").reason === "lease-required"
     );
     check(
-      "the block names why it is protected",
-      decideWrite(null, "src/licensing/x.ts").reason === "protected-unclaimed"
+      "only a bounded task-contract file is a no-lease write control plane",
+      isContractControlPath("docs/ai/contracts/t.json") &&
+        decideWrite(null, "docs/ai/contracts/t.json").allow === true &&
+        decideWrite(null, "docs/ai/contracts/t.json").reason === "contract-control-plane"
+    );
+    check(
+      "active lease, schema, nested, glob, and traversal paths are not contract bootstrap writes",
+      [
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/TASK_CONTRACT.schema.json",
+        "docs/ai/contracts/nested/t.json",
+        "docs/ai/contracts/*.json",
+        "docs/ai/contracts/../t.json"
+      ].every((path) => !isContractControlPath(path))
     );
     check("lease + in-scope -> allow", decideWrite(held, "tests/x.ts").allow === true);
     check("lease + out-of-scope -> BLOCK", decideWrite(held, "src/runner/x.ts").allow === false);
+    check(
+      "a lease may update only its own exact task contract through the control plane",
+      decideWrite(held, "docs/ai/contracts/t.json").allow === true &&
+        decideWrite(held, "docs/ai/contracts/another-task.json").allow === false
+    );
     check(
       "a lease covering a protected path permits it",
       decideWrite({ ...held, allowed_paths: ["src/licensing/**"] }, "src/licensing/x.ts").allow === true
@@ -1615,11 +2043,97 @@ try {
     damagedThrew = true;
   }
   check("a damaged lease throws rather than reading as absent", damagedThrew);
+  const incompleteLease = tempFile(
+    "incomplete-lease.json",
+    `${JSON.stringify({ status: "active", holder: "qa" }, null, 2)}\n`
+  );
+  let incompleteLeaseThrew = false;
+  try {
+    readLease(incompleteLease);
+  } catch {
+    incompleteLeaseThrew = true;
+  }
+  check("an active lease missing enforcement fields fails closed", incompleteLeaseThrew);
   check("an absent lease reads as null", readLease(join(tmpdir(), "awkit-no-such-lease.json")) === null);
 
   check("the guard reads Edit payloads", targetPathOf({ tool_input: { file_path: "a.ts" } }) === "a.ts");
   check("the guard reads NotebookEdit payloads", targetPathOf({ tool_input: { notebook_path: "b.ipynb" } }) === "b.ipynb");
   check("the guard ignores payloads with no target", targetPathOf({ tool_input: {} }) === null);
+
+  const malformedGuardPayload = spawnLeaseGuard("{ not json");
+  const emptyGuardPayload = spawnLeaseGuard("");
+  const missingGuardTarget = spawnLeaseGuard({ tool_name: "Edit", tool_input: {} });
+  const outsideGuardTarget = spawnLeaseGuard({
+    tool_name: "Write",
+    tool_input: { file_path: join(tmpdir(), "awkit-outside-repository.txt") }
+  });
+  check(
+    "malformed and empty PreToolUse payloads block",
+    malformedGuardPayload.status === 2 && emptyGuardPayload.status === 2,
+    `${malformedGuardPayload.status}/${emptyGuardPayload.status}`
+  );
+  check(
+    "a write-capable payload with no target blocks",
+    missingGuardTarget.status === 2 && /no resolvable target/i.test(missingGuardTarget.stderr),
+    `${missingGuardTarget.status}: ${missingGuardTarget.stderr}`
+  );
+  check(
+    "a write target outside AWKIT blocks",
+    outsideGuardTarget.status === 2 && /outside|cannot be resolved/i.test(outsideGuardTarget.stderr),
+    `${outsideGuardTarget.status}: ${outsideGuardTarget.stderr}`
+  );
+
+  const safeNoLeaseCommands = [
+    "git status --short",
+    "git diff -- scripts/verify-agent-routing.mjs",
+    "git log -1",
+    "git show HEAD",
+    "git rev-parse HEAD",
+    "git ls-files tools/agents",
+    "graphify query routing",
+    "graphify explain routing",
+    "graphify path route validateContract",
+    "graphify affected tools/agents/route.mjs",
+    "graphify diagnose multigraph",
+    "graphify hook status",
+    "graphify global list",
+    "graphify global path",
+    "bd show awkit-fixture",
+    "bd list",
+    "claude --version",
+    "claude mcp list",
+    "npm run agent:lease",
+    "npm run agent:lease-grant -- --task awkit-fixture --holder qa --paths scripts/verify-agent-routing.mjs",
+    "node tools/agents/task-gate.mjs docs/ai/contracts/awkit-fixture.json"
+  ];
+  const unsafeNoLeaseCommands = [
+    "git status > status.txt",
+    "git status; git checkout -- x",
+    "git status | tee status.txt",
+    "git status --ext-diff",
+    "git checkout -- x",
+    "git commit -am unsafe",
+    "git push origin main",
+    "graphify update .",
+    "graphify install",
+    "graphify query routing --output graph.json",
+    "bd update awkit-fixture --status closed",
+    "npm install",
+    "npm run build",
+    "npm run agent:lease-amend -- --add x --reason y",
+    "node -e process.exit(0)",
+    "node tools/agents/task-gate.mjs contract.json && echo changed"
+  ];
+  check(
+    "the no-lease shell grammar permits every representative bounded read/control command",
+    safeNoLeaseCommands.every((command) => isReadOnlyShellCommand(command)),
+    safeNoLeaseCommands.filter((command) => !isReadOnlyShellCommand(command)).join(" | ")
+  );
+  check(
+    "the no-lease shell grammar rejects mutations, broad execution, and shell composition",
+    unsafeNoLeaseCommands.every((command) => !isReadOnlyShellCommand(command)),
+    unsafeNoLeaseCommands.filter((command) => isReadOnlyShellCommand(command)).join(" | ")
+  );
 
   /* ======================================================================
      9. Context status, compaction checkpoint, and supported Claude wiring
@@ -1693,9 +2207,32 @@ try {
       root: process.cwd(),
       branch: "main",
       head: "fixture-head",
-      dirty: ["scripts/verify-agent-routing.mjs"]
+      dirty: ["scripts/verify-agent-routing.mjs"],
+      activeLease: {
+        task: "awkit-fixture",
+        holder: "qa",
+        status: "active",
+        allowed_paths: ["scripts/verify-agent-routing.mjs"],
+        violations: [{ path: "none", resolved: true }]
+      }
     },
-    status: { nextAction: "continue the routed task" },
+    status: {
+      objective: "prove checkpoint recovery",
+      acceptanceCriteria: [{ id: "AC-001", description: "resume exactly" }],
+      architectureDecisions: ["checkpoint stays ephemeral"],
+      filesChanged: ["scripts/verify-agent-routing.mjs"],
+      commits: ["fixture-sha"],
+      completed: ["routing"],
+      unresolved: ["final QC"],
+      defects: [],
+      checks: [{ id: "EV-001", result: "PASS" }],
+      securityConstraints: ["no credentials"],
+      dataConstraints: ["LOCALAPPDATA only"],
+      offlineConstraints: ["offline"],
+      compatibilityConstraints: ["Windows"],
+      blockers: [],
+      nextAction: "continue the routed task"
+    },
     transcript: "DO_NOT_PERSIST_TRANSCRIPT",
     compact_summary: "DO_NOT_PERSIST_SUMMARY",
     messages: [{ role: "user", content: "DO_NOT_PERSIST_MESSAGE" }]
@@ -1722,6 +2259,36 @@ try {
 
   const builtCheckpoint = invoke(checkpoint?.buildCheckpoint, checkpointInput);
   check("buildCheckpoint accepts a synthetic repository-state probe", builtCheckpoint.ok);
+  const expectedCheckpointStatusFields = [
+    "objective",
+    "acceptance_criteria",
+    "architecture_decisions",
+    "files_changed",
+    "commits",
+    "completed",
+    "unresolved",
+    "defects",
+    "checks",
+    "security_constraints",
+    "data_constraints",
+    "offline_constraints",
+    "compatibility_constraints",
+    "blockers",
+    "next_action"
+  ];
+  check(
+    "checkpoint carries the full bounded task-resumption field set",
+    builtCheckpoint.ok &&
+      sameArray(Object.keys(builtCheckpoint.value.status ?? {}), expectedCheckpointStatusFields) &&
+      sameArray(Object.keys(builtCheckpoint.value.repository ?? {}), [
+        "root",
+        "branch",
+        "head",
+        "changed_paths",
+        "active_lease"
+      ]),
+    JSON.stringify(builtCheckpoint.value)
+  );
   check(
     "checkpoint data never contains transcript or compact-summary fields",
     builtCheckpoint.ok &&
@@ -1758,6 +2325,76 @@ try {
     capturedFiles.join(", ")
   );
 
+  const hostileSentinels = [
+    "HOSTILE_PASSWORD_SENTINEL",
+    "HOSTILE_SECRET_SENTINEL",
+    "HOSTILE_TOKEN_SENTINEL",
+    "HOSTILE_COOKIE_SENTINEL",
+    "HOSTILE_CREDENTIAL_SENTINEL",
+    "HOSTILE_AUTHORIZATION_SENTINEL",
+    "HOSTILE_API_KEY_SENTINEL",
+    "HOSTILE_PRIVATE_KEY_SENTINEL",
+    "HOSTILE_CONNECTION_STRING_SENTINEL",
+    "HOSTILE_SESSION_STATE_SENTINEL",
+    "HOSTILE_TRANSCRIPT_SENTINEL",
+    "HOSTILE_MESSAGE_SENTINEL",
+    "HOSTILE_CONVERSATION_SENTINEL"
+  ];
+  const hostileCheckpointInput = {
+    taskId: "awkit-hostile-fixture",
+    repository: {
+      root: process.cwd(),
+      branch: "main",
+      head: "fixture-head",
+      password: hostileSentinels[0],
+      secret: hostileSentinels[1],
+      token: hostileSentinels[2],
+      cookie: hostileSentinels[3],
+      credential: hostileSentinels[4],
+      authorization: hostileSentinels[5],
+      session_state: hostileSentinels[9]
+    },
+    status: {
+      objective: `password=${hostileSentinels[0]}`,
+      acceptanceCriteria: [{ secret: hostileSentinels[1], note: `cookie=${hostileSentinels[3]}` }],
+      architectureDecisions: [`token=${hostileSentinels[2]}`],
+      filesChanged: [],
+      commits: [`credential=${hostileSentinels[4]}`],
+      completed: [`authorization=${hostileSentinels[5]}`],
+      unresolved: [`api_key=${hostileSentinels[6]}`],
+      defects: [`private_key=${hostileSentinels[7]}`],
+      checks: [`connection_string=${hostileSentinels[8]}`],
+      securityConstraints: [{ session_state: hostileSentinels[9] }],
+      dataConstraints: [{ transcript: hostileSentinels[10] }],
+      offlineConstraints: [{ messages: hostileSentinels[11] }],
+      compatibilityConstraints: [{ conversation: hostileSentinels[12] }],
+      blockers: [],
+      nextAction: "inspect live state"
+    },
+    transcript: hostileSentinels[10],
+    messages: hostileSentinels[11],
+    conversation: hostileSentinels[12]
+  };
+  const hostileCheckpoint = invoke(checkpoint?.buildCheckpoint, hostileCheckpointInput);
+  const hostileSerialized = JSON.stringify(hostileCheckpoint.value ?? {});
+  check(
+    "hostile password/secret/token/cookie/credential/string sentinels are omitted or redacted",
+    hostileCheckpoint.ok && hostileSentinels.every((sentinel) => !hostileSerialized.includes(sentinel)),
+    hostileSentinels.filter((sentinel) => hostileSerialized.includes(sentinel)).join(", ")
+  );
+  const hostileCapture = await invokeAsync(checkpoint?.captureCheckpoint, {
+    ...hostileCheckpointInput,
+    localAppData: checkpointRoot
+  });
+  const hostilePersisted = hostileCapture.ok
+    ? readFileSync(hostileCapture.value.path, "utf8")
+    : String(hostileCapture.error?.message ?? "capture failed");
+  check(
+    "persisted checkpoint also omits every hostile sentinel",
+    hostileCapture.ok && hostileSentinels.every((sentinel) => !hostilePersisted.includes(sentinel)),
+    hostilePersisted
+  );
+
   const checkpointCliEnv = { ...process.env, LOCALAPPDATA: checkpointRoot };
   const checkpointCaptureCli = spawnSync(
     process.execPath,
@@ -1789,7 +2426,7 @@ try {
     }
   );
   check(
-    "PostCompact restore CLI is non-fatal and labels ephemeral non-authoritative state",
+    "SessionStart restore CLI is non-fatal and labels ephemeral non-authoritative state",
     checkpointRestoreCli.status === 0 &&
       /ephemeral/i.test(checkpointRestoreCli.stdout) &&
       /non[- ]authoritative/i.test(checkpointRestoreCli.stdout),
@@ -1803,13 +2440,55 @@ try {
     !/DO_NOT_PERSIST_CLI_(TRANSCRIPT|SUMMARY)/.test(allCheckpointText)
   );
 
+  const recoveryCwd = mkdtempSync(join(tmpdir(), "awkit-checkpoint-recovery-"));
+  tempDirs.push(recoveryCwd);
+  const recoverySession = "awkit-session-after-release";
+  const recoveryCaptureCli = spawnSync(
+    process.execPath,
+    ["tools/agents/compaction-checkpoint.mjs", "capture"],
+    {
+      cwd: process.cwd(),
+      env: checkpointCliEnv,
+      input: JSON.stringify({
+        taskId: "awkit-released-fixture",
+        session_id: recoverySession,
+        cwd: recoveryCwd,
+        localAppData: checkpointRoot
+      }),
+      encoding: "utf8"
+    }
+  );
+  const recoveryRestoreCli = spawnSync(
+    process.execPath,
+    ["tools/agents/compaction-checkpoint.mjs", "restore"],
+    {
+      cwd: process.cwd(),
+      env: checkpointCliEnv,
+      input: JSON.stringify({
+        session_id: recoverySession,
+        cwd: recoveryCwd,
+        localAppData: checkpointRoot
+      }),
+      encoding: "utf8"
+    }
+  );
+  check(
+    "compact SessionStart recovers the captured task after its active lease is gone",
+    recoveryCaptureCli.status === 0 &&
+      recoveryRestoreCli.status === 0 &&
+      /Task: awkit-released-fixture/.test(recoveryRestoreCli.stdout),
+    `${recoveryCaptureCli.status}/${recoveryRestoreCli.status}: ${recoveryRestoreCli.stdout || recoveryRestoreCli.stderr}`
+  );
+
   const claudeSettings = JSON.parse(
     readFileSync(new URL("../.claude/settings.json", import.meta.url), "utf8")
   );
+  const expectedProjectPermissionAllows = [...expectedCodebaseMemoryReads];
   check(
-    "project settings explicitly allow the codebase-memory MCP wildcard",
-    Array.isArray(claudeSettings.permissions?.allow) &&
-      claudeSettings.permissions.allow.includes("mcp__codebase-memory-mcp__*"),
+    "project settings allow exactly the 10 bounded MCP reads without a wildcard",
+    sameArray(claudeSettings.permissions?.allow, expectedProjectPermissionAllows) &&
+      !claudeSettings.permissions.allow.includes("mcp__codebase-memory-mcp__*") &&
+      !claudeSettings.permissions.allow.includes("Bash(graphify:*)"),
     JSON.stringify(claudeSettings.permissions?.allow ?? [])
   );
   const hooksFor = (event) =>
@@ -1820,39 +2499,67 @@ try {
   const bashHooks = hooksFor("PostToolUse");
   check(
     "the exact Edit/Write/NotebookEdit lease hook remains wired",
-    leaseHooks.some(
+    leaseHooks.filter(
       (hook) =>
         hook.matcher === "Edit|Write|NotebookEdit" &&
         hook.type === "command" &&
         hook.command === "node tools/agents/lease-guard.mjs"
-    )
+    ).length === 1
+  );
+  check(
+    "the exact Bash/PowerShell pre-command lease hook remains wired",
+    leaseHooks.filter(
+      (hook) =>
+        hook.matcher === "Bash|PowerShell" &&
+        hook.type === "command" &&
+        hook.command === "node tools/agents/lease-guard.mjs"
+    ).length === 1
   );
   check(
     "the exact Bash post-write audit hook remains wired",
-    bashHooks.some(
+    bashHooks.filter(
       (hook) =>
         hook.matcher === "Bash" &&
         hook.type === "command" &&
         hook.command === "node tools/agents/bash-audit.mjs"
-    )
+    ).length === 1
+  );
+  check(
+    "the exact PowerShell post-write audit hook remains wired",
+    bashHooks.filter(
+      (hook) =>
+        hook.matcher === "PowerShell" &&
+        hook.type === "command" &&
+        hook.command === "node tools/agents/bash-audit.mjs"
+    ).length === 1
   );
   const preCompactHooks = hooksFor("PreCompact");
   const postCompactHooks = hooksFor("PostCompact");
-  check(
-    "PreCompact runs checkpoint capture",
-    preCompactHooks.some((hook) => /compaction-checkpoint\.mjs\s+capture/.test(hook.command ?? ""))
+  const compactSessionStartHooks = hooksFor("SessionStart").filter(
+    (hook) => hook.matcher === "compact"
   );
   check(
-    "PostCompact runs checkpoint restore",
-    postCompactHooks.some((hook) => /compaction-checkpoint\.mjs\s+restore/.test(hook.command ?? ""))
+    "PreCompact synchronously captures one checkpoint with the bounded timeout",
+    preCompactHooks.length === 1 &&
+      preCompactHooks[0].matcher === "manual|auto" &&
+      preCompactHooks[0].type === "command" &&
+      preCompactHooks[0].command === "node tools/agents/compaction-checkpoint.mjs capture" &&
+      preCompactHooks[0].timeout === 15 &&
+      !("async" in preCompactHooks[0])
   );
   check(
-    "PreCompact and PostCompact commands are non-blocking",
-    preCompactHooks.length > 0 &&
-      postCompactHooks.length > 0 &&
-      [...preCompactHooks, ...postCompactHooks].every(
-        (hook) => hook.type === "command" && hook.async === true
-      )
+    "compact SessionStart synchronously restores one checkpoint with the bounded timeout",
+    compactSessionStartHooks.length === 1 &&
+      compactSessionStartHooks[0].type === "command" &&
+      compactSessionStartHooks[0].command ===
+        "node tools/agents/compaction-checkpoint.mjs restore" &&
+      compactSessionStartHooks[0].timeout === 15 &&
+      !("async" in compactSessionStartHooks[0])
+  );
+  check(
+    "PostCompact is absent because compact SessionStart owns restore",
+    postCompactHooks.length === 0,
+    JSON.stringify(postCompactHooks)
   );
   check(
     "statusLine runs context-status.mjs",
@@ -1862,13 +2569,11 @@ try {
       )
   );
   check(
-    "the locally supported auto-compact override is exactly 75 percent",
-    claudeSettings.env?.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE === "75"
-  );
-  check(
-    "newer absolute autoCompactWindow controls are not asserted into local settings",
+    "the supported compaction window is exactly 200000 tokens with a 75 percent override",
+    claudeSettings.env?.CLAUDE_CODE_AUTO_COMPACT_WINDOW === "200000" &&
+      claudeSettings.env?.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE === "75" &&
     !("autoCompactWindow" in claudeSettings) &&
-      !("CLAUDE_CODE_AUTO_COMPACT_WINDOW" in (claudeSettings.env ?? {}))
+      Object.keys(claudeSettings.env ?? {}).filter((key) => /COMPACT/i.test(key)).length === 2
   );
   check(
     "Agent Teams are not globally enabled",
@@ -1921,16 +2626,128 @@ try {
   );
 
   const preservedContract = validContract();
-  preservedContract.repository.preserved_paths = ["src/storage/pre-existing.ts"];
+  const preservedFingerprint = {
+    path: "src/storage/pre-existing.ts",
+    git_status: " M",
+    sha256: "a".repeat(64)
+  };
+  preservedContract.repository.preserved_paths = [preservedFingerprint];
   const preservedGate = await invokeAsync(taskGate?.evaluateTaskGate, preservedContract, {
     lease: null,
     changedFiles: ["src/storage/pre-existing.ts"],
-    guardedFieldChanges: []
+    guardedFieldChanges: [],
+    preservedStates: {
+      "src/storage/pre-existing.ts": { ...preservedFingerprint }
+    }
   });
   check(
     "task gate excludes explicitly preserved pre-existing paths from derived escapes",
     preservedGate.ok && gateIsOpen(preservedGate.value),
     JSON.stringify(preservedGate.value ?? preservedGate.error?.message)
+  );
+  const changedPreservedGate = await invokeAsync(taskGate?.evaluateTaskGate, preservedContract, {
+    lease: null,
+    changedFiles: ["src/storage/pre-existing.ts"],
+    guardedFieldChanges: [],
+    preservedStates: {
+      "src/storage/pre-existing.ts": { ...preservedFingerprint, sha256: "b".repeat(64) }
+    }
+  });
+  check(
+    "a preserved file with changed content is a blocking scope escape",
+    changedPreservedGate.ok &&
+      !gateIsOpen(changedPreservedGate.value) &&
+      /preserved|fingerprint|changed/i.test(JSON.stringify(gateBlockers(changedPreservedGate.value))),
+    JSON.stringify(changedPreservedGate.value ?? changedPreservedGate.error?.message)
+  );
+  const replacedPreservedGate = await invokeAsync(taskGate?.evaluateTaskGate, preservedContract, {
+    lease: null,
+    changedFiles: ["src/storage/pre-existing.ts"],
+    guardedFieldChanges: [],
+    preservedStates: {
+      "src/storage/pre-existing.ts": { ...preservedFingerprint, git_status: "??" }
+    }
+  });
+  check(
+    "a preserved file replaced by a new file is a blocking scope escape",
+    replacedPreservedGate.ok &&
+      !gateIsOpen(replacedPreservedGate.value) &&
+      /preserved|status|changed/i.test(JSON.stringify(gateBlockers(replacedPreservedGate.value))),
+    JSON.stringify(replacedPreservedGate.value ?? replacedPreservedGate.error?.message)
+  );
+
+  const baselineRepo = mkdtempSync(join(tmpdir(), "awkit-task-gate-git-"));
+  tempDirs.push(baselineRepo);
+  execFileSync("git", ["init"], { cwd: baselineRepo, stdio: "ignore" });
+  execFileSync("git", ["config", "user.name", "AWKIT Routing Verifier"], {
+    cwd: baselineRepo,
+    stdio: "ignore"
+  });
+  execFileSync("git", ["config", "user.email", "routing-verifier@example.invalid"], {
+    cwd: baselineRepo,
+    stdio: "ignore"
+  });
+  writeFileSync(join(baselineRepo, "baseline.txt"), "baseline\n", "utf8");
+  execFileSync("git", ["add", "baseline.txt"], { cwd: baselineRepo, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "baseline"], { cwd: baselineRepo, stdio: "ignore" });
+  const validBaseline = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: baselineRepo,
+    encoding: "utf8"
+  }).trim();
+  const validBaselineContract = validContract();
+  validBaselineContract.repository.baseline_commit = validBaseline;
+  const validBaselineGate = await invokeAsync(taskGate?.evaluateTaskGate, validBaselineContract, {
+    cwd: baselineRepo,
+    lease: null,
+    changedFiles: [],
+    guardedFieldChanges: []
+  });
+  check(
+    "a real temporary-repository baseline is accepted",
+    validBaselineGate.ok && gateIsOpen(validBaselineGate.value),
+    JSON.stringify(validBaselineGate.value ?? validBaselineGate.error?.message)
+  );
+  const invalidBaselineContract = validContract();
+  invalidBaselineContract.repository.baseline_commit = "definitely-not-a-commit";
+  const invalidBaselineGate = await invokeAsync(taskGate?.evaluateTaskGate, invalidBaselineContract, {
+    cwd: baselineRepo,
+    lease: null,
+    changedFiles: [],
+    guardedFieldChanges: []
+  });
+  check(
+    "task completion fails closed when its Git baseline is invalid",
+    invalidBaselineGate.ok &&
+      !gateIsOpen(invalidBaselineGate.value) &&
+      /baseline is invalid|baseline.*unavailable/i.test(JSON.stringify(gateBlockers(invalidBaselineGate.value))),
+    JSON.stringify(invalidBaselineGate.value ?? invalidBaselineGate.error?.message)
+  );
+  const noGitGateRoot = mkdtempSync(join(tmpdir(), "awkit-task-gate-no-git-"));
+  tempDirs.push(noGitGateRoot);
+  const unavailableGitGate = await invokeAsync(taskGate?.evaluateTaskGate, validContract(), {
+    cwd: noGitGateRoot,
+    lease: null,
+    guardedFieldChanges: []
+  });
+  check(
+    "task completion fails closed when Git change derivation is unavailable",
+    unavailableGitGate.ok &&
+      !gateIsOpen(unavailableGitGate.value) &&
+      /changed-file derivation failed closed/i.test(JSON.stringify(gateBlockers(unavailableGitGate.value))),
+    JSON.stringify(unavailableGitGate.value ?? unavailableGitGate.error?.message)
+  );
+  const unreadableLeaseGate = await invokeAsync(taskGate?.evaluateTaskGate, validContract(), {
+    lease: null,
+    changedFiles: [],
+    guardedFieldChanges: [],
+    infrastructureBlockers: ["active lease is unreadable: fixture corruption"]
+  });
+  check(
+    "an unreadable active lease is an infrastructure blocker, never absence",
+    unreadableLeaseGate.ok &&
+      !gateIsOpen(unreadableLeaseGate.value) &&
+      /active lease is unreadable/i.test(JSON.stringify(gateBlockers(unreadableLeaseGate.value))),
+    JSON.stringify(unreadableLeaseGate.value ?? unreadableLeaseGate.error?.message)
   );
 
   const guardedGate = await invokeAsync(taskGate?.evaluateTaskGate, validContract(), {
@@ -2019,6 +2836,36 @@ try {
     sameArray([...(schema.properties?.task?.properties?.mode?.enum ?? [])].sort(), ["change", "inspect"]),
     JSON.stringify(schema.properties?.task?.properties?.mode)
   );
+  const preservedItemSchema = schema.properties?.repository?.properties?.preserved_paths?.items;
+  check(
+    "the contract schema requires preserved path/status/SHA fingerprint objects",
+    preservedItemSchema?.type === "object" &&
+      sameArray([...(preservedItemSchema.required ?? [])].sort(), ["git_status", "path", "sha256"]) &&
+      preservedItemSchema.properties?.path?.type === "string" &&
+      preservedItemSchema.properties?.git_status?.type === "string" &&
+      preservedItemSchema.properties?.sha256?.type === "string",
+    JSON.stringify(preservedItemSchema)
+  );
+  check(
+    "the contract schema preserves append-only lease history",
+    schema.properties?.write_lease?.properties?.history?.type === "array" &&
+      schema.properties.write_lease.properties.history.items?.type === "object",
+    JSON.stringify(schema.properties?.write_lease?.properties?.history)
+  );
+
+  const packageManifest = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8")
+  );
+  check(
+    "package scripts keep docs render, agent render, and agent check commands separate",
+    packageManifest.scripts?.["agent:render-docs"] ===
+      "node tools/agents/render-docs.mjs --write" &&
+      packageManifest.scripts?.["agent:render-agents"] ===
+        "node tools/agents/render-platform-agents.mjs --write" &&
+      packageManifest.scripts?.["agent:check-agents"] ===
+        "node tools/agents/render-platform-agents.mjs" &&
+      !packageManifest.scripts["agent:check-agents"].includes("--write")
+  );
 
   /* ======================================================================
      12. Generated platform agent definitions
@@ -2078,6 +2925,11 @@ try {
     const maxTurns = Number(frontmatterValue(content, "maxTurns"));
     const denylist = frontmatterValue(content, "disallowedTools");
     const tools = frontmatterValue(content, "tools");
+    const generatedMcpGrants = [
+      ...tools.matchAll(/mcp__codebase-memory-mcp__[A-Za-z0-9_.*-]+/g)
+    ].map((match) => match[0]);
+    const generatedSkillGrants = [...tools.matchAll(/Skill\(([^)]+)\)/g)]
+      .map((match) => match[1]);
 
     check(
       `generated ${a.id} uses Claude identity ${a.claudeName}`,
@@ -2099,8 +2951,12 @@ try {
       "missing disallowedTools"
     );
     check(
-      `generated ${a.claudeName} can use the documented codebase-memory MCP wildcard`,
-      tools.includes("mcp__codebase-memory-mcp__*"),
+      `generated ${a.claudeName} has exact MCP reads and lazy role skills`,
+      sameArray(generatedMcpGrants, expectedCodebaseMemoryReads) &&
+        !tools.includes("mcp__codebase-memory-mcp__*") &&
+        sameArray(generatedSkillGrants, ROLE_SKILLS[a.id] ?? []) &&
+        tools === toolsFor(a.id) &&
+        denylist === disallowedToolsFor(a.id),
       tools
     );
 
