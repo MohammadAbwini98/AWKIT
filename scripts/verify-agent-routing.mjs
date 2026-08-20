@@ -30,6 +30,7 @@ import {
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync
 } from "node:fs";
@@ -38,12 +39,16 @@ import { isAbsolute, join, relative } from "node:path";
 
 import { LEDGER_STATUSES } from "../tools/roadmap/lib/parse-ledger.mjs";
 import {
-  CODEBASE_MEMORY_READ_TOOLS,
   ACTIVATION_RULES,
   AGENTS,
   AGENT_IDS,
+  CLAUDE_BASH_PERMISSION_RULES,
+  CLAUDE_PERMISSION_DENIES,
   CLASSIFICATION_FLAGS,
+  CODEBASE_MEMORY_MUTATING_TOOLS,
+  CODEBASE_MEMORY_READ_TOOLS,
   EVIDENCE_STATUSES,
+  GRAPHIFY_MUTATION_DENIES,
   GRAPHIFY_READ_TOOLS,
   PATH_DOMAINS,
   PROTECTED_PATHS,
@@ -94,9 +99,16 @@ import {
   releaseLease
 } from "../tools/agents/lease.mjs";
 import {
+  canonicalActorId,
+  decideActorWrite,
   decideWrite,
+  isAllowedActiveShellCommand,
   isContractControlPath,
+  isLeaseGrantCommand,
+  isManagerGitCommand,
+  isPhysicallyWithinRepo,
   isReadOnlyShellCommand,
+  pushAuthorizedForLease,
   targetPathOf
 } from "../tools/agents/lease-guard.mjs";
 
@@ -124,7 +136,12 @@ function validContract() {
       risk_level: 1,
       mode: "change"
     },
-    repository: { branch: "main", baseline_commit: "HEAD", preserved_paths: [] },
+    repository: {
+      branch: "main",
+      baseline_commit: "HEAD",
+      working_tree_expected: "clean",
+      preserved_paths: []
+    },
     classification: { renderer_visual_change: true, cross_layer_count: 1 },
     routing: {
       manager: "manager",
@@ -136,7 +153,12 @@ function validContract() {
     },
     acceptance: [{ id: "AC-001", description: "It looks right.", evidence_required: ["EV-001"] }],
     evidence: [{ id: "EV-001", type: "build", command: "npm run build", required: true, result: "PASS" }],
-    git: { direct_main: true, force_push: false },
+    git: {
+      direct_main: true,
+      commit_policy: "coherent",
+      force_push: false,
+      destructive_reset: false
+    },
     completion: { status: "pending", qa_status: "PASS", qc_status: "NOT_REQUIRED" }
   };
 }
@@ -243,6 +265,39 @@ function spawnLeaseGuard(payload) {
     input: typeof payload === "string" ? payload : JSON.stringify(payload),
     encoding: "utf8"
   });
+}
+
+function spawnActorDecision(payload) {
+  const guardUrl = new URL("../tools/agents/lease-guard.mjs", import.meta.url).href;
+  const source = `
+    import { decideActorWrite, isAllowedActiveShellCommand } from ${JSON.stringify(guardUrl)};
+    const payload = JSON.parse(process.argv[1]);
+    process.stdout.write(JSON.stringify({
+      write: decideActorWrite(
+        payload.lease,
+        payload.path,
+        payload.options?.agentType,
+        payload.options?.agentId
+      ),
+      shell: isAllowedActiveShellCommand(
+        payload.command,
+        payload.lease,
+        payload.options ?? {}
+      )
+    }));
+  `;
+  const child = spawnSync(
+    process.execPath,
+    ["--input-type=module", "--eval", source, JSON.stringify(payload)],
+    { cwd: process.cwd(), encoding: "utf8" }
+  );
+  let value = null;
+  try {
+    value = JSON.parse(child.stdout);
+  } catch {
+    /* A malformed child reply is a failed probe, reported by the caller. */
+  }
+  return { ...child, value };
 }
 
 try {
@@ -491,17 +546,7 @@ try {
     "Bash(graphify global list)",
     "Bash(graphify global path)"
   ];
-  const destructiveGitDenies = [
-    "Bash(git reset:*)",
-    "Bash(git clean:*)",
-    "Bash(git stash:*)",
-    "Bash(git worktree:*)",
-    "Bash(git branch:*)",
-    "Bash(git switch:*)",
-    "Bash(git checkout:*)",
-    "Bash(git push --force:*)",
-    "Bash(git push -f:*)"
-  ];
+  const generatedDenyToolNames = new Set(["Edit", "Write", "Agent", "NotebookEdit"]);
   check(
     "the MCP discovery grant is exactly the 10 read-only codebase-memory tools",
     sameArray(CODEBASE_MEMORY_READ_TOOLS, expectedCodebaseMemoryReads),
@@ -533,12 +578,16 @@ try {
         !/Bash\((?:node|npm|git)(?::\*|\s+\*)\)/.test(roleTools),
       roleTools
     );
-    const deniedGit = [...disallowedToolsFor(role.id).matchAll(/Bash\(git[^)]*\)/g)]
-      .map((match) => match[0]);
     check(
-      `${role.id} carries the exact destructive Git denylist`,
-      sameArray(deniedGit, destructiveGitDenies),
-      JSON.stringify(deniedGit)
+      `${role.id} exposes the real Bash tool without frontmatter command patterns`,
+      /(?:^|, )Bash(?:,|$)/.test(roleTools) && !/Bash\(/.test(roleTools),
+      roleTools
+    );
+    const deniedTools = disallowedToolsFor(role.id).split(", ").filter(Boolean);
+    check(
+      `${role.id} disallows only real tool names; command denies stay in project settings`,
+      deniedTools.length > 0 && deniedTools.every((name) => generatedDenyToolNames.has(name)),
+      JSON.stringify(deniedTools)
     );
   }
 
@@ -1099,6 +1148,15 @@ try {
   console.log("Contract rules (each driven by a violating fixture):");
   check("the baseline fixture is VALID", validateContract(validContract()).ok,
     JSON.stringify(validateContract(validContract()).violations));
+  check("rejects an undeclared working-tree expectation", rejects("repository.working_tree_expected", (c) => {
+    delete c.repository.working_tree_expected;
+  }));
+  check("rejects a non-coherent commit policy", rejects("git.commit_policy", (c) => {
+    c.git.commit_policy = "squash-later";
+  }));
+  check("rejects destructive reset permission", rejects("git.destructive_reset", (c) => {
+    c.git.destructive_reset = true;
+  }));
 
   const validPreservedContract = validContract();
   validPreservedContract.repository.preserved_paths = [{
@@ -1890,19 +1948,25 @@ try {
         decideWrite(null, "src/licensing/x.ts").reason === "lease-required"
     );
     check(
-      "only a bounded task-contract file is a no-lease write control plane",
-      isContractControlPath("docs/ai/contracts/t.json") &&
-        decideWrite(null, "docs/ai/contracts/t.json").allow === true &&
-        decideWrite(null, "docs/ai/contracts/t.json").reason === "contract-control-plane"
+      "only a canonical lowercase task-contract file is a no-lease write control plane",
+      isContractControlPath("docs/ai/contracts/awkit-task.json") &&
+        decideWrite(null, "docs/ai/contracts/awkit-task.json").allow === true &&
+        decideWrite(null, "docs/ai/contracts/awkit-task.json").reason === "contract-control-plane"
     );
     check(
-      "active lease, schema, nested, glob, and traversal paths are not contract bootstrap writes",
+      "active lease, schema, nested, glob, traversal, and case-alias paths are not contract bootstrap writes",
       [
         "docs/ai/contracts/active-lease.json",
         "docs/ai/contracts/TASK_CONTRACT.schema.json",
+        "docs/ai/contracts/task_contract.schema.json",
         "docs/ai/contracts/nested/t.json",
         "docs/ai/contracts/*.json",
-        "docs/ai/contracts/../t.json"
+        "docs/ai/contracts/../t.json",
+        "Docs/ai/contracts/awkit-task.json",
+        "docs/AI/contracts/awkit-task.json",
+        "docs/ai/Contracts/awkit-task.json",
+        "docs/ai/contracts/AWKIT-task.json",
+        "docs/ai/contracts/awkit-task.JSON"
       ].every((path) => !isContractControlPath(path))
     );
     check("lease + in-scope -> allow", decideWrite(held, "tests/x.ts").allow === true);
@@ -2060,6 +2124,162 @@ try {
   check("the guard reads NotebookEdit payloads", targetPathOf({ tool_input: { notebook_path: "b.ipynb" } }) === "b.ipynb");
   check("the guard ignores payloads with no target", targetPathOf({ tool_input: {} }) === null);
 
+  const actorLease = {
+    task: "awkit-actor-fixture",
+    contract_path: "docs/ai/contracts/awkit-actor-fixture.json",
+    holder: "qa",
+    status: "active",
+    allowed_paths: ["scripts/verify-agent-routing.mjs"]
+  };
+  const qaAgentType = agent("qa").claudeName;
+  const frontendAgentType = agent("frontend").claudeName;
+  check(
+    "only exact AWKIT claudeName values identify subagent actors",
+    AGENTS.every((entry) => canonicalActorId(entry.claudeName, `instance-${entry.id}`) === entry.id) &&
+      AGENTS.every((entry) => canonicalActorId(entry.id, `instance-${entry.id}`) === null) &&
+      canonicalActorId("AWKIT-QA-ENGINEER", "instance-qa") === null
+  );
+  check(
+    "root Manager identity requires both agent_type and agent_id to be absent",
+    canonicalActorId(undefined, undefined) === "manager" &&
+      canonicalActorId(undefined, "qa") === null &&
+      canonicalActorId("", "qa") === null
+  );
+  check(
+    "the holder may write its leased path but canonical-id impersonation and nonholders cannot",
+    decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", qaAgentType, "instance-qa").allow === true &&
+      decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", "qa", "instance-qa").allow === false &&
+      decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", undefined, "qa").allow === false &&
+      decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", frontendAgentType, "instance-frontend").allow === false
+  );
+  check(
+    "active shell commands require the holder, foreground execution, and the exact verifier form",
+    isAllowedActiveShellCommand("npm run verify:agent-routing", actorLease, {
+      agentType: qaAgentType,
+      agentId: "instance-qa"
+    }) &&
+      !isAllowedActiveShellCommand("npm run build", actorLease, {
+        agentType: frontendAgentType,
+        agentId: "instance-frontend"
+      }) &&
+      !isAllowedActiveShellCommand("npm run verify:agent-routing", actorLease, {
+        agentType: qaAgentType,
+        agentId: "instance-qa",
+        runInBackground: true
+      }) &&
+      !isAllowedActiveShellCommand("npm run verify:agent-routing -- --output result.json", actorLease, {
+        agentType: qaAgentType,
+        agentId: "instance-qa"
+      }) &&
+      !isAllowedActiveShellCommand("npm run verify:agent-routing extra", actorLease, {
+        agentType: qaAgentType,
+        agentId: "instance-qa"
+      })
+  );
+
+  const spawnedHolderActor = spawnActorDecision({
+    lease: actorLease,
+    path: "scripts/verify-agent-routing.mjs",
+    command: "npm run verify:agent-routing",
+    options: { agentType: qaAgentType, agentId: "instance-qa" }
+  });
+  const spawnedCanonicalImpersonator = spawnActorDecision({
+    lease: actorLease,
+    path: "scripts/verify-agent-routing.mjs",
+    command: "npm run verify:agent-routing",
+    options: { agentType: "qa", agentId: "instance-qa" }
+  });
+  const spawnedIdOnlyActor = spawnActorDecision({
+    lease: actorLease,
+    path: "scripts/verify-agent-routing.mjs",
+    command: "npm run verify:agent-routing",
+    options: { agentId: "qa" }
+  });
+  const spawnedNonholderActor = spawnActorDecision({
+    lease: actorLease,
+    path: "scripts/verify-agent-routing.mjs",
+    command: "npm run build",
+    options: { agentType: frontendAgentType, agentId: "instance-frontend" }
+  });
+  const spawnedBackgroundActor = spawnActorDecision({
+    lease: actorLease,
+    path: "scripts/verify-agent-routing.mjs",
+    command: "npm run verify:agent-routing",
+    options: { agentType: qaAgentType, agentId: "instance-qa", runInBackground: true }
+  });
+  check(
+    "spawned actor probes preserve holder, impersonation, id-only, nonholder, and background decisions",
+    [
+      spawnedHolderActor,
+      spawnedCanonicalImpersonator,
+      spawnedIdOnlyActor,
+      spawnedNonholderActor,
+      spawnedBackgroundActor
+    ].every((probe) => probe.status === 0 && probe.value) &&
+      spawnedHolderActor.value.write.allow === true &&
+      spawnedHolderActor.value.shell === true &&
+      spawnedCanonicalImpersonator.value.write.allow === false &&
+      spawnedCanonicalImpersonator.value.shell === false &&
+      spawnedIdOnlyActor.value.write.allow === false &&
+      spawnedIdOnlyActor.value.shell === false &&
+      spawnedNonholderActor.value.write.allow === false &&
+      spawnedNonholderActor.value.shell === false &&
+      spawnedBackgroundActor.value.shell === false,
+    [
+      spawnedHolderActor,
+      spawnedCanonicalImpersonator,
+      spawnedIdOnlyActor,
+      spawnedNonholderActor,
+      spawnedBackgroundActor
+    ].map((probe) => `${probe.status}:${probe.stdout || probe.stderr}`).join(" | ")
+  );
+
+  const confinementRoot = mkdtempSync(join(tmpdir(), "awkit-guard-root-"));
+  const confinementOutside = mkdtempSync(join(tmpdir(), "awkit-guard-outside-"));
+  tempDirs.push(confinementRoot, confinementOutside);
+  mkdirSync(join(confinementRoot, "inside"), { recursive: true });
+  check(
+    "physical path confinement accepts an in-repository nearest parent and rejects an external one",
+    isPhysicallyWithinRepo(join(confinementRoot, "inside", "new-file.ts"), confinementRoot) &&
+      !isPhysicallyWithinRepo(join(confinementOutside, "new-file.ts"), confinementRoot)
+  );
+  const junctionPath = join(confinementRoot, "outside-junction");
+  let junctionSupported = true;
+  try {
+    symlinkSync(confinementOutside, junctionPath, process.platform === "win32" ? "junction" : "dir");
+  } catch {
+    junctionSupported = false;
+  }
+  if (junctionSupported) {
+    check(
+      "physical path confinement rejects a lexical in-repo path through an external junction",
+      !isPhysicallyWithinRepo(join(junctionPath, "escaped.ts"), confinementRoot)
+    );
+  }
+
+  const incompletePushContract = validContract();
+  incompletePushContract.git.push_authorized = true;
+  incompletePushContract.git.push_evidence_id = "EV-PUSH";
+  incompletePushContract.evidence[0].result = "BLOCKED";
+  incompletePushContract.evidence.push({
+    id: "EV-PUSH",
+    type: "inspection",
+    command: "git push origin main",
+    required: true,
+    result: "pending"
+  });
+  const incompletePushContractPath = tempFile(
+    "incomplete-push-contract.json",
+    `${JSON.stringify(incompletePushContract, null, 2)}\n`
+  );
+  const incompletePushLease = { ...actorLease, contract_path: incompletePushContractPath };
+  check(
+    "push authorization stays false until the prospective full task gate is clear",
+    pushAuthorizedForLease(incompletePushLease) === false &&
+      isManagerGitCommand("git push origin main", actorLease, { pushAuthorized: false }) === false &&
+      isManagerGitCommand("git push origin main", actorLease, { pushAuthorized: true }) === true
+  );
+
   const malformedGuardPayload = spawnLeaseGuard("{ not json");
   const emptyGuardPayload = spawnLeaseGuard("");
   const missingGuardTarget = spawnLeaseGuard({ tool_name: "Edit", tool_input: {} });
@@ -2083,6 +2303,86 @@ try {
     `${outsideGuardTarget.status}: ${outsideGuardTarget.stderr}`
   );
 
+  const productionLease = readLease();
+  if (
+    productionLease &&
+    AGENT_IDS.includes(productionLease.holder) &&
+    leaseAllows(productionLease, "scripts/verify-agent-routing.mjs")
+  ) {
+    check(
+      "the live production lease stores its exact task contract as a repo-relative canonical path",
+      productionLease.contract_path === `docs/ai/contracts/${productionLease.task}.json` &&
+        !isAbsolute(productionLease.contract_path) &&
+        !productionLease.contract_path.includes("\\")
+    );
+    const liveHolderType = agent(productionLease.holder).claudeName;
+    const liveNonholder = AGENTS.find(
+      (entry) => entry.defaultMode === "writer" && entry.id !== productionLease.holder
+    );
+    const liveVerifierPath = join(process.cwd(), "scripts", "verify-agent-routing.mjs");
+    const liveHolderEdit = spawnLeaseGuard({
+      tool_name: "Edit",
+      agent_type: liveHolderType,
+      agent_id: "live-holder-fixture",
+      tool_input: { file_path: liveVerifierPath }
+    });
+    const liveCanonicalIdImpersonator = spawnLeaseGuard({
+      tool_name: "Edit",
+      agent_type: productionLease.holder,
+      agent_id: "live-canonical-id-fixture",
+      tool_input: { file_path: liveVerifierPath }
+    });
+    const liveIdOnlyImpersonator = spawnLeaseGuard({
+      tool_name: "Edit",
+      agent_id: productionLease.holder,
+      tool_input: { file_path: liveVerifierPath }
+    });
+    const liveNonholderEdit = spawnLeaseGuard({
+      tool_name: "Edit",
+      agent_type: liveNonholder?.claudeName,
+      agent_id: "live-nonholder-fixture",
+      tool_input: { file_path: liveVerifierPath }
+    });
+    check(
+      "the live hook allows the exact holder agent_type and blocks canonical-id, id-only, and nonholder Edit actors",
+      liveHolderEdit.status === 0 &&
+        liveCanonicalIdImpersonator.status === 2 &&
+        liveIdOnlyImpersonator.status === 2 &&
+        liveNonholderEdit.status === 2,
+      [liveHolderEdit, liveCanonicalIdImpersonator, liveIdOnlyImpersonator, liveNonholderEdit]
+        .map((probe) => `${probe.status}:${probe.stderr}`)
+        .join(" | ")
+    );
+
+    const liveHolderShell = spawnLeaseGuard({
+      tool_name: "Bash",
+      agent_type: liveHolderType,
+      agent_id: "live-holder-fixture",
+      tool_input: { command: "npm run verify:agent-routing" }
+    });
+    const liveNonholderShell = spawnLeaseGuard({
+      tool_name: "Bash",
+      agent_type: liveNonholder?.claudeName,
+      agent_id: "live-nonholder-fixture",
+      tool_input: { command: "npm run verify:agent-routing" }
+    });
+    const liveBackgroundShell = spawnLeaseGuard({
+      tool_name: "Bash",
+      agent_type: liveHolderType,
+      agent_id: "live-holder-fixture",
+      tool_input: { command: "npm run verify:agent-routing", run_in_background: true }
+    });
+    check(
+      "the live hook allows the holder's exact foreground verifier and blocks nonholder/background shells",
+      liveHolderShell.status === 0 &&
+        liveNonholderShell.status === 2 &&
+        liveBackgroundShell.status === 2,
+      [liveHolderShell, liveNonholderShell, liveBackgroundShell]
+        .map((probe) => `${probe.status}:${probe.stderr}`)
+        .join(" | ")
+    );
+  }
+
   const safeNoLeaseCommands = [
     "git status --short",
     "git diff -- scripts/verify-agent-routing.mjs",
@@ -2103,9 +2403,10 @@ try {
     "claude --version",
     "claude mcp list",
     "npm run agent:lease",
-    "npm run agent:lease-grant -- --task awkit-fixture --holder qa --paths scripts/verify-agent-routing.mjs",
     "node tools/agents/task-gate.mjs docs/ai/contracts/awkit-fixture.json"
   ];
+  const exactLeaseGrant =
+    "npm run agent:lease-grant -- --task awkit-fixture --holder qa --paths scripts/verify-agent-routing.mjs";
   const unsafeNoLeaseCommands = [
     "git status > status.txt",
     "git status; git checkout -- x",
@@ -2117,6 +2418,11 @@ try {
     "graphify update .",
     "graphify install",
     "graphify query routing --output graph.json",
+    "graphify query routing \"--graph=C:/outside/graph.json\"",
+    "graphify explain routing --extract-path=C:/outside",
+    "bd list \"--profile=external\"",
+    "bd show awkit-fixture \"--db=C:/outside.db\"",
+    "bd stats \"-Coutside\"",
     "bd update awkit-fixture --status closed",
     "npm install",
     "npm run build",
@@ -2130,9 +2436,64 @@ try {
     safeNoLeaseCommands.filter((command) => !isReadOnlyShellCommand(command)).join(" | ")
   );
   check(
+    "the exact lease grant is a Manager control command, never a read-only command",
+    !isReadOnlyShellCommand(exactLeaseGrant) && isLeaseGrantCommand(exactLeaseGrant) &&
+      !isLeaseGrantCommand(`${exactLeaseGrant} --extra`) &&
+      !isLeaseGrantCommand(
+        "npm run agent:lease-grant -- --holder qa --task awkit-fixture --paths scripts/verify-agent-routing.mjs"
+      )
+  );
+  check(
     "the no-lease shell grammar rejects mutations, broad execution, and shell composition",
     unsafeNoLeaseCommands.every((command) => !isReadOnlyShellCommand(command)),
     unsafeNoLeaseCommands.filter((command) => isReadOnlyShellCommand(command)).join(" | ")
+  );
+  const projectStateLease = {
+    ...actorLease,
+    holder: "project-state",
+    allowed_paths: ["docs/**"]
+  };
+  const externalBdWriteCommands = [
+    "bd update awkit-fixture \"-foutside.json\"",
+    "bd update awkit-fixture \"--repo=C:/outside\""
+  ];
+  check(
+    "quoted or attached bd profile/db/-C/-f/repo escapes are rejected in read and write modes",
+    [
+      "bd list \"--profile=external\"",
+      "bd show awkit-fixture \"--db=C:/outside.db\"",
+      "bd stats \"-Coutside\""
+    ].every((command) => !isReadOnlyShellCommand(command)) &&
+      externalBdWriteCommands.every(
+        (command) => !isAllowedActiveShellCommand(command, projectStateLease, {
+          agentType: agent("project-state").claudeName,
+          agentId: "instance-project-state"
+        })
+      )
+  );
+  check(
+    "Graphify cannot redirect reads to an external graph or extraction path",
+    [
+      "graphify query routing \"--graph=C:/outside/graph.json\"",
+      "graphify explain routing --extract-path=C:/outside"
+    ].every((command) => !isReadOnlyShellCommand(command))
+  );
+  check(
+    "only the exact verifier command is allowed; arguments and output options are blocked",
+    isAllowedActiveShellCommand("npm run verify:agent-routing", actorLease, {
+      agentType: qaAgentType,
+      agentId: "instance-qa"
+    }) &&
+      [
+        "npm run verify:agent-routing -- --output result.json",
+        "npm run verify:agent-routing -- --reporter json",
+        "npm run verify:agent-routing extra"
+      ].every(
+        (command) => !isAllowedActiveShellCommand(command, actorLease, {
+          agentType: qaAgentType,
+          agentId: "instance-qa"
+        })
+      )
   );
 
   /* ======================================================================
@@ -2483,13 +2844,38 @@ try {
   const claudeSettings = JSON.parse(
     readFileSync(new URL("../.claude/settings.json", import.meta.url), "utf8")
   );
-  const expectedProjectPermissionAllows = [...expectedCodebaseMemoryReads];
+  const expectedProjectPermissionAllows = [
+    ...CODEBASE_MEMORY_READ_TOOLS,
+    ...CLAUDE_BASH_PERMISSION_RULES
+  ];
+  const projectPermissionAllows = claudeSettings.permissions?.allow ?? [];
+  const projectPermissionDenies = claudeSettings.permissions?.deny ?? [];
   check(
-    "project settings allow exactly the 10 bounded MCP reads without a wildcard",
-    sameArray(claudeSettings.permissions?.allow, expectedProjectPermissionAllows) &&
-      !claudeSettings.permissions.allow.includes("mcp__codebase-memory-mcp__*") &&
-      !claudeSettings.permissions.allow.includes("Bash(graphify:*)"),
-    JSON.stringify(claudeSettings.permissions?.allow ?? [])
+    "project settings have the byte/order-exact 63-entry MCP plus Bash allowlist",
+    expectedProjectPermissionAllows.length === 63 &&
+      projectPermissionAllows.length === 63 &&
+      sameArray(projectPermissionAllows, expectedProjectPermissionAllows),
+    JSON.stringify(projectPermissionAllows)
+  );
+  check(
+    "project settings have the byte/order-exact 41-entry permission denylist",
+    CLAUDE_PERMISSION_DENIES.length === 41 &&
+      projectPermissionDenies.length === 41 &&
+      sameArray(projectPermissionDenies, CLAUDE_PERMISSION_DENIES),
+    JSON.stringify(projectPermissionDenies)
+  );
+  check(
+    "project allows contain no broad MCP/Graphify wildcard or denied mutator",
+    !projectPermissionAllows.includes("mcp__codebase-memory-mcp__*") &&
+      !projectPermissionAllows.includes("Bash(graphify:*)") &&
+      CODEBASE_MEMORY_MUTATING_TOOLS.every((rule) => !projectPermissionAllows.includes(rule)) &&
+      GRAPHIFY_MUTATION_DENIES.every((rule) => !projectPermissionAllows.includes(rule)),
+    JSON.stringify(projectPermissionAllows.filter((rule) =>
+      rule === "mcp__codebase-memory-mcp__*" ||
+      rule === "Bash(graphify:*)" ||
+      CODEBASE_MEMORY_MUTATING_TOOLS.includes(rule) ||
+      GRAPHIFY_MUTATION_DENIES.includes(rule)
+    ))
   );
   const hooksFor = (event) =>
     (claudeSettings.hooks?.[event] ?? []).flatMap((group) =>
@@ -2924,12 +3310,14 @@ try {
     const model = frontmatterValue(content, "model");
     const maxTurns = Number(frontmatterValue(content, "maxTurns"));
     const denylist = frontmatterValue(content, "disallowedTools");
+    const permissionMode = frontmatterValue(content, "permissionMode");
     const tools = frontmatterValue(content, "tools");
     const generatedMcpGrants = [
       ...tools.matchAll(/mcp__codebase-memory-mcp__[A-Za-z0-9_.*-]+/g)
     ].map((match) => match[0]);
     const generatedSkillGrants = [...tools.matchAll(/Skill\(([^)]+)\)/g)]
       .map((match) => match[1]);
+    const generatedDeniedTools = denylist.split(", ").filter(Boolean);
 
     check(
       `generated ${a.id} uses Claude identity ${a.claudeName}`,
@@ -2949,6 +3337,23 @@ try {
       `generated ${a.claudeName} carries a non-empty tool denylist`,
       denylist.length > 0,
       "missing disallowedTools"
+    );
+    check(
+      `generated ${a.claudeName} uses normal permission lookup`,
+      permissionMode === "default",
+      permissionMode || "missing permissionMode"
+    );
+    check(
+      `generated ${a.claudeName} exposes bare Bash with no command patterns in tools`,
+      /(?:^|, )Bash(?:,|$)/.test(tools) && !/Bash\(/.test(tools),
+      tools
+    );
+    check(
+      `generated ${a.claudeName} disallows actual tool names only`,
+      generatedDeniedTools.length > 0 &&
+        generatedDeniedTools.every((name) => generatedDenyToolNames.has(name)) &&
+        !/[()]/.test(denylist),
+      denylist
     );
     check(
       `generated ${a.claudeName} has exact MCP reads and lazy role skills`,
