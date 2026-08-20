@@ -20,6 +20,7 @@ import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionCont
 import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
+import { executionBlockingErrorsOf, validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { Page } from "playwright";
 
 function simpleFlow(id: string, steps: FlowStep[]): FlowProfile {
@@ -110,6 +111,28 @@ async function main() {
     ok("check terms", await exec.execute({ id: "terms", type: "check", name: "t", locator: { strategy: "id", value: "acceptTerms" } }));
     ok("assert value equals", await exec.execute({ id: "av", type: "assertText", name: "av", locator: { strategy: "id", value: "firstName" }, config: { assertionType: "value", comparisonOperator: "equals", expectedValue: "Alice" } }));
     ok("scroll(direction)", await exec.execute({ id: "sc", type: "scroll", name: "sc", config: { scrollDirection: "down", scrollAmount: 300 } }));
+
+    // ── Fixed-time wait: the subtype the validator used to reject ────────────
+    /*
+     * A `passed` status is not evidence that a wait waited — `waitForTimeout(NaN)` also resolves,
+     * and it resolves instantly. So the duration is MEASURED, and the step is configured exactly the
+     * way the designer writes it: `config.waitType: "time"` with the duration in `timeoutMs` (the
+     * "Duration (ms)" box) and no `value`/`valueSource` at all. That is the shape the validator
+     * reported as "requires a value or value source"; this proves the runner executes it.
+     */
+    {
+      const started = Date.now();
+      const waitResult = await exec.execute({ id: "wtime", type: "wait", name: "Wait", config: { waitType: "time" }, timeoutMs: 600 });
+      const elapsed = Date.now() - started;
+      ok("wait(time) with only Duration (ms) executes", waitResult);
+      check(`wait(time) actually elapsed its 600ms duration (${elapsed}ms)`, elapsed >= 550, `elapsed=${elapsed}ms`);
+      // The step after the wait must still run — a wait that hangs or throws would strand the flow.
+      ok(
+        "the action after a fixed-time wait still executes",
+        await exec.execute({ id: "afterwait", type: "fill", name: "afterwait", locator: { strategy: "id", value: "firstName" }, value: "AfterWait" })
+      );
+      check("…and its effect is visible on the page", (await page.inputValue("#firstName")) === "AfterWait");
+    }
 
     // ── Pointer gesture replay ───────────────────────────────────────────────
     /*
@@ -311,6 +334,49 @@ async function main() {
     const recoveredValue = await recoverPage.inputValue("#firstName");
     check("failure edge routes to recovery step", recoverResult.status === "passed" && recoveredValue === "Recovered", `status=${recoverResult.status} value=${recoveredValue}`);
     await recoverPage.close();
+
+    // ── Validation and execution must agree about a fixed-time wait ──────────
+    /*
+     * The reported defect's exact flow: Start → Action → Wait(2000) → Action → Wait(2000) → End,
+     * with both waits carrying only a duration. The gate is asked FIRST — the same
+     * `validateFlowDefinition` the designer badge reads — and then the flow is actually run. A
+     * verifier that only exercised the validator would prove nothing about whether the runner can
+     * execute what the gate now admits, which is the half of this contract that costs a live run.
+     */
+    {
+      const waitPage = await browser.newPage();
+      await waitPage.goto(`${BASE}/form`);
+      const waitCtx = await makeContext("fixed-time-waits");
+      // 400ms rather than the reported 2000ms: the subtype is what is under test, not the number,
+      // and the elapsed-time assertion below still discriminates a real wait from a no-op.
+      const waitFlow = simpleFlow("fixed-time-waits", [
+        { id: "fill1", type: "fill", name: "First", locator: { strategy: "id", value: "firstName" }, value: "BeforeWaits" },
+        { id: "wait1", type: "wait", name: "Wait", config: { waitType: "time" }, timeoutMs: 400 },
+        { id: "fill2", type: "fill", name: "Second", locator: { strategy: "id", value: "lastName" }, value: "BetweenWaits" },
+        { id: "wait2", type: "wait", name: "Wait", config: { waitType: "time" }, timeoutMs: 400 }
+      ]);
+
+      const report = validateFlowDefinition(waitFlow);
+      const blocking = executionBlockingErrorsOf(report);
+      check("two fixed-time waits: the gate admits the flow", blocking.length === 0, blocking.map((i) => i.message).join(" | "));
+
+      const startedAt = Date.now();
+      const waitResult = await new FlowExecutor(
+        new StepExecutor(waitPage, new LocatorFactory(waitPage), new ValueResolver(waitCtx), waitCtx)
+      ).executeFlow(waitFlow, waitCtx);
+      const totalElapsed = Date.now() - startedAt;
+
+      check("two fixed-time waits: the flow completes", waitResult.status === "passed", `status=${waitResult.status}`);
+      check("two fixed-time waits: the step after the first wait ran", (await waitPage.inputValue("#lastName")) === "BetweenWaits");
+      check(`two fixed-time waits: both durations elapsed (${totalElapsed}ms >= 800ms)`, totalElapsed >= 750, `elapsed=${totalElapsed}ms`);
+
+      // The run report must identify each wait as its own step — the designer names both "Wait",
+      // so a report keyed on name alone would collapse them into one.
+      const waitSteps = waitResult.steps.filter((step) => step.stepId === "wait1" || step.stepId === "wait2");
+      check("two fixed-time waits: the report records both as separate steps", waitSteps.length === 2, `recorded=${waitSteps.map((s) => s.stepId).join(",")}`);
+      check("two fixed-time waits: both are reported passed", waitSteps.every((step) => step.status === "passed"), waitSteps.map((s) => `${s.stepId}=${s.status}`).join(" "));
+      await waitPage.close();
+    }
 
     // ── Enhanced Connectors (Phase 1) ────────────────────────────────────────
     console.log("Enhanced Connectors (Phase 1):");

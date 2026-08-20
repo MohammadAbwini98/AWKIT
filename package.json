@@ -100,6 +100,7 @@
     "verify:ipc-error-message": "tsx scripts/verify-ipc-error-message.mts",
     "verify:run-report-compatibility": "tsx scripts/verify-run-report-compatibility.mts",
     "verify:validation": "tsx scripts/verify-validation.mts",
+    "verify:wait-validation": "tsx scripts/verify-wait-validation.mts",
     "verify:legacy-compat": "tsx scripts/verify-legacy-compat.mts",
     "verify:packaged-validation": "tsx scripts/verify-packaged-validation.mts",
     "verify:security": "tsx scripts/verify-security.mts",

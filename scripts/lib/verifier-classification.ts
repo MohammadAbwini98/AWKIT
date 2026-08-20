@@ -175,6 +175,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Rule-by-rule Flow Validation Engine checks over pure validator logic; no persistence or browser."
   },
+  "verify:wait-validation": {
+    class: "unit",
+    why: "Subtype-aware wait-step contract: engine rules, the designer panel's own validate(), the profile round-trip mapping and a source-level parity check against StepExecutor.executeWait. Pure; no browser or Electron."
+  },
   "verify:legacy-compat": {
     class: "integration",
     why: "Drives FlowValidationService against a real JSON profile store on a temp dir (atomic writes, grant persistence); no browser."
