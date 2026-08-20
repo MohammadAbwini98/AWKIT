@@ -527,7 +527,16 @@ async function licensePackagedMachine(t: Api, _localAppData: string): Promise<Li
     "minted license is bound to THIS machine's fingerprint",
     minted.license.machineFingerprintHash === activation.value.fingerprintHash
   );
-  check("minted license is marked as verification-issued", minted.license.licenseType === "packaged-verification");
+  // "Verification-issued" can no longer be a magic type string: signing goes through
+  // `LicenseIssuerService`, whose allowlist is the product's real licence types (`awkit-vf9r`). The
+  // pair below is a stronger claim anyway — a production licence is not a `trial` that expires the
+  // same day, so this still cannot be satisfied by accidentally importing a real one.
+  check("minted license carries an issuable licence type", minted.license.licenseType === "trial");
+  check(
+    "...and is short-lived, so it cannot be a production licence",
+    Date.parse(minted.license.expiresAtUtc) - Date.parse(minted.license.validFromUtc) <= 25 * 60 * 60_000,
+    `${minted.license.validFromUtc} -> ${minted.license.expiresAtUtc}`
+  );
   check(
     "minted license carries only the execution entitlement",
     Array.isArray(minted.license.entitlements) &&

@@ -32,7 +32,7 @@
  * never pass.
  */
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
@@ -50,6 +50,17 @@ export const ISSUER_KEY_ENV = "AWKIT_PACKAGED_LICENSE_ISSUER_KEY";
  * issuer's history WITHOUT changing validation semantics.
  */
 export const VERIFICATION_LICENSE_TYPE = "packaged-verification";
+
+/**
+ * The licence type a MINTED (genuinely signed) verification license carries.
+ *
+ * It cannot be {@link VERIFICATION_LICENSE_TYPE}: that string is not in the issuer's allowlist, and
+ * signing now goes through `LicenseIssuerService`, which refuses anything outside
+ * `ISSUER_LICENSE_TYPES` (`awkit-vf9r`). `trial` is also the truthful description of a licence that
+ * lives for minutes. The forged/unsigned document keeps the marker string precisely because it never
+ * touches the issuer.
+ */
+export const MINTED_LICENSE_TYPE = "trial";
 
 /** Only the entitlement the gate actually needs. */
 export const VERIFICATION_ENTITLEMENTS = ["workflow.execute"] as const;
@@ -143,6 +154,20 @@ export async function mintVerificationLicense(input: {
     input.expiresAtOverrideIso ??
     new Date(Date.now() + (input.expiresInMinutes ?? 30) * 60_000).toISOString();
 
+  // The issuer takes an explicit window — BOTH boundaries or neither — and enforces a minimum span
+  // of one minute. An already-expired licence therefore cannot start "now": its start must precede
+  // its own expiry, which is legal (the issuer allows a back-dated window; the result is simply a
+  // licence that is already spent) but is not something the caller can leave implicit.
+  const expiresMs = Date.parse(expiresAt);
+  const validFromMs = Math.min(Date.now(), expiresMs - 60 * 60_000);
+  const toIssuerUtc = (ms: number): string => new Date(ms).toISOString().replace(/:\d{2}\.\d{3}Z$/, "Z");
+
+  // `--out` was removed when the CLI was folded onto the service: the service owns the output folder
+  // AND the file name, and records that name in the append-only issuance history. So the mint gets a
+  // private empty directory and reads back the one file that appears in it.
+  const outDir = join(input.workDir, `issued-${Date.now()}`);
+  mkdirSync(outDir, { recursive: true });
+
   const issuerScript = join(input.repoRoot, "tools", "license-issuer", "issue-license.mts");
   const issuerArgs = [
     "--request",
@@ -150,13 +175,15 @@ export async function mintVerificationLicense(input: {
     "--key",
     input.keyPath,
     "--type",
-    VERIFICATION_LICENSE_TYPE,
+    MINTED_LICENSE_TYPE,
     "--entitlements",
     VERIFICATION_ENTITLEMENTS.join(","),
+    "--valid-from",
+    toIssuerUtc(validFromMs),
     "--expires",
-    expiresAt.replace(/\.\d{3}Z$/, "Z"),
-    "--out",
-    licensePath
+    toIssuerUtc(expiresMs),
+    "--out-dir",
+    outDir
   ];
 
   // The key path travels on argv to the issuer only. The issuer's own environment is the parent's,
@@ -168,8 +195,14 @@ export async function mintVerificationLicense(input: {
     { cwd: input.repoRoot, windowsHide: true }
   );
 
-  if (!existsSync(licensePath)) throw new Error(`Issuer did not produce a license at ${licensePath}`);
-  const license = JSON.parse(readFileSync(licensePath, "utf8")) as LicenseDocument;
+  const produced = readdirSync(outDir).filter((name) => name.endsWith(".dat"));
+  if (produced.length !== 1) {
+    throw new Error(`Issuer produced ${produced.length} licenses in ${outDir}; expected exactly 1.`);
+  }
+  const issuedPath = join(outDir, produced[0]);
+  const license = JSON.parse(readFileSync(issuedPath, "utf8")) as LicenseDocument;
+  // Callers were written against a stable per-mint path, so keep giving them one.
+  copyFileSync(issuedPath, licensePath);
   rmSync(requestPath, { force: true });
   return { licensePath, license };
 }
@@ -180,8 +213,13 @@ export async function mintVerificationLicense(input: {
  * Deliberately does NOT touch `issuance-history.jsonl` next to the key. That file is the issuer's
  * own audit ledger, lives outside the repository beside the private key, and records that a
  * verification license was minted — deleting it would destroy an intentional audit record, which is
- * a worse outcome than leaving one traceable line behind. The line is identifiable by its
- * `licenseType: "packaged-verification"`.
+ * a worse outcome than leaving one traceable line behind.
+ *
+ * The line is identifiable by `licenseType: "trial"` together with a validity window measured in
+ * minutes. It used to be identifiable by the marker string `packaged-verification`, which the issuer
+ * now refuses: signing goes through `LicenseIssuerService`, whose allowlist is the product's real
+ * licence types (`awkit-vf9r`). A marker the production issuer would reject was only ever writable
+ * because the CLI had its own, looser rules.
  */
 export function cleanupMintedArtifacts(workDir: string): void {
   rmSync(workDir, { recursive: true, force: true });
