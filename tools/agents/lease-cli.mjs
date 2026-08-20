@@ -50,8 +50,7 @@ function showStatus() {
   const lease = readLease();
   if (!lease) {
     console.log("No active write lease.");
-    console.log("Edits are unrestricted, and the completion gate will require a contract for any");
-    console.log("task that changed product code.");
+    console.log("Repository writes are blocked until a valid routed task contract grants a lease.");
     return;
   }
   console.log(`Task    : ${lease.task}`);
@@ -104,7 +103,8 @@ function main() {
           task,
           holder,
           allowedPaths,
-          routing: validation.routing
+          routing: validation.routing,
+          contractPath
         });
         console.log(`Granted to ${lease.holder} for ${lease.task}:`);
         for (const path of lease.allowed_paths) console.log(`  - ${path}`);
@@ -112,7 +112,15 @@ function main() {
       }
 
       case "amend": {
-        const result = amendLease({ addPaths: many(args, "add"), reason: one(args, "reason") });
+        const current = readLease();
+        const contractPath = current
+          ? join(REPO_ROOT, "docs", "ai", "contracts", `${current.task}.json`)
+          : undefined;
+        const result = amendLease({
+          addPaths: many(args, "add"),
+          reason: one(args, "reason"),
+          contractPath
+        });
 
         if (result.outcome === "extended") {
           console.log(`Lease extended. ${result.lease.holder} may now also write:`);
@@ -136,7 +144,16 @@ function main() {
       }
 
       case "release": {
-        const lease = releaseLease(one(args, "reason") || "work complete");
+        const current = readLease();
+        const contractPath = current
+          ? join(REPO_ROOT, "docs", "ai", "contracts", `${current.task}.json`)
+          : undefined;
+        const lease = releaseLease(
+          one(args, "reason") || "work complete",
+          undefined,
+          undefined,
+          contractPath
+        );
         console.log(lease ? `Released ${lease.holder}'s lease on ${lease.task}.` : "No active lease.");
         break;
       }

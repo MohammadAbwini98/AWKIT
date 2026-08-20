@@ -30,9 +30,8 @@
  *
  * ── Cost ──────────────────────────────────────────────────────────────────────────────────────
  *
- * With no active lease this exits after reading one small JSON file and never invokes git, which is
- * the overwhelmingly common case. While a lease is held it adds roughly 100ms per Bash call. Paying
- * that only when someone has explicitly claimed a write scope is the right trade.
+ * No-lease write-capable shell commands are blocked by the PreToolUse guard; this post-hook still
+ * reports pre-existing unclaimed protected dirt. While a lease is held it compares live evidence.
  */
 
 import {
@@ -76,17 +75,25 @@ async function main() {
   let lease;
   try {
     lease = readLease();
-  } catch {
-    // A damaged lease is already reported loudly by the PreToolUse guard. Do not double-report from
-    // an audit that runs after every shell command.
-    process.exit(OK);
+  } catch (error) {
+    process.stderr.write(
+      `[write-lease] AUDIT BLOCKED: active lease is unreadable (${error instanceof Error ? error.message : String(error)}).\n`
+    );
+    process.exit(REPORT);
   }
 
   if (!lease) {
-    // No lease. Ordinary shell writes are unrestricted, matching the edit guard — but a protected
-    // path that is dirty and unclaimed leaves nobody answerable for a Risk 3 change, so it is
-    // reported. There is no lease to record it on; being loud is the whole remedy here.
-    const unclaimed = unclaimedProtectedWrites(dirtyPaths());
+    // The pre-hook permits only read-only shell commands here. Report any already-dirty protected
+    // path because it still has no accountable lease holder.
+    let unclaimed;
+    try {
+      unclaimed = unclaimedProtectedWrites(dirtyPaths());
+    } catch (error) {
+      process.stderr.write(
+        `[write-lease] AUDIT BLOCKED: Git state is unavailable (${error instanceof Error ? error.message : String(error)}).\n`
+      );
+      process.exit(REPORT);
+    }
     if (unclaimed.length === 0) process.exit(OK);
 
     process.stderr.write(
@@ -103,15 +110,24 @@ async function main() {
   // Two sources, because git can only see one of them. Tracked paths come from `git status`;
   // gitignored-but-consequential paths come from a fingerprint comparison, since enumerating every
   // ignored file would mean walking node_modules.
-  const currentDirty = dirtyPaths();
-  const tracked = outOfLeaseWrites(lease, currentDirty, {
-    committedPaths: committedPathsSince(lease.acquired_at_commit),
-    currentFingerprints: trackedPathFingerprints(lease.baseline_dirty ?? [])
-  });
-  const ignored = changedWatchedIgnored(
-    lease.baseline_watched_ignored,
-    fingerprintWatchedIgnored()
-  ).filter((path) => !leaseAllows(lease, path));
+  let tracked;
+  let ignored;
+  try {
+    const currentDirty = dirtyPaths();
+    tracked = outOfLeaseWrites(lease, currentDirty, {
+      committedPaths: committedPathsSince(lease.acquired_at_commit),
+      currentFingerprints: trackedPathFingerprints(lease.baseline_dirty ?? [])
+    });
+    ignored = changedWatchedIgnored(
+      lease.baseline_watched_ignored,
+      fingerprintWatchedIgnored()
+    ).filter((path) => !leaseAllows(lease, path));
+  } catch (error) {
+    process.stderr.write(
+      `[write-lease] AUDIT BLOCKED: enforcement evidence is unavailable (${error instanceof Error ? error.message : String(error)}).\n`
+    );
+    process.exit(REPORT);
+  }
 
   const written = [...new Set([...tracked, ...ignored])].sort();
   if (written.length === 0) process.exit(OK);

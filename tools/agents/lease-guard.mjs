@@ -2,9 +2,8 @@
 /**
  * PreToolUse guard — the point at which the write lease stops being a document.
  *
- * Wired in `.claude/settings.json` on the `Edit|Write|NotebookEdit` matcher, beside the graphify
- * guards that already run there. Exit 0 allows the edit; exit 2 blocks it and returns stderr to the
- * agent, which is how a Claude Code hook denies a tool call.
+ * Wired in `.claude/settings.json` for Edit/Write/NotebookEdit and Bash/PowerShell. Exit 0 allows;
+ * exit 2 blocks and returns stderr to the agent, which is how a Claude Code hook denies a call.
  *
  * Runs on EVERY edit, so it is plain `.mjs` executed by `node` with no transpiler in the path. A
  * `tsx` entry point would add roughly a second to every file write in the repository, and a guard
@@ -12,25 +11,15 @@
  *
  * ── With no active lease ──────────────────────────────────────────────────────────────────────
  *
- * Ordinary paths are allowed. Failing closed everywhere would block every task in a repository
- * where most work does not go through a contract, and a gate that stops all work gets removed
- * rather than obeyed.
- *
- * PROTECTED paths are not. Those are derived from the risk model — anything whose implied
- * classification is already Risk 3: licensing, auth, secrets, authorization, and the offline
- * boundary. An unclaimed edit there is precisely the event this system exists to catch, so it is
- * refused until someone takes a lease and is therefore answerable for it.
- *
- * ── Remaining limitation, stated rather than hidden ───────────────────────────────────────────
- *
- * BASH WRITES DO NOT REACH THIS HOOK. A shell redirect or `git checkout` never matches Edit or
- * Write, and widening the matcher to `Bash` would mean parsing arbitrary shell to guess at write
- * intent — unreliable in both directions. `bash-audit.mjs` covers that after the fact by observing
- * the filesystem, including the same protected paths when no lease is held.
+ * Every repository write is blocked until deterministic routing grants a lease. The sole bootstrap
+ * exception is one exact task-contract JSON file under docs/ai/contracts; the grant CLI validates
+ * it before creating the lease. With no lease, shell is limited to an intentionally tiny command
+ * grammar whose operations are read-only, plus the validated lease-grant control-plane command.
+ * Shell metacharacters and write-like flags fail closed. With a lease, PostToolUse still observes
+ * actual working-tree, committed and watched-ignored changes rather than trusting command text.
  */
 
 import { leaseAllows, readLease, toRepoRelative } from "./lease.mjs";
-import { protectedPathFor } from "./routing-matrix.mjs";
 
 const ALLOW = 0;
 const BLOCK = 2;
@@ -67,6 +56,35 @@ export function targetPathOf(payload) {
   return input.file_path ?? input.notebook_path ?? input.path ?? null;
 }
 
+/** Only task-contract bootstrap writes are permitted before a lease exists. */
+export function isContractControlPath(relativePath) {
+  return /^docs\/ai\/contracts\/[a-z0-9][a-z0-9._-]*\.json$/i.test(relativePath) &&
+    !relativePath.endsWith("/active-lease.json") &&
+    !relativePath.endsWith("/TASK_CONTRACT.schema.json");
+}
+
+/**
+ * A deliberately small no-lease shell grammar. It recognizes complete safe command families, not
+ * arbitrary shell intent; uncertainty blocks. The precondition rejects chaining/redirection first.
+ */
+export function isReadOnlyShellCommand(command) {
+  if (typeof command !== "string") return false;
+  const value = command.trim();
+  if (!value || /[;&|><`\r\n]/.test(value) || /\$\(|\$\{|\^/.test(value)) return false;
+  if (/--(?:output|out|write|save|update|install|delete|remove|force|exec-path)\b/i.test(value)) return false;
+  if (/^git\s+(?:status|diff|log|show|rev-parse|ls-files)(?:\s|$)/i.test(value)) {
+    return !/--(?:ext-diff|textconv)\b|\s-[cC]\s/i.test(value);
+  }
+  if (/^graphify\s+(?:query|explain|path|affected|god-nodes|benchmark)(?:\s|$)/i.test(value)) return true;
+  if (/^graphify\s+(?:diagnose\s+multigraph|hook\s+status|global\s+(?:list|path))(?:\s|$)/i.test(value)) return true;
+  if (/^bd\s+(?:show|list|stats|ready|blocked)(?:\s|$)/i.test(value)) return true;
+  if (/^claude\s+(?:--version|--help|mcp\s+list)\s*$/i.test(value)) return true;
+  if (/^npm\s+run\s+agent:lease(?:\s+--\s*)?$/i.test(value)) return true;
+  if (/^npm\s+run\s+agent:lease-grant\s+--\s+--task\s+\S+\s+--holder\s+\S+\s+--paths\s+.+$/i.test(value)) return true;
+  if (/^node\s+tools\/agents\/task-gate\.mjs\s+\S+\s*$/i.test(value.replace(/\\/g, "/"))) return true;
+  return false;
+}
+
 /**
  * The whole decision, as a pure function.
  *
@@ -77,14 +95,13 @@ export function targetPathOf(payload) {
  *
  * @param {import("./lease.mjs").Lease|null} lease
  * @param {string} relativePath repo-relative, POSIX
- * @returns {{allow: boolean, reason: "no-lease-ordinary"|"in-scope"|"protected-unclaimed"|"out-of-scope", guarded?: object}}
+ * @returns {{allow: boolean, reason: "contract-control-plane"|"lease-required"|"in-scope"|"out-of-scope"}}
  */
 export function decideWrite(lease, relativePath) {
   if (!lease) {
-    const guarded = protectedPathFor(relativePath);
-    return guarded
-      ? { allow: false, reason: "protected-unclaimed", guarded }
-      : { allow: true, reason: "no-lease-ordinary" };
+    return isContractControlPath(relativePath)
+      ? { allow: true, reason: "contract-control-plane" }
+      : { allow: false, reason: "lease-required" };
   }
   return leaseAllows(lease, relativePath)
     ? { allow: true, reason: "in-scope" }
@@ -95,10 +112,13 @@ async function main() {
   let payload;
   try {
     const raw = await readStdin();
-    payload = raw ? JSON.parse(raw) : {};
-  } catch {
-    // An unreadable payload is an infrastructure problem, not a policy violation.
-    process.exit(ALLOW);
+    if (!raw.trim()) throw new Error("empty hook payload");
+    payload = JSON.parse(raw);
+  } catch (error) {
+    process.stderr.write(
+      `[write-lease] BLOCKED: malformed PreToolUse payload (${error instanceof Error ? error.message : String(error)}).\n`
+    );
+    process.exit(BLOCK);
   }
 
   let lease;
@@ -114,27 +134,38 @@ async function main() {
     process.exit(BLOCK);
   }
 
+  const toolName = String(payload?.tool_name ?? "");
+  if (/^(?:Bash|PowerShell)$/i.test(toolName)) {
+    if (lease) process.exit(ALLOW);
+    const command = payload?.tool_input?.command;
+    if (isReadOnlyShellCommand(command)) process.exit(ALLOW);
+    process.stderr.write(
+      "[write-lease] BLOCKED: no active lease permits only bounded read-only shell discovery or\n" +
+        "[write-lease] the validated agent:lease-grant command. Grant the routed writer lease first.\n"
+    );
+    process.exit(BLOCK);
+  }
+
   const target = targetPathOf(payload);
-  if (!target) process.exit(ALLOW);
+  if (!target) {
+    process.stderr.write("[write-lease] BLOCKED: write-capable hook payload has no resolvable target path.\n");
+    process.exit(BLOCK);
+  }
 
   const relativePath = toRepoRelative(target);
-  if (!relativePath) process.exit(ALLOW); // outside the repository entirely
+  if (!relativePath) {
+    process.stderr.write("[write-lease] BLOCKED: target is outside or cannot be resolved within AWKIT.\n");
+    process.exit(BLOCK);
+  }
 
   const decision = decideWrite(lease, relativePath);
   if (decision.allow) process.exit(ALLOW);
 
-  if (decision.reason === "protected-unclaimed") {
-    const guarded = decision.guarded;
+  if (decision.reason === "lease-required") {
     process.stderr.write(
       `[write-lease] BLOCKED: ${relativePath}\n` +
-        `[write-lease] This path is PROTECTED (${guarded.glob}, owned by "${guarded.owner}") because\n` +
-        `[write-lease] touching it implies ${guarded.impliesFlags.join(", ")} — already Risk 3.\n` +
-        "[write-lease]\n" +
-        "[write-lease] Most paths are writable with no lease held. These are not: an unclaimed edit\n" +
-        "[write-lease] here would leave no one answerable for a licensing, auth, secret,\n" +
-        "[write-lease] authorization or offline-boundary change. Take a lease first:\n" +
-        "[write-lease]\n" +
-        `[write-lease]   npm run agent:lease-grant -- --task <id> --holder ${guarded.owner} --paths "${guarded.glob}"\n`
+        "[write-lease] No writer holds the repository lease. Create/validate the task contract,\n" +
+        "[write-lease] then grant its deterministically routed writer before changing repository files.\n"
     );
     process.exit(BLOCK);
   }

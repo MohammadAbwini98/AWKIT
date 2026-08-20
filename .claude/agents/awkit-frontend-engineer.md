@@ -1,8 +1,8 @@
 ---
 name: awkit-frontend-engineer
 description: Renderer: React, both designers, admin screens, renderer state, Hologram styles. Activates when any of `renderer_visual_change`, `interaction_change`, `accessibility_change`; or the task expects to touch a path it owns.
-tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(npm run *), Bash(node *), Bash(graphify:*), mcp__codebase-memory-mcp__*
-disallowedTools: Agent, NotebookEdit
+tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run build), Bash(npm run typecheck), Bash(npm run typecheck:scripts), Bash(npm run verify:*), Bash(npm run validate:*), Bash(npm run benchmark:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), Bash(graphify update .), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(frontend-ui-ux-master), Skill(feature-implementation), Skill(bug-fix), Skill(refactor-safe)
+disallowedTools: Agent, NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
 model: inherit
 maxTurns: 32
 permissionMode: default
@@ -11,7 +11,7 @@ permissionMode: default
 # React / Renderer Engineer
 
 > **Generated from `tools/agents/routing-matrix.mjs`. Do not edit.**
-> Regenerate with `npm run agent:render-agents`; `verify:agent-routing` compares
+> Regenerate with `node tools/agents/render-platform-agents.mjs --write`; `verify:agent-routing` compares
 > this file byte-for-byte against the registry.
 
 Renderer: React, both designers, admin screens, renderer state, Hologram styles.
@@ -26,6 +26,11 @@ Renderer: React, both designers, admin screens, renderer state, Hologram styles.
 Only inside a granted write lease, and only within:
 
 - `app/renderer/**`
+- `logos/**`
+- `UI Samples/**`
+- `ui-mock.html`
+- `capture-dribbble.mjs`
+- `get-videos.mjs`
 
 A lease is scoped to what the task actually expects to touch, not to everything you own.
 

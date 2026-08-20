@@ -13,7 +13,7 @@
  * a promise in prose.
  *
  * Codex and Gemini, in this repository, consume `SKILL.md` files — there is no per-role agent
- * runtime to feed. Emitting eleven duplicated role briefs into each would create twenty-two more
+ * runtime to feed. Emitting sixteen duplicated role briefs into each would create thirty-two more
  * files that can drift while executing nothing. Each therefore receives ONE generated adapter skill
  * carrying the same registry-derived roster. Generate where it executes; point where it does not.
  *
@@ -99,7 +99,10 @@ function roleBody(a) {
   lines.push(`# ${a.role}`);
   lines.push("");
   lines.push(`> **Generated from \`tools/agents/routing-matrix.mjs\`. Do not edit.**`);
-  lines.push(`> Regenerate with \`npm run agent:render-agents\`; \`verify:agent-routing\` compares`);
+  lines.push(
+    "> Regenerate with `node tools/agents/render-platform-agents.mjs --write`; " +
+      "`verify:agent-routing` compares"
+  );
   lines.push(`> this file byte-for-byte against the registry.`);
   lines.push("");
   lines.push(a.mandate);
@@ -223,13 +226,14 @@ export function renderAdapter(platform) {
     `  AWKIT's canonical specialist roles, ownership boundaries and write-lease rules for ${platform}.`,
     "  Read before taking on work that spans more than one area, before editing outside your own",
     "  domain, and before claiming a task is complete.",
-    "allowed-tools: Read, Glob, Grep, Bash(git *), Bash(npm run *), Bash(node *)",
+    "allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run agent:lease), Bash(npm run agent:lease-grant:*), Bash(node tools/agents/task-gate.mjs:*)",
     "---",
     "",
     "# Agent Routing",
     "",
     "> **Generated from `tools/agents/routing-matrix.mjs`. Do not edit.**",
-    `> Regenerate with \`npm run agent:render-agents\`; \`verify:agent-routing\` compares this file`,
+    "> Regenerate with `node tools/agents/render-platform-agents.mjs --write`; " +
+      "`verify:agent-routing` compares this file",
     "> byte-for-byte against the registry.",
     "",
     `${platform} has no per-role agent runtime in this repository, so the ${AGENTS.length} roles are not emitted`,

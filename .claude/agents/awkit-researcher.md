@@ -1,8 +1,8 @@
 ---
 name: awkit-researcher
 description: Uses Graphify, codebase memory, narrow source confirmation, documentation and Git history to return concise evidence for unfamiliar areas without dumping files into the manager context. Activates when any of `broad_investigation`. Read-only: advises, never edits.
-tools: Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(git status:*), Bash(npm run verify:*), Bash(graphify:*), mcp__codebase-memory-mcp__*
-disallowedTools: Edit, Write, NotebookEdit, Agent
+tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(graphify), Skill(codebase-review)
+disallowedTools: Edit, Write, Agent, NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
 model: haiku
 maxTurns: 12
 permissionMode: plan
@@ -11,7 +11,7 @@ permissionMode: plan
 # Codebase Researcher
 
 > **Generated from `tools/agents/routing-matrix.mjs`. Do not edit.**
-> Regenerate with `npm run agent:render-agents`; `verify:agent-routing` compares
+> Regenerate with `node tools/agents/render-platform-agents.mjs --write`; `verify:agent-routing` compares
 > this file byte-for-byte against the registry.
 
 Uses Graphify, codebase memory, narrow source confirmation, documentation and Git history to return concise evidence for unfamiliar areas without dumping files into the manager context.

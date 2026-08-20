@@ -48,6 +48,16 @@ export function requireCardinality(items, min, what) {
   };
 }
 
+/** Exact repository-relative file path: no traversal, absolute prefix, glob, or directory suffix. */
+export function isExactRepoRelativePath(value) {
+  if (typeof value !== "string" || value.length === 0 || value.includes("\\")) return false;
+  if (/^(?:[A-Za-z]:|\/)/.test(value) || /[*?\[\]{}!\u0000-\u001f]/.test(value)) return false;
+  if (value.endsWith("/") || value.split("/").some((part) => !part || part === "." || part === "..")) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * Validate a task contract against the canonical registry.
  *
@@ -88,6 +98,30 @@ export function validateContract(contract) {
   }
   if (!Array.isArray(contract.repository?.preserved_paths)) {
     fail("repository.preserved_paths", "repository.preserved_paths must be an array");
+  } else {
+    const preserved = contract.repository.preserved_paths;
+    for (const entry of preserved) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        fail("repository.preserved_entry", "each preserved path must be a fingerprint object");
+        continue;
+      }
+      if (!isExactRepoRelativePath(entry.path)) {
+        fail(
+          "repository.preserved_path",
+          `preserved path ${JSON.stringify(entry.path)} must be one exact repo-relative file (no glob, directory, absolute path or traversal)`
+        );
+      }
+      if (typeof entry.git_status !== "string" || !/^(?:\?\?|!!|[ MADRCUTU][ MADRCUTU])$/.test(entry.git_status)) {
+        fail("repository.preserved_status", `preserved path ${JSON.stringify(entry.path)} needs its two-character git_status`);
+      }
+      if (typeof entry.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(entry.sha256)) {
+        fail("repository.preserved_sha256", `preserved path ${JSON.stringify(entry.path)} needs a SHA-256 baseline fingerprint`);
+      }
+    }
+    const names = preserved.map((entry) => entry?.path).filter(Boolean);
+    if (new Set(names).size !== names.length) {
+      fail("repository.preserved_duplicate", "repository.preserved_paths contains duplicate files");
+    }
   }
 
   // ── Classification ──────────────────────────────────────────────────────────────────────────
@@ -234,6 +268,10 @@ export function validateContract(contract) {
       );
     }
   }
+  const evidenceNames = evidence.map((item) => item?.id).filter(Boolean);
+  if (new Set(evidenceNames).size !== evidenceNames.length) {
+    fail("evidence.duplicate", "evidence IDs must be unique");
+  }
 
   // ── Acceptance ──────────────────────────────────────────────────────────────────────────────
   const acceptance = Array.isArray(contract.acceptance) ? contract.acceptance : [];
@@ -241,7 +279,12 @@ export function validateContract(contract) {
   if (noAcceptance) fail("acceptance.empty", noAcceptance.message);
 
   const evidenceIds = new Set(evidence.map((e) => e?.id));
+  const acceptanceIds = acceptance.map((criterion) => criterion?.id).filter(Boolean);
+  if (new Set(acceptanceIds).size !== acceptanceIds.length) {
+    fail("acceptance.duplicate", "acceptance criterion IDs must be unique");
+  }
   for (const criterion of acceptance) {
+    if (!criterion?.id) fail("acceptance.id", "an acceptance criterion has no id");
     const needs = Array.isArray(criterion?.evidence_required) ? criterion.evidence_required : [];
     const noLink = requireCardinality(needs, 1, `acceptance "${criterion?.id}" evidence_required`);
     if (noLink) {
@@ -251,8 +294,20 @@ export function validateContract(contract) {
     for (const id of needs) {
       if (!evidenceIds.has(id)) {
         fail("acceptance.dangling", `acceptance "${criterion?.id}" cites unknown evidence "${id}"`);
+      } else {
+        const cited = evidence.find((item) => item?.id === id);
+        if (cited?.required !== true) {
+          fail(
+            "acceptance.optional_evidence",
+            `acceptance "${criterion?.id}" cites evidence "${id}" that is not required`
+          );
+        }
       }
     }
+  }
+
+  if (contract.write_lease?.history !== undefined && !Array.isArray(contract.write_lease.history)) {
+    fail("write_lease.history", "write_lease.history must be an append-only array when present");
   }
 
   // ── Git policy ──────────────────────────────────────────────────────────────────────────────
@@ -337,7 +392,16 @@ export function completionBlockers(contract, { lease = null } = {}) {
   /** @type {string[]} */
   const blockers = [];
 
-  const unresolved = (lease?.violations ?? []).filter((v) => !v.resolved);
+  const approvedOverridePaths = new Set(
+    contract.completion?.qc_status === "APPROVED"
+      ? (contract.write_lease?.overrides ?? [])
+          .filter((override) => override?.qc_required === true && override?.reason)
+          .flatMap((override) => override?.affected_paths ?? [])
+      : []
+  );
+  const historical = (contract.write_lease?.history ?? []).flatMap((entry) => entry?.violations ?? []);
+  const unresolved = [...historical, ...(lease?.violations ?? [])]
+    .filter((v) => !v?.resolved && !approvedOverridePaths.has(v?.path));
   if (unresolved.length > 0) {
     blockers.push(
       `${unresolved.length} unresolved out-of-lease write(s) recorded on the lease: ` +
@@ -360,6 +424,19 @@ export function completionBlockers(contract, { lease = null } = {}) {
         blockers.push(
           `required evidence "${item.id}" is ${item.result ?? "pending"} — ` +
             "BLOCKED, NOT RUN and FAIL are not PASS"
+        );
+      }
+    }
+  }
+
+  const evidenceById = new Map(evidence.map((item) => [item?.id, item]));
+  for (const criterion of Array.isArray(contract.acceptance) ? contract.acceptance : []) {
+    for (const id of Array.isArray(criterion?.evidence_required) ? criterion.evidence_required : []) {
+      const item = evidenceById.get(id);
+      if (!item || item.required !== true || item.result !== "PASS") {
+        blockers.push(
+          `acceptance "${criterion?.id ?? "unknown"}" is not proven: cited evidence "${id}" ` +
+            `is ${item?.result ?? "missing"}${item?.required === true ? "" : " and not required"}`
         );
       }
     }

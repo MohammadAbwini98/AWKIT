@@ -60,13 +60,12 @@ import {
  * @returns {string[]}
  */
 export function changedFiles({ baseline = "HEAD", cwd = process.cwd() } = {}) {
-  const run = (args) => {
-    try {
-      return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    } catch {
-      return "";
-    }
-  };
+  validateBaseline(baseline, cwd);
+  const run = (args) => execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
 
   const tracked = run(["diff", "--name-only", baseline]);
   const untracked = run(["ls-files", "--others", "--exclude-standard"]);
@@ -77,6 +76,25 @@ export function changedFiles({ baseline = "HEAD", cwd = process.cwd() } = {}) {
     .filter((line) => line.length > 0);
 
   return [...new Set(all)].sort();
+}
+
+/**
+ * Prove a contract baseline names a real commit. An invalid ref is enforcement uncertainty, not an
+ * empty diff; callers intentionally receive the Git error and must block completion.
+ *
+ * @param {string} baseline
+ * @param {string} [cwd]
+ * @returns {string} resolved full commit id
+ */
+export function validateBaseline(baseline, cwd = process.cwd()) {
+  if (typeof baseline !== "string" || baseline.trim().length === 0) {
+    throw new Error("repository baseline must be a non-empty commit-ish");
+  }
+  return execFileSync("git", ["rev-parse", "--verify", `${baseline}^{commit}`], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  }).trim();
 }
 
 /**

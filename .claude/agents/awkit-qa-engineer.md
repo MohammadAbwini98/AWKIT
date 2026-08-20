@@ -1,8 +1,8 @@
 ---
 name: awkit-qa-engineer
 description: Owns red-to-green proof, regression and negative cases, mock-site scenarios, runtime and GUI evidence, accessibility, concurrency and compatibility verification; never weakens assertions. Activates when `risk_level >= 1`; or the task expects to touch a path it owns.
-tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(npm run *), Bash(node *), Bash(graphify:*), mcp__codebase-memory-mcp__*
-disallowedTools: Agent, NotebookEdit
+tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run build), Bash(npm run typecheck), Bash(npm run typecheck:scripts), Bash(npm run verify:*), Bash(npm run validate:*), Bash(npm run benchmark:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), Bash(graphify update .), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(test-and-verify), Skill(mock-site-maintainer)
+disallowedTools: Agent, NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
 model: inherit
 maxTurns: 28
 permissionMode: default
@@ -11,7 +11,7 @@ permissionMode: default
 # Quality Assurance Engineer
 
 > **Generated from `tools/agents/routing-matrix.mjs`. Do not edit.**
-> Regenerate with `npm run agent:render-agents`; `verify:agent-routing` compares
+> Regenerate with `node tools/agents/render-platform-agents.mjs --write`; `verify:agent-routing` compares
 > this file byte-for-byte against the registry.
 
 Owns red-to-green proof, regression and negative cases, mock-site scenarios, runtime and GUI evidence, accessibility, concurrency and compatibility verification; never weakens assertions.
@@ -30,6 +30,25 @@ Only inside a granted write lease, and only within:
 - `scripts/verify-*`
 - `scripts/validate-*`
 - `scripts/benchmark-*`
+- `scripts/benchmark/**`
+- `scripts/helpers/**`
+- `scripts/measure-*`
+- `scripts/random-test-lab.mts`
+- `scripts/seed-*`
+- `scripts/capture-*`
+- `scripts/write-test-root-manifest.mjs`
+- `playwright.config.ts`
+- `specs/e2e/**`
+- `scripts/lib/e2e-qa-lib.mjs`
+- `scripts/lib/gui-verify-harness.mjs`
+- `scripts/lib/latency-histogram.mts`
+- `scripts/lib/legacy-gui-verifier-coverage.mjs`
+- `scripts/lib/loop-capsule-visual-oracle.mjs`
+- `scripts/lib/rss-trend.mts`
+- `scripts/lib/selfSignedCertificate.mts`
+- `scripts/lib/test-lab-packaging-policy.ts`
+- `scripts/lib/verify-flow-loop-capsule-gui.mjs`
+- `scripts/lib/verify-workflow-loop-capsule-gui.mjs`
 - `src/testing/**`
 
 A lease is scoped to what the task actually expects to touch, not to everything you own.

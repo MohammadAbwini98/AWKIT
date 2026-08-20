@@ -137,13 +137,12 @@ export function renderMatrix() {
   lines.push("## Protected paths");
   lines.push("");
   lines.push(
-    "Most paths are writable when NO lease is held — failing closed everywhere would block every task"
+    "No repository path is writable without a lease, except the exact task-contract bootstrap file"
   );
   lines.push(
-    "that does not use a contract, and a gate that stops all work gets removed rather than obeyed."
+    "that deterministic routing validates before grant. Protected paths are the subset whose implied"
   );
-  lines.push("These are the exception: an unclaimed edit here leaves nobody answerable for a Risk 3");
-  lines.push("change, so the guard refuses it until someone takes a lease.");
+  lines.push("flags already make them Risk 3; they require the matching owner and critical review.");
   lines.push("");
   lines.push("**Derived, not hand-listed** — a path is protected when what it implies is already Risk 3.");
   lines.push("");
@@ -166,9 +165,12 @@ export function renderMatrix() {
   lines.push("`dist/`, `graphify-out/` and the logs are derived artifacts.");
   lines.push("");
   lines.push(
-    "These are the exceptions — ignored, but consequential — fingerprinted by mtime and size at lease"
+    "These are the exceptions — ignored, but consequential — fingerprinted by metadata at lease"
   );
-  lines.push("grant and compared after every shell command.");
+  lines.push(
+    "grant and compared after every shell command. This is bounded tamper detection, not a cryptographic"
+  );
+  lines.push("attestation of large bundled directories; final release validation remains authoritative.");
   lines.push("");
   lines.push(row(["Path", "Kind", "Owner", "Why"]));
   lines.push(row(["---", "---", "---", "---"]));

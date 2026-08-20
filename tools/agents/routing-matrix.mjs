@@ -91,6 +91,10 @@ export const AGENTS = Object.freeze([
       ".gemini/**",
       ".agents/**",
       ".cursor/**",
+      ".cbmignore",
+      ".graphifyignore",
+      "scripts/AGENTS.md",
+      "src/AGENTS.md",
       "AGENTS.md",
       "CLAUDE.md",
       "GEMINI.md"
@@ -130,7 +134,14 @@ export const AGENTS = Object.freeze([
     defaultMode: "writer",
     model: "inherit",
     maxTurns: 32,
-    ownsPaths: ["app/renderer/**"],
+    ownsPaths: [
+      "app/renderer/**",
+      "logos/**",
+      "UI Samples/**",
+      "ui-mock.html",
+      "capture-dribbble.mjs",
+      "get-videos.mjs"
+    ],
     agentsMd: "app/renderer/AGENTS.md",
     mandate: "Renderer: React, both designers, admin screens, renderer state, Hologram styles."
   },
@@ -165,10 +176,17 @@ export const AGENTS = Object.freeze([
     maxTurns: 32,
     ownsPaths: [
       "app/main/**",
-      "app/preload.ts",
       "src/runner/**",
       "src/orchestrator/**",
-      "src/instances/**"
+      "src/instances/**",
+      "src/oracle/**",
+      "oracle-jdbc-bridge/**",
+      "native-hosts/**",
+      "scripts/oracle/**",
+      "scripts/prepare-oracle-runtime.mjs",
+      "scripts/prepare-zvec-native-host.mjs",
+      "scripts/zvec-harness/**",
+      "scripts/zvec-spike/**"
     ],
     agentsMd: "app/main/AGENTS.md",
     mandate:
@@ -194,7 +212,7 @@ export const AGENTS = Object.freeze([
     defaultMode: "writer",
     model: "inherit",
     maxTurns: 32,
-    ownsPaths: ["src/recorder/**", "src/session/**", "src/oracle/**"],
+    ownsPaths: ["src/recorder/**", "src/session/**"],
     agentsMd: "src/AGENTS.md",
     mandate:
       "Playwright and Chromium recorder semantics, resilient locators, popups, frames, waits, " +
@@ -213,6 +231,25 @@ export const AGENTS = Object.freeze([
       "scripts/verify-*",
       "scripts/validate-*",
       "scripts/benchmark-*",
+      "scripts/benchmark/**",
+      "scripts/helpers/**",
+      "scripts/measure-*",
+      "scripts/random-test-lab.mts",
+      "scripts/seed-*",
+      "scripts/capture-*",
+      "scripts/write-test-root-manifest.mjs",
+      "playwright.config.ts",
+      "specs/e2e/**",
+      "scripts/lib/e2e-qa-lib.mjs",
+      "scripts/lib/gui-verify-harness.mjs",
+      "scripts/lib/latency-histogram.mts",
+      "scripts/lib/legacy-gui-verifier-coverage.mjs",
+      "scripts/lib/loop-capsule-visual-oracle.mjs",
+      "scripts/lib/rss-trend.mts",
+      "scripts/lib/selfSignedCertificate.mts",
+      "scripts/lib/test-lab-packaging-policy.ts",
+      "scripts/lib/verify-flow-loop-capsule-gui.mjs",
+      "scripts/lib/verify-workflow-loop-capsule-gui.mjs",
       "src/testing/**"
     ],
     agentsMd: "tests/AGENTS.md",
@@ -239,7 +276,14 @@ export const AGENTS = Object.freeze([
     defaultMode: "writer",
     model: "inherit",
     maxTurns: 24,
-    ownsPaths: ["src/licensing/**", "src/auth/**", "src/secrets/**", "src/security/**"],
+    ownsPaths: [
+      "src/licensing/**",
+      "src/auth/**",
+      "src/secrets/**",
+      "src/security/**",
+      "tools/license-issuer/**",
+      ".env.example"
+    ],
     mandate:
       "Owns tightly scoped licensing, authorization, secret and trust-boundary modules and reviews " +
       "protected-login handoff, Electron/session security, logging redaction and signing risk."
@@ -294,7 +338,33 @@ export const AGENTS = Object.freeze([
       "src/offline/**",
       "package.json",
       "package-lock.json",
-      "electron-builder*"
+      "electron-builder*",
+      ".github/workflows/**",
+      ".gitattributes",
+      ".gitignore",
+      ".npmrc",
+      "electron.vite*.ts",
+      "vite.config.ts",
+      "tsconfig.json",
+      "tsconfig.scripts.json",
+      "scripts/build-*",
+      "scripts/build.ps1",
+      "scripts/clean-machine/**",
+      "scripts/compare-offline-payloads.mjs",
+      "scripts/dev.mjs",
+      "scripts/dev.ps1",
+      "scripts/generate-app-icon.mjs",
+      "scripts/generate-dependency-manifest.ps1",
+      "scripts/lib/clean-machine-validation-policy.ts",
+      "scripts/lib/nsis-per-user-install.ps1",
+      "scripts/lib/offline-browser-integrity.ps1",
+      "scripts/lib/release-key-custody.*",
+      "scripts/offline-manifest-signature.mjs",
+      "scripts/package-*",
+      "scripts/prepare-offline-deps.ps1",
+      "scripts/release-*",
+      "scripts/stage-offline-assets-from.ps1",
+      "scripts/write-artifact-provenance.mjs"
     ],
     mandate:
       "Owns build, packaging, bundled Chromium, offline validation, dependency manifests, signing " +
@@ -308,10 +378,22 @@ export const AGENTS = Object.freeze([
     model: "inherit",
     maxTurns: 24,
     ownsPaths: [
-      "docs/ai/**",
+      "docs/**",
+      "README.md",
+      "IMPLEMENTATION_STATUS.md",
+      "CLEAN_MACHINE_VALIDATION_RUNBOOK.md",
+      "SESSION_OUTCOMES_CLOSEOUT.md",
+      "BROWSER_AUTOMATION_SKILLS_REPORT.md",
+      "00_TEMPLATE_REVIEW_FINDINGS.md",
+      "change_requests/**",
+      "plans/**",
+      "playwright_flow_studio_updated_phases/**",
       ".beads/**",
       "tools/roadmap/**",
-      "scripts/lib/verifier-classification.ts"
+      "scripts/lib/verifier-classification.ts",
+      "scripts/ai-memory/**",
+      "scripts/generate-embedded-roadmap-snapshot.mjs",
+      "setup-ai-memory.mjs"
     ],
     agentsMd: "docs/AGENTS.md",
     mandate:
@@ -340,11 +422,12 @@ export const AGENT_IDS = Object.freeze(AGENTS.map((a) => a.id));
 /**
  * Which existing skills each role should reach for.
  *
- * AWKIT already had twelve skills under `.claude/skills/` before this routing system existed, and
+ * AWKIT already had a focused skill library under `.claude/skills/` before this routing system
+ * existed, and
  * several of them cover exactly what a role does — `test-and-verify` IS most of QA's job, `pr-review`
  * IS most of QC's. Generating eleven role definitions beside twelve skills without saying how they
- * relate would leave two overlapping accounts of the same work, which is the drift this whole system
- * is built to prevent.
+ * relate would leave overlapping accounts of the same work, which is the drift this whole system is
+ * built to prevent.
  *
  * So roles REFERENCE skills; they never restate them. `verify:agent-routing` asserts that every
  * installed skill is claimed by at least one role, so a new skill cannot sit unowned and a deleted
@@ -371,36 +454,154 @@ export const ROLE_SKILLS = Object.freeze({
   "project-state": ["ai-memory-maintainer", "docs-sync", "git-full-cycle"]
 });
 
+/** Codebase-memory 0.9.0 tools that cannot mutate, index or delete graph state. */
+export const CODEBASE_MEMORY_READ_TOOLS = Object.freeze([
+  "mcp__codebase-memory-mcp__search_graph",
+  "mcp__codebase-memory-mcp__query_graph",
+  "mcp__codebase-memory-mcp__trace_path",
+  "mcp__codebase-memory-mcp__get_code_snippet",
+  "mcp__codebase-memory-mcp__get_graph_schema",
+  "mcp__codebase-memory-mcp__get_architecture",
+  "mcp__codebase-memory-mcp__search_code",
+  "mcp__codebase-memory-mcp__list_projects",
+  "mcp__codebase-memory-mcp__index_status",
+  "mcp__codebase-memory-mcp__detect_changes"
+]);
+
+/** Exact Graphify reads. The CLI wildcard also includes installers and graph mutations. */
+export const GRAPHIFY_READ_TOOLS = Object.freeze([
+  "Bash(graphify query:*)",
+  "Bash(graphify explain:*)",
+  "Bash(graphify path:*)",
+  "Bash(graphify affected:*)",
+  "Bash(graphify god-nodes:*)",
+  "Bash(graphify diagnose multigraph:*)",
+  "Bash(graphify benchmark:*)",
+  "Bash(graphify hook status:*)",
+  "Bash(graphify global list)",
+  "Bash(graphify global path)"
+]);
+
+const GIT_READ_TOOLS = Object.freeze([
+  "Bash(git status:*)",
+  "Bash(git diff:*)",
+  "Bash(git log:*)",
+  "Bash(git show:*)",
+  "Bash(git rev-parse:*)",
+  "Bash(git ls-files:*)"
+]);
+
+const VERIFICATION_TOOLS = Object.freeze([
+  "Bash(npm run build)",
+  "Bash(npm run typecheck)",
+  "Bash(npm run typecheck:scripts)",
+  "Bash(npm run verify:*)",
+  "Bash(npm run validate:*)",
+  "Bash(npm run benchmark:*)"
+]);
+
+const BEADS_TOOLS = Object.freeze([
+  "Bash(bd show:*)",
+  "Bash(bd list:*)",
+  "Bash(bd stats:*)",
+  "Bash(bd ready:*)",
+  "Bash(bd blocked:*)",
+  "Bash(bd create:*)",
+  "Bash(bd update:*)",
+  "Bash(bd close:*)",
+  "Bash(bd export:*)",
+  "Bash(bd dep add:*)"
+]);
+
 /**
- * Tool grants for a generated platform agent definition, derived from the agent's mode.
+ * Tool grants for a generated platform agent definition, derived from mode and mandate.
  *
- * Derived rather than declared per agent, so "read-only" cannot become a label an agent wears while
- * holding Edit. A read-only specialist that could write would be a consultant in name only.
- *
- * `security` is `review` by default but may own tightly scoped security modules, so it receives
- * write tools; its restraint is a routing decision (it is rarely the writer), not a missing tool.
+ * Discovery grants enumerate read-only MCP/Graphify operations because either wildcard also exposes
+ * mutators. Skills are lazy exact grants, so their contents do not inflate every specialist's start
+ * context. Writers still need a live lease; shell permission is never a substitute for ownership.
  *
  * @param {string} agentId
  * @returns {string}
  */
 export function toolsFor(agentId) {
-  const readOnly =
-    "Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(git status:*), " +
-    "Bash(npm run verify:*), Bash(graphify:*), mcp__codebase-memory-mcp__*";
-  if (agent(agentId).defaultMode === "read-only") return readOnly;
-  const writer =
-    "Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), " +
-    "Bash(npm run *), Bash(node *), Bash(graphify:*), mcp__codebase-memory-mcp__*";
-  if (agentId === "manager") return `${writer}, Agent, Bash(git *), Bash(bd *)`;
-  if (agentId === "project-state") return `${writer}, Bash(bd *)`;
-  return writer;
+  const role = agent(agentId);
+  const skills = (ROLE_SKILLS[agentId] ?? []).map((skill) => `Skill(${skill})`);
+  const discovery = [...GRAPHIFY_READ_TOOLS, ...CODEBASE_MEMORY_READ_TOOLS, ...skills];
+
+  if (role.defaultMode === "read-only") {
+    return ["Read", "Glob", "Grep", ...GIT_READ_TOOLS, ...discovery].join(", ");
+  }
+
+  const writer = [
+    "Read",
+    "Edit",
+    "Write",
+    "Glob",
+    "Grep",
+    ...GIT_READ_TOOLS,
+    ...VERIFICATION_TOOLS,
+    ...GRAPHIFY_READ_TOOLS,
+    "Bash(graphify update .)",
+    ...CODEBASE_MEMORY_READ_TOOLS,
+    ...skills
+  ];
+
+  if (agentId === "release") {
+    writer.push("Bash(npm run package:*)");
+  }
+
+  if (agentId === "project-state") {
+    writer.push(
+      ...BEADS_TOOLS,
+      "Bash(npm run ai:memory)",
+      "Bash(npm run verify:roadmap-dashboard)",
+      "Bash(node tools/agents/render-docs.mjs --write)"
+    );
+  }
+
+  if (agentId === "manager") {
+    const specialists = AGENTS.filter((entry) => entry.id !== "manager")
+      .map((entry) => entry.claudeName)
+      .join(", ");
+    writer.push(
+      `Agent(${specialists})`,
+      ...BEADS_TOOLS,
+      "Bash(npm run agent:lease)",
+      "Bash(npm run agent:lease-grant:*)",
+      "Bash(npm run agent:lease-amend:*)",
+      "Bash(npm run agent:lease-release:*)",
+      "Bash(node tools/agents/render-platform-agents.mjs --write)",
+      "Bash(npm run agent:check-agents)",
+      "Bash(node tools/agents/task-gate.mjs:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git fetch origin)",
+      "Bash(git pull --ff-only origin main)",
+      "Bash(git push origin main)"
+    );
+  }
+
+  return writer.join(", ");
 }
+
+const DESTRUCTIVE_GIT_DENIES = Object.freeze([
+  "Bash(git reset:*)",
+  "Bash(git clean:*)",
+  "Bash(git stash:*)",
+  "Bash(git worktree:*)",
+  "Bash(git branch:*)",
+  "Bash(git switch:*)",
+  "Bash(git checkout:*)",
+  "Bash(git push --force:*)",
+  "Bash(git push -f:*)"
+]);
 
 /** Explicit denies survive an accidental widening of a role's allowed tool list. */
 export function disallowedToolsFor(agentId) {
-  if (agent(agentId).defaultMode === "read-only") return "Edit, Write, NotebookEdit, Agent";
-  if (agentId === "manager") return "NotebookEdit";
-  return "Agent, NotebookEdit";
+  const denied = ["NotebookEdit", ...DESTRUCTIVE_GIT_DENIES];
+  if (agent(agentId).defaultMode === "read-only") denied.unshift("Edit", "Write", "Agent");
+  else if (agentId !== "manager") denied.unshift("Agent");
+  return denied.join(", ");
 }
 
 /* ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -480,7 +681,7 @@ export const PATH_DOMAINS = Object.freeze([
     note: "Every renderer-visible channel lives here; touching it is by definition an IPC change."
   },
   {
-    glob: "app/preload.ts",
+    glob: "app/main/preload.ts",
     owner: "runtime",
     impliesFlags: ["ipc_change", "public_contract_change"],
     note: "The window.playwrightFlowStudio surface — an internal contract other layers compile against."
@@ -565,9 +766,33 @@ export const PATH_DOMAINS = Object.freeze([
   },
   {
     glob: "src/oracle/**",
-    owner: "recorder",
-    impliesFlags: [],
-    note: "Oracle JDBC bridge; its own external gates apply."
+    owner: "runtime",
+    impliesFlags: ["execution_change", "authorization_change"],
+    note: "Oracle SQL policy is a duplicated read-only trust gate in the execution boundary."
+  },
+  {
+    glob: "oracle-jdbc-bridge/**",
+    owner: "runtime",
+    impliesFlags: ["execution_change", "authorization_change", "offline_boundary_change"],
+    note: "The shipped JDBC bridge crosses both the SQL trust boundary and the offline runtime."
+  },
+  {
+    glob: "native-hosts/**",
+    owner: "runtime",
+    impliesFlags: ["execution_change", "authorization_change", "offline_boundary_change"],
+    note: "Bundled native hosts execute outside Electron and are part of the shipped trust boundary."
+  },
+  {
+    glob: "tools/license-issuer/**",
+    owner: "security",
+    impliesFlags: ["licensing_change", "signing_change", "secret_handling_change"],
+    note: "License issuance and signing-key custody are security-owned Risk 3 surfaces."
+  },
+  {
+    glob: ".env.example",
+    owner: "security",
+    impliesFlags: ["secret_handling_change", "authorization_change"],
+    note: "The public secret-key inventory is a trust-boundary contract even though values are placeholders."
   },
   {
     glob: "src/testing/**",
@@ -600,6 +825,12 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: [],
     note: "Renderer. Visual/interaction/accessibility intent is not path-determinable — declare it."
   },
+  ...["logos/**", "UI Samples/**", "ui-mock.html", "capture-dribbble.mjs", "get-videos.mjs"].map((glob) => ({
+    glob,
+    owner: "frontend",
+    impliesFlags: ["renderer_visual_change"],
+    note: "Renderer reference imagery and visual evidence tooling."
+  })),
   {
     glob: "app/main/**",
     owner: "runtime",
@@ -636,6 +867,57 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: ["performance_change"],
     note: "Performance evidence stays independent from the implementation it measures."
   },
+  ...[
+    "scripts/benchmark/**",
+    "scripts/helpers/**",
+    "scripts/measure-*",
+    "scripts/random-test-lab.mts",
+    "scripts/seed-*",
+    "scripts/capture-*",
+    "scripts/write-test-root-manifest.mjs"
+  ].map((glob) => ({
+    glob,
+    owner: "qa",
+    impliesFlags: [],
+    note: "Focused test, measurement or fixture infrastructure owned independently by QA."
+  })),
+  ...[
+    "playwright.config.ts",
+    "specs/e2e/**",
+    "scripts/lib/e2e-qa-lib.mjs",
+    "scripts/lib/gui-verify-harness.mjs",
+    "scripts/lib/legacy-gui-verifier-coverage.mjs",
+    "scripts/lib/loop-capsule-visual-oracle.mjs",
+    "scripts/lib/selfSignedCertificate.mts",
+    "scripts/lib/test-lab-packaging-policy.ts",
+    "scripts/lib/verify-flow-loop-capsule-gui.mjs",
+    "scripts/lib/verify-workflow-loop-capsule-gui.mjs"
+  ].map((glob) => ({
+    glob,
+    owner: "qa",
+    impliesFlags: [],
+    note: "End-to-end and rendered-GUI verification infrastructure."
+  })),
+  ...["scripts/lib/latency-histogram.mts", "scripts/lib/rss-trend.mts"].map((glob) => ({
+    glob,
+    owner: "qa",
+    impliesFlags: ["performance_change"],
+    note: "Performance measurement evidence stays independent from product implementation."
+  })),
+
+  // ── Runtime preparation and native-boundary tooling ──────────────────────────────────────────
+  ...[
+    "scripts/oracle/**",
+    "scripts/prepare-oracle-runtime.mjs",
+    "scripts/prepare-zvec-native-host.mjs",
+    "scripts/zvec-harness/**",
+    "scripts/zvec-spike/**"
+  ].map((glob) => ({
+    glob,
+    owner: "runtime",
+    impliesFlags: ["execution_change", "authorization_change", "offline_boundary_change"],
+    note: "Runtime preparation and native bridge tooling crosses the shipped execution boundary."
+  })),
 
   // ── Packaging and the offline boundary ────────────────────────────────────────────────────────
   {
@@ -674,14 +956,63 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: ["packaging_change"],
     note: "Installer and portable build configuration."
   },
+  ...[
+    ".github/workflows/**",
+    ".gitattributes",
+    ".gitignore",
+    ".npmrc",
+    "electron.vite*.ts",
+    "vite.config.ts",
+    "tsconfig.json",
+    "tsconfig.scripts.json",
+    "scripts/build-*",
+    "scripts/build.ps1",
+    "scripts/clean-machine/**",
+    "scripts/compare-offline-payloads.mjs",
+    "scripts/dev.mjs",
+    "scripts/dev.ps1",
+    "scripts/generate-app-icon.mjs",
+    "scripts/generate-dependency-manifest.ps1",
+    "scripts/lib/clean-machine-validation-policy.ts",
+    "scripts/lib/nsis-per-user-install.ps1",
+    "scripts/lib/offline-browser-integrity.ps1",
+    "scripts/lib/release-key-custody.*",
+    "scripts/offline-manifest-signature.mjs",
+    "scripts/package-*",
+    "scripts/prepare-offline-deps.ps1",
+    "scripts/release-*",
+    "scripts/stage-offline-assets-from.ps1",
+    "scripts/write-artifact-provenance.mjs"
+  ].map((glob) => ({
+    glob,
+    owner: "release",
+    impliesFlags: ["packaging_change", "offline_boundary_change"],
+    note: "Packaging, signing and clean-machine evidence tooling belongs to the release boundary."
+  })),
 
   // ── Governance and agent infrastructure ─────────────────────────────────────────────────────
   {
-    glob: "docs/ai/**",
+    glob: "docs/**",
     owner: "project-state",
     impliesFlags: ["project_state_change"],
     note: "AI memory and governance documents; architectural advice does not confer write ownership."
   },
+  ...[
+    "README.md",
+    "IMPLEMENTATION_STATUS.md",
+    "CLEAN_MACHINE_VALIDATION_RUNBOOK.md",
+    "SESSION_OUTCOMES_CLOSEOUT.md",
+    "BROWSER_AUTOMATION_SKILLS_REPORT.md",
+    "00_TEMPLATE_REVIEW_FINDINGS.md",
+    "change_requests/**",
+    "plans/**",
+    "playwright_flow_studio_updated_phases/**"
+  ].map((glob) => ({
+    glob,
+    owner: "project-state",
+    impliesFlags: ["project_state_change"],
+    note: "Repository status, decision history, planning and specification sources."
+  })),
   {
     glob: "tools/roadmap/**",
     owner: "project-state",
@@ -708,12 +1039,28 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: ["project_state_change"],
     note: "Authoritative verifier registry; new verify and validate commands must be classified."
   },
+  ...[
+    "scripts/ai-memory/**",
+    "scripts/generate-embedded-roadmap-snapshot.mjs",
+    "setup-ai-memory.mjs"
+  ].map((glob) => ({
+    glob,
+    owner: "project-state",
+    impliesFlags: ["project_state_change"],
+    note: "Project memory and derived status synchronization tooling."
+  })),
   {
     glob: ".claude/**",
     owner: "manager",
     impliesFlags: ["agent_infrastructure_change"],
     note: "Claude Code agent/skill/hook configuration. Generated role definitions live here."
   },
+  ...[".cbmignore", ".graphifyignore", "scripts/AGENTS.md", "src/AGENTS.md"].map((glob) => ({
+    glob,
+    owner: "manager",
+    impliesFlags: ["agent_infrastructure_change"],
+    note: "Cross-agent discovery and local instruction boundaries."
+  })),
   {
     glob: ".codex/**",
     owner: "manager",

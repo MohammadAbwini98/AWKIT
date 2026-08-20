@@ -74,8 +74,11 @@ export function readLeaseRecord(path = LEASE_PATH) {
   let text;
   try {
     text = readFileSync(path, "utf8");
-  } catch {
-    return null;
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "ENOENT") return null;
+    throw new Error(
+      `cannot read active lease at ${path}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   let parsed;
@@ -127,38 +130,39 @@ export function writeLease(lease, path = LEASE_PATH) {
  * @returns {string[]}
  */
 export function dirtyPaths(cwd = REPO_ROOT) {
-  try {
-    return execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" })
-      .split("\n")
-      .map((line) => line.slice(3).trim())
-      .filter(Boolean)
-      // Renames arrive as "old -> new"; the destination is the write that matters.
-      .map((path) => (path.includes(" -> ") ? path.split(" -> ")[1] : path))
-      .map((path) => path.replace(/^"|"$/g, "").replace(/\\/g, "/"))
-      .sort();
-  } catch {
-    return [];
-  }
+  return execFileSync("git", ["status", "--porcelain"], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split("\n")
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean)
+    // Renames arrive as "old -> new"; the destination is the write that matters.
+    .map((path) => (path.includes(" -> ") ? path.split(" -> ")[1] : path))
+    .map((path) => path.replace(/^"|"$/g, "").replace(/\\/g, "/"))
+    .sort();
 }
 
 /** Paths committed after the lease's acquired_at_commit, including a clean post-commit tree. */
 export function committedPathsSince(commit, cwd = REPO_ROOT) {
-  if (!commit || commit === "unknown") return [];
-  try {
-    return execFileSync("git", ["diff", "--name-only", `${commit}..HEAD`], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"]
-    })
-      .split("\n")
-      .map((path) => path.trim().replace(/\\/g, "/"))
-      .filter(Boolean)
-      .sort();
-  } catch {
-    // An unavailable baseline is not proof of a write. The task gate independently compares the
-    // contract baseline, while the live dirty audit remains active.
-    return [];
+  if (!commit || commit === "unknown") {
+    throw new Error("lease has no valid acquired_at_commit baseline");
   }
+  execFileSync("git", ["rev-parse", "--verify", `${commit}^{commit}`], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  return execFileSync("git", ["diff", "--name-only", `${commit}..HEAD`], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split("\n")
+    .map((path) => path.trim().replace(/\\/g, "/"))
+    .filter(Boolean)
+    .sort();
 }
 
 /** Content fingerprints for tracked/untracked baseline-dirty files. */
@@ -175,16 +179,13 @@ export function trackedPathFingerprints(paths, cwd = REPO_ROOT) {
   return out;
 }
 
-/** @returns {string} current HEAD, or "unknown" outside a git checkout. */
+/** @returns {string} current full HEAD. Throws outside a valid Git checkout. */
 function headCommit() {
-  try {
-    return execFileSync("git", ["rev-parse", "--short", "HEAD"], {
-      cwd: REPO_ROOT,
-      encoding: "utf8"
-    }).trim();
-  } catch {
-    return "unknown";
-  }
+  return execFileSync("git", ["rev-parse", "--verify", "HEAD^{commit}"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  }).trim();
 }
 
 /**
@@ -225,6 +226,92 @@ export function leaseAllows(lease, repoRelativePath) {
   return sharedWritePathFor(repoRelativePath) !== null;
 }
 
+/** @param {string} task */
+export function contractPathFor(task) {
+  return join(REPO_ROOT, "docs", "ai", "contracts", `${task}.json`);
+}
+
+/** Read the task contract used to authorize a lease lifecycle transition. */
+function readTaskContract(path) {
+  let contract;
+  try {
+    contract = JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `cannot preserve write-lease history without readable task contract ${path}: ` +
+        `${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return contract;
+}
+
+function approvedOverridePaths(contract) {
+  if (contract.completion?.qc_status !== "APPROVED") return new Set();
+  return new Set(
+    (contract.write_lease?.overrides ?? [])
+      .filter((override) => override?.qc_required === true && override?.reason)
+      .flatMap((override) => override?.affected_paths ?? [])
+  );
+}
+
+/** Append a bounded immutable snapshot to the task contract before the active record is replaceable. */
+export function archiveLease(lease, contractPath = lease.contract_path ?? contractPathFor(lease.task)) {
+  const contract = readTaskContract(contractPath);
+  if (contract.task?.id !== lease.task) {
+    throw new Error(`lease task "${lease.task}" does not match contract task "${contract.task?.id ?? "missing"}"`);
+  }
+  contract.write_lease ??= {};
+  contract.write_lease.history ??= [];
+  if (!Array.isArray(contract.write_lease.history)) {
+    throw new Error("contract.write_lease.history is not an array");
+  }
+  const archiveId = `${lease.task}:${lease.holder}:${lease.acquired_at}`;
+  if (!contract.write_lease.history.some((entry) => entry?.id === archiveId)) {
+    contract.write_lease.history.push({
+      id: archiveId,
+      task: lease.task,
+      holder: lease.holder,
+      status: lease.status,
+      allowed_paths: [...(lease.allowed_paths ?? [])],
+      acquired_at: lease.acquired_at,
+      acquired_at_commit: lease.acquired_at_commit,
+      released_at: lease.released_at,
+      released_reason: lease.released_reason,
+      amendments: [...(lease.amendments ?? [])],
+      overrides: [...(lease.overrides ?? [])],
+      violations: [...(lease.violations ?? [])]
+    });
+    writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`, "utf8");
+  }
+  lease.archived_at = new Date().toISOString();
+  return lease;
+}
+
+function finalizeLease(
+  lease,
+  { reason, status = "released", path, assignmentsPath, contractPath }
+) {
+  const contract = readTaskContract(contractPath);
+  const approved = approvedOverridePaths(contract);
+  const unresolved = (lease.violations ?? []).filter(
+    (violation) => violation?.resolved !== true && !approved.has(violation?.path)
+  );
+  if (unresolved.length > 0) {
+    throw new Error(
+      `cannot release lease with ${unresolved.length} unresolved violation(s): ` +
+        `${unresolved.map((violation) => violation.path).join(", ")}. Resolve them or record a ` +
+        "QC-approved emergency override in the task contract."
+    );
+  }
+  lease.status = status;
+  lease.released_at = new Date().toISOString();
+  lease.released_reason = reason;
+  archiveLease(lease, contractPath);
+  writeLease(lease, path);
+  clearAssignment(lease.task, assignmentsPath);
+  return lease;
+}
+
 /**
  * Grant a lease.
  *
@@ -239,6 +326,8 @@ export function leaseAllows(lease, repoRelativePath) {
  * @param {{writerSequence:string[], expectedPaths?:string[]}} params.routing validated route result
  * @param {string} [params.path]
  * @param {string} [params.assignmentsPath]
+ * @param {string} [params.contractPath]
+ * @param {string} [params.contractPath]
  * @returns {Lease}
  */
 export function grantLease({
@@ -247,7 +336,8 @@ export function grantLease({
   allowedPaths,
   routing,
   path = LEASE_PATH,
-  assignmentsPath = ASSIGNMENTS_PATH
+  assignmentsPath = ASSIGNMENTS_PATH,
+  contractPath = contractPathFor(task)
 }) {
   agent(holder); // throws on an unknown id rather than granting a lease to a typo
 
@@ -255,12 +345,16 @@ export function grantLease({
     throw new Error("a lease with no allowed_paths grants nothing and blocks everything");
   }
 
-  const existing = readLease(path);
-  if (existing) {
+  const existingRecord = readLeaseRecord(path);
+  if (existingRecord?.status === "active") {
     throw new Error(
-      `"${existing.holder}" already holds the lease for ${existing.task}. One writer at a time — ` +
+      `"${existingRecord.holder}" already holds the lease for ${existingRecord.task}. One writer at a time — ` +
         "release it before granting another."
     );
+  }
+  if (existingRecord && !existingRecord.archived_at) {
+    archiveLease(existingRecord, existingRecord.contract_path ?? contractPathFor(existingRecord.task));
+    writeLease(existingRecord, path);
   }
 
   if (!routing || !Array.isArray(routing.writerSequence)) {
@@ -300,6 +394,7 @@ export function grantLease({
   /** @type {Lease} */
   const lease = {
     task,
+    contract_path: contractPath,
     holder,
     status: "active",
     allowed_paths: [...allowedPaths].sort(),
@@ -338,13 +433,20 @@ export function grantLease({
  * @param {string} [params.assignmentsPath]
  * @returns {{outcome: "extended"|"reroute", lease: Lease, requiredAgents: string[], addedFlags: string[]}}
  */
-export function amendLease({ addPaths, reason, path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH }) {
+export function amendLease({
+  addPaths,
+  reason,
+  path = LEASE_PATH,
+  assignmentsPath = ASSIGNMENTS_PATH,
+  contractPath
+}) {
   if (!reason || reason.trim().length === 0) {
     throw new Error("an amendment without a reason is an undocumented scope expansion");
   }
 
   const lease = readLease(path);
   if (!lease) throw new Error("no active lease to amend");
+  const taskContractPath = contractPath ?? lease.contract_path ?? contractPathFor(lease.task);
 
   const added = [...addPaths];
   const derived = deriveClassification(added);
@@ -370,13 +472,14 @@ export function amendLease({ addPaths, reason, path = LEASE_PATH, assignmentsPat
 
   if (outsideOwnership.length > 0) {
     // The added paths belong to someone else. Release rather than widen.
-    lease.status = "released";
-    lease.released_at = new Date().toISOString();
-    lease.released_reason =
-      `amendment added paths outside ${lease.holder}'s ownership (${outsideOwnership.join(", ")}) — ` +
-      "routing re-run requires a different specialist";
-    writeLease(lease, path);
-    clearAssignment(lease.task, assignmentsPath);
+    finalizeLease(lease, {
+      reason:
+        `amendment added paths outside ${lease.holder}'s ownership (${outsideOwnership.join(", ")}) — ` +
+        "routing re-run requires a different specialist",
+      path,
+      assignmentsPath,
+      contractPath: taskContractPath
+    });
 
     return {
       outcome: "reroute",
@@ -398,18 +501,23 @@ export function amendLease({ addPaths, reason, path = LEASE_PATH, assignmentsPat
  * @param {string} [reason]
  * @param {string} [path]
  * @param {string} [assignmentsPath]
+ * @param {string} [contractPath]
  * @returns {Lease|null}
  */
-export function releaseLease(reason = "work complete", path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH) {
+export function releaseLease(
+  reason = "work complete",
+  path = LEASE_PATH,
+  assignmentsPath = ASSIGNMENTS_PATH,
+  contractPath
+) {
   const lease = readLease(path);
   if (!lease) return null;
-
-  lease.status = "released";
-  lease.released_at = new Date().toISOString();
-  lease.released_reason = reason;
-  writeLease(lease, path);
-  clearAssignment(lease.task, assignmentsPath);
-  return lease;
+  return finalizeLease(lease, {
+    reason,
+    path,
+    assignmentsPath,
+    contractPath: contractPath ?? lease.contract_path ?? contractPathFor(lease.task)
+  });
 }
 
 /**
@@ -455,6 +563,7 @@ export function outOfLeaseWrites(
   });
   return [...new Set([...dirtyAfterGrant, ...committedPaths])]
     .filter((path) => !SYSTEM_BOOKKEEPING_PATHS.includes(path))
+    .filter((path) => path !== `docs/ai/contracts/${lease.task}.json`)
     .filter((path) => !leaseAllows(lease, path))
     .sort();
 }
@@ -549,7 +658,7 @@ export function recordViolations(paths, path = LEASE_PATH) {
   if (!lease || paths.length === 0) return lease?.violations?.length ?? 0;
 
   lease.violations ??= [];
-  const known = new Set(lease.violations.map((v) => v.path));
+  const known = new Set(lease.violations.filter((v) => v.resolved !== true).map((v) => v.path));
   const timestamp = new Date().toISOString();
 
   for (const p of paths) {

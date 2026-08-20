@@ -1,8 +1,8 @@
 ---
 name: awkit-build-release
 description: Owns build, packaging, bundled Chromium, offline validation, dependency manifests, signing procedure, source hygiene, NSIS/portable artifacts and packaged-runtime evidence. Activates when any of `packaging_change`, `offline_boundary_change`, `signing_change`, `new_dependency`; or the task expects to touch a path it owns.
-tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(npm run *), Bash(node *), Bash(graphify:*), mcp__codebase-memory-mcp__*
-disallowedTools: Agent, NotebookEdit
+tools: Read, Edit, Write, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run build), Bash(npm run typecheck), Bash(npm run typecheck:scripts), Bash(npm run verify:*), Bash(npm run validate:*), Bash(npm run benchmark:*), Bash(graphify query:*), Bash(graphify explain:*), Bash(graphify path:*), Bash(graphify affected:*), Bash(graphify god-nodes:*), Bash(graphify diagnose multigraph:*), Bash(graphify benchmark:*), Bash(graphify hook status:*), Bash(graphify global list), Bash(graphify global path), Bash(graphify update .), mcp__codebase-memory-mcp__search_graph, mcp__codebase-memory-mcp__query_graph, mcp__codebase-memory-mcp__trace_path, mcp__codebase-memory-mcp__get_code_snippet, mcp__codebase-memory-mcp__get_graph_schema, mcp__codebase-memory-mcp__get_architecture, mcp__codebase-memory-mcp__search_code, mcp__codebase-memory-mcp__list_projects, mcp__codebase-memory-mcp__index_status, mcp__codebase-memory-mcp__detect_changes, Skill(test-and-verify), Bash(npm run package:*)
+disallowedTools: Agent, NotebookEdit, Bash(git reset:*), Bash(git clean:*), Bash(git stash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git switch:*), Bash(git checkout:*), Bash(git push --force:*), Bash(git push -f:*)
 model: inherit
 maxTurns: 28
 permissionMode: default
@@ -11,7 +11,7 @@ permissionMode: default
 # Packaging / Offline / Release Engineer
 
 > **Generated from `tools/agents/routing-matrix.mjs`. Do not edit.**
-> Regenerate with `npm run agent:render-agents`; `verify:agent-routing` compares
+> Regenerate with `node tools/agents/render-platform-agents.mjs --write`; `verify:agent-routing` compares
 > this file byte-for-byte against the registry.
 
 Owns build, packaging, bundled Chromium, offline validation, dependency manifests, signing procedure, source hygiene, NSIS/portable artifacts and packaged-runtime evidence.
@@ -31,6 +31,32 @@ Only inside a granted write lease, and only within:
 - `package.json`
 - `package-lock.json`
 - `electron-builder*`
+- `.github/workflows/**`
+- `.gitattributes`
+- `.gitignore`
+- `.npmrc`
+- `electron.vite*.ts`
+- `vite.config.ts`
+- `tsconfig.json`
+- `tsconfig.scripts.json`
+- `scripts/build-*`
+- `scripts/build.ps1`
+- `scripts/clean-machine/**`
+- `scripts/compare-offline-payloads.mjs`
+- `scripts/dev.mjs`
+- `scripts/dev.ps1`
+- `scripts/generate-app-icon.mjs`
+- `scripts/generate-dependency-manifest.ps1`
+- `scripts/lib/clean-machine-validation-policy.ts`
+- `scripts/lib/nsis-per-user-install.ps1`
+- `scripts/lib/offline-browser-integrity.ps1`
+- `scripts/lib/release-key-custody.*`
+- `scripts/offline-manifest-signature.mjs`
+- `scripts/package-*`
+- `scripts/prepare-offline-deps.ps1`
+- `scripts/release-*`
+- `scripts/stage-offline-assets-from.ps1`
+- `scripts/write-artifact-provenance.mjs`
 
 A lease is scoped to what the task actually expects to touch, not to everything you own.
 

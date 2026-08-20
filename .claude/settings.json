@@ -1,10 +1,20 @@
 {
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
   },
   "permissions": {
     "allow": [
-      "mcp__codebase-memory-mcp__*"
+      "mcp__codebase-memory-mcp__search_graph",
+      "mcp__codebase-memory-mcp__query_graph",
+      "mcp__codebase-memory-mcp__trace_path",
+      "mcp__codebase-memory-mcp__get_code_snippet",
+      "mcp__codebase-memory-mcp__get_graph_schema",
+      "mcp__codebase-memory-mcp__get_architecture",
+      "mcp__codebase-memory-mcp__search_code",
+      "mcp__codebase-memory-mcp__list_projects",
+      "mcp__codebase-memory-mcp__index_status",
+      "mcp__codebase-memory-mcp__detect_changes"
     ]
   },
   "statusLine": {
@@ -21,6 +31,16 @@
           }
         ],
         "matcher": ""
+      },
+      {
+        "hooks": [
+          {
+            "command": "node tools/agents/compaction-checkpoint.mjs restore",
+            "type": "command",
+            "timeout": 15
+          }
+        ],
+        "matcher": "compact"
       }
     ],
     "Stop": [
@@ -61,6 +81,15 @@
             "command": "node tools/agents/lease-guard.mjs"
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/agents/lease-guard.mjs"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -90,20 +119,6 @@
           {
             "type": "command",
             "command": "node tools/agents/compaction-checkpoint.mjs capture",
-            "async": true,
-            "timeout": 15
-          }
-        ]
-      }
-    ],
-    "PostCompact": [
-      {
-        "matcher": "manual|auto",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node tools/agents/compaction-checkpoint.mjs restore",
-            "async": true,
             "timeout": 15
           }
         ]

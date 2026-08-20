@@ -3,13 +3,14 @@
  *
  * These are orchestration thresholds, not product limits. Claude's status-line payload reports the
  * current input context, and the manager uses this policy to decide when verbose investigation
- * belongs in an isolated specialist context. The 150K target assumes Claude's standard 200K
- * context window; `.claude/settings.json` implements it with the installed client's supported 75%
- * override. Extended-context models therefore compact at a different absolute token count.
+ * belongs in an isolated specialist context. `.claude/settings.json` bounds auto-compaction
+ * calculations to 200K and applies the installed client's 75% override, targeting approximately
+ * 150K even when the selected model advertises an extended context window.
  */
 
 export const CONTEXT_POLICY = Object.freeze({
   standardWindowTokens: 200_000,
+  autoCompactWindowTokens: 200_000,
   delegateAtTokens: 100_000,
   warnAtTokens: 120_000,
   compactAtTokens: 150_000,
