@@ -25,7 +25,7 @@
     "agent:lease-amend": "node tools/agents/lease-cli.mjs amend",
     "agent:lease-release": "node tools/agents/lease-cli.mjs release",
     "agent:render-docs": "node tools/agents/render-docs.mjs --write",
-    "agent:render-agents": "node tools/agents/render-docs.mjs --write && node tools/agents/render-platform-agents.mjs --write",
+    "agent:render-agents": "node tools/agents/render-platform-agents.mjs --write",
     "agent:check-agents": "node tools/agents/render-platform-agents.mjs",
     "verify:super-user-controls": "tsx scripts/verify-super-user-controls.mts",
     "verify:runner": "tsx scripts/verify-runner.mts",
