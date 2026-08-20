@@ -55,6 +55,8 @@ import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
 import { assertionConfigDefects, assertionStepContract, hasAssertionExpectedValue } from "./AssertionStepContract";
+import { hasScrollDistance, scrollConfigDefects, scrollStepContract } from "./ScrollStepContract";
+import { hasLoopIterationSource, loopConfigDefects, loopStepContract, resolveLoopChildFlowId } from "./LoopStepContract";
 import {
   MAX_WAIT_CONDITION_DEPTH,
   waitConditionBlocks,
@@ -372,6 +374,11 @@ function hasRequiredValue(step: FlowStep): boolean {
   // `step.value`/`valueSource` reported an ordinary, fully configured Assert Text node as missing a
   // value it plainly had.
   if (step.type === "assertText") return hasAssertionExpectedValue(step);
+  // A scroll states its distance in `config.scrollAmount` (the panel's "Amount" box) and a loop
+  // states its iteration SOURCE in `config` — neither node's panel even shows a value field, so the
+  // generic `step.value` demand was unsatisfiable from the designer.
+  if (step.type === "scroll") return hasScrollDistance(step);
+  if (step.type === "loop") return hasLoopIterationSource(step);
   if (isNonEmptyString(step.value)) return true;
   if (step.valueSource !== undefined) return true;
   // A `goto` may carry its destination as `url` instead of `value`.
@@ -503,6 +510,28 @@ function compareIssues(a: FlowValidationIssue, b: FlowValidationIssue): number {
   return a.message.localeCompare(b.message, "en");
 }
 
+/**
+ * The requirement for THIS step, not merely for its type.
+ *
+ * `stepRequirement(type)` stays the palette-level statement that the three mirrored tables agree on
+ * (`verify:validation` guards that parity). This function is the step-level refinement for the types
+ * whose `config` selects a dispatch arm with different inputs.
+ */
+function requirementForStep(step: FlowStep): { requiresLocator: boolean; requiresValue: boolean } {
+  switch (step.type) {
+    case "wait":
+      return waitStepContract(step);
+    case "assertText":
+      return assertionStepContract(step);
+    case "scroll":
+      return scrollStepContract(step);
+    case "loop":
+      return loopStepContract(step);
+    default:
+      return stepRequirement(step.type);
+  }
+}
+
 function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect: IssueCollector, context: FlowValidationContext): void {
   const ambiguousNames = ambiguousStepNames(nodes);
   for (const step of nodes) {
@@ -519,8 +548,11 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     // `config.assertionType` — a `url` or `storage` assertion reads the PAGE and never resolves
     // `step.locator`, while `attribute` and `storage` each need a config field of their own. Both
     // contracts are read off their executor; see `WaitStepContract` and `AssertionStepContract`.
-    const requirement =
-      step.type === "wait" ? waitStepContract(step) : step.type === "assertText" ? assertionStepContract(step) : stepRequirement(step.type);
+    // Five step types are several different steps behind one type literal, so a flat table row cannot
+    // be the answer for any of them: `wait` dispatches on `config.waitType`, `assertText` on
+    // `config.assertionType`, `scroll` on `config.scrollTarget`, and `loop` on `config.loopType` plus
+    // `config.loopActionType`. Each contract is read off its executor.
+    const requirement = requirementForStep(step);
 
     if (requirement.requiresLocator) {
       if (step.locator === undefined) {
@@ -565,6 +597,10 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
           ? waitStepContract(step).missingValueMessage
           : step.type === "assertText"
             ? `has no expected value to compare against: set Expected value, or bind a value source.`
+            : step.type === "scroll"
+              ? "has no scroll distance: set Amount, or bind a value source that resolves to one."
+              : step.type === "loop"
+                ? "does not say how many times to run: set an iteration count, choose Elements and give it a locator, or loop over data rows."
             : "requires a value or value source.";
       collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) ${detail}`);
     }
@@ -593,6 +629,42 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     validateStepLoopBounds(step, collect, ambiguousNames);
     validateWaitConditions(step, collect, ambiguousNames);
     validateAssertionConfig(step, collect, ambiguousNames);
+    validateScrollAndLoopConfig(step, collect, ambiguousNames, context);
+  }
+}
+
+/**
+ * Scroll and loop configuration the runner would act on incorrectly — usually SILENTLY.
+ *
+ * These two nodes fail quietly rather than loudly. A loop whose action needs a target but has no
+ * locator runs its whole iteration count doing nothing and still reports `passed`; a scroll with an
+ * unknown direction leaves both wheel axes at zero. Neither surfaces as an error at run time, so the
+ * gate is the only place they can be caught at all.
+ */
+function validateScrollAndLoopConfig(
+  step: FlowStep,
+  collect: IssueCollector,
+  ambiguousNames: ReadonlySet<string>,
+  context: FlowValidationContext
+): void {
+  if (step.type === "scroll") {
+    for (const defect of scrollConfigDefects(step)) {
+      collect.node("unsupportedConfiguration", step.id, `Step ${labelFor(step, ambiguousNames)} ${defect.detail}.`);
+    }
+    return;
+  }
+  if (step.type !== "loop") return;
+
+  for (const defect of loopConfigDefects(step)) {
+    const code = defect.field === "value" || defect.field === "targetFlowId" ? "missingRequiredValue" : "unsupportedConfiguration";
+    collect.node(code, step.id, `Step ${labelFor(step, ambiguousNames)} ${defect.detail}.`);
+  }
+
+  // A `customFlow` loop calls a child flow exactly as `runFlow` does, so an unresolvable target is
+  // the same defect — it simply had no rule, because the existing one is keyed on `step.type`.
+  const childFlowId = resolveLoopChildFlowId(step);
+  if (childFlowId !== undefined && context.referenceableFlowIds !== undefined && !context.referenceableFlowIds.has(childFlowId)) {
+    collect.node("missingFlowReference", step.id, `Step ${labelFor(step, ambiguousNames)} loops over flow "${childFlowId}", which does not exist.`);
   }
 }
 

@@ -4,6 +4,7 @@ import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { flowNodeCatalog, getFlowNodeCatalogItem, type FlowNodeCatalogItem } from "./flowNodeCatalog";
 import { isUsableWaitDuration, waitStepContractFor } from "@src/validation/WaitStepContract";
 import { ASSERTION_CONTRACTS } from "@src/validation/AssertionStepContract";
+import { LOOP_ACTIONS_NEEDING_A_TARGET } from "@src/validation/LoopStepContract";
 
 /**
  * Whether a wait node states the input its subtype needs, in designer terms.
@@ -92,7 +93,14 @@ const META: Record<StepType, RegistryMeta> = {
   check: { category: "input", sections: ["locator", "execution"], executable: true },
   uncheck: { category: "input", sections: ["locator", "execution"], executable: true },
   radio: { category: "input", sections: ["locator", "value", "execution"], executable: true },
-  scroll: { category: "interaction", sections: ["scroll", "execution"], executable: true },
+  scroll: {
+    category: "interaction",
+    sections: ["scroll", "execution"],
+    executable: true,
+    // A scroll-to-element with no selector is not an error at run time - the runner quietly wheels
+    // the page instead - so the panel is the only place a user can be told before the run.
+    validate: (d) => (d.scrollTarget === "element" && !d.locatorValue.trim() ? ["Scroll to element needs a selector to scroll to."] : [])
+  },
   hover: { category: "interaction", sections: ["locator", "execution"], executable: true },
   dblclick: { category: "interaction", sections: ["locator", "execution"], executable: true },
   clickAndHold: { category: "interaction", sections: ["locator", "hold", "execution"], executable: true },
@@ -149,8 +157,20 @@ const META: Record<StepType, RegistryMeta> = {
     category: "control",
     sections: ["loop", "execution"],
     executable: true,
-    validate: (d) =>
-      d.loopType === "fixedCount" && d.iterationCount < 1 ? ["Fixed-count loop needs at least 1 iteration."] : []
+    // Every one of these failures is SILENT at run time: `performLoopAction` guards each arm with
+    // `if (target)`, so a loop with nothing to act on runs its whole iteration count doing nothing
+    // and still reports passed. The panel and the run gate now read the same contract.
+    validate: (d) => {
+      const messages: string[] = [];
+      if (d.loopType === "fixedCount" && d.iterationCount < 1) messages.push("Fixed-count loop needs at least 1 iteration.");
+      if (d.loopType === "elements" && !d.locatorValue.trim()) messages.push("An elements loop needs a selector for the elements to iterate.");
+      else if (LOOP_ACTIONS_NEEDING_A_TARGET.has(d.loopActionType) && !d.locatorValue.trim()) {
+        messages.push(`A loop that runs "${d.loopActionType}" on each iteration needs a selector to act on.`);
+      }
+      if (d.loopActionType === "fill" && !d.value.trim()) messages.push("A fill loop needs a value to fill on each iteration.");
+      if (d.loopActionType === "customFlow" && !d.targetFlowId.trim()) messages.push("A loop that runs another flow needs the flow to run.");
+      return messages;
+    }
   },
   runFlow: {
     category: "control",
