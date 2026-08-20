@@ -1,5 +1,24 @@
 # DECISIONS
 
+### 2026-08-21 - Token-aware orchestration uses 16 generated roles, subagents by default, and local ephemeral compaction state
+
+- **Decision:** AWKIT exposes the 16 requested responsibilities as unique project-scoped Claude
+  identities generated from `routing-matrix.mjs`. The main context remains `awkit-manager`; only it
+  receives the `Agent` tool. Read-only Architect, UI/UX, Integration, QC, Researcher and Performance
+  roles deny Edit/Write. Writers remain serialized by a contract-bound lease on `main`.
+- **Context policy:** delegate verbose investigation at 100K input tokens, warn at 120K, and target
+  approximately 150K on the standard 200K window with the installed client's supported 75-percent
+  auto-compact override. PreCompact/PostCompact hooks are asynchronous and store only allowlisted
+  repository/task facts beneath LOCALAPPDATA. Transcript, compact summary and messages are excluded;
+  the checkpoint is explicitly non-authoritative.
+- **Teams policy:** subagents are the normal isolation mechanism. Experimental Agent Teams remain
+  disabled in shared settings and may be enabled locally only for interactive, genuinely independent
+  peer coordination. They never relax the single-writer lease or AWKIT's no-worktree rule.
+- **Reason:** bounded specialist contexts reduce main-session discovery pressure only when the same
+  investigation is not repeated. The exact route, concurrency ceiling, concise evidence contract and
+  operational task gate make token efficiency subordinate to correctness rather than agent count.
+- **Details:** `docs/ai/MULTI_AGENT_ARCHITECTURE.md`.
+
 ### 2026-08-16 - Agent routing has one canonical registry, and platform agents will be derived from it
 
 - **Decision:** `tools/agents/routing-matrix.mjs` is the single encoding of agent ownership,
@@ -10,7 +29,7 @@
   disagreement about when the Architect was mandatory, before anyone implemented them. Three
   hand-maintained copies of one rule always end that way. This mirrors the Program Status dashboard's
   own discipline: derive the fact, never hand-record it.
-- **Phase 5 rule (binding when it is implemented):** `.claude/agents/*.md`, Codex and Gemini adapters
+- **Generated-platform rule:** `.claude/agents/*.md`, Codex and Gemini adapters
   must be **generated from or asserted against** this registry. They may never become a second source
   of truth, and three independently maintained per-provider architectures are explicitly rejected.
 - **Registry format is `.mjs`, not YAML or TypeScript.** The repository has no YAML parser in

@@ -4,19 +4,23 @@
   "title": "AWKIT task contract",
   "description": "Contracts are JSON, not YAML. The repository has no YAML parser in dependencies or devDependencies, and adding one would itself be a new_dependency change routed to the Architect and Release specialists and reviewed against the offline boundary. A governance tool must not open the boundary it exists to police. This schema documents the shape; tools/agents/validate-contract.mjs is what ENFORCES it, and verify:agent-routing asserts the two agree on the classification flags and the evidence vocabulary.",
   "type": "object",
-  "required": ["version", "task", "classification", "routing", "acceptance", "evidence", "git", "completion"],
+  "required": ["version", "task", "repository", "classification", "routing", "acceptance", "evidence", "git", "completion"],
   "additionalProperties": true,
   "properties": {
     "version": { "const": 1 },
 
     "task": {
       "type": "object",
-      "required": ["id", "title", "objective", "risk_level"],
+      "required": ["id", "title", "objective", "risk_level", "mode"],
       "properties": {
         "id": { "type": "string", "description": "Beads issue id where possible, e.g. awkit-a1u." },
         "title": { "type": "string" },
         "objective": { "type": "string" },
         "requested_by": { "type": "string" },
+        "mode": {
+          "enum": ["inspect", "change"],
+          "description": "Inspection has no writer or lease. Change mode routes one serialized writer at a time."
+        },
         "risk_level": {
           "type": "integer",
           "minimum": 0,
@@ -28,10 +32,16 @@
 
     "repository": {
       "type": "object",
+      "required": ["branch", "baseline_commit", "preserved_paths"],
       "properties": {
         "branch": { "const": "main" },
         "baseline_commit": { "type": "string" },
-        "working_tree_expected": { "enum": ["clean", "preserved_changes"] }
+        "working_tree_expected": { "enum": ["clean", "preserved_changes"] },
+        "preserved_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Pre-existing user changes excluded from this task's derived completion scope."
+        }
       }
     },
 
@@ -43,11 +53,13 @@
         "renderer_visual_change": { "type": "boolean" },
         "interaction_change": { "type": "boolean" },
         "accessibility_change": { "type": "boolean" },
+        "general_engineering_change": { "type": "boolean" },
         "electron_main_change": { "type": "boolean" },
         "ipc_change": { "type": "boolean" },
         "runner_change": { "type": "boolean" },
         "execution_change": { "type": "boolean" },
         "concurrency_change": { "type": "boolean" },
+        "performance_change": { "type": "boolean" },
         "persisted_shape_change": { "type": "boolean" },
         "migration_required": { "type": "boolean" },
         "filesystem_write_change": { "type": "boolean" },
@@ -65,13 +77,16 @@
         "offline_boundary_change": { "type": "boolean" },
         "new_dependency": { "type": "boolean" },
         "public_contract_change": { "type": "boolean" },
+        "broad_investigation": { "type": "boolean" },
+        "project_state_change": { "type": "boolean" },
+        "agent_infrastructure_change": { "type": "boolean" },
         "cross_layer_count": { "type": "integer", "minimum": 1 }
       }
     },
 
     "routing": {
       "type": "object",
-      "required": ["activated_agents", "reviewers"],
+      "required": ["manager", "activated_agents", "expected_paths", "consultants", "reviewers"],
       "properties": {
         "manager": { "const": "manager" },
         "activated_agents": {
@@ -195,7 +210,7 @@
       "items": {
         "type": "object",
         "properties": {
-          "kind": { "enum": ["domain", "flag", "unmapped"] },
+          "kind": { "enum": ["domain", "flag", "unmapped", "guarded", "path"] },
           "subject": { "type": "string" },
           "detail": { "type": "string" },
           "resolved": { "type": "boolean" }
@@ -232,13 +247,18 @@
         "architect",
         "uiux",
         "frontend",
+        "software",
         "runtime",
-        "persistence",
         "integration",
-        "security",
+        "recorder",
         "qa",
         "qc",
-        "release"
+        "security",
+        "researcher",
+        "persistence",
+        "performance",
+        "release",
+        "project-state"
       ]
     },
     "evidenceResult": {

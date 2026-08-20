@@ -6,11 +6,10 @@ How a task moves through AWKIT's deterministic routing system.
 — and it is generated from `tools/agents/routing-matrix.mjs`. This file is the **process**, and it is
 hand-written because a process is not a table.
 
-> **Not yet automatic.** Phases 0–4 give the system its registry, classifier, router, validator and
-> an enforced write lease. Executable per-platform agent definitions (`.claude/agents/*.md`, Codex
-> and Gemini adapters) are **Phase 5, deliberately deferred** until the routing model has been proven
-> on real tasks. Today a single agent follows these rules and the lease guard enforces the part that
-> can be enforced.
+> **Executable and token-aware.** The registry generates 16 project-scoped Claude definitions plus
+> Codex/Gemini adapters. The main session remains the Manager; subagents are bounded specialists,
+> and the same registry drives routing, write ownership, schema checks and generated documentation.
+> See `docs/ai/MULTI_AGENT_ARCHITECTURE.md` for context thresholds and orchestration policy.
 
 ---
 
@@ -18,6 +17,9 @@ hand-written because a process is not a table.
 
 Write the classification into the contract **before** implementation. It drives routing, and routing
 has to happen before the work does.
+
+Set `task.mode` explicitly. `inspect` activates advisers but can never name a writer; `change`
+requires one serialized writer whenever routing finds a writable domain.
 
 Only the flags in `ROUTING_MATRIX.md` count. An unknown key is rejected rather than ignored — a
 contract carrying `persistance_change` would otherwise route as though persistence were untouched
@@ -49,6 +51,10 @@ reviewed proposal granted QA write paths while also declaring one lease — thos
 npm run agent:lease-grant -- --task awkit-xyz --holder frontend --paths "app/renderer/**"
 ```
 
+The task contract must already validate, name the same current writer, and declare the exact allowed
+paths. A grant is rejected when its holder is unrouted, its scope belongs to another role, or the
+paths exceed the contract's expected scope.
+
 A lease is a **budget**, so it is scoped to what the task actually expects to touch rather than to
 everything its holder owns. That is what makes an amendment happen at the moment scope really grows.
 
@@ -69,9 +75,10 @@ While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` h
    an `Edit` matcher, and widening the hook to `Bash` would mean parsing arbitrary shell to guess at
    write intent — unreliable in both directions, missing `python -c "open(...)"` while blocking
    `echo "a > b"`. Instead a **PostToolUse audit** on `Bash` observes the filesystem: it asks git
-   what is dirty and subtracts the lease scope, shared paths, and the set already dirty when the
-   lease was granted. Whatever remains is named immediately and recorded onto the lease, where the
-   completion gate reads it back.
+   what is dirty, what was committed after `acquired_at_commit`, and whether a baseline-dirty file's
+   content fingerprint changed. It subtracts the lease scope and shared paths. Whatever remains is
+   named immediately and recorded onto the lease, where the completion gate reads it back. The same
+   audit is wired for Claude's Bash and Windows PowerShell tools.
 
    The write has already happened by then — this converts an invisible bypass into an attributable
    one, not into prevention. It costs ~100ms per `Bash` call while a lease is held, and nothing at
@@ -169,9 +176,15 @@ prediction; derived is a measurement. A domain in `derived` that the contract ne
 
 ## 6. Complete
 
-`completionBlockers()` returns the reasons a task may not be marked complete: an invalid contract,
-any required evidence not `PASS`, `qa_status` not `PASS`, unresolved QC when QC is a reviewer, or an
-unresolved scope escape.
+Run the operational gate:
+
+```bash
+node tools/agents/task-gate.mjs docs/ai/contracts/awkit-xyz.json
+```
+
+It evaluates `completionBlockers()` plus the live diff from `repository.baseline_commit`, expected
+paths, guarded shared-file fields, preserved pre-existing paths, lease violations and routed QC.
+Only an empty blocker set permits a completion claim.
 
 Then finish the normal `AGENTS.md` end-of-task checklist. The contract is execution mechanics; Beads
 remains the work, status and dependency source, and the Program Status dashboard remains derived
@@ -184,7 +197,7 @@ from the sources it already reads.
 Edit `tools/agents/routing-matrix.mjs`, then:
 
 ```bash
-npm run agent:render-docs
+npm run agent:render-agents
 ```
 
 ```bash

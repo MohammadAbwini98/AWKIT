@@ -119,15 +119,16 @@ npm run verify:wdu-live     # tsx scripts/verify-wdu-live.mts — EXTERNAL-SITE 
                             # (55 cases). NEEDS THE PUBLIC INTERNET and drives a third-party site, so
                             # it is deliberately NOT part of deterministic verification. A WDU outage
                             # is not a product regression. Matrix: docs/testing/WDU_CHALLENGE_MATRIX.md
-npm run verify:agent-routing # node scripts/verify-agent-routing.mjs — 119 checks over the
-                            # deterministic routing system in tools/agents: registry integrity, the
-                            # evidence vocabulary matching the ledger's own LEDGER_STATUSES, the glob
-                            # matcher (positive AND negative — an under-matching one would let a scope
-                            # escape read as "nothing touched"), routing determinism and mandatory
-                            # activation, EVERY contract rejection rule driven by a fixture that
-                            # violates it, the vacuity guards, and the write lease + amendment
-                            # rerouting run against temp files. Mutation-tested 8/8.
-                            # static-source-validation: never launches a browser or the app.
+npm run verify:agent-routing # node scripts/verify-agent-routing.mjs — 616 deterministic checks over
+                            # the 16-role registry, exact minimal routes, ownership/no-overlap,
+                            # evidence vocabulary, contract rejection/completion, write lease and
+                            # committed-shell-write audit, context thresholds/status/compaction
+                            # checkpoint, hook wiring, task gate, schema parity and byte-identical
+                            # generated Claude/Codex/Gemini definitions. Static-source-validation:
+                            # spawned Node/hook probes run, but no browser or Electron app launches.
+node tools/agents/task-gate.mjs docs/ai/contracts/<task>.json
+                            # operational completion gate: live baseline diff + preserved paths +
+                            # guarded fields + contract evidence + QA/QC + lease violations.
 npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 158 checks over the
                             # tools/roadmap dashboard: source readability, exact record counts
                             # (193 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the

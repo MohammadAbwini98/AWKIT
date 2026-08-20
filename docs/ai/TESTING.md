@@ -4,6 +4,21 @@
 > blocks a commit — but it must be reported truthfully and never described as passed. Release gates
 > govern release claims only. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## Agent-orchestration verification
+
+`npm run verify:agent-routing` is the deterministic developer-infrastructure gate. It pins the exact
+16-role roster and four minimal routing scenarios, proves read-only tool restrictions, exercises
+contract and lease rejection paths, spawns status/compaction/task-gate probes, compares every
+generated definition byte-for-byte, and semantically inspects `.claude/settings.json`. The
+2026-08-21 extension was established red first: 336/525 checks passed and 189 failures named the
+missing behavior before implementation. The final dynamic inventory is 616 checks because every new
+role, path owner and generated file adds registry-derived assertions.
+
+This verifier does not prove Claude's live model selection or token savings. Those require separate
+`claude --agent ... --output-format json` smoke/measurement evidence and must be reported as measured,
+not inferred from prompt structure. `node tools/agents/task-gate.mjs <contract>` is the operational
+completion check; a green static verifier alone does not complete a task contract.
+
 ## External-site acceptance vs deterministic regression
 
 AWKIT's verification set must run **offline**. `verify:wdu-live` is the one gate that does not: it

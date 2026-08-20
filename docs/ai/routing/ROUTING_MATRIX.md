@@ -11,31 +11,41 @@ and what risk it carries. An earlier draft stated these rules in three places th
 
 | Agent | Role | Default mode | Owns | Folder authority |
 | --- | --- | --- | --- | --- |
-| `manager` | Manager / Orchestrator | writer | `docs/ai/**`<br>`tools/roadmap/**`<br>`tools/agents/**`<br>`.beads/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**` | `docs/AGENTS.md` |
-| `architect` | Software Architect | read-only | `docs/ai/ARCHITECTURE.md`<br>`docs/ai/DECISIONS.md` | — |
+| `manager` | Manager / Orchestrator | writer | `tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**`<br>`.agents/**`<br>`.cursor/**`<br>`AGENTS.md`<br>`CLAUDE.md`<br>`GEMINI.md` | — |
+| `architect` | Software Architect | read-only | — | — |
 | `uiux` | UI/UX & Accessibility Specialist | read-only | — | — |
 | `frontend` | React / Renderer Engineer | writer | `app/renderer/**` | `app/renderer/AGENTS.md` |
+| `software` | General Software Engineer | writer | `src/branding/**`<br>`src/logging/**`<br>`src/reports/**`<br>`src/roadmap/**`<br>`src/semantic/**`<br>`src/theme/**`<br>`src/utils/**`<br>`src/validation/**` | `src/AGENTS.md` |
 | `runtime` | Electron Main / Runner Engineer | writer | `app/main/**`<br>`app/preload.ts`<br>`src/runner/**`<br>`src/orchestrator/**`<br>`src/instances/**` | `app/main/AGENTS.md` |
-| `persistence` | Data & Persistence Specialist | writer | `src/storage/**`<br>`src/profiles/**`<br>`src/data/**`<br>`src/project/**` | `src/AGENTS.md` |
-| `integration` | Playwright / Browser / IPC Integration Specialist | writer | `src/recorder/**`<br>`src/session/**`<br>`src/oracle/**` | `src/AGENTS.md` |
-| `security` | Security & Trust-Boundary Specialist | review | `src/licensing/**`<br>`src/auth/**`<br>`src/secrets/**`<br>`src/security/**` | — |
-| `qa` | Quality Assurance Engineer | writer | `tests/**`<br>`mock-site/**`<br>`scripts/verify-*`<br>`scripts/validate-*`<br>`src/testing/**` | `tests/AGENTS.md` |
+| `integration` | Cross-Boundary Integration Specialist | read-only | — | — |
+| `recorder` | Recorder / Playwright Specialist | writer | `src/recorder/**`<br>`src/session/**`<br>`src/oracle/**` | `src/AGENTS.md` |
+| `qa` | Quality Assurance Engineer | writer | `tests/**`<br>`mock-site/**`<br>`scripts/verify-*`<br>`scripts/validate-*`<br>`scripts/benchmark-*`<br>`src/testing/**` | `tests/AGENTS.md` |
 | `qc` | Independent Quality Control Reviewer | read-only | — | — |
-| `release` | Packaging / Offline / Release Engineer | writer | `build/**`<br>`resources/**`<br>`package.json`<br>`package-lock.json`<br>`electron-builder*` | — |
+| `security` | Security & Trust-Boundary Engineer | writer | `src/licensing/**`<br>`src/auth/**`<br>`src/secrets/**`<br>`src/security/**` | — |
+| `researcher` | Codebase Researcher | read-only | — | — |
+| `persistence` | Data & Persistence Specialist | writer | `src/storage/**`<br>`src/profiles/**`<br>`src/data/**`<br>`src/project/**` | `src/AGENTS.md` |
+| `performance` | Performance / Concurrency Specialist | read-only | — | — |
+| `release` | Packaging / Offline / Release Engineer | writer | `build/**`<br>`resources/**`<br>`src/offline/**`<br>`package.json`<br>`package-lock.json`<br>`electron-builder*` | — |
+| `project-state` | Documentation / Project-State Specialist | writer | `docs/ai/**`<br>`.beads/**`<br>`tools/roadmap/**`<br>`scripts/lib/verifier-classification.ts` | `docs/AGENTS.md` |
 
 Mandates:
 
-- **`manager`** — Classifies, routes, grants and revokes the write lease, and reconciles authoritative sources. Denied product code by default so it orchestrates rather than becoming a twelfth implementer.
-- **`architect`** — Cross-layer contracts, IPC design, schema evolution, concurrency model, dependencies.
+- **`manager`** — Owns task decomposition, deterministic routing, context budgets, the serialized write lease, acceptance synthesis and final repository gates; it delegates detailed discovery.
+- **`architect`** — Analyzes Electron boundaries, IPC, runner/orchestration, persistence contracts, offline packaging, compatibility, concurrency and architectural debt before implementation.
 - **`uiux`** — Design authority for interaction, Hologram tokens, focus, reduced motion and accessibility. Specifies behavior; frontend implements it.
 - **`frontend`** — Renderer: React, both designers, admin screens, renderer state, Hologram styles.
-- **`runtime`** — Electron main, IPC implementation, runner, orchestration, execution and concurrency.
-- **`persistence`** — JSON profile compatibility, migrations, atomic writes, unknown-field preservation, import/export and backward compatibility.
-- **`integration`** — Playwright, Chromium, Recorder capture, popups/frames/downloads, live browser sessions.
-- **`security`** — Auth, licensing, secrets, protected-login handoff, IPC authorization and signing. Prefers review; may own tightly scoped security modules.
-- **`qa`** — Designs the proof: verifiers, mock-site scenarios, negative and race cases. May never weaken an assertion to obtain green output.
-- **`qc`** — Asks whether the evidence actually proves the requested result. Rejects to the Manager; never silently repairs a defect it found.
-- **`release`** — Packaging, bundled Chromium, signing, offline boundary, installer and portable builds.
+- **`software`** — Implements scoped TypeScript product work that does not belong to a narrower owner; never displaces a renderer, runtime, recorder, persistence, security or release specialist.
+- **`runtime`** — Electron main, preload, IPC implementation, runner, execution orchestration, instance state and Windows runtime behavior while preserving offline operation.
+- **`integration`** — Reviews renderer-preload-main, Electron-Playwright, Flow-Workflow-Runner, session, settings, reporting, licensing and packaged-runtime contracts end to end.
+- **`recorder`** — Playwright and Chromium recorder semantics, resilient locators, popups, frames, waits, downloads, uploads, browser contexts, session reuse and Feature Test Lab evidence.
+- **`qa`** — Owns red-to-green proof, regression and negative cases, mock-site scenarios, runtime and GUI evidence, accessibility, concurrency and compatibility verification; never weakens assertions.
+- **`qc`** — Independently reviews requested behavior, architecture, security, offline and data rules, test credibility, code quality and documentation; never self-approves implementation.
+- **`security`** — Owns tightly scoped licensing, authorization, secret and trust-boundary modules and reviews protected-login handoff, Electron/session security, logging redaction and signing risk.
+- **`researcher`** — Uses Graphify, codebase memory, narrow source confirmation, documentation and Git history to return concise evidence for unfamiliar areas without dumping files into the manager context.
+- **`persistence`** — Owns persisted JSON, LOCALAPPDATA storage, migrations, atomic writes, corruption recovery, unknown-field preservation, import/export and old-data compatibility.
+- **`performance`** — Analyzes workload concurrency, scheduling, backpressure, memory pressure, cancellation and large-workflow regressions without hardcoding host CPU or RAM assumptions.
+- **`release`** — Owns build, packaging, bundled Chromium, offline validation, dependency manifests, signing procedure, source hygiene, NSIS/portable artifacts and packaged-runtime evidence.
+- **`project-state`** — Reconciles CURRENT_STATE, HANDOFF, TASK_LOG, KNOWN_ISSUES, DEFECTS, Beads, validation ledger, assignments, verifier registry and roadmap sources without editing derived status to fake progress.
 
 ## Write-lease order
 
@@ -43,7 +53,7 @@ One writer at a time, so a multi-domain task is a SEQUENCE of leases. Contracts 
 the code consuming them; QA writes the proof once the behavior exists.
 
 ```text
-persistence -> security -> runtime -> integration -> frontend -> qa -> release -> manager
+persistence -> security -> runtime -> recorder -> frontend -> software -> qa -> release -> project-state -> manager
 ```
 
 ## Path map
@@ -60,8 +70,8 @@ change was visual. First match wins, so narrower paths come first.
 | `src/auth/**` | `security` | `auth_change` | Authentication. |
 | `src/secrets/**` | `security` | `secret_handling_change` | Secret storage and redaction. |
 | `src/security/**` | `security` | `authorization_change` | Permissions registry and trust boundaries. |
-| `src/session/**` | `integration` | `browser_behavior_change` | Session capture and reuse; protected-login handoff lands here. |
-| `src/recorder/**` | `integration` | `recorder_change` | Recorder capture and locator synthesis. |
+| `src/session/**` | `recorder` | `browser_behavior_change` | Session capture and reuse; protected-login handoff lands here. |
+| `src/recorder/**` | `recorder` | `recorder_change` | Recorder capture and locator synthesis. |
 | `src/runner/**` | `runtime` | `runner_change`, `execution_change` | Playwright execution path. |
 | `src/orchestrator/**` | `runtime` | `execution_change` | Not `src/orchestration` — that directory does not exist. |
 | `src/instances/**` | `runtime` | `execution_change` | Live instance model behind the Instance Monitor. |
@@ -69,28 +79,42 @@ change was visual. First match wins, so narrower paths come first.
 | `src/profiles/**` | `persistence` | `filesystem_write_change` | JSON profile shapes; unknown-field preservation lives or dies here. |
 | `src/data/**` | `persistence` | `filesystem_write_change` | Data sources and row-driven inputs. |
 | `src/project/**` | `persistence` | `filesystem_write_change` | Project-level persisted state. |
-| `src/oracle/**` | `integration` | — | Oracle JDBC bridge; its own external gates apply. |
+| `src/oracle/**` | `recorder` | — | Oracle JDBC bridge; its own external gates apply. |
 | `src/testing/**` | `qa` | — | Test-only helpers that ship in src for reuse by verifiers. |
+| `src/branding/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/logging/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/reports/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/roadmap/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/semantic/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/theme/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/utils/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
+| `src/validation/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
 | `app/renderer/**` | `frontend` | — | Renderer. Visual/interaction/accessibility intent is not path-determinable — declare it. |
 | `app/main/**` | `runtime` | `electron_main_change` | Electron main process. |
 | `tests/**` | `qa` | — | Test suites. |
 | `mock-site/**` | `qa` | `mock_site_required` | The Feature Test Lab. |
 | `scripts/verify-*` | `qa` | — | Verifiers. A new one must be registered in scripts/lib/verifier-classification.ts. |
 | `scripts/validate-*` | `qa` | — | Validators, same registration rule. |
+| `scripts/benchmark-*` | `qa` | `performance_change` | Performance evidence stays independent from the implementation it measures. |
 | `build/**` | `release` | `packaging_change` | Packaging inputs. |
 | `resources/**` | `release` | `packaging_change`, `offline_boundary_change` | Shipped resources. Never a runtime write target. |
+| `src/offline/**` | `release` | `offline_boundary_change` | Offline-boundary verification and shipped-runtime guarantees. |
 | `package.json` | `release` | `packaging_change` | Script inventory and dependencies. A dependency edit is also new_dependency. |
 | `package-lock.json` | `release` | `packaging_change`, `new_dependency` | The lockfile only moves when the dependency graph moves. |
 | `electron-builder*` | `release` | `packaging_change` | Installer and portable build configuration. |
-| `docs/ai/ARCHITECTURE.md` | `architect` | — | Module map and data/runtime flow. |
-| `docs/ai/DECISIONS.md` | `architect` | — | Recorded technical and product decisions. |
-| `docs/ai/**` | `manager` | — | AI memory and governance documents. |
-| `tools/roadmap/**` | `manager` | — | Derived dashboard. Never hand-edited to record progress. |
-| `tools/agents/**` | `manager` | — | This routing system itself. |
-| `.beads/**` | `manager` | — | Tracker database and its JSONL export. The Manager files and closes issues, and the export must be refreshed with `bd export -o .beads/issues.jsonl` before the dashboard reads it. |
-| `.claude/**` | `manager` | — | Claude Code agent/skill/hook configuration. Generated role definitions live here. |
-| `.codex/**` | `manager` | — | Codex configuration and skills. |
-| `.gemini/**` | `manager` | — | Gemini / Antigravity configuration and skills. |
+| `docs/ai/**` | `project-state` | `project_state_change` | AI memory and governance documents; architectural advice does not confer write ownership. |
+| `tools/roadmap/**` | `project-state` | `project_state_change` | Derived dashboard. Never hand-edited to record progress. |
+| `tools/agents/**` | `manager` | `agent_infrastructure_change` | This routing system itself. |
+| `.beads/**` | `project-state` | `project_state_change` | Tracker database and its JSONL export. Project State reconciles the source, and the export must be refreshed with `bd export -o .beads/issues.jsonl` before the dashboard reads it. |
+| `scripts/lib/verifier-classification.ts` | `project-state` | `project_state_change` | Authoritative verifier registry; new verify and validate commands must be classified. |
+| `.claude/**` | `manager` | `agent_infrastructure_change` | Claude Code agent/skill/hook configuration. Generated role definitions live here. |
+| `.codex/**` | `manager` | `agent_infrastructure_change` | Codex configuration and skills. |
+| `.gemini/**` | `manager` | `agent_infrastructure_change` | Gemini / Antigravity configuration and skills. |
+| `.agents/**` | `manager` | `agent_infrastructure_change` | Cross-platform agent rules and skills. |
+| `.cursor/**` | `manager` | `agent_infrastructure_change` | Cursor-compatible agent configuration. |
+| `AGENTS.md` | `manager` | `agent_infrastructure_change` | Root cross-agent instruction surface. |
+| `CLAUDE.md` | `manager` | `agent_infrastructure_change` | Root cross-agent instruction surface. |
+| `GEMINI.md` | `manager` | `agent_infrastructure_change` | Root cross-agent instruction surface. |
 
 ## Protected paths
 
@@ -108,6 +132,7 @@ change, so the guard refuses it until someone takes a lease.
 | `src/secrets/**` | `security` | `secret_handling_change` |
 | `src/security/**` | `security` | `authorization_change` |
 | `resources/**` | `release` | `packaging_change`, `offline_boundary_change` |
+| `src/offline/**` | `release` | `offline_boundary_change` |
 
 ## Watched ignored paths
 
@@ -150,13 +175,18 @@ without activating the owner is a scope escape and blocks completion.
 | --- | --- | --- |
 | `uiux` | `renderer_visual_change` or `interaction_change` or `accessibility_change` | Design, focus, motion and accessibility decisions are not the implementer's to make alone. |
 | `frontend` | `renderer_visual_change` or `interaction_change` or `accessibility_change`<br>or a expected path it owns is touched | Owns app/renderer/**. |
+| `software` | `general_engineering_change`<br>or a expected path it owns is touched | Handles scoped product modules that have no narrower implementation owner. |
 | `runtime` | `electron_main_change` or `ipc_change` or `runner_change` or `execution_change` or `concurrency_change`<br>or a expected path it owns is touched | Owns the main process and the execution path. |
-| `persistence` | `persisted_shape_change` or `migration_required` or `filesystem_write_change`<br>or a expected path it owns is touched | A persisted shape that changes without this agent is how unknown fields get dropped. |
-| `integration` | `playwright_change` or `recorder_change` or `browser_behavior_change` or `mock_site_required`<br>or a expected path it owns is touched | Real browser behavior cannot be reasoned about from the renderer alone. |
+| `integration` | `ipc_change` or `public_contract_change` | Reviews contracts that cross renderer, preload, main, browser and runtime boundaries. |
+| `recorder` | `playwright_change` or `recorder_change` or `browser_behavior_change` or `mock_site_required`<br>or a expected path it owns is touched | Real browser and recorder behavior requires Playwright-specific evidence. |
 | `security` | `licensing_change` or `auth_change` or `authorization_change` or `secret_handling_change` or `protected_login_change` or `signing_change`<br>or a expected path it owns is touched | Trust boundaries are reviewed, never assumed. |
+| `researcher` | `broad_investigation` | Unfamiliar problems begin with one concise, reusable discovery report. |
+| `persistence` | `persisted_shape_change` or `migration_required` or `filesystem_write_change`<br>or a expected path it owns is touched | A persisted shape that changes without this agent is how unknown fields get dropped. |
+| `performance` | `performance_change` or `concurrency_change` | Performance and concurrency claims need workload, pressure and backpressure analysis. |
 | `release` | `packaging_change` or `offline_boundary_change` or `signing_change` or `new_dependency`<br>or a expected path it owns is touched | Offline-first is a release property; a dependency is a packaging decision. |
+| `project-state` | `project_state_change`<br>or a expected path it owns is touched | Repository status is reconciled in authoritative sources, never in derived dashboard output. |
 | `architect` | `public_contract_change` or `migration_required` or `new_dependency` or `concurrency_change` or `licensing_change`<br>or `cross_layer_count >= 3` | Cross-layer contracts and schema evolution need a designer, not three local decisions. |
-| `qa` | `risk_level >= 1` | Anything above documentation must state how it is proven. |
+| `qa` | `risk_level >= 1`<br>or a expected path it owns is touched | Anything above documentation must state how it is proven. |
 | `qc` | `licensing_change` or `auth_change` or `authorization_change` or `secret_handling_change` or `signing_change` or `migration_required` or `concurrency_change` or `packaging_change`<br>or `risk_level >= 2`<br>or `cross_layer_count >= 2` | Independent review of whether the evidence proves the requested result. |
 
 ## Risk levels
@@ -165,9 +195,9 @@ Risk is computed, never chosen. A contract may declare a HIGHER level than compu
 
 **Risk 3 — critical.** Any of: `licensing_change`, `auth_change`, `authorization_change`, `secret_handling_change`, `protected_login_change`, `signing_change`, `migration_required`, `concurrency_change`, `offline_boundary_change`.
 
-**Risk 2 — cross-layer.** Any of: `electron_main_change`, `ipc_change`, `runner_change`, `execution_change`, `persisted_shape_change`, `filesystem_write_change`, `recorder_change`, `browser_behavior_change`, `packaging_change`, `public_contract_change`, `new_dependency`, or `cross_layer_count >= 3`.
+**Risk 2 — cross-layer.** Any of: `electron_main_change`, `ipc_change`, `runner_change`, `execution_change`, `persisted_shape_change`, `filesystem_write_change`, `packaging_change`, `public_contract_change`, `new_dependency`, or `cross_layer_count >= 3`.
 
-**Risk 1 — localized.** Any of: `renderer_visual_change`, `interaction_change`, `accessibility_change`, `playwright_change`, `mock_site_required`, or `cross_layer_count >= 2`.
+**Risk 1 — localized.** Any of: `renderer_visual_change`, `interaction_change`, `accessibility_change`, `general_engineering_change`, `playwright_change`, `recorder_change`, `browser_behavior_change`, `mock_site_required`, `performance_change`, `agent_infrastructure_change`, or `cross_layer_count >= 2`.
 
 **Risk 0 — documentation.** Nothing above applies.
 
@@ -182,11 +212,13 @@ Routing reads only these. An unknown key is rejected, never ignored.
 - `renderer_visual_change`
 - `interaction_change`
 - `accessibility_change`
+- `general_engineering_change`
 - `electron_main_change`
 - `ipc_change`
 - `runner_change`
 - `execution_change`
 - `concurrency_change`
+- `performance_change`
 - `persisted_shape_change`
 - `migration_required`
 - `filesystem_write_change`
@@ -204,6 +236,9 @@ Routing reads only these. An unknown key is rejected, never ignored.
 - `offline_boundary_change`
 - `new_dependency`
 - `public_contract_change`
+- `broad_investigation`
+- `project_state_change`
+- `agent_infrastructure_change`
 - `cross_layer_count` (integer >= 1)
 
 ## Evidence vocabulary
