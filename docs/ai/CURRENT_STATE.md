@@ -1,5 +1,61 @@
 # CURRENT_STATE
 
+## Issuer CLI folded onto the one signing authority (2026-08-20)
+
+`awkit-vf9r` closed. `tools/license-issuer/issue-license.mts` was a **second, looser issuer**: it
+built the license payload itself instead of calling `LicenseIssuerService`, which the in-app console
+and the dashboard bridge both use. Measured against the service, the CLI accepted things the product
+refuses.
+
+| Rule | Old CLI | Service (now also the CLI) |
+| --- | --- | --- |
+| Activation request | only checked `fingerprintHash` was truthy | full schema, product, appVersion, fingerprint format, signals, confidence, requestId |
+| Licence type | any `--type` string | must be `trial`/`standard`/`enterprise` |
+| Entitlements | any strings, cast to `Entitlement[]` | non-empty, unique, allowlisted |
+| Validity bounds | none | ≥ 1 minute, ≤ 3650 days, start ≤ 365 days ahead |
+| Key custody | **none** | `evaluateKeyCustody` before the key is opened (`awkit-5ea`) |
+| Key ↔ trusted list | **none** — signed with whatever file it was given | public half must match `TRUSTED_KEYS`; retired keys refused |
+| Write | `writeFileSync` | tmp + `wx` + rename, `0600`, cleanup on failure |
+| Serial numbers | `Math.random()` | `randomBytes` |
+| Default key id | **`key1`** — verification-only, cannot sign | `DEFAULT_ISSUER_KEY_ID` (the active key) |
+
+The CLI is now an argv adapter: it parses flags and hands an **unchecked** input object to the
+service, which is the only thing that decides whether a license may be signed.
+
+**`--out` was removed rather than kept.** The service owns the confined output folder *and* the file
+name, and records that exact name in the append-only issuance history — so honouring an arbitrary
+destination would either bypass the atomic write or leave the audit log naming a file that no longer
+exists. Passing `--out` now fails with that explanation instead of being silently ignored.
+
+**Executed evidence.** Six service rules were driven through the CLI and refused with the correct
+reason code and a non-zero exit — a bogus entitlement, a bogus type, a 99999-day validity, a
+far-future start, a malformed fingerprint, and (only once the options were legal) a missing key. The
+first five were refused **while the key path pointed at a file that does not exist**, which is what
+proves options are validated before the private key is ever opened. Every one of those six would have
+been signed by the old CLI.
+
+One real issuance was then performed end to end against the production `key2`: it verified against the
+shipped public key, and tampering with either the licence type or the machine fingerprint invalidated
+it. The history record it wrote carries `requestId`, `licenseType` and `outputFile` — three fields the
+old CLI never wrote, which is the direct evidence that the CLI now runs through the service. The
+synthetic `.dat` was deleted; the append-only history was not touched.
+
+**Guarded.** `verify:roadmap-license-issuer` grew 144 → **152**: eight checks assert the CLI builds no
+payload, generates no serial or id, writes neither the license nor the history, resolves its key
+through the shared location contract, defaults to the active key, and leaks nothing on failure.
+Re-adding local signing fails four of them. The source scan strips comments first — the file's own
+header documents the defect it fixed, naming `Math.random()`, and a raw `includes()` matched the
+*explanation* and reported the very defect that had been removed.
+
+Verified: `npm run build` clean · `verify:roadmap-license-issuer` **152/152** · `verify:licensing`
+**183/183** · `verify:release-key-custody` **58/58** · `verify:source-hygiene` **9/9** ·
+`verify:verifier-classification` reconciled · `verify:roadmap-dashboard` **162/162** ·
+`validate:offline` PASS.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **249 total / 245 closed /
+4 outstanding** — and **nothing is open**: all four remaining are BLOCKED on an external system or an
+owner decision, so zero open means no engineering is available, not that nothing is left.
+
 ## WebDriverUniversity acceptance completed: every layer closed, nine more defects fixed (2026-08-20)
 
 The previous pass left four coverage layers and six challenges at `NOT RUN`. All are now executed.

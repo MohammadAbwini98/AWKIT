@@ -1,5 +1,82 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - Issuer CLI folded onto the service; no open work remains
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 249 total / 245 closed / 4 outstanding.**
+- **`awkit-vf9r` closed.** **Nothing is OPEN.** The four remaining are all BLOCKED on an external
+  system or an owner decision — `awkit-cey` (authorized real-IdP Chrome handoff), `awkit-7bu` (real
+  Oracle 19c), `awkit-cm8` (four Oracle external gates), `awkit-az7` (two owner-decision OS shell
+  launches). Zero open means **no engineering is available**, not that nothing is left.
+
+### What was done
+
+`tools/license-issuer/issue-license.mts` was a second implementation of the signing contract and had
+drifted into the looser one — no key custody check, no key/trusted-list match, no validity bounds, a
+non-atomic write, `Math.random()` serials, and a default `keyId` of the verification-only `key1`. It
+is now a thin argv adapter over `LicenseIssuerService`, the same authority the in-app console and the
+dashboard bridge call. Three front ends, one issuer — and now guarded as such.
+
+`--out` was **removed**, not reimplemented: the service owns the confined output folder and the file
+name and records that name in the append-only issuance history, so an arbitrary destination would
+either bypass the atomic write or leave the audit log naming a file that no longer exists.
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:roadmap-license-issuer      PASS 152/152   (144 before; 8 new CLI checks)
+verify:licensing                   PASS 183/183
+verify:release-key-custody         PASS 58/58
+verify:source-hygiene              PASS 9/9
+verify:verifier-classification     PASS reconciled
+verify:roadmap-dashboard           PASS 162/162 - "Sources agree"
+validate:offline                   PASS
+git diff --check                   CLEAN
+```
+
+Mutation-tested: reintroducing a local serial + `signLicensePayload` + `writeFileSync` into the CLI
+fails **4 of the 8** new checks.
+
+**Executed, not asserted.** Six service rules were refused through the CLI with the correct reason
+code and a non-zero exit, five of them **with a nonexistent key path** — which is what proves options
+are validated before the private key is opened. One real issuance against production `key2` verified
+against the shipped public key; tampering with the type or the fingerprint invalidated it.
+
+### Known risks
+
+- **A real issuance was performed.** It appended one line to `issuance-history.jsonl` beside the key
+  (bringing it to 12) and its synthetic all-`c` fingerprint matches no machine. The `.dat` was
+  deleted; **the history was deliberately not touched** — it is append-only truth about what the key
+  signed.
+- **`verify:roadmap-license-issuer` signs with the production key on every run** and appends to that
+  same history. Unchanged by this work, but still true.
+- **Source-scan guards match comments too.** The new CLI checks strip comments before scanning,
+  because this file's header documents the defect it fixed and names `Math.random()`. Any future
+  source scan added here should use the same `codeOnly()` helper.
+- **A key rotation is a RELEASE, not a local edit** — unchanged from the previous handoff. Do not
+  issue to a field machine until a build carrying the relevant `TRUSTED_KEYS` has reached it.
+
+### Do not touch
+
+- **`resources/dependency-manifest.json` / `.sig`** and the `package.json` version - owned by
+  `scripts/release-portable.ps1`.
+- **Any private key file.** The repository ships public verification keys only; the gate asserts no
+  private key exists in-tree.
+- **`tools/roadmap/` numbers.** Derived. The bead pins in `verify-roadmap-dashboard.mjs` moved to
+  **249 / 245 / 4** this session.
+- **`window.playwrightFlowStudio`** - internal preload contract.
+
+### Recommended next step
+
+No engineering work is available. Every remaining item needs something this environment cannot
+provide: an authorized operator for the Oracle and IdP gates, or an owner decision for the two shell
+launches. The standing external gates from earlier sessions are also still NOT RUN —
+`verify:packaged-licensing` against a build carrying `key2`, and the decision on whether to re-cut the
+v0.1.15 portable artifact, which shipped with the dashboard issuer page compiled in.
+
 ## HANDOFF (2026-08-20) - WebDriverUniversity acceptance COMPLETE; nine more defects fixed
 
 ### Transfer

@@ -16,7 +16,7 @@ license**. The generated `.dat` is written automatically to
 |---|---|---|
 | In-app **License Issuer** page | packaged app, exclusive `Issuer` role + re-auth | `LicenseIssuerService` |
 | **Licenses Issue** on the Program Status dashboard | `npm run roadmap`, developer tooling | `roadmap-bridge.mts` -> `LicenseIssuerService` |
-| `issue-license.mts` | this folder | its own payload construction (see below) |
+| `issue-license.mts` | this folder | `LicenseIssuerService` |
 
 `roadmap-bridge.mts` is the trusted adapter the dashboard drives. It exists because the dashboard
 server is plain Node and cannot import TypeScript — not because signing needed a second home. It
@@ -28,10 +28,40 @@ a stack. Run it by hand only for diagnosis:
 echo {} | node node_modules/tsx/dist/cli.mjs tools/license-issuer/roadmap-bridge.mts readiness
 ```
 
-> **`issue-license.mts` is a known duplicate** (`awkit-vf9r`). It builds the license payload itself
-> rather than calling `LicenseIssuerService`, so it has no key-custody check, no private/public key
-> match, no atomic write and no validity bounds. Prefer either UI. When you change issuance, change
-> the service — do not add a fourth implementation.
+`issue-license.mts` is an **argv adapter**, not an issuer. It parses flags and hands an unchecked
+input object to `LicenseIssuerService`; every rule about whether a license may be signed lives there.
+It was folded onto the service in `awkit-vf9r` — until then it was a second, looser implementation
+that accepted any `--type` and any `--entitlements`, enforced no validity bounds, ran no key-custody
+check, never verified the key matched `TRUSTED_KEYS`, wrote non-atomically, defaulted to the
+verification-only `key1`, and generated serial numbers with `Math.random()`.
+
+When you change issuance, change the service. `verify:roadmap-license-issuer` now guards all three
+front ends: eight checks assert the CLI builds no payload, generates no serial or id, writes neither
+the license nor the history, and resolves its key through the shared location contract. Re-adding
+local signing to the CLI fails four of them.
+
+### CLI flags
+
+| Flag | Meaning |
+|---|---|
+| `--request <path>` | **Required.** The activation-request JSON the requesting machine produced. |
+| `--type <t>` | `trial` \| `standard` \| `enterprise`. Default `standard`. |
+| `--entitlements a,b` | Comma-separated, from the issuer entitlement set. Default `workflow.execute`. |
+| `--days N` | Whole days from issuance. Default 365. Mutually exclusive with the window flags. |
+| `--valid-from` / `--expires` | Exact UTC window, minute precision (e.g. `2026-09-01T09:00`). Both or neither. |
+| `--keyId <id>` | Defaults to `DEFAULT_ISSUER_KEY_ID`, the ACTIVE signing key — not a hardcoded one. |
+| `--key <path>` | Override the key path (`SPECTER_ISSUER_KEY` also works). |
+| `--out-dir <dir>` | Override the confined output folder. |
+
+`--out` was **removed**. The service owns both the output folder and the file name, and records that
+exact name in the append-only issuance history — so honouring an arbitrary destination would either
+bypass the atomic write or leave the audit log naming a file that no longer exists. Passing `--out`
+now fails with that explanation rather than being silently ignored. The full path of the signed
+license is printed on success.
+
+On refusal the CLI prints the service's `IssuerReasonCode` plus a sentence of guidance, and exits
+non-zero. Options are validated **before** the private key is opened, so a request that cannot
+produce a legal license never causes the key to be read at all.
 
 ## Exact validity windows
 

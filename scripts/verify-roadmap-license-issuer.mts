@@ -451,6 +451,61 @@ try {
     "the Electron main process resolves the same key through the same contract",
     read("app", "main", "licensing", "issuerRuntime.ts").includes("issuerKeyPathFor(")
   );
+
+  // Source scans must read CODE, not prose. This file's own header documents the defect it fixed —
+  // naming `Math.random()` and the issuance-history write — so a raw `includes()` matched the
+  // explanation and reported the very defect that had been removed. Strip comments first, or the
+  // check punishes documenting the fix.
+  const codeOnly = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ 	]*\/\/.*$/gm, " ");
+
+  // ── The THIRD front end: the offline CLI (awkit-vf9r) ────────────────────────────────────────
+  // It had drifted into a second, LOOSER issuer — any --type, any --entitlements, no validity
+  // bounds, no custody check, no key/trusted match, a non-atomic write, and Math.random() serials.
+  // These checks pin it to the same single authority as the other two front ends.
+  const cliSrc = codeOnly(read("tools", "license-issuer", "issue-license.mts"));
+  check(
+    "the CLI reuses the one issuer service rather than re-implementing signing",
+    cliSrc.includes("LicenseIssuerService") &&
+      !cliSrc.includes("signLicensePayload") &&
+      !cliSrc.includes("canonicalPayloadBytes") &&
+      !cliSrc.includes("LICENSE_SCHEMA_VERSION"),
+    "serial numbers, ids, canonicalisation and signing must have exactly one implementation"
+  );
+  check(
+    "the CLI does not build a license payload of its own",
+    !cliSrc.includes("LicensePayload") && !cliSrc.includes("signatureAlgorithm") && !cliSrc.includes("machineFingerprintHash:"),
+    "a second payload shape is exactly how the two implementations drifted apart"
+  );
+  check(
+    "the CLI never generates its own serial numbers or ids",
+    !cliSrc.includes("Math.random(") && !cliSrc.includes("randomUUID"),
+    "Math.random() is not a cryptographic source, and the service already owns both"
+  );
+  check(
+    "the CLI never writes the license or the issuance history itself",
+    !cliSrc.includes("writeFileSync") && !cliSrc.includes("appendFileSync") && !cliSrc.includes("issuance-history"),
+    "the atomic write, its cleanup, and the append-only audit record belong to the service"
+  );
+  check(
+    "the CLI resolves the key and output folder through the shared location contract",
+    cliSrc.includes("issuerKeyPathFor(") && cliSrc.includes("issuerOutputDirectoryFor(") && !/join\([^)]*issuer-keys/.test(cliSrc)
+  );
+  check(
+    "the CLI defaults to the ACTIVE signing key, not a hardcoded one",
+    cliSrc.includes("DEFAULT_ISSUER_KEY_ID") && !/keyId"\) \?\? "key\d/.test(cliSrc),
+    "it used to default to key1, which is verification-only and cannot sign"
+  );
+  check(
+    "the CLI surfaces reason codes without leaking the key material it holds",
+    !cliSrc.includes("error.message") && !cliSrc.includes("error.stack") && cliSrc.includes("error.reason")
+  );
+  // Non-vacuity: the needles above only mean something if this really is the CLI source.
+  check(
+    "non-vacuity — the CLI source was actually read",
+    cliSrc.length > 500 && cliSrc.includes("--request") && cliSrc.includes("LicenseIssuerService"),
+    `read ${cliSrc.length} bytes`
+  );
   // "One authority" is NOT "one key" — key rotation is a designed feature, and an earlier draft of
   // this check pinned the list to a single `key1`, which would have failed the moment the product
   // legitimately rotated. What must stay true is that the dashboard adds no authority of its own and

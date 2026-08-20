@@ -1,120 +1,154 @@
 /**
- * Offline issuer: sign a per-machine license from a machine's activation request.
+ * Offline issuer CLI: sign a per-machine license from a machine's activation request.
  *
- * Reads the PRIVATE signing key from an external path (never the repo/app), copies the requesting
- * machine's fingerprint hash into the signed license, and writes a signed license file. Records each
- * issuance to `issuance-history.jsonl` next to the key.
+ * This is an ARGV ADAPTER, not an issuer. Every rule that decides whether a license may be signed —
+ * activation-request validation, licence type and entitlement allowlists, validity bounds, key
+ * custody, key/trusted-list matching, the atomic write and the issuance-history record — lives in
+ * {@link LicenseIssuerService}, which the in-app Issuer console and the dashboard bridge also call.
+ * Three front ends, one issuer.
+ *
+ * It used to re-implement all of that (`awkit-vf9r`), and had drifted into the looser of the two:
+ * it accepted any `--type` and any `--entitlements` string, enforced no validity bounds, ran no
+ * custody check, never verified the key matched `TRUSTED_KEYS`, wrote non-atomically, defaulted to
+ * the now verification-only `key1`, and generated serial numbers with `Math.random()`.
  *
  * Usage:
- *   npx tsx tools/license-issuer/issue-license.mts --request req.json --type standard \
- *     --entitlements workflow.execute,automation.browser --days 365 --out license.dat
+ *   npx tsx tools/license-issuer/issue-license.mts --request req.json \
+ *     --type standard --entitlements workflow.execute,automation.browser --days 365
+ *
+ *   # exact window instead of a day count (minute precision)
+ *   npx tsx tools/license-issuer/issue-license.mts --request req.json \
+ *     --valid-from 2026-09-01T09:00 --expires 2026-09-01T17:00
  */
-import { randomUUID } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { LICENSING_PRODUCT } from "../../src/licensing/LicenseTypes";
 import {
-  LICENSE_SCHEMA_VERSION,
-  type ActivationRequest,
-  type Entitlement,
-  type LicenseDocument
-} from "../../src/licensing/LicenseTypes";
-import { signLicensePayload } from "../../src/licensing/crypto/LicenseSignature";
-import type { LicensePayload } from "../../src/licensing/LicenseCanonical";
+  DEFAULT_ISSUER_KEY_ID,
+  ISSUER_KEY_PATH_ENV,
+  issuerKeyPathFor,
+  issuerOutputDirectoryFor,
+  nonElectronRuntimeRoot
+} from "../../src/licensing/issuer/IssuerLocations";
+import {
+  ISSUER_ENTITLEMENTS,
+  ISSUER_LICENSE_TYPES,
+  type IssueLicenseInput
+} from "../../src/licensing/issuer/LicenseIssuerContracts";
+import { LicenseIssuerError, LicenseIssuerService } from "../../src/licensing/issuer/LicenseIssuerService";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-const requestPath = arg("request");
-if (!requestPath) {
-  console.error("Missing --request <activation-request.json>");
+function has(name: string): boolean {
+  return process.argv.includes(`--${name}`);
+}
+
+function die(message: string): never {
+  console.error(message);
   process.exit(1);
 }
 
-const keyId = arg("keyId") ?? "key1";
-const defaultDir = join(process.env.LOCALAPPDATA ?? process.env.HOME ?? ".", "SpecterStudio", "issuer-keys");
-const keyPath = arg("key") ?? process.env.SPECTER_ISSUER_KEY ?? join(defaultDir, `${keyId}.ed25519.pkcs8.b64`);
-
-let privateKeyB64: string;
-try {
-  privateKeyB64 = readFileSync(keyPath, "utf8").trim();
-} catch {
-  console.error(`Cannot read signing key at ${keyPath}. Run keygen.mts first or pass --key.`);
-  process.exit(1);
-}
-
-const request = JSON.parse(readFileSync(requestPath, "utf8").replace(/^﻿/, "")) as ActivationRequest;
-if (!request.fingerprintHash) {
-  console.error("Activation request has no fingerprintHash — cannot bind a license.");
-  process.exit(1);
-}
-
-const licenseType = arg("type") ?? "standard";
-const product = arg("product") ?? request.product ?? "SpecterStudio";
-const entitlements = (arg("entitlements") ?? "workflow.execute")
-  .split(",")
-  .map((e) => e.trim())
-  .filter(Boolean) as Entitlement[];
-
-/** Minute-precision UTC (strip seconds) so validity boundaries are exact to the minute. */
-function toMinuteIso(ms: number): string {
-  const d = new Date(ms);
-  d.setUTCSeconds(0, 0);
-  return d.toISOString();
-}
-
-const now = Date.now();
-const validFrom = arg("valid-from") ? new Date(`${arg("valid-from")}:00Z`.replace(/:00Z$/, "Z")).getTime() : now;
-const days = Number(arg("days") ?? "365");
-const expires = arg("expires")
-  ? new Date(`${arg("expires")}Z`.replace(/Z+$/, "Z")).getTime()
-  : validFrom + days * 24 * 60 * 60 * 1000;
-
-function serialNumber(): string {
-  const block = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `SPEC-${block()}-${block()}-${block()}`;
-}
-
-const payload: LicensePayload = {
-  schemaVersion: LICENSE_SCHEMA_VERSION,
-  licenseId: randomUUID(),
-  serialNumber: serialNumber(),
-  product,
-  machineFingerprintHash: request.fingerprintHash,
-  issuedAtUtc: toMinuteIso(now),
-  validFromUtc: toMinuteIso(validFrom),
-  expiresAtUtc: toMinuteIso(expires),
-  licenseType,
-  entitlements,
-  issuer: "SpecterStudio Licensing",
-  signingKeyId: keyId,
-  signatureAlgorithm: "Ed25519"
+/** Human-readable guidance per refusal. The service answers in codes; the operator needs a sentence. */
+const REASON_HELP: Record<string, string> = {
+  ACTIVATION_REQUEST_INVALID:
+    "The activation request is not a valid request for this product. Check it is the unmodified file the\n" +
+    "requesting machine produced, and that its `product` matches this build.",
+  ISSUER_OPTIONS_INVALID:
+    "The licence options are out of bounds. Type must be one of " +
+    ISSUER_LICENSE_TYPES.join(", ") +
+    ";\nentitlements must be a unique, non-empty subset of " +
+    ISSUER_ENTITLEMENTS.join(", ") +
+    ";\nand the validity window must be at least a minute, at most 3650 days, and start no more than\n" +
+    "365 days from now.",
+  ISSUER_KEY_MISSING: "No signing key at that path. Run keygen.mts, or point " + ISSUER_KEY_PATH_ENV + " at the key.",
+  ISSUER_KEY_UNSAFE_LOCATION:
+    "The signing key sits in a cloud-synced folder, so its custody cannot be assured. Move it to\n" +
+    "non-synced storage (awkit-5ea).",
+  ISSUER_KEY_INVALID: "The signing key could not be read as a PKCS8 Ed25519 private key.",
+  ISSUER_KEY_MISMATCH:
+    "The key does not match the trusted list for that key id. A license signed with it would be\n" +
+    "UNKNOWN_KEY in the field.",
+  ISSUER_KEY_RETIRED: "That key id is retired and must not sign anything further.",
+  ISSUER_WRITE_FAILED: "The license could not be written to the output folder."
 };
 
-const signature = signLicensePayload(payload, privateKeyB64);
-const license: LicenseDocument = { ...payload, signature };
+async function main(): Promise<void> {
+  const requestPath = arg("request");
+  if (!requestPath) die("Missing --request <activation-request.json>");
 
-const outPath = arg("out") ?? join(process.cwd(), "specterstudio-license.dat");
-mkdirSync(dirname(outPath), { recursive: true });
-writeFileSync(outPath, JSON.stringify(license, null, 2), "utf8");
+  // `--out` named an arbitrary destination FILE. The service now owns both the confined output
+  // folder and the file name, and records that exact name in the append-only issuance history, so
+  // honouring `--out` would either bypass the atomic write or make the audit log name a file that no
+  // longer exists. Refused loudly rather than silently ignored.
+  if (has("out")) {
+    die(
+      "--out is no longer supported: the issuer writes into its own confined output folder and records\n" +
+        "the file name it used in the issuance history. Use --out-dir to choose that folder; the full path\n" +
+        "of the signed license is printed on success."
+    );
+  }
 
-// Issuance history lives next to the key (external), never in the repo/app.
-appendFileSync(
-  join(dirname(keyPath), "issuance-history.jsonl"),
-  JSON.stringify({
-    at: new Date().toISOString(),
-    licenseId: license.licenseId,
-    serialNumber: license.serialNumber,
-    product,
-    machineFingerprintHash: license.machineFingerprintHash,
-    validFromUtc: license.validFromUtc,
-    expiresAtUtc: license.expiresAtUtc,
+  const keyId = arg("keyId") ?? DEFAULT_ISSUER_KEY_ID;
+  const runtimeRoot = nonElectronRuntimeRoot();
+  const keyPath = arg("key") ?? issuerKeyPathFor(runtimeRoot, keyId);
+  const outputDirectory = arg("out-dir") ?? issuerOutputDirectoryFor(runtimeRoot);
+
+  let activationRequest: unknown;
+  try {
+    activationRequest = JSON.parse((await readFile(requestPath, { encoding: "utf8" })).replace(/^﻿/, ""));
+  } catch {
+    die(`Cannot read or parse the activation request at ${requestPath}.`);
+  }
+
+  // Exactly one of the two validity forms, mirroring IssueLicenseInput. Supplying both is a
+  // contradiction rather than a precedence question, so it is refused instead of resolved.
+  const days = arg("days");
+  const validFrom = arg("valid-from");
+  const expires = arg("expires");
+  const windowGiven = validFrom !== undefined || expires !== undefined;
+  if (days !== undefined && windowGiven) {
+    die("Use either --days or --valid-from/--expires, not both.");
+  }
+  if (windowGiven && (validFrom === undefined || expires === undefined)) {
+    die("An explicit window needs both --valid-from and --expires (UTC, e.g. 2026-09-01T09:00).");
+  }
+
+  const entitlements = (arg("entitlements") ?? "workflow.execute")
+    .split(",")
+    .map((entitlement) => entitlement.trim())
+    .filter(Boolean);
+
+  // Deliberately typed loosely and handed to the service unchecked: `validateIssueInput` is the one
+  // place that decides what is acceptable, and duplicating any of it here is the defect this file
+  // was rewritten to remove.
+  const input = {
+    activationRequest,
+    licenseType: arg("type") ?? "standard",
     entitlements,
-    keyId
-  }) + "\n",
-  "utf8"
-);
+    ...(windowGiven
+      ? { validityWindow: { validFromUtc: `${validFrom}Z`.replace(/Z+$/, "Z"), expiresAtUtc: `${expires}Z`.replace(/Z+$/, "Z") } }
+      : { validityDays: Number(days ?? "365") })
+  } as unknown as IssueLicenseInput;
 
-console.log(`Signed license written to ${outPath}`);
-console.log(`  serial: ${license.serialNumber}  type: ${licenseType}  valid ${license.validFromUtc} → ${license.expiresAtUtc}`);
+  const service = new LicenseIssuerService({ keyId, keyPath, outputDirectory, product: LICENSING_PRODUCT });
+
+  try {
+    const issued = await service.issue(input);
+    console.log(`Signed license written to ${issued.outputPath}`);
+    console.log(
+      `  serial: ${issued.serialNumber}  type: ${issued.licenseType}  key: ${issued.signingKeyId}\n` +
+        `  machine: ${issued.machineFingerprintHash}\n` +
+        `  valid ${issued.validFromUtc} → ${issued.expiresAtUtc}  (issued ${issued.issuedAtUtc})`
+    );
+  } catch (error) {
+    if (error instanceof LicenseIssuerError) {
+      die(`Refused to issue: ${error.reason}\n${REASON_HELP[error.reason] ?? ""}`);
+    }
+    // Never surface a raw error here: this process has the private key in memory.
+    die("Refused to issue: the issuer failed unexpectedly.");
+  }
+}
+
+main().catch(() => die("Refused to issue: the issuer failed unexpectedly."));

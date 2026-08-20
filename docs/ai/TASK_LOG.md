@@ -4,6 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Fold the issuer CLI onto LicenseIssuerService (awkit-vf9r)
+
+- **Objective:** remove the second implementation of the signing contract. `issue-license.mts` built
+  the license payload itself rather than calling `LicenseIssuerService`, so two implementations of
+  one contract could drift — and had already drifted into the looser of the two.
+- **What the CLI accepted that the product refuses:** any `--type`, any `--entitlements`, unbounded
+  validity, no key-custody check, no private/public key match, a non-atomic write, `Math.random()`
+  serial numbers, and a default `keyId` of `key1` — which is verification-only and cannot sign.
+- **Change:** the CLI is now an argv adapter. It parses flags and hands an unchecked input object to
+  the service, which owns every rule. `--out` was removed rather than reimplemented: the service owns
+  the output folder and file name and records that name in the append-only history, so an arbitrary
+  destination would either bypass the atomic write or make the audit log name a missing file. It now
+  fails with that explanation instead of being ignored. `--out-dir` chooses the folder.
+- **Executed evidence:** six service rules refused through the CLI with the right reason code and a
+  non-zero exit; the first five refused **with a nonexistent key path**, proving options are
+  validated before the key is opened. One real issuance against production `key2` verified against
+  the shipped public key, and tampering with the type or the fingerprint invalidated it. Its history
+  record carries `requestId`/`licenseType`/`outputFile` — fields the old CLI never wrote.
+- **Guard:** `verify:roadmap-license-issuer` 144 → **152**. Mutation-tested: reintroducing a local
+  serial + direct `signLicensePayload` + `writeFileSync` fails **4 of the 8** new checks.
+- **Gate-design note:** the first draft of the guard FAILED against the correct code, because the
+  file's own header documents the defect it removed and names `Math.random()`. The scan now strips
+  comments — a source check that punishes documenting the fix is measuring prose, not code.
+- **Files:** `tools/license-issuer/issue-license.mts` (rewritten), `tools/license-issuer/README.md`,
+  `scripts/verify-roadmap-license-issuer.mts`, `scripts/verify-roadmap-dashboard.mjs` (bead pin
+  5/244 → 4/245), `docs/ai/*`.
+- **Result:** build PASS; roadmap-license-issuer 152/152; licensing 183/183; release-key-custody
+  58/58; source-hygiene 9/9; classification reconciled; roadmap-dashboard 162/162 "Sources agree";
+  validate:offline PASS.
+
+
 ## 2026-08-20 - Claude - WebDriverUniversity acceptance completed; nine product defects fixed
 
 - **Objective (`awkit-i91j`, `awkit-53nb`, `awkit-9fvb`, `awkit-7o5n`):** close every `NOT RUN`,

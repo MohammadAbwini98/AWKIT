@@ -304,8 +304,12 @@ try {
   // epic `awkit-i91j`. Net: total 241 -> 249, closed 232 -> 244, outstanding 9 -> 5. The remaining
   // five are unrelated to WDU: `awkit-vf9r` plus four blocked on external systems or an owner
   // decision (`awkit-cey`, `awkit-7bu`, `awkit-az7`, `awkit-cm8`).
-    "5 outstanding / 244 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 244,
+  // Then 4/245 of 249 on 2026-08-20: `awkit-vf9r` closed - the issuer CLI was folded onto
+  // `LicenseIssuerService`, so all three front ends now share one signing authority. No new issues.
+  // NOTHING is open: the remaining four are all BLOCKED on an external system or an owner decision,
+  // so a zero here means "no engineering is available", not "nothing is left".
+    "4 outstanding / 245 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 245,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
