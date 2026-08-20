@@ -1,5 +1,85 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-20) - Condition fixed, runFlow clean; one owner decision open
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 255 total / 250 closed / 5 outstanding.** `awkit-dnbb` filed and closed the same
+  session. **`awkit-9qcz` is OPEN and is an OWNER DECISION**, not an external blocker - the first
+  such item in a while. The other four remain BLOCKED on an external system or an owner decision
+  (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`).
+
+### What was done
+
+Checked the two remaining control nodes. **`runFlow` needed no change.** `condition` had a defect in
+the direction the previous four did not: the gate was too **permissive**.
+
+`FlowExecutor` routes a condition with `evaluateBoolean(step.value ?? "", …)` and never resolves
+`step.valueSource`. `hasRequiredValue` accepted any source, so such a node passed the gate, reached
+run time with an empty expression, and `evaluateBoolean("")` returns **true** - it took its true
+branch on every run rather than failing. Reachable: the generator's `secret` source suppresses the
+literal, so 6 of 95 generated conditions had no expression at all.
+
+Fixed in both places - the validator now demands the literal the runtime reads (mirroring it, not
+changing it), and the generator no longer offers a secret source for a condition expression.
+
+### runFlow: checked, correct, deliberately untouched
+
+`flowId` and `config.targetFlowId` both satisfy the requirement; `value`/`valueSource` correctly do
+NOT; missing targets report `missingFlowReference`; self and indirect cycles report
+`flowReferenceCycle`. The conflicting-target case is already a deliberate tested decision - the
+engine resolves `flowId` first *to match the runner* - and the designer writes both fields from one
+input, so they cannot disagree through the UI. **No rule was invented for it**, and `KNOWN_ISSUES.md`
+records why, so it is not re-litigated.
+
+### Blast radius
+
+```text
+condition nodes scanned               89
+NEWLY FLAGGED                          6   all in reports/random-tests/roundtrip-defects.json
+…in live or shipped data               0
+runFlow nodes scanned                  1   0 with disagreeing flowId / config.targetFlowId
+```
+
+### Commands run, with results
+
+```text
+npm run build                      PASS
+verify:validation                  PASS 163/0   (151 -> 163; red mid-change, green on generator fix)
+verify:runner                      PASS 121/0
+verify:branch-pairs                PASS 40/0
+verify:comprehensive-e2e           PASS 9/9 cases
+verify:random-failures             PASS 17/0
+verify:random-reporting            PASS 13/0
+verify:random-lifecycle            PASS 13/0
+verify:wait-validation             PASS 103/0
+verify:assertion-validation        PASS 77/0
+verify:loop-scroll-validation      PASS 88/0
+verify:legacy-compat               PASS 152/0
+verify:flow-step-mapping           PASS 145/0
+verify:mock-site                   PASS 172/172
+verify:flow-designer               PASS 16/16 capsule + 112 broad, 0 unexpected
+verify:verifier-classification     PASS reconciled
+verify:roadmap-dashboard           PASS 162/162
+typecheck:scripts                  FAIL - the same 3 PRE-EXISTING diagnostics, untouched files
+mutation: condition rule removed    3 of 163 checks fail
+mutation: generator fix reverted    1 of 163 checks fail (the corpus guard catches it)
+```
+
+### Next agent
+
+**`awkit-9qcz` is the one open decision, and it is yours to make, not to implement blindly:** should
+a condition expression be data-driven at all? Today a bound value source is silently inert, and
+95 of 95 generated conditions carry one. If the answer is no, the inert binding should probably
+become a warning so users stop authoring it. If yes, `FlowExecutor`'s condition branch has to resolve
+the source, which makes routing async - a materially larger change.
+
+Beyond that, every node type whose `config` or channel selects behaviour has now been checked against
+its executor: wait, wait conditions, assertions, loop, scroll, condition, runFlow.
+
+---
+
 ## HANDOFF (2026-08-20) - Loop and Scroll done; the flat-table class is fully closed
 
 ### Transfer

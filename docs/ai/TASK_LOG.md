@@ -4,6 +4,50 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-20 - Claude - Condition and runFlow checked; condition fixed (awkit-dnbb)
+
+- **Objective:** check the two remaining control nodes. `runFlow` needed no change; `condition` had a
+  defect in the OPPOSITE direction from the previous four - the gate was too PERMISSIVE.
+- **Root cause:** `FlowExecutor` routes a condition with `evaluateBoolean(step.value ?? "", ...)` and
+  NEVER resolves `step.valueSource`. `hasRequiredValue` accepted any value source, so a condition
+  bound only to one passed the gate, reached run time with an empty expression, and
+  `evaluateBoolean("")` returns TRUE - the node silently took its true branch every run instead of
+  failing. A flow that routes deterministically wrong is worse than one that stops.
+- **Reachable, and measured:** the generator's `secret` source deliberately suppresses the literal, so
+  6 of 95 generated condition nodes carried no expression at all.
+- **Fix:** `hasRequiredValue` demands a non-empty LITERAL `step.value` for a condition - mirroring the
+  runtime rather than changing it - and the generator no longer offers a `secret` source for a
+  condition expression. A condition carrying both a literal and a source stays valid, because the
+  literal is what the runner reads.
+- **Blast radius:** 89 real condition nodes scanned, 6 newly flagged, ALL in one frozen historic
+  artifact (`reports/random-tests/roundtrip-defects.json`); 0 in live or shipped data.
+- **runFlow is CORRECT and was left alone.** `flowId` and `config.targetFlowId` both satisfy the
+  requirement; `value`/`valueSource` correctly do NOT (the runner ignores them); a missing target
+  reports `missingFlowReference`; self and indirect cycles report `flowReferenceCycle`. The
+  conflicting-target case is already a deliberate tested decision - `verify:validation` asserts the
+  engine resolves `flowId` first TO MATCH the runner, and the designer writes both fields from one
+  input so they cannot disagree through the UI. No rule was invented for it.
+- **Deliberately NOT decided:** `awkit-9qcz` (OPEN) - whether a condition expression should be
+  data-driven at all. A bound source is silently inert today and 95/95 generated conditions carry one.
+  That changes routing semantics and is the owner's call, so this fix made the gate honest about
+  today's behaviour instead of quietly changing it.
+- **Mutation evidence:** removing the condition rule fails **3 of 163**; reverting the generator fix
+  fails **1**, caught by the generated-corpus guard. Restored: 163/0.
+- **Verification:** build PASS; `verify:validation` **163/0** (151 -> 163); `verify:runner` **121/0**;
+  `verify:branch-pairs` **40/0**; `verify:comprehensive-e2e` 9/9; `verify:random-failures` **17/0**;
+  `verify:random-reporting` **13/0**; `verify:random-lifecycle` **13/0**; `verify:wait-validation`
+  **103/0**; `verify:assertion-validation` **77/0**; `verify:loop-scroll-validation` **88/0**;
+  `verify:legacy-compat` **152/0**; `verify:flow-step-mapping` **145/0**; `verify:mock-site`
+  **172/172**; `verify:flow-designer` 16/16 capsule + 112 broad, 0 unexpected;
+  `verify:verifier-classification` reconciled; `verify:roadmap-dashboard` **162/162**.
+  `typecheck:scripts` still FAILs only on the same three pre-existing diagnostics in untouched files.
+- **Files:** `src/validation/FlowValidator.ts`,
+  `src/testing/random/RandomConfigurationGenerator.ts`, `scripts/verify-validation.mts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/*`, `.beads/issues.jsonl`. No new verifier script -
+  one engine rule belongs in the rule-by-rule engine verifier.
+
+---
+
 ## 2026-08-20 - Claude - Loop and Scroll validated by config (awkit-njqg)
 
 - **Objective:** check the two nodes the previous handoff named as having the same shape. Both did.

@@ -12,6 +12,18 @@
   resolves and `attribute`/`storage` had their config enforced only by a throw inside
   `executeAssertion`. All three sites are now fixed. **The rule to carry forward: any node whose
   `config` selects a dispatch arm cannot be described by one row in a type-keyed table.**
+- **The gate can be too PERMISSIVE as well as too strict, and that failure is worse.** Four of these
+  five fixes were false positives; `condition` was the opposite (`awkit-dnbb`). `hasRequiredValue`
+  accepted a `valueSource` that `FlowExecutor` never resolves, so the node reached run time with an
+  empty expression - and `evaluateBoolean("")` returns **true**, so it took its true branch on every
+  run. A flow that routes deterministically wrong is worse than one that refuses to start. When a
+  rule accepts several channels, check that the RUNTIME reads every one of them.
+- **`runFlow` is the reference implementation of a multi-channel requirement, and needs no change.**
+  `resolveRunFlowTarget` mirrors `step.flowId ?? step.config?.targetFlowId` exactly, `value` and
+  `valueSource` correctly do NOT satisfy it, missing targets and both cycle shapes are covered, and
+  the conflicting-target case is a deliberate tested decision (the engine resolves `flowId` first to
+  match the runner). Do not add a rule for the disagreement: the designer writes both fields from one
+  input, and the ignored alias is inert.
 - **A guarded no-op is invisible everywhere except the gate.** `performLoopAction` guards every arm
   with `if (target)`, so a `loop` whose action needs a locator it does not have runs its full
   iteration count doing nothing, reports `passed`, and records the iterations as completed

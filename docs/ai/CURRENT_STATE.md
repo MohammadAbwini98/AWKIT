@@ -1,5 +1,59 @@
 # CURRENT_STATE
 
+## Condition and runFlow checked: one real defect, one clean bill (2026-08-20)
+
+`awkit-dnbb` closed. Of the two nodes checked this round, **`runFlow` needed no change** and
+`condition` had a defect in the direction the previous four did not — the gate was too **permissive**,
+not too strict.
+
+**A condition bound to a value source routed always-true.** `FlowExecutor` routes a condition node
+with `evaluateBoolean(step.value ?? "", …)` and **never resolves `step.valueSource`**. But
+`hasRequiredValue` accepted any value source, so such a node passed the gate, arrived at run time
+with an empty expression — and `evaluateBoolean("")` returns **`true`**. The node silently took its
+true branch on every run rather than failing. A flow that routes deterministically wrong is worse
+than one that stops.
+
+**Reachable, and measured.** The generator's `secret` source deliberately suppresses the literal, so
+**6 of 95** generated condition nodes carried no expression at all. Fixed in both places: the
+validator now demands the literal the runtime actually reads (mirroring it, not changing it), and the
+generator no longer offers a secret source for a condition expression.
+
+```text
+condition nodes scanned               89
+NEWLY FLAGGED                          6   all in reports/random-tests/roundtrip-defects.json
+…in live or shipped data               0
+runFlow nodes scanned                  1   0 with disagreeing flowId / config.targetFlowId
+```
+
+**`runFlow` is correct and was left alone.** Every case behaves: `flowId` and `config.targetFlowId`
+both satisfy the requirement, `value`/`valueSource` correctly do **not** (the runner ignores them),
+a missing target reports `missingFlowReference`, and self- and indirect cycles report
+`flowReferenceCycle`. The conflicting-target case is already a deliberate, tested decision —
+`verify:validation` asserts the engine resolves `flowId` first *to match the runner*. Nothing to fix,
+and no rule was invented for it.
+
+**One thing deliberately NOT decided:** `awkit-9qcz` (OPEN) — a condition carrying both a literal and
+a value source is still accepted with the source silently inert, and 95 of 95 generated conditions
+carry one. Whether a condition expression should be data-driven at all is a **feature question** that
+changes routing semantics and belongs to the owner, so this fix made the gate honest about today's
+behaviour rather than quietly changing it.
+
+Verified: `verify:validation` **163 PASS / 0 FAIL** (151 → 163) · `verify:runner` **121/0** ·
+`verify:branch-pairs` **40/0** · `verify:comprehensive-e2e` **9/9** ·
+`verify:random-{failures,reporting,lifecycle}` **17/0, 13/0, 13/0** · `verify:wait-validation`
+**103/0** · `verify:assertion-validation` **77/0** · `verify:loop-scroll-validation` **88/0** ·
+`verify:legacy-compat` **152/0** · `verify:flow-step-mapping` **145/0** · `verify:mock-site`
+**172/172** · `verify:flow-designer` 16/16 capsule + 112 broad, 0 unexpected ·
+`verify:verifier-classification` reconciled · `verify:roadmap-dashboard` **162/162** ·
+`npm run build` clean.
+
+Mutation-tested both claims: removing the condition rule fails **3 of 163**; reverting the generator
+fix fails **1**, and it is the corpus guard that catches it.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **255 total / 250 closed /
+5 outstanding**, one of which (`awkit-9qcz`) is an open owner decision rather than an external
+blocker.
+
 ## Loop and Scroll: the last two flat rules, and a dead corpus they exposed (2026-08-20)
 
 `awkit-njqg` closed. Checking the two nodes the previous handoff named found real defects in both —
