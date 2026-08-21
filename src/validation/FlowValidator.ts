@@ -108,7 +108,8 @@ export type FlowValidationCode =
   | "highTimeout"
   | "largeLoopBounds"
   | "locatorNeedsReview"
-  | "interactionPrerequisiteBlocked";
+  | "interactionPrerequisiteBlocked"
+  | "ignoredConditionValueSource";
 
 interface RuleSpec {
   readonly severity: FlowValidationSeverity;
@@ -145,7 +146,8 @@ export const FLOW_VALIDATION_RULES: Record<FlowValidationCode, RuleSpec> = {
   highTimeout: { severity: "warning", summary: "Timeout is unusually high." },
   largeLoopBounds: { severity: "warning", summary: "Loop bound is large enough to make an unattended run very long." },
   locatorNeedsReview: { severity: "error", summary: "Step locator requires manual review or fallback approval before execution." },
-  interactionPrerequisiteBlocked: { severity: "error", summary: "Step interaction prerequisite has no valid execution decision." }
+  interactionPrerequisiteBlocked: { severity: "error", summary: "Step interaction prerequisite has no valid execution decision." },
+  ignoredConditionValueSource: { severity: "warning", summary: "A condition's bound value source is never resolved; the runner branches on the literal expression alone." }
 };
 
 const RULE_ORDER: readonly FlowValidationCode[] = Object.keys(FLOW_VALIDATION_RULES) as FlowValidationCode[];
@@ -612,6 +614,27 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
                 ? "does not say how many times to run: set an iteration count, choose Elements and give it a locator, or loop over data rows."
             : "requires a value or value source.";
       collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) ${detail}`);
+    }
+
+    // Literal-only condition semantics, made visible.
+    //
+    // `FlowExecutor.resolveNext` routes a condition with `evaluateBoolean(step.value ?? "", …)` and
+    // never reads `step.valueSource`, while `StepExecutor.resolveStepValue` gives every OTHER
+    // value-taking step type the opposite precedence — a bound source wins over the literal there.
+    // That asymmetry is why a source attached to a condition (legacy metadata, or a binding made by
+    // analogy with the other node types) looks active and is inert. The flow still runs correctly
+    // off its literal, so this is a warning: it explains dead configuration, it does not block.
+    //
+    // The non-empty-literal precondition is load-bearing. A condition bound ONLY to a source has no
+    // expression the runner can read and is already a hard `missingRequiredValue` error via
+    // `hasRequiredValue`; emitting this rule as well would report one defect twice and would invite
+    // "fixing" it by trusting the binding — which is exactly what the runtime does not do.
+    if (step.type === "condition" && isNonEmptyString(step.value) && step.valueSource != null) {
+      collect.node(
+        "ignoredConditionValueSource",
+        step.id,
+        `Step ${labelFor(step, ambiguousNames)} (condition) is bound to a "${step.valueSource.type}" value source that the runner never resolves: the branch is decided by the literal expression alone. Remove the binding, or put the value it was meant to supply into the expression itself.`
+      );
     }
 
     // A fixed-time duration the runner would hand to `waitForTimeout` as NaN or a negative number.
