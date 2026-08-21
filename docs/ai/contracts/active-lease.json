@@ -1,31 +1,42 @@
 {
   "task": "awkit-bkfy",
   "contract_path": "docs/ai/contracts/awkit-bkfy.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-agent-routing.mjs",
-    "scripts/verify-roadmap-dashboard.mjs"
+    ".beads/**",
+    "docs/ai/**",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-08-21T10:57:50.720Z",
-  "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+  "acquired_at": "2026-08-21T11:51:51.968Z",
+  "acquired_at_commit": "da76a66f0be956a35e421e8c2560e78a612c2990",
   "baseline_dirty": [
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/MULTI_AGENT_ARCHITECTURE.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-bkfy.json",
     "docs/ai/routing/ROUTING_MATRIX.md",
     "docs/ai/routing/TASK_CONTRACT.schema.json",
     "run-app-demo.mjs",
-    "scripts/verify-agent-routing.mjs",
-    "scripts/verify-roadmap-dashboard.mjs"
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "e801149543b02c213328d66425d0717445e5bf3ace4b7cf037255c08fc15c511",
-    "docs/ai/contracts/awkit-bkfy.json": "6746330b91cf65cfa30b6a73b141a896175ace0e048028915d7550c27eed138c",
+    ".beads/issues.jsonl": "c9588647de119998fb02f67c87f24ab7bc427d8b396d5b16427d38182b4db6fe",
+    "docs/ai/CURRENT_STATE.md": "74a65993d1b96ba987657428444636699bbff0c05bb20810c7fdd18107bb354d",
+    "docs/ai/HANDOFF.md": "64459575dab2d2a45a6a2e94ff52bce0d8ec74e4ad96fc80e93eca4c88fafe88",
+    "docs/ai/KNOWN_ISSUES.md": "1bd4c4fd055e8e017e20be1b10b1880b0f6a5e923e6b43398cccb67e707bddca",
+    "docs/ai/MULTI_AGENT_ARCHITECTURE.md": "43b49449715c198364935a71d58c14d09a359eb778102eaf26b285c4973e5aa3",
+    "docs/ai/TASK_LOG.md": "8c690be768ee8840e2584f4013746e632e8a652b950b855b9b8201b8f336d7e7",
+    "docs/ai/contracts/active-lease.json": "529f31017a15ae431839c364e2bc56ec61ba6e56c8f4df7e75876b77162462a8",
+    "docs/ai/contracts/awkit-bkfy.json": "7dda0345108418126da7615242f53dfefe6f428f58723419564b365676b0cd3b",
     "docs/ai/routing/ROUTING_MATRIX.md": "144750c888d74867ae618c7e7a75b4fe10b8b5528e2cad13a535c87f6017917c",
     "docs/ai/routing/TASK_CONTRACT.schema.json": "150dc164fcf8b0bca077c3970fb9e9817d68e4796a021fec2aeda661ca868a54",
     "run-app-demo.mjs": "6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b",
-    "scripts/verify-agent-routing.mjs": "c01cca7895b4f9c7978b4fbfa459c17715ca165483254da24156372531869120",
-    "scripts/verify-roadmap-dashboard.mjs": "34818e3d1bee5b12b4ffc403d5e555ab3412156907d5a91673be454934024a07"
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",

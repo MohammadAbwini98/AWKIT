@@ -186,6 +186,47 @@ it fingerprints baseline-dirty files so modifying pre-existing user work is no l
 changed files since `baseline_commit`, guarded shared-file fields, expected scope and explicitly
 preserved pre-existing paths. A scope escape must be resolved and recorded; hiding it is not a fix.
 
+### Default-deny, and the one bootstrap exception
+
+No repository path is writable while no lease is held. The single exception is one task-contract
+JSON file directly under `docs/ai/contracts/`, which the grant CLI validates against routing before
+it creates a lease; `active-lease.json` and the schema are excluded from that exception. An earlier
+draft failed open for "most" paths and protected only a Risk 3 subset, which meant the common case —
+an unclaimed edit — was invisible. Ownership in the registry is now total, so every path has an
+answerable owner and there is no unowned remainder for the guard to wave through.
+
+### The shell is leased too, and the lease is role-aware
+
+`lease-guard.mjs` runs on Bash/PowerShell as well as on Edit/Write/NotebookEdit. It fails closed on
+shell metacharacters (`;`, `&`, `|`, `>`, `<`, backtick, newline, `$(`, `${`, `^`) and on background
+commands, which could otherwise outlive their holder's lease. Beyond that it grants by role, not by
+activation:
+
+- every activated specialist may run a small read-only discovery grammar (bounded `git` reads,
+  Graphify queries, `bd` reads);
+- only the **active holder** may run state-changing commands, and only its own role's set — the
+  project-state holder gets `bd` writes, `bd export -o .beads/issues.jsonl`, `npm run ai:memory` and
+  `verify:roadmap-dashboard`; the release holder gets `package:*`; nobody else does;
+- the root Manager may serialize lease transitions and run an exact, path-checked Git lifecycle, but
+  it cannot borrow another specialist's implementation or build commands.
+
+`git push origin main` is authorized only when the task contract sets `git.direct_main` and
+`git.push_authorized`, names a push evidence item, and a prospective run of the whole task gate — with
+that one unrunnable item treated as satisfied — still passes. Push is the only evidence that cannot
+be `PASS` before it happens; nothing else is relaxed to reach it.
+
+### Preserved user work is fingerprinted, not merely named
+
+`preserved_paths` entries are `{path, git_status, sha256}` records, not bare strings. The gate
+re-reads each file and blocks completion unless status and hash still match, so a preserved path
+cannot become cover for editing the user's uncommitted work. `lease.mjs` archives every superseded
+lease into an append-only `write_lease.history`, keyed by `task:holder:acquired_at`, so a released
+lease and its amendments, overrides and violations survive the next holder taking over.
+
+`verify:agent-routing` pins cardinalities as well as behavior: a check that iterates a collection is
+paired with an assertion on that collection's size, because `.every()` over an emptied registry is
+trivially true. Move such a pin deliberately when the registry changes; never relax it.
+
 ## Verification and failure behavior
 
 Run at minimum:

@@ -1,5 +1,79 @@
 # KNOWN_ISSUES
 
+## Agent harness: three fail-open seams in the routing/lease architecture (2026-08-21)
+
+Found by the independent QC review of `awkit-bkfy`. All three share one shape — the safety
+mechanism's failure mode is indistinguishable from "everything is fine".
+
+- **RISK, no mitigation, no regression guard: write-lease enforcement is a single point that fails
+  open when the hook cannot spawn.** `tools/agents/lease-guard.mjs` blocks a write only by exiting
+  with code `2`. A hook process that never starts — `node` not on PATH, a spawn timeout, a crash
+  before the guard's own logic runs — exits non-2, which Claude Code treats as a *non-blocking*
+  error and the tool call proceeds. Meanwhile `.claude/settings.json` `permissions.allow` grants
+  `git commit -m:*`, `git push origin main`, `bd update:*` and `package:*` to **every** agent, not
+  per role. So a guard that fails to start silently converts a read-only reviewer into an
+  unrestricted writer with push rights, and nothing in the transcript looks wrong. There is
+  currently no fallback enforcement and no test that the guard is even running.
+  **INFERENCE, not observation:** Claude Code's actual behavior on hook-spawn failure was NOT
+  measured here — this is read off the documented exit-code contract (2 = block, anything else =
+  non-blocking error). Confirm by observation before treating the severity as settled, and do not
+  record a mitigation until one exists.
+- **`context-status.mjs` degrades to a silent "everything is fine" reading.** Its token lookup ends
+  in `?? 0`, so any statusLine payload whose shape it does not recognise — an upstream rename, a
+  nesting change, a new schema version — renders **0 tokens** and reports the `normal` zone forever.
+  The 120K delegation warning and the 150K compaction signal would then never fire, and the readout
+  would look healthy the whole time. The routing verifier feeds it a repository-authored
+  **synthetic** fixture rather than an observed live payload, so the check passes on data that by
+  construction has the expected shape and a real upstream change would not be caught. This is the
+  degrade-path-satisfies-the-check shape: prefer `?? null` plus an explicit "unknown" zone, and
+  assert against a captured real payload.
+- **The compaction threshold is configured but UNVERIFIED.** `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75`
+  with `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000` is set, but official documentation states the
+  override cannot *raise* the threshold and that values above the default percentage are ignored.
+  The default percentage was not established, so whether `75` is in effect at all is unknown.
+  Tracked in the task contract as `E-COMPACT-THRESHOLD` = `NOT RUN`, `required: false`. It must
+  **never** be upgraded to `PASS` on the basis of the setting being present — only an *observed*
+  compaction event at a measured context size is evidence.
+
+## DEFECT: the roster's turn budget starves the one role independence depends on (2026-08-21)
+
+In `tools/agents/routing-matrix.mjs`, read-only roles carry `maxTurns` 14–18 while writer roles carry
+28–32. `awkit-qc-reviewer` sits at **18** — yet a whole-repository independent audit is the most
+tool-expensive read-only job in the roster: it must read broadly precisely because it is forbidden to
+take shortcuts through the implementer's own account of the work.
+
+**Observed FACT:** two consecutive QC review attempts in one session were truncated by that ceiling
+before the reviewer could report; only a follow-up message asking for the verdict alone produced one.
+The budget is therefore biased against the role the architecture's independence rests on, and its
+failure mode is a missing or thin verdict rather than a visible error.
+
+Do **not** hand-edit `routing-matrix.mjs` from a project-state lease: it is not in that lease, and
+every agent file under `.claude/agents/` is generated from it, so a change there forces a
+regeneration of all 16 files and a `verify:agent-routing` byte-for-byte re-check. Route it as a
+scoped task that owns the registry.
+
+## FRAGILE: closing a bead breaks a QA-owned pin that the project-state lease cannot reach (2026-08-21)
+
+`verify:roadmap-dashboard` hardcodes an exact `"N outstanding / M closed"` pair (today
+`6 outstanding / 250 closed`, around line 341 of `scripts/verify-roadmap-dashboard.mjs`). The pin is
+correct and deliberately not a range: it is the only thing that catches a `bd close` whose export was
+never refreshed, because a stale `.beads/issues.jsonl` is perfectly well-formed and no structural
+check can see it.
+
+The trap is that the pin now lives in a **QA-owned** file while beads are **project-state-owned**.
+Under the write lease, the project-state holder can legitimately close a bead and then cannot fix the
+verifier its own correct change just turned red — the lease guard blocks the edit, by design. Route a
+QA lease to move the pin **in the same session as the close**, or sequence the close into a session
+that already holds one. Do not relax the pin to a range, and do not work around the guard.
+
+Two adjacent facts that cost time:
+
+- **`bd stats` prints `Blocked: 0` for a tracker with four `blocked`-status issues.** That field
+  counts dependency-blocked issues, not the `blocked` STATUS. Use `bd list --status blocked`.
+- **Outstanding can rise with nothing filed.** Reopening and claiming a closed bead moves it
+  backwards across the closed/outstanding line. `5 + 251` and `6 + 250` both total 256, so compare
+  the *total* before reading a rise as a new defect.
+
 ## Validation (2026-08-20)
 
 - **A requirement table keyed on step TYPE lies about any type that is really several steps.**

@@ -39,8 +39,25 @@
         "working_tree_expected": { "enum": ["clean", "preserved_changes"] },
         "preserved_paths": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Pre-existing user changes excluded from this task's derived completion scope."
+          "description": "Pre-existing user changes excluded from this task's derived completion scope. Each entry is a FINGERPRINT, not a bare path: tools/agents/task-gate.mjs re-reads the file and blocks completion unless git_status and sha256 still match, so a plain string could not detect a preserved file being edited under cover of the exclusion.",
+          "items": {
+            "type": "object",
+            "required": ["path", "git_status", "sha256"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Exactly one repository-relative file. No glob, directory, absolute path or traversal."
+              },
+              "git_status": {
+                "type": "string",
+                "description": "The two-character git porcelain status recorded when the contract was created, e.g. \"??\" or \" M\"."
+              },
+              "sha256": {
+                "type": "string",
+                "description": "Lowercase 64-character SHA-256 of the file contents at contract creation."
+              }
+            }
+          }
         }
       }
     },
@@ -198,6 +215,27 @@
                 "const": true,
                 "description": "Always true. An override that exempts itself from review is the abuse this field exists to prevent."
               }
+            }
+          }
+        },
+        "history": {
+          "type": "array",
+          "description": "Append-only archive of superseded leases, written by tools/agents/lease.mjs (archiveLease) before the active record is replaced. Each entry is an immutable snapshot keyed by task:holder:acquired_at, so a released lease and its amendments, overrides and violations survive the next holder taking over.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "task": { "type": "string" },
+              "holder": { "$ref": "#/$defs/agentId" },
+              "status": { "enum": ["unassigned", "active", "released", "revoked", "blocked"] },
+              "allowed_paths": { "type": "array", "items": { "type": "string" } },
+              "acquired_at": { "type": "string" },
+              "acquired_at_commit": { "type": ["string", "null"] },
+              "released_at": { "type": ["string", "null"] },
+              "released_reason": { "type": ["string", "null"] },
+              "amendments": { "type": "array", "items": { "type": "object" } },
+              "overrides": { "type": "array", "items": { "type": "object" } },
+              "violations": { "type": "array", "items": { "type": "object" } }
             }
           }
         }

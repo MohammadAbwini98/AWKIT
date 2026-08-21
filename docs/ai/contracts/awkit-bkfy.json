@@ -79,10 +79,11 @@
       "architect"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-agent-routing.mjs",
-        "scripts/verify-roadmap-dashboard.mjs"
+        ".beads/**",
+        "docs/ai/**",
+        "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
         "app/**",
@@ -125,7 +126,7 @@
     },
     {
       "id": "AC-CONTEXT",
-      "description": "The 100K delegation, 120K warning, and approximately 150K compaction policy is implemented with non-blocking supported hooks and an ephemeral repository-state checkpoint.",
+      "description": "The 100K delegation, 120K warning, and approximately 150K compaction policy is CONFIGURED using only officially supported fields, wired through non-blocking hooks, and backed by an ephemeral repository-state checkpoint. This criterion covers the configuration and its wiring, not the runtime threshold value, which is unmeasured and tracked separately in E-COMPACT-THRESHOLD.",
       "evidence_required": [
         "E-AGENT-ROUTING",
         "E-CONTEXT-HOOKS",
@@ -179,42 +180,50 @@
     {
       "id": "E-CONTEXT-HOOKS",
       "type": "verifier",
-      "command": "synthetic status-line probes plus PreCompact capture and SessionStart:compact restore probes (no PostCompact hook exists; its absence is itself asserted)",
+      "command": "npm run verify:agent-routing (context-status, PreCompact and SessionStart:compact blocks)",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "context-status.mjs imports and its CLI accepts a SYNTHETIC repository-authored payload fixture, not an observed live Claude statusLine payload; statusLine is wired to it; PreCompact captures exactly one checkpoint and SessionStart:compact restores exactly one, both with a bounded 15s timeout and both non-fatal; restore recovers the captured task after its lease is gone and labels the state ephemeral and non-authoritative; the absence of any PostCompact hook is asserted, not assumed"
     },
     {
       "id": "E-SCENARIOS",
       "type": "verifier",
-      "command": "deterministic UI, Recorder, IPC/security, and unfamiliar-defect routing fixtures",
+      "command": "npm run verify:agent-routing (representative scenario block)",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "each scenario pins the MINIMAL activated set, not merely the presence of one specialist: UI routes to manager+uiux+frontend+qa (writer frontend); Recorder to manager+recorder+qa with integration explicitly excluded; IPC/security to a security->runtime writer sequence with integration consulting and qa+qc reviewing; an unfamiliar broad inspection routes to manager+researcher with NO writer and NO reviewer until scope is known"
     },
     {
       "id": "E-CLAUDE-SMOKE",
       "type": "inspection",
-      "command": "claude --agent <name> read-only smoke probes",
+      "command": "in-session agent loader observation (supersedes the originally declared nested claude --agent probes)",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "the originally declared probe was nested claude --agent sessions; that was DROPPED because spawning a Claude session from inside a Claude session is the recursive subagent spawning the architecture forbids, and arbitrary claude invocations are outside the lease guard shell grammar. The executed substitute is direct observation of the same loader: this session's agent listing enumerates all 16 awkit-* agents, each carrying the description and tool set rendered from the routing registry, and read-only roles (uiux, architect, integration, performance, researcher, qc) appear with no Edit, no Write and no Agent tool. Three of them were actually spawned in this session and ran with exactly those declared tools: awkit-qa-engineer, awkit-project-state, and awkit-qc-reviewer, the last of which independently confirmed its own system prompt was the rendered awkit-qc-reviewer.md. NOT covered by this evidence, stated plainly: the 13 agents never spawned are proven to LOAD, not proven to behave correctly at runtime, and NO GATE REPRODUCES this observation. npm run agent:check-agents proves the generated files still match the registry byte-for-byte, but nothing in the repository proves Claude Code actually loads them, so this evidence is session-local and expires with the session."
     },
     {
       "id": "E-OFFICIAL-DOCS",
       "type": "inspection",
-      "command": null,
+      "command": "claude --version compared against current official Claude Code documentation for subagents, hooks, settings, environment variables, statusline and agent teams",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "installed version is 2.1.201. Every configured field is officially supported: the six agent frontmatter keys in use (name, description, tools, disallowedTools, model, maxTurns, permissionMode); PreCompact with a manual|auto matcher; SessionStart with the compact matcher, which is one of the documented startup|resume|clear|compact|fork values; per-hook timeout expressed in seconds; and statusLine as an object with type command plus a command string. CLAUDE_CODE_AUTO_COMPACT_WINDOW is documented on the settings page and CLAUDE_AUTOCOMPACT_PCT_OVERRIDE on the environment-variables page with a 1-100 range. The top-level autoCompactWindow key is real (default 500000) but is deliberately left unset so the env var is the single compaction-window source, and the verifier asserts its absence. Agent Teams are documented as experimental and off unless CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, which this repository does not set, so the subagents-default posture is correct rather than accidental. SCOPE OF THIS PASS, stated so it cannot be read as more than it is: this proves every configured field is SUPPORTED and SET as documented. It does not prove any runtime threshold value. The question of whether the configured percentage actually takes effect was split out into E-COMPACT-THRESHOLD rather than left as an UNKNOWN buried inside a PASS, because the completion gate reads only the result field and would otherwise have laundered an unmeasured fact into a proven acceptance criterion."
+    },
+    {
+      "id": "E-COMPACT-THRESHOLD",
+      "type": "inspection",
+      "command": "observe an actual auto-compaction event and compare the trigger point against the configured 75 percent of a 200000 token window",
+      "required": false,
+      "result": "NOT RUN",
+      "artifact": "NOT RUN, and deliberately not upgraded. The official environment-variable documentation states CLAUDE_AUTOCOMPACT_PCT_OVERRIDE cannot RAISE the compaction threshold and that values above the default percentage are ignored. The default percentage was not established from the documentation, so whether the configured 75 is in effect is unverified. The arithmetic target 200000 * 0.75 = 150000 matches the intended compaction point, but arithmetic is not measurement, and if the default percentage is below 75 the real threshold is lower than the policy claims. Measuring this requires driving a live session past the trigger and observing where compaction actually fires, which was not done. Declared required:false and cited by NO acceptance criterion, so it is visible without falsely blocking and without being able to prove anything it did not measure. Tracked in docs/ai/KNOWN_ISSUES.md."
     },
     {
       "id": "E-QC",
       "type": "inspection",
-      "command": null,
+      "command": "independent read-only review by awkit-qc-reviewer holding no lease",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "QC VERDICT APPROVE, returned only after two blocking findings were fixed. The material finding was that E-OFFICIAL-DOCS was stamped PASS while carrying an UNKNOWN inside its artifact prose, and completionBlockers reads only the result field, so an unmeasured compaction threshold was being laundered into a proven AC-CONTEXT. Fixed by splitting the unmeasured claim into E-COMPACT-THRESHOLD at NOT RUN, cited by no acceptance criterion, and narrowing AC-CONTEXT to configuration and wiring. Second finding was an inaccurate E-CLAUDE-SMOKE artifact, corrected from two to three spawned agents with the reviewer itself as the third and a statement that no gate reproduces the observation. QC independently confirmed: scope is inside routing.expected_paths with no app, src or resources changes and no product runtime touched; run-app-demo.mjs remains untracked, unread and unstaged, matching its preserved fingerprint; all six read-only roles carry disallowedTools Edit, Write, Agent, NotebookEdit with the allowlist and denylist agreeing, and only manager holds Agent; the lease guard is an allowlist that fails closed for a non-holder and rejects actor impersonation; checkpoints never read the transcript, hash session_id, and store outside the repository. QC explicitly did NOT execute any verifier or build, and listed as NOT RUN large parts of verify-agent-routing.mjs plus routing-matrix.mjs, lease.mjs, lease-cli.mjs, render-platform-agents.mjs, classify.mjs and bash-audit.mjs, which it never opened. Two fail-open risks it raised are recorded in docs/ai/KNOWN_ISSUES.md rather than silently accepted. DELTA REVIEW: scripts/verify-roadmap-dashboard.mjs changed AFTER that approval, so a second bounded QC pass reviewed the delta and returned QC DELTA VERDICT APPROVE, standing verdict unchanged. It confirmed by git diff --numstat that the change is 30 insertions and ZERO deletions, that the pre-existing consistency.checked >= 2 guard is untouched, that the new banner check reads the same computed field views.js renders rather than re-deriving the predicate locally, and that E-COMPACT-THRESHOLD is still NOT RUN, required false, and absent from every evidence_required array. It corrected the word independently in this contract, which has been fixed in E-ROADMAP. It raised two NON-BLOCKING pre-existing weaknesses it declined to treat as regressions: the copies check inherits per-copy booleans from model.mjs instead of re-deriving them, and findStaleClaims in tools/roadmap/lib/link.mjs only inspects open issues in three hardcoded families with no fixture proving it can ever return non-empty, so that collection is newly load-bearing but unexercised. Both are recorded as next steps, not fixed here. This delta pass executed nothing: it reviewed QA's reported results for internal consistency and code-level plausibility, and listed the verifier run and the mutation reproduction as NOT RUN by QC."
     },
     {
       "id": "E-BUILD",
@@ -229,16 +238,16 @@
       "type": "inspection",
       "command": "graphify update .",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "graph rebuilt to 13330 nodes, 27645 edges, 706 communities; two non-fatal warnings reported (skill 0.9.31 vs package 0.9.30, and 44 JSON files yielding zero nodes as expected)"
     },
     {
       "id": "E-MEMORY",
       "type": "verifier",
       "command": "npm run ai:memory",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "repository AI memory files reconciled; CURRENT_STATE and HANDOFF both restate the 63 PASS / 2 NOT RUN / 1 BLOCKED ledger tally so the narrative consistency check reads two sources"
     },
     {
       "id": "E-VERIFIER-CLASSIFICATION",
@@ -254,7 +263,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
       "result": "PASS",
-      "artifact": "164/164 roadmap dashboard checks passed; ledger tally 63 PASS / 2 NOT RUN / 1 BLOCKED and both narrative docs agree"
+      "artifact": "167/167 roadmap dashboard checks passed; ledger tally 63 PASS / 2 NOT RUN / 1 BLOCKED, beads pin 6 outstanding / 250 closed over 256 parsed. The total rose from 164 because three checks were ADDED, not because a pin was moved: the gate previously asserted only consistency.checked >= 2, a non-vacuity guard, and never asserted that the sources actually agree, so the Overview banner could have read Sources disagree with the gate still green. It now asserts the copies half, the stale-claim half, and consistency.agrees === true read from the same computed field tools/roadmap/public/views.js renders, so the banner is OBSERVED rather than inferred: it reads Sources agree, and measured stale claims are 0. All three new checks were mutation-tested: ONE perturbation of the live snapshot made all three fail simultaneously (164/167, exit 1, with usable diagnostics naming the disagreeing file, the stale claim and the false conjunction), after which the mutation was reverted and the clean run returned 167/167. Stated precisely, that shows all three are SENSITIVE to a consistency break; it does not show each was mutation-tested in isolation. This verifier has no hardcoded total-check pin; the total is derived."
     },
     {
       "id": "E-GIT",
@@ -270,12 +279,14 @@
     "commit_policy": "coherent",
     "direct_main": true,
     "force_push": false,
-    "destructive_reset": false
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "E-GIT"
   },
   "completion": {
     "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
   },
   "write_lease": {
     "history": [
@@ -431,6 +442,91 @@
         "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
         "released_at": "2026-08-21T10:26:25.280Z",
         "released_reason": "verifier readability, cardinality guard and beads pin complete, rerouting for independent QC review",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-21T10:57:50.720Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-21T10:57:50.720Z",
+        "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+        "released_at": "2026-08-21T11:01:38.273Z",
+        "released_reason": "gates PASS and verifier cardinality pin committed, rerouting to project-state for docs and memory reconciliation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:project-state:2026-08-21T11:04:35.984Z",
+        "task": "awkit-bkfy",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**"
+        ],
+        "acquired_at": "2026-08-21T11:04:35.984Z",
+        "acquired_at_commit": "c6c160da114d1a7d7af1b40063feb2289238465c",
+        "released_at": "2026-08-21T11:20:45.218Z",
+        "released_reason": "project-state docs and memory reconciliation complete, releasing for independent QC review and manager git lifecycle",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:project-state:2026-08-21T11:34:25.829Z",
+        "task": "awkit-bkfy",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**"
+        ],
+        "acquired_at": "2026-08-21T11:34:25.829Z",
+        "acquired_at_commit": "c6c160da114d1a7d7af1b40063feb2289238465c",
+        "released_at": "2026-08-21T11:36:15.203Z",
+        "released_reason": "QC findings applied to KNOWN_ISSUES, rerouting to qa to re-run the gates against the amended contract",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-21T11:36:53.117Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-21T11:36:53.117Z",
+        "acquired_at_commit": "c6c160da114d1a7d7af1b40063feb2289238465c",
+        "released_at": "2026-08-21T11:45:06.548Z",
+        "released_reason": "qa re-ran both gates and added three mutation-tested banner assertions to the roadmap verifier",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-21T11:51:03.472Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-21T11:51:03.472Z",
+        "acquired_at_commit": "c6c160da114d1a7d7af1b40063feb2289238465c",
+        "released_at": "2026-08-21T11:51:34.366Z",
+        "released_reason": "verifier commit staged and recorded on main",
         "amendments": [],
         "overrides": [],
         "violations": []

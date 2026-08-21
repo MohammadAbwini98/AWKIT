@@ -1,5 +1,59 @@
 # CURRENT_STATE
 
+## Token-aware multi-agent orchestration: the write lease became enforcement (2026-08-21)
+
+`awkit-bkfy` is **IN PROGRESS, not closed** — its own acceptance criteria require the change to be
+committed and pushed to `main`, and the Manager owns that step. Twelve commits (`7b4e42e` ..
+`c6c160d`) have landed on `main`; two files the Documentation/Project-State lease owns are still
+uncommitted in the working tree.
+
+**This is developer/AI-agent infrastructure only.** Nothing in the SpecterStudio product changed:
+no Electron main, no preload, no renderer, no runner, no packaging, no mock site. The surfaces
+touched are `.claude/agents/` (16 generated specialists), `tools/agents/` (14 modules),
+`docs/ai/routing/`, `scripts/verify-agent-routing.mjs` and `scripts/verify-roadmap-dashboard.mjs`.
+`app/**` and `src/**` are untouched across the whole range.
+
+**The registry stopped being advice and started being a gate.** The earlier draft failed *open*: most
+paths were writable with no lease at all, and only a Risk 3 subset was protected. Ownership was also
+partial, so a large part of the repository had no answerable owner — and one of the entries it did
+have (`app/preload.ts`) named a path that does not exist; the real file is `app/main/preload.ts`.
+Ownership is now total, and **no repository path is writable without a lease**, with a single
+bootstrap exception: one validated task-contract JSON under `docs/ai/contracts/`.
+
+**The shell is leased too, and by role rather than by activation.** `lease-guard.mjs` now runs on
+Bash/PowerShell, fails closed on shell metacharacters and background commands, and grants
+state-changing commands only to the *active holder* and only from that role's own set. Read-only
+discovery (bounded `git` reads, Graphify, `bd` reads) stays available to every activated specialist.
+The Manager may serialize lease transitions and run an exact path-checked Git lifecycle, but cannot
+borrow another specialist's build or implementation commands. `git push origin main` is authorized
+only when the contract declares it *and* a prospective run of the full task gate still passes.
+
+**Preserved user work is fingerprinted rather than merely named.** `preserved_paths` entries became
+`{path, git_status, sha256}` records that the gate re-reads and compares, so an exclusion cannot
+become cover for editing the user's uncommitted files. `write_lease.history` is a new append-only
+archive so a released lease and its violations survive the next holder.
+
+Ownership moved in four places worth knowing: `src/oracle/**` went `recorder` → `runtime` (it is an
+execution/authorization boundary, not a Recorder concern); `tools/license-issuer/**` and
+`.env.example` went to `security`; build/packaging/tsconfig/CI went to `release`; and `project-state`
+picked up all of `docs/**`, the root status Markdown, `change_requests/`, `plans/` and
+`scripts/ai-memory/**`.
+
+Verified this session: `verify:agent-routing` **1040/1040** (cardinality-pinned, so an emptied
+registry fails rather than passing vacuously) · `npm run build` clean (tsc + bundles) ·
+`verify:verifier-classification` reconciled (**195** scripts) · `verify:roadmap-dashboard`
+**164/164** · `graphify update .` rebuilt 13,330 nodes / 27,645 edges / 706 communities ·
+`npm run ai:memory` passed.
+
+**NOT RUN, and deliberately so:** no product verifier (`verify:runner`, `verify:mock-site`,
+`verify:validation`, GUI, packaging, offline) was re-run, because no product code changed in this
+range. That is a scope judgement, not evidence — none of them are claimed as passing here.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **256 total / 250 closed /
+6 outstanding** — one *more* outstanding than the previous entry with nothing filed, because
+`awkit-bkfy` moved backwards across the line when it was reopened and claimed. `awkit-9qcz` remains
+the one open owner decision; four remain BLOCKED on an external system or an owner decision.
+
 ## Condition and runFlow checked: one real defect, one clean bill (2026-08-20)
 
 `awkit-dnbb` closed. Of the two nodes checked this round, **`runFlow` needed no change** and

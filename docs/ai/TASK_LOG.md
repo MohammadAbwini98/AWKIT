@@ -4,6 +4,42 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-21 - Claude (project-state) - Token-aware multi-agent orchestration reconciled (awkit-bkfy)
+
+- **Objective:** reconcile the authoritative project-state sources with the token-aware multi-agent
+  orchestration work landed in 12 commits (`7b4e42e` .. `c6c160d`), and satisfy the E-GRAPHIFY and
+  E-MEMORY evidence items.
+- **Scope of the underlying work:** developer/AI-agent infrastructure ONLY. `app/**` and `src/**` are
+  untouched across the whole range; no Electron main, preload, renderer, runner, packaging or
+  mock-site behaviour changed. Surfaces: `.claude/agents/` (16 generated specialists),
+  `tools/agents/` (14 modules), `docs/ai/routing/`, `scripts/verify-agent-routing.mjs`,
+  `scripts/verify-roadmap-dashboard.mjs`.
+- **What actually changed in kind:** the registry stopped failing OPEN. Ownership went from partial
+  to total, and no repository path is writable without a lease except one validated task-contract
+  JSON under `docs/ai/contracts/`. The shell is leased by ROLE (read-only discovery for any activated
+  specialist; state-changing commands only for the active holder, from its own set). `preserved_paths`
+  became `{path, git_status, sha256}` fingerprints the gate re-reads; `write_lease.history` archives
+  superseded leases. One stale owned entry was corrected: `app/preload.ts` does not exist - it is
+  `app/main/preload.ts`.
+- **Docs written:** `MULTI_AGENT_ARCHITECTURE.md` already existed and covered the roster, routing,
+  the 100K/120K/150K context zones, delegation packet, concurrency budget and compaction checkpoint;
+  it was materially INCOMPLETE on the last five hardening commits, so a "Write and completion
+  enforcement" continuation was added (default-deny, role-aware shell, push authorization, preserved
+  fingerprints, cardinality pins). `CURRENT_STATE.md`, `HANDOFF.md` and `KNOWN_ISSUES.md` updated.
+- **Beads:** `awkit-bkfy` left IN PROGRESS on purpose - its acceptance criteria require the change to
+  be committed and pushed, which the Manager owns. Nothing filed, nothing closed; notes appended and
+  `bd export -o .beads/issues.jsonl` refreshed (plain `bd export` prints to STDOUT and leaves the
+  file the roadmap verifier parses stale).
+- **Tests run:** `graphify update .` PASS (13,330 nodes / 27,645 edges / 706 communities) ·
+  `npm run ai:memory` PASS · `verify:agent-routing` PASS 1040/1040 · `npm run build` PASS ·
+  `verify:verifier-classification` PASS (195) · `verify:roadmap-dashboard` PASS 164/164.
+- **Tests NOT run:** every product verifier (`verify:runner`, `verify:mock-site`, `verify:validation`,
+  GUI, packaging, offline). No product code changed in this range, so they were not re-run. That is a
+  scope judgement and NOT evidence - none of them is claimed as passing here.
+- **Result:** project-state sources reconciled; ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED;
+  tracker 256 total / 250 closed / 6 outstanding. Work is NOT complete - the commit, push and final
+  task gate remain with the Manager.
+
 ## 2026-08-20 - Claude - Condition and runFlow checked; condition fixed (awkit-dnbb)
 
 - **Objective:** check the two remaining control nodes. `runFlow` needed no change; `condition` had a

@@ -1,5 +1,72 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-21) - Token-aware orchestration landed; awkit-bkfy stays IN PROGRESS
+
+### Transfer
+
+- **Canonical branch:** `main` @ `c6c160d`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 256 total / 250 closed / 6 outstanding.** Outstanding rose by one with NOTHING filed:
+  `awkit-bkfy` was reopened and claimed, so it moved from `closed` back to `in_progress`. Do not
+  read that as a new defect. `awkit-9qcz` is still the one genuinely OPEN owner decision; the other
+  four (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`) are BLOCKED externally or on the owner.
+- **`awkit-bkfy` is deliberately NOT closed.** Its acceptance criteria require the change to be
+  committed and pushed to `main`. The Manager owns the Git lifecycle; closing the bead before the
+  push would be a status claim the repository does not support.
+
+### What landed
+
+Twelve commits, `7b4e42e` .. `c6c160d`, all developer/AI-agent infrastructure. **No SpecterStudio
+product code changed** - `app/**` and `src/**` are untouched across the entire range. The surfaces
+are `.claude/agents/` (16 generated specialists), `tools/agents/` (14 modules),
+`docs/ai/routing/`, `scripts/verify-agent-routing.mjs` and `scripts/verify-roadmap-dashboard.mjs`.
+
+The substantive shift is that the routing registry stopped being advice. It used to fail OPEN - most
+paths were writable with no lease, ownership was partial, and one owned entry (`app/preload.ts`)
+named a path that does not exist. Ownership is now total and **no path is writable without a lease**,
+except one validated task-contract JSON under `docs/ai/contracts/`. The shell is leased too, by ROLE
+rather than by activation: read-only discovery for any activated specialist, state-changing commands
+only for the active holder from its own set, and `git push origin main` only when the contract
+declares it and a prospective full task-gate run still passes.
+
+`preserved_paths` entries are now `{path, git_status, sha256}` fingerprints the gate re-reads, so an
+exclusion cannot become cover for editing the user's uncommitted work, and `write_lease.history` is
+a new append-only archive of superseded leases.
+
+### Still uncommitted, and who owns it
+
+```text
+docs/ai/routing/ROUTING_MATRIX.md         project-state   regenerated ownership table
+docs/ai/routing/TASK_CONTRACT.schema.json project-state   fingerprints + lease history schema
+docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,MULTI_AGENT_ARCHITECTURE}.md
+                                          project-state   this reconciliation
+docs/ai/contracts/{active-lease,awkit-bkfy}.json          Manager-only control plane
+tools/roadmap/assignments.json                            Manager claim
+run-app-demo.mjs                          UNTRACKED PRESERVED USER WORK - do not stage or edit
+```
+
+### Commands run, with results
+
+```text
+graphify update .                  PASS   13,330 nodes / 27,645 edges / 706 communities
+npm run ai:memory                  PASS
+verify:agent-routing               PASS   1040/1040 (cardinality-pinned)
+npm run build                      PASS   tsc clean + bundles
+verify:verifier-classification     PASS   195 scripts reconciled
+verify:roadmap-dashboard           PASS   164/164, Overview reads "Sources agree"
+product verifiers (runner, mock-site, validation, GUI, packaging, offline)   NOT RUN - no product
+                                          code changed in this range. A scope judgement, not evidence.
+```
+
+### Next agent
+
+1. **Manager: commit and push.** Nothing else can close `awkit-bkfy`.
+2. **Closing `awkit-bkfy` requires moving a pin in a file this lease does not own.**
+   `scripts/verify-roadmap-dashboard.mjs` hardcodes `"6 outstanding / 250 closed"` (around line 341)
+   and that file is QA-owned. Closing the bead makes it 5/251 and the verifier goes RED on a correct
+   change. Route a QA lease to move the pin in the same session as the close, and **do not relax it
+   to a range** - the pin is what catches a `bd close` whose export was never refreshed.
+3. `awkit-9qcz` is still the one open engineering/owner decision, unchanged from 2026-08-20.
+
 ## HANDOFF (2026-08-20) - Condition fixed, runFlow clean; one owner decision open
 
 ### Transfer
