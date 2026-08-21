@@ -1,15 +1,15 @@
 # CURRENT_STATE
 
-## awkit-9qcz Option A implemented and QC-approved; pre-close push is next (2026-08-22)
+## awkit-9qcz CLOSED: Option A literal-only condition expressions (2026-08-22)
 
 **The owner decision landed: Option A — condition expressions are literal-only.** A condition routes
 only on its literal `step.value`; a `valueSource` attached to a condition is legacy metadata, never
 resolved, never active. This supersedes the investigation section below, which recorded the gate as
 still OPEN/BLOCKED on an owner decision — that gate has now passed. Independent QC returned
 **APPROVED** after finding one imported-JSON edge case (`valueSource: null` crashed validation), routing
-the narrow fix back through software, and independently rechecking it. The bead remains
-**IN_PROGRESS** only for the pre-close push, authoritative closure/export, exact roadmap-pin update,
-and final rest-state reconciliation.
+the narrow fix back through software, and independently rechecking it. `awkit-9qcz` is now
+authoritatively **CLOSED** and exported. Tracker state is exactly **256 total / 252 closed / 4
+outstanding**; the exact roadmap pin was mutation-tested and restored.
 
 **Delivered by a manager-orchestrated multi-agent pass (software → frontend → qa → project-state):**
 
@@ -44,21 +44,24 @@ and final rest-state reconciliation.
   **121/121**; `verify:branch-pairs` **40/40**; `verify:flow-step-mapping` **145/145**;
   `verify:legacy-compat` **152/152**; `test:random:generator` **49/49**.
 - `verify:flow-designer` **PASS**: 112/112 preserved broad GUI checks plus 16/16 capsule checks.
-- `verify:verifier-classification` **PASS**, all 196 scripts classified; pre-close
-  `verify:roadmap-dashboard` **167/167**, **Sources agree**, 0 stale claims.
+- `verify:verifier-classification` **PASS**, all 196 scripts classified;
+  `verify:roadmap-dashboard` **167/167**, **Sources agree**, 0 stale claims, exact 252/4. A deliberate
+  253/3 mutation failed at 166/167 and exit 1 before the correct pin was restored and passed.
 - `typecheck:scripts` remains **FAIL** with the same 9 unrelated diagnostics in 5 existing verifier
   files; it is not misreported as green and is not silently folded into this task.
+- Two extra, non-required random-lab gates are also truthfully red: `test:random:oracle` **26/27**
+  (generic `missingRequiredValue` mutation rejected in 39/54 flows) and
+  `test:random:roundtrip` **25/27** (5 fabricated `clickAndHold` `config` fields). The valid-corpus,
+  condition-focused, and generator gates remain green; see `KNOWN_ISSUES.md`.
 
-**Validation ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED.** Implementing a bead does not by
-itself move a validation-ledger case, and only `build` + `verify:condition-semantics` are confirmed
-green so far — no ledger case was re-executed, so no case status moved. **Tracker: 256 total / 251
-closed / 5 outstanding — unchanged pre-close;** `awkit-9qcz` stays IN_PROGRESS until the authorized
-pre-close push succeeds. Closure should then move the exact pin to 252 closed / 4 outstanding.
+**Validation ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED.** Closing this bead does not move a
+validation-ledger case. **Tracker: 256 total / 252 closed / 4 outstanding.** The remaining four are
+the existing externally blocked items; no new issue was filed during this finalization.
 
-**Residual evidence, expected, not product data:** the gitignored historic
-`reports/random-tests/roundtrip-defects.json` still holds 88 legacy condition+source nodes as frozen
-evidence from before the generator change. That is expected and is neither live product data nor a
-regression — see `KNOWN_ISSUES.md`.
+**Generated evidence, not product data:** independent QC observed the pre-finalization gitignored
+round-trip report at 88 legacy conditions / 88 sources. The optional final round-trip gate regenerated
+it; the current report has 44 conditions / 0 sources and the unrelated `clickAndHold` finding above.
+Neither report is product-loaded data. See `KNOWN_ISSUES.md`.
 
 ## awkit-9qcz investigated: the value source is inert, but conditions are already data-driven (2026-08-21)
 

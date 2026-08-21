@@ -49,6 +49,7 @@
       "src/testing/random/**",
       "scripts/verify-validation.mts",
       "scripts/verify-condition-semantics.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
       "scripts/lib/verifier-classification.ts",
       "package.json",
       "docs/ai/**",
@@ -224,7 +225,7 @@
       "command": "npm run verify:condition-semantics",
       "required": true,
       "result": "PASS",
-      "artifact": "Focused corpus observed 64 generated conditions with non-empty literals and zero valueSource bindings; test:random:generator independently passed 49/49."
+      "artifact": "Focused corpus observed 64 generated conditions with non-empty literals and zero valueSource bindings; test:random:generator independently passed 49/49. Final QA also preserved the former seeded source-generation draw sequence before discarding condition sources, so the intended field omission does not shift unrelated later campaign choices."
     },
     {
       "id": "E-PERSISTENCE",
@@ -256,7 +257,7 @@
       "command": "repeat the Phase B repository scan after implementation and explain every count change",
       "required": true,
       "result": "PASS",
-      "artifact": "Independent QC rescan: tracked product/test-fixture JSON has 1 literal-only condition and 0 sources; live LOCALAPPDATA has 0 conditions; frozen gitignored historical evidence remains 88 conditions/88 sources and is not product-loaded. Zero new product-loaded inert bindings."
+      "artifact": "Independent QC rescan before the optional round-trip run: tracked product/test-fixture JSON had 1 literal-only condition and 0 sources; live LOCALAPPDATA had 0 conditions; the then-frozen gitignored report had 88 conditions/88 sources and was not product-loaded. The final optional test:random:roundtrip regenerated that report by design; it now has 44 conditions/0 sources and 5 unrelated clickAndHold config differences. Product-loaded inert bindings remain zero."
     },
     {
       "id": "E-BUILD",
@@ -320,15 +321,39 @@
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
       "result": "PASS",
-      "artifact": "Pre-close verifier passed 167/167 with Sources agree, 0 stale claims, 256 issues, 5 outstanding / 251 closed. Final post-close exact-cardinality evidence will replace this artifact after authoritative closure."
+      "artifact": "Post-close verifier passed 167/167 with Sources agree, 0 stale claims, 256 issues, 4 outstanding / 252 closed. Exact-pin mutation to 3/253 failed at 166/167 with observed 4/252, exit 1; restored 4/252 passed at 167/167, exit 0, and the mutation is absent from the final diff."
+    },
+    {
+      "id": "E-RANDOM-ORACLE",
+      "type": "verifier",
+      "command": "npm run test:random:oracle",
+      "required": false,
+      "result": "FAIL",
+      "artifact": "26 passed / 1 failed: the generic missingRequiredValue mutation was rejected in 39/54 flows, not 54/54. The valid 54-flow negative control and the Option A focused condition/source-only assertions passed; this broader oracle gap is recorded without being silently repaired here."
+    },
+    {
+      "id": "E-RANDOM-ROUNDTRIP",
+      "type": "verifier",
+      "command": "npm run test:random:roundtrip",
+      "required": false,
+      "result": "FAIL",
+      "artifact": "25 passed / 2 failed: 5 fabricated nodes[].config differences, all on unrelated clickAndHold nodes (holdMs: 1000). Condition corpus now contains 44 conditions and zero value sources."
+    },
+    {
+      "id": "E-SCRIPT-TYPECHECK",
+      "type": "build",
+      "command": "npm run typecheck:scripts",
+      "required": false,
+      "result": "FAIL",
+      "artifact": "Fresh final run exited 1 with the same 9 diagnostics in 5 existing verifier files: TS2352 x4, TS7016 x2, TS2300 x2, TS2345 x1. No diagnostic references verify-condition-semantics.mts."
     },
     {
       "id": "E-PUSH",
       "type": "verifier",
       "command": "git push origin main",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Normal authorized push succeeded: origin/main advanced cad6191..40ea2a1 with investigation, scoped software/frontend/QA implementation, and QC evidence commits."
     }
   ],
   "scope_escapes": [],
@@ -341,7 +366,7 @@
     "push_evidence_id": "E-PUSH"
   },
   "completion": {
-    "status": "pending",
+    "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED"
   },
@@ -527,6 +552,76 @@
         "acquired_at_commit": "bdbf07d30de649280154a3d26548f65cea27136e",
         "released_at": "2026-08-21T21:53:30.125Z",
         "released_reason": "Scoped QA commit 1402120 created; rotate to project-state for evidence, routing classification, and pre-close reconciliation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:project-state:2026-08-21T21:53:57.733Z",
+        "task": "awkit-9qcz",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T21:53:57.733Z",
+        "acquired_at_commit": "1402120d925d663c72757681e10ed3245ddeb6f6",
+        "released_at": "2026-08-21T21:59:19.839Z",
+        "released_reason": "Authorized pre-close push succeeded and awkit-9qcz is CLOSED/exported; rotate to QA for exact roadmap pin and mutation proof",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:qa:2026-08-21T21:59:36.396Z",
+        "task": "awkit-9qcz",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-21T21:59:36.396Z",
+        "acquired_at_commit": "40ea2a1cd928d12ea04689b1e4b6844796939431",
+        "released_at": "2026-08-21T22:01:36.431Z",
+        "released_reason": "Exact 252 closed / 4 outstanding roadmap pin committed as dc4e9a6 with wrong-count mutation rejected at 166/167; rotate to project-state for final closure records",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:project-state:2026-08-21T22:01:50.693Z",
+        "task": "awkit-9qcz",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T22:01:50.693Z",
+        "acquired_at_commit": "dc4e9a6e478a4cc99891d1439e0b7b1f328a704f",
+        "released_at": "2026-08-21T22:06:13.389Z",
+        "released_reason": "Final random-lab gates exposed seeded-corpus drift from condition early return; route deterministic generator correction to QA before final completion",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:qa:2026-08-21T22:06:24.254Z",
+        "task": "awkit-9qcz",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "src/testing/random/**"
+        ],
+        "acquired_at": "2026-08-21T22:06:24.254Z",
+        "acquired_at_commit": "dc4e9a6e478a4cc99891d1439e0b7b1f328a704f",
+        "released_at": "2026-08-21T22:07:57.781Z",
+        "released_reason": "Deterministic generator stream correction committed as 30ed0e5; focused and generator gates pass, two unrelated broader random-lab failures remain for truthful project-state recording",
         "amendments": [],
         "overrides": [],
         "violations": []

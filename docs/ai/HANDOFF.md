@@ -1,27 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-08-22) - awkit-9qcz Option A QC-approved; pre-close push and closure reconciliation remain
+## HANDOFF (2026-08-22) - awkit-9qcz Option A CLOSED and reconciled
 
 ### Transfer
 
-- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** (implementing
-  a bead moves no validation-ledger case, and only `build` + `verify:condition-semantics` are confirmed
-  green so far, so no case was re-executed).
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**; closing this
+  bead moves no validation-ledger case.
 - **Owner decision landed: Option A — condition expressions are literal-only.** A condition routes on
   its literal `step.value`; a `valueSource` on a condition is inert legacy metadata. This supersedes
   the "BLOCKED on the owner decision" handoff below.
 - **Independent QC result: APPROVED.** QC found one real imported-JSON defect (`valueSource: null`
   crashed while formatting the warning); software changed the guard to `!= null`, QA added the
-  regression, and QC independently rechecked the repair. `awkit-9qcz` remains IN_PROGRESS only until
-  the authorized pre-close push, authoritative `bd` closure/export, exact roadmap pin, and final push.
+  regression, and QC independently rechecked the repair. `awkit-9qcz` is authoritatively **CLOSED**
+  and exported: **256 total / 252 closed / 4 outstanding**.
 - **Product semantics DID change this time.** Source touched: `src/validation/FlowValidator.ts`
   (new warning-severity `ignoredConditionValueSource`), `app/renderer/components/workflow/flowProfileMapping.ts`,
   `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`, `src/testing/random/RandomConfigurationGenerator.ts`,
   plus `scripts/verify-condition-semantics.mts` (NEW), `package.json`, and
   `scripts/lib/verifier-classification.ts`. `src/runner/FlowExecutor.ts` is UNCHANGED (Option A carries
   no routing cost). The software/frontend/qa phases committed these to the working tree already.
-- **Lease:** project-state currently owns docs + verifier registry + Beads export + assignments.
-  Validation, frontend, and QA implementation are in scoped local commits; no lease violation exists.
+- **Lease:** project-state owns the final docs/contract/export reconciliation. Validation, frontend,
+  QA, and roadmap-pin work are in scoped commits; no lease violation exists. After the final push,
+  release this lease once and report generated rest-state dirt without reacquiring.
 
 ### What is verified
 
@@ -30,19 +30,25 @@
   **121/121**; `verify:branch-pairs` **40/40**; `verify:flow-step-mapping` **145/145**;
   `verify:legacy-compat` **152/152**; `test:random:generator` **49/49**.
 - `verify:flow-designer` **PASS** (112/112 preserved broad GUI checks plus 16/16 focused capsule
-  checks); `verify:verifier-classification` **PASS** (196 scripts); pre-close roadmap **167/167**,
-  **Sources agree**, 0 stale claims.
+  checks); `verify:verifier-classification` **PASS** (196 scripts); final roadmap **167/167**,
+  **Sources agree**, 0 stale claims, exact 252/4. A deliberate 253/3 pin failed at 166/167 and exit 1;
+  the restored exact pin passed and the mutation is absent from the final diff.
 - `typecheck:scripts` **FAIL**, same 9 unrelated diagnostics in 5 existing verifier files. This task
   does not own or silently repair them.
+- Extra non-required random gates: `test:random:oracle` **26/27 FAIL** (generic
+  `missingRequiredValue` mutation rejected in 39/54 flows) and `test:random:roundtrip` **25/27 FAIL**
+  (5 fabricated `clickAndHold` config fields). Their valid-corpus and condition-focused controls are
+  green. The regenerated gitignored report now contains 44 conditions / 0 sources; see
+  `KNOWN_ISSUES.md`.
 
 ### Manager close-out steps
 
-1. Commit this pre-close project-state evidence and push the scoped commits through the normal gate.
-2. Close `awkit-9qcz` through `bd`, export `.beads/issues.jsonl`, and verify authoritative CLOSED state.
-3. Under QA ownership, update the exact roadmap pin to the live count, deliberately mutate it wrong,
-   prove the verifier fails, restore it, and prove 167/167 with **Sources agree**.
-4. Run the final required gates, refresh AI memory and Graphify, commit/push closure state, then release
-   the final lease and report any expected control-plane rest-state dirt without looping.
+1. Run the final required gates at this exact closure state, including AI memory and Graphify refresh.
+2. Commit and push the final project-state reconciliation through the normal gate.
+3. Verify `main == origin/main`, release the project-state lease once, and report expected
+   lease-lifecycle dirt without entering an acquire/commit/release loop.
+4. No further `awkit-9qcz` implementation remains. The rendered warning/remove click-through is a
+   useful manual follow-up only; source, mapping, compatibility, and broad GUI evidence are green.
 
 ## HANDOFF (2026-08-21) - awkit-9qcz investigated; BLOCKED on the owner decision
 

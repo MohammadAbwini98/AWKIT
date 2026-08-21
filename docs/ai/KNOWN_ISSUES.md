@@ -43,7 +43,27 @@ project-state lease that does not own `scripts/**`, and filing a bead would move
 and the exact roadmap pin in `scripts/verify-roadmap-dashboard.mjs` for a task that changed no
 product behaviour. Route it as a scoped task that owns `scripts/**`.
 
-## RESOLVED by Option A: a condition literal+valueSource is now diagnosed; residual is frozen evidence only (2026-08-21)
+## Broader random-lab gates expose two non-Option-A gaps (2026-08-22)
+
+The required Option A gates are green, including `verify:condition-semantics` **36/36** and
+`test:random:generator` **49/49**. Two additional random-lab gates were run during finalization and
+are truthfully red:
+
+- `test:random:oracle` is **26 PASS / 1 FAIL**. Its generic `missingRequiredValue` mutation is
+  rejected in 39/54 flows rather than 54/54. The 54 valid generated flows remain clean, and the
+  focused condition source-only/missing-literal checks pass, so this is a broader oracle/mutation
+  discrepancy rather than evidence that Option A accepts source-only conditions.
+- `test:random:roundtrip` is **25 PASS / 2 FAIL** with 5 raw differences of one shape:
+  `nodes[].config` fabricated on `clickAndHold` nodes (`holdMs: 1000`). No finding targets a
+  condition. The run regenerates the gitignored report; its current corpus contains 44 conditions
+  and 0 condition value sources.
+
+The condition-source omission now consumes the former seeded source-generation draws before
+discarding the source, so it does not shift unrelated later random choices. These two broader gaps
+still reproduce with that deterministic stream preserved. They were not silently repaired or filed
+as part of `awkit-9qcz`; route them as separate scoped QA/frontend work if they are prioritized.
+
+## RESOLVED by Option A: a condition literal+valueSource is now diagnosed; residual is generated evidence only (2026-08-21)
 
 **RESOLVED and independently QC-approved.** The owner decision landed — Option A, literal-only
 condition expressions (`awkit-9qcz`). The "no diagnostic anywhere" gap below is CLOSED:
@@ -56,11 +76,12 @@ During final QC, an imported `valueSource: null` was found to crash while the di
 `.type`; the guard now uses `!= null`, and the focused verifier proves malformed legacy JSON returns
 normally and treats null as absent metadata.
 
-**Genuine residual, expected, NOT product data:** the gitignored historic
-`reports/random-tests/roundtrip-defects.json` still contains **88** legacy condition+source nodes,
-frozen as evidence from before the generator change. That file is not live product data, is not read
-by the app, and is not a regression — it is preserved deliberately. No live profile carries such a
-node (0 in `%LOCALAPPDATA%/SpecterStudio/`), and the one tracked repository fixture is literal-only.
+**Generated evidence, NOT product data:** independent QC observed the pre-finalization gitignored
+`reports/random-tests/roundtrip-defects.json` at **88** legacy conditions / 88 sources. The optional
+final `test:random:roundtrip` run regenerated that report by design; it now contains 44 conditions /
+0 sources and the unrelated `clickAndHold` finding recorded above. Neither version is read by the
+app. No live profile carries a condition source (0 in `%LOCALAPPDATA%/SpecterStudio/`), and the one
+tracked repository fixture is literal-only.
 
 The pre-fix description below is retained as historical context for how the state arose.
 

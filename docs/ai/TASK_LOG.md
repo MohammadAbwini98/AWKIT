@@ -11,8 +11,9 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   is legacy metadata, never resolved, never active. Supersedes the same-day investigation entry below,
   whose owner-decision gate has now passed.
 - **Result:** implementation and independent QC complete; QC **APPROVED** after finding and verifying
-  the narrow fix for imported `valueSource: null`. `awkit-9qcz` remains IN_PROGRESS only for the
-  authorized pre-close push, authoritative closure/export, exact roadmap pin, and final push.
+  the narrow fix for imported `valueSource: null`. The authorized pre-close push succeeded,
+  `awkit-9qcz` was closed through `bd`, and the 256-issue export now records **252 closed / 4
+  outstanding**.
 - **Files changed:**
   - `src/validation/FlowValidator.ts` — new warning-severity `FlowValidationCode`
     `"ignoredConditionValueSource"`, emitted for a condition with a non-empty literal AND a
@@ -23,7 +24,9 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   - `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx` — condition editor shows a
     non-fatal message naming only `valueSourceOriginal.type` + a remove button; never authors a source.
   - `src/testing/random/RandomConfigurationGenerator.ts` — `valueSourceFor` returns `undefined` for
-    `type === "condition"`; generated conditions carry a literal and no `valueSource`.
+    `type === "condition"`; generated conditions carry a literal and no `valueSource`. It still
+    consumes the former seeded source-generation draws before discarding the condition source, so
+    the intended field omission does not shift unrelated later campaign choices.
   - `scripts/verify-condition-semantics.mts` — **NEW** focused verifier.
   - `package.json` — added `"verify:condition-semantics": "tsx scripts/verify-condition-semantics.mts"`.
   - `scripts/lib/verifier-classification.ts` — registered `verify:condition-semantics` as class `unit`
@@ -39,15 +42,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   `verify:flow-step-mapping` **145/145**; `verify:legacy-compat` **152/152**;
   `test:random:generator` **49/49**; `verify:flow-designer` **PASS** (112/112 preserved broad GUI
   checks + 16/16 focused capsule checks); `verify:verifier-classification` **PASS** (196 scripts);
-  pre-close `verify:roadmap-dashboard` **167/167**, Sources agree, 0 stale claims.
+  final `verify:roadmap-dashboard` **167/167**, Sources agree, 0 stale claims, exact 252/4.
+- **Roadmap mutation proof:** deliberate exact-pin mutation to 253 closed / 3 outstanding failed at
+  **166/167**, observed the live 252/4 values, and exited 1. Restoring 252/4 passed **167/167**, exit 0;
+  the mutation is absent from the final diff.
 - **Expected unrelated red gate:** `typecheck:scripts` **FAIL**, same 9 diagnostics in 5 existing
   verifier files. No diagnostic belongs to `verify-condition-semantics.mts`; no unrelated repair was
   folded into this task.
-- **Ledger:** unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** — implementing a bead moves no
-  validation-ledger case, and no case was re-executed. **Tracker: 256 total / 251 closed / 5
-  outstanding — unchanged pre-close;** `awkit-9qcz` stays IN_PROGRESS until the authorized push.
-- **Beads:** `awkit-9qcz` status/description updated to implementation-complete pending final gates +
-  owner close; `.beads/issues.jsonl` re-exported via `bd export -o .beads/issues.jsonl`.
+- **Additional random-lab evidence:** `test:random:oracle` **26/27 FAIL** (generic
+  `missingRequiredValue` mutation rejected in 39/54 flows) and `test:random:roundtrip` **25/27 FAIL**
+  (5 fabricated `clickAndHold` config fields). Their valid-corpus and condition-focused controls pass;
+  both broader gaps remain separately recorded in `KNOWN_ISSUES.md` and were not silently repaired.
+- **Ledger:** unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. **Tracker: 256 total / 252 closed / 4
+  outstanding.** No new issue was filed.
+- **Beads:** `awkit-9qcz` is authoritatively CLOSED with final Option A/QC/test notes;
+  `.beads/issues.jsonl` was refreshed via `bd export -o .beads/issues.jsonl`.
 
 ---
 
