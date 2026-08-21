@@ -338,8 +338,12 @@ try {
   // {closed: 250, blocked: 4, open: 1 (`awkit-9qcz`), in_progress: 1 (`awkit-bkfy`)}. Note that
   // `bd stats` prints "Blocked: 0" for the same tracker - that field counts dependency-blocked
   // issues, not the `blocked` STATUS, so do not pin against it; `bd list --status blocked` shows 4.
-    "6 outstanding / 250 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 250,
+  // Then 5/251 of 256 on 2026-08-21: the continuing token-aware routing work landed and `awkit-bkfy`
+  // was re-closed, so the bead crossed BACKWARDS across the line - from `outstanding` to `closed` -
+  // without any new issue being filed (total held at 256). Measured state is
+  // {closed: 251, blocked: 4, open: 1 (`awkit-9qcz`), in_progress: 0} over 256 parsed.
+    "5 outstanding / 251 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 251,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
