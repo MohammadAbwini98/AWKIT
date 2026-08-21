@@ -146,29 +146,38 @@ function valueSourceFor(type: StepType, value: string, ctx: ConfigurationContext
   // `FlowExecutor.resolveNext` evaluates it with `evaluateBoolean(step.value ?? "", …)` and never
   // reads `step.valueSource`, so any source attached to a generated condition is inert legacy
   // metadata — never resolved, and never a routing input. A generated condition therefore carries
-  // its literal and NO value source. (The former special case only suppressed the `secret` kind,
-  // which left the other kinds authoring dead bindings on conditions.)
-  if (type === "condition") return undefined;
+  // its literal and NO value source. Still consume the same seeded source-generation draws as the
+  // former behavior before discarding that source. Otherwise this one-field semantic correction
+  // shifts every later choice in a deterministic campaign and makes unrelated nodes change shape.
+  const isCondition = type === "condition";
   const kinds: Array<ValueSource["type"]> = ["static", "static", "static", "env", "runtimeInput", "instanceVariable"];
   if (constraints.recorderFidelity) {
-    kinds.push("secret", "generated", "flowOutput", "dynamic");
+    // Preserve the old condition draw pool exactly: it omitted `secret` but included every other
+    // fidelity kind. The resulting source is discarded below and is not reported as generated.
+    kinds.push(...(isCondition ? [] : (["secret"] as Array<ValueSource["type"]>)), "generated", "flowOutput", "dynamic");
   }
   const kind = rng.pick(kinds);
-  coverage?.recordGenerated("valueSourceType", kind);
+  if (!isCondition) coverage?.recordGenerated("valueSourceType", kind);
 
+  let source: ValueSource;
   switch (kind) {
     case "env":
-      return { type: "env", envKey: rng.pick(SAFE_ENV_KEYS) };
+      source = { type: "env", envKey: rng.pick(SAFE_ENV_KEYS) };
+      break;
     case "runtimeInput":
-      return { type: "runtimeInput", key: rng.pick(SAFE_RUNTIME_INPUT_KEYS) };
+      source = { type: "runtimeInput", key: rng.pick(SAFE_RUNTIME_INPUT_KEYS) };
+      break;
     case "instanceVariable":
-      return { type: "instanceVariable", key: rng.pick(SAFE_INSTANCE_VARIABLES) };
+      source = { type: "instanceVariable", key: rng.pick(SAFE_INSTANCE_VARIABLES) };
+      break;
     case "flowOutput":
-      return { type: "flowOutput", outputKey: rng.pick(SAFE_OUTPUT_KEYS) };
+      source = { type: "flowOutput", outputKey: rng.pick(SAFE_OUTPUT_KEYS) };
+      break;
     case "generated":
-      return { type: "generated", generator: rng.pick(["uuid", "timestamp", "randomEmail", "randomNumber"] as const) };
+      source = { type: "generated", generator: rng.pick(["uuid", "timestamp", "randomEmail", "randomNumber"] as const) };
+      break;
     case "dynamic":
-      return {
+      source = {
         type: "dynamic",
         // Mix the discriminators so the "inactive field is still carried" case (RT-13) is exercised,
         // not only the specific/explicit combination in which both ids are active. `dataSourceId`
@@ -179,12 +188,15 @@ function valueSourceFor(type: StepType, value: string, ctx: ConfigurationContext
         objectId: "lab-object-01",
         keyName: rng.pick(SAFE_TEXT_VALUES)
       };
+      break;
     case "secret":
       // Reference only — never a plaintext value, and deliberately no `value` field.
-      return { type: "secret", secretName: rng.pick(SECRET_REFERENCES) };
+      source = { type: "secret", secretName: rng.pick(SECRET_REFERENCES) };
+      break;
     default:
-      return { type: "static", value };
+      source = { type: "static", value };
   }
+  return isCondition ? undefined : source;
 }
 
 /** The literal value a step carries, appropriate to its type and page. */
