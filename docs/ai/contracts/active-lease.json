@@ -1,15 +1,32 @@
 {
-  "task": "awkit-96o6",
-  "holder": "security",
-  "status": "released",
+  "task": "awkit-bkfy",
+  "contract_path": "docs/ai/contracts/awkit-bkfy.json",
+  "holder": "qa",
+  "status": "active",
   "allowed_paths": [
-    "docs/**",
-    "scripts/**",
-    "tools/roadmap/**"
+    "scripts/verify-agent-routing.mjs",
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
-  "acquired_at": "2026-08-19T19:00:18.339Z",
-  "acquired_at_commit": "67f066d",
-  "baseline_dirty": [],
+  "acquired_at": "2026-08-21T10:57:50.720Z",
+  "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+  "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-bkfy.json",
+    "docs/ai/routing/ROUTING_MATRIX.md",
+    "docs/ai/routing/TASK_CONTRACT.schema.json",
+    "run-app-demo.mjs",
+    "scripts/verify-agent-routing.mjs",
+    "scripts/verify-roadmap-dashboard.mjs"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/active-lease.json": "e801149543b02c213328d66425d0717445e5bf3ace4b7cf037255c08fc15c511",
+    "docs/ai/contracts/awkit-bkfy.json": "6746330b91cf65cfa30b6a73b141a896175ace0e048028915d7550c27eed138c",
+    "docs/ai/routing/ROUTING_MATRIX.md": "144750c888d74867ae618c7e7a75b4fe10b8b5528e2cad13a535c87f6017917c",
+    "docs/ai/routing/TASK_CONTRACT.schema.json": "150dc164fcf8b0bca077c3970fb9e9817d68e4796a021fec2aeda661ca868a54",
+    "run-app-demo.mjs": "6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b",
+    "scripts/verify-agent-routing.mjs": "c01cca7895b4f9c7978b4fbfa459c17715ca165483254da24156372531869120",
+    "scripts/verify-roadmap-dashboard.mjs": "34818e3d1bee5b12b4ffc403d5e555ab3412156907d5a91673be454934024a07"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6054:1785324381414.4578",
@@ -18,24 +35,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1787165636059.1592"
+    "build": "dir(1):native-hosts:1787227098658.2195"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [
-    {
-      "path": ".beads/issues.jsonl",
-      "detectedAt": "2026-08-19T19:00:20.298Z",
-      "via": "bash",
-      "resolved": false
-    },
-    {
-      "path": ".beads/interactions.jsonl",
-      "detectedAt": "2026-08-19T19:05:10.867Z",
-      "via": "bash",
-      "resolved": false
-    }
-  ],
-  "released_at": "2026-08-19T19:07:44.159Z",
-  "released_reason": "handoff complete"
+  "violations": []
 }

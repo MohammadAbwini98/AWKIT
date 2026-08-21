@@ -331,9 +331,55 @@ try {
   // external blocker. `runFlow` was checked in the same pass and needed no change.
   // Then 5/251 of 256: token-aware routing task `awkit-bkfy` filed and closed, so total and closed
   // each rose by one while outstanding stayed at five.
-    "5 outstanding / 251 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 251,
+  // Then 6/250 of 256 on 2026-08-21: NOTHING was filed. 5+251 and 6+250 both total 256, so this was
+  // one bead moving BACKWARDS across the line, not a new issue - `awkit-bkfy` was reopened and
+  // claimed (`bd show awkit-bkfy` reads IN_PROGRESS, Started 2026-08-20) to carry the continuing
+  // token-aware routing work, so it left `closed` and joined `outstanding`. Measured state is
+  // {closed: 250, blocked: 4, open: 1 (`awkit-9qcz`), in_progress: 1 (`awkit-bkfy`)}. Note that
+  // `bd stats` prints "Blocked: 0" for the same tracker - that field counts dependency-blocked
+  // issues, not the `blocked` STATUS, so do not pin against it; `bd list --status blocked` shows 4.
+    "6 outstanding / 250 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 250,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
+  );
+  // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
+  // `bd close`/`bd create` whose export was never refreshed. `bd close` does NOT rewrite
+  // `.beads/issues.jsonl` - only `bd export -o .beads/issues.jsonl` does; plain `bd export` prints
+  // to STDOUT and leaves the file stale. A stale export is perfectly well-formed, so no structural
+  // check can see it. Move the pin deliberately when a bead changes state; never relax it.
+  //
+  // WHAT THE PIN CANNOT PROTECT AGAINST, and why the two checks below exist: it is satisfied by ANY
+  // parse that happens to produce those two numbers - including one that silently dropped records
+  // and was then re-pinned to match. Note that `outstanding + closed === total` is deliberately NOT
+  // asserted: it is a tautology of parse-beads.mjs (`closed` counts status === "closed" and
+  // `outstanding` counts status !== "closed"), so it could never fail and would be decoration.
+  //
+  // Independent recount, taken from the export TEXT rather than from the parse being checked.
+  // parseBeads skips a record whose JSON is unparseable, or whose `_type` is not "issue", with only
+  // a warning - so a parser that lost part of the tracker would still satisfy every `every()` and
+  // every tally in this section. Capture permissively (any line declaring itself an issue record),
+  // validate strictly (the parsed count must equal it exactly).
+  const exportedIssueRecords = readSource("beads")
+    .text.split(/\r?\n/)
+    .filter((line) => /"_type"\s*:\s*"issue"/.test(line)).length;
+  check(
+    "every issue record in the export was parsed, none silently dropped",
+    exportedIssueRecords > 0 && beads.stats.total === exportedIssueRecords,
+    `parsed ${beads.stats.total}, ${exportedIssueRecords} issue records in .beads/issues.jsonl`
+  );
+  // Non-vacuity. Every `.every()` in this section - known status, known edge type - is trivially
+  // true over an empty bead list, and the ordering, provenance and area sections downstream all
+  // build on the same snapshot. An emptied, truncated or entirely-closed ledger must FAIL here
+  // rather than sail through as a green run. The byStatus sum is an invariant guard for a future
+  // refactor of parse-beads.mjs rather than a live discriminator; the three cardinalities are the
+  // part that actually fires today.
+  check(
+    "the tracker has real work on both sides of the ledger",
+    beads.stats.total > 0 &&
+      beads.stats.closed > 0 &&
+      beads.stats.outstanding > 0 &&
+      Object.values(beads.stats.byStatus).reduce((sum, n) => sum + n, 0) === beads.stats.total,
+    `total ${beads.stats.total}, closed ${beads.stats.closed}, outstanding ${beads.stats.outstanding}, byStatus ${JSON.stringify(beads.stats.byStatus)}`
   );
   check(
     "every status in the export is one bd actually defines",

@@ -1,0 +1,440 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-bkfy",
+    "title": "Extend AWKIT routing with token-aware Claude orchestration",
+    "objective": "Reconcile the existing deterministic routing system with the requested AWKIT-specific specialist roster, context-budget policy, supported Claude compaction lifecycle, concise delegation evidence, and representative routing proof without adding product runtime behavior.",
+    "requested_by": "repository owner",
+    "risk_level": 2,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "9f4ad0a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "run-app-demo.mjs",
+        "git_status": "??",
+        "sha256": "6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b"
+      }
+    ]
+  },
+  "classification": {
+    "renderer_visual_change": false,
+    "interaction_change": false,
+    "accessibility_change": false,
+    "electron_main_change": false,
+    "ipc_change": false,
+    "runner_change": false,
+    "execution_change": false,
+    "concurrency_change": false,
+    "persisted_shape_change": false,
+    "migration_required": false,
+    "filesystem_write_change": false,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": false,
+    "protected_login_change": false,
+    "signing_change": false,
+    "packaging_change": true,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "general_engineering_change": false,
+    "performance_change": false,
+    "broad_investigation": false,
+    "project_state_change": true,
+    "agent_infrastructure_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/verify-agent-routing.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "tools/agents/**",
+      ".claude/**",
+      ".codex/**",
+      ".gemini/**",
+      "docs/ai/**",
+      ".beads/**",
+      "tools/roadmap/assignments.json",
+      "package.json"
+    ],
+    "consultants": [
+      "architect"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-agent-routing.mjs",
+        "scripts/verify-roadmap-dashboard.mjs"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "The canonical routing registry remains the only hand-edited role and ownership source.",
+      "No multi-agent behavior is added to the SpecterStudio product runtime or renderer.",
+      "Equivalent conceptual responsibilities are reconciled without duplicate executable agents."
+    ],
+    "security": [
+      "Read-only roles receive no Edit or Write tools and no unrestricted shell write path.",
+      "Compaction checkpoints must not persist transcripts, credentials, secrets, or session state."
+    ],
+    "compatibility": [
+      "Existing Graphify, MCP, skills, hooks, and generated adapters remain functional.",
+      "Only fields supported by installed Claude Code 2.1.201 and current official documentation may be configured."
+    ],
+    "offline": [
+      "All orchestration and context tooling runs locally with Node.js and repository data.",
+      "No production dependency or shipped application surface is added."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "AC-ROLES",
+      "description": "Claude exposes the requested AWKIT responsibilities through bounded, non-duplicate specialist definitions generated from the registry.",
+      "evidence_required": [
+        "E-AGENT-ROUTING",
+        "E-CLAUDE-SMOKE"
+      ]
+    },
+    {
+      "id": "AC-CONTEXT",
+      "description": "The 100K delegation, 120K warning, and approximately 150K compaction policy is implemented with non-blocking supported hooks and an ephemeral repository-state checkpoint.",
+      "evidence_required": [
+        "E-AGENT-ROUTING",
+        "E-CONTEXT-HOOKS",
+        "E-OFFICIAL-DOCS"
+      ]
+    },
+    {
+      "id": "AC-ORCHESTRATION",
+      "description": "Subagents are the default, Agent Teams remain conditional, routine work avoids swarms, and four representative AWKIT scenarios route to the smallest useful set.",
+      "evidence_required": [
+        "E-AGENT-ROUTING",
+        "E-SCENARIOS"
+      ]
+    },
+    {
+      "id": "AC-EVIDENCE",
+      "description": "Delegations are isolated and every specialist returns concise fact, inference, recommendation, unknown, change, check, risk, and next-action evidence.",
+      "evidence_required": [
+        "E-AGENT-ROUTING",
+        "E-QC"
+      ]
+    },
+    {
+      "id": "AC-INTEGRATION",
+      "description": "Build, Graphify, repository memory, verifier classification, and Program Status remain reconciled.",
+      "evidence_required": [
+        "E-BUILD",
+        "E-GRAPHIFY",
+        "E-MEMORY",
+        "E-VERIFIER-CLASSIFICATION",
+        "E-ROADMAP"
+      ]
+    },
+    {
+      "id": "AC-GIT",
+      "description": "Coherent work is committed and pushed directly to main while unrelated user work is preserved.",
+      "evidence_required": [
+        "E-GIT"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-AGENT-ROUTING",
+      "type": "verifier",
+      "command": "npm run verify:agent-routing",
+      "required": true,
+      "result": "PASS",
+      "artifact": "1040/1040 agent routing checks passed; live-lease hook probes RAN (3) and junction confinement probe RAN (1), so the cardinality guard observed a maximum-coverage run"
+    },
+    {
+      "id": "E-CONTEXT-HOOKS",
+      "type": "verifier",
+      "command": "synthetic status-line probes plus PreCompact capture and SessionStart:compact restore probes (no PostCompact hook exists; its absence is itself asserted)",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-SCENARIOS",
+      "type": "verifier",
+      "command": "deterministic UI, Recorder, IPC/security, and unfamiliar-defect routing fixtures",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-CLAUDE-SMOKE",
+      "type": "inspection",
+      "command": "claude --agent <name> read-only smoke probes",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-OFFICIAL-DOCS",
+      "type": "inspection",
+      "command": null,
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-QC",
+      "type": "inspection",
+      "command": null,
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-BUILD",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "PASS",
+      "artifact": "tsc --noEmit clean; main, preload and renderer bundles built"
+    },
+    {
+      "id": "E-GRAPHIFY",
+      "type": "inspection",
+      "command": "graphify update .",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-MEMORY",
+      "type": "verifier",
+      "command": "npm run ai:memory",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "E-VERIFIER-CLASSIFICATION",
+      "type": "verifier",
+      "command": "npm run verify:verifier-classification",
+      "required": true,
+      "result": "PASS",
+      "artifact": "classification reconciled; 195 scripts classified with a per-class breakdown"
+    },
+    {
+      "id": "E-ROADMAP",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "PASS",
+      "artifact": "164/164 roadmap dashboard checks passed; ledger tally 63 PASS / 2 NOT RUN / 1 BLOCKED and both narrative docs agree"
+    },
+    {
+      "id": "E-GIT",
+      "type": "inspection",
+      "command": "git status --short --branch && git push origin main",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-bkfy:manager:2026-08-20T22:05:59.945Z",
+        "task": "awkit-bkfy",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/**",
+          ".gemini/**",
+          "tools/agents/**"
+        ],
+        "acquired_at": "2026-08-20T22:05:59.945Z",
+        "acquired_at_commit": "e0b8b6f",
+        "released_at": "2026-08-20T22:24:27.969Z",
+        "released_reason": "manager infrastructure committed; hand off package command split to release",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:release:2026-08-20T22:24:40.858Z",
+        "task": "awkit-bkfy",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package.json"
+        ],
+        "acquired_at": "2026-08-20T22:24:40.858Z",
+        "acquired_at_commit": "1fbae3d47247b6779cfba810afe8abdb383bccb2",
+        "released_at": "2026-08-20T22:25:12.725Z",
+        "released_reason": "release-owned package command split committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-20T22:25:28.385Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-08-20T22:25:28.385Z",
+        "acquired_at_commit": "9b05a77b952331f41556db9866474aab4b62dd51",
+        "released_at": "2026-08-20T22:44:24.464Z",
+        "released_reason": "QA verifier checkpoint committed; live Bash and agent_type assertions deferred to follow-up QA lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:manager:2026-08-20T22:45:09.609Z",
+        "task": "awkit-bkfy",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/**",
+          ".gemini/**",
+          "tools/agents/**"
+        ],
+        "acquired_at": "2026-08-20T22:45:09.609Z",
+        "acquired_at_commit": "264485f1bf55774118cd3ffd9b4602058ab9aa6e",
+        "released_at": "2026-08-20T23:01:53.576Z",
+        "released_reason": "manager runtime permissions committed; hand off final contract assertions to QA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-20T23:02:16.287Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-08-20T23:02:16.287Z",
+        "acquired_at_commit": "980c0b3da1e31e9a987153af625bb891d0ca1aa8",
+        "released_at": "2026-08-20T23:14:08.575Z",
+        "released_reason": "Role-aware shell enforcement verifier committed; handing back to Manager for the next hardening pass",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:manager:2026-08-20T23:18:56.972Z",
+        "task": "awkit-bkfy",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/**",
+          ".gemini/**",
+          "tools/agents/**"
+        ],
+        "acquired_at": "2026-08-20T23:18:56.972Z",
+        "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+        "released_at": "2026-08-21T09:48:05.098Z",
+        "released_reason": "handing the serialized writer slot to QA to make verify:agent-routing readable and close its failures",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-21T09:50:56.632Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-08-21T09:50:56.632Z",
+        "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+        "released_at": "2026-08-21T09:55:28.697Z",
+        "released_reason": "QA verifier readability landed at 1038 of 1040 and the two remaining failures are project-state owned schema defects",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:project-state:2026-08-21T09:55:34.476Z",
+        "task": "awkit-bkfy",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T09:55:34.476Z",
+        "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+        "released_at": "2026-08-21T10:08:49.172Z",
+        "released_reason": "gates executed, rerouting to qa for verifier pin and cardinality guard",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-21T10:09:12.644Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-21T10:09:12.644Z",
+        "acquired_at_commit": "4c778df824122b794efa2091fe3628f7c9d9c1f0",
+        "released_at": "2026-08-21T10:26:25.280Z",
+        "released_reason": "verifier readability, cardinality guard and beads pin complete, rerouting for independent QC review",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

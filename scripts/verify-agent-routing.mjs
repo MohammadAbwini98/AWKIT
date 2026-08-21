@@ -112,13 +112,65 @@ import {
   targetPathOf
 } from "../tools/agents/lease-guard.mjs";
 
+/**
+ * Quiet by default, opt-in verbose.
+ *
+ * WHY: this suite runs over a thousand assertions (1,040 at the time of writing). Logging an `OK`
+ * line for each one produced an output
+ * stream far larger than an agent host's ~20,000-character capture window, so the truncation ate
+ * both the `FAIL` lines and the trailing `N/M ... checks passed` summary — a failing run was
+ * indistinguishable from a passing one at the only place anyone reads it. Passes are counted but
+ * silent; failures and the summary always print. Pass `--verbose` / `-v` to restore the per-check
+ * `OK` log when debugging interactively.
+ *
+ * This changes reporting only: every assertion still runs and `passed`/`failed` are counted exactly
+ * as before, and the exit code is still driven by `failed`.
+ */
+const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg === "-v");
+
+/**
+ * Cardinality guard — the suite asserts its own assertion count.
+ *
+ * WHY: this suite reported 1,040 assertions, then 1,037 with ZERO failures, and the drop went
+ * unnoticed because the summary still read green. Nothing had been deleted. The live-lease block
+ * near the end only executes when the ACTIVE write lease happens to grant this verifier's own path
+ * (`if (productionLease && AGENT_IDS.includes(...) && leaseAllows(..., "scripts/verify-agent-routing.mjs"))`),
+ * so under a lease scoped elsewhere its three probes of the real PreToolUse hook silently did not
+ * run. That is precisely the "checks quietly stop running while the summary reads green" failure
+ * this repository has been bitten by repeatedly — and the skipped three are the only assertions that
+ * exercise the live hook against the live lease, i.e. the highest-value ones in the file.
+ *
+ * A **DROP** in the total means assertions stopped running. Find out WHAT stopped and why; do not
+ * re-pin reflexively — re-pinning a drop is how the hole gets closed over instead of closed.
+ * A **RISE** means assertions were added: re-pin deliberately, in the same commit that adds them.
+ *
+ * The two genuinely state-dependent blocks are declared, sized and REPORTED here, so a skip becomes
+ * a printed fact instead of a silent subtraction. Any other block that stops running — a `try` that
+ * starts throwing halfway, a loop whose collection empties, an assertion someone comments out —
+ * fails this guard, because everything else in the file iterates static registry data.
+ *
+ * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
+ * the summary line prints.
+ */
+const EXPECTED_UNCONDITIONAL_CHECKS = 1036;
+/** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
+const EXPECTED_LIVE_LEASE_CHECKS = 3;
+/** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
+const EXPECTED_JUNCTION_CHECKS = 1;
+
+/* Set by the conditional blocks themselves, so the expected total is derived, never guessed. */
+let liveLeaseBlockRan = false;
+let liveLeaseBlockChecks = 0;
+let junctionBlockRan = false;
+let junctionBlockChecks = 0;
+
 let passed = 0;
 let failed = 0;
 
 function check(label, condition, detail = "") {
   if (condition) {
     passed += 1;
-    console.log(`  OK ${label}`);
+    if (VERBOSE) console.log(`  OK ${label}`);
   } else {
     failed += 1;
     console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
@@ -2251,10 +2303,14 @@ try {
     junctionSupported = false;
   }
   if (junctionSupported) {
+    // Declared conditional: sized and reported by the cardinality guard, never silently skipped.
+    junctionBlockRan = true;
+    const junctionChecksBefore = passed + failed;
     check(
       "physical path confinement rejects a lexical in-repo path through an external junction",
       !isPhysicallyWithinRepo(join(junctionPath, "escaped.ts"), confinementRoot)
     );
+    junctionBlockChecks = passed + failed - junctionChecksBefore;
   }
 
   const incompletePushContract = validContract();
@@ -2304,11 +2360,16 @@ try {
   );
 
   const productionLease = readLease();
+  // Declared conditional. These three probes drive the REAL PreToolUse hook against the REAL active
+  // lease, so they can only run while that lease grants this file. When it does not, they are not
+  // "passing" — they are absent, and the cardinality guard prints that instead of hiding it.
   if (
     productionLease &&
     AGENT_IDS.includes(productionLease.holder) &&
     leaseAllows(productionLease, "scripts/verify-agent-routing.mjs")
   ) {
+    liveLeaseBlockRan = true;
+    const liveLeaseChecksBefore = passed + failed;
     check(
       "the live production lease stores its exact task contract as a repo-relative canonical path",
       productionLease.contract_path === `docs/ai/contracts/${productionLease.task}.json` &&
@@ -2381,6 +2442,7 @@ try {
         .map((probe) => `${probe.status}:${probe.stderr}`)
         .join(" | ")
     );
+    liveLeaseBlockChecks = passed + failed - liveLeaseChecksBefore;
   }
 
   const safeNoLeaseCommands = [
@@ -3427,5 +3489,35 @@ try {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }
 
-console.log(`\n${passed}/${passed + failed} agent routing checks passed`);
-if (failed > 0) process.exit(1);
+/* ── Cardinality guard: the suite asserts its own assertion count (see the pins at the top) ─────
+   Deliberately NOT a `check()` call — it must not perturb the number it is measuring, so the pinned
+   constants equal the total the summary line prints. */
+const ranChecks = passed + failed;
+const expectedChecks =
+  EXPECTED_UNCONDITIONAL_CHECKS +
+  (liveLeaseBlockRan ? EXPECTED_LIVE_LEASE_CHECKS : 0) +
+  (junctionBlockRan ? EXPECTED_JUNCTION_CHECKS : 0);
+const conditionalReport = [
+  liveLeaseBlockRan
+    ? `live-lease hook probes RAN (${liveLeaseBlockChecks})`
+    : "live-lease hook probes SKIPPED - the active lease does not grant scripts/verify-agent-routing.mjs",
+  junctionBlockRan
+    ? `junction confinement probe RAN (${junctionBlockChecks})`
+    : "junction confinement probe SKIPPED - this filesystem refused a junction"
+].join("; ");
+console.log(`Conditional blocks: ${conditionalReport}`);
+
+let cardinalityOk = ranChecks === expectedChecks;
+if (liveLeaseBlockRan && liveLeaseBlockChecks !== EXPECTED_LIVE_LEASE_CHECKS) cardinalityOk = false;
+if (junctionBlockRan && junctionBlockChecks !== EXPECTED_JUNCTION_CHECKS) cardinalityOk = false;
+if (!cardinalityOk) {
+  console.error(
+    `  FAIL suite cardinality - expected ${expectedChecks} assertions, ran ${ranChecks} ` +
+      `(unconditional pin ${EXPECTED_UNCONDITIONAL_CHECKS}; ${conditionalReport}). ` +
+      "A DROP means assertions silently stopped running: find what stopped before re-pinning. " +
+      "A RISE means assertions were added: re-pin deliberately in the same commit."
+  );
+}
+
+console.log(`\n${passed}/${ranChecks} agent routing checks passed`);
+if (failed > 0 || !cardinalityOk) process.exit(1);

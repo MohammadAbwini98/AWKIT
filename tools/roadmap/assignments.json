@@ -17,5 +17,13 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-bkfy",
+      "agent": "Quality Assurance Engineer",
+      "state": "in-progress",
+      "claimedAt": "2026-08-21T10:57:50.720Z",
+      "note": "write lease: scripts/verify-agent-routing.mjs, scripts/verify-roadmap-dashboard.mjs"
+    }
+  ]
 }
