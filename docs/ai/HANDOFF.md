@@ -1,17 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-08-21) - Token-aware orchestration landed; awkit-bkfy stays IN PROGRESS
+## HANDOFF (2026-08-21) - Token-aware orchestration landed; awkit-bkfy CLOSED
 
 ### Transfer
 
-- **Canonical branch:** `main` @ `c6c160d`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
-- **Tracker: 256 total / 250 closed / 6 outstanding.** Outstanding rose by one with NOTHING filed:
-  `awkit-bkfy` was reopened and claimed, so it moved from `closed` back to `in_progress`. Do not
-  read that as a new defect. `awkit-9qcz` is still the one genuinely OPEN owner decision; the other
-  four (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`) are BLOCKED externally or on the owner.
-- **`awkit-bkfy` is deliberately NOT closed.** Its acceptance criteria require the change to be
-  committed and pushed to `main`. The Manager owns the Git lifecycle; closing the bead before the
-  push would be a status claim the repository does not support.
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** (closing a
+  bead does not move a validation-ledger case).
+- **Tracker: 256 total / 251 closed / 5 outstanding.** `awkit-bkfy` is now **CLOSED** (closure date
+  2026-08-21). `awkit-9qcz` (P3, OPEN) is the one genuinely open owner decision; the other four
+  (`awkit-cey`, `awkit-7bu`, `awkit-cm8`, `awkit-az7`) are BLOCKED externally or on the owner.
+- **`awkit-bkfy` is CLOSED in authoritative `bd`.** Closure commits already on `main`: `4f640b5`
+  *docs(tracker): close awkit-bkfy* and `26e8229` *test(roadmap): update closed-work tracker
+  cardinality*. The roadmap pin was moved under a QA lease (`6 outstanding / 250 closed` →
+  `5 outstanding / 251 closed`), mutation-tested, and `verify:roadmap-dashboard` is green **167/167**,
+  "Sources agree", **0 stale claims**. A final project-state docs commit (Phase D) and the Phase E
+  push remain the Manager's to make — the project-state specialist does not commit.
 
 ### What landed
 
@@ -32,40 +35,44 @@ declares it and a prospective full task-gate run still passes.
 exclusion cannot become cover for editing the user's uncommitted work, and `write_lease.history` is
 a new append-only archive of superseded leases.
 
-### Still uncommitted, and who owns it
+### Rest-state working tree (lease-generated dirt, expected)
 
 ```text
-docs/ai/routing/ROUTING_MATRIX.md         project-state   regenerated ownership table
-docs/ai/routing/TASK_CONTRACT.schema.json project-state   fingerprints + lease history schema
-docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,MULTI_AGENT_ARCHITECTURE}.md
-                                          project-state   this reconciliation
-docs/ai/contracts/{active-lease,awkit-bkfy}.json          Manager-only control plane
-tools/roadmap/assignments.json                            Manager claim
-run-app-demo.mjs                          UNTRACKED PRESERVED USER WORK - do not stage or edit
+docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md   project-state   this reconciliation
+docs/ai/contracts/active-lease.json        M                Manager-only control plane
+docs/ai/contracts/awkit-bkfy.json          M                Manager-only control plane
+tools/roadmap/assignments.json             M                claims array is [] (no active claim)
+run-app-demo.mjs                           ??  UNTRACKED PRESERVED USER WORK - do not stage or edit
 ```
 
-### Commands run, with results
+### Commands run this reconciliation, with results
 
 ```text
-graphify update .                  PASS   13,330 nodes / 27,645 edges / 706 communities
-npm run ai:memory                  PASS
-verify:agent-routing               PASS   1040/1040 (cardinality-pinned)
-npm run build                      PASS   tsc clean + bundles
-verify:verifier-classification     PASS   195 scripts reconciled
-verify:roadmap-dashboard           PASS   164/164, Overview reads "Sources agree"
-product verifiers (runner, mock-site, validation, GUI, packaging, offline)   NOT RUN - no product
-                                          code changed in this range. A scope judgement, not evidence.
+bd list --status blocked           4 issues  (awkit-7bu, awkit-az7, awkit-cey, awkit-cm8)
+bd list --status open              1 issue   (awkit-9qcz)
+bd list --status in_progress       0 issues
+npm run ai:memory                  <recorded in TASK_LOG>
+verify:roadmap-dashboard           167/167, "Sources agree", 0 stale claims
+verify:agent-routing               <recorded in TASK_LOG>
+verify:verifier-classification     <recorded in TASK_LOG>
+git diff --check                   <recorded in TASK_LOG>
 ```
+
+Earlier this session (multi-agent architecture landing): `graphify update .` rebuilt 13,330 nodes /
+27,645 edges / 706 communities; `npm run build` clean (tsc + bundles). No product verifier
+(`verify:runner`, `verify:mock-site`, `verify:validation`, GUI, packaging, offline) was re-run — no
+product code changed in the range, a scope judgement rather than evidence.
+
+**E-COMPACT-THRESHOLD remains NOT RUN** and is non-required: `200000 * 0.75 = 150000` is a documented
+configuration value, not runtime-trigger evidence, and the auto-compaction trigger is unmeasured.
 
 ### Next agent
 
-1. **Manager: commit and push.** Nothing else can close `awkit-bkfy`.
-2. **Closing `awkit-bkfy` requires moving a pin in a file this lease does not own.**
-   `scripts/verify-roadmap-dashboard.mjs` hardcodes `"6 outstanding / 250 closed"` (around line 341)
-   and that file is QA-owned. Closing the bead makes it 5/251 and the verifier goes RED on a correct
-   change. Route a QA lease to move the pin in the same session as the close, and **do not relax it
-   to a range** - the pin is what catches a `bd close` whose export was never refreshed.
-3. `awkit-9qcz` is still the one open engineering/owner decision, unchanged from 2026-08-20.
+1. **Manager: commit the Phase D docs reconciliation, then perform the Phase E push.** `awkit-bkfy`
+   is already CLOSED in `bd`; these Git steps finalize the paper trail, they do not gate the close.
+2. `awkit-9qcz` is still the one open engineering/owner decision, unchanged from 2026-08-20.
+3. Four items remain BLOCKED on an external system or an owner decision: `awkit-7bu`, `awkit-az7`,
+   `awkit-cey`, `awkit-cm8`.
 
 ## HANDOFF (2026-08-20) - Condition fixed, runFlow clean; one owner decision open
 

@@ -263,7 +263,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
       "result": "PASS",
-      "artifact": "167/167 roadmap dashboard checks passed; ledger tally 63 PASS / 2 NOT RUN / 1 BLOCKED, beads pin 6 outstanding / 250 closed over 256 parsed. The total rose from 164 because three checks were ADDED, not because a pin was moved: the gate previously asserted only consistency.checked >= 2, a non-vacuity guard, and never asserted that the sources actually agree, so the Overview banner could have read Sources disagree with the gate still green. It now asserts the copies half, the stale-claim half, and consistency.agrees === true read from the same computed field tools/roadmap/public/views.js renders, so the banner is OBSERVED rather than inferred: it reads Sources agree, and measured stale claims are 0. All three new checks were mutation-tested: ONE perturbation of the live snapshot made all three fail simultaneously (164/167, exit 1, with usable diagnostics naming the disagreeing file, the stale claim and the false conjunction), after which the mutation was reverted and the clean run returned 167/167. Stated precisely, that shows all three are SENSITIVE to a consistency break; it does not show each was mutation-tested in isolation. This verifier has no hardcoded total-check pin; the total is derived."
+      "artifact": "167/167 roadmap dashboard checks passed; ledger tally 63 PASS / 2 NOT RUN / 1 BLOCKED, beads pin 5 outstanding / 251 closed over 256 parsed after awkit-bkfy was closed and the pin updated under the QA lease in this session, re-verified green with Sources agree and 0 stale claims. The total rose from 164 because three checks were ADDED, not because a pin was moved: the gate previously asserted only consistency.checked >= 2, a non-vacuity guard, and never asserted that the sources actually agree, so the Overview banner could have read Sources disagree with the gate still green. It now asserts the copies half, the stale-claim half, and consistency.agrees === true read from the same computed field tools/roadmap/public/views.js renders, so the banner is OBSERVED rather than inferred: it reads Sources agree, and measured stale claims are 0. All three new checks were mutation-tested: ONE perturbation of the live snapshot made all three fail simultaneously (164/167, exit 1, with usable diagnostics naming the disagreeing file, the stale claim and the false conjunction), after which the mutation was reverted and the clean run returned 167/167. Stated precisely, that shows all three are SENSITIVE to a consistency break; it does not show each was mutation-tested in isolation. This verifier has no hardcoded total-check pin; the total is derived."
     },
     {
       "id": "E-GIT",
@@ -284,9 +284,11 @@
     "push_evidence_id": "E-GIT"
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "APPROVED"
+    "qc_status": "APPROVED",
+    "closed_at": "2026-08-21",
+    "closed_note": "awkit-bkfy closed in authoritative bd after all required evidence PASS, qa PASS and qc APPROVED; the non-required E-COMPACT-THRESHOLD remains NOT RUN and blocks no acceptance criterion."
   },
   "write_lease": {
     "history": [
@@ -527,6 +529,58 @@
         "acquired_at_commit": "c6c160da114d1a7d7af1b40063feb2289238465c",
         "released_at": "2026-08-21T11:51:34.366Z",
         "released_reason": "verifier commit staged and recorded on main",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:project-state:2026-08-21T11:51:51.968Z",
+        "task": "awkit-bkfy",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T11:51:51.968Z",
+        "acquired_at_commit": "da76a66f0be956a35e421e8c2560e78a612c2990",
+        "released_at": "2026-08-21T11:57:50.647Z",
+        "released_reason": "multi-agent architecture task committed and pushed to main",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:project-state:2026-08-21T15:16:09.713Z",
+        "task": "awkit-bkfy",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T15:16:09.713Z",
+        "acquired_at_commit": "63d9d7ac59f9f39f5371d213aeafe05995e3b107",
+        "released_at": "2026-08-21T15:26:01.300Z",
+        "released_reason": "closure export committed as 4f640b5, rerouting to qa for the roadmap-dashboard cardinality pin",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-bkfy:qa:2026-08-21T15:26:17.984Z",
+        "task": "awkit-bkfy",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-21T15:26:17.984Z",
+        "acquired_at_commit": "4f640b5f29eea656b6c93c140f4bcb958abff8e3",
+        "released_at": "2026-08-21T15:29:19.314Z",
+        "released_reason": "roadmap pin committed as 26e8229, rerouting to project-state for docs and memory reconciliation",
         "amendments": [],
         "overrides": [],
         "violations": []

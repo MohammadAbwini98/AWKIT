@@ -2,10 +2,12 @@
 
 ## Token-aware multi-agent orchestration: the write lease became enforcement (2026-08-21)
 
-`awkit-bkfy` is **IN PROGRESS, not closed** — its own acceptance criteria require the change to be
-committed and pushed to `main`, and the Manager owns that step. Twelve commits (`7b4e42e` ..
-`c6c160d`) have landed on `main`; two files the Documentation/Project-State lease owns are still
-uncommitted in the working tree.
+`awkit-bkfy` is **CLOSED** in the authoritative `bd` tracker (closure date 2026-08-21). The
+multi-agent architecture is landed on `main`; this is bookkeeping reconciliation, not new
+implementation. Closure commits already on `main`: `4f640b5` *docs(tracker): close awkit-bkfy* and
+`26e8229` *test(roadmap): update closed-work tracker cardinality*. A final Documentation/Project-State
+docs commit (Phase D) is made by the Manager after this reconciliation lands, followed by the Phase E
+push — the current specialist does not commit; the Manager owns all Git.
 
 **This is developer/AI-agent infrastructure only.** Nothing in the SpecterStudio product changed:
 no Electron main, no preload, no renderer, no runner, no packaging, no mock site. The surfaces
@@ -49,10 +51,19 @@ registry fails rather than passing vacuously) · `npm run build` clean (tsc + bu
 `verify:validation`, GUI, packaging, offline) was re-run, because no product code changed in this
 range. That is a scope judgement, not evidence — none of them are claimed as passing here.
 
-Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **256 total / 250 closed /
-6 outstanding** — one *more* outstanding than the previous entry with nothing filed, because
-`awkit-bkfy` moved backwards across the line when it was reopened and claimed. `awkit-9qcz` remains
-the one open owner decision; four remain BLOCKED on an external system or an owner decision.
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** (closing a bead does not move a
+validation-ledger case). Tracker: **256 total / 251 closed / 5 outstanding** after closing
+`awkit-bkfy`. The roadmap pin in `scripts/verify-roadmap-dashboard.mjs` was moved
+`6 outstanding / 250 closed` → `5 outstanding / 251 closed`, mutation-tested, and the verifier is
+green **167/167** with the Overview banner reading **"Sources agree"** and **0 stale claims**. The
+five outstanding items are `awkit-9qcz` (P3, OPEN — the one open owner decision, a condition
+data-driven value-source feature question) plus four BLOCKED on an external system or owner decision:
+`awkit-7bu` (Oracle live rerun), `awkit-az7` (Populated System Reports GUI, 2 owner-decision OS shell
+launches), `awkit-cey` (real-IdP Chrome handoff), and `awkit-cm8` (Oracle JDBC external gates).
+
+**E-COMPACT-THRESHOLD remains NOT RUN** and is non-required. Its configuration value
+(`200000 * 0.75 = 150000`) is documented, but configuration evidence is not runtime-trigger evidence:
+the auto-compaction trigger is unmeasured and is not claimed as PASS.
 
 ## Condition and runFlow checked: one real defect, one clean bill (2026-08-20)
 

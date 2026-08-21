@@ -35,6 +35,22 @@ mechanism's failure mode is indistinguishable from "everything is fine".
   **never** be upgraded to `PASS` on the basis of the setting being present — only an *observed*
   compaction event at a measured context size is evidence.
 
+## RISK: two more low-severity seams surfaced closing awkit-bkfy (2026-08-21)
+
+Non-blocking, carried forward from the `awkit-bkfy` closure review. Neither is fixed.
+
+- **`findStaleClaims` has limited sensitivity and no fixture proving it can return non-empty.**
+  `tools/roadmap/lib/link.mjs` `findStaleClaims` gates the roadmap dashboard's "0 stale claims"
+  reading, but there is no test that injects an actually-stale claim and asserts the function returns
+  it. A `.every()`/empty-collection-style pass is therefore possible: the check could report zero
+  stale claims because it cannot detect one, not because none exist. Add a fixture that makes it
+  return non-empty before trusting the zero.
+- **Some consistency copies inherit booleans computed elsewhere (`model.mjs`) rather than
+  re-deriving them.** Parts of the roadmap consistency readout carry forward a boolean produced in
+  `model.mjs` instead of recomputing it from the sources at the point of display, so a defect in the
+  upstream derivation would propagate silently into "Sources agree" rather than being caught
+  independently. Prefer independent re-derivation at each consumer.
+
 ## DEFECT: the roster's turn budget starves the one role independence depends on (2026-08-21)
 
 In `tools/agents/routing-matrix.mjs`, read-only roles carry `maxTurns` 14–18 while writer roles carry
@@ -54,17 +70,18 @@ scoped task that owns the registry.
 
 ## FRAGILE: closing a bead breaks a QA-owned pin that the project-state lease cannot reach (2026-08-21)
 
-`verify:roadmap-dashboard` hardcodes an exact `"N outstanding / M closed"` pair (today
-`6 outstanding / 250 closed`, around line 341 of `scripts/verify-roadmap-dashboard.mjs`). The pin is
-correct and deliberately not a range: it is the only thing that catches a `bd close` whose export was
-never refreshed, because a stale `.beads/issues.jsonl` is perfectly well-formed and no structural
-check can see it.
+`verify:roadmap-dashboard` hardcodes an exact `"N outstanding / M closed"` pair (now
+`5 outstanding / 251 closed`, around line 341 of `scripts/verify-roadmap-dashboard.mjs`, updated
+under a QA lease when `awkit-bkfy` closed on 2026-08-21). The pin is correct and deliberately not a
+range: it is the only thing that catches a `bd close` whose export was never refreshed, because a
+stale `.beads/issues.jsonl` is perfectly well-formed and no structural check can see it.
 
-The trap is that the pin now lives in a **QA-owned** file while beads are **project-state-owned**.
+The trap is that the pin lives in a **QA-owned** file while beads are **project-state-owned**.
 Under the write lease, the project-state holder can legitimately close a bead and then cannot fix the
 verifier its own correct change just turned red — the lease guard blocks the edit, by design. Route a
-QA lease to move the pin **in the same session as the close**, or sequence the close into a session
-that already holds one. Do not relax the pin to a range, and do not work around the guard.
+QA lease to move the pin **in the same session as the close** (as was done for `awkit-bkfy`), or
+sequence the close into a session that already holds one. Do not relax the pin to a range, and do not
+work around the guard.
 
 Two adjacent facts that cost time:
 

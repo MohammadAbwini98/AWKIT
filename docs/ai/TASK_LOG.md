@@ -4,6 +4,39 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-21 - Claude (project-state, Manager orchestration) - Close awkit-bkfy / finalize multi-agent architecture closure state
+
+- **Objective:** Phase D bookkeeping reconciliation for closing `awkit-bkfy` — make every authoritative
+  narrative source describe the actual CLOSED state. No implementation; the multi-agent architecture is
+  already landed on `main`.
+- **Closure facts recorded:** `awkit-bkfy` CLOSED in authoritative `bd` (Phase C), closure date
+  2026-08-21. `.beads/issues.jsonl` refreshed with `bd export -o .beads/issues.jsonl`. Final tracker
+  totals **256 total / 251 closed / 5 outstanding**. Closure commits already on `main`: `4f640b5`
+  *docs(tracker): close awkit-bkfy* and `26e8229` *test(roadmap): update closed-work tracker
+  cardinality*. The roadmap pin in `scripts/verify-roadmap-dashboard.mjs` was moved
+  `6 outstanding / 250 closed` → `5 outstanding / 251 closed` under a QA lease and mutation-tested.
+- **Outstanding (5), confirmed live via read-only `bd`:** `awkit-9qcz` (P3, OPEN — condition
+  data-driven value-source, owner decision) + 4 BLOCKED — `awkit-7bu` (Oracle live rerun),
+  `awkit-az7` (Populated System Reports GUI, 2 owner-decision OS shell launches), `awkit-cey`
+  (real-IdP Chrome handoff), `awkit-cm8` (Oracle JDBC external gates). `in_progress` is empty.
+- **Docs updated:** `CURRENT_STATE.md` (top section: IN PROGRESS → CLOSED, tracker 251/5, verifier
+  167/167, Sources agree, E-COMPACT-THRESHOLD NOT RUN preserved), `HANDOFF.md` (header + Transfer +
+  rest-state working tree + commands + Next agent), `TASK_LOG.md` (this entry), `KNOWN_ISSUES.md`
+  (four non-blocking risks preserved). Ledger tally **63 PASS / 2 NOT RUN / 1 BLOCKED** restated
+  verbatim in both `CURRENT_STATE.md` and `HANDOFF.md` for the roadmap narrative-consistency check.
+- **Beads:** no bead filed or closed in this phase; `awkit-bkfy` was closed in Phase C.
+- **Gates run:** `npm run ai:memory` · `npm run verify:roadmap-dashboard` (167/167, Sources agree,
+  0 stale claims) · `npm run verify:agent-routing` · `npm run verify:verifier-classification` ·
+  `git diff --check`. Results recorded in the session report.
+- **NOT RUN:** E-COMPACT-THRESHOLD (non-required; runtime auto-compaction trigger unmeasured — the
+  documented `200000 * 0.75 = 150000` is configuration evidence, not runtime-trigger evidence). No
+  product verifier re-run — no product code changed.
+- **Rest-state dirt (expected, lease-generated):** `docs/ai/contracts/active-lease.json` (M),
+  `docs/ai/contracts/awkit-bkfy.json` (M), `tools/roadmap/assignments.json` (M, claims `[]`),
+  `run-app-demo.mjs` (??, untracked preserved user work — not touched).
+- **Result:** project-state sources reconciled to the CLOSED state. The Phase D docs commit and the
+  Phase E push remain the Manager's — the project-state specialist does not commit.
+
 ## 2026-08-21 - Claude (project-state) - Token-aware multi-agent orchestration reconciled (awkit-bkfy)
 
 - **Objective:** reconcile the authoritative project-state sources with the token-aware multi-agent
