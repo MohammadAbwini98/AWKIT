@@ -340,10 +340,11 @@ try {
   // issues, not the `blocked` STATUS, so do not pin against it; `bd list --status blocked` shows 4.
   // Then 5/251 of 256 on 2026-08-21: the continuing token-aware routing work landed and `awkit-bkfy`
   // was re-closed, so the bead crossed BACKWARDS across the line - from `outstanding` to `closed` -
-  // without any new issue being filed (total held at 256). Measured state is
-  // {closed: 251, blocked: 4, open: 1 (`awkit-9qcz`), in_progress: 0} over 256 parsed.
-    "5 outstanding / 251 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 251,
+  // without any new issue being filed (total held at 256).
+  // Then 4/252 of 256 on 2026-08-22: Option A landed and `awkit-9qcz` closed, again with no issue
+  // filed. Measured state is {closed: 252, blocked: 4, open: 0, in_progress: 0} over 256 parsed.
+    "4 outstanding / 252 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 252,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
