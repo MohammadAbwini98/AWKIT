@@ -774,6 +774,36 @@ try {
     `checked ${snapshot.consistency.checked}`
   );
 
+  // `checked >= 2` above proves the banner looked at something; it passes whether or not those
+  // sources agree. AGENTS.md requires the Overview banner to read "Sources agree", and until
+  // 2026-08-21 no gate asserted that — the banner could render "Sources disagree" with this
+  // verifier fully green. `agrees` is the exact boolean views.js renders the banner from
+  // (tools/roadmap/lib/model.mjs: copies.every(c => c.agrees) && staleClaims.length === 0), so
+  // assert it directly rather than re-deriving a copy of the predicate here. Both halves are
+  // asserted separately below so a failure names which one broke.
+  const disagreeingCopies = snapshot.consistency.copies.filter((c) => !c.agrees);
+  check(
+    "no narrative copy of the ledger tally disagrees with the measured one",
+    disagreeingCopies.length === 0,
+    disagreeingCopies
+      .map((c) => `${c.rel} asserts ${c.tally.pass}/${c.tally.notRun}/${c.tally.blocked}`)
+      .join("; ")
+  );
+  check(
+    "no stale ledger claim is live in the tracker",
+    snapshot.consistency.staleClaims.length === 0,
+    snapshot.consistency.staleClaims
+      .map((s) => `${s.itemId} claims ${s.claimed} for ${s.area}, ledger measures ${s.measured}`)
+      .join("; ")
+  );
+  check(
+    'the Overview banner reads "Sources agree"',
+    snapshot.consistency.agrees === true,
+    `consistency.agrees is ${snapshot.consistency.agrees}: ${disagreeingCopies.length} of ` +
+      `${snapshot.consistency.copies.length} copies disagree and ` +
+      `${snapshot.consistency.staleClaims.length} stale claims are live`
+  );
+
   /* ======================================================================
      9. Server
      ====================================================================== */
