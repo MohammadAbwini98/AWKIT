@@ -17,6 +17,10 @@
  */
 import type { FlowEdge, FlowProfile, FlowStep, StepType } from "../../profiles/FlowProfile";
 import { connectorKind } from "../../profiles/FlowProfile";
+import { hasAssertionExpectedValue } from "../../validation/AssertionStepContract";
+import { hasLoopIterationSource } from "../../validation/LoopStepContract";
+import { hasScrollDistance } from "../../validation/ScrollStepContract";
+import { hasWaitStepDuration } from "../../validation/WaitStepContract";
 import { RUNTIME_LOOP_LIMITS } from "./ConnectorCatalog";
 import { nodeSpec } from "./NodeCatalog";
 import type { SeededRandom } from "./SeededRandom";
@@ -83,6 +87,70 @@ export interface MutatedFlow {
   readonly mutation: Mutation;
 }
 
+/** The concrete runtime input channel removed by `missingRequiredValue`. */
+export type RequiredValueMutationTarget =
+  | "genericValue"
+  | "assertionExpectedValue"
+  | "timeWaitDuration"
+  | "textVisibleWaitText"
+  | "pageScrollDistance"
+  | "fixedLoopIterationCount"
+  | "runFlowTarget";
+
+const GENERIC_REQUIRED_VALUE_TYPES: ReadonlySet<StepType> = new Set<StepType>([
+  "goto",
+  "press",
+  "fill",
+  "select",
+  "radio",
+  "uploadFile",
+  "condition",
+  "autoSecureLogin"
+]);
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/**
+ * Classify only steps where removing one complete, runtime-effective input channel creates the
+ * `missingRequiredValue` defect. Optional subtypes are deliberately excluded: mutating them would
+ * produce no defect and would measure the selector rather than the validator.
+ */
+export function requiredValueMutationTarget(step: FlowStep): RequiredValueMutationTarget | undefined {
+  switch (step.type) {
+    case "assertText":
+      return hasAssertionExpectedValue(step) ? "assertionExpectedValue" : undefined;
+    case "wait": {
+      const waitType = step.config?.waitType;
+      if (waitType === undefined || waitType === "time") {
+        return hasWaitStepDuration(step) ? "timeWaitDuration" : undefined;
+      }
+      if (waitType === "textVisible") {
+        return isNonEmptyString(step.value) || step.valueSource !== undefined ? "textVisibleWaitText" : undefined;
+      }
+      return undefined;
+    }
+    case "scroll": {
+      const scrollTarget = step.config?.scrollTarget;
+      if (scrollTarget !== undefined && scrollTarget !== "page") return undefined;
+      return hasScrollDistance(step) ? "pageScrollDistance" : undefined;
+    }
+    case "loop": {
+      const loopType = step.config?.loopType;
+      if (loopType !== undefined && loopType !== "fixedCount") return undefined;
+      return hasLoopIterationSource(step) ? "fixedLoopIterationCount" : undefined;
+    }
+    case "runFlow":
+      return isNonEmptyString(step.flowId) || isNonEmptyString(step.config?.targetFlowId) ? "runFlowTarget" : undefined;
+    default:
+      if (!GENERIC_REQUIRED_VALUE_TYPES.has(step.type)) return undefined;
+      if (step.type === "condition") return isNonEmptyString(step.value) ? "genericValue" : undefined;
+      if (isNonEmptyString(step.value) || step.valueSource !== undefined) return "genericValue";
+      return step.type === "goto" && isNonEmptyString(step.url) ? "genericValue" : undefined;
+  }
+}
+
 /** Deep clone via JSON. Round-trip losslessness for these profiles is proven by Phase 3. */
 function clone(profile: FlowProfile): FlowProfile {
   return JSON.parse(JSON.stringify(profile)) as FlowProfile;
@@ -116,22 +184,57 @@ export function applyMutation(
     }
 
     case "missingRequiredValue": {
-      const target = firstNode(profile, (step) => nodeSpec(step.type).requiresValue && step.value !== undefined);
+      const target = firstNode(profile, (step) => requiredValueMutationTarget(step) !== undefined);
       if (!target) return undefined;
-      delete target.value;
-      delete target.valueSource;
-      delete target.url;
-      // `runFlow` resolves its target from `flowId`/`config.targetFlowId` and never reads `value`
-      // (StepExecutor.ts:955). Clearing only `value` there left a perfectly executable step, so the
-      // mutation injected no defect at all and the oracle scored "correctly not detected" against a
-      // flow that was never broken. Clear the real target so every requiresValue type gets a real
-      // defect. (Distinct from `missingFlowReference`: no target at all vs. a target that is absent.)
-      if (target.type === "runFlow") {
-        delete target.flowId;
-        if (target.config) delete target.config.targetFlowId;
+      const channel = requiredValueMutationTarget(target);
+      if (!channel) return undefined;
+
+      switch (channel) {
+        case "assertionExpectedValue":
+          if (target.config) delete target.config.expectedValue;
+          delete target.value;
+          delete target.valueSource;
+          break;
+        case "timeWaitDuration":
+          delete target.timeoutMs;
+          delete target.value;
+          delete target.valueSource;
+          break;
+        case "textVisibleWaitText":
+          delete target.value;
+          delete target.valueSource;
+          break;
+        case "pageScrollDistance":
+          if (target.config) delete target.config.scrollAmount;
+          delete target.value;
+          delete target.valueSource;
+          break;
+        case "fixedLoopIterationCount":
+          if (target.config) delete target.config.iterationCount;
+          break;
+        case "runFlowTarget":
+          delete target.flowId;
+          if (target.config) delete target.config.targetFlowId;
+          break;
+        case "genericValue":
+          delete target.value;
+          delete target.valueSource;
+          delete target.url;
+          break;
+        default: {
+          const unreachable: never = channel;
+          throw new Error(`Unhandled required-value mutation target: ${String(unreachable)}`);
+        }
       }
-      const removed = target.type === "runFlow" ? "value, value source and target flow" : "value and value source";
-      return { profile, mutation: { kind, targetId: target.id, targetType: target.type, description: `Removed the ${removed} from ${target.type} step ${target.id}.` } };
+      return {
+        profile,
+        mutation: {
+          kind,
+          targetId: target.id,
+          targetType: target.type,
+          description: `Removed the ${channel} channel from ${target.type} step ${target.id}.`
+        }
+      };
     }
 
     case "invalidConnectorTarget": {

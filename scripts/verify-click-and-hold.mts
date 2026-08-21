@@ -21,7 +21,7 @@
  * mutation evidence, recognising one below the duration threshold, failing to suppress the trailing
  * click, replaying the hold as `click`, or losing `config.holdMs` through the designer mapping.
  *
- * MUTATION CONTRACT (measured, not asserted). Against 28 checks:
+ * MUTATION CONTRACT (measured, not asserted). Against the 35 checks below:
  *   - disable the recognizer (the capability as it stood before) ..... 8 fail, then [D1] stops the run
  *   - recognize a hold on duration alone, with no mutation evidence ... 2 fail ([C1], [C2])
  *   - replay the hold with a zero-length press ....................... 2 fail ([E3] 15ms, [E4])
@@ -44,9 +44,9 @@ import { ValueResolver } from "@src/runner/ValueResolver";
 import { MemoryRunnerLogger } from "@src/runner/RunnerResult";
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
-import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
+import type { FlowProfile, FlowStep, NodeConfig } from "@src/profiles/FlowProfile";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
-import { toFlowStep, fromFlowStep } from "../app/renderer/components/workflow/flowProfileMapping";
+import { toFlowStep, fromFlowStep, type FlowDesignerNode } from "../app/renderer/components/workflow/flowProfileMapping";
 import { getFlowNodeCatalogItem } from "../app/renderer/components/workflow/flowNodeCatalog";
 
 const PORT = 4424;
@@ -62,6 +62,11 @@ function check(label: string, condition: unknown, detail?: string): void {
     failed += 1;
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
+}
+
+/** Test-boundary helper for forward-compatible config keys that typed code does not know yet. */
+function setRawProperty(target: object, key: PropertyKey, value: unknown): void {
+  if (!Reflect.set(target, key, value)) throw new Error(`Could not inject raw property ${String(key)}`);
 }
 
 async function makeContext(): Promise<InstanceExecutionContext> {
@@ -197,7 +202,7 @@ async function main(): Promise<void> {
 
     // The comparison that makes [E3] mean something: the same locator, clicked normally.
     await replayPage.getByTestId("hold-reset").click();
-    await exec.execute({ id: "plain", type: "click", name: "plain click", locator: (builtStep as FlowStep).locator });
+    await exec.execute({ id: "plain", type: "click", name: "plain click", locator: builtStep.locator });
     const clickMs = Number(await replayPage.getByTestId("hold-observed-ms").textContent());
     check("[E5] a plain click on the same element holds for a fraction of that", clickMs < 200, `${clickMs}ms vs ${observedMs}ms`);
     await replayCtx.close();
@@ -206,25 +211,75 @@ async function main(): Promise<void> {
     console.log("\n[F] designer and persistence round trip");
     check("[F1] the node catalog labels the gesture in words", /hold/i.test(getFlowNodeCatalogItem("clickAndHold").label), getFlowNodeCatalogItem("clickAndHold").label);
     check("[F2] ...distinctly from a plain Click", getFlowNodeCatalogItem("clickAndHold").label !== getFlowNodeCatalogItem("click").label);
-    const asNode = (step: FlowStep) =>
-      ({ id: step.id, type: "flowNode", position: { x: 0, y: 0 }, data: fromFlowStep(step) }) as unknown as Parameters<typeof toFlowStep>[0];
-    const rt = toFlowStep(asNode({ ...(builtStep as FlowStep), config: { holdMs: 1500 } }), []);
-    check("[F3] the step type survives the designer round trip", rt.type === "clickAndHold", rt.type);
-    check("[F4] holdMs survives it too", rt.config?.holdMs === 1500, JSON.stringify(rt.config));
+    const asNode = (step: FlowStep): FlowDesignerNode => ({
+      id: step.id,
+      type: "flowNode",
+      position: step.position ?? { x: 0, y: 0 },
+      data: fromFlowStep(step)
+    });
+    const roundTrip = (step: FlowStep): FlowStep => toFlowStep(asNode(step), []);
+    const holdStep = (id: string, config?: NodeConfig): FlowStep => ({
+      id,
+      type: "clickAndHold",
+      name: `hold ${id}`,
+      locator: builtStep.locator,
+      ...(config === undefined ? {} : { config })
+    });
+
+    const explicit1500 = roundTrip(holdStep("explicit-1500", { holdMs: 1500 }));
+    check("[F3] the step type survives the designer round trip", explicit1500.type === "clickAndHold", explicit1500.type);
+    check("[F4] an explicit 1500ms duration survives", explicit1500.config?.holdMs === 1500, JSON.stringify(explicit1500.config));
+
+    const explicit1000 = roundTrip(holdStep("explicit-1000", { holdMs: 1000 }));
+    check("[F5] an explicit default-valued 1000ms duration stays explicit", explicit1000.config?.holdMs === 1000, JSON.stringify(explicit1000.config));
+
+    const absent = holdStep("absent");
+    const absentRoundTrip = roundTrip(absent);
+    check("[F6] an absent duration stays absent", absentRoundTrip.config === undefined, JSON.stringify(absentRoundTrip.config));
+    const absentNode = asNode(absent);
+    const editedAbsentNode: FlowDesignerNode = { ...absentNode, data: { ...absentNode.data, holdMs: 1200 } };
+    const editedAbsent = toFlowStep(editedAbsentNode, []);
+    check("[F7] editing an absent duration to 1200ms persists it", editedAbsent.config?.holdMs === 1200, JSON.stringify(editedAbsent.config));
+
+    const unknownOnlyConfig: NodeConfig = {};
+    setRawProperty(unknownOnlyConfig, "futureHoldOption", "keep-me");
+    const unknownOnly = roundTrip(holdStep("unknown-only", unknownOnlyConfig));
+    check(
+      "[F8] an unknown-only config survives without gaining holdMs",
+      Reflect.get(unknownOnly.config ?? {}, "futureHoldOption") === "keep-me" && !Reflect.has(unknownOnly.config ?? {}, "holdMs"),
+      JSON.stringify(unknownOnly.config)
+    );
+
+    const unknownAndHoldConfig: NodeConfig = { holdMs: 1350 };
+    setRawProperty(unknownAndHoldConfig, "futureHoldOption", "keep-too");
+    const unknownAndHold = roundTrip(holdStep("unknown-and-hold", unknownAndHoldConfig));
+    check(
+      "[F9] unknown config and holdMs survive together",
+      unknownAndHold.config?.holdMs === 1350 && Reflect.get(unknownAndHold.config ?? {}, "futureHoldOption") === "keep-too",
+      JSON.stringify(unknownAndHold.config)
+    );
+
+    const popup = roundTrip({ id: "popup", type: "closePopup", name: "close popup", config: { popupAlias: "payment-popup" } });
+    check("[F10] closePopup keeps its popupAlias", popup.config?.popupAlias === "payment-popup", JSON.stringify(popup.config));
+
+    const wrongKnownConfig = roundTrip(holdStep("wrong-known", { scrollAmount: 999 }));
+    check("[F11] a known config field belonging to another node does not survive", wrongKnownConfig.config === undefined, JSON.stringify(wrongKnownConfig.config));
+
     const plainClick: FlowStep = { id: "pc", type: "click", name: "plain", locator: { strategy: "testId", value: "hold-box" } };
-    check("[F5] an ordinary click does not gain a holdMs", toFlowStep(asNode(plainClick), []).config?.holdMs === undefined);
+    const plainRoundTrip = roundTrip(plainClick);
+    check("[F12] a configless unrelated step remains configless", plainRoundTrip.config === undefined, JSON.stringify(plainRoundTrip.config));
 
     const storeDir = await mkdtemp(join(tmpdir(), "awkit-hold-store-"));
     const store = new JsonProfileStore<FlowProfile>({ folder: storeDir });
     const toSave: FlowProfile = { ...flow, id: "hold-roundtrip", nodes: flow.nodes.map((n) => (n.type === "clickAndHold" ? { ...n, config: { ...n.config, holdMs: 1200 } } : n)) };
     await store.create(toSave);
     const reloaded = (await store.get("hold-roundtrip"))?.nodes.find((n) => n.type === "clickAndHold");
-    check("[F6] save → reload preserves the gesture and its duration", reloaded?.type === "clickAndHold" && reloaded?.config?.holdMs === 1200, JSON.stringify(reloaded?.config));
+    check("[F13] save → reload preserves the gesture and its duration", reloaded?.type === "clickAndHold" && reloaded?.config?.holdMs === 1200, JSON.stringify(reloaded?.config));
     const editedFlow: FlowProfile = { ...toSave, nodes: toSave.nodes.map((n) => (n.type === "clickAndHold" ? { ...n, config: { ...n.config, holdMs: 2000 } } : n)) };
     await store.update("hold-roundtrip", editedFlow);
     const reEdited = (await store.get("hold-roundtrip"))?.nodes.find((n) => n.type === "clickAndHold");
-    check("[F7] an edit to the duration re-saves and reloads", reEdited?.config?.holdMs === 2000, JSON.stringify(reEdited?.config));
-    check("[F8] ...without losing the locator", !!reEdited?.locator, JSON.stringify(reEdited?.locator ?? null));
+    check("[F14] an edit to the duration re-saves and reloads", reEdited?.config?.holdMs === 2000, JSON.stringify(reEdited?.config));
+    check("[F15] ...without losing the locator", !!reEdited?.locator, JSON.stringify(reEdited?.locator ?? null));
   } finally {
     await browser.close();
     server.kill();

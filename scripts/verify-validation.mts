@@ -49,7 +49,6 @@ import { evaluateBoolean } from "@src/runner/ExpressionEvaluator";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 import { RUNTIME_LOOP_LIMITS } from "@src/testing/random/ConnectorCatalog";
 import { flowNodeCatalog } from "@renderer/components/workflow/flowNodeCatalog";
-import { readFileSync } from "node:fs";
 
 let passed = 0;
 let failed = 0;
@@ -61,6 +60,11 @@ function check(label: string, condition: unknown, detail?: string): void {
     failed += 1;
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
+}
+
+/** Test-boundary helper for malformed literals that can arrive through imported JSON. */
+function setRawProperty(target: object, key: PropertyKey, value: unknown): void {
+  if (!Reflect.set(target, key, value)) throw new Error(`Could not inject raw property ${String(key)}`);
 }
 
 /** Assert a code is present, and (optionally) how it was classified. */
@@ -440,13 +444,16 @@ console.log("\nRule: invalid timeout values");
  * ------------------------------------------------------------------ */
 console.log("\nRule: unsupported operators and configurations");
 {
-  const conditional = (operator: string): FlowProfile =>
-    baseFlow({
+  const conditional = (operator: string): FlowProfile => {
+    const condition: NonNullable<FlowEdge["conditional"]> = { sourceField: "outcome", operator: "equals", expectedValue: "ok" };
+    setRawProperty(condition, "operator", operator);
+    return baseFlow({
       edges: [
         edge("e1", "n-start", "n-click"),
-        { id: "e-cond", source: "n-click", target: "n-end", type: "conditional", kind: "conditional", conditional: { sourceField: "outcome", operator: operator as "equals", expectedValue: "ok" } }
+        { id: "e-cond", source: "n-click", target: "n-end", type: "conditional", kind: "conditional", conditional: condition }
       ]
     });
+  };
 
   expectCode("an operator outside the union reports unsupportedOperator", validateFlowDefinition(conditional("isDefinitelyNotAnOperator")), "unsupportedOperator", { onActivePath: true, edgeId: "e-cond" });
   expectNoCode("every legal operator is accepted", validateFlowDefinition(conditional("greaterThanOrEqual")), "unsupportedOperator");
@@ -461,30 +468,38 @@ console.log("\nRule: unsupported operators and configurations");
     validateFlowDefinition(conditional("isDefinitelyNotAnOperator")).issues.find((issue) => issue.code === "unsupportedOperator")?.safeFix === undefined
   );
 
+  const badSourceCondition: NonNullable<FlowEdge["conditional"]> = { sourceField: "outcome", operator: "equals", expectedValue: "ok" };
+  setRawProperty(badSourceCondition, "sourceField", "nonsense");
   const badSource = baseFlow({
     edges: [
       edge("e1", "n-start", "n-click"),
-      { id: "e-cond", source: "n-click", target: "n-end", type: "conditional", kind: "conditional", conditional: { sourceField: "nonsense" as "outcome", operator: "equals", expectedValue: "ok" } }
+      { id: "e-cond", source: "n-click", target: "n-end", type: "conditional", kind: "conditional", conditional: badSourceCondition }
     ]
   });
   expectCode("an unknown condition source reports unsupportedConfiguration", validateFlowDefinition(badSource), "unsupportedConfiguration", { edgeId: "e-cond" });
 
+  const badLoopConfig: NonNullable<FlowEdge["loop"]> = { mode: "count", maxIterations: 2 };
+  setRawProperty(badLoopConfig, "mode", "nonsense");
   const badLoopMode = baseFlow({
     edges: [
       edge("e1", "n-start", "n-click"),
-      { id: "e-loop", source: "n-click", target: "n-click", type: "loop", kind: "loop", loop: { mode: "nonsense" as "count", maxIterations: 2 } },
+      { id: "e-loop", source: "n-click", target: "n-click", type: "loop", kind: "loop", loop: badLoopConfig },
       { id: "e2", source: "n-click", target: "n-end", type: "conditional", kind: "conditional", conditional: { sourceField: "outcome", operator: "equals", expectedValue: "ok" } }
     ]
   });
   expectCode("an unknown loop mode reports unsupportedConfiguration", validateFlowDefinition(badLoopMode), "unsupportedConfiguration");
 
-  const badStepType = baseFlow({ nodes: [step("n-start", "start"), step("n-weird", "teleport" as StepType), step("n-end", "end")], edges: [edge("e1", "n-start", "n-weird"), edge("e2", "n-weird", "n-end")] });
+  const rawStepType = step("n-weird", "click", { locator: { strategy: "css", value: "#probe" } });
+  setRawProperty(rawStepType, "type", "teleport");
+  const badStepType = baseFlow({ nodes: [step("n-start", "start"), rawStepType, step("n-end", "end")], edges: [edge("e1", "n-start", "n-weird"), edge("e2", "n-weird", "n-end")] });
   expectCode("an unknown step type reports unsupportedConfiguration", validateFlowDefinition(badStepType), "unsupportedConfiguration", { nodeId: "n-weird" });
 
+  const badParallelConfig: NonNullable<FlowEdge["parallel"]> = { joinMode: "waitAll", failMode: "failFast" };
+  setRawProperty(badParallelConfig, "joinMode", "waitSome");
   const badParallel = baseFlow({
     edges: [
       edge("e1", "n-start", "n-click"),
-      { id: "e-par", source: "n-click", target: "n-end", type: "parallel", kind: "parallel", parallel: { joinMode: "waitSome" as "waitAll", failMode: "failFast" } }
+      { id: "e-par", source: "n-click", target: "n-end", type: "parallel", kind: "parallel", parallel: badParallelConfig }
     ]
   });
   expectCode("an unknown parallel join mode reports unsupportedConfiguration", validateFlowDefinition(badParallel), "unsupportedConfiguration");
@@ -586,14 +601,14 @@ console.log("\nRule: unknown interaction prerequisite execution decision");
    * The trial contract is a property of the STEP TYPE, and `dblclick`/`contextMenu` are pointer
    * gestures exactly as `click` is. Asserted in both directions per type, because a rule that
    * accepted everything and a rule that rejected everything would each satisfy one half alone.
-   */
+  */
   for (const gesture of ["dblclick", "contextMenu"] as const) {
     const runnable = validateFlowDefinition(baseFlow({
       nodes: [step("n-start", "start"), step(`n-${gesture}`, gesture, { locator }), step("n-end", "end")]
     }));
     expectNoCode(`${gesture} with an automatic trial is runnable, not blocked`, runnable, "interactionPrerequisiteBlocked");
     expectNoCode(`${gesture} with a valid locator raises no locator error`, runnable, "locatorNeedsReview");
-    expectNoCode(`${gesture} is a known step type, not an unsupported one`, runnable, "unknownStepType");
+    expectNoCode(`${gesture} is a known step type, not an unsupported one`, runnable, "unsupportedConfiguration");
     expectNoCode(`${gesture} does not report a missing locator`, runnable, "missingRequiredLocator");
 
     const stillBlocked = validateFlowDefinition(baseFlow({
@@ -798,7 +813,10 @@ console.log("\nRequirement table parity (engine ↔ test lab ↔ renderer catalo
  * ------------------------------------------------------------------ */
 console.log("\nMalformed input (hand-edited and imported JSON)");
 {
-  const noArrays = validateFlowDefinition({ id: "broken", name: "broken", version: 1, nodes: undefined as unknown as FlowStep[], edges: undefined as unknown as FlowEdge[] });
+  const malformedProfile: FlowProfile = { id: "broken", name: "broken", version: 1, nodes: [], edges: [] };
+  setRawProperty(malformedProfile, "nodes", undefined);
+  setRawProperty(malformedProfile, "edges", undefined);
+  const noArrays = validateFlowDefinition(malformedProfile);
   check("a profile with non-array nodes/edges does not throw", noArrays.issues.some((issue) => issue.code === "missingStartNode"));
 
   const empty = validateFlowDefinition({ id: "empty", name: "empty", version: 1, nodes: [], edges: [] });
@@ -965,7 +983,7 @@ console.log("\nrunFlow target precedence (flowId is canonical; config.targetFlow
    are not duplicates and collapsing them would hide three real defects. Ambiguous names carry their
    step id; unique names stay clean. */
 {
-  const blockedStep = (id: string, name: string): any => ({
+  const blockedStep = (id: string, name: string): FlowStep => ({
     id,
     type: "fill",
     name,
@@ -976,59 +994,63 @@ console.log("\nrunFlow target precedence (flowId is canonical; config.targetFlow
       value: "textbox",
       name,
       resolution: "resolved",
-      quality: { isUnique: true, confidence: "medium" },
-      identity: { schemaVersion: 1, hash: "abc", basis: ["role"], primary: { strategy: "role", value: "textbox" } },
+      quality: { strategy: "role", isUnique: true, matchCount: 1, confidence: "medium" },
+      identity: {
+        schemaVersion: 1,
+        primary: { strategy: "role", value: "textbox", name },
+        owner: { tag: "input", role: "textbox", accessibleName: name },
+        fingerprint: { tag: "tag", role: "role", name: "name", text: "text", attributes: {}, ancestry: ["form"] },
+        confidence: { level: "high", basis: ["primary"] }
+      },
       prerequisite: { schemaVersion: 1, status: "unknown", hover: { required: true, resolved: false } },
       executionDecision: { schemaVersion: 1, status: "blocked", reason: "unresolved" }
     }
   });
 
-  const ambigNodes: any[] = [
+  const ambigNodes: FlowStep[] = [
     { id: "start", type: "start", name: "Start", position: { x: 300, y: 0 } },
     blockedStep("node-a", "Fill input"),
     blockedStep("node-b", "Fill input"),
     blockedStep("node-c", "Fill email"),
     { id: "end", type: "end", name: "End", position: { x: 300, y: 600 } }
   ];
-  const ambigEdges = ambigNodes.slice(0, -1).map((n, i) => ({
-    id: `e${i}`,
-    source: n.id,
-    target: ambigNodes[i + 1].id,
-    type: i === 0 ? "always" : "success"
+  const ambigEdges: FlowEdge[] = ambigNodes.slice(0, -1).map((node, index) => ({
+    id: `e${index}`,
+    source: node.id,
+    target: ambigNodes[index + 1]?.id ?? "missing",
+    type: index === 0 ? "always" : "success"
   }));
 
-  const ambigReport: any = validateFlowDefinition({
+  const ambigReport = validateFlowDefinition({
     id: "f",
     name: "Ambiguity",
     description: "",
     version: 1,
     nodes: ambigNodes,
     edges: ambigEdges
-  } as any);
-  const ambigIssues = (ambigReport.issues ?? []).filter(
-    (i: any) => i.code === "interactionPrerequisiteBlocked"
-  );
+  });
+  const ambigIssues = ambigReport.issues.filter((issue) => issue.code === "interactionPrerequisiteBlocked");
 
   check("three blocked steps produce three issues (not one, not four)", ambigIssues.length === 3, String(ambigIssues.length));
   check(
     "each issue is anchored to its own step",
-    new Set(ambigIssues.map((i: any) => i.nodeId)).size === 3,
-    ambigIssues.map((i: any) => i.nodeId).join(", ")
+    new Set(ambigIssues.map((issue) => issue.nodeId)).size === 3,
+    ambigIssues.map((issue) => issue.nodeId).join(", ")
   );
   check(
     "same-named steps produce DISTINGUISHABLE messages",
-    new Set(ambigIssues.map((i: any) => i.message)).size === 3,
-    ambigIssues.map((i: any) => i.message).join(" || ")
+    new Set(ambigIssues.map((issue) => issue.message)).size === 3,
+    ambigIssues.map((issue) => issue.message).join(" || ")
   );
   check(
     "the ambiguous name carries its step id",
-    ambigIssues.filter((i: any) => /Fill input \(node-[ab]\)/.test(i.message)).length === 2,
-    ambigIssues.map((i: any) => i.message).join(" || ")
+    ambigIssues.filter((issue) => /Fill input \(node-[ab]\)/.test(issue.message)).length === 2,
+    ambigIssues.map((issue) => issue.message).join(" || ")
   );
   check(
     "a UNIQUE name is left clean (no id noise)",
-    ambigIssues.some((i: any) => i.message.includes("Step Fill email has")),
-    ambigIssues.map((i: any) => i.message).join(" || ")
+    ambigIssues.some((issue) => issue.message.includes("Step Fill email has")),
+    ambigIssues.map((issue) => issue.message).join(" || ")
   );
 }
 

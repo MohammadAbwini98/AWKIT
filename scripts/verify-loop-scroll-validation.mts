@@ -55,22 +55,43 @@ function check(label: string, condition: unknown, detail?: string): void {
 
 const LOCATOR: StepLocator = { strategy: "css", value: "#row", resolution: "resolved", resolvedBy: "user" };
 
-function codesFor(step: Partial<FlowStep>): FlowValidationCode[] {
+type StepProbe = Pick<FlowStep, "type"> & Omit<Partial<FlowStep>, "id" | "type" | "name">;
+
+function completeStep(step: StepProbe): FlowStep {
+  return { id: "s", name: "S", ...step };
+}
+
+/** Test-boundary helper for malformed literals that can arrive through imported JSON. */
+function setRawProperty(target: object, key: PropertyKey, value: unknown): void {
+  if (!Reflect.set(target, key, value)) throw new Error(`Could not inject raw property ${String(key)}`);
+}
+
+function stepWithRawConfig(step: StepProbe, key: PropertyKey, value: unknown): FlowStep {
+  const result = completeStep({ ...step, config: { ...step.config } });
+  if (!result.config) throw new Error("Raw loop/scroll probe has no config object");
+  setRawProperty(result.config, key, value);
+  return result;
+}
+
+function codesForCompleteStep(step: FlowStep): FlowValidationCode[] {
   const flow: FlowProfile = {
     id: "probe",
     name: "probe",
     version: 1,
-    nodes: [{ id: "s", name: "S", ...step } as FlowStep],
+    nodes: [step],
     edges: []
   };
   return validateFlowDefinition(flow).issues.filter((i) => i.nodeId === "s").map((i) => i.code);
 }
-const messagesFor = (step: Partial<FlowStep>): string[] => {
-  const flow: FlowProfile = { id: "probe", name: "probe", version: 1, nodes: [{ id: "s", name: "S", ...step } as FlowStep], edges: [] };
+function codesFor(step: StepProbe): FlowValidationCode[] {
+  return codesForCompleteStep(completeStep(step));
+}
+const messagesFor = (step: StepProbe): string[] => {
+  const flow: FlowProfile = { id: "probe", name: "probe", version: 1, nodes: [completeStep(step)], edges: [] };
   return validateFlowDefinition(flow).issues.filter((i) => i.nodeId === "s").map((i) => i.message);
 };
-const has = (step: Partial<FlowStep>, code: FlowValidationCode): boolean => codesFor(step).includes(code);
-const clean = (step: Partial<FlowStep>): boolean => codesFor(step).length === 0;
+const has = (step: StepProbe, code: FlowValidationCode): boolean => codesFor(step).includes(code);
+const clean = (step: StepProbe): boolean => codesFor(step).length === 0;
 
 /* ------------------------------------------------------------------ *
  * 1. Scroll — the distance channel the designer actually writes
@@ -96,8 +117,10 @@ console.log("\nScroll: the distance lives in config, not in value");
   check("a non-numeric literal distance is reported", has({ type: "scroll", value: "lots" }, "unsupportedConfiguration"));
   check("a zero distance is reported (the page would not move)", has({ type: "scroll", config: { scrollAmount: 0 } }, "unsupportedConfiguration"));
   check("a NaN scrollAmount is reported", has({ type: "scroll", config: { scrollAmount: Number.NaN } }, "unsupportedConfiguration"));
-  check("an unknown scrollDirection is reported", has({ type: "scroll", config: { scrollAmount: 100, scrollDirection: "sideways" as never } }, "unsupportedConfiguration"));
-  check("an unknown scrollTarget is reported", has({ type: "scroll", config: { scrollAmount: 100, scrollTarget: "orbit" as never } }, "unsupportedConfiguration"));
+  const unknownDirection = stepWithRawConfig({ type: "scroll", config: { scrollAmount: 100 } }, "scrollDirection", "sideways");
+  const unknownTarget = stepWithRawConfig({ type: "scroll", config: { scrollAmount: 100 } }, "scrollTarget", "orbit");
+  check("an unknown scrollDirection is reported", codesForCompleteStep(unknownDirection).includes("unsupportedConfiguration"));
+  check("an unknown scrollTarget is reported", codesForCompleteStep(unknownTarget).includes("unsupportedConfiguration"));
 
   // …and the negative controls, so the rule cannot be satisfied by rejecting everything.
   for (const direction of SCROLL_DIRECTIONS) {
@@ -106,7 +129,10 @@ console.log("\nScroll: the distance lives in config, not in value");
   check("a negative distance is tolerated (it inverts the direction, it does not break)", clean({ type: "scroll", config: { scrollAmount: -250 } }));
   check("one bad distance reports exactly one issue", codesFor({ type: "scroll", config: { scrollAmount: 0 } }).length === 1, codesFor({ type: "scroll", config: { scrollAmount: 0 } }).join(", "));
   check("there are exactly 2 scroll targets and 4 directions", SCROLL_TARGETS.length === 2 && SCROLL_DIRECTIONS.length === 4);
-  check("scrollTargetsElement mirrors the runtime's literal comparison", scrollTargetsElement({ config: { scrollTarget: "element" } } as FlowStep) && !scrollTargetsElement({ config: { scrollTarget: "orbit" as never } } as FlowStep));
+  check(
+    "scrollTargetsElement mirrors the runtime's literal comparison",
+    scrollTargetsElement(completeStep({ type: "scroll", config: { scrollTarget: "element" } })) && !scrollTargetsElement(unknownTarget)
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -147,16 +173,20 @@ console.log("\nLoop: the iteration source lives in config, and a missing target 
   check("a fill loop bound to a value source is clean", clean({ type: "loop", locator: LOCATOR, valueSource: { type: "runtimeInput", value: "v" }, config: { loopType: "elements", loopActionType: "fill" } }));
   check("a customFlow loop naming no flow is invalid", has({ type: "loop", config: { loopType: "fixedCount", iterationCount: 2, loopActionType: "customFlow" } }, "missingRequiredValue"));
 
-  check("an unknown loopType is reported", has({ type: "loop", locator: LOCATOR, config: { loopType: "sideways" as never, iterationCount: 2 } }, "unsupportedConfiguration"));
-  check("an unknown loopActionType is reported", has({ type: "loop", locator: LOCATOR, config: { loopType: "elements", loopActionType: "juggle" as never } }, "unsupportedConfiguration"));
+  const unknownLoopType = stepWithRawConfig({ type: "loop", locator: LOCATOR, config: { iterationCount: 2 } }, "loopType", "sideways");
+  const unknownLoopAction = stepWithRawConfig({ type: "loop", locator: LOCATOR, config: { loopType: "elements" } }, "loopActionType", "juggle");
+  check("an unknown loopType is reported", codesForCompleteStep(unknownLoopType).includes("unsupportedConfiguration"));
+  check("an unknown loopActionType is reported", codesForCompleteStep(unknownLoopAction).includes("unsupportedConfiguration"));
 
   // The bounds rule keeps its own job; presence and range must not double-report.
   const zeroCount = codesFor({ type: "loop", locator: LOCATOR, config: { loopType: "fixedCount", iterationCount: 0, loopActionType: "click" } });
   check("iterationCount 0 reports invalidLoopBounds, not a missing source", zeroCount.includes("invalidLoopBounds") && !zeroCount.includes("missingRequiredValue"), zeroCount.join(", "));
 
   check(`there are ${LOOP_TYPES.length} loop types and ${LOOP_ACTION_TYPES.length} actions`, LOOP_TYPES.length === 3 && LOOP_ACTION_TYPES.length === 5);
-  check("an unknown loopType resolves to fixedCount, matching the executor", resolveLoopType({ config: { loopType: "bogus" as never } } as FlowStep) === "fixedCount");
-  check("an unknown loopActionType resolves to click, matching the executor", resolveLoopAction({ config: { loopActionType: "bogus" as never } } as FlowStep) === "click");
+  const rawLoopType = stepWithRawConfig({ type: "loop" }, "loopType", "bogus");
+  const rawLoopAction = stepWithRawConfig({ type: "loop" }, "loopActionType", "bogus");
+  check("an unknown loopType resolves to fixedCount, matching the executor", resolveLoopType(rawLoopType) === "fixedCount");
+  check("an unknown loopActionType resolves to click, matching the executor", resolveLoopAction(rawLoopAction) === "click");
 }
 
 /* ------------------------------------------------------------------ *
@@ -215,7 +245,7 @@ console.log("\nNo collateral relaxation");
     id: "f",
     name: "f",
     version: 1,
-    nodes: [{ id: "s", type: "fill", name: "Fill", locator: LOCATOR, config: { scrollAmount: 100, iterationCount: 3 } } as FlowStep],
+    nodes: [{ id: "s", type: "fill", name: "Fill", locator: LOCATOR, config: { scrollAmount: 100, iterationCount: 3 } }],
     edges: []
   };
   check(
@@ -275,22 +305,22 @@ console.log("\nRound-trip and the properties panel");
 {
   const roundTrip = (step: FlowStep): FlowStep => {
     const data = fromFlowStep(step);
-    const node: FlowDesignerNode = { id: step.id, type: "flowNode", position: step.position ?? { x: 0, y: 0 }, data } as FlowDesignerNode;
+    const node: FlowDesignerNode = { id: step.id, type: "flowNode", position: step.position ?? { x: 0, y: 0 }, data };
     return toFlowStep(node, []);
   };
 
-  const savedScroll = roundTrip({ id: "s", type: "scroll", name: "Scroll", config: { scrollTarget: "page", scrollDirection: "up", scrollAmount: 250 } } as FlowStep);
+  const savedScroll = roundTrip({ id: "s", type: "scroll", name: "Scroll", config: { scrollTarget: "page", scrollDirection: "up", scrollAmount: 250 } });
   check("reload preserves the scroll amount and direction", savedScroll.config?.scrollAmount === 250 && savedScroll.config?.scrollDirection === "up");
   check("the reloaded scroll validates clean", clean({ type: "scroll", config: savedScroll.config }));
 
-  const savedLoop = roundTrip({ id: "l", type: "loop", name: "Loop", locator: LOCATOR, config: { loopType: "elements", loopActionType: "click", iterationCount: 4 } } as FlowStep);
+  const savedLoop = roundTrip({ id: "l", type: "loop", name: "Loop", locator: LOCATOR, config: { loopType: "elements", loopActionType: "click", iterationCount: 4 } });
   check("reload preserves the loop type and action", savedLoop.config?.loopType === "elements" && savedLoop.config?.loopActionType === "click");
   check("reload preserves the loop locator", savedLoop.locator?.value === "#row", JSON.stringify(savedLoop.locator));
   check("the reloaded loop validates clean", clean({ type: "loop", locator: savedLoop.locator, config: savedLoop.config }));
 
   const scrollDef = getNodeDefinition("scroll");
   const loopDef = getNodeDefinition("loop");
-  const dataFor = (step: Partial<FlowStep>) => fromFlowStep({ id: "n", name: "N", ...step } as FlowStep);
+  const dataFor = (step: StepProbe) => fromFlowStep({ id: "n", name: "N", ...step });
 
   check("panel: a page scroll shows no inline error", scrollDef.validate(dataFor({ type: "scroll", config: { scrollTarget: "page", scrollAmount: 200 } })).length === 0);
   check("panel: a scroll-to-element with no selector shows an error", scrollDef.validate(dataFor({ type: "scroll", config: { scrollTarget: "element" } })).length === 1);

@@ -20,11 +20,17 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { FlowProfile } from "@src/profiles/FlowProfile";
+import type { FlowProfile, FlowStep, StepLocator } from "@src/profiles/FlowProfile";
 import { ALL_FLOW_PATTERNS, resolveConstraints } from "@src/testing/random/GenerationConstraints";
 import { generateFlow } from "@src/testing/random/RandomFlowGenerator";
 import { SeededRandom } from "@src/testing/random/SeededRandom";
-import { ALL_MUTATION_KINDS, applyMutation, type MutationKind } from "@src/testing/random/RandomMutator";
+import {
+  ALL_MUTATION_KINDS,
+  applyMutation,
+  requiredValueMutationTarget,
+  type MutationKind,
+  type RequiredValueMutationTarget
+} from "@src/testing/random/RandomMutator";
 import {
   KNOWN_VALIDATION_GAPS,
   MUTATION_EXPECTATIONS,
@@ -162,6 +168,41 @@ interface MutationOutcome {
   readonly discrepancies: string[];
   readonly exampleSignal?: string;
 }
+
+interface ObservedExpectationRegression {
+  readonly kind: MutationKind;
+  readonly applied: number;
+  readonly matched: number;
+  readonly discrepancies: readonly string[];
+}
+
+function observedExpectationRegressions(source: readonly MutationOutcome[]): ObservedExpectationRegression[] {
+  return source
+    .filter(
+      (outcome) =>
+        MUTATION_EXPECTATIONS[outcome.kind].status === "detected" &&
+        (outcome.applied === 0 || outcome.matched !== outcome.applied)
+    )
+    .map(({ kind, applied, matched, discrepancies }) => ({ kind, applied, matched, discrepancies }));
+}
+
+function observedDetectionSummary(source: readonly MutationOutcome[]): { readonly ok: boolean; readonly message: string } {
+  const regressions = observedExpectationRegressions(source);
+  if (regressions.length === 0) {
+    const detectedKinds = source.filter((outcome) => MUTATION_EXPECTATIONS[outcome.kind].status === "detected").length;
+    return {
+      ok: true,
+      message: `✓ All ${detectedKinds} detected-expectation mutation kinds were rejected in every observed application.`
+    };
+  }
+  return {
+    ok: false,
+    message: `⚠ ${regressions.length} observed mutation expectation regression(s): ${regressions
+      .map((entry) => `${entry.kind} ${entry.matched}/${entry.applied}`)
+      .join(", ")}. See validation-gaps.md.`
+  };
+}
+
 const outcomes: MutationOutcome[] = [];
 
 for (const kind of ALL_MUTATION_KINDS) {
@@ -189,6 +230,100 @@ for (const kind of ALL_MUTATION_KINDS) {
   }
 
   outcomes.push(exampleSignal === undefined ? { kind, applied, matched, discrepancies } : { kind, applied, matched, discrepancies, exampleSignal });
+}
+
+/* ------------------------------------------------------------------ *
+ * 2a. Focused required-value mutator contract probes
+ * ------------------------------------------------------------------ */
+console.log("\nRequired-value mutation targeting contract");
+{
+  const locator: StepLocator = { strategy: "css", value: "#probe", resolution: "resolved", resolvedBy: "user" };
+  const step = (id: string, type: FlowStep["type"], overrides: Omit<Partial<FlowStep>, "id" | "type" | "name"> = {}): FlowStep => ({
+    id,
+    type,
+    name: `Probe ${id}`,
+    ...overrides
+  });
+  const eligible: readonly { readonly step: FlowStep; readonly channel: RequiredValueMutationTarget }[] = [
+    { step: step("generic-goto", "goto", { url: "https://example.test" }), channel: "genericValue" },
+    { step: step("generic-press", "press", { value: "Enter" }), channel: "genericValue" },
+    { step: step("generic-fill", "fill", { locator, value: "Ada" }), channel: "genericValue" },
+    { step: step("generic-select", "select", { locator, value: "alpha" }), channel: "genericValue" },
+    { step: step("generic-radio", "radio", { locator, value: "alpha" }), channel: "genericValue" },
+    { step: step("generic-upload", "uploadFile", { locator, value: "C:\\fixture.txt" }), channel: "genericValue" },
+    { step: step("generic-condition", "condition", { value: "true" }), channel: "genericValue" },
+    { step: step("generic-login", "autoSecureLogin", { value: "https://login.example.test" }), channel: "genericValue" },
+    { step: step("assert-config", "assertText", { config: { assertionType: "url", expectedValue: "example.test" } }), channel: "assertionExpectedValue" },
+    { step: step("wait-time", "wait", { config: { waitType: "time" }, timeoutMs: 250 }), channel: "timeWaitDuration" },
+    { step: step("wait-text", "wait", { config: { waitType: "textVisible" }, value: "Ready", timeoutMs: 5000 }), channel: "textVisibleWaitText" },
+    { step: step("scroll-page", "scroll", { config: { scrollTarget: "page", scrollAmount: 320 } }), channel: "pageScrollDistance" },
+    { step: step("loop-fixed", "loop", { config: { loopType: "fixedCount", iterationCount: 3, loopActionType: "scroll", scrollAmount: 100 } }), channel: "fixedLoopIterationCount" },
+    { step: step("run-flow", "runFlow", { flowId: corpus[0]?.id }), channel: "runFlowTarget" }
+  ];
+  const ineligible: readonly FlowStep[] = [
+    step("wait-selector", "wait", { config: { waitType: "selector" }, locator }),
+    step("wait-navigation", "wait", { config: { waitType: "navigation" } }),
+    step("wait-network", "wait", { config: { waitType: "networkIdle" } }),
+    step("scroll-element", "scroll", { config: { scrollTarget: "element" }, locator }),
+    step("loop-elements", "loop", { config: { loopType: "elements", loopActionType: "click" }, locator }),
+    step("loop-data", "loop", { config: { loopType: "dataRows", loopActionType: "scroll", scrollAmount: 100 } }),
+    step("already-missing", "fill", { locator })
+  ];
+
+  const eligibleDrift = eligible
+    .filter((probe) => requiredValueMutationTarget(probe.step) !== probe.channel)
+    .map((probe) => `${probe.step.id}: expected ${probe.channel}, got ${String(requiredValueMutationTarget(probe.step))}`);
+  const ineligibleDrift = ineligible
+    .filter((probe) => requiredValueMutationTarget(probe) !== undefined)
+    .map((probe) => `${probe.id}: got ${String(requiredValueMutationTarget(probe))}`);
+  check("all concrete required-value shapes select their exact runtime channel", eligibleDrift.length === 0, eligibleDrift.join(" | "));
+  check("optional and already-invalid shapes are ineligible for missingRequiredValue", ineligibleDrift.length === 0, ineligibleDrift.join(" | "));
+
+  const exactCases = eligible;
+  const targetDrift: string[] = [];
+  const resultDrift: string[] = [];
+  let immutable = true;
+  for (const probe of exactCases) {
+    const profile: FlowProfile = {
+      id: `required-value-${probe.step.id}`,
+      name: `Required value ${probe.step.id}`,
+      version: 1,
+      nodes: [
+        { id: "start", type: "start", name: "Start" },
+        probe.step,
+        { id: "end", type: "end", name: "End" }
+      ],
+      edges: [
+        { id: "start-action", source: "start", target: probe.step.id, type: "success", kind: "normal" },
+        { id: "action-end", source: probe.step.id, target: "end", type: "success", kind: "normal" }
+      ]
+    };
+    const before = JSON.stringify(profile);
+    const mutated = applyMutation(profile, "missingRequiredValue", new SeededRandom(`required-value::${probe.step.id}`));
+    immutable = immutable && JSON.stringify(profile) === before;
+    if (mutated?.mutation.targetId !== probe.step.id || mutated.mutation.targetType !== probe.step.type || !mutated.mutation.description.includes(probe.channel)) {
+      targetDrift.push(`${probe.step.id}: ${JSON.stringify(mutated?.mutation)}`);
+      continue;
+    }
+    const verdict = judgeMutation(mutated.profile, mutated.mutation, oracleContext);
+    const targetIssues = verdict.result.flowErrors.filter((issue) => issue.nodeId === probe.step.id);
+    if (!verdict.matchesExpectation || targetIssues.length !== 1 || targetIssues[0]?.code !== "missingRequiredValue") {
+      resultDrift.push(`${probe.step.id}: ${targetIssues.map((issue) => issue.code).join(",") || "no target issue"}`);
+    }
+  }
+  check("focused mutations report the exact target id, type and removed channel", targetDrift.length === 0, targetDrift.join(" | "));
+  check("each focused mutation produces exactly one missingRequiredValue issue on its target", resultDrift.length === 0, resultDrift.join(" | "));
+  check("focused missingRequiredValue mutations leave every input profile immutable", immutable);
+
+  const syntheticMismatch = outcomes.map((outcome) =>
+    outcome.kind === "missingRequiredValue" ? { ...outcome, applied: 2, matched: 1 } : outcome
+  );
+  const syntheticSummary = observedDetectionSummary(syntheticMismatch);
+  check(
+    "observed final/report status turns red for a measured mismatch instead of using a static all-green claim",
+    !syntheticSummary.ok && syntheticSummary.message.includes("missingRequiredValue 1/2") && !syntheticSummary.message.startsWith("✓"),
+    syntheticSummary.message
+  );
 }
 
 // Every mutation must find a target somewhere in the corpus, or it is proving nothing.
@@ -290,6 +425,8 @@ console.log("\nMutation hygiene");
  * ------------------------------------------------------------------ */
 await mkdir(REPORT_DIR, { recursive: true });
 
+const observedRegressions = observedExpectationRegressions(outcomes);
+const observedSummary = observedDetectionSummary(outcomes);
 const gapReport = {
   campaign: { seed: CAMPAIGN_SEED, generatorVersion: constraints.generatorVersion, flowCount: corpus.length, reproductionCommand: "npx tsx scripts/verify-random-oracle.mts" },
   locatorValidationDrift: {
@@ -303,8 +440,11 @@ const gapReport = {
     mutationKinds: ALL_MUTATION_KINDS.length,
     detectedKinds: outcomes.filter((o) => MUTATION_EXPECTATIONS[o.kind].status === "detected").length,
     knownGapKinds: KNOWN_VALIDATION_GAPS.length,
-    productionUnenforcedRules: PRODUCTION_UNENFORCED_RULES.length
+    productionUnenforcedRules: PRODUCTION_UNENFORCED_RULES.length,
+    observedExpectationRegressions: observedRegressions.length,
+    observedStatus: observedSummary.message
   },
+  observedExpectationRegressions: observedRegressions,
   detected: outcomes
     .filter((o) => MUTATION_EXPECTATIONS[o.kind].status === "detected")
     .map((o) => ({
@@ -362,6 +502,20 @@ const md = [
     (entry) => `| \`${entry.kind}\` | ${entry.detectedBy} | ${entry.rejected}/${entry.applied} | ${entry.productionEnforced ? "yes" : "**no — Stage 2b**"} |`
   ),
   "",
+  `## Observed expectation regressions (${gapReport.observedExpectationRegressions.length})`,
+  "",
+  observedSummary.message,
+  "",
+  ...(gapReport.observedExpectationRegressions.length === 0
+    ? []
+    : [
+        "| Mutation | Observed matches | First discrepancy |",
+        "|---|---|---|",
+        ...gapReport.observedExpectationRegressions.map(
+          (entry) => `| \`${entry.kind}\` | ${entry.matched}/${entry.applied} | ${entry.discrepancies[0] ?? "none captured"} |`
+        ),
+        ""
+      ]),
   `## Production-unenforced rules (${gapReport.stage2bWiringChecklist.length})`,
   "",
   gapReport.stage2bWiringChecklist.length === 0
@@ -396,11 +550,10 @@ for (const gap of gapReport.gaps) {
 await writeFile(join(REPORT_DIR, "validation-gaps.md"), `${md.join("\n")}\n`, "utf8");
 
 console.log(`\nReport written:\n  ${join(REPORT_DIR, "validation-gaps.json")}\n  ${join(REPORT_DIR, "validation-gaps.md")}`);
-console.log(
-  KNOWN_VALIDATION_GAPS.length === 0
-    ? `\n✓ All ${ALL_MUTATION_KINDS.length} controlled defects are rejected by a validator.`
-    : `\n⚠ ${KNOWN_VALIDATION_GAPS.length} of ${ALL_MUTATION_KINDS.length} controlled defects are not rejected by any validator. See validation-gaps.md.`
-);
+console.log(`\n${observedSummary.message}`);
+if (KNOWN_VALIDATION_GAPS.length > 0) {
+  console.log(`⚠ ${KNOWN_VALIDATION_GAPS.length} of ${ALL_MUTATION_KINDS.length} controlled defects are expected validation gaps. See validation-gaps.md.`);
+}
 console.log(
   PRODUCTION_UNENFORCED_RULES.length === 0
     ? `✓ Every detected rule is enforced by a production caller (run gate via PreRunValidator delegation).`

@@ -56,28 +56,49 @@ function check(label: string, condition: unknown, detail?: string): void {
 
 const LOCATOR: StepLocator = { strategy: "css", value: "#el", resolution: "resolved", resolvedBy: "user" };
 
-function codesFor(step: Partial<FlowStep>): FlowValidationCode[] {
+type AssertionOverrides = Omit<Partial<FlowStep>, "id" | "type" | "name">;
+
+function assertionStep(overrides: AssertionOverrides = {}): FlowStep {
+  return { id: "a", type: "assertText", name: "Assert", ...overrides };
+}
+
+/** Test-boundary helper for malformed literals that can arrive through imported JSON. */
+function setRawProperty(target: object, key: PropertyKey, value: unknown): void {
+  if (!Reflect.set(target, key, value)) throw new Error(`Could not inject raw property ${String(key)}`);
+}
+
+function assertionStepWithRawConfig(overrides: AssertionOverrides, key: PropertyKey, value: unknown): FlowStep {
+  const result = assertionStep({ ...overrides, config: { ...overrides.config } });
+  if (!result.config) throw new Error("Raw assertion probe has no config object");
+  setRawProperty(result.config, key, value);
+  return result;
+}
+
+function codesForCompleteStep(step: FlowStep): FlowValidationCode[] {
   const flow: FlowProfile = {
     id: "assert-probe",
     name: "assert probe",
     version: 1,
-    nodes: [{ id: "a", type: "assertText", name: "Assert", ...step } as FlowStep],
+    nodes: [step],
     edges: []
   };
   return validateFlowDefinition(flow).issues.filter((i) => i.nodeId === "a").map((i) => i.code);
 }
-const messagesFor = (step: Partial<FlowStep>): string[] => {
+function codesFor(step: AssertionOverrides): FlowValidationCode[] {
+  return codesForCompleteStep(assertionStep(step));
+}
+const messagesFor = (step: AssertionOverrides): string[] => {
   const flow: FlowProfile = {
     id: "assert-probe",
     name: "assert probe",
     version: 1,
-    nodes: [{ id: "a", type: "assertText", name: "Assert", ...step } as FlowStep],
+    nodes: [assertionStep(step)],
     edges: []
   };
   return validateFlowDefinition(flow).issues.filter((i) => i.nodeId === "a").map((i) => i.message);
 };
-const has = (step: Partial<FlowStep>, code: FlowValidationCode): boolean => codesFor(step).includes(code);
-const clean = (step: Partial<FlowStep>): boolean => codesFor(step).length === 0;
+const has = (step: AssertionOverrides, code: FlowValidationCode): boolean => codesFor(step).includes(code);
+const clean = (step: AssertionOverrides): boolean => codesFor(step).length === 0;
 
 /* ------------------------------------------------------------------ *
  * 1. The expected value is read from the channel the designer writes
@@ -154,9 +175,20 @@ console.log("\nRequired config fields");
  * ------------------------------------------------------------------ */
 console.log("\nConfiguration literals");
 {
-  check("an unknown assertionType is reported", has({ locator: LOCATOR, config: { assertionType: "sparkle" as never, expectedValue: "x" } }, "unsupportedConfiguration"));
-  check("an unknown comparisonOperator is reported", has({ locator: LOCATOR, config: { assertionType: "text", comparisonOperator: "roughly" as never, expectedValue: "x" } }, "unsupportedConfiguration"));
-  check("an unknown storageArea is reported", has({ config: { assertionType: "storage", storageKey: "k", storageArea: "cloud" as never, expectedValue: "x" } }, "unsupportedConfiguration"));
+  const unknownKind = assertionStepWithRawConfig({ locator: LOCATOR, config: { expectedValue: "x" } }, "assertionType", "sparkle");
+  const unknownOperator = assertionStepWithRawConfig(
+    { locator: LOCATOR, config: { assertionType: "text", expectedValue: "x" } },
+    "comparisonOperator",
+    "roughly"
+  );
+  const unknownStorageArea = assertionStepWithRawConfig(
+    { config: { assertionType: "storage", storageKey: "k", expectedValue: "x" } },
+    "storageArea",
+    "cloud"
+  );
+  check("an unknown assertionType is reported", codesForCompleteStep(unknownKind).includes("unsupportedConfiguration"));
+  check("an unknown comparisonOperator is reported", codesForCompleteStep(unknownOperator).includes("unsupportedConfiguration"));
+  check("an unknown storageArea is reported", codesForCompleteStep(unknownStorageArea).includes("unsupportedConfiguration"));
 
   // `Number(actual) > Number(expected)` — a non-numeric literal is NaN, and every comparison with
   // NaN is false, so the assertion can never pass however the page behaves.
@@ -194,7 +226,7 @@ console.log("\nNo collateral relaxation");
     id: "av",
     name: "av",
     version: 1,
-    nodes: [{ id: "v", type: "assertVisible", name: "Visible" } as FlowStep],
+    nodes: [{ id: "v", type: "assertVisible", name: "Visible" }],
     edges: []
   };
   check(
@@ -205,7 +237,7 @@ console.log("\nNo collateral relaxation");
     id: "av2",
     name: "av2",
     version: 1,
-    nodes: [{ id: "v", type: "assertVisible", name: "Visible", locator: LOCATOR } as FlowStep],
+    nodes: [{ id: "v", type: "assertVisible", name: "Visible", locator: LOCATOR }],
     edges: []
   };
   check("assertVisible needs no expected value", validateFlowDefinition(visibleOk).issues.filter((i) => i.nodeId === "v").length === 0);
@@ -215,7 +247,7 @@ console.log("\nNo collateral relaxation");
     id: "f",
     name: "f",
     version: 1,
-    nodes: [{ id: "s", type: "fill", name: "Fill", locator: LOCATOR, config: { expectedValue: "smuggled" } } as FlowStep],
+    nodes: [{ id: "s", type: "fill", name: "Fill", locator: LOCATOR, config: { expectedValue: "smuggled" } }],
     edges: []
   };
   check(
@@ -231,7 +263,7 @@ console.log("\nRound-trip and the properties panel");
 {
   const roundTrip = (step: FlowStep): FlowStep => {
     const data = fromFlowStep(step);
-    const node: FlowDesignerNode = { id: step.id, type: "flowNode", position: step.position ?? { x: 0, y: 0 }, data } as FlowDesignerNode;
+    const node: FlowDesignerNode = { id: step.id, type: "flowNode", position: step.position ?? { x: 0, y: 0 }, data };
     return toFlowStep(node, []);
   };
 
@@ -241,7 +273,7 @@ console.log("\nRound-trip and the properties panel");
     name: "Assert",
     locator: LOCATOR,
     config: { assertionType: "attribute", attributeName: "aria-pressed", comparisonOperator: "equals", expectedValue: "true" }
-  } as FlowStep);
+  });
   check("reload preserves the assertion kind", saved.config?.assertionType === "attribute", String(saved.config?.assertionType));
   check("reload preserves the attribute name", saved.config?.attributeName === "aria-pressed", String(saved.config?.attributeName));
   check("reload preserves the expected value", saved.config?.expectedValue === "true", String(saved.config?.expectedValue));
@@ -252,12 +284,12 @@ console.log("\nRound-trip and the properties panel");
     type: "assertText",
     name: "Assert",
     config: { assertionType: "storage", storageKey: "token", storageArea: "session", expectedValue: "abc" }
-  } as FlowStep);
+  });
   check("reload preserves the storage key and area", storage.config?.storageKey === "token" && storage.config?.storageArea === "session");
   check("the reloaded storage assertion validates clean without a locator", clean({ config: storage.config }));
 
   const definition = getNodeDefinition("assertText");
-  const dataFor = (step: Partial<FlowStep>) => fromFlowStep({ id: "a", type: "assertText", name: "Assert", ...step } as FlowStep);
+  const dataFor = (step: AssertionOverrides) => fromFlowStep(assertionStep(step));
   check("panel: a complete text assertion shows no inline error", definition.validate(dataFor({ locator: LOCATOR, config: { assertionType: "text", expectedValue: "Hi" } })).length === 0);
   check("panel: a missing expected value still shows an error", definition.validate(dataFor({ locator: LOCATOR, config: { assertionType: "text" } })).length === 1);
   // The panel knew only about the expected value, so these two are the drift this fix closes.
@@ -332,9 +364,10 @@ console.log("\nContract to runtime parity");
   check("there are exactly 7 assertion kinds", ASSERTION_KINDS.length === 7, String(ASSERTION_KINDS.length));
   check("there are exactly 2 storage areas", STORAGE_AREAS.length === 2);
   // An unrecognised literal must resolve to the arm the executor's final `else` actually runs.
-  check("an unknown assertionType resolves to the text arm, matching the executor", resolveAssertionKind({ config: { assertionType: "bogus" } } as FlowStep) === "text");
-  check("an absent assertionType resolves to the text arm", resolveAssertionKind({} as FlowStep) === "text");
-  check("assertionStepContract reports the resolved kind", assertionStepContract({ config: { assertionType: "url" } } as FlowStep).kind === "url");
+  const rawUnknownKind = assertionStepWithRawConfig({}, "assertionType", "bogus");
+  check("an unknown assertionType resolves to the text arm, matching the executor", resolveAssertionKind(rawUnknownKind) === "text");
+  check("an absent assertionType resolves to the text arm", resolveAssertionKind(assertionStep()) === "text");
+  check("assertionStepContract reports the resolved kind", assertionStepContract(assertionStep({ config: { assertionType: "url" } })).kind === "url");
 }
 
 /* ------------------------------------------------------------------ *
