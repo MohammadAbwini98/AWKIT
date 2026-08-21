@@ -4,6 +4,52 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-22 - multi-agent (frontend → QA → project-state) - close awkit-rvb / awkit-rvo / awkit-rvt
+
+- **Objective:** resolve and reconcile the two red random-lab baselines plus the red script-typecheck
+  baseline without weakening assertions, suppressing types, broadening compiler settings, or moving
+  an unrelated validation-ledger case.
+- **Classification and result:** `awkit-rvb` was a product/frontend mapping defect, fixed in
+  `8d7c7b9`; `awkit-rvo` was a QA random-oracle defect, fixed in `8c02726`; `awkit-rvt` was a
+  QA/project-state verifier typecheck defect, fixed in `8c02726`. All three Beads were closed with
+  mutation-sensitive evidence and exported. Tracker: **259 total / 255 closed / 4 outstanding**,
+  the same four externally blocked items. Ledger: **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Root causes:** a Designer no-op round trip synthesized absent `clickAndHold.holdMs` as 1000; the
+  generic missing-required-value mutation cleared top-level selector fields instead of subtype
+  runtime channels; and script typecheck had nine diagnostics across five consumers from incomplete
+  negative-test shapes, two missing `.mjs` declaration sidecars, a duplicate import, and the stale
+  non-canonical `unknownStepType` expectation.
+- **Mutation evidence:** holdMs re-fabrication failed click-and-hold **32/35** and round-trip
+  **25/27** (5 raw diffs, one fabricated-config shape); the flat-selector oracle failed **32/33** on
+  six focused subtype/channel targets; changing the constructed dblclick/contextMenu step types to
+  raw `teleport` failed validation **161/163** because the corrected canonical
+  `unsupportedConfiguration` negative checks no longer received known step types; removing the
+  declared `buildIssuePayload` export failed script typecheck with exit 1 / TS2305. All mutants were
+  restored.
+- **Final verification:** build **PASS**; script typecheck **0 diagnostics**; random oracle **33/33**
+  and **54/54**; random round-trip **27/27**, JSON **54/54**, **0 diffs**; click-and-hold **35/35**;
+  assertion **77/77**; loop-scroll **88/88**; wait **103/103**; validation **163/163**; runner
+  **121/121**; flow mapping **145/145**; legacy **152/152**; verifier classification **196/196**;
+  `ai:memory` **PASS**; Graphify update **PASS** at **13,519 nodes / 28,074 edges / 666
+  communities** with 46 zero-node-source warnings.
+- **Roadmap / not run:** exact pin **259 total / 255 closed / 4 outstanding**;
+  `verify:roadmap-dashboard` **PASS**, exit 0, **167/167**, **0 stale/expired live claims**, Overview
+  **`Sources agree`**. A deliberate **256 closed / 3 outstanding** mutant failed with exit 1 at
+  **166/167** on the sole exact state-pair check; restored **255/4** passed. Roadmap license issuer
+  **NOT RUN** because it can append immutable real issuance history; mock-site **NOT RUN** because no
+  mock-site/browser behavior changed. No validation-ledger, verifier-classification registry,
+  `package.json`, or control-plane behavior/schema change was required. Manager-owned
+  `docs/ai/contracts/awkit-rvb.json`, `docs/ai/contracts/active-lease.json`, and
+  `tools/roadmap/assignments.json` carry transient task/lease lifecycle state; the preserved pre-task
+  awkit-9qcz released-lease dirt remains byte-identical. `docs/ai/COMMANDS.md` was refreshed for the
+  current roadmap-dashboard, random-oracle, and random-round-trip verifier counts.
+- **Task reconciliation files:** `.beads/issues.jsonl`, `.beads/interactions.jsonl`,
+  `docs/ai/COMMANDS.md`, `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`,
+  `docs/ai/TASK_LOG.md`, `docs/ai/KNOWN_ISSUES.md`,
+  `docs/testing/comprehensive-validation/DEFECTS.md`, and the QA-owned
+  `scripts/verify-roadmap-dashboard.mjs`, plus lifecycle-state
+  `tools/roadmap/assignments.json`. No staging or commit was performed.
+
 ## 2026-08-22 - multi-agent (manager-orchestrated: software → frontend → qa → QC → project-state) - awkit-9qcz Option A finalization
 
 - **Objective:** implement the owner decision for `awkit-9qcz` — **Option A, literal-only condition

@@ -138,9 +138,9 @@ npm run verify:agent-routing # node scripts/verify-agent-routing.mjs — 616 det
 node tools/agents/task-gate.mjs docs/ai/contracts/<task>.json
                             # operational completion gate: live baseline diff + preserved paths +
                             # guarded fields + contract evidence + QA/QC + lease violations.
-npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 158 checks over the
+npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 167 checks over the
                             # tools/roadmap dashboard: source readability, exact record counts
-                            # (193 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the
+                            # (259 beads / 66 cases / 36 defects / 101 CSV rows / 11 phases), the
                             # FOUR-WAY ledger reconciliation (case file = its own rollup =
                             # CURRENT_STATE.md = HANDOFF.md — this is what catches doc drift),
                             # ordering invariants incl. a SYNTHETIC 2-cycle proving the cycle branch
@@ -492,8 +492,8 @@ npm run ai:memory:check     # alias of ai:memory
 npm run test:random -- --seed <seed> --workflow-count <count> # generation + validation + round-trip campaign
 npm run test:random:smoke -- --seed <seed>                    # bounded two-workflow campaign
 npm run test:random:generator                                 # generator/catalog/safety gate (49)
-npm run test:random:oracle                                    # mutations vs production validators (27)
-npm run test:random:roundtrip                                 # JSON + designer lossless gate (26)
+npm run test:random:oracle                                    # mutations vs production validators (33)
+npm run test:random:roundtrip                                 # JSON + designer lossless gate (27)
 npm run test:random:reproduce -- --artifact "<failure.json>"  # exact category/signature reproduction
 npm run verify:random-failures                                # artifacts, reproducer, shrinker, CLI (17)
 npm run verify:random-live                                    # generated flows through real ExecutionEngine/Chromium (14)

@@ -6,6 +6,77 @@ None.
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-MAP-001 (`awkit-rvb`) — Designer no-op save fabricated clickAndHold configuration
+
+- **Classification:** Product defect
+- **Severity:** S2 / A semantically unchanged Designer round trip altered persisted flow data
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-22 in `8d7c7b9`; Bead closed**
+- **Owner routing:** Frontend / Flow Designer mapping
+- **Affected area:** `app/renderer/components/workflow/flowDesignerTypes.ts`,
+  `app/renderer/components/workflow/flowProfileMapping.ts`
+- **Detected by:** deterministic random round-trip plus focused click-and-hold verification
+
+`fromFlowStep` converted a missing `clickAndHold.config` into `{ holdMs: 1000 }`, so the Designer
+could not distinguish absence from an explicit default. The mapping now tracks whether `holdMs` was
+actually configured: no-op saves preserve absence, explicit durations survive, imported unknown
+keys survive, and known fields irrelevant to the selected subtype are filtered.
+
+**Evidence:** `verify:click-and-hold` **35/35**; random round-trip **27/27**, JSON **54/54**, **0
+diffs**. Reintroducing default fabrication failed click-and-hold **32/35** (absence, unknown-only,
+and irrelevant-known-field cases) and round-trip **25/27** with 5 raw diffs of one fabricated
+`nodes[].config` shape; restoration returned all gates to green.
+
+---
+
+### AWKIT-VAL-001 (`awkit-rvo`) — Random missing-required-value oracle mutated the wrong channels
+
+- **Classification:** Validation-harness defect; no product-runtime defect
+- **Severity:** S2 / A red oracle obscured whether generated mutations exercised required values
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-22 in `8c02726`; Bead closed**
+- **Owner routing:** QA / random verification harness
+- **Affected area:** `src/testing/random/RandomMutator.ts`, `scripts/verify-random-oracle.mts`
+- **Detected by:** `test:random:oracle` required-value application accounting
+
+The generic mutator cleared flat top-level selector/value fields even when a subtype's required
+runtime channel was assertion `config.expectedValue`, fixed-loop `iterationCount`, time-wait
+`timeoutMs`, or page-scroll `scrollAmount`. It now targets the exact subtype channel and excludes
+optional or already-invalid shapes.
+
+**Evidence:** random oracle **33/33** with **54/54** applications. A flat-selector mutant failed
+**32/33**; the focused exact-target/channel proof failed `generic-goto`, `assert-config`,
+`wait-time`, `scroll-page`, `loop-fixed`, and `run-flow`. Restoration returned **33/33** and
+**54/54**.
+
+---
+
+### AWKIT-VAL-002 (`awkit-rvt`) — Script verifiers executed green while their static baseline was red
+
+- **Classification:** Validation-harness/type-contract defect; no product-runtime defect
+- **Severity:** S2 / Nine static diagnostics created false confidence in verifier maintenance
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-22 in `8c02726`; Bead closed**
+- **Owner routing:** QA for verifier sources; project-state for roadmap declaration sidecars
+- **Affected area:** `scripts/verify-assertion-validation.mts`,
+  `scripts/verify-loop-scroll-validation.mts`, `scripts/verify-validation.mts`,
+  `tools/roadmap/lib/license-issuer.d.mts`, `tools/roadmap/server.d.mts`
+- **Detected by:** `npm run typecheck:scripts`
+
+The nine diagnostics across five consumers were caused by four incomplete `FlowStep` negative-test
+casts, two real `.mjs` modules without same-basename declarations, a duplicate `readFileSync`
+import, and the non-canonical `unknownStepType` expectation (known steps with unsupported config use
+`unsupportedConfiguration`). Repairs use precise shapes and declarations; no `any`, suppression,
+unsafe double-cast, broad `allowJs`, or exclusion was introduced.
+
+**Evidence:** script typecheck **0 diagnostics**; assertion **77/77**; loop-scroll **88/88**;
+validation **163/163**. Removing the declared `buildIssuePayload` export failed typecheck with exit
+1 / TS2305. Changing the constructed dblclick/contextMenu step types to raw `teleport` failed
+validation **161/163** because the corrected canonical `unsupportedConfiguration` negative checks
+no longer received known step types; exact restoration returned both gates to green.
+
+---
+
 ### AWKIT-LIC-001 (`awkit-f3l`) — Repeat bypass and queue dispatch could outrun license enforcement
 
 - **Severity:** S1 / Work could begin after an integrity-blocking license transition

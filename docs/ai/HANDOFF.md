@@ -1,5 +1,60 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-22) - awkit-rvb / awkit-rvo / awkit-rvt CLOSED and fully reconciled
+
+### Transfer
+
+- **Canonical branch:** `main`. Product and harness repairs are already recorded in `8d7c7b9` and
+  `8c02726`; this project-state pass made no Git commit. The ledger remains **63 PASS / 2 NOT RUN /
+  1 BLOCKED**.
+- **Tracker:** `awkit-rvb`, `awkit-rvo`, and `awkit-rvt` were closed with exact resolution evidence
+  and exported. Current state is **259 total / 255 closed / 4 outstanding**; the four outstanding
+  items remain externally blocked (`awkit-cey`, `awkit-7bu`, `awkit-az7`, `awkit-cm8`).
+- **Classification/ownership:** `awkit-rvb` was a real frontend mapping defect (no-op save fabricated
+  `clickAndHold.config.holdMs`). `awkit-rvo` was a QA random-oracle defect (generic selectors missed
+  subtype runtime channels). `awkit-rvt` was a QA/project-state verifier typecheck defect (four
+  incomplete negative-test shapes, missing declarations for two real `.mjs` modules, a duplicate
+  import, and a stale validation-code expectation). The latter two did not change product runtime.
+- **Roadmap reconciliation:** QA updated the exact tracker pin to **259 total / 255 closed / 4
+  outstanding**. `npm run verify:roadmap-dashboard` passed with exit 0 at **167/167**, **0
+  stale/expired live claims**, and Overview **`Sources agree`**. A deliberate **256 closed / 3
+  outstanding** mutant failed with exit 1 at **166/167** on the sole exact state-pair check; the
+  restored **255/4** pin passed. No QA pin work remains.
+
+### Verified final evidence
+
+- `npm run build` **PASS**; `npm run typecheck:scripts` **PASS, 0 diagnostics**;
+  `test:random:oracle` **33/33** with **54/54** applications; `test:random:roundtrip` **27/27** with
+  JSON **54/54** and **0 diffs**.
+- Focused/broad checks: click-and-hold **35/35**; assertion **77/77**; loop-scroll **88/88**; wait
+  **103/103**; validation **163/163**; runner **121/121**; flow mapping **145/145**; legacy
+  **152/152**; verifier classification **196/196**; `ai:memory` **PASS**.
+- `graphify update .` **PASS**: **13,519 nodes / 28,074 edges / 666 communities**, with the
+  informational 46-zero-node-source warning.
+- Mutation proof: re-fabricating `holdMs` failed click-and-hold **32/35** and round-trip **25/27**
+  (5 raw diffs); a flat required-value selector failed the oracle **32/33** across `generic-goto`,
+  `assert-config`, `wait-time`, `scroll-page`, `loop-fixed`, and `run-flow`; changing the constructed
+  dblclick/contextMenu step types to raw `teleport` failed validation **161/163** because the
+  corrected canonical `unsupportedConfiguration` negative checks no longer received known step
+  types; removing declared `buildIssuePayload` failed script typecheck with exit 1 / TS2305. Every
+  mutation was restored before the green runs above.
+
+### Intentionally not run or changed
+
+- `verify:roadmap-license-issuer` **NOT RUN** because it can append immutable issuance history on an
+  authorized workstation. `verify:mock-site` **NOT RUN** because no mock-site/browser behavior
+  changed.
+- No validation-ledger row, verifier-classification registry, `package.json`, or roadmap-license
+  runtime implementation changed. No control-plane behavior or schema changed; manager-owned
+  `docs/ai/contracts/awkit-rvb.json`, `docs/ai/contracts/active-lease.json`, and
+  `tools/roadmap/assignments.json` carry transient task/lease lifecycle state. The preserved pre-task
+  awkit-9qcz released-lease dirt remains byte-identical. `docs/ai/COMMANDS.md` was refreshed for the
+  current verifier counts; the task reconciliation also includes the QA-owned exact-pin update in
+  `scripts/verify-roadmap-dashboard.mjs`. `run-app-demo.mjs` was never touched.
+- No implementation, QA pin, or project-state documentation work remains in this tranche. The
+  manager can commit/push the final scoped state, verify `main == origin/main`, and release the
+  project-state lease once.
+
 ## HANDOFF (2026-08-22) - awkit-9qcz Option A CLOSED and reconciled
 
 ### Transfer

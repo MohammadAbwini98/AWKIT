@@ -1,5 +1,54 @@
 # CURRENT_STATE
 
+## awkit-rvb / awkit-rvo / awkit-rvt CLOSED: product round-trip and verification baselines restored (2026-08-22)
+
+The three independently triaged findings are resolved and closed. Tracker export now contains
+**259 total / 255 closed / 4 outstanding**; the remaining four are the same externally blocked
+items (`awkit-cey`, `awkit-7bu`, `awkit-az7`, `awkit-cm8`). The comprehensive-validation ledger is
+unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** because none of these repairs moves a ledger case.
+
+- **`awkit-rvb` — product defect, frontend mapping owner; fixed by `8d7c7b9`.** The Designer's
+  `fromFlowStep` path collapsed an absent `clickAndHold.config` into an explicit
+  `{ holdMs: 1000 }`. Presence is now tracked separately from the editable value: no-op saves keep
+  absence, explicit durations survive, imported unknown keys survive, and known fields irrelevant
+  to the current subtype are filtered.
+- **`awkit-rvo` — validation-harness defect, QA owner; fixed by `8c02726`.** The random
+  `missingRequiredValue` oracle mutated generic top-level selectors even when a subtype's required
+  runtime value lived in `config.expectedValue`, `iterationCount`, `timeoutMs`, or `scrollAmount`.
+  Mutations now target the exact subtype channel and exclude optional or already-invalid shapes.
+- **`awkit-rvt` — validation-harness/typecheck defect, QA plus project-state declaration owners;
+  fixed by `8c02726`.** Nine diagnostics across five verifier consumers came from four incomplete
+  `FlowStep` negative-test casts, two undeclared real `.mjs` modules, a duplicate import, and the
+  stale/non-canonical `unknownStepType` expectation. The repairs use precise shapes and
+  same-basename declarations; there is no `any`, suppression, broad `allowJs`, or exclusion. This
+  was a false-confidence gap in verifier static coverage, not a product-runtime failure.
+
+Final observed gates are green: `build`; `typecheck:scripts` (**0 diagnostics**);
+`test:random:oracle` (**33/33**, **54/54** mutation applications); `test:random:roundtrip`
+(**27/27**, JSON **54/54**, **0 diffs**); click-and-hold **35/35**; assertion **77/77**;
+loop-scroll **88/88**; wait **103/103**; validation **163/163**; runner **121/121**; flow mapping
+**145/145**; legacy **152/152**; verifier classification **196/196**; and `ai:memory`. `graphify
+update .` also passed at **13,519 nodes / 28,074 edges / 666 communities**, with its informational
+warning that 46 source files yielded zero nodes.
+
+Mutation-sensitive proof is restored clean: re-fabricating `holdMs` failed click-and-hold at
+**32/35** and round-trip at **25/27** (5 raw diffs, one fabricated-config shape); flattening the
+required-value selector failed the oracle at **32/33** across six focused subtype/channel targets;
+changing the constructed dblclick/contextMenu step types to raw `teleport` failed validation at
+**161/163** because the corrected canonical `unsupportedConfiguration` negative checks no longer
+received known step types; and removing the `buildIssuePayload` declaration failed
+`typecheck:scripts` with TS2305 and exit 1. The restored tree returns the green counts above.
+
+Roadmap reconciliation is also green at the exact pin **259 total / 255 closed / 4 outstanding**:
+`npm run verify:roadmap-dashboard` **PASS**, exit 0, **167/167**, with **0 stale/expired live
+claims** and Overview **`Sources agree`**. A deliberate **256 closed / 3 outstanding** mutant failed
+with exit 1 at **166/167** on the sole exact state-pair check; restoring **255/4** returned the gate
+to 167/167. `verify:roadmap-license-issuer` was **NOT RUN** because an authorized run may append
+immutable real issuance history. `verify:mock-site` was **NOT RUN** because no mock-site or browser
+behavior changed. No validation-ledger row, verifier-classification registry, `package.json`, or
+roadmap-license runtime implementation changed in this tranche. `docs/ai/COMMANDS.md` was refreshed
+for the current roadmap-dashboard, random-oracle, and random-round-trip verifier counts.
+
 ## awkit-9qcz CLOSED: Option A literal-only condition expressions (2026-08-22)
 
 **The owner decision landed: Option A — condition expressions are literal-only.** A condition routes

@@ -1,67 +1,50 @@
 # KNOWN_ISSUES
 
-## REGRESSION: the `typecheck:scripts` baseline is RED again — 9 diagnostics (2026-08-21)
+## RESOLVED: `typecheck:scripts` is green at 0 diagnostics (`awkit-rvt`, 2026-08-22)
 
-**Executed, not inferred.** `npm run typecheck:scripts` exits **2** with **9 diagnostics across 5
-files**, measured 2026-08-21 at `cad6191`:
+The nine-diagnostic regression across five verifier consumers is resolved in `8c02726`; the Bead is
+closed. Root causes were four deliberately incomplete `FlowStep` negative-test shapes asserted with
+unsafe direct casts, two missing same-basename declarations for real roadmap `.mjs` exports, a
+duplicate `readFileSync` import, and a stale `unknownStepType` expectation even though the canonical
+code for a known step with unsupported config is `unsupportedConfiguration`.
 
-```text
-verify-assertion-validation.mts(335,106)   TS2352  {config:{assertionType:"bogus"}} -> FlowStep
-verify-loop-scroll-validation.mts(109,173) TS2352  {config:{scrollTarget:never}}    -> FlowStep
-verify-loop-scroll-validation.mts(158,94)  TS2352  {config:{loopType:never}}        -> FlowStep
-verify-loop-scroll-validation.mts(159,97)  TS2352  {config:{loopActionType:never}}  -> FlowStep
-verify-roadmap-license-issuer.mts(61,63)   TS7016  no decls for tools/roadmap/lib/license-issuer.mjs
-verify-roadmap-license-issuer.mts(554,35)  TS7016  no decls for tools/roadmap/server.mjs
-verify-validation.mts(44,10)               TS2300  Duplicate identifier 'readFileSync'
-verify-validation.mts(52,10)               TS2300  Duplicate identifier 'readFileSync'
-verify-validation.mts(596,87)              TS2345  "unknownStepType" not a FlowValidationCode
-```
+Ownership was split correctly: QA owned the verifier repairs and project-state owned
+`tools/roadmap/lib/license-issuer.d.mts` plus `tools/roadmap/server.d.mts`. The result uses precise
+negative-test helpers and declarations, with no `any`, `ts-ignore`, unsafe double-cast, broad
+`allowJs`, or compiler exclusion. `npm run typecheck:scripts` now passes with **0 diagnostics**;
+assertion is **77/77**, loop-scroll **88/88**, validation **163/163**, and the roadmap-license module
+import smoke path remains type-safe. Removing only the declared `buildIssuePayload` export proved
+the gate is sensitive: typecheck failed with exit 1 and TS2305 at the consumer, then returned to 0
+after exact restoration. Changing the constructed dblclick/contextMenu step types to raw `teleport`
+separately failed validation at **161/163** because the corrected canonical
+`unsupportedConfiguration` negative checks no longer received known step types.
 
-This **regresses** the baseline repaired to 0 on 2026-08-18 (`awkit-zc88`, see the RESOLVED section
-below). `npm run typecheck:scripts` and `npm run verify:all-typecheck` **may no longer be cited as
-green.**
+The enduring rule remains: `npm run build` does not typecheck `scripts/**`; after changing an `.mts`
+verifier, run `npm run verify:all-typecheck` (or at minimum `typecheck:scripts`) in addition to the
+runtime verifier. `tsx` execution alone can stay green while static contracts are red.
 
-**Why it went unnoticed — the part worth remembering.** `scripts/**` *is* typechecked, by
-`tsc -p tsconfig.scripts.json` (`"include": ["scripts/**/*.mts"]`). But that gate is **not part of
-`npm run build`**: `build` uses `tsconfig.json`, whose L25 `"include"` is `["app", "src",
-"electron.vite.config.ts", "vite.config.ts"]`. Only `npm run verify:all-typecheck`
-(`build && typecheck:scripts`) covers both. So a task that runs `npm run build`, sees it clean, and
-reports "typecheck passes" has checked **nothing in `scripts/**`** — which is exactly how the
-duplicate `readFileSync` import at `verify-validation.mts:44` and `:52` (introduced by `6f14261`,
-2026-08-20) survived. The prior RESOLVED entry already predicted this shape: "nothing was checking,
-so new mismatches joined quietly."
+## RESOLVED: random oracle and clickAndHold round-trip baselines are green (`awkit-rvo`, `awkit-rvb`, 2026-08-22)
 
-**Rule:** after touching any `.mts` verifier, run `npm run verify:all-typecheck`, not `npm run
-build`. `build` being clean is not evidence about `scripts/**`.
+Both broader random-lab gaps are resolved and their Beads are closed:
 
-No product code is affected — all 9 are in verifier scripts, and `verify:validation` still runs
-green under `tsx` (163/0), because `tsx` strips types rather than checking them. That divergence is
-the hazard: a red `typecheck:scripts` and a green verifier run are perfectly compatible.
+- **`awkit-rvb`, product/frontend mapping defect, fixed by `8d7c7b9`:** a Designer no-op save
+  treated absent `clickAndHold.config` as an explicit default and fabricated `{ holdMs: 1000 }`.
+  Mapping now preserves absence versus explicit duration, retains imported unknown keys, and filters
+  known fields irrelevant to the active subtype. Click-and-hold is **35/35** and random round-trip is
+  **27/27**, JSON **54/54**, with **0 diffs**.
+- **`awkit-rvo`, QA harness defect, fixed by `8c02726`:** the generic
+  `missingRequiredValue` mutator cleared flat selector fields even when the actual required runtime
+  channel was assertion `config.expectedValue`, fixed-loop `iterationCount`, time-wait `timeoutMs`,
+  or page-scroll `scrollAmount`. The oracle now targets the exact subtype channel and excludes
+  optional or already-invalid shapes. It passes **33/33** with **54/54** mutation applications.
 
-**Deliberately NOT fixed here and NOT filed as a bead.** The `awkit-9qcz` investigation held a
-project-state lease that does not own `scripts/**`, and filing a bead would move tracker cardinality
-and the exact roadmap pin in `scripts/verify-roadmap-dashboard.mjs` for a task that changed no
-product behaviour. Route it as a scoped task that owns `scripts/**`.
-
-## Broader random-lab gates expose two non-Option-A gaps (2026-08-22)
-
-The required Option A gates are green, including `verify:condition-semantics` **36/36** and
-`test:random:generator` **49/49**. Two additional random-lab gates were run during finalization and
-are truthfully red:
-
-- `test:random:oracle` is **26 PASS / 1 FAIL**. Its generic `missingRequiredValue` mutation is
-  rejected in 39/54 flows rather than 54/54. The 54 valid generated flows remain clean, and the
-  focused condition source-only/missing-literal checks pass, so this is a broader oracle/mutation
-  discrepancy rather than evidence that Option A accepts source-only conditions.
-- `test:random:roundtrip` is **25 PASS / 2 FAIL** with 5 raw differences of one shape:
-  `nodes[].config` fabricated on `clickAndHold` nodes (`holdMs: 1000`). No finding targets a
-  condition. The run regenerates the gitignored report; its current corpus contains 44 conditions
-  and 0 condition value sources.
-
-The condition-source omission now consumes the former seeded source-generation draws before
-discarding the source, so it does not shift unrelated later random choices. These two broader gaps
-still reproduce with that deterministic stream preserved. They were not silently repaired or filed
-as part of `awkit-9qcz`; route them as separate scoped QA/frontend work if they are prioritized.
+Mutation proof prevents both fixes from being accidental. Re-fabricating `holdMs` failed
+click-and-hold at **32/35**: F6 gained `{ holdMs: 1000 }` from absence, F8 gained it beside an
+unknown-only config, and F11 filtered the irrelevant known key but still fabricated the default.
+Round-trip simultaneously failed **25/27** with 5 raw diffs of one `nodes[].config` shape (JSON
+stayed **54/54**). Flattening the required-value selector failed the oracle at **32/33**; its focused
+channel check rejected `generic-goto`, `assert-config`, `wait-time`, `scroll-page`, `loop-fixed`, and
+`run-flow`. Restoring each implementation returned the exact green counts above.
 
 ## RESOLVED by Option A: a condition literal+valueSource is now diagnosed; residual is generated evidence only (2026-08-21)
 
