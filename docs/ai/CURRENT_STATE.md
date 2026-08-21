@@ -1,5 +1,108 @@
 # CURRENT_STATE
 
+## awkit-9qcz investigated: the value source is inert, but conditions are already data-driven (2026-08-21)
+
+**This was an investigation. NO product semantics changed.** No file under `app/**`, `src/**`,
+`scripts/**`, `resources/**` or `mock-site/**` was edited. `awkit-9qcz` stays **OPEN**: it carried an
+owner-decision gate, and the gate did not pass — no owner decision exists.
+
+**The bead's premise is half right, and the half that is wrong matters.** A condition node's
+`valueSource` really is inert, but that does not mean condition expressions cannot be data-driven.
+They already are, through the template channel.
+
+- **Runtime.** `src/runner/FlowExecutor.ts` L571-577, inside the **synchronous** `resolveNext`
+  (L549), routes a condition with `evaluateBoolean(step.value ?? "", getValueWithStepResult)`.
+  `step.valueSource` is never referenced. `src/runner/ExpressionEvaluator.ts` is fully synchronous
+  and returns `true` for an empty expression; `${path}` operands resolve through the caller's
+  `getValue`. `makeScope` (L652-662) already resolves `outputs.*`, `runtimeInputs.*`,
+  `instanceInputs.*`, `currentRow` and `currentRow.*`, and `getValueWithStepResult` (L564-567) adds
+  `stepResult.<key>`. So `${runtimeInputs.x} === 'A'` is a data-driven condition **today**. The open
+  question is only the *structured* binding.
+- **Conditions are the sole precedence inversion.** `src/runner/StepExecutor.ts` L2614-2617
+  `resolveStepValue` gives every other value-taking type the opposite rule — `if (step.valueSource)
+  return this.valueResolver.resolve(step.valueSource); return fallback ?? step.value ?? ""`, i.e.
+  source **wins** over literal. A condition is the one type where the literal wins and the source is
+  ignored. (L2063-2066 returns `{ status: "passed" }` for a condition; routing belongs to
+  `FlowExecutor`.)
+- **The cost of honouring it is asynchrony.** `src/runner/ValueResolver.ts` is the single canonical
+  resolver — `async resolve(valueSource?): Promise<string>`, kinds `static, dynamic, runtimeInput,
+  instanceVariable, flowOutput, env, generated, secret, currentRow, json`, `default:` throws. It is
+  async, so reading a condition `valueSource` forces `resolveNext` async. That is the core price of
+  the data-driven option, not an implementation detail.
+- **Validation.** `src/validation/FlowValidator.ts` L367-393: `if (step.type === "condition") return
+  isNonEmptyString(step.value);` — the one value-requiring type where a `valueSource` does not
+  satisfy the rule (added by `awkit-dnbb`; message at L606-610).
+  `src/validation/StepRequirements.ts` L69 keeps `condition: { requiresLocator: false, requiresValue:
+  true }`. Net: **source-only is rejected; literal+source is accepted with the source silently inert
+  and no diagnostic.**
+- **Authoring.** `app/renderer/components/workflow/flowNodeRegistry.ts` L150-155 gives a condition
+  `sections: ["condition", "execution"]` — `"value"` is excluded, so a condition binding **cannot be
+  authored in the Flow Designer at all**. `FlowNodePropertiesPanel.tsx` L1315-1325 renders only an
+  Expression input, and the "Resolved at run time from a &lt;type&gt; source" hint (L1012-1019) lives
+  in the value section, so it never appears for a condition. Zero UI diagnostic, confirmed.
+- **No live data-loss path.** `flowProfileMapping.ts` is the live designer mapping and is lossless
+  for the both-field case (`toFlowStep` L188-189 emits both; `fromFlowStep` L357/L359/L374 preserves
+  `valueSourceOriginal` and passes non-authorable kinds through verbatim). `flowStepMapping.ts` does
+  collapse the two fields but is superseded — only `branchPairs.ts` imports it, and only for the
+  `FlowDesignerEdge` type.
+- **Generator.** `src/testing/random/RandomConfigurationGenerator.ts` L145-152 / L331-340: when
+  `spec.requiresValue`, `valueSourceFor` always returns a source (`default: return { type: "static",
+  value }`) and `payload.valueSource = source` is unconditional. **100% of generated condition nodes
+  carry a `valueSource` by construction**, independent of corpus size. Commit `42bde72` only removed
+  the literal-suppressing `secret` kind.
+
+**Blast radius, measured, with the three data classes kept separate:**
+
+```text
+tracked repository            1 condition node   resources/test-fixtures/mock-site/flows/mock-conditional-flow.json
+                                                 "${runtimeInputs.path} === 'A'" — literal-only, no valueSource,
+                                                 already data-driven via the template channel
+live user profile store       0 condition nodes  %LOCALAPPDATA%/SpecterStudio/
+frozen generated EVIDENCE    88 condition nodes  reports/random-tests/roundtrip-defects.json — gitignored,
+                                                 historic, NOT live product data
+```
+
+Within that frozen report: 88/88 carry a `valueSource`; 82 literal+source; 6 source-only (all kind
+`secret` — the class `awkit-dnbb` fixed); 0 literal-only; 0 neither. Kinds: static 32, flowOutput 12,
+dynamic 12, instanceVariable 8, env 8, generated 8, secret 6, runtimeInput 2. The bead's "95 of 95"
+came from a live campaign at `awkit-dnbb` time; the frozen report holds 88. Both are 100%.
+
+**A red gate found while checking a claim, and it is NOT a pass.** `npm run typecheck:scripts` exits
+**2 with 9 diagnostics across 5 files** at `cad6191` — including a duplicate `readFileSync` import at
+`scripts/verify-validation.mts:44` and `:52` (from `6f14261`). This **regresses** the baseline
+repaired to 0 on 2026-08-18 (`awkit-zc88`), so `typecheck:scripts` and `verify:all-typecheck` may no
+longer be cited as green. It went unseen because `scripts/**` *is* typechecked — but by
+`tsconfig.scripts.json`, which **`npm run build` does not run**; only `verify:all-typecheck` covers
+both. A clean `npm run build` is not evidence about `scripts/**`. All 9 are verifier scripts, no
+product code, and `verify:validation` still runs green under `tsx` because `tsx` strips types rather
+than checking them. Recorded in `KNOWN_ISSUES.md`; NOT fixed and NOT filed as a bead (this lease does
+not own `scripts/**`, and filing would move the roadmap pin).
+
+**Baselines executed at `cad6191`, all PASS:** `npm run build` clean (`tsc --noEmit`, 3 bundles) ·
+`verify:validation` **163 passed / 0 failed** (the focused condition verifier — section "Rule:
+condition expressions are literal-only", 12 checks) · `verify:runner` **121 passed / 0 failed** ·
+`verify:roadmap-dashboard` **167/167**, banner "Sources agree", 256 issues parsed, 5 outstanding /
+251 closed, 0 expired claims · `verify:verifier-classification` reconciled, **all 195 scripts
+classified**.
+
+**NOT RUN, and why.** No fresh random campaign — `npm run test:random:*` is outside this lease's
+allowed shell grammar, so the corpus figures above are the frozen report plus the tracked/live scans,
+not a new run. Of the four behavioural probes the question raises, only **one** is executed: the
+source-only-is-rejected case, by `verify:validation`. The other three (literal+source at run time,
+source-only at run time, and the async-`resolveNext` cost) were **not executed** — an executable probe
+needs a `scripts/**` writer lease this contract forbids. None of them is claimed as passing.
+
+**Owner-decision gate: DID NOT PASS.** `docs/ai/DECISIONS.md` records nothing about condition value
+binding; `change_requests/awtkit_claude_code_implementation_phases/01_PHASE_NODE_PROPERTIES_VALUE_SOURCE_AND_DYNAMIC_JSON_BINDING.md`
+never mentions condition nodes; the master spec has no such requirement. The requester stated a
+preference for literal-only but explicitly labelled it a recommendation, not an authorization. So
+nothing was changed and `awkit-9qcz` remains **OPEN**.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** (an investigation that changes no behaviour
+moves no validation-ledger case). Tracker: **256 total / 251 closed / 5 outstanding** — unchanged; no
+bead was filed or closed this task, deliberately, so tracker cardinality and the roadmap pin stay
+exact.
+
 ## Token-aware multi-agent orchestration: the write lease became enforcement (2026-08-21)
 
 `awkit-bkfy` is **CLOSED** in the authoritative `bd` tracker (closure date 2026-08-21). The

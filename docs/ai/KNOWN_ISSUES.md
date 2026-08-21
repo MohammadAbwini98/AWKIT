@@ -1,5 +1,81 @@
 # KNOWN_ISSUES
 
+## REGRESSION: the `typecheck:scripts` baseline is RED again — 9 diagnostics (2026-08-21)
+
+**Executed, not inferred.** `npm run typecheck:scripts` exits **2** with **9 diagnostics across 5
+files**, measured 2026-08-21 at `cad6191`:
+
+```text
+verify-assertion-validation.mts(335,106)   TS2352  {config:{assertionType:"bogus"}} -> FlowStep
+verify-loop-scroll-validation.mts(109,173) TS2352  {config:{scrollTarget:never}}    -> FlowStep
+verify-loop-scroll-validation.mts(158,94)  TS2352  {config:{loopType:never}}        -> FlowStep
+verify-loop-scroll-validation.mts(159,97)  TS2352  {config:{loopActionType:never}}  -> FlowStep
+verify-roadmap-license-issuer.mts(61,63)   TS7016  no decls for tools/roadmap/lib/license-issuer.mjs
+verify-roadmap-license-issuer.mts(554,35)  TS7016  no decls for tools/roadmap/server.mjs
+verify-validation.mts(44,10)               TS2300  Duplicate identifier 'readFileSync'
+verify-validation.mts(52,10)               TS2300  Duplicate identifier 'readFileSync'
+verify-validation.mts(596,87)              TS2345  "unknownStepType" not a FlowValidationCode
+```
+
+This **regresses** the baseline repaired to 0 on 2026-08-18 (`awkit-zc88`, see the RESOLVED section
+below). `npm run typecheck:scripts` and `npm run verify:all-typecheck` **may no longer be cited as
+green.**
+
+**Why it went unnoticed — the part worth remembering.** `scripts/**` *is* typechecked, by
+`tsc -p tsconfig.scripts.json` (`"include": ["scripts/**/*.mts"]`). But that gate is **not part of
+`npm run build`**: `build` uses `tsconfig.json`, whose L25 `"include"` is `["app", "src",
+"electron.vite.config.ts", "vite.config.ts"]`. Only `npm run verify:all-typecheck`
+(`build && typecheck:scripts`) covers both. So a task that runs `npm run build`, sees it clean, and
+reports "typecheck passes" has checked **nothing in `scripts/**`** — which is exactly how the
+duplicate `readFileSync` import at `verify-validation.mts:44` and `:52` (introduced by `6f14261`,
+2026-08-20) survived. The prior RESOLVED entry already predicted this shape: "nothing was checking,
+so new mismatches joined quietly."
+
+**Rule:** after touching any `.mts` verifier, run `npm run verify:all-typecheck`, not `npm run
+build`. `build` being clean is not evidence about `scripts/**`.
+
+No product code is affected — all 9 are in verifier scripts, and `verify:validation` still runs
+green under `tsx` (163/0), because `tsx` strips types rather than checking them. That divergence is
+the hazard: a red `typecheck:scripts` and a green verifier run are perfectly compatible.
+
+**Deliberately NOT fixed here and NOT filed as a bead.** The `awkit-9qcz` investigation held a
+project-state lease that does not own `scripts/**`, and filing a bead would move tracker cardinality
+and the exact roadmap pin in `scripts/verify-roadmap-dashboard.mjs` for a task that changed no
+product behaviour. Route it as a scoped task that owns `scripts/**`.
+
+## A condition node with BOTH a literal and a value source is accepted, inert, and undiagnosed (2026-08-21)
+
+Found investigating `awkit-9qcz` (OPEN — the owner decision is still outstanding, so this is recorded
+rather than fixed).
+
+`FlowExecutor.resolveNext` (`src/runner/FlowExecutor.ts` L549, L571-577) is synchronous and routes a
+condition with `evaluateBoolean(step.value ?? "", …)`. It **never reads `step.valueSource`**.
+`FlowValidator.ts` L367-393 requires only `isNonEmptyString(step.value)` for a condition, so a node
+carrying *both* fields passes validation, runs on the literal, and the bound source is silently
+ignored. There is **no diagnostic anywhere** — not in validation, and not in the UI: the "Resolved at
+run time from a &lt;type&gt; source" hint in `FlowNodePropertiesPanel.tsx` (L1012-1019) lives in the
+value section, and a condition's `sections` (`flowNodeRegistry.ts` L150-155) are
+`["condition", "execution"]`, so the hint is never rendered for one.
+
+**The Flow Designer cannot author this state.** With `"value"` excluded from the condition's
+sections, a condition binding has no UI at all. Such a node can therefore only arrive from:
+
+- the random configuration generator (`RandomConfigurationGenerator.ts` L145-152 / L331-340 sets
+  `payload.valueSource` unconditionally whenever `spec.requiresValue` — 100% of generated conditions
+  carry one),
+- an imported profile, or
+- a hand-edited profile JSON.
+
+Blast radius today: **1** condition node tracked in the repository (literal-only, no source) and
+**0** in the live `%LOCALAPPDATA%/SpecterStudio/` profile store. The 88 in
+`reports/random-tests/roundtrip-defects.json` are frozen, gitignored historic evidence, **not live
+product data**.
+
+Related and distinct: a condition is the **only** value-taking step type where the literal wins.
+`StepExecutor.resolveStepValue` (L2614-2617) gives every other type the opposite precedence — the
+source wins. Do not "harmonize" that inversion without the owner decision; honouring a condition
+`valueSource` would force `resolveNext` to become async, because `ValueResolver.resolve` is async.
+
 ## Agent harness: three fail-open seams in the routing/lease architecture (2026-08-21)
 
 Found by the independent QC review of `awkit-bkfy`. All three share one shape — the safety

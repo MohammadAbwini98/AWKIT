@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-9qcz",
+    "title": "Condition expressions cannot be data-driven: a bound value source is silently inert",
+    "objective": "Prove from source and executed probes exactly how a condition node routes today, measure where inert valueSource bindings are authored and persisted, identify the canonical value resolver, and present the literal-only versus data-driven semantic choice to the owner. No condition routing or validation semantics change until an explicit owner decision is recorded.",
+    "requested_by": "repository owner",
+    "risk_level": 0,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "cad6191",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "run-app-demo.mjs",
+        "git_status": "??",
+        "sha256": "6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b"
+      }
+    ]
+  },
+  "classification": {
+    "broad_investigation": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "researcher",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/**",
+      ".beads/**",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "researcher"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/**",
+        ".beads/**",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "scripts/**",
+        "resources/**",
+        "mock-site/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "constraints": {
+    "architecture": [
+      "Condition routing semantics in src/runner/FlowExecutor.ts are not changed without an explicit recorded owner decision.",
+      "If data-driven conditions are ever approved, the existing canonical resolver src/runner/ValueResolver.ts is reused; no second resolution stack is introduced.",
+      "Validation must continue to mirror runtime rather than diverge from it."
+    ],
+    "security": [
+      "No secret value may be resolved into a routing decision as a side effect of this investigation.",
+      "Report artifacts under reports/ are gitignored generated evidence and are never described as live product data."
+    ],
+    "compatibility": [
+      "Profiles carrying both a condition literal and a valueSource must keep round-tripping without field loss.",
+      "Unknown persisted fields are preserved, never dropped."
+    ],
+    "offline": [
+      "Investigation and any probe run entirely offline against repository data and the local mock site."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "AC-RUNTIME-TRUTH",
+      "description": "Current condition routing behavior is proven from source and from executed probes, not from comments or the Bead text.",
+      "evidence_required": [
+        "E-RUNTIME-SOURCE",
+        "E-PROBES"
+      ]
+    },
+    {
+      "id": "AC-BLAST",
+      "description": "Condition-node population is measured and separated into product-loaded data, test fixtures, generated ephemeral reports and historical frozen evidence.",
+      "evidence_required": [
+        "E-BLAST"
+      ]
+    },
+    {
+      "id": "AC-BASELINE",
+      "description": "Pre-change baselines are executed and recorded with exact counts, including the focused verifier that covers condition validation.",
+      "evidence_required": [
+        "E-BUILD",
+        "E-VALIDATION",
+        "E-RUNNER",
+        "E-ROADMAP",
+        "E-VERIFIER-CLASSIFICATION"
+      ]
+    },
+    {
+      "id": "AC-DECISION",
+      "description": "An explicit owner decision selecting literal-only or data-driven condition expressions is recorded before any semantic implementation. Absent that decision, awkit-9qcz remains OPEN and no semantic change is made.",
+      "evidence_required": [
+        "E-OWNER-DECISION"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-RUNTIME-SOURCE",
+      "type": "inspection",
+      "command": "read src/runner/FlowExecutor.ts, ExpressionEvaluator.ts, StepExecutor.ts, ValueResolver.ts, src/validation/FlowValidator.ts, StepRequirements.ts",
+      "required": true,
+      "result": "PASS",
+      "artifact": "FlowExecutor.resolveNext is synchronous and routes a condition via evaluateBoolean(step.value ?? \"\", getValueWithStepResult); step.valueSource is never referenced. StepExecutor.resolveStepValue gives every OTHER value-taking type the opposite precedence (source wins over literal). ValueResolver.resolve is async and is the single canonical resolver."
+    },
+    {
+      "id": "E-PROBES",
+      "type": "verifier",
+      "command": "executed behavioral probes for literal-wins, source-only-blocked, no-diagnostic-for-both, persistence round trip",
+      "required": true,
+      "result": "BLOCKED",
+      "artifact": "Case 2 (source-only rejected) IS executed, by npm run verify:validation section 'Rule: condition expressions are literal-only' (12 checks inside 163 passed / 0 failed). Cases 1, 3 and 4 are proven from source only: writing an executable probe requires a writer lease on scripts/**, which routing.writer.forbidden_paths denies for this docs-only investigation contract."
+    },
+    {
+      "id": "E-BLAST",
+      "type": "inspection",
+      "command": "repository-wide scan of persisted JSON and profile-like artifacts for condition nodes",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Tracked repository: exactly 1 condition node (resources/test-fixtures/mock-site/flows/mock-conditional-flow.json), literal-only, no valueSource. Live LOCALAPPDATA profile store: 0 condition nodes. Historic frozen generated evidence (reports/random-tests/roundtrip-defects.json, gitignored): 88 condition nodes, 88/88 carrying a valueSource, 82 literal+source, 6 source-only (all secret)."
+    },
+    {
+      "id": "E-BUILD",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "PASS",
+      "artifact": "tsc --noEmit clean; main/preload/renderer bundles emitted; embedded roadmap snapshot 369 records from 14 sources."
+    },
+    {
+      "id": "E-VALIDATION",
+      "type": "verifier",
+      "command": "npm run verify:validation",
+      "required": true,
+      "result": "PASS",
+      "artifact": "163 passed, 0 failed. This is the focused condition verifier: section 'Rule: condition expressions are literal-only' (12 checks)."
+    },
+    {
+      "id": "E-RUNNER",
+      "type": "verifier",
+      "command": "npm run verify:runner",
+      "required": true,
+      "result": "PASS",
+      "artifact": "121 passed, 0 failed."
+    },
+    {
+      "id": "E-ROADMAP",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "PASS",
+      "artifact": "167/167 checks passed; Overview banner reads \"Sources agree\"; 256 issues parse, 5 outstanding / 251 closed; 0 expired claims."
+    },
+    {
+      "id": "E-VERIFIER-CLASSIFICATION",
+      "type": "verifier",
+      "command": "npm run verify:verifier-classification",
+      "required": true,
+      "result": "PASS",
+      "artifact": "all 195 verify:/validate: scripts classified; classification reconciled."
+    },
+    {
+      "id": "E-OWNER-DECISION",
+      "type": "inspection",
+      "command": "explicit owner decision recorded in repository instructions or the authoritative decision log",
+      "required": true,
+      "result": "BLOCKED",
+      "artifact": "No owner decision exists. docs/ai/DECISIONS.md records nothing about condition-node value binding; the value-source change request (change_requests/awtkit_claude_code_implementation_phases/01_PHASE_NODE_PROPERTIES_VALUE_SOURCE_AND_DYNAMIC_JSON_BINDING.md) never mentions condition nodes; the master spec has no condition-expression binding requirement. The requester's stated preference for literal-only was explicitly labelled a recommendation and not an authorization. awkit-9qcz therefore remains OPEN and no semantic change is made."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

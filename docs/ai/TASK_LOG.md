@@ -4,6 +4,72 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-21 - Claude (Manager + researcher + project-state, write-lease architecture) - awkit-9qcz condition value-source investigation
+
+- **Objective:** answer `awkit-9qcz` — "Condition expressions cannot be data-driven: a bound value
+  source is silently inert" (P3, type feature). An INVESTIGATION with an owner-decision gate.
+- **Result:** investigation complete; **owner decision outstanding; `awkit-9qcz` stays OPEN.** No
+  product semantics changed — nothing under `app/**`, `src/**`, `scripts/**`, `resources/**` or
+  `mock-site/**` was edited.
+- **Findings (source-verified):** `FlowExecutor.resolveNext` (synchronous, L549, L571-577) routes on
+  `step.value` and never reads `step.valueSource` — the field IS inert. But conditions are **already
+  data-driven** via `${...}` templates (`makeScope` L652-662 supplies `outputs.*`, `runtimeInputs.*`,
+  `instanceInputs.*`, `currentRow`, `currentRow.*`; `getValueWithStepResult` L564-567 adds
+  `stepResult.<key>`), so the open question is only the *structured* binding. A condition is the sole
+  precedence inversion: `StepExecutor.resolveStepValue` L2614-2617 lets the source win for every
+  other value-taking type. `FlowValidator.ts` L367-393 rejects source-only but accepts literal+source
+  with **no diagnostic anywhere**; `flowNodeRegistry.ts` L150-155 omits the `"value"` section so the
+  binding cannot be authored in the Flow Designer at all. `ValueResolver.resolve` is `async`, so
+  honouring a condition source forces `resolveNext` async — the core cost of the data-driven option.
+  `RandomConfigurationGenerator.ts` L145-152 / L331-340 sets `payload.valueSource` unconditionally
+  whenever `spec.requiresValue`, so 100% of generated conditions carry one by construction.
+- **Blast radius (three classes kept separate):** tracked repository **1** condition node
+  (`resources/test-fixtures/mock-site/flows/mock-conditional-flow.json`, literal-only, already
+  data-driven); live `%LOCALAPPDATA%/SpecterStudio/` profile store **0**; frozen gitignored historic
+  evidence `reports/random-tests/roundtrip-defects.json` **88** (82 literal+source, 6 source-only all
+  kind `secret`, 0 literal-only) — **not live product data**. The bead's "95 of 95" came from a live
+  campaign at `awkit-dnbb` time; both figures are 100%.
+- **Owner-decision gate: DID NOT PASS.** `DECISIONS.md`, the value-source change request and the
+  master spec are all silent on condition nodes. The requester's literal-only preference was
+  explicitly a recommendation, not an authorization.
+- **Files changed:** `docs/ai/CURRENT_STATE.md` (new newest section), `docs/ai/HANDOFF.md` (active
+  handoff replaced), `docs/ai/TASK_LOG.md` (this entry), `docs/ai/KNOWN_ISSUES.md` (2 new entries),
+  `.beads/issues.jsonl` (re-exported with `bd export -o .beads/issues.jsonl`).
+  **Deleted:** `docs/ai/contracts/awkit-bkfy.json` per the retention rule in
+  `docs/ai/contracts/README.md` (a contract lives only while its task is open; `awkit-bkfy` is closed
+  and its durable record is the bead, the TASK_LOG entry and the commits).
+- **Tests run (at `cad6191`), exact counts:** `npm run build` clean (`tsc --noEmit`, 3 bundles) ·
+  `npm run verify:validation` **163 passed / 0 failed** · `npm run verify:runner` **121 passed /
+  0 failed** · `npm run verify:roadmap-dashboard` **167/167**, "Sources agree", 256 issues parsed,
+  5 outstanding / 251 closed, 0 expired claims · `npm run verify:verifier-classification` **all 195
+  scripts classified**, reconciled · `npm run ai:memory`.
+- **NOT RUN, with reasons:** no fresh random campaign — `npm run test:random:*` is outside this
+  lease's allowed shell grammar. Three of the four behavioural probes were not executed (literal+
+  source at run time, source-only at run time, the async-`resolveNext` cost) — an executable probe
+  needs a `scripts/**` writer lease this contract forbids. Only the source-only-is-rejected case is
+  executed, by `verify:validation`. None of the unexecuted probes is claimed as passing.
+- **Beads:** **nothing filed, nothing closed** — deliberately, to keep tracker cardinality and the
+  roadmap pin exact. The investigation conclusion was appended to `awkit-9qcz`, which stays OPEN.
+- **Newly discovered RED GATE, executed not inferred, NOT fixed:** `npm run typecheck:scripts` exits
+  **2 with 9 diagnostics across 5 files** (TS2352 x4, TS7016 x2, TS2300 x2, TS2345 x1), including the
+  duplicate `readFileSync` import at `scripts/verify-validation.mts:44` and `:52` (from `6f14261`).
+  This **regresses** the baseline repaired to 0 on 2026-08-18 (`awkit-zc88`); `typecheck:scripts` and
+  `verify:all-typecheck` may no longer be cited as green. **The briefed framing of this finding was
+  wrong and was corrected by running the command:** `scripts/**` *is* typechecked, by
+  `tsconfig.scripts.json` (`"include": ["scripts/**/*.mts"]`) — but that gate is not part of
+  `npm run build`, which uses `tsconfig.json` (L25 `include` = app + src + 2 configs). Only
+  `npm run verify:all-typecheck` covers both, so a clean `build` is not evidence about `scripts/**`.
+  All 9 are verifier scripts; no product code. `verify:validation` still runs 163/0 under `tsx`
+  because `tsx` strips types rather than checking them. Recorded in `KNOWN_ISSUES.md`, not filed as a
+  bead (this lease does not own `scripts/**`; filing would move the roadmap pin).
+- **Could NOT do:** delete `docs/ai/contracts/awkit-bkfy.json` as the retention rule requires. The
+  path is inside the lease, but the project-state role's shell grammar
+  (`isProjectStateCommand` / `isCommonWriterCommand`, `tools/agents/lease-guard.mjs` L267-292) has
+  **no deletion verb** — no `rm`, no `git rm` — and no write tool deletes files. Left for the
+  Manager; not worked around.
+- **Ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED. Tracker unchanged at 256 total / 251 closed
+  / 5 outstanding.**
+
 ## 2026-08-21 - Claude (project-state, Manager orchestration) - Close awkit-bkfy / finalize multi-agent architecture closure state
 
 - **Objective:** Phase D bookkeeping reconciliation for closing `awkit-bkfy` — make every authoritative

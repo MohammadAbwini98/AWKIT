@@ -1,5 +1,104 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-21) - awkit-9qcz investigated; BLOCKED on the owner decision
+
+### Transfer
+
+- **Canonical branch:** `main`, HEAD at investigation time `cad6191`. Ledger unchanged at
+  **63 PASS / 2 NOT RUN / 1 BLOCKED** (an investigation that changes no behaviour moves no
+  validation-ledger case).
+- **Tracker: 256 total / 251 closed / 5 outstanding** — unchanged. **No bead was filed or closed**,
+  deliberately: tracker cardinality is pinned by `scripts/verify-roadmap-dashboard.mjs`, and filing
+  anything would move the pin for a task that changed nothing.
+- **`awkit-9qcz` is OPEN and stays OPEN.** It carried an owner-decision gate; the gate did not pass.
+- **No product semantics changed.** Nothing under `app/**`, `src/**`, `scripts/**`, `resources/**`
+  or `mock-site/**` was edited. This handoff covers `docs/ai/**` only.
+
+### What is decided (source-verified, do not re-derive)
+
+- The condition node's `valueSource` **is** inert: `FlowExecutor.resolveNext` (synchronous,
+  `src/runner/FlowExecutor.ts` L549, L571-577) routes on `step.value` and never reads
+  `step.valueSource`.
+- But **condition expressions are already data-driven** through `${...}` templates —
+  `ExpressionEvaluator` resolves operands via the caller's `getValue`, and `makeScope` supplies
+  `outputs.*`, `runtimeInputs.*`, `instanceInputs.*`, `currentRow`, `currentRow.*` and
+  `stepResult.<key>`. The open question is only the **structured** binding, not data-drivenness.
+- A condition is the **sole precedence inversion** in the codebase: `StepExecutor.resolveStepValue`
+  (L2614-2617) lets the source win over the literal for every other value-taking type.
+- Validation rejects source-only but **accepts literal+source with the source silently inert and no
+  diagnostic** (`FlowValidator.ts` L367-393). The Flow Designer cannot author such a binding at all
+  (`flowNodeRegistry.ts` L150-155 omits the `"value"` section), so it can only arrive from the random
+  generator, an import, or a hand-edited profile.
+- Blast radius: **1** condition node tracked in the repository (a literal-only mock-site fixture,
+  already data-driven via templates), **0** in the live `%LOCALAPPDATA%/SpecterStudio/` profile
+  store. The 88 condition nodes in `reports/random-tests/roundtrip-defects.json` are **frozen,
+  gitignored historic evidence — not live product data.**
+
+### What is blocked
+
+**The owner decision, and only that.** `docs/ai/DECISIONS.md` records nothing on condition value
+binding; the value-source change request never mentions condition nodes; the master spec has no such
+requirement. The requester expressed a preference for literal-only but explicitly called it a
+recommendation, not an authorization.
+
+| Option | Measured cost |
+|---|---|
+| **A — literal-only, made explicit** | Cheap and synchronous. Runtime is unchanged. Needs a validator diagnostic for the accepted-but-inert literal+source case, and a generator change so conditions stop emitting a `valueSource` unconditionally (`RandomConfigurationGenerator.ts` L145-152 / L331-340 sets it whenever `spec.requiresValue`). No routing semantics move. |
+| **B — opt-in data-driven `valueSource`** | `ValueResolver.resolve` is `async`, and it is the single canonical resolver (10 kinds, `default:` throws). Honouring a condition `valueSource` forces **`FlowExecutor.resolveNext` to become async** — that is the real price, and it touches the routing hot path. Also needs the Flow Designer's condition `sections` to gain `"value"`, plus a precedence rule chosen deliberately rather than inherited. |
+
+Neither was implemented. Do not pick one without the owner.
+
+### Rest-state working tree (after the Manager commits and releases the lease)
+
+```text
+docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md   project-state   this investigation
+docs/ai/contracts/awkit-bkfy.json            NOT DELETED    retention rule says delete; see below
+docs/ai/contracts/active-lease.json          M              released (status away from `active`)
+tools/roadmap/assignments.json               M              claims array back to []
+.beads/issues.jsonl                          exported with `bd export -o .beads/issues.jsonl`
+run-app-demo.mjs                             ??  UNTRACKED PRESERVED USER WORK - do not stage or edit
+```
+
+**`docs/ai/contracts/awkit-bkfy.json` still exists and still needs deleting.** The retention rule in
+`docs/ai/contracts/README.md` is explicit — a contract lives only while its task is open, and
+`awkit-bkfy` is closed. It was **not** deleted because the project-state role's shell grammar
+(`isProjectStateCommand` / `isCommonWriterCommand`, `tools/agents/lease-guard.mjs` L267-292) contains
+no deletion verb (`rm` and `git rm` are both absent) and no write tool deletes files. The path is
+inside the lease; the *verb* is not in the role's set. This was reported rather than worked around.
+**Manager: delete it as part of the Phase D commit.** It is also a real gap in the guard — the role
+that owns `docs/**` cannot perform a deletion its own documented retention rule requires.
+
+### Verified this task
+
+`npm run build` clean · `verify:validation` **163 passed / 0 failed** · `verify:runner`
+**121 passed / 0 failed** · `verify:roadmap-dashboard` **167/167**, "Sources agree", 0 expired claims
+· `verify:verifier-classification` **195 scripts** classified and reconciled · `npm run ai:memory`.
+
+**RED, and not a pass:** `npm run typecheck:scripts` exits **2 with 9 diagnostics across 5 files**,
+regressing the 0-diagnostic baseline repaired on 2026-08-18 (`awkit-zc88`). `typecheck:scripts` and
+`verify:all-typecheck` may **not** be cited as green until repaired. Detail in `KNOWN_ISSUES.md`.
+The trap: `npm run build` does not run `tsconfig.scripts.json`, so a clean build says nothing about
+`scripts/**` — use `npm run verify:all-typecheck` after touching any `.mts` verifier.
+
+**NOT RUN:** no fresh random campaign (`npm run test:random:*` is outside this lease's shell
+grammar). Three of the four behavioural probes were not executed — an executable probe needs a
+`scripts/**` writer lease this contract forbids. Only the source-only-is-rejected case is executed,
+by `verify:validation`. None of the unexecuted probes is claimed as passing.
+
+### Next agent
+
+1. **Obtain the owner decision on `awkit-9qcz`: literal-only (A) or opt-in data-driven (B).** That is
+   the only next action. Do not implement either option, and do not "tidy" the inert field, before
+   the decision exists.
+2. Four items remain BLOCKED on an external system or an owner decision: `awkit-7bu`, `awkit-az7`,
+   `awkit-cey`, `awkit-cm8`.
+3. Two new entries were added to `KNOWN_ISSUES.md` this task: the **red `typecheck:scripts`
+   baseline** (9 diagnostics — a regression, and it should be repaired by a task that owns
+   `scripts/**`) and the undiagnosed literal+source acceptance. Neither is filed as a bead, on
+   purpose, to keep tracker cardinality and the roadmap pin exact.
+4. Delete `docs/ai/contracts/awkit-bkfy.json` (retention rule) — the project-state lease has no
+   command that can.
+
 ## HANDOFF (2026-08-21) - Token-aware orchestration landed; awkit-bkfy CLOSED
 
 ### Transfer

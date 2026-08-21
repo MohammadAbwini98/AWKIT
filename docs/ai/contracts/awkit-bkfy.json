@@ -584,6 +584,24 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-bkfy:project-state:2026-08-21T15:31:30.433Z",
+        "task": "awkit-bkfy",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T15:31:30.433Z",
+        "acquired_at_commit": "26e82294308dbbc846ca7e03f8e4781d8e289e4c",
+        "released_at": "2026-08-21T15:45:24.762Z",
+        "released_reason": "awkit-bkfy closure complete: pushed 63d9d7a..cad6191, roadmap 167/167 Sources agree, build PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
