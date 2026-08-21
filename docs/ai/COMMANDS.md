@@ -16,6 +16,15 @@ npm run verify:recorder-actions     # Clear All and dependency-aware delete poli
 npm run verify:editor-history       # shared bounded undo/redo, coalescing, dirty checkpoint, reset
 ```
 
+## Condition-semantics focused verification
+
+```bash
+npm run verify:condition-semantics # literal-only runtime routing, non-fatal ignored-source warning,
+                                   # source-only rejection, Flow Designer mapping/round-trip,
+                                   # random-generator omission, malformed null import, and five
+                                   # behavior-level reverted-behavior negative controls
+```
+
 ## Install
 ```bash
 npm install

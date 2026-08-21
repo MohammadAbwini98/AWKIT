@@ -1,5 +1,16 @@
 # FEATURES
 
+## Literal-only condition expressions (2026-08-22)
+
+- Conditions branch only on the literal expression in `step.value`; a structured `valueSource` is
+  inert legacy metadata and is never resolved by the runner.
+- Legacy literal+source profiles remain runnable and round-trip without field loss. Validation and
+  the Flow Designer surface the ignored binding as a non-fatal warning, and removal is explicit.
+- New Flow Designer authoring and random Test Lab generation omit condition value sources.
+  Source-only, missing, empty, and whitespace-only condition expressions remain invalid.
+- Routing stays synchronous. No expression-mode discriminator, second resolver, new dependency,
+  network path, IPC contract, or schema migration is introduced.
+
 ## Restored Loop capsule-and-ring visual contract (2026-08-15)
 
 - Every structured Loop uses one compact 160x20/r10 horizontal capsule attached to one side of its real

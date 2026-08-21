@@ -3,14 +3,14 @@
   "task": {
     "id": "awkit-9qcz",
     "title": "Condition expressions cannot be data-driven: a bound value source is silently inert",
-    "objective": "Prove from source and executed probes exactly how a condition node routes today, measure where inert valueSource bindings are authored and persisted, identify the canonical value resolver, and present the literal-only versus data-driven semantic choice to the owner. No condition routing or validation semantics change until an explicit owner decision is recorded.",
+    "objective": "Owner decision received: Option A, literal-only condition expressions. A condition expression is evaluated from its literal; a valueSource attached to a condition is legacy metadata that is never resolved and must never appear to be active. Pin literal-only routing so a refactor cannot activate inert sources, report an attached-but-ignored source as a non-fatal warning, stop the Flow Designer and the random generator from creating new inert bindings, preserve legacy both-field profiles without field loss, and mutation-test the whole contract.",
     "requested_by": "repository owner",
-    "risk_level": 0,
+    "risk_level": 2,
     "mode": "change"
   },
   "repository": {
     "branch": "main",
-    "baseline_commit": "cad6191",
+    "baseline_commit": "ade9117",
     "working_tree_expected": "preserved_changes",
     "preserved_paths": [
       {
@@ -21,58 +21,83 @@
     ]
   },
   "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "general_engineering_change": true,
     "broad_investigation": true,
+    "packaging_change": true,
     "project_state_change": true,
-    "cross_layer_count": 1
+    "cross_layer_count": 4
   },
   "routing": {
     "manager": "manager",
     "activated_agents": [
       "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "qa",
+      "qc",
       "researcher",
+      "release",
       "project-state"
     ],
     "expected_paths": [
+      "src/validation/**",
+      "app/renderer/components/workflow/**",
+      "src/testing/random/**",
+      "scripts/verify-validation.mts",
+      "scripts/verify-condition-semantics.mts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
       "docs/ai/**",
       ".beads/**",
       "tools/roadmap/assignments.json"
     ],
     "consultants": [
+      "architect",
+      "uiux",
       "researcher"
     ],
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        "docs/ai/**",
         ".beads/**",
+        "docs/ai/**",
+        "scripts/lib/verifier-classification.ts",
         "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
-        "app/**",
-        "src/**",
-        "scripts/**",
-        "resources/**",
-        "mock-site/**"
+        "src/runner/**",
+        "app/main/**",
+        "resources/**"
       ]
     },
-    "reviewers": []
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
   },
   "constraints": {
     "architecture": [
-      "Condition routing semantics in src/runner/FlowExecutor.ts are not changed without an explicit recorded owner decision.",
-      "If data-driven conditions are ever approved, the existing canonical resolver src/runner/ValueResolver.ts is reused; no second resolution stack is introduced.",
-      "Validation must continue to mirror runtime rather than diverge from it."
+      "src/runner/FlowExecutor.ts condition routing is NOT changed. Option A keeps evaluateBoolean(step.value ?? \"\", …) as the only condition routing channel, and resolveNext stays synchronous.",
+      "No second resolution stack is introduced. src/runner/ValueResolver.ts remains the canonical resolver for the step types that actually use it.",
+      "Validation must continue to mirror runtime rather than diverge from it: the ignored-source diagnostic describes what the runner does, and does not change what it does.",
+      "The inert-source diagnostic uses the existing FlowValidationSeverity warning model, following the degradedWaitCondition precedent. No new severity concept is invented."
     ],
     "security": [
-      "No secret value may be resolved into a routing decision as a side effect of this investigation.",
+      "No secret value may be resolved into a routing decision. A condition valueSource of kind secret stays unresolved under Option A, as it is under current behavior.",
       "Report artifacts under reports/ are gitignored generated evidence and are never described as live product data."
     ],
     "compatibility": [
-      "Profiles carrying both a condition literal and a valueSource must keep round-tripping without field loss.",
+      "Profiles carrying both a condition literal and a valueSource must keep round-tripping without field loss. The warning is a diagnostic, never a mutation.",
+      "Opening or saving a profile must not silently delete an inert condition valueSource. Removal is an explicit user action only.",
+      "A legacy both-field profile must stay runnable: the ignored-source diagnostic is non-blocking and must not be misclassified as an execution failure.",
       "Unknown persisted fields are preserved, never dropped."
     ],
     "offline": [
-      "Investigation and any probe run entirely offline against repository data and the local mock site."
+      "No dependency, network call or runtime resource is added. Implementation and verification run entirely offline against repository data."
     ]
   },
   "acceptance": [
@@ -86,27 +111,69 @@
     },
     {
       "id": "AC-BLAST",
-      "description": "Condition-node population is measured and separated into product-loaded data, test fixtures, generated ephemeral reports and historical frozen evidence.",
+      "description": "Condition-node population is measured and separated into product-loaded data, test fixtures, generated ephemeral reports and historical frozen evidence, before and after implementation.",
       "evidence_required": [
-        "E-BLAST"
-      ]
-    },
-    {
-      "id": "AC-BASELINE",
-      "description": "Pre-change baselines are executed and recorded with exact counts, including the focused verifier that covers condition validation.",
-      "evidence_required": [
-        "E-BUILD",
-        "E-VALIDATION",
-        "E-RUNNER",
-        "E-ROADMAP",
-        "E-VERIFIER-CLASSIFICATION"
+        "E-BLAST",
+        "E-BLAST-RESCAN"
       ]
     },
     {
       "id": "AC-DECISION",
-      "description": "An explicit owner decision selecting literal-only or data-driven condition expressions is recorded before any semantic implementation. Absent that decision, awkit-9qcz remains OPEN and no semantic change is made.",
+      "description": "An explicit owner decision selecting literal-only or data-driven condition expressions is recorded before any semantic implementation.",
       "evidence_required": [
         "E-OWNER-DECISION"
+      ]
+    },
+    {
+      "id": "AC-LITERAL-PINNED",
+      "description": "Literal-only routing is pinned by executed cases: literal true, literal false, literal plus contradictory valueSource where the literal still wins, source-only rejected before runtime, missing literal rejected, empty literal rejected.",
+      "evidence_required": [
+        "E-PROBES",
+        "E-VALIDATION"
+      ]
+    },
+    {
+      "id": "AC-DIAGNOSTIC",
+      "description": "A condition carrying both a valid literal and a valueSource is no longer silently accepted: it emits a non-fatal warning naming the ignored source, and the flow stays runnable.",
+      "evidence_required": [
+        "E-WARNING",
+        "E-VALIDATION"
+      ]
+    },
+    {
+      "id": "AC-NO-NEW-INERT",
+      "description": "New authoring no longer creates inert condition bindings: the Flow Designer condition editor never writes a condition valueSource, and the random generator never attaches one.",
+      "evidence_required": [
+        "E-UI-TRUTHFUL",
+        "E-GENERATOR"
+      ]
+    },
+    {
+      "id": "AC-COMPAT",
+      "description": "A legacy condition carrying literal plus source survives load, save without editing, and reload with no field loss; explicit user removal of the ignored source persists.",
+      "evidence_required": [
+        "E-PERSISTENCE",
+        "E-LEGACY-COMPAT",
+        "E-FLOW-STEP-MAPPING"
+      ]
+    },
+    {
+      "id": "AC-MUTATION",
+      "description": "The focused verifier is mutation-sensitive: it fails when the diagnostic is removed, when the generator or UI reintroduces condition sources, when runtime is changed to prefer the source, and when source-only becomes accepted.",
+      "evidence_required": [
+        "E-MUTATION"
+      ]
+    },
+    {
+      "id": "AC-GATES",
+      "description": "Repository gates pass at the final committed state and the Program Status sources agree.",
+      "evidence_required": [
+        "E-BUILD",
+        "E-RUNNER",
+        "E-BRANCH-PAIRS",
+        "E-VERIFIER-CLASSIFICATION",
+        "E-ROADMAP",
+        "E-PUSH"
       ]
     }
   ],
@@ -120,12 +187,60 @@
       "artifact": "FlowExecutor.resolveNext is synchronous and routes a condition via evaluateBoolean(step.value ?? \"\", getValueWithStepResult); step.valueSource is never referenced. StepExecutor.resolveStepValue gives every OTHER value-taking type the opposite precedence (source wins over literal). ValueResolver.resolve is async and is the single canonical resolver."
     },
     {
+      "id": "E-OWNER-DECISION",
+      "type": "inspection",
+      "command": "explicit owner decision recorded in repository instructions or the authoritative decision log",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Repository owner approved Option A: conditions execute step.value only; valueSource remains inert legacy metadata, with no async routing and no persisted expression-mode discriminator."
+    },
+    {
       "id": "E-PROBES",
       "type": "verifier",
-      "command": "executed behavioral probes for literal-wins, source-only-blocked, no-diagnostic-for-both, persistence round trip",
+      "command": "npm run verify:condition-semantics",
       "required": true,
-      "result": "BLOCKED",
-      "artifact": "Case 2 (source-only rejected) IS executed, by npm run verify:validation section 'Rule: condition expressions are literal-only' (12 checks inside 163 passed / 0 failed). Cases 1, 3 and 4 are proven from source only: writing an executable probe requires a writer lease on scripts/**, which routing.writer.forbidden_paths denies for this docs-only investigation contract."
+      "result": "PASS",
+      "artifact": "36/36 executed checks passed after QC's imported-null regression fix, including literal true/false, contradictory source where literal wins, synchronous routing, missing/empty/source-only rejection, and null-import handling."
+    },
+    {
+      "id": "E-WARNING",
+      "type": "verifier",
+      "command": "npm run verify:condition-semantics",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Executed verifier observed exactly one ignoredConditionValueSource warning for literal+source, zero errors, no active-path failure, source-kind-only messaging, and no secret name leakage."
+    },
+    {
+      "id": "E-UI-TRUTHFUL",
+      "type": "verifier",
+      "command": "npm run verify:condition-semantics",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Executed production mapping probes confirmed fresh conditions create no valueSource, existing bindings remain verbatim, and explicit removal persists; independent QC also inspected the truthful warning/remove control."
+    },
+    {
+      "id": "E-GENERATOR",
+      "type": "verifier",
+      "command": "npm run verify:condition-semantics",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Focused corpus observed 64 generated conditions with non-empty literals and zero valueSource bindings; test:random:generator independently passed 49/49."
+    },
+    {
+      "id": "E-PERSISTENCE",
+      "type": "verifier",
+      "command": "npm run verify:condition-semantics",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Legacy literal+source round-trip preserved the source verbatim, including an unknown persisted field; independent QC also proved literal editing preserves it and explicit removal omits it."
+    },
+    {
+      "id": "E-MUTATION",
+      "type": "verifier",
+      "command": "npm run verify:condition-semantics (observed in-harness reverted-behavior negative controls for each pinned behavior)",
+      "required": true,
+      "result": "PASS",
+      "artifact": "36/36 verifier includes observed, non-vacuous in-harness reverted-behavior negative controls for all five pins: runtime source preference, removed diagnostic, generator source reintroduction, UI mapping fabrication, and source-only acceptance. QC APPROVED this behavior-level mutation design while recording that it is synthetic rather than five on-disk source edits."
     },
     {
       "id": "E-BLAST",
@@ -136,12 +251,20 @@
       "artifact": "Tracked repository: exactly 1 condition node (resources/test-fixtures/mock-site/flows/mock-conditional-flow.json), literal-only, no valueSource. Live LOCALAPPDATA profile store: 0 condition nodes. Historic frozen generated evidence (reports/random-tests/roundtrip-defects.json, gitignored): 88 condition nodes, 88/88 carrying a valueSource, 82 literal+source, 6 source-only (all secret)."
     },
     {
+      "id": "E-BLAST-RESCAN",
+      "type": "inspection",
+      "command": "repeat the Phase B repository scan after implementation and explain every count change",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Independent QC rescan: tracked product/test-fixture JSON has 1 literal-only condition and 0 sources; live LOCALAPPDATA has 0 conditions; frozen gitignored historical evidence remains 88 conditions/88 sources and is not product-loaded. Zero new product-loaded inert bindings."
+    },
+    {
       "id": "E-BUILD",
       "type": "build",
       "command": "npm run build",
       "required": true,
       "result": "PASS",
-      "artifact": "tsc --noEmit clean; main/preload/renderer bundles emitted; embedded roadmap snapshot 369 records from 14 sources."
+      "artifact": "Fresh post-QC build passed: embedded roadmap snapshot generation, tsc --noEmit, and Electron main/preload/renderer production bundles."
     },
     {
       "id": "E-VALIDATION",
@@ -149,7 +272,7 @@
       "command": "npm run verify:validation",
       "required": true,
       "result": "PASS",
-      "artifact": "163 passed, 0 failed. This is the focused condition verifier: section 'Rule: condition expressions are literal-only' (12 checks)."
+      "artifact": "163/163 passed after the imported-null fix."
     },
     {
       "id": "E-RUNNER",
@@ -157,15 +280,31 @@
       "command": "npm run verify:runner",
       "required": true,
       "result": "PASS",
-      "artifact": "121 passed, 0 failed."
+      "artifact": "Independent QC execution passed 121/121."
     },
     {
-      "id": "E-ROADMAP",
+      "id": "E-BRANCH-PAIRS",
       "type": "verifier",
-      "command": "npm run verify:roadmap-dashboard",
+      "command": "npm run verify:branch-pairs",
       "required": true,
       "result": "PASS",
-      "artifact": "167/167 checks passed; Overview banner reads \"Sources agree\"; 256 issues parse, 5 outstanding / 251 closed; 0 expired claims."
+      "artifact": "Independent QC execution passed 40/40."
+    },
+    {
+      "id": "E-FLOW-STEP-MAPPING",
+      "type": "verifier",
+      "command": "npm run verify:flow-step-mapping",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Independent QC execution passed 145/145."
+    },
+    {
+      "id": "E-LEGACY-COMPAT",
+      "type": "verifier",
+      "command": "npm run verify:legacy-compat",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Independent QC execution passed 152/152."
     },
     {
       "id": "E-VERIFIER-CLASSIFICATION",
@@ -173,15 +312,23 @@
       "command": "npm run verify:verifier-classification",
       "required": true,
       "result": "PASS",
-      "artifact": "all 195 verify:/validate: scripts classified; classification reconciled."
+      "artifact": "All 196 discovered verifier/validator commands are classified; verify:condition-semantics is registered as source-inspection, no-browser, offline-capable."
     },
     {
-      "id": "E-OWNER-DECISION",
-      "type": "inspection",
-      "command": "explicit owner decision recorded in repository instructions or the authoritative decision log",
+      "id": "E-ROADMAP",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
       "required": true,
-      "result": "BLOCKED",
-      "artifact": "No owner decision exists. docs/ai/DECISIONS.md records nothing about condition-node value binding; the value-source change request (change_requests/awtkit_claude_code_implementation_phases/01_PHASE_NODE_PROPERTIES_VALUE_SOURCE_AND_DYNAMIC_JSON_BINDING.md) never mentions condition nodes; the master spec has no condition-expression binding requirement. The requester's stated preference for literal-only was explicitly labelled a recommendation and not an authorization. awkit-9qcz therefore remains OPEN and no semantic change is made."
+      "result": "PASS",
+      "artifact": "Pre-close verifier passed 167/167 with Sources agree, 0 stale claims, 256 issues, 5 outstanding / 251 closed. Final post-close exact-cardinality evidence will replace this artifact after authoritative closure."
+    },
+    {
+      "id": "E-PUSH",
+      "type": "verifier",
+      "command": "git push origin main",
+      "required": true,
+      "result": "pending",
+      "artifact": null
     }
   ],
   "scope_escapes": [],
@@ -189,11 +336,201 @@
     "commit_policy": "coherent",
     "direct_main": true,
     "force_push": false,
-    "destructive_reset": false
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "E-PUSH"
   },
   "completion": {
     "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "NOT_REQUIRED"
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-9qcz:project-state:2026-08-21T18:18:39.259Z",
+        "task": "awkit-9qcz",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T18:18:39.259Z",
+        "acquired_at_commit": "cad6191ae0c49e8527e48b0cbea19e70c4acfde0",
+        "released_at": "2026-08-21T19:28:18.989Z",
+        "released_reason": "awkit-9qcz investigation recorded and committed, owner decision gate not passed, bead remains open",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:software:2026-08-21T19:43:45.325Z",
+        "task": "awkit-9qcz",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/validation/**"
+        ],
+        "acquired_at": "2026-08-21T19:43:45.325Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T19:47:08.330Z",
+        "released_reason": "validation warning ignoredConditionValueSource implemented, rotating to frontend for condition editor",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:frontend:2026-08-21T19:47:20.329Z",
+        "task": "awkit-9qcz",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/workflow/**"
+        ],
+        "acquired_at": "2026-08-21T19:47:20.329Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T20:34:03.148Z",
+        "released_reason": "frontend condition editor and createValueSource condition guard done, build PASS, rotating to qa for random-generator condition-source removal and the focused mutation-tested verifier",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:qa:2026-08-21T20:34:28.188Z",
+        "task": "awkit-9qcz",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-condition-semantics.mts",
+          "src/testing/random/**"
+        ],
+        "acquired_at": "2026-08-21T20:34:28.188Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T20:45:52.352Z",
+        "released_reason": "qa random-generator condition-source removal done and verify:condition-semantics green at 34 passed with mutation-sensitivity proven, build PASS, rotating to project-state for verifier-classification registration and docs tracker reconciliation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:project-state:2026-08-21T20:45:59.067Z",
+        "task": "awkit-9qcz",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T20:45:59.067Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T20:55:00.508Z",
+        "released_reason": "project-state reconciliation complete, roadmap-dashboard 167 checks pass Sources agree, rotating to qa reviewer to run the final gate suite build verify-validation verify-runner verify-branch-pairs verify-flow-step-mapping verify-legacy-compat verify-verifier-classification and the blast rescan",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:qa:2026-08-21T20:57:11.024Z",
+        "task": "awkit-9qcz",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-condition-semantics.mts",
+          "src/testing/random/**"
+        ],
+        "acquired_at": "2026-08-21T20:57:11.024Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T21:41:56.180Z",
+        "released_reason": "Independent QC found imported null valueSource validation crash; route narrow fix to software owner",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:software:2026-08-21T21:42:21.083Z",
+        "task": "awkit-9qcz",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/validation/**"
+        ],
+        "acquired_at": "2026-08-21T21:42:21.083Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T21:43:06.185Z",
+        "released_reason": "Narrow null guard applied to validator; rotate to QA for imported-null regression coverage and focused verification",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:qa:2026-08-21T21:43:27.926Z",
+        "task": "awkit-9qcz",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-condition-semantics.mts"
+        ],
+        "acquired_at": "2026-08-21T21:43:27.926Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T21:49:55.658Z",
+        "released_reason": "QC APPROVED after null-import regression; rotate to software for scoped validation commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:software:2026-08-21T21:50:25.494Z",
+        "task": "awkit-9qcz",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/validation/**"
+        ],
+        "acquired_at": "2026-08-21T21:50:25.494Z",
+        "acquired_at_commit": "ade91176ab649e06fc47bf79a319db76fa7a4dcd",
+        "released_at": "2026-08-21T21:51:29.606Z",
+        "released_reason": "Scoped validation commit 33f6fa1 created after QC approval; rotate to frontend for Flow Designer commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:frontend:2026-08-21T21:51:58.097Z",
+        "task": "awkit-9qcz",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/workflow/**"
+        ],
+        "acquired_at": "2026-08-21T21:51:58.097Z",
+        "acquired_at_commit": "33f6fa1547fc97ffcbb5ffd3844ce8398923a39b",
+        "released_at": "2026-08-21T21:52:34.584Z",
+        "released_reason": "Scoped Flow Designer commit bdbf07d created; rotate to QA for generator, focused verifier, and shared package script commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-9qcz:qa:2026-08-21T21:52:58.464Z",
+        "task": "awkit-9qcz",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-condition-semantics.mts",
+          "src/testing/random/**"
+        ],
+        "acquired_at": "2026-08-21T21:52:58.464Z",
+        "acquired_at_commit": "bdbf07d30de649280154a3d26548f65cea27136e",
+        "released_at": "2026-08-21T21:53:30.125Z",
+        "released_reason": "Scoped QA commit 1402120 created; rotate to project-state for evidence, routing classification, and pre-close reconciliation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

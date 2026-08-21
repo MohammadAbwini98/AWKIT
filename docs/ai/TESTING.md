@@ -19,6 +19,22 @@ This verifier does not prove Claude's live model selection or token savings. Tho
 not inferred from prompt structure. `node tools/agents/task-gate.mjs <contract>` is the operational
 completion check; a green static verifier alone does not complete a task contract.
 
+## Literal-only condition semantics
+
+`npm run verify:condition-semantics` is the focused offline gate for `awkit-9qcz` Option A. It drives
+the real synchronous `FlowExecutor.resolveNext`, validator, Flow Designer profile mapping, and random
+generator. It requires literal true/false routing, literal precedence over a contradictory source,
+non-fatal ignored-source diagnostics, source-only and missing-literal rejection, no secret leakage,
+fresh-authoring omission, a non-vacuous generated corpus, lossless legacy round-trip, and safe handling
+of imported `valueSource: null`.
+
+The verifier's mutation evidence consists of observed in-harness reverted-behavior negative controls
+for the five pinned regressions, not five temporary edits to production files. Independent QC accepted
+that behavior-level design because every positive assertion separately executes the real production
+implementation. `verify:validation`, `verify:runner`, `verify:flow-step-mapping`,
+`verify:legacy-compat`, `test:random:generator`, and the rendered `verify:flow-designer` walkthrough
+remain the broader regression gates.
+
 ## External-site acceptance vs deterministic regression
 
 AWKIT's verification set must run **offline**. `verify:wdu-live` is the one gate that does not: it

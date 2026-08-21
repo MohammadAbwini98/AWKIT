@@ -4,6 +4,53 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-22 - multi-agent (manager-orchestrated: software → frontend → qa → QC → project-state) - awkit-9qcz Option A finalization
+
+- **Objective:** implement the owner decision for `awkit-9qcz` — **Option A, literal-only condition
+  expressions.** A condition routes only on its literal `step.value`; a `valueSource` on a condition
+  is legacy metadata, never resolved, never active. Supersedes the same-day investigation entry below,
+  whose owner-decision gate has now passed.
+- **Result:** implementation and independent QC complete; QC **APPROVED** after finding and verifying
+  the narrow fix for imported `valueSource: null`. `awkit-9qcz` remains IN_PROGRESS only for the
+  authorized pre-close push, authoritative closure/export, exact roadmap pin, and final push.
+- **Files changed:**
+  - `src/validation/FlowValidator.ts` — new warning-severity `FlowValidationCode`
+    `"ignoredConditionValueSource"`, emitted for a condition with a non-empty literal AND a
+    `valueSource`; message names only the source kind (`.type`), never a resolved/secret value.
+    Source-only conditions still rejected as errors.
+  - `app/renderer/components/workflow/flowProfileMapping.ts` — `createValueSource` never fabricates a
+    condition `valueSource` for new authoring; round-trips a genuine legacy binding verbatim (lossless).
+  - `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx` — condition editor shows a
+    non-fatal message naming only `valueSourceOriginal.type` + a remove button; never authors a source.
+  - `src/testing/random/RandomConfigurationGenerator.ts` — `valueSourceFor` returns `undefined` for
+    `type === "condition"`; generated conditions carry a literal and no `valueSource`.
+  - `scripts/verify-condition-semantics.mts` — **NEW** focused verifier.
+  - `package.json` — added `"verify:condition-semantics": "tsx scripts/verify-condition-semantics.mts"`.
+  - `scripts/lib/verifier-classification.ts` — registered `verify:condition-semantics` as class `unit`
+    (peer `verify:validation`).
+  - `docs/ai/CURRENT_STATE.md` (new newest section), `docs/ai/HANDOFF.md` (active handoff replaced),
+    `docs/ai/TASK_LOG.md` (this entry).
+  - `.beads/issues.jsonl` (re-exported with `bd export -o .beads/issues.jsonl`);
+    `tools/roadmap/assignments.json` (project-state reconciliation claim).
+  - `src/runner/FlowExecutor.ts` — **UNCHANGED**; `resolveNext` stays synchronous and never reads
+    `valueSource`. Option A carries no routing cost.
+- **Tests run (confirmed green):** `build` **PASS**; `verify:condition-semantics` **36/36**;
+  `verify:validation` **163/163**; `verify:runner` **121/121**; `verify:branch-pairs` **40/40**;
+  `verify:flow-step-mapping` **145/145**; `verify:legacy-compat` **152/152**;
+  `test:random:generator` **49/49**; `verify:flow-designer` **PASS** (112/112 preserved broad GUI
+  checks + 16/16 focused capsule checks); `verify:verifier-classification` **PASS** (196 scripts);
+  pre-close `verify:roadmap-dashboard` **167/167**, Sources agree, 0 stale claims.
+- **Expected unrelated red gate:** `typecheck:scripts` **FAIL**, same 9 diagnostics in 5 existing
+  verifier files. No diagnostic belongs to `verify-condition-semantics.mts`; no unrelated repair was
+  folded into this task.
+- **Ledger:** unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** — implementing a bead moves no
+  validation-ledger case, and no case was re-executed. **Tracker: 256 total / 251 closed / 5
+  outstanding — unchanged pre-close;** `awkit-9qcz` stays IN_PROGRESS until the authorized push.
+- **Beads:** `awkit-9qcz` status/description updated to implementation-complete pending final gates +
+  owner close; `.beads/issues.jsonl` re-exported via `bd export -o .beads/issues.jsonl`.
+
+---
+
 ## 2026-08-21 - Claude (Manager + researcher + project-state, write-lease architecture) - awkit-9qcz condition value-source investigation
 
 - **Objective:** answer `awkit-9qcz` — "Condition expressions cannot be data-driven: a bound value

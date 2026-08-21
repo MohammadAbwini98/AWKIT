@@ -43,19 +43,37 @@ project-state lease that does not own `scripts/**`, and filing a bead would move
 and the exact roadmap pin in `scripts/verify-roadmap-dashboard.mjs` for a task that changed no
 product behaviour. Route it as a scoped task that owns `scripts/**`.
 
-## A condition node with BOTH a literal and a value source is accepted, inert, and undiagnosed (2026-08-21)
+## RESOLVED by Option A: a condition literal+valueSource is now diagnosed; residual is frozen evidence only (2026-08-21)
 
-Found investigating `awkit-9qcz` (OPEN — the owner decision is still outstanding, so this is recorded
-rather than fixed).
+**RESOLVED and independently QC-approved.** The owner decision landed — Option A, literal-only
+condition expressions (`awkit-9qcz`). The "no diagnostic anywhere" gap below is CLOSED:
+`FlowValidator.ts` now emits a warning-severity `ignoredConditionValueSource` when a condition
+carries a non-empty literal AND a `valueSource` (message names only the source `.type`), the condition
+editor in `FlowNodePropertiesPanel.tsx` shows the same non-fatal message plus a remove button, and
+`RandomConfigurationGenerator.ts` no longer emits a `valueSource` for conditions (so the generator
+stops manufacturing the state). The runtime is unchanged — a condition still routes on its literal.
+During final QC, an imported `valueSource: null` was found to crash while the diagnostic formatted
+`.type`; the guard now uses `!= null`, and the focused verifier proves malformed legacy JSON returns
+normally and treats null as absent metadata.
+
+**Genuine residual, expected, NOT product data:** the gitignored historic
+`reports/random-tests/roundtrip-defects.json` still contains **88** legacy condition+source nodes,
+frozen as evidence from before the generator change. That file is not live product data, is not read
+by the app, and is not a regression — it is preserved deliberately. No live profile carries such a
+node (0 in `%LOCALAPPDATA%/SpecterStudio/`), and the one tracked repository fixture is literal-only.
+
+The pre-fix description below is retained as historical context for how the state arose.
+
+### Historical (pre-Option-A) description
 
 `FlowExecutor.resolveNext` (`src/runner/FlowExecutor.ts` L549, L571-577) is synchronous and routes a
 condition with `evaluateBoolean(step.value ?? "", …)`. It **never reads `step.valueSource`**.
-`FlowValidator.ts` L367-393 requires only `isNonEmptyString(step.value)` for a condition, so a node
-carrying *both* fields passes validation, runs on the literal, and the bound source is silently
-ignored. There is **no diagnostic anywhere** — not in validation, and not in the UI: the "Resolved at
-run time from a &lt;type&gt; source" hint in `FlowNodePropertiesPanel.tsx` (L1012-1019) lives in the
-value section, and a condition's `sections` (`flowNodeRegistry.ts` L150-155) are
-`["condition", "execution"]`, so the hint is never rendered for one.
+Before Option A, `FlowValidator.ts` required only `isNonEmptyString(step.value)` for a condition, so a
+node carrying *both* fields passed validation, ran on the literal, and the bound source was silently
+ignored with no diagnostic anywhere — the "Resolved at run time from a &lt;type&gt; source" hint in
+`FlowNodePropertiesPanel.tsx` (L1012-1019) lives in the value section, and a condition's `sections`
+(`flowNodeRegistry.ts` L150-155) are `["condition", "execution"]`, so that hint is never rendered for
+one.
 
 **The Flow Designer cannot author this state.** With `"value"` excluded from the condition's
 sections, a condition binding has no UI at all. Such a node can therefore only arrive from:

@@ -1,5 +1,65 @@
 # CURRENT_STATE
 
+## awkit-9qcz Option A implemented and QC-approved; pre-close push is next (2026-08-22)
+
+**The owner decision landed: Option A — condition expressions are literal-only.** A condition routes
+only on its literal `step.value`; a `valueSource` attached to a condition is legacy metadata, never
+resolved, never active. This supersedes the investigation section below, which recorded the gate as
+still OPEN/BLOCKED on an owner decision — that gate has now passed. Independent QC returned
+**APPROVED** after finding one imported-JSON edge case (`valueSource: null` crashed validation), routing
+the narrow fix back through software, and independently rechecking it. The bead remains
+**IN_PROGRESS** only for the pre-close push, authoritative closure/export, exact roadmap-pin update,
+and final rest-state reconciliation.
+
+**Delivered by a manager-orchestrated multi-agent pass (software → frontend → qa → project-state):**
+
+- `src/validation/FlowValidator.ts` — new `FlowValidationCode` **`"ignoredConditionValueSource"`**,
+  warning-severity, emitted when a condition has a non-empty literal AND a `valueSource`. The message
+  names ONLY the source kind (`valueSource.type`), never a resolved or secret value. Source-only
+  conditions are still rejected as errors (the `awkit-dnbb` rule is unchanged).
+- `src/runner/FlowExecutor.ts` — **UNCHANGED.** `resolveNext` stays synchronous and routes via
+  `evaluateBoolean(step.value ?? "", …)`; it never reads `valueSource`. Option A carries no routing
+  cost — that was the whole point of choosing it over the async Option B.
+- `app/renderer/components/workflow/flowProfileMapping.ts` — `createValueSource` never fabricates a
+  condition `valueSource` for new authoring, and round-trips a genuine legacy binding verbatim
+  (lossless).
+- `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx` — the condition editor shows a
+  non-fatal message naming only `valueSourceOriginal.type`, plus a remove button; it never authors a
+  condition source.
+- `src/testing/random/RandomConfigurationGenerator.ts` — `valueSourceFor` now returns `undefined`
+  for `type === "condition"`; generated conditions carry a literal and no `valueSource`. This closes
+  the "100% of generated condition nodes carry a valueSource" construction the investigation measured.
+- `scripts/verify-condition-semantics.mts` — **NEW** focused verifier, **36 passed / 0 failed**.
+  Its five behavior-level synthetic mutants cover a removed warning, generator regression, fabricated
+  mapping source, accepted source-only condition, and runtime source preference. The added imported-null
+  regression proves malformed legacy JSON returns diagnostics instead of throwing.
+- `package.json` — added `"verify:condition-semantics": "tsx scripts/verify-condition-semantics.mts"`.
+- `scripts/lib/verifier-classification.ts` — registered `verify:condition-semantics` as class
+  **`unit`** (peer `verify:validation`), required for `verify:verifier-classification` to reconcile.
+
+**Fresh finalization evidence:**
+
+- `npm run build` **PASS** (`tsc --noEmit` clean, 3 bundles).
+- `verify:condition-semantics` **36/36**; `verify:validation` **163/163**; `verify:runner`
+  **121/121**; `verify:branch-pairs` **40/40**; `verify:flow-step-mapping` **145/145**;
+  `verify:legacy-compat` **152/152**; `test:random:generator` **49/49**.
+- `verify:flow-designer` **PASS**: 112/112 preserved broad GUI checks plus 16/16 capsule checks.
+- `verify:verifier-classification` **PASS**, all 196 scripts classified; pre-close
+  `verify:roadmap-dashboard` **167/167**, **Sources agree**, 0 stale claims.
+- `typecheck:scripts` remains **FAIL** with the same 9 unrelated diagnostics in 5 existing verifier
+  files; it is not misreported as green and is not silently folded into this task.
+
+**Validation ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED.** Implementing a bead does not by
+itself move a validation-ledger case, and only `build` + `verify:condition-semantics` are confirmed
+green so far — no ledger case was re-executed, so no case status moved. **Tracker: 256 total / 251
+closed / 5 outstanding — unchanged pre-close;** `awkit-9qcz` stays IN_PROGRESS until the authorized
+pre-close push succeeds. Closure should then move the exact pin to 252 closed / 4 outstanding.
+
+**Residual evidence, expected, not product data:** the gitignored historic
+`reports/random-tests/roundtrip-defects.json` still holds 88 legacy condition+source nodes as frozen
+evidence from before the generator change. That is expected and is neither live product data nor a
+regression — see `KNOWN_ISSUES.md`.
+
 ## awkit-9qcz investigated: the value source is inert, but conditions are already data-driven (2026-08-21)
 
 **This was an investigation. NO product semantics changed.** No file under `app/**`, `src/**`,

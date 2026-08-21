@@ -22,8 +22,8 @@
       "itemId": "bead:awkit-9qcz",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-08-21T18:18:39.259Z",
-      "note": "write lease: .beads/**, docs/ai/**, tools/roadmap/assignments.json"
+      "claimedAt": "2026-08-21T21:53:57.733Z",
+      "note": "write lease: .beads/**, docs/ai/**, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
     }
   ]
 }

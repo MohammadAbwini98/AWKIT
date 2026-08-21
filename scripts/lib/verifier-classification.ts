@@ -175,6 +175,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Rule-by-rule Flow Validation Engine checks over pure validator logic; no persistence or browser."
   },
+  "verify:condition-semantics": {
+    class: "unit",
+    why: "awkit-9qcz Option A literal-only condition semantics: the FlowValidator ignoredConditionValueSource warning (names only the source kind, never a resolved/secret value) and source-only rejection, the FlowExecutor.resolveNext synchronous literal-only routing, createValueSource never fabricating a condition source while round-tripping a legacy binding verbatim, and RandomConfigurationGenerator omitting the valueSource for conditions. Pure validator/runtime/mapping logic; no persistence or browser."
+  },
   "verify:wait-validation": {
     class: "unit",
     why: "Both wait contracts. (1) The subtype-aware wait STEP node: engine rules, the designer panel's own validate(), the profile round-trip and a source-level parity check against StepExecutor.executeWait. (2) The Smart Wait CONDITION union in beforeWaits/afterWaits: per-type required fields, the vacuous-match cases, OR-group nesting, and a severity split asserted against runRequiredOrOptional. Pure; no browser or Electron."

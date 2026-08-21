@@ -1,5 +1,49 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-22) - awkit-9qcz Option A QC-approved; pre-close push and closure reconciliation remain
+
+### Transfer
+
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** (implementing
+  a bead moves no validation-ledger case, and only `build` + `verify:condition-semantics` are confirmed
+  green so far, so no case was re-executed).
+- **Owner decision landed: Option A — condition expressions are literal-only.** A condition routes on
+  its literal `step.value`; a `valueSource` on a condition is inert legacy metadata. This supersedes
+  the "BLOCKED on the owner decision" handoff below.
+- **Independent QC result: APPROVED.** QC found one real imported-JSON defect (`valueSource: null`
+  crashed while formatting the warning); software changed the guard to `!= null`, QA added the
+  regression, and QC independently rechecked the repair. `awkit-9qcz` remains IN_PROGRESS only until
+  the authorized pre-close push, authoritative `bd` closure/export, exact roadmap pin, and final push.
+- **Product semantics DID change this time.** Source touched: `src/validation/FlowValidator.ts`
+  (new warning-severity `ignoredConditionValueSource`), `app/renderer/components/workflow/flowProfileMapping.ts`,
+  `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`, `src/testing/random/RandomConfigurationGenerator.ts`,
+  plus `scripts/verify-condition-semantics.mts` (NEW), `package.json`, and
+  `scripts/lib/verifier-classification.ts`. `src/runner/FlowExecutor.ts` is UNCHANGED (Option A carries
+  no routing cost). The software/frontend/qa phases committed these to the working tree already.
+- **Lease:** project-state currently owns docs + verifier registry + Beads export + assignments.
+  Validation, frontend, and QA implementation are in scoped local commits; no lease violation exists.
+
+### What is verified
+
+- `npm run build` **PASS** (`tsc --noEmit` clean, 3 bundles).
+- `verify:condition-semantics` **36/36**; `verify:validation` **163/163**; `verify:runner`
+  **121/121**; `verify:branch-pairs` **40/40**; `verify:flow-step-mapping` **145/145**;
+  `verify:legacy-compat` **152/152**; `test:random:generator` **49/49**.
+- `verify:flow-designer` **PASS** (112/112 preserved broad GUI checks plus 16/16 focused capsule
+  checks); `verify:verifier-classification` **PASS** (196 scripts); pre-close roadmap **167/167**,
+  **Sources agree**, 0 stale claims.
+- `typecheck:scripts` **FAIL**, same 9 unrelated diagnostics in 5 existing verifier files. This task
+  does not own or silently repair them.
+
+### Manager close-out steps
+
+1. Commit this pre-close project-state evidence and push the scoped commits through the normal gate.
+2. Close `awkit-9qcz` through `bd`, export `.beads/issues.jsonl`, and verify authoritative CLOSED state.
+3. Under QA ownership, update the exact roadmap pin to the live count, deliberately mutate it wrong,
+   prove the verifier fails, restore it, and prove 167/167 with **Sources agree**.
+4. Run the final required gates, refresh AI memory and Graphify, commit/push closure state, then release
+   the final lease and report any expected control-plane rest-state dirt without looping.
+
 ## HANDOFF (2026-08-21) - awkit-9qcz investigated; BLOCKED on the owner decision
 
 ### Transfer

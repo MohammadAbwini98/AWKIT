@@ -1,5 +1,19 @@
 # DECISIONS
 
+### 2026-08-22 - Condition expressions remain literal-only; structured sources are inert legacy metadata
+
+- **Decision:** a condition branches only on its literal `step.value`. `step.valueSource` is never an
+  executable condition-expression channel; `FlowExecutor.resolveNext` stays synchronous and no
+  persisted expression-mode discriminator is added.
+- **Compatibility:** an imported literal+source condition remains runnable from its literal and keeps
+  the source verbatim through load/save/reload, including unknown persisted fields. The validator and
+  condition editor identify the ignored binding non-fatally; only an explicit user action removes it.
+- **Authoring:** new Flow Designer conditions and random Test Lab generation do not create condition
+  value sources. Source-only conditions remain invalid.
+- **Reason:** this makes the existing runtime truth visible and testable without introducing a second
+  async resolution path, activating dormant metadata, resolving secrets into routing, or destructively
+  migrating legacy profiles. Owner-approved Option A for `awkit-9qcz`.
+
 ### 2026-08-21 - Token-aware orchestration uses 16 generated roles, subagents by default, and local ephemeral compaction state
 
 - **Decision:** AWKIT exposes the 16 requested responsibilities as unique project-scoped Claude
