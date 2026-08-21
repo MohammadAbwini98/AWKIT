@@ -231,6 +231,13 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
 export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined {
   const type = data.stepType;
   const inSection = (section: PropertySection): boolean => hasSection(type, section);
+  const originalConfig = data.configOriginal;
+  const originalHasHoldMs =
+    originalConfig !== undefined && Object.prototype.hasOwnProperty.call(originalConfig, "holdMs");
+  const shouldPersistHoldMs =
+    type === "clickAndHold" &&
+    inSection("hold") &&
+    (originalConfig === undefined || originalHasHoldMs || data.holdMs !== 1000);
   const config: NodeConfig = {
     clearBeforeFill: type === "fill" ? data.clearBeforeFill : undefined,
     selectMultiple: inSection("select") ? data.selectMultiple : undefined,
@@ -241,7 +248,7 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined
     expectedValue: inSection("assertion") ? data.expectedValue || undefined : undefined,
     // Only an `attribute` assertion carries an attribute name; other types must not persist one.
     attributeName: inSection("assertion") && data.assertionType === "attribute" ? data.attributeName || undefined : undefined,
-    holdMs: inSection("hold") ? data.holdMs : undefined,
+    holdMs: shouldPersistHoldMs ? data.holdMs : undefined,
     storageArea: inSection("assertion") && data.assertionType === "storage" ? data.storageArea : undefined,
     storageKey: inSection("assertion") && data.assertionType === "storage" ? data.storageKey || undefined : undefined,
     screenshotName: inSection("screenshot") ? data.screenshotName || undefined : undefined,
@@ -272,9 +279,21 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined
     detectBeforeHandoff: type === "protectedLoginHandoff" ? data.detectBeforeHandoff : undefined,
     reuseSessionMode: type === "reuseSession" ? data.reuseSessionMode : undefined,
     reuseSessionId: type === "reuseSession" && data.reuseSessionMode === "selected" ? data.reuseSessionId || undefined : undefined,
+    popupAlias:
+      type === "closePopup" && typeof originalConfig?.popupAlias === "string"
+        ? originalConfig.popupAlias
+        : undefined,
     oracle: type === "oracle" ? data.oracle : undefined
   };
-  const defined = Object.entries(config).filter(([, value]) => value !== undefined);
+  // Preserve only config keys this mapping does not know about. The object literal above includes
+  // every known NodeConfig key even when its value is undefined, so known-but-type-irrelevant fields
+  // stay filtered by the RT-09 allowlist instead of leaking back onto unrelated node types.
+  const knownConfigKeys = new Set(Object.keys(config));
+  const preservedUnknown =
+    originalConfig === undefined
+      ? []
+      : Object.entries(originalConfig).filter(([key]) => !knownConfigKeys.has(key));
+  const defined = [...preservedUnknown, ...Object.entries(config)].filter(([, value]) => value !== undefined);
   return defined.length ? (Object.fromEntries(defined) as NodeConfig) : undefined;
 }
 
@@ -372,6 +391,9 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     dialogExpectation: step.dialogExpectation,
     waitUntil: step.waitUntil,
     outputsOriginal: step.outputs,
+    // A shallow raw clone keeps forward/legacy keys available to `toNodeConfig`. `{}` is deliberate:
+    // it distinguishes a loaded step with no config from a newly authored node (`undefined`).
+    configOriginal: step.config ? { ...step.config } : {},
     loop: step.loop,
     message: step.message,
     // RT-10: record which optional fields were absent so `toFlowStep` can omit them again.

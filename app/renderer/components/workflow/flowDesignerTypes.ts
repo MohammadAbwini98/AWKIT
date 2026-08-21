@@ -93,6 +93,12 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
    * instead of collapsing them to `{ [key]: { type: "text" } }`.
    */
   outputsOriginal?: Record<string, unknown>;
+  /**
+   * Raw step configuration carried through a loaded designer node so unknown imported keys survive
+   * a no-op save. An empty object means the loaded step had no config; `undefined` is reserved for
+   * nodes created in the designer, which continue to emit their authored defaults.
+   */
+  configOriginal?: Record<string, unknown>;
   /** Loop binding for `loop`-carrying steps (`FlowStep.loop`); not designer-editable, pass-through. */
   loop?: FlowStep["loop"];
   /** Free-text step message (`FlowStep.message`); not designer-editable, pass-through. */
