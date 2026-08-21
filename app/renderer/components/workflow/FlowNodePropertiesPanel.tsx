@@ -1320,6 +1320,27 @@ export function FlowNodePropertiesPanel({
                   Expression
                   <input value={data.value} placeholder="${outputs.flow.ok} === 'true'" onChange={(e) => set({ value: e.target.value })} />
                 </label>
+                {data.valueSourceOriginal ? (
+                  // Literal-only condition semantics: `FlowExecutor.resolveNext` branches on
+                  // `evaluateBoolean(step.value)` and never reads `step.valueSource`, so a source bound to a
+                  // condition is inert legacy metadata. Say so rather than let it look active — and never
+                  // strip it implicitly; only the button below removes it (preserve, don't re-derive).
+                  // The source KIND is all that is printed; a resolved value or secret name never appears.
+                  <>
+                    <span className="form-message">
+                      This condition carries a <strong>{data.valueSourceOriginal.type}</strong> value source that is not
+                      used. The branch is decided by the Expression above.
+                    </span>
+                    <button
+                      type="button"
+                      className="toolbar-button"
+                      data-testid="condition-value-source-remove"
+                      onClick={() => set({ valueSourceType: "none", valueSourceOriginal: undefined })}
+                    >
+                      Remove unused value source binding
+                    </button>
+                  </>
+                ) : null}
               </section>
             </details>
           ) : null}

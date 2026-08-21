@@ -296,6 +296,13 @@ function isDesignerAuthorable(type: ValueSourceType): boolean {
  * simpler — the designer has no UI to edit these, so it has no business re-deriving them.
  */
 export function createValueSource(data: FlowDesignerNodeData): ValueSource | undefined {
+  if (data.stepType === "condition") {
+    // Option A: a condition routes on its literal expression alone. Never fabricate a
+    // valueSource; only round-trip a genuinely pre-existing legacy binding untouched.
+    const original = data.valueSourceOriginal;
+    return original && original.type === data.valueSourceType ? original : undefined;
+  }
+
   if (data.valueSourceType === "dynamic") {
     return {
       type: "dynamic",
