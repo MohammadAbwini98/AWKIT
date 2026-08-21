@@ -142,14 +142,16 @@ function locatorFor(type: StepType, ctx: ConfigurationContext): LocatorCandidate
  */
 function valueSourceFor(type: StepType, value: string, ctx: ConfigurationContext): ValueSource | undefined {
   const { rng, constraints, coverage } = ctx;
+  // Option A (awkit-9qcz): a `condition` routes ONLY on the literal expression in `step.value`.
+  // `FlowExecutor.resolveNext` evaluates it with `evaluateBoolean(step.value ?? "", …)` and never
+  // reads `step.valueSource`, so any source attached to a generated condition is inert legacy
+  // metadata — never resolved, and never a routing input. A generated condition therefore carries
+  // its literal and NO value source. (The former special case only suppressed the `secret` kind,
+  // which left the other kinds authoring dead bindings on conditions.)
+  if (type === "condition") return undefined;
   const kinds: Array<ValueSource["type"]> = ["static", "static", "static", "env", "runtimeInput", "instanceVariable"];
   if (constraints.recorderFidelity) {
-    // A `condition` is routed by `evaluateBoolean(step.value ?? "", …)`, which never resolves a value
-    // source — so the `secret` kind, which deliberately suppresses the literal below, left the node
-    // with NO expression. `evaluateBoolean("")` returns `true`, so those generated conditions took
-    // their true branch on every run and the corpus routed deterministically wrong while validating
-    // clean. A secret in a routing expression is meaningless anyway; the other kinds still generate.
-    kinds.push(...(type === "condition" ? [] : (["secret"] as Array<ValueSource["type"]>)), "generated", "flowOutput", "dynamic");
+    kinds.push("secret", "generated", "flowOutput", "dynamic");
   }
   const kind = rng.pick(kinds);
   coverage?.recordGenerated("valueSourceType", kind);
