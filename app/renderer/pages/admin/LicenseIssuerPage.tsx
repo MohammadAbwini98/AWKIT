@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderOpen, KeyRound, ShieldCheck, ShieldX, Upload } from "lucide-react";
+import { BadgeCheck, FolderOpen, KeyRound, ShieldCheck, ShieldX, Upload } from "lucide-react";
 import type { ActivationRequest, Entitlement } from "@src/licensing/LicenseTypes";
 import {
   ISSUER_ENTITLEMENTS,
@@ -12,7 +12,16 @@ import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge } from "./components/AdminUi";
+import {
+  AdminBanner,
+  AdminEmpty,
+  AdminLoading,
+  AdminMetricCard,
+  AdminMetrics,
+  AdminPage,
+  AdminSectionCard,
+  AdminStatusBadge
+} from "./components/AdminUi";
 
 type Resp<T> = { ok: boolean; value?: T; reason?: string };
 const issuer = () => window.playwrightFlowStudio.issuer;
@@ -190,6 +199,8 @@ export function LicenseIssuerPage() {
 
   return (
     <AdminPage
+      title="License Issuer"
+      description="Turn an activation request into a signed, automatically saved license on this offline issuer workstation."
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -201,14 +212,34 @@ export function LicenseIssuerPage() {
         </>
       }
     >
-      <section className="settings-card">
-        <div className="awkit-admin-card-head">
-          <h2><KeyRound size={16} /> Signing readiness</h2>
-          <AdminStatusBadge
-            status={readiness?.ready ? "valid" : "invalid"}
-            label={readiness?.ready ? "Ready" : "Key unavailable"}
-          />
-        </div>
+      <AdminMetrics label="Issuer summary">
+        <AdminMetricCard
+          label="Signing key"
+          value={readiness?.ready ? "Ready" : "Unavailable"}
+          icon={KeyRound}
+          tone={readiness?.ready ? "success" : "danger"}
+        />
+        <AdminMetricCard
+          label="Activation request"
+          value={activationRequest ? "Loaded" : "Not loaded"}
+          hint={activationRequest ? requestFileName : undefined}
+        />
+        <AdminMetricCard
+          label="Entitlements selected"
+          value={`${entitlements.length} of ${ISSUER_ENTITLEMENTS.length}`}
+          hint={entitlements.length === 0 ? "select at least one" : undefined}
+        />
+        <AdminMetricCard
+          label="Issued this session"
+          value={issued ? "Saved" : "—"}
+          icon={BadgeCheck}
+          tone={issued ? "success" : "neutral"}
+          hint={issued?.fileName}
+        />
+      </AdminMetrics>
+
+      <div className="awkit-admin-dashboard-grid">
+      <AdminSectionCard title="Signing readiness" icon={KeyRound} meta={<AdminStatusBadge status={readiness?.ready ? "valid" : "invalid"} label={readiness?.ready ? "Ready" : "Key unavailable"} />}>
         <p className="awkit-admin-muted">
           The private key stays outside the application package. SpecterStudio only reads it inside the
           trusted main process while issuing a license.
@@ -220,14 +251,9 @@ export function LicenseIssuerPage() {
         {!readiness?.ready ? (
           <p className="form-message warn" role="status">{issuerReasonMessage(readiness?.reason)}</p>
         ) : null}
-      </section>
+      </AdminSectionCard>
 
-      <section className="settings-card">
-        <h2><Upload size={16} /> Activation request</h2>
-        <p className="awkit-admin-muted">
-          Select the JSON exported from the user's machine. The main process validates its product,
-          schema, fingerprint, and bounds before signing.
-        </p>
+      <AdminSectionCard title="Activation request" icon={Upload} description="Select the JSON exported from the user's machine. The main process validates its product, schema, fingerprint, and bounds before signing.">
         <input
           ref={fileInputRef}
           type="file"
@@ -253,10 +279,10 @@ export function LicenseIssuerPage() {
             <Field label="Machine fingerprint" value={activationRequest.fingerprintHash ?? "—"} mono />
           </div>
         ) : null}
-      </section>
+      </AdminSectionCard>
+      </div>
 
-      <section className="settings-card">
-        <h2><ShieldCheck size={16} /> License terms</h2>
+      <AdminSectionCard title="License terms" icon={ShieldCheck}>
         <div className="awkit-admin-create-form">
           <label className="awkit-login-field">
             <span className="awkit-login-field-label">License type</span>
@@ -297,14 +323,10 @@ export function LicenseIssuerPage() {
             <ShieldCheck size={14} /> {busy ? "Issuing…" : "Issue and save license"}
           </button>
         </div>
-      </section>
+      </AdminSectionCard>
 
       {issued ? (
-        <section className="settings-card">
-          <div className="awkit-admin-card-head">
-            <h2><ShieldCheck size={16} /> Issued license</h2>
-            <AdminStatusBadge status="valid" label="Saved" />
-          </div>
+        <AdminSectionCard title="Issued license" icon={ShieldCheck} meta={<AdminStatusBadge status="valid" label="Saved" />}>
           <div className="awkit-license-grid">
             <Field label="File" value={issued.fileName} mono />
             <Field label="License ID" value={issued.licenseId} mono />
@@ -318,7 +340,7 @@ export function LicenseIssuerPage() {
               <FolderOpen size={14} /> Open output folder
             </button>
           </div>
-        </section>
+        </AdminSectionCard>
       ) : null}
 
       {pendingFn ? (

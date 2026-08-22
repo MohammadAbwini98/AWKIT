@@ -210,6 +210,62 @@ try {
   await verifyAdminResponsive(win, "Licensing");
   await captureAdminThemes(win, shotDir, "licensing");
 
+  // ─── License Issuer (role-exclusive trust boundary) ─────────────────────────
+  // The page is gated by ISSUER_ROLE, which is exclusive and cannot be held alongside other roles.
+  // First prove the Super User does NOT get it, then create a dedicated Issuer account through the
+  // supported Users UI, switch accounts via Sign out/Sign in, and verify the redesigned page.
+  check(
+    "License Issuer nav is hidden from the Super User (role-exclusive route)",
+    (await win.evaluate(() => [...document.querySelectorAll("button.nav-item")].some((b) => (b.textContent || "").trim() === "License Issuer"))) === false
+  );
+
+  // Create the dedicated Issuer account through the supported create-user form.
+  await nav(win, "Users");
+  await win.waitForTimeout(400);
+  const issuerCreateForm = win.locator(".awkit-admin-quick-create");
+  await issuerCreateForm.locator("input").first().fill("issuer1");
+  await issuerCreateForm.locator('input[type="password"]').first().fill("Str0ng!Passw0rd");
+  await issuerCreateForm.locator("label.awkit-admin-role-option", { hasText: "Issuer" }).locator('input[type="checkbox"]').check();
+  await win.getByRole("button", { name: "Create user", exact: true }).click();
+  await win.waitForTimeout(900);
+  check("Issuer account created from the Users page", (await win.getByText("@issuer1").count()) >= 1);
+
+  // Sign out through the account menu.
+  await win.locator("button.awkit-account-trigger").click();
+  await win.locator(".awkit-account-menu-item", { hasText: "Sign out" }).click();
+  await win.waitForSelector(".awkit-login-card", { timeout: 20000 });
+
+  // Sign in as the dedicated Issuer account. The temporary password forces a password change first —
+  // complete that real flow before the shell mounts.
+  await win.fill("#awkit-login-username", "issuer1");
+  await win.locator('.awkit-login-form input[type="password"]').fill("Str0ng!Passw0rd");
+  await win.getByRole("button", { name: "Sign in" }).click();
+  await win.getByRole("heading", { name: "Update your password" }).waitFor({ timeout: 20000 });
+  const changeForm = win.locator(".awkit-login-form");
+  await changeForm.locator('input[type="password"]').nth(0).fill("Str0ng!Passw0rd");
+  await changeForm.locator('input[type="password"]').nth(1).fill("Issu3r!Passw0rd9");
+  await changeForm.locator('input[type="password"]').nth(2).fill("Issu3r!Passw0rd9");
+  await changeForm.getByRole("button", { name: "Update password" }).click();
+  await win.waitForSelector(".app-shell", { timeout: 25000 });
+
+  // The Issuer sees only its own route — not the Super User administration pages.
+  check(
+    "Issuer session does not see the Super User administration nav",
+    (await win.evaluate(() => [...document.querySelectorAll("button.nav-item")].some((b) => (b.textContent || "").trim() === "Users"))) === false
+  );
+  await nav(win, "License Issuer");
+  await win.getByRole("heading", { name: "Signing readiness" }).first().waitFor({ timeout: 10000 }).catch(() => {});
+  const issuerLayout = await adminLayout(win, "License Issuer");
+  check(
+    "License Issuer uses the shared Administration header and metric summary",
+    issuerLayout?.title === "License Issuer" && issuerLayout.headerVisible && issuerLayout.noPageOverflow && issuerLayout.metricCards === 4,
+    JSON.stringify(issuerLayout)
+  );
+  check("License Issuer shows signing readiness state", (await win.getByRole("heading", { name: "Signing readiness" }).count()) >= 1);
+  check("License Issuer exposes the activation request picker", (await win.getByRole("button", { name: /Select activation request/ }).count()) === 1);
+  await verifyAdminResponsive(win, "License Issuer");
+  await captureAdminThemes(win, shotDir, "license-issuer");
+
   check("no renderer console errors overall", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 } finally {
   await app.close().catch(() => undefined);
