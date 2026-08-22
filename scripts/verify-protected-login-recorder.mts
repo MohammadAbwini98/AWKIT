@@ -398,9 +398,13 @@ try {
 
     await recorder!.continueWithNormalBrowser();
     await waitUntil(() => recorder?.getHandoff()?.phase === "capturingSession", "manual capture phase");
+    // SECURITY BOUNDARY: the automation browser must be really CLOSED, not merely forgotten.
+    // `closeBrowser()` nulls browser/context/page together, so `page !== preLoginPage` is
+    // unconditionally true and proves nothing; only the live page's own closed state does.
     check(
       "automation browser closes before the manual browser opens",
-      resumeInternals.browser === null && (preLoginPage.isClosed() || resumeInternals.page !== preLoginPage)
+      preLoginPage.isClosed() === true && resumeInternals.browser === null,
+      `pageClosed=${preLoginPage.isClosed()} browser=${resumeInternals.browser === null ? "null" : "live"}`
     );
     check("manual session capture started exactly once", startCaptureCalls === 1 && stopCaptureCalls === 0, `${startCaptureCalls}/${stopCaptureCalls}`);
 

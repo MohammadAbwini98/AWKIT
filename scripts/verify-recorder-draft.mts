@@ -374,10 +374,16 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   const fixtureProfileDir = join(sessionsDir, "session-fixture1");
   await mkdir(join(fixtureProfileDir, "Default"), { recursive: true });
   await writeFile(join(fixtureProfileDir, "Default", "Preferences"), "{}", "utf8");
+  // The legacy profile dir must REALLY exist on disk (with the Chrome scaffolding deleteProfile
+  // recurses through). Without it the post-delete "directory is gone" assertion would be true by
+  // absence and would stay green even if the removal logic were deleted.
+  const legacyProfileDir = join(sessionsDir, "session-legacy1");
+  await mkdir(join(legacyProfileDir, "Default"), { recursive: true });
+  await writeFile(join(legacyProfileDir, "Default", "Preferences"), "{}", "utf8");
   const legacyProfile = {
     id: "session-legacy1",
     name: "Legacy Session",
-    profileDir: join(sessionsDir, "session-legacy1"),
+    profileDir: legacyProfileDir,
     targetUrl: "https://legacy.test/app",
     createdAt: "2026-08-22T00:00:00.000Z",
     status: "ready"
@@ -415,10 +421,37 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   check("session store: unknown compatible field survives rename/reload round trip", Boolean((afterRename as unknown as Record<string, unknown> | null)?.futureUnknownField));
 
   // Concurrent mutations must not drop one update (read-modify-write serialization).
+  // Seed a deliberately stale lastUsedAt first: `typeof lastUsedAt === "string"` is already satisfied
+  // by the earlier markUsed, so only a value that CHANGED proves the concurrent markUsed survived.
+  const staleUsedAt = "2000-01-01T00:00:00.000Z";
+  const seedRows = JSON.parse(await readFile(metadataFile, "utf8")) as Record<string, unknown>[];
+  for (const row of seedRows) if (row.id === "session-fixture1") row.lastUsedAt = staleUsedAt;
+  await writeJsonFileAtomic(metadataFile, seedRows);
+  const beforeUsed = (await newService().getById("session-fixture1"))?.lastUsedAt;
+  check("session store: concurrent probe starts from a known stale lastUsedAt", beforeUsed === staleUsedAt, String(beforeUsed));
   const concurrent = newService();
   await Promise.all([concurrent.rename("session-fixture1", "Kept Name"), concurrent.markUsed("session-fixture1")]);
   const afterConcurrent = await newService().getById("session-fixture1");
-  check("session store: concurrent rename+markUsed both land (no lost update)", afterConcurrent?.name === "Kept Name" && typeof afterConcurrent?.lastUsedAt === "string");
+  check(
+    "session store: concurrent rename+markUsed both land (no lost update)",
+    afterConcurrent?.name === "Kept Name" && typeof afterConcurrent?.lastUsedAt === "string" && afterConcurrent?.lastUsedAt !== beforeUsed,
+    `${afterConcurrent?.name}/${afterConcurrent?.lastUsedAt}`
+  );
+
+  // The opposite interleaving must hold too: whichever operation is issued first, neither write may
+  // be overwritten by the other's read-modify-write cycle.
+  const seedRows2 = JSON.parse(await readFile(metadataFile, "utf8")) as Record<string, unknown>[];
+  for (const row of seedRows2) if (row.id === "session-fixture1") row.lastUsedAt = staleUsedAt;
+  await writeJsonFileAtomic(metadataFile, seedRows2);
+  const beforeUsed2 = (await newService().getById("session-fixture1"))?.lastUsedAt;
+  const concurrent2 = newService();
+  await Promise.all([concurrent2.markUsed("session-fixture1"), concurrent2.rename("session-fixture1", "Kept Name 2")]);
+  const afterConcurrent2 = await newService().getById("session-fixture1");
+  check(
+    "session store: concurrent markUsed+rename both land in the reverse order too",
+    afterConcurrent2?.name === "Kept Name 2" && typeof afterConcurrent2?.lastUsedAt === "string" && afterConcurrent2?.lastUsedAt !== beforeUsed2,
+    `${afterConcurrent2?.name}/${afterConcurrent2?.lastUsedAt}`
+  );
 
   // hasCapturedData is existence-only: true with state files present, false otherwise.
   check("hasCapturedData: true when Default state files exist", svcStore.hasCapturedData("session-fixture1") === true);
@@ -427,12 +460,15 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   check("hasCapturedData: false for unused scaffolding", svcStore.hasCapturedData(emptyId) === false);
   check("hasCapturedData: false for a missing profile dir", svcStore.hasCapturedData("session-missing") === false);
 
-  // deleteProfile removes both the registry entry and the profile directory.
+  // deleteProfile removes both the registry entry and the profile directory. The BEFORE assertion is
+  // load-bearing: it proves the directory existed, so "gone" afterwards can only mean removal.
+  const dirBeforeDelete = await access(join(legacyProfile.profileDir, "Default", "Preferences")).then(() => true).catch(() => false);
+  check("session store: profile directory exists before delete", dirBeforeDelete, legacyProfile.profileDir);
   await svcStore.deleteProfile("session-legacy1");
   const afterDelete = newService();
   check("session store: delete removes the registry entry", (await afterDelete.getById("session-legacy1")) === null);
   const dirGone = await access(legacyProfile.profileDir).then(() => false).catch(() => true);
-  check("session store: delete removes the profile directory", dirGone);
+  check("session store: delete removes the profile directory", dirBeforeDelete && dirGone);
 
   // The product path leaves no temp residue behind.
   check("atomic writes leave no temp residue in the profiles root", (await tmpResidue()).length === 0);
