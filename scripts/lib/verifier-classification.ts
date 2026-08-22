@@ -233,7 +233,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:observability": { class: "unit", why: "Pure observability aggregation/anomaly logic." },
   "verify:safety-policy": { class: "unit", why: "Pure step-safety metadata classification." },
   "verify:resource-sampling": { class: "unit", why: "Pure resource-sampling logic." },
-  "verify:recorder-draft": { class: "unit", why: "Recorder action-draft + saved-URL logic; no browser." },
+  "verify:recorder-draft": { class: "unit", why: "Recorder action-draft + saved-URL logic, REC-022 handoff-cancel draft preservation, and the SessionCaptureService metadata store (real-file round trip, corrupt/missing recovery, atomic EPERM/EBUSY retry via injected seams); no browser." },
   "verify:recorder-flow": { class: "unit", why: "Pure buildRecordedFlow logic; no browser, no I/O." },
   "verify:protected-login": { class: "unit", why: "Pure protected-login detector core." },
   "verify:data-editor": { class: "unit", why: "Data-source editor logic (small file round-trip is incidental)." },
