@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Administration UI redesigned on the SpecterStudio system (2026-08-22)
+
+The five Administration screens (Users, Roles, Permissions, Audit Log, Licensing) now share a
+visible page header (title + description + primary action), a responsive metric-card summary row,
+and section cards with table toolbars and live counts. Shared kit additions: `AdminMetrics`,
+`AdminMetricCard` (tone-aware icon chips), `AdminSectionCard`; the previously screen-reader-only
+`.awkit-admin-header` is now visible; Users/Roles restore the wide two-column directory+create
+layout (collapses ≤68rem). Roles shows assigned-user counts only when the caller can read the user
+directory (best-effort, no fabricated numbers). All metrics derive from real product data
+(`listRoles`/`listUsers`/`listAudit`/license status view); no fake controls were added.
+Verification: `verify:admin-gui` **29/29** (real Electron, first-run SU provisioning, create-user /
+create-role / edit / delete / deny-override round-trips, containment at 1024/1280/1440/1920, dark
+and light screenshots of all pages — visually inspected), `verify:e2e-rbac` 70/70, `verify:authz`
+92/92, `verify:super-user-controls` 49/49, `verify:licensing` 183/183, `verify:e2e-licensing`
+38/38, build, typecheck:scripts, verifier-classification, roadmap-dashboard **167/167**
+(**Sources agree**). The comprehensive-validation ledger is unchanged at **64 PASS / 2 NOT RUN /
+0 BLOCKED**.
+
 ## awkit-cey / REC-022 CLOSED: live IdP walkthrough PASSED (2026-08-22)
 
 REC-022 is complete. The comprehensive-validation ledger moved to **64 PASS / 2 NOT RUN /

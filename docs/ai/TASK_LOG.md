@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-22 - opencode - Administration UI redesign on the SpecterStudio system
+
+- **Objective:** make every Administration screen (Users, Roles, Permissions, Audit Log, Licensing)
+  intentional and consistent with the Hologram design tokens — visible headers, metric cards,
+  section cards, organized toolbars, responsive layouts.
+- **Shared kit:** `AdminMetrics` + `AdminMetricCard` (tone-aware icon chips), `AdminSectionCard`;
+  `.awkit-admin-header` made visible (was sr-only); admin-scoped card chrome using existing
+  surface/border/radius/shadow tokens; wide two-column directory+create layout restored for
+  Users/Roles (stacks ≤68rem).
+- **Screens:** Users (4 metric cards, header Add-user action focusing the create form, toolbar
+  count, stacked side-rail form), Roles (4 cards incl. best-effort assigned-user counts from
+  `listUsers`, per-role "N users" meta), Permissions (4 cards, legend, per-group counts),
+  Audit Log (Loaded/Failures/Distinct actors/Visible cards), Licensing (Status/Edition/Execution/
+  Remaining metric row; status-first hierarchy kept). No RBAC/licensing/IPC/persistence changes;
+  all metrics derive from real product data.
+- **Verification:** build PASS; typecheck:scripts PASS; `verify:admin-gui` **29/29** (real Electron:
+  first-run SU provisioning, user/role CRUD + deny-override round-trips, containment at
+  1024/1280/1440/1920, dark+light screenshots of all five pages — visually inspected by the agent);
+  `verify:e2e-rbac` 70/70; `verify:authz` 92/92; `verify:super-user-controls` 49/49;
+  `verify:licensing` 183/183; `verify:e2e-licensing` 38/38; verifier-classification reconciled;
+  roadmap-dashboard **167/167**, Sources agree. Ledger unchanged at **64 PASS / 2 NOT RUN /
+  0 BLOCKED**.
+
 ## 2026-08-22 - opencode - awkit-cey / REC-022 CLOSED: live IdP walkthrough executed and PASSED
 
 - **Objective:** complete the final REC-022 acceptance gate: offline validation, the authorized
