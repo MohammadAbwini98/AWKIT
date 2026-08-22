@@ -14,11 +14,12 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "./SessionProfile";
 import { normalizeOrigin } from "./sessionMatch";
+import { writeJsonFileAtomic } from "./atomicWrite";
 
 /** Well-known Chrome/Edge installation paths on Windows. */
 const BROWSER_CANDIDATES: { path: string; browser: "chrome" | "msedge" }[] = [
@@ -37,6 +38,8 @@ export class SessionCaptureService {
   private activeProcess: ChildProcess | null = null;
   private activeStatus: SessionCaptureStatus = { active: false, status: "idle" };
   private activeSessionId: string | null = null;
+  /** Serializes metadata writes so two rapid mutations cannot interleave and drop updates. */
+  private writeChain: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly profilesRoot: string) {
     mkdirSync(this.profilesRoot, { recursive: true });
@@ -68,38 +71,52 @@ export class SessionCaptureService {
     }
   }
 
-  private async writeProfiles(profiles: SessionProfile[]): Promise<void> {
-    await writeFile(this.metadataPath(), JSON.stringify(profiles, null, 2), "utf8");
+  /** Atomic metadata write. Callers MUST already hold the `enqueue` chain. */
+  private writeProfiles(profiles: SessionProfile[]): Promise<void> {
+    return writeJsonFileAtomic(this.metadataPath(), profiles);
+  }
+
+  /**
+   * Serialize a read-modify-write metadata operation so concurrent mutations (a rename landing
+   * while the capture-exit handler marks the profile ready) cannot silently drop one update.
+   * The chain only tracks completion: a failed operation never blocks later ones.
+   */
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.writeChain.then(operation, operation);
+    this.writeChain = run.catch(() => undefined);
+    return run;
   }
 
   async list(): Promise<SessionProfile[]> {
-    const profiles = await this.readProfiles();
-    // Sync status: if a profile dir was deleted externally, mark it as error.
-    let changed = false;
-    for (const profile of profiles) {
-      if (profile.status === "ready" && !existsSync(profile.profileDir)) {
-        profile.status = "error";
-        changed = true;
-      }
-      // Backfill origin/source for legacy profiles so origin-based matching works.
-      if (!profile.origin && profile.targetUrl) {
-        const origin = normalizeOrigin(profile.targetUrl);
-        if (origin) {
-          profile.origin = origin;
+    return this.enqueue(async () => {
+      const profiles = await this.readProfiles();
+      // Sync status: if a profile dir was deleted externally, mark it as error.
+      let changed = false;
+      for (const profile of profiles) {
+        if (profile.status === "ready" && !existsSync(profile.profileDir)) {
+          profile.status = "error";
           changed = true;
         }
+        // Backfill origin/source for legacy profiles so origin-based matching works.
+        if (!profile.origin && profile.targetUrl) {
+          const origin = normalizeOrigin(profile.targetUrl);
+          if (origin) {
+            profile.origin = origin;
+            changed = true;
+          }
+        }
+        if (!profile.source) {
+          profile.source = "manual";
+          changed = true;
+        }
+        // If we're actively capturing for this profile, show capturing status.
+        if (this.activeSessionId === profile.id && this.activeProcess) {
+          profile.status = "capturing";
+        }
       }
-      if (!profile.source) {
-        profile.source = "manual";
-        changed = true;
-      }
-      // If we're actively capturing for this profile, show capturing status.
-      if (this.activeSessionId === profile.id && this.activeProcess) {
-        profile.status = "capturing";
-      }
-    }
-    if (changed) await this.writeProfiles(profiles);
-    return profiles;
+      if (changed) await this.writeProfiles(profiles);
+      return profiles;
+    });
   }
 
   async getById(id: string): Promise<SessionProfile | null> {
@@ -108,34 +125,38 @@ export class SessionCaptureService {
   }
 
   async rename(id: string, newName: string): Promise<SessionProfile> {
-    const profiles = await this.readProfiles();
-    const profile = profiles.find((p) => p.id === id);
-    if (!profile) throw new Error(`Session profile ${id} not found.`);
-    profile.name = newName.trim() || profile.name;
-    await this.writeProfiles(profiles);
-    return profile;
+    return this.enqueue(async () => {
+      const profiles = await this.readProfiles();
+      const profile = profiles.find((p) => p.id === id);
+      if (!profile) throw new Error(`Session profile ${id} not found.`);
+      profile.name = newName.trim() || profile.name;
+      await this.writeProfiles(profiles);
+      return profile;
+    });
   }
 
   async deleteProfile(id: string): Promise<void> {
-    const profiles = await this.readProfiles();
-    const profile = profiles.find((p) => p.id === id);
-    if (!profile) return;
+    await this.enqueue(async () => {
+      const profiles = await this.readProfiles();
+      const profile = profiles.find((p) => p.id === id);
+      if (!profile) return;
 
-    // Don't delete while capturing.
-    if (this.activeSessionId === id && this.activeProcess) {
-      throw new Error("Cannot delete a session that is currently being captured. Close the browser first.");
-    }
-
-    // Remove the profile directory (best-effort).
-    try {
-      if (existsSync(profile.profileDir)) {
-        rmSync(profile.profileDir, { recursive: true, force: true });
+      // Don't delete while capturing.
+      if (this.activeSessionId === id && this.activeProcess) {
+        throw new Error("Cannot delete a session that is currently being captured. Close the browser first.");
       }
-    } catch (error) {
-      console.warn(`[session] Could not fully remove profile directory: ${profile.profileDir}`, error);
-    }
 
-    await this.writeProfiles(profiles.filter((p) => p.id !== id));
+      // Remove the profile directory (best-effort).
+      try {
+        if (existsSync(profile.profileDir)) {
+          rmSync(profile.profileDir, { recursive: true, force: true });
+        }
+      } catch (error) {
+        console.warn(`[session] Could not fully remove profile directory: ${profile.profileDir}`, error);
+      }
+
+      await this.writeProfiles(profiles.filter((p) => p.id !== id));
+    });
   }
 
   /**
@@ -165,12 +186,14 @@ export class SessionCaptureService {
 
   /** Mark a profile as used (update lastUsedAt). */
   async markUsed(id: string): Promise<void> {
-    const profiles = await this.readProfiles();
-    const profile = profiles.find((p) => p.id === id);
-    if (profile) {
-      profile.lastUsedAt = new Date().toISOString();
-      await this.writeProfiles(profiles);
-    }
+    await this.enqueue(async () => {
+      const profiles = await this.readProfiles();
+      const profile = profiles.find((p) => p.id === id);
+      if (profile) {
+        profile.lastUsedAt = new Date().toISOString();
+        await this.writeProfiles(profiles);
+      }
+    });
   }
 
   // ─── Capture flow ─────────────────────────────────────────────────────
@@ -194,8 +217,7 @@ export class SessionCaptureService {
     const profileDir = join(this.profilesRoot, id);
     mkdirSync(profileDir, { recursive: true });
 
-    // Register the profile in metadata.
-    const profiles = await this.readProfiles();
+    // Register the profile in metadata (serialized with every other metadata mutation).
     const cleanUrl = targetUrl.trim() || undefined;
     const profile: SessionProfile = {
       id,
@@ -209,8 +231,11 @@ export class SessionCaptureService {
       browserPath: browser.path,
       status: "capturing"
     };
-    profiles.push(profile);
-    await this.writeProfiles(profiles);
+    await this.enqueue(async () => {
+      const profiles = await this.readProfiles();
+      profiles.push(profile);
+      await this.writeProfiles(profiles);
+    });
 
     // Normalize URL: prepend https:// if bare host.
     let url = (targetUrl ?? "").trim();
@@ -263,11 +288,12 @@ export class SessionCaptureService {
         this.activeProcess = null;
         this.activeSessionId = null;
         // Mark profile as error.
-        this.readProfiles().then((all) => {
+        void this.enqueue(async () => {
+          const all = await this.readProfiles();
           const p = all.find((x) => x.id === id);
           if (p) {
             p.status = "error";
-            return this.writeProfiles(all);
+            await this.writeProfiles(all);
           }
         }).catch(console.error);
       });
@@ -294,11 +320,12 @@ export class SessionCaptureService {
     };
 
     // Mark the profile as ready (the user-data-dir now has session state).
-    this.readProfiles().then((profiles) => {
+    void this.enqueue(async () => {
+      const profiles = await this.readProfiles();
       const profile = profiles.find((p) => p.id === sessionId);
       if (profile) {
         profile.status = "ready";
-        return this.writeProfiles(profiles);
+        await this.writeProfiles(profiles);
       }
     }).catch(console.error);
 
