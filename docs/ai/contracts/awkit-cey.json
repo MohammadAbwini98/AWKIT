@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-cey",
+    "title": "REC-022 — protected-login handoff, session capture and reuse lifecycle",
+    "objective": "Close the evidence gap on REC-022: preserve the Recorder draft when a protected-login handoff is cancelled, make the session-profile store crash-safe on Windows, prove the capture -> save -> reload -> Reuse Session -> Recorder resume -> Runner reuse lifecycle through the responsible layers with negative and recovery coverage, and reconcile authoritative project state. The real authorized identity-provider walkthrough remains the acceptance gate and must not be simulated.",
+    "requested_by": "owner",
+    "risk_level": 3,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "208c2f4",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "run-app-demo.mjs",
+        "git_status": "??",
+        "sha256": "6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b",
+        "note": "Untracked prior-session helper at the repository root. Unmapped by PATH_DOMAINS, so it is fingerprinted here to keep it from surfacing as an 'unmapped' scope escape. Do not modify or delete it."
+      }
+    ],
+    "preserved_notes": [
+      "docs/ai/contracts/active-lease.json and tools/roadmap/assignments.json carry prior-session (awkit-rvb) modifications. They are deliberately NOT fingerprinted: the lease grant and the assignment claim rewrite them by design, and both fall under this task's expected paths, so they cannot become scope escapes.",
+      "docs/ai/contracts/awkit-9qcz.json carries prior-session lifecycle bookkeeping and falls under docs/**. Leave its content alone."
+    ]
+  },
+  "classification": {
+    "recorder_change": true,
+    "browser_behavior_change": true,
+    "protected_login_change": true,
+    "filesystem_write_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "recorder",
+      "qa",
+      "qc",
+      "security",
+      "persistence",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/recorder/**",
+      "src/session/**",
+      "scripts/verify-*",
+      "mock-site/**",
+      "docs/ai/**",
+      ".beads/**",
+      "tools/roadmap/assignments.json",
+      "scripts/lib/verifier-classification.ts"
+    ],
+    "consultants": [
+      "architect",
+      "security",
+      "persistence"
+    ],
+    "writer": {
+      "agent_id": "recorder",
+      "allowed_paths": [
+        "src/recorder/**",
+        "src/session/**"
+      ],
+      "forbidden_paths": [
+        "app/main/**",
+        "app/renderer/**",
+        "docs/**",
+        ".beads/**",
+        "tools/roadmap/**",
+        "scripts/**",
+        "package.json"
+      ]
+    },
+    "writer_sequence": [
+      "recorder",
+      "qa",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Minimal, scoped diffs. No unrelated refactors and no renaming of window.playwrightFlowStudio.",
+      "Do not re-couple session capture to step.timeoutMs (docs/ai/KNOWN_ISSUES.md L1202).",
+      "Do not add a createdBy guard and do not block manualChromeHandoff profiles (docs/ai/KNOWN_ISSUES.md L1200).",
+      "Offline-hardening Chromium arguments must stay off the real-Chrome handoff path (docs/ai/KNOWN_ISSUES.md L1002).",
+      "Prefer extending an existing verifier over adding a new npm script. package.json is release-owned and is NOT in this contract's expected paths; if a new verify:* script proves unavoidable, amend the contract first."
+    ],
+    "security": [
+      "AWKIT must never automate, inspect, bypass, replay or capture protected authentication steps: passwords on protected surfaces, MFA, OTP, passkeys, device approval, CAPTCHA, bot-detection or access-control challenges.",
+      "No code may type into, read the DOM of, screenshot, or query the protected login page.",
+      "SessionCaptureService must keep spawning the user's installed Chrome/Edge detached with an app-minted --user-data-dir under the AWKIT profiles root, with no CDP attach. The user's daily browser profile must remain structurally unreachable.",
+      "Never expose credentials, cookies, session secrets, private keys, protected screenshots or identity-provider secrets in code, logs, fixtures, reports, docs or commits. Session fixtures must be synthetic.",
+      "hasCapturedData must keep checking only for the existence of state files, never reading cookie or token values."
+    ],
+    "compatibility": [
+      "Persisted session-profile records must round-trip losslessly: unknown compatible fields are preserved unless an explicit migration owns them.",
+      "Existing stored-session schema must keep loading; verify with npm run verify:legacy-compat."
+    ],
+    "offline": [
+      "No runtime internet, CDN, remote font or remote script. No global Node, Playwright, Chromium or admin rights.",
+      "Mutable data only under %LOCALAPPDATA%/SpecterStudio/ or a user-configured Settings path. Never under resources/ or app.asar."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "AC-1",
+      "description": "Cancelling a protected-login handoff preserves the pre-login Recorder draft on disk instead of discarding it, so the user can resume or save it. RecorderService.cancelSecureHandoff must not call discardDraft.",
+      "evidence_required": ["EV-build", "EV-recorder-draft"]
+    },
+    {
+      "id": "AC-2",
+      "description": "The session-profile store writes atomically with EPERM/EBUSY retry, so Windows file contention can no longer silently discard a saved session profile.",
+      "evidence_required": ["EV-build", "EV-session-lifecycle"]
+    },
+    {
+      "id": "AC-3",
+      "description": "The full lifecycle is proven through the responsible storage/IPC/runtime layers: approved capture -> save -> close/reinitialize -> reload -> resolve -> Reuse Session -> Recorder resume -> save/reload -> Runner reuse -> truthful redacted reports.",
+      "evidence_required": ["EV-session-lifecycle", "EV-session-context", "EV-runner"]
+    },
+    {
+      "id": "AC-4",
+      "description": "All nine negative and recovery scenarios fail safely and never fall back to protected-login automation: missing session file, corrupted session file, invalid/expired session, wrong scoped profile, Reuse Session with no usable session, user cancels handoff, browser closes before capture completes, app restarts during handoff/resume, and target requires authentication again.",
+      "evidence_required": ["EV-session-lifecycle", "EV-protected-login-recorder"]
+    },
+    {
+      "id": "AC-5",
+      "description": "The protected-login security boundary is intact: no code path automates, inspects, screenshots or reads the protected surface, the handoff uses an AWKIT-owned scoped Chrome profile only, and session secrets are redacted from logs and reports.",
+      "evidence_required": ["EV-protected-login", "EV-recorder-redaction", "EV-source-hygiene"]
+    },
+    {
+      "id": "AC-6",
+      "description": "The authorized real identity-provider protected-login walkthrough has been executed end to end by an authorized operator with a real approved test account, with manual completion of every protected step, and it PASSED. This is the authoritative acceptance gate for REC-022 and may not be satisfied by mock coverage.",
+      "evidence_required": ["EV-live-idp"]
+    },
+    {
+      "id": "AC-7",
+      "description": "Authoritative project state is reconciled from its owning sources and the Program Status dashboard Overview still reads 'Sources agree'.",
+      "evidence_required": ["EV-verifier-classification", "EV-roadmap-dashboard"]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-baseline-git",
+      "type": "inspection",
+      "command": "git status --porcelain; git diff --check; git log --oneline --decorate -20",
+      "required": false,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Phase 1 baseline. HEAD 208c2f4 == origin/main, 0 ahead / 0 behind. Working tree carries four prior-session paths, all preserved. git diff --check clean."
+    },
+    {
+      "id": "EV-build",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-typecheck-scripts",
+      "type": "build",
+      "command": "npm run typecheck:scripts",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-recorder-draft",
+      "type": "verifier",
+      "command": "npm run verify:recorder-draft",
+      "required": true,
+      "result": "pending",
+      "artifact": null,
+      "note": "Must include a mutation-proven assertion that cancelSecureHandoff leaves the draft readable."
+    },
+    {
+      "id": "EV-protected-login",
+      "type": "security",
+      "command": "npm run verify:protected-login",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-protected-login-recorder",
+      "type": "verifier",
+      "command": "npm run verify:protected-login-recorder",
+      "required": true,
+      "result": "pending",
+      "artifact": null,
+      "note": "Phase 1 baseline read 57/57 but was NOT RUN by this workstream; it must be executed, not inherited."
+    },
+    {
+      "id": "EV-session-context",
+      "type": "verifier",
+      "command": "npm run verify:session-context",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-session-lifecycle",
+      "type": "verifier",
+      "command": null,
+      "required": true,
+      "result": "pending",
+      "artifact": null,
+      "note": "Phase 3 coverage of the persistence round trip, atomic write with EPERM/EBUSY retry, and the nine recovery scenarios. Command is filled in once the owning verifier is chosen; extend an existing verifier rather than adding an npm script unless the contract is amended."
+    },
+    {
+      "id": "EV-recorder-redaction",
+      "type": "security",
+      "command": "npm run verify:recorder-redaction",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-recorder-gui",
+      "type": "gui",
+      "command": "npm run verify:recorder-gui",
+      "required": false,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-runner",
+      "type": "verifier",
+      "command": "npm run verify:runner",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-legacy-compat",
+      "type": "verifier",
+      "command": "npm run verify:legacy-compat",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-source-hygiene",
+      "type": "security",
+      "command": "npm run verify:source-hygiene",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-verifier-classification",
+      "type": "verifier",
+      "command": "npm run verify:verifier-classification",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-mutation",
+      "type": "verifier",
+      "command": null,
+      "required": true,
+      "result": "pending",
+      "artifact": null,
+      "note": "Mutation proof for every new or changed assertion: draft not persisted on cancel, non-atomic profile write, required session metadata stripped, corrupted session accepted, missing session treated as success, wrong scoped profile accepted, synthetic sensitive marker leaked into report serialization. Record mutation, expected failure, actual failing assertion and count, restored green result. No mutation residue may be committed."
+    },
+    {
+      "id": "EV-live-idp",
+      "type": "gui",
+      "command": null,
+      "required": true,
+      "result": "pending",
+      "artifact": null,
+      "note": "Phase 4 authorized real identity-provider walkthrough. Prerequisites: an approved real test account, an authorized operator present at the machine, and the operator's understanding that every protected step is completed manually. Only an executed PASS satisfies AC-6; a missing prerequisite is recorded BLOCKED with the exact prerequisite named. It must never be satisfied by a mock account."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false,
+    "push_evidence_id": "EV-build"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": []
+  }
+}

@@ -19,11 +19,12 @@
   ],
   "claims": [
     {
-      "itemId": "bead:awkit-9qcz",
-      "agent": "Documentation / Project-State Specialist",
+      "itemId": "bead:awkit-cey",
+      "agent": "opencode",
       "state": "in-progress",
-      "claimedAt": "2026-08-21T22:08:10.235Z",
-      "note": "write lease: .beads/**, docs/ai/**, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
+      "claimedAt": "2026-08-22T13:00:00Z",
+      "expiresAt": "2026-08-25T13:00:00Z",
+      "note": "REC-022 phased workstream: baseline done; handoff/security hardening + session lifecycle evidence next"
     }
   ]
 }
