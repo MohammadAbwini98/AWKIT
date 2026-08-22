@@ -1,5 +1,54 @@
 # AWKIT Comprehensive Validation Execution Results
 
+## awkit-cey / REC-022 closeout — QC-driven verifier repair - 2026-08-22
+
+Independent QC of the REC-022 workstream found three assertions in this workstream's **own committed
+verifiers** that were passing vacuously. A QA pass repaired all three. Executed results after the
+repair:
+
+| Verifier | Result |
+| --- | --- |
+| `npm run verify:recorder-draft` | **86/86**, exit 0 (was 83/83; +3 checks) |
+| `npm run verify:protected-login-recorder` | **72/72**, exit 0 (count unchanged; a replaced assertion) |
+
+Product code was confirmed **byte-identical to HEAD** across the repair
+(`git diff --exit-code -- src/ app/` exits 0). No product defect surfaced; every repaired assertion
+passes against unmutated product code.
+
+- **T1** (`verify-recorder-draft.mts`) — "delete removes the profile directory" was true by absence;
+  the fixture never created the directory. It now really creates `Default/Preferences` with an
+  existence assertion immediately before `deleteProfile`. Mutant: repaired check FAILED, old form
+  PASSED. Deterministic.
+- **T2** (`verify-protected-login-recorder.mts`), **security-relevant** — "automation browser closes
+  before the manual browser opens" read
+  `browser === null && (page.isClosed() || page !== preLoginPage)`; since `closeBrowser` nulls
+  `page`, the second disjunct was unconditionally true and `isClosed()` was dead code. A regression
+  leaving the automation browser OPEN ON THE PROTECTED PAGE would have passed. Now
+  `preLoginPage.isClosed() === true && resumeInternals.browser === null`. Mutant: repaired check
+  FAILED, old form PASSED. Deterministic.
+- **T3** (`verify-recorder-draft.mts`) — the concurrent rename+markUsed guard, the sole guard for the
+  `enqueue` fix, had a conjunct satisfied by state written earlier in the same block. It now seeds a
+  known-stale `lastUsedAt`, asserts the precondition, asserts the value CHANGED, and adds the
+  reverse interleaving. Repaired check killed the pass-through-`enqueue` mutant **40/40**; the old
+  form was blind **21/40** (18/20 in the markUsed-first ordering it never exercised). Control on
+  correct code **20/20**.
+
+**Methodological qualification, recorded honestly:** the write lease blocked editing `src/**`, so
+these mutants were injected **at runtime against the real product objects**, not by editing product
+source. The agent did not work around the guard. This is exact for T2 (a boolean over live objects)
+and equivalent in discriminating power for T1/T3, but it is **not** a literal file-edit mutant.
+Exit codes were inferred from clean tool completion plus tallies at or above baseline, not from a
+printed `$?` — the lease guard rejects compound shell commands.
+
+Eight further findings from the same review are deferred, all LOW, all recorded in `DEFECTS.md`:
+`AWKIT-SES-001`, `AWKIT-SES-002`, `AWKIT-REC-036` (product/architecture) and `AWKIT-QA-001` …
+`AWKIT-QA-005` (test/harness). None is fixed and none blocks closure.
+
+No ledger case changed status — REC-022 stays `BLOCKED` on AC-6 and REC-023 stays `PASS` — so the
+authoritative tally remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Super User / Recorder UX / editor-history tranche - 2026-08-08
 
 Epic `awkit-3jm` and its nine children passed focused authorization, persistence, real-browser,

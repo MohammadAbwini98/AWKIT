@@ -625,6 +625,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-9qcz:project-state:2026-08-21T22:08:10.235Z",
+        "task": "awkit-9qcz",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-21T22:08:10.235Z",
+        "acquired_at_commit": "30ed0e5660c07aa3c6cce324115c5e10903b1f9c",
+        "released_at": "2026-08-21T22:16:18.614Z",
+        "released_reason": "awkit-9qcz complete, QC-approved, CLOSED/exported, exact roadmap pin mutation-tested, final gates recorded, and main synchronized to origin/main at 6cc2964",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

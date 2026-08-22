@@ -1,43 +1,179 @@
 # Agent Handoff
 
-## HANDOFF (2026-08-22) - awkit-cey / REC-022 hardened and lifecycle-proven; live IdP walkthrough BLOCKED
+## HANDOFF (2026-08-22) - awkit-cey / REC-022 CLOSED: live IdP walkthrough executed and PASSED
 
 ### Transfer
 
-- **Canonical branch:** `main`. Product repairs: `1e85946` (handoff cancel preserves the draft —
-  AWKIT-REC-001), `b16812a` (atomic EPERM/EBUSY-resilient session-profile store writes + serialized
-  mutations, new `src/session/atomicWrite.ts` — AWKIT-REC-002). Coverage: `ece6868`
-  (`verify:recorder-draft` 50/50 → **83/83**) and `2fdf06d` (`verify:protected-login-recorder`
-  57/57 → **72/72**, full Capture Session & Resume lifecycle). Ledger unchanged at **63 PASS /
-  2 NOT RUN / 1 BLOCKED**.
-- **Tracker:** `awkit-cey` stays BLOCKED. The only remaining acceptance evidence is the authorized
-  real-IdP walkthrough (AC-6): an approved test identity plus an authorized operator present at the
-  machine who manually completes every protected step. Everything the offline mock can express is
-  now automated and mutation-proofed; defect records AWKIT-REC-001/002 are in
-  `docs/testing/comprehensive-validation/DEFECTS.md`.
-- **Security boundary intact:** no protected-surface automation anywhere in the new coverage — the
+- **REC-022 is CLOSED on executed live evidence.** An authorized operator with a real approved test
+  identity (Google sign-in for YouTube) ran the full protected-login handoff; every protected step
+  was completed manually in real Chrome on the AWKIT-owned scoped profile. Final workflow report
+  `%LOCALAPPDATA%/SpecterStudio/reports/8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d.json`:
+  **status=passed**, 10/10 steps, `Reuse Session` → `outcome=sessionLoaded` on captured
+  `session-f11ab5c3`, no login interaction, `ignoreHttpsErrors=false`. Ledger moved to
+  **64 PASS / 2 NOT RUN / 0 BLOCKED**; tracker to **259 total / 256 closed / 3 outstanding**
+  (remaining: `awkit-7bu`, `awkit-az7`, `awkit-cm8`, all owner-gated).
+- **The live run found one real product defect, fixed in this pass:** the recorder embedded the SITE
+  url instead of the LOGIN url in the inserted `Auto Secure Login` node, so replay origin-matching
+  missed the IdP-origin session and spawned a redundant manual capture (AWKIT-REC-003).
+  `RecorderService.captureSessionAndResume` now inserts the detected/login URL;
+  `verify:protected-login-recorder` is **73/73** with a mutation-proven new assertion.
+- **New deferred finding:** AWKIT-SES-003 — `handleBrowserClosed` marks a capture `ready`
+  unconditionally when Chrome closes, so a close-without-login profile can satisfy Auto Secure
+  Login's origin match. Observed live (`session-a2b9c0c8`). Deferred in DEFECTS.md with fix
+  direction; mitigated today by explicit Reuse Session pins + login-origin urls.
+
+### What this pass changed
+
+1. Product: `src/recorder/RecorderService.ts` login-url insertion fix (AWKIT-REC-003).
+2. Coverage: `scripts/verify-protected-login-recorder.mts` +1 assertion (73 total), mutation-proven.
+3. Tracker/ledger/pins: ledger REC-022 → PASS prose; `scripts/verify-roadmap-dashboard.mjs` exact
+   pins moved deliberately to tally **64/2/0** and tracker **3 outstanding / 256 closed** after
+   `bd close awkit-cey` + `bd export -o .beads/issues.jsonl`.
+4. Contract finalized as manager: EV-live-idp → PASS (redacted evidence), completion.status →
+   complete, EV-recorder-draft note already at 86/86 from the QA pass, qc_status stays "pending"
+   (QC has not re-reviewed the repaired assertions) with full history in the note.
+5. Docs reconciled: CURRENT_STATE/HANDOFF/TASK_LOG top sections, DEFECTS.md (REC-003 resolved +
+   SES-003 open).
+
+### Gates at closure state
+
+build PASS; typecheck:scripts PASS (0 diagnostics); verifier-classification reconciled;
+roadmap-dashboard PASS, Overview **Sources agree**, at the exact new pins; runner 121/121;
+recorder-draft 86/86; protected-login-recorder 73/73; protected-login 26/26; legacy-compat
+152/152; validate:offline PASS; git diff --check clean.
+
+## HANDOFF (2026-08-22) - awkit-cey / REC-022 Phase 6 closeout: workstream ENDS BLOCKED
+
+### Transfer
+
+- **REC-022 is BLOCKED, not closed.** The six-phase workstream is finished on everything that can be
+  done without a human, and it stops here. The ledger is unchanged at **63 PASS / 2 NOT RUN /
+  1 BLOCKED**; REC-022 is that one BLOCKED case.
+- **The exact missing prerequisite (AC-6 / EV-live-idp), both halves required:**
+  1. **An approved real test identity provisioned for REC-022.** None exists today. **A mock account
+     must NEVER satisfy AC-6** — that is the entire point of the gate.
+  2. **An authorized operator physically present** to complete every protected step by hand in real
+     Chrome (login, MFA/OTP, CAPTCHA, device approval). AWKIT must not automate, inspect, screenshot
+     or read any of it.
+  Until both exist, `awkit-cey` stays BLOCKED and no amount of further automation moves it.
+- **Canonical branch:** `main`, HEAD `617a0d8`. Product repairs: `1e85946` (handoff cancel preserves
+  the draft — AWKIT-REC-001), `b16812a` (atomic EPERM/EBUSY-resilient session-profile store writes +
+  serialized mutations via `enqueue`, new `src/session/atomicWrite.ts` — AWKIT-REC-002). Coverage:
+  `ece6868` (`verify:recorder-draft` 50/50 → 83/83) and `2fdf06d`
+  (`verify:protected-login-recorder` 57/57 → **72/72**, new Capture Session & Resume section).
+- **Security boundary intact:** no protected-surface automation anywhere in the coverage — the
   manual capture is a synthetic service seam (real Chrome is never spawned by automation), the
   captured profile is a REAL persistent context seeded like a completed manual login, and the
   resumed draft contains zero login interactions.
 
-### Verified final evidence
+### What this closing pass changed: three vacuous assertions repaired
 
-- Gates green: build; typecheck:scripts (**0 diagnostics**); verifier-classification reconciled;
-  roadmap-dashboard **167/167**, Overview **Sources agree**; runner 121/121; legacy-compat 152/152;
-  protected-login 26/26; session-context 11/11; recorder-redaction 15/15; source-hygiene 9/9;
-  recorder-draft 83/83; protected-login-recorder 72/72.
-- Mutation proof: discard-on-cancel mutant failed recorder-draft **78/83** on exactly the five new
-  AC-1 checks; single-attempt atomic writes crashed the retry probe with a fatal EBUSY; disabling
-  `insertSecureSessionNodes` failed protected-login-recorder **68/72** on exactly the four new
-  lifecycle checks. All mutants restored before commit.
+Independent QC returned **CHANGES REQUIRED** and found three assertions in this workstream's **own
+committed verifiers** passing vacuously. A QA pass repaired all three. Executed:
+`verify:recorder-draft` **86/86** exit 0 (+3 checks); `verify:protected-login-recorder` **72/72**
+exit 0 (unchanged — a replaced assertion). Product code byte-identical to HEAD
+(`git diff --exit-code -- src/ app/` exit 0); no product defect surfaced.
+
+- **T1** — "delete removes the profile directory" was true **by absence**: the fixture never created
+  the directory. It now creates `Default/Preferences` for real, with an existence assertion
+  immediately before `deleteProfile`. Mutant: repaired FAILED, old form PASSED. Deterministic.
+- **T2, SECURITY-RELEVANT** — "automation browser closes before the manual browser opens" read
+  `browser === null && (page.isClosed() || page !== preLoginPage)`. Because `closeBrowser` nulls
+  `page` too, the second disjunct was unconditionally true and `isClosed()` was dead code. **A
+  regression that left the automation browser OPEN ON THE PROTECTED PAGE would have passed.** Now
+  `preLoginPage.isClosed() === true && resumeInternals.browser === null`. Mutant: repaired FAILED,
+  old form PASSED. Deterministic.
+- **T3** — the concurrent rename+markUsed guard, the **sole** guard for the `enqueue` half of the
+  AWKIT-REC-002 fix, had a conjunct satisfied by state written earlier in the same block. It now
+  seeds a known-stale `lastUsedAt`, asserts that precondition, asserts the value CHANGED, and adds
+  the reverse interleaving. Killed the pass-through-`enqueue` mutant **40/40**; the old form was
+  blind **21/40** (18/20 in the markUsed-first ordering the original never exercised). Control on
+  correct code **20/20**.
+
+**Methodological caveat — read this before citing the mutation evidence.** The write lease blocked
+`src/**`, so the mutants were injected **at runtime against the real product objects**, not by
+editing product source. The agent refused to work around the guard. This is exact for T2 (a boolean
+over live objects) and equivalent in discriminating power for T1/T3, but it is **not** a literal
+file-edit mutant. Separately, the reported **exit codes were inferred** from clean tool completion
+plus tallies at or above baseline, **not** from a printed `$?` — the lease guard rejects compound
+shell commands.
+
+### QC's own not-verified list — this is NOT an endorsement
+
+QC ran **no verifier itself** (the lease guard forbade it). Do not read its sign-off as observation:
+
+- Its reading of the counts was **derived, not observed**.
+- **The negative half of AC-4 inside the new resume section is uncovered.** The test double
+  `hasCapturedData: (id) => id === RESUME_SESSION_ID` returns true unconditionally, so "no usable
+  session", "invalid/expired session", "wrong scoped profile" and "app restarts during
+  handoff/resume" are **not covered by the ADDED checks**. Whether they are covered elsewhere among
+  the 72 **was not verified**.
+- The **pre-existing 57 + 50 checks were not audited**.
+- The **six reconciled docs/tracker files from `617a0d8` were not read**.
+
+### Eight deferred findings — all LOW, none fixed, none a closure blocker
+
+Recorded in `docs/testing/comprehensive-validation/DEFECTS.md`, owned by bead `awkit-cey`:
+
+| ID | Kind | Summary |
+| --- | --- | --- |
+| `AWKIT-SES-001` | Architecture | `src/session/atomicWrite.ts` reimplements `app/main/atomicReplace.ts:77-109`; defaults now disagree (4 attempts / 50ms linear vs `DEFAULT_REPLACE_ATTEMPTS = 5` / `DEFAULT_REPLACE_BACKOFF_MS = 20`). Violates `docs/ai/RULES.md:30`. Consolidate on the existing helper. |
+| `AWKIT-SES-002` | Documentation/behavior | `src/session/atomicWrite.ts:44` writes `JSON.stringify(value)`, dropping `null, 2`; `session-profiles.json` silently became single-line. Undocumented. |
+| `AWKIT-REC-036` | Product | `cancelSecureHandoff` (`src/recorder/RecorderService.ts:1347-1365`) no longer nulls `ambiguityState`/`ambiguityPage` (`discardDraft()` did, at `:489-490`), so `previewCandidate` (`:1757-1758`) can hit a dead page and throw a raw Playwright "target closed". Fix: add the two nulls at `:1361`. **Mitigating:** `stopRecording` has the same pre-existing gap, so this is not a regression unique to the fix. |
+| `AWKIT-QA-001` | Test | Trivially-true login-interaction regex with no positive control (`verify-protected-login-recorder.mts`). |
+| `AWKIT-QA-002` | Test | The `.then(operation, operation)` failure-isolation contract at `src/session/SessionCaptureService.ts:82,85` is untested — a rejected operation must not poison the queue. |
+| `AWKIT-QA-003` | Test | Inverted variable name `draftGoneAfterDiscard` (`verify-recorder-draft.mts:275-276`); correct today, fragile to misread. |
+| `AWKIT-QA-004` | Test | Missing optional chaining on `.config` (`verify-protected-login-recorder.mts`) risks a TypeError crash instead of a clean FAIL. |
+| `AWKIT-QA-005` | Test/harness | Both harnesses compute `passed / results.length`, so an uncaught throw **shrinks the denominator** and can print a full-looking tally. **Judge these verifiers by exit code.** Worth a repo-wide sweep. |
+
+They were recorded as DEFECTS.md entries owned by `awkit-cey` rather than as eight new Beads,
+matching how AWKIT-REC-001/002 were recorded in this same workstream. That choice also avoids
+breaking the hardcoded `beads.stats.total === 259` baseline at
+`scripts/verify-roadmap-dashboard.mjs:75`, which is outside this lease. **If the owner wants eight
+separate Beads, that work needs a lease that also covers `scripts/verify-roadmap-dashboard.mjs`,
+because creating them will move that pin and the exact closed/outstanding state-pair check.**
+
+### Contract file NOT updated — blocked, and needs the manager
+
+`docs/ai/contracts/awkit-cey.json` still reads `EV-recorder-draft` **83/83** and
+`completion.qc_status: "pending"`. This pass could not fix that: `decideWrite` in
+`tools/agents/lease-guard.mjs` classifies `docs/ai/contracts/**` as the **contract control plane**,
+and `decideActorWrite` allows it **only for the `manager` actor** — a project-state holder is
+rejected as `non-holder` regardless of its allowed paths, so a lease amendment cannot grant it.
+**The manager must apply these three edits:**
+
+1. `EV-recorder-draft` → **86/86**, noting the three repaired assertions.
+2. Add mutation-evidence entries for T1/T2/T3 with the numbers above, **including the
+   runtime-injection caveat**.
+3. `completion.qc_status` → a value that says QC returned **CHANGES REQUIRED**, that the three
+   MEDIUM test defects it raised are now FIXED, and that 3 LOW product/architecture + 5 LOW test
+   findings are deferred. **Not "PASS"** — QC did not approve unconditionally.
+
+`completion.status` stays `blocked`, `EV-live-idp` stays `BLOCKED`, AC-6 stays unsatisfied.
+
+### RECONSTRUCTED lease record — reconstructed, NOT recovered
+
+The uncommitted `docs/ai/contracts/active-lease.json` was **overwritten** by this task's lease
+grant. It had held the released-state record for the prior task `awkit-rvb`: holder `project-state`,
+released `2026-08-21T23:53:52.780Z`, with two manager-approved amendments adding
+`docs/testing/comprehensive-validation/DEFECTS.md` and `docs/ai/COMMANDS.md`, plus `run-app-demo.mjs`
+sha256 `6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b`.
+
+There is **no `awkit-rvb.json` in `docs/ai/contracts/`**, so that history was never durably archived,
+and git cannot restore uncommitted content. **The paragraph above is reconstructed from a session
+transcript, not recovered from a file.** Treat it as testimony, not evidence. The durable lesson: a
+lease record that only ever lives in the single mutable `active-lease.json` is lost the moment the
+next lease is granted — archive per-task contracts on release.
 
 ### Intentionally not run or changed
 
 - `verify:mock-site` NOT RUN — no mock-site file changed; the mock secure-login scenarios were
   exercised via the focused verifiers above. `validate:offline` NOT RUN — no packaging/offline
-  surface touched. No Phase-K roadmap phase status moved; `awkit-cey` closure still requires AC-6.
-- Prior-session dirt preserved untouched: `docs/ai/contracts/active-lease.json`,
-  `docs/ai/contracts/awkit-9qcz.json`, untracked `run-app-demo.mjs`.
+  surface touched. No Phase-K roadmap phase status moved.
+- The two repaired verifiers were **not re-run** by this pass; their counts above are the QA pass's
+  executed results.
+- Prior-session dirt preserved untouched: `docs/ai/contracts/awkit-9qcz.json`, untracked
+  `run-app-demo.mjs`.
 
 ## HANDOFF (2026-08-22) - awkit-rvb / awkit-rvo / awkit-rvt CLOSED and fully reconciled
 

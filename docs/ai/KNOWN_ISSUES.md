@@ -1,5 +1,50 @@
 # KNOWN_ISSUES
 
+## TRAP: a verifier tally divides by a denominator an uncaught throw can SHRINK (2026-08-22)
+
+`scripts/verify-recorder-draft.mts` and `scripts/verify-protected-login-recorder.mts` — and any
+verifier sharing this harness shape — compute their result as `passed / results.length`, where
+`results` accumulates **only the checks that actually ran**. An uncaught throw part-way through a
+section therefore removes those checks from the **denominator** instead of failing them, so the run
+can print a confident, full-looking `N/N` while having silently skipped work. The tally goes
+*down* in total, not into a failure column, and a reader comparing against a remembered baseline can
+easily read a shrunken `N/N` as "still green".
+
+**Rule: judge these verifiers by their EXIT CODE, never by a full-looking tally alone.** A tally is
+only trustworthy when paired with a cardinality assertion that pins the expected number of checks.
+
+Two aggravating factors seen together in this same suite: a missing optional chain on a `.config`
+access (`AWKIT-QA-004`) is exactly the kind of `TypeError` that triggers this, converting what
+should have been one clean FAIL into a silently shorter run. Tracked as `AWKIT-QA-005` in
+`docs/testing/comprehensive-validation/DEFECTS.md`; the shape is **not** confined to these two
+scripts and deserves a repo-wide sweep.
+
+This is the same family as the long-standing "checks fail OPEN" lesson: the failure mode of a check
+is almost never a loud red failure — it is a quiet pass, or here, a quiet disappearance.
+
+## TRAP: `src/session/atomicWrite.ts` duplicates `app/main/atomicReplace.ts`, and they have already drifted (2026-08-22)
+
+AWKIT now has **two independent implementations** of the same Windows-contention-safe write:
+
+| | attempts | backoff |
+| --- | --- | --- |
+| `app/main/atomicReplace.ts:77-109` (pre-existing) | `DEFAULT_REPLACE_ATTEMPTS = 5` | `DEFAULT_REPLACE_BACKOFF_MS = 20` |
+| `src/session/atomicWrite.ts` (added by `b16812a`) | 4 | 50ms linear |
+
+Both do temp-file + rename with bounded `EPERM`/`EBUSY` retry, and the defaults **already
+disagree** — so the two paths behave differently under the same antivirus or
+browser-still-releasing-the-directory contention, and a future tuning fix applied to one will not
+reach the other. This is the duplication `docs/ai/RULES.md:30` forbids.
+
+Before adding any third atomic-write path, **use `app/main/atomicReplace.ts`**. If a caller
+genuinely needs different attempt/backoff values, make them parameters of that one helper rather
+than forking it. Tracked as `AWKIT-SES-001`.
+
+Related, from the same review: the new helper writes `JSON.stringify(value)` and dropped the
+previous `null, 2`, so `session-profiles.json` silently changed from pretty-printed to single-line
+(`AWKIT-SES-002`). Harmless to round-tripping, but it is an undocumented on-disk format change that
+will confuse anyone inspecting the store by hand.
+
 ## RESOLVED: `typecheck:scripts` is green at 0 diagnostics (`awkit-rvt`, 2026-08-22)
 
 The nine-diagnostic regression across five verifier consumers is resolved in `8c02726`; the Bead is

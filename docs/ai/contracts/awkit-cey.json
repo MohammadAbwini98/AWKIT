@@ -1,8 +1,8 @@
-{
+﻿{
   "version": 1,
   "task": {
     "id": "awkit-cey",
-    "title": "REC-022 — protected-login handoff, session capture and reuse lifecycle",
+    "title": "REC-022 â€” protected-login handoff, session capture and reuse lifecycle",
     "objective": "Close the evidence gap on REC-022: preserve the Recorder draft when a protected-login handoff is cancelled, make the session-profile store crash-safe on Windows, prove the capture -> save -> reload -> Reuse Session -> Recorder resume -> Runner reuse lifecycle through the responsible layers with negative and recovery coverage, and reconcile authoritative project state. The real authorized identity-provider walkthrough remains the acceptance gate and must not be simulated.",
     "requested_by": "owner",
     "risk_level": 3,
@@ -51,6 +51,7 @@
       "scripts/verify-*",
       "mock-site/**",
       "docs/ai/**",
+      "docs/testing/**",
       ".beads/**",
       "tools/roadmap/assignments.json",
       "scripts/lib/verifier-classification.ts"
@@ -61,20 +62,22 @@
       "persistence"
     ],
     "writer": {
-      "agent_id": "recorder",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "src/recorder/**",
-        "src/session/**"
+        "docs/ai/**",
+        "docs/testing/**",
+        ".beads/**",
+        "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
+        "src/**",
         "app/main/**",
         "app/renderer/**",
-        "docs/**",
-        ".beads/**",
-        "tools/roadmap/**",
         "scripts/**",
+        "tools/roadmap/*.ts",
         "package.json"
-      ]
+      ],
+      "note": "Writer slot advanced to the final project-state stage of writer_sequence. The recorder stage is complete and committed (1e85946, b16812a, ece6868, 2fdf06d). The qa stage ran twice: once for the original regression coverage, and once more to repair three vacuously-passing assertions that independent QC found in this workstream's own evidence (verify:recorder-draft 83/83 -> 86/86, verify:protected-login-recorder 72/72, all three repairs mutation-proven, product code byte-identical to HEAD); the second qa stage was committed as 48e82df. Remaining work is tracker and project-state reconciliation only, so product and verifier paths are forbidden to this holder."
     },
     "writer_sequence": [
       "recorder",
@@ -114,37 +117,59 @@
     {
       "id": "AC-1",
       "description": "Cancelling a protected-login handoff preserves the pre-login Recorder draft on disk instead of discarding it, so the user can resume or save it. RecorderService.cancelSecureHandoff must not call discardDraft.",
-      "evidence_required": ["EV-build", "EV-recorder-draft"]
+      "evidence_required": [
+        "EV-build",
+        "EV-recorder-draft"
+      ]
     },
     {
       "id": "AC-2",
       "description": "The session-profile store writes atomically with EPERM/EBUSY retry, so Windows file contention can no longer silently discard a saved session profile.",
-      "evidence_required": ["EV-build", "EV-session-lifecycle"]
+      "evidence_required": [
+        "EV-build",
+        "EV-session-lifecycle"
+      ]
     },
     {
       "id": "AC-3",
       "description": "The full lifecycle is proven through the responsible storage/IPC/runtime layers: approved capture -> save -> close/reinitialize -> reload -> resolve -> Reuse Session -> Recorder resume -> save/reload -> Runner reuse -> truthful redacted reports.",
-      "evidence_required": ["EV-session-lifecycle", "EV-session-context", "EV-runner"]
+      "evidence_required": [
+        "EV-session-lifecycle",
+        "EV-session-context",
+        "EV-runner"
+      ]
     },
     {
       "id": "AC-4",
       "description": "All nine negative and recovery scenarios fail safely and never fall back to protected-login automation: missing session file, corrupted session file, invalid/expired session, wrong scoped profile, Reuse Session with no usable session, user cancels handoff, browser closes before capture completes, app restarts during handoff/resume, and target requires authentication again.",
-      "evidence_required": ["EV-session-lifecycle", "EV-protected-login-recorder"]
+      "evidence_required": [
+        "EV-session-lifecycle",
+        "EV-protected-login-recorder"
+      ]
     },
     {
       "id": "AC-5",
       "description": "The protected-login security boundary is intact: no code path automates, inspects, screenshots or reads the protected surface, the handoff uses an AWKIT-owned scoped Chrome profile only, and session secrets are redacted from logs and reports.",
-      "evidence_required": ["EV-protected-login", "EV-recorder-redaction", "EV-source-hygiene"]
+      "evidence_required": [
+        "EV-protected-login",
+        "EV-recorder-redaction",
+        "EV-source-hygiene"
+      ]
     },
     {
       "id": "AC-6",
       "description": "The authorized real identity-provider protected-login walkthrough has been executed end to end by an authorized operator with a real approved test account, with manual completion of every protected step, and it PASSED. This is the authoritative acceptance gate for REC-022 and may not be satisfied by mock coverage.",
-      "evidence_required": ["EV-live-idp"]
+      "evidence_required": [
+        "EV-live-idp"
+      ]
     },
     {
       "id": "AC-7",
       "description": "Authoritative project state is reconciled from its owning sources and the Program Status dashboard Overview still reads 'Sources agree'.",
-      "evidence_required": ["EV-verifier-classification", "EV-roadmap-dashboard"]
+      "evidence_required": [
+        "EV-verifier-classification",
+        "EV-roadmap-dashboard"
+      ]
     }
   ],
   "evidence": [
@@ -181,7 +206,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "83/83 (was 50/50). Includes mutation-proven assertions that cancelSecureHandoff leaves the draft readable on disk and in memory across restart; re-adding discardDraft() failed exactly those five checks at 78/83."
+      "note": "86/86 (was 83/83, and 50/50 before this task). Includes mutation-proven assertions that cancelSecureHandoff leaves the draft readable on disk and in memory across restart; re-adding discardDraft() failed exactly those five checks at 78/83. Raised from 83 to 86 by the T1/T3 repairs in EV-mutation-t1 and EV-mutation-t3: independent QC found two assertions here that passed vacuously, and the repairs added a pre-delete directory-existence precondition, a stale-lastUsedAt precondition, and the reverse concurrent interleaving."
     },
     {
       "id": "EV-protected-login",
@@ -199,7 +224,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "72/72 (was 57/57), executed by this workstream. New Capture Session & Resume section drives the real Recorder/Playwright layers against a REAL captured persistent profile with a synthetic capture seam; disabling insertSecureSessionNodes failed exactly the four new lifecycle checks at 68/72."
+      "note": "73/73 (was 72/72, and 57/57 before this task), executed by this workstream. New Capture Session & Resume section drives the real Recorder/Playwright layers against a REAL captured persistent profile with a synthetic capture seam; disabling insertSecureSessionNodes failed exactly the four lifecycle checks at 68/72. The live IdP run then exposed the Auto-Secure-Login site-url/login-url defect (AWKIT-REC-003); the fix added a 73rd assertion - the inserted node must carry the detected LOGIN url so replay origin-matches the IdP-origin session - and reverting that fix failed exactly the new assertion at 72/73."
     },
     {
       "id": "EV-session-context",
@@ -292,13 +317,49 @@
       "note": "M1 discardDraft() restored into cancelSecureHandoff -> recorder-draft 78/83 (5 expected failures). M2 attempts forced to 1 in writeJsonFileAtomic -> store retry probe crashed exit 1 with fatal EBUSY (expected failure). M3 insertSecureSessionNodes disabled -> protected-login-recorder 68/72 (4 expected failures). All mutants restored; final green counts recorded above; no residue committed."
     },
     {
+      "id": "EV-mutation-method",
+      "type": "verifier",
+      "command": "runtime mutant injection from inside the leased verifier",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "METHODOLOGICAL QUALIFICATION for EV-mutation-t1/t2/t3, recorded so the evidence is not read as stronger than it is. The write-lease guard blocked edits to src/**, and the qa agent refused to work around it, so those three mutants were injected at RUNTIME against the real product objects rather than by editing product source. This is exact for T2 (the assertion is a boolean over live objects) and equivalent in discriminating power for T1 and T3 (the same product frames execute and the same end state is produced), but it is NOT a literal file-edit mutant. Separately, exit codes for the repaired verifiers were inferred from clean tool completion plus tallies at or above the committed baselines, not read from a printed exit status, because the guard rejects compound shell commands. Product code was confirmed byte-identical to HEAD afterwards: git diff --exit-code -- src/ app/ exits 0."
+    },
+    {
+      "id": "EV-mutation-t1",
+      "type": "verifier",
+      "command": "npm run verify:recorder-draft with a runtime mutant on SessionCaptureService deleteProfile",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Repairs a VACUOUS assertion found by independent QC. 'delete removes the profile directory' was true by ABSENCE: the fixture never created legacyProfile.profileDir, so access().catch(() => true) succeeded because the path had never existed, and deleting the removal logic at src/session/SessionCaptureService.ts:150-156 would have left it green. The fixture now really creates Default/Preferences and a pre-delete existence assertion runs immediately before deleteProfile. Mutant: the real deleteProfile executes but is prevented from removing the directory (its best-effort catch swallows the error), reproducing the end state a deleted removal block gives. Repaired check FAILED; the old form evaluated on the old never-created fixture PASSED, confirming the vacuity. Deterministic."
+    },
+    {
+      "id": "EV-mutation-t2",
+      "type": "security",
+      "command": "npm run verify:protected-login-recorder with a runtime mutant on the automation-browser handles",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Repairs a SECURITY-RELEVANT dead assertion found by independent QC. The guard proving the automation browser is closed before real Chrome opens on the protected surface read browser === null && (page.isClosed() || page !== preLoginPage). Because closeBrowser (src/recorder/RecorderService.ts:513-515) nulls browser, context AND page together, the second disjunct was unconditionally true and isClosed() was never evaluated: a regression that dropped the handles without awaiting the close would have left the automation browser OPEN ON THE PROTECTED PAGE and still passed. Now preLoginPage.isClosed() === true && resumeInternals.browser === null. Mutant: handles nulled without awaiting any close while the browser was genuinely open on the protected page. Repaired check FAILED; old form PASSED with pageClosed=false. Deterministic. Handles were restored in-run and the suite continued to 72/72."
+    },
+    {
+      "id": "EV-mutation-t3",
+      "type": "verifier",
+      "command": "npm run verify:recorder-draft with enqueue replaced by a pass-through",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Repairs a half-vacuous assertion found by independent QC, and it was the SOLE guard for the enqueue serialization fix at src/session/SessionCaptureService.ts:84-88. The conjunct typeof lastUsedAt === 'string' was already satisfied by state written earlier in the same block, leaving only a race-dependent name check. The repair seeds a known-stale lastUsedAt, asserts that precondition, asserts the value CHANGED, and adds the reverse markUsed-first interleaving the original never exercised. Mutant: enqueue replaced with (operation) => operation(), exactly what deleting the serialization does. Repaired checks killed the mutant 40/40 across both interleavings; the OLD form was blind to 21 of those 40, including 18/20 in the markUsed-first ordering. Control on unmutated code: 20/20. This is the strongest single result of the repair pass."
+    },
+    {
       "id": "EV-live-idp",
       "type": "gui",
       "command": null,
       "required": true,
-      "result": "BLOCKED",
-      "artifact": null,
-      "note": "Phase 4 preflight failed on external prerequisites: (1) no approved real test identity is provisioned for REC-022, and (2) no authorized operator is present to manually complete every protected step (login/MFA/OTP/CAPTCHA) in real Chrome. AC-6 is NOT satisfied and must never be satisfied by a mock account. Everything automatable was completed and mutation-proofed first."
+      "result": "PASS",
+      "artifact": "%LOCALAPPDATA%/SpecterStudio/reports/8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d.json",
+      "note": "EXECUTED 2026-08-22 by the authorized operator with a real approved test identity (Google sign-in for YouTube); every protected step completed manually in real Chrome on the AWKIT-owned scoped profile. Evidence (all secret-free): session registry entry session-f11ab5c3 source=manualChromeHandoff status=ready under %LOCALAPPDATA%/SpecterStudio/profiles; Recorder resumed authenticated with post-login actions recorded; final workflow report status=passed, 10/10 steps, Reuse Session outcome=sessionLoaded on that session id, no login interaction, ignoreHttpsErrors=false. The live run exposed one real product defect (recorder embedded the SITE url instead of the LOGIN url in the Auto Secure Login node, so replay origin-match spawned a redundant manual capture) - fixed in RecorderService.captureSessionAndResume with regression coverage and mutation proof: verify:protected-login-recorder grew to 73/73 and reverting the fix failed exactly the new assertion at 72/73. No protected content was ever automated, inspected, screenshotted, or stored."
     }
   ],
   "scope_escapes": [],
@@ -311,11 +372,84 @@
     "push_evidence_id": "EV-build"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "pending",
+    "note": "COMPLETE 2026-08-22: AC-6 was executed live by the authorized operator with a real approved test identity and PASSED (EV-live-idp, report 8edbdb98); all other acceptance criteria were already satisfied with mutation-proofed evidence. The live run also surfaced AWKIT-REC-003 (Auto Secure Login node embedded the site url instead of the login url), which is fixed with regression coverage and mutation proof. qc_status remains \"pending\" in the schema's enum sense and is NOT a pass: independent QC previously returned CHANGES REQUIRED on an earlier tree; its three MEDIUM findings (vacuously-passing assertions) are FIXED and mutation-proven (EV-mutation-t1/t2/t3, EV-mutation-method), but QC has not re-reviewed them. Deferred LOW findings remain open as follow-ups, now including AWKIT-SES-003 from the live run (handleBrowserClosed marks a capture ready unconditionally when Chrome closes, so a close-without-login profile can satisfy origin matching; mitigated in practice because Reuse Session pins ids explicitly and the recorder now embeds login-origin urls): AWKIT-SES-001, AWKIT-SES-002, AWKIT-REC-036, AWKIT-QA-001..005."
   },
   "write_lease": {
-    "history": []
+    "history": [
+      {
+        "id": "awkit-cey:project-state:2026-08-22T15:27:17.820Z",
+        "task": "awkit-cey",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/testing/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-22T15:27:17.820Z",
+        "acquired_at_commit": "617a0d8ea8f821cc5141a12f4a4bcd3c0594aea3",
+        "released_at": "2026-08-22T15:36:48.154Z",
+        "released_reason": "Rerouting writer slot to qa to repair three vacuous assertions found by independent QC before closure is recorded",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-cey:qa:2026-08-22T15:40:34.017Z",
+        "task": "awkit-cey",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-protected-login-recorder.mts",
+          "scripts/verify-recorder-draft.mts"
+        ],
+        "acquired_at": "2026-08-22T15:40:34.017Z",
+        "acquired_at_commit": "617a0d8ea8f821cc5141a12f4a4bcd3c0594aea3",
+        "released_at": "2026-08-22T15:52:22.718Z",
+        "released_reason": "Verifier repair complete and returning the writer slot to project-state for ledger reconciliation and closure",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-cey:project-state:2026-08-22T15:52:39.761Z",
+        "task": "awkit-cey",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/testing/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-22T15:52:39.761Z",
+        "acquired_at_commit": "617a0d8ea8f821cc5141a12f4a4bcd3c0594aea3",
+        "released_at": "2026-08-22T16:09:47.934Z",
+        "released_reason": "Project-state reconciliation complete and manager applying contract-control-plane edits before closure commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-cey:qa:2026-08-22T16:14:08.066Z",
+        "task": "awkit-cey",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-*"
+        ],
+        "acquired_at": "2026-08-22T16:14:08.066Z",
+        "acquired_at_commit": "617a0d8ea8f821cc5141a12f4a4bcd3c0594aea3",
+        "released_at": "2026-08-22T16:14:45.436Z",
+        "released_reason": "Verifier repairs committed as 48e82df and the writer slot now advances to the final project-state closure commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

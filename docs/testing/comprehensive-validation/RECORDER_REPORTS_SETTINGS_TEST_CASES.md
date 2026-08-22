@@ -345,23 +345,27 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   capture session; resume; save; replay.
 - **Expected:** AWKIT never types or solves protected input; protected page actions are not recorded;
   captured session produces Auto Secure Login + Reuse Session nodes; resumed business steps replay.
-- **Status:** `BLOCKED` — `npm run verify:protected-login-recorder` (**72/72**) now automates every
-  mock-expressible expectation: the actual Recorder pauses with a non-empty draft while its
-  automation browser remains open and inert; attempted password/OTP inputs and a direct paused
-  `recordActionFromPage` call leave the action count exactly unchanged; the identical action records
-  after resume; secure nodes preserve the selected session id; and a production runner flow containing
-  Auto Secure Login + Reuse Session reaches the authenticated dashboard from a persisted-profile
-  fixture without a login interaction. The identical flow fails when that profile is removed, and
-  the same dashboard assertion fails in a fresh no-session context. The full Capture Session &
-  Resume lifecycle is also proven through the real layers: cancelling the handoff preserves the
-  pre-login draft on disk; the session-profile store round-trips through atomic EPERM/EBUSY-resilient
-  writes with corrupt/missing recovery (`verify:recorder-draft`, **83/83**); after a synthetic manual
-  capture against a REAL captured persistent profile, Playwright relaunches bound to that profile,
-  shows the authenticated state from reused session storage with no login interaction, records
-  ordinary post-login actions, and persists the draft secure-nodes-first. The remaining manual script
-  is only the real-IdP step: an authorized operator with an
-  approved test identity must complete the real Chrome login/MFA/CAPTCHA handoff and confirm reuse.
-  Tracked as `awkit-cey`; no protected input may be automated.
+- **Status:** `PASS` — **Executed live 2026-08-22** by the authorized operator with a real approved
+  test identity (Google sign-in for YouTube); every protected step was completed manually in real
+  Chrome on the AWKIT-owned scoped profile; no protected input was automated, inspected, or recorded.
+  Full lifecycle held end to end: detection paused the Recorder with a non-empty draft preserved;
+  the automation browser closed before real Chrome opened on the AWKIT profile (`session-f11ab5c3`,
+  `manualChromeHandoff`, `ready` in the session registry — metadata only, no secrets); after the
+  manual login the Recorder resumed authenticated and recorded ordinary post-login actions; the
+  saved workflow replayed with `Reuse Session` loading that exact captured session and all business
+  steps passing authenticated — report `8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d`:
+  `status=passed`, 10/10 steps, `outcome=sessionLoaded`, no login interaction,
+  `ignoreHttpsErrors=false`. The live run exposed one real product defect: the recorder embedded the
+  SITE url instead of the LOGIN url in the inserted `Auto Secure Login` node, so replay
+  origin-matching missed the IdP-origin session and spawned a redundant manual capture. Fixed
+  (`RecorderService.captureSessionAndResume` now inserts the detected/login URL) with regression
+  coverage and mutation proof — `verify:protected-login-recorder` grew to **73/73**, and reverting
+  the fix failed exactly the new assertion at **72/73**. Automated coverage remains green:
+  `verify:protected-login-recorder` (**73/73**) and `verify:recorder-draft` (**86/86**) pin every
+  mock-expressible guarantee, including handoff-cancel draft preservation (security-relevant
+  vacuous-assertion repair from independent QC included), atomic EPERM/EBUSY-resilient
+  session-store writes, corrupt/missing recovery, and the Capture Session & Resume lifecycle
+  through real layers. Tracked as `awkit-cey`; CLOSED on this executed live evidence.
 
 ### REC-023 — Handoff cancel and capture error recovery
 
@@ -371,14 +375,19 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Cancel in each allowed phase; force capture/resume errors; retry or start a new recording.
 - **Expected:** Automation/manual browsers close appropriately; draft/session state follows the
   documented policy; error is actionable; no stale active handoff blocks the next session.
-- **Status:** `PASS` — `npm run verify:recorder-draft`, **83/83**. Cancel from every phase
+- **Status:** `PASS` — `npm run verify:recorder-draft`, **86/86**, exit 0. Cancel from every phase
   (`detected`, `capturingSession`, `sessionCaptured`, `error`) completes without throwing, ends the
   recording, and leaves no active handoff to block the next session. The phase guards refuse
   out-of-order operations with actionable messages: ignore with no detection waiting, normal-browser
   handoff from the `error` phase, and session capture before the capture phase begins. Cancelling a
   handoff additionally PRESERVES the pre-login draft (disk + memory, restart-safe), while explicit
   discard still deletes it; the same verifier now also covers the session-profile metadata store
-  (atomic EPERM/EBUSY-resilient writes, corrupt/missing recovery, lossless round trips).
+  (atomic EPERM/EBUSY-resilient writes, corrupt/missing recovery, lossless round trips). The 83 → 86
+  delta is a QC-driven repair of two assertions in this suite that were passing vacuously: the
+  profile-directory deletion check was true by absence, and the concurrent rename+markUsed guard had
+  a conjunct satisfied by earlier state in the same block. Both repairs are mutation-proven and the
+  product code was byte-identical to HEAD throughout. Residual open finding on this path:
+  **AWKIT-REC-036** (stale ambiguity state after cancel).
 
 ### REC-024 — Browser closes or crashes during recording
 

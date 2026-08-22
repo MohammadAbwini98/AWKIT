@@ -1,10 +1,41 @@
 # CURRENT_STATE
 
-## awkit-cey / REC-022: handoff + session-store defects fixed, lifecycle proven, live IdP gate BLOCKED (2026-08-22)
+## awkit-cey / REC-022 CLOSED: live IdP walkthrough PASSED (2026-08-22)
 
-The REC-022 evidence gap shrank to the irreducibly manual step. The comprehensive-validation ledger
-is unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** — REC-022 remains the one BLOCKED case because
-the authorized real-identity-provider walkthrough has not been executed.
+REC-022 is complete. The comprehensive-validation ledger moved to **64 PASS / 2 NOT RUN /
+0 BLOCKED**: REC-022 was executed live by the authorized operator with a real approved test
+identity (Google sign-in for YouTube), every protected step completed manually in real Chrome on
+the AWKIT-owned scoped profile. Tracker crossed to **259 total / 256 closed / 3 outstanding**.
+
+- **Live evidence:** session registry `session-f11ab5c3` (`manualChromeHandoff`, `ready`) under
+  `%LOCALAPPDATA%/SpecterStudio/profiles`; Recorder paused with preserved draft on detection,
+  automation browser closed before real Chrome opened; after the manual login the Recorder resumed
+  authenticated and recorded post-login actions; final workflow report
+  `8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d` = **status passed**, 10/10 steps, Reuse Session
+  `outcome=sessionLoaded` on that session id, no login interaction anywhere, `ignoreHttpsErrors=false`.
+- **Live run found one real product defect (AWKIT-REC-003), fixed:** the recorder embedded the SITE
+  url instead of the LOGIN url in the inserted `Auto Secure Login` node, so replay origin-matching
+  missed the IdP-origin session and spawned a redundant manual capture.
+  `RecorderService.captureSessionAndResume` now inserts the detected/login URL. Regression:
+  `verify:protected-login-recorder` **73/73**; reverting failed exactly the new assertion at 72/73.
+- **Deferred (open) findings updated in DEFECTS.md:** new AWKIT-SES-003 — closing Chrome marks a
+  capture `ready` without any authentication check, letting origin matching bind an empty profile
+  (mitigated today by explicit Reuse Session pins + login-origin urls). Plus the prior QC deferrals
+  SES-001/002, REC-036, QA-001..005. None blocks this closure.
+
+Gates at closure state: build PASS; typecheck:scripts PASS; verifier-classification reconciled;
+roadmap-dashboard PASS at the exact pins **64/2/0** tally and **3 outstanding / 256 closed**, Overview
+**Sources agree**; runner 121/121; recorder-draft 86/86; protected-login-recorder 73/73;
+protected-login 26/26; legacy-compat 152/152; validate:offline PASS (Oracle bundle + Zvec host
+checksums); git diff --check clean.
+
+## awkit-cey / REC-022: defects fixed, vacuous evidence repaired, live IdP gate still BLOCKED (2026-08-22)
+
+The REC-022 six-phase workstream **ends BLOCKED, not closed.** The evidence gap shrank to the
+irreducibly manual step, and this closing pass repaired three of the workstream's own assertions
+that independent QC found passing vacuously. The comprehensive-validation ledger is unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED** — REC-022 remains the one BLOCKED case because the authorized
+real-identity-provider walkthrough has not been executed, and no repair moved a case status.
 
 - **Two product defects found by contract inspection and fixed.** `cancelSecureHandoff` called
   `discardDraft()`, destroying the pre-login draft when a protected-login handoff was cancelled; it
@@ -26,14 +57,49 @@ the authorized real-identity-provider walkthrough has not been executed.
   new AC-1 checks); single-attempt atomic writes crashed the retry probe with fatal EBUSY;
   disabling `insertSecureSessionNodes` failed protected-login-recorder **68/72** (exactly the four
   new lifecycle checks). No mutation residue remains.
+- **Independent QC returned CHANGES REQUIRED, and three of this workstream's own assertions were
+  passing VACUOUSLY.** All three are now repaired and mutation-proven, so the current executed
+  counts are `verify:recorder-draft` **86/86** (exit 0, +3 checks) and
+  `verify:protected-login-recorder` **72/72** (exit 0, unchanged — a replaced assertion, not a new
+  one). Product code was byte-identical to HEAD throughout
+  (`git diff --exit-code -- src/ app/` exit 0); no product defect surfaced.
+  - **T1** — "delete removes the profile directory" was true by absence (the fixture never created
+    the directory). Now creates `Default/Preferences` with an existence assertion immediately
+    before `deleteProfile`. Mutant: repaired FAILED, old form PASSED.
+  - **T2, security-relevant** — "automation browser closes before the manual browser opens" used
+    `browser === null && (page.isClosed() || page !== preLoginPage)`; `closeBrowser` nulls `page`
+    too, so the second disjunct was unconditionally true and `isClosed()` was dead. **A regression
+    leaving the automation browser open on the protected page would have passed.** Now
+    `preLoginPage.isClosed() === true && resumeInternals.browser === null`. Mutant: repaired
+    FAILED, old form PASSED.
+  - **T3** — the concurrent rename+markUsed guard (sole guard for the `enqueue` fix) had a conjunct
+    satisfied by earlier state in the same block. Now seeds a known-stale `lastUsedAt`, asserts the
+    precondition, asserts the value CHANGED, and adds the reverse interleaving. Killed the
+    pass-through mutant **40/40**; the old form was blind **21/40**. Control **20/20**.
+  - **Qualification:** the lease guard blocked `src/**`, so these mutants were injected **at runtime
+    against the real product objects**, not by editing product source. Exact for T2, equivalent in
+    discriminating power for T1/T3, but **not** a literal file-edit mutant. Exit codes were inferred
+    from clean tool completion plus tallies at or above baseline, not from a printed `$?`.
+- **Eight LOW findings deferred, none fixed, none a closure blocker** — recorded in
+  `docs/testing/comprehensive-validation/DEFECTS.md`: `AWKIT-SES-001` (session `atomicWrite.ts`
+  duplicates `app/main/atomicReplace.ts` with drifted retry defaults, against `docs/ai/RULES.md:30`),
+  `AWKIT-SES-002` (`session-profiles.json` silently lost its pretty-printing),
+  `AWKIT-REC-036` (cancel no longer nulls `ambiguityState`/`ambiguityPage`, so `previewCandidate`
+  can hit a dead page — `stopRecording` has the same pre-existing gap, so not a unique regression),
+  and `AWKIT-QA-001` … `AWKIT-QA-005` (trivially-true login regex; untested queue failure
+  isolation; inverted `draftGoneAfterDiscard` name; missing optional chaining; and the repo-wide
+  `passed / results.length` harness shape where an uncaught throw shrinks the denominator).
 - **BLOCKED gate:** AC-6 — an authorized operator with an approved real test identity must execute
-  the live Chrome handoff manually. Nothing else remains automated-side for this bead.
+  the live Chrome handoff manually, completing every protected step by hand. A mock account may
+  never satisfy it. Nothing else remains automated-side for this bead, and it stays open.
 
 Final observed gates at closure state: build PASS; typecheck:scripts PASS (0 diagnostics);
-verifier-classification reconciled (196 scripts); roadmap-dashboard **167/167**, Overview
-**Sources agree**; runner 121/121; legacy-compat 152/152; protected-login 26/26;
-session-context 11/11; recorder-redaction 15/15; source-hygiene 9/9. verify:mock-site NOT RUN
-(no mock-site file changed); validate:offline NOT RUN (no packaging/offline surface touched).
+verifier-classification reconciled (196 scripts); roadmap-dashboard Overview **Sources agree**;
+recorder-draft **86/86**; protected-login-recorder **72/72**; runner 121/121; legacy-compat 152/152;
+protected-login 26/26; session-context 11/11; recorder-redaction 15/15; source-hygiene 9/9.
+verify:mock-site NOT RUN (no mock-site file changed); validate:offline NOT RUN (no packaging/offline
+surface touched). `docs/ai/contracts/awkit-cey.json` could **not** be updated by this pass — the
+lease guard treats `docs/ai/contracts/**` as a manager-only control plane; see `HANDOFF.md`.
 
 ## awkit-rvb / awkit-rvo / awkit-rvt CLOSED: product round-trip and verification baselines restored (2026-08-22)
 

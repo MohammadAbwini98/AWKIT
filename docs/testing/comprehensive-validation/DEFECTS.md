@@ -2,9 +2,237 @@
 
 ## Open product defects
 
-None.
+Four LOW findings. Three were raised by the independent QC review of the `awkit-cey` / REC-022
+workstream on 2026-08-22; the fourth (`AWKIT-SES-003`) was found by the executed live IdP
+walkthrough the same day. None is a closure blocker for REC-022 and none is fixed. They are
+recorded here rather than as separate Beads to match the AWKIT-REC-001/002 convention (a defect
+record owned by its parent bead); the owning bead is `awkit-cey` (now CLOSED on live evidence —
+these follow-ups outlive it).
+
+### AWKIT-SES-003 (`awkit-cey`) — Closing Chrome marks a capture `ready` without any authentication check
+
+- **Classification:** Product defect (session lifecycle)
+- **Severity:** S2/LOW–MEDIUM — a profile whose browser was closed WITHOUT logging in becomes
+  `ready`, so Auto Secure Login's origin matching can silently bind a replay to an unauthenticated
+  session
+- **Priority recommendation:** P2
+- **Status:** **OPEN — discovered by the live REC-022 walkthrough (2026-08-22), deferred follow-up**
+- **Owner routing:** Session persistence / runner
+- **Affected area:** `src/session/SessionCaptureService.ts` `handleBrowserClosed`;
+  consumer `StepExecutor.executeAutoSecureLogin`
+- **Detected by:** Live walkthrough run `021e3a2f`: an abandoned capture (`session-a2b9c0c8`,
+  closed without login) flipped to `ready` and satisfied the Auto Secure Login skip-match
+
+`handleBrowserClosed` sets `status = "ready"` unconditionally when the spawned Chrome exits — the
+recorder path guards this with `hasCapturedData` in `captureSessionAndResume`, but the runner's
+capture-completion path checks only `status === "ready"`, and `findBestSessionForUrl` filters on
+`ready`. Mitigations that limited the blast radius this time: Reuse Session pins ids explicitly,
+and the recorder now embeds login-origin urls (AWKIT-REC-003 fix). Fix direction: gate the
+`ready` transition on `hasCapturedData` (existence-only) or a stronger authenticated-state signal;
+note that real Chrome writes `Default/Preferences` early, so existence alone is weak — a stronger
+signal may be needed. Never automate around it; fail closed.
+
+### AWKIT-SES-001 (`awkit-cey`) — Session atomic write duplicates the existing main-process helper
+
+- **Classification:** Architecture / duplicate implementation
+- **Severity:** S3 / LOW — no observed data loss; the two copies simply disagree on retry policy
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** Persistence
+- **Affected area:** `src/session/atomicWrite.ts`, `app/main/atomicReplace.ts:77-109`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+`src/session/atomicWrite.ts` reimplements the temp-file + rename + EPERM/EBUSY retry that
+`app/main/atomicReplace.ts:77-109` already provides, and the defaults have already drifted apart:
+the new helper uses **4 attempts / 50ms linear** backoff while the existing helper uses
+`DEFAULT_REPLACE_ATTEMPTS = 5` and `DEFAULT_REPLACE_BACKOFF_MS = 20`. Two independent retry
+policies for the same Windows contention hazard is exactly the duplication `docs/ai/RULES.md:30`
+forbids, and a future fix to one copy will not reach the other.
+
+**Fix direction:** consolidate on the existing `app/main/atomicReplace.ts` helper rather than
+keeping a second implementation; if the session store genuinely needs different attempt/backoff
+values, they should be parameters of the one helper, not a fork.
+
+---
+
+### AWKIT-SES-002 (`awkit-cey`) — `session-profiles.json` silently changed from pretty-printed to single-line
+
+- **Classification:** Documentation / undocumented behavior change
+- **Severity:** S3 / LOW — the file still round-trips losslessly; only its on-disk shape changed
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** Persistence
+- **Affected area:** `src/session/atomicWrite.ts:44`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The new helper writes `JSON.stringify(value)` where the previous write path used
+`JSON.stringify(value, null, 2)`. `session-profiles.json` therefore changed from pretty-printed to a
+single line as a side effect of the `b16812a` atomicity fix. Nothing depends on the formatting, but
+the change was neither intended by the defect it shipped under nor documented anywhere, so an
+operator inspecting the store by hand sees an unexplained format change.
+
+**Fix direction:** either restore the two-space indentation or record the format deliberately in the
+session-store documentation.
+
+---
+
+### AWKIT-REC-036 (`awkit-cey`) — Cancelling a handoff leaves stale ambiguity state pointing at a dead page
+
+- **Classification:** Product
+- **Severity:** S3 / LOW — reachable only by invoking ambiguity preview after a cancelled handoff
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** Recorder
+- **Affected area:** `src/recorder/RecorderService.ts` `cancelSecureHandoff` (`:1347-1365`),
+  `previewCandidate` (`:1757-1758`), former clearing site in `discardDraft()` (`:489-490`)
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The AWKIT-REC-001 fix removed the `discardDraft()` call from `cancelSecureHandoff`, which was also —
+incidentally — the only thing nulling `ambiguityState` and `ambiguityPage` on that path
+(`discardDraft()` still clears them at `:489-490`). After a cancelled handoff those fields can
+therefore still reference a closed page, and `previewCandidate` (`:1757-1758`) would surface a raw
+Playwright "target closed" error instead of an actionable message.
+
+**Mitigating:** `stopRecording` has the same pre-existing gap, so this is a latent condition the fix
+merely widened — it is **not** a regression unique to `1e85946`.
+
+**Fix direction:** add `this.ambiguityState = null; this.ambiguityPage = null;` at
+`src/recorder/RecorderService.ts:1361`, and consider the same for `stopRecording`.
+
+---
+
+## Open test and harness findings
+
+Five LOW findings from the same 2026-08-22 independent QC review. These are gaps in verifier
+quality, not product defects. None is fixed. Owning bead: `awkit-cey`.
+
+### AWKIT-QA-001 (`awkit-cey`) — Trivially-true login-interaction regex with no positive control
+
+- **Classification:** Test quality
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-protected-login-recorder.mts`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The regex asserting that the resumed draft contains no login interaction cannot fail against any
+plausible draft, and no positive control proves it would match a draft that *did* contain one. The
+assertion is not currently wrong, but it carries no discriminating power.
+
+**Fix direction:** add a positive control that constructs a draft containing a login interaction and
+proves the regex matches it, then assert absence on the real draft.
+
+---
+
+### AWKIT-QA-002 (`awkit-cey`) — Queue failure-isolation contract is untested
+
+- **Classification:** Test coverage gap
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `src/session/SessionCaptureService.ts:82,85` (the `.then(operation, operation)`
+  serialization chain)
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The `enqueue` chain uses `.then(operation, operation)` specifically so a rejected operation cannot
+poison the queue for every later mutation. No assertion exercises that: the added concurrency
+coverage only drives operations that resolve. A regression that dropped the rejection handler would
+pass the whole suite.
+
+**Fix direction:** enqueue an operation that rejects, then prove a subsequent enqueued operation
+still runs and lands.
+
+---
+
+### AWKIT-QA-003 (`awkit-cey`) — Inverted variable name `draftGoneAfterDiscard`
+
+- **Classification:** Test readability / fragility
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-recorder-draft.mts:275-276`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The variable named `draftGoneAfterDiscard` holds the opposite sense of its name. The assertion is
+**correct today**, but the name invites a future editor to "fix" the polarity and silently invert a
+real check.
+
+**Fix direction:** rename to match the value it holds.
+
+---
+
+### AWKIT-QA-004 (`awkit-cey`) — Missing optional chaining turns a clean FAIL into a crash
+
+- **Classification:** Test robustness
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-protected-login-recorder.mts` (`.config` access)
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+A `.config` property is read without optional chaining. If the owning object is ever absent the
+verifier throws a `TypeError` instead of recording a failed check — which, combined with
+AWKIT-QA-005 below, would remove the check from the denominator rather than fail it.
+
+**Fix direction:** use optional chaining and assert the value explicitly.
+
+---
+
+### AWKIT-QA-005 (`awkit-cey`) — Verifier tallies divide by a denominator an uncaught throw can shrink
+
+- **Classification:** Harness design — repo-wide pattern, not confined to these two scripts
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-recorder-draft.mts`,
+  `scripts/verify-protected-login-recorder.mts`, and any verifier sharing this harness shape
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+Both harnesses compute their tally as `passed / results.length`, where `results` accumulates only
+the checks that actually ran. An uncaught throw part-way through a section therefore **shrinks the
+denominator** instead of failing a check, so the run can print a full-looking `N/N` while having
+silently skipped work. The exit code still reflects the failure; the printed tally does not.
+
+**Consequence for readers:** judge these verifiers by **exit code**, never by a full-looking tally
+alone. This is worth a repo-wide sweep — the shape is not unique to these two scripts.
+
+**Fix direction:** assert an expected check count (a cardinality assertion) alongside the tally, so a
+shortened run fails loudly.
+
+---
 
 ## Resolved comprehensive-campaign defects
+
+### AWKIT-REC-003 (`awkit-cey`) — Recorder embedded the site URL instead of the login URL in Auto Secure Login
+
+- **Classification:** Product defect
+- **Severity:** S2 / Replay of an IdP-redirect recording spawned a redundant manual-login browser
+  instead of reusing the captured session
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-22; found by the executed live REC-022 walkthrough**
+- **Owner routing:** Recorder handoff lifecycle
+- **Affected area:** `src/recorder/RecorderService.ts` (`captureSessionAndResume` →
+  `insertSecureSessionNodes`)
+- **Detected by:** The authorized live IdP walkthrough: replaying the saved workflow launched a NEW
+  real-Chrome manual capture (`session-a2b9c0c8`) instead of skipping to reuse of the captured
+  `session-f11ab5c3`
+
+`insertSecureSessionNodes` was called with `resumeUrl` — the site being recorded (youtube.com) —
+but at replay time `executeAutoSecureLogin` reuses sessions by ORIGIN match, and protected logins
+happen on a DIFFERENT origin (accounts.google.com). The node therefore never matched the captured
+session. The recorder now inserts the detected/login URL (`handoff.detectedUrl || profile.loginUrl
+|| profile.targetUrl`), while resume navigation still returns to the original site.
+
+**Evidence:** `verify:protected-login-recorder` grew to **73/73** with a new assertion that the
+inserted node carries the LOGIN url; reverting the fix failed exactly that assertion at **72/73**
+(the failure detail reproduced the live defect shape). Restored green 73/73.
+
+---
 
 ### AWKIT-REC-002 (`awkit-cey`) — Session-profile store lost writes to Windows file contention
 
@@ -23,12 +251,22 @@ destroy or fail the `session-profiles.json` update, and unsynchronized read-modi
 a temp-file + rename atomic write with bounded `EPERM`/`EBUSY` retry, and every metadata mutation
 is serialized through an operation chain.
 
-**Evidence:** `verify:recorder-draft` extended 50/50 → **83/83**: real-file round trips
-(rename/markUsed survive close/reload), corrupt and missing metadata recover safely, unknown
+**Evidence:** `verify:recorder-draft` extended 50/50 → 83/83 → **86/86** (exit 0): real-file round
+trips (rename/markUsed survive close/reload), corrupt and missing metadata recover safely, unknown
 compatible fields survive losslessly, concurrent rename+markUsed both land, injected-seam retry
 proofs (EBUSY retried then succeeds; exhausted retries throw; non-retryable codes fail fast), no
 temp residue. Forcing single-attempt writes crashed the retry probe with a fatal EBUSY; restoring
-the retry returned 83/83.
+the retry returned the suite to green.
+
+**Post-fix evidence repair (2026-08-22):** independent QC found the concurrent rename+markUsed
+guard — the sole guard for the `enqueue` serialization half of this fix — had a conjunct satisfied
+by state written earlier in the same block. It now seeds a known-stale `lastUsedAt`, asserts that
+precondition, asserts the value actually CHANGED, and adds the reverse interleaving. Replacing
+`enqueue` with a pass-through kills the repaired check **40/40**; the old form was blind
+**21/40** (18/20 in the markUsed-first ordering it never exercised). Control on correct code:
+**20/20**. The mutant was injected at runtime against the real product objects, not by editing
+product source (the write lease forbade `src/**`), so this is equivalent in discriminating power
+but is not a literal file-edit mutant.
 
 ---
 
@@ -47,10 +285,21 @@ including after the user had already completed a manual login in Chrome — dele
 recorded before the pause. The cancel path now flushes and preserves the draft (disk + memory);
 discarding remains owned by full-recording Cancel (`cancelRecording`) and the save path.
 
-**Evidence:** `verify:recorder-draft` REC-022 section: draft survives cancel in both
-`capturingSession` and `detected` phases, stays intact on restart, and explicit discard still
-deletes it. Re-adding `discardDraft()` failed exactly those five assertions (**78/83**); the fix
-restored **83/83**.
+**Evidence:** `verify:recorder-draft` REC-022 section, now **86/86** (exit 0): draft survives cancel
+in both `capturingSession` and `detected` phases, stays intact on restart, and explicit discard
+still deletes it. Re-adding `discardDraft()` failed exactly those five assertions (**78/83** at the
+then-current count); the fix restored the suite to green.
+
+**Post-fix evidence repair (2026-08-22):** independent QC found the "delete removes the profile
+directory" assertion in the same file was true **by absence** — the fixture never created the
+directory it claimed to observe being removed. The fixture now really creates `Default/Preferences`
+and an existence assertion runs immediately before `deleteProfile`. Preventing the real
+`deleteProfile` from removing the directory makes the repaired check FAIL where the old form
+PASSED; deterministic. Mutant injected at runtime against the real product objects, not by editing
+product source.
+
+**Residual, not fixed:** removing `discardDraft()` from this path also removed the only site that
+nulled `ambiguityState`/`ambiguityPage` on handoff cancel — tracked as open **AWKIT-REC-036** above.
 
 ---
 
