@@ -345,8 +345,10 @@ try {
   // filed. Measured state is {closed: 252, blocked: 4, open: 0, in_progress: 0} over 256 parsed.
   // Then 4/255 of 259: `awkit-rvb`, `awkit-rvo`, and `awkit-rvt` were filed and closed, so total
   // and closed each rose by three while the four owner-gated outstanding issues remained unchanged.
-    "4 outstanding / 255 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 255,
+  // Then 3/256 of 259 on 2026-08-22: `awkit-cey` (REC-022) closed on executed live IdP walkthrough
+  // evidence; no issue filed. Measured state is {closed: 256, blocked: 3, open: 0} over 259 parsed.
+    "3 outstanding / 256 closed",
+    beads.stats.outstanding === 3 && beads.stats.closed === 256,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -426,8 +428,8 @@ try {
   );
   check("every status is in the allowed set", ledger.cases.every((c) => LEDGER_STATUSES.has(c.status)));
   check(
-    "tally is 63 PASS / 2 NOT RUN / 1 BLOCKED",
-    ledger.tally.pass === 63 && ledger.tally.notRun === 2 && ledger.tally.blocked === 1,
+    "tally is 64 PASS / 2 NOT RUN / 0 BLOCKED",
+    ledger.tally.pass === 64 && ledger.tally.notRun === 2 && ledger.tally.blocked === 0,
     `got ${ledger.tally.pass}/${ledger.tally.notRun}/${ledger.tally.blocked}`
   );
   check("statuses sum to the case count", ledger.tally.total === ledger.stats.cases);
@@ -584,10 +586,12 @@ try {
   // shell launches grouped under `awkit-az7`. None of the four can be represented by a normal `blocks` edge,
   // hence declared status. The layer assertion is `.every()`, not `[0]`; the cardinality guard
   // prevents vacuous success if blocked items disappear from parsing.
+  // Then 3 on 2026-08-22: `awkit-cey` CLOSED on executed live IdP walkthrough evidence, leaving the
+  // three owner-gated items (`awkit-7bu`, `awkit-az7`, `awkit-cm8`).
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 4 &&
-      order.externallyBlocked.length === 4 &&
+    order.stats.declaredBlocked === 3 &&
+      order.externallyBlocked.length === 3 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );
