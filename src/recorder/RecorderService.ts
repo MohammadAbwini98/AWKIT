@@ -1338,8 +1338,11 @@ export class RecorderService {
   }
 
   /**
-   * Abort an in-progress secure-login handoff: stop any manual Chrome capture, discard the recorder
-   * draft, and clear the handoff. Used by both "Cancel recording" and the capture-phase "Cancel".
+   * Abort an in-progress secure-login handoff: stop any manual Chrome capture and clear the handoff.
+   * The pre-login draft is deliberately PRESERVED (flushed to disk and kept in memory) so cancelling
+   * a handoff never discards the actions recorded before the protected-login pause — the user can
+   * resume or save them. Discarding is owned by `cancelRecording` (full-recording Cancel) and by the
+   * save path, not by a handoff cancel.
    */
   public async cancelSecureHandoff(): Promise<void> {
     try {
@@ -1349,7 +1352,11 @@ export class RecorderService {
     }
     this.isRecording = false;
     await this.closeBrowser();
-    await this.discardDraft();
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
     this.handoff = null;
     this.lastActionPage = null;
     this.popupPages.clear();
