@@ -420,6 +420,15 @@ try {
       actionsAfterResume[0]?.type === "autoSecureLogin" && actionsAfterResume[1]?.type === "reuseSession",
       actionsAfterResume.slice(0, 2).map((a) => a.type).join(",")
     );
+    // The Auto Secure Login node must carry the LOGIN url (the detected protected page), not the
+    // recorded-site url: replay reuses sessions by ORIGIN match, and IdP redirects mean the login
+    // origin differs from the site origin. A site-url value spawns a redundant manual login.
+    const autoLoginValue = String(actionsAfterResume[0]?.valueSource?.value ?? "");
+    check(
+      "Auto Secure Login carries the LOGIN url so replay origin-matches the captured session",
+      autoLoginValue.includes("/mock/protected-login"),
+      autoLoginValue
+    );
     check(
       "Reuse Session links the captured session id",
       actionsAfterResume[1]?.config?.reuseSessionId === RESUME_SESSION_ID,

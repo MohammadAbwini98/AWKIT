@@ -1232,9 +1232,16 @@ export class RecorderService {
         this.handoff.sessionName = finalName;
       }
 
-      // Insert the secure-session nodes (deduped) near the start of the recorded flow.
+      // Insert the secure-session nodes (deduped) near the start of the recorded flow. The Auto
+      // Secure Login node must carry the URL WHERE THE LOGIN HAPPENS (the detected protected page /
+      // captured loginUrl), not the site being recorded: at replay time `executeAutoSecureLogin`
+      // reuses an existing session by ORIGIN match, and IdP redirects mean the login origin
+      // (accounts.google.com, login.microsoftonline.com, …) differs from the site origin. Embedding
+      // the site URL made replay spawn a redundant manual-login browser instead of reusing.
+      // Navigation after resume still uses resumeUrl (back on the original site).
       const resumeUrl = this.handoff.resumeUrl || profile.targetUrl || this.handoff.detectedUrl;
-      this.insertSecureSessionNodes(sessionId, resumeUrl);
+      const loginTarget = this.handoff.detectedUrl || profile.loginUrl || profile.targetUrl || resumeUrl;
+      this.insertSecureSessionNodes(sessionId, loginTarget);
 
       this.handoff = { ...this.handoff, phase: "sessionCaptured", message: "Session captured. Resuming the recorder…" };
 
