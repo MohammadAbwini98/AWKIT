@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, Download, KeyRound, RotateCw, ShieldX, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Hourglass, KeyRound, RotateCw, ShieldX, Trash2, Upload } from "lucide-react";
 import type { LicenseStatusView } from "@main/licensing/licenseRuntime";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
 import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge, AdminSummaryItem } from "./components/AdminUi";
+import {
+  AdminBanner,
+  AdminEmpty,
+  AdminLoading,
+  AdminMetricCard,
+  AdminMetrics,
+  AdminPage,
+  AdminSectionCard,
+  AdminStatusBadge
+} from "./components/AdminUi";
 
 type Resp<T> = { ok: boolean; value?: T; reason?: string };
 const licensing = () => window.playwrightFlowStudio.licensing;
@@ -169,13 +178,6 @@ export function LicensingPage() {
     <AdminPage
       title="Licensing"
       description="Review this machine's offline license, activation identity, and enforcement state."
-      summary={
-        <>
-          <AdminSummaryItem label="License status" value={report ? <AdminStatusBadge status={report.status} /> : "—"} />
-          <AdminSummaryItem label="Execution" value={report?.enforcement?.runsAllowed ? "Allowed" : "Blocked"} />
-          <AdminSummaryItem label="Remaining" value={remaining(report?.remainingMinutes)} />
-        </>
-      }
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -203,13 +205,33 @@ export function LicensingPage() {
         </>
       }
     >
+      <AdminMetrics label="License summary">
+        <AdminMetricCard label="License status" value={report ? <AdminStatusBadge status={report.status} /> : "—"} icon={KeyRound} />
+        <AdminMetricCard label="Edition" value={lic?.licenseType ?? "—"} hint={lic ? `${lic.serialNumberMasked} · ${lic.licenseId}` : undefined} />
+        <AdminMetricCard
+          label="Execution"
+          value={report?.enforcement?.runsAllowed ? "Allowed" : "Blocked"}
+          icon={RotateCw}
+          tone={report?.enforcement?.runsAllowed ? "success" : "danger"}
+        />
+        <AdminMetricCard
+          label="Remaining validity"
+          value={remaining(report?.remainingMinutes)}
+          icon={Hourglass}
+          tone={
+            report?.status === "VALID" || report?.status === "EXPIRING_SOON"
+              ? report.remainingMinutes != null && report.remainingMinutes < 60 * 24 * 14
+                ? "warning"
+                : "neutral"
+              : "neutral"
+          }
+          hint={report ? `expires ${localTime(lic?.expiresAtUtc)}` : undefined}
+        />
+      </AdminMetrics>
+
       <div className="awkit-admin-dashboard-grid awkit-admin-license-layout">
       {/* Status */}
-      <section className="settings-card awkit-admin-license-status">
-        <div className="awkit-admin-card-head">
-          <h2><KeyRound size={16} /> License status</h2>
-          {report ? <AdminStatusBadge status={report.status} /> : null}
-        </div>
+      <AdminSectionCard title="License status" icon={KeyRound} meta={report ? <AdminStatusBadge status={report.status} /> : null}>
         <p className="awkit-admin-muted">{report?.userAction}</p>
         <div className="awkit-license-grid">
           <Field label="Type" value={lic?.licenseType ?? "—"} />
@@ -230,15 +252,13 @@ export function LicensingPage() {
             </div>
           </div>
         ) : null}
-      </section>
+      </AdminSectionCard>
 
       {/* Machine activation */}
-      <section className="settings-card">
-        <h2>Machine activation</h2>
-        <p className="awkit-admin-muted">
-          Export this machine's activation request and send it to your license issuer. The request contains
-          no personal data — only a hashed machine fingerprint.
-        </p>
+      <AdminSectionCard
+        title="Machine activation"
+        description="Export this machine's activation request and send it to your license issuer. The request contains no personal data — only a hashed machine fingerprint."
+      >
         <div className="awkit-license-machine">
           <div className="awkit-license-code">
             <span className="awkit-admin-muted">Machine code</span>
@@ -254,12 +274,10 @@ export function LicensingPage() {
             </button>
           </div>
         </div>
-      </section>
+      </AdminSectionCard>
 
       {/* License management */}
-      <section className="settings-card">
-        <h2>Manage license</h2>
-        <p className="awkit-admin-muted">Import a signed license file, or replace/remove the installed one.</p>
+      <AdminSectionCard title="Manage license" description="Import a signed license file, or replace/remove the installed one.">
         <input
           ref={fileInputRef}
           type="file"
@@ -291,7 +309,7 @@ export function LicensingPage() {
             <Trash2 size={14} /> Remove
           </button>
         </div>
-      </section>
+      </AdminSectionCard>
       </div>
 
       {pendingFn ? (

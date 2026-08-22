@@ -1,8 +1,15 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, ListChecks } from "lucide-react";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminLoading, AdminPage, AdminSummaryItem } from "./components/AdminUi";
+import {
+  AdminBanner,
+  AdminLoading,
+  AdminMetricCard,
+  AdminMetrics,
+  AdminPage,
+  AdminSectionCard
+} from "./components/AdminUi";
 
 interface RoleView { id: string; name: string; description: string; builtIn: boolean; permissions: string[] }
 
@@ -49,29 +56,33 @@ export function PermissionsPage() {
   }, [permissions]);
 
   if (loading) return <AdminPage><AdminLoading label="Loading permissions…" /></AdminPage>;
+  const builtInRoles = roles.filter((role) => role.builtIn).length;
   return (
     <AdminPage
       title="Permissions"
       description="Review the deny-by-default capability model and the roles that grant each permission."
-      summary={
-        <>
-          <AdminSummaryItem label="Permissions" value={permissions.length} />
-          <AdminSummaryItem label="Role columns" value={roles.length} />
-          <AdminSummaryItem label="Capability groups" value={groupedPermissions.length} />
-        </>
-      }
       banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}
     >
-      <section className="settings-card awkit-admin-primary-surface">
-        <h2>Permission matrix</h2>
-        <p className="awkit-admin-muted">Every permission and the roles that grant it. Enforced deny-by-default in the main process.</p>
+      <AdminMetrics label="Permission summary">
+        <AdminMetricCard label="Permissions" value={permissions.length} icon={ListChecks} />
+        <AdminMetricCard label="Capability groups" value={groupedPermissions.length} hint="deny-by-default categories" />
+        <AdminMetricCard label="Built-in roles" value={builtInRoles} hint="always present" />
+        <AdminMetricCard label="Custom roles" value={roles.length - builtInRoles} hint={roles.length - builtInRoles > 0 ? "grant extra access" : undefined} />
+      </AdminMetrics>
+
+      <AdminSectionCard
+        title="Permission matrix"
+        icon={ListChecks}
+        description="Every permission and the roles that grant it. Enforced deny-by-default in the main process."
+        meta={<><Check size={13} aria-hidden="true" /> granted · · not granted</>}
+      >
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table awkit-admin-matrix">
             <thead><tr><th>Permission</th>{roles.map((r) => <th key={r.id}>{r.name}</th>)}</tr></thead>
             <tbody>
               {groupedPermissions.map(([group, groupPermissions]) => (
                 <Fragment key={group}>
-                  <tr className="awkit-admin-matrix-group"><th colSpan={roles.length + 1} scope="rowgroup">{group}</th></tr>
+                  <tr className="awkit-admin-matrix-group"><th colSpan={roles.length + 1} scope="rowgroup">{group}<span className="awkit-admin-matrix-count">{groupPermissions.length}</span></th></tr>
                   {groupPermissions.map((perm) => (
                     <tr key={perm}>
                       <td><code>{perm}</code></td>
@@ -85,7 +96,7 @@ export function PermissionsPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </AdminSectionCard>
     </AdminPage>
   );
 }

@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Archive, Ban, KeyRound, LogOut, Search, ShieldAlert, UserCheck, UserPlus, Users as UsersIcon } from "lucide-react";
+import { Archive, Ban, KeyRound, LogOut, Search, ShieldAlert, UserCheck, UserPlus, UserX, Users as UsersIcon } from "lucide-react";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import { ALL_PERMISSIONS, ISSUER_ROLE } from "@src/security/authz/Permissions";
 import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge, AdminSummaryItem } from "./components/AdminUi";
+import {
+  AdminBanner,
+  AdminEmpty,
+  AdminLoading,
+  AdminMetricCard,
+  AdminMetrics,
+  AdminPage,
+  AdminSectionCard,
+  AdminStatusBadge
+} from "./components/AdminUi";
 
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
 interface RoleView { id: string; name: string; description: string; builtIn: boolean; permissions: string[] }
@@ -27,6 +36,7 @@ export function UserManagement() {
   const [resetFor, setResetFor] = useState<AdminUserView | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const createUsernameRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => {
     const [u, r] = await Promise.all([security().admin.listUsers(sessionRef), security().admin.listRoles(sessionRef)]);
@@ -58,20 +68,27 @@ export function UserManagement() {
     await reload();
   }, [reload]);
 
+  const focusCreateForm = useCallback(() => {
+    createUsernameRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    createUsernameRef.current?.focus();
+  }, []);
+
   if (loading) {
     return <AdminPage><AdminLoading label="Loading users…" /></AdminPage>;
   }
+
+  const activeCount = users.filter((user) => user.status === "active").length;
+  const disabledCount = users.filter((user) => user.status === "disabled").length;
+  const resetCount = users.filter((user) => user.mustChangePassword).length;
 
   return (
     <AdminPage
       title="Users"
       description="Manage local accounts, access roles, credentials, and active sessions."
-      summary={
-        <>
-          <AdminSummaryItem label="Total accounts" value={users.length} />
-          <AdminSummaryItem label="Active" value={users.filter((user) => user.status === "active").length} />
-          <AdminSummaryItem label="Needs password reset" value={users.filter((user) => user.mustChangePassword).length} />
-        </>
+      actions={
+        <button className="toolbar-button primary" type="button" onClick={focusCreateForm}>
+          <UserPlus size={14} aria-hidden="true" /> Add user
+        </button>
       }
       banner={
         <>
@@ -80,12 +97,25 @@ export function UserManagement() {
         </>
       }
     >
+      <AdminMetrics label="User summary">
+        <AdminMetricCard label="Total accounts" value={users.length} icon={UsersIcon} />
+        <AdminMetricCard label="Active" value={activeCount} icon={UserCheck} tone="success" />
+        <AdminMetricCard label="Disabled" value={disabledCount} icon={UserX} tone={disabledCount > 0 ? "warning" : "neutral"} hint={disabledCount > 0 ? "sign-in blocked" : undefined} />
+        <AdminMetricCard
+          label="Needs password reset"
+          value={resetCount}
+          icon={KeyRound}
+          tone={resetCount > 0 ? "danger" : "neutral"}
+          hint={resetCount > 0 ? "temporary passwords in play" : undefined}
+        />
+      </AdminMetrics>
+
       <div className="awkit-admin-split awkit-admin-users-layout">
-      <section className="settings-card awkit-admin-primary-surface">
-        <div className="awkit-admin-card-head">
-          <h2><UsersIcon size={16} /> Account directory</h2>
-          <span className="awkit-admin-muted">{filteredUsers.length} of {users.length}</span>
-        </div>
+      <AdminSectionCard
+        title="Account directory"
+        icon={UsersIcon}
+        meta={`${filteredUsers.length} of ${users.length}`}
+      >
         <div className="awkit-admin-filter-bar" role="search" aria-label="User filters">
           <label className="awkit-admin-search-field">
             <span className="sr-only">Search users</span>
@@ -101,6 +131,7 @@ export function UserManagement() {
               <option value="archived">Archived</option>
             </select>
           </label>
+          <span className="awkit-admin-filter-count">{statusFilter === "all" && !search.trim() ? `${users.length} account${users.length === 1 ? "" : "s"}` : `${filteredUsers.length} match${filteredUsers.length === 1 ? "" : "es"}`}</span>
         </div>
         {users.length === 0 ? (
           <AdminEmpty icon={UsersIcon} title="No users yet" hint="Create the first user with the form beside this directory." />
@@ -155,8 +186,8 @@ export function UserManagement() {
           </table>
         </div>
         )}
-      </section>
-      <CreateUserCard roles={roles} onCreate={(input) => sensitive(() => security().admin.createUser({ sessionRef, ...input }))} />
+      </AdminSectionCard>
+      <CreateUserCard roles={roles} usernameRef={createUsernameRef} onCreate={(input) => sensitive(() => security().admin.createUser({ sessionRef, ...input }))} />
       </div>
 
       {roleEditFor ? (
@@ -197,7 +228,15 @@ export function UserManagement() {
   );
 }
 
-function CreateUserCard({ roles, onCreate }: { roles: RoleView[]; onCreate: (input: { username: string; displayName?: string; password: string; roles: string[] }) => void }) {
+function CreateUserCard({
+  roles,
+  usernameRef,
+  onCreate
+}: {
+  roles: RoleView[];
+  usernameRef: { readonly current: HTMLInputElement | null };
+  onCreate: (input: { username: string; displayName?: string; password: string; roles: string[] }) => void;
+}) {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -210,18 +249,17 @@ function CreateUserCard({ roles, onCreate }: { roles: RoleView[]; onCreate: (inp
     setUsername(""); setDisplayName(""); setPassword(""); setSelected(["Viewer"]);
   };
   return (
-    <section className="settings-card awkit-admin-create-card awkit-admin-quick-create">
-      <h2><UserPlus size={16} /> Add a user</h2>
+    <AdminSectionCard title="Add a user" icon={UserPlus} className="awkit-admin-create-card awkit-admin-quick-create">
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field"><span className="awkit-login-field-label">Username</span>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} spellCheck={false} autoComplete="off" /></label>
+          <input ref={usernameRef} value={username} onChange={(e) => setUsername(e.target.value)} spellCheck={false} autoComplete="off" /></label>
         <label className="awkit-login-field"><span className="awkit-login-field-label">Display name (optional)</span>
           <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
         <PasswordField label="Temporary password" value={password} onChange={setPassword} autoComplete="new-password" />
         <RolePicker roles={roles} selected={selected} onChange={setSelected} />
         <button type="submit" className="toolbar-button primary" disabled={!canSubmit}>Create user</button>
       </form>
-    </section>
+    </AdminSectionCard>
   );
 }
 

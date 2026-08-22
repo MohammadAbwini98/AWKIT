@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardList, Search } from "lucide-react";
+import { ClipboardList, Search, ShieldAlert, Users as UsersIcon } from "lucide-react";
 import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge, AdminSummaryItem } from "./components/AdminUi";
+import {
+  AdminBanner,
+  AdminEmpty,
+  AdminLoading,
+  AdminMetricCard,
+  AdminMetrics,
+  AdminPage,
+  AdminSectionCard,
+  AdminStatusBadge
+} from "./components/AdminUi";
 
 /** Read-only security audit trail (most recent first). Non-secret projection from the trusted store. */
 export function AuditLogPage() {
@@ -41,25 +50,38 @@ export function AuditLogPage() {
         .some((value) => value?.toLocaleLowerCase().includes(query));
     });
   }, [resultFilter, rows, search]);
+  const failureCount = useMemo(
+    () => rows.filter((row) => row.result.toLocaleLowerCase() === "failure").length,
+    [rows]
+  );
+  const actorCount = useMemo(
+    () => new Set(rows.map((row) => row.actorName).filter(Boolean)).size,
+    [rows]
+  );
 
   return (
     <AdminPage
       title="Audit log"
       description="Inspect the local, read-only trail of privileged actions and security decisions."
-      summary={
-        <>
-          <AdminSummaryItem label="Loaded events" value={rows.length} />
-          <AdminSummaryItem label="Visible" value={filteredRows.length} />
-          <AdminSummaryItem label="Failed" value={rows.filter((row) => row.result.toLocaleLowerCase() === "failure").length} />
-        </>
-      }
       banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}
     >
-      <section className="settings-card awkit-admin-primary-surface">
-        <div className="awkit-admin-card-head">
-          <h2><ClipboardList size={16} /> Security events</h2>
-          <span className="awkit-admin-muted">{filteredRows.length} of {rows.length}</span>
-        </div>
+      <AdminMetrics label="Audit summary">
+        <AdminMetricCard label="Loaded events" value={rows.length} icon={ClipboardList} hint="most recent 300" />
+        <AdminMetricCard
+          label="Failures"
+          value={failureCount}
+          icon={ShieldAlert}
+          tone={failureCount > 0 ? "danger" : "neutral"}
+        />
+        <AdminMetricCard label="Distinct actors" value={actorCount || (rows.length ? 1 : 0)} icon={UsersIcon} hint="users behind these events" />
+        <AdminMetricCard label="Visible in view" value={filteredRows.length} hint={`of ${rows.length} loaded`} />
+      </AdminMetrics>
+
+      <AdminSectionCard
+        title="Security events"
+        icon={ClipboardList}
+        meta={`${filteredRows.length} of ${rows.length}`}
+      >
         <div className="awkit-admin-filter-bar" role="search" aria-label="Audit filters">
           <label className="awkit-admin-search-field">
             <span className="sr-only">Search audit events</span>
@@ -108,7 +130,7 @@ export function AuditLogPage() {
             </table>
           </div>
         )}
-      </section>
+      </AdminSectionCard>
     </AdminPage>
   );
 }

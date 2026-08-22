@@ -17,22 +17,23 @@ import {
 
 /*
  * Shared Administration UI kit. Every Administration page composes these so the section reads as one
- * design language: the same page wrapper, status badges, and loading/empty/error states. Presentation
- * only — pages keep their own domain logic, IPC calls, and handlers. All colour flows through
- * `global.css` tokens; badges pair an icon with text so status never relies on colour alone.
+ * design language: the same visible page header, metric cards, section cards, status badges, and
+ * loading/empty/error states. Presentation only — pages keep their own domain logic, IPC calls, and
+ * handlers. All colour flows through `global.css` tokens; badges pair an icon with text so status
+ * never relies on colour alone.
  */
 
-/** Consistent Administration page wrapper with a shared section identity and optional summary/actions. */
+/** Consistent Administration page wrapper: visible title/description, primary actions, optional banner. */
 export function AdminPage({
   title,
   description,
-  summary,
   actions,
   banner,
   children
 }: {
   title?: string;
   description?: string;
+  /** Deprecated inline strip; pages should prefer the AdminMetrics card row. */
   summary?: ReactNode;
   actions?: ReactNode;
   banner?: ReactNode;
@@ -46,13 +47,8 @@ export function AdminPage({
             <h1>{title}</h1>
             {description ? <p>{description}</p> : null}
           </div>
-        </header>
-      ) : null}
-      {summary || actions ? (
-        <div className="awkit-admin-context">
-          {summary ? <div className="awkit-admin-summary" aria-label={`${title ?? "Administration"} summary`}>{summary}</div> : null}
           {actions ? <div className="awkit-admin-header-actions">{actions}</div> : null}
-        </div>
+        </header>
       ) : null}
       {banner}
       {children}
@@ -67,6 +63,84 @@ export function AdminSummaryItem({ label, value, hint }: { label: string; value:
       <strong>{value}</strong>
       {hint ? <small>{hint}</small> : null}
     </div>
+  );
+}
+
+/**
+ * Responsive metric-card row. Cards are list items inside a labelled group so screen readers announce
+ * the collection; the grid collapses from four-across to one-across purely through CSS.
+ */
+export function AdminMetrics({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="awkit-admin-metrics" role="list" aria-label={label}>
+      {children}
+    </div>
+  );
+}
+
+type MetricTone = "neutral" | "success" | "warning" | "danger" | "info";
+
+/** One summary/status card: concise label, prominent value, optional hint, optional tone+icon. */
+export function AdminMetricCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone = "neutral"
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  icon?: LucideIcon;
+  tone?: MetricTone;
+}) {
+  return (
+    <div className={`awkit-admin-metric-card tone-${tone}`} role="listitem">
+      <div className="awkit-admin-metric-top">
+        {Icon ? (
+          <span className="awkit-admin-metric-icon" aria-hidden="true">
+            <Icon size={14} strokeWidth={2.2} />
+          </span>
+        ) : null}
+        <span className="awkit-admin-metric-label">{label}</span>
+      </div>
+      <strong className="awkit-admin-metric-value">{value}</strong>
+      {hint ? <span className="awkit-admin-metric-hint">{hint}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * Standard Administration content card: icon + section heading, optional description/meta line, and an
+ * action row aligned to the heading. Composes with `.settings-card` chrome scoped by the admin styles.
+ */
+export function AdminSectionCard({
+  title,
+  icon: Icon,
+  description,
+  meta,
+  actions,
+  className,
+  children
+}: {
+  title: string;
+  icon?: LucideIcon;
+  description?: string;
+  meta?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`settings-card awkit-admin-card${className ? ` ${className}` : ""}`}>
+      <div className="awkit-admin-card-head">
+        <h2>{Icon ? <Icon size={16} aria-hidden="true" /> : null}{title}</h2>
+        {meta ? <span className="awkit-admin-muted awkit-admin-card-meta">{meta}</span> : null}
+        {actions ? <div className="awkit-admin-row-actions">{actions}</div> : null}
+      </div>
+      {description ? <p className="awkit-admin-muted awkit-admin-card-description">{description}</p> : null}
+      {children}
+    </section>
   );
 }
 
@@ -99,6 +173,7 @@ const STATUS_META: Record<string, StatusMeta> = {
   active: { tone: "success", icon: CheckCircle2, label: "Active" },
   valid: { tone: "success", icon: CheckCircle2, label: "Valid" },
   success: { tone: "success", icon: CheckCircle2, label: "Success" },
+  denied: { tone: "warning", icon: Ban, label: "Denied" },
   disabled: { tone: "warning", icon: Ban, label: "Disabled" },
   locked: { tone: "warning", icon: Lock, label: "Locked" },
   expiringsoon: { tone: "warning", icon: Clock, label: "Expiring soon" },

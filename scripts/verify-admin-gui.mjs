@@ -38,9 +38,10 @@ async function adminLayout(win, expectedTitle) {
     return {
       title: heading.textContent?.trim(),
       expectedTitle: title,
+      headerVisible: header.getBoundingClientRect().height > 24,
       fillsSurface: Boolean(mainRect && rect.width >= mainRect.width - 34),
       noPageOverflow: page.scrollWidth <= page.clientWidth + 1,
-      summaryItems: page.querySelectorAll(".awkit-admin-summary-item").length
+      metricCards: page.querySelectorAll(".awkit-admin-metric-card").length
     };
   }, expectedTitle);
 }
@@ -111,7 +112,7 @@ try {
   check("Users page renders the create-user card", (await win.getByRole("heading", { name: "Add a user" }).count()) >= 1);
   check("existing Super User is listed", (await win.getByText("@guiverifier").count()) >= 1);
   const usersLayout = await adminLayout(win, "Users");
-  check("Users uses the shared Administration header and full-width surface", usersLayout?.title === "Users" && usersLayout.fillsSurface && usersLayout.noPageOverflow && usersLayout.summaryItems === 3, JSON.stringify(usersLayout));
+  check("Users uses the shared Administration header and full-width surface", usersLayout?.title === "Users" && usersLayout.headerVisible && usersLayout.fillsSurface && usersLayout.noPageOverflow && usersLayout.metricCards === 4, JSON.stringify(usersLayout));
 
   // Create a Viewer user (fresh first-run login counts as a fresh reauth → no prompt).
   await win.locator(".awkit-admin-create-form input").first().fill("viewer1");
@@ -128,7 +129,7 @@ try {
   await nav(win, "Roles");
   check("Roles page lists the Super User role", (await win.getByRole("heading", { name: "Super User" }).count()) >= 1);
   const rolesLayout = await adminLayout(win, "Roles");
-  check("Roles uses the shared Administration header and summary", rolesLayout?.title === "Roles" && rolesLayout.noPageOverflow && rolesLayout.summaryItems === 3, JSON.stringify(rolesLayout));
+  check("Roles uses the shared Administration header and metric summary", rolesLayout?.title === "Roles" && rolesLayout.noPageOverflow && rolesLayout.metricCards === 4, JSON.stringify(rolesLayout));
 
   const roleForm = win.locator(".settings-card", { has: win.getByRole("heading", { name: "Add a custom role" }) });
   await roleForm.locator("input").first().fill("QA Runner");
@@ -151,7 +152,7 @@ try {
   check("custom role appears in the permission matrix", (await win.getByRole("columnheader", { name: "QA Runner" }).count()) === 1);
   check("Permissions are organized into named capability groups", (await win.locator(".awkit-admin-matrix-group").count()) >= 4);
   const permissionMatrixLayout = await win.evaluate(() => {
-    const surface = document.querySelector(".awkit-admin-primary-surface");
+    const surface = document.querySelector(".awkit-admin-card");
     const scroller = document.querySelector(".awkit-admin-table-scroll");
     const table = document.querySelector(".awkit-admin-matrix");
     if (!surface || !scroller || !table) return null;
@@ -163,7 +164,7 @@ try {
   });
   check(
     "Permissions matrix uses the available Administration content width",
-    permissionMatrixLayout && permissionMatrixLayout.tableWidth >= permissionMatrixLayout.surfaceWidth - 2,
+    permissionMatrixLayout && permissionMatrixLayout.tableWidth >= permissionMatrixLayout.scrollerWidth - 2,
     JSON.stringify(permissionMatrixLayout)
   );
   await verifyAdminResponsive(win, "Permissions");
@@ -205,7 +206,7 @@ try {
   check("Licensing page renders the license status card", (await win.getByRole("heading", { name: "License status" }).count()) >= 1);
   check("Licensing shows the not-activated state on a fresh profile", (await win.getByText("Not activated").count()) >= 1);
   const licensingLayout = await adminLayout(win, "Licensing");
-  check("Licensing uses the shared Administration header and dashboard summary", licensingLayout?.title === "Licensing" && licensingLayout.noPageOverflow && licensingLayout.summaryItems === 3, JSON.stringify(licensingLayout));
+  check("Licensing uses the shared Administration header and dashboard summary", licensingLayout?.title === "Licensing" && licensingLayout.noPageOverflow && licensingLayout.metricCards === 4, JSON.stringify(licensingLayout));
   await verifyAdminResponsive(win, "Licensing");
   await captureAdminThemes(win, shotDir, "licensing");
 

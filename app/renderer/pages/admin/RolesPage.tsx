@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { Pencil, Plus, ShieldCheck, Trash2, UserSquare } from "lucide-react";
 import { ALL_PERMISSIONS } from "@src/security/authz/Permissions";
 import type { AdminRoleView } from "@src/security/admin/RoleAdminService";
+import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
 import { ReauthDialog } from "./ReauthDialog";
-import { AdminBanner, AdminLoading, AdminPage, AdminSummaryItem } from "./components/AdminUi";
+import {
+  AdminBanner,
+  AdminLoading,
+  AdminMetricCard,
+  AdminMetrics,
+  AdminPage,
+  AdminSectionCard
+} from "./components/AdminUi";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
@@ -21,12 +29,24 @@ export function RolesPage() {
   const [editing, setEditing] = useState<AdminRoleView | null>(null);
   const [deleting, setDeleting] = useState<AdminRoleView | null>(null);
   const [pendingFn, setPendingFn] = useState<(() => Promise<AdminResponse<unknown>>) | null>(null);
+  /** Assigned-user counts per role id; null when the caller can't read the user directory. */
+  const [assignedUsers, setAssignedUsers] = useState<Map<string, number> | null>(null);
 
   const reload = useCallback(async () => {
     const result = await security().admin.listRoles(sessionRef);
     if (result.ok && result.value) setRoles(result.value);
     else setError(adminReasonMessage(result.reason));
     setLoading(false);
+    // Best-effort assignment counts: the Users read is a separate privilege, so an unauthorized
+    // caller simply gets no "assigned users" metric rather than an error.
+    const users = await security().admin.listUsers(sessionRef);
+    if (users.ok && users.value) {
+      const counts = new Map<string, number>();
+      for (const user of users.value as AdminUserView[]) {
+        for (const roleId of user.roles) counts.set(roleId, (counts.get(roleId) ?? 0) + 1);
+      }
+      setAssignedUsers(counts);
+    }
   }, [sessionRef]);
 
   useEffect(() => { void reload(); }, [reload]);
@@ -48,17 +68,13 @@ export function RolesPage() {
   }, [reload]);
 
   if (loading) return <AdminPage><AdminLoading label="Loading roles…" /></AdminPage>;
+  const builtInCount = roles.filter((role) => role.builtIn).length;
+  const usersWithRoles = assignedUsers ? [...assignedUsers.values()].reduce((sum, count) => sum + count, 0) : null;
+
   return (
     <AdminPage
       title="Roles"
       description="Define reusable permission sets while keeping protected built-in roles intact."
-      summary={
-        <>
-          <AdminSummaryItem label="All roles" value={roles.length} />
-          <AdminSummaryItem label="Built in" value={roles.filter((role) => role.builtIn).length} />
-          <AdminSummaryItem label="Custom" value={roles.filter((role) => !role.builtIn).length} />
-        </>
-      }
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -66,30 +82,49 @@ export function RolesPage() {
         </>
       }
     >
+      <AdminMetrics label="Role summary">
+        <AdminMetricCard label="All roles" value={roles.length} icon={ShieldCheck} />
+        <AdminMetricCard label="Built in" value={builtInCount} hint="protected from edits" />
+        <AdminMetricCard label="Custom" value={roles.length - builtInCount} hint={roles.length - builtInCount > 0 ? "stored locally" : undefined} />
+        <AdminMetricCard
+          label="Assigned users"
+          value={usersWithRoles ?? "—"}
+          icon={UserSquare}
+          hint={assignedUsers ? "across all roles" : "requires Users access"}
+        />
+      </AdminMetrics>
       <p className="awkit-admin-muted">
         Built-in roles are protected. Custom roles are stored locally and enforced by the trusted
         authorization boundary.
       </p>
       <div className="awkit-admin-split awkit-admin-roles-layout">
       <div className="awkit-admin-role-grid">
-      {roles.map((role) => (
-        <section className="settings-card" key={role.id}>
-          <div className="awkit-admin-role-heading">
-            <h2><ShieldCheck size={16} /> {role.name}</h2>
-            <div className="awkit-admin-row-actions">
-              <span className="awkit-admin-muted">{role.permissions.length} permission{role.permissions.length === 1 ? "" : "s"}</span>
-              {role.builtIn ? <span className="awkit-admin-tag">Built in</span> : (
-                <>
-                  <button className="toolbar-button" type="button" onClick={() => setEditing(role)}>
-                    <Pencil size={14} aria-hidden="true" /> Edit
-                  </button>
-                  <button className="toolbar-button" type="button" onClick={() => setDeleting(role)}>
-                    <Trash2 size={14} aria-hidden="true" /> Delete
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+      {roles.map((role) => {
+        const assigned = assignedUsers?.get(role.id);
+        return (
+        <AdminSectionCard
+          key={role.id}
+          title={role.name}
+          icon={ShieldCheck}
+          meta={
+            <>
+              {role.permissions.length} permission{role.permissions.length === 1 ? "" : "s"}
+              {assigned != null ? <> · {assigned} user{assigned === 1 ? "" : "s"}</> : null}
+            </>
+          }
+          actions={role.builtIn ? (
+            <span className="awkit-admin-tag">Built in</span>
+          ) : (
+            <>
+              <button className="toolbar-button" type="button" onClick={() => setEditing(role)}>
+                <Pencil size={14} aria-hidden="true" /> Edit
+              </button>
+              <button className="toolbar-button" type="button" onClick={() => setDeleting(role)}>
+                <Trash2 size={14} aria-hidden="true" /> Delete
+              </button>
+            </>
+          )}
+        >
           <p className="awkit-admin-muted">{role.description || "No description."}</p>
           <div className="awkit-admin-perm-list awkit-admin-perm-preview">
             {role.permissions.length
@@ -99,8 +134,9 @@ export function RolesPage() {
                 </>
               : <span className="awkit-admin-muted">No permissions.</span>}
           </div>
-        </section>
-      ))}
+        </AdminSectionCard>
+        );
+      })}
       </div>
       <CreateRoleCard
         onCreate={(input) => sensitive(() => security().admin.createRole({ sessionRef, ...input }))}
@@ -166,8 +202,7 @@ function CreateRoleCard({
     setPermissions([]);
   };
   return (
-    <section className="settings-card awkit-admin-create-card awkit-admin-quick-create awkit-admin-role-create">
-      <h2><Plus size={16} /> Add a custom role</h2>
+    <AdminSectionCard title="Add a custom role" icon={Plus} className="awkit-admin-create-card awkit-admin-quick-create awkit-admin-role-create">
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field">
           <span className="awkit-login-field-label">Role name</span>
@@ -182,7 +217,7 @@ function CreateRoleCard({
           Create role
         </button>
       </form>
-    </section>
+    </AdminSectionCard>
   );
 }
 

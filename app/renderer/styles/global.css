@@ -11176,15 +11176,15 @@ table {
   width: 1px;
 }
 .awkit-admin-header {
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+  padding-block-end: var(--space-3);
 }
-.awkit-admin-heading { display: grid; gap: var(--space-1); max-width: 50rem; }
+.awkit-admin-heading { display: grid; gap: var(--space-1); max-width: 50rem; min-width: 0; }
 .awkit-admin-heading h1 { font-size: var(--text-xl); letter-spacing: var(--tracking-xl); margin: 0; }
 .awkit-admin-heading p { color: var(--awkit-text-secondary); font-size: var(--text-sm); line-height: var(--leading-sm); margin: 0; }
 .awkit-admin-header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -11233,35 +11233,80 @@ table {
 }
 .awkit-admin-primary-surface,
 .awkit-admin-primary-surface .awkit-admin-table-scroll { min-width: 0; width: 100%; }
-.awkit-admin-primary-surface {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 0;
+/* Administration cards share the app's card chrome (same surface/border/radius/shadow grammar as
+   .metric-card and .work-panel) scoped to admin pages only, so no other area changes. */
+.awkit-admin-page .settings-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+  padding: var(--space-4);
 }
-.awkit-admin-create-card { position: sticky; top: var(--space-4); }
-.awkit-admin-users-layout,
-.awkit-admin-roles-layout { grid-template-columns: minmax(0, 1fr); }
-.awkit-admin-quick-create {
-  border-bottom: 1px solid var(--awkit-border);
-  order: -1;
-  padding-bottom: var(--space-3);
-  position: static;
-}
-.awkit-admin-quick-create > h2 { margin-bottom: var(--space-2); }
-.awkit-admin-quick-create .awkit-admin-create-form {
-  align-items: end;
+.awkit-admin-card-meta { font-size: var(--text-xs); }
+.awkit-admin-card-description { margin: calc(var(--space-1) * -1) 0 0; }
+
+/* Summary/status metric cards (AdminMetricCard). Tone tints the icon chip and value; the base card
+   stays neutral so a page full of cards never turns loud. */
+.awkit-admin-metrics {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
 }
-.awkit-admin-quick-create .awkit-admin-roles {
-  grid-column: span 2;
-  margin: 0;
+.awkit-admin-metric-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
 }
-.awkit-admin-role-create .awkit-admin-permission-picker { grid-column: 1 / -1; }
-.awkit-admin-role-create .toolbar-button.primary { grid-column: 3; }
+.awkit-admin-metric-top { align-items: center; display: flex; gap: var(--space-2); min-width: 0; }
+.awkit-admin-metric-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent);
+  display: inline-grid;
+  flex: none;
+  height: 1.6rem;
+  place-items: center;
+  width: 1.6rem;
+}
+.awkit-admin-metric-label {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.awkit-admin-metric-value {
+  color: var(--awkit-text);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: var(--tracking-xl);
+  line-height: 1.2;
+}
+.awkit-admin-metric-hint { color: var(--awkit-text-muted); font-size: var(--text-2xs); }
+.awkit-admin-metric-card.tone-success .awkit-admin-metric-icon { background: var(--awkit-success-soft); color: var(--awkit-success); }
+.awkit-admin-metric-card.tone-warning .awkit-admin-metric-icon { background: var(--awkit-warning-soft); color: var(--awkit-warning); }
+.awkit-admin-metric-card.tone-danger .awkit-admin-metric-icon { background: var(--awkit-danger-soft); color: var(--awkit-danger); }
+.awkit-admin-metric-card.tone-info .awkit-admin-metric-icon { background: var(--awkit-info-soft); color: var(--awkit-info); }
+.awkit-admin-metric-card.tone-danger .awkit-admin-metric-value { color: var(--awkit-danger); }
+.awkit-admin-create-card { position: sticky; top: var(--space-4); }
+.awkit-admin-users-layout,
+.awkit-admin-roles-layout { grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem); }
+.awkit-admin-quick-create > h2 { margin-bottom: var(--space-2); }
+.awkit-admin-quick-create .awkit-admin-create-form {
+  align-items: stretch;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+.awkit-admin-quick-create .awkit-admin-roles { grid-column: auto; }
+.awkit-admin-role-create .toolbar-button.primary { grid-column: auto; }
 .awkit-admin-role-grid {
   display: grid;
   gap: var(--space-2);
@@ -11434,6 +11479,13 @@ table {
   gap: var(--space-2);
   margin-block: var(--space-3) var(--space-2);
 }
+.awkit-admin-filter-count {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+.awkit-admin-matrix-count { color: var(--awkit-text-muted); font-weight: 500; margin-inline-start: var(--space-2); }
 .awkit-admin-search-field {
   align-items: center;
   background: var(--awkit-surface);
@@ -11484,17 +11536,23 @@ table {
 @media (max-width: 68rem) {
   .awkit-admin-split,
   .awkit-admin-dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+  .awkit-admin-users-layout,
+  .awkit-admin-roles-layout { grid-template-columns: minmax(0, 1fr); }
   .awkit-admin-create-card { position: static; }
   .awkit-admin-license-status { grid-column: auto; }
+  .awkit-admin-quick-create {
+    border-bottom: 1px solid var(--awkit-border);
+    order: -1;
+    padding-bottom: var(--space-3);
+  }
   .awkit-admin-quick-create .awkit-admin-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .awkit-admin-role-create .toolbar-button.primary { grid-column: 2; }
 }
 
 @media (max-width: 42rem) {
   .awkit-admin-page { padding: var(--space-3); }
-  .awkit-admin-context { align-items: stretch; flex-direction: column; }
-  .awkit-admin-summary { align-items: stretch; flex-direction: column; gap: var(--space-1); }
-  .awkit-admin-summary-item { border: 0; margin: 0; padding: 0; }
+  .awkit-admin-header { align-items: stretch; flex-direction: column; }
+  .awkit-admin-metrics { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
   .awkit-admin-quick-create .awkit-admin-create-form { grid-template-columns: minmax(0, 1fr); }
   .awkit-admin-quick-create .awkit-admin-roles,
   .awkit-admin-role-create .awkit-admin-permission-picker { grid-column: auto; }
