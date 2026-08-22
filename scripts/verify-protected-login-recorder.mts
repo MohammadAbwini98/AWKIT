@@ -3,10 +3,14 @@
 //  2. Live detection against the offline Mock Site protected scenarios (main page + popups).
 //  3. Flow serialization of the inserted Auto Secure Login / Reuse Session nodes (session id linked),
 //     and that legacy recorded flows still build unchanged.
+//  4. The full Capture Session & Resume lifecycle: pause → manual-browser handoff (synthetic capture
+//     service; real Chrome is never launched) → session validated against a REAL captured persistent
+//     profile → Playwright relaunches bound to that profile → Recorder resumes → post-login actions
+//     append → draft persists with secure nodes first.
 //
 // Run: npm run verify:protected-login-recorder
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
@@ -214,6 +218,8 @@ async function waitForServer(): Promise<void> {
 let browser: Browser | undefined;
 let recorder: RecorderService | undefined;
 let capturedProfileDir: string | undefined;
+const resumeProfileDirs: string[] = [];
+let resumeDraftDir = "";
 try {
   await waitForServer();
 
@@ -305,6 +311,161 @@ try {
   );
   await recorder.cancelRecording();
   recorder = undefined;
+
+  console.log("Capture Session & Resume — recorder resume lifecycle:");
+  {
+    resumeDraftDir = await mkdtemp(join(tmpdir(), "awkit-rec022-resumedraft-"));
+    // A REAL captured profile: a persistent context seeded with the persisted authentication signal,
+    // exactly the state a completed manual Chrome login leaves behind. The synthetic capture service
+    // below only stands in for spawning real Chrome (never done from automation) — everything after
+    // "Capture Session & Resume" runs through the product's real Playwright/Recorder layers.
+    const resumeProfileDir = await mkdtemp(join(tmpdir(), "awkit-rec022-resume-"));
+    resumeProfileDirs.push(resumeProfileDir);
+    const seededContext = await chromium.launchPersistentContext(resumeProfileDir, { headless: true });
+    const seededPage = seededContext.pages()[0] ?? (await seededContext.newPage());
+    await seededPage.goto(`${BASE}/mock/session-reuse`);
+    await seededPage.evaluate(() => {
+      localStorage.setItem("awkit.mock.session-reuse.authenticated", "true");
+    });
+    await seededPage.close();
+    await seededContext.close();
+    const seededProbe = await chromium.launchPersistentContext(resumeProfileDir, { headless: true });
+    const probePage = seededProbe.pages()[0] ?? (await seededProbe.newPage());
+    await probePage.goto(`${BASE}/mock/session-reuse`);
+    check(
+      "captured resume profile carries the persisted authentication signal",
+      (await probePage.getByTestId("auth-status").getAttribute("data-authenticated")) === "true"
+    );
+    await seededProbe.close();
+
+    const RESUME_SESSION_ID = "rec022-resume-session";
+    let startCaptureCalls = 0;
+    let stopCaptureCalls = 0;
+    let renamedTo = "";
+    const resumeProfile: SessionProfile = {
+      id: RESUME_SESSION_ID,
+      name: "REC-022 handoff session",
+      profileDir: resumeProfileDir,
+      targetUrl: `${BASE}/mock/session-reuse`,
+      loginUrl: `${BASE}/mock/session-reuse`,
+      origin: BASE,
+      source: "manualChromeHandoff",
+      createdAt: new Date().toISOString(),
+      status: "ready"
+    };
+    const syntheticCapture = {
+      list: async () => [resumeProfile],
+      startCapture: async () => {
+        startCaptureCalls += 1;
+        return { active: true, sessionId: RESUME_SESSION_ID, sessionName: resumeProfile.name, status: "running" as const };
+      },
+      stopCapture: () => {
+        stopCaptureCalls += 1;
+      },
+      getStatus: () => ({ active: false, status: "closed" as const }),
+      getById: async (id: string) => (id === RESUME_SESSION_ID ? resumeProfile : null),
+      hasCapturedData: (id: string) => id === RESUME_SESSION_ID,
+      rename: async (_id: string, newName: string) => {
+        renamedTo = newName;
+        return { ...resumeProfile, name: newName };
+      },
+      markUsed: async () => undefined
+    } as any;
+
+    const resumeDraftPath = join(resumeDraftDir, "recorder-draft.json");
+    recorder = new RecorderService();
+    recorder.configureSessionCapture(syntheticCapture);
+    recorder.configureDraftStorage(resumeDraftPath);
+    await recorder.startRecording(`${BASE}/mock/sso-text-app`, {
+      executablePath: chromium.executablePath(),
+      captureSmartWaits: false
+    });
+    const resumeInternals = recorder as unknown as {
+      browser: Browser | null;
+      page: Page | null;
+    };
+    const preLoginPage = resumeInternals.page;
+    if (!preLoginPage) throw new Error("Resume recorder did not expose its live page.");
+
+    await preLoginPage.getByTestId("open-reports").click();
+    await waitUntil(() => (recorder?.getActions().length ?? 0) > 1, "pre-handoff business action");
+    const preHandoffCount = recorder!.getActions().length;
+    check("pre-handoff draft holds recorded business actions", preHandoffCount > 1, String(preHandoffCount));
+
+    await preLoginPage.goto(`${BASE}/mock/protected-login`);
+    await waitUntil(() => recorder?.getHandoff()?.phase === "detected", "protected detection before handoff");
+    check("handoff lifecycle starts paused", recorder!.getStatus().isRecording === false);
+
+    await recorder!.continueWithNormalBrowser();
+    await waitUntil(() => recorder?.getHandoff()?.phase === "capturingSession", "manual capture phase");
+    check(
+      "automation browser closes before the manual browser opens",
+      resumeInternals.browser === null && (preLoginPage.isClosed() || resumeInternals.page !== preLoginPage)
+    );
+    check("manual session capture started exactly once", startCaptureCalls === 1 && stopCaptureCalls === 0, `${startCaptureCalls}/${stopCaptureCalls}`);
+
+    await recorder!.captureSessionAndResume("REC-022 resumed session");
+    await waitUntil(() => recorder?.getHandoff()?.phase === "resumed", "recorder resume on captured session");
+    check("capture stopped the manual browser exactly once", stopCaptureCalls === 1, String(stopCaptureCalls));
+    check("captured session was renamed through the service seam", renamedTo === "REC-022 resumed session", renamedTo);
+    check("recorder is recording again after resume", recorder!.getStatus().isRecording === true);
+
+    const actionsAfterResume = recorder!.getActions();
+    check(
+      "secure nodes were inserted at the front of the resumed draft",
+      actionsAfterResume[0]?.type === "autoSecureLogin" && actionsAfterResume[1]?.type === "reuseSession",
+      actionsAfterResume.slice(0, 2).map((a) => a.type).join(",")
+    );
+    check(
+      "Reuse Session links the captured session id",
+      actionsAfterResume[1]?.config?.reuseSessionId === RESUME_SESSION_ID,
+      String(actionsAfterResume[1]?.config?.reuseSessionId)
+    );
+
+    // Prove the resumed context actually uses the captured profile's storage state: navigating to
+    // the reuse scenario shows authenticated with NO login interaction performed by anyone.
+    const resumedPage = resumeInternals.page;
+    if (!resumedPage) throw new Error("Resumed recorder page disappeared.");
+    await resumedPage.goto(`${BASE}/mock/session-reuse`);
+    await resumedPage
+      .getByTestId("auth-status")
+      .filter({ hasText: "Authenticated" })
+      .waitFor({ timeout: 5_000 });
+    check(
+      "resumed Playwright context reuses the captured session state",
+      (await resumedPage.getByTestId("auth-status").getAttribute("data-authenticated")) === "true"
+    );
+
+    // Append one ordinary post-login business action through the live bindings.
+    const countAfterResume = recorder!.getActions().length;
+    await resumedPage.getByTestId("dashboard").click({ force: true });
+    await waitUntil(() => (recorder?.getActions().length ?? 0) > countAfterResume, "post-resume action");
+    const postResumeActions = recorder!.getActions();
+    check(
+      "ordinary post-login actions append after resume",
+      postResumeActions.length > countAfterResume && postResumeActions[postResumeActions.length - 1].type === "click",
+      `${postResumeActions.length}/${countAfterResume}`
+    );
+
+    // Save/reload: stopRecording flushes the draft; the file must round-trip secure-first ordering.
+    const finalActions = await recorder!.stopRecording();
+    recorder = undefined;
+    check("stop returns the full resumed flow", finalActions.length >= 4 && finalActions[0].type === "autoSecureLogin" && finalActions[1].type === "reuseSession", `${finalActions.length}`);
+    const persistedResumeDraft = JSON.parse(await readFile(resumeDraftPath, "utf8"));
+    check(
+      "the resumed draft persists to disk secure-nodes-first",
+      Array.isArray(persistedResumeDraft.actions) &&
+        persistedResumeDraft.actions.length === finalActions.length &&
+        persistedResumeDraft.actions[0].type === "autoSecureLogin" &&
+        persistedResumeDraft.actions[1].config.reuseSessionId === RESUME_SESSION_ID,
+      `${persistedResumeDraft.actions?.length}/${finalActions.length}`
+    );
+    check(
+      "no login interaction exists anywhere in the resumed draft",
+      !finalActions.some((a) => /simulate.?login|complete.?login/i.test(a.name)),
+      finalActions.map((a) => a.name).join("|").slice(0, 120)
+    );
+  }
 
   browser = await chromium.launch();
   const context = await browser.newContext();
@@ -557,6 +718,8 @@ try {
   if (recorder) await recorder.cancelRecording().catch(() => undefined);
   if (browser) await browser.close().catch(() => undefined);
   if (capturedProfileDir) await rm(capturedProfileDir, { recursive: true, force: true }).catch(() => undefined);
+  for (const dir of resumeProfileDirs) await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  if (resumeDraftDir) await rm(resumeDraftDir, { recursive: true, force: true }).catch(() => undefined);
   server.kill();
 }
 
