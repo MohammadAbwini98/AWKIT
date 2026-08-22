@@ -53,14 +53,16 @@
 - Workflow Builder and Flow Designer share the `EditorCommandBar` presentation grammar: grouped
   identity/task/layout/state regions, compact accessible history controls, wrapped command groups,
   and no normal desktop horizontal toolbar scroll. Domain handlers remain editor-owned.
-- Users, Roles, Permissions, Audit Log, and Licensing share an Administration shell with consistent
-  visible page headers (title + description + header action), a responsive metric-card summary row
-  (`AdminMetrics`/`AdminMetricCard`, four cards per page, tone-aware icons), section cards
+- Users, Roles, Permissions, Audit Log, Licensing, and License Issuer share an Administration shell
+  with consistent visible page headers (title + description + header action), a responsive metric-card
+  summary row (`AdminMetrics`/`AdminMetricCard`, four cards per page, tone-aware icons), section cards
   (`AdminSectionCard`), table toolbars with live counts, and shared status/loading/empty/error
   patterns. Users/Roles restore a two-column directory + create rail at wide widths (stacks below
   68rem). Roles shows assigned-user counts when the caller can read the directory; Audit Log adds
-  failures/distinct-actors cards. Permission groups are derived from the actual permission prefixes;
-  Audit Log filters the real local records; RBAC/licensing IPC remains trusted-main-process enforced.
+  failures/distinct-actors cards. License Issuer adds signing-key/request/entitlements/issued metric
+  cards while keeping its role-exclusive access untouched. Permission groups are derived from the
+  actual permission prefixes; Audit Log filters the real local records; RBAC/licensing IPC remains
+  trusted-main-process enforced.
 - Workflows uses the full available content width with flexible columns and a compact actions column.
 - Embedded Program Status reuses the canonical roadmap view registry and dashboard CSS with a distinct
   right-side section rail inside the application shell. It remains Super-User-only, offline, read-only,

@@ -2,19 +2,26 @@
 
 ## Administration UI redesigned on the SpecterStudio system (2026-08-22)
 
-The five Administration screens (Users, Roles, Permissions, Audit Log, Licensing) now share a
-visible page header (title + description + primary action), a responsive metric-card summary row,
-and section cards with table toolbars and live counts. Shared kit additions: `AdminMetrics`,
+The six Administration screens (Users, Roles, Permissions, Audit Log, Licensing, License Issuer)
+now share a visible page header (title + description), a responsive metric-card summary row, and
+section cards with table toolbars and live counts. Shared kit additions: `AdminMetrics`,
 `AdminMetricCard` (tone-aware icon chips), `AdminSectionCard`; the previously screen-reader-only
 `.awkit-admin-header` is now visible; Users/Roles restore the wide two-column directory+create
 layout (collapses ≤68rem). Roles shows assigned-user counts only when the caller can read the user
-directory (best-effort, no fabricated numbers). All metrics derive from real product data
-(`listRoles`/`listUsers`/`listAudit`/license status view); no fake controls were added.
-Verification: `verify:admin-gui` **29/29** (real Electron, first-run SU provisioning, create-user /
-create-role / edit / delete / deny-override round-trips, containment at 1024/1280/1440/1920, dark
-and light screenshots of all pages — visually inspected), `verify:e2e-rbac` 70/70, `verify:authz`
-92/92, `verify:super-user-controls` 49/49, `verify:licensing` 183/183, `verify:e2e-licensing`
-38/38, build, typecheck:scripts, verifier-classification, roadmap-dashboard **167/167**
+directory (best-effort, no fabricated numbers). License Issuer was brought fully into the grammar:
+header, four metric cards (signing-key readiness / request loaded / entitlements selected / issued
+this session), side-by-side readiness+request cards — with zero changes to issuer trust, signing,
+key custody, or enforcement. All metrics derive from real product data
+(`listRoles`/`listUsers`/`listAudit`/license status view/issuer readiness); no fake controls were
+added.
+
+Verification: `verify:admin-gui` **36/36** (real Electron; first-run SU provisioning; user/role CRUD,
+deny-override round-trips; the role-exclusive License Issuer journey — SU nav hidden, dedicated
+Issuer account created through the supported UI, forced-password-change completed, RBAC-separated
+nav, page verified at 1024/1280/1440/1920 in dark and light with screenshots visually inspected),
+`verify:e2e-rbac` 70/70, `verify:authz` 92/92, `verify:super-user-controls` 49/49,
+`verify:licensing` 183/183, `verify:e2e-licensing` 38/38, `verify:source-hygiene` 9/9, build,
+typecheck:scripts, verifier-classification reconciled, roadmap-dashboard **167/167**
 (**Sources agree**). The comprehensive-validation ledger is unchanged at **64 PASS / 2 NOT RUN /
 0 BLOCKED**.
 

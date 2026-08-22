@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+---
+
+## 2026-08-22 - opencode - Administration audit: License Issuer integrated, GUI verifier extended to 36/36
+
+- **Objective:** final Administration visual/functional audit; finish License Issuer consistency;
+  reconcile roadmap sources.
+- **Changes:** LicenseIssuerPage brought into the shared grammar — visible header, four metric cards
+  (signing-key readiness / activation-request loaded / entitlements selected / issued this session),
+  side-by-side readiness+request section cards; no issuer trust/signing/key-custody changes.
+  `verify-admin-gui.mjs` extended from 29 to **36 checks**: asserts the role-exclusive License Issuer
+  route stays hidden from the Super User, creates a dedicated Issuer account through the supported
+  Users UI, completes the real forced-password-change flow after sign-out/sign-in, verifies
+  RBAC-separated nav (Issuer sees no admin pages), and captures the redesigned page at
+  1024/1280/1440/1920 in dark and light (screenshots visually inspected).
+- **Verification:** build PASS; typecheck:scripts PASS; `verify:admin-gui` **36/36**;
+  e2e-rbac 70/70; authz 92/92; super-user-controls 49/49; licensing 183/183; e2e-licensing 38/38;
+  source-hygiene 9/9; verifier-classification reconciled; roadmap-dashboard **167/167**,
+  **Sources agree**. Ledger unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## 2026-08-22 - opencode - Administration UI redesign on the SpecterStudio system
 
 - **Objective:** make every Administration screen (Users, Roles, Permissions, Audit Log, Licensing)
