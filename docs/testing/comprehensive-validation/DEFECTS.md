@@ -6,6 +6,54 @@ None.
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-REC-002 (`awkit-cey`) — Session-profile store lost writes to Windows file contention
+
+- **Classification:** Product defect
+- **Severity:** S2 / A saved session profile could silently vanish from the registry
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-22 in `b16812a`; Bead `awkit-cey` remains open on the live IdP gate**
+- **Owner routing:** Recorder / session persistence
+- **Affected area:** `src/session/SessionCaptureService.ts`, new `src/session/atomicWrite.ts`
+- **Detected by:** REC-022 contract inspection (no verifier exercised the store at all)
+
+`writeProfiles` was a plain `writeFile`: a torn write (crash mid-write) or transient Windows
+contention (`EPERM`/`EBUSY` from antivirus or a browser still releasing the directory) could
+destroy or fail the `session-profiles.json` update, and unsynchronized read-modify-write cycles
+(a rename racing the capture-exit handler) could drop one mutation entirely. Writes now go through
+a temp-file + rename atomic write with bounded `EPERM`/`EBUSY` retry, and every metadata mutation
+is serialized through an operation chain.
+
+**Evidence:** `verify:recorder-draft` extended 50/50 → **83/83**: real-file round trips
+(rename/markUsed survive close/reload), corrupt and missing metadata recover safely, unknown
+compatible fields survive losslessly, concurrent rename+markUsed both land, injected-seam retry
+proofs (EBUSY retried then succeeds; exhausted retries throw; non-retryable codes fail fast), no
+temp residue. Forcing single-attempt writes crashed the retry probe with a fatal EBUSY; restoring
+the retry returned 83/83.
+
+---
+
+### AWKIT-REC-001 (`awkit-cey`) — Cancelling a protected-login handoff discarded the pre-login draft
+
+- **Classification:** Product defect
+- **Severity:** S2 / A user-aborted handoff destroyed already-recorded work
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-22 in `1e85946`; Bead `awkit-cey` remains open on the live IdP gate**
+- **Owner routing:** Recorder handoff lifecycle
+- **Affected area:** `src/recorder/RecorderService.ts` (`cancelSecureHandoff`)
+- **Detected by:** REC-022 contract AC-1 inspection
+
+`cancelSecureHandoff` called `discardDraft()`, so cancelling out of a protected-login handoff —
+including after the user had already completed a manual login in Chrome — deleted the actions
+recorded before the pause. The cancel path now flushes and preserves the draft (disk + memory);
+discarding remains owned by full-recording Cancel (`cancelRecording`) and the save path.
+
+**Evidence:** `verify:recorder-draft` REC-022 section: draft survives cancel in both
+`capturingSession` and `detected` phases, stays intact on restart, and explicit discard still
+deletes it. Re-adding `discardDraft()` failed exactly those five assertions (**78/83**); the fix
+restored **83/83**.
+
+---
+
 ### AWKIT-MAP-001 (`awkit-rvb`) — Designer no-op save fabricated clickAndHold configuration
 
 - **Classification:** Product defect

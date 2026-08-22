@@ -162,7 +162,7 @@
       "type": "build",
       "command": "npm run build",
       "required": true,
-      "result": "pending",
+      "result": "PASS",
       "artifact": null
     },
     {
@@ -170,125 +170,135 @@
       "type": "build",
       "command": "npm run typecheck:scripts",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "0 diagnostics."
     },
     {
       "id": "EV-recorder-draft",
       "type": "verifier",
       "command": "npm run verify:recorder-draft",
       "required": true,
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "Must include a mutation-proven assertion that cancelSecureHandoff leaves the draft readable."
+      "note": "83/83 (was 50/50). Includes mutation-proven assertions that cancelSecureHandoff leaves the draft readable on disk and in memory across restart; re-adding discardDraft() failed exactly those five checks at 78/83."
     },
     {
       "id": "EV-protected-login",
       "type": "security",
       "command": "npm run verify:protected-login",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "26/26."
     },
     {
       "id": "EV-protected-login-recorder",
       "type": "verifier",
       "command": "npm run verify:protected-login-recorder",
       "required": true,
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "Phase 1 baseline read 57/57 but was NOT RUN by this workstream; it must be executed, not inherited."
+      "note": "72/72 (was 57/57), executed by this workstream. New Capture Session & Resume section drives the real Recorder/Playwright layers against a REAL captured persistent profile with a synthetic capture seam; disabling insertSecureSessionNodes failed exactly the four new lifecycle checks at 68/72."
     },
     {
       "id": "EV-session-context",
       "type": "verifier",
       "command": "npm run verify:session-context",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "11/11."
     },
     {
       "id": "EV-session-lifecycle",
       "type": "verifier",
-      "command": null,
+      "command": "npm run verify:recorder-draft (session-profile store section)",
       "required": true,
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "Phase 3 coverage of the persistence round trip, atomic write with EPERM/EBUSY retry, and the nine recovery scenarios. Command is filled in once the owning verifier is chosen; extend an existing verifier rather than adding an npm script unless the contract is amended."
+      "note": "Real-file round trips through SessionCaptureService: save -> close/reinitialize -> reload -> resolve; atomic EPERM/EBUSY-resilient writes via src/session/atomicWrite.ts; corrupt/missing metadata recover safely; unknown compatible fields preserved losslessly; concurrent rename+markUsed without lost updates; delete removes entry and directory; hasCapturedData existence-only semantics pinned."
     },
     {
       "id": "EV-recorder-redaction",
       "type": "security",
       "command": "npm run verify:recorder-redaction",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "15/15 with non-vacuous positive control."
     },
     {
       "id": "EV-recorder-gui",
       "type": "gui",
       "command": "npm run verify:recorder-gui",
       "required": false,
-      "result": "pending",
-      "artifact": null
+      "result": "NOT RUN",
+      "artifact": null,
+      "note": "Broad GUI suite untouched by these surfaces; focused protected-login-recorder covers the changed paths."
     },
     {
       "id": "EV-runner",
       "type": "verifier",
       "command": "npm run verify:runner",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "121/121."
     },
     {
       "id": "EV-legacy-compat",
       "type": "verifier",
       "command": "npm run verify:legacy-compat",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "152/152."
     },
     {
       "id": "EV-source-hygiene",
       "type": "security",
       "command": "npm run verify:source-hygiene",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "9/9."
     },
     {
       "id": "EV-verifier-classification",
       "type": "verifier",
       "command": "npm run verify:verifier-classification",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "196 scripts reconciled; verify:recorder-draft why-string extended for its expanded scope. No new npm script added."
     },
     {
       "id": "EV-roadmap-dashboard",
       "type": "verifier",
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "167/167, Overview Sources agree."
     },
     {
       "id": "EV-mutation",
       "type": "verifier",
-      "command": null,
+      "command": "manual mutations of src/recorder/RecorderService.ts and src/session/atomicWrite.ts",
       "required": true,
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "Mutation proof for every new or changed assertion: draft not persisted on cancel, non-atomic profile write, required session metadata stripped, corrupted session accepted, missing session treated as success, wrong scoped profile accepted, synthetic sensitive marker leaked into report serialization. Record mutation, expected failure, actual failing assertion and count, restored green result. No mutation residue may be committed."
+      "note": "M1 discardDraft() restored into cancelSecureHandoff -> recorder-draft 78/83 (5 expected failures). M2 attempts forced to 1 in writeJsonFileAtomic -> store retry probe crashed exit 1 with fatal EBUSY (expected failure). M3 insertSecureSessionNodes disabled -> protected-login-recorder 68/72 (4 expected failures). All mutants restored; final green counts recorded above; no residue committed."
     },
     {
       "id": "EV-live-idp",
       "type": "gui",
       "command": null,
       "required": true,
-      "result": "pending",
+      "result": "BLOCKED",
       "artifact": null,
-      "note": "Phase 4 authorized real identity-provider walkthrough. Prerequisites: an approved real test account, an authorized operator present at the machine, and the operator's understanding that every protected step is completed manually. Only an executed PASS satisfies AC-6; a missing prerequisite is recorded BLOCKED with the exact prerequisite named. It must never be satisfied by a mock account."
+      "note": "Phase 4 preflight failed on external prerequisites: (1) no approved real test identity is provisioned for REC-022, and (2) no authorized operator is present to manually complete every protected step (login/MFA/OTP/CAPTCHA) in real Chrome. AC-6 is NOT satisfied and must never be satisfied by a mock account. Everything automatable was completed and mutation-proofed first."
     }
   ],
   "scope_escapes": [],

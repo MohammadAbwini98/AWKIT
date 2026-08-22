@@ -345,15 +345,21 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   capture session; resume; save; replay.
 - **Expected:** AWKIT never types or solves protected input; protected page actions are not recorded;
   captured session produces Auto Secure Login + Reuse Session nodes; resumed business steps replay.
-- **Status:** `BLOCKED` — `npm run verify:protected-login-recorder` (**57/57**) now automates every
-  mock-expressible expectation: the actual Recorder pauses with a non-empty draft while its automation
-  browser remains open and inert; attempted password/OTP inputs and a direct paused
+- **Status:** `BLOCKED` — `npm run verify:protected-login-recorder` (**72/72**) now automates every
+  mock-expressible expectation: the actual Recorder pauses with a non-empty draft while its
+  automation browser remains open and inert; attempted password/OTP inputs and a direct paused
   `recordActionFromPage` call leave the action count exactly unchanged; the identical action records
   after resume; secure nodes preserve the selected session id; and a production runner flow containing
   Auto Secure Login + Reuse Session reaches the authenticated dashboard from a persisted-profile
   fixture without a login interaction. The identical flow fails when that profile is removed, and
-  the same dashboard assertion fails in a fresh no-session context. The remaining manual script is
-  only the real-IdP step: an authorized operator with an
+  the same dashboard assertion fails in a fresh no-session context. The full Capture Session &
+  Resume lifecycle is also proven through the real layers: cancelling the handoff preserves the
+  pre-login draft on disk; the session-profile store round-trips through atomic EPERM/EBUSY-resilient
+  writes with corrupt/missing recovery (`verify:recorder-draft`, **83/83**); after a synthetic manual
+  capture against a REAL captured persistent profile, Playwright relaunches bound to that profile,
+  shows the authenticated state from reused session storage with no login interaction, records
+  ordinary post-login actions, and persists the draft secure-nodes-first. The remaining manual script
+  is only the real-IdP step: an authorized operator with an
   approved test identity must complete the real Chrome login/MFA/CAPTCHA handoff and confirm reuse.
   Tracked as `awkit-cey`; no protected input may be automated.
 
@@ -365,11 +371,14 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Cancel in each allowed phase; force capture/resume errors; retry or start a new recording.
 - **Expected:** Automation/manual browsers close appropriately; draft/session state follows the
   documented policy; error is actionable; no stale active handoff blocks the next session.
-- **Status:** `PASS` — `npm run verify:recorder-draft`, **50/50**. Cancel from every phase
+- **Status:** `PASS` — `npm run verify:recorder-draft`, **83/83**. Cancel from every phase
   (`detected`, `capturingSession`, `sessionCaptured`, `error`) completes without throwing, ends the
   recording, and leaves no active handoff to block the next session. The phase guards refuse
   out-of-order operations with actionable messages: ignore with no detection waiting, normal-browser
-  handoff from the `error` phase, and session capture before the capture phase begins.
+  handoff from the `error` phase, and session capture before the capture phase begins. Cancelling a
+  handoff additionally PRESERVES the pre-login draft (disk + memory, restart-safe), while explicit
+  discard still deletes it; the same verifier now also covers the session-profile metadata store
+  (atomic EPERM/EBUSY-resilient writes, corrupt/missing recovery, lossless round trips).
 
 ### REC-024 — Browser closes or crashes during recording
 

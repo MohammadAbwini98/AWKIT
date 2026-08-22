@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-22 - opencode - awkit-cey / REC-022 phased hardening, session-lifecycle proof, live gate BLOCKED
+
+- **Objective:** close the evidence gap on REC-022 per the `docs/ai/contracts/awkit-cey.json`
+  contract: draft-preserving handoff cancel, crash-safe session-profile store, full
+  capture→save→reload→Reuse Session→resume→Runner-reuse lifecycle through responsible layers,
+  mutation-proofed; the authorized real-IdP walkthrough remains the acceptance gate.
+- **Classification and result:** two product defects fixed — `cancelSecureHandoff` discarded the
+  pre-login draft (`1e85946`) and `SessionCaptureService.writeProfiles` was a plain non-atomic
+  write with no EPERM/EBUSY retry or lost-update serialization (`b16812a`, new
+  `src/session/atomicWrite.ts`). Regression coverage added in `ece6868` (recorder-draft 50/50 →
+  **83/83**) and `2fdf06d` (protected-login-recorder 57/57 → **72/72**: full Capture Session &
+  Resume lifecycle against a real captured persistent profile, secure nodes first, no login
+  interaction anywhere in the resumed draft).
+- **Mutation proof:** re-adding `discardDraft()` failed recorder-draft **78/83** (exactly the five
+  new AC-1 assertions); forcing single-attempt atomic writes crashed the store retry probe with a
+  fatal EBUSY; disabling `insertSecureSessionNodes` failed protected-login-recorder **68/72**
+  (exactly the four new lifecycle assertions). All mutations restored before commit.
+- **Live IdP walkthrough:** **BLOCKED** — no approved test identity and no authorized operator are
+  available to this session. AC-6 is not satisfied; `awkit-cey` stays blocked. Ledger unchanged at
+  **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- Gates green at closure state: build, typecheck:scripts (0 diagnostics),
+  verifier-classification (196 reconciled), roadmap-dashboard (**167/167**, Sources agree),
+  runner 121/121, legacy-compat 152/152, protected-login 26/26, session-context 11/11,
+  recorder-redaction 15/15, source-hygiene 9/9. `verify:mock-site` NOT RUN (no mock-site file
+  changed); `validate:offline` NOT RUN (no packaging/offline surface touched).
+
+
 ## 2026-08-22 - multi-agent (frontend → QA → project-state) - close awkit-rvb / awkit-rvo / awkit-rvt
 
 - **Objective:** resolve and reconcile the two red random-lab baselines plus the red script-typecheck

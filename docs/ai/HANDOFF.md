@@ -1,5 +1,44 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-22) - awkit-cey / REC-022 hardened and lifecycle-proven; live IdP walkthrough BLOCKED
+
+### Transfer
+
+- **Canonical branch:** `main`. Product repairs: `1e85946` (handoff cancel preserves the draft —
+  AWKIT-REC-001), `b16812a` (atomic EPERM/EBUSY-resilient session-profile store writes + serialized
+  mutations, new `src/session/atomicWrite.ts` — AWKIT-REC-002). Coverage: `ece6868`
+  (`verify:recorder-draft` 50/50 → **83/83**) and `2fdf06d` (`verify:protected-login-recorder`
+  57/57 → **72/72**, full Capture Session & Resume lifecycle). Ledger unchanged at **63 PASS /
+  2 NOT RUN / 1 BLOCKED**.
+- **Tracker:** `awkit-cey` stays BLOCKED. The only remaining acceptance evidence is the authorized
+  real-IdP walkthrough (AC-6): an approved test identity plus an authorized operator present at the
+  machine who manually completes every protected step. Everything the offline mock can express is
+  now automated and mutation-proofed; defect records AWKIT-REC-001/002 are in
+  `docs/testing/comprehensive-validation/DEFECTS.md`.
+- **Security boundary intact:** no protected-surface automation anywhere in the new coverage — the
+  manual capture is a synthetic service seam (real Chrome is never spawned by automation), the
+  captured profile is a REAL persistent context seeded like a completed manual login, and the
+  resumed draft contains zero login interactions.
+
+### Verified final evidence
+
+- Gates green: build; typecheck:scripts (**0 diagnostics**); verifier-classification reconciled;
+  roadmap-dashboard **167/167**, Overview **Sources agree**; runner 121/121; legacy-compat 152/152;
+  protected-login 26/26; session-context 11/11; recorder-redaction 15/15; source-hygiene 9/9;
+  recorder-draft 83/83; protected-login-recorder 72/72.
+- Mutation proof: discard-on-cancel mutant failed recorder-draft **78/83** on exactly the five new
+  AC-1 checks; single-attempt atomic writes crashed the retry probe with a fatal EBUSY; disabling
+  `insertSecureSessionNodes` failed protected-login-recorder **68/72** on exactly the four new
+  lifecycle checks. All mutants restored before commit.
+
+### Intentionally not run or changed
+
+- `verify:mock-site` NOT RUN — no mock-site file changed; the mock secure-login scenarios were
+  exercised via the focused verifiers above. `validate:offline` NOT RUN — no packaging/offline
+  surface touched. No Phase-K roadmap phase status moved; `awkit-cey` closure still requires AC-6.
+- Prior-session dirt preserved untouched: `docs/ai/contracts/active-lease.json`,
+  `docs/ai/contracts/awkit-9qcz.json`, untracked `run-app-demo.mjs`.
+
 ## HANDOFF (2026-08-22) - awkit-rvb / awkit-rvo / awkit-rvt CLOSED and fully reconciled
 
 ### Transfer

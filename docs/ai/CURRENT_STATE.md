@@ -1,5 +1,40 @@
 # CURRENT_STATE
 
+## awkit-cey / REC-022: handoff + session-store defects fixed, lifecycle proven, live IdP gate BLOCKED (2026-08-22)
+
+The REC-022 evidence gap shrank to the irreducibly manual step. The comprehensive-validation ledger
+is unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED** — REC-022 remains the one BLOCKED case because
+the authorized real-identity-provider walkthrough has not been executed.
+
+- **Two product defects found by contract inspection and fixed.** `cancelSecureHandoff` called
+  `discardDraft()`, destroying the pre-login draft when a protected-login handoff was cancelled; it
+  now flushes and preserves it (`1e85946`, defect record AWKIT-REC-001). `SessionCaptureService`
+  wrote `session-profiles.json` with a plain non-atomic `writeFile` and no Windows-contention retry;
+  writes are now atomic (temp file + rename) with bounded EPERM/EBUSY retry and serialized
+  read-modify-write operations via a new `src/session/atomicWrite.ts` helper (`b16812a`, defect
+  record AWKIT-REC-002).
+- **Lifecycle proven through responsible layers** (`2fdf06d`): `verify:protected-login-recorder`
+  grew **57/57 → 72/72** with a full Capture Session & Resume section — pause → manual-browser
+  handoff → synthetic capture seam against a REAL captured persistent profile → Playwright relaunch
+  bound to that profile → authenticated state from reused storage with no login interaction →
+  post-login actions append → draft persists secure-nodes-first.
+- **Regression coverage hardened** (`ece6868`): `verify:recorder-draft` grew **50/50 → 83/83**
+  (handoff-cancel draft preservation in both phases plus restart restore; real-file store round
+  trips; corrupt/missing metadata recovery; unknown-field lossless persistence; concurrent
+  rename+markUsed without lost updates; injected-seam atomic-retry proofs).
+- **Mutation proof:** re-adding `discardDraft()` failed recorder-draft **78/83** (exactly the five
+  new AC-1 checks); single-attempt atomic writes crashed the retry probe with fatal EBUSY;
+  disabling `insertSecureSessionNodes` failed protected-login-recorder **68/72** (exactly the four
+  new lifecycle checks). No mutation residue remains.
+- **BLOCKED gate:** AC-6 — an authorized operator with an approved real test identity must execute
+  the live Chrome handoff manually. Nothing else remains automated-side for this bead.
+
+Final observed gates at closure state: build PASS; typecheck:scripts PASS (0 diagnostics);
+verifier-classification reconciled (196 scripts); roadmap-dashboard **167/167**, Overview
+**Sources agree**; runner 121/121; legacy-compat 152/152; protected-login 26/26;
+session-context 11/11; recorder-redaction 15/15; source-hygiene 9/9. verify:mock-site NOT RUN
+(no mock-site file changed); validate:offline NOT RUN (no packaging/offline surface touched).
+
 ## awkit-rvb / awkit-rvo / awkit-rvt CLOSED: product round-trip and verification baselines restored (2026-08-22)
 
 The three independently triaged findings are resolved and closed. Tracker export now contains
