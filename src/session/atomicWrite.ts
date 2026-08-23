@@ -1,32 +1,34 @@
 /**
- * Atomic JSON file write with Windows-contention retry.
+ * Atomic JSON file write for session metadata, built on the ONE canonical
+ * temp+rename+EPERM/EBUSY-retry helper (`src/storage/atomicReplace.ts`).
  *
- * Session metadata (`session-profiles.json`) must never be lost to a torn or partial write when the
- * process crashes mid-write, and must survive transient Windows file contention (antivirus scans,
- * a browser process still releasing the directory) that surfaces as `EPERM`/`EBUSY` on rename.
+ * AWKIT-SES-001: this module used to reimplement the retry loop with drifted defaults
+ * (4 attempts / 50ms linear vs the canonical 5 / 20) — exactly the duplication
+ * `docs/ai/RULES.md` forbids. The rename half is now delegated to the canonical helper; if the
+ * session store ever needs different retry values they are PARAMETERS of this call, not a fork.
+ *
+ * Session metadata (`session-profiles.json`) must never be lost to a torn or partial write when
+ * the process crashes mid-write, and must survive transient Windows file contention (antivirus
+ * scans, a browser process still releasing the directory) that surfaces as `EPERM`/`EBUSY` on
+ * rename.
  */
 
 import { randomUUID } from "node:crypto";
-import { rename, rm, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
+import { replaceFileAtomically, type AtomicReplaceOptions } from "../storage/atomicReplace";
 
-/** Transient Windows lock errors that a short retry resolves. */
-const RETRYABLE_CODES = new Set(["EPERM", "EBUSY"]);
+/** Injectable rename seam, identical to the canonical helper's. */
+type RenameImpl = NonNullable<AtomicReplaceOptions["renameImpl"]>;
 
 export interface AtomicWriteOptions {
-  /** Total attempts (1 initial + retries). Default 4. */
+  /** Total attempts (1 initial + retries). Default: the canonical {@link DEFAULT_REPLACE_ATTEMPTS}. */
   attempts?: number;
-  /** Base delay between attempts in ms. Default 50. */
+  /** Base linear backoff between attempts in ms. Default: the canonical {@link DEFAULT_REPLACE_BACKOFF_MS}. */
   delayMs?: number;
   /** Test seams; production uses the real fs. */
   writeFileImpl?: typeof writeFile;
-  renameImpl?: typeof rename;
+  renameImpl?: RenameImpl;
   delayImpl?: (ms: number) => Promise<void>;
-}
-
-const defaultDelay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function removeTemp(tempPath: string): Promise<void> {
-  await rm(tempPath, { force: true }).catch(() => undefined);
 }
 
 export async function writeJsonFileAtomic(
@@ -34,28 +36,16 @@ export async function writeJsonFileAtomic(
   value: unknown,
   options: AtomicWriteOptions = {}
 ): Promise<void> {
-  const attempts = Math.max(1, options.attempts ?? 4);
-  const delayMs = options.delayMs ?? 50;
   const doWrite = options.writeFileImpl ?? writeFile;
-  const doRename = options.renameImpl ?? rename;
-  const doDelay = options.delayImpl ?? defaultDelay;
-
-  const payload = JSON.stringify(value);
+  // AWKIT-SES-002: two-space pretty-printing — the format session-profiles.json had before the
+  // original atomicity fix silently switched it to single-line. Deliberate, not accidental.
+  const payload = JSON.stringify(value, null, 2);
   const tempPath = `${filePath}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
 
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      await doWrite(tempPath, payload, "utf8");
-      await doRename(tempPath, filePath);
-      return;
-    } catch (error) {
-      lastError = error;
-      await removeTemp(tempPath);
-      const code = (error as NodeJS.ErrnoException)?.code;
-      if (!RETRYABLE_CODES.has(code ?? "") || attempt === attempts) break;
-      await doDelay(delayMs * attempt);
-    }
-  }
-  throw lastError;
+  await doWrite(tempPath, payload, "utf8");
+  await replaceFileAtomically(tempPath, filePath, {
+    attempts: options.attempts,
+    backoffMs: options.delayMs,
+    renameImpl: options.renameImpl
+  });
 }

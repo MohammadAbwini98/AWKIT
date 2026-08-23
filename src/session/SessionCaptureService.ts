@@ -356,17 +356,43 @@ export class SessionCaptureService {
       status: "closed"
     };
 
-    // Mark the profile as ready (the user-data-dir now has session state).
+    // AWKIT-SES-003: the transition used to set `ready` UNCONDITIONALLY, so closing Chrome without
+    // logging in produced a "ready" profile that Auto Secure Login's origin matching would bind to
+    // (observed live: run 021e3a2f, session-a2b9c0c8). Fail closed instead — only profiles with
+    // real authenticated browser state become ready.
     void this.enqueue(async () => {
       const profiles = await this.readProfiles();
       const profile = profiles.find((p) => p.id === sessionId);
       if (profile) {
-        profile.status = "ready";
+        const usable = this.hasAuthenticatedState(sessionId);
+        profile.status = usable ? "ready" : "error";
+        if (!usable) {
+          console.warn(
+            `[session] Capture "${sessionId}" closed WITHOUT authenticated browser state (no cookies/local storage). ` +
+              `Marked error so it can never satisfy Auto Secure Login's reuse match.`
+          );
+        }
         await this.writeProfiles(profiles);
       }
     }).catch(console.error);
 
-    console.log(`[session] Browser closed. Session "${sessionId}" profile is now ready for reuse.`);
+    console.log(`[session] Browser closed. Session "${sessionId}" evaluated for reuse.`);
+  }
+
+  /**
+   * AWKIT-SES-003: stronger than {@link hasCapturedData} — only signals that prove REAL
+   * authenticated browsing state. Real Chrome writes `Default/Preferences` very early, so its
+   * existence alone is weak and must never mark an abandoned capture as reusable.
+   */
+  private hasAuthenticatedState(sessionId: string): boolean {
+    const profileDir = join(this.profilesRoot, sessionId);
+    if (!existsSync(profileDir)) return false;
+    const strongMarkers = [
+      join(profileDir, "Default", "Network", "Cookies"),
+      join(profileDir, "Default", "Cookies"),
+      join(profileDir, "Default", "Local Storage")
+    ];
+    return strongMarkers.some((marker) => existsSync(marker));
   }
 
   getStatus(): SessionCaptureStatus {

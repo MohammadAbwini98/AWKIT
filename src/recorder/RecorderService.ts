@@ -1367,6 +1367,11 @@ export class RecorderService {
     this.handoff = null;
     this.lastActionPage = null;
     this.popupPages.clear();
+    // AWKIT-REC-036: cancelling the handoff used to leave ambiguityState/ambiguityPage pointing at
+    // the just-closed page (the AWKIT-REC-001 fix removed the incidental discardDraft() call that
+    // had been clearing them), so previewCandidate could hit a raw Playwright "target closed".
+    this.ambiguityState = null;
+    this.ambiguityPage = null;
     this.ignoreProtectedDetectionSession = false;
     this.ignoredDetectionKeys = new Set<string>();
   }
@@ -1511,6 +1516,11 @@ export class RecorderService {
     await this.persistDraft();
 
     await this.closeBrowser();
+
+    // AWKIT-REC-036: same pre-existing gap as cancelSecureHandoff — the ambiguity state can point
+    // at the just-closed page, so previewCandidate would surface a raw "target closed" error.
+    this.ambiguityState = null;
+    this.ambiguityPage = null;
 
     return finalActions;
   }

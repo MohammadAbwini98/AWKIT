@@ -274,8 +274,35 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   // Contrast control: an explicit discard still deletes the draft (the earlier discard checks cover
   // this too, but the pairing must hold at the exact state a handoff cancel leaves behind).
   await svc.discardDraft();
-  const draftGoneAfterDiscard = await access(draftPath).then(() => true).catch(() => false);
-  check("REC-022 explicit discard still deletes the draft (cancel is not discard)", !draftGoneAfterDiscard);
+  // AWKIT-QA-003: renamed from `draftGoneAfterDiscard`, which held the OPPOSITE sense of its name
+  // (true when the draft still EXISTS) and invited a polarity-inverting "fix".
+  const draftExistsAfterDiscard = await access(draftPath).then(() => true).catch(() => false);
+  check("REC-022 explicit discard still deletes the draft (cancel is not discard)", !draftExistsAfterDiscard);
+
+  // AWKIT-REC-036: cancelling a handoff must clear the ambiguity state — it points at the page the
+  // handoff just closed, and previewCandidate would otherwise hit a raw "target closed" error.
+  {
+    (svc as unknown as Record<string, unknown>).ambiguityState = { kind: "login-form", reason: "synthetic", timestamp: new Date().toISOString() };
+    (svc as unknown as Record<string, unknown>).ambiguityPage = { isClosed: () => true };
+    await seedDraft(["amb1"]);
+    svc.handoff = handoffInPhase("detected");
+    await svc.cancelSecureHandoff();
+    const state = (svc as unknown as Record<string, unknown>).ambiguityState;
+    const page = (svc as unknown as Record<string, unknown>).ambiguityPage;
+    check("AWKIT-REC-036 cancelling a handoff clears stale ambiguityState", state === null || state === undefined, JSON.stringify(state));
+    check("AWKIT-REC-036 cancelling a handoff clears stale ambiguityPage", page === null || page === undefined);
+    check("AWKIT-REC-036 the preserved draft is unaffected by the ambiguity reset", svc.getActions().length === 1);
+
+    // stopRecording had the same pre-existing gap; both exits must be clean.
+    (svc as unknown as Record<string, unknown>).ambiguityState = { kind: "login-form", reason: "synthetic-stop" };
+    (svc as unknown as Record<string, unknown>).ambiguityPage = { isClosed: () => true };
+    svc.isRecording = true;
+    await svc.stopRecording();
+    const stateAfterStop = (svc as unknown as Record<string, unknown>).ambiguityState;
+    const pageAfterStop = (svc as unknown as Record<string, unknown>).ambiguityPage;
+    check("AWKIT-REC-036 stopping a recording clears stale ambiguityState", stateAfterStop === null || stateAfterStop === undefined);
+    check("AWKIT-REC-036 stopping a recording clears stale ambiguityPage", pageAfterStop === null || pageAfterStop === undefined);
+  }
 
   // The preserved draft must restore after an app restart (fresh in-memory state).
   await seedDraft(["resume1"]);
@@ -529,6 +556,41 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
 
     check("atomic write probes leave no temp residue", (await tmpResidue()).length === 0);
     await rm(target, { force: true });
+  }
+
+  // ── AWKIT-SES-003 — closing Chrome only marks a capture ready with REAL authenticated state ──
+  {
+    const ses3Dir = await mkdtemp(join(tmpdir(), "awtkit-ses003-"));
+    const ses3 = new SessionCaptureService(ses3Dir);
+    const ses3Meta = join(ses3Dir, "session-profiles.json");
+    const row = (id: string) => ({
+      id,
+      name: id,
+      profileDir: join(ses3Dir, id),
+      targetUrl: "https://example.test/app",
+      createdAt: new Date().toISOString(),
+      status: "capturing"
+    });
+    // Strong signal: real authenticated state (cookies under Default/Network).
+    await mkdir(join(ses3Dir, "session-strong", "Default", "Network"), { recursive: true });
+    await writeFile(join(ses3Dir, "session-strong", "Default", "Network", "Cookies"), "{}", "utf8");
+    // Weak-only: Preferences alone is written by Chrome very early and must NEVER mark reusable.
+    await mkdir(join(ses3Dir, "session-weak", "Default"), { recursive: true });
+    await writeFile(join(ses3Dir, "session-weak", "Default", "Preferences"), "{}", "utf8");
+    // No Default at all: abandoned before first navigation.
+    await mkdir(join(ses3Dir, "session-bare"), { recursive: true });
+    await writeJsonFileAtomic(ses3Meta, [row("session-strong"), row("session-weak"), row("session-bare")]);
+
+    const closeBrowser = (id: string) => (ses3 as unknown as { handleBrowserClosed(id: string): void }).handleBrowserClosed(id);
+    closeBrowser("session-strong");
+    closeBrowser("session-weak");
+    closeBrowser("session-bare");
+    const afterClose = await ses3.list();
+    check("SES-003 a capture WITH cookies/local storage becomes ready on browser close", afterClose.find((p) => p.id === "session-strong")?.status === "ready", JSON.stringify(afterClose.map((p) => [p.id, p.status])));
+    check("SES-003 a Preferences-only capture stays error (never satisfies reuse matching)", afterClose.find((p) => p.id === "session-weak")?.status === "error");
+    check("SES-003 an abandoned-before-use capture stays error", afterClose.find((p) => p.id === "session-bare")?.status === "error");
+
+    await rm(ses3Dir, { recursive: true, force: true });
   }
 
   await rm(sessionsDir, { recursive: true, force: true });
