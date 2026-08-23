@@ -39,7 +39,10 @@ export const TRUSTED_KEYS: readonly TrustedKey[] = [
   {
     keyId: "key1",
     algorithm: "Ed25519",
-    publicKeySpkiB64: "MCowBQYDK2VwAyEA4fwgg7+CJ2uSNVfy4XGtMoCkL3Zz+MqkP/4vfgag/JU="
+    publicKeySpkiB64: "MCowBQYDK2VwAyEA4fwgg7+CJ2uSNVfy4XGtMoCkL3Zz+MqkP/4vfgag/JU=",
+    // AWKIT-LIC-002 (fold-in): key1 is verification-only since 2026-08-19 — the issuer already
+    // refuses retired keys mechanically, so the flag belongs here too.
+    retired: true
   },
   {
     keyId: "key2",

@@ -94,13 +94,37 @@ export function currentEnforcementState(): EnforcementLatchState {
 
 export const licenseDispatchGate: DispatchGate = () => {
   if (isEnforcementStateStale(enforcementState, Date.now())) {
-    applyRunGateEnforcement("pre-run");
+    // AWKIT-LIC-002 (fold-in): the full evaluation does synchronous disk + registry fingerprint
+    // work. Inside the dispatch loop that cost used to be paid per stale check; a 5-second
+    // decision cache amortizes it while keeping enforcement latency far below the latch TTL.
+    const nowMs = Date.now();
+    if (!cachedDecision || nowMs - cachedDecision.atMs >= DISPATCH_DECISION_CACHE_MS) {
+      cachedDecision = { atMs: nowMs, decision: applyRunGateEnforcement("pre-run").decision };
+    }
   }
   return {
     admit: !enforcementState.blocking,
     reason: enforcementState.reason ?? "LICENSE_GATE_ALLOWED"
   };
 };
+
+const DISPATCH_DECISION_CACHE_MS = 5_000;
+let cachedDecision: { atMs: number; decision: RunGateDecision } | null = null;
+
+/**
+ * AWKIT-LIC-002 (fold-in): parked manual-handoff / retry work must consult the enforcement latch
+ * before resuming, exactly like a new run. Integrity failures and missing entitlements block the
+ * resume; ordinary "not licensed" states keep the allow-to-finish disposition for work already
+ * dispatched. Returns the user-facing blocker, or null when the resume may proceed.
+ */
+export function parkedResumeBlocker(): string | null {
+  const application = applyRunGateEnforcement("pre-run");
+  if (application.decision.allowed) return null;
+  if (application.decision.activeRunDisposition === "cancel-pending") {
+    return application.decision.status.userAction;
+  }
+  return null;
+}
 
 function onWindowFocus(): void {
   const now = Date.now();

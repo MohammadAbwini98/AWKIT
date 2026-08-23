@@ -26,7 +26,7 @@ import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
 import { indexCompletedRun } from "../semantic/semanticService";
 import type { RunGateDecision } from "../licensing/licenseRuntime";
-import { applyRunGateEnforcement, licenseDispatchGate } from "../licensing/licenseEnforcementService";
+import { applyRunGateEnforcement, licenseDispatchGate, parkedResumeBlocker } from "../licensing/licenseEnforcementService";
 import {
   CERTIFICATE_BYPASS_LOG_MESSAGE,
   explainIgnoreHttpsErrors,
@@ -85,11 +85,17 @@ export function registerExecutionIpc(): void {
   });
   ipcMain.handle("execution:resumeInstance", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_STOP);
+    // AWKIT-LIC-002: parked work must consult the enforcement latch before resuming.
+    const blocker = parkedResumeBlocker();
+    if (blocker) return { instanceId, state: "blocked-by-license", error: blocker };
     executionEngine.resumeInstance(instanceId);
     return { instanceId, state: "resume-requested" };
   });
   ipcMain.handle("execution:retryHandoff", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_STOP);
+    // AWKIT-LIC-002: retrying a handoff resumes parked work — same latch consultation.
+    const blocker = parkedResumeBlocker();
+    if (blocker) return { success: false, error: blocker };
     try {
       executionEngine.retryHandoff(instanceId);
       return { success: true };

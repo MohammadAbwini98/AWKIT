@@ -205,7 +205,14 @@ export function evaluateRunGate(): RunGateDecision {
   }
 
   const decision = applyLicenseRunGatePolicy(
-    { status: status.status, operable: status.operable, evaluationFailed },
+    {
+      status: status.status,
+      operable: status.operable,
+      evaluationFailed,
+      // AWKIT-LIC-002: signed entitlements now reach the trusted-layer policy.
+      entitlements: status.entitlements,
+      requiredEntitlement: "workflow.execute"
+    },
     isLicenseEnforcementEnabled(),
     { inGrace: grace.inGrace, graceEndsAtUtc: grace.graceEndsAtUtc }
   );

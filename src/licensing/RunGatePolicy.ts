@@ -38,10 +38,14 @@ export type RunGateReason =
   | "ENFORCEMENT_DISABLED"
   | "LICENSE_OPERABLE"
   | "MIGRATION_GRACE"
+  | "ENTITLEMENT_MISSING"
   | "NOT_LICENSED"
   | "LICENSE_EXPIRED"
   | "LICENSE_INTEGRITY_FAILURE"
   | "EVALUATION_FAILED";
+
+/** The capability every protected run needs by default (docs/LICENSING.md §Entitlements). */
+export const DEFAULT_REQUIRED_ENTITLEMENT = "workflow.execute";
 
 export interface LicenseRunGateInput {
   readonly status: LicenseStatus;
@@ -49,6 +53,14 @@ export interface LicenseRunGateInput {
   readonly operable: boolean;
   /** True when licensing could not be evaluated at all (store/fingerprint fault). */
   readonly evaluationFailed?: boolean;
+  /**
+   * AWKIT-LIC-002: the SIGNED entitlement keys carried by the active license. Enforcement lives
+   * here in the trusted layer so a single-entitlement license can never confer capabilities it
+   * does not name.
+   */
+  readonly entitlements?: readonly string[];
+  /** The capability this action requires. Default {@link DEFAULT_REQUIRED_ENTITLEMENT}. */
+  readonly requiredEntitlement?: string;
 }
 
 export interface LicenseRunGateGrace {
@@ -121,6 +133,19 @@ export function applyLicenseRunGatePolicy(
   }
 
   if (status.operable) {
+    // AWKIT-LIC-002: an operable license admits only the capabilities its signed entitlements
+    // name. Absent entitlement data (older reports) keeps the historical allow so existing
+    // verifiers and callers stay behaviour-compatible.
+    const required = status.requiredEntitlement ?? DEFAULT_REQUIRED_ENTITLEMENT;
+    if (status.entitlements !== undefined && !status.entitlements.includes(required)) {
+      return {
+        allowed: false,
+        blockedByLicense: true,
+        activeRunDisposition: "allow-to-finish",
+        graceApplied: false,
+        reason: "ENTITLEMENT_MISSING"
+      };
+    }
     return {
       allowed: true,
       blockedByLicense: false,

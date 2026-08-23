@@ -74,7 +74,20 @@ export class LicenseService {
     const load = this.opts.store.load();
     const nowMs = this.now();
 
-    const clockHighWaterMs = load.envelope ? Date.parse(load.envelope.meta.clockHighWaterUtc) : undefined;
+    const clockEnvelopeMs = load.envelope ? Date.parse(load.envelope.meta.clockHighWaterUtc) : undefined;
+    // AWKIT-LIC-002 (fold-in): for provisioned installs the LOCAL shadow advances the rollback
+    // high-water even though the shared license file itself is read-only.
+    let clockShadowMs: number | undefined;
+    if (load.source === "shared") {
+      try {
+        const s = this.opts.store.loadShadowMeta();
+        clockShadowMs = s.clockHighWaterUtc ? Date.parse(s.clockHighWaterUtc) : undefined;
+      } catch {
+        clockShadowMs = undefined;
+      }
+    }
+    const highs = [clockEnvelopeMs, clockShadowMs].filter((n): n is number => n != null && !Number.isNaN(n));
+    const clockHighWaterMs = highs.length ? Math.max(...highs) : undefined;
     const result = validateLicense({
       license: load.corrupted ? null : load.envelope?.license ?? null,
       currentFingerprintHash: fingerprint.fingerprintHash,
@@ -90,12 +103,28 @@ export class LicenseService {
       ...(load.corrupted
         ? { ...result, status: LicenseStatus.CORRUPTED, reasonCode: "LICENSE_FILE_CORRUPTED", operable: false }
         : result),
+      entitlements: load.envelope?.license.entitlements ?? (load.envelope ? [] : undefined),
       source: load.source,
       conflict: load.conflict,
       machineFingerprintHash: fingerprint.fingerprintHash,
       fingerprintConfidence: fingerprint.confidenceLevel,
       availableSignals: fingerprint.availableSignals
     };
+
+    // AWKIT-LIC-002 (fold-in): advance clock/revocation metadata for PROVISIONED (shared) sources
+    // too — into a local shadow file, since the shared location is read-only. Without it the
+    // rollback high-water never moves for provisioned installs, defeating the mitigation.
+    if (load.envelope && load.source === "shared") {
+      try {
+        const shadow = this.opts.store.loadShadowMeta();
+        const priorShadow = shadow.clockHighWaterUtc ? Date.parse(shadow.clockHighWaterUtc) : NaN;
+        const envelopeHigh = Date.parse(load.envelope.meta.clockHighWaterUtc);
+        const candidates = [nowMs, Number.isNaN(priorShadow) ? -Infinity : priorShadow, Number.isNaN(envelopeHigh) ? -Infinity : envelopeHigh];
+        this.opts.store.saveShadowMeta({ clockHighWaterUtc: new Date(Math.max(...candidates)).toISOString() });
+      } catch {
+        // Shadow maintenance is best-effort; the validation result stands regardless.
+      }
+    }
 
     // Maintain metadata only for the writable (local) source; the provisioned shared file is read-only.
     if (load.envelope && load.source === "local") {
@@ -154,12 +183,21 @@ export class LicenseService {
       return { ok: false, status: this.getStatus(), rejectedReason: "PRODUCT_MISMATCH" };
     }
 
+    // AWKIT-LIC-002 (fold-in): importing a replacement must NOT reset the machine's clock-rollback
+    // high-water mark nor clear a local revocation — otherwise the advertised rollback mitigation
+    // could be defeated by re-importing any signed license. Both carry forward; only an explicit
+    // administrative removal clears them.
+    const priorMeta = this.opts.store.load().envelope?.meta;
     const nowIso = new Date(this.now()).toISOString();
+    const priorHigh = priorMeta ? Date.parse(priorMeta.clockHighWaterUtc) : NaN;
+    const highWater = Number.isNaN(priorHigh)
+      ? nowIso
+      : new Date(Math.max(priorHigh, this.now())).toISOString();
     const meta: LicenseMeta = {
       importedAtUtc: nowIso,
       lastValidatedUtc: nowIso,
-      clockHighWaterUtc: nowIso,
-      locallyRevoked: false
+      clockHighWaterUtc: highWater,
+      locallyRevoked: priorMeta?.locallyRevoked ?? false
     };
     this.opts.store.saveLocal(buildEnvelope(license, meta));
     return { ok: true, status: this.getStatus() };

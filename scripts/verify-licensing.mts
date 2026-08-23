@@ -590,6 +590,32 @@ check(
   "ENFORCEMENT_DISABLED"
 );
 
+// ── AWKIT-LIC-002 — signed entitlements are ENFORCED in the trusted layer ──
+{
+  const gateWith = (entitlements: string[] | undefined) =>
+    applyLicenseRunGatePolicy(
+      { status: LicenseStatus.VALID, operable: true, entitlements },
+      true
+    );
+  check("LIC-002 a license naming workflow.execute admits runs", gateWith(["workflow.execute"]).allowed, true);
+  check("LIC-002 ...and is labelled LICENSE_OPERABLE", gateWith(["workflow.execute"]).reason, "LICENSE_OPERABLE");
+  const single = gateWith(["workflow.concurrent"]);
+  check("LIC-002 a single-entitlement license does NOT confer workflow execution", single.allowed, false);
+  check("LIC-002 ...blocked as a licensing matter", single.blockedByLicense, true);
+  check("LIC-002 ...labelled ENTITLEMENT_MISSING", single.reason, "ENTITLEMENT_MISSING");
+  check("LIC-002 the missing entitlement never kills running work", gateWith(["workflow.scheduled"]).activeRunDisposition, "allow-to-finish");
+  // An empty entitlement list blocks (signed as capability-less stays capability-less).
+  check("LIC-002 an empty entitlement list blocks", gateWith([]).allowed, false);
+  // Absent entitlement data (older reports / undefined) keeps historical behaviour.
+  check("LIC-002 absent entitlement data keeps the historical allow", gateWith(undefined).allowed, true);
+  // A different required capability is honoured when the caller asks for one.
+  const scheduled = applyLicenseRunGatePolicy(
+    { status: LicenseStatus.VALID, operable: true, entitlements: ["workflow.scheduled"], requiredEntitlement: "workflow.scheduled" },
+    true
+  );
+  check("LIC-002 the caller may require a different signed capability", scheduled.allowed, true);
+}
+
 console.log("\nMigration grace — one-time 14-day window:");
 
 const T0 = Date.parse("2026-07-29T00:00:00.000Z");

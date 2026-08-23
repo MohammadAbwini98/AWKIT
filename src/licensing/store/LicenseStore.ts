@@ -21,6 +21,13 @@ import type { LicenseDocument } from "../LicenseTypes";
 
 export const LICENSE_STORE_VERSION = 1 as const;
 export const LICENSE_FILE_NAME = "license.dat";
+/** AWKIT-LIC-002: per-user metadata shadow for provisioned (read-only shared) licenses. */
+export const LICENSE_SHADOW_META_NAME = "license-meta-shadow.json";
+
+/** Metadata-only shadow (never license material). See {@link LicenseStore.loadShadowMeta}. */
+export interface LicenseShadowMeta {
+  clockHighWaterUtc?: string;
+}
 
 export interface LicenseMeta {
   importedAtUtc: string;
@@ -144,5 +151,32 @@ export class LicenseStore {
     } catch {
       // best-effort; a missing file is success
     }
+  }
+
+  // ── AWKIT-LIC-002 (fold-in): local metadata SHADOW for provisioned installs ──
+  //
+  // The provisioned (shared) license file is read-only by contract, so its clock-rollback
+  // high-water could never advance — a machine clock rolled back after install defeated
+  // detection until restart. This tiny per-user shadow carries ONLY metadata (never license
+  // material), is written on every validation, and feeds `clockHighWaterMs` back in.
+
+  get shadowMetaPath(): string {
+    return join(this.localFile, "..", LICENSE_SHADOW_META_NAME);
+  }
+
+  loadShadowMeta(): LicenseShadowMeta {
+    try {
+      const raw = readFileSync(this.shadowMetaPath, "utf8");
+      const parsed = JSON.parse(raw) as Partial<LicenseShadowMeta>;
+      return { clockHighWaterUtc: typeof parsed.clockHighWaterUtc === "string" ? parsed.clockHighWaterUtc : undefined };
+    } catch {
+      return {};
+    }
+  }
+
+  saveShadowMeta(meta: LicenseShadowMeta): void {
+    const dir = join(this.localFile, "..");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(this.shadowMetaPath, JSON.stringify(meta), { encoding: "utf8", mode: 0o600 });
   }
 }

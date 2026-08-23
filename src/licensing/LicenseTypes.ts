@@ -138,6 +138,11 @@ export interface LicenseValidationResult {
   license?: SafeLicenseView;
   /** Whole-minutes remaining until expiry when known (negative if already expired). */
   remainingMinutes?: number;
+  /**
+   * AWKIT-LIC-002: the SIGNED entitlement keys of the loaded license, so the trusted run gate can
+   * enforce capabilities. `undefined` only when no license material was loaded at all.
+   */
+  entitlements?: readonly string[];
   checkedAtUtc: string;
 }
 
