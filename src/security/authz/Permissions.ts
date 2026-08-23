@@ -32,6 +32,8 @@ export const Permission = {
   WORKFLOW_EXECUTE: "workflow.execute",
   WORKFLOW_STOP: "workflow.stop",
   // ── Data / reports ─────────────────────────────────────────────────────────
+  /** Read/browse data sources and their rows (AWKIT-SEC-002: the read half of DATASOURCE_MANAGE). */
+  DATASOURCE_VIEW: "datasource.view",
   DATASOURCE_MANAGE: "datasource.manage",
   REPORT_EXPORT: "report.export",
   // ── System configuration ───────────────────────────────────────────────────
@@ -117,7 +119,10 @@ const VIEWER_PERMISSIONS: readonly Permission[] = [
   Permission.PAGE_DATA_SOURCES,
   Permission.PAGE_INSTANCES,
   Permission.PAGE_REPORTS,
-  Permission.WORKFLOW_VIEW
+  Permission.WORKFLOW_VIEW,
+  // AWKIT-SEC-002: the Data Sources page renders rows through dataSources:list/get/readJson, so a
+  // read-only role needs the read half of the datasource capability.
+  Permission.DATASOURCE_VIEW
 ];
 
 // Viewer deliberately has NO semantic permission. Plan §10 records search as

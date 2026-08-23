@@ -9,7 +9,7 @@ import { sanitizeProfileId } from "@src/storage/ProfileStore";
 import { createDataSourceProfileStore } from "../profileStores";
 import { getResourcesRoot, getRuntimeDataRoot } from "../appPaths";
 import { getConfiguredPaths } from "../storagePaths";
-import { isPathInside, isReadableDataSourceFile } from "@src/utils/pathSafety";
+import { isPathInside, isReadableDataSourceFile, safePathComponent } from "@src/utils/pathSafety";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 
@@ -64,8 +64,16 @@ interface CreateFromScratchPayload {
 export function registerDataSourceIpc(): void {
   const store = createDataSourceProfileStore();
 
-  ipcMain.handle("dataSources:list", async () => store.list());
-  ipcMain.handle("dataSources:get", async (_, id: string) => store.get(id));
+  // AWKIT-SEC-002: the read channels are authorization-gated like their mutating siblings — a
+  // pre-login or low-privileged renderer can no longer read full data-source rows.
+  ipcMain.handle("dataSources:list", async (event) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW);
+    return store.list();
+  });
+  ipcMain.handle("dataSources:get", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW);
+    return store.get(id);
+  });
   ipcMain.handle("dataSources:create", async (event, profile: JsonArrayDataSourceProfile) => {
     await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return store.create(profile);
@@ -82,7 +90,10 @@ export function registerDataSourceIpc(): void {
     await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return store.clone(id, nextId);
   });
-  ipcMain.handle("dataSources:export", async (_, id: string) => store.export(id));
+  ipcMain.handle("dataSources:export", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW);
+    return store.export(id);
+  });
   ipcMain.handle("dataSources:import", async (event, profile: JsonArrayDataSourceProfile) => {
     await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return store.import(profile);
@@ -91,11 +102,20 @@ export function registerDataSourceIpc(): void {
     await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return browseJsonDataSource(store, existingId);
   });
-  ipcMain.handle("dataSources:preview", async (_, id: string, path?: string) => previewDataSource(store, id, path));
-  ipcMain.handle("dataSources:getJsonPaths", async (_, id: string) => getJsonPaths(store, id));
+  ipcMain.handle("dataSources:preview", async (event, id: string, path?: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW);
+    return previewDataSource(store, id, path);
+  });
+  ipcMain.handle("dataSources:getJsonPaths", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW);
+    return getJsonPaths(store, id);
+  });
 
   // ── Visual table editor channels ──────────────────────────────────────────
-  ipcMain.handle("dataSources:readJson", async (_, id: string) => readDataSourceRows(store, id));
+  ipcMain.handle("dataSources:readJson", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW);
+    return readDataSourceRows(store, id);
+  });
   ipcMain.handle("dataSources:writeJson", async (event, id: string, rows: DataRow[]) => {
     await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return writeDataSourceRows(store, id, rows);
@@ -105,7 +125,10 @@ export function registerDataSourceIpc(): void {
     return createFromScratch(store, payload);
   });
 
-  ipcMain.handle("dataSource:list", async () => store.list());
+  ipcMain.handle("dataSource:list", async (event) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_VIEW); // legacy singular alias
+    return store.list();
+  });
 }
 
 // ── Table editor helpers (pure logic shared via @src/data/TableEditing) ───────
@@ -221,9 +244,18 @@ async function createFromScratch(store: DataStore, payload: CreateFromScratchPay
   let fileName = (payload.fileName ?? name).trim();
   if (!fileName) throw new Error("File name is required.");
   if (!fileName.toLowerCase().endsWith(".json")) fileName += ".json";
+  // AWKIT-SEC-001: `fileName` arrived from an IPC caller and used to be joined into
+  // dataFilesDir() raw, so `..\..\ui-settings.json` could create/overwrite arbitrary
+  // user-writable .json files outside the workspace. Confine it to a single safe path
+  // component and re-assert containment after the join (same defense as the F-04 editor path).
+  const confinedName = safePathComponent(fileName, "data-source.json");
+  const file = join(dataFilesDir(), confinedName);
+  if (!isPathInside(dataFilesDir(), file)) {
+    throw new Error("The data source file must live inside the data-sources workspace.");
+  }
 
   await mkdir(dataFilesDir(), { recursive: true });
-  const file = join(dataFilesDir(), fileName);
+  fileName = confinedName;
   if (existsSync(file) && !payload.overwrite) {
     throw new Error(`A file named "${fileName}" already exists. Choose a different name or confirm overwrite.`);
   }

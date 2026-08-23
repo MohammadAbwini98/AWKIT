@@ -109,6 +109,107 @@ check(
 const stale = [...BACKEND_ONLY].filter((c) => !registered.has(c)).sort();
 check("BACKEND_ONLY has no stale entries", stale.length === 0, stale.join(", "));
 
+// ── Check 5 (AWKIT-SEC-002) — authorization registry ─────────────────────────
+//
+// Every registered channel must DECLARE its authorization level:
+//   PERMISSION — the handler calls `assertSenderPermission` (directly or via a local `authorize`
+//                helper), or `assertTrustedSender` for pre-login trust-boundary channels;
+//   NONE       — deliberately open, listed here with a reason;
+//   TRUSTED    — trusted-sender-checked only, listed here with a reason.
+//
+// A plain `ipcMain.handle` with no guard used to pass every other check; this registry closes the
+// class: adding an ungated channel without declaring it here fails the build and forces the
+// decision to be made in review rather than silently shipped.
+const AUTHZ_REGISTRY: Record<string, { level: "NONE" | "TRUSTED"; reason: string }> = {
+  // Pre-login authentication surface (must be reachable before any session exists).
+  "auth:getCapabilities": { level: "TRUSTED", reason: "pre-login capability probe required to render the login surface" },
+  "auth:openOAuth": { level: "TRUSTED", reason: "opens the system browser for OAuth on the login screen" },
+  "auth:openExternal": { level: "TRUSTED", reason: "opens external help/links from the login surface" },
+  "security:getBootState": { level: "TRUSTED", reason: "boot-state probe before any session exists" },
+  "settings:get": { level: "NONE", reason: "boot-time settings read; needed before login to render shell/appearance" },
+  "offlineRuntime:getStatus": { level: "NONE", reason: "read-only offline-runtime status banner data" },
+  "branding:getState": { level: "NONE", reason: "open read documented at branding.ipc.ts — every signed-in role renders the sidebar logo" },
+  // Window chrome controls (any renderer, incl. frameless splash).
+  "window:minimize": { level: "TRUSTED", reason: "frameless window chrome control" },
+  "window:toggleMaximize": { level: "TRUSTED", reason: "frameless window chrome control" },
+  "window:close": { level: "TRUSTED", reason: "frameless window chrome control" },
+  "window:isMaximized": { level: "TRUSTED", reason: "frameless window chrome control" },
+  // Read-only run-status surfaces (no secrets; reports themselves are gated).
+  "execution:list": { level: "NONE", reason: "run-card status list for the monitor page; no credentials" },
+  "execution:validate": { level: "NONE", reason: "pre-run validation report for the run form" },
+  "execution:runtimeStatus": { level: "NONE", reason: "live progress snapshot for the monitor page" },
+  "execution:recoveryDetails": { level: "NONE", reason: "recovery notes read-back; recovery ACTION is gated" },
+  // Validation engine reads.
+  "validation:statusAll": { level: "NONE", reason: "read-only legacy-compatibility status summary" },
+  "validation:status": { level: "NONE", reason: "read-only per-flow compatibility status" },
+  "validation:meta": { level: "NONE", reason: "read-only scan metadata" },
+  "validation:grants": { level: "NONE", reason: "read-only grant list shown in Settings" },
+  "validation:latestScan": { level: "NONE", reason: "read-only last-scan result" },
+  "validation:migrations": { level: "NONE", reason: "read-only migration history" },
+  "validation:previewSafeFixes": { level: "NONE", reason: "dry-run preview only; APPLYING fixes is permission-gated" },
+  // Oracle configuration metadata reads (writes/tests/drivers are trusted/gated above them).
+  "oracle:availability": { level: "NONE", reason: "feature availability probe" },
+  "oracle:profiles:list": { level: "NONE", reason: "connection-profile names/metadata read" },
+  "oracle:profiles:get": { level: "NONE", reason: "single connection-profile metadata read" },
+  "oracle:dataSources:list": { level: "NONE", reason: "registered oracle data-source list" },
+  "oracle:dataSources:get": { level: "NONE", reason: "single oracle data-source read" },
+  "oracle:drivers:list": { level: "NONE", reason: "driver inventory read" },
+  "oracle:drivers:get": { level: "NONE", reason: "driver detail read" },
+  "oracle:drivers:usage": { level: "NONE", reason: "driver usage counts" },
+  "oracle:java:list": { level: "NONE", reason: "java runtime inventory read" },
+  "oracle:java:get": { level: "NONE", reason: "java runtime detail read" },
+  "oracle:java:usage": { level: "NONE", reason: "java usage counts" },
+  "system:capacityPreview": { level: "NONE", reason: "host capacity estimate for the run form" }
+};
+
+{
+  const PERM_TOKENS = ["assertSenderPermission(", "authorize("];
+  const handlerSlices: Array<{ channel: string; file: string; body: string }> = [];
+  const HANDLE_RE = /ipcMain\.handle\(\s*"([^"]+)"/g;
+  for (const file of readdirSync(IPC_DIR).filter((f) => f.endsWith(".ts"))) {
+    const src = readFileSync(join(IPC_DIR, file), "utf8");
+    const positions = [...src.matchAll(HANDLE_RE)].map((m) => ({ name: m[1], idx: m.index }));
+    for (let i = 0; i < positions.length; i += 1) {
+      const end = i + 1 < positions.length ? positions[i + 1].idx : src.length;
+      handlerSlices.push({ channel: positions[i].name, file, body: src.slice(positions[i].idx, end) });
+    }
+  }
+
+  const cardinalityFloor = 150;
+  check("the authz scan saw the full registration set", handlerSlices.length >= cardinalityFloor, `${handlerSlices.length} handlers scanned`);
+
+  const classify = ({ channel, body }: { channel: string; body: string }): "PERMISSION" | "TRUSTED" | undefined => {
+    if (PERM_TOKENS.some((t) => body.includes(t))) return "PERMISSION";
+    // An explicit trusted-sender check IS a declared TRUSTED level.
+    if (body.includes("assertTrustedSender")) return "TRUSTED";
+    return AUTHZ_REGISTRY[channel]?.level;
+  };
+
+  const ungatedUndeclared = handlerSlices
+    .filter(({ channel, body }) => classify({ channel, body }) === undefined)
+    .map(({ channel }) => channel)
+    .sort();
+
+  check(
+    "every registered channel declares NONE/TRUSTED or enforces a permission",
+    ungatedUndeclared.length === 0,
+    ungatedUndeclared.join(", ")
+  );
+
+  const declaredButGated = handlerSlices
+    .filter(({ channel, body }) => AUTHZ_REGISTRY[channel] && PERM_TOKENS.some((t) => body.includes(t)))
+    .map(({ channel }) => channel)
+    .sort();
+  check(
+    "no channel is BOTH permission-gated and declared open/trusted (registry must match code)",
+    declaredButGated.length === 0,
+    declaredButGated.join(", ")
+  );
+
+  const staleRegistry = Object.keys(AUTHZ_REGISTRY).filter((c) => !handlerSlices.some(({ channel }) => channel === c)).sort();
+  check("AUTHZ_REGISTRY has no stale entries", staleRegistry.length === 0, staleRegistry.join(", "));
+}
+
 const passed = results.filter((r) => r.pass).length;
 console.log(
   `\nIPC contract: ${passed}/${results.length} checks passed ` +

@@ -34,8 +34,14 @@ export function registerScenarioIpc(): void {
     return store.import(validation.profile);
   };
 
-  ipcMain.handle("workflows:list", async () => store.list());
-  ipcMain.handle("workflows:get", async (_, id: string) => store.get(id));
+  ipcMain.handle("workflows:list", async (event) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_VIEW);
+    return store.list();
+  });
+  ipcMain.handle("workflows:get", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_VIEW);
+    return store.get(id);
+  });
   ipcMain.handle("workflows:create", async (event, profile: WorkflowProfile) => {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     return store.create(profile);
@@ -52,14 +58,21 @@ export function registerScenarioIpc(): void {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     return store.clone(id, nextId);
   });
-  ipcMain.handle("workflows:export", async (_, id: string) => store.export(id));
+  ipcMain.handle("workflows:export", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_VIEW);
+    return store.export(id);
+  });
   ipcMain.handle("workflows:import", async (event, profile: WorkflowProfile, options?: WorkflowImportOptions) => {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     return importWorkflow(profile, options);
   });
 
-  ipcMain.handle("scenario:list", async () => (await store.list()).map(workflowToScenarioProfile));
-  ipcMain.handle("scenario:get", async (_, id: string) => {
+  ipcMain.handle("scenario:list", async (event) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_VIEW); // legacy alias surface
+    return (await store.list()).map(workflowToScenarioProfile);
+  });
+  ipcMain.handle("scenario:get", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_VIEW); // legacy alias surface
     const workflow = await store.get(id);
     return workflow ? workflowToScenarioProfile(workflow) : null;
   });

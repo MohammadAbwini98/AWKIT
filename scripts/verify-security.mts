@@ -8,6 +8,8 @@
  *   - pathSafety.isReadableDataSourceFile             (§14 data-source read confinement)
  */
 import { isNavigableUrl, assertNavigableUrl } from "../src/runner/urlPolicy";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { isPathInside, isReadableDataSourceFile } from "../src/utils/pathSafety";
 import { normalizeFlowBounds, FLOW_BOUNDS } from "../src/profiles/FlowValidation";
 import type { FlowProfile } from "../src/profiles/FlowProfile";
@@ -115,6 +117,31 @@ check("setJsonAtPath rejects __proto__ path", protoThrew);
 check("global Object.prototype not polluted", ({} as Record<string, unknown>).polluted === undefined);
 check("resolveJsonPath does not traverse __proto__", resolveJsonPath({ a: 1 }, "$.__proto__.x") === undefined);
 check("setJsonAtPath still writes normal paths", JSON.stringify(setJsonAtPath({ a: { b: 1 } }, "$.a.c", 2)) === JSON.stringify({ a: { b: 1, c: 2 } }));
+
+// ── AWKIT-SEC-001 / AWKIT-SEC-002 — IPC write confinement + authz registry wiring ──
+{
+  const ds = readFileSync(join("app", "main", "ipc", "dataSource.ipc.ts"), "utf8");
+  const createBody = ds.slice(ds.indexOf("async function createFromScratch"), ds.indexOf("async function browseJsonDataSource"));
+  check(
+    "SEC-001 createFromScratch confines fileName via safePathComponent and re-asserts isPathInside",
+    createBody.includes("safePathComponent(fileName") && createBody.includes("isPathInside(dataFilesDir(), file)"),
+    "confinement calls missing from createFromScratch"
+  );
+
+  const floors: Array<[string, number]> = [
+    ["dataSource.ipc.ts", 15],
+    ["session.ipc.ts", 9],
+    ["instance.ipc.ts", 9],
+    ["runtimeInput.ipc.ts", 8],
+    ["scenario.ipc.ts", 10]
+  ];
+  for (const [file, floor] of floors) {
+    const src = readFileSync(join("app", "main", "ipc", file), "utf8");
+    const gates = (src.match(/assertSenderPermission\(/g) ?? []).length;
+    const handlers = (src.match(/ipcMain\.handle\(/g) ?? []).length;
+    check(`SEC-002 ${file} gates every channel (${gates} assertions >= ${handlers} handlers)`, gates >= handlers && gates >= floor, `gates=${gates} handlers=${handlers}`);
+  }
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
