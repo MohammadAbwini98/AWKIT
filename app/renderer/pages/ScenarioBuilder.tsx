@@ -16,22 +16,18 @@ import {
   type Viewport
 } from "../components/canvas";
 import {
-  ChevronLeft,
-  ChevronRight,
   Database,
   Download,
   FilePlus,
   FolderOpen,
   GitBranch,
   GitFork,
-  GripVertical,
   LayoutGrid,
   Network,
   PanelRightClose,
   PanelRightOpen,
   Plus,
   Repeat,
-  Search,
   ShieldCheck,
   Trash2,
   Upload
@@ -69,6 +65,9 @@ import {
   type ScenarioFlowNodeData,
   type ScenarioLinkData
 } from "../components/scenario/scenarioDesignerTypes";
+// AWKIT-WFB-001: the save-path converter lives in its own framework-free module so a headless
+// verifier can drive the REAL production function (same pattern as flowProfileMapping).
+import { toWorkflowProfile, type ScenarioEdge, type ScenarioNode } from "../components/scenario/workflowDocumentMapping";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { EdgeVisualStyle, FlowProfile } from "@src/profiles/FlowProfile";
@@ -91,8 +90,7 @@ import {
   EditorIdentityField
 } from "../components/shared/EditorCommandBar";
 
-type ScenarioNode = CanvasNode<ScenarioFlowNodeData>;
-type ScenarioEdge = CanvasEdge<ScenarioLinkData>;
+// ScenarioNode/ScenarioEdge types now come from workflowDocumentMapping (shared with the verifier).
 
 const nodeTypes = {
   scenarioFlow: ScenarioFlowNode
@@ -161,19 +159,8 @@ function serializeWorkflowDoc(profile: WorkflowProfile): string {
   });
 }
 
-// ── Workflow Definition panel width constraints (persisted) ──────────────────
-// Persisted key: ui.workflowBuilder.leftPanelWidth
-const WORKFLOW_DEF_MIN_WIDTH = 260;
-const WORKFLOW_DEF_DEFAULT_WIDTH = 360;
-const WORKFLOW_DEF_MAX_WIDTH = 560;
-
 // Saved Flows list: show this many initially, then reveal more via "Load More" (Task 04).
 const SAVED_FLOWS_PAGE_SIZE = 10;
-
-/** Clamp a candidate width into the safe Workflow Definition range. */
-function clampWorkflowDefWidth(width: number): number {
-  return Math.min(WORKFLOW_DEF_MAX_WIDTH, Math.max(WORKFLOW_DEF_MIN_WIDTH, Math.round(width)));
-}
 
 function createWorkflowScaffold(): { nodes: ScenarioNode[]; edges: ScenarioEdge[] } {
   const start = createScenarioNode("start", 0, { x: 280, y: 100 }, true, undefined, [], "Start", undefined, "start");
@@ -201,14 +188,12 @@ function ScenarioBuilderContent() {
   const [dataSources, setDataSources] = useState<JsonArrayDataSourceProfile[]>([]);
   const [workflowDataSourceId, setWorkflowDataSourceId] = useState("");
   const [workflowRootArrayPath, setWorkflowRootArrayPath] = useState("$.customers");
-  const [dataSourceRecordCount, setDataSourceRecordCount] = useState<number | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [picker, setPicker] = useState<WorkflowPickerState | null>(null);
   const [connectPrompt, setConnectPrompt] = useState<{ source: string; target: string; sourceName: string; targetName: string } | null>(null);
   const [workflowSettingsOpen, setWorkflowSettingsOpen] = useState(false);
   const canvasRef = useRef<HTMLElement>(null);
-  const [draggedFlowId, setDraggedFlowId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState("New — unsaved");
   const [failurePolicy, setFailurePolicy] = useState({
     stopOnRequiredFlowFailure: true,
@@ -217,12 +202,9 @@ function ScenarioBuilderContent() {
   });
 
   // ── Phase 01: Collapsible right panel (Selected Connector) ─────────────────
-  // ── Phase 03: Collapsible left data source section ─────────────────────────
-  // Both states loaded from persisted settings on mount.
+  // Loaded from persisted settings on mount. (The Workflow Definition left panel was retired —
+  // AWKIT-WFB-002 removed its dead JSX and orphaned collapse/width plumbing.)
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
-  const [dataSourceCollapsed, setDataSourceCollapsed] = useState(false);
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(WORKFLOW_DEF_DEFAULT_WIDTH);
 
   // Track whether we have done the initial load to avoid re-loading on re-render
   const initialLoadDone = useRef(false);
@@ -247,6 +229,10 @@ function ScenarioBuilderContent() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [discardImport, setDiscardImport] = useState<WorkflowProfile | null>(null);
   const [importConflict, setImportConflict] = useState<{ profile: WorkflowProfile; existingName: string } | null>(null);
+  // AWKIT-WFB-001: the last document known to be STORED (loaded from disk, or just written by a
+  // successful save). `toWorkflowProfile` preserves it instead of re-deriving, and export
+  // serializes it rather than the live memo.
+  const [loadedWorkflow, setLoadedWorkflow] = useState<WorkflowProfile | null>(null);
 
   const persistBuilderZoom = useCallback((percent: number) => {
     window.playwrightFlowStudio.settings.update({ workflowBuilderZoomPercent: percent }).catch(() => undefined);
@@ -257,9 +243,9 @@ function ScenarioBuilderContent() {
     [workflowDataSourceId, workflowRootArrayPath]
   );
 
-  const workflowProfile = useMemo(
-    () => toWorkflowProfile(nodes, edges, workflowId, workflowName, executionMode, maxParallelFlows, failurePolicy, workflowDataSource),
-    [edges, executionMode, failurePolicy, maxParallelFlows, nodes, workflowDataSource, workflowId, workflowName]
+const workflowProfile = useMemo(
+() => toWorkflowProfile(nodes, edges, workflowId, workflowName, executionMode, maxParallelFlows, failurePolicy, workflowDataSource, loadedWorkflow),
+[edges, executionMode, failurePolicy, loadedWorkflow, maxParallelFlows, nodes, workflowDataSource, workflowId, workflowName]
   );
   const historyState = useMemo(
     () => ({
@@ -390,7 +376,6 @@ function ScenarioBuilderContent() {
     ],
     [visibleFlows]
   );
-  const selectedDataSourceName = dataSources.find((ds) => ds.id === workflowDataSourceId)?.name ?? null;
 
   // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -412,11 +397,8 @@ function ScenarioBuilderContent() {
         setWorkflows(savedWorkflows);
         setDataSources(savedDataSources);
 
-        // Restore persisted panel states (Phase 01 + Phase 03)
+        // Restore persisted panel state (Phase 01). The retired left panel's keys are no longer read.
         setRightPanelCollapsed(true);
-        setDataSourceCollapsed(settings.workflowBuilder?.workflowDataSourceCollapsed ?? false);
-        setLeftPanelCollapsed(settings.workflowBuilder?.leftPanelCollapsed ?? false);
-        setLeftPanelWidth(clampWorkflowDefWidth(settings.workflowBuilder?.leftPanelWidth ?? WORKFLOW_DEF_DEFAULT_WIDTH));
         const zoomPercent = settings.workflowBuilderZoomPercent > 0 ? settings.workflowBuilderZoomPercent : settings.designerDefaults.defaultZoomPercent;
         engineRef.current?.zoomTo(zoomPercent / 100);
 
@@ -445,91 +427,14 @@ function ScenarioBuilderContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist panel collapse states when they change (Phase 01 + Phase 03)
+  // Persist the right panel collapse state (Phase 01). The retired left panel's keys are no
+  // longer written.
   const persistRightPanel = useCallback((collapsed: boolean) => {
     setRightPanelCollapsed(collapsed);
     window.playwrightFlowStudio.settings
-      .update({ workflowBuilder: { selectedConnectorCollapsed: collapsed, workflowDataSourceCollapsed: dataSourceCollapsed, leftPanelCollapsed, leftPanelWidth } })
+      .update({ workflowBuilder: { selectedConnectorCollapsed: collapsed } })
       .catch(() => undefined);
-  }, [dataSourceCollapsed, leftPanelCollapsed, leftPanelWidth]);
-
-  const persistDataSource = useCallback((collapsed: boolean) => {
-    setDataSourceCollapsed(collapsed);
-    window.playwrightFlowStudio.settings
-      .update({ workflowBuilder: { selectedConnectorCollapsed: rightPanelCollapsed, workflowDataSourceCollapsed: collapsed, leftPanelCollapsed, leftPanelWidth } })
-      .catch(() => undefined);
-  }, [rightPanelCollapsed, leftPanelCollapsed, leftPanelWidth]);
-
-  const persistLeftPanel = useCallback((collapsed: boolean, width: number) => {
-    setLeftPanelCollapsed(collapsed);
-    setLeftPanelWidth(width);
-    window.playwrightFlowStudio.settings
-      .update({ workflowBuilder: { selectedConnectorCollapsed: rightPanelCollapsed, workflowDataSourceCollapsed: dataSourceCollapsed, leftPanelCollapsed: collapsed, leftPanelWidth: width } })
-      .catch(() => undefined);
-  }, [rightPanelCollapsed, dataSourceCollapsed]);
-
-  // ── Workflow Definition smooth resize ───────────────────────────────────────
-  // Delta-based drag (start width + pointer delta) avoids the "jump" caused by
-  // measuring against an assumed panel origin. Updates are batched through
-  // requestAnimationFrame so the canvas reflows smoothly while dragging, and the
-  // width is persisted once on release.
-  const startLeftResize = useCallback(
-    (event: React.PointerEvent) => {
-      event.preventDefault();
-      const startX = event.clientX;
-      const startWidth = leftPanelWidth;
-      let latest = startWidth;
-      let frame = 0;
-
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "col-resize";
-
-      const onMove = (moveEvent: PointerEvent) => {
-        latest = clampWorkflowDefWidth(startWidth + (moveEvent.clientX - startX));
-        if (!frame) {
-          frame = window.requestAnimationFrame(() => {
-            frame = 0;
-            setLeftPanelWidth(latest);
-          });
-        }
-      };
-
-      const onUp = () => {
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-        if (frame) window.cancelAnimationFrame(frame);
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
-        setLeftPanelWidth(latest);
-        persistLeftPanel(leftPanelCollapsed, latest);
-      };
-
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
-    },
-    [leftPanelWidth, leftPanelCollapsed, persistLeftPanel]
-  );
-
-  // Double-click the handle to reset to the default width.
-  const resetLeftWidth = useCallback(() => {
-    setLeftPanelWidth(WORKFLOW_DEF_DEFAULT_WIDTH);
-    persistLeftPanel(leftPanelCollapsed, WORKFLOW_DEF_DEFAULT_WIDTH);
-  }, [leftPanelCollapsed, persistLeftPanel]);
-
-  useEffect(() => {
-    if (!workflowDataSourceId) {
-      setDataSourceRecordCount(null);
-      return;
-    }
-    window.playwrightFlowStudio.dataSources
-      .preview(workflowDataSourceId, workflowRootArrayPath)
-      .then((preview) => {
-        const result = preview as { selected?: unknown; rows?: unknown[] };
-        const rows = Array.isArray(result.selected) ? result.selected : result.rows ?? [];
-        setDataSourceRecordCount(rows.length);
-      })
-      .catch(() => setDataSourceRecordCount(null));
-  }, [workflowDataSourceId, workflowRootArrayPath]);
+  }, []);
 
   // Add or remove a flow node's self-loop connector (from the node kebab menu). Replaces the old
   // in-node loop button that mutated edges via useReactFlow.
@@ -963,6 +868,8 @@ function ScenarioBuilderContent() {
       } else {
         await window.playwrightFlowStudio.workflows.create(profileToSave);
       }
+      // AWKIT-WFB-001: the stored document is now exactly what we wrote.
+      setLoadedWorkflow(profileToSave);
       const updated = await window.playwrightFlowStudio.workflows.list();
       setWorkflows(updated);
       setSavedSnapshot(serializeWorkflowDoc(profileToSave)); // current document is now the saved baseline
@@ -1001,13 +908,23 @@ function ScenarioBuilderContent() {
 
   const loadWorkflowProfile = useCallback(
     (profile: WorkflowProfile, library = flowLibrary) => {
+      // AWKIT-WFB-001: retain the stored document so save/export preserve it instead of
+      // re-deriving demo-shaped data.
+      setLoadedWorkflow(profile);
       setWorkflowId(profile.id);
       setWorkflowName(profile.name);
       setExecutionMode(profile.execution.mode);
       setMaxParallelFlows(profile.execution.maxConcurrentInstances);
       setWorkflowDataSourceId(profile.dataSource?.dataSourceId ?? "");
       setWorkflowRootArrayPath(profile.dataSource?.rootArrayPath ?? "$.customers");
-      const nextFailurePolicy = { ...failurePolicy, stopOnRequiredFlowFailure: profile.execution.stopOnRequiredFlowFailure };
+      const nextFailurePolicy = {
+        ...failurePolicy,
+        stopOnRequiredFlowFailure: profile.execution.stopOnRequiredFlowFailure,
+        // AWKIT-WFB-002: load the persisted policy (defaulted) instead of leaving the checkboxes
+        // write-only.
+        continueOnOptionalFlowFailure: profile.execution.continueOnOptionalFlowFailure ?? true,
+        takeScreenshotOnFailure: profile.execution.takeScreenshotOnFailure ?? true
+      };
       setFailurePolicy(nextFailurePolicy);
       // Point 1c: workflows saved without node positions collapse/stack. Auto-arrange
       // (top-to-bottom) only when positions are missing/stacked; manual layouts are preserved.
@@ -1092,14 +1009,19 @@ function ScenarioBuilderContent() {
   }, [loadWorkflowProfile, workflowId]);
 
   const exportScenario = useCallback(() => {
-    const blob = new Blob([JSON.stringify(workflowProfile, null, 2)], { type: "application/json" });
+    // AWKIT-WFB-001: export the STORED bytes when this workflow has one and the canvas is clean,
+    // so export→import is byte-faithful; an unsaved/dirty document exports the (now
+    // preserve-don't-re-derive) memo instead.
+    const stored = loadedWorkflow?.id === workflowId && !isDirty ? loadedWorkflow : null;
+    const doc = stored ?? workflowProfile;
+    const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = href;
-    link.download = `${workflowProfile.id}.json`;
+    link.download = `${doc.id}.json`;
     link.click();
     URL.revokeObjectURL(href);
-  }, [workflowProfile]);
+  }, [workflowProfile, loadedWorkflow, isDirty, workflowId]);
 
   const persistImportedWorkflow = useCallback(
     async (profile: WorkflowProfile, allowOverwrite = false, precheckedName?: string) => {
@@ -1399,204 +1321,13 @@ function ScenarioBuilderContent() {
         </div>
       </EditorCommandBar>
 
-      {/* Phase 01+03: Dynamic 3-column grid responding to collapse state */}
+      {/* Phase 01+03: Dynamic grid. AWKIT-WFB-002: the Workflow Definition left panel was
+          retired in favour of the contextual picker (see `.scenario-builder-grid` CSS:
+          "Its former persistent panel/rail remains compatibility-only for old persisted UI
+          settings") but its JSX was left behind behind `false && …`, along with an
+          always-false expand rail. The dead block is deleted; the live surfaces are the canvas,
+          the CanvasItemPicker, and the right connector panel. */}
       <div className="scenario-builder-grid">
-
-        {/* LEFT PANEL */}
-        {false && (leftPanelCollapsed ? (
-          <aside className="scenario-side-panel scenario-side-rail" aria-label="Expand side panel">
-            <button
-              className="sb-collapse-btn sb-rail-expand"
-              id="sb-left-panel-expand"
-              title="Show Workflow Definition"
-              type="button"
-              onClick={() => persistLeftPanel(false, leftPanelWidth)}
-            >
-              <PanelRightOpen size={16} style={{ transform: "rotate(180deg)" }} />
-            </button>
-            <span className="panel-rail-label">Workflow Definition</span>
-          </aside>
-        ) : (
-          <div style={{ display: "flex", width: "100%", height: "100%" }}>
-            <aside className="scenario-side-panel" style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
-              <div className="sb-section-header" style={{ marginBottom: 0, paddingBottom: 4 }}>
-                <h2 style={{ margin: 0, flex: 1 }}>Workflow Definition</h2>
-                <button
-                  className="sb-collapse-btn"
-                  id="sb-left-panel-collapse"
-                  title="Collapse side panel"
-                  type="button"
-                  onClick={() => persistLeftPanel(true, leftPanelWidth)}
-                >
-                  <PanelRightClose size={16} style={{ transform: "rotate(180deg)" }} />
-                </button>
-              </div>
-
-              {/* Phase 03: Collapsible Workflow Data Source */}
-              <section className="sb-collapsible-section">
-                <div className="sb-section-header">
-                  <Database size={14} />
-                  <strong>
-                    {dataSourceCollapsed && selectedDataSourceName
-                      ? `Data Source: ${selectedDataSourceName}`
-                      : dataSourceCollapsed
-                        ? "Data Source: None"
-                        : "Workflow Data Source"}
-                  </strong>
-                  <button
-                    className="sb-collapse-btn"
-                    id="sb-datasource-toggle"
-                    title={dataSourceCollapsed ? "Expand data source settings" : "Collapse data source settings"}
-                    type="button"
-                    onClick={() => persistDataSource(!dataSourceCollapsed)}
-                  >
-                    {dataSourceCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-                  </button>
-                </div>
-
-                {!dataSourceCollapsed && (
-                  <div className="sb-section-content">
-                    <label>
-                      Data Source
-                      <select
-                        value={workflowDataSourceId}
-                        onChange={(event) => {
-                          const id = event.target.value;
-                          setWorkflowDataSourceId(id);
-                          if (id) window.playwrightFlowStudio.settings.update({ selections: { lastSelectedDataSourceId: id } }).catch(() => undefined);
-                        }}
-                      >
-                        <option value="">None</option>
-                        {dataSources.map((source) => (
-                          <option key={source.id} value={source.id}>
-                            {source.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Root Array Path
-                      <input
-                        placeholder="$.customers"
-                        value={workflowRootArrayPath}
-                        onChange={(event) => setWorkflowRootArrayPath(event.target.value)}
-                      />
-                    </label>
-                    <span className="form-message">
-                      {workflowDataSourceId
-                        ? dataSourceRecordCount === null
-                          ? "Resolving records…"
-                          : `${dataSourceRecordCount} record(s) found`
-                        : "Dynamic nodes set to 'workflow data source' will use this."}
-                    </span>
-                  </div>
-                )}
-              </section>
-
-              {/* Saved Flows */}
-              <section>
-                <h2>Saved Flows</h2>
-                {/* Task 03: search by flow name */}
-                <div className="sb-flow-search">
-                  <Search size={14} />
-                  <input
-                    placeholder="Search saved flows by name…"
-                    value={flowSearch}
-                    onChange={(event) => {
-                      setFlowSearch(event.target.value);
-                      setFlowVisibleCount(SAVED_FLOWS_PAGE_SIZE); // reset paging when the query changes
-                    }}
-                  />
-                </div>
-                <div className="scenario-flow-library">
-                  {visibleFlows.length ? (
-                    visibleFlows.map((flow) => (
-                      <button key={flow.flowId} onClick={() => addFlow(flow.flowId)} type="button">
-                        <strong>{flow.name}</strong>
-                        <span>{flow.description}</span>
-                      </button>
-                    ))
-                  ) : flowLibrary.length === 0 ? (
-                    <p>No saved flows yet. Create flows in the Flow Designer, then add them to this workflow.</p>
-                  ) : flowSearch.trim() ? (
-                    <p>No matching flows found.</p>
-                  ) : (
-                    <p>All saved flows are already in the workflow.</p>
-                  )}
-                </div>
-                {/* Task 04: pagination footer — always show the count so it's clear the list
-                is capped at 10, with a Load More button while more flows remain. */}
-                {filteredFlows.length > 0 ? (
-                  <div className="sb-saved-flows-footer">
-                    <span className="form-message">
-                      Showing {visibleFlows.length} of {filteredFlows.length} flow{filteredFlows.length === 1 ? "" : "s"}
-                    </span>
-                    {filteredFlows.length > flowVisibleCount ? (
-                      <button
-                        className="toolbar-button sb-load-more"
-                        type="button"
-                        onClick={() => setFlowVisibleCount((count) => count + SAVED_FLOWS_PAGE_SIZE)}
-                      >
-                        Load More ({filteredFlows.length - flowVisibleCount} more)
-                      </button>
-                    ) : filteredFlows.length > SAVED_FLOWS_PAGE_SIZE ? (
-                      <span className="form-message">All flows loaded.</span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </section>
-
-              {/* Flow Order */}
-              <section>
-                <h2>Flow Order</h2>
-                <div className="flow-order-list">
-                  {orderedNodes.map((node) => (
-                    <article
-                      draggable
-                      key={node.id}
-                      className="flow-order-item"
-                      onDragOver={(event) => event.preventDefault()}
-                      onDragStart={() => setDraggedFlowId(node.id)}
-                      onDrop={() => {
-                        if (draggedFlowId) reorderFlow(draggedFlowId, node.data.order);
-                        setDraggedFlowId(null);
-                      }}
-                    >
-                      <div className="flow-order-item-top">
-                        <GripVertical size={15} className="drag-handle" />
-                        <div className="flow-order-item-name">
-                          <strong>{node.data.name}</strong>
-                        </div>
-                      </div>
-                      <div className="flow-order-item-bottom">
-                        <input min="1" type="number" value={node.data.order} onChange={(event) => reorderFlow(node.id, Number(event.target.value))} title="Execution order" />
-                        <label className="inline-check">
-                          <input
-                            checked={node.data.required}
-                            type="checkbox"
-                            onChange={(event) => updateNodeData(node.id, { required: event.target.checked })}
-                          />
-                          Req
-                        </label>
-                        <button className="icon-button" onClick={() => removeFlow(node.id)} type="button" title="Remove flow">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            </aside>
-            <div
-              className="sb-resize-handle"
-              onPointerDown={startLeftResize}
-              onDoubleClick={resetLeftWidth}
-              role="separator"
-              aria-orientation="vertical"
-              title="Drag to resize Workflow Definition (double-click to reset)"
-            />
-          </div>
-        ))}
 
         {/* CANVAS */}
         <section ref={canvasRef} className="scenario-canvas-panel">
@@ -1647,8 +1378,9 @@ function ScenarioBuilderContent() {
         </section>
 
         {/* RIGHT PANEL — Phase 01: Collapsible */}
-        {rightPanelCollapsed ? (false &&
-          /* Collapsed: narrow icon rail */
+        {rightPanelCollapsed ? (
+          /* Collapsed: narrow icon rail. AWKIT-WFB-002: this was gated behind `false &&`,
+             so a collapsed connector panel could never be reopened from the UI. */
           <aside className="scenario-properties-panel scenario-properties-rail" aria-label="Expand connector panel">
             <button
               className="sb-collapse-btn sb-rail-expand"
@@ -2101,83 +1833,6 @@ function normalizeOrders(nodes: ScenarioNode[]): ScenarioNode[] {
       order: node.data.kind === "start" ? 0 : node.data.kind === "end" ? flows.length + 1 : flowOrder.get(node.id) ?? node.data.order
     }
   }));
-}
-
-function toWorkflowProfile(
-  nodes: ScenarioNode[],
-  edges: ScenarioEdge[],
-  id: string,
-  name: string,
-  executionMode: ScenarioProfile["executionMode"],
-  maxParallelFlows: number,
-  failurePolicy: ScenarioProfile["failurePolicy"],
-  dataSource?: WorkflowDataSourceBinding
-): WorkflowProfile {
-  const orderedNodes = [...nodes].sort((a, b) => a.data.order - b.data.order);
-
-  return {
-    id,
-    name,
-    description: "Saved workflow of reusable flow profiles",
-    version: 1,
-    dataSource,
-    nodes: orderedNodes.map((node) => node.data.kind === "flowRef" ? ({
-        id: node.id,
-        type: "flowRef" as const,
-        flowId: node.data.flowId,
-        alias: node.data.name,
-        order: node.data.order,
-        required: node.data.required,
-        inputBindings: Object.fromEntries(
-          node.data.inputs.map((input) => [
-            input,
-            input === "currentRow"
-              ? { type: "currentRow", path: "$" }
-              : input === "selectedAccountType"
-                ? { type: "runtimeInput", key: "selectedAccountType" }
-                : { type: "static", value: input }
-          ])
-        ),
-        retryPolicy: { count: 0, delayMs: 1000 },
-        failurePolicy: failurePolicy.stopOnRequiredFlowFailure ? "stop" as const : "continue" as const,
-        position: node.position,
-        size: { width: Math.round(node.data.width), height: Math.round(node.data.height) }
-      }) : ({
-        id: node.id,
-        type: node.data.kind,
-        alias: node.data.name,
-        order: node.data.order,
-        position: node.position,
-        size: { width: Math.round(node.data.width), height: Math.round(node.data.height) }
-      })),
-    edges: edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: edge.data?.linkType ?? "success",
-      label: edge.data?.label,
-      condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
-      // Preserve an attached opaque Loop payload on legacy `loopBack` edges. The runtime continues
-      // to distinguish traversal models by link type.
-      loop: scenarioEdgeKind(edge.data?.linkType) === "loop" ? edge.data?.loop : undefined,
-      maxLoopCount: edge.data?.linkType === "loopBack" ? edge.data.maxLoopCount : undefined,
-      style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined
-    })),
-    runtimeInputs: [
-      {
-        key: "selectedAccountType",
-        label: "Account Type",
-        type: "dropdown",
-        required: true,
-        options: ["BUSINESS", "PERSONAL"]
-      }
-    ],
-    execution: {
-      mode: executionMode,
-      maxConcurrentInstances: maxParallelFlows,
-      stopOnRequiredFlowFailure: failurePolicy.stopOnRequiredFlowFailure
-    }
-  };
 }
 
 function toFlowLibraryItems(flows: FlowProfile[]): typeof fallbackFlowLibrary {

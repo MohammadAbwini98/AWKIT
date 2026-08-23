@@ -5,6 +5,15 @@ import {
   parseWorkflowConflictName,
   validateWorkflowProfile
 } from "@src/profiles/workflowProfileValidation";
+// AWKIT-WFB-001: drive the page's REAL save-path converter (extracted so it can be imported
+// headlessly). This file previously exercised only the converters in WorkflowProfile.ts — which
+// is exactly why the save path re-fabricating documents stayed invisible.
+import {
+  toWorkflowProfile,
+  type ScenarioEdge,
+  type ScenarioNode
+} from "../app/renderer/components/scenario/workflowDocumentMapping";
+import type { WorkflowSecuritySettings } from "@src/security/browser/CertificateTrust";
 
 let passed = 0;
 const check = (label: string, value: boolean) => {
@@ -186,4 +195,118 @@ check(
   parseWorkflowConflictName(formatWorkflowConflictMessage(conflictName, workflow.id)) === conflictName
 );
 
-console.log(`\n${passed}/20 workflow sentinel checks passed`);
+console.log("\nSave-path converter `toWorkflowProfile` preserves, not re-derives (AWKIT-WFB-001):");
+{
+  const flowNodeData = (overrides: Partial<Extract<ScenarioNode["data"], { kind: "flowRef" }>> = {}) =>
+    ({
+      kind: "flowRef",
+      flowId: "flow-a",
+      name: "Flow A",
+      description: "",
+      order: 1,
+      required: true,
+      mode: "sequential",
+      width: 320,
+      height: 96,
+      outputs: [],
+      inputs: ["customerId"],
+      ...overrides
+    }) as ScenarioNode["data"];
+  const canvasFlowNode = (id: string, data: ScenarioNode["data"]): ScenarioNode =>
+    ({ id, type: "scenarioFlow", position: { x: 10, y: 20 }, data }) as ScenarioNode;
+  const canvasEdge = (id: string, source: string, target: string, linkType = "success"): ScenarioEdge =>
+    ({ id, source, target, data: { linkType, label: undefined, expression: "" } }) as ScenarioEdge;
+
+  // A stored document with everything the old save path used to drop or overwrite.
+  const stored: WorkflowProfile = {
+    id: "wf-1",
+    name: "Stored workflow",
+    description: "Authored description",
+    version: 7,
+    security: { allowInsecureTlsForTrustedHosts: true } as WorkflowSecuritySettings,
+    nodes: [
+      {
+        id: "node-a",
+        type: "flowRef",
+        flowId: "flow-a",
+        alias: "Flow A",
+        order: 1,
+        required: true,
+        inputBindings: { customerId: { type: "runtimeInput", key: "cid" } },
+        jsonPath: "$.items[*]",
+        runtimeInputKey: "cid",
+        conditionRules: "skip-if-empty",
+        retryPolicy: { count: 2, delayMs: 500 },
+        failurePolicy: "manualHandoff"
+      }
+    ],
+    edges: [],
+    runtimeInputs: [{ key: "cid", label: "Customer", type: "text", required: true }],
+    execution: { mode: "sequential", maxConcurrentInstances: 3, stopOnRequiredFlowFailure: false }
+  };
+  const saved = toWorkflowProfile(
+    [canvasFlowNode("node-a", flowNodeData())],
+    [canvasEdge("e1", "node-a", "node-a")],
+    stored.id,
+    "Renamed on canvas",
+    "sequential",
+    3,
+    { stopOnRequiredFlowFailure: false, continueOnOptionalFlowFailure: false, takeScreenshotOnFailure: false },
+    undefined,
+    stored
+  );
+  check("authored description survives a save (not reset to the constant)", saved.description === "Authored description", String(saved.description));
+  check("authored version survives a save (not pinned to 1)", saved.version === 7, String(saved.version));
+  check("schema-documented security override survives a save", JSON.stringify(saved.security) === JSON.stringify(stored.security));
+  check("stored runtimeInputs survive a save (no injected demo dropdown)", JSON.stringify(saved.runtimeInputs) === JSON.stringify(stored.runtimeInputs), JSON.stringify(saved.runtimeInputs));
+  const savedNodeA = saved.nodes.filter(isWorkflowFlowNode)[0];
+  check(
+    "stored per-node fields survive a save",
+    Boolean(
+      savedNodeA &&
+        JSON.stringify(savedNodeA.inputBindings) === JSON.stringify({ customerId: { type: "runtimeInput", key: "cid" } }) &&
+        savedNodeA.jsonPath === "$.items[*]" &&
+        savedNodeA.runtimeInputKey === "cid" &&
+        savedNodeA.conditionRules === "skip-if-empty" &&
+        JSON.stringify(savedNodeA.retryPolicy) === JSON.stringify({ count: 2, delayMs: 500 }) &&
+        savedNodeA.failurePolicy === "manualHandoff"
+    ),
+    JSON.stringify(savedNodeA)
+  );
+
+  // A brand-new document fabricates nothing.
+  const fresh = toWorkflowProfile(
+    [canvasFlowNode("new-node", flowNodeData())],
+    [],
+    "wf-new",
+    "New Workflow",
+    "sequential",
+    1,
+    { stopOnRequiredFlowFailure: true, continueOnOptionalFlowFailure: true, takeScreenshotOnFailure: true },
+    undefined,
+    null
+  );
+  const freshNode = fresh.nodes.filter(isWorkflowFlowNode)[0];
+  check(
+    "a NEW node gets empty bindings — no static literals equal to the key names",
+    JSON.stringify(freshNode?.inputBindings) === "{}",
+    JSON.stringify(freshNode?.inputBindings)
+  );
+  check("a NEW document starts with no runtime inputs (no BUSINESS/PERSONAL dropdown)", fresh.runtimeInputs.length === 0, JSON.stringify(fresh.runtimeInputs));
+
+  // AWKIT-WFB-002: the failure-policy checkboxes persist and load.
+  check(
+    "continueOnOptionalFlowFailure / takeScreenshotOnFailure persist in execution",
+    saved.execution.continueOnOptionalFlowFailure === false && saved.execution.takeScreenshotOnFailure === false,
+    JSON.stringify(saved.execution)
+  );
+  const backToScenario = workflowToScenarioProfile(saved);
+  check(
+    "the persisted policy reaches the runtime scenario profile",
+    backToScenario.failurePolicy.continueOnOptionalFlowFailure === false &&
+      backToScenario.failurePolicy.takeScreenshotOnFailure === false,
+    JSON.stringify(backToScenario.failurePolicy)
+  );
+}
+
+console.log(`\n${passed} workflow sentinel checks passed`);

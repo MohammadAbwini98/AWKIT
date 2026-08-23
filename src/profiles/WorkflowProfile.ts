@@ -91,6 +91,13 @@ export interface WorkflowProfile {
     mode: ScenarioProfile["executionMode"];
     maxConcurrentInstances: number;
     stopOnRequiredFlowFailure: boolean;
+    /**
+     * AWKIT-WFB-002: these two were authored by enabled Builder checkboxes but absent from the
+     * schema, so the dirty flag never fired and Save silently dropped them. Optional +
+     * defaulted-on-read keeps every existing workflow file loading unchanged.
+     */
+    continueOnOptionalFlowFailure?: boolean;
+    takeScreenshotOnFailure?: boolean;
   };
   /**
    * Optional per-workflow security overrides. Omitted (the default for every existing workflow file)
@@ -170,8 +177,9 @@ export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioPr
     }),
     failurePolicy: {
       stopOnRequiredFlowFailure: workflow.execution.stopOnRequiredFlowFailure,
-      continueOnOptionalFlowFailure: true,
-      takeScreenshotOnFailure: true
+      // AWKIT-WFB-002: read the persisted policy instead of hardcoding true/true.
+      continueOnOptionalFlowFailure: workflow.execution.continueOnOptionalFlowFailure ?? true,
+      takeScreenshotOnFailure: workflow.execution.takeScreenshotOnFailure ?? true
     }
   };
 }
