@@ -272,44 +272,6 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 - **Fix direction:** add a save-time prompt or Flow Designer picker binding a concrete static
   path / runtime-input reference so recorded uploads become runnable without JSON editing.
 
-### AWKIT-DUR-001 — A transient read failure of `runtime.sqlite` silently replaces all run history with an empty database
-
-- **Classification:** Data-integrity risk (silent destruction of durable history)
-- **Severity:** S2 / Any non-ENOENT read error (`EBUSY`/`EPERM`/`EACCES` — the exact Windows
-  contention class this repo documents as routine) boots the store EMPTY, then persists the empty
-  DB over the existing file. All durable run/attempt/artifact history is destroyed with "open"
-  reporting success.
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Runner persistence (`src/runner/store`)
-- **Affected area:** `src/runner/store/SqliteRuntimeStore.ts` — `open()` catch block converts
-  every `readFile` failure into a fresh empty `SQL.Database()`; `migrate()` then sets `dirty`,
-  and the unconditional `persistNow()` at open renames the empty DB over `runtime.sqlite`
-  (temp+rename, no quarantine). Contrast: corrupt-bytes failures throw out of
-  `new SQL.Database(bytes)` into `ExecutionEngine`'s NullRuntimeStore downgrade, which PRESERVES
-  the file — the two failure classes are handled inconsistently.
-- **Fix direction:** catch only `ENOENT`; on any other read failure fail closed to
-  `NullRuntimeStore` (or quarantine the unreadable file) and never persist over bytes that could
-  not be read. Add a focused verifier that locks the file and asserts history survives.
-
-### AWKIT-SES-004 — Malformed `session-profiles.json` silently resets the registry to `[]`; the next write destroys it
-
-- **Classification:** Data-integrity risk (index to captured login sessions lost)
-- **Severity:** S2 / One JSON parse failure collapses the whole session registry to empty; every
-  subsequent mutation (list backfill, rename, markUsed, capture completion, delete) writes the
-  truncated list over the metadata. The captured Chrome profile DIRECTORIES survive on disk but
-  become unreachable/unlisted forever.
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Session persistence (`src/session`)
-- **Affected area:** `src/session/SessionCaptureService.ts` `readProfiles()` — bare
-  `catch { return []; }` treats parse errors as "no sessions"; write-back sites then persist the
-  loss through the (otherwise correct) atomic enqueue chain. Contrast the correct pattern one
-  layer away: `JsonProfileStore.quarantineCorrupt` renames the bad file to `.corrupt-<ts>` and
-  logs loudly (`src/storage/ProfileStore.ts:160-179`).
-- **Fix direction:** mirror the profile-store quarantine (preserve bytes, return empty only for
-  true ENOENT), and add a round-trip verifier that seeds malformed metadata and asserts it is
-  preserved.
 
 
 
@@ -317,21 +279,7 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 
 
-### AWKIT-SET-007 — Corrupt `ui-settings.json` silently resets to defaults and is overwritten at next startup
 
-- **Classification:** Data-integrity risk (settings loss without backup)
-- **Severity:** S3 / `getUiSettings()` treats any parse/read failure as factory defaults; `main.ts`
-  writes `lastLaunchedAt` through `updateUiSettings` on EVERY startup, so a corrupted/truncated
-  settings file is permanently replaced by defaults at next launch — custom storage paths,
-  capacity caps, recorder security toggles and super-user policy gone silently, with no
-  `.corrupt-*` preservation.
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Main-process settings store
-- **Affected area:** `app/main/uiSettings.ts:471-477` (catch-all hydrate({})),
-  `app/main/main.ts:65` (unconditional startup write).
-- **Fix direction:** quarantine-and-default like `JsonProfileStore`, and never let the startup
-  bookkeeping write be the operation that destroys unrecoverable bytes.
 
 ### AWKIT-A11Y-001 — ReauthDialog declares `aria-modal` with no focus contract, while another file asserts it has one
 
@@ -704,6 +652,73 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-SET-007 — Corrupt `ui-settings.json` silently resets to defaults and is overwritten at next startup
+
+- **Classification:** Data-integrity risk (settings loss without backup)
+- **Severity:** S3 / `getUiSettings()` treats any parse/read failure as factory defaults; `main.ts`
+  writes `lastLaunchedAt` through `updateUiSettings` on EVERY startup, so a corrupted/truncated
+  settings file is permanently replaced by defaults at next launch — custom storage paths,
+  capacity caps, recorder security toggles and super-user policy gone silently, with no
+  `.corrupt-*` preservation.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 8e6e6a4**
+- **Owner routing:** Main-process settings store
+- **Affected area:** `app/main/uiSettings.ts:471-477` (catch-all hydrate({})),
+  `app/main/main.ts:65` (unconditional startup write).
+- **Fix direction:** quarantine-and-default like `JsonProfileStore`, and never let the startup
+  bookkeeping write be the operation that destroys unrecoverable bytes.
+
+- **Evidence after fix:** `verify-settings-runner-behaviour` 17 PASS / 0 FAIL on an ISOLATED LOCALAPPDATA with a seeded-truncated ui-settings.json: app boots on defaults, exactly one .corrupt-* sibling preserves bytes verbatim, startup write lands on a fresh VALID file, valid writes create no further siblings. Live quarantine line captured from app stderr.
+
+---
+
+### AWKIT-SES-004 — Malformed `session-profiles.json` silently resets the registry to `[]`; the next write destroys it
+
+- **Classification:** Data-integrity risk (index to captured login sessions lost)
+- **Severity:** S2 / One JSON parse failure collapses the whole session registry to empty; every
+  subsequent mutation (list backfill, rename, markUsed, capture completion, delete) writes the
+  truncated list over the metadata. The captured Chrome profile DIRECTORIES survive on disk but
+  become unreachable/unlisted forever.
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 8e6e6a4**
+- **Owner routing:** Session persistence (`src/session`)
+- **Affected area:** `src/session/SessionCaptureService.ts` `readProfiles()` — bare
+  `catch { return []; }` treats parse errors as "no sessions"; write-back sites then persist the
+  loss through the (otherwise correct) atomic enqueue chain. Contrast the correct pattern one
+  layer away: `JsonProfileStore.quarantineCorrupt` renames the bad file to `.corrupt-<ts>` and
+  logs loudly (`src/storage/ProfileStore.ts:160-179`).
+- **Fix direction:** mirror the profile-store quarantine (preserve bytes, return empty only for
+  true ENOENT), and add a round-trip verifier that seeds malformed metadata and asserts it is
+  preserved.
+
+- **Evidence after fix:** `verify:recorder-draft` 85/85: corrupt session-profiles.json now fails reads loudly (/corrupt/i), quarantines exactly one .corrupt-* sibling whose bytes equal the original; missing-metadata control still lists zero safely.
+
+---
+
+### AWKIT-DUR-001 — A transient read failure of `runtime.sqlite` silently replaces all run history with an empty database
+
+- **Classification:** Data-integrity risk (silent destruction of durable history)
+- **Severity:** S2 / Any non-ENOENT read error (`EBUSY`/`EPERM`/`EACCES` — the exact Windows
+  contention class this repo documents as routine) boots the store EMPTY, then persists the empty
+  DB over the existing file. All durable run/attempt/artifact history is destroyed with "open"
+  reporting success.
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 8e6e6a4**
+- **Owner routing:** Runner persistence (`src/runner/store`)
+- **Affected area:** `src/runner/store/SqliteRuntimeStore.ts` — `open()` catch block converts
+  every `readFile` failure into a fresh empty `SQL.Database()`; `migrate()` then sets `dirty`,
+  and the unconditional `persistNow()` at open renames the empty DB over `runtime.sqlite`
+  (temp+rename, no quarantine). Contrast: corrupt-bytes failures throw out of
+  `new SQL.Database(bytes)` into `ExecutionEngine`'s NullRuntimeStore downgrade, which PRESERVES
+  the file — the two failure classes are handled inconsistently.
+- **Fix direction:** catch only `ENOENT`; on any other read failure fail closed to
+  `NullRuntimeStore` (or quarantine the unreadable file) and never persist over bytes that could
+  not be read. Add a focused verifier that locks the file and asserts history survives.
+
+- **Evidence after fix:** `verify:durable-store` 16/16, new Part D: open() on an unreadable path (directory-at-path, non-ENOENT class) REJECTS and the path survives untouched; corrupt-bytes rejects and is preserved verbatim; ENOENT control still boots fresh. Mutation restoring swallow-all → exit 1.
+
+---
+
 ### AWKIT-RUN-002 — All instances of one run share a single `runtimeInputs` object
 
 - **Classification:** Product defect (cross-instance data isolation)
