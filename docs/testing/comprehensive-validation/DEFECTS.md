@@ -317,24 +317,6 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 ---
 
-### AWKIT-REC-037 — The Recorder's preserved draft is unreachable in the UI, and starting a recording destroys it
-
-- **Classification:** Product defect (silent loss of recorded work; undermines the AWKIT-REC-001 guarantee at the UI layer)
-- **Severity:** S2 / After a restart the restored draft never appears (page fetches actions only while `isRecording`), Save stays disabled, and pressing Start clears service memory and overwrites the draft file with empty — total silent loss of a pre-crash recording. Cancelling a handoff likewise wipes the locally displayed actions without refetching, hiding the actions the service deliberately preserved
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Recorder (renderer/service contract)
-- **Affected area:** `app/renderer/pages/Recorder.tsx:56-69` (actions fetched only inside the `isRecording` interval), `:379-392` (`handleCancelHandoff` sets `setActions([])` and never refetches); service `src/recorder/RecorderService.ts:603,645` (`startRecording` clears actions and persists immediately), `:463-477` (`ensureDraftLoaded` restores to memory only)
-- **Detected by:** Independent whole-repository code review
-
-Related same-root-shape gaps found in the same review: Save Flow remains enabled during an active
-handoff pause and saving empties service memory mid-pause (Renderer `saveDisabled` lacks a handoff
-term); `continueWithNormalBrowser` closes the recorder browser BEFORE validating Chrome
-availability, bricking the handoff in `phase:"error"` with no retry; `startCapture` persists a
-`capturing` profile row before validating the URL, stranding perpetual `capturing` rows invisible
-to session matching; liveness watch is suppressed during the `detected` pause, so a closed paused
-browser leaves status "Recording" against dead handles.
-
 ---
 
 ### AWKIT-SEC-001 — `dataSources:createFromScratch` writes attacker-controlled paths outside the workspace
@@ -564,6 +546,28 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-REC-037 — The Recorder's preserved draft is unreachable in the UI, and starting a recording destroys it
+
+- **Classification:** Product defect (silent loss of recorded work; undermines the AWKIT-REC-001 guarantee at the UI layer)
+- **Severity:** S2 / After a restart the restored draft never appears (page fetches actions only while `isRecording`), Save stays disabled, and pressing Start clears service memory and overwrites the draft file with empty — total silent loss of a pre-crash recording. Cancelling a handoff likewise wipes the locally displayed actions without refetching, hiding the actions the service deliberately preserved
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in f49e132**
+- **Owner routing:** Recorder (renderer/service contract)
+- **Affected area:** `app/renderer/pages/Recorder.tsx:56-69` (actions fetched only inside the `isRecording` interval), `:379-392` (`handleCancelHandoff` sets `setActions([])` and never refetches); service `src/recorder/RecorderService.ts:603,645` (`startRecording` clears actions and persists immediately), `:463-477` (`ensureDraftLoaded` restores to memory only)
+- **Detected by:** Independent whole-repository code review
+
+Related same-root-shape gaps found in the same review: Save Flow remains enabled during an active
+handoff pause and saving empties service memory mid-pause (Renderer `saveDisabled` lacks a handoff
+term); `continueWithNormalBrowser` closes the recorder browser BEFORE validating Chrome
+availability, bricking the handoff in `phase:"error"` with no retry; `startCapture` persists a
+`capturing` profile row before validating the URL, stranding perpetual `capturing` rows invisible
+to session matching; liveness watch is suppressed during the `detected` pause, so a closed paused
+browser leaves status "Recording" against dead handles.
+
+- **Evidence after fix:** `verify:recorder-draft` 100/100 (+14): page fetches actions+handoff on mount; saveDisabled includes handoffActive; cancel refetches instead of blanking; ConfirmDialog guards Start over a preserved draft; Chrome check precedes closeBrowser; URL validation precedes the capturing row; liveness watch armed during the detected pause. verify:protected-login-recorder 73/73 and verify:recorder-flow 50/50 stay green with the reordered service calls.
+
+---
+
 ### AWKIT-REC-036 — Cancelling a handoff leaves stale ambiguity state pointing at a dead page
 
 - **Classification:** Product
