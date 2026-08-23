@@ -67,7 +67,25 @@ else pass("every entry uses a taxonomy class");
 // verify-validation, verify-packaged-validation) sat unexercised by any gate. Every
 // `scripts/verify-*.{mjs,mts,js,ts}` file must be referenced by some npm command, or be an explicitly
 // justified non-command helper.
-const verifierFiles = readdirSync(here).filter((f) => /^verify-.*\.(mjs|mts|js|ts)$/.test(f));
+// AWKIT-QA-007: RECURSIVE scan — nested verifier directories (e.g. scripts/zvec-spike) were
+// invisible to the flat readdir, so files there never reconciled against anything.
+function listVerifierFiles(dir) {
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return []; }
+  const out = [];
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "lib" || entry.name === "node_modules") continue;
+      out.push(...listVerifierFiles(full));
+    } else if (/^verify-.*\.(mjs|mts|js|ts)$/.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+const verifierPaths = listVerifierFiles(here);
+const verifierFiles = verifierPaths.map((p) => p.slice(here.length + 1).replace(/\\/g, "/"));
 const allCommandText = Object.values(pkg.scripts).join("\n");
 const unreferenced = verifierFiles.filter(
   (f) => !allCommandText.includes(`scripts/${f}`) && !(f in UNREGISTERED_VERIFIER_ALLOWLIST)
@@ -92,6 +110,25 @@ const counts = new Map<VerifierClass, number>(VERIFIER_CLASSES.map((c) => [c, 0]
 for (const s of scripts) {
   const entry = VERIFIER_CLASSIFICATION[s];
   if (entry) counts.set(entry.class, (counts.get(entry.class) ?? 0) + 1);
+}
+
+// AWKIT-QA-007 (a): recursive discovery means nested verifier files are now checked too. A
+// discovered file must still be wired into some npm command (or allowlisted) — existence in a
+// subfolder no longer hides it from reconciliation.
+
+// Healthy-state floors (2026-08-23): a class dropping to zero/below means its whole family
+// vanished — a bare total would hide it. Adjust DELIBERATELY as classes evolve.
+const CLASS_FLOORS: Partial<Record<VerifierClass, number>> = {
+  'documentation-consistency': 1,
+  'static-source-validation': 5,
+  'unit': 30,
+  'integration': 10,
+  'real-browser': 40,
+  'packaged-application': 5
+};
+for (const [floorCls, floor] of Object.entries(CLASS_FLOORS) as Array<[VerifierClass, number]>) {
+  const n = counts.get(floorCls) ?? 0;
+  if (n < floor) fail(`class '${floorCls}' has ${n} verifiers (floor ${floor}) — the whole class may have vanished`);
 }
 
 console.log("\nPer-class verifier counts (FR-I1 I1.3 — report these, never one undifferentiated total):");

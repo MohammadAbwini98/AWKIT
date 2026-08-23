@@ -533,4 +533,5 @@ try {
 writeFileSync(join(evidenceRoot, "execution-results.json"), JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2), "utf8");
 console.log(`\nReports live engine: ${passed} PASS / ${failed} FAIL${notRun > 0 ? ` / ${notRun} NOT RUN` : ""}`);
 console.log(`Evidence: ${relative(root, evidenceRoot)}`);
-process.exit(failed === 0 ? 0 : 1);
+// AWKIT-QA-007: exit green only when nothing failed AND nothing was skipped.
+process.exit(failed === 0 && notRun === 0 ? 0 : 1);

@@ -673,4 +673,5 @@ try {
 
 console.log(`\n${passed} passed, ${failed} failed${notRun > 0 ? `, ${notRun} not run` : ""}`);
 if (failures.length > 0) console.error(`Failures: ${failures.join(" | ")}`);
-process.exit(failed > 0 ? 1 : 0);
+// AWKIT-QA-007: NOT-RUN work must fail the suite like a failure would.
+process.exit(failed > 0 || notRun > 0 ? 1 : 0);

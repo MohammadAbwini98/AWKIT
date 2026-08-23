@@ -28,6 +28,10 @@ export function Recorder() {
   const [isSaving, setIsSaving] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [startOverwriteConfirmOpen, setStartOverwriteConfirmOpen] = useState(false);
+  // AWKIT-REC-037 refinement (caught by verify:recorder-gui): the overwrite confirm must arm ONLY
+  // for a draft RESTORED from disk at mount — not for the leftover actions of a session this page
+  // itself just stopped/cancelled/saved, which starting over is allowed to clear silently.
+  const [pendingRestoredDraft, setPendingRestoredDraft] = useState(false);
   const [saveResult, setSaveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [actionMutationBusy, setActionMutationBusy] = useState(false);
@@ -74,7 +78,12 @@ export function Recorder() {
   // `isRecording`, so the restored actions were invisible after a restart and Save stayed
   // disabled — the AWKIT-REC-001 guarantee died at the UI layer.
   useEffect(() => {
-    window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    window.playwrightFlowStudio.recorder.getActions()
+      .then((restored) => {
+        setActions(restored);
+        setPendingRestoredDraft(restored.length > 0);
+      })
+      .catch(() => undefined);
     window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
     window.playwrightFlowStudio.recorder.getUrls().then(setUrls).catch(() => undefined);
   }, []);
@@ -306,7 +315,7 @@ export function Recorder() {
     // AWKIT-REC-037: a preserved draft must be confirmed away, not silently destroyed. Starting
     // clears service memory and overwrites the draft file — if displayed actions came from a
     // restored draft (not a live recording), ask first.
-    if (!isRecording && actions.length > 0 && !handoffActive) {
+    if (!isRecording && pendingRestoredDraft && !handoffActive) {
       setStartOverwriteConfirmOpen(true);
       return;
     }
@@ -317,6 +326,7 @@ export function Recorder() {
     try {
       setStatusMsg("Starting browser...");
       await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime, captureSmartWaits });
+      setPendingRestoredDraft(false);
       setIsRecording(true);
       setStatusMsg(captureWaitTime || captureSmartWaits ? "Recording (capturing waits)..." : "Recording...");
       window.playwrightFlowStudio.recorder.saveUrl(url).then(setUrls).catch(() => undefined);

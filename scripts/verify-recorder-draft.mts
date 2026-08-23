@@ -593,6 +593,26 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
     await rm(ses3Dir, { recursive: true, force: true });
   }
 
+
+  // ── AWKIT-QA-002 — a REJECTING operation must not poison the enqueue chain ──
+  {
+    const qDir = await mkdtemp(join(tmpdir(), "awtkit-qa002-"));
+    const qSvc = new SessionCaptureService(qDir);
+    let ran = false;
+    const enqueue = (op: () => Promise<unknown>) =>
+      (qSvc as unknown as { enqueue(op: () => Promise<unknown>): Promise<unknown> }).enqueue(op);
+    await enqueue(async () => {
+      throw new Error("synthetic queue rejection");
+    }).catch(() => undefined);
+    await enqueue(async () => {
+      ran = true;
+      return null;
+    });
+    results.push({ name: "QA-002 an operation enqueued AFTER a rejection still runs and lands", pass: ran === true });
+    results.push({ name: "QA-002 list() works after a rejected operation poisoned nothing", pass: Array.isArray(await qSvc.list()) });
+    await rm(qDir, { recursive: true, force: true });
+  }
+
   await rm(sessionsDir, { recursive: true, force: true });
 }
 
@@ -657,6 +677,16 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
 }
 
 await rm(dir, { recursive: true, force: true });
-const passed = results.filter((r) => r.pass).length;
-console.log(`\n${passed}/${results.length} recorder-draft checks passed`);
-process.exit(passed === results.length ? 0 : 1);
+
+// AWKIT-QA-005: cardinality assertion — an uncaught throw shrinks results.length, so this pins the
+// EXPECTED count; a shortened run FAILS instead of printing a full-looking tally. Intentional
+// additions must bump EXPECTED_CHECKS.
+const EXPECTED_CHECKS = 102;
+{
+  const { assertCardinality } = await import("./lib/verify-harness.mjs");
+  const passed = results.filter((r) => r.pass).length;
+  if (!assertCardinality(passed, results.length - passed, EXPECTED_CHECKS, "QA-005 recorder-draft")) process.exitCode = 1;
+}
+const passedFinal = results.filter((r) => r.pass).length;
+console.log(`\n${passedFinal}/${EXPECTED_CHECKS} recorder-draft checks passed (failed: ${results.length - passedFinal})`);
+process.exit(process.exitCode === 1 || passedFinal !== results.length ? 1 : 0);

@@ -192,10 +192,12 @@ try {
     reportSteps(degraded);
     const status = degraded.statusAfter as { state?: string; lastReason?: string } | undefined;
     check("a damaged host does not crash the application process", degraded.ok, JSON.stringify(status));
+    // AWKIT-QA-008: the old ternary folded to `true` when the field was absent — instance #8 of
+    // the escape-hatch family. Field PRESENCE is asserted first; absence now FAILS the check.
     check(
-      "the failure surfaces a stable reason code, not a native message",
-      typeof status?.lastReason === "string" ? /^SEMANTIC_/.test(status.lastReason) : true,
-      String(status?.lastReason)
+      "a damaged host surfaces a stable reason code, not a native message",
+      typeof status?.lastReason === "string" && /^SEMANTIC_/.test(status.lastReason),
+      `lastReason=${JSON.stringify(status?.lastReason)} (missing or non-SEMANTIC)`
     );
   }
 

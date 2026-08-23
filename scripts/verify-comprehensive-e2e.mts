@@ -27,7 +27,7 @@ import { workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
 import type { InstanceExecutionContext, ResolvedDataSource } from "@src/runner/InstanceExecutionContext";
 import { ValueResolver } from "@src/runner/ValueResolver";
 
-type CaseStatus = "PASS" | "FAIL" | "BLOCKED" | "NOT RUN" | "N/A";
+type CaseStatus = "PASS" | "FAIL";
 
 interface CaseResult {
   id: string;
@@ -590,9 +590,7 @@ async function writeLedger(): Promise<void> {
     baseUrl: BASE,
     totals: {
       pass: caseResults.filter((item) => item.status === "PASS").length,
-      fail: caseResults.filter((item) => item.status === "FAIL").length,
-      blocked: caseResults.filter((item) => item.status === "BLOCKED").length,
-      notRun: caseResults.filter((item) => item.status === "NOT RUN").length
+      fail: caseResults.filter((item) => item.status === "FAIL").length
     },
     cases: caseResults
   };

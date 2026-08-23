@@ -31,6 +31,8 @@ import type { SessionProfile } from "@src/session/SessionProfile";
 const PORT = 4407;
 const BASE = `http://127.0.0.1:${PORT}`;
 let passed = 0;
+// AWKIT-QA-005: bump when intentionally adding/removing checks.
+let EXPECTED_CHECKS = 74;
 let failed = 0;
 function check(label: string, condition: unknown, detail = ""): void {
   if (condition) {
@@ -472,13 +474,29 @@ try {
       "the resumed draft persists to disk secure-nodes-first",
       Array.isArray(persistedResumeDraft.actions) &&
         persistedResumeDraft.actions.length === finalActions.length &&
-        persistedResumeDraft.actions[0].type === "autoSecureLogin" &&
-        persistedResumeDraft.actions[1].config.reuseSessionId === RESUME_SESSION_ID,
+        persistedResumeDraft.actions[0]?.type === "autoSecureLogin" &&
+        // AWKIT-QA-004: optional chaining — a missing node must FAIL this check, not crash the
+        // verifier into a TypeError that removes it from the denominator.
+        persistedResumeDraft.actions[1]?.config?.reuseSessionId === RESUME_SESSION_ID,
       `${persistedResumeDraft.actions?.length}/${finalActions.length}`
+    );
+    // AWKIT-QA-001: positive control. The old `/simulate.?login|complete.?login/` could not match
+    // ANY plausible recorded name ("Complete Manual Login" has words between the verbs), so the
+    // absence check carried zero discriminating power. The strengthened pattern pairs an
+    // interaction verb with a login term while still NOT matching the inserted secure nodes
+    // ("Auto Secure Login"), proven by the third half of this control.
+    const LOGIN_INTERACTION_RE = /(click|fill|press|submit|type).{0,40}login|(simulate|complete).{0,20}login/i;
+    check(
+      "QA-001 the login-interaction pattern MATCHES drafts that do contain one (positive control)",
+      LOGIN_INTERACTION_RE.test("Click Login Button") &&
+        LOGIN_INTERACTION_RE.test("Complete Manual Login") &&
+        !LOGIN_INTERACTION_RE.test("Auto Secure Login") &&
+        !LOGIN_INTERACTION_RE.test("Reuse Session"),
+      "pattern failed its own positive/negative controls"
     );
     check(
       "no login interaction exists anywhere in the resumed draft",
-      !finalActions.some((a) => /simulate.?login|complete.?login/i.test(a.name)),
+      !finalActions.some((a) => LOGIN_INTERACTION_RE.test(a.name)),
       finalActions.map((a) => a.name).join("|").slice(0, 120)
     );
   }
@@ -739,5 +757,11 @@ try {
   server.kill();
 }
 
-console.log(`\n${passed}/${passed + failed} protected-login recorder checks passed`);
-process.exit(failed === 0 ? 0 : 1);
+// AWKIT-QA-005: cardinality assertion (shared harness helper) — an uncaught throw shrinks the
+// executed set; this pins the expected count so a shortened run FAILS loudly.
+{
+  const { assertCardinality } = await import("./lib/verify-harness.mjs");
+  if (!assertCardinality(passed, failed, EXPECTED_CHECKS, "QA-005 protected-login-recorder")) process.exitCode = 1;
+}
+console.log(`\n${passed}/${EXPECTED_CHECKS} protected-login recorder checks passed (failed: ${failed})`);
+process.exit(process.exitCode === 1 || failed > 0 ? 1 : 0);

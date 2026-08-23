@@ -25,6 +25,8 @@ const exePath = join(root, "resources", "browsers", "chromium", "chrome.exe");
 
 let passed = 0;
 let failed = 0;
+// AWKIT-QA-006: third state — work that genuinely did not execute must never tally as a pass.
+const notRun: string[] = [];
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
     passed += 1;
@@ -158,8 +160,12 @@ async function main(): Promise<void> {
     }
     const offline = navResults.every((r) => !r.ok && /ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|PROXY|NETWORK)/.test(r.detail));
     if (offline) {
-      console.log("  ⚠ machine appears OFFLINE — navigation proof skipped (part B egress check is trivially true offline)");
-      check("navigation check skipped while offline (rerun online for the positive proof)", true);
+      // AWKIT-QA-006: an offline machine used to record a PASS here, printing a confident
+      // all-green tally whose subject was exercised ZERO times (part B's zero-egress result is
+      // trivially true offline too). The skip is now a distinct NOT-RUN state and FAILS the
+      // suite — rerun online for the positive proof.
+      notRun.push("navigation proof skipped while offline — part B egress result is trivially true; rerun online");
+      console.log("  ⚠ machine appears OFFLINE — navigation proof recorded NOT RUN (suite will exit non-zero)");
     } else {
       for (const r of navResults) check(`navigation to ${r.url} works under hardening`, r.ok, r.detail);
     }
@@ -167,8 +173,11 @@ async function main(): Promise<void> {
     await browser.close().catch(() => undefined);
   }
 
-  console.log(`\nResult: ${passed} passed, ${failed} failed.`);
-  if (failed > 0) process.exitCode = 1;
+  console.log(`\nResult: ${passed} passed, ${failed} failed${notRun.length ? `, ${notRun.length} NOT RUN` : ""}.`);
+  if (failed > 0 || notRun.length > 0) {
+    for (const entry of notRun) console.error(`  ~ NOT RUN: ${entry}`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error) => {

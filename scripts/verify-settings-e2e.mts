@@ -293,7 +293,7 @@ function closeExplorerFolderWindow(path: string): void {
 const deniedPaths: Array<{ dir: string; kind: "read" | "write" }> = [];
 let openedRuntimeFolderWindow = false;
 
-type Result = { name: string; pass: boolean; detail?: string };
+type Result = { name: string; pass: boolean; detail?: string; skipped?: boolean };
 const results: Result[] = [];
 function check(name: string, pass: unknown, detail?: unknown): void {
   const result = {
@@ -957,6 +957,12 @@ try {
       match ? match.path.replace(root, "<repo>") : "No matching Explorer folder window appeared."
     );
   } else {
+    results.push({
+      name: "SET-015 Open Runtime Folder launches Explorer at the exact configured runtime root",
+      pass: false,
+      skipped: true,
+      detail: "NOT RUN: set AWKIT_ALLOW_OS_SHELL_LAUNCH=1 with owner approval"
+    });
     console.log("  ~ SET-015 real Explorer launch NOT RUN (set AWKIT_ALLOW_OS_SHELL_LAUNCH=1 with owner approval)");
   }
 
@@ -1546,7 +1552,10 @@ writeFileSync(
   "utf8"
 );
 const passed = results.filter((result) => result.pass).length;
+const skipped = results.filter((result) => result.skipped === true).length;
 const failed = results.length - passed;
-console.log(`\nSettings E2E: ${passed} PASS / ${failed} FAIL`);
+console.log(`\nSettings E2E: ${passed} PASS / ${failed} FAIL / ${skipped} NOT RUN`);
+for (const result of results.filter((r) => r.skipped)) console.error(`  ~ NOT RUN: ${result.name} — ${result.detail ?? ""}`);
+// AWKIT-QA-007: NOT-RUN work must fail the suite like a failure would.
 console.log(`Evidence: ${relative(root, evidenceRoot)}`);
-process.exit(failed === 0 ? 0 : 1);
+process.exit(failed === 0 && skipped === 0 ? 0 : 1);

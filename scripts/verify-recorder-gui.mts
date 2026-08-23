@@ -1563,4 +1563,5 @@ writeFileSync(
 );
 console.log(`\nRecorder GUI: ${passed} PASS / ${failed} FAIL / ${skipped} NOT RUN`);
 console.log(`Evidence: ${evidenceDir}`);
-process.exit(failed === 0 ? 0 : 1);
+// AWKIT-QA-007: exit green only when nothing failed AND nothing was skipped.
+process.exit(failed === 0 && skipped === 0 ? 0 : 1);

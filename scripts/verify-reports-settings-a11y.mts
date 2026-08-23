@@ -51,8 +51,9 @@ function check(name: string, cond: unknown, detail = ""): void {
  */
 function checkSkip(name: string, reason: string): void {
   notRun += 1;
-  results.push({ name, pass: false, detail: `NOT RUN: ${reason}` });
-  console.log(`  ~ ${name} — NOT RUN: ${reason}`);
+  // AWKIT-QA-007: mark the row explicitly as skipped so it can never be read as a plain failure.
+  results.push({ name, pass: false, skipped: true, detail: `NOT RUN: ${reason}` });
+  console.log(`  ~ ${name} - NOT RUN: ${reason}`);
 }
 
 /** Press Tab n times and report what actually received focus, plus whether it shows a ring. */
@@ -333,7 +334,13 @@ async function main(): Promise<number> {
     cleanup();
   }
 
-  console.log(`\nReports + Settings a11y: ${passed} PASS / ${failed} FAIL`);
+  console.log(`\nReports + Settings a11y: ${passed} PASS / ${failed} FAIL / ${notRun} NOT RUN`);
+  // AWKIT-QA-007: the notRun counter is printed AND fails the suite — a skipped a11y check used
+  // to vanish from both the headline and the exit code while its row read pass:false.
+  if (notRun > 0) {
+    for (const r of results.filter((x: any) => x.skipped)) console.error(`  ~ NOT RUN: ${r.name}`);
+    return 1;
+  }
   console.log(`Evidence: ${evidenceDir}`);
   return failed === 0 ? 0 : 1;
 }

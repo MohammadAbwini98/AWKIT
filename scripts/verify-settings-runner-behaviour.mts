@@ -472,4 +472,5 @@ console.log("\nSET-007 — corrupt ui-settings.json quarantine");
 writeFileSync(join(evidenceRoot, "execution-results.json"), JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2), "utf8");
 console.log(`\nSettings runner behaviour: ${passed} PASS / ${failed} FAIL${notRun > 0 ? ` / ${notRun} NOT RUN` : ""}`);
 console.log(`Evidence: ${relative(root, evidenceRoot)}`);
-process.exit(failed === 0 ? 0 : 1);
+// AWKIT-QA-007: NOT-RUN work must fail the suite like a failure would.
+process.exit(failed === 0 && notRun === 0 ? 0 : 1);
