@@ -14,7 +14,7 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "./SessionProfile";
@@ -63,11 +63,48 @@ export class SessionCaptureService {
   }
 
   private async readProfiles(): Promise<SessionProfile[]> {
+    let raw: string;
     try {
-      const raw = await readFile(this.metadataPath(), "utf8");
-      return JSON.parse(raw.replace(/^\uFEFF/, "")) as SessionProfile[];
-    } catch {
+      raw = await readFile(this.metadataPath(), "utf8");
+    } catch (error) {
+      // AWKIT-SES-004: a MISSING file is a normal "no sessions yet"; any other read failure is
+      // loud, not silently treated as an empty registry.
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.error(`[session-capture] Could not read ${this.metadataPath()}: ${(error as Error).message}`);
+      }
       return [];
+    }
+    try {
+      const parsed = JSON.parse(raw.replace(/^\uFEFF/, "")) as SessionProfile[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      // AWKIT-SES-004: a malformed metadata file is NOT silently collapsed to [] — every later
+      // mutation would write the truncated list back and make captured profiles unreachable.
+      // Quarantine the bytes (JsonProfileStore.quarantineCorrupt pattern) and fail this read;
+      // the profile DIRECTORIES survive on disk either way.
+      await this.quarantineCorruptMetadata(error);
+      throw new Error(
+        `Session metadata ${PROFILES_METADATA_FILE} is corrupt; it was preserved as a .corrupt-* sibling. ` +
+          `Restore or delete it before using captured sessions. (${(error as Error).message})`
+      );
+    }
+  }
+
+  /** Rename the unreadable metadata file aside so its bytes survive for recovery. */
+  private async quarantineCorruptMetadata(error: unknown): Promise<void> {
+    const source = this.metadataPath();
+    const target = `${source}.corrupt-${Date.now()}`;
+    try {
+      await rename(source, target);
+      console.error(
+        `[session-capture] ${source} is not valid JSON; preserved as ${target} so it is not lost. ` +
+          `Parse error: ${(error as Error).message}`
+      );
+    } catch (renameError) {
+      console.error(
+        `[session-capture] ${source} is not valid JSON and could not be quarantined ` +
+          `(${(renameError as Error).message}); left in place. Parse error: ${(error as Error).message}`
+      );
     }
   }
 

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getRuntimePaths } from "./appPaths";
 import { replaceFileAtomically } from "./atomicReplace";
@@ -469,9 +469,38 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
 }
 
 export async function getUiSettings(): Promise<UiSettings> {
+  let raw: string;
   try {
-    return hydrate(JSON.parse(await readFile(getSettingsPath(), "utf8")));
-  } catch {
+    raw = await readFile(getSettingsPath(), "utf8");
+  } catch (error) {
+    // AWKIT-SET-007: a MISSING file is a normal first launch. Any OTHER read failure is logged
+    // loudly — it is not silently treated as factory defaults.
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error(`[ui-settings] Could not read ${getSettingsPath()}: ${(error as Error).message}`);
+    }
+    return hydrate({});
+  }
+  try {
+    return hydrate(JSON.parse(raw));
+  } catch (error) {
+    // AWKIT-SET-007: a corrupt settings file is NOT silently replaced by defaults. Quarantine
+    // the bytes (JsonProfileStore.quarantineCorrupt pattern) so custom storage paths, capacity
+    // caps, recorder security toggles and super-user policy survive for recovery; this process
+    // runs on defaults and the next write creates a fresh file WITHOUT destroying the original.
+    const source = getSettingsPath();
+    const target = `${source}.corrupt-${Date.now()}`;
+    try {
+      await rename(source, target);
+      console.error(
+        `[ui-settings] ${source} is not valid JSON; preserved as ${target} so settings are not lost. ` +
+          `Parse error: ${(error as Error).message}`
+      );
+    } catch (renameError) {
+      console.error(
+        `[ui-settings] ${source} is not valid JSON and could not be quarantined ` +
+          `(${(renameError as Error).message}); left in place. Parse error: ${(error as Error).message}`
+      );
+    }
     return hydrate({});
   }
 }

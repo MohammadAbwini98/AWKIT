@@ -351,23 +351,27 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   check("session store: missing metadata lists zero sessions safely", (await fresh.list()).length === 0);
   check("session store: missing metadata resolves no session", (await fresh.getById("nope")) === null);
 
-  // Corrupt metadata: must not throw and must not resurrect phantom sessions; mutations fail safely.
+  // AWKIT-SES-004: corrupt metadata must NOT silently collapse the registry to [] — that let the
+  // next mutation write the truncated list back and make captured profiles unreachable forever.
+  // The bytes are quarantined as a .corrupt-* sibling and reads FAIL CLOSED with an actionable
+  // error until the operator restores or removes them.
   await writeFile(metadataFile, "{ this is not valid json", "utf8");
+  const CORRUPT_BYTES = "{ this is not valid json";
+  await writeFile(metadataFile, CORRUPT_BYTES, "utf8");
   const corrupt = newService();
-  let corruptThrew = "";
+  let corruptError = "";
   try {
     const listed = await corrupt.list();
-    check("session store: corrupt metadata lists zero sessions safely", listed.length === 0, `${listed.length}`);
-    check("session store: corrupt metadata resolves no session", (await corrupt.getById("x")) === null);
+    check("session store: corrupt metadata does NOT collapse to an empty registry", false, `returned ${listed.length} sessions`);
   } catch (error) {
-    corruptThrew = error instanceof Error ? error.message : String(error);
+    corruptError = error instanceof Error ? error.message : String(error);
   }
-  check("session store: corrupt metadata never throws on read", corruptThrew === "", corruptThrew);
-  let renameOnCorrupt = "";
-  await corrupt.rename("x", "y").catch((error: unknown) => {
-    renameOnCorrupt = error instanceof Error ? error.message : String(error);
-  });
-  check("session store: mutation against corrupt metadata fails with an actionable error", /not found/i.test(renameOnCorrupt), renameOnCorrupt);
+  check("session store: corrupt metadata fails the read loudly (fail closed)", /corrupt/i.test(corruptError), corruptError);
+  const corruptSiblings = (await readdir(sessionsDir)).filter((f) => f.startsWith("session-profiles.json.corrupt-"));
+  check("session store: corrupt metadata is quarantined as exactly one .corrupt-* sibling", corruptSiblings.length === 1, JSON.stringify(corruptSiblings));
+  if (corruptSiblings.length === 1) {
+    check("session store: the quarantined sibling preserves the original bytes", (await readFile(join(sessionsDir, corruptSiblings[0]), "utf8")) === CORRUPT_BYTES);
+  }
 
   // Seed a valid fixture through the production atomic writer, including an UNKNOWN field that a
   // future schema may add — it must survive every mutation and reload losslessly.

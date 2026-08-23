@@ -17,7 +17,7 @@
  * beside an ON run that did produce one.
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -397,6 +397,75 @@ try {
     launch.cleanup();
   } catch {
     /* temp profile; a locked file must not fail the suite */
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * SET-007 — a corrupt ui-settings.json is QUARANTINED, not destroyed
+ * (AWKIT-SET-007). Runs against an ISOLATED LOCALAPPDATA so the real
+ * settings store is never touched.
+ * ------------------------------------------------------------------ */
+console.log("\nSET-007 — corrupt ui-settings.json quarantine");
+{
+  const iso = isolatedLaunchEnv("awkit-set007", { PRODUCTION_OFFLINE: "true" });
+  const settingsDir = join(iso.dataRoot, "SpecterStudio", "storage");
+  const settingsFile = join(settingsDir, "ui-settings.json");
+  const CORRUPT = '{ "app": { "lastLaunchedAt": "TRUNCATED';
+  let app2: Awaited<ReturnType<typeof electron.launch>> | undefined;
+  try {
+    mkdirSync(settingsDir, { recursive: true });
+    writeFileSync(settingsFile, CORRUPT, "utf8");
+
+    app2 = await electron.launch({ args: [root], cwd: root, env: iso.env });
+    app2.process().stderr?.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      if (text.includes("ui-settings")) console.log(`  [app-stderr] ${text.trim().slice(0, 220)}`);
+    });
+    const win = await resolveMainWindow(app2);
+    const bootedOnDefaults = await win.evaluate(() =>
+      window.playwrightFlowStudio.settings.get().then((s) => typeof s.accent === "object" && typeof s.workflowBuilder === "object")
+    );
+    check("the app boots on defaults despite a corrupt settings file", bootedOnDefaults === true);
+
+    const siblings = readdirSync(settingsDir).filter((f) => f.startsWith("ui-settings.json.corrupt-"));
+    check("exactly one .corrupt-* sibling quarantines the original bytes", siblings.length === 1, JSON.stringify(readdirSync(settingsDir)));
+    if (siblings.length === 1) {
+      check(
+        "the quarantined sibling preserves the original (corrupt) bytes verbatim",
+        readFileSync(join(settingsDir, siblings[0]), "utf8") === CORRUPT
+      );
+    }
+
+    // The startup lastLaunchedAt bookkeeping write must land on a FRESH valid file — never by
+    // destroying the unrecoverable original.
+    const freshValid = (() => {
+      try {
+        JSON.parse(readFileSync(settingsFile, "utf8"));
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    check("a fresh VALID ui-settings.json exists after startup", freshValid);
+
+    // Positive control: subsequent VALID writes create no further quarantine siblings.
+    await win.evaluate(() => window.playwrightFlowStudio.settings.update({ selectedBuilderWorkflowId: "set007-marker" }));
+    await app2.close().catch(() => undefined);
+    app2 = undefined;
+    const siblingsAfter = readdirSync(settingsDir).filter((f) => f.startsWith("ui-settings.json.corrupt-")).length;
+    check("valid writes create NO additional quarantine siblings", siblingsAfter === 1, String(siblingsAfter));
+    check("the marker value written through the app persists", (() => {
+      try {
+        return JSON.parse(readFileSync(settingsFile, "utf8")).selectedBuilderWorkflowId === "set007-marker";
+      } catch {
+        return false;
+      }
+    })());
+  } catch (error) {
+    check("SET-007 harness completed without throwing", false, error instanceof Error ? error.message : String(error));
+  } finally {
+    if (app2) await app2.close().catch(() => undefined);
+    iso.cleanup();
   }
 }
 

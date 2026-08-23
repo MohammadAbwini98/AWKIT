@@ -122,7 +122,16 @@ export class SqliteRuntimeStore implements RuntimeStore {
     try {
       const bytes = await readFile(dbPath);
       db = new SQL.Database(bytes);
-    } catch {
+    } catch (error) {
+      // AWKIT-DUR-001: ONLY a missing file may boot an empty database. Any other read failure
+      // (EBUSY/EPERM/EACCES — the routine Windows contention class) used to be swallowed here,
+      // and the unconditional persist below then renamed the EMPTY database over runtime.sqlite,
+      // destroying all durable history while "open" reported success. Re-throw instead: the
+      // engine's NullRuntimeStore downgrade preserves the unreadable file. A corrupt-BYTES
+      // failure already throws out of `new SQL.Database(bytes)` into that same safe path.
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error instanceof Error ? error : new Error(String(error));
+      }
       db = new SQL.Database();
     }
     const store = new SqliteRuntimeStore(db, dbPath, warn);

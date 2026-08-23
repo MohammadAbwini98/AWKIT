@@ -6,7 +6,7 @@
  * run/attempt/heartbeat/cancellation/watchdog/artifact/capacity persistence across store
  * restart, and recovery-oriented reads (interrupted runs).
  */
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SqliteRuntimeStore } from "@src/runner/store/SqliteRuntimeStore";
@@ -119,6 +119,44 @@ async function main(): Promise<void> {
   const third = await SqliteRuntimeStore.open(dbPath, () => undefined);
   check("recovery verdict persisted across restart", third.getRun("i-1")?.recoveryNote === "test note");
   await third.close();
+
+  console.log("\nPart D — unreadable file fails CLOSED; history survives (AWKIT-DUR-001)");
+  {
+    // Inject a non-ENOENT read failure deterministically: the target path exists but cannot be
+    // READ as a file (a directory occupies it — same failure class as EBUSY/EPERM/EACCES).
+    // Asserting only on a MISSING file would pass vacuously — whatever sits at the path must
+    // still exist untouched afterward.
+    const occupiedPath = join(root, "occupied.sqlite");
+    await mkdir(occupiedPath, { recursive: true });
+    let rejected = false;
+    try {
+      await SqliteRuntimeStore.open(occupiedPath, () => undefined);
+    } catch {
+      rejected = true;
+    }
+    check("open() on an unreadable path REJECTS instead of booting an empty database", rejected);
+    check("the unreadable path is preserved untouched (nothing renamed over it)", (await stat(occupiedPath)).isDirectory());
+
+    // A genuinely corrupt-BYTES file must also reach the engine's fail-closed downgrade, never
+    // a silent empty rebuild.
+    const corruptPath = join(root, "corrupt.sqlite");
+    const CORRUPT = "this is definitely not a sqlite database";
+    await writeFile(corruptPath, Buffer.from(CORRUPT, "utf8"));
+    let corruptThrew = false;
+    try {
+      await SqliteRuntimeStore.open(corruptPath, () => undefined);
+    } catch {
+      corruptThrew = true;
+    }
+    check("open() on corrupt BYTES rejects (engine downgrades to NullRuntimeStore)", corruptThrew);
+    check("corrupt-bytes file is preserved verbatim", (await readFile(corruptPath, "utf8")) === CORRUPT);
+
+    // ENOENT remains the ONLY legitimate fresh-database boot.
+    const freshPath = join(root, "fresh.sqlite");
+    const fresh = await SqliteRuntimeStore.open(freshPath, () => undefined);
+    check("a genuinely MISSING file still boots a fresh empty database", fresh.listRuns().length === 0);
+    await fresh.close();
+  }
 
   await rm(root, { recursive: true, force: true }).catch(() => undefined);
   console.log(`\nResult: ${passed} passed, ${failed} failed.`);
