@@ -8,6 +8,12 @@ security/offline/packaging, designers/UI, and verifier quality. Product defects 
 `AWKIT-WFB-001/002`, `AWKIT-REC-037`, `AWKIT-SEC-001/002`, `AWKIT-LIC-002`, `AWKIT-QA-006/007`).
 The items below are risks and drift that do not fit the defect register.
 
+A **second independent pass** the same day corroborated these records and filed a delta: DEFECTS
+`AWKIT-DUR-001`, `AWKIT-SES-004`, `AWKIT-RUN-008..011`, `AWKIT-FLO-001`, `AWKIT-MAP-005`,
+`AWKIT-SET-007`, `AWKIT-A11Y-001`, `AWKIT-QA-008`; plus the additional risk items in the
+"second-pass delta" subsections at the end of this review block. The two passes were executed
+independently and their overlap deduplicated.
+
 ### The `src/` framework-agnostic rule has eroded: three upward imports, one of them an Electron module
 
 The documented contract (`ARCHITECTURE.md`, `src/AGENTS.md`) is that the ONE sanctioned bridge is
@@ -89,6 +95,93 @@ collisions.
 hardening passes vacuously offline, and two tallies shrink denominators on uncaught throws
 (AWKIT-QA-005). Until a shared harness helper exists, judge each suite's green by reading its own
 exit condition — not by analogy with its siblings.
+
+### Second-pass delta (2026-08-23): risks that need verification or do not fit the defect register
+
+Filed by the corroborating review pass; none of these duplicates an existing record.
+
+- **SECURITY-RISK, needs measurement: the `file://` trust boundary accepts ANY local file URL.**
+  `app/main/ipc/senderGuard.ts:14-15` returns trusted for any URL starting `file://`, and
+  `windowManager.ts:110-121` `isOwnBundle` does the same for navigation — the comments say "the
+  packaged bundle", but the check pins no bundle path. Electron's DEFAULT behavior navigates a
+  window when a local file is dragged onto it; nothing in `app/renderer/**` installs a
+  dragover/drop preventDefault (only widget-local handlers exist). If a drop navigates to a
+  foreign local `.html`, that document becomes a TRUSTED IPC sender with the full preload bridge,
+  and the session binding keyed to `event.sender.id` (`sessionContext.ts:27-31`) SURVIVES
+  navigation — so a post-login drop would inherit the logged-in RBAC. This converts AWKIT-SEC-002's
+  ungated channels from "needs XSS" to "needs one drag-drop". **INFERENCE, not observation:** the
+  drop-navigation path was not executed in this app. Verify by dragging an HTML file onto the
+  window in dev; fix direction either way is pinning both checks to the exact bundle path/dev
+  origin plus a renderer-level drop preventDefault.
+- **PROBABLE protected-login gap: popup handoff detection attaches after the identity wait.**
+  For popups, `attachProtectedDetection` runs only after the instrumentation probe AND the popup
+  identity probe (`RecorderService.ts:945-975`), which by design consumes ≥250 ms and up to 2 s;
+  detection listens only to `load`/`domcontentloaded` (`:1042-1048`). An OAuth/MFA popup that
+  finishes loading inside that window fires both events before any listener exists, so
+  `detectAndMaybeHandoff` never runs for it unless a LATER navigation happens. The initial page
+  gets its detector attached BEFORE `goto` (`:666-668`) — this asymmetry is popup-specific. If
+  confirmed live, a single-shot IdP popup is recorded with no handoff offered, which violates the
+  SECURITY.md pause rule. Needs a live mock-site OAuth-popup fixture before filing as a defect.
+- **Runner races pending runtime verification** (each code-traced, none reproduced):
+  - *Origin-claim permit loss under parallel branches*: all isolatedPage branch executors share
+    one `OriginClaimTracker`; `ensureOrigin` is check-then-act with no mutex
+    (`OriginClaimTracker.ts:62-103`), so two branches landing on different origins can interleave
+    and overwrite `currentToken`, permanently leaking one non-TTL semaphore permit
+    (`DispatchClaims.ts:49-53` grants without TTL) until app restart.
+  - *Cancel-before-arm resolves "continue"*: `ManualHandoffController.waitForAction` returns
+    `Promise.resolve("continue")` when no pending entry exists (`:48-50`); if Stop lands between
+    `pauseForHandoff` and the `waitForAction` call in `captureProtectedLoginSession`
+    (`StepExecutor.ts:2467→2489`), the cancel is consumed silently and the capture poll runs to
+    its timeout.
+  - *Void-discarded optional armed response*: `StepExecutor.ts:1042` fire-and-forgets optional
+    waits with `void`; `runRequiredOrOptional` rethrows `CancelledError`, and there is no
+    process-level unhandled-rejection handler — Stop during an optional armed response can raise
+    an unhandled rejection in the Electron main process.
+  - *Old-runtime close failure kills the replacement*: in the Reuse Session swap
+    (`PlaywrightRunner.ts:264-270`), a rejection from closing the OLD browser tears down the new,
+    already-published healthy runtime via the catch's cleanup.
+- **Persistence lower-severity findings (bundle)** — all code-traced, no data loss observed:
+  import-collision overwrite asymmetry (workflows guard `WORKFLOW_IMPORT_ID_CONFLICT`;
+  `flows:`/`dataSources:`/`instances:` import are blind upserts via `JsonProfileStore.import`);
+  profile-store folders freeze at creation while other consumers re-resolve `getConfiguredPaths()`,
+  so changing a Settings path splits reads/writes across two folders for process lifetime
+  (`profileStores.ts` factories + IPC caching vs `resolveStorageDirs`); Oracle service long
+  read-modify-write can revert concurrent edits to the same Oracle data source
+  (`oracleService.ts:349-402`, seconds-long await between get and update on a store instance
+  disjoint from the cached one); bare `writeFile` remains for user row-data files
+  (`dataSource.ipc.ts:191,203,236`) and run reports (`ReportService.ts:81-85`);
+  `SqliteRuntimeStore.persistNow` renames WITHOUT the EPERM/EBUSY retry every other writer uses
+  and leaks its temp file on failure (`SqliteRuntimeStore.ts:1044-1061`); `ProfileStore.update`
+  deletes the freshly written record when old/new ids sanitize to the same filename
+  (`ProfileStore.ts:74-83`).
+- **Designer smaller items (bundle)**: Reuse Session validation is mode-blind — every autoDetect
+  node permanently shows "requires a saved session" although the runtime fully supports autoDetect
+  (`flowNodeRegistry.ts:209` vs `FlowNodePropertiesPanel.tsx:1500-1523`,
+  `StepExecutor.ts:2343`); touching any structured field of a conditional connector writes a full
+  `conditional` config whose presence makes the legacy expression routing-inert with no UI
+  disclosure (`ConnectionPropertiesPanel.tsx:283-289,357-370`; precedence `FlowExecutor.ts:579-609`);
+  Start/End structural guards are keyed to literal node ids `"start"`/`"end"` and vanish for
+  loaded flows whose persisted ids differ (`FlowChartDesigner.tsx:402,785,1093`); non-loop
+  connectors have no keyboard path at all — not focusable/selectable/deletable
+  (`FlowCanvas.tsx:792-809` vs loop-only role/tabIndex) — and node wrappers are likewise
+  pointer-only (`:616-631`); the ConnectionPropertiesPanel footer "Done" button is enabled with no
+  onClick (`ConnectionPropertiesPanel.tsx:411-413`), a RULES.md no-fake-controls violation.
+- **Recorder smaller items (bundle)**: independent-navigation `goto` steps persist MASKED urls as
+  replay targets — `recordIndependentNavigation` stores `maskUrl()` output in
+  `valueSource.value`, so a mid-recording navigation carrying a sensitive query param saves a step
+  that replays a literal `?token=***` URL (`RecorderService.ts:226-238,273-278`; same for
+  autoSecureLogin loginTarget at `:1114,:1243`); hash-stripped URL signals make hash-route SPA
+  `urlChanged` waits vacuous — signals drop the location hash while firing on `hashchange`
+  (`recorderInitScript.ts:2405,2427` + `smartWaitObservation.ts:171-179`).
+- **DOC DRIFT: `tests/runner.mocksite.spec.ts` is wired to nothing while TESTING.md instructs
+  extending it.** No npm script invokes `playwright test`; neither tsconfig reaches the file, so
+  it is type-checked by nothing and executed by nothing, yet `docs/ai/TESTING.md` ("Required test
+  behavior") still names it as a required extension point alongside `verify-runner.mts`. The spec
+  has also drifted (`makeContext` omits `paths.sessions`). Corrected inline in TESTING.md; decide
+  whether to wire, revive, or delete the spec.
+- **Assertion-failure masking asymmetry is filed as AWKIT-RUN-011** rather than left here: the
+  `expected` side of an assertion failure can be a resolved secret and reaches reports raw. See
+  DEFECTS.md.
 
 ## TRAP: a verifier tally divides by a denominator an uncaught throw can SHRINK (2026-08-22)
 

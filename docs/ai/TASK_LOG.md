@@ -4,6 +4,27 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-23 - opencode - Second independent review pass; filed the delta the first pass missed (documentation-only)
+
+- **Context:** a parallel agent's review landed as `bbe9f76` while this pass was in flight. This
+  pass re-derived findings independently, deduplicated against that record, and documented only
+  the delta. No product code, tests, verifiers, or scripts changed.
+- **Result:** 11 new DEFECTS.md records — product: `AWKIT-DUR-001` (empty-DB overwrite of
+  runtime.sqlite on transient read failure), `AWKIT-SES-004` (corrupt session registry reset +
+  write-back), `AWKIT-RUN-008..011` (uncancellable Auto Secure Login wait; nested-output
+  double-prefix; scenario input bindings dead code; unmasked assertion `expected`),
+  `AWKIT-FLO-001` (closePopup authorable-but-throws), `AWKIT-MAP-005` (RT-08 label regression),
+  `AWKIT-SET-007`, `AWKIT-A11Y-001`; harness: `AWKIT-QA-008`. KNOWN_ISSUES gained a
+  "second-pass delta" block (file:// trust boundary + drag-drop risk needing measurement; popup
+  protected-login detection timing race; four runner races pending verification;
+  persistence/designer/recorder lower-severity bundles). `docs/ai/TESTING.md` corrected where it
+  named the orphaned `tests/runner.mocksite.spec.ts` as an extension point.
+- **Files changed (docs only):** DEFECTS.md, KNOWN_ISSUES.md, CURRENT_STATE.md, HANDOFF.md,
+  TESTING.md, TASK_LOG.md.
+- **Verification:** build PASS; source-hygiene 9/9; verifier-classification reconciled (196);
+  roadmap-dashboard 167/167 Sources agree; git diff --check clean. Ledger/tracker unchanged
+  (**64 PASS / 2 NOT RUN / 0 BLOCKED**; **259 total / 256 closed / 3 outstanding**).
+
 ---
 
 ## 2026-08-23 - opencode - Independent whole-repository codebase review (documentation-only)

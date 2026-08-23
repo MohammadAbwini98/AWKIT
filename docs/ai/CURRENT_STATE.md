@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## Second independent review pass corroborated the 2026-08-23 review and filed its delta (documentation-only)
+
+A second read-only review pass, executed independently of the first (which landed as `bbe9f76`
+mid-session), re-derived the same headline findings and filed only what the first pass had missed.
+**10 new product-defect records** in `docs/testing/comprehensive-validation/DEFECTS.md`:
+`AWKIT-DUR-001` (a transient `runtime.sqlite` read failure silently replaces all run history with
+an empty database), `AWKIT-SES-004` (malformed `session-profiles.json` collapses to `[]` and the
+next write destroys the session registry), `AWKIT-RUN-008` (Auto Secure Login's manual-login wait
+cannot be cancelled; Stop resumes into a fresh browser launch), `AWKIT-RUN-009` (nested-flow
+outputs double-prefixed so `${outputs.<childFlowId>.<key>}` never resolves), `AWKIT-RUN-010`
+(scenario flow-input bindings are accepted but never executed — `resolveFlowInputs` is dead code),
+`AWKIT-RUN-011` (assertion failures embed the raw, potentially secret-resolved `expected` value),
+`AWKIT-FLO-001` (`closePopup` authorable but guaranteed to throw — no alias surface),
+`AWKIT-MAP-005` (edge label normalization persists type-as-authored-label; RT-08 regression),
+`AWKIT-SET-007` (corrupt `ui-settings.json` resets to defaults and is overwritten at startup),
+and `AWKIT-A11Y-001` (ReauthDialog ships without any focus contract while another file claims it
+has one; ResetPasswordModal same gap). One harness record: `AWKIT-QA-008`. Risks needing runtime
+verification are recorded in KNOWN_ISSUES "second-pass delta" (file:// trust boundary + drag-drop,
+popup protected-login detection timing, four runner races, persistence/designer/recorder bundles);
+`docs/ai/TESTING.md` was corrected where it instructed extending the orphaned
+`tests/runner.mocksite.spec.ts`.
+
+Second-pass verification: `npm run build` PASS · source-hygiene 9/9 · verifier-classification
+reconciled (196) · roadmap-dashboard 167/167 Sources agree · `git diff --check` clean. Ledger and
+tracker unchanged: **64 PASS / 2 NOT RUN / 0 BLOCKED**; **259 total / 256 closed / 3 outstanding**.
+
 ## Independent whole-repository code review recorded; documentation-only, no product code changed (2026-08-23)
 
 A read-only review swept runner/execution, recorder/sessions, persistence and designer mappings,

@@ -1,5 +1,59 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-23) - Second independent review pass: delta defects filed on top of `bbe9f76`
+
+### Transfer
+
+- A **second read-only review pass** corroborated the first whole-repository review (commit
+  `bbe9f76`, same day) and filed only its delta. No product source, tests, verifiers, or scripts
+  were changed. The two passes ran independently; overlap was deduplicated, so everything in
+  DEFECTS.md is now the union of both passes.
+- **New defect records (DEFECTS.md), fix-first ordering:** `AWKIT-DUR-001` and `AWKIT-SES-004`
+  are the highest-severity additions — both silently DESTROY persisted data on a corrupt/unreadable
+  file (durable run history; captured-session registry) where sibling stores quarantine correctly.
+  Then `AWKIT-RUN-008` (Auto Secure Login manual wait ignores Stop for up to 10 min and relaunches
+  a browser after cancel), `AWKIT-RUN-009` (`${outputs.<childFlowId>.<key>}` unresolvable —
+  nested-flow output contract broken, fails open blank), `AWKIT-RUN-010` (scenario input bindings
+  never executed), `AWKIT-RUN-011` (assertion failure can leak a resolved secret via `expected`),
+  `AWKIT-FLO-001` (closePopup authorable-but-throws), `AWKIT-MAP-005` (RT-08 label regression),
+  `AWKIT-SET-007` (settings corruption → silent defaults + startup overwrite), `AWKIT-A11Y-001`
+  (ReauthDialog focus contract missing; stale claim in SemanticIndexSettings.tsx:23 must be
+  corrected with it), and harness record `AWKIT-QA-008`.
+- **Needs runtime verification before filing as defects** (KNOWN_ISSUES "second-pass delta"):
+  the `file://` trust boundary accepting any local file URL combined with Electron's default
+  drag-drop navigation (would re-rate AWKIT-SEC-002's reachability), and the popup
+  protected-login detection attach-timing race. Also four code-traced runner races (origin-claim
+  permit loss, cancel-before-arm, void-discarded optional-wait rejection, old-runtime-close kills
+  replacement).
+
+### Dependencies between fixes
+
+- DUR-001/SES-004/SET-007 share one fix shape (quarantine-and-fail-closed like
+  `JsonProfileStore.quarantineCorrupt`) — do them as one persistence-recovery pass with round-trip
+  corruption fixtures.
+- RUN-009 should land before any work that expands nested-flow usage; RUN-010's decision (apply
+  bindings vs remove the surface) gates whether WFB-001's preserve-don't-re-derive pass should
+  carry input bindings forward.
+- FLO-001 needs the popup-alias authoring surface; pair it with MAP-002/MAP-003 mapping repairs
+  so one `verify-flow-step-mapping` repoint (MAP-004) covers all three.
+- A11Y-001 should adopt the ConfirmDialog contract in both admin modals and correct the false
+  claim in SemanticIndexSettings.tsx in the same change.
+
+### Verification needed when these are fixed
+
+Persistence recovery: focused new verifier + `verify:durable-store`, `verify:recorder-draft`
+(session store cases). Runner: `npm run verify:runner` with counts; cancellation changes also
+`verify:cancellation`; licensing-adjacent none here. Mapping/designer:
+`verify-flow-step-mapping` (repointed per MAP-004), `verify:legacy-compat`,
+`test:random:roundtrip`, `verify:flow-designer`. IPC/security follow-ups:
+`verify:ipc-contract`, `verify:authz`. A11Y: extend `verify:admin-gui`.
+
+### Environmental notes
+
+Untracked `run-app-demo.mjs` remains preserved user work — do not stage, edit, or delete it.
+Ledger unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**; tracker **259 total / 256 closed /
+3 outstanding**, all externally blocked.
+
 ## HANDOFF (2026-08-23) - Independent whole-repository review recorded; prioritized fix queue for the next implementation agent
 
 ### Transfer

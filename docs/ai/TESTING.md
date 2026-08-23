@@ -348,8 +348,10 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
 
 ## Required test behavior for future changes
 - After changing runner/orchestrator/connector/node-execution logic, run `npm run verify:runner`
-  and report the pass count; extend `scripts/verify-runner.mts` (and `tests/runner.mocksite.spec.ts`)
-  with a case for the new behavior.
+  and report the pass count; extend `scripts/verify-runner.mts` with a case for the new behavior.
+  (`tests/runner.mocksite.spec.ts` is currently wired to nothing — no npm script invokes
+  `playwright test` and no tsconfig reaches it, per KNOWN_ISSUES 2026-08-23 — so do not rely on it
+  as an extension point until that is resolved.)
 - After changing the mock site, run `npm run verify:mock-site`; also run the related feature verifier
   (Recorder, Smart Wait/Runner, Flow Designer, Workflow Builder, or Instance Monitor).
 - Before creating feature-specific fixtures, check `mock-site/README.md` and prefer extending existing

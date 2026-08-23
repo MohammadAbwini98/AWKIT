@@ -10,6 +10,195 @@ walkthrough. None is fixed. Review findings are recorded here rather than as Bea
 AWKIT-REC-001/002 convention (a defect record owned by its parent workstream); their owner routing
 is noted per entry and no tracker cardinality was moved by the review.
 
+A **second independent review pass** on 2026-08-23 corroborated the first and filed the delta it
+had missed: `AWKIT-DUR-001`, `AWKIT-SES-004`, `AWKIT-RUN-008..011`, `AWKIT-FLO-001`,
+`AWKIT-MAP-005`, `AWKIT-SET-007`, `AWKIT-A11Y-001` (product) and `AWKIT-QA-008` (harness). The
+two passes were executed independently; overlap was deduplicated against the first pass's records.
+
+### AWKIT-DUR-001 — A transient read failure of `runtime.sqlite` silently replaces all run history with an empty database
+
+- **Classification:** Data-integrity risk (silent destruction of durable history)
+- **Severity:** S2 / Any non-ENOENT read error (`EBUSY`/`EPERM`/`EACCES` — the exact Windows
+  contention class this repo documents as routine) boots the store EMPTY, then persists the empty
+  DB over the existing file. All durable run/attempt/artifact history is destroyed with "open"
+  reporting success.
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Runner persistence (`src/runner/store`)
+- **Affected area:** `src/runner/store/SqliteRuntimeStore.ts` — `open()` catch block converts
+  every `readFile` failure into a fresh empty `SQL.Database()`; `migrate()` then sets `dirty`,
+  and the unconditional `persistNow()` at open renames the empty DB over `runtime.sqlite`
+  (temp+rename, no quarantine). Contrast: corrupt-bytes failures throw out of
+  `new SQL.Database(bytes)` into `ExecutionEngine`'s NullRuntimeStore downgrade, which PRESERVES
+  the file — the two failure classes are handled inconsistently.
+- **Fix direction:** catch only `ENOENT`; on any other read failure fail closed to
+  `NullRuntimeStore` (or quarantine the unreadable file) and never persist over bytes that could
+  not be read. Add a focused verifier that locks the file and asserts history survives.
+
+### AWKIT-SES-004 — Malformed `session-profiles.json` silently resets the registry to `[]`; the next write destroys it
+
+- **Classification:** Data-integrity risk (index to captured login sessions lost)
+- **Severity:** S2 / One JSON parse failure collapses the whole session registry to empty; every
+  subsequent mutation (list backfill, rename, markUsed, capture completion, delete) writes the
+  truncated list over the metadata. The captured Chrome profile DIRECTORIES survive on disk but
+  become unreachable/unlisted forever.
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Session persistence (`src/session`)
+- **Affected area:** `src/session/SessionCaptureService.ts` `readProfiles()` — bare
+  `catch { return []; }` treats parse errors as "no sessions"; write-back sites then persist the
+  loss through the (otherwise correct) atomic enqueue chain. Contrast the correct pattern one
+  layer away: `JsonProfileStore.quarantineCorrupt` renames the bad file to `.corrupt-<ts>` and
+  logs loudly (`src/storage/ProfileStore.ts:160-179`).
+- **Fix direction:** mirror the profile-store quarantine (preserve bytes, return empty only for
+  true ENOENT), and add a round-trip verifier that seeds malformed metadata and asserts it is
+  preserved.
+
+### AWKIT-RUN-008 — Auto Secure Login's manual-login wait cannot be cancelled; Stop resumes into a fresh browser launch
+
+- **Classification:** Product defect (cancellation contract break)
+- **Severity:** S2 / `Stop Instance` during the manual login has no effect for up to `timeoutMs`
+  (default **10 minutes**): the poll loop checks neither `throwIfCancelled` nor the manual-handoff
+  controller, and the automation browser is already closed so there is nothing to kill. When the
+  user finally closes Chrome, steps 5–6 still execute — including `browserRestarter({ newUserDataDir })`
+  relaunching a fresh persistent context AFTER cancellation — before the next step's
+  cancellation check aborts the flow.
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the second 2026-08-23 review pass (code-traced; live reproduction
+  pending), not fixed**
+- **Owner routing:** Runner (`StepExecutor` secure-login lifecycle)
+- **Affected area:** `src/runner/StepExecutor.ts:2292-2300` (uncancellable `for(;;)` poll),
+  `:2302-2312` (post-wait verify + relaunch with no cancellation check). Compare
+  `captureProtectedLoginSession` (`:2489-2498`), which correctly races the handoff action — but
+  see KNOWN_ISSUES for its cancel-before-arm window.
+- **Fix direction:** race the poll against `this.cancellation` and reject immediately on cancel;
+  re-check cancellation before the step-5/6 relaunch.
+
+### AWKIT-RUN-009 — Nested-flow outputs are double-prefixed, so `${outputs.<childFlowId>.<key>}` can never resolve
+
+- **Classification:** Product defect (documented expression contract broken; fails open blank)
+- **Severity:** S2 / A child flow prefixes its own step outputs with its flow id
+  (`outputs["<child>.<key>"]`), `runFlow` spreads them verbatim into the parent step's outputs,
+  and the parent flow re-prefixes → final key `<parent>.<child>.<key>`. Neither
+  `FlowExecutor.makeScope` nor the workflow-level scope can match the documented two-segment form,
+  so connector conditions and value sources referencing a sub-flow's outputs silently resolve to
+  `undefined`/`""` instead of erroring.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass (code-traced; live reproduction
+  pending), not fixed**
+- **Owner routing:** Runner (`FlowExecutor` output registry + `StepExecutor.runFlow`)
+- **Affected area:** `src/runner/FlowExecutor.ts:134-136` (prefixing), `makeScope` lookup;
+  `src/runner/StepExecutor.ts:2079` (`{ childFlowId, childFlowStatus, ...result.outputs }` spread);
+  contract documented in RULES.md ("Connector expressions resolve `${outputs.<flowId>.<key>}`").
+- **Fix direction:** strip the child prefix when importing nested outputs (or namespace under an
+  explicit key) and pin both resolution channels with verifier cases.
+
+### AWKIT-RUN-010 — Scenario flow-input bindings are accepted by designers/validation but never executed
+
+- **Classification:** Product defect (declared feature has no runtime implementation)
+- **Severity:** S2 / `ScenarioOrchestrator.resolveFlowInputs` exists and computes per-flow input
+  bindings, but repo-wide it has exactly ONE occurrence — its definition. Nothing applies declared
+  `${outputs.*}` input bindings before each flow runs, so wiring flow A's output into flow B's
+  input via the scenario editor has zero runtime effect.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Orchestrator / runner
+- **Affected area:** `src/orchestrator/ScenarioOrchestrator.ts:57-62` (sole occurrence);
+  consumers use the plan for ordering/validation only (`PlaywrightRunner.ts:286`).
+- **Fix direction:** either apply the bindings in the scenario execution path or remove the dead
+  surface and stop advertising flow-input mapping.
+
+### AWKIT-RUN-011 — Assertion-failure messages embed the raw `expected` value, which may be a resolved secret
+
+- **Classification:** Security concern (secret leakage into run reports/logs)
+- **Severity:** S3 / The masking comment is applied to `actual` only. `expected` comes from
+  `resolveStepValue(step, cfg.expectedValue ?? step.value)` which resolves secret-type value
+  sources through the DPAPI store — so an assertion comparing against a stored secret throws the
+  RAW secret into the step error, which lands in run reports/logs. Exactly the leak the adjacent
+  code says it is preventing.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Runner / redaction
+- **Affected area:** `src/runner/StepExecutor.ts` `executeAssertion` failure branch:
+  `` throw new Error(`Assertion failed: "${reported}" ${operator} "${expected}".`) `` — mask
+  `expected` symmetrically (and consider refusing secret-backed expectations outright).
+- **Existing coverage:** `verify:recorder-redaction` covers recorder surfaces; no gate covers this
+  runner sink.
+
+### AWKIT-FLO-001 — `closePopup` is palette-authorable but guaranteed to throw at runtime
+
+- **Classification:** Product defect (designer-runtime contract break)
+- **Severity:** S2 / A user can add Close Popup from the Node Palette, it validates clean
+  ("Runnable"), and the step then throws at run time: the executor requires
+  `config.popupAlias ?? step.pageAlias`, and NO renderer surface can author either field for this
+  node type (the mapping preserves only Recorder-produced aliases).
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Frontend / Flow Designer node registry
+- **Affected area:** `app/renderer/components/workflow/flowNodeRegistry.ts:217-221`
+  (`sections: ["execution"]`, no validate, `executable: true`);
+  `src/runner/StepExecutor.ts` closePopup case (throws without alias);
+  `app/renderer/components/workflow/flowProfileMapping.ts:282-284` (verbatim-preserve path is the
+  only alias source). Shared validator agrees with the empty designer check
+  (`src/validation/StepRequirements.ts:82`).
+- **Fix direction:** give the node an alias picker section fed by the same popup aliases
+  `switchToPopup` authors, or mark the node draft-only until an alias exists.
+
+### AWKIT-MAP-005 — Edge label normalization persists the connector type as an authored label (RT-08 regression)
+
+- **Classification:** Product defect (round-trip fidelity / phantom authored data)
+- **Severity:** S3 / `updateEdgeData` writes `linkType` INTO the persisted `data.label` whenever
+  the label is empty — directly contradicting the RT-08 contract documented in the same module
+  ("an unlabelled connector is not saved as though the user had typed its type as a label").
+  Every panel edit of an unlabelled edge fabricates an authored label; saves are not byte-stable.
+  `insertNodeOnEdge` additionally hardcodes an authored `"success"` label on the lower half-edge.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Frontend / Flow Designer + Workflow Builder
+- **Affected area:** `app/renderer/pages/FlowChartDesigner.tsx:480` (normalization),
+  `:859` (hardcoded split label); identical pattern in `app/renderer/pages/ScenarioBuilder.tsx:599`
+  persisted at `:2154`; contract `app/renderer/components/workflow/flowProfileMapping.ts:65-69`
+  vs persistence `:119`.
+- **Fix direction:** keep the render-label fallback display-only; persist `data.label` verbatim.
+
+### AWKIT-SET-007 — Corrupt `ui-settings.json` silently resets to defaults and is overwritten at next startup
+
+- **Classification:** Data-integrity risk (settings loss without backup)
+- **Severity:** S3 / `getUiSettings()` treats any parse/read failure as factory defaults; `main.ts`
+  writes `lastLaunchedAt` through `updateUiSettings` on EVERY startup, so a corrupted/truncated
+  settings file is permanently replaced by defaults at next launch — custom storage paths,
+  capacity caps, recorder security toggles and super-user policy gone silently, with no
+  `.corrupt-*` preservation.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Main-process settings store
+- **Affected area:** `app/main/uiSettings.ts:471-477` (catch-all hydrate({})),
+  `app/main/main.ts:65` (unconditional startup write).
+- **Fix direction:** quarantine-and-default like `JsonProfileStore`, and never let the startup
+  bookkeeping write be the operation that destroys unrecoverable bytes.
+
+### AWKIT-A11Y-001 — ReauthDialog declares `aria-modal` with no focus contract, while another file asserts it has one
+
+- **Classification:** Product defect (accessibility; recurring aria-modal-without-focus class,
+  fourth instance)
+- **Severity:** S2 / The password modal for sensitive Super-User actions moves focus neither in nor
+  back, does not trap Tab, and ignores Escape — while background content remains reachable. A
+  sibling file documents the opposite: "`ReauthDialog` … already carries a focus contract", which
+  is false against current source. `ResetPasswordModal` on the same admin surface duplicates the
+  gap (and lacks an accessible name) while UserAccessModal in the same file implements the full
+  contract — two modals, divergent keyboard behavior, one page.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** Frontend admin pages
+- **Affected area:** `app/renderer/pages/admin/ReauthDialog.tsx` (no effect/ref/keydown anywhere);
+  false claim `app/renderer/pages/SemanticIndexSettings.tsx:23`; `ResetPasswordModal`
+  `app/renderer/pages/admin/UserManagement.tsx:403-418` vs correct sibling `UserAccessModal`
+  `:352-400`; reference contract `components/shared/ConfirmDialog.tsx:31-62`. Launched from
+  sensitive flows incl. License Issuer re-auth.
+- **Fix direction:** apply the ConfirmDialog contract to both modals and correct the stale claim;
+  consider the class-level guard already recommended in KNOWN_ISSUES (source scan over
+  `aria-modal="true"`).
+
 ### AWKIT-MAP-002 — Flow Designer authors `completionMode` but the production mapping never persists it
 
 - **Classification:** Product defect (round-trip loss)
@@ -376,9 +565,30 @@ merely widened — it is **not** a regression unique to `1e85946`.
 
 ## Open test and harness findings
 
-Seven LOW/MEDIUM findings. Five are from the 2026-08-22 independent QC review (`AWKIT-QA-001`
-… `AWKIT-QA-005`); two are from the 2026-08-23 whole-repository review (`AWKIT-QA-006`,
-`AWKIT-QA-007`). None is fixed.
+Eight LOW/MEDIUM findings. Five are from the 2026-08-22 independent QC review (`AWKIT-QA-001`
+… `AWKIT-QA-005`); three are from the 2026-08-23 whole-repository review (`AWKIT-QA-006`,
+`AWKIT-QA-007`, `AWKIT-QA-008` — the last filed by the second pass). None is fixed.
+
+### AWKIT-QA-008 — Field-absence escape hatch in `verify-zvec-packaged-live`; unreachable BLOCKED/NOT-RUN states in the comprehensive ledger
+
+- **Classification:** Test quality (new instances of the catalogued "checks that cannot fail" and
+  dead-state families)
+- **Severity:** S3 / (a) The packaged live-CRUD gate asserts
+  `` typeof status?.lastReason === "string" ? /^SEMANTIC_/.test(...) : true `` — if the report
+  schema drifts and the field disappears, the check folds to `true` instead of failing. This is
+  instance #8 of the KNOWN_ISSUES "escape hatch" family, in a file NEWER than the seven
+  catalogued ones. (b) `verify-comprehensive-e2e.mts` declares `BLOCKED`/`NOT RUN` case states
+  and tallies them, but its `withCase` helper can only ever produce PASS/FAIL — the tallies are
+  structurally zero. Harmless today; the moment someone starts recording BLOCKED there, the exit
+  gate keys on FAIL only and unexecuted cases print green.
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-zvec-packaged-live.mts:195-199`;
+  `scripts/verify-comprehensive-e2e.mts:30,591-596,631`
+- **Fix direction:** assert field presence before pattern-matching (or use the suite's existing
+  NOT-RUN plumbing for schema absence); either wire real BLOCKED production into `withCase` or
+  delete the dead states so the tally cannot mask a future skip.
 
 ### AWKIT-QA-006 — An offline machine turns the Chromium no-egress gate into a vacuous full-green run
 
