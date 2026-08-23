@@ -144,22 +144,6 @@ two passes were executed independently; overlap was deduplicated against the fir
 - **Fix direction:** give the node an alias picker section fed by the same popup aliases
   `switchToPopup` authors, or mark the node draft-only until an alias exists.
 
-### AWKIT-MAP-005 — Edge label normalization persists the connector type as an authored label (RT-08 regression)
-
-- **Classification:** Product defect (round-trip fidelity / phantom authored data)
-- **Severity:** S3 / `updateEdgeData` writes `linkType` INTO the persisted `data.label` whenever
-  the label is empty — directly contradicting the RT-08 contract documented in the same module
-  ("an unlabelled connector is not saved as though the user had typed its type as a label").
-  Every panel edit of an unlabelled edge fabricates an authored label; saves are not byte-stable.
-  `insertNodeOnEdge` additionally hardcodes an authored `"success"` label on the lower half-edge.
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Frontend / Flow Designer + Workflow Builder
-- **Affected area:** `app/renderer/pages/FlowChartDesigner.tsx:480` (normalization),
-  `:859` (hardcoded split label); identical pattern in `app/renderer/pages/ScenarioBuilder.tsx:599`
-  persisted at `:2154`; contract `app/renderer/components/workflow/flowProfileMapping.ts:65-69`
-  vs persistence `:119`.
-- **Fix direction:** keep the render-label fallback display-only; persist `data.label` verbatim.
 
 ### AWKIT-SET-007 — Corrupt `ui-settings.json` silently resets to defaults and is overwritten at next startup
 
@@ -199,63 +183,9 @@ two passes were executed independently; overlap was deduplicated against the fir
   consider the class-level guard already recommended in KNOWN_ISSUES (source scan over
   `aria-modal="true"`).
 
-### AWKIT-MAP-002 — Flow Designer authors `completionMode` but the production mapping never persists it
-
-- **Classification:** Product defect (round-trip loss)
-- **Severity:** S2 / Any step saved with a non-default async completion mode silently reverts to `allRequired`; existing flows lose the field the first time they are opened and re-saved in the designer
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Frontend / Flow Designer mapping
-- **Affected area:** `app/renderer/components/workflow/flowProfileMapping.ts` (`toFlowStep`/`fromFlowStep`); authoring surface `FlowNodePropertiesPanel.tsx:950-963`; consumer `src/runner/StepExecutor.ts:680`
-- **Detected by:** Independent whole-repository code review
-
-`FlowNodePropertiesPanel` authors `data.completionMode` (Any required / networkThenUi /
-quietPeriod), `flowDesignerTypes.ts:121` declares it "carried through round-trip", and the runner
-reads `step.completionMode ?? "allRequired"` — but neither direction of `flowProfileMapping.ts`
-mentions `completionMode`. The dead twin module `flowStepMapping.ts:81,223` DOES map it, evidence
-it was lost when the mapping was extracted.
-
-**Coverage gap:** `verify-flow-step-mapping.mts:216-273` asserts completionMode round-trips —
-against `flowStepMapping.ts`, which production does not import (see AWKIT-MAP-004 below). The
-random-roundtrip corpus never emits the field. All three gates are blind to this loss.
-
 ---
 
-### AWKIT-MAP-003 — Loop node `customFlow` target flow is never written on save
-
-- **Classification:** Product defect (designer-runtime contract break)
-- **Severity:** S2 / A user-configured "run another flow" loop loses its target on save; reload empties the selector and the run gate then blocks with an unfixable error
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Frontend / Flow Designer mapping
-- **Affected area:** `app/renderer/components/workflow/flowProfileMapping.ts:201,264`; registry `flowNodeRegistry.ts:156-174`; panel `FlowNodePropertiesPanel.tsx:1272-1303`; runtime read `src/runner/StepExecutor.ts:2764-2768`; contract `src/validation/LoopStepContract.ts:140-143`
-- **Detected by:** Independent whole-repository code review
-
-`toFlowStep` writes `targetFlowId` only when `inSection("runFlow")` (line 264) and `flowId` only
-for `stepType === "runFlow"` (line 201). A `loop` node's sections are `["loop", "execution"]`
-(`flowNodeRegistry.ts:158`), so both writes are always `undefined` — yet the properties panel
-offers "Custom flow" plus a target-flow select writing `data.targetFlowId`, and the panel validator
-demands it (registry line 171). The runner executes customFlow loops exclusively from
-`step.config?.targetFlowId`, which save never produces. `RandomConfigurationGenerator.ts:336`
-deliberately skips scroll/customFlow loops, so the random round-trip gate cannot see this path.
-
 ---
-
-### AWKIT-MAP-004 — The only field-level round-trip verifier tests a mapping module production does not use
-
-- **Classification:** Test-quality issue / duplicated authority
-- **Severity:** S2 / Green coverage that proves nothing about shipped code; this is how MAP-002 stayed invisible
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** QA + Frontend
-- **Affected area:** `app/renderer/components/workflow/flowStepMapping.ts` (dead); importer `app/renderer/pages/branchPairs.ts:3`; `scripts/verify-flow-step-mapping.mts:17` (header claims it tests "the REAL production functions")
-- **Detected by:** Independent whole-repository code review
-
-`FlowChartDesigner.tsx:45` imports `flowProfileMapping.ts`; `flowStepMapping.ts` is imported only
-type-only by `branchPairs.ts` and by the verifier itself. The dead module still carries the
-pre-fix shapes `flowProfileMapping` documents as fixed (catalog-gated locator, fabricated
-retry/onFailure, rebuilt env/runtimeInput/secret sources from one string, no configOriginal).
-Deleting it (or repointing the verifier) removes a resurrect-on-import hazard.
 
 ---
 
@@ -471,7 +401,7 @@ work inside the dispatch loop (availability cost, fail-closed intact).
 
 ---
 
-### AWKIT-SES-003 (`awkit-cey`) — Closing Chrome marks a capture `ready` without any authentication check
+### AWKIT-SES-003 — Closing Chrome marks a capture `ready` without any authentication check
 
 - **Classification:** Product defect (session lifecycle)
 - **Severity:** S2/LOW–MEDIUM — a profile whose browser was closed WITHOUT logging in becomes
@@ -494,7 +424,7 @@ and the recorder now embeds login-origin urls (AWKIT-REC-003 fix). Fix direction
 note that real Chrome writes `Default/Preferences` early, so existence alone is weak — a stronger
 signal may be needed. Never automate around it; fail closed.
 
-### AWKIT-SES-001 (`awkit-cey`) — Session atomic write duplicates the existing main-process helper
+### AWKIT-SES-001 — Session atomic write duplicates the existing main-process helper
 
 - **Classification:** Architecture / duplicate implementation
 - **Severity:** S3 / LOW — no observed data loss; the two copies simply disagree on retry policy
@@ -517,7 +447,7 @@ values, they should be parameters of the one helper, not a fork.
 
 ---
 
-### AWKIT-SES-002 (`awkit-cey`) — `session-profiles.json` silently changed from pretty-printed to single-line
+### AWKIT-SES-002 — `session-profiles.json` silently changed from pretty-printed to single-line
 
 - **Classification:** Documentation / undocumented behavior change
 - **Severity:** S3 / LOW — the file still round-trips losslessly; only its on-disk shape changed
@@ -538,7 +468,7 @@ session-store documentation.
 
 ---
 
-### AWKIT-REC-036 (`awkit-cey`) — Cancelling a handoff leaves stale ambiguity state pointing at a dead page
+### AWKIT-REC-036 — Cancelling a handoff leaves stale ambiguity state pointing at a dead page
 
 - **Classification:** Product
 - **Severity:** S3 / LOW — reachable only by invoking ambiguity preview after a cancelled handoff
@@ -634,7 +564,7 @@ connectivity-aware skip semantics) would close these as a class.
 
 ---
 
-### AWKIT-QA-001 (`awkit-cey`) — Trivially-true login-interaction regex with no positive control
+### AWKIT-QA-001 — Trivially-true login-interaction regex with no positive control
 
 - **Classification:** Test quality
 - **Severity:** S3 / LOW
@@ -653,7 +583,7 @@ proves the regex matches it, then assert absence on the real draft.
 
 ---
 
-### AWKIT-QA-002 (`awkit-cey`) — Queue failure-isolation contract is untested
+### AWKIT-QA-002 — Queue failure-isolation contract is untested
 
 - **Classification:** Test coverage gap
 - **Severity:** S3 / LOW
@@ -674,7 +604,7 @@ still runs and lands.
 
 ---
 
-### AWKIT-QA-003 (`awkit-cey`) — Inverted variable name `draftGoneAfterDiscard`
+### AWKIT-QA-003 — Inverted variable name `draftGoneAfterDiscard`
 
 - **Classification:** Test readability / fragility
 - **Severity:** S3 / LOW
@@ -692,7 +622,7 @@ real check.
 
 ---
 
-### AWKIT-QA-004 (`awkit-cey`) — Missing optional chaining turns a clean FAIL into a crash
+### AWKIT-QA-004 — Missing optional chaining turns a clean FAIL into a crash
 
 - **Classification:** Test robustness
 - **Severity:** S3 / LOW
@@ -710,7 +640,7 @@ AWKIT-QA-005 below, would remove the check from the denominator rather than fail
 
 ---
 
-### AWKIT-QA-005 (`awkit-cey`) — Verifier tallies divide by a denominator an uncaught throw can shrink
+### AWKIT-QA-005 — Verifier tallies divide by a denominator an uncaught throw can shrink
 
 - **Classification:** Harness design — repo-wide pattern, not confined to these two scripts
 - **Severity:** S3 / LOW
@@ -735,8 +665,94 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-MAP-005 — Edge label normalization persists the connector type as an authored label (RT-08 regression)
 
-### AWKIT-REC-003 (`awkit-cey`) — Recorder embedded the site URL instead of the login URL in Auto Secure Login
+- **Classification:** Product defect (round-trip fidelity / phantom authored data)
+- **Severity:** S3 / `updateEdgeData` writes `linkType` INTO the persisted `data.label` whenever
+  the label is empty — directly contradicting the RT-08 contract documented in the same module
+  ("an unlabelled connector is not saved as though the user had typed its type as a label").
+  Every panel edit of an unlabelled edge fabricates an authored label; saves are not byte-stable.
+  `insertNodeOnEdge` additionally hardcodes an authored `"success"` label on the lower half-edge.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 5ba4bf7**
+- **Owner routing:** Frontend / Flow Designer + Workflow Builder
+- **Affected area:** `app/renderer/pages/FlowChartDesigner.tsx:480` (normalization),
+  `:859` (hardcoded split label); identical pattern in `app/renderer/pages/ScenarioBuilder.tsx:599`
+  persisted at `:2154`; contract `app/renderer/components/workflow/flowProfileMapping.ts:65-69`
+  vs persistence `:119`.
+- **Fix direction:** keep the render-label fallback display-only; persist `data.label` verbatim.
+
+- **Evidence after fix:** `verify:flow-step-mapping` 158/158 with new source guards: both designer pages keep the fallback display-only (`authoredLabel`), insertNodeOnEdge no longer hardcodes an authored "success" label, and createScenarioEdge persists data.label authored-only; `ScenarioLinkData.label` is optional again.
+
+---
+
+### AWKIT-MAP-004 — The only field-level round-trip verifier tests a mapping module production does not use
+
+- **Classification:** Test-quality issue / duplicated authority
+- **Severity:** S2 / Green coverage that proves nothing about shipped code; this is how MAP-002 stayed invisible
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 5ba4bf7**
+- **Owner routing:** QA + Frontend
+- **Affected area:** `app/renderer/components/workflow/flowStepMapping.ts` (dead); importer `app/renderer/pages/branchPairs.ts:3`; `scripts/verify-flow-step-mapping.mts:17` (header claims it tests "the REAL production functions")
+- **Detected by:** Independent whole-repository code review
+
+`FlowChartDesigner.tsx:45` imports `flowProfileMapping.ts`; `flowStepMapping.ts` is imported only
+type-only by `branchPairs.ts` and by the verifier itself. The dead module still carries the
+pre-fix shapes `flowProfileMapping` documents as fixed (catalog-gated locator, fabricated
+retry/onFailure, rebuilt env/runtimeInput/secret sources from one string, no configOriginal).
+Deleting it (or repointing the verifier) removes a resurrect-on-import hazard.
+
+- **Evidence after fix:** `flowStepMapping.ts` deleted (git rm); `verify-flow-step-mapping.mts` and both type-only importers (`branchPairs.ts`, `verify-branch-pairs.mts`) repointed at `flowProfileMapping.ts`. The repoint itself exposed two stale dead-module expectations (multi-key outputs collapse; absent-next mirroring) now corrected to production semantics: 158/158.
+
+---
+
+### AWKIT-MAP-003 — Loop node `customFlow` target flow is never written on save
+
+- **Classification:** Product defect (designer-runtime contract break)
+- **Severity:** S2 / A user-configured "run another flow" loop loses its target on save; reload empties the selector and the run gate then blocks with an unfixable error
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 5ba4bf7**
+- **Owner routing:** Frontend / Flow Designer mapping
+- **Affected area:** `app/renderer/components/workflow/flowProfileMapping.ts:201,264`; registry `flowNodeRegistry.ts:156-174`; panel `FlowNodePropertiesPanel.tsx:1272-1303`; runtime read `src/runner/StepExecutor.ts:2764-2768`; contract `src/validation/LoopStepContract.ts:140-143`
+- **Detected by:** Independent whole-repository code review
+
+`toFlowStep` writes `targetFlowId` only when `inSection("runFlow")` (line 264) and `flowId` only
+for `stepType === "runFlow"` (line 201). A `loop` node's sections are `["loop", "execution"]`
+(`flowNodeRegistry.ts:158`), so both writes are always `undefined` — yet the properties panel
+offers "Custom flow" plus a target-flow select writing `data.targetFlowId`, and the panel validator
+demands it (registry line 171). The runner executes customFlow loops exclusively from
+`step.config?.targetFlowId`, which save never produces. `RandomConfigurationGenerator.ts:336`
+deliberately skips scroll/customFlow loops, so the random round-trip gate cannot see this path.
+
+- **Evidence after fix:** `verify:flow-step-mapping` 158/158 with a new customFlow-loop section (config.targetFlowId persists, second-cycle stable, panel validator accepts; click loop gains none); reverting the section gate to runFlow-only failed exactly 3 checks. Random corpus now generates customFlow loops (`test:random:roundtrip` 27/27).
+
+---
+
+### AWKIT-MAP-002 — Flow Designer authors `completionMode` but the production mapping never persists it
+
+- **Classification:** Product defect (round-trip loss)
+- **Severity:** S2 / Any step saved with a non-default async completion mode silently reverts to `allRequired`; existing flows lose the field the first time they are opened and re-saved in the designer
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 5ba4bf7**
+- **Owner routing:** Frontend / Flow Designer mapping
+- **Affected area:** `app/renderer/components/workflow/flowProfileMapping.ts` (`toFlowStep`/`fromFlowStep`); authoring surface `FlowNodePropertiesPanel.tsx:950-963`; consumer `src/runner/StepExecutor.ts:680`
+- **Detected by:** Independent whole-repository code review
+
+`FlowNodePropertiesPanel` authors `data.completionMode` (Any required / networkThenUi /
+quietPeriod), `flowDesignerTypes.ts:121` declares it "carried through round-trip", and the runner
+reads `step.completionMode ?? "allRequired"` — but neither direction of `flowProfileMapping.ts`
+mentions `completionMode`. The dead twin module `flowStepMapping.ts:81,223` DOES map it, evidence
+it was lost when the mapping was extracted.
+
+**Coverage gap:** `verify-flow-step-mapping.mts:216-273` asserts completionMode round-trips —
+against `flowStepMapping.ts`, which production does not import (see AWKIT-MAP-004 below). The
+random-roundtrip corpus never emits the field. All three gates are blind to this loss.
+
+- **Evidence after fix:** `verify:flow-step-mapping` (repointed at production per AWKIT-MAP-004) 158/158 incl. the four completionMode round-trip checks and absence-preservation; mutation re-dropping `completionMode: data.completionMode` failed exactly 9 checks; restored 158/158.
+
+---
+
+### AWKIT-REC-003 — Recorder embedded the site URL instead of the login URL in Auto Secure Login
 
 - **Classification:** Product defect
 - **Severity:** S2 / Replay of an IdP-redirect recording spawned a redundant manual-login browser
@@ -762,7 +778,7 @@ inserted node carries the LOGIN url; reverting the fix failed exactly that asser
 
 ---
 
-### AWKIT-REC-002 (`awkit-cey`) — Session-profile store lost writes to Windows file contention
+### AWKIT-REC-002 — Session-profile store lost writes to Windows file contention
 
 - **Classification:** Product defect
 - **Severity:** S2 / A saved session profile could silently vanish from the registry
@@ -798,7 +814,7 @@ but is not a literal file-edit mutant.
 
 ---
 
-### AWKIT-REC-001 (`awkit-cey`) — Cancelling a protected-login handoff discarded the pre-login draft
+### AWKIT-REC-001 — Cancelling a protected-login handoff discarded the pre-login draft
 
 - **Classification:** Product defect
 - **Severity:** S2 / A user-aborted handoff destroyed already-recorded work
