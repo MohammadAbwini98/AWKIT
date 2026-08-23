@@ -256,11 +256,20 @@ async function main() {
     // ── Run Another Flow (pass-through + failure propagation) ─────────────────
     console.log("Run Another Flow:");
     const rfPage = await browser.newPage();
-    const passingChild = async (id: string): Promise<FlowExecutionResult> => ({ flowId: id, status: "passed", startedAt: "", endedAt: "", durationMs: 0, steps: [], outputs: { "child.value": "ok" } });
+    // The REAL FlowExecutor registry prefixes with the flow id: `<flow-child.value>`.
+    const passingChild = async (id: string): Promise<FlowExecutionResult> => ({ flowId: id, status: "passed", startedAt: "", endedAt: "", durationMs: 0, steps: [], outputs: { [`${id}.value`]: "ok" } });
     const passExec = new StepExecutor(rfPage, new LocatorFactory(rfPage), new ValueResolver(context), context, undefined, undefined, passingChild);
     const rfPass = await passExec.execute({ id: "rf", type: "runFlow", name: "rf", flowId: "flow-child" });
     ok("runFlow pass-through", rfPass);
     check("child status propagated", rfPass.outputs.childFlowStatus === "passed");
+    // AWKIT-RUN-009: the child prefixes its outputs `<child>.<key>`; the import must strip that
+    // prefix so the PARENT's registry re-prefix yields the documented two-segment
+    // `${outputs.<flowId>.<key>}` — never a triple prefix.
+    check(
+      "nested child outputs import WITHOUT the child prefix (no triple prefixing)",
+      rfPass.outputs.value === "ok" && rfPass.outputs["child.value"] === undefined,
+      JSON.stringify(rfPass.outputs)
+    );
 
     const failingChild = async (id: string): Promise<FlowExecutionResult> => ({ flowId: id, status: "failed", startedAt: "", endedAt: "", durationMs: 0, steps: [], outputs: {}, error: "child boom" });
     const failExec = new StepExecutor(rfPage, new LocatorFactory(rfPage), new ValueResolver(context), context, undefined, undefined, failingChild);
@@ -638,6 +647,73 @@ async function main() {
       collectRes.result.status === "failed" && ran(collectRes.result, "B") === 1 && ran(collectRes.result, "C") === 1,
       `status=${collectRes.result.status} B=${ran(collectRes.result, "B")} C=${ran(collectRes.result, "C")}`
     );
+
+    // ── AWKIT-RUN-005: declared parallel branches that cannot run are RECORDED ──
+    console.log("Parallel fan-out records unrunnable branches (AWKIT-RUN-005):");
+    {
+      // Sequential fan-out with a DANGLING target: used to vanish silently (no event, no row).
+      const danglingFlow: FlowProfile = {
+        id: "b-par-dangling",
+        name: "Dangling parallel",
+        version: 1,
+        nodes: [
+          { id: "start", type: "start", name: "Start" },
+          { id: "A", type: "scroll", name: "A", config: { scrollAmount: 5 } },
+          { id: "C", type: "scroll", name: "C", config: { scrollAmount: 5 } },
+          { id: "end", type: "end", name: "End" }
+        ],
+        edges: [
+          { id: "d0", source: "start", target: "A", type: "success" },
+          { id: "d1", source: "A", target: "ghost", type: "parallel" },
+          { id: "d2", source: "A", target: "C", type: "parallel" },
+          { id: "d3", source: "A", target: "end", type: "success" }
+        ]
+      };
+      const dangling = await runFlowOnForm(danglingFlow);
+      check(
+        "a dangling parallel branch fails the group instead of passing silently",
+        dangling.result.status === "failed" && /does not exist in flow/.test(dangling.result.error ?? ""),
+        `status=${dangling.result.status} error=${dangling.result.error}`
+      );
+      const skippedRow = dangling.result.steps.find((s) => s.stepId === "ghost");
+      check("the dangling branch is recorded as a skipped step row", Boolean(skippedRow && skippedRow.status === "skipped"), JSON.stringify(dangling.result.steps.map((s) => [s.stepId, s.status])));
+
+      // Isolated variant with ONLY dangling targets: used to return { success: true }.
+      const isolatedOnly: FlowProfile = {
+        id: "b-par-isolated-dangling",
+        name: "Isolated dangling",
+        version: 1,
+        nodes: [
+          { id: "start", type: "start", name: "Start" },
+          { id: "A", type: "scroll", name: "A", config: { scrollAmount: 5 } },
+          { id: "end", type: "end", name: "End" }
+        ],
+        edges: [
+          { id: "i0", source: "start", target: "A", type: "success" },
+          { id: "i1", source: "A", target: "ghostA", type: "parallel", kind: "parallel", parallel: { isolation: "isolatedPage", joinMode: "waitAll", failMode: "failFast" } },
+          { id: "i2", source: "A", target: "ghostB", type: "parallel", kind: "parallel", parallel: { isolation: "isolatedPage", joinMode: "waitAll", failMode: "failFast" } },
+          { id: "i3", source: "A", target: "end", type: "success" }
+        ]
+      };
+      const isoPage = await browser.newPage();
+      await isoPage.goto(`${BASE}/form`);
+      const isoCtx = await makeContext(isolatedOnly.id);
+      let branchFactoryCalled = false;
+      const isoExec = new FlowExecutor(
+        new StepExecutor(isoPage, new LocatorFactory(isoPage), new ValueResolver(isoCtx), isoCtx),
+        undefined,
+        undefined,
+        async () => {
+          branchFactoryCalled = true;
+          throw new Error("branch executor must never run for dangling targets");
+        }
+      );
+      const isolatedResult = await isoExec.executeFlow(isolatedOnly, isoCtx).catch((error) => ({ status: "failed", error: String(error?.message ?? error), steps: [] } as unknown as FlowExecutionResult));
+      await isoPage.close();
+      const isolatedFailed = isolatedResult.status === "failed" && /does not exist in flow/.test(isolatedResult.error ?? "");
+      check("an isolated fan-out whose only targets are dangling FAILS (never a green no-op)", isolatedFailed, `status=${isolatedResult.status} error=${isolatedResult.error}`);
+      check("the branch factory was never invoked for dangling targets", branchFactoryCalled === false);
+    }
 
     // Loop connector — count mode injects 1..N into a runtimeInput the target reads.
     // Point 4: loop connectors are self-loops (L → L); the node's other outgoing connector
@@ -1531,6 +1607,75 @@ async function main() {
       failureRan.includes("flowAbad") && failureRan.includes("flowC") && !failureRan.includes("flowB"),
       `status=${failureResult.status} ran=${failureRan.join(",")}`
     );
+
+    // ── AWKIT-RUN-010: declared flow-input bindings are APPLIED at run time ────
+    console.log("Scenario flow-input bindings (AWKIT-RUN-010):");
+    {
+      const producerFlow = simpleFlow("flowProd", [
+        { id: "goto-form", type: "goto", name: "Open form", url: `${BASE}/form` },
+        // Declare the step output so the flow registry carries `<flowProd.first>` = "Customer Form".
+        { id: "read", type: "readText", name: "Read heading", locator: { strategy: "css", value: "h1" }, outputs: { first: { type: "text" } } }
+      ]);
+      const consumerFlow = simpleFlow("flowCons", [
+        // The wired binding is the ASSERTION'S EXPECTED value (source-first resolution): this step
+        // passes only if the declared input binding actually delivered flowProd's output.
+        {
+          id: "expect-wired",
+          type: "assertText",
+          name: "Expect wired heading",
+          locator: { strategy: "css", value: "h1" },
+          valueSource: { type: "runtimeInput", key: "wired" },
+          config: { assertionType: "text", comparisonOperator: "equals", expectedValue: "" }
+        }
+      ]);
+      const wiringScenario: ScenarioProfile = {
+        id: "sc-wiring",
+        name: "Input binding wiring",
+        executionMode: "sequential",
+        maxParallelFlows: 1,
+        flows: [
+          { order: 1, flowId: "flowProd", required: true },
+          // The DECLARED binding: flowCons.wired ← flowProd's `first` output.
+          { order: 2, flowId: "flowCons", required: true, inputs: { wired: "${outputs.flowProd.first}" } }
+        ],
+        links: [{ id: "w1", sourceFlowId: "flowProd", targetFlowId: "flowCons", type: "success" }],
+        failurePolicy
+      };
+      const wiringRunner = new PlaywrightRunner({ flows: [producerFlow, consumerFlow], productionOffline: false, resourcesRoot });
+      const wiringResult = await wiringRunner.executeScenario(wiringScenario, await makeContext("flowProd"), instanceConfig);
+      const consumerResult = wiringResult.flows.find((f) => f.flowId === "flowCons");
+      check(
+        "a declared ${outputs.<flow>.<key>} input binding feeds the consuming flow's runtime input",
+        wiringResult.status === "passed" && consumerResult?.status === "passed",
+        `status=${wiringResult.status} consStatus=${consumerResult?.status} prodOut=${JSON.stringify(wiringResult.flows.find((f) => f.flowId === "flowProd")?.outputs)} error=${wiringResult.error ?? consumerResult?.error}`
+      );
+    }
+
+    // ── AWKIT-RUN-004: workflow-level manualApproval links cannot auto-traverse ─
+    console.log("Workflow-level manualApproval rejection (AWKIT-RUN-004):");
+    {
+      const approvalScenario: ScenarioProfile = {
+        id: "sc-approval",
+        name: "Manual approval bypass attempt",
+        executionMode: "sequential",
+        maxParallelFlows: 1,
+        flows: [
+          { order: 1, flowId: "flowA", required: true },
+          { order: 2, flowId: "flowB", required: true }
+        ],
+        links: [{ id: "ap1", sourceFlowId: "flowA", targetFlowId: "flowB", type: "manualApproval" }],
+        failurePolicy
+      };
+      const approvalRunner = new PlaywrightRunner({ flows: [flowA, flowB], productionOffline: false, resourcesRoot });
+      const approvalResult = await approvalRunner.executeScenario(approvalScenario, await makeContext("flowA"), instanceConfig);
+      check(
+        "a workflow-level manualApproval link is rejected instead of traversing automatically",
+        approvalResult.status === "failed" && /approval/i.test(approvalResult.error ?? ""),
+        `status=${approvalResult.status} error=${approvalResult.error}`
+      );
+      const flowBRan = approvalResult.flows.some((f) => f.flowId === "flowB");
+      check("the approved continuation did NOT silently run behind the unapproved link", !flowBRan || /approval/i.test(approvalResult.error ?? ""), JSON.stringify(approvalResult.flows.map((f) => f.flowId)));
+    }
 
     // ── awkit-oei: terminal browser cleanup logs the reason that matches the run outcome ─────────
     // Regression guard: the finally block hardcoded "execution-failed-cleanup" on EVERY exit path,

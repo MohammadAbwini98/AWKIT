@@ -1,6 +1,6 @@
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import type { FlowProfile, FlowStep, LoopConnectorConfig } from "@src/profiles/FlowProfile";
-import type { ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
+import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import { evaluateBoolean } from "./ExpressionEvaluator";
 import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorConditionEvaluator";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
@@ -333,6 +333,27 @@ export class PlaywrightRunner {
           flowOutputs: { ...accumulatedOutputs }
         };
 
+        // AWKIT-RUN-010: apply the flow's DECLARED input bindings before it runs.
+        // `resolveFlowInputs` existed and computed per-flow bindings from `${outputs.<flow>.<key}>`
+        // expressions, but nothing ever called it, so wiring one flow's output into another
+        // flow's input had zero runtime effect. Resolved values become runtime inputs for this
+        // flow (and stay available downstream), matching how loop connectors feed parameters.
+        const planInputs = planStep?.inputs ?? {};
+        if (Object.keys(planInputs).length > 0) {
+          const resolvedInputs = this.scenarioOrchestrator.resolveFlowInputs(
+            {
+              order: planStep!.order,
+              flowId: currentFlowId,
+              required: planStep!.required,
+              inputs: planInputs
+            },
+            accumulatedOutputs
+          );
+          for (const [inputKey, resolvedValue] of Object.entries(resolvedInputs)) {
+            if (resolvedValue !== "" && resolvedValue !== undefined) context.runtimeInputs[inputKey] = resolvedValue;
+          }
+        }
+
         const links = linksBySource.get(currentFlowId) ?? [];
         const structuredLoop = links.find(
           (link) => link.type === "loop" && link.sourceFlowId === currentFlowId && link.targetFlowId === currentFlowId
@@ -460,7 +481,16 @@ export class PlaywrightRunner {
     }
 
     // Structured self-loops were already executed above and are intentionally excluded here.
-    const success = links.find((link) => link.type === "success" || link.type === "manualApproval");
+    // AWKIT-RUN-004: a manualApproval link must never traverse automatically. Validation now
+    // rejects such links; this runtime guard keeps hand-authored profiles from bypassing the
+    // approval semantic if one still arrives here.
+    const pendingApproval = links.find((link) => link.type === "manualApproval");
+    if (pendingApproval) {
+      throw new Error(
+        `Workflow-level manual-approval link ${pendingApproval.id} (${pendingApproval.sourceFlowId} → ${pendingApproval.targetFlowId}) cannot run: automatic traversal would bypass the approval. Approve the work explicitly or restructure the connector.`
+      );
+    }
+    const success = links.find((link) => link.type === "success");
     if (success) return success.targetFlowId;
     const always = links.find((l) => l.type === "always");
     if (always) return always.targetFlowId;

@@ -2085,7 +2085,18 @@ export class StepExecutor {
         if (!targetFlowId) throw new Error(`Run Another Flow step ${step.id} has no target flow.`);
         if (!this.runChildFlow) throw new Error("Sub-flow execution is not available in this context.");
         const result = await this.runChildFlow(targetFlowId);
-        this.mapOutputs(step, outputs, { childFlowId: targetFlowId, childFlowStatus: result.status, ...result.outputs });
+        // AWKIT-RUN-009: the child flow prefixes its own outputs with ITS flow id
+        // (`<childFlowId>.<key>`, FlowExecutor's output registry). Spreading them verbatim made
+        // THIS step's outputs carry that prefix, and the parent's FlowExecutor re-prefixed with
+        // the parent id — producing `<parent>.<child>.<key>`, which neither resolution scope can
+        // match against the documented two-segment `${outputs.<flowId>.<key>}` contract. Strip
+        // the child prefix on import so the parent re-prefix yields exactly two segments.
+        const importedChildOutputs: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(result.outputs ?? {})) {
+          const normalized = key.startsWith(`${targetFlowId}.`) ? key.slice(targetFlowId.length + 1) : key;
+          importedChildOutputs[normalized] = value;
+        }
+        this.mapOutputs(step, outputs, { childFlowId: targetFlowId, childFlowStatus: result.status, ...importedChildOutputs });
         if (result.status === "manualHandoff") return { status: "manualHandoff" };
         if (result.status === "failed" && (step.config?.stopParentOnChildFailure ?? true)) {
           throw new Error(`Child flow ${targetFlowId} failed: ${result.error ?? "unknown error"}`);

@@ -49,6 +49,19 @@ export class FlowDependencyResolver {
         });
       }
 
+      // AWKIT-RUN-004: a workflow-level manualApproval link used to traverse AUTOMATICALLY as a
+      // plain success edge — the exact opposite of the same connector inside a flow, where an
+      // ordinary node must never traverse an approval connector. Workflow-level approval
+      // handoff/resume is not supported yet, so the link is rejected at validation (and refused
+      // again at runtime) instead of silently bypassing the approval semantic.
+      if (link.type === "manualApproval") {
+        issues.push({
+          id: `${link.id}-approval`,
+          severity: "error",
+          message: `Manual-approval link ${link.id} (${link.sourceFlowId} → ${link.targetFlowId}) is not supported between workflows: the approval would be bypassed automatically. Use an outcome or conditional connector, or model the approval inside a flow.`
+        });
+      }
+
       if (link.sourceFlowId === link.targetFlowId && link.type !== "loop") {
         issues.push({
           id: `${link.id}-self`,

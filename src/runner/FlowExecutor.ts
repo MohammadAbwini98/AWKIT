@@ -244,9 +244,31 @@ export class FlowExecutor {
 
     for (const edge of parallelEdges) {
       const targetStep = byId.get(edge.target);
-      if (!targetStep) continue;
-      // Parallel targets are still subject to the cycle guard.
-      if (visited.has(targetStep.id)) continue;
+      if (!targetStep) {
+        // AWKIT-RUN-005: a declared parallel target that does not exist in the flow used to be
+        // skipped SILENTLY (no event, no step row) — the branch's work vanished from the run.
+        // Record a `skipped` step row, emit a warning, and fail the group per its fail mode.
+        const message = `Parallel branch target "${edge.target}" does not exist in flow ${flow.id} (dangling connector ${edge.id}).`;
+        this.emitConnectorEvent(context, message, "warning");
+        steps.push({
+          stepId: edge.target,
+          status: "skipped",
+          startedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          durationMs: 0,
+          outputs: {},
+          error: message
+        });
+        errors.push(message);
+        if (failMode === "failFast") return { success: false, error: errors.join("; ") };
+        continue;
+      }
+      // Parallel targets are still subject to the cycle guard. A convergence diamond re-arrives at
+      // an already-executed target by design; record the skip so it is visible, but do not fail.
+      if (visited.has(targetStep.id)) {
+        this.emitConnectorEvent(context, `Parallel branch ${targetStep.name} already executed earlier in this flow — skipping duplicate fan-out target.`, "warning");
+        continue;
+      }
       visited.add(targetStep.id);
 
       const result = await this.executeWithRetry(targetStep, context);
@@ -291,13 +313,47 @@ export class FlowExecutor {
     cfg: NonNullable<FlowEdge["parallel"]>
   ): Promise<{ success: boolean; error?: string }> {
     const targets: FlowStep[] = [];
+    let missingTargets = 0;
+    let visitedSkips = 0;
     for (const edge of parallelEdges) {
       const targetStep = byId.get(edge.target);
-      if (!targetStep || visited.has(targetStep.id)) continue;
+      if (!targetStep) {
+        // AWKIT-RUN-005: a dangling declared branch is recorded, never silently dropped.
+        missingTargets += 1;
+        this.emitConnectorEvent(context, `Parallel branch target "${edge.target}" does not exist in flow ${flow.id} (dangling connector ${edge.id}).`, "warning");
+        steps.push({
+          stepId: edge.target,
+          status: "skipped",
+          startedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          durationMs: 0,
+          outputs: {},
+          error: `Parallel branch target "${edge.target}" does not exist in flow ${flow.id}.`
+        });
+        continue;
+      }
+      if (visited.has(targetStep.id)) {
+        visitedSkips += 1;
+        continue;
+      }
       visited.add(targetStep.id);
       targets.push(targetStep);
     }
-    if (!targets.length) return { success: true };
+    // AWKIT-RUN-005: an empty runnable set used to return `{ success: true }` — a declared
+    // fan-out with zero branch work reported passed. Dangling targets now fail the group;
+    // only the all-already-visited convergence case remains a legitimate (recorded) success.
+    if (!targets.length) {
+      const errors = parallelEdges
+        .filter((edge) => !byId.has(edge.target))
+        .map((edge) => `Parallel branch target "${edge.target}" does not exist in flow ${flow.id}.`);
+      if (missingTargets > 0 && missingTargets + visitedSkips === parallelEdges.length && visitedSkips === 0) {
+        return { success: false, error: errors.join("; ") || "No parallel branch could run." };
+      }
+      if (visitedSkips > 0) {
+        this.emitConnectorEvent(context, `Parallel fan-out: ${visitedSkips} branch target(s) already executed — nothing to run.`, "warning");
+      }
+      return { success: true };
+    }
 
     // Bounded node parallelism: the connector's maxConcurrency is additionally clamped by the
     // host limit (maxActiveNodesPerFlow, env-overridable) so one flow can't open unbounded pages.
