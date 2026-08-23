@@ -9,7 +9,8 @@ import { SecretStore, type SecretCrypto } from "../src/secrets/SecretStore";
 import { collectSecretNames } from "../src/profiles/FlowValidation";
 import { SecretMasker, registerSecretValues } from "../src/reports/SecretMasker";
 import type { FlowProfile } from "../src/profiles/FlowProfile";
-import { mkdtempSync, readFileSync } from "node:fs";
+import * as fs from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -89,6 +90,76 @@ const masker = new SecretMasker();
 check("maskText scrubs a registered secret literal", !masker.maskText("logged updated-Value-99 here").includes("updated-Value-99"));
 check("maskValue masks a registered secret literal", masker.maskValue("anyKey", "updated-Value-99") === "[masked]");
 check("non-secret text is left intact", masker.maskText("ordinary log line") === "ordinary log line");
+
+// ── AWKIT-DUR-002 — corrupt/unreadable vault is QUARANTINED, never silently emptied ──
+{
+  const durDir = mkdtempSync(join(tmpdir(), "awkit-dur002-"));
+  const durFile = join(durDir, "secrets.json");
+
+  // Seed a healthy vault with two secrets through the real store.
+  const seedStore = new SecretStore(durFile, reversible);
+  seedStore.set("oracle.prod", "prod-pass-1");
+  seedStore.set("api.token", "token-2");
+
+  // Corrupt it (torn write / truncated JSON — the exact failure class from the finding).
+  const CORRUPT = '{ "version": 1, "secrets": { "oracle.pr';
+  fs.writeFileSync(durFile, CORRUPT, "utf8");
+  const bytesBefore = fs.readFileSync(durFile, "utf8");
+
+  const broken = new SecretStore(durFile, reversible);
+  let listThrew = "";
+  let setThrew = "";
+  try {
+    broken.list();
+  } catch (error) {
+    listThrew = error instanceof Error ? error.message : String(error);
+  }
+  check("DUR-002 list() on a corrupt vault FAILS instead of returning empty", listThrew !== "", listThrew || "(no throw)");
+
+  // Quarantine happens on FIRST read: exactly one .corrupt-* sibling preserves the original bytes.
+  const siblings = fs.readdirSync(durDir).filter((f) => f.startsWith("secrets.json.corrupt-"));
+  check("DUR-002 exactly one .corrupt-* sibling quarantines the bytes", siblings.length === 1, JSON.stringify(fs.readdirSync(durDir)));
+  if (siblings.length === 1) {
+    check("DUR-002 the quarantined sibling preserves the corrupt bytes verbatim", fs.readFileSync(join(durDir, siblings[0]), "utf8") === CORRUPT);
+  }
+
+  // The next set() now writes to a FRESH vault — the pre-corruption secrets are NOT silently
+  // destroyed, they are recoverable verbatim from the quarantine sibling (old behavior wiped them
+  // with no trace at all).
+  let setOk = false;
+  try {
+    broken.set("new.after.corrupt", "fresh-value");
+    setOk = true;
+  } catch (error) {
+    setThrew = error instanceof Error ? error.message : String(error);
+  }
+  check("DUR-002 set() works again on the fresh post-quarantine vault", setOk === true && setThrew === "", setThrew);
+  check(
+    "DUR-002 the fresh vault contains only the new secret — old bytes stay ONLY in the quarantine",
+    (() => {
+      const parsed = JSON.parse(fs.readFileSync(durFile, "utf8"));
+      return Object.keys(parsed.secrets).length === 1 && parsed.secrets["new.after.corrupt"];
+    })()
+  );
+
+  // Resolution from an unreadable vault fails CLOSED (undefined), never leaks a partial value.
+  check("DUR-002 get() resolves nothing from an unreadable vault", broken.get("oracle.prod") === undefined);
+
+  // Recovery: after the operator removes/renames the quarantine, the store works again.
+  const recovered = new SecretStore(join(durDir, "recovered.json"), reversible);
+  recovered.set("fresh", "value-3");
+  check("DUR-002 a fresh vault file still works normally after a corruption episode", recovered.has("fresh"));
+
+  fs.rmSync(durDir, { recursive: true, force: true });
+
+  // ENOENT control: a genuinely missing file remains a normal empty store.
+  const missing = new SecretStore(join(mkdirTmp(), "absent.json"), reversible);
+  check("DUR-002 a MISSING vault file still reads as an empty store (ENOENT only)", missing.list().length === 0);
+}
+
+function mkdirTmp(): string {
+  return fs.mkdtempSync(join(tmpdir(), "awkit-dur002b-"));
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

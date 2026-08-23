@@ -616,6 +616,48 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   await rm(sessionsDir, { recursive: true, force: true });
 }
 
+// ── AWKIT-DUR-003 — torn drafts are quarantined, writes are atomic, death flush cancels the timer ──
+{
+  const durDir = await mkdtemp(join(tmpdir(), "awkit-dur003-"));
+  const draftFile = join(durDir, "recorder-draft.json");
+  const durSvc = recorderService as unknown as Record<string, any>;
+
+  // 1. Torn-write fixture: a truncated draft is QUARANTINED (bytes preserved) and restores nothing.
+  //    The old behavior silently treated it as "nothing to restore" and the next save overwrote it
+  //    with no trace at all.
+  const TORN = '{ "version": 1, "actions": [ { "type": "click", "na';
+  await writeFile(draftFile, TORN, "utf8");
+  durSvc.configureDraftStorage(draftFile);
+  durSvc.configureUrlStorage(join(durDir, "url-history.json"));
+  durSvc.draftLoad = null;
+  durSvc.isRecording = false;
+  durSvc.actions = [];
+  await durSvc.ensureDraftLoaded();
+  results.push({ name: "DUR-003 a torn draft restores no actions", pass: durSvc.actions.length === 0 });
+  const corruptSiblingsDur = (await readdir(durDir)).filter((f) => f.startsWith("recorder-draft.json.corrupt-"));
+  results.push({ name: "DUR-003 exactly one .corrupt-* sibling preserves the torn bytes", pass: corruptSiblingsDur.length === 1 && (await readFile(join(durDir, corruptSiblingsDur[0]), "utf8").catch(() => "")) === TORN });
+
+  // 2. Atomic write evidence: persistDraft leaves no .tmp residue and produces complete JSON.
+  await writeJsonFileAtomic(draftFile, { version: 1, updatedAt: new Date().toISOString(), actions: [{ id: "a1", type: "click", name: "Click" }] });
+  const tmpResidueDur = (await readdir(durDir)).filter((f) => f.includes(".tmp"));
+  results.push({ name: "DUR-003 atomic draft write leaves no .tmp residue", pass: tmpResidueDur.length === 0 });
+  let parsesAfterPersist = false;
+  try { JSON.parse(await readFile(draftFile, "utf8")); parsesAfterPersist = true; } catch { /* torn */ }
+  results.push({ name: "DUR-003 the persisted draft is complete JSON (no torn tail)", pass: parsesAfterPersist });
+
+  // 3. Wiring guards on the service source.
+  const svcSrc = await readFile("src/recorder/RecorderService.ts", "utf8");
+  const deathIdx = svcSrc.indexOf("AWKIT-DUR-003: cancel the debounced write FIRST");
+  const deathBody = svcSrc.slice(deathIdx, deathIdx + 420);
+  results.push({ name: "DUR-003 onUnexpectedDeath clears draftTimer before flushing", pass: deathIdx > -1 && /clearTimeout\(this\.draftTimer\)/.test(deathBody) });
+  results.push({ name: "DUR-003 persistDraft uses the shared atomic writer", pass: /writeJsonFileAtomic\(this\.draftPath/.test(svcSrc) });
+  results.push({ name: "DUR-003 persistUrlHistory uses the shared atomic writer", pass: /writeJsonFileAtomic\(this\.urlHistoryPath/.test(svcSrc) });
+
+  durSvc.actions = [];
+  durSvc.draftLoad = null;
+  await rm(durDir, { recursive: true, force: true });
+}
+
 // ── AWKIT-REC-037 — the preserved draft is reachable in the UI and never destroyed silently ──
 {
   const pageSrc = await readFile("app/renderer/pages/Recorder.tsx", "utf8");
@@ -626,11 +668,14 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   {
     const mountAt = pageSrc.indexOf("AWKIT-REC-037");
     const mountBlock = mountAt > -1 ? pageSrc.slice(mountAt, mountAt + 800) : "";
-    check(
-      "REC-037 the page fetches actions and handoff on mount (draft visible after restart)",
-      mountBlock.includes("getActions().then(setActions)") && mountBlock.includes("getHandoff().then(setHandoff)") && mountBlock.includes("useEffect"),
-      mountBlock ? "" : "mount effect not found"
-    );
+  {
+    const mountAt = pageSrc.indexOf("AWKIT-REC-037: fetch the preserved draft");
+    const region = mountAt > -1 ? pageSrc.slice(mountAt, mountAt + 900) : "";
+    results.push({
+      name: "REC-037 the page fetches actions and handoff on mount (draft visible after restart)",
+      pass: region.includes("getActions()") && region.includes("getHandoff().then(setHandoff)") && region.includes("useEffect"),
+    });
+  }
   }
   // 2. Save is disabled for the whole handoff pause (not only while isRecording).
   check(
@@ -681,7 +726,7 @@ await rm(dir, { recursive: true, force: true });
 // AWKIT-QA-005: cardinality assertion — an uncaught throw shrinks results.length, so this pins the
 // EXPECTED count; a shortened run FAILS instead of printing a full-looking tally. Intentional
 // additions must bump EXPECTED_CHECKS.
-const EXPECTED_CHECKS = 102;
+const EXPECTED_CHECKS = 109;
 {
   const { assertCardinality } = await import("./lib/verify-harness.mjs");
   const passed = results.filter((r) => r.pass).length;

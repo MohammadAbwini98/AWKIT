@@ -1,6 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Frame, type Page } from "playwright";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { rename, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { 
   RecordedAction, 
@@ -18,6 +18,8 @@ import { buildChromiumHardeningArgs } from "../runner/ChromiumHardening";
 import type { SessionCaptureService } from "../session/SessionCaptureService";
 import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
+// AWKIT-DUR-003: drafts and URL history go through the ONE atomic temp+rename+retry writer.
+import { writeJsonFileAtomic } from "../session/atomicWrite";
 import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
 import type { DialogExpectation, FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
 import { buildFrameChain } from "./frameChainCapture";
@@ -395,8 +397,9 @@ export class RecorderService {
       actions: this.actions
     };
     try {
-      await mkdir(dirname(this.draftPath), { recursive: true });
-      await writeFile(this.draftPath, JSON.stringify(draft), "utf8");
+      // AWKIT-DUR-003: atomic temp+rename with bounded EPERM/EBUSY retry — a torn draft from a
+      // crash mid-write used to be silently dropped by ensureDraftLoaded.
+      await writeJsonFileAtomic(this.draftPath, draft);
     } catch {
       /* best-effort: never let draft I/O break recording */
     }
@@ -449,8 +452,8 @@ export class RecorderService {
     if (!this.urlHistoryPath) return;
     const payload: RecordedUrlHistory = { version: 1, urls: this.recordedUrls };
     try {
-      await mkdir(dirname(this.urlHistoryPath), { recursive: true });
-      await writeFile(this.urlHistoryPath, JSON.stringify(payload), "utf8");
+      // AWKIT-DUR-003: same atomic writer as the draft.
+      await writeJsonFileAtomic(this.urlHistoryPath, payload);
     } catch {
       /* best-effort: never let URL I/O break recording */
     }
@@ -464,12 +467,33 @@ export class RecorderService {
     if (!this.draftLoad) {
       this.draftLoad = (async () => {
         if (!this.draftPath || this.isRecording || this.actions.length > 0) return;
+        let raw: string;
         try {
-          const raw = await readFile(this.draftPath, "utf8");
+          raw = await readFile(this.draftPath, "utf8");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            console.error(`[recorder] could not read draft ${this.draftPath}: ${(error as Error).message}`);
+          }
+          return; // no draft yet
+        }
+        try {
           const draft = JSON.parse(raw) as Partial<RecorderDraft>;
           if (Array.isArray(draft.actions)) this.actions = draft.actions as RecordedAction[];
-        } catch {
-          /* no draft / unreadable → nothing to restore */
+        } catch (error) {
+          // AWKIT-DUR-003: a torn/corrupt draft is NOT silently dropped any more — its bytes are
+          // quarantined as a .corrupt-<ts> sibling so nothing (including a later save) destroys
+          // them, and the loss is logged loudly.
+          const target = `${this.draftPath}.corrupt-${Date.now()}`;
+          try {
+            await rename(this.draftPath, target);
+            console.error(
+              `[recorder] draft ${this.draftPath} was unreadable; preserved as ${target}. ${(error as Error).message}`
+            );
+          } catch (renameError) {
+            console.error(
+              `[recorder] draft ${this.draftPath} unreadable and could not be quarantined (${(renameError as Error).message})`
+            );
+          }
         }
       })();
     }
@@ -554,6 +578,13 @@ export class RecorderService {
       this.isRecording = false;
       this.lastActionPage = null;
       this.popupPages.clear();
+      // AWKIT-DUR-003: cancel the debounced write FIRST so it can never fire concurrently with
+      // this death flush and interleave two writes of the same file (stopRecording already
+      // cleared its timer; the death path was missing that).
+      if (this.draftTimer) {
+        clearTimeout(this.draftTimer);
+        this.draftTimer = null;
+      }
       // Best-effort, and deliberately not awaited: this runs from an event handler.
       void this.persistDraft().catch(() => undefined);
       void this.closeBrowser().catch(() => undefined);

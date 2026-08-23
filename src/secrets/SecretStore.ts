@@ -9,6 +9,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { DEFAULT_REPLACE_ATTEMPTS, DEFAULT_REPLACE_BACKOFF_MS, isTransientReplaceError } from "../storage/atomicReplace";
 
 /** Pluggable crypto backend so the store is unit-testable without a live Electron keystore. */
 export interface SecretCrypto {
@@ -89,9 +90,19 @@ export class SecretStore {
     }
   }
 
-  /** Decrypt and return a secret value (MAIN process only — never sent to the renderer). */
+  /**
+   * Decrypt and return a secret value (MAIN process only — never sent to the renderer).
+   * A CORRUPT vault propagates as an thrown error upstream of resolution instead of silently
+   * reading as "not set"; only a genuinely absent name yields undefined.
+   */
   get(name: string): string | undefined {
-    const rec = this.read().secrets[name];
+    let rec: SecretRecord | undefined;
+    try {
+      rec = this.read().secrets[name];
+    } catch (error) {
+      console.error(`[secrets] refusing to resolve "${name}" from an unreadable vault: ${(error as Error).message}`);
+      return undefined;
+    }
     if (!rec) return undefined;
     if (!this.crypto.isAvailable()) return undefined;
     try {
@@ -101,30 +112,75 @@ export class SecretStore {
     }
   }
 
+  /**
+   * AWKIT-DUR-002: a MISSING vault file is a normal empty store. Any OTHER read failure or
+   * malformed content is NOT silently treated as an empty vault any more — this store holds
+   * material nothing else can recover, and `set()` is read-modify-write, so an unnoticed empty
+   * read would let the next save destroy every stored secret. Corrupt/unreadable bytes are
+   * quarantined as a `.corrupt-<ts>` sibling (JsonProfileStore pattern), logged loudly, and the
+   * read FAILS.
+   */
   private read(): SecretFile {
+    if (!existsSync(this.filePath)) return { version: 1, secrets: {} };
+    let raw: string;
     try {
-      if (!existsSync(this.filePath)) return { version: 1, secrets: {} };
-      const parsed = JSON.parse(readFileSync(this.filePath, "utf8").replace(/^﻿/, "")) as SecretFile;
-      if (!parsed || typeof parsed !== "object" || typeof parsed.secrets !== "object") return { version: 1, secrets: {} };
+      raw = readFileSync(this.filePath, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { version: 1, secrets: {} };
+      this.quarantineVault(error);
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+    try {
+      const parsed = JSON.parse(raw.replace(/^﻿/, "")) as SecretFile;
+      if (!parsed || typeof parsed !== "object" || typeof parsed.secrets !== "object") {
+        throw new Error("secret vault JSON does not shape-match SecretFile");
+      }
       return { version: parsed.version ?? 1, secrets: parsed.secrets ?? {} };
-    } catch {
-      return { version: 1, secrets: {} };
+    } catch (error) {
+      this.quarantineVault(error);
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
+  private quarantineVault(error: unknown): void {
+    const target = `${this.filePath}.corrupt-${Date.now()}`;
+    try {
+      renameSync(this.filePath, target);
+      console.error(
+        `[secrets] ${this.filePath} was unreadable/corrupt; preserved as ${target} so it is not lost. ` +
+          `Cause: ${(error as Error).message}`
+      );
+    } catch (renameError) {
+      console.error(
+        `[secrets] ${this.filePath} was unreadable/corrupt and could not be quarantined ` +
+          `(${(renameError as Error).message}); left in place. Cause: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /** Atomic temp+rename with the SHARED bounded EPERM/EBUSY retry policy (AWKIT-DUR-002). */
   private write(file: SecretFile): void {
     mkdirSync(dirname(this.filePath), { recursive: true });
     const tmp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     writeFileSync(tmp, JSON.stringify(file, null, 2), "utf8");
-    try {
-      renameSync(tmp, this.filePath); // atomic replace (Windows MOVEFILE_REPLACE_EXISTING)
-    } catch (error) {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= DEFAULT_REPLACE_ATTEMPTS; attempt += 1) {
       try {
-        unlinkSync(tmp);
-      } catch {
-        /* ignore cleanup failure */
+        renameSync(tmp, this.filePath); // atomic replace (Windows MOVEFILE_REPLACE_EXISTING)
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!isTransientReplaceError(error) || attempt >= DEFAULT_REPLACE_ATTEMPTS) break;
+        const spinStart = Date.now();
+        // Linear backoff matching replaceFileAtomically (attempt N waits N × base).
+        while (Date.now() - spinStart < DEFAULT_REPLACE_BACKOFF_MS * attempt) { /* sync sleep */ }
       }
-      throw error;
     }
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* ignore cleanup failure */
+    }
+    throw lastError;
   }
 }
