@@ -189,37 +189,7 @@ two passes were executed independently; overlap was deduplicated against the fir
 
 ---
 
-### AWKIT-WFB-001 — Every Workflow Builder save/export re-fabricates the stored workflow document
-
-- **Classification:** Product defect (silent overwrite / demo-shaped data in the save path)
-- **Severity:** S2 / Saving corrupts input bindings into static literals equal to the binding key, injects a hardcoded `selectedAccountType` dropdown into every saved workflow, clobbers descriptions, pins `version: 1`, and drops per-node policies on load+save
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Frontend / Workflow Builder
-- **Affected area:** `app/renderer/pages/ScenarioBuilder.tsx:2102-2177` (`toWorkflowProfile`, used by the `workflowProfile` memo and `saveScenario`), load path `:1000-1052`, export `:1092-1100`
-- **Detected by:** Independent whole-repository code review
-
-Observed in `toWorkflowProfile`: `inputBindings` maps every declared flow-input key to
-`{ type: "static", value: <the key's own name> }`; `runtimeInputs` hardcodes the
-BUSINESS/PERSONAL `selectedAccountType` dropdown unconditionally; `description` is the constant
-"Saved workflow of reusable flow profiles"; `version: 1` is pinned. The load path
-(`loadWorkflowProfile`) discards persisted `inputBindings`, per-node `failurePolicy`,
-`conditionRules`, `jsonPath`, `runtimeInputKey`, and the schema-documented `security` override.
-Export serializes the same memo rather than the stored bytes, so export→import mutates documents.
-No verifier drives `toWorkflowProfile` (`verify-workflow-sentinels.mts` exercises the converters
-in `WorkflowProfile.ts`, not the page).
-
 ---
-
-### AWKIT-WFB-002 — Two of three Failure-Policy checkboxes are enabled controls that persist nothing; two large Builder UI regions are unreachable
-
-- **Classification:** Product defect (RULES violation: no fake controls) + dead feature surface
-- **Severity:** S2 / Toggling `continueOnOptionalFlowFailure` / `takeScreenshotOnFailure` changes nothing (not in the schema `execution` carries, so the dirty flag never fires and Save drops them); the entire Workflow Definition left panel renders `{false && …}` while its settings keys stay live; the collapsed connector panel's expand rail also renders `{false && …}` so it can never be reopened from the UI
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Frontend / Workflow Builder
-- **Affected area:** `app/renderer/pages/ScenarioBuilder.tsx:1711-1722` and `1840-1866` (checkboxes), `2171-2175` (persisted subset), `1404-1597` (dead left panel), `1648-1662` + `1161-1167` (unreachable expand rail), `416-419`/`449-517` (live-but-write-only settings persistence); schema `src/profiles/WorkflowProfile.ts:90-94`
-- **Detected by:** Independent whole-repository code review
 
 ---
 
@@ -665,6 +635,44 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-WFB-002 — Two of three Failure-Policy checkboxes are enabled controls that persist nothing; two large Builder UI regions are unreachable
+
+- **Classification:** Product defect (RULES violation: no fake controls) + dead feature surface
+- **Severity:** S2 / Toggling `continueOnOptionalFlowFailure` / `takeScreenshotOnFailure` changes nothing (not in the schema `execution` carries, so the dirty flag never fires and Save drops them); the entire Workflow Definition left panel renders `{false && …}` while its settings keys stay live; the collapsed connector panel's expand rail also renders `{false && …}` so it can never be reopened from the UI
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 63959fa**
+- **Owner routing:** Frontend / Workflow Builder
+- **Affected area:** `app/renderer/pages/ScenarioBuilder.tsx:1711-1722` and `1840-1866` (checkboxes), `2171-2175` (persisted subset), `1404-1597` (dead left panel), `1648-1662` + `1161-1167` (unreachable expand rail), `416-419`/`449-517` (live-but-write-only settings persistence); schema `src/profiles/WorkflowProfile.ts:90-94`
+- **Detected by:** Independent whole-repository code review
+
+- **Evidence after fix:** `WorkflowProfile.execution` gained optional continueOnOptionalFlowFailure/takeScreenshotOnFailure (back-compat, defaults on read); Builder checkboxes load+save them and `workflowToScenarioProfile` reads stored values. Retired left panel dead JSX + plumbing deleted; collapsed connector panel's expand rail renders again. Sentinels assert both fields persist and reach the runtime scenario profile; mutation dropping them → exit 1.
+
+---
+
+### AWKIT-WFB-001 — Every Workflow Builder save/export re-fabricates the stored workflow document
+
+- **Classification:** Product defect (silent overwrite / demo-shaped data in the save path)
+- **Severity:** S2 / Saving corrupts input bindings into static literals equal to the binding key, injects a hardcoded `selectedAccountType` dropdown into every saved workflow, clobbers descriptions, pins `version: 1`, and drops per-node policies on load+save
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 63959fa**
+- **Owner routing:** Frontend / Workflow Builder
+- **Affected area:** `app/renderer/pages/ScenarioBuilder.tsx:2102-2177` (`toWorkflowProfile`, used by the `workflowProfile` memo and `saveScenario`), load path `:1000-1052`, export `:1092-1100`
+- **Detected by:** Independent whole-repository code review
+
+Observed in `toWorkflowProfile`: `inputBindings` maps every declared flow-input key to
+`{ type: "static", value: <the key's own name> }`; `runtimeInputs` hardcodes the
+BUSINESS/PERSONAL `selectedAccountType` dropdown unconditionally; `description` is the constant
+"Saved workflow of reusable flow profiles"; `version: 1` is pinned. The load path
+(`loadWorkflowProfile`) discards persisted `inputBindings`, per-node `failurePolicy`,
+`conditionRules`, `jsonPath`, `runtimeInputKey`, and the schema-documented `security` override.
+Export serializes the same memo rather than the stored bytes, so export→import mutates documents.
+No verifier drives `toWorkflowProfile` (`verify-workflow-sentinels.mts` exercises the converters
+in `WorkflowProfile.ts`, not the page).
+
+- **Evidence after fix:** `verify:workflow-sentinels` grew 20 → 29 checks and now drives the page's real `toWorkflowProfile` (extracted to workflowDocumentMapping.ts): stored description/version/security/runtimeInputs/inputBindings/jsonPath/runtimeInputKey/conditionRules/retryPolicy/failurePolicy all survive a save; new nodes get `{}` bindings; no injected dropdown. Mutations: re-pinned description+version → exit 1; restored 29/29.
+
+---
+
 ### AWKIT-MAP-005 — Edge label normalization persists the connector type as an authored label (RT-08 regression)
 
 - **Classification:** Product defect (round-trip fidelity / phantom authored data)
