@@ -193,21 +193,6 @@ two passes were executed independently; overlap was deduplicated against the fir
 
 ---
 
-### AWKIT-RUN-001 — Instance Pause changes a label; execution continues at full speed
-
-- **Classification:** Product defect (safety-relevant state desync / enabled control that does nothing)
-- **Severity:** S2 / An operator who pauses before a sensitive sequence believes automation halted while clicks/fills/navigations keep firing on the live site
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner / Instance Monitor
-- **Affected area:** `src/runner/ExecutionEngine.ts:1905-1915` (`pauseInstance` flips pool status only); renderer `app/renderer/pages/InstanceMonitor.tsx:508-516,718-722,957-959` (Pause / Pause All presented as execution control)
-- **Detected by:** Independent whole-repository code review
-
-Nothing in `src/runner` ever reads instance status to gate step dispatch — the runner has no
-handle to the pool and no between-step pause token. Resume simply flips the label back. Either
-wire a real gate checked between steps in `StepExecutor`, or re-scope/rename the control so it
-cannot be read as an execution halt.
-
 ---
 
 ### AWKIT-RUN-002 — All instances of one run share a single `runtimeInputs` object
@@ -226,19 +211,6 @@ iteration, which narrows but does not close the window). Fix direction: per-inst
 at creation or copy-on-write at dispatch.
 
 ---
-
-### AWKIT-RUN-003 — Stop on a finished instance retroactively relabels it `cancelled` with a fresh `endedAt`
-
-- **Classification:** Product defect (history corruption)
-- **Severity:** S2 / Run history and the durable store disagree for that run; reports show completed while the monitor shows cancelled
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner
-- **Affected area:** `src/runner/ExecutionEngine.ts:1970-1976` (`cancelOne` rewrites terminal statuses when no active runner exists); `app/main/ipc/execution.ipc.ts:100-102` (no status guard); reachable from Instance Monitor controls on finished cards
-- **Detected by:** Independent whole-repository code review
-
-Expected: a no-op (or explicit error) for terminal instances without an active runner, mirroring
-how the engine refuses to remove active instances elsewhere.
 
 ---
 
@@ -272,31 +244,7 @@ event at minimum; fail (or record skipped step rows) when a declared parallel ta
 
 ---
 
-### AWKIT-RUN-006 — A throw during run-instance setup permanently leaks the browser pool slot
-
-- **Classification:** Data-integrity risk (capacity leak)
-- **Severity:** S2 / One bad disk/sql.js state halves host browser capacity (default cap 2) until app restart, with queued runs stalling on a saturated pool and no diagnostic pointing at the leak
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner
-- **Affected area:** `src/runner/ExecutionEngine.ts:1334-1506` — slot/claims acquired ~1298-1345, fallible setup calls (durable store upsert L1385, RunLogger L1360, PassiveCdpTrace L1364, observability startRun L1450) sit OUTSIDE the try whose finally releases the slot (try begins ~L1509, release in finally ~L1592)
-- **Detected by:** Independent whole-repository code review
-
-A throw there rejects out of `runInstanceInner` before any cleanup; the watchdog marks the
-instance failed but never releases the BrowserWorkerPool slot or resource claims. Fix direction:
-move acquisition/setup inside the existing try/finally.
-
 ---
-
-### AWKIT-RUN-007 — Manual-handoff instances park browser slots invisibly to capacity accounting
-
-- **Classification:** Architecture concern (queue starvation with green gauges)
-- **Severity:** S3 / Each protected-login/manual handoff holds a full Chromium slot indefinitely while backpressure/capacity count only `starting|running`, so admission keeps admitting work that queues forever
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner / concurrency
-- **Affected area:** `src/runner/ExecutionEngine.ts:1149-1151` (activeGlobal filter) vs slot held until `runInstanceInner`'s finally (~L1592); coordinator contrast `src/orchestrator/ConcurrentExecutionCoordinator.ts:85-87` (counts `waitingForManualAction`/`paused` correctly)
-- **Detected by:** Independent whole-repository code review
 
 ---
 
@@ -635,6 +583,74 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-RUN-007 — Manual-handoff instances park browser slots invisibly to capacity accounting
+
+- **Classification:** Architecture concern (queue starvation with green gauges)
+- **Severity:** S3 / Each protected-login/manual handoff holds a full Chromium slot indefinitely while backpressure/capacity count only `starting|running`, so admission keeps admitting work that queues forever
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 49ea367**
+- **Owner routing:** Runner / concurrency
+- **Affected area:** `src/runner/ExecutionEngine.ts:1149-1151` (activeGlobal filter) vs slot held until `runInstanceInner`'s finally (~L1592); coordinator contrast `src/orchestrator/ConcurrentExecutionCoordinator.ts:85-87` (counts `waitingForManualAction`/`paused` correctly)
+- **Detected by:** Independent whole-repository code review
+
+- **Evidence after fix:** `verify:cancellation` Part G: admission filter is [starting, running, waitingForManualAction, paused]; verify:adaptive-concurrency 14/14 and verify:concurrency 81/81 stay green.
+
+---
+
+### AWKIT-RUN-006 — A throw during run-instance setup permanently leaks the browser pool slot
+
+- **Classification:** Data-integrity risk (capacity leak)
+- **Severity:** S2 / One bad disk/sql.js state halves host browser capacity (default cap 2) until app restart, with queued runs stalling on a saturated pool and no diagnostic pointing at the leak
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 49ea367**
+- **Owner routing:** Runner
+- **Affected area:** `src/runner/ExecutionEngine.ts:1334-1506` — slot/claims acquired ~1298-1345, fallible setup calls (durable store upsert L1385, RunLogger L1360, PassiveCdpTrace L1364, observability startRun L1450) sit OUTSIDE the try whose finally releases the slot (try begins ~L1509, release in finally ~L1592)
+- **Detected by:** Independent whole-repository code review
+
+A throw there rejects out of `runInstanceInner` before any cleanup; the watchdog marks the
+instance failed but never releases the BrowserWorkerPool slot or resource claims. Fix direction:
+move acquisition/setup inside the existing try/finally.
+
+- **Evidence after fix:** `verify:cancellation` Part G source guard: in runInstanceInner the try opens BEFORE RunLogger construction and the durable upsert, with the finally after; runLogger uses are optional-chained so a setup throw cleans up instead of leaking. Concurrency/browser-pool suites green.
+
+---
+
+### AWKIT-RUN-003 — Stop on a finished instance retroactively relabels it `cancelled` with a fresh `endedAt`
+
+- **Classification:** Product defect (history corruption)
+- **Severity:** S2 / Run history and the durable store disagree for that run; reports show completed while the monitor shows cancelled
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 49ea367**
+- **Owner routing:** Runner
+- **Affected area:** `src/runner/ExecutionEngine.ts:1970-1976` (`cancelOne` rewrites terminal statuses when no active runner exists); `app/main/ipc/execution.ipc.ts:100-102` (no status guard); reachable from Instance Monitor controls on finished cards
+- **Detected by:** Independent whole-repository code review
+
+Expected: a no-op (or explicit error) for terminal instances without an active runner, mirroring
+how the engine refuses to remove active instances elsewhere.
+
+- **Evidence after fix:** `verify:cancellation` Part G: cancelOne's terminal branch returns without a status rewrite and execution.ipc refuses with `already-<status>`; suite green 32/32.
+
+---
+
+### AWKIT-RUN-001 — Instance Pause changes a label; execution continues at full speed
+
+- **Classification:** Product defect (safety-relevant state desync / enabled control that does nothing)
+- **Severity:** S2 / An operator who pauses before a sensitive sequence believes automation halted while clicks/fills/navigations keep firing on the live site
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 49ea367**
+- **Owner routing:** Runner / Instance Monitor
+- **Affected area:** `src/runner/ExecutionEngine.ts:1905-1915` (`pauseInstance` flips pool status only); renderer `app/renderer/pages/InstanceMonitor.tsx:508-516,718-722,957-959` (Pause / Pause All presented as execution control)
+- **Detected by:** Independent whole-repository code review
+
+Nothing in `src/runner` ever reads instance status to gate step dispatch — the runner has no
+handle to the pool and no between-step pause token. Resume simply flips the label back. Either
+wire a real gate checked between steps in `StepExecutor`, or re-scope/rename the control so it
+cannot be read as an execution halt.
+
+- **Evidence after fix:** `verify:cancellation` 32/32: new Part F proves LIVE that a paused run executes no further work (unsettled after 2.5s), Stop interrupts the parked pause promptly, and resume completes normally; Part G pins the wiring (StepExecutor awaits pauseGate at the throwIfCancelled seam; engine owns per-instance gates). Mutation: gate not awaited → exit 1.
+
+---
+
 ### AWKIT-WFB-002 — Two of three Failure-Policy checkboxes are enabled controls that persist nothing; two large Builder UI regions are unreachable
 
 - **Classification:** Product defect (RULES violation: no fake controls) + dead feature surface
