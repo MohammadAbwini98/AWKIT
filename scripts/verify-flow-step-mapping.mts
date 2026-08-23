@@ -2,9 +2,14 @@
  * Serialization round-trip verifier for the Flow Designer's model <-> node-data conversion.
  *
  * This imports the REAL production functions from
- * `app/renderer/components/workflow/flowStepMapping.ts` — the same `toFlowStep` / `fromFlowStep`
+ * `app/renderer/components/workflow/flowProfileMapping.ts` — the same `toFlowStep` / `fromFlowStep`
  * that `FlowChartDesigner.tsx` calls on save and load. There is no re-implemented or copied
  * conversion logic in this file; if the designer's behavior changes, these checks change with it.
+ *
+ * AWKIT-MAP-004: this verifier previously imported the dead twin module `flowStepMapping.ts`,
+ * which production does NOT use, so every green run proved nothing about shipped code (exactly
+ * how AWKIT-MAP-002's completionMode loss stayed invisible). The dead module is deleted; these
+ * assertions now bind to the production mapping.
  *
  * Why this exists: this converter pair is the only place a saved `FlowStep` becomes designer node
  * data and back, so a silently dropped field here corrupts a saved flow with no error. The JSON
@@ -14,13 +19,14 @@
  * Detects: dropped fields, changed values, wrong defaults, required/optional flags flipping,
  * timeouts recalculated on load, condition reordering, and legacy flows gaining incompatible fields.
  */
-import { fromFlowStep, toFlowStep, type FlowDesignerNode, type FlowDesignerEdge } from "../app/renderer/components/workflow/flowStepMapping";
 import {
-  createEdge as createProductionEdge,
-  fromFlowStep as fromProductionFlowStep,
+  createEdge,
+  fromFlowStep,
   toDesignerDocument,
   toFlowProfile,
-  toFlowStep as toProductionFlowStep
+  toFlowStep,
+  type FlowDesignerEdge,
+  type FlowDesignerNode
 } from "../app/renderer/components/workflow/flowProfileMapping";
 import { getNodeDefinition } from "../app/renderer/components/workflow/flowNodeRegistry";
 import { readFile } from "node:fs/promises";
@@ -51,20 +57,15 @@ function nodeFor(step: FlowStep): FlowDesignerNode {
   } as FlowDesignerNode;
 }
 
-/** One full model → designer → model cycle through the real converters. */
+/** One full model → designer → model cycle through the real production converters. */
 function cycle(step: FlowStep): FlowStep {
-  return toFlowStep(nodeFor(step), []);
-}
-
-/** One cycle through FlowChartDesigner's actual superset mapping module. */
-function productionCycle(step: FlowStep): FlowStep {
   const node = {
     id: step.id,
     type: "action",
     position: step.position ?? { x: 0, y: 0 },
-    data: fromProductionFlowStep(step)
+    data: fromFlowStep(step)
   } as FlowDesignerNode;
-  return toProductionFlowStep(node, []);
+  return toFlowStep(node, []);
 }
 
 /** Run N cycles to expose gradual field loss that a single round trip would hide. */
@@ -481,25 +482,25 @@ console.log("\nPositional-fallback approval binding lifecycle (awkit-aui.4):");
   const roundTrip = cycle(approved);
   check("approved binding survives designer save/load with frame + shadow context", json(roundTrip.locator?.approvedFallbackBinding) === json(approved.locator?.approvedFallbackBinding), json(roundTrip.locator));
   check("approved resolution remains valid across an unchanged designer cycle", roundTrip.locator?.resolution === "user-approved-fallback" && roundTrip.locator?.approvedFallbackReason === approved.locator?.approvedFallbackReason);
-  const productionRoundTrip = productionCycle(approved);
+  const productionRoundTrip = cycle(approved);
   check("approved binding survives FlowChartDesigner's production mapping", json(productionRoundTrip.locator?.approvedFallbackBinding) === json(approved.locator?.approvedFallbackBinding) && productionRoundTrip.locator?.resolution === "user-approved-fallback", json(productionRoundTrip.locator));
 
-  const renamedNode = { ...nodeFor(approved), data: fromProductionFlowStep(approved) } as FlowDesignerNode;
+  const renamedNode = { ...nodeFor(approved), data: fromFlowStep(approved) } as FlowDesignerNode;
   renamedNode.data.name = "Choose a different twin";
-  const renamed = toProductionFlowStep(renamedNode, []);
+  const renamed = toFlowStep(renamedNode, []);
   check("action-name edit invalidates approval and removes stale authority", renamed.locator?.resolution === "needs-review" && renamed.locator?.approvedFallbackBinding === undefined && renamed.locator?.approvedFallbackReason === undefined, json(renamed.locator));
 
-  const contextNode = { ...nodeFor(approved), data: fromProductionFlowStep(approved) } as FlowDesignerNode;
+  const contextNode = { ...nodeFor(approved), data: fromFlowStep(approved) } as FlowDesignerNode;
   contextNode.data.locatorContext = {
     ...contextNode.data.locatorContext,
     frame: { selector: "iframe#other-catalog" }
   };
-  const recontextualized = toProductionFlowStep(contextNode, []);
+  const recontextualized = toFlowStep(contextNode, []);
   check("frame/context edit invalidates approval and removes stale authority", recontextualized.locator?.resolution === "needs-review" && recontextualized.locator?.approvedFallbackBinding === undefined && recontextualized.locator?.approvedFallbackReason === undefined, json(recontextualized.locator));
 
-  const safetyNode = { ...nodeFor(approved), data: fromProductionFlowStep(approved) } as FlowDesignerNode;
+  const safetyNode = { ...nodeFor(approved), data: fromFlowStep(approved) } as FlowDesignerNode;
   safetyNode.data.safety = { sideEffectLevel: "dangerousMutation", retryable: false };
-  const resafed = toProductionFlowStep(safetyNode, []);
+  const resafed = toFlowStep(safetyNode, []);
   check("safety/action-policy edit invalidates approval and removes stale authority", resafed.locator?.resolution === "needs-review" && resafed.locator?.approvedFallbackBinding === undefined && resafed.locator?.approvedFallbackReason === undefined, json(resafed.locator));
 }
 
@@ -535,14 +536,14 @@ console.log("\nUnknown interaction prerequisite decision lifecycle (awkit-aek):"
   check("prerequisite decision survives designer round trip", json(roundTrip.locator?.executionDecision) === json(decisionStep.locator?.executionDecision));
   check("prerequisite remains independent from resolved locator", roundTrip.locator?.resolution === "resolved" && roundTrip.locator?.prerequisite?.status === "unknown");
 
-  const renamedNode = { ...nodeFor(decisionStep), data: fromProductionFlowStep(decisionStep) } as FlowDesignerNode;
+  const renamedNode = { ...nodeFor(decisionStep), data: fromFlowStep(decisionStep) } as FlowDesignerNode;
   renamedNode.data.name = "Open a different video";
-  const renamed = toProductionFlowStep(renamedNode, []);
+  const renamed = toFlowStep(renamedNode, []);
   check("action-name edit invalidates prerequisite confirmation", renamed.locator?.executionDecision?.status === "blocked" && renamed.locator.executionDecision.binding === undefined);
 
-  const editedNode = { ...nodeFor(decisionStep), data: fromProductionFlowStep(decisionStep) } as FlowDesignerNode;
+  const editedNode = { ...nodeFor(decisionStep), data: fromFlowStep(decisionStep) } as FlowDesignerNode;
   editedNode.data.locatorName = "Different target";
-  const edited = toProductionFlowStep(editedNode, []);
+  const edited = toFlowStep(editedNode, []);
   check("target edit invalidates prerequisite confirmation", edited.locator?.executionDecision?.status === "blocked" && edited.locator.executionDecision.binding === undefined);
 
   const panelSource = await readFile("app/renderer/components/workflow/FlowNodePropertiesPanel.tsx", "utf8");
@@ -619,10 +620,15 @@ console.log("\nRecorder popup/window metadata survives the designer round trip (
 
 console.log("\nEdge → next wiring (§8):");
 {
-  const node = nodeFor(baseStep({ type: "click", name: "A" }));
+  // PRODUCTION MAPPING (RT-10): a step loaded WITHOUT `next` re-omits it even when an outgoing
+  // edge exists — routing lives in `edges`. A step that HAD a `next` keeps mirroring the edge.
+  const withNext = baseStep({ type: "click", name: "A", next: "old-target" });
+  const node = { id: withNext.id, type: "action", position: { x: 0, y: 0 }, data: fromFlowStep(withNext) } as FlowDesignerNode;
   const withEdge = toFlowStep(node, [{ id: "e1", source: node.id, target: "next-node" } as FlowDesignerEdge]);
-  check("next resolves from the outgoing edge target", withEdge.next === "next-node", String(withEdge.next));
-  check("no outgoing edge → next is undefined", toFlowStep(node, []).next === undefined, String(toFlowStep(node, []).next));
+  check("an existing next re-mirrors the outgoing edge target", withEdge.next === "next-node", String(withEdge.next));
+  const legacy = baseStep({ type: "click", name: "B" });
+  const legacyNode = { id: legacy.id, type: "action", position: { x: 0, y: 0 }, data: fromFlowStep(legacy) } as FlowDesignerNode;
+  check("a step loaded without next stays absent (routing lives in edges)", toFlowStep(legacyNode, []).next === undefined);
 }
 
 console.log("\nLoop connector profile round-trips:");
@@ -654,7 +660,7 @@ console.log("\nLoop connector profile round-trips:");
   check("type-derived Loop loads without an explicit kind", loadedLoop.data?.kind === undefined && loadedLoop.data?.linkType === "loop");
   check("type-derived Loop loads its complete configuration", json(loadedLoop.data?.loop) === json(legacyLoopProfile.edges[0].loop), json(loadedLoop.data?.loop));
 
-  const reconfiguredLoop = createProductionEdge(
+  const reconfiguredLoop = createEdge(
     loadedLoop.source,
     loadedLoop.target,
     loadedLoop.data?.linkType ?? "loop",
@@ -758,7 +764,7 @@ console.log("\nLoop connector profile round-trips:");
   const firstLoopB = firstDocument.edges.find((edge) => edge.id === "loop-edge-b");
   check("two independently configured Loops load by their own connector ids", Boolean(firstLoopA && firstLoopB) && json(firstLoopA?.data?.loop) !== json(firstLoopB?.data?.loop));
 
-  const editedLoopA = createProductionEdge(
+  const editedLoopA = createEdge(
     firstLoopA!.source,
     firstLoopA!.target,
     firstLoopA!.data?.linkType ?? "loop",
@@ -821,14 +827,73 @@ console.log("\nstep.config breadth round-trips (§8 — representative):");
   check("saveSession config round-trips (incl. falsy maskSession:false)", save.config?.sessionName === "prod" && save.config?.overwriteSession === true && save.config?.maskSession === false && save.config?.captureScope === "context", json(save.config));
 }
 
-console.log("\nOutputs: single-key round-trips; multi-key is a documented single-key limitation (§8):");
+console.log("\nLoop customFlow target flow persists through the production mapping (AWKIT-MAP-003):");
+{
+  // The runner executes a customFlow loop from `step.config.targetFlowId` only
+  // (StepExecutor loop dispatch; LoopStepContract). The mapping previously gated that write on the
+  // runFlow section — which a loop node does not have — so the target was silently dropped on save.
+  const customFlowLoop = cycle(baseStep({
+    id: "loop-child",
+    name: "Run child per item",
+    type: "loop",
+    config: { loopType: "fixedCount", iterationCount: 2, loopActionType: "customFlow", loopStopOnFailure: true, maxIterations: 2, targetFlowId: "child-flow-1" }
+  }));
+  check("customFlow loop keeps config.targetFlowId on save", customFlowLoop.config?.targetFlowId === "child-flow-1", json(customFlowLoop.config));
+  check("customFlow loop target survives a second cycle", cycle(customFlowLoop).config?.targetFlowId === "child-flow-1", json(cycle(customFlowLoop).config));
+  check("the panel validator accepts the persisted customFlow loop", getNodeDefinition("loop").validate(fromFlowStep(customFlowLoop)).length === 0);
+
+  // RT-09 byte-stability: an ordinary click-loop must not gain a targetFlowId.
+  const plainLoop = cycle(baseStep({
+    id: "loop-click",
+    name: "Click loop",
+    type: "loop",
+    config: { loopType: "fixedCount", iterationCount: 3, loopActionType: "click", loopStopOnFailure: true, maxIterations: 100 }
+  }));
+  check("click loop gains no targetFlowId", plainLoop.config?.targetFlowId === undefined, json(plainLoop.config));
+
+  // A runFlow node still writes BOTH channels (flowId canonical + config alias).
+  const runFlow = cycle(baseStep({ id: "rf", name: "Run child", type: "runFlow", flowId: "child-flow-2", config: { targetFlowId: "child-flow-2" } }));
+  check("runFlow keeps flowId and config.targetFlowId in agreement", runFlow.flowId === "child-flow-2" && runFlow.config?.targetFlowId === "child-flow-2", json({ flowId: runFlow.flowId, cfg: runFlow.config?.targetFlowId }));
+}
+
+console.log("\nEdge label fallback is display-only; data.label stays authored (AWKIT-MAP-05 / RT-08):");
+{
+  // Source-level guard over both designer pages: the normalization must not write the linkType
+  // fallback into the PERSISTED data.label, and insertNodeOnEdge must not fabricate an authored
+  // "success" label on the lower half-edge.
+  for (const [page, patterns] of [
+    ["app/renderer/pages/FlowChartDesigner.tsx", ["authoredLabel"]],
+    ["app/renderer/pages/ScenarioBuilder.tsx", ["authored label"]]
+  ] as Array<[string, string[]]>) {
+    const source = await readFile(page, "utf8");
+    check(`${page} keeps the label fallback display-only`, patterns.every((p) => source.includes(p)));
+    check(
+      `${page} no longer persists the linkType fallback as data.label`,
+      !/\?\s*nextData\.linkType;\s*\n[\s\S]{0,220}data:\s*\{\s*\.\.\.\s*nextData,\s*label\s*\}/.test(source)
+    );
+    check(`${page} source guard actually read the file`, source.length > 20_000);
+  }
+  const designerSource = await readFile("app/renderer/pages/FlowChartDesigner.tsx", "utf8");
+  check(
+    "insertNodeOnEdge no longer hardcodes an authored success label",
+    !designerSource.includes('createEdge(id, targetEdge.target, "success", "success")'),
+    'found createEdge(id, targetEdge.target, "success", "success")'
+  );
+}
+
+console.log("\nOutputs: single-key round-trips; multi-key survives via outputsOriginal (AWKIT-MAP-004 repoint):");
 {
   const single = cycle(baseStep({ type: "readText", name: "Read", outputs: { result: { type: "text" } } }));
   check("single-key text output round-trips", json(single.outputs) === json({ result: { type: "text" } }), json(single.outputs));
-  // PINNED LIMITATION: node data holds ONE output key, so multi-key collapses to the first key as text.
-  // If multi-key output support lands, this check will fail and must be updated.
+  // PRODUCTION MAPPING: `fromFlowStep` carries `outputsOriginal` verbatim, so a multi-key map
+  // round-trips LOSSLESSLY — unlike the deleted dead module, which collapsed to the first key
+  // as text. If this ever fails, the RT-12 preservation was lost.
   const multi = cycle(baseStep({ type: "readText", name: "Read2", outputs: { a: { type: "text" }, b: { type: "number" } } }));
-  check("PINNED: multi-key outputs collapse to the first key as text (documented §8)", json(multi.outputs) === json({ a: { type: "text" } }), json(multi.outputs));
+  check("multi-key outputs round-trip losslessly (RT-12)", json(multi.outputs) === json({ a: { type: "text" }, b: { type: "number" } }), json(multi.outputs));
+  // A newly authored node (no outputs map at all, one authored output key) emits the documented
+  // default shape.
+  const authored = cycle(baseStep({ type: "readText", name: "Read3" }));
+  check("authored node without declared outputs gains none", authored.outputs === undefined, json(authored.outputs));
 }
 
 console.log("\nDrag: source + drop-target locators both survive the round-trip (awkit-3g6):");
@@ -842,7 +907,7 @@ console.log("\nDrag: source + drop-target locators both survive the round-trip (
   const rt = cycle(dragStep);
   check("drag round-trip keeps the source locator", rt.locator?.value === "#src");
   check("drag round-trip keeps the drop-target locator (not silently dropped)", rt.targetLocator?.value === "#zone" && rt.targetLocator?.strategy === "css");
-  const prodRt = productionCycle(dragStep);
+  const prodRt = cycle(dragStep);
   check("drag drop-target survives the PRODUCTION mapping too", prodRt.targetLocator?.value === "#zone");
   const clickRt = cycle(baseStep({ type: "click", name: "Click", locator: { strategy: "css", value: "#btn" } }));
   check("a non-drag step gains no targetLocator", clickRt.targetLocator === undefined);

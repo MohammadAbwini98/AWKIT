@@ -477,7 +477,11 @@ function FlowChartDesignerContent() {
           currentEdges.map((edge) => {
             if (edge.id !== edgeId) return edge;
             const nextData: FlowConnectionData = { ...edge.data, ...patch } as FlowConnectionData;
-            const label = nextData.label && nextData.label.trim() ? nextData.label : nextData.linkType;
+            // RT-08 / AWKIT-MAP-05: `data.label` is the AUTHORED label and is what gets persisted;
+            // the type fallback below is display-only (`label ?? linkType`). Writing the fallback
+            // into `data.label` fabricated an authored label on every panel edit of an unlabelled
+            // connector, so saves were not byte-stable.
+            const authoredLabel = nextData.label && nextData.label.trim() ? nextData.label : undefined;
             // Loop is never selectable from the panel (Rule 1); guard programmatic updates too:
             // a loop connector may only connect a node to itself.
             if (nextData.kind === "loop" && edge.source !== edge.target) {
@@ -487,8 +491,8 @@ function FlowChartDesignerContent() {
             return {
               ...edge,
               ...buildConnectorVisual(nextData.linkType, nextData.style),
-              data: { ...nextData, label },
-              label
+              data: { ...nextData, label: authoredLabel },
+              label: authoredLabel ?? nextData.linkType
             };
           })
         )
@@ -856,7 +860,9 @@ function FlowChartDesignerContent() {
               loop: targetEdge.data?.loop
             }
           ),
-          createEdge(id, targetEdge.target, "success", "success")
+          // RT-08 / AWKIT-MAP-05: no authored label on the lower half-edge — the type fallback is
+          // display-only, so the split must not fabricate an authored "success" label.
+          createEdge(id, targetEdge.target, "success")
         ]);
       });
       setSelectedNodeId(id);

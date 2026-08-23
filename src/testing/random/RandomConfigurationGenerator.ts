@@ -258,7 +258,21 @@ function nodeConfigFor(type: StepType, ctx: ConfigurationContext): NodeConfig | 
         scrollDirection: rng.pick(["up", "down"] as const),
         scrollAmount: rng.int(1, 8) * 100
       };
-    case "loop":
+    case "loop": {
+      // AWKIT-MAP-003 coverage: a `customFlow` loop is the only shape that exercises
+      // `config.targetFlowId` through the designer mapping, so generate one whenever there is a
+      // real sibling flow to name. It needs no locator (`LOOP_ACTIONS_NEEDING_A_TARGET` excludes
+      // customFlow) but must reference an existing flow to validate clean.
+      if (ctx.referenceableFlowIds.length > 0 && rng.bool(0.25)) {
+        return {
+          loopType: "fixedCount",
+          iterationCount: rng.int(1, constraints.maxLoopIterations),
+          loopActionType: "customFlow",
+          loopStopOnFailure: true,
+          maxIterations: constraints.maxLoopIterations,
+          targetFlowId: rng.pick(ctx.referenceableFlowIds)
+        };
+      }
       return {
         loopType: "fixedCount",
         iterationCount: rng.int(1, constraints.maxLoopIterations),
@@ -266,6 +280,7 @@ function nodeConfigFor(type: StepType, ctx: ConfigurationContext): NodeConfig | 
         loopStopOnFailure: true,
         maxIterations: constraints.maxLoopIterations
       };
+    }
     case "runFlow":
       return {
         // Placeholder only — `buildStepPayload` overwrites this with the SAME target it put on

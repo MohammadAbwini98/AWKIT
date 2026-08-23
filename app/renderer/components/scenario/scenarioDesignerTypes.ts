@@ -35,7 +35,8 @@ export const SCENARIO_NODE_DEFAULT_HEIGHT = 96;
 
 export interface ScenarioLinkData extends Record<string, unknown> {
   linkType: ScenarioLink["type"];
-  label: string;
+  /** AUTHORED label only (RT-08 / AWKIT-MAP-05): undefined when none. The type fallback is display-only. */
+  label?: string;
   expression: string;
   loop?: LoopConnectorConfig;
   maxLoopCount?: number;

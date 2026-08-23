@@ -192,6 +192,12 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     timeoutMs: omit("timeoutMs", data.timeoutMs === 10000) ? undefined : data.timeoutMs,
     beforeWaits: data.beforeWaits?.length ? data.beforeWaits : undefined,
     afterWaits: data.afterWaits?.length ? data.afterWaits : undefined,
+    // AWKIT-MAP-002: carry the async completion policy both directions, verbatim. The properties
+    // panel writes `undefined` when the default ("allRequired") is selected, so absence and an
+    // explicit default are distinguishable and a no-op save stays byte-stable — the same
+    // "was it actually configured" rule as `holdMs` below. This field was previously dropped by
+    // BOTH directions of this mapping, silently reverting any non-default completion mode.
+    completionMode: data.completionMode,
     retry: omit("retry", data.retryCount === 0 && data.retryDelayMs === 1000) ? undefined : { count: data.retryCount, delayMs: data.retryDelayMs },
     onFailure: omit("onFailure", data.failureAction === "stop" && data.screenshotOnFailure) ? undefined : { action: data.failureAction, screenshot: data.screenshotOnFailure },
     // RT-12: preserve the full outputs map; the panel edits a single key but a step may declare
@@ -261,7 +267,15 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined
     loopActionType: inSection("loop") ? data.loopActionType : undefined,
     loopStopOnFailure: inSection("loop") ? data.loopStopOnFailure : undefined,
     maxIterations: inSection("loop") ? data.maxIterations : undefined,
-    targetFlowId: inSection("runFlow") ? data.targetFlowId || undefined : undefined,
+    targetFlowId:
+      // AWKIT-MAP-003: a `loop` node's sections are ["loop","execution"], so the runFlow-section
+      // gate never fired for it — yet a customFlow loop's target is authored into
+      // `data.targetFlowId` and read at run time from `config.targetFlowId`
+      // (StepExecutor loop dispatch; LoopStepContract). Write it for both node types; nodes of
+      // other types keep the old behavior.
+      inSection("runFlow") || inSection("loop")
+        ? data.targetFlowId || undefined
+        : undefined,
     stopParentOnChildFailure: inSection("runFlow") ? data.stopParentOnChildFailure : undefined,
     routeMode: type === "routeChange" ? data.routeMode : undefined,
     urlMatch: type === "routeChange" ? data.urlMatch : undefined,
@@ -409,6 +423,9 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     timeoutMs: step.timeoutMs ?? 10000,
     beforeWaits: step.beforeWaits ?? [],
     afterWaits: step.afterWaits ?? [],
+    // AWKIT-MAP-002: load the authored completion policy (absent stays absent) so a save can carry
+    // it back verbatim.
+    completionMode: step.completionMode,
     retryCount: step.retry?.count ?? 0,
     retryDelayMs: step.retry?.delayMs ?? 1000,
     failureAction: step.onFailure?.action ?? "stop",

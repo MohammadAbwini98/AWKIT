@@ -33,7 +33,9 @@ import {
   promoteFlowLoopExits,
   promoteScenarioLoopExits
 } from "../app/renderer/components/shared/loopConnectorAuthoring";
-import type { FlowDesignerEdge } from "../app/renderer/components/workflow/flowStepMapping";
+// AWKIT-MAP-004: `flowStepMapping.ts` (the dead twin module) was deleted; the type now lives in
+// the production mapping module.
+import type { FlowDesignerEdge } from "../app/renderer/components/workflow/flowProfileMapping";
 import type { FlowEdgeType } from "../src/profiles/FlowProfile";
 
 let passed = 0;

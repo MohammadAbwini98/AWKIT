@@ -1,6 +1,6 @@
 import { buildConnectorVisual } from "./connectorStyle";
 import type { CanvasEdge } from "../canvas";
-import type { FlowDesignerEdge } from "../workflow/flowStepMapping";
+import type { FlowDesignerEdge } from "../workflow/flowProfileMapping";
 import type { FlowConnectionData } from "../workflow/ConnectionPropertiesPanel";
 import type { ScenarioLinkData } from "../scenario/scenarioDesignerTypes";
 import { connectorKind } from "@src/profiles/FlowProfile";

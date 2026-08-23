@@ -596,12 +596,14 @@ function ScenarioBuilderContent() {
             if (data.linkType && scenarioEdgeKind(nextData.linkType) === "conditional" && !nextData.expression.trim()) {
               nextData.expression = "true";
             }
-            const label = nextData.label && nextData.label.trim() ? nextData.label : nextData.linkType;
+            // RT-08 / AWKIT-MAP-05: keep the type fallback display-only; `data.label` stays the
+            // authored label (undefined when none) so persistence is byte-stable.
+            const label = nextData.label && nextData.label.trim() ? nextData.label : undefined;
             return {
               ...edge,
               ...buildConnectorVisual(nextData.linkType, nextData.style),
               data: { ...nextData, label },
-              label
+              label: label ?? nextData.linkType
             };
           })
         )
@@ -2004,17 +2006,19 @@ function createScenarioEdge(
   linkType: ScenarioLink["type"],
   link?: Partial<Pick<ScenarioLink, "id" | "label" | "condition" | "loop" | "maxLoopCount">> & { style?: EdgeVisualStyle }
 ): ScenarioEdge {
-  const label = link?.label ?? linkType;
   const style = link?.style;
+  // RT-08 / AWKIT-MAP-05: `data.label` carries the AUTHORED label only (undefined when none);
+  // the type fallback below is display-only, so an unlabelled connector is never persisted as
+  // though the user had typed its type as a label.
   return {
     id: link?.id ?? `edge-${source}-${target}`,
     source,
     target,
     ...buildConnectorVisual(linkType, style),
-    label,
+    label: link?.label ?? linkType,
     data: {
       linkType,
-      label,
+      label: link?.label,
       expression: link?.condition?.expression ?? "",
       loop: link?.loop,
       maxLoopCount: link?.maxLoopCount,
