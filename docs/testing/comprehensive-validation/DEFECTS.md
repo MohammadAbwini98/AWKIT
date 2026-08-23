@@ -15,6 +15,263 @@ had missed: `AWKIT-DUR-001`, `AWKIT-SES-004`, `AWKIT-RUN-008..011`, `AWKIT-FLO-0
 `AWKIT-MAP-005`, `AWKIT-SET-007`, `AWKIT-A11Y-001` (product) and `AWKIT-QA-008` (harness). The
 two passes were executed independently; overlap was deduplicated against the first pass's records.
 
+A **third independent review pass** on 2026-08-23 (static, evidence-quoted, deduplicated against
+both prior passes) filed twelve more: `AWKIT-SEC-003..006` (IPC authorization and confinement
+gaps, incl. one P1 pre-auth code-execution chain and one P2 protected-login policy bypass),
+`AWKIT-DUR-002/003` (secret-vault and recorder-draft data-integrity), and
+`AWKIT-REC-038..043` (recorder semantics, incl. one P1 replay-breaking duplicate-fill). Runner
+areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and an
+`ExecutionPauseGate` implementation was in flight in the working tree at review time.
+
+### AWKIT-SEC-003 — Oracle Settings/Drivers/Java IPC mutators are gated only by `assertTrustedSender`: pre-authentication path to code execution and secret-store writes
+
+- **Classification:** Security concern (authorization bypass; code-execution prerequisite chain)
+- **Severity:** S2 / Every mutating Oracle *settings* channel requires no session and no
+  permission — only a trusted sender frame. Reachable chain in a packaged build: DevTools is not
+  disabled, so at the login screen `window.playwrightFlowStudio.oracle.java.addExe(...)` opens the
+  native picker and the app then **executes** the chosen binary (`probeJavaVersion` → `execFile`);
+  `oracle:drivers:import` + `oracle:drivers:testLoad` import and load attacker JARs in the Java
+  bridge; `oracle:profiles:save` writes attacker-controlled entries into the DPAPI secret vault.
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Oracle IPC / main-process authorization
+- **Affected area:** `app/main/ipc/oracle.ipc.ts:47-63` (profiles save/delete/test/testDraft),
+  `:90-164` (drivers import/validate/setDefault/remove/testLoad, java add/remove) — all
+  `assertTrustedSender` only; contrast `:69-78` where sibling `oracle:dataSources:*` correctly use
+  `assertSenderPermission(Permission.DATASOURCE_MANAGE)`. Execution sinks:
+  `app/main/oracleService.ts:91-108` (`execFile` probe), `:232-268` (driver classpath load);
+  `src/oracle/JavaRuntimeStore.ts:128-139`; `src/oracle/OracleProfileService.ts:100-103`
+  (credential → vault on save). CURRENT_STATE.md's PR #24 note (2026-07-24) records that
+  driver/Java/Settings channels were left "unchanged" when the data-source channels were gated —
+  known asymmetry, never filed as a defect until now.
+- **Fix direction:** add `assertSenderPermission(event, Permission.SETTINGS_EDIT)` to every
+  mutating `oracle:profiles:*`, `oracle:drivers:*`, `oracle:java:*` handler (matching
+  `settings.ipc.ts`/`secrets.ipc.ts`); extend `verify:e2e-rbac` with pre-login and Viewer probes
+  of these channels; then fold the surface into the SEC-002 channel registry.
+
+### AWKIT-SEC-004 — `recorder.ignoreProtectedLoginDetection` can be persisted by an unauthenticated `settings:update`, disabling protected-login handoff app-wide
+
+- **Classification:** Security concern (protected-login boundary weakening)
+- **Severity:** S2 / `settings:update` gates only `recorder.security` and the four substantive
+  keys; `{ recorder: { ignoreProtectedLoginDetection: true } }` touches neither, so **no
+  permission check and no session is required**. The flag persists in `ui-settings.json` and
+  suppresses the pause-and-handoff on IdP/MFA/CAPTCHA surfaces for every future Recorder session
+  on the machine (`recorder.ipc.ts:51` feeds it to `RecorderService` at start).
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Settings IPC / Recorder security policy
+- **Affected area:** `app/main/ipc/settings.ipc.ts:36-43`
+  (`patchTouchesSubstantiveSettings` — the comment gates `recorder.security` as privileged while
+  its security sibling one field away stays ungated); consumption at
+  `app/main/ipc/recorder.ipc.ts:51` and `src/recorder/RecorderService.ts:640`.
+- **Fix direction:** treat `recorder.ignoreProtectedLoginDetection` as privileged (include
+  `patch.recorder?.ignoreProtectedLoginDetection` in the substantive gate, requiring
+  `SETTINGS_EDIT`); add an authorization probe to `verify:protected-login-recorder` or
+  `verify:e2e-rbac`.
+
+### AWKIT-SEC-005 — Workflow execution reads data sources through an unconfined sink, bypassing audit §14 read confinement
+
+- **Classification:** Security concern (documented confinement not enforced on one sink)
+- **Severity:** S2 / `execution:runWorkflow` resolves a workflow's bound data source via
+  `readDataFile` → `resolveDataFilePath`, which accepts **any absolute path** and applies neither
+  `isReadableDataSourceFile` nor the 25 MB preview cap. The parsed content becomes run `rows` —
+  so an Operator (holds `DATASOURCE_MANAGE` + `WORKFLOW_EXECUTE`) can read arbitrary
+  JSON-parseable files, explicitly including AWKIT-internal artifacts under the runtime root
+  (settings, session metadata, runtime store) that §14 exists to protect.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed** (evidence read on
+  the working tree at review time; `execution.ipc.ts` carried an unrelated in-flight edit)
+- **Owner routing:** Execution IPC / data-source read confinement
+- **Affected area:** `app/main/ipc/execution.ipc.ts:441-459` (`readDataFile`/
+  `resolveDataFilePath`); contrast the confined path every other read uses,
+  `app/main/ipc/dataSource.ipc.ts:27-51` (`assertReadableDataFile`); the create/import channels
+  do not validate the profile's `file` field, so an absolute path persists unchallenged.
+  `docs/security/FULL_SECURITY_AUDIT.md` §14 claims "all JSON data-source reads" are confined —
+  contradicted by this sink.
+- **Fix direction:** route execution-time reads through `readJsonFileGuarded`/
+  `assertReadableDataFile` (or validate `file` at create/import); add a `verify:security` case
+  asserting a runtime-root data source is rejected at run time.
+
+### AWKIT-SEC-006 — `AWKIT_SESSION_IDLE_MS` / `AWKIT_REAUTH_WINDOW_MS` are honored in packaged builds, contradicting the documented "dev/test only" posture
+
+- **Classification:** Security concern (defense-in-depth inconsistency) + documentation drift
+- **Severity:** S3 / Both env overrides are applied unconditionally in `securityKernel.ts` (no
+  `app.isPackaged` guard), so a packaged install launched with e.g.
+  `AWKIT_REAUTH_WINDOW_MS=86400000` stretches the sensitive-operation re-auth window from 5
+  minutes to a day. The codebase's own precedent — the license test bypass — deliberately reads
+  `app.isPackaged` before any env var for exactly this reason. CURRENT_STATE.md (2026-07-18
+  section) claims the override is "dev/test only — production uses `DEFAULT_SESSION_POLICY`",
+  which the implementation does not enforce.
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Security kernel bootstrap
+- **Affected area:** `app/main/security/securityKernel.ts:37-47`; contrast
+  `app/main/licensing/licenseRuntime.ts:38-95`; stale claim at `docs/ai/CURRENT_STATE.md`
+  (2026-07-18 idle-lock section).
+- **Fix direction:** honor both overrides only when `!app.isPackaged` (mirror
+  `licenseRuntime.ts`), or document them as supported production configuration in SECURITY.md
+  and correct CURRENT_STATE.md.
+- **Note:** local environment control is required to exploit, hence P3 — but the doc/code
+  contradiction is the point of the record.
+
+### AWKIT-DUR-002 — A transient read failure or corruption of the secret vault silently empties it; the next `set()` destroys every stored secret
+
+- **Classification:** Data-integrity risk (unrecoverable credential loss)
+- **Severity:** S2 / `SecretStore.read()` converts ANY parse/read failure into an empty vault
+  (no quarantine, no log). `set()` is read-modify-write, so the first credential saved after such
+  a failure rewrites `secrets.json` containing only the new secret — all Oracle connection
+  passwords/trust-store secrets are gone with no diagnostic. Writes are atomic temp+rename but
+  lack the bounded EPERM/EBUSY retry every other writer has (that failure mode at least throws,
+  leaving the old file intact). `set`/`delete` being fully synchronous means there is no
+  in-process read-modify-write race.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Secrets persistence (`src/secrets`)
+- **Affected area:** `src/secrets/SecretStore.ts:104-113` (read catch-all → empty), `:63-82`
+  (set read-modify-write), `:115-129` (write: atomic rename, no retry). Same shape the project
+  filed as DUR-001/SES-004/SET-007 for other stores — but this store holds material the app
+  cannot recover.
+- **Fix direction:** quarantine corrupt bytes (mirror `JsonProfileStore.quarantineCorrupt`);
+  return empty only on true ENOENT; adopt the shared atomic-replace retry; add a focused
+  verifier (lock file → set → assert old secrets survive).
+
+### AWKIT-DUR-003 — Recorder draft and URL history use bare non-atomic writes; a torn write is silently discarded and the crash flush can race the debounce
+
+- **Classification:** Data-integrity risk (unsaved recording loss)
+- **Severity:** S2 / `persistDraft` writes the draft with a plain `writeFile` (no temp+rename),
+  and `ensureDraftLoaded` treats a parse failure as "nothing to restore" — a torn write from a
+  crash/power loss silently destroys the unsaved recording with no quarantine or log. Additionally
+  `onUnexpectedDeath` fires `void this.persistDraft()` **without clearing `draftTimer`**, so the
+  debounced write and the death flush can write the same file concurrently (`stopRecording` clears
+  the timer first; the death path does not). `verify:recorder-draft` REC-014 pins the silent-drop
+  load behavior but nothing asserts write atomicity.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed** (distinct from
+  AWKIT-REC-037, which covers the draft being unreachable/destroyed in the UI, and from
+  AWKIT-REC-002, which fixed the same hazard for `session-profiles.json`)
+- **Owner routing:** Recorder persistence (`src/recorder`)
+- **Affected area:** `src/recorder/RecorderService.ts:390-403` (`persistDraft`), `:448-457`
+  (`persistUrlHistory`), `:463-477` (`ensureDraftLoaded` catch), `:541-561`
+  (`onUnexpectedDeath` flush without timer clear; contrast `stopRecording`).
+- **Fix direction:** route both writers through the shared atomic-replace helper, clear
+  `draftTimer` in `onUnexpectedDeath` before flushing, quarantine corrupt drafts, and extend
+  REC-014 coverage with a torn-write fixture plus a concurrent-flush assertion.
+
+### AWKIT-REC-038 — Type-then-Enter records a trailing duplicate Fill that replays against the post-submission page
+
+- **Classification:** Product defect (recorded flow diverges from user actions; common flows fail replay)
+- **Severity:** S2 / Chrome commits `change` immediately before form submit, so typing "alice"
+  then pressing Enter records `[Fill X="alice", Press Enter, Fill X="alice"]`: the init script
+  records the change-commit as a second fill AFTER the Enter keydown, and the recorder's
+  duplicate-echo rule drops the Tab-blur echo but keeps any echo preceded by an action that
+  "might have altered the control" — Enter is not in `VALUE_PRESERVING_KEYS`, so the echo is
+  kept. At replay the `press` triggers navigation and the trailing `fill` then resolves its
+  locator on the committed page: where the field is gone (login → dashboard) the step auto-waits
+  and fails the flow; where it exists the field is silently refilled post-navigation.
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Recorder capture semantics
+- **Affected area:** `src/recorder/recorderInitScript.ts:3374-3379, 3423` (press recorded at
+  keydown, change recorded after); `src/recorder/RecorderService.ts:1593-1603, 1615-1624`
+  (`VALUE_PRESERVING_KEYS` without Enter; echo-drop condition); replay surface
+  `src/runner/StepExecutor.ts:1929-1942`.
+- **Existing coverage:** ineffective — `verify:recorder-competitive` §F uses a
+  `onsubmit="return false"` form (no navigation) and asserts only "an action was captured";
+  nothing replays a type+Enter flow.
+- **Fix direction:** treat Enter/Escape as value-preserving for the echo rule (or restrict the
+  keep-echo exception to keys that actually edit text); add a mock-site type+Enter-submit
+  scenario asserted at action-sequence level AND replayed.
+
+### AWKIT-REC-039 — "Return to main tab" always replays as `switchToLatestTab`; the recorded URL hint is never consulted, so ≥2 open popups switch to the wrong tab
+
+- **Classification:** Product defect (probable at ≥2 live popups; logic-certain)
+- **Severity:** S2 / The recorder emits a routeChange named "Switch to tab: <main-url>" with the
+  target URL, but `buildRecordedFlow` hardcodes `routeMode: "switchToLatestTab"`, and the
+  runner's `switchToLatestTab` branch picks `context.pages().filter(p => p !== activePage).pop()`
+  — creation-ordered — ignoring the URL entirely (`urlMatch` is consulted only in the
+  `switchToUrl` branch). With pages `[Main, Popup1, Popup2]` and activePage Popup2, replay
+  switches to Popup1, and every subsequent main-tagged step executes against the wrong page.
+  Single-popup fixtures (all that exist) pick correctly, which is why coverage is green.
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Recorder → flow mapping / runner tab switching
+- **Affected area:** `src/recorder/RecorderService.ts:1672-1692`; 
+  `src/recorder/buildRecordedFlow.ts:299-303`; `src/runner/StepExecutor.ts:2142-2176`.
+- **Existing coverage:** `verify:recorder-locator` single-popup return-to-main only;
+  `verify:recorder-flow` asserts the mapping statically; no two-live-popups scenario exists.
+- **Fix direction:** in the `switchToLatestTab` default prefer a page matching the recorded URL
+  before falling back to `.pop()` (or emit `switchToUrl` when a safe target URL exists); add a
+  two-popup mock-site fixture with return-to-main.
+
+### AWKIT-REC-040 — Smart-Wait signals are not scoped to a page, so popup/tab activity becomes `afterWaits` on the wrong page's actions
+
+- **Classification:** Product defect (probable; quality rot, mostly silent)
+- **Severity:** S3 / Signal bindings discard the source page and buffer into one array;
+  `attachSmartWaits` builds its window across ALL pages and attaches to the last action
+  regardless of origin. Background fetches/loaders inside an open popup land in the next
+  main-page action's window; at replay those optional `response` waits stall ~10 s each on the
+  main page before warn-only failure, and loader/rows/toast locators resolve against the wrong
+  page. Required `urlChanged` leaks are mostly bounded by the 2 s causality window, hence P3.
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed** (distinct from the
+  KNOWN_ISSUES queue-bypass ordering note, which is a different mechanism)
+- **Owner routing:** Recorder Smart-Wait capture
+- **Affected area:** `src/recorder/RecorderService.ts:744-749` (binding discards `_source`),
+  `:1388-1401` (`attachSmartWaits`); `src/recorder/smartWaitObservation.ts:22-28, 202-234`.
+- **Fix direction:** tag signals with the source page in the init-script envelope; filter in
+  `attachSmartWaits` to the predecessor action's page; add a two-page fixture asserting popup
+  signals never become main-page `afterWaits`.
+
+### AWKIT-REC-041 — Downloads during recording are completely unobserved; download intent is silently dropped and replay saves to nowhere
+
+- **Classification:** Missing capability (silent semantic loss)
+- **Severity:** S3 / No `page.on("download")` exists anywhere in `src/recorder/**` — clicking
+  "Export CSV" records a plain `click`. The runner fully supports a `downloadFile` node
+  (`StepExecutor.ts:2000-2015`) the recorder can never emit; on replay the artifact lands in an
+  internal temp location nothing references (or is opted out entirely under the Lean resource
+  profile). Contrast uploads, where the validator at least refuses loudly (REC-043).
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Recorder capture semantics
+- **Affected area:** `src/recorder/**` (no download handling); runner support exists at
+  `src/runner/StepExecutor.ts:2000-2015`; `src/runner/BrowserContextFactory.ts:116`.
+- **Fix direction:** decide product posture — observe `download` and emit a runner-executable
+  `downloadFile` node (recorded suggested filename as hint), or surface an explicit
+  "downloads aren't captured" notice; add a mock-site download scenario.
+
+### AWKIT-REC-042 — User scroll is never captured, so scroll-dependent recordings replay against unscrolled pages
+
+- **Classification:** Missing capability (silent semantic loss)
+- **Severity:** S3 / The init script's complete listener inventory contains no wheel/scroll
+  capture (scroll appears only as a drag-cancel signal). Infinite-scroll feeds, virtualized
+  tables, and scroll-triggered lazy loads therefore replay without the scroll that mounted their
+  content; later locators time out with no hint a scroll step is missing. The runner fully
+  supports `scroll` nodes (`StepExecutor.ts:1973-1985`); recordings can never produce one.
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Recorder capture semantics
+- **Affected area:** `src/recorder/recorderInitScript.ts` (listener inventory;
+  `:3166, :3339` scroll-as-cancel only); runner support `src/runner/StepExecutor.ts:1973-1985`.
+- **Fix direction:** at minimum document the exclusion as a known limit; better, capture
+  debounced wheel gestures on the scrolled container as `scroll` nodes with the same fail-closed
+  review bar used for drags.
+
+### AWKIT-REC-043 — Every recording containing a file upload saves an `uploadFile` step the runner refuses by construction
+
+- **Classification:** Technical debt (intentional fail-closed, but guaranteed rework with no in-product resolution path)
+- **Severity:** S3 / Uploads are recorded with no `valueSource` (deliberate — never persist a
+  fakepath), so validation refuses the flow before launch and names the step; the user's only
+  remedy is hand-editing JSON to a path that must exist at replay time. There is no recorder-side
+  or designer affordance to bind a file at save/run time, so any upload-including recording is
+  unrunnable as recorded. Documented in-code; recorded here so the follow-up is tracked.
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the third 2026-08-23 review pass, not fixed**
+- **Owner routing:** Recorder capture semantics / Flow Designer
+- **Affected area:** `src/recorder/recorderInitScript.ts:3398-3415`;
+  `src/runner/StepExecutor.ts:1991-1998`; coverage `verify:recorder-upload` (refusal path only).
+- **Fix direction:** add a save-time prompt or Flow Designer picker binding a concrete static
+  path / runtime-input reference so recorded uploads become runnable without JSON editing.
+
 ### AWKIT-DUR-001 — A transient read failure of `runtime.sqlite` silently replaces all run history with an empty database
 
 - **Classification:** Data-integrity risk (silent destruction of durable history)
@@ -55,39 +312,7 @@ two passes were executed independently; overlap was deduplicated against the fir
   preserved.
 
 
-### AWKIT-RUN-009 — Nested-flow outputs are double-prefixed, so `${outputs.<childFlowId>.<key>}` can never resolve
 
-- **Classification:** Product defect (documented expression contract broken; fails open blank)
-- **Severity:** S2 / A child flow prefixes its own step outputs with its flow id
-  (`outputs["<child>.<key>"]`), `runFlow` spreads them verbatim into the parent step's outputs,
-  and the parent flow re-prefixes → final key `<parent>.<child>.<key>`. Neither
-  `FlowExecutor.makeScope` nor the workflow-level scope can match the documented two-segment form,
-  so connector conditions and value sources referencing a sub-flow's outputs silently resolve to
-  `undefined`/`""` instead of erroring.
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass (code-traced; live reproduction
-  pending), not fixed**
-- **Owner routing:** Runner (`FlowExecutor` output registry + `StepExecutor.runFlow`)
-- **Affected area:** `src/runner/FlowExecutor.ts:134-136` (prefixing), `makeScope` lookup;
-  `src/runner/StepExecutor.ts:2079` (`{ childFlowId, childFlowStatus, ...result.outputs }` spread);
-  contract documented in RULES.md ("Connector expressions resolve `${outputs.<flowId>.<key>}`").
-- **Fix direction:** strip the child prefix when importing nested outputs (or namespace under an
-  explicit key) and pin both resolution channels with verifier cases.
-
-### AWKIT-RUN-010 — Scenario flow-input bindings are accepted by designers/validation but never executed
-
-- **Classification:** Product defect (declared feature has no runtime implementation)
-- **Severity:** S2 / `ScenarioOrchestrator.resolveFlowInputs` exists and computes per-flow input
-  bindings, but repo-wide it has exactly ONE occurrence — its definition. Nothing applies declared
-  `${outputs.*}` input bindings before each flow runs, so wiring flow A's output into flow B's
-  input via the scenario editor has zero runtime effect.
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Orchestrator / runner
-- **Affected area:** `src/orchestrator/ScenarioOrchestrator.ts:57-62` (sole occurrence);
-  consumers use the plan for ordering/validation only (`PlaywrightRunner.ts:286`).
-- **Fix direction:** either apply the bindings in the scenario execution path or remove the dead
-  surface and stop advertising flow-input mapping.
 
 
 
@@ -156,38 +381,6 @@ two passes were executed independently; overlap was deduplicated against the fir
 `runtimeInputs` object; loop connectors mutate it in place (with save/restore around each
 iteration, which narrows but does not close the window). Fix direction: per-instance shallow copy
 at creation or copy-on-write at dispatch.
-
----
-
----
-
-### AWKIT-RUN-004 — Workflow-level `manualApproval` links traverse automatically, bypassing the approval semantic
-
-- **Classification:** Product defect (governance/approval bypass)
-- **Severity:** S2 / Downstream approved-work runs unconditionally when linked by a manualApproval scenario link — zero human gate, opposite semantics to the same connector type inside a flow
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner / orchestrator
-- **Affected area:** `src/runner/PlaywrightRunner.ts:457` (treats `link.type === "manualApproval"` as a success edge); contrast `src/runner/FlowExecutor.ts:629-640` ("an ordinary node must never traverse an approval connector, or the approval semantic is bypassed"); link type declared `src/profiles/ScenarioProfile.ts:15`
-- **Detected by:** Independent whole-repository code review
-
-Fix direction: require an explicit handoff/resume for workflow-level approval links, or reject
-them at workflow validation until supported.
-
----
-
-### AWKIT-RUN-005 — Parallel fan-out silently skips branch targets and can report passed with zero branch work
-
-- **Classification:** Product defect (silent incomplete run)
-- **Severity:** S2 / A dangling edge (deleted target) vanishes a branch; diamond convergence skips branches whose target was already visited; the isolated variant returns success on an empty target set — no log, event, or step row records the skip
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner
-- **Affected area:** `src/runner/FlowExecutor.ts:245-250` (sequential fan-out `continue`s), `:294-300` (isolated variant returns `{ success: true }` on empty targets)
-- **Detected by:** Independent whole-repository code review
-
-Same failure shape as the documented guarded-no-op loop class. Fix direction: emit a connector
-event at minimum; fail (or record skipped step rows) when a declared parallel target cannot run.
 
 ---
 
@@ -530,6 +723,87 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-RUN-010 — Scenario flow-input bindings are accepted by designers/validation but never executed
+
+- **Classification:** Product defect (declared feature has no runtime implementation)
+- **Severity:** S2 / `ScenarioOrchestrator.resolveFlowInputs` exists and computes per-flow input
+  bindings, but repo-wide it has exactly ONE occurrence — its definition. Nothing applies declared
+  `${outputs.*}` input bindings before each flow runs, so wiring flow A's output into flow B's
+  input via the scenario editor has zero runtime effect.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 6f4ec34**
+- **Owner routing:** Orchestrator / runner
+- **Affected area:** `src/orchestrator/ScenarioOrchestrator.ts:57-62` (sole occurrence);
+  consumers use the plan for ordering/validation only (`PlaywrightRunner.ts:286`).
+- **Fix direction:** either apply the bindings in the scenario execution path or remove the dead
+  surface and stop advertising flow-input mapping.
+
+- **Evidence after fix:** `verify:runner` 129/129 LIVE wiring case against mock-site /form: producer's declared output `${outputs.flowProd.first}` resolves through resolveFlowInputs and feeds the consumer's runtime input, proven by an equals assertion that only passes when the binding landed.
+
+---
+
+### AWKIT-RUN-004 — Workflow-level `manualApproval` links traverse automatically, bypassing the approval semantic
+
+- **Classification:** Product defect (governance/approval bypass)
+- **Severity:** S2 / Downstream approved-work runs unconditionally when linked by a manualApproval scenario link — zero human gate, opposite semantics to the same connector type inside a flow
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 6f4ec34**
+- **Owner routing:** Runner / orchestrator
+- **Affected area:** `src/runner/PlaywrightRunner.ts:457` (treats `link.type === "manualApproval"` as a success edge); contrast `src/runner/FlowExecutor.ts:629-640` ("an ordinary node must never traverse an approval connector, or the approval semantic is bypassed"); link type declared `src/profiles/ScenarioProfile.ts:15`
+- **Detected by:** Independent whole-repository code review
+
+Fix direction: require an explicit handoff/resume for workflow-level approval links, or reject
+them at workflow validation until supported.
+
+---
+
+- **Evidence after fix:** `verify:runner` 129/129: a scenario with a manualApproval link fails validation-driven execution with an approval-named error and the downstream flow does not silently run; FlowDependencyResolver emits an error-severity issue.
+
+---
+
+### AWKIT-RUN-005 — Parallel fan-out silently skips branch targets and can report passed with zero branch work
+
+- **Classification:** Product defect (silent incomplete run)
+- **Severity:** S2 / A dangling edge (deleted target) vanishes a branch; diamond convergence skips branches whose target was already visited; the isolated variant returns success on an empty target set — no log, event, or step row records the skip
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 6f4ec34**
+- **Owner routing:** Runner
+- **Affected area:** `src/runner/FlowExecutor.ts:245-250` (sequential fan-out `continue`s), `:294-300` (isolated variant returns `{ success: true }` on empty targets)
+- **Detected by:** Independent whole-repository code review
+
+Same failure shape as the documented guarded-no-op loop class. Fix direction: emit a connector
+event at minimum; fail (or record skipped step rows) when a declared parallel target cannot run.
+
+---
+
+---
+
+- **Evidence after fix:** `verify:runner` 129/129, AWKIT-RUN-005 section: dangling sequential branch fails the group AND records a `skipped` step row; isolated fan-out whose only targets are dangling FAILS while the branch factory is provably never invoked.
+
+---
+
+### AWKIT-RUN-009 — Nested-flow outputs are double-prefixed, so `${outputs.<childFlowId>.<key>}` can never resolve
+
+- **Classification:** Product defect (documented expression contract broken; fails open blank)
+- **Severity:** S2 / A child flow prefixes its own step outputs with its flow id
+  (`outputs["<child>.<key>"]`), `runFlow` spreads them verbatim into the parent step's outputs,
+  and the parent flow re-prefixes → final key `<parent>.<child>.<key>`. Neither
+  `FlowExecutor.makeScope` nor the workflow-level scope can match the documented two-segment form,
+  so connector conditions and value sources referencing a sub-flow's outputs silently resolve to
+  `undefined`/`""` instead of erroring.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 6f4ec34**
+- **Owner routing:** Runner (`FlowExecutor` output registry + `StepExecutor.runFlow`)
+- **Affected area:** `src/runner/FlowExecutor.ts:134-136` (prefixing), `makeScope` lookup;
+  `src/runner/StepExecutor.ts:2079` (`{ childFlowId, childFlowStatus, ...result.outputs }` spread);
+  contract documented in RULES.md ("Connector expressions resolve `${outputs.<flowId>.<key>}`").
+- **Fix direction:** strip the child prefix when importing nested outputs (or namespace under an
+  explicit key) and pin both resolution channels with verifier cases.
+
+- **Evidence after fix:** `verify:runner` 129/129: runFlow import-strip check proves the parent step outputs carry `value` with NO `<child>.` key (stub returns real registry shape `<flowId>.value`); parent re-prefix yields the documented two-segment form.
+
+---
+
 ### AWKIT-FLO-001 — `closePopup` is palette-authorable but guaranteed to throw at runtime
 
 - **Classification:** Product defect (designer-runtime contract break)
