@@ -23,6 +23,9 @@ this campaign's scope and remain OPEN for triage. Defect-register parse at close
 **89 total / 77 resolved / 12 open (all third-pass)**. Dashboard: `verify:roadmap-dashboard`
 167/167, Sources agree.
 
+Comprehensive-validation ledger unchanged by this campaign (no ledger case moved):
+**64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 Verification (executed this session): `npm run build` PASS after every cluster · runner 129/129 ·
 validation 163/163 · flow-step-mapping 166/166 · workflow-sentinels 29/29 · cancellation 34/34 ·
 concurrency 84/84 · durable-store 16/16 · recorder-draft 100/100 · protected-login-recorder 74/74 ·
