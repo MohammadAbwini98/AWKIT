@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { PasswordField } from "../../security/components/PasswordField";
+import { useModalFocusContract } from "../../components/shared/useModalFocusContract";
 import { adminReasonMessage } from "./adminMessages";
 
 interface ReauthDialogProps {
@@ -19,6 +20,13 @@ export function ReauthDialog({ sessionRef, onConfirmed, onCancel }: ReauthDialog
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AWKIT-A11Y-001: the full modal focus contract (focus in, Tab trap, Escape, return focus) —
+  // this dialog used to declare `aria-modal` with none of it, launched from Super-User flows.
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
+  const { dialogRef } = useModalFocusContract<HTMLFormElement>(() => {
+    if (!busy) cancelRef.current();
+  });
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -43,10 +51,12 @@ export function ReauthDialog({ sessionRef, onConfirmed, onCancel }: ReauthDialog
   return (
     <div className="awkit-admin-modal-backdrop" role="presentation" onClick={onCancel}>
       <form
+        ref={dialogRef}
         className="awkit-admin-modal awkit-reauth-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="awkit-reauth-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
       >

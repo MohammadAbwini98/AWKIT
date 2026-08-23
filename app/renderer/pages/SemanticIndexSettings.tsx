@@ -20,9 +20,10 @@ const api = () => window.playwrightFlowStudio.semantic;
  * `SEMANTIC_MANAGE_INDEX`, which is in `SENSITIVE_PERMISSIONS` — so rebuild, clear and the settings
  * write all go through `useSensitiveSemanticAction`, which prompts and retries once.
  *
- * `ReauthDialog` is reused rather than reimplemented. It already carries a focus contract, and this
- * repository has shipped the same `aria-modal`-without-focus-management defect three times by
- * building a new modal per surface.
+ * `ReauthDialog` is reused rather than reimplemented. Its focus contract now comes from the shared
+ * `useModalFocusContract` hook (AWKIT-A11Y-001): this repository shipped the same
+ * `aria-modal`-without-focus-management defect four times by building a new modal per surface, so
+ * the contract is a one-line hook and every `aria-modal="true"` surface is scanned for it.
  */
 export function SemanticIndexSettings() {
   const { can } = usePermissions();

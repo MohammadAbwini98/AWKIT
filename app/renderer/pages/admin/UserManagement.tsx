@@ -4,6 +4,7 @@ import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import { ALL_PERMISSIONS, ISSUER_ROLE } from "@src/security/authz/Permissions";
 import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
+import { useModalFocusContract } from "../../components/shared/useModalFocusContract";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
 import {
@@ -402,10 +403,24 @@ function RoleEditModal({
 
 function ResetPasswordModal({ user, onCancel, onSubmit }: { user: AdminUserView; onCancel: () => void; onSubmit: (password: string) => void }) {
   const [password, setPassword] = useState("");
+  // AWKIT-A11Y-001: adopt the same modal focus contract as its RoleEditModal sibling — this modal
+  // used to declare `aria-modal` with no focus management AND no accessible name.
+  const { dialogRef } = useModalFocusContract<HTMLFormElement>(onCancel);
   return (
     <div className="awkit-admin-modal-backdrop" role="presentation" onClick={onCancel}>
-      <form className="awkit-admin-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); if (password.length) onSubmit(password); }}>
-        <header className="awkit-admin-modal-head"><h2>Reset password — {user.displayName}</h2></header>
+      <form
+        ref={dialogRef}
+        className="awkit-admin-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="awkit-reset-password-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => { e.preventDefault(); if (password.length) onSubmit(password); }}
+      >
+        <header className="awkit-admin-modal-head">
+          <h2 id="awkit-reset-password-title">Reset password — {user.displayName}</h2>
+        </header>
         <p className="awkit-admin-modal-body">The user must change this password at their next sign-in, and all their sessions are ended.</p>
         <PasswordField label="New temporary password" value={password} onChange={setPassword} autoComplete="new-password" />
         <div className="awkit-admin-modal-actions">

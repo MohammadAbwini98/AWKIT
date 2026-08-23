@@ -84,6 +84,37 @@ check(
   offenders.slice(0, 10).join("; ")
 );
 
+// ── Class-level guard (AWKIT-A11Y-001): every `aria-modal="true"` surface must carry the focus
+// contract. Four modals shipped without it because each new surface copied markup from a dialog
+// that happened to have it. The contract now lives in `useModalFocusContract`, and this scan makes
+// a bare aria-modal a build failure rather than an accessibility regression discovered by hand.
+{
+  const rendererFiles: string[] = [];
+  collect("app", rendererFiles, /\.tsx$/);
+  const offendersA11y: string[] = [];
+  let ariaModalSurfaces = 0;
+  for (const file of rendererFiles) {
+    const text = fs.readFileSync(file, "utf8");
+    if (!text.includes('aria-modal="true"')) continue;
+    ariaModalSurfaces += 1;
+    // A file declaring aria-modal must implement (or import) the focus contract: EITHER the
+    // shared hook, OR an in-file contract — an Escape handler, programmatic focus into the
+    // dialog, and a focus-return path (the ConfirmDialog shape).
+    const usesHook = text.includes("useModalFocusContract");
+    const hasInFileContract =
+      /key === "Escape"/.test(text) &&
+      /\.focus\(\)/.test(text) &&
+      /(previouslyFocused|isConnected|returnFocus)/.test(text);
+    if (!usesHook && !hasInFileContract) offendersA11y.push(file);
+  }
+  check("the scan found the known modal surfaces (pattern still matches)", ariaModalSurfaces >= 6, `${ariaModalSurfaces} files with aria-modal`);
+  check(
+    "every aria-modal surface implements the modal focus contract",
+    offendersA11y.length === 0,
+    offendersA11y.join(", ")
+  );
+}
+
 // Markdown is scanned too, and for a sharper reason than tidiness. `docs/ai/TASK_LOG.md` carried a
 // literal NUL for many commits while this suite reported green, because the roadmap dashboard's
 // reader strips NULs before parsing and only emits a warning — and `grep` reports the file as

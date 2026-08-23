@@ -1,4 +1,5 @@
 import { Copy, Database, Download, Eye, FilePlus2, Pencil, RefreshCw, ShieldCheck, Table2, Trash2, Upload } from "lucide-react";
+import { useModalFocusContract } from "../components/shared/useModalFocusContract";
 import { useEffect, useMemo, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
@@ -425,6 +426,8 @@ function CreateDataSourceModal({
   onCreate: (name: string, fileName: string, columns: string[]) => Promise<void>;
   onCancel: () => void;
 }) {
+  // AWKIT-A11Y-001: the modal focus contract (focus in / Tab trap / Escape / focus return).
+  const { dialogRef } = useModalFocusContract(onCancel);
   const [name, setName] = useState("");
   const [fileName, setFileName] = useState("");
   const [columns, setColumns] = useState<string[]>(["id", "name"]);
@@ -455,7 +458,7 @@ function CreateDataSourceModal({
 
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
-      <div className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-header"><h2>Create data source</h2></div>
         <div className="settings-grid">
           <label>

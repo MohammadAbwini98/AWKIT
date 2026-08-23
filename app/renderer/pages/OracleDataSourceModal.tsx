@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useModalFocusContract } from "../components/shared/useModalFocusContract";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { SearchableSelect } from "../components/shared/SearchableSelect";
 import type { OracleBindDefinition, OracleDataSourceProfile } from "@src/data/DataSourceProfile";
@@ -41,6 +42,8 @@ function newBind(): OracleBindDefinition {
  */
 export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataSourceModalProps) {
   const editing = Boolean(initial);
+  // AWKIT-A11Y-001: the modal focus contract (focus in / Tab trap / Escape / focus return).
+  const { dialogRef } = useModalFocusContract(onClose);
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
   const [availability, setAvailability] = useState<{ available: boolean; reason?: string; driverExpected: boolean } | null>(null);
 
@@ -150,7 +153,7 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{editing ? "Edit Oracle Data Source" : "Create Oracle Data Source"}</h2>
         </div>

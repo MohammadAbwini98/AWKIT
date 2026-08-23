@@ -18,6 +18,7 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
 import { buildConnectorVisual } from "../components/shared/connectorStyle";
+import { useModalFocusContract } from "../components/shared/useModalFocusContract";
 import {
   defaultLoopConnectorConfig,
   defaultLoopConnectorStyle,
@@ -161,6 +162,9 @@ function FlowChartDesignerContent() {
   const [loadBanner, setLoadBanner] = useState<FlowValidationStatus | null>(null);
   /** Change preview for "Fix all safe issues". Non-null = the confirmation dialog is showing. */
   const [fixPreview, setFixPreview] = useState<SafeFixPreview | null>(null);
+  // AWKIT-A11Y-001: the conditional fix-preview dialog carries the modal focus contract via the
+  // shared hook; `active` gates it because this host component always renders.
+  const { dialogRef: fixPreviewRef } = useModalFocusContract(() => setFixPreview(null), fixPreview !== null);
   /** The most recent migration, so the user can undo it while the flow is still untouched. */
   const [lastMigration, setLastMigration] = useState<{ flowId: string; migrationId: string; backupPath: string } | null>(null);
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
@@ -1357,7 +1361,7 @@ function FlowChartDesignerContent() {
           decision 2). Every listed change is a schema migration that cannot alter execution. */}
       {fixPreview ? (
         <div className="modal-overlay" role="presentation">
-          <div className="modal-dialog validation-fix-dialog" role="dialog" aria-modal="true" aria-labelledby="fix-preview-title" data-testid="flow-fix-preview">
+          <div ref={fixPreviewRef} tabIndex={-1} className="modal-dialog validation-fix-dialog" role="dialog" aria-modal="true" aria-labelledby="fix-preview-title" data-testid="flow-fix-preview">
             <h2 id="fix-preview-title">Apply {fixPreview.fixes.length} safe fix{fixPreview.fixes.length === 1 ? "" : "es"}?</h2>
             <div className="modal-body">
               <p>

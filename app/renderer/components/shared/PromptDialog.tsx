@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useEffect, useRef, useState } from "react";
+import { useModalFocusContract } from "./useModalFocusContract";
 import { FilePlus2 } from "lucide-react";
 
 interface PromptDialogProps {
@@ -37,13 +38,8 @@ export function PromptDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmed = value.trim();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  // AWKIT-A11Y-001: the full modal focus contract replaces the Escape-only listener.
+  const { dialogRef } = useModalFocusContract<HTMLFormElement>(onCancel);
 
   useEffect(() => {
     // Respond instantly: focus and pre-select so the user can type or overwrite at once.
@@ -58,6 +54,8 @@ export function PromptDialog({
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
       <form
+        ref={dialogRef}
+        tabIndex={-1}
         className="modal-dialog"
         role="dialog"
         aria-modal="true"

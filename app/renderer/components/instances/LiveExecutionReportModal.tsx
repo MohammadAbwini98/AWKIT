@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useModalFocusContract } from "../shared/useModalFocusContract";
 import { Activity, AlertTriangle, Camera, CheckCircle2, Clock, Loader2, X, XCircle } from "lucide-react";
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
@@ -64,6 +65,8 @@ function formatRelativeTime(iso: string | undefined, nowMs: number): string {
 }
 
 export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveExecutionReportModalProps) {
+  // AWKIT-A11Y-001: the modal focus contract (focus in / Tab trap / Escape / focus return).
+  const { dialogRef } = useModalFocusContract(onClose);
   const [report, setReport] = useState<StoredReport | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -146,7 +149,7 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal-dialog report-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} className="modal-dialog report-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header report-modal-header">
           <h2>
             <Activity size={18} /> Execution Report

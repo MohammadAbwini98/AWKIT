@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useModalFocusContract } from "../components/shared/useModalFocusContract";
 import {
   ArrowLeft,
   Columns3,
@@ -593,6 +594,8 @@ export function DataSourceEditor() {
 
 // ── Add Column modal ──────────────────────────────────────────────────────────
 function AddColumnModal({ existing, onAdd, onCancel }: { existing: string[]; onAdd: (name: string, value: unknown) => string | null; onCancel: () => void }) {
+  // AWKIT-A11Y-001: the modal focus contract (focus in / Tab trap / Escape / focus return).
+  const { dialogRef } = useModalFocusContract(onCancel);
   const [name, setName] = useState("");
   const [type, setType] = useState<"string" | "number" | "boolean" | "null">("string");
   const [value, setValue] = useState("");
@@ -609,7 +612,7 @@ function AddColumnModal({ existing, onAdd, onCancel }: { existing: string[]; onA
 
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
-      <div className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-header"><h2>Add column</h2></div>
         <div className="settings-grid">
           <label>
