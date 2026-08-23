@@ -1,5 +1,34 @@
 # KNOWN_ISSUES
 
+## RESOLVED (2026-08-23): all 38 review defects fixed; two catalogued families closed by guards — and a THIRD review pass filed 12 new defects mid-campaign
+
+The 38-defect campaign (`AWKIT-MAP-002..005`, `AWKIT-WFB-001/002`, `AWKIT-RUN-001..011`,
+`AWKIT-FLO-001`, `AWKIT-DUR-001`, `AWKIT-SES-001..004`, `AWKIT-SET-007`, `AWKIT-REC-036/037`,
+`AWKIT-SEC-001/002`, `AWKIT-LIC-002`, `AWKIT-A11Y-001`, `AWKIT-QA-001..008`) is CLOSED with
+per-defect evidence in `DEFECTS.md`. Two KNOWN_ISSUES families are now guarded, not just patched:
+
+- **aria-modal-without-focus-contract**: the shared `useModalFocusContract` hook is the contract;
+  `verify:source-hygiene` scans every `aria-modal="true"` file and fails without the hook or an
+  in-file Escape+focus+return implementation. The guard surfaced nine MORE instances beyond
+  ReauthDialog/ResetPasswordModal (instances #5–#13 of the class); all converted.
+- **checks-that-fail-open / escape hatches**: instance #8 (`verify-zvec-packaged-live` lastReason)
+  removed; chromium-hardening gained a NOT-RUN state that exits non-zero offline;
+  verifier-classification scans scripts/ recursively with per-class floors;
+  recorder-draft/protected-login-recorder pin EXPECTED check counts via
+  `scripts/lib/verify-harness.mjs`.
+
+**Operational note on the new strict gates:** `verify:settings-e2e` and
+`verify:reports-settings-a11y` now exit non-zero when an owner-approved OS-shell or
+environment-gated check cannot run (one such skip each in this environment). That redness is the
+point — a skip is no longer printed as green. Run with the documented approvals for full green.
+
+**MID-CAMPAIGN DISCLOSURE:** a *third* independent review pass filed **12 new open defects**
+(`AWKIT-SEC-003..006`, `AWKIT-DUR-002/003`, `AWKIT-REC-038..043`) into DEFECTS.md while this
+campaign was executing. They arrived in the working tree uncommitted and were swept into the
+cluster-5 docs commit (`d6c8c1b`) by the per-cluster staging. Preserved per the never-discard
+rule; they are NOT part of the 38-defect scope and remain OPEN for triage.
+
+
 ## Whole-repository code review (2026-08-23): architecture erosion, licensing depth, and doc drift — recorded, not fixed
 
 An independent read-only review swept runner, recorder/sessions, persistence/mappings, licensing,

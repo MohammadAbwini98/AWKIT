@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-08-23 — 38-defect campaign CLOSED (all clusters), third-pass delta disclosed
+
+**Agent:** opencode (ox-alpha). **Task:** fix the 38 open defects in the Program Status register.
+
+**Result:** 38/38 Resolved with per-cluster commits and mutation evidence; DEFECTS.md open
+product/harness sections read None. Register totals at close: 89 total / 77 resolved / **12 open —
+all from a THIRD review pass that filed mid-campaign** (SEC-003..006, DUR-002/003, REC-038..043).
+Those entered the tree uncommitted and were swept into d6c8c1b by per-cluster staging; preserved,
+disclosed in KNOWN_ISSUES/CURRENT_STATE, NOT part of this campaign's scope.
+
+**Clusters → commits:** C1 5ba4bf7/e1f5144 · C2 63959fa/f0f8069 · C3 49ea367/d399d5a ·
+C4 4772c3b/8d0638f · C5 6f4ec34/d6c8c1b · C6 a911cea/05c6aab · C7 8e6e6a4/c63e47a ·
+C8 4c4044f/377c68d · C9 f49e132/ac43753 · C10 f6b144c/1e94f3d · C11 56739ea/81ada0b ·
+C12 6aaae02/f7dfe89 · C13 e64a5dd/8b4f639.
+
+**Key verifier counts (all executed):** runner 129/129 · validation 163/163 · flow-step-mapping
+166/166 · workflow-sentinels 29/29 · branch-pairs 40/40 · click-and-hold 35/35 · catalog-parity
+45/45 · random:roundtrip 27/27 · flow-designer PASS · workflow-builder PASS · cancellation 34/34 ·
+concurrency 84/84 · adaptive-concurrency 14/14 · browser-pool 25/25 · instance-monitor 55/55 ·
+assertions 15/15 · secrets 16/16 · durable-store 16/16 · profile-store 26/26 · startup-recovery
+10/10 · write-queue 29/29 · recorder-draft 100/100 · protected-login-recorder 74/74 ·
+protected-login 26/26 · recorder-flow 50/50 · licensing 192/192 · license-dispatch-gate 34/34 ·
+ipc-contract 9/9 · authz 92/92 · e2e-rbac 70/70 · data-editor 27/27 · security 45/45 ·
+source-hygiene 11/11 · mock-site 172/172 · verifier-classification reconciled (198 files, floors) ·
+roadmap-dashboard 167/167 Sources agree. Exit-0 GUI/packaged: admin-gui, e2e-reauth,
+super-user-controls, comprehensive-e2e, zvec-packaged-live, e2e-licensing, release-key-custody.
+Honest RED by design: settings-e2e + reports-settings-a11y exit 1 on their single environment-gated
+NOT-RUN each (now visible instead of printed green).
+
+**Mutations killed (per cluster, restored green after):** completionMode drop (9 fail), loop-gate
+revert (3), sentinels description/version pin + policy drop (exit 1 x2), pause-gate removal
+(exit 1), assertion raw-expected leak (exit 1), runtimeInputs shared-ref (exit 1), sqlite
+swallow-all (exit 1), SEC-001 traversal revert (guard detects).
+
+**Not done / risks:** settings-e2e SET-015 OS-shell case requires AWKIT_ALLOW_OS_SHELL_LAUNCH owner
+approval for full green; reports-a11y sortable-header skip likewise environment-gated; clean-machine
+GUI walkthrough remains the standing manual gate. New third-pass defects need triage.
+
 Append a new entry after every task (newest at top). Keep entries short and factual.
 
 ---

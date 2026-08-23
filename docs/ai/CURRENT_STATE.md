@@ -1,5 +1,37 @@
 # CURRENT_STATE
 
+## All 38 open review defects FIXED with per-defect evidence (2026-08-23)
+
+The 38-defect register from the first two 2026-08-23 passes (`MAP-002..005`, `WFB-001/002`,
+`RUN-001..011`, `FLO-001`, `DUR-001`, `SES-001..004`, `SET-007`, `REC-036/037`, `SEC-001/002`,
+`LIC-002`, `A11Y-001`, `QA-001..008`) is **fully closed** — every entry in DEFECTS.md carries
+`Resolved 2026-08-23 in <sha>` plus an Evidence-after-fix line; the open product/harness sections
+read `None.` Highlights: the round-trip verifier now binds production mapping (dead
+`flowStepMapping.ts` deleted); Workflow Builder saves preserve stored documents; Pause is a real
+between-step gate; the manual-login wait is cancellable; runtime.sqlite / session metadata /
+ui-settings quarantine-and-fail-closed like JsonProfileStore; nested-flow outputs resolve as the
+documented `${outputs.<flowId>.<key>}`; scenario input bindings execute; every IPC channel declares
+NONE/TRUSTED/PERMISSION via a mechanical registry (Check 5) and data-source writes are confined;
+signed licensing entitlements are enforced in the trusted layer; ONE shared modal focus contract
+hook backs every `aria-modal` surface with a class-level hygiene guard; verifier harnesses pin
+expected check counts, carry NOT-RUN states, and exit honestly.
+
+**Mid-campaign disclosure:** a third independent pass filed **12 NEW open defects**
+(`SEC-003..006`, `DUR-002/003`, `REC-038..043`) while this campaign ran. They entered the working
+tree uncommitted and were swept into docs commit `d6c8c1b`; preserved on `main`, they are outside
+this campaign's scope and remain OPEN for triage. Defect-register parse at close:
+**89 total / 77 resolved / 12 open (all third-pass)**. Dashboard: `verify:roadmap-dashboard`
+167/167, Sources agree.
+
+Verification (executed this session): `npm run build` PASS after every cluster · runner 129/129 ·
+validation 163/163 · flow-step-mapping 166/166 · workflow-sentinels 29/29 · cancellation 34/34 ·
+concurrency 84/84 · durable-store 16/16 · recorder-draft 100/100 · protected-login-recorder 74/74 ·
+licensing 192/192 · ipc-contract 9/9 · authz 92/92 · e2e-rbac 70/70 · security 45/45 ·
+source-hygiene 11/11 · mock-site 172/172 · comprehensive-e2e/zvec/settings-e2e/reports-a11y/
+recorder-gui/admin-gui/e2e-reauth/super-user-controls all executed (settings-e2e + reports-a11y
+exit non-zero BY DESIGN on their one environment-gated skip each). Mutations killed per cluster
+(documented in each commit message).
+
 ## Third-pass codebase review filed 12 more defects; documentation-only (2026-08-23)
 
 A third independent, evidence-quoted review pass deduplicated against both committed passes and
