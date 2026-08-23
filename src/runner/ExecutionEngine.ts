@@ -103,6 +103,7 @@ import {
   type WorkflowTrend
 } from "../reports/TelemetryContracts";
 import { CancellationTokenSource } from "./concurrency/CancellationToken";
+import { InstancePauseController } from "./runtime/ExecutionPauseGate";
 import { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import { ResourceSampler } from "./concurrency/ResourceSampler";
 import { defaultSemaphoreCapacities, type ConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
@@ -256,6 +257,12 @@ export class ExecutionEngine {
   private readonly activeInstanceRunners = new Map<string, Promise<void>>();
   /** Per-instance hard-cancellation sources (Phase 3). */
   private readonly cancellationSources = new Map<string, CancellationTokenSource>();
+  /**
+   * AWKIT-RUN-001: per-instance between-step pause gates. Pause Instance holds the gate; the
+   * instance's StepExecutor awaits it BEFORE each side effect, so pausing halts dispatch instead
+   * of only relabelling the card.
+   */
+  private readonly pauseGates = new Map<string, InstancePauseController>();
   /** Durable runtime store (SQLite via sql.js) — NullRuntimeStore until initialized/disabled. */
   private durableStore: RuntimeStore = new NullRuntimeStore();
   private durableLockStore?: DurableLockStore;
@@ -1147,7 +1154,12 @@ export class ExecutionEngine {
       // Admission control: prefer keeping instances pending/queued over overloading the host.
       // Blocked dispatch is logged once per reason; the next tick re-evaluates.
       const allInstances = this.pool.list();
-      const activeGlobal = allInstances.filter((i) => ["starting", "running"].includes(i.status)).length;
+      // AWKIT-RUN-007: a manual-handoff or paused instance still HOLDS its Chromium slot (until
+      // runInstanceInner's finally), so it occupies real capacity. Counting only
+      // starting|running let admission keep filling a pool that could never run the queued work —
+      // the same accounting ConcurrentExecutionCoordinator already applies.
+      const capacityOccupying: readonly string[] = ["starting", "running", "waitingForManualAction", "paused"];
+      const activeGlobal = allInstances.filter((i) => capacityOccupying.includes(i.status)).length;
       const queuedGlobal = allInstances.filter((i) => ["queued", "pending"].includes(i.status)).length;
       // Phase B1: track this run's peak simultaneously-active instance count (written at instance end).
       const execActive = allInstances.filter((i) => i.executionId === executionId && ["starting", "running"].includes(i.status)).length;
@@ -1347,6 +1359,9 @@ export class ExecutionEngine {
     // Phase 3: hard-cancellation source + dynamic origin-claim tracker for this instance.
     const cancelSource = new CancellationTokenSource();
     this.cancellationSources.set(instance.instanceId, cancelSource);
+    // AWKIT-RUN-001: the between-step pause gate this instance's StepExecutor awaits.
+    const pauseGate = new InstancePauseController();
+    this.pauseGates.set(instance.instanceId, pauseGate);
     const limits = this.browserPool.concurrencyLimits;
     const originClaims = new OriginClaimTracker(instance.instanceId, globalResourceLocks, {
       enabled: limits.dynamicOriginClaims,
@@ -1357,66 +1372,79 @@ export class ExecutionEngine {
     const seededOrigin = claimTokens?.find((token) => token.key.startsWith("origin:"));
     if (seededOrigin) originClaims.seed(seededOrigin.key.slice("origin:".length), seededOrigin, undefined);
 
-    const runLogger = new RunLogger(instance.paths.logs);
-    const passiveTrace =
-      process.env.AWKIT_CDP_OBSERVATION === "0"
-        ? undefined
-        : new PassiveCdpTrace({
-            root: instance.paths.observation ?? join(instance.paths.storage, "observation"),
-            executionId: instance.executionId,
-            instanceId: instance.instanceId,
-            scenarioId: instance.scenarioId
-          });
-    if (passiveTrace) this.observationTraces.set(instance.instanceId, passiveTrace);
+    // AWKIT-RUN-006: every fallible setup call below (RunLogger, PassiveCdpTrace, durable upsert,
+    // observability startRun, runner construction) now happens INSIDE the try whose finally
+    // releases the slot and claims. A throw during setup used to reject out of runInstanceInner
+    // before any cleanup — permanently leaking a browser-pool slot (with a default cap of 2, one
+    // bad disk state halved host capacity until app restart).
     const machine = new FlowRunStateMachine("queued");
     const attempts = new NodeAttemptLog();
-    machine.transition("running", "instance dispatched with browser slot");
-    this.patchRuntime(instance.instanceId, { flowRunStatus: machine.status, browserWorkerId: slot.workerId });
-    // Reporting: run-summary fields. Queue wait is measured from run enqueue (runStartTimes) to
-    // dispatch; near-zero for the first instance, meaningful for later queued/concurrent ones.
-    const runStartedAtIso = new Date().toISOString();
-    const enqueuedAtIso = this.runStartTimes.get(instance.executionId);
-    const queueWaitMs = enqueuedAtIso ? Math.max(0, Date.parse(runStartedAtIso) - Date.parse(enqueuedAtIso)) : undefined;
-    // Attribution for a run the validator only admitted because a flow holds a Legacy Compatibility
-    // grant (awkit-vbj, surfaced in the Run Detail drawer via awkit-5dn). Read from runContexts
-    // (set once in startRun) rather than threaded as a parameter, and snapshotted here at dispatch —
-    // never re-derived from the live grants table, since grants expire/get revoked.
-    const legacyCompatibility = this.runContexts.get(instance.executionId)?.profile.legacyCompatibility;
-    this.durableStore.upsertRun({
-      instanceId: instance.instanceId,
-      executionId: instance.executionId,
-      scenarioId: instance.scenarioId,
-      scenarioName: scenario.name,
-      triggerType: "manual",
-      status: "running",
-      flowRunStatus: machine.status,
-      startedAt: runStartedAtIso,
-      queueWaitMs,
-      // Observability: pressure state at dispatch (failure-at-pressure correlation, Phase 05).
-      pressureStateAtRun: this.adaptive.currentState,
-      // Phase B1: stamp the run with its machine context so reports can filter/compare by machine.
-      ...this.buildRunMachineContext(),
-      ...(legacyCompatibility ? { legacyCompatibilityJson: JSON.stringify(legacyCompatibility) } : {})
-    });
-    runLogger.log({
-      runId: instance.executionId,
-      workflowId: instance.scenarioId,
-      workerId: instance.instanceId,
-      browserWorkerId: slot.workerId,
-      event: "instance.start",
-      message: `Instance ${instance.instanceOrderNumber ?? 1}/${instance.totalInstances ?? 1} started.`
-    });
+    let runLogger: RunLogger | undefined;
+    let passiveTrace: PassiveCdpTrace | undefined;
+    let runError: string | undefined;
+    // AWKIT-RUN-006: hoisted so the finally can finalize the run even when SETUP threw.
+    let runStartedAtIso = new Date().toISOString();
+    let browserConfig: ReturnType<typeof resolveBrowserConfigurationForRun> | undefined;
+    let isolation: ReturnType<typeof resolveBrowserIsolation> | undefined;
+    try {
+      runLogger = new RunLogger(instance.paths.logs);
+      passiveTrace =
+        process.env.AWKIT_CDP_OBSERVATION === "0"
+          ? undefined
+          : new PassiveCdpTrace({
+              root: instance.paths.observation ?? join(instance.paths.storage, "observation"),
+              executionId: instance.executionId,
+              instanceId: instance.instanceId,
+              scenarioId: instance.scenarioId
+            });
+      if (passiveTrace) this.observationTraces.set(instance.instanceId, passiveTrace);
+      machine.transition("running", "instance dispatched with browser slot");
+      this.patchRuntime(instance.instanceId, { flowRunStatus: machine.status, browserWorkerId: slot.workerId });
+      // Reporting: run-summary fields. Queue wait is measured from run enqueue (runStartTimes) to
+      // dispatch; near-zero for the first instance, meaningful for later queued/concurrent ones.
+      runStartedAtIso = new Date().toISOString();
+      const enqueuedAtIso = this.runStartTimes.get(instance.executionId);
+      const queueWaitMs = enqueuedAtIso ? Math.max(0, Date.parse(runStartedAtIso) - Date.parse(enqueuedAtIso)) : undefined;
+      // Attribution for a run the validator only admitted because a flow holds a Legacy Compatibility
+      // grant (awkit-vbj, surfaced in the Run Detail drawer via awkit-5dn). Read from runContexts
+      // (set once in startRun) rather than threaded as a parameter, and snapshotted here at dispatch —
+      // never re-derived from the live grants table, since grants expire/get revoked.
+      const legacyCompatibility = this.runContexts.get(instance.executionId)?.profile.legacyCompatibility;
+      this.durableStore.upsertRun({
+        instanceId: instance.instanceId,
+        executionId: instance.executionId,
+        scenarioId: instance.scenarioId,
+        scenarioName: scenario.name,
+        triggerType: "manual",
+        status: "running",
+        flowRunStatus: machine.status,
+        startedAt: runStartedAtIso,
+        queueWaitMs,
+        // Observability: pressure state at dispatch (failure-at-pressure correlation, Phase 05).
+        pressureStateAtRun: this.adaptive.currentState,
+        // Phase B1: stamp the run with its machine context so reports can filter/compare by machine.
+        ...this.buildRunMachineContext(),
+        ...(legacyCompatibility ? { legacyCompatibilityJson: JSON.stringify(legacyCompatibility) } : {})
+      });
+      runLogger?.log({
+        runId: instance.executionId,
+        workflowId: instance.scenarioId,
+        workerId: instance.instanceId,
+        browserWorkerId: slot.workerId,
+        event: "instance.start",
+        message: `Instance ${instance.instanceOrderNumber ?? 1}/${instance.totalInstances ?? 1} started.`
+      });
 
-    const progress = this.createProgressReporter(instance.instanceId, flows, { runLogger, attempts, instance, slot });
+      const progress = this.createProgressReporter(instance.instanceId, flows, { runLogger, attempts, instance, slot });
 
     // Browser Resource Optimization: resolve this instance's browser runtime configuration ONCE from the
     // selected profile (env, default balanced == today's behaviour) + the workflow's static capabilities.
     // The default path yields normal routing, no launch-arg deltas, and today's trace mode.
-    const browserConfig = resolveBrowserConfigurationForRun(instance.config, flows, {
+    browserConfig = resolveBrowserConfigurationForRun(instance.config, flows, {
       machine: { logicalCpuCount: this.machineRunContext?.logicalCpuCount }
     });
     if (browserConfig.profileMode !== "balanced") {
-      runLogger.log({
+      runLogger?.log({
         runId: instance.executionId,
         workflowId: instance.scenarioId,
         workerId: instance.instanceId,
@@ -1429,12 +1457,12 @@ export class ExecutionEngine {
     // DEDICATED_BROWSER / PERSISTENT_BROWSER / HANDOFF_BROWSER). Resolved unconditionally so the run's
     // observability dimension is always recorded; the diagnostic is only LOGGED when the pool is on
     // (keeps the default path quiet), preserving the previous behaviour.
-    const isolation = resolveBrowserIsolation(instance.config, flows, {
+    isolation = resolveBrowserIsolation(instance.config, flows, {
       sharedPoolEnabled: this.browserPool.concurrencyLimits.useSharedBrowserPool,
       launchArgOverrides: browserConfig.launchArgOverrides
     });
     if (this.browserPool.concurrencyLimits.useSharedBrowserPool) {
-      runLogger.log({
+      runLogger?.log({
         runId: instance.executionId,
         workflowId: instance.scenarioId,
         workerId: instance.instanceId,
@@ -1463,7 +1491,7 @@ export class ExecutionEngine {
       ignoreHttpsErrors: instance.config.ignoreHttpsErrors,
       ignoreHttpsErrorsSource: instance.config.ignoreHttpsErrorsSource,
       onCertificateTrustBypass: (fields, message) =>
-        runLogger.log({
+        runLogger?.log({
           runId: instance.executionId,
           workflowId: instance.scenarioId,
           workerId: instance.instanceId,
@@ -1486,6 +1514,8 @@ export class ExecutionEngine {
       },
       cancellation: cancelSource.token,
       originClaims,
+      // AWKIT-RUN-001: real between-step pause support for this instance.
+      pauseGate,
       // Phase A5: only shared-eligible instances lease from the shared Chromium pool.
       sharedBrowserPool: shared ? this.sharedBrowserPool : undefined,
       // Phase A6: stagger expensive operations across every instance.
@@ -1505,9 +1535,7 @@ export class ExecutionEngine {
       }
     });
 
-    let runError: string | undefined;
-    try {
-      const result = await runner.executeScenario(
+    const result = await runner.executeScenario(
         scenario,
         {
           executionId: instance.executionId,
@@ -1562,7 +1590,7 @@ export class ExecutionEngine {
       const errorClass = classifyError(runError);
       const wasCancelled = cancelSource.token.cancelled || this.pool.get(instance.instanceId)?.status === "cancelled";
       machine.transition(wasCancelled ? "cancelled" : errorClass === "browser-crash" ? "crashed" : "failed", runError);
-      runLogger.log({
+      runLogger?.log({
         runId: instance.executionId,
         workerId: instance.instanceId,
         browserWorkerId: slot.workerId,
@@ -1594,12 +1622,14 @@ export class ExecutionEngine {
       if (claimTokens?.length) globalResourceLocks.releaseMany(claimTokens);
       for (const lease of durableLeases) await lease.release().catch(() => undefined);
       this.cancellationSources.delete(instance.instanceId);
+      // AWKIT-RUN-001: drop the pause gate (a parked waiter exits via its cancellation poll).
+      this.pauseGates.delete(instance.instanceId);
       if (cancelSource.token.cancelled) {
         this.durableStore.completeCancellation(instance.instanceId, new Date().toISOString());
       }
       const strayLocks = globalProfileLocks.releaseOwner(instance.instanceId);
       if (strayLocks > 0) {
-        runLogger.log({
+        runLogger?.log({
           runId: instance.executionId,
           workerId: instance.instanceId,
           event: "locks.releasedStray",
@@ -1628,8 +1658,8 @@ export class ExecutionEngine {
         observedPeakConcurrency: this.executionPeakConcurrency.get(instance.executionId),
         // Observability run dimensions + environmental summary (migration v4).
         headed: resolveHeaded(instance.config),
-        resourceProfile: browserConfig.profileMode,
-        isolationClass: isolation.isolationClass,
+        resourceProfile: browserConfig?.profileMode ?? "balanced",
+        isolationClass: isolation?.isolationClass,
         workloadWeight: this.instanceWeights.get(instance.instanceId) ?? this.instanceWeight(instance, flows),
         ...observation
       });
@@ -1660,7 +1690,7 @@ export class ExecutionEngine {
       this.locatorScopeKeys.delete(instance.instanceId);
 
       void this.durableStore.persistNow();
-      runLogger.log({
+      runLogger?.log({
         runId: instance.executionId,
         workerId: instance.instanceId,
         event: "instance.end",
@@ -1686,9 +1716,9 @@ export class ExecutionEngine {
         error: runError
       });
       if (artifactError) {
-        runLogger.log({ runId: instance.executionId, workerId: instance.instanceId, event: "artifacts.writeFailed", message: artifactError });
+        runLogger?.log({ runId: instance.executionId, workerId: instance.instanceId, event: "artifacts.writeFailed", message: artifactError });
       }
-      await runLogger.flush();
+      await runLogger?.flush();
     }
   }
 
@@ -1812,7 +1842,7 @@ export class ExecutionEngine {
             }
           }
 
-          extras.runLogger.log({
+          extras.runLogger?.log({
             runId: extras.instance.executionId,
             workflowId: extras.instance.scenarioId,
             flowId: event.flowId,
@@ -1906,10 +1936,13 @@ export class ExecutionEngine {
     if (instanceId === "all") {
       this.pool.list().forEach(i => {
         if (["starting", "running"].includes(i.status)) {
+          // AWKIT-RUN-001: hold the instance's between-step gate so dispatch actually stops.
+          this.pauseGates.get(i.instanceId)?.setPaused(true);
           this.pool.updateStatus(i.instanceId, "paused");
         }
       });
     } else {
+      this.pauseGates.get(instanceId)?.setPaused(true);
       this.pool.updateStatus(instanceId, "paused");
     }
   }
@@ -1917,6 +1950,8 @@ export class ExecutionEngine {
   public resumeInstance(instanceId: string): void {
     if (instanceId === "all") {
       this.pool.list().forEach(i => {
+        // AWKIT-RUN-001: release the between-step gate before flipping the label back.
+        this.pauseGates.get(i.instanceId)?.setPaused(false);
         if (i.status === "waitingForManualAction") {
           this.manualHandoffController.resume(i.executionId, i.instanceId);
           this.pool.update(i.instanceId, { status: "running", manualHandoff: undefined });
@@ -1928,6 +1963,7 @@ export class ExecutionEngine {
       });
     } else {
       const instance = this.pool.get(instanceId);
+      this.pauseGates.get(instanceId)?.setPaused(false);
       if (instance?.status === "waitingForManualAction") {
         this.manualHandoffController.resume(instance.executionId, instance.instanceId);
         this.pool.update(instanceId, { status: "running", manualHandoff: undefined });
@@ -1971,7 +2007,9 @@ export class ExecutionEngine {
     const instance = this.pool.get(instanceId);
     if (!instance) return;
     if (["completed", "failed", "cancelled"].includes(instance.status) && !this.activeInstanceRunners.has(instanceId)) {
-      this.pool.updateStatus(instanceId, "cancelled");
+      // AWKIT-RUN-003: a Stop on an already-terminal instance is a NO-OP. Rewriting a completed
+      // or failed status to `cancelled` here retroactively corrupted run history (durable store
+      // says passed, monitor said cancelled) and stamped a fresh endedAt onto finished work.
       return;
     }
 

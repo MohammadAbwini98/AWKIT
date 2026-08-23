@@ -19,6 +19,7 @@ import { TraceService, type TraceMode } from "./artifacts/TraceService";
 import type { OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
+import type { ExecutionPauseGate } from "./runtime/ExecutionPauseGate";
 import { ValueResolver } from "./ValueResolver";
 import { PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
@@ -99,6 +100,11 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   cancellation?: CancellationToken;
   /** Dynamic origin-claim tracker for this instance (Phase 3). */
   originClaims?: OriginClaimTracker;
+  /**
+   * AWKIT-RUN-001: engine-owned between-step pause gate. Awaited before every step so Pause
+   * actually halts dispatch instead of only relabelling the instance card.
+   */
+  pauseGate?: ExecutionPauseGate;
   /**
    * Browser Resource Optimization: effective trace mode from the resolved profile (honours the
    * AWKIT_TRACE_MODE env override). When omitted, TraceService falls back to its own env default —
@@ -653,8 +659,7 @@ export class PlaywrightRunner {
       this.options.originClaims,
       this.options.operationLimiters,
       this.options.oracleNodeRunner,
-      holder.popupIdentity
-    );
+      holder.popupIdentity, this.options.pauseGate);
 
     // ── Popup identity wiring (FR-C1.1) ─────────────────────────────────────
     // NOTE: no `"page"` observer is installed here. `runFlowWithChildren` is RECURSIVE (every
@@ -699,8 +704,7 @@ export class PlaywrightRunner {
         this.options.originClaims,
         this.options.operationLimiters,
         this.options.oracleNodeRunner,
-        holder.popupIdentity
-      );
+        holder.popupIdentity, this.options.pauseGate);
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };
 

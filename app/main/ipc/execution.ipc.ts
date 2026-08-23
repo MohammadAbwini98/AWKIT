@@ -99,6 +99,13 @@ export function registerExecutionIpc(): void {
   });
   ipcMain.handle("execution:stopInstance", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_STOP);
+    // AWKIT-RUN-003: refuse to stop an already-terminal instance instead of relabelling it
+    // cancelled with a fresh endedAt (history corruption). Active/queued work still stops.
+    const terminal = ["completed", "failed", "cancelled"];
+    const instance = executionEngine.getInstances().find((i) => i.instanceId === instanceId);
+    if (instance && terminal.includes(instance.status)) {
+      return { instanceId, state: `already-${instance.status}` };
+    }
     executionEngine.stopInstance(instanceId);
     return { instanceId, state: "stop-requested" };
   });

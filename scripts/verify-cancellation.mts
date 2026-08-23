@@ -9,7 +9,7 @@
  * (Browser-slot release on cancel is enforced by the engine's `finally` — the release path
  * itself is covered by verify-browser-pool; the engine cannot run under tsx/Electron-free.)
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PlaywrightRunner } from "@src/runner/PlaywrightRunner";
@@ -17,6 +17,7 @@ import { CancellationTokenSource, CancelledError } from "@src/runner/concurrency
 import { classifyError } from "@src/runner/runtime/ErrorClassifier";
 import { RetryPolicy } from "@src/runner/runtime/RetryPolicy";
 import { ManualHandoffController } from "@src/runner/ManualHandoffController";
+import { InstancePauseController } from "@src/runner/runtime/ExecutionPauseGate";
 import { globalProfileLocks } from "@src/profiles/ProfileLockManager";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
@@ -153,6 +154,132 @@ async function main(): Promise<void> {
   const action = await waitPromise;
   check("waiting handoff resolves with the cancel action (no hang, no corruption)", action === "cancel", String(action));
   check("pending handoff cleared after cancel", controller.getPending("e-x", "i-x") === undefined);
+
+  console.log("\nPart F — between-step pause gate halts dispatch; Stop interrupts a parked pause (AWKIT-RUN-001)");
+  {
+    // Controller semantics.
+    const gate = new InstancePauseController();
+    check("gate starts unpaused", gate.isPaused === false);
+    gate.setPaused(true);
+    let released = false;
+    const parked = gate.waitWhilePaused().then(() => { released = true; });
+    await sleep(400);
+    check("waitWhilePaused stays parked while the pause holds", released === false);
+    gate.setPaused(false);
+    await parked;
+    check("waitWhilePaused releases on resume", released === true);
+    const gate2 = new InstancePauseController();
+    gate2.setPaused(true);
+    let cancelledOut = false;
+    const parked2 = gate2.waitWhilePaused(() => true).then(() => { cancelledOut = true; });
+    await parked2;
+    check("a cancel during the pause breaks the wait without a resume", cancelledOut === true);
+    gate2.setPaused(false);
+
+    // LIVE wiring: a paused run executes nothing, and Stop ends it promptly. Two goto steps so
+    // the pre-step gate is the only thing that can hold dispatch.
+    const twoGotoFlow = {
+      id: "flow-pause",
+      name: "Pause flow",
+      nodes: [
+        { id: "s1", type: "start", name: "Start" },
+        { id: "g1", type: "goto", name: "Open blank", url: "about:blank" },
+        { id: "g2", type: "goto", name: "Open blank again", url: "about:blank" },
+        { id: "e", type: "end", name: "End" }
+      ],
+      edges: [
+        { id: "p1", source: "s1", target: "g1", type: "success" },
+        { id: "p2", source: "g1", target: "g2", type: "success" },
+        { id: "p3", source: "g2", target: "e", type: "success" }
+      ]
+    } as unknown as FlowProfile;
+    const pauseScenario = {
+      ...scenario,
+      flows: [{ flowId: "flow-pause", order: 1, required: true }]
+    } as unknown as ScenarioProfile;
+
+    const stopDuringPause = new CancellationTokenSource();
+    const heldGate = new InstancePauseController();
+    heldGate.setPaused(true);
+    const pausedRunner = new PlaywrightRunner({
+      flows: [twoGotoFlow],
+      productionOffline: false,
+      resourcesRoot,
+      cancellation: stopDuringPause.token,
+      pauseGate: heldGate
+    });
+    let finishedWhilePaused = false;
+    const parkedRun = pausedRunner
+      .executeScenario(pauseScenario, makeContext(root, "i-pause-stop"), makeConfig("i-pause-stop"))
+      .then((r) => { finishedWhilePaused = true; return r; });
+    await sleep(2_500);
+    check("a paused run executes no further work (run still unsettled after 2.5s)", finishedWhilePaused === false);
+    const pauseStartedAt = Date.now();
+    await stopDuringPause.cancel("stop while paused");
+    const stoppedResult = await parkedRun;
+    const stopElapsedMs = Date.now() - pauseStartedAt;
+    check("Stop interrupts a parked pause promptly (no 10-minute hang)", stopElapsedMs < 15_000, `elapsed ${stopElapsedMs}ms`);
+    check("the interrupted pause fails the run as cancelled work", stoppedResult.status === "failed");
+
+    const resumeGate = new InstancePauseController();
+    resumeGate.setPaused(true);
+    const resumedRunner = new PlaywrightRunner({
+      flows: [twoGotoFlow],
+      productionOffline: false,
+      resourcesRoot,
+      cancellation: new CancellationTokenSource().token,
+      pauseGate: resumeGate
+    });
+    const resumedRun = resumedRunner.executeScenario(pauseScenario, makeContext(root, "i-pause-resume"), makeConfig("i-pause-resume"));
+    await sleep(800);
+    resumeGate.setPaused(false);
+    const resumedResult = await resumedRun;
+    check("resume releases the gate and the run completes normally", resumedResult.status === "passed", resumedResult.error);
+  }
+
+  console.log("\nPart G — engine/IPC wiring source guards (RUN-001/003/006/007)");
+  {
+    const engineSource = await readFile("src/runner/ExecutionEngine.ts", "utf8");
+    const stepExecutorSource = await readFile("src/runner/StepExecutor.ts", "utf8");
+    const runnerSource = await readFile("src/runner/PlaywrightRunner.ts", "utf8");
+    const ipcSource = await readFile("app/main/ipc/execution.ipc.ts", "utf8");
+
+    // RUN-001 wiring.
+    check(
+      "StepExecutor awaits the pause gate at the between-step seam (right after throwIfCancelled)",
+      /throwIfCancelled\(\);\s*\n\s*\/\/ AWKIT-RUN-001[\s\S]{0,200}?await this\.pauseGate\?\.waitWhilePaused/.test(stepExecutorSource)
+    );
+    check("PlaywrightRunner wires options.pauseGate into both StepExecutor constructions", (runnerSource.match(/this\.options\.pauseGate/g) ?? []).length === 2);
+    check("ExecutionEngine owns per-instance pause gates", engineSource.includes("private readonly pauseGates = new Map<string, InstancePauseController>()"));
+    check("pauseInstance holds the gate before relabelling", /setPaused\(true\)/.test(engineSource));
+    check("resumeInstance releases the gate", /setPaused\(false\)/.test(engineSource));
+    check("the gate is dropped in the instance finally", engineSource.includes("this.pauseGates.delete(instance.instanceId);"));
+
+    // RUN-003.
+    check(
+      "cancelOne leaves terminal instances untouched (no retroactive relabel)",
+      /includes\(instance\.status\) && !this\.activeInstanceRunners\.has\(instanceId\)\)\s*\{\s*\n\s*\/\/ AWKIT-RUN-003[\s\S]{0,420}?return;/.test(engineSource)
+    );
+    check("execution.ipc refuses Stop on terminal instances", ipcSource.includes("already-${instance.status}"));
+
+    // RUN-007.
+    check(
+      "admission counts manual-handoff/paused instances as capacity-occupying",
+      /\["starting", "running", "waitingForManualAction", "paused"\]/.test(engineSource)
+    );
+
+    // RUN-006: fallible setup must sit INSIDE the try whose finally releases the slot.
+    const innerStart = engineSource.indexOf("private async runInstanceInner");
+    const nextMethod = engineSource.indexOf("private createProgressReporter", innerStart) > 0 ? engineSource.indexOf("\n  private ", innerStart + 10) : -1;
+    const body = engineSource.slice(innerStart, nextMethod > 0 ? nextMethod : undefined);
+    const tryAt = body.indexOf("try {");
+    const upsertInSetup = body.indexOf("this.durableStore.upsertRun({");
+    const runLoggerAt = body.indexOf("runLogger = new RunLogger");
+    const finallyAt = body.indexOf("} finally {");
+    check("runInstanceInner has its setup try BEFORE any durable upsert", tryAt > -1 && upsertInSetup > tryAt && runLoggerAt > tryAt && finallyAt > upsertInSetup, `try@${tryAt} logger@${runLoggerAt} upsert@${upsertInSetup} finally@${finallyAt}`);
+    check("setup-failure guard: RunLogger construction is optional-chained at every use site", !/(?<![?.])runLogger\.log\(/.test(body.slice(runLoggerAt)));
+    check("the finally flushes the optional run logger", body.includes("await runLogger?.flush();"));
+  }
 
   await rm(root, { recursive: true, force: true }).catch(() => undefined);
   console.log(`\nResult: ${passed} passed, ${failed} failed.`);

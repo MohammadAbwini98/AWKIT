@@ -25,6 +25,7 @@ import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
 import { interactionTrialMode, isValidInteractionExecutionDecision } from "@src/profiles/interactionPrerequisiteDecision";
 import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
+import type { ExecutionPauseGate } from "./runtime/ExecutionPauseGate";
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
 import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
@@ -166,7 +167,12 @@ export class StepExecutor {
      * instance to the parent flow, every nested child flow, and every parallel-branch executor, so
      * exactly one owner assigns identity per BrowserContext. Omitted only in standalone tests.
      */
-    popupIdentity?: PopupIdentityRegistry
+    popupIdentity?: PopupIdentityRegistry,
+    /**
+     * AWKIT-RUN-001: between-step pause gate owned by the engine. Awaited at the same seam as
+     * cancellation so Pause halts BEFORE the next side effect instead of relabelling the card.
+     */
+    private readonly pauseGate?: ExecutionPauseGate
   ) {
     this.activePage = page;
     this.rootPage = page;
@@ -328,6 +334,9 @@ export class StepExecutor {
     try {
       // Hard cancellation: never start (or continue past) a step after cancel was requested.
       this.cancellation?.throwIfCancelled();
+      // AWKIT-RUN-001: hold BEFORE the next side effect while an operator Pause is active. A
+      // cancel during the pause breaks the wait immediately (the check above re-fires next loop).
+      await this.pauseGate?.waitWhilePaused(() => this.cancellation?.cancelled ?? false);
       await this.assertBrowserRuntimeAlive?.(`before step ${step.name}`);
       await this.assertActivePageAlive(`before step ${step.name}`);
       this.guardInteractionPrerequisiteDecision(step);
