@@ -16,13 +16,19 @@
  *
  * Framework-agnostic: no Electron, no React, no Node built-ins.
  */
-import type { StepType } from "../profiles/FlowProfile";
+import type { FlowStep, StepType } from "../profiles/FlowProfile";
 
 export interface StepRequirement {
   /** Step cannot resolve a target element without a `locator`. */
   readonly requiresLocator: boolean;
   /** Step cannot act without a `value` / `valueSource` (or `url` for `goto`, `flowId` for `runFlow`). */
   readonly requiresValue: boolean;
+  /**
+   * AWKIT-FLO-001: a `closePopup` step throws at run time unless it names the popup to close
+   * (`config.popupAlias` or `step.pageAlias`). The shared validator demands the same thing the
+   * executor does instead of waving an unauthorable node through as "Runnable".
+   */
+  readonly requiresPopupAlias?: boolean;
 }
 
 /** Every `StepType`, exhaustively. Mirrors the designer catalog's `requiresLocator`/`requiresValue`. */
@@ -79,7 +85,7 @@ export const STEP_REQUIREMENTS: Record<StepType, StepRequirement> = {
 
   // ---- popup ----
   switchToPopup: { requiresLocator: false, requiresValue: false },
-  closePopup: { requiresLocator: false, requiresValue: false },
+  closePopup: { requiresLocator: false, requiresValue: false, requiresPopupAlias: true },
   switchToMainPage: { requiresLocator: false, requiresValue: false },
 
   // ---- data source ----
@@ -99,4 +105,15 @@ export function isKnownStepType(type: string): type is StepType {
 /** Requirements for a step type. Unknown literals require nothing — they fail their own rule. */
 export function stepRequirement(type: StepType): StepRequirement {
   return STEP_REQUIREMENTS[type] ?? { requiresLocator: false, requiresValue: false };
+}
+
+/**
+ * Whether a `closePopup` step names the popup it closes (AWKIT-FLO-001).
+ *
+ * The executor reads `config.popupAlias ?? step.pageAlias` and THROWS when both are missing, so
+ * validation must refuse the same shape. One shared definition here; the designer registry's
+ * validate mirrors it over designer node data.
+ */
+export function hasClosePopupTarget(step: FlowStep): boolean {
+  return Boolean(step.config?.popupAlias?.trim() || step.pageAlias?.trim());
 }

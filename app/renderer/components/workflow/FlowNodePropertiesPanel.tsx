@@ -1531,6 +1531,27 @@ export function FlowNodePropertiesPanel({
             </details>
           ) : null}
 
+          {has("popup") ? (
+            <details className="property-group" open>
+              <summary>Popup Target</summary>
+              <section className="property-section">
+                <label>
+                  Popup alias
+                  <input
+                    value={data.pageAlias ?? ""}
+                    placeholder="popup-1"
+                    onChange={(e) => set({ pageAlias: e.target.value || undefined })}
+                  />
+                </label>
+                <span className="form-message">
+                  The alias of the popup window this step closes. Recorder-produced steps carry it automatically; for a
+                  hand-authored Close Popup, use the same alias the popup was opened/switched to. The step fails at run
+                  time without one.
+                </span>
+              </section>
+            </details>
+          ) : null}
+
           {has("oracle") ? (
             <OracleNodeSection
               oracle={data.oracle ?? defaultOracleNodeConfig()}

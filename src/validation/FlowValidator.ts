@@ -52,7 +52,7 @@ import {
   isValidInteractionExecutionDecision
 } from "../profiles/interactionPrerequisiteDecision";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
-import { isKnownStepType, stepRequirement } from "./StepRequirements";
+import { hasClosePopupTarget, isKnownStepType, stepRequirement } from "./StepRequirements";
 import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
 import { assertionConfigDefects, assertionStepContract, hasAssertionExpectedValue } from "./AssertionStepContract";
 import { hasScrollDistance, scrollConfigDefects, scrollStepContract } from "./ScrollStepContract";
@@ -596,6 +596,16 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
         );
       }
     }
+    // AWKIT-FLO-001: the executor throws without a popup alias, so validation refuses the same
+    // shape instead of admitting an authorable-but-guaranteed-to-throw node.
+    if (step.type === "closePopup" && !hasClosePopupTarget(step)) {
+      collect.node(
+        "missingRequiredValue",
+        step.id,
+        `Step ${labelFor(step, ambiguousNames)} (closePopup) does not name the popup to close: record the popup step, or set its alias in the designer.`
+      );
+    }
+
     if (requirement.requiresValue && !hasRequiredValue(step)) {
       // A wait names the input it is actually missing — "requires a value or value source" describes
       // neither a duration nor the text a `textVisible` wait looks for.

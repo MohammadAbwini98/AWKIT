@@ -29,6 +29,8 @@ import {
   type FlowDesignerNode
 } from "../app/renderer/components/workflow/flowProfileMapping";
 import { getNodeDefinition } from "../app/renderer/components/workflow/flowNodeRegistry";
+import { stepRequirement } from "../src/validation/StepRequirements";
+import { validateFlowDefinition, errorsOf } from "../src/validation/FlowValidator";
 import { readFile } from "node:fs/promises";
 import type { FlowProfile, FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
 import { createLocatorApprovalBinding } from "../src/profiles/locatorApproval";
@@ -929,6 +931,38 @@ console.log("\nDrag: source + drop-target locators both survive the round-trip (
   check("drag validation passes once a drop target is set", dragDef.validate(loaded).length === 0);
   // Visibility: the dragTarget editor section is exclusive to drag nodes (the panel gates on this).
   check("the dragTarget editor section is exclusive to drag nodes", dragDef.sections.includes("dragTarget") && !getNodeDefinition("click").sections.includes("dragTarget") && !getNodeDefinition("fill").sections.includes("dragTarget"));
+}
+
+console.log("\nClose Popup is authorable AND runnable — alias contract (AWKIT-FLO-001):");
+{
+  // The executor throws without config.popupAlias ?? step.pageAlias; the shared validator and the
+  // designer registry must both refuse the empty shape, and the panel must provide the field.
+  const def = getNodeDefinition("closePopup");
+  check("closePopup carries a popup alias section", def.sections.includes("popup"), def.sections.join(","));
+  const empty = fromFlowStep(baseStep({ type: "closePopup", name: "Close" }));
+  check("registry validation refuses an alias-less Close Popup", def.validate(empty).length > 0, json(def.validate(empty)));
+  const withAliasData = { ...empty, pageAlias: "timer-popup" };
+  check("registry validation accepts a node with a pageAlias", def.validate(withAliasData).length === 0, json(def.validate(withAliasData)));
+  const recordedConfig = fromFlowStep(baseStep({ type: "closePopup", name: "Close", config: { popupAlias: "rec-1" } }));
+  check("registry validation accepts a Recorder-authored config.popupAlias", def.validate(recordedConfig).length === 0, json(def.validate(recordedConfig)));
+
+  check("the shared requirement table marks closePopup as needing a popup alias", stepRequirement("closePopup").requiresPopupAlias === true);
+
+  const flowWithBareClose: FlowProfile = {
+    id: "flo-flow",
+    name: "FLO flow",
+    version: 1,
+    nodes: [baseStep({ id: "cp-bad", type: "closePopup", name: "Close" }), baseStep({ id: "cp-ok", type: "closePopup", name: "Close ok", config: { popupAlias: "p1" } })],
+    edges: []
+  };
+  const issues = errorsOf(validateFlowDefinition(flowWithBareClose));
+  const badHit = issues.some((issue) => issue.nodeId === "cp-bad" && issue.code === "missingRequiredValue");
+  const okClean = !issues.some((issue) => issue.nodeId === "cp-ok");
+  check("FlowValidator flags an alias-less closePopup as missingRequiredValue", badHit, json(issues));
+  check("FlowValidator leaves a closePopup WITH an alias clean", okClean, json(issues.filter((i) => i.nodeId === "cp-ok")));
+
+  const panelSource2 = await readFile("app/renderer/components/workflow/FlowNodePropertiesPanel.tsx", "utf8");
+  check("the designer exposes a Popup Target alias editor bound to pageAlias", panelSource2.includes('has("popup")') && /pageAlias/.test(panelSource2.slice(panelSource2.indexOf('has("popup")'), panelSource2.indexOf('has("popup")') + 900)));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

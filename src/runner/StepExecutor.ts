@@ -2297,11 +2297,16 @@ export class StepExecutor {
     const sessionId = capture.sessionId;
     if (!sessionId) throw new Error("Session capture did not return a session id.");
 
-    // 4. Poll until the user finishes and closes the browser.
+    // 4. Poll until the user finishes and closes the browser — or Stop is requested.
     const timeoutMs = step.timeoutMs && step.timeoutMs > 0 ? step.timeoutMs : 10 * 60_000;
     const deadline = Date.now() + timeoutMs;
     for (;;) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // AWKIT-RUN-008: Stop must interrupt this wait. The poll used to run for up to the full
+      // timeout (default 10 minutes) ignoring cancellation, because the automation browser is
+      // already closed here — there was nothing else to kill.
+      this.cancellation?.throwIfCancelled();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      this.cancellation?.throwIfCancelled();
       const status = this.sessionService.getStatus();
       if (status.status === "error") throw new Error(`Session capture failed: ${status.error ?? "unknown error"}`);
       if (!status.active || status.status === "closed") break;
@@ -2309,7 +2314,11 @@ export class StepExecutor {
     }
 
     // 5. Race-condition mitigation: wait for the async profile file write, then verify.
+    // AWKIT-RUN-008: re-check BEFORE any relaunch work so a cancelled run never swaps a browser
+    // in (the old path ran browserRestarter({ newUserDataDir }) even after Stop).
+    this.cancellation?.throwIfCancelled();
     await new Promise((resolve) => setTimeout(resolve, 500));
+    this.cancellation?.throwIfCancelled();
     const finalProfile = await this.sessionService.getById(sessionId);
     if (!finalProfile || finalProfile.status !== "ready") {
       throw new Error("Captured session did not reach a 'ready' state.");
@@ -2691,10 +2700,12 @@ export class StepExecutor {
     }
 
     if (!this.compareValues(actual, expected, operator)) {
-      // Compare the RAW value, report a masked one. A storage value is far more likely than an
-      // element's text to be a session blob, and the failure message lands in the run report.
-      const reported = assertionType === "storage" ? this.evidenceMasker.maskText(actual) : actual;
-      throw new Error(`Assertion failed: "${reported}" ${operator} "${expected}".`);
+      // Compare RAW values, report MASKED ones (AWKIT-RUN-011). `expected` resolves secret-type
+      // value sources through the DPAPI store just like `actual` can, so masking only one side
+      // threw the raw secret into the run report. Both sides go through the same masker now.
+      const reportedActual = assertionType === "storage" ? this.evidenceMasker.maskText(actual) : actual;
+      const reportedExpected = this.evidenceMasker.maskText(expected);
+      throw new Error(`Assertion failed: "${reportedActual}" ${operator} "${reportedExpected}".`);
     }
   }
 

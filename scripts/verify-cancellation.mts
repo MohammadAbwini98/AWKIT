@@ -281,7 +281,25 @@ async function main(): Promise<void> {
     check("the finally flushes the optional run logger", body.includes("await runLogger?.flush();"));
   }
 
-  await rm(root, { recursive: true, force: true }).catch(() => undefined);
+    // AWKIT-RUN-008: the manual-login poll must be cancellable and must not relaunch after cancel.
+    {
+      const stepExecutorSource2 = await readFile("src/runner/StepExecutor.ts", "utf8");
+      const pollStart = stepExecutorSource2.indexOf("4. Poll until the user finishes and closes the browser");
+      const relaunchAt = stepExecutorSource2.indexOf("6. Resume automation against the newly captured profile directory");
+      const waitBody = stepExecutorSource2.slice(pollStart, relaunchAt > 0 ? relaunchAt : undefined);
+      const throwCount = (waitBody.match(/throwIfCancelled\(\)/g) ?? []).length;
+      check(
+        "manual-login wait checks cancellation inside the poll loop (before and after each tick)",
+        throwCount >= 3 && /for \(;;\)\s*\{[\s\S]*?throwIfCancelled/.test(waitBody),
+        `throwIfCancelled occurrences in wait+verify region: ${throwCount}`
+      );
+      check(
+        "cancellation is re-checked BEFORE the post-wait browser relaunch",
+        /throwIfCancelled\(\);\s*\n\s*await new Promise\(\(resolve\) => setTimeout\(resolve, 500\)\);\s*\n\s*this\.cancellation\?\.throwIfCancelled\(\);/.test(stepExecutorSource2)
+      );
+    }
+
+    await rm(root, { recursive: true, force: true }).catch(() => undefined);
   console.log(`\nResult: ${passed} passed, ${failed} failed.`);
   if (failed > 0) process.exit(1);
 }

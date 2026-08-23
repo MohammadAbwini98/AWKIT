@@ -39,6 +39,7 @@ export type PropertySection =
   | "session"
   | "protectedLogin"
   | "reuseSession"
+  | "popup"
   | "oracle"
   | "execution"
   | "output";
@@ -216,8 +217,15 @@ const META: Record<StepType, RegistryMeta> = {
   },
   closePopup: {
     category: "navigation",
-    sections: ["execution"],
-    executable: true
+    // AWKIT-FLO-001: the executor throws without a popup alias, so the node carries an alias
+    // section (fed by the same alias a `switchToPopup` step targets) and validates it — draft
+    // until a popup is named, never "Runnable" while guaranteed to throw.
+    sections: ["popup", "execution"],
+    executable: true,
+    validate: (d) =>
+      d.pageAlias?.trim() || (typeof d.configOriginal?.popupAlias === "string" && d.configOriginal.popupAlias.trim())
+        ? []
+        : ["Close Popup needs the popup to close. Record the popup (or type its alias below), or use Switch to Main Page instead."]
   },
   switchToMainPage: {
     category: "navigation",

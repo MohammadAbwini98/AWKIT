@@ -29,6 +29,7 @@ import { MemoryRunnerLogger } from "@src/runner/RunnerResult";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 import { toFlowStep, fromFlowStep } from "../app/renderer/components/workflow/flowProfileMapping";
+import { registerSecretValues } from "@src/reports/SecretMasker";
 
 let passed = 0;
 let failed = 0;
@@ -120,6 +121,24 @@ async function main(): Promise<void> {
   // dead config behind that a later reader could act on.
   const textStep: FlowStep = { id: "d2", type: "assertText", name: "d2", locator: { strategy: "id", value: "honest" }, config: { assertionType: "text", comparisonOperator: "equals", expectedValue: "Active" } };
   check("[D2] a text assertion does not gain an attributeName", toFlowStep(asNode(textStep), []).config?.attributeName === undefined);
+
+  console.log("\n[E] secret-backed expectations never leak into failure messages (AWKIT-RUN-011)");
+  {
+    const SECRET = "S3cret-Token!"; // 13 chars: below the looksLikeSecret heuristic, so ONLY literal registration masks it.
+    registerSecretValues([SECRET]);
+    const secretCtx = { ...ctx, secrets: { API_TOKEN: SECRET } } as unknown as InstanceExecutionContext;
+    await page.setContent(FIXTURE, { waitUntil: "load" });
+    const secretExec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(secretCtx), secretCtx, undefined, new MemoryRunnerLogger());
+    const result = await secretExec.execute({
+      id: "e1", type: "assertText", name: "secret expectation",
+      locator: { strategy: "id", value: "honest" },
+      valueSource: { type: "secret", secretName: "API_TOKEN" },
+      config: { assertionType: "text", comparisonOperator: "equals", expectedValue: "" }
+    });
+    check("[E1] a mismatching secret-backed assertion still fails", result.status === "failed", JSON.stringify(result));
+    check("[E2] ...and the error does NOT contain the raw resolved secret", !(result.error ?? "").includes(SECRET), result.error);
+    check("[E3] ...the expected side is masked in the report", /\[masked\]/.test(result.error ?? ""), result.error);
+  }
 
   await browser.close();
   console.log(`\n${passed} passed, ${failed} failed`);
