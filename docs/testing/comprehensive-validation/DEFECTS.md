@@ -367,25 +367,6 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 ---
 
-### AWKIT-RUN-002 — All instances of one run share a single `runtimeInputs` object
-
-- **Classification:** Product defect (cross-instance data isolation)
-- **Severity:** S2 / Under concurrent execution, one instance's loop-connector parameter writes are visible to sibling instances' `${runtimeInputs.*}` expressions for the duration of the loop — wrong values can be filled/submitted with no error
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Runner / Instances
-- **Affected area:** `src/instances/InstanceManager.ts:64` (same reference assigned to every created instance); writers `src/runner/FlowExecutor.ts:392,412`, `src/runner/PlaywrightRunner.ts:362,378`; reader `src/runner/ValueResolver.ts:19`
-- **Detected by:** Independent whole-repository code review
-
-`createInstancesForRun` builds N instances inside one `Array.from({ ... })` closing over one
-`runtimeInputs` object; loop connectors mutate it in place (with save/restore around each
-iteration, which narrows but does not close the window). Fix direction: per-instance shallow copy
-at creation or copy-on-write at dispatch.
-
----
-
----
-
 ---
 
 ### AWKIT-REC-037 — The Recorder's preserved draft is unreachable in the UI, and starting a recording destroys it
@@ -723,6 +704,29 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-RUN-002 — All instances of one run share a single `runtimeInputs` object
+
+- **Classification:** Product defect (cross-instance data isolation)
+- **Severity:** S2 / Under concurrent execution, one instance's loop-connector parameter writes are visible to sibling instances' `${runtimeInputs.*}` expressions for the duration of the loop — wrong values can be filled/submitted with no error
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in a911cea**
+- **Owner routing:** Runner / Instances
+- **Affected area:** `src/instances/InstanceManager.ts:64` (same reference assigned to every created instance); writers `src/runner/FlowExecutor.ts:392,412`, `src/runner/PlaywrightRunner.ts:362,378`; reader `src/runner/ValueResolver.ts:19`
+- **Detected by:** Independent whole-repository code review
+
+`createInstancesForRun` builds N instances inside one `Array.from({ ... })` closing over one
+`runtimeInputs` object; loop connectors mutate it in place (with save/restore around each
+iteration, which narrows but does not close the window). Fix direction: per-instance shallow copy
+at creation or copy-on-write at dispatch.
+
+---
+
+---
+
+- **Evidence after fix:** `verify:concurrency` 84/84 with new Part K: 4 instances created from one template, all own DISTINCT runtimeInputs references (Set-cardinality === n), divergent writes on instances 1 and 2 stay invisible to siblings AND the run-level template. Mutation reverting to the shared reference → exit 1.
+
+---
+
 ### AWKIT-RUN-010 — Scenario flow-input bindings are accepted by designers/validation but never executed
 
 - **Classification:** Product defect (declared feature has no runtime implementation)
