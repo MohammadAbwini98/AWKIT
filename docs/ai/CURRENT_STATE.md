@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## Third-pass codebase review filed 12 more defects; documentation-only (2026-08-23)
+
+A third independent, evidence-quoted review pass deduplicated against both committed passes and
+filed **twelve new open defects** in DEFECTS.md: `AWKIT-SEC-003` (P1 — Oracle settings/drivers/
+Java IPC mutators gated only by `assertTrustedSender`: pre-auth chain to binary execution, JAR
+load, and secret-vault writes), `AWKIT-REC-038` (P1 — type-then-Enter records a trailing
+duplicate Fill that replays against the post-submission page), `AWKIT-SEC-004` (protected-login
+handoff can be disabled machine-wide by an unauthenticated `settings:update`),
+`AWKIT-SEC-005` (execution-time data-source reads bypass §14 confinement), `AWKIT-DUR-002`
+(transient secret-vault read failure silently empties it; next write destroys all secrets),
+`AWKIT-DUR-003` (recorder draft bare non-atomic writes + crash-flush/debounce race),
+`AWKIT-REC-039` (return-to-main-tab ignores its URL hint; wrong tab at ≥2 popups),
+`AWKIT-SEC-006` (packaged builds honor `AWKIT_SESSION_IDLE_MS`/`AWKIT_REAUTH_WINDOW_MS` —
+contradicting the "dev/test only" claim recorded below at the 2026-07-18 idle-lock section),
+and `AWKIT-REC-040..043` (smart-wait cross-page leakage; downloads and scroll never captured;
+upload steps unrunnable by construction). KNOWN_ISSUES gained the settings unknown-key-pruning
+policy asymmetry and the WFB-002-widened `scenario:save` converter delta. Runner areas were not
+re-hunted: `RUN-001..011` cover them and an execution-pause-gate WIP was in flight in the
+working tree at review time. No code was changed by this pass. The comprehensive-validation
+ledger remains **64 PASS / 2 NOT RUN / 0 BLOCKED**; the new defects are review findings, not
+ledger cases.
+
 ## Second independent review pass corroborated the 2026-08-23 review and filed its delta (documentation-only)
 
 A second read-only review pass, executed independently of the first (which landed as `bbe9f76`

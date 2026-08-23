@@ -46,6 +46,24 @@ no renderer consumer: preload exposes `instances.*` / `runtimeInputs.*` / `scena
 runtimeInput ones carry no permission assertion — see AWKIT-SEC-002), stores still seed
 `default-concurrent-profile`, and `scenario:save` would persist through the lossy reverse
 converter if ever bound. Delete or finish; half-alive surface is worse than absence.
+Third-pass delta (2026-08-23): the WFB-002 fix widened the latent loss —
+`scenarioToWorkflowProfile` (`src/profiles/WorkflowProfile.ts:187-226`) still drops
+`execution.continueOnOptionalFlowFailure`, `execution.takeScreenshotOnFailure`, `runtimeInputs`,
+`dataSource`, `security`, `createdAt`/`updatedAt`, per-node `retryPolicy`/`failurePolicy`/`size`,
+and flattens `inputBindings` to static/runtime strings, so any future consumer of
+`scenario:save` would revert the newly persisted failure-policy fields to defaults. The channel
+remains renderer-unreachable (`preload` exposes `scenario:list` only).
+
+### Settings store prunes unknown keys on every read — deliberate, but asymmetric with the profile stores and unrecorded as a policy
+
+`uiSettings.ts` `retainKnownKeys`/`pruneUnknownSettings` delete any key not in the schema
+template on every read, and every settings update rewrites the pruned object — so unknown
+compatible fields (written by a newer version sharing `%LOCALAPPDATA%/SpecterStudio`, or arriving
+via `settings:import`) are permanently erased by the next mundane write. `verify:settings-e2e`
+SET-017 pins this as intended, and dynamic maps are correctly exempted — but it is the opposite
+of the profile stores' byte-for-byte unknown-field preservation and of the stated schema rule.
+Recorded here (third-pass 2026-08-23) so the asymmetry gets an explicit DECISIONS.md entry:
+either document the settings exception or switch to retention.
 
 ### Licensing depth: the signed entitlement dimension is decorative
 

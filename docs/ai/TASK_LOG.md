@@ -4,6 +4,27 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+---
+
+## 2026-08-23 - opencode - third-pass codebase review: 12 defects filed, documentation only
+
+- **Objective:** independent whole-repository review (architecture, persistence, runner, recorder,
+  security, licensing, offline, UI, tests); document findings without fixing anything.
+- **Method:** four parallel subsystem reviews (execution engine, persistence/migrations, security/
+  IPC, recorder semantics) plus cross-cutting probes; every candidate re-verified against current
+  HEAD and deduplicated against the two committed review passes (`bbe9f76`, `ae8512a`) and the
+  existing DEFECTS/KNOWN_ISSUES inventory. Runner areas intentionally not re-hunted (covered by
+  RUN-001..011; an execution-pause-gate WIP was in flight in the working tree).
+- **Filed in DEFECTS.md (12):** SEC-003 (P1, Oracle settings IPC pre-auth code-exec chain),
+  REC-038 (P1, type+Enter duplicate Fill breaks replay), SEC-004 (P2, ungated
+  `ignoreProtectedLoginDetection`), SEC-005 (P2, execution data-source confinement bypass),
+  DUR-002 (P2, secret-vault read-reset mass loss), DUR-003 (P2, recorder draft torn-write/race),
+  REC-039 (P2, wrong-tab switch at ≥2 popups), SEC-006 (P3, packaged env overrides + doc drift),
+  REC-040/041/042/043 (P3, smart-wait page scoping, downloads, scroll, upload dead-end).
+- **KNOWN_ISSUES.md:** added settings unknown-key-pruning policy asymmetry (SET-017-pinned,
+  needs DECISIONS entry) and the WFB-002-widened `scenario:save` converter delta.
+- **Boundaries:** no product source, test, verifier, script, or config file modified; docs only.
+
 ## 2026-08-23 - opencode - Second independent review pass; filed the delta the first pass missed (documentation-only)
 
 - **Context:** a parallel agent's review landed as `bbe9f76` while this pass was in flight. This

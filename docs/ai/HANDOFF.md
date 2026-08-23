@@ -1,5 +1,66 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-23) - third-pass codebase review: 12 new defects filed (2×P1, 5×P2, 5×P3); no code changed
+
+### Transfer
+
+- **Ledger unchanged at 64 PASS / 2 NOT RUN / 0 BLOCKED** — the new findings are review records,
+  not validation-ledger cases. Tracker cardinality unchanged.
+- **This was a documentation-only review.** No source, test, verifier, script, or config file was
+  modified. Twelve new evidence-quoted defects were filed in DEFECTS.md (third 2026-08-23 pass,
+  deduplicated against the two committed review passes): **`AWKIT-SEC-003` (P1)** Oracle
+  settings/drivers/Java IPC gated only by `assertTrustedSender` — pre-auth chain to `execFile`
+  binary probe, attacker-JAR load, and secret-vault writes; **`AWKIT-REC-038` (P1)** type+Enter
+  records a trailing duplicate Fill that replays against the post-submission page
+  (login-with-Enter flows fail); **`AWKIT-SEC-004`** unauthenticated `settings:update` can persist
+  `recorder.ignoreProtectedLoginDetection`, disabling protected-login handoff machine-wide;
+  **`AWKIT-SEC-005`** execution-time data-source reads bypass §14 confinement (Operator can read
+  runtime-root JSON); **`AWKIT-DUR-002`** a transient secret-vault read failure silently empties
+  it and the next `set()` destroys every stored secret; **`AWKIT-DUR-003`** recorder draft uses
+  bare non-atomic writes with a crash-flush/debounce race; **`AWKIT-REC-039`** return-to-main-tab
+  ignores its URL hint and switches wrong at ≥2 popups; **`AWKIT-SEC-006`** (P3) packaged builds
+  honor `AWKIT_SESSION_IDLE_MS`/`AWKIT_REAUTH_WINDOW_MS`, contradicting CURRENT_STATE's
+  "dev/test only" claim; **`AWKIT-REC-040..043`** (P3) smart-wait cross-page leakage, downloads
+  never captured, scroll never captured, upload steps unrunnable by construction.
+- **Concurrent work in flight at review time — preserve and do not confuse with defects:**
+  during this review local `main` advanced past the expected checkpoint with the two committed
+  review passes (`bbe9f76`, `ae8512a`), fix batches with closure evidence (`5ba4bf7`+`e1f5144`
+  MAP-002..005, `63959fa`+`f0f8069` WFB-001/002, `a911cea`+`05c6aab` RUN-002/004/005/009/010),
+  and an **uncommitted durability-fix WIP** addressing the second pass's findings
+  (`SqliteRuntimeStore.ts` → DUR-001, `SessionCaptureService.ts` → SES-004, `uiSettings.ts` →
+  SET-007, plus their verifier updates). Earlier in the pass an execution-pause-gate WIP
+  (`src/runner/runtime/ExecutionPauseGate.ts` + runner/IPC edits) was also present. Runner areas
+  were deliberately NOT re-hunted: `RUN-001..011` cover them and in-flight fixes would make any
+  fresh finding stale.
+
+### Highest-priority implementation queue
+
+1. **SEC-003** (P1): add `assertSenderPermission(SETTINGS_EDIT)` to all mutating
+   `oracle:profiles/drivers/java` handlers; pre-auth + Viewer probes in `verify:e2e-rbac`.
+   Independent of everything else.
+2. **REC-038** (P1): Enter/Escape as value-preserving keys in the recorder echo rule; mock-site
+   type+Enter scenario asserted at sequence level AND replayed. Independent.
+3. **SEC-004** (P2): add `recorder.ignoreProtectedLoginDetection` to the substantive-settings
+   gate; authz probe. Trivially independent; pairs conceptually with SEC-003.
+4. **SEC-005** (P2): confine execution-time data-source reads (`assertReadableDataFile`); note
+   `execution.ipc.ts` carries the pause-gate WIP — land after that settles to avoid conflicts.
+5. **DUR-002 / DUR-003** (P2): quarantine-on-corrupt + shared atomic-replace for the secret vault
+   and the recorder draft/URL writers; DUR-003 depends on choosing the shared helper (SES-001
+   consolidation).
+6. **SEC-006** (P3): `isPackaged` guard or SECURITY.md documentation; fix the CURRENT_STATE
+   drift either way.
+7. **REC-039..043** (P2/P3): tab-switch URL matching; smart-wait page scoping; download/scroll
+   capture posture decision; upload binding affordance.
+8. The systemic root cause for the SEC class remains the **channel-authorization registry** in
+   `verify:ipc-contract` (already the recorded SEC-002 fix direction) — implement it before
+   adding further IPC channels, then sweep SEC-003/004/005 under it.
+
+### Verification needed after fixes
+
+Each defect entry names its coverage gap; minimum new evidence: pre-auth/Viewer IPC probes
+(SEC-003/004/005), torn-write and lock-file fixtures (DUR-002/003), a replayed type+Enter
+mock-site scenario (REC-038), and a two-popup return-to-main fixture (REC-039).
+
 ## HANDOFF (2026-08-23) - Second independent review pass: delta defects filed on top of `bbe9f76`
 
 ### Transfer
