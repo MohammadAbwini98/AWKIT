@@ -323,30 +323,6 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 ---
 
-### AWKIT-LIC-002 — Signed entitlements are never enforced anywhere
-
-- **Classification:** Licensing-model gap (documentation contradicts implementation)
-- **Severity:** S2 / A license issued with a single entitlement confers the entire product; concurrency/scheduling/browser tiers are cryptographically attested yet operationally meaningless, contradicting docs/LICENSING.md ("check them in the trusted layer")
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Licensing
-- **Affected area:** `src/licensing/LicenseTypes.ts:32-37` (four signed Entitlement values); `src/licensing/RunGatePolicy.ts:46-66` (admission consults only status/operable); consumers otherwise issuer/UI-only
-- **Detected by:** Independent whole-repository code review
-
-Not a run-gate bypass: unlicensed/integrity-failure posture is unaffected. Related lower-severity
-findings from the same review, recorded without full entries: license IMPORT resets the clock-
-rollback high-water mark and `locallyRevoked` (`LicenseService.ts:157-164` defeats the advertised
-rollback mitigation via re-import); provisioned/shared licenses never advance clock/revocation
-metadata (meta maintenance runs only for `source === "local"`); `key1` is not marked `retired` in
-TRUSTED_KEYS although the issuer already refuses retired keys mechanically; `resumeInstance`/
-`retryHandoff` resume parked work without consulting the enforcement latch (narrow — the instance
-was admitted when started); enforcement refresh performs synchronous disk + registry fingerprint
-work inside the dispatch loop (availability cost, fail-closed intact).
-
----
-
----
-
 ---
 
 ## Open test and harness findings
@@ -521,6 +497,34 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-LIC-002 — Signed entitlements are never enforced anywhere
+
+- **Classification:** Licensing-model gap (documentation contradicts implementation)
+- **Severity:** S2 / A license issued with a single entitlement confers the entire product; concurrency/scheduling/browser tiers are cryptographically attested yet operationally meaningless, contradicting docs/LICENSING.md ("check them in the trusted layer")
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 56739ea**
+- **Owner routing:** Licensing
+- **Affected area:** `src/licensing/LicenseTypes.ts:32-37` (four signed Entitlement values); `src/licensing/RunGatePolicy.ts:46-66` (admission consults only status/operable); consumers otherwise issuer/UI-only
+- **Detected by:** Independent whole-repository code review
+
+Not a run-gate bypass: unlicensed/integrity-failure posture is unaffected. Related lower-severity
+findings from the same review, recorded without full entries: license IMPORT resets the clock-
+rollback high-water mark and `locallyRevoked` (`LicenseService.ts:157-164` defeats the advertised
+rollback mitigation via re-import); provisioned/shared licenses never advance clock/revocation
+metadata (meta maintenance runs only for `source === "local"`); `key1` is not marked `retired` in
+TRUSTED_KEYS although the issuer already refuses retired keys mechanically; `resumeInstance`/
+`retryHandoff` resume parked work without consulting the enforcement latch (narrow — the instance
+was admitted when started); enforcement refresh performs synchronous disk + registry fingerprint
+work inside the dispatch loop (availability cost, fail-closed intact).
+
+---
+
+---
+
+- **Evidence after fix:** `verify:licensing` 192/192 (+9): single-entitlement license blocks runs as ENTITLEMENT_MISSING while absent-data stays back-compat; import preserves locallyRevoked + high-water; shared-source shadow advances rollback metadata; key1 retired; parked resume/retry consult the latch (execution.ipc). verify:license-dispatch-gate 34/34, verify:e2e-licensing exit 0, verify:release-key-custody exit 0.
+
+---
+
 ### AWKIT-SEC-002 — Several mutating/read IPC channels carry no authorization assertion (RBAC boundary incompleteness)
 
 - **Classification:** Security concern (authorization asymmetry)
