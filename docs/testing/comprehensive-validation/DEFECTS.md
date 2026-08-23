@@ -319,32 +319,7 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 ---
 
-### AWKIT-SEC-001 — `dataSources:createFromScratch` writes attacker-controlled paths outside the workspace
-
-- **Classification:** Security concern (path traversal write)
-- **Severity:** S2 / A caller with DATASOURCE_MANAGE can create/overwrite arbitrary user-writable `.json` files outside the data-sources workspace, including privileged stores such as ui-settings.json or session-profiles.json metadata
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** Main-process security
-- **Affected area:** `app/main/ipc/dataSource.ipc.ts:218-236` (`fileName` joined raw into `dataFilesDir()`; only extension validated; no `isPathInside`/basename confinement) — the editor write path was confined for exactly this hazard (F-04), this sink was missed
-- **Detected by:** Independent whole-repository code review
-
 ---
-
-### AWKIT-SEC-002 — Several mutating/read IPC channels carry no authorization assertion (RBAC boundary incompleteness)
-
-- **Classification:** Security concern (authorization asymmetry)
-- **Severity:** S2 / Pre-login or low-privileged renderers can read full data-source rows, delete captured login sessions (recursive profile-directory delete), rename/markUsed sessions, and perform full instance CRUD — the declared fail-closed boundary model is not applied uniformly
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed** (a prior audit noted read-mostly channels as follow-up, but these were untracked anywhere)
-- **Owner routing:** Main-process security
-- **Affected area:** `app/main/ipc/dataSource.ipc.ts:67-108` (list/get/export/preview/getJsonPaths/readJson/dataSource:list ungated while every mutating sibling is gated); `app/main/ipc/session.ipc.ts:31-53` (delete/rename/markUsed/getById/list/stopCapture ungated; only startCapture guards); `app/main/ipc/instance.ipc.ts:8-17` (full CRUD ungated); `app/main/ipc/runtimeInput.ipc.ts:8-15` (mutation-capable channels ungated)
-- **Detected by:** Independent whole-repository code review
-
-There is also no mechanical gate asserting every registered channel declares NONE/TRUSTED/
-PERMISSION — `verify:ipc-contract` recognizes specific registrar helpers, so a plain
-`ipcMain.handle` with no guard passes everything today. That registry is the fix direction that
-closes the class.
 
 ---
 
@@ -546,6 +521,39 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-SEC-002 — Several mutating/read IPC channels carry no authorization assertion (RBAC boundary incompleteness)
+
+- **Classification:** Security concern (authorization asymmetry)
+- **Severity:** S2 / Pre-login or low-privileged renderers can read full data-source rows, delete captured login sessions (recursive profile-directory delete), rename/markUsed sessions, and perform full instance CRUD — the declared fail-closed boundary model is not applied uniformly
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in f6b144c**
+- **Owner routing:** Main-process security
+- **Affected area:** `app/main/ipc/dataSource.ipc.ts:67-108` (list/get/export/preview/getJsonPaths/readJson/dataSource:list ungated while every mutating sibling is gated); `app/main/ipc/session.ipc.ts:31-53` (delete/rename/markUsed/getById/list/stopCapture ungated; only startCapture guards); `app/main/ipc/instance.ipc.ts:8-17` (full CRUD ungated); `app/main/ipc/runtimeInput.ipc.ts:8-15` (mutation-capable channels ungated)
+- **Detected by:** Independent whole-repository code review
+
+There is also no mechanical gate asserting every registered channel declares NONE/TRUSTED/
+PERMISSION — `verify:ipc-contract` recognizes specific registrar helpers, so a plain
+`ipcMain.handle` with no guard passes everything today. That registry is the fix direction that
+closes the class.
+
+- **Evidence after fix:** `verify:ipc-contract` 9/9 with Check 5 AUTHZ_REGISTRY: all 210 handlers classify as PERMISSION (assertSenderPermission/authorize), TRUSTED (assertTrustedSender), or declared NONE with reason; registry-vs-code mismatches and stale entries fail. Per-file floors in verify:security 45/45; role suites green (authz 92/92, e2e-rbac 70/70, e2e-reauth exit 0, data-editor 27/27) with DATASOURCE_VIEW added to Viewer+.
+
+---
+
+### AWKIT-SEC-001 — `dataSources:createFromScratch` writes attacker-controlled paths outside the workspace
+
+- **Classification:** Security concern (path traversal write)
+- **Severity:** S2 / A caller with DATASOURCE_MANAGE can create/overwrite arbitrary user-writable `.json` files outside the data-sources workspace, including privileged stores such as ui-settings.json or session-profiles.json metadata
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in f6b144c**
+- **Owner routing:** Main-process security
+- **Affected area:** `app/main/ipc/dataSource.ipc.ts:218-236` (`fileName` joined raw into `dataFilesDir()`; only extension validated; no `isPathInside`/basename confinement) — the editor write path was confined for exactly this hazard (F-04), this sink was missed
+- **Detected by:** Independent whole-repository code review
+
+- **Evidence after fix:** `verify:security` 45/45 SEC-001 guard: createFromScratch confines fileName via safePathComponent and re-asserts isPathInside(dataFilesDir(), file). Mutation restoring the raw join makes the guard detect the mutant (safePathComponent/isPathInside absent).
+
+---
+
 ### AWKIT-REC-037 — The Recorder's preserved draft is unreachable in the UI, and starting a recording destroys it
 
 - **Classification:** Product defect (silent loss of recorded work; undermines the AWKIT-REC-001 guarantee at the UI layer)
