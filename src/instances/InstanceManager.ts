@@ -61,7 +61,13 @@ export class InstanceManager {
           screenshotsPath: paths.screenshots,
           logsPath: paths.logs
         },
-        runtimeInputs,
+        // AWKIT-RUN-002: every instance gets its OWN shallow copy of the runtime inputs.
+        // Closing over the single `runtimeInputs` object made loop-connector parameter writes
+        // (FlowExecutor/PlaywrightRunner mutate it in place) visible to sibling instances'
+        // `${runtimeInputs.*}` reads under concurrent execution — wrong values could be filled
+        // with no error. The existing save/restore around each iteration narrowed but never
+        // closed that window.
+        runtimeInputs: { ...runtimeInputs },
         instanceInputs: {
           rowIndex: index,
           browserWindowMode: profile.browserWindowMode

@@ -18,6 +18,7 @@ import { Semaphore } from "@src/runner/concurrency/Semaphore";
 import { BrowserWorkerPool } from "@src/runner/browser/BrowserWorkerPool";
 import { BackpressureController } from "@src/runner/concurrency/BackpressureController";
 import { loadConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfig";
+import { InstanceManager } from "@src/instances/InstanceManager";
 import { classifyError, isDangerousMutationStep } from "@src/runner/runtime/ErrorClassifier";
 import { RetryPolicy } from "@src/runner/runtime/RetryPolicy";
 import { FlowRunStateMachine, canTransitionNode } from "@src/runner/runtime/RuntimeStateMachine";
@@ -475,6 +476,46 @@ async function partJ(): Promise<void> {
   await rm(root, { recursive: true, force: true }).catch(() => undefined);
 }
 
+/** AWKIT-RUN-002: per-instance runtimeInputs isolation (≥2 concurrent instances, divergent writes). */
+async function partK(): Promise<void> {
+  console.log("\nPart K - per-instance runtimeInputs isolation (AWKIT-RUN-002)");
+  const manager = new InstanceManager();
+  const dirs = {
+    root: join(tmpdir(), "wfs-conc-iso"),
+    downloads: join(tmpdir(), "wfs-conc-iso", "dl"),
+    screenshots: join(tmpdir(), "wfs-conc-iso", "shots"),
+    logs: join(tmpdir(), "wfs-conc-iso", "logs"),
+    reports: join(tmpdir(), "wfs-conc-iso", "reports")
+  };
+  const profile = {
+    id: "wf-isolation",
+    scenarioId: "sc-isolation",
+    runMode: "concurrent" as const,
+    maxConcurrentInstances: 2,
+    browserWindowMode: "scopedWindows" as const,
+    instanceTemplate: { browser: "chromium" as const, headless: true, isolationMode: "browserContext" as const }
+  };
+  const template = { sharedParam: "initial", loopCounter: 0 };
+  const instances = manager.createInstancesForRun(profile, [{}, {}, {}, {}], dirs, template);
+  check("at least 2 instances created for the concurrency proof (single-instance passes vacuously)", instances.length >= 2);
+  // Cardinality floor: every instance must own a DISTINCT runtimeInputs object.
+  const distinctRefs = new Set(instances.map((i) => i.runtimeInputs)).size;
+  check("every instance owns a DISTINCT runtimeInputs object reference", distinctRefs === instances.length, `distinct=${distinctRefs}/${instances.length}`);
+  // Divergent mutation: one instance's loop write must be invisible to its siblings AND the template.
+  instances[0].runtimeInputs.loopCounter = 42;
+  instances[1].runtimeInputs.sharedParam = "sibling-write";
+  check(
+    "divergent per-instance writes stay isolated from siblings and the run-level template",
+    instances[0].runtimeInputs.sharedParam === "initial" &&
+      instances[1].runtimeInputs.loopCounter === 0 &&
+      instances[2].runtimeInputs.loopCounter === 0 &&
+      instances[2].runtimeInputs.sharedParam === "initial" &&
+      template.loopCounter === 0 &&
+      template.sharedParam === "initial",
+    JSON.stringify({ i0: instances[0].runtimeInputs, i1: instances[1].runtimeInputs, template })
+  );
+}
+
 async function main(): Promise<void> {
   console.log("Concurrency & stability layer verification");
   console.log(`Limits in effect: ${JSON.stringify(loadConcurrencyLimits())}`);
@@ -488,6 +529,7 @@ async function main(): Promise<void> {
   await partH();
   await partI();
   await partJ();
+  await partK();
 
   console.log(`\nResult: ${passed} passed, ${failed} failed.`);
   if (failed > 0) process.exit(1);
