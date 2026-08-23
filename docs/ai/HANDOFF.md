@@ -1,5 +1,73 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-23) - Independent whole-repository review recorded; prioritized fix queue for the next implementation agent
+
+### Transfer
+
+- **A read-only codebase review completed; NO product source, tests, verifiers, or scripts were
+  changed.** Only authoritative `.md` files moved: DEFECTS.md (22 new records), KNOWN_ISSUES.md
+  (review section at top), this file, CURRENT_STATE.md, TASK_LOG.md.
+- **Where the findings live:** product defects in
+  `docs/testing/comprehensive-validation/DEFECTS.md`; architecture/licensing/doc-drift risks in
+  the top section of `docs/ai/KNOWN_ISSUES.md`. Each defect entry names files+lines and a fix
+  direction; nothing was implemented.
+- **Ledger unchanged: 64 PASS / 2 NOT RUN / 0 BLOCKED.** Tracker **259 total / 256 closed /
+  3 outstanding** (all three externally blocked). Gates re-run during the review: build PASS,
+  typecheck:scripts PASS (0 diagnostics), source-hygiene 9/9, verifier-classification reconciled
+  (196), roadmap-dashboard 167/167 Sources agree.
+
+### Highest-priority findings (fix first)
+
+1. **AWKIT-RUN-002 — concurrent instances share one `runtimeInputs` object**
+   (`src/instances/InstanceManager.ts:64`). One shallow copy closes it. Do this before any
+   concurrency-facing work; it silently corrupts data rather than failing.
+2. **AWKIT-MAP-002 + AWKIT-MAP-003 — the production mapping drops authored fields**
+   (`flowProfileMapping.ts`: no `completionMode` mapping; loop customFlow `targetFlowId` gated on
+   the wrong section). Both are one-line-ish mapping fixes plus assertions in
+   `verify-flow-step-mapping` — but that verifier currently tests the DEAD module
+   (`flowStepMapping.ts`, AWKIT-MAP-004); repoint or delete the dead module FIRST so the new
+   assertions bind to production code.
+3. **AWKIT-WFB-001 — Workflow Builder save/export re-fabricates documents**
+   (`ScenarioBuilder.tsx` `toWorkflowProfile`/`loadWorkflowProfile`). Needs a preserve-don't-
+   re-derive pass mirroring `toFlowProfile`; sequence AFTER MAP-004 so its round-trip coverage is
+   trustworthy, and decide the schema question for the two dead failure-policy checkboxes
+   (AWKIT-WFB-002) in the same pass.
+4. **AWKIT-RUN-001 — Pause is cosmetic** (`ExecutionEngine.pauseInstance`). Decide semantics
+   first: real between-step gate in StepExecutor, or honest rename/re-scope of the control. This
+   is safety-relevant because dangerous-mutation steps keep firing while paused is displayed.
+5. **AWKIT-REC-037 — recorder draft invisible after restart/handoff-cancel and destroyed by
+   Start** (`Recorder.tsx` fetch gating + `startRecording` clear). Fix together with the adjacent
+   handoff-lifecycle gaps listed in the entry (save-during-handoff, Chrome check before browser
+   close, perpetual `capturing` rows).
+6. **AWKIT-SEC-001/002 — path-traversal write sink and unguarded IPC channels.** SEC-001 is a
+   small confinement fix (`createFromScratch`); SEC-002 is best closed by the registry approach:
+   extend `verify:ipc-contract` to require every registered channel to declare NONE/TRUSTED/
+   PERMISSION, then sweep the named handlers.
+
+### Dependencies between fixes
+
+MAP-004 → MAP-002/MAP-003 → WFB-001 (mapping verifier must bind to production before designer
+round-trip work). RUN-002 is independent but should land before any RUN-005/RUN-007 concurrency
+changes touch the same files. RUN-001 needs an owner decision (gate vs re-label) before
+implementation. SEC-002's registry makes future channel additions self-policing — do it once,
+early.
+
+### Verification needed when these are fixed
+
+Runner changes: `npm run verify:runner` (report counts) + focused new cases per src/AGENTS.md.
+Mapping/designer changes: `verify-flow-step-mapping` (repointed), `verify:legacy-compat`,
+`test:random:roundtrip`. Recorder changes: `verify:recorder-draft`,
+`verify:protected-login-recorder`. Licensing: `verify:licensing`, `verify:license-dispatch-gate`.
+IPC/security: `verify:ipc-contract`, `verify:authz`, `verify:e2e-rbac`. Anything touching
+offline/packaging: `validate:offline`.
+
+### Environmental notes
+
+Untracked `run-app-demo.mjs` remains preserved user work — do not stage, edit, or delete it.
+No lease/contract state was touched by this review. The three outstanding beads
+(`awkit-7bu`, `awkit-az7`, `awkit-cm8`) remain blocked on external systems/owner decisions and are
+unaffected by these findings.
+
 ## HANDOFF (2026-08-22) - awkit-cey / REC-022 CLOSED: live IdP walkthrough executed and PASSED
 
 ### Transfer

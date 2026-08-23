@@ -1,5 +1,95 @@
 # KNOWN_ISSUES
 
+## Whole-repository code review (2026-08-23): architecture erosion, licensing depth, and doc drift — recorded, not fixed
+
+An independent read-only review swept runner, recorder/sessions, persistence/mappings, licensing,
+security/offline/packaging, designers/UI, and verifier quality. Product defects are filed in
+`docs/testing/comprehensive-validation/DEFECTS.md` (`AWKIT-RUN-001..007`, `AWKIT-MAP-002..004`,
+`AWKIT-WFB-001/002`, `AWKIT-REC-037`, `AWKIT-SEC-001/002`, `AWKIT-LIC-002`, `AWKIT-QA-006/007`).
+The items below are risks and drift that do not fit the defect register.
+
+### The `src/` framework-agnostic rule has eroded: three upward imports, one of them an Electron module
+
+The documented contract (`ARCHITECTURE.md`, `src/AGENTS.md`) is that the ONE sanctioned bridge is
+`ExecutionEngine → app/main/appPaths`. Today there are four import sites across three files:
+
+| Site | Pulls in |
+| --- | --- |
+| `src/runner/ExecutionEngine.ts:19` | `appPaths` (the sanctioned one) |
+| `src/runner/ExecutionEngine.ts:20` | **`app/main/ipc/session.ipc` — which imports `electron`** |
+| `src/runner/ExecutionEngine.ts:29` | `app/main/profileStores` (`createReportStore`) |
+| `src/storage/ProfileStore.ts:4` | `app/main/atomicReplace` |
+
+`DispatchGate.ts:4` itself states "ExecutionEngine lives in the Electron-free domain" while the
+same file imports an IPC registrar. Every script that imports `ExecutionEngine` under plain `tsx`
+transitively loads Electron today only because `ipcMain.handle` sits behind a function. The
+injection seam that should host these already exists (`execution.ipc.ts` setter injection) —
+route them through it rather than adding a fourth upward import. Related composition split-brain:
+`report.ipc.ts:11` constructs its own `createReportStore()` instance, so engine report writes and
+IPC-driven deletes are not mutually serialized (per-instance write chains).
+
+### Dead components advertised as live; a wired-but-unreachable legacy layer
+
+Zero importers exist for `src/orchestrator/ExecutionQueue.ts`, `FlowOutputRegistry.ts`,
+`ConditionalFlowRouter.ts`, `src/instances/InstanceEvents.ts`, and `InstanceLockManager.ts`
+(superseded by ResourceLockManager + ProfileLockManager + DispatchClaims), yet ARCHITECTURE.md
+lists the first three as live orchestrator components — an agent auditing concurrency would count
+protections that do not exist. Separately, the pre-run-cards legacy layer is fully plumbed but has
+no renderer consumer: preload exposes `instances.*` / `runtimeInputs.*` / `scenarios.*`
+(`preload.ts:393-395,426-428`), main registers the channels (mutation-capable, and the
+runtimeInput ones carry no permission assertion — see AWKIT-SEC-002), stores still seed
+`default-concurrent-profile`, and `scenario:save` would persist through the lossy reverse
+converter if ever bound. Delete or finish; half-alive surface is worse than absence.
+
+### Licensing depth: the signed entitlement dimension is decorative
+
+See AWKIT-LIC-002 in DEFECTS.md for the headline. The perimeter is healthy (single trust model,
+fail-closed defaults, no bypass found beyond documented set); the depth gaps are entitlements
+never consulted by admission, import resetting the rollback high-water mark, shared-license
+metadata never advancing, key1 not flagged `retired`, resume/retry-handoff skipping latch
+consultation, and synchronous disk+registry work inside the dispatch loop. None permits
+unlicensed execution.
+
+### Renderer bundle size claim is stale (~900 KB → ~2 MB measured)
+
+KNOWN_ISSUES previously recorded "large renderer bundle (~900 KB)". Measured on 2026-08-23:
+`out/renderer/assets/renderer-*.js` is **1,985.78 kB** after a clean build. The no-code-splitting
+observation stands; the number did not. Update any sizing reasoning that used the old figure.
+
+### ScenarioBuilder dead UI / settings archaeology (cross-ref AWKIT-WFB-001/002)
+
+Beyond the fabricated save path: the Workflow Definition left panel renders `{false && …}` while
+its collapse/width settings keys stay live; the collapsed connector panel's expand rail also
+renders `{false && …}`, so clicking empty canvas can strand the user with no visible way back;
+execution-mode/parallelism have setters but no authoring control, so the toolbar chip advertises
+configuration nothing can change and every authored workflow is forever `sequential`; keyboard
+Delete removes edges only — nodes are pointer-only deletable in both designers; a saved flow can
+be used only once per builder-authored workflow (canvas id overloads flowId). Import validation
+admits duplicate node ids and missing sentinels, deferring failures to plan time or React key
+collisions.
+
+### Recorder capture long-tail (beyond DEFECTS AWKIT-REC-037)
+
+- **`<select multiple>` records only the first selected option**
+  (`recorderInitScript.ts` reads `.value`). Ctrl-selections silently degrade to one option on
+  replay; Playwright's `selectOption` accepts arrays, so the channel exists.
+- **Popup-close and independent-navigation steps bypass the serialized action queue**
+  (`RecorderService.ts` popup `close` handler and `recordIndependentNavigation` push straight to
+  `actions`), so recorded order can invert under concurrent events and Smart-Wait windows can
+  attach to the wrong predecessor.
+- **Hidden-at-rest controls outside the visibility catalog get NO hover prerequisite at all**
+  (catalog samples `a, button, input, select, textarea, [role=button], [role=menuitem]` while the
+  action-owner climb accepts broader sets): a `[role=tab]` hidden at rest yields neither hover nor
+  needs-review — this case fails OPEN where every sibling fails closed.
+
+### Verifier exit-code semantics differ per suite (cross-ref AWKIT-QA-006/007)
+
+"Green" means different things depending on which script produced it: some suites fail on skip
+(zvec-packaged-live, packaged-walkthrough), four exit 0 with all checks NOT RUN, chromium-
+hardening passes vacuously offline, and two tallies shrink denominators on uncaught throws
+(AWKIT-QA-005). Until a shared harness helper exists, judge each suite's green by reading its own
+exit condition — not by analogy with its siblings.
+
 ## TRAP: a verifier tally divides by a denominator an uncaught throw can SHRINK (2026-08-22)
 
 `scripts/verify-recorder-draft.mts` and `scripts/verify-protected-login-recorder.mts` — and any

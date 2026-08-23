@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## Independent whole-repository code review recorded; documentation-only, no product code changed (2026-08-23)
+
+A read-only review swept runner/execution, recorder/sessions, persistence and designer mappings,
+licensing, security/offline/packaging, Flow Designer/Workflow Builder UI, and verifier quality,
+then recorded findings in the authoritative files without fixing anything. **22 new defect
+records** were filed in `docs/testing/comprehensive-validation/DEFECTS.md`: 13 product defects
+(`AWKIT-RUN-001..007`, `AWKIT-MAP-002..004`, `AWKIT-WFB-001/002`, `AWKIT-REC-037`,
+`AWKIT-SEC-001/002`, `AWKIT-LIC-002`), plus 2 verifier-quality findings (`AWKIT-QA-006/007`)
+and cross-reference updates. Highest severity: the Workflow Builder save path re-fabricates
+persisted workflow documents from hardcoded demo-shaped data (AWKIT-WFB-001); the production
+Flow Designer mapping silently drops two authored fields (`completionMode` — AWKIT-MAP-002 — and
+a customFlow loop's target flow — AWKIT-MAP-003); Instance Pause changes only a status label
+while execution continues (AWKIT-RUN-001); concurrent instances share one mutable `runtimeInputs`
+object (AWKIT-RUN-002); the Recorder's preserved draft is unreachable in the UI and destroyed by
+the next Start (AWKIT-REC-037). Architecture/licensing/doc-drift risks that are not defects are
+recorded at the top of `docs/ai/KNOWN_ISSUES.md` (src-core now imports an Electron module;
+dead orchestrator components still advertised as live; renderer bundle measured ~1.99 MB against
+the stale ~900 KB note). HANDOFF.md carries the prioritized fix queue.
+
+Review verification (all executed this session): `npm run build` PASS · `verify:source-hygiene`
+9/9 · `verify:verifier-classification` reconciled, 196 scripts · `verify:roadmap-dashboard`
+167/167, Sources agree, tracker pin exact at 259 total / 256 closed / 3 outstanding ·
+`typecheck:scripts` PASS 0 diagnostics · `verify:flow-step-mapping` 145/145 (green while testing
+the dead mapping module — itself finding AWKIT-MAP-004) · `git diff --check` clean. The
+comprehensive-validation ledger is unchanged by this documentation-only task at **64 PASS /
+2 NOT RUN / 0 BLOCKED**, tracker **259 total / 256 closed / 3 outstanding**.
+
 ## Administration UI redesigned on the SpecterStudio system (2026-08-22)
 
 The six Administration screens (Users, Roles, Permissions, Audit Log, Licensing, License Issuer)

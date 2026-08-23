@@ -6,6 +6,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-23 - opencode - Independent whole-repository codebase review (documentation-only)
+
+- **Objective:** comprehensive read-only review of runner, recorder/sessions, persistence and
+  designer mappings, licensing, security/offline/packaging, Flow Designer/Workflow Builder UI,
+  and verifier quality; record findings in the authoritative docs; change no product code, tests,
+  verifiers, or scripts.
+- **Result:** 22 new defect records filed in
+  `docs/testing/comprehensive-validation/DEFECTS.md` — 13 product (`AWKIT-RUN-001..007`,
+  `AWKIT-MAP-002..004`, `AWKIT-WFB-001/002`, `AWKIT-REC-037`, `AWKIT-SEC-001/002`,
+  `AWKIT-LIC-002`) + 2 verifier-quality (`AWKIT-QA-006/007`); architecture/licensing/doc-drift
+  risks recorded at the top of `docs/ai/KNOWN_ISSUES.md` (src-core imports an Electron module;
+  dead orchestrator components advertised live; bundle ~1.99 MB vs stale ~900 KB note);
+  prioritized fix queue added to `HANDOFF.md`. Highest severity: Workflow Builder save
+  re-fabricates persisted documents; production mapping silently drops `completionMode` and a
+  customFlow loop's target flow; Pause does not pause execution; shared `runtimeInputs` across
+  concurrent instances; recorder draft unreachable/destroyed via UI.
+- **Files changed (docs only):** DEFECTS.md, KNOWN_ISSUES.md, CURRENT_STATE.md, HANDOFF.md,
+  TASK_LOG.md.
+- **Verification:** build PASS; typecheck:scripts PASS (0 diagnostics); source-hygiene 9/9;
+  verifier-classification reconciled (196); roadmap-dashboard 167/167 Sources agree;
+  flow-step-mapping 145/145 (green while testing the dead mapping module — finding MAP-004);
+  git diff --check clean. Ledger unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## 2026-08-22 - opencode - Administration audit: License Issuer integrated, GUI verifier extended to 36/36
 
 - **Objective:** final Administration visual/functional audit; finish License Issuer consistency;

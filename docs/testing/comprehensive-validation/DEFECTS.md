@@ -2,12 +2,285 @@
 
 ## Open product defects
 
-Four LOW findings. Three were raised by the independent QC review of the `awkit-cey` / REC-022
-workstream on 2026-08-22; the fourth (`AWKIT-SES-003`) was found by the executed live IdP
-walkthrough the same day. None is a closure blocker for REC-022 and none is fixed. They are
-recorded here rather than as separate Beads to match the AWKIT-REC-001/002 convention (a defect
-record owned by its parent bead); the owning bead is `awkit-cey` (now CLOSED on live evidence —
-these follow-ups outlive it).
+Fourteen findings from the independent whole-repository code review of 2026-08-23 (IDs
+`AWKIT-RUN-*`, `AWKIT-MAP-*`, `AWKIT-WFB-*`, `AWKIT-REC-037`, `AWKIT-SEC-*`, `AWKIT-LIC-*`),
+plus four LOW findings from the independent QC review of the `awkit-cey` / REC-022 workstream
+(`AWKIT-SES-001/002`, `AWKIT-REC-036`) and `AWKIT-SES-003`, found by the executed live IdP
+walkthrough. None is fixed. Review findings are recorded here rather than as Beads to match the
+AWKIT-REC-001/002 convention (a defect record owned by its parent workstream); their owner routing
+is noted per entry and no tracker cardinality was moved by the review.
+
+### AWKIT-MAP-002 — Flow Designer authors `completionMode` but the production mapping never persists it
+
+- **Classification:** Product defect (round-trip loss)
+- **Severity:** S2 / Any step saved with a non-default async completion mode silently reverts to `allRequired`; existing flows lose the field the first time they are opened and re-saved in the designer
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Frontend / Flow Designer mapping
+- **Affected area:** `app/renderer/components/workflow/flowProfileMapping.ts` (`toFlowStep`/`fromFlowStep`); authoring surface `FlowNodePropertiesPanel.tsx:950-963`; consumer `src/runner/StepExecutor.ts:680`
+- **Detected by:** Independent whole-repository code review
+
+`FlowNodePropertiesPanel` authors `data.completionMode` (Any required / networkThenUi /
+quietPeriod), `flowDesignerTypes.ts:121` declares it "carried through round-trip", and the runner
+reads `step.completionMode ?? "allRequired"` — but neither direction of `flowProfileMapping.ts`
+mentions `completionMode`. The dead twin module `flowStepMapping.ts:81,223` DOES map it, evidence
+it was lost when the mapping was extracted.
+
+**Coverage gap:** `verify-flow-step-mapping.mts:216-273` asserts completionMode round-trips —
+against `flowStepMapping.ts`, which production does not import (see AWKIT-MAP-004 below). The
+random-roundtrip corpus never emits the field. All three gates are blind to this loss.
+
+---
+
+### AWKIT-MAP-003 — Loop node `customFlow` target flow is never written on save
+
+- **Classification:** Product defect (designer-runtime contract break)
+- **Severity:** S2 / A user-configured "run another flow" loop loses its target on save; reload empties the selector and the run gate then blocks with an unfixable error
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Frontend / Flow Designer mapping
+- **Affected area:** `app/renderer/components/workflow/flowProfileMapping.ts:201,264`; registry `flowNodeRegistry.ts:156-174`; panel `FlowNodePropertiesPanel.tsx:1272-1303`; runtime read `src/runner/StepExecutor.ts:2764-2768`; contract `src/validation/LoopStepContract.ts:140-143`
+- **Detected by:** Independent whole-repository code review
+
+`toFlowStep` writes `targetFlowId` only when `inSection("runFlow")` (line 264) and `flowId` only
+for `stepType === "runFlow"` (line 201). A `loop` node's sections are `["loop", "execution"]`
+(`flowNodeRegistry.ts:158`), so both writes are always `undefined` — yet the properties panel
+offers "Custom flow" plus a target-flow select writing `data.targetFlowId`, and the panel validator
+demands it (registry line 171). The runner executes customFlow loops exclusively from
+`step.config?.targetFlowId`, which save never produces. `RandomConfigurationGenerator.ts:336`
+deliberately skips scroll/customFlow loops, so the random round-trip gate cannot see this path.
+
+---
+
+### AWKIT-MAP-004 — The only field-level round-trip verifier tests a mapping module production does not use
+
+- **Classification:** Test-quality issue / duplicated authority
+- **Severity:** S2 / Green coverage that proves nothing about shipped code; this is how MAP-002 stayed invisible
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** QA + Frontend
+- **Affected area:** `app/renderer/components/workflow/flowStepMapping.ts` (dead); importer `app/renderer/pages/branchPairs.ts:3`; `scripts/verify-flow-step-mapping.mts:17` (header claims it tests "the REAL production functions")
+- **Detected by:** Independent whole-repository code review
+
+`FlowChartDesigner.tsx:45` imports `flowProfileMapping.ts`; `flowStepMapping.ts` is imported only
+type-only by `branchPairs.ts` and by the verifier itself. The dead module still carries the
+pre-fix shapes `flowProfileMapping` documents as fixed (catalog-gated locator, fabricated
+retry/onFailure, rebuilt env/runtimeInput/secret sources from one string, no configOriginal).
+Deleting it (or repointing the verifier) removes a resurrect-on-import hazard.
+
+---
+
+### AWKIT-WFB-001 — Every Workflow Builder save/export re-fabricates the stored workflow document
+
+- **Classification:** Product defect (silent overwrite / demo-shaped data in the save path)
+- **Severity:** S2 / Saving corrupts input bindings into static literals equal to the binding key, injects a hardcoded `selectedAccountType` dropdown into every saved workflow, clobbers descriptions, pins `version: 1`, and drops per-node policies on load+save
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Frontend / Workflow Builder
+- **Affected area:** `app/renderer/pages/ScenarioBuilder.tsx:2102-2177` (`toWorkflowProfile`, used by the `workflowProfile` memo and `saveScenario`), load path `:1000-1052`, export `:1092-1100`
+- **Detected by:** Independent whole-repository code review
+
+Observed in `toWorkflowProfile`: `inputBindings` maps every declared flow-input key to
+`{ type: "static", value: <the key's own name> }`; `runtimeInputs` hardcodes the
+BUSINESS/PERSONAL `selectedAccountType` dropdown unconditionally; `description` is the constant
+"Saved workflow of reusable flow profiles"; `version: 1` is pinned. The load path
+(`loadWorkflowProfile`) discards persisted `inputBindings`, per-node `failurePolicy`,
+`conditionRules`, `jsonPath`, `runtimeInputKey`, and the schema-documented `security` override.
+Export serializes the same memo rather than the stored bytes, so export→import mutates documents.
+No verifier drives `toWorkflowProfile` (`verify-workflow-sentinels.mts` exercises the converters
+in `WorkflowProfile.ts`, not the page).
+
+---
+
+### AWKIT-WFB-002 — Two of three Failure-Policy checkboxes are enabled controls that persist nothing; two large Builder UI regions are unreachable
+
+- **Classification:** Product defect (RULES violation: no fake controls) + dead feature surface
+- **Severity:** S2 / Toggling `continueOnOptionalFlowFailure` / `takeScreenshotOnFailure` changes nothing (not in the schema `execution` carries, so the dirty flag never fires and Save drops them); the entire Workflow Definition left panel renders `{false && …}` while its settings keys stay live; the collapsed connector panel's expand rail also renders `{false && …}` so it can never be reopened from the UI
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Frontend / Workflow Builder
+- **Affected area:** `app/renderer/pages/ScenarioBuilder.tsx:1711-1722` and `1840-1866` (checkboxes), `2171-2175` (persisted subset), `1404-1597` (dead left panel), `1648-1662` + `1161-1167` (unreachable expand rail), `416-419`/`449-517` (live-but-write-only settings persistence); schema `src/profiles/WorkflowProfile.ts:90-94`
+- **Detected by:** Independent whole-repository code review
+
+---
+
+### AWKIT-RUN-001 — Instance Pause changes a label; execution continues at full speed
+
+- **Classification:** Product defect (safety-relevant state desync / enabled control that does nothing)
+- **Severity:** S2 / An operator who pauses before a sensitive sequence believes automation halted while clicks/fills/navigations keep firing on the live site
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner / Instance Monitor
+- **Affected area:** `src/runner/ExecutionEngine.ts:1905-1915` (`pauseInstance` flips pool status only); renderer `app/renderer/pages/InstanceMonitor.tsx:508-516,718-722,957-959` (Pause / Pause All presented as execution control)
+- **Detected by:** Independent whole-repository code review
+
+Nothing in `src/runner` ever reads instance status to gate step dispatch — the runner has no
+handle to the pool and no between-step pause token. Resume simply flips the label back. Either
+wire a real gate checked between steps in `StepExecutor`, or re-scope/rename the control so it
+cannot be read as an execution halt.
+
+---
+
+### AWKIT-RUN-002 — All instances of one run share a single `runtimeInputs` object
+
+- **Classification:** Product defect (cross-instance data isolation)
+- **Severity:** S2 / Under concurrent execution, one instance's loop-connector parameter writes are visible to sibling instances' `${runtimeInputs.*}` expressions for the duration of the loop — wrong values can be filled/submitted with no error
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner / Instances
+- **Affected area:** `src/instances/InstanceManager.ts:64` (same reference assigned to every created instance); writers `src/runner/FlowExecutor.ts:392,412`, `src/runner/PlaywrightRunner.ts:362,378`; reader `src/runner/ValueResolver.ts:19`
+- **Detected by:** Independent whole-repository code review
+
+`createInstancesForRun` builds N instances inside one `Array.from({ ... })` closing over one
+`runtimeInputs` object; loop connectors mutate it in place (with save/restore around each
+iteration, which narrows but does not close the window). Fix direction: per-instance shallow copy
+at creation or copy-on-write at dispatch.
+
+---
+
+### AWKIT-RUN-003 — Stop on a finished instance retroactively relabels it `cancelled` with a fresh `endedAt`
+
+- **Classification:** Product defect (history corruption)
+- **Severity:** S2 / Run history and the durable store disagree for that run; reports show completed while the monitor shows cancelled
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner
+- **Affected area:** `src/runner/ExecutionEngine.ts:1970-1976` (`cancelOne` rewrites terminal statuses when no active runner exists); `app/main/ipc/execution.ipc.ts:100-102` (no status guard); reachable from Instance Monitor controls on finished cards
+- **Detected by:** Independent whole-repository code review
+
+Expected: a no-op (or explicit error) for terminal instances without an active runner, mirroring
+how the engine refuses to remove active instances elsewhere.
+
+---
+
+### AWKIT-RUN-004 — Workflow-level `manualApproval` links traverse automatically, bypassing the approval semantic
+
+- **Classification:** Product defect (governance/approval bypass)
+- **Severity:** S2 / Downstream approved-work runs unconditionally when linked by a manualApproval scenario link — zero human gate, opposite semantics to the same connector type inside a flow
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner / orchestrator
+- **Affected area:** `src/runner/PlaywrightRunner.ts:457` (treats `link.type === "manualApproval"` as a success edge); contrast `src/runner/FlowExecutor.ts:629-640` ("an ordinary node must never traverse an approval connector, or the approval semantic is bypassed"); link type declared `src/profiles/ScenarioProfile.ts:15`
+- **Detected by:** Independent whole-repository code review
+
+Fix direction: require an explicit handoff/resume for workflow-level approval links, or reject
+them at workflow validation until supported.
+
+---
+
+### AWKIT-RUN-005 — Parallel fan-out silently skips branch targets and can report passed with zero branch work
+
+- **Classification:** Product defect (silent incomplete run)
+- **Severity:** S2 / A dangling edge (deleted target) vanishes a branch; diamond convergence skips branches whose target was already visited; the isolated variant returns success on an empty target set — no log, event, or step row records the skip
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner
+- **Affected area:** `src/runner/FlowExecutor.ts:245-250` (sequential fan-out `continue`s), `:294-300` (isolated variant returns `{ success: true }` on empty targets)
+- **Detected by:** Independent whole-repository code review
+
+Same failure shape as the documented guarded-no-op loop class. Fix direction: emit a connector
+event at minimum; fail (or record skipped step rows) when a declared parallel target cannot run.
+
+---
+
+### AWKIT-RUN-006 — A throw during run-instance setup permanently leaks the browser pool slot
+
+- **Classification:** Data-integrity risk (capacity leak)
+- **Severity:** S2 / One bad disk/sql.js state halves host browser capacity (default cap 2) until app restart, with queued runs stalling on a saturated pool and no diagnostic pointing at the leak
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner
+- **Affected area:** `src/runner/ExecutionEngine.ts:1334-1506` — slot/claims acquired ~1298-1345, fallible setup calls (durable store upsert L1385, RunLogger L1360, PassiveCdpTrace L1364, observability startRun L1450) sit OUTSIDE the try whose finally releases the slot (try begins ~L1509, release in finally ~L1592)
+- **Detected by:** Independent whole-repository code review
+
+A throw there rejects out of `runInstanceInner` before any cleanup; the watchdog marks the
+instance failed but never releases the BrowserWorkerPool slot or resource claims. Fix direction:
+move acquisition/setup inside the existing try/finally.
+
+---
+
+### AWKIT-RUN-007 — Manual-handoff instances park browser slots invisibly to capacity accounting
+
+- **Classification:** Architecture concern (queue starvation with green gauges)
+- **Severity:** S3 / Each protected-login/manual handoff holds a full Chromium slot indefinitely while backpressure/capacity count only `starting|running`, so admission keeps admitting work that queues forever
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Runner / concurrency
+- **Affected area:** `src/runner/ExecutionEngine.ts:1149-1151` (activeGlobal filter) vs slot held until `runInstanceInner`'s finally (~L1592); coordinator contrast `src/orchestrator/ConcurrentExecutionCoordinator.ts:85-87` (counts `waitingForManualAction`/`paused` correctly)
+- **Detected by:** Independent whole-repository code review
+
+---
+
+### AWKIT-REC-037 — The Recorder's preserved draft is unreachable in the UI, and starting a recording destroys it
+
+- **Classification:** Product defect (silent loss of recorded work; undermines the AWKIT-REC-001 guarantee at the UI layer)
+- **Severity:** S2 / After a restart the restored draft never appears (page fetches actions only while `isRecording`), Save stays disabled, and pressing Start clears service memory and overwrites the draft file with empty — total silent loss of a pre-crash recording. Cancelling a handoff likewise wipes the locally displayed actions without refetching, hiding the actions the service deliberately preserved
+- **Priority recommendation:** P1
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Recorder (renderer/service contract)
+- **Affected area:** `app/renderer/pages/Recorder.tsx:56-69` (actions fetched only inside the `isRecording` interval), `:379-392` (`handleCancelHandoff` sets `setActions([])` and never refetches); service `src/recorder/RecorderService.ts:603,645` (`startRecording` clears actions and persists immediately), `:463-477` (`ensureDraftLoaded` restores to memory only)
+- **Detected by:** Independent whole-repository code review
+
+Related same-root-shape gaps found in the same review: Save Flow remains enabled during an active
+handoff pause and saving empties service memory mid-pause (Renderer `saveDisabled` lacks a handoff
+term); `continueWithNormalBrowser` closes the recorder browser BEFORE validating Chrome
+availability, bricking the handoff in `phase:"error"` with no retry; `startCapture` persists a
+`capturing` profile row before validating the URL, stranding perpetual `capturing` rows invisible
+to session matching; liveness watch is suppressed during the `detected` pause, so a closed paused
+browser leaves status "Recording" against dead handles.
+
+---
+
+### AWKIT-SEC-001 — `dataSources:createFromScratch` writes attacker-controlled paths outside the workspace
+
+- **Classification:** Security concern (path traversal write)
+- **Severity:** S2 / A caller with DATASOURCE_MANAGE can create/overwrite arbitrary user-writable `.json` files outside the data-sources workspace, including privileged stores such as ui-settings.json or session-profiles.json metadata
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Main-process security
+- **Affected area:** `app/main/ipc/dataSource.ipc.ts:218-236` (`fileName` joined raw into `dataFilesDir()`; only extension validated; no `isPathInside`/basename confinement) — the editor write path was confined for exactly this hazard (F-04), this sink was missed
+- **Detected by:** Independent whole-repository code review
+
+---
+
+### AWKIT-SEC-002 — Several mutating/read IPC channels carry no authorization assertion (RBAC boundary incompleteness)
+
+- **Classification:** Security concern (authorization asymmetry)
+- **Severity:** S2 / Pre-login or low-privileged renderers can read full data-source rows, delete captured login sessions (recursive profile-directory delete), rename/markUsed sessions, and perform full instance CRUD — the declared fail-closed boundary model is not applied uniformly
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed** (a prior audit noted read-mostly channels as follow-up, but these were untracked anywhere)
+- **Owner routing:** Main-process security
+- **Affected area:** `app/main/ipc/dataSource.ipc.ts:67-108` (list/get/export/preview/getJsonPaths/readJson/dataSource:list ungated while every mutating sibling is gated); `app/main/ipc/session.ipc.ts:31-53` (delete/rename/markUsed/getById/list/stopCapture ungated; only startCapture guards); `app/main/ipc/instance.ipc.ts:8-17` (full CRUD ungated); `app/main/ipc/runtimeInput.ipc.ts:8-15` (mutation-capable channels ungated)
+- **Detected by:** Independent whole-repository code review
+
+There is also no mechanical gate asserting every registered channel declares NONE/TRUSTED/
+PERMISSION — `verify:ipc-contract` recognizes specific registrar helpers, so a plain
+`ipcMain.handle` with no guard passes everything today. That registry is the fix direction that
+closes the class.
+
+---
+
+### AWKIT-LIC-002 — Signed entitlements are never enforced anywhere
+
+- **Classification:** Licensing-model gap (documentation contradicts implementation)
+- **Severity:** S2 / A license issued with a single entitlement confers the entire product; concurrency/scheduling/browser tiers are cryptographically attested yet operationally meaningless, contradicting docs/LICENSING.md ("check them in the trusted layer")
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** Licensing
+- **Affected area:** `src/licensing/LicenseTypes.ts:32-37` (four signed Entitlement values); `src/licensing/RunGatePolicy.ts:46-66` (admission consults only status/operable); consumers otherwise issuer/UI-only
+- **Detected by:** Independent whole-repository code review
+
+Not a run-gate bypass: unlicensed/integrity-failure posture is unaffected. Related lower-severity
+findings from the same review, recorded without full entries: license IMPORT resets the clock-
+rollback high-water mark and `locallyRevoked` (`LicenseService.ts:157-164` defeats the advertised
+rollback mitigation via re-import); provisioned/shared licenses never advance clock/revocation
+metadata (meta maintenance runs only for `source === "local"`); `key1` is not marked `retired` in
+TRUSTED_KEYS although the issuer already refuses retired keys mechanically; `resumeInstance`/
+`retryHandoff` resume parked work without consulting the enforcement latch (narrow — the instance
+was admitted when started); enforcement refresh performs synchronous disk + registry fingerprint
+work inside the dispatch loop (availability cost, fail-closed intact).
+
+---
 
 ### AWKIT-SES-003 (`awkit-cey`) — Closing Chrome marks a capture `ready` without any authentication check
 
@@ -103,8 +376,53 @@ merely widened — it is **not** a regression unique to `1e85946`.
 
 ## Open test and harness findings
 
-Five LOW findings from the same 2026-08-22 independent QC review. These are gaps in verifier
-quality, not product defects. None is fixed. Owning bead: `awkit-cey`.
+Seven LOW/MEDIUM findings. Five are from the 2026-08-22 independent QC review (`AWKIT-QA-001`
+… `AWKIT-QA-005`); two are from the 2026-08-23 whole-repository review (`AWKIT-QA-006`,
+`AWKIT-QA-007`). None is fixed.
+
+### AWKIT-QA-006 — An offline machine turns the Chromium no-egress gate into a vacuous full-green run
+
+- **Classification:** Test quality
+- **Severity:** S2 / A security-relevant release gate can print a confident all-pass tally while its subject was exercised zero times
+- **Priority recommendation:** P2
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-chromium-hardening.mts:159-165`
+- **Detected by:** Independent whole-repository code review
+
+When navigation probes fail with offline-shaped errors the suite records a PASS via
+`check("navigation check skipped while offline …", true)` and itself notes that part B's
+zero-egress result is trivially true offline — yet part B still tallies as a real pass, and the
+suite has only PASS/FAIL states so nothing marks the run degraded. Same family as the documented
+context-status degrade-to-normal trap: environmental degradation converts the gate into a quiet
+pass. Fix direction: a NOT-RUN third state plus a distinct exit (or failure) when the positive
+navigation proof did not execute.
+
+---
+
+### AWKIT-QA-007 — Four GUI/engine gates exit 0 when every check is NOT RUN
+
+- **Classification:** Test quality (family)
+- **Severity:** S3 / A CI consumer sees green with zero executed checks; exit-code semantics are inconsistent across suites
+- **Priority recommendation:** P3
+- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-packaged-validation.mts:676`, `scripts/verify-reports-live-engine.mts:536`, `scripts/verify-recorder-gui.mts:1566`, `scripts/verify-settings-runner-behaviour.mts:405` (exit on `failed === 0` only); correct pattern already in-tree at `scripts/verify-zvec-packaged-live.mts:228` (`failed === 0 && notRun.length === 0`) and `verify-packaged-walkthrough.mjs` (blocked fails)
+- **Detected by:** Independent whole-repository code review
+
+Related same-family observations from the same review, recorded without full entries:
+`verify-reports-settings-a11y.mts` writes skips into execution-results.json as `pass:false` while
+exiting green and never printing its `notRun` counter; `verify-settings-e2e.mts` SET-015 pushes
+no results row at all so the case vanishes from both denominator and headline;
+`verify-comprehensive-e2e.mts` declares BLOCKED/NOT RUN/N-A statuses that the exit condition
+never consults; `verify-verifier-classification.mts` scans `scripts/` non-recursively (the two
+zvec-spike verifiers are invisible to reconciliation), counts any substring mention as
+registration, and has no floor on per-class totals; several registered GUI verifiers chain fixed
+`waitForTimeout(n)` delays before assertions (the exact flaky shape measured FAIL/FAIL/FAIL/PASS
+in settings-runner-behaviour). A shared harness helper (three states + cardinality floor +
+connectivity-aware skip semantics) would close these as a class.
+
+---
 
 ### AWKIT-QA-001 (`awkit-cey`) — Trivially-true login-interaction regex with no positive control
 
