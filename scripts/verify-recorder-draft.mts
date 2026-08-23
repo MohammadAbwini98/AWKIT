@@ -596,6 +596,66 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   await rm(sessionsDir, { recursive: true, force: true });
 }
 
+// ── AWKIT-REC-037 — the preserved draft is reachable in the UI and never destroyed silently ──
+{
+  const pageSrc = await readFile("app/renderer/pages/Recorder.tsx", "utf8");
+  const svcSrc = await readFile("src/recorder/RecorderService.ts", "utf8");
+  const sessionSrc = await readFile("src/session/SessionCaptureService.ts", "utf8");
+
+  // 1. The page fetches the restored draft + handoff on MOUNT, unconditionally.
+  {
+    const mountAt = pageSrc.indexOf("AWKIT-REC-037");
+    const mountBlock = mountAt > -1 ? pageSrc.slice(mountAt, mountAt + 800) : "";
+    check(
+      "REC-037 the page fetches actions and handoff on mount (draft visible after restart)",
+      mountBlock.includes("getActions().then(setActions)") && mountBlock.includes("getHandoff().then(setHandoff)") && mountBlock.includes("useEffect"),
+      mountBlock ? "" : "mount effect not found"
+    );
+  }
+  // 2. Save is disabled for the whole handoff pause (not only while isRecording).
+  check(
+    "REC-037 saveDisabled includes an active-handoff term",
+    /const saveDisabled = isRecording \|\| handoffActive \|\| isSaving/.test(pageSrc)
+  );
+  // 3. Cancelling a handoff refetches instead of blanking local state.
+  {
+    const handler = pageSrc.slice(pageSrc.indexOf("const handleCancelHandoff"), pageSrc.indexOf("const handleCancelHandoff") + 700);
+    check("REC-037 cancelling a handoff refetches the preserved actions", handler.includes("getActions().then(setActions)") && !handler.includes("setActions([])"), handler.includes("setActions([])") ? "handler still blanks actions" : "");
+  }
+  // 4. Starting over a restored draft requires explicit confirmation (no silent destruction).
+  check(
+    "REC-037 starting over a preserved draft opens a confirmation dialog",
+    pageSrc.includes("startOverwriteConfirmOpen") && /Discard draft and start/.test(pageSrc)
+  );
+
+  // 5. Chrome availability is validated BEFORE closing the automation browser.
+  {
+    const fnStart = svcSrc.indexOf("public async continueWithNormalBrowser");
+    const body = svcSrc.slice(fnStart, svcSrc.indexOf("captureSessionAndResume", fnStart));
+    check(
+      "REC-037 continueWithNormalBrowser checks Chrome BEFORE closing the recorder browser",
+      body.indexOf("detectBrowser()") > -1 && body.indexOf("detectBrowser()") < body.indexOf("await this.closeBrowser()"),
+      `detect@${body.indexOf("detectBrowser()")} close@${body.indexOf("await this.closeBrowser()")}`
+    );
+  }
+  // 6. Liveness watch stays armed during the detected pause.
+  check(
+    "REC-037 a closed paused browser surfaces instead of reading Recording",
+    /pausedForDetection = this\.handoff\?\.active === true && this\.handoff\.phase === "detected"/.test(svcSrc) &&
+      svcSrc.includes('phase: "error"')
+  );
+  // 7. Session capture validates the URL BEFORE registering a capturing row.
+  {
+    const validateAt = sessionSrc.indexOf('if (url && !/^https?:\\/\\//i.test(url)');
+    const registerAt = sessionSrc.indexOf("Register the profile in metadata");
+    check(
+      "REC-037 session capture rejects bad URLs before persisting a capturing row",
+      validateAt > -1 && registerAt > -1 && validateAt < registerAt,
+      `validate@${validateAt} register@${registerAt}`
+    );
+  }
+}
+
 await rm(dir, { recursive: true, force: true });
 const passed = results.filter((r) => r.pass).length;
 console.log(`\n${passed}/${results.length} recorder-draft checks passed`);

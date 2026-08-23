@@ -254,8 +254,21 @@ export class SessionCaptureService {
     const profileDir = join(this.profilesRoot, id);
     mkdirSync(profileDir, { recursive: true });
 
+    // AWKIT-REC-037: normalize + validate the URL BEFORE any metadata is written. The row used to
+    // be persisted as `capturing` first, so an unsupported target stranded a perpetual capturing
+    // profile that session matching can never see or clear.
+    let url = (targetUrl ?? "").trim();
+    if (url && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) && !/^(about:|data:|file:)/i.test(url)) {
+      url = `https://${url}`;
+    }
+    // Only open http(s) (or about:) capture targets in the user's real browser; a file:/data:
+    // target could open a local file in their browser (audit F-11).
+    if (url && !/^https?:\/\//i.test(url) && !/^about:/i.test(url)) {
+      throw new Error("Session capture only supports http(s) target URLs.");
+    }
+
     // Register the profile in metadata (serialized with every other metadata mutation).
-    const cleanUrl = targetUrl.trim() || undefined;
+    const cleanUrl = url || undefined;
     const profile: SessionProfile = {
       id,
       name: name.trim() || safeName,
@@ -273,17 +286,6 @@ export class SessionCaptureService {
       profiles.push(profile);
       await this.writeProfiles(profiles);
     });
-
-    // Normalize URL: prepend https:// if bare host.
-    let url = (targetUrl ?? "").trim();
-    if (url && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) && !/^(about:|data:|file:)/i.test(url)) {
-      url = `https://${url}`;
-    }
-    // Only open http(s) (or about:) capture targets in the user's real browser; a file:/data:
-    // target could open a local file in their browser (audit F-11).
-    if (url && !/^https?:\/\//i.test(url) && !/^about:/i.test(url)) {
-      throw new Error("Session capture only supports http(s) target URLs.");
-    }
 
     // Launch the real Chrome/Edge with the custom user-data-dir.
     const args = [

@@ -27,6 +27,7 @@ export function Recorder() {
   const [statusMsg, setStatusMsg] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [startOverwriteConfirmOpen, setStartOverwriteConfirmOpen] = useState(false);
   const [saveResult, setSaveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [actionMutationBusy, setActionMutationBusy] = useState(false);
@@ -67,6 +68,16 @@ export function Recorder() {
     }
     return () => clearInterval(interval);
   }, [isRecording]);
+
+  // AWKIT-REC-037: fetch the preserved draft (and any active handoff) ON MOUNT. The service
+  // restores a pre-crash draft to memory on first access; the page used to fetch only while
+  // `isRecording`, so the restored actions were invisible after a restart and Save stayed
+  // disabled — the AWKIT-REC-001 guarantee died at the UI layer.
+  useEffect(() => {
+    window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    window.playwrightFlowStudio.recorder.getUrls().then(setUrls).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const list = actionsListRef.current;
@@ -292,6 +303,17 @@ export function Recorder() {
   };
 
   const handleStart = async () => {
+    // AWKIT-REC-037: a preserved draft must be confirmed away, not silently destroyed. Starting
+    // clears service memory and overwrites the draft file — if displayed actions came from a
+    // restored draft (not a live recording), ask first.
+    if (!isRecording && actions.length > 0 && !handoffActive) {
+      setStartOverwriteConfirmOpen(true);
+      return;
+    }
+    await doStart();
+  };
+
+  const doStart = async () => {
     try {
       setStatusMsg("Starting browser...");
       await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime, captureSmartWaits });
@@ -382,8 +404,10 @@ export function Recorder() {
       await window.playwrightFlowStudio.recorder.cancelHandoff();
       setHandoff(null);
       setIsRecording(false);
-      setActions([]);
-      setStatusMsg("Secure login handoff cancelled.");
+      // AWKIT-REC-037: the service deliberately PRESERVES the pre-login draft on cancel
+      // (AWKIT-REC-001); blanking the local list hid work the user can still save. Refetch it.
+      window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+      setStatusMsg("Secure login handoff cancelled. Your pre-login actions are preserved — review and Save, or Start a new recording.");
     } catch (err: any) {
       setStatusMsg(`Error: ${err?.message ?? err}`);
     } finally {
@@ -472,7 +496,9 @@ export function Recorder() {
 
   const handoffActive = !!handoff?.active;
   const showHandoffPanel = !!handoff && handoff.phase !== "resumed";
-  const saveDisabled = isRecording || isSaving || actions.length === 0 || !flowName.trim();
+  // AWKIT-REC-037: saving during an active handoff pause empties the service's in-memory actions
+  // mid-pause, so it must be disabled for the whole pause — not only while isRecording.
+  const saveDisabled = isRecording || handoffActive || isSaving || actions.length === 0 || !flowName.trim();
 
   return (
     <div className="page-content recorder-page">
@@ -1173,6 +1199,22 @@ export function Recorder() {
           danger
           onConfirm={() => void applyActionMutation()}
           onCancel={() => { if (!actionMutationBusy) setActionMutationConfirm(null); }}
+        />
+      ) : null}
+
+      {/* AWKIT-REC-037: starting must never silently destroy a preserved draft. */}
+      {startOverwriteConfirmOpen ? (
+        <ConfirmDialog
+          title="Start a new recording?"
+          message={`The preserved draft with ${actions.length} recorded action${actions.length === 1 ? "" : "s"} will be discarded when the new recording starts. Save it to the Flow Library first if you want to keep it.`}
+          confirmLabel="Discard draft and start"
+          cancelLabel="Keep draft"
+          danger
+          onConfirm={() => {
+            setStartOverwriteConfirmOpen(false);
+            void doStart();
+          }}
+          onCancel={() => setStartOverwriteConfirmOpen(false)}
         />
       ) : null}
 

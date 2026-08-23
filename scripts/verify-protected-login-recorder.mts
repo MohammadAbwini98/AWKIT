@@ -355,6 +355,9 @@ try {
     };
     const syntheticCapture = {
       list: async () => [resumeProfile],
+      // AWKIT-REC-037: continueWithNormalBrowser now validates Chrome availability BEFORE closing
+      // the automation browser; the double must answer the probe.
+      detectBrowser: () => ({ found: true, path: "C:/fake/chrome.exe", browser: "chrome" as const }),
       startCapture: async () => {
         startCaptureCalls += 1;
         return { active: true, sessionId: RESUME_SESSION_ID, sessionName: resumeProfile.name, status: "running" as const };

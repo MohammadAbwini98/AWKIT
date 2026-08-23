@@ -540,8 +540,12 @@ export class RecorderService {
   private attachLivenessWatch(browser: Browser | null, context: BrowserContext | null, page: Page): void {
     const onUnexpectedDeath = (): void => {
       // Every SUPPORTED teardown (stop, cancel, handoff) sets isRecording=false *before* closing
-      // anything, so this guard is what makes the handler fire only on an unexpected death.
-      if (!this.isRecording) return;
+      // anything, so this guard is what makes the handler fire only on an unexpected death —
+      // EXCEPT the protected-detection pause (AWKIT-REC-037): that pause also clears isRecording
+      // while deliberately leaving the browser OPEN. If the user closes that paused browser, the
+      // death must still surface instead of the UI reading "Recording" against dead handles.
+      const pausedForDetection = this.handoff?.active === true && this.handoff.phase === "detected";
+      if (!this.isRecording && !pausedForDetection) return;
       // Ignore a handle belonging to a session we have already replaced — the resume path relaunches
       // a second browser, and its predecessor's listeners outlive it.
       const isCurrent = this.page === page || (browser !== null && this.browser === browser) || (context !== null && this.context === context);
@@ -553,6 +557,16 @@ export class RecorderService {
       // Best-effort, and deliberately not awaited: this runs from an event handler.
       void this.persistDraft().catch(() => undefined);
       void this.closeBrowser().catch(() => undefined);
+      if (pausedForDetection) {
+        // Unblock the UI: the handoff can no longer proceed on a closed browser.
+        this.handoff = {
+          ...this.handoff!,
+          active: false,
+          phase: "error",
+          error: "The recorder browser was closed while the protected-login handoff was waiting.",
+          message: "The recorder browser was closed while AWKIT waited for your decision. Start a new recording to continue."
+        };
+      }
     };
 
     page.on("close", onUnexpectedDeath);
@@ -1172,8 +1186,19 @@ export class RecorderService {
     if (!this.sessionService) {
       throw new Error("Session capture is unavailable (no browser service configured).");
     }
-    // Now that the user has chosen manual handoff, close the paused automation browser — we never
-    // automate the protected page, and its profile must be free before the real Chrome opens.
+    // AWKIT-REC-037: validate Chrome availability BEFORE tearing anything down. This used to close
+    // the paused automation browser first, so on a machine without Chrome/Edge the handoff landed
+    // in phase:"error" with the recording page gone — bricked, with no retry path.
+    const browser = this.sessionService.detectBrowser();
+    if (!browser.found) {
+      throw new Error(
+        "No Chrome or Edge browser found on this system. Install Google Chrome or Microsoft Edge, " +
+          "then try again. (SpecterStudio cannot use its bundled Chromium for session capture because " +
+          "it would be detected as an automation browser.)"
+      );
+    }
+    // The user chose manual handoff; NOW close the paused automation browser — we never automate
+    // the protected page, and its profile must be free before the real Chrome opens.
     this.isRecording = false;
     await this.closeBrowser();
     this.lastActionPage = null;
