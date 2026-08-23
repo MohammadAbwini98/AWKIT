@@ -54,25 +54,6 @@ two passes were executed independently; overlap was deduplicated against the fir
   true ENOENT), and add a round-trip verifier that seeds malformed metadata and asserts it is
   preserved.
 
-### AWKIT-RUN-008 — Auto Secure Login's manual-login wait cannot be cancelled; Stop resumes into a fresh browser launch
-
-- **Classification:** Product defect (cancellation contract break)
-- **Severity:** S2 / `Stop Instance` during the manual login has no effect for up to `timeoutMs`
-  (default **10 minutes**): the poll loop checks neither `throwIfCancelled` nor the manual-handoff
-  controller, and the automation browser is already closed so there is nothing to kill. When the
-  user finally closes Chrome, steps 5–6 still execute — including `browserRestarter({ newUserDataDir })`
-  relaunching a fresh persistent context AFTER cancellation — before the next step's
-  cancellation check aborts the flow.
-- **Priority recommendation:** P1
-- **Status:** **OPEN — found by the second 2026-08-23 review pass (code-traced; live reproduction
-  pending), not fixed**
-- **Owner routing:** Runner (`StepExecutor` secure-login lifecycle)
-- **Affected area:** `src/runner/StepExecutor.ts:2292-2300` (uncancellable `for(;;)` poll),
-  `:2302-2312` (post-wait verify + relaunch with no cancellation check). Compare
-  `captureProtectedLoginSession` (`:2489-2498`), which correctly races the handoff action — but
-  see KNOWN_ISSUES for its cancel-before-arm window.
-- **Fix direction:** race the poll against `this.cancellation` and reject immediately on cancel;
-  re-check cancellation before the step-5/6 relaunch.
 
 ### AWKIT-RUN-009 — Nested-flow outputs are double-prefixed, so `${outputs.<childFlowId>.<key>}` can never resolve
 
@@ -108,41 +89,7 @@ two passes were executed independently; overlap was deduplicated against the fir
 - **Fix direction:** either apply the bindings in the scenario execution path or remove the dead
   surface and stop advertising flow-input mapping.
 
-### AWKIT-RUN-011 — Assertion-failure messages embed the raw `expected` value, which may be a resolved secret
 
-- **Classification:** Security concern (secret leakage into run reports/logs)
-- **Severity:** S3 / The masking comment is applied to `actual` only. `expected` comes from
-  `resolveStepValue(step, cfg.expectedValue ?? step.value)` which resolves secret-type value
-  sources through the DPAPI store — so an assertion comparing against a stored secret throws the
-  RAW secret into the step error, which lands in run reports/logs. Exactly the leak the adjacent
-  code says it is preventing.
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Runner / redaction
-- **Affected area:** `src/runner/StepExecutor.ts` `executeAssertion` failure branch:
-  `` throw new Error(`Assertion failed: "${reported}" ${operator} "${expected}".`) `` — mask
-  `expected` symmetrically (and consider refusing secret-backed expectations outright).
-- **Existing coverage:** `verify:recorder-redaction` covers recorder surfaces; no gate covers this
-  runner sink.
-
-### AWKIT-FLO-001 — `closePopup` is palette-authorable but guaranteed to throw at runtime
-
-- **Classification:** Product defect (designer-runtime contract break)
-- **Severity:** S2 / A user can add Close Popup from the Node Palette, it validates clean
-  ("Runnable"), and the step then throws at run time: the executor requires
-  `config.popupAlias ?? step.pageAlias`, and NO renderer surface can author either field for this
-  node type (the mapping preserves only Recorder-produced aliases).
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Frontend / Flow Designer node registry
-- **Affected area:** `app/renderer/components/workflow/flowNodeRegistry.ts:217-221`
-  (`sections: ["execution"]`, no validate, `executable: true`);
-  `src/runner/StepExecutor.ts` closePopup case (throws without alias);
-  `app/renderer/components/workflow/flowProfileMapping.ts:282-284` (verbatim-preserve path is the
-  only alias source). Shared validator agrees with the empty designer check
-  (`src/validation/StepRequirements.ts:82`).
-- **Fix direction:** give the node an alias picker section fed by the same popup aliases
-  `switchToPopup` authors, or mark the node draft-only until an alias exists.
 
 
 ### AWKIT-SET-007 — Corrupt `ui-settings.json` silently resets to defaults and is overwritten at next startup
@@ -583,6 +530,73 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-FLO-001 — `closePopup` is palette-authorable but guaranteed to throw at runtime
+
+- **Classification:** Product defect (designer-runtime contract break)
+- **Severity:** S2 / A user can add Close Popup from the Node Palette, it validates clean
+  ("Runnable"), and the step then throws at run time: the executor requires
+  `config.popupAlias ?? step.pageAlias`, and NO renderer surface can author either field for this
+  node type (the mapping preserves only Recorder-produced aliases).
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 4772c3b**
+- **Owner routing:** Frontend / Flow Designer node registry
+- **Affected area:** `app/renderer/components/workflow/flowNodeRegistry.ts:217-221`
+  (`sections: ["execution"]`, no validate, `executable: true`);
+  `src/runner/StepExecutor.ts` closePopup case (throws without alias);
+  `app/renderer/components/workflow/flowProfileMapping.ts:282-284` (verbatim-preserve path is the
+  only alias source). Shared validator agrees with the empty designer check
+  (`src/validation/StepRequirements.ts:82`).
+- **Fix direction:** give the node an alias picker section fed by the same popup aliases
+  `switchToPopup` authors, or mark the node draft-only until an alias exists.
+
+- **Evidence after fix:** `verify:flow-step-mapping` 166/166 FLO-001 section: registry refuses alias-less Close Popup / accepts pageAlias or recorded config.popupAlias; StepRequirements.requiresPopupAlias set; FlowValidator flags the empty shape as missingRequiredValue while leaving the aliased node clean; panel exposes the Popup Target editor. verify:validation 163/163 (shipped popup fixture carries an alias and stays clean).
+
+---
+
+### AWKIT-RUN-011 — Assertion-failure messages embed the raw `expected` value, which may be a resolved secret
+
+- **Classification:** Security concern (secret leakage into run reports/logs)
+- **Severity:** S3 / The masking comment is applied to `actual` only. `expected` comes from
+  `resolveStepValue(step, cfg.expectedValue ?? step.value)` which resolves secret-type value
+  sources through the DPAPI store — so an assertion comparing against a stored secret throws the
+  RAW secret into the step error, which lands in run reports/logs. Exactly the leak the adjacent
+  code says it is preventing.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 4772c3b**
+- **Owner routing:** Runner / redaction
+- **Affected area:** `src/runner/StepExecutor.ts` `executeAssertion` failure branch:
+  `` throw new Error(`Assertion failed: "${reported}" ${operator} "${expected}".`) `` — mask
+  `expected` symmetrically (and consider refusing secret-backed expectations outright).
+- **Existing coverage:** `verify:recorder-redaction` covers recorder surfaces; no gate covers this
+  runner sink.
+
+- **Evidence after fix:** `verify:assertions` 15/15, section [E] drives a real StepExecutor with a registered secret-backed expectation: failure message contains no raw secret and shows [masked]. Mutation reverting to raw interpolation → exit 1.
+
+---
+
+### AWKIT-RUN-008 — Auto Secure Login's manual-login wait cannot be cancelled; Stop resumes into a fresh browser launch
+
+- **Classification:** Product defect (cancellation contract break)
+- **Severity:** S2 / `Stop Instance` during the manual login has no effect for up to `timeoutMs`
+  (default **10 minutes**): the poll loop checks neither `throwIfCancelled` nor the manual-handoff
+  controller, and the automation browser is already closed so there is nothing to kill. When the
+  user finally closes Chrome, steps 5–6 still execute — including `browserRestarter({ newUserDataDir })`
+  relaunching a fresh persistent context AFTER cancellation — before the next step's
+  cancellation check aborts the flow.
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-23 in 4772c3b**
+- **Owner routing:** Runner (`StepExecutor` secure-login lifecycle)
+- **Affected area:** `src/runner/StepExecutor.ts:2292-2300` (uncancellable `for(;;)` poll),
+  `:2302-2312` (post-wait verify + relaunch with no cancellation check). Compare
+  `captureProtectedLoginSession` (`:2489-2498`), which correctly races the handoff action — but
+  see KNOWN_ISSUES for its cancel-before-arm window.
+- **Fix direction:** race the poll against `this.cancellation` and reject immediately on cancel;
+  re-check cancellation before the step-5/6 relaunch.
+
+- **Evidence after fix:** `verify:cancellation` 34/34: new guards prove the manual-login poll checks throwIfCancelled inside the loop (before/after each tick) and re-checks BEFORE the post-wait relaunch; suite green with live Parts A-F.
+
+---
+
 ### AWKIT-RUN-007 — Manual-handoff instances park browser slots invisibly to capacity accounting
 
 - **Classification:** Architecture concern (queue starvation with green gauges)
