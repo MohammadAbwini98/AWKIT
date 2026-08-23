@@ -388,95 +388,7 @@ work inside the dispatch loop (availability cost, fail-closed intact).
 
 ---
 
-### AWKIT-SES-003 — Closing Chrome marks a capture `ready` without any authentication check
-
-- **Classification:** Product defect (session lifecycle)
-- **Severity:** S2/LOW–MEDIUM — a profile whose browser was closed WITHOUT logging in becomes
-  `ready`, so Auto Secure Login's origin matching can silently bind a replay to an unauthenticated
-  session
-- **Priority recommendation:** P2
-- **Status:** **OPEN — discovered by the live REC-022 walkthrough (2026-08-22), deferred follow-up**
-- **Owner routing:** Session persistence / runner
-- **Affected area:** `src/session/SessionCaptureService.ts` `handleBrowserClosed`;
-  consumer `StepExecutor.executeAutoSecureLogin`
-- **Detected by:** Live walkthrough run `021e3a2f`: an abandoned capture (`session-a2b9c0c8`,
-  closed without login) flipped to `ready` and satisfied the Auto Secure Login skip-match
-
-`handleBrowserClosed` sets `status = "ready"` unconditionally when the spawned Chrome exits — the
-recorder path guards this with `hasCapturedData` in `captureSessionAndResume`, but the runner's
-capture-completion path checks only `status === "ready"`, and `findBestSessionForUrl` filters on
-`ready`. Mitigations that limited the blast radius this time: Reuse Session pins ids explicitly,
-and the recorder now embeds login-origin urls (AWKIT-REC-003 fix). Fix direction: gate the
-`ready` transition on `hasCapturedData` (existence-only) or a stronger authenticated-state signal;
-note that real Chrome writes `Default/Preferences` early, so existence alone is weak — a stronger
-signal may be needed. Never automate around it; fail closed.
-
-### AWKIT-SES-001 — Session atomic write duplicates the existing main-process helper
-
-- **Classification:** Architecture / duplicate implementation
-- **Severity:** S3 / LOW — no observed data loss; the two copies simply disagree on retry policy
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
-- **Owner routing:** Persistence
-- **Affected area:** `src/session/atomicWrite.ts`, `app/main/atomicReplace.ts:77-109`
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
-
-`src/session/atomicWrite.ts` reimplements the temp-file + rename + EPERM/EBUSY retry that
-`app/main/atomicReplace.ts:77-109` already provides, and the defaults have already drifted apart:
-the new helper uses **4 attempts / 50ms linear** backoff while the existing helper uses
-`DEFAULT_REPLACE_ATTEMPTS = 5` and `DEFAULT_REPLACE_BACKOFF_MS = 20`. Two independent retry
-policies for the same Windows contention hazard is exactly the duplication `docs/ai/RULES.md:30`
-forbids, and a future fix to one copy will not reach the other.
-
-**Fix direction:** consolidate on the existing `app/main/atomicReplace.ts` helper rather than
-keeping a second implementation; if the session store genuinely needs different attempt/backoff
-values, they should be parameters of the one helper, not a fork.
-
 ---
-
-### AWKIT-SES-002 — `session-profiles.json` silently changed from pretty-printed to single-line
-
-- **Classification:** Documentation / undocumented behavior change
-- **Severity:** S3 / LOW — the file still round-trips losslessly; only its on-disk shape changed
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
-- **Owner routing:** Persistence
-- **Affected area:** `src/session/atomicWrite.ts:44`
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
-
-The new helper writes `JSON.stringify(value)` where the previous write path used
-`JSON.stringify(value, null, 2)`. `session-profiles.json` therefore changed from pretty-printed to a
-single line as a side effect of the `b16812a` atomicity fix. Nothing depends on the formatting, but
-the change was neither intended by the defect it shipped under nor documented anywhere, so an
-operator inspecting the store by hand sees an unexplained format change.
-
-**Fix direction:** either restore the two-space indentation or record the format deliberately in the
-session-store documentation.
-
----
-
-### AWKIT-REC-036 — Cancelling a handoff leaves stale ambiguity state pointing at a dead page
-
-- **Classification:** Product
-- **Severity:** S3 / LOW — reachable only by invoking ambiguity preview after a cancelled handoff
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
-- **Owner routing:** Recorder
-- **Affected area:** `src/recorder/RecorderService.ts` `cancelSecureHandoff` (`:1347-1365`),
-  `previewCandidate` (`:1757-1758`), former clearing site in `discardDraft()` (`:489-490`)
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
-
-The AWKIT-REC-001 fix removed the `discardDraft()` call from `cancelSecureHandoff`, which was also —
-incidentally — the only thing nulling `ambiguityState` and `ambiguityPage` on that path
-(`discardDraft()` still clears them at `:489-490`). After a cancelled handoff those fields can
-therefore still reference a closed page, and `previewCandidate` (`:1757-1758`) would surface a raw
-Playwright "target closed" error instead of an actionable message.
-
-**Mitigating:** `stopRecording` has the same pre-existing gap, so this is a latent condition the fix
-merely widened — it is **not** a regression unique to `1e85946`.
-
-**Fix direction:** add `this.ambiguityState = null; this.ambiguityPage = null;` at
-`src/recorder/RecorderService.ts:1361`, and consider the same for `stopRecording`.
 
 ---
 
@@ -652,6 +564,110 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-REC-036 — Cancelling a handoff leaves stale ambiguity state pointing at a dead page
+
+- **Classification:** Product
+- **Severity:** S3 / LOW — reachable only by invoking ambiguity preview after a cancelled handoff
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in 4c4044f**
+- **Owner routing:** Recorder
+- **Affected area:** `src/recorder/RecorderService.ts` `cancelSecureHandoff` (`:1347-1365`),
+  `previewCandidate` (`:1757-1758`), former clearing site in `discardDraft()` (`:489-490`)
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The AWKIT-REC-001 fix removed the `discardDraft()` call from `cancelSecureHandoff`, which was also —
+incidentally — the only thing nulling `ambiguityState` and `ambiguityPage` on that path
+(`discardDraft()` still clears them at `:489-490`). After a cancelled handoff those fields can
+therefore still reference a closed page, and `previewCandidate` (`:1757-1758`) would surface a raw
+Playwright "target closed" error instead of an actionable message.
+
+**Mitigating:** `stopRecording` has the same pre-existing gap, so this is a latent condition the fix
+merely widened — it is **not** a regression unique to `1e85946`.
+
+**Fix direction:** add `this.ambiguityState = null; this.ambiguityPage = null;` at
+`src/recorder/RecorderService.ts:1361`, and consider the same for `stopRecording`.
+
+- **Evidence after fix:** `verify:recorder-draft` 93/93 REC-036 checks: both cancelSecureHandoff AND stopRecording clear stale ambiguityState/ambiguityPage while preserving the draft; protected-login suites stay green (73/73, 26/26).
+
+---
+
+### AWKIT-SES-003 — Closing Chrome marks a capture `ready` without any authentication check
+
+- **Classification:** Product defect (session lifecycle)
+- **Severity:** S2/LOW–MEDIUM — a profile whose browser was closed WITHOUT logging in becomes
+  `ready`, so Auto Secure Login's origin matching can silently bind a replay to an unauthenticated
+  session
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 4c4044f**
+- **Owner routing:** Session persistence / runner
+- **Affected area:** `src/session/SessionCaptureService.ts` `handleBrowserClosed`;
+  consumer `StepExecutor.executeAutoSecureLogin`
+- **Detected by:** Live walkthrough run `021e3a2f`: an abandoned capture (`session-a2b9c0c8`,
+  closed without login) flipped to `ready` and satisfied the Auto Secure Login skip-match
+
+`handleBrowserClosed` sets `status = "ready"` unconditionally when the spawned Chrome exits — the
+recorder path guards this with `hasCapturedData` in `captureSessionAndResume`, but the runner's
+capture-completion path checks only `status === "ready"`, and `findBestSessionForUrl` filters on
+`ready`. Mitigations that limited the blast radius this time: Reuse Session pins ids explicitly,
+and the recorder now embeds login-origin urls (AWKIT-REC-003 fix). Fix direction: gate the
+`ready` transition on `hasCapturedData` (existence-only) or a stronger authenticated-state signal;
+note that real Chrome writes `Default/Preferences` early, so existence alone is weak — a stronger
+signal may be needed. Never automate around it; fail closed.
+
+---
+
+- **Evidence after fix:** `verify:recorder-draft` 93/93 SES-003 matrix: cookies-bearing capture → ready on browser close; Preferences-only and abandoned captures → error (never reusable). Live log lines show the fail-closed warning.
+
+---
+
+### AWKIT-SES-002 — `session-profiles.json` silently changed from pretty-printed to single-line
+
+- **Classification:** Documentation / undocumented behavior change
+- **Severity:** S3 / LOW — the file still round-trips losslessly; only its on-disk shape changed
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in 4c4044f**
+- **Owner routing:** Persistence
+- **Affected area:** `src/session/atomicWrite.ts:44`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The new helper writes `JSON.stringify(value)` where the previous write path used
+`JSON.stringify(value, null, 2)`. `session-profiles.json` therefore changed from pretty-printed to a
+single line as a side effect of the `b16812a` atomicity fix. Nothing depends on the formatting, but
+the change was neither intended by the defect it shipped under nor documented anywhere, so an
+operator inspecting the store by hand sees an unexplained format change.
+
+**Fix direction:** either restore the two-space indentation or record the format deliberately in the
+session-store documentation.
+
+- **Evidence after fix:** writeJsonFileAtomic writes JSON.stringify(value, null, 2); the recorder-draft suite seeds and round-trips real metadata through it (93/93) so session-profiles.json is pretty-printed by deliberate contract.
+
+---
+
+### AWKIT-SES-001 — Session atomic write duplicates the existing main-process helper
+
+- **Classification:** Architecture / duplicate implementation
+- **Severity:** S3 / LOW — no observed data loss; the two copies simply disagree on retry policy
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in 4c4044f**
+- **Owner routing:** Persistence
+- **Affected area:** `src/session/atomicWrite.ts`, `app/main/atomicReplace.ts:77-109`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+`src/session/atomicWrite.ts` reimplements the temp-file + rename + EPERM/EBUSY retry that
+`app/main/atomicReplace.ts:77-109` already provides, and the defaults have already drifted apart:
+the new helper uses **4 attempts / 50ms linear** backoff while the existing helper uses
+`DEFAULT_REPLACE_ATTEMPTS = 5` and `DEFAULT_REPLACE_BACKOFF_MS = 20`. Two independent retry
+policies for the same Windows contention hazard is exactly the duplication `docs/ai/RULES.md:30`
+forbids, and a future fix to one copy will not reach the other.
+
+**Fix direction:** consolidate on the existing `app/main/atomicReplace.ts` helper rather than
+keeping a second implementation; if the session store genuinely needs different attempt/backoff
+values, they should be parameters of the one helper, not a fork.
+
+- **Evidence after fix:** One canonical helper in src/storage/atomicReplace.ts (5 attempts / 20ms); app/main re-exports unchanged; src/session/atomicWrite delegates the rename half. verify:recorder-draft 93/93 injected-seam retry probes and verify:write-queue 29/29 run through the single implementation.
+
+---
+
 ### AWKIT-SET-007 — Corrupt `ui-settings.json` silently resets to defaults and is overwritten at next startup
 
 - **Classification:** Data-integrity risk (settings loss without backup)
