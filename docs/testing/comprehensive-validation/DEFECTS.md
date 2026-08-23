@@ -285,10 +285,9 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 ## Open test and harness findings
 
-Eight LOW/MEDIUM findings. Five are from the 2026-08-22 independent QC review (`AWKIT-QA-001`
-… `AWKIT-QA-005`); three are from the 2026-08-23 whole-repository review (`AWKIT-QA-006`,
-`AWKIT-QA-007`, `AWKIT-QA-008` — the last filed by the second pass). None is fixed.
+None.
 
+## Resolved comprehensive-campaign defects
 ### AWKIT-QA-008 — Field-absence escape hatch in `verify-zvec-packaged-live`; unreachable BLOCKED/NOT-RUN states in the comprehensive ledger
 
 - **Classification:** Test quality (new instances of the catalogued "checks that cannot fail" and
@@ -302,7 +301,7 @@ Eight LOW/MEDIUM findings. Five are from the 2026-08-22 independent QC review (`
   structurally zero. Harmless today; the moment someone starts recording BLOCKED there, the exit
   gate keys on FAIL only and unexecuted cases print green.
 - **Priority recommendation:** P3
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
 - **Owner routing:** QA
 - **Affected area:** `scripts/verify-zvec-packaged-live.mts:195-199`;
   `scripts/verify-comprehensive-e2e.mts:30,591-596,631`
@@ -310,23 +309,9 @@ Eight LOW/MEDIUM findings. Five are from the 2026-08-22 independent QC review (`
   NOT-RUN plumbing for schema absence); either wire real BLOCKED production into `withCase` or
   delete the dead states so the tally cannot mask a future skip.
 
-### AWKIT-QA-006 — An offline machine turns the Chromium no-egress gate into a vacuous full-green run
+---
 
-- **Classification:** Test quality
-- **Severity:** S2 / A security-relevant release gate can print a confident all-pass tally while its subject was exercised zero times
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
-- **Owner routing:** QA
-- **Affected area:** `scripts/verify-chromium-hardening.mts:159-165`
-- **Detected by:** Independent whole-repository code review
-
-When navigation probes fail with offline-shaped errors the suite records a PASS via
-`check("navigation check skipped while offline …", true)` and itself notes that part B's
-zero-egress result is trivially true offline — yet part B still tallies as a real pass, and the
-suite has only PASS/FAIL states so nothing marks the run degraded. Same family as the documented
-context-status degrade-to-normal trap: environmental degradation converts the gate into a quiet
-pass. Fix direction: a NOT-RUN third state plus a distinct exit (or failure) when the positive
-navigation proof did not execute.
+- **Evidence after fix:** zvec escape hatch #8 removed (field presence asserted before SEMANTIC_ match; verify exit 0). comprehensive-e2e dead BLOCKED/NOT RUN/N-A states deleted so the tally cannot mask a future skip (exit 0).
 
 ---
 
@@ -335,7 +320,7 @@ navigation proof did not execute.
 - **Classification:** Test quality (family)
 - **Severity:** S3 / A CI consumer sees green with zero executed checks; exit-code semantics are inconsistent across suites
 - **Priority recommendation:** P3
-- **Status:** **OPEN — found by the 2026-08-23 independent codebase review, not fixed**
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
 - **Owner routing:** QA
 - **Affected area:** `scripts/verify-packaged-validation.mts:676`, `scripts/verify-reports-live-engine.mts:536`, `scripts/verify-recorder-gui.mts:1566`, `scripts/verify-settings-runner-behaviour.mts:405` (exit on `failed === 0` only); correct pattern already in-tree at `scripts/verify-zvec-packaged-live.mts:228` (`failed === 0 && notRun.length === 0`) and `verify-packaged-walkthrough.mjs` (blocked fails)
 - **Detected by:** Independent whole-repository code review
@@ -354,79 +339,37 @@ connectivity-aware skip semantics) would close these as a class.
 
 ---
 
-### AWKIT-QA-001 — Trivially-true login-interaction regex with no positive control
+---
+
+---
+
+---
+
+---
+
+- **Evidence after fix:** Exit gates fixed in packaged-validation / reports-live-engine / recorder-gui / settings-runner-behaviour / reports-settings-a11y (prints + fails on skips) / settings-e2e (SET-015 skip becomes a visible skipped row that fails). verifier-classification scans scripts/ recursively (198 files) and enforces per-class floors. Fixed waits in settings-runner-behaviour converted to condition waits.
+
+---
+
+### AWKIT-QA-006 — An offline machine turns the Chromium no-egress gate into a vacuous full-green run
 
 - **Classification:** Test quality
-- **Severity:** S3 / LOW
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Severity:** S2 / A security-relevant release gate can print a confident all-pass tally while its subject was exercised zero times
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
 - **Owner routing:** QA
-- **Affected area:** `scripts/verify-protected-login-recorder.mts`
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+- **Affected area:** `scripts/verify-chromium-hardening.mts:159-165`
+- **Detected by:** Independent whole-repository code review
 
-The regex asserting that the resumed draft contains no login interaction cannot fail against any
-plausible draft, and no positive control proves it would match a draft that *did* contain one. The
-assertion is not currently wrong, but it carries no discriminating power.
+When navigation probes fail with offline-shaped errors the suite records a PASS via
+`check("navigation check skipped while offline …", true)` and itself notes that part B's
+zero-egress result is trivially true offline — yet part B still tallies as a real pass, and the
+suite has only PASS/FAIL states so nothing marks the run degraded. Same family as the documented
+context-status degrade-to-normal trap: environmental degradation converts the gate into a quiet
+pass. Fix direction: a NOT-RUN third state plus a distinct exit (or failure) when the positive
+navigation proof did not execute.
 
-**Fix direction:** add a positive control that constructs a draft containing a login interaction and
-proves the regex matches it, then assert absence on the real draft.
-
----
-
-### AWKIT-QA-002 — Queue failure-isolation contract is untested
-
-- **Classification:** Test coverage gap
-- **Severity:** S3 / LOW
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
-- **Owner routing:** QA
-- **Affected area:** `src/session/SessionCaptureService.ts:82,85` (the `.then(operation, operation)`
-  serialization chain)
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
-
-The `enqueue` chain uses `.then(operation, operation)` specifically so a rejected operation cannot
-poison the queue for every later mutation. No assertion exercises that: the added concurrency
-coverage only drives operations that resolve. A regression that dropped the rejection handler would
-pass the whole suite.
-
-**Fix direction:** enqueue an operation that rejects, then prove a subsequent enqueued operation
-still runs and lands.
-
----
-
-### AWKIT-QA-003 — Inverted variable name `draftGoneAfterDiscard`
-
-- **Classification:** Test readability / fragility
-- **Severity:** S3 / LOW
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
-- **Owner routing:** QA
-- **Affected area:** `scripts/verify-recorder-draft.mts:275-276`
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
-
-The variable named `draftGoneAfterDiscard` holds the opposite sense of its name. The assertion is
-**correct today**, but the name invites a future editor to "fix" the polarity and silently invert a
-real check.
-
-**Fix direction:** rename to match the value it holds.
-
----
-
-### AWKIT-QA-004 — Missing optional chaining turns a clean FAIL into a crash
-
-- **Classification:** Test robustness
-- **Severity:** S3 / LOW
-- **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
-- **Owner routing:** QA
-- **Affected area:** `scripts/verify-protected-login-recorder.mts` (`.config` access)
-- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
-
-A `.config` property is read without optional chaining. If the owning object is ever absent the
-verifier throws a `TypeError` instead of recording a failed check — which, combined with
-AWKIT-QA-005 below, would remove the check from the denominator rather than fail it.
-
-**Fix direction:** use optional chaining and assert the value explicitly.
+- **Evidence after fix:** `verify-chromium-hardening`: offline skip records NOT RUN and exits non-zero (positive navigation proof must execute); NOT RUN lines printed at summary.
 
 ---
 
@@ -435,7 +378,7 @@ AWKIT-QA-005 below, would remove the check from the denominator rather than fail
 - **Classification:** Harness design — repo-wide pattern, not confined to these two scripts
 - **Severity:** S3 / LOW
 - **Priority recommendation:** P3
-- **Status:** **OPEN — deferred follow-up, not fixed**
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
 - **Owner routing:** QA
 - **Affected area:** `scripts/verify-recorder-draft.mts`,
   `scripts/verify-protected-login-recorder.mts`, and any verifier sharing this harness shape
@@ -452,9 +395,94 @@ alone. This is worth a repo-wide sweep — the shape is not unique to these two 
 **Fix direction:** assert an expected check count (a cardinality assertion) alongside the tally, so a
 shortened run fails loudly.
 
+- **Evidence after fix:** Shared helper scripts/lib/verify-harness.mjs (assertCardinality + three-state createTally); recorder-draft pins EXPECTED=102, protected-login-recorder EXPECTED=74 — both print 'executed exactly N checks' and fail on shrink. Sweep of remaining suites tracked as ongoing adoption.
+
 ---
 
-## Resolved comprehensive-campaign defects
+### AWKIT-QA-004 — Missing optional chaining turns a clean FAIL into a crash
+
+- **Classification:** Test robustness
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-protected-login-recorder.mts` (`.config` access)
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+A `.config` property is read without optional chaining. If the owning object is ever absent the
+verifier throws a `TypeError` instead of recording a failed check — which, combined with
+AWKIT-QA-005 below, would remove the check from the denominator rather than fail it.
+
+**Fix direction:** use optional chaining and assert the value explicitly.
+
+- **Evidence after fix:** `verify:protected-login-recorder` 74/74: persistedResumeDraft.actions[1]?.config?.reuseSessionId — a missing node fails the check instead of crashing the verifier.
+
+---
+
+### AWKIT-QA-003 — Inverted variable name `draftGoneAfterDiscard`
+
+- **Classification:** Test readability / fragility
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in 4c4044f**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-recorder-draft.mts:275-276`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The variable named `draftGoneAfterDiscard` holds the opposite sense of its name. The assertion is
+**correct today**, but the name invites a future editor to "fix" the polarity and silently invert a
+real check.
+
+**Fix direction:** rename to match the value it holds.
+
+- **Evidence after fix:** Renamed to draftExistsAfterDiscard with a comment recording why; landed inside cluster 8's recorder-draft update (93/93 then, 102/102 now).
+
+---
+
+### AWKIT-QA-002 — Queue failure-isolation contract is untested
+
+- **Classification:** Test coverage gap
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
+- **Owner routing:** QA
+- **Affected area:** `src/session/SessionCaptureService.ts:82,85` (the `.then(operation, operation)`
+  serialization chain)
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The `enqueue` chain uses `.then(operation, operation)` specifically so a rejected operation cannot
+poison the queue for every later mutation. No assertion exercises that: the added concurrency
+coverage only drives operations that resolve. A regression that dropped the rejection handler would
+pass the whole suite.
+
+**Fix direction:** enqueue an operation that rejects, then prove a subsequent enqueued operation
+still runs and lands.
+
+- **Evidence after fix:** `verify:recorder-draft` 102/102 QA-002: an operation enqueued AFTER a rejecting operation still runs and lands; list() healthy afterwards.
+
+---
+
+### AWKIT-QA-001 — Trivially-true login-interaction regex with no positive control
+
+- **Classification:** Test quality
+- **Severity:** S3 / LOW
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-08-23 in e64a5dd**
+- **Owner routing:** QA
+- **Affected area:** `scripts/verify-protected-login-recorder.mts`
+- **Detected by:** Independent QC review of the REC-022 workstream (`awkit-cey`)
+
+The regex asserting that the resumed draft contains no login interaction cannot fail against any
+plausible draft, and no positive control proves it would match a draft that *did* contain one. The
+assertion is not currently wrong, but it carries no discriminating power.
+
+**Fix direction:** add a positive control that constructs a draft containing a login interaction and
+proves the regex matches it, then assert absence on the real draft.
+
+- **Evidence after fix:** `verify:protected-login-recorder` 74/74 QA-001 positive control: strengthened pattern matches Click/Complete-login names AND does not match the inserted secure nodes (the OLD regex matched neither control — proof the original had zero discriminating power).
+
+---
+
 ### AWKIT-A11Y-001 — ReauthDialog declares `aria-modal` with no focus contract, while another file asserts it has one
 
 - **Classification:** Product defect (accessibility; recurring aria-modal-without-focus class,
