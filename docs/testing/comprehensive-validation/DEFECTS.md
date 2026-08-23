@@ -281,48 +281,6 @@ areas were **not** re-hunted in this pass: `RUN-001..011` already cover them and
 
 
 
-### AWKIT-A11Y-001 — ReauthDialog declares `aria-modal` with no focus contract, while another file asserts it has one
-
-- **Classification:** Product defect (accessibility; recurring aria-modal-without-focus class,
-  fourth instance)
-- **Severity:** S2 / The password modal for sensitive Super-User actions moves focus neither in nor
-  back, does not trap Tab, and ignores Escape — while background content remains reachable. A
-  sibling file documents the opposite: "`ReauthDialog` … already carries a focus contract", which
-  is false against current source. `ResetPasswordModal` on the same admin surface duplicates the
-  gap (and lacks an accessible name) while UserAccessModal in the same file implements the full
-  contract — two modals, divergent keyboard behavior, one page.
-- **Priority recommendation:** P2
-- **Status:** **OPEN — found by the second 2026-08-23 review pass, not fixed**
-- **Owner routing:** Frontend admin pages
-- **Affected area:** `app/renderer/pages/admin/ReauthDialog.tsx` (no effect/ref/keydown anywhere);
-  false claim `app/renderer/pages/SemanticIndexSettings.tsx:23`; `ResetPasswordModal`
-  `app/renderer/pages/admin/UserManagement.tsx:403-418` vs correct sibling `UserAccessModal`
-  `:352-400`; reference contract `components/shared/ConfirmDialog.tsx:31-62`. Launched from
-  sensitive flows incl. License Issuer re-auth.
-- **Fix direction:** apply the ConfirmDialog contract to both modals and correct the stale claim;
-  consider the class-level guard already recommended in KNOWN_ISSUES (source scan over
-  `aria-modal="true"`).
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
 ---
 
 ## Open test and harness findings
@@ -497,6 +455,52 @@ shortened run fails loudly.
 ---
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-A11Y-001 — ReauthDialog declares `aria-modal` with no focus contract, while another file asserts it has one
+
+- **Classification:** Product defect (accessibility; recurring aria-modal-without-focus class,
+  fourth instance)
+- **Severity:** S2 / The password modal for sensitive Super-User actions moves focus neither in nor
+  back, does not trap Tab, and ignores Escape — while background content remains reachable. A
+  sibling file documents the opposite: "`ReauthDialog` … already carries a focus contract", which
+  is false against current source. `ResetPasswordModal` on the same admin surface duplicates the
+  gap (and lacks an accessible name) while UserAccessModal in the same file implements the full
+  contract — two modals, divergent keyboard behavior, one page.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-23 in 6aaae02**
+- **Owner routing:** Frontend admin pages
+- **Affected area:** `app/renderer/pages/admin/ReauthDialog.tsx` (no effect/ref/keydown anywhere);
+  false claim `app/renderer/pages/SemanticIndexSettings.tsx:23`; `ResetPasswordModal`
+  `app/renderer/pages/admin/UserManagement.tsx:403-418` vs correct sibling `UserAccessModal`
+  `:352-400`; reference contract `components/shared/ConfirmDialog.tsx:31-62`. Launched from
+  sensitive flows incl. License Issuer re-auth.
+- **Fix direction:** apply the ConfirmDialog contract to both modals and correct the stale claim;
+  consider the class-level guard already recommended in KNOWN_ISSUES (source scan over
+  `aria-modal="true"`).
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+- **Evidence after fix:** `verify:source-hygiene` 11/11 with the class-level guard: every aria-modal file must use useModalFocusContract or an in-file Escape+focus+return contract. ReauthDialog + ResetPasswordModal converted (accessible name added); the guard surfaced nine more instances, all fixed via the hook. verify:admin-gui / verify:e2e-reauth / verify:reports-settings-a11y / verify:super-user-controls all exit 0. Stale claim in SemanticIndexSettings corrected.
+
+---
+
 ### AWKIT-LIC-002 — Signed entitlements are never enforced anywhere
 
 - **Classification:** Licensing-model gap (documentation contradicts implementation)
