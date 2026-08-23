@@ -39,6 +39,10 @@ function patchTouchesSubstantiveSettings(patch: DeepPartial<UiSettings>): boolea
   // browsers) even though its siblings `recorder.captureWaitTime` / `captureSmartWaits` are plain UI
   // state the Recorder page writes implicitly for any signed-in role. Gate the security group only.
   if (patch.recorder?.security !== undefined) return true;
+  // AWKIT-SEC-004: `ignoreProtectedLoginDetection` suppresses the protected-login pause-and-handoff
+  // for every future Recorder session on this machine, so persisting it is a privileged write too —
+  // its sibling `security` was gated while this field one level over was missed.
+  if (patch.recorder?.ignoreProtectedLoginDetection !== undefined) return true;
   return SUBSTANTIVE_SETTINGS_KEYS.some((key) => patch[key] !== undefined);
 }
 

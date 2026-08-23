@@ -12,7 +12,8 @@ import { DataSourceResolver } from "@src/data/DataSourceResolver";
 import { isOracleDataSource, type DataSourceProfile, type JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { ResolvedDataSource } from "@src/runner/InstanceExecutionContext";
 import { createDataSourceProfileStore, createFlowProfileStore, createWorkflowProfileStore, createReportStore } from "../profileStores";
-import { getResourcesRoot, getRuntimePaths } from "../appPaths";
+import { getResourcesRoot, getRuntimeDataRoot, getRuntimePaths } from "../appPaths";
+import { isReadableDataSourceFile } from "@src/utils/pathSafety";
 import { getConfiguredPaths } from "../storagePaths";
 import { getUiSettings } from "../uiSettings";
 import { computeEffectiveConcurrency, buildMachineRunContext } from "../capacityService";
@@ -462,7 +463,17 @@ function extractRows(data: unknown, rootArrayPath: string): unknown[] {
 }
 
 async function readDataFile(file: string): Promise<unknown> {
-  return JSON.parse(await readFile(resolveDataFilePath(file), "utf8"));
+  // AWKIT-SEC-005: execution-time reads enforce the SAME §14 confinement as every other JSON
+  // data-source read: the file must be outside the AWKIT runtime root unless it IS the
+  // data-sources workspace. Without this, a workflow bound to an absolute path could read
+  // parsed contents of internal stores (ui-settings, session metadata) back through run rows.
+  const resolved = resolveDataFilePath(file);
+  if (!isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)) {
+    throw new Error(
+      `Data source file "${file}" resolves inside a SpecterStudio data folder and cannot be used at run time.`
+    );
+  }
+  return JSON.parse(await readFile(resolved, "utf8"));
 }
 
 function resolveDataFilePath(file: string): string {

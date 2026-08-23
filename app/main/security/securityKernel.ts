@@ -5,6 +5,7 @@
  * `app/main/secretStore.ts`.
  */
 import { safeStorage } from "electron";
+import { app } from "electron";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getRuntimeDataRoot } from "../appPaths";
@@ -24,6 +25,15 @@ import { sessionInactivityMinutesToMs } from "@src/security/session/SessionPolic
  *   - AWKIT_REAUTH_WINDOW_MS — the sensitive-op re-auth window (ms), so the ReauthDialog path can be
  *     exercised without waiting out the 5-minute default.
  */
+/** True for a real packaged application (mirrors licenseRuntime.isPackagedBuild). */
+function isPackagedBuild(): boolean {
+  try {
+    return app.isPackaged === true;
+  } catch {
+    return false;
+  }
+}
+
 async function resolveKernelOptions(): Promise<SecurityKernelOptions> {
   const options: SecurityKernelOptions = {};
 
@@ -34,16 +44,22 @@ async function resolveKernelOptions(): Promise<SecurityKernelOptions> {
   };
   getDebugLogService().setEnabled(settings.superUser.debugMode);
 
-  const idleRaw = process.env.AWKIT_SESSION_IDLE_MS;
-  const idleMs = idleRaw ? Number(idleRaw) : NaN;
-  if (Number.isFinite(idleMs) && idleMs > 0) {
-    options.sessionPolicy = { ...DEFAULT_SESSION_POLICY, idleMs };
-  }
+  // AWKIT-SEC-006: these two overrides are DEV/TEST conveniences (the file header says so). A
+  // packaged install must run the documented policy no matter what its launcher environment
+  // contains — the same `app.isPackaged` gate the licensing test bypass uses, because an env var
+  // is exactly what must not weaken a shipped build.
+  if (!isPackagedBuild()) {
+    const idleRaw = process.env.AWKIT_SESSION_IDLE_MS;
+    const idleMs = idleRaw ? Number(idleRaw) : NaN;
+    if (Number.isFinite(idleMs) && idleMs > 0) {
+      options.sessionPolicy = { ...DEFAULT_SESSION_POLICY, idleMs };
+    }
 
-  const reauthRaw = process.env.AWKIT_REAUTH_WINDOW_MS;
-  const reauthMs = reauthRaw ? Number(reauthRaw) : NaN;
-  if (Number.isFinite(reauthMs) && reauthMs > 0) {
-    options.reauthWindowMs = reauthMs;
+    const reauthRaw = process.env.AWKIT_REAUTH_WINDOW_MS;
+    const reauthMs = reauthRaw ? Number(reauthRaw) : NaN;
+    if (Number.isFinite(reauthMs) && reauthMs > 0) {
+      options.reauthWindowMs = reauthMs;
+    }
   }
 
   // AD is opt-in trusted configuration. Merely supplying a URL is insufficient: the explicit enable

@@ -39,6 +39,14 @@ import type { OracleProfileInput } from "@src/oracle/OracleProfileService";
  * Oracle work, matching the JSON data-source surface so a direct preload call cannot bypass the UI gate.
  */
 export function registerOracleIpc(): void {
+  // AWKIT-SEC-003: every MUTATING profiles/drivers/java channel requires SETTINGS_EDIT (the same
+  // privilege class as secrets:set and substantive settings writes). These channels execute
+  // external binaries (`execFile` Java probes), load attacker-supplied JARs into the bridge, and
+  // write credentials into the DPAPI vault — trusted-frame alone (F-09) is not authorization, and
+  // the login window is itself a trusted frame. Reads stay open, matching settings/secrets reads.
+  const requireSettingsEdit = async (event: Electron.IpcMainInvokeEvent): Promise<void> => {
+    await assertSenderPermission(event, Permission.SETTINGS_EDIT);
+  };
   ipcMain.handle("oracle:availability", async () => oracleAvailability());
 
   ipcMain.handle("oracle:profiles:list", async () => getOracleServices().profiles.list());
@@ -46,19 +54,23 @@ export function registerOracleIpc(): void {
 
   ipcMain.handle("oracle:profiles:save", async (event, input: OracleProfileInput) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return getOracleServices().profiles.save(input);
   });
   ipcMain.handle("oracle:profiles:delete", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return getOracleServices().profiles.delete(id);
   });
 
   ipcMain.handle("oracle:profiles:test", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return getOracleServices().profiles.testConnection(id);
   });
   ipcMain.handle("oracle:profiles:testDraft", async (event, input: OracleProfileInput) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return getOracleServices().profiles.testProfileDraft(input);
   });
 
@@ -89,6 +101,7 @@ export function registerOracleIpc(): void {
   // have already shown the security warning + explicit confirmation (it passes { name }).
   ipcMain.handle("oracle:drivers:import", async (event, input: { name: string }) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
     const picked = await dialog.showOpenDialog(win!, {
       title: "Select Oracle JDBC driver jar(s)",
@@ -101,18 +114,22 @@ export function registerOracleIpc(): void {
 
   ipcMain.handle("oracle:drivers:validate", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return validateOracleDriverBundle(id);
   });
   ipcMain.handle("oracle:drivers:setDefault", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return setDefaultOracleDriverBundle(id);
   });
   ipcMain.handle("oracle:drivers:remove", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return removeOracleDriverBundle(id);
   });
   ipcMain.handle("oracle:drivers:testLoad", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return testOracleDriverBundleLoad(id);
   });
 
@@ -125,6 +142,7 @@ export function registerOracleIpc(): void {
 
   ipcMain.handle("oracle:java:addExe", async (event, input: { name: string }) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
     const picked = await dialog.showOpenDialog(win!, {
       title: "Select a Java executable (java.exe)",
@@ -137,6 +155,7 @@ export function registerOracleIpc(): void {
 
   ipcMain.handle("oracle:java:addDir", async (event, input: { name: string }) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
     const picked = await dialog.showOpenDialog(win!, {
       title: "Select a JRE/JDK directory",
@@ -148,18 +167,22 @@ export function registerOracleIpc(): void {
 
   ipcMain.handle("oracle:java:validate", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return validateJavaRuntime(id);
   });
   ipcMain.handle("oracle:java:setDefault", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return setDefaultJavaRuntime(id);
   });
   ipcMain.handle("oracle:java:remove", async (event, id: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return removeJavaRuntime(id);
   });
   ipcMain.handle("oracle:java:testBridge", async (event, id: string, driverBundleId?: string) => {
     assertTrustedSender(event);
+    await requireSettingsEdit(event);
     return testJavaRuntimeBridge(id, driverBundleId);
   });
 }

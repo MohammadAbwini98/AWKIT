@@ -8,8 +8,9 @@
  *   - pathSafety.isReadableDataSourceFile             (§14 data-source read confinement)
  */
 import { isNavigableUrl, assertNavigableUrl } from "../src/runner/urlPolicy";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
 import { isPathInside, isReadableDataSourceFile } from "../src/utils/pathSafety";
 import { normalizeFlowBounds, FLOW_BOUNDS } from "../src/profiles/FlowValidation";
 import type { FlowProfile } from "../src/profiles/FlowProfile";
@@ -117,6 +118,83 @@ check("setJsonAtPath rejects __proto__ path", protoThrew);
 check("global Object.prototype not polluted", ({} as Record<string, unknown>).polluted === undefined);
 check("resolveJsonPath does not traverse __proto__", resolveJsonPath({ a: 1 }, "$.__proto__.x") === undefined);
 check("setJsonAtPath still writes normal paths", JSON.stringify(setJsonAtPath({ a: { b: 1 } }, "$.a.c", 2)) === JSON.stringify({ a: { b: 1, c: 2 } }));
+
+// ── AWKIT-SEC-003 — every MUTATING Oracle profiles/drivers/java channel requires SETTINGS_EDIT ──
+{
+  const src = readFileSync(join("app", "main", "ipc", "oracle.ipc.ts"), "utf8");
+  const mutating = [
+    "oracle:profiles:save", "oracle:profiles:delete", "oracle:profiles:test", "oracle:profiles:testDraft",
+    "oracle:drivers:import", "oracle:drivers:validate", "oracle:drivers:setDefault",
+    "oracle:drivers:remove", "oracle:drivers:testLoad",
+    "oracle:java:addExe", "oracle:java:addDir", "oracle:java:validate",
+    "oracle:java:setDefault", "oracle:java:remove", "oracle:java:testBridge"
+  ];
+  const HANDLE = /ipcMain\.handle\(\s*"([^"]+)"/g;
+  const positions = [...src.matchAll(HANDLE)].map((m) => ({ name: m[1], idx: m.index }));
+  let ungated = 0;
+  const gated = [];
+  for (let i = 0; i < positions.length; i += 1) {
+    if (!mutating.includes(positions[i].name)) continue;
+    const end = i + 1 < positions.length ? positions[i + 1].idx : src.length;
+    const body = src.slice(positions[i].idx, end);
+    if (/requireSettingsEdit\(event\)|assertSenderPermission\(/.test(body)) gated.push(positions[i].name);
+    else ungated += 1;
+  }
+  check("SEC-003 all 15 mutating Oracle channels enforce SETTINGS_EDIT", ungated === 0 && gated.length === 15, `ungated=${ungated} gated=${gated.length}`);
+  // The execution sinks stay behind the gate: binary probe + JAR load live in main only.
+  const oracleSvc = readFileSync(join("app", "main", "oracleService.ts"), "utf8");
+  check("SEC-003 Java probe/driver load sinks exist in MAIN (never renderer)", oracleSvc.includes("execFile") || oracleSvc.includes("spawn"), "no exec sink found in main");
+}
+
+// ── AWKIT-SEC-004 — ignoreProtectedLoginDetection is a privileged settings write ──
+{
+  const src = readFileSync(join("app", "main", "ipc", "settings.ipc.ts"), "utf8");
+  check(
+    "SEC-004 patchTouchesSubstantiveSettings gates recorder.ignoreProtectedLoginDetection",
+    /patch\.recorder\?\.ignoreProtectedLoginDetection !== undefined\) return true/.test(src)
+  );
+  // Consumption: recorder:start must read the persisted flag (single source of truth).
+  const rec = readFileSync(join("app", "main", "ipc", "recorder.ipc.ts"), "utf8");
+  check("SEC-004 recorder:start consumes the persisted ignore flag from Settings", rec.includes("ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection"));
+}
+
+// ── AWKIT-SEC-005 — execution-time data-source reads enforce §14 confinement ──
+{
+  const src = readFileSync(join("app", "main", "ipc", "execution.ipc.ts"), "utf8");
+  const bodyStart = src.indexOf("async function readDataFile");
+  const body = src.slice(bodyStart, bodyStart + 1200);
+  check(
+    "SEC-005 readDataFile rejects files confined to the runtime root before parsing",
+    body.includes("isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)") && body.indexOf("isReadableDataSourceFile") < body.indexOf("JSON.parse")
+  );
+  // Behavior of the confinement predicate itself (real filesystem evidence):
+  const root = mkdtempSync(join(tmpdir(), "awkit-sec005-"));
+  try {
+    const internalStore = join(root, "storage", "ui-settings.json");
+    mkdirSync(dirname(internalStore), { recursive: true });
+    writeFileSync(internalStore, "{\"secretish\":true}", "utf8");
+    check("SEC-005 an absolute path INSIDE the runtime root is rejected", !isReadableDataSourceFile(root, join(root, "data-sources"), internalStore));
+    const workspace = join(root, "data-sources", "rows.json");
+    mkdirSync(dirname(workspace), { recursive: true });
+    writeFileSync(workspace, "[{}]", "utf8");
+    check("SEC-005 the data-sources workspace remains readable", isReadableDataSourceFile(root, join(root, "data-sources"), workspace));
+  } finally {
+    rmSync(root, { recursive: true, force: true, maxRetries: 5 });
+  }
+}
+
+// ── AWKIT-SEC-006 — session/reauth env overrides are dev/test-only ──
+{
+  const src = readFileSync(join("app", "main", "security", "securityKernel.ts"), "utf8");
+  const gateAt = src.indexOf("!isPackagedBuild()", src.indexOf("resolveKernelOptions"));
+  const idleCodeAt = src.indexOf("process.env.AWKIT_SESSION_IDLE_MS");
+  const reauthCodeAt = src.indexOf("process.env.AWKIT_REAUTH_WINDOW_MS");
+  check(
+    "SEC-006 both env overrides sit behind an app.isPackaged gate",
+    gateAt > -1 && idleCodeAt > gateAt && reauthCodeAt > gateAt,
+    `gate=${gateAt} idle=${idleCodeAt} reauth=${reauthCodeAt}`
+  );
+}
 
 // ── AWKIT-SEC-001 / AWKIT-SEC-002 — IPC write confinement + authz registry wiring ──
 {
