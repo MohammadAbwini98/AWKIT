@@ -805,10 +805,10 @@ try {
   await win.getByTestId("workflows-library-surface").waitFor({ state: "visible", timeout: 10000 });
   // The surface mounts before its async profile load completes. Synchronize on the actual table that
   // this assertion measures so a fast startup cannot sample the temporary Loading workflows state.
-  await win.locator(".workflows-library-panel .wl-table-workflows").waitFor({ state: "visible", timeout: 10000 });
+  await win.locator("[data-testid='workflows-library-surface'] .wl-table-workflows").waitFor({ state: "visible", timeout: 10000 });
   const workflowsLayout = await win.evaluate(() => {
-    const page = document.querySelector(".workflows-library-page");
-    const panel = document.querySelector(".workflows-library-panel");
+    const page = document.querySelector(".page:has([data-testid='workflows-library-surface'])");
+    const panel = document.querySelector("[data-testid='workflows-library-surface']");
     const table = document.querySelector(".wl-table-workflows");
     if (!page || !panel || !table) return null;
     const pageRect = page.getBoundingClientRect();
@@ -845,8 +845,8 @@ try {
     await win.setViewportSize(viewport);
     await win.waitForTimeout(120);
     workflowsResponsive.push(await win.evaluate(({ width, height }) => {
-      const page = document.querySelector(".workflows-library-page");
-      const wrapper = document.querySelector(".workflows-library-panel .wl-table-wrapper");
+      const page = document.querySelector(".page:has([data-testid='workflows-library-surface'])");
+      const wrapper = document.querySelector("[data-testid='workflows-library-surface'] .wl-table-wrapper");
       if (!page || !wrapper) return { width, height, valid: false };
       const pageRect = page.getBoundingClientRect();
       const wrapperRect = wrapper.getBoundingClientRect();

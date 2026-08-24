@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Workflows table/list page realigned to the SpecterStudio system UI (2026-08-24)
+
+The Workflows library (table/list page only) had drifted onto a bespoke transparent, borderless
+layout: `.workflows-library-panel` stripped the standard `work-panel` card chrome, the page `h1`
+was clip-hidden behind a screen-reader-only rule, and the table floated on the app background
+inside its own extra border — unlike every other library screen (Flows, Data Sources, Instances),
+which render inside the standard surface card. The page now uses the shared grammar again: plain
+`.page` + `.work-panel` card, visible `.section-heading` ("Workflows" + saved count, identical to
+the Flows page), the table inside the card with no nested border, and the execution-mode badge
+moved from three inline styles to a new token-based `.state-pill.pill-mode` class (accent-soft /
+accent, capitalize — same rendered look, resolved through Hologram tokens so dark mode follows
+automatically). The global `TopHeader` (`← Workflows` + route description) was already the page
+header and is unchanged. Canvas/Workflow Builder, nodes, connectors, runtime, persistence, routing,
+columns, sorting, filtering, and pagination semantics are untouched. The pre-capsule GUI verifier's
+three library selectors were repointed from the deleted classes to the stable
+`data-testid='workflows-library-surface'` (assertions unchanged).
+
+Verification (all executed this session): `npm run build` PASS · `verify:workflow-builder` PASS
+(broad **58/58** including both Workflows-library surface checks, capsule **17/17**, 0 unexpected
+failures) · `verify:source-hygiene` **11/11** · `verify:verifier-classification` reconciled
+(197 scripts) · `verify:roadmap-dashboard` **171/171**, Overview **Sources agree** ·
+`git diff --check` clean. Manual evidence: before/after real-Electron screenshots (light+dark ×
+1024/1280/1440/1920, search/no-results/filters/row-menu states) under
+`reports/ui-consistency/{before,after}/`, and a throwaway functional probe exercising open, create,
+import, refresh, search, sort, status filter, pagination (indicator/prev/next/disabled/rows-per-page),
+clone, export, delete, and open-in-builder — **23/23 passed** (probe scripts deleted after use, not
+committed). Comprehensive-validation ledger unchanged: **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## Phase K reconciled to complete (2026-08-24)
 
 REC-022 was executed and passed on 2026-08-22 (see the awkit-cey closure section below), but

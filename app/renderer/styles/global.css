@@ -3903,63 +3903,6 @@ table {
   color: var(--awkit-text-secondary);
 }
 
-.workflows-library-page,
-.workflows-library-panel {
-  min-width: 0;
-  width: 100%;
-}
-
-.workflows-library-page {
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-
-.workflows-library-panel {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  padding: 0;
-}
-
-.workflows-library-panel:hover {
-  box-shadow: none;
-}
-
-.workflows-library-panel > .section-heading {
-  justify-content: flex-end;
-  margin-bottom: var(--space-3);
-  min-height: 2.5rem;
-  padding-bottom: var(--space-2);
-}
-
-.workflows-library-panel > .section-heading h1 {
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
-}
-
-.workflows-library-panel > .section-heading span {
-  font-size: var(--text-xs);
-}
-
-.workflows-library-panel > .library-toolbar {
-  margin-bottom: var(--space-3);
-}
-
-.workflows-library-panel .wl-table-wrapper {
-  border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-md);
-  flex: 1;
-  overflow-x: auto;
-}
-
 .wl-table-workflows {
   min-width: 58rem;
   table-layout: fixed;
@@ -5366,6 +5309,13 @@ table {
 .state-pill.pill-inactive {
   background: var(--awkit-surface-inset);
   color: var(--awkit-text-secondary);
+  text-transform: capitalize;
+}
+
+/* Workflow library execution-mode badge (sequential/parallel/loop/manual/conditional). */
+.state-pill.pill-mode {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent);
   text-transform: capitalize;
 }
 

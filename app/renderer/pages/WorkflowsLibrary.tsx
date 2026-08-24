@@ -232,8 +232,8 @@ export function WorkflowsLibrary() {
     : [];
 
   return (
-    <section className="page workflows-library-page">
-      <section className="work-panel workflows-library-panel" data-testid="workflows-library-surface">
+    <section className="page">
+      <section className="work-panel" data-testid="workflows-library-surface">
         <div className="section-heading">
           <h1>Workflows</h1>
           <span>{loading ? "Loading…" : `${workflows.length} saved workflow${workflows.length !== 1 ? "s" : ""}`}</span>
@@ -339,9 +339,7 @@ export function WorkflowsLibrary() {
                         {workflow.dataSource?.dataSourceId ?? <span style={{ color: "var(--awkit-text-muted)" }}>None</span>}
                       </td>
                       <td>
-                        <span className="state-pill" style={{ textTransform: "capitalize", background: "var(--awkit-accent-soft)", color: "var(--awkit-accent)" }}>
-                          {workflow.execution?.mode ?? "sequential"}
-                        </span>
+                        <span className="state-pill pill-mode">{workflow.execution?.mode ?? "sequential"}</span>
                       </td>
                       <td className="wl-date-cell">{workflow.updatedAt ? new Date(workflow.updatedAt).toLocaleDateString() : "—"}</td>
                       <td>

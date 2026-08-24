@@ -1,5 +1,35 @@
 # TASK_LOG
 
+## 2026-08-24 — Workflows table/list page realigned to the system UI
+
+**Agent:** opencode (ox-alpha). **Task:** align the Workflows library table/list page with the
+established SpecterStudio screen grammar (visual consistency only; canvas/editor explicitly out of
+scope).
+
+**Change:** dropped the page-specific transparent/borderless panel overrides
+(`.workflows-library-page` / `.workflows-library-panel` blocks in `global.css`) so the page renders
+in the standard `.page` + `.work-panel` card like the Flows/Data Sources/Instances screens; the
+section heading (`Workflows` + saved count) is visible again; the table no longer sits in a nested
+bordered wrapper; the execution-mode badge moved from inline styles to a token-based
+`.state-pill.pill-mode`. `WorkflowsLibrary.tsx` class/marker cleanup only — no behavior, data,
+routing, or action changes. `verify-workflow-builder-gui.pre-capsule.mjs` library selectors
+repointed to `data-testid='workflows-library-surface'` (same assertions).
+
+**Files:** `app/renderer/pages/WorkflowsLibrary.tsx`, `app/renderer/styles/global.css`,
+`scripts/verify-workflow-builder-gui.pre-capsule.mjs`.
+
+**Tests run:** `npm run build` PASS · `verify:workflow-builder` PASS (broad 58/58 incl. both
+Workflows-library checks, capsule 17/17) · `verify:source-hygiene` 11/11 ·
+`verify:verifier-classification` reconciled (197) · `verify:roadmap-dashboard` 171/171, Sources
+agree · `git diff --check` clean · throwaway real-Electron functional probe 23/23 (open/create/
+import/refresh/search/sort/filter/pagination/clone/export/delete/open-in-builder; deleted after
+use) · before/after screenshots (light+dark, 4 widths, search/no-results/filters/menu states) under
+`reports/ui-consistency/`.
+
+**Not run:** `validate:offline` (no packaging/offline surface), `verify:runner` (no runner change),
+mock-site verifiers (no mock-site change). **Result:** PASS. Ledger unchanged **64 PASS / 2 NOT
+RUN / 0 BLOCKED**.
+
 ## 2026-08-24 — Phase K reconciled to complete in ImplementationRoadmap.ts
 
 `src/roadmap/ImplementationRoadmap.ts` still declared Phase K (Recorder Mode)
