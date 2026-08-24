@@ -25,8 +25,12 @@ point — a skip is no longer printed as green. Run with the documented approval
 **MID-CAMPAIGN DISCLOSURE:** a *third* independent review pass filed **12 new open defects**
 (`AWKIT-SEC-003..006`, `AWKIT-DUR-002/003`, `AWKIT-REC-038..043`) into DEFECTS.md while this
 campaign was executing. They arrived in the working tree uncommitted and were swept into the
-cluster-5 docs commit (`d6c8c1b`) by the per-cluster staging. Preserved per the never-discard
-rule; they are NOT part of the 38-defect scope and remain OPEN for triage.
+cluster-5 docs commit (`d6c8c1b`) by the per-cluster staging. Preserved per the never-discard rule. **Follow-up campaign resolved all twelve** (11 fixed,
+REC-043 closed as a false positive — the Designer's uploadFile Value Source editor already exists).
+Residual watch-items: Oracle mutator gating now requires SETTINGS_EDIT, so any future Operator-facing
+Oracle settings UI must ship with the corresponding role grant; recorder download capture replaces
+the triggering click, so flows whose download endpoint is rate-limited will re-request on replay
+(documented in the verifier).
 
 
 ## Whole-repository code review (2026-08-23): architecture erosion, licensing depth, and doc drift — recorded, not fixed

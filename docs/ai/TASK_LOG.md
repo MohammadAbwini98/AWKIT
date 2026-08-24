@@ -1,5 +1,40 @@
 # TASK_LOG
 
+## 2026-08-24 — third-pass campaign: 12 defects triaged, 11 fixed, 1 false positive
+
+**Agent:** opencode (ox-alpha). **Task:** independently triage and resolve the 12 defects filed by
+the third 2026-08-23 review pass.
+
+**Triage outcomes:** SEC-003/004/005/006, DUR-002/003, REC-038..042 CONFIRMED and fixed;
+REC-043 FALSE POSITIVE (Designer exposes uploadFile Value Source editing; registry validate +
+runner dynamic resolution already support the in-product path) — closed with evidence.
+
+**Root-cause clusters → commits:**
+- Security boundary (Oracle SETTINGS_EDIT gating; protected-login flag privileged; §14 confinement
+  at execution reads; packaged env gate) — `b72ad08`.
+- Persistence fail-closed (SecretStore quarantine + shared retry; recorder draft/url atomic writes,
+  death-flush timer clear, torn-draft quarantine) — `b5c0d41`.
+- Recorder fidelity (Enter/Escape echo collapse; URL-preferred tab return; page-scoped smart-wait
+  signals; download→downloadFile capture; wheel→scroll capture/mapping/replay centering) —
+  `dc7f194`.
+- Register/docs closure — final docs commits.
+
+**New coverage:** `verify:recorder-third-pass` (6 checks, real-browser, registered real-browser)
+covering REC-039 three-page tab targeting, REC-041 /runner-lab download→step replacement, REC-042
+record→replay on new `/scroll-lab` lazy page. Extended verify:security (+9 SEC-003..006),
+verify:secrets (+8 DUR-002), verify:recorder-draft (+7 DUR-003), verify:recorder-actions (+3
+REC-038), verify:wait-validation (+4 REC-040), verify:recorder-flow (+2 mapping).
+
+**Executed verification (truthful):** build PASS · runner 129/129 · mock-site 172/172 ·
+third-pass 6/6 · security 53/53 · ipc-contract 9/9 · authz 92/92 · secrets 24/24 · recorder-draft
+109/109 · protected-login-recorder 74/74 · recorder-actions 23/23 · wait-validation 107/107 ·
+recorder-flow 53/53 · competitive 64/64 · capture-gaps 29/29 · hotkeys 37/37 · hover 265/265 ·
+navigation 45/45 · dialogs 18/18 · upload 13/13 · redaction 15 PASS/0 FAIL · popup 12/12 ·
+popup-identity 50/50 · loop-scroll 88/88 · validation 163/163 · verifier-classification reconciled
+(199 files incl. newly registered verifier) · roadmap-dashboard 167/167 Sources agree.
+settings-e2e + reports-settings-a11y remain honestly non-zero on their environment-gated NOT RUN
+(SET-015 OS shell; sortable-header probe). Mutations: Oracle gate removal caught by SEC-003 scan.
+
 ## 2026-08-23 — 38-defect campaign CLOSED (all clusters), third-pass delta disclosed
 
 **Agent:** opencode (ox-alpha). **Task:** fix the 38 open defects in the Program Status register.
