@@ -110,6 +110,11 @@ coverage/
 package.json.bak.*
 /electron_test*.cjs
 
+# Local developer demo launcher for the clickAndHold / storage-assertion walkthrough (preserved
+# user work; intentionally never committed — and an untracked file blocks the clean-tree gate in
+# release-portable.ps1). Delete this line if the file is ever meant to be committed instead.
+/run-app-demo.mjs
+
 # === UI design-exploration scratch (do not commit; large media & one-off scrapers) ===
 UI Samples/
 *.mp4
