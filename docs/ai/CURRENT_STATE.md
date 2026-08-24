@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Third-pass campaign: all 12 follow-up defects triaged and resolved (2026-08-24)
+
+The twelve defects filed by the third review pass were independently revalidated against source
+before any fix. Outcomes: **11 CONFIRMED and fixed** (`SEC-003..006`, `DUR-002/003`,
+`REC-038..042`); **1 FALSE POSITIVE** closed with evidence (`REC-043` — the Flow Designer already
+exposes uploadFile's Value Source editor; registry validation + dynamic-source resolution need no
+JSON hand-editing). Root-cause clusters: (A) IPC authorization boundary — Oracle mutators now
+require SETTINGS_EDIT like their secrets/settings siblings (SEC-003) and the protected-login ignore
+flag is a privileged settings write (SEC-004); (B) read-confinement — execution-time data-source
+reads enforce §14 like every other sink (SEC-005); (C) packaged env hardening — session/reauth env
+overrides sit behind app.isPackaged (SEC-006); (D) persistence fail-closed — the secret vault and
+recorder drafts quarantine corrupt bytes and adopt the shared atomic-replace/retry policy
+(DUR-002/003); (E) recorder capture fidelity — Enter/Escape are value-preserving for the fill echo,
+tab return prefers the URL hint, smart-wait signals are page-scoped for DOM-local kinds, wheel
+gestures become scroll nodes, and downloads become runnable downloadFile steps (REC-038..042).
+
+Register at close: **89 total / 0 open / 89 resolved** (parser-verified). Dashboard:
+`verify:roadmap-dashboard` 167/167, Overview **Sources agree**.
+
+Verification executed: build PASS · runner 129/129 · mock-site 172/172 (+ new /scroll-lab scenario)
+· new `verify:recorder-third-pass` 6/6 (real-Chromium REC-039 tab targeting, REC-041 download→step
+replacement, REC-042 record→replay lazy-content) · security 53/53 · ipc-contract 9/9 · authz 92/92 ·
+secrets 24/24 · recorder-draft 109/109 · recorder-actions 23/23 · wait-validation 107/107 ·
+recorder-flow 53/53 · competitive 64/64 · capture-gaps/hotkeys/hover/navigation/dialogs/upload/
+redaction/popup/popup-identity/loop-scroll all green · verifier-classification reconciled (199 files
+incl. newly registered verifier). Mutations: Oracle gate removal caught by SEC-003 scan. Ledger
+unchanged: **64 PASS / 2 NOT RUN / 0 BLOCKED**. Environment-gated suites remain honestly non-zero
+when their OS-shell prerequisite is absent (settings-e2e SET-015; reports-settings-a11y
+sortable-header probe).
 ## All 38 open review defects FIXED with per-defect evidence (2026-08-23)
 
 The 38-defect register from the first two 2026-08-23 passes (`MAP-002..005`, `WFB-001/002`,
@@ -18,10 +47,8 @@ expected check counts, carry NOT-RUN states, and exit honestly.
 
 **Mid-campaign disclosure:** a third independent pass filed **12 NEW open defects**
 (`SEC-003..006`, `DUR-002/003`, `REC-038..043`) while this campaign ran. They entered the working
-tree uncommitted and were swept into docs commit `d6c8c1b`; preserved on `main`, they are outside
-this campaign's scope and remain OPEN for triage. Defect-register parse at close:
-**89 total / 77 resolved / 12 open (all third-pass)**. Dashboard: `verify:roadmap-dashboard`
-167/167, Sources agree.
+tree uncommitted and were swept into docs commit `d6c8c1b`; preserved on `main`. **Superseded:**
+the follow-up campaign above triaged and resolved all twelve.
 
 Comprehensive-validation ledger unchanged by this campaign (no ledger case moved):
 **64 PASS / 2 NOT RUN / 0 BLOCKED**.
