@@ -550,6 +550,23 @@ const keepalive = setInterval(() => {
 }, KEEPALIVE_MS);
 keepalive.unref();
 
+// Starting a second instance is a routine accident (the first is still running in another
+// terminal, or left over from a previous session). An unhandled 'error' event dumps a stack and
+// names neither the cause nor the escape hatches, so intercept the one expected case: the port is
+// taken — point at the live URL, how to free the port, and the ROADMAP_PORT second-instance hatch.
+server.on("error", (error) => {
+  if (error && error.code === "EADDRINUSE") {
+    process.stderr.write(
+      `The roadmap dashboard is already running at http://${HOST}:${PORT} — this instance cannot bind the same port.\n` +
+        `  • Use the existing one in your browser, or stop the old process:\n` +
+        `      netstat -ano | findstr :${PORT}   (note the PID, then)   Stop-Process -Id <pid>\n` +
+        `  • Or run this one beside it on another port:  $env:ROADMAP_PORT=4390; npm run roadmap\n`
+    );
+    process.exit(1);
+  }
+  throw error;
+});
+
 server.listen(PORT, HOST, () => {
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : PORT;
