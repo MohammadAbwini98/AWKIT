@@ -70,6 +70,18 @@
             </button>
             <span class="rm-release-target" id="rm-release-target" role="status" aria-live="polite"></span>
             <span class="rm-build-status" id="rm-build-status" role="status" aria-live="polite"></span>
+            <div
+              class="rm-build-progress"
+              id="rm-build-progress"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              aria-label="Portable packaging progress"
+              hidden
+            >
+              <div class="rm-build-progress-fill" id="rm-build-progress-fill"></div>
+            </div>
             <button type="button" class="nav-item rm-theme-toggle" id="rm-theme">
               <span class="rm-icon" id="rm-theme-icon" aria-hidden="true"></span>
               <span id="rm-theme-label">System theme</span>

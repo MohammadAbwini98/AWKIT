@@ -56,6 +56,8 @@ const dom = {
   packagePortable: document.getElementById("rm-package-portable"),
   releaseTarget: document.getElementById("rm-release-target"),
   buildStatus: document.getElementById("rm-build-status"),
+  buildProgress: document.getElementById("rm-build-progress"),
+  buildProgressFill: document.getElementById("rm-build-progress-fill"),
   refresh: document.getElementById("rm-refresh"),
   status: document.getElementById("rm-status"),
   live: document.getElementById("rm-live"),
@@ -224,6 +226,8 @@ function renderPortableBuild() {
   const build = state.portableBuild;
   const target = build?.releaseTarget;
   const running = build?.state === "running";
+  const progress = build?.progress ?? { step: 0, total: 0, label: null };
+  const pct = progress.total > 0 ? Math.round((progress.step / progress.total) * 100) : 0;
   dom.packagePortable.disabled = running;
   dom.packagePortable.textContent = running ? "Releasing next portable EXE…" : "Generate next portable EXE";
   dom.releaseTarget.title = "";
@@ -239,16 +243,36 @@ function renderPortableBuild() {
   dom.buildStatus.dataset.state = build?.state ?? "idle";
   dom.buildStatus.title = "";
 
+  // Progress bar: visible only while a build is running (or frozen red at the failing step).
+  const showBar = running || build?.state === "failed";
+  dom.buildProgress.hidden = !showBar;
+  if (showBar) {
+    dom.buildProgress.dataset.state = build.state;
+    dom.buildProgress.setAttribute("aria-valuenow", String(pct));
+    dom.buildProgress.setAttribute(
+      "aria-valuetext",
+      progress.label ? `Step ${progress.step} of ${progress.total}: ${progress.label}` : `Step ${progress.step} of ${progress.total}`
+    );
+    dom.buildProgressFill.style.width = pct + "%";
+  }
+
   if (!build || build.state === "idle") {
     dom.buildStatus.textContent = "";
   } else if (running) {
-    dom.buildStatus.textContent = "Packaging in progress";
+    dom.buildStatus.textContent = progress.label
+      ? `Step ${progress.step}/${progress.total} — ${progress.label}`
+      : "Packaging in progress";
   } else if (build.state === "succeeded") {
     dom.buildStatus.textContent = "Portable EXE ready";
     dom.buildStatus.title = build.artifact ?? "dist/";
   } else {
     dom.buildStatus.textContent = build.errorCode === "SPAWN_FAILED" ? "Could not start packaging" : "Portable build failed";
-    dom.buildStatus.title = build.exitCode === null ? "" : `Exit code ${build.exitCode}`;
+    if (progress.label) {
+      dom.buildStatus.textContent += ` — ${progress.label}`;
+      dom.buildStatus.title = `Failed at: ${progress.label}` + (build.exitCode === null ? "" : ` · Exit code ${build.exitCode}`);
+    } else {
+      dom.buildStatus.title = build.exitCode === null ? "" : `Exit code ${build.exitCode}`;
+    }
   }
 }
 

@@ -48,6 +48,11 @@ const PORTABLE_ACTION_HEADER = "package-portable";
 const MAX_BODY_BYTES = 96 * 1024;
 const RELEASE_VERSION_POLICY = "patch";
 const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "release-portable.ps1");
+/**
+ * Pipeline step count: 7 `[STEP]` markers in release-portable.ps1 plus 8 in package-portable.ps1.
+ * The scripts own their step text; this constant only sizes the progress denominator.
+ */
+const PORTABLE_STEP_TOTAL = 15;
 
 /** Static files this server will serve, by exact request path. */
 const STATIC_ROUTES = new Map([
@@ -81,7 +86,7 @@ const HOT_SOURCES = ["beads", "ledger"];
 let cached = null;
 /** @type {Set<import("node:http").ServerResponse>} */
 const sseClients = new Set();
-/** @type {{state: "idle"|"running"|"succeeded"|"failed", versionPolicy: "patch", startedAt: string|null, finishedAt: string|null, exitCode: number|null, artifact: string|null, errorCode: string|null, releaseTarget: PortableReleaseTarget|null}} */
+/** @type {{state: "idle"|"running"|"succeeded"|"failed", versionPolicy: "patch", startedAt: string|null, finishedAt: string|null, exitCode: number|null, artifact: string|null, errorCode: string|null, releaseTarget: PortableReleaseTarget|null, progress: {step: number, total: number, label: string|null}}} */
 let portableBuild = {
   state: "idle",
   versionPolicy: RELEASE_VERSION_POLICY,
@@ -90,7 +95,8 @@ let portableBuild = {
   exitCode: null,
   artifact: null,
   errorCode: null,
-  releaseTarget: null
+  releaseTarget: null,
+  progress: { step: 0, total: PORTABLE_STEP_TOTAL, label: null }
 };
 
 /**
@@ -278,7 +284,8 @@ function handlePortableBuild(req, res) {
     exitCode: null,
     artifact: null,
     errorCode: null,
-    releaseTarget: readPortableReleaseTarget()
+    releaseTarget: readPortableReleaseTarget(),
+    progress: { step: 0, total: PORTABLE_STEP_TOTAL, label: null }
   };
 
   let child;
@@ -289,7 +296,35 @@ function handlePortableBuild(req, res) {
     return sendJson(res, 500, { ok: false, error: "Portable packaging could not be started.", build: portableBuildStatus() });
   }
 
-  child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+  // The pipeline scripts announce every stage with a `[STEP]  <label>` line (Write-Step in both
+  // release-portable.ps1 and package-portable.ps1). Buffer partial chunks into complete lines and
+  // advance the progress bar per marker; `[FAIL]` labels the bar with the failing gate instead.
+  let stdoutBuffer = "";
+  child.stdout.on("data", (chunk) => {
+    process.stdout.write(chunk);
+    stdoutBuffer += chunk.toString();
+    let newlineAt = stdoutBuffer.indexOf("\n");
+    while (newlineAt !== -1) {
+      const line = stdoutBuffer.slice(0, newlineAt).replace(/\r$/, "").trim();
+      stdoutBuffer = stdoutBuffer.slice(newlineAt + 1);
+      if (portableBuild.state !== "running") break;
+      const stepMark = /^\[STEP\]\s+(.+)$/.exec(line);
+      const failMark = /^\[FAIL\]\s+(.+)$/.exec(line);
+      if (stepMark) {
+        portableBuild.progress = {
+          step: Math.min(portableBuild.progress.step + 1, portableBuild.progress.total),
+          total: portableBuild.progress.total,
+          label: stepMark[1].trim()
+        };
+      } else if (failMark) {
+        portableBuild.progress = {
+          ...portableBuild.progress,
+          label: failMark[1].trim()
+        };
+      }
+      newlineAt = stdoutBuffer.indexOf("\n");
+    }
+  });
   child.stderr.on("data", (chunk) => process.stderr.write(chunk));
   child.once("error", () => finishPortableBuild(null, "SPAWN_FAILED"));
   child.once("close", (code) => finishPortableBuild(typeof code === "number" ? code : null, null));
@@ -450,7 +485,12 @@ function finishPortableBuild(exitCode, errorCode) {
     finishedAt: new Date().toISOString(),
     exitCode,
     artifact: succeeded ? currentPortableArtifact() : null,
-    errorCode
+    errorCode,
+    // A successful run completed every step; a failed one freezes at the step that failed so the
+    // bar shows where it stopped.
+    progress: succeeded
+      ? { ...portableBuild.progress, step: portableBuild.progress.total, label: "Portable EXE ready" }
+      : portableBuild.progress
   };
 }
 

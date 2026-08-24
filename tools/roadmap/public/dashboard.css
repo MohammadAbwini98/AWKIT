@@ -368,6 +368,27 @@ html[data-roadmap-standalone] #root {
   color: var(--awkit-danger);
 }
 
+.rm-build-progress {
+  display: block;
+  height: 4px;
+  margin: var(--space-1) var(--space-2) 0;
+  border-radius: var(--radius-pill);
+  background: var(--awkit-border);
+  overflow: hidden;
+}
+
+.rm-build-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: var(--awkit-accent);
+  transition: width var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+.rm-build-progress[data-state="failed"] .rm-build-progress-fill {
+  background: var(--awkit-danger);
+}
+
 /* ==========================================================================
    Page surface
    ========================================================================== */

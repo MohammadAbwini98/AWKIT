@@ -825,7 +825,13 @@ try {
   setPortableBuildProcessFactoryForTests(() => {
     portableInvocation += 1;
     const exitCode = portableInvocation === 1 ? 0 : 7;
-    return spawn(process.execPath, ["-e", `setTimeout(() => process.exit(${exitCode}), 80)`], {
+    // The second (failing) run emits a [STEP] marker first, exercising the progress parser's
+    // line buffering and step advance against a real child stdout stream.
+    const script =
+      portableInvocation === 1
+        ? `setTimeout(() => process.exit(0), 80)`
+        : `console.log('[STEP]  synthetic packaging step'); setTimeout(() => process.exit(7), 80)`;
+    return spawn(process.execPath, ["-e", script], {
       shell: false,
       stdio: ["ignore", "pipe", "pipe"]
     });
@@ -944,6 +950,33 @@ try {
     `${failedBuild?.state ?? "none"}/${failedBuild?.exitCode ?? "none"}`
   );
   check("a failed build never claims an artifact", failedBuild?.artifact === null, String(failedBuild?.artifact));
+
+  // Progress contract: the succeeded run completed all steps; the failing run advanced exactly one
+  // step (its [STEP] line) and froze there with only step/total/label exposed.
+  check(
+    "a succeeded portable build reports full progress",
+    finalBuild?.progress?.step === 15 && finalBuild?.progress?.total === 15,
+    JSON.stringify(finalBuild?.progress)
+  );
+  check(
+    "a failed portable build freezes at the step that emitted [STEP]",
+    failedBuild?.progress?.step === 1 &&
+      failedBuild?.progress?.total === 15 &&
+      failedBuild?.progress?.label === "synthetic packaging step",
+    JSON.stringify(failedBuild?.progress)
+  );
+  check(
+    "portable build progress exposes only step/total/label",
+    Object.keys(failedBuild?.progress ?? {}).sort().join(",") === "label,step,total",
+    JSON.stringify(Object.keys(failedBuild?.progress ?? {}))
+  );
+
+  // The dashboard page ships the progress bar the build status drives.
+  const indexHtml = readFileSync(join(ROADMAP_ROOT, "public", "index.html"), "utf8");
+  check(
+    "the dashboard page ships the portable-build progress bar",
+    indexHtml.includes('id="rm-build-progress"') && indexHtml.includes('role="progressbar"')
+  );
 
   const unsupportedBuildMethod = await fetch(`${base}/api/package-portable`, { method: "PUT" });
   check("unsupported portable build methods are rejected", unsupportedBuildMethod.status === 405);
