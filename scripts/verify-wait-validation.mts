@@ -32,6 +32,7 @@ import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
 import { scenarioForFlow } from "@src/testing/oracle/TestExecutionOracle";
 import { fromFlowStep, toFlowStep, type FlowDesignerNode } from "../app/renderer/components/workflow/flowProfileMapping";
 import { getNodeDefinition } from "../app/renderer/components/workflow/flowNodeRegistry";
+import { buildSmartWaits, type RecordedSignal } from "@src/recorder/smartWaitObservation";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -502,5 +503,46 @@ console.log("\nSmart Wait condition structural contract");
   check("an over-deep OR-group nest is reported rather than recursed without bound", reports(deep));
 }
 
+
+
+// ── AWKIT-REC-040 — DOM-local Smart-Wait signals are scoped to their source page ──
+{
+  const keyA = { a: true };
+  const keyB = { b: true };
+  const base = Date.now();
+  const sig = (over: Record<string, unknown>): RecordedSignal => ({ ...over }) as unknown as RecordedSignal;
+  const signals: RecordedSignal[] = [
+    sig({ kind: "loaderHidden", selector: ".popup-loader", shownAt: base + 10, hiddenAt: base + 120, __src: keyB }),
+    sig({ kind: "loaderHidden", selector: ".main-loader", shownAt: base + 15, hiddenAt: base + 130, __src: keyA }),
+    sig({ kind: "rows", container: ({ strategy: "testId", value: "popup-table" } as unknown), count: 3, ts: base + 40, __src: keyB }),
+    sig({ kind: "request", method: "GET", path: "/api/popup-data", status: 200, startedAt: base + 20, endedAt: base + 90, __src: keyB })
+  ];
+  const scoped = buildSmartWaits(signals, base, base + 500, { actionPageSrc: keyA } as never);
+  const labels = JSON.stringify(scoped);
+  check(
+    "REC-040 a popup-page loader does NOT become an afterWait on the main page's action",
+    !labels.includes(".popup-loader") && !labels.includes("popup-table"),
+    labels
+  );
+  check("REC-040 the main page's OWN loader still produces its wait", labels.includes(".main-loader"), labels);
+  const globalScoped = buildSmartWaits(
+    [sig({ kind: "request", method: "GET", path: "/api/from-popup", status: 200, startedAt: base + 20, endedAt: base + 80, __src: keyB })],
+    base,
+    base + 500,
+    { actionPageSrc: keyA } as never
+  );
+  check(
+    "REC-040 network signals remain GLOBAL (a popup fetch caused by a main click is legitimate)",
+    globalScoped.some((w) => w.type === "response"),
+    JSON.stringify(globalScoped)
+  );
+  const legacy = buildSmartWaits(
+    [sig({ kind: "loaderHidden", selector: ".legacy-loader", shownAt: base + 5, hiddenAt: base + 60 })],
+    base,
+    base + 500,
+    {} as never
+  );
+  check("REC-040 unmarked (legacy) signals keep the old behavior", legacy.length === 1);
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

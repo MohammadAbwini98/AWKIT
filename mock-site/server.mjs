@@ -208,6 +208,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/smart-waits") return serveStatic(res, "smart-waits.html");
   if (req.method === "GET" && path.startsWith("/smart-waits/shorts/")) return serveStatic(res, "smart-waits.html");
   if (req.method === "GET" && path === "/recorder-lab") return serveStatic(res, "recorder-lab.html");
+  if (req.method === "GET" && path === "/scroll-lab") return serveStatic(res, "scroll-lab.html");
   if (req.method === "GET" && path === "/blueprint-recovery-lab") return serveStatic(res, "blueprint-recovery-lab.html");
   if (req.method === "GET" && path === "/shadow-frame-child") return serveStatic(res, "shadow-frame-child.html");
   if (req.method === "GET" && path === "/recorder-sensitive") return serveStatic(res, "recorder-sensitive.html");

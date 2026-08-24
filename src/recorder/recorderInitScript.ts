@@ -3164,7 +3164,30 @@ export function installRecorderCapture(): void {
   window.addEventListener("pointercancel", cancelPointerDrag, true);
   window.addEventListener("lostpointercapture", cancelPointerDrag, true);
   window.addEventListener("scroll", cancelPointerDrag, true);
-  window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.key === "Escape") cancelPointerDrag(); }, true);
+    // AWKIT-REC-042: user wheel scrolling is part of what the user did — without it,
+  // infinite-scroll / lazy-load recordings replay against unscrolled pages. Debounced trailing
+  // edge (350ms quiet) accumulates the gesture into one PAGE-level scroll node; element-scoped
+  // scrolls stay out of scope on purpose (they need a container locator policy, see DEFECTS.md).
+  var __awkitScrollAcc = 0;
+  var __awkitScrollTimer: any = 0;
+  window.addEventListener("wheel", function (event) {
+    if (!(event instanceof WheelEvent)) return;
+    if (Math.abs(event.deltaY) < 4) return;
+    __awkitScrollAcc += event.deltaY;
+    if (__awkitScrollTimer) clearTimeout(__awkitScrollTimer);
+    __awkitScrollTimer = setTimeout(function () {
+      var total = Math.round(__awkitScrollAcc);
+      __awkitScrollAcc = 0;
+      if (Math.abs(total) < 120) return; // sub-gesture noise (trackpad inertia tails)
+      var dir = total > 0 ? "down" : "up";
+      record({
+        type: "scroll",
+        name: "Scroll " + dir + " " + Math.min(2000, Math.abs(total)),
+        config: { scrollTarget: "page", scrollDirection: dir, scrollAmount: Math.min(2000, Math.abs(total)) }
+      });
+    }, 350);
+  }, { passive: true });
+window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.key === "Escape") cancelPointerDrag(); }, true);
 
   // ── Press-and-hold (bounded gesture recognizer) ─────────────────────────────
   // A click-and-hold is its own gesture: a page can render one state on `mousedown` and a

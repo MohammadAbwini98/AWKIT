@@ -1979,6 +1979,11 @@ export class StepExecutor {
           const direction = cfg.scrollDirection ?? "down";
           const dx = direction === "left" ? -amount : direction === "right" ? amount : 0;
           const dy = direction === "up" ? -amount : direction === "down" ? amount : 0;
+          // A wheel event only scrolls what is under the CURSOR. With no prior pointer move
+          // that is (0,0) — often a non-scrollable sticky header — so aim at the viewport
+          // center first (AWKIT-REC-042 replay reliability).
+          const vp = this.activePage.viewportSize() ?? { width: 1280, height: 720 };
+          await this.activePage.mouse.move(Math.round(vp.width / 2), Math.round(vp.height / 2));
           await this.activePage.mouse.wheel(dx, dy);
         }
         return { status: "passed" };
@@ -2176,10 +2181,22 @@ export class StepExecutor {
       default: {
         // Wait briefly for a popup/new tab opened by a prior step to register.
         const deadline = Date.now() + Math.min(timeout, 10_000);
-        let candidate = context.pages().filter((page) => page !== this.activePage).pop();
+        // AWKIT-REC-039: when a recorded target URL exists, prefer the open page that matches it
+        // over creation-order .pop() — with [Main, Popup1, Popup2] and Popup2 active, .pop()
+        // switched to Popup1 even though the step meant "return to Main". No URL (a genuine
+        // "latest tab" step) keeps the old newest-tab behavior exactly.
+        const pickNext = (): Page | undefined => {
+          const others = context.pages().filter((page) => page !== this.activePage);
+          if (urlValue) {
+            const matched = others.find((candidate) => matches(candidate.url()));
+            if (matched) return matched;
+          }
+          return others[others.length - 1];
+        };
+        let candidate = pickNext();
         while (!candidate && Date.now() < deadline) {
           await this.activePage.waitForTimeout(100);
-          candidate = context.pages().filter((page) => page !== this.activePage).pop();
+          candidate = pickNext();
         }
         target = candidate ?? context.pages().pop();
         if (!target) throw new Error("Route Change: no open page/tab to switch to.");

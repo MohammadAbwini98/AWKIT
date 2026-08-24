@@ -296,6 +296,17 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       step.config = { waitType: "time" };
     }
 
+    // AWKIT-REC-042: captured wheel gestures replay as PAGE-level scroll nodes (the runner wheels
+    // the page), so lazy/infinite-scroll content mounts exactly as it did during recording.
+    if (action.type === "scroll") {
+      const cfg = action.config as { scrollDirection?: string; scrollAmount?: number } | undefined;
+      step.config = {
+        scrollTarget: "page",
+        scrollDirection: cfg?.scrollDirection === "up" ? "up" : "down",
+        scrollAmount: Math.max(50, Math.min(5000, Math.round(cfg?.scrollAmount ?? 600)))
+      };
+    }
+
     // Recorded tab switches replay as a Route Change that targets the newest tab.
     if (action.type === "routeChange") {
       step.value = action.valueSource?.value;

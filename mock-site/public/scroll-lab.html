@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Scroll Lab - Feature Test Lab</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; }
+    header { padding: 16px 24px; border-bottom: 1px solid #ddd; position: sticky; top: 0; background: #fff; }
+    .spacer { height: 60vh; display: grid; place-items: center; color: #888; }
+    section.block { padding: 24px; border-top: 1px dashed #ccc; }
+  </style>
+</head>
+<body>
+  <header><strong>Scroll Lab</strong> — deterministic long page for wheel-gesture capture.</header>
+
+  <div class="spacer">scroll down…</div>
+
+  <!-- AWKIT-REC-042: this block only exists below the fold. A recording that captured the user's
+       scroll replays it and mounts this content; one without the scroll can never click through. -->
+  <section class="block">
+    <h2>Lazy content</h2>
+    <button type="button" data-testid="lazy-item" id="lazy-item">Lazy action</button>
+    <span id="lazy-clicked" data-testid="lazy-clicked"></span>
+  </section>
+
+  <div class="spacer">keep going…</div>
+
+  <section class="block">
+    <p data-testid="bottom-marker">You reached the bottom.</p>
+  </section>
+
+  <script>
+    document.getElementById("lazy-item").addEventListener("click", function () {
+      document.getElementById("lazy-clicked").textContent = "clicked";
+    });
+  </script>
+</body>
+</html>

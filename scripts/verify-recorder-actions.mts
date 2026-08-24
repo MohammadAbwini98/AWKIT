@@ -104,7 +104,47 @@ async function main(): Promise<void> {
     await rm(root, { recursive: true, force: true });
   }
 
-  console.log(`\n${passed} passed, ${failed} failed`);
+  // ── AWKIT-REC-038 — Enter is VALUE-PRESERVING for the fill echo rule ────────────────────────
+{
+  // Drive the REAL service echo policy through the same seam the browser binding uses.
+  const svc = new RecorderService() as unknown as Record<string, any>;
+  const root2 = await mkdtemp(join(tmpdir(), "awkit-rec038-"));
+  svc.configureDraftStorage(join(root2, "draft.json"));
+  svc.isRecording = true;
+  svc.actions = [];
+  svc.lastActionAt = Date.now();
+  svc.lastActionPage = undefined;
+  const page = { mainFrame: () => ({}), url: () => "https://x.test/form" };
+  const mkFill = (v: string): RecordedAction => ({
+    id: `fill-${Math.random().toString(36).slice(2)}`,
+    type: "fill",
+    name: "Fill Username",
+    locator: { strategy: "label", value: "Username" },
+    valueSource: { type: "static", value: v }
+  });
+  const press = (key: string): RecordedAction => ({
+    id: `press-${Math.random().toString(36).slice(2)}`,
+    type: "press",
+    name: "Press " + key,
+    locator: { strategy: "label", value: "Username" },
+    valueSource: { type: "static", value: key }
+  });
+  await svc.recordActionFromPage(page, mkFill("alice"));
+  await svc.recordActionFromPage(page, press("Enter"));
+  await svc.recordActionFromPage(page, mkFill("alice"));
+  const fillsAfterPress = svc.actions.filter((a: RecordedAction, i: number) =>
+    a.type === "fill" && svc.actions.slice(0, i).some((p: RecordedAction) => p.type === "press" && p.valueSource?.value === "Enter")
+  );
+  check("REC-038 no duplicate Fill survives after Press Enter", fillsAfterPress.length === 0, JSON.stringify(svc.actions.map((a: RecordedAction) => a.name)));
+  check("REC-038 the original Fill and the Press remain recorded", svc.actions.some((a: RecordedAction) => a.type === "fill") && svc.actions.some((a: RecordedAction) => a.type === "press" && a.valueSource?.value === "Enter"));
+  // Escape behaves like Enter (revert, not edit).
+  await svc.recordActionFromPage(page, mkFill("alice"));
+  check("REC-038 an identical echo after Escape-only is also collapsed", svc.actions.filter((a: RecordedAction) => a.type === "fill").length === 1);
+  svc.isRecording = false;
+  await rm(root2, { recursive: true, force: true });
+}
+
+console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
 

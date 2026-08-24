@@ -342,6 +342,35 @@ check("recorded start/end actions are not duplicated", withDupes.nodes.filter((n
   }
 }
 
+
+// ── AWKIT-REC-042 — recorded wheel gestures map to runnable PAGE-level scroll nodes ──
+{
+  const flow = buildRecordedFlow("Scroll flow", [
+    { id: "g1", type: "goto", name: "Open", valueSource: { type: "static", value: "https://example.com/list" } },
+    {
+      id: "s1",
+      type: "scroll",
+      name: "Scroll down 900",
+      config: { scrollTarget: "page", scrollDirection: "down", scrollAmount: 900 }
+    },
+    { id: "c1", type: "click", name: "Load more", locator: { strategy: "testId", value: "lazy-item" } }
+  ] as unknown as RecordedAction[]);
+  const step = flow.nodes.find((n) => n.type === "scroll");
+  results.push({ name: "REC-042 a recorded scroll becomes a scroll node", pass: Boolean(step && step.type === "scroll") });
+  results.push({
+    name: "REC-042 the mapped scroll node is PAGE-level with direction+amount",
+    pass: step?.config?.scrollTarget === "page" && step?.config?.scrollDirection === "down" && step?.config?.scrollAmount === 900
+  });
+}
+
+// ── AWKIT-REC-039 — the return-to-tab URL hint survives the mapping ──
+{
+  const flow = buildRecordedFlow("Hint flow", [
+    { id: "rc", type: "routeChange", name: "Switch to tab: https://example.com/main", valueSource: { type: "static", value: "https://example.com/main" } }
+  ] as unknown as RecordedAction[]);
+  const step = flow.nodes.find((n) => n.type === "routeChange");
+  results.push({ name: "REC-039 the routeChange step carries the recorded URL hint as its value", pass: step?.value === "https://example.com/main" });
+}
 const passed = results.filter((r) => r.pass).length;
 console.log(`\n${passed}/${results.length} recorder-flow checks passed`);
 process.exit(passed === results.length ? 0 : 1);

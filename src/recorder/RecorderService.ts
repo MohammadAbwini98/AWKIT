@@ -139,6 +139,9 @@ export class RecorderService {
   private ignoreHttpsErrors = false;
   /** Raw page-side observation signals buffered during the session (bounded). */
   private signals: RecordedSignal[] = [];
+  // AWKIT-REC-040: opaque per-Page markers stamped onto Smart-Wait signals at binding time so
+  // DOM-local signals can be scoped to the page they happened on (in-memory only, never persisted).
+  private readonly pageMarkers = new WeakMap<Page, object>();
   /** Timestamp (ms) of the last distinct recorded action, used to measure user think-time. */
   private lastActionAt = 0;
   /** Where the persistent URL history is written; set once by the main process. */
@@ -561,6 +564,16 @@ export class RecorderService {
    * The recorded actions and the draft are PRESERVED. That is the whole difference between this path
    * and `cancelRecording`: an unexpected death must not destroy what the user recorded.
    */
+  /** AWKIT-REC-040: stable opaque marker per Page (WeakMap — no leaks). */
+  private markerFor(page: Page): object {
+    let m = this.pageMarkers.get(page);
+    if (!m) {
+      m = {};
+      this.pageMarkers.set(page, m);
+    }
+    return m;
+  }
+
   private attachLivenessWatch(browser: Browser | null, context: BrowserContext | null, page: Page): void {
     const onUnexpectedDeath = (): void => {
       // Every SUPPORTED teardown (stop, cancel, handoff) sets isRecording=false *before* closing
@@ -786,9 +799,12 @@ export class RecorderService {
 
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
     // metadata is stored (method + URL path, selectors, short text) — never headers/bodies/secrets.
-    await context.exposeBinding("__awtkit_recordSignal", (_source, s: RecordedSignal) => {
+    await context.exposeBinding("__awtkit_recordSignal", (source: { page?: Page }, raw: RecordedSignal) => {
       if (!this.isRecording || !this.captureSmartWaits) return;
-      this.signals.push(s);
+      // AWKIT-REC-040: tag the signal with its source page (in-memory only).
+      const s: RecordedSignal = this.pageMarkers.has(source.page as Page)
+        ? (Object.assign({}, raw, { __src: this.markerFor(source.page as Page) }) as RecordedSignal)
+        : raw;
       const cap = 2000;
       if (this.signals.length > cap) this.signals.splice(0, this.signals.length - cap);
     });
@@ -799,6 +815,47 @@ export class RecorderService {
     await context.addInitScript({ content: getRecorderInitScriptContent() });
     for (const page of context.pages()) {
       this.attachPopupSource(page);
+      // AWKIT-REC-041: observe downloads so a click that produces a file becomes a runnable
+      // `downloadFile` step (the runner clicks the same element and saves the artifact) instead
+      // of a bare `click` whose whole purpose was lost at replay.
+      const observeDownloads = (page: Page): void => {
+        page.on("download", (download) => {
+          if (!this.isRecording) return;
+          const hint = this.lastClickByPage.get(page);
+          const freshClick =
+            hint && Date.now() - hint.at <= 15_000 && hint.action?.type === "click" ? hint.action : undefined;
+          const fileName = (() => {
+            try {
+              return download.suggestedFilename();
+            } catch {
+              return "";
+            }
+          })();
+          const downloadAction: RecordedAction = {
+            ...(freshClick ?? ({} as RecordedAction)),
+            id: randomUUID(),
+            type: "downloadFile",
+            name: `Download ${fileName || "file"}`,
+            locator: freshClick?.locator
+          } as RecordedAction;
+          if (freshClick) {
+            // Replace the triggering click: replaying BOTH would download twice.
+            const idx = this.actions.findIndex((a) => a.id === freshClick.id);
+            if (idx >= 0) {
+              this.actions[idx] = downloadAction;
+              this.scheduleDraftPersist();
+              console.log(`[recorder] download captured → ${downloadAction.name}`);
+              return;
+            }
+          }
+          // No correlated click: fail VISIBLE instead of silently losing intent.
+          console.warn(
+            `[recorder] download "${fileName}" observed without a recent click on this page; ${`no locator could be inferred, so no `}step was recorded.`
+          );
+        });
+      };
+      for (const p2 of context.pages()) observeDownloads(p2);
+      context.on("page", observeDownloads);
       this.attachDialogCapture(page);
     }
   }
@@ -1446,11 +1503,13 @@ export class RecorderService {
    * on that previous action. Gated by `captureSmartWaits`; the `fixedDelay` fallback is only used
    * when the legacy fixed-time capture (`captureWaitTime`) is off, to avoid double delays.
    */
-  private attachSmartWaits(now: number): void {
+  private attachSmartWaits(now: number, actionPage?: Page): void {
     if (!this.captureSmartWaits || this.lastActionAt <= 0) return;
     const prev = this.actions[this.actions.length - 1];
     if (!prev || prev.type === "wait" || prev.type === "routeChange") return;
     const waits = buildSmartWaits(this.signals, this.lastActionAt, now, {
+      // AWKIT-REC-040: DOM-local signals must come from THIS action's page.
+      actionPageSrc: actionPage ? this.markerFor(actionPage) : undefined,
       actionId: prev.id,
       actionType: prev.type,
       allowFixedDelayFallback: !this.captureWaitTime,
@@ -1659,7 +1718,13 @@ export class RecorderService {
     const VALUE_PRESERVING_KEYS = new Set([
       "Tab", "Shift+Tab",
       "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-      "Home", "End", "PageUp", "PageDown"
+      "Home", "End", "PageUp", "PageDown",
+      // AWKIT-REC-038: Enter commits a form (and Escape reverts the field) — neither edits the
+      // VALUE, so an identical fill echoed after either key is the browser's change-commit, not
+      // a second user edit. Chrome records that commit AFTER the Enter keydown, which used to
+      // leave [Fill X, Press Enter, Fill X] and replayed the trailing fill against whatever page
+      // the submit navigated to.
+      "Enter", "Escape"
     ]);
     const cannotChangeFieldValue = (candidate: RecordedAction): boolean => {
       if (candidate.type === "hover") return true;
@@ -1727,7 +1792,7 @@ export class RecorderService {
     }
     // Smart Wait (Phase 2): attach the conditions observed since the previous action as
     // `afterWaits` on that previous action (i.e. what the user waited for after doing it).
-    this.attachSmartWaits(now);
+    this.attachSmartWaits(now, sourcePage);
     // Optionally record the user's think-time before this action as a fixed-time wait (Task 1).
     this.maybeInsertWait(now);
     // If the interaction happened in a different tab/page than the last recorded action, insert the

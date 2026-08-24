@@ -19,15 +19,24 @@ export type SignalLocator = StepLocator;
 type SignalCause = "navigation" | "click" | "focus" | "timer" | "background" | "unknown";
 interface SignalContext { cause?: SignalCause; }
 
+/**
+ * AWKIT-REC-040: `__src` is an INTERNAL recorder stamp — an opaque per-Page marker attached by
+ * `RecorderService` at binding time so DOM-local signals (loader/toast/enabled/rows) can be scoped
+ * to the page they happened on. Never persisted into flows. Signals WITHOUT a marker (unit tests,
+ * older buffers) are treated as global for backward compatibility.
+ */
+interface PageScoped { __src?: unknown; }
+
 export type RecordedSignal =
-  | ({ kind: "request"; method: string; path: string; status: number; startedAt: number; endedAt: number } & SignalContext)
-  | ({ kind: "loaderHidden"; locator?: SignalLocator; selector: string; shownAt: number; hiddenAt: number; existedAtBaseline?: boolean } & SignalContext)
-  | ({ kind: "toast"; locator?: SignalLocator; text?: string; role?: string; ts: number } & SignalContext)
-  | ({ kind: "enabled"; locator: SignalLocator; ts: number; existedBefore?: boolean; preDisabled?: boolean; postDisabled?: boolean } & SignalContext)
-  | ({ kind: "rows"; container: SignalLocator; listLike: boolean; previousCount?: number; count: number; ts: number } & SignalContext)
-  | ({ kind: "url"; url: string; fromUrl?: string; ts: number } & SignalContext);
+  | ({ kind: "request"; method: string; path: string; status: number; startedAt: number; endedAt: number } & SignalContext & PageScoped)
+  | ({ kind: "loaderHidden"; locator?: SignalLocator; selector: string; shownAt: number; hiddenAt: number; existedAtBaseline?: boolean } & SignalContext & PageScoped)
+  | ({ kind: "toast"; locator?: SignalLocator; text?: string; role?: string; ts: number } & SignalContext & PageScoped)
+  | ({ kind: "enabled"; locator: SignalLocator; ts: number; existedBefore?: boolean; preDisabled?: boolean; postDisabled?: boolean } & SignalContext & PageScoped)
+  | ({ kind: "rows"; container: SignalLocator; listLike: boolean; previousCount?: number; count: number; ts: number } & SignalContext & PageScoped)
+  | ({ kind: "url"; url: string; fromUrl?: string; ts: number } & SignalContext & PageScoped);
 
 export interface SmartWaitBuildOptions {
+
   /** Minimum window duration (ms) before a `fixedDelay` fallback is considered. */
   minMeaningfulMs?: number;
   /** Max number of waits kept per window. */
@@ -191,10 +200,21 @@ export function buildSmartWaits(
   signals: RecordedSignal[],
   fromTs: number,
   toTs: number,
-  options: SmartWaitBuildOptions = {}
+  options: SmartWaitBuildOptions & { /** AWKIT-REC-040 */ actionPageSrc?: unknown } = {}
 ): WaitCondition[] {
   const opts = { ...DEFAULTS, ...options };
-  const inWindow = signals.filter((s) => tsOf(s) > fromTs && tsOf(s) <= toTs);
+  const inWindowAll = signals.filter((s) => tsOf(s) > fromTs && tsOf(s) <= toTs);
+  // AWKIT-REC-040: scope PAGE-LOCAL signals to the action's page (global request/url kinds pass).
+  const PAGE_LOCAL = new Set(["loaderHidden", "toast", "enabled", "rows"]);
+  const inWindow =
+    opts.actionPageSrc === undefined
+      ? inWindowAll
+      : inWindowAll.filter(
+          (sig) =>
+            !PAGE_LOCAL.has(sig.kind) ||
+            (sig as { __src?: unknown }).__src === undefined ||
+            (sig as { __src?: unknown }).__src === opts.actionPageSrc
+        );
   const waits: WaitCondition[] = [];
 
   // 1. Network → `response` waits (highest priority). Only requests started after the previous
