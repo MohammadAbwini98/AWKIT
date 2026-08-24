@@ -1,5 +1,17 @@
 # CURRENT_STATE
 
+## Phase K reconciled to complete (2026-08-24)
+
+REC-022 was executed and passed on 2026-08-22 (see the awkit-cey closure section below), but
+`src/roadmap/ImplementationRoadmap.ts` — the authoritative phase source the dashboard parses —
+still declared Phase K `partially-completed` with REC-022 as its single blocker. It is now
+`status: "complete"` and the implementationNote carries the executed live-walkthrough evidence
+(session `session-f11ab5c3`, report `8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d` 10/10 steps,
+`outcome=sessionLoaded`, bead `awkit-cey` closed). Parsed phase summary: **10/11 complete (91%)**;
+the only remaining partially-completed phase is J (clean-machine offline walkthrough). The module
+header's `partially-completed` rationale now cites J only. Dashboard: **167/167 checks**,
+Overview **Sources agree**. Ledger: **64 PASS / 2 NOT RUN / 0 BLOCKED** (REC-022 PASS).
+
 ## Third-pass campaign: all 12 follow-up defects triaged and resolved (2026-08-24)
 
 The twelve defects filed by the third review pass were independently revalidated against source

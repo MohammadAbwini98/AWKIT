@@ -1,5 +1,18 @@
 # TASK_LOG
 
+## 2026-08-24 — Phase K reconciled to complete in ImplementationRoadmap.ts
+
+`src/roadmap/ImplementationRoadmap.ts` still declared Phase K (Recorder Mode)
+"partially-completed" with REC-022 as its single blocker, even though REC-022 was executed and
+passed on 2026-08-22 (authorized live real-IdP walkthrough: session `session-f11ab5c3` captured on
+the app-owned scoped profile, recorder resumed authenticated, saved workflow reused the session,
+final report `8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d` passed 10/10 steps, Reuse Session returned
+`outcome=sessionLoaded`, bead `awkit-cey` closed, ledger **64 PASS / 2 NOT RUN / 0 BLOCKED**).
+Phase K is now `status: "complete"` and the implementationNote carries that evidence; the module
+header's rationale for `partially-completed` now cites J only. Parsed summary moves
+**10/11 complete (91%)**, remaining focus J (clean-machine walkthrough). Dashboard:
+`verify:roadmap-dashboard` **167/167**, Overview **Sources agree**; build PASS.
+
 ## 2026-08-24 — third-pass campaign: 12 defects triaged, 11 fixed, 1 false positive
 
 **Agent:** opencode (ox-alpha). **Task:** independently triage and resolve the 12 defects filed by

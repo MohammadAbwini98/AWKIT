@@ -7,10 +7,11 @@
  * left Recorder Mode declared "pending" while it was one of the most developed features in the app.
  * Reconcile it whenever a phase's real state moves, not only when a phase closes.
  *
- * `partially-completed` exists because "complete" and "in-progress" could not describe J and K
- * honestly: the deliverables shipped, but each retains a named gap that is not active development
- * (an unexecuted manual gate, an unautomatable test case). Marking either "complete" would assert
- * an unrun check passed; "in-progress" would imply work underway that is not.
+ * `partially-completed` exists because "complete" and "in-progress" could not describe J
+ * honestly: the deliverables shipped, but J retains a named gap that is not active development
+ * (an unexecuted manual gate). Marking it "complete" would assert an unrun check passed;
+ * "in-progress" would imply work underway that is not. K used to share this status until its last
+ * gate (REC-022) was executed live on 2026-08-22; it reconciled to "complete" on 2026-08-24.
  */
 export type RoadmapStatus = "complete" | "in-progress" | "partially-completed" | "pending" | "blocked";
 
@@ -107,10 +108,10 @@ export const implementationRoadmap: RoadmapPhase[] = [
   {
     id: "K",
     title: "Recorder Mode",
-    status: "partially-completed",
+    status: "complete",
     deliverables: ["Browser action recorder", "Locator suggestions", "Action-to-node conversion", "Editable recorded flows"],
     acceptance: "User records a flow and saves it as editable nodes.",
-    implementationNote: "All four deliverables shipped and the acceptance criterion is met: ranked unique locators with compound/tree disambiguation, runtime locator self-healing, Smart Wait observation, auto-captured URLs, and the protected-login handoff. verify:recorder-gui is 152 PASS / 0 FAIL / 0 NOT RUN. REC-024 passed on 2026-07-27 (commit 958f575), and its campaign bead awkit-38k is closed. Phase K remains partially completed because REC-022 is the single blocker: its mock-expressible safety and replay guarantees are automated, but the final real-IdP handoff still requires an authorized operator and approved test identity (awkit-cey)."
+    implementationNote: "All four deliverables shipped and the acceptance criterion is met: ranked unique locators with compound/tree disambiguation, runtime locator self-healing, Smart Wait observation, auto-captured URLs, and the protected-login handoff. REC-024 passed on 2026-07-27 (commit 958f575; bead awkit-38k closed). The final gate, REC-022, was executed live on 2026-08-22 by an authorized operator with an approved test identity: protected login completed manually in real Chrome on an app-owned scoped profile (session session-f11ab5c3 captured), the recorder resumed authenticated, and the saved workflow reused the captured session - final report 8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d passed 10/10 steps with Reuse Session returning outcome=sessionLoaded. Closing bead awkit-cey is closed; comprehensive-validation ledger stands at 64 PASS / 2 NOT RUN / 0 BLOCKED with REC-022 PASS. Reconciled from partially-completed to complete on 2026-08-24."
   }
 ];
 
