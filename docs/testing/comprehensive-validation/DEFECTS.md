@@ -2518,4 +2518,3 @@ These were found and corrected while building the campaign. They are not open AW
 - Clean/offline Windows VM walkthrough: not run.
 - CAPTCHA/MFA/OTP/protected-login completion: intentionally blocked for authorized manual handoff.
 - Firefox/WebKit certification: not run under this Chromium-first scope.
-
