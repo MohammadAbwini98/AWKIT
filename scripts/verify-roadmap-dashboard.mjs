@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("260 issues parse", beads.stats.total === 260, `got ${beads.stats.total}`);
+  check("261 issues parse", beads.stats.total === 261, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -350,8 +350,12 @@ try {
   // Then 3/257 of 260 on 2026-08-25: `awkit-uwfo` (License Issuer signing-key readiness - one
   // canonical resolver plus the five readiness states) was filed and closed in the same session, so
   // total and closed each rose by one while the three owner-gated outstanding issues held.
-    "3 outstanding / 257 closed",
-    beads.stats.outstanding === 3 && beads.stats.closed === 257,
+  // Then 4/257 of 261 on 2026-08-25: `awkit-hgol` was filed BLOCKED (release packaging cannot build
+  // the portable/NSIS artifacts on this 16 GB workstation - 7-Zip -mx=9 OOM over the 802 MiB tree),
+  // so the total rose by one and outstanding three to four. Resolution is an owner decision between a
+  // larger build machine and a compression-policy change, so it joins the owner-gated set.
+    "4 outstanding / 257 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 257,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -591,10 +595,14 @@ try {
   // prevents vacuous success if blocked items disappear from parsing.
   // Then 3 on 2026-08-22: `awkit-cey` CLOSED on executed live IdP walkthrough evidence, leaving the
   // three owner-gated items (`awkit-7bu`, `awkit-az7`, `awkit-cm8`).
+  // Then 4 on 2026-08-25: `awkit-hgol` joined them - release packaging cannot build the portable/NSIS
+  // artifacts on this workstation (7-Zip -mx=9 OOM over the 802 MiB tree, reproduced three times).
+  // It is declared rather than edge-blocked for the same reason as the others: no `blocks` edge can
+  // express "needs a build machine with more free memory, or an owner decision on compression".
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 3 &&
-      order.externallyBlocked.length === 3 &&
+    order.stats.declaredBlocked === 4 &&
+      order.externallyBlocked.length === 4 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

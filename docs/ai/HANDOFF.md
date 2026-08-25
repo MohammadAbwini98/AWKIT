@@ -1,5 +1,56 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-25, latest) — script typecheck gate green; packaged licensing executed; packaging BLOCKED
+
+### Transfer
+
+- **Ledger unchanged at 64 PASS / 2 NOT RUN / 0 BLOCKED.** Tracker: `AWKIT-BLD-001` closed with
+  evidence; `awkit-hgol` filed **blocked**. Pins moved to 261 total / 257 closed / 4 outstanding, and
+  the declared-blocked pin from 3 to 4.
+- **Branch:** `main`, committed and pushed. No branch or worktree created.
+- **State:** both items complete as far as this workstation permits. One genuine BLOCKED remains.
+
+### What is now true
+
+`npm run typecheck:scripts` is **0 errors, exit 0** (was 33). `verify:packaged-licensing` is
+**40 PASS / 0 FAIL / 0 BLOCKED** — the EXPIRED and MACHINE_MISMATCH cases needed real signatures and
+had never been executed until now. `verify:packaged-walkthrough` proves real licensed packaged
+execution: unlicensed refuses → mint a short-lived `workflow.execute`-only licence externally → import
+through the app's own admin IPC after a fresh reauth → run gate admits, **attributed to the licence and
+explicitly not to grace** → a real workflow COMPLETES in the packaged build → teardown removes the
+licence and the machine is refused again.
+
+### The one BLOCKED item, and what not to do about it
+
+`awkit-hgol`: `electron-builder`'s `7za -mx=9` cannot allocate memory for the 802 MiB tree on this
+16 GB box (three reproductions). So the single-file portable EXE and the NSIS installer + `latest.yml`
+do not exist for 0.1.20, and walkthrough Parts A/K/L plus `verify:packaged-validation`'s freshness
+guard cannot pass.
+
+- **Do NOT lower `compression` in `electron-builder.json` to get past it.** That changes the shipped
+  artifact, and doing it to turn a gate green is the exact failure the guard prevents.
+- **`dist/win-unpacked` is genuine and current** — clean tree, manifest `sourceCommit` = `8369931`,
+  `sourceTreeDirty: false`, signature verified, strict offline validation passed. Every packaged gate
+  that drives it runs normally.
+- **Part K's three green checks are not evidence about current HEAD.** They booted the 22-hour-old
+  portable, because "portable EXE exists" is an existence check. `verify:packaged-validation` is what
+  actually notices staleness (it reported 1321 minutes). Read those two together, never Part K alone.
+
+### Issuer-key handling in this session
+
+The authorized `key2` key is on this workstation. Its identity was confirmed against the shipped
+public half **without printing its contents**; `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` was exported for
+the two verifier invocations only and never written into any repository file. The minted licences are
+`trial`, `workflow.execute` only, under an hour, machine-bound, and were removed again by the
+walkthrough's own teardown. The `issuance-history.jsonl` lines beside the key are the intentional audit
+record and were deliberately left in place.
+
+### Trap worth carrying forward
+
+A backgrounded `npm run … | tail -n` reports **`tail`'s** exit status, not the command's. The first
+packaging attempt "completed (exit code 0)" while actually having failed. Redirect to a file and echo
+`$?` instead.
+
 ## HANDOFF (2026-08-25) — License Issuer signing-key readiness fixed and proven end to end (`awkit-uwfo`)
 
 ### Transfer

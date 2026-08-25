@@ -1,5 +1,96 @@
 # CURRENT_STATE
 
+## Script typecheck gate green; packaged licensing proven end to end (`AWKIT-BLD-001`, 2026-08-25)
+
+Two blockers left over from the License Issuer work, both resolved as far as this workstation allows.
+
+```text
+typecheck:scripts 33 errors -> 0 ......... DONE, exit 0
+packaged licensing negative matrix ....... 40 PASS / 0 FAIL / 0 BLOCKED
+packaged licensed EXECUTION .............. PROVEN (walkthrough 85/2)
+portable + NSIS release artifacts ........ BLOCKED - 7-Zip -mx=9 OOM on this box
+```
+
+**`AWKIT-BLD-001` closed.** All 33 diagnostics fixed at their cause across eleven verifier scripts —
+no `tsconfig` change, no `@ts-ignore`, no widening to `any`, no assertion deleted, no private member
+made public. The nine classes and the per-file evidence are in `DEFECTS.md`; the two worth knowing
+about because they will recur are in `KNOWN_ISSUES.md` (an undeclared `detail` parameter on a local
+`check()` helper silently discards every diagnostic string; and `let flag = false` assigned inside a
+callback is narrowed to the literal `false`, so a correct `flag === true` cannot compile). The one
+structural change is `StepExecutor.getActivePage()` — the read half of the public `setActivePage()`
+that already existed, so `verify:recorder-third-pass` asserts REC-039 through the class boundary
+instead of reaching past it. Behaviour was re-measured, not assumed: security 53/53, secrets 24/24,
+ipc-contract 9/9, workflow-sentinels 29/29, recorder-draft 109/109, cancellation 34/34, concurrency
+84/84, recorder-third-pass 6/6, protected-login-recorder 74/74, runner 129/129.
+
+**Two verifier fixtures were quietly wrong and are now right.** `verify-concurrency`'s Part K profile
+declared `runMode: "concurrent"` and `browserWindowMode: "scopedWindows"` — neither is a member of the
+real unions — and omitted the required `resourceControls`/`failurePolicy`; the isolation proof was
+running against a shape the product cannot produce. `verify-workflow-sentinels` typed a fixture helper
+as `Partial<Extract<ScenarioNode["data"], { kind: "flowRef" }>>`, which is `never` because
+`ScenarioFlowNodeData` is one interface with a `kind` union rather than a discriminated union — so the
+overrides parameter accepted nothing and every call site was unchecked.
+
+**Packaged licensing is no longer BLOCKED.** The authorized `key2` issuer key is present on this
+workstation; its identity was confirmed against the shipped public half without printing its contents,
+and `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` was set for the two verifier invocations only and never written
+into repository configuration.
+
+```text
+verify:packaged-licensing ......... 40 PASS / 0 FAIL / 0 BLOCKED
+  NOT_ACTIVATED / INVALID_SIGNATURE / CORRUPTED / EXPIRED / MACHINE_MISMATCH
+  all five refuse a real packaged run; EXPIRED and MACHINE_MISMATCH needed real
+  signatures and had never been executed before
+  migration grace admits for 14 days and is attributed as grace, NOT as a licence
+verify:packaged-walkthrough ....... 85 passed / 2 failed (both = absent NSIS artifact)
+  unlicensed packaged app REFUSES a real run
+  minted licence: trial, workflow.execute only, <2h, bound to THIS fingerprint
+  imported through the app's own administrator IPC after a fresh reauth
+  run gate admits, attributed to the LICENCE and explicitly NOT to grace
+  workflow run COMPLETED in the packaged app; JSONL 37/37, screenshots, report,
+  and the four run-state artifacts all written
+  teardown removed the licence through the app's IPC, machine back to
+  NOT_ACTIVATED, runs refused again, no mint artifacts left behind
+  no non-loopback TCP connection from any app process across the whole run
+```
+
+**One verifier defect found by running it, and fixed.** The walkthrough reported
+`end-of-run state artifacts written (flow-state.json)` as a FAILURE against a build that had written
+the file correctly: `writeRunStateArtifacts` runs in the engine's post-run flush, *after* the instance
+reports `completed`, and this check sampled once immediately while the `run report written` check
+beside it polls for 10 s. Measured: the run completed at 19:13:4x and all four state artifacts landed
+at 19:13:54.364. The check now polls with the same bounded window; the assertion is unchanged. 84/3 → 85/2.
+
+**The packaged artifact carries no signing material.** Scanned the freshly built tree: no PKCS8
+Ed25519 private-key prefix, no PEM private-key block, and no occurrence of the real `key2` bytes
+(compared against the actual file, read locally and never printed). The only key-like file is
+`resources/trust/offline-manifest-public.pem`, a public verification key. `app.asar` contains only
+`out/{main,preload,renderer}`, `package.json` and `node_modules` — no `tools/`, no issuer CLI, no
+keygen, no roadmap bridge, no Test Lab (`verify:test-lab-cli-only` 24/24 agrees). `SPECTER_ISSUER_KEY`
+appears only as an env-var *name* compiled from `IssuerLocations.ts`.
+
+**BLOCKED, stated plainly (`awkit-hgol`).** The single-file portable EXE and the NSIS installer cannot
+be built here: `electron-builder`'s `7za -mx=9` over the 802 MiB tree fails with
+`Can't allocate required memory!`, reproduced three times at 6.0–6.7 GB free of 15.9 GB — including a
+pack-only retry and a run with an 8 GB Node heap. Everything before that step succeeds, **including
+strict offline validation**, so `dist/win-unpacked` is genuine: built from a clean tree, manifest
+`sourceCommit` = `8369931` = the HEAD it was built from, `sourceTreeDirty: false`, Ed25519 signature
+verified. Walkthrough Parts A/K/L and `verify:packaged-validation`'s portable freshness guard are the
+only casualties. Part K's three green checks booted the **22-hour-old** portable and are therefore not
+evidence about current HEAD — `verify:packaged-validation` is the gate that noticed, reporting the EXE
+as 1321 minutes old. The compression setting was deliberately NOT lowered to force it through.
+
+Verified: `npm run build` PASS · `typecheck:scripts` **0 errors, exit 0** · `verify:licensing` **192/192** ·
+`verify:issuer-key-resolution` **83/83** · `verify:license-dispatch-gate` **34/34** ·
+`verify:security` **53/53** · `verify:release-key-custody` **58/58** · `verify:test-lab-cli-only` **24/24** ·
+`verify:packaged-runtime` **25/25** · `verify:packaged-licensing` **40/40** ·
+`verify:packaged-walkthrough` **85/2 (both NSIS)** · `verify:packaged-validation` **86/1 (portable freshness)** ·
+`verify:source-hygiene` **11/11** · `verify:verifier-classification` reconciled ·
+`verify:roadmap-dashboard` **171/171**, Overview **Sources agree** · `validate:offline` completed
+(and strict, inside packaging) · `git diff --check` clean.
+
+Ledger unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## License Issuer signing key: one canonical resolver, five readiness states (`awkit-uwfo`, 2026-08-25)
 
 The License Issuer console showed **Signing key: Unavailable / Key unavailable**, key `key2`, and

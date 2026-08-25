@@ -1,21 +1,52 @@
 # KNOWN_ISSUES
 
-## `typecheck:scripts` is RED with 33 pre-existing errors (2026-08-25, `AWKIT-BLD-001`)
+## RESOLVED (2026-08-25): `typecheck:scripts` is GREEN again — keep it that way (`AWKIT-BLD-001`)
 
-`npm run typecheck:scripts` — and therefore `npm run verify:all-typecheck` — exits non-zero with
-**33 errors** in eleven verifier scripts. Measured as a standing baseline, not a regression: 33 at
-`HEAD` (`7ba0874`) and 33 with the `awkit-uwfo` change applied, established by stashing the work and
-re-running. `tsc --noEmit` over `app/` + `src/` (the `npm run build` gate) is clean.
-
-**Why this matters more than the count suggests:** the gate exists to catch a removed export that
-would otherwise only fail at `tsx` runtime. While it is red, a NEW error is indistinguishable from
-the standing 33, so a fresh break can hide in the noise. When adding to `scripts/**/*.mts`, run
-`npx tsc -p tsconfig.scripts.json --noEmit | grep <your-file>` rather than trusting the exit code.
-
-Dominant shapes: `TS2554 Expected 2 arguments, but got 3` on local `check(...)` helpers whose third
-detail parameter was never declared; `TS2341` private-member access in `verify-recorder-third-pass.mts`;
-implicit `any` in `verify-verifier-classification.mts`. Full file list and fix direction in
+`npm run typecheck:scripts` was red with **33** standing errors in eleven verifier scripts; it is now
+**0, exit 0** (`a17b6e4`). Every one was fixed at its cause — no `tsconfig` change, no `@ts-ignore`,
+no widening to `any`, no assertion deleted, no private member made public. Per-diagnostic evidence:
 `docs/testing/comprehensive-validation/DEFECTS.md` › `AWKIT-BLD-001`.
+
+**Why it must stay green:** the gate exists to catch a removed export that otherwise only fails at
+`tsx` runtime. While it was red, a NEW error was indistinguishable from the standing 33 — which is
+how it stayed red long enough to accumulate 33.
+
+**Two traps this uncovered, both likely to recur in new verifiers:**
+
+- A local `check(name, cond)` helper called as `check(name, cond, detail)` **compiles nothing away
+  silently** — it is a hard TS2554, but only under `typecheck:scripts`, which nothing runs by habit.
+  Declare `detail?: string` and actually print it; a discarded diagnostic is a red run that says
+  nothing about what failed.
+- `let flag = false; p.then(() => { flag = true; }); … flag === true` is **TS2367**, not a bug in your
+  test. TypeScript narrows the bare `let` to the literal `false` and does not track assignment inside
+  the callback. Put the observed state on a holder object (`const seen = { flag: false }`); a property
+  read is not narrowed that way. Do not "fix" it by weakening the assertion.
+
+## Release packaging: portable/NSIS artifacts cannot be built on this workstation (2026-08-25, `awkit-hgol`)
+
+`npm run package:portable` gets through every stage — including **strict** offline validation — and
+then dies in `electron-builder`'s final `7za -mx=9` over the 802 MiB tree with
+`Can't allocate required memory!`. Reproduced three times at 6.0–6.7 GB free of 15.9 GB.
+
+What this does and does not block:
+
+- `dist/win-unpacked` **is** produced correctly, from a clean tree, with a signed manifest whose
+  `sourceCommit` equals HEAD. Every packaged gate that drives it (`verify:packaged-licensing`,
+  `verify:packaged-runtime`, and Parts B–J of `verify:packaged-walkthrough`) runs normally.
+- Only the single-file portable EXE and the NSIS installer + `latest.yml` are missing, so
+  `verify:packaged-walkthrough` Parts A/K/L and `verify:packaged-validation`'s portable freshness
+  guard cannot pass.
+
+**Do not make this go away by lowering `compression` in `electron-builder.json`.** That changes the
+shipped artifact, and doing it to turn a gate green is exactly the move the guard exists to prevent.
+The guard itself is working: `package-portable.ps1` throws rather than leaving a stale EXE that a
+later gate would happily call fresh (its comment has named this `-mx=9` OOM since 2026-07-06).
+
+**A stale portable EXE still "passes" the existence check.** Part K booted the 22-hour-old artifact
+and reported three green checks about it. Before trusting Part K or L, confirm
+`dist/SpecterStudio <version>.exe` was built from the HEAD you are testing —
+`verify:packaged-validation`'s freshness guard is the check that actually notices (it reported the
+EXE as 1321 minutes old).
 
 ## Issuer readiness is profile-scoped — an isolated `%LOCALAPPDATA%` legitimately reports MISSING (2026-08-25)
 

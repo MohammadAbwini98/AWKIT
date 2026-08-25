@@ -2559,6 +2559,22 @@ These were found and corrected while building the campaign. They are not open AW
 
 ## Environmental gaps, not defects
 
+- **Portable / NSIS release artifacts cannot be built on this workstation (2026-08-25, `awkit-hgol`).**
+  `npm run package:portable` completes preflight, build, Zvec staging, the portable fresh-state gate,
+  dependency-manifest generation + signing, and **strict** offline validation — then the final
+  `electron-builder` step fails: `7za.exe a -bd -mx=9` over the 802 MiB `win-unpacked` tree exits 8
+  with `ERROR: Can't allocate required memory!`. Reproduced three times with 6.0–6.7 GB physical free
+  of 15.9 GB, including a pack-only retry against an already-built tree and a run with
+  `NODE_OPTIONS=--max-old-space-size=8192` (that run instead died earlier with a V8
+  `Fatal process out of memory: Zone` in `tsc --noEmit`, then passed on retry). `package-portable.ps1`
+  already names this exact `-mx=9` OOM in its guard comment (observed 2026-07-06), and the guard works:
+  it throws, so no stale EXE is passed off as fresh. **`dist/win-unpacked` IS produced correctly**, so
+  every packaged gate that drives it runs normally; only `verify:packaged-walkthrough` Parts A/K/L and
+  `verify:packaged-validation`'s portable freshness guard are blocked. Not a product defect — the
+  packaged application is fine; the release compressor cannot get the memory it wants on this box.
+  Resolution is an owner decision between a build machine with more free memory and a deliberate
+  compression-policy change (which alters the shipped artifact and must not be made silently to turn a
+  gate green).
 - Live Oracle: blocked because no approved URL/user/password is configured and the local Oracle container is absent.
 - ~~Oracle packaged driver bundle: local development offline validation reported a zero-megabyte
   Oracle bundle warning.~~ **Withdrawn 2026-07-26 — never a defect or a warning.** `validate:offline`

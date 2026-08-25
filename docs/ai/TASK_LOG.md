@@ -1,5 +1,54 @@
 # TASK_LOG
 
+## 2026-08-25 — Script typecheck gate to zero, and packaged licensing executed (`AWKIT-BLD-001`, `awkit-hgol`)
+
+**Agent:** Claude Code (Opus 5). **Task:** resolve the two blockers left by `awkit-uwfo` — the 33
+standing `typecheck:scripts` errors, and the never-executed packaged licensing gates.
+
+**Phase 1 — `AWKIT-BLD-001`.** All 33 diagnostics across eleven verifier scripts fixed at their cause.
+No `tsconfig` change, no `@ts-ignore`, no widening to `any`, no assertion deleted, no private member
+made public. Nine classes: undeclared `detail` parameters on three local `check()` helpers (16); an
+unannotated recursive `listVerifierFiles` (4); private `StepExecutor.activePage` access, resolved by
+adding the public read half `getActivePage()` beside the `setActivePage()` that already existed (3);
+`let flag = false` narrowed to the literal `false` by CFA, moved onto holder objects (3); a missing
+sibling declaration for `verify-harness.mjs` (2); `Extract<…, { kind: "flowRef" }>` collapsing to
+`never` because `ScenarioFlowNodeData` is not a discriminated union (2); a `ConcurrentRunProfile`
+fixture with two non-member enum values and two missing required fields (1); `"NONE"` missing from a
+classifier's return type (1); an undeclared `skipped` NOT-RUN marker (1).
+
+**Phase 2 — packaged licensing.** Rebuilt `dist/win-unpacked` from a clean tree (strict offline
+validation passed; manifest `sourceCommit` = `8369931`, `sourceTreeDirty: false`, signature verified).
+Confirmed the authorized `key2` key's identity against the shipped public half without printing it,
+then ran the two gates with `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set for those invocations only.
+Found and fixed one verifier defect: the walkthrough sampled for `flow-state.json` once, immediately,
+racing the engine's post-run flush, and reported a failure that was not real (measured: the artifacts
+landed at 19:13:54.364, seconds after the check). It now polls with the same window as the report
+check beside it.
+
+**Files:** `scripts/verify-{cancellation,concurrency,ipc-contract,recorder-draft,recorder-third-pass,
+reports-settings-a11y,secrets,security,verifier-classification,workflow-sentinels,packaged-walkthrough,
+roadmap-dashboard}.mts|mjs`, new `scripts/lib/verify-harness.d.mts`, `src/runner/StepExecutor.ts`,
+`resources/dependency-manifest.{json,sig}`, and the `docs/ai/` + `DEFECTS.md` records.
+
+**Tests run:** `typecheck:scripts` **0 errors** · `npm run build` PASS · `verify:licensing` **192/192** ·
+`verify:issuer-key-resolution` **83/83** · `verify:license-dispatch-gate` **34/34** ·
+`verify:security` **53/53** · `verify:secrets` **24/24** · `verify:ipc-contract` **9/9** ·
+`verify:workflow-sentinels` **29/29** · `verify:recorder-draft` **109/109** ·
+`verify:cancellation` **34/34** · `verify:concurrency` **84/84** · `verify:recorder-third-pass` **6/6** ·
+`verify:protected-login-recorder` **74/74** · `verify:runner` **129/129** ·
+`verify:release-key-custody` **58/58** · `verify:test-lab-cli-only` **24/24** ·
+`verify:packaged-runtime` **25/25** · `verify:packaged-licensing` **40 PASS / 0 FAIL / 0 BLOCKED** ·
+`verify:packaged-walkthrough` **85 passed / 2 failed** · `verify:packaged-validation` **86/1** ·
+`verify:source-hygiene` **11/11** · `verify:verifier-classification` reconciled (199) ·
+`verify:roadmap-dashboard` **171/171**, Sources agree · `validate:offline` completed ·
+`git diff --check` clean.
+
+**BLOCKED:** the portable EXE and NSIS installer cannot be built here (`awkit-hgol`) — `7za -mx=9`
+OOM over the 802 MiB tree, three reproductions. That is the sole cause of the walkthrough's 2 failures
+and packaged-validation's 1. **NOT RUN:** `verify:reports-settings-a11y` exits non-zero on its
+documented NOT-RUN third state (14 PASS / 0 FAIL / 1 NOT RUN), unchanged by this work.
+**Result:** PASS, with one truthful BLOCKED. Ledger unchanged **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## 2026-08-25 — License Issuer signing-key readiness: one canonical resolver, five states (`awkit-uwfo`)
 
 **Agent:** Claude Code (Opus 5). **Task:** fix the License Issuer's "Signing key: Unavailable /
