@@ -915,8 +915,21 @@ async function main(): Promise<void> {
         aggregateReport
       );
       const instanceRoot = dirname(doneD.paths.storage);
-      const stateFiles = (await walkFiles(instanceRoot)).filter((file) => file.endsWith("flow-state.json"));
-      check("end-of-run state artifacts written (flow-state.json)", stateFiles.length > 0, instanceRoot);
+      // POLLED, like the report check above it. `writeRunStateArtifacts` runs in the engine's
+      // post-run flush (`ExecutionEngine.ts`), AFTER the instance already reports `completed` — so a
+      // single immediate sample races that flush and reports a failure that is not real. Measured:
+      // the run reached `completed` at 19:13:4x and `storage/state/flow-state.json` landed at
+      // 19:13:54.364, with all four state artifacts present and well-formed. The assertion is
+      // unchanged — the file must still appear; it simply gets the same bounded window.
+      const stateWritten = await pollUntil(
+        async () => {
+          const found = (await walkFiles(instanceRoot)).filter((file) => file.endsWith("flow-state.json"));
+          return found.length > 0 ? found : null;
+        },
+        10_000,
+        250
+      );
+      check("end-of-run state artifacts written (flow-state.json)", stateWritten !== null, instanceRoot);
     }
 
     console.log("\nPart E — hard cancellation inside the packaged app");
