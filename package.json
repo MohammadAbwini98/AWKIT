@@ -93,6 +93,8 @@
     "verify:nsis-per-user-install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-nsis-per-user-install.ps1",
     "verify:avatar": "tsx scripts/verify-avatar-initials.mts",
     "verify:licensing": "tsx scripts/verify-licensing.mts",
+    "verify:issuer-key-resolution": "tsx scripts/verify-issuer-key-resolution.mts",
+    "verify:issuer-readiness-gui": "tsx scripts/verify-issuer-readiness-gui.mts",
     "verify:license-dispatch-gate": "node scripts/benchmark/run.mjs scripts/verify-license-dispatch-gate.mts",
     "verify:write-queue": "tsx scripts/verify-write-queue.mts",
     "verify:profile-store": "tsx scripts/verify-profile-store.mts",

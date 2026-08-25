@@ -53,9 +53,8 @@ import { LicenseService } from "../src/licensing/LicenseService";
 import { LicenseStore } from "../src/licensing/store/LicenseStore";
 import {
   DEFAULT_ISSUER_KEY_ID,
-  issuerKeyPathFor,
-  issuerOutputDirectoryFor,
-  nonElectronRuntimeRoot
+  nonElectronRuntimeRoot,
+  resolveIssuerKeyLocation
 } from "../src/licensing/issuer/IssuerLocations";
 import { LicenseIssuerError, LicenseIssuerService } from "../src/licensing/issuer/LicenseIssuerService";
 import { buildIssuePayload, parseActivationRequestBody } from "../tools/roadmap/lib/license-issuer.mjs";
@@ -426,6 +425,11 @@ try {
       !serverSrc.includes("issuer-keys"),
     "the dashboard server must never resolve a key location"
   );
+  // Source scans must read CODE, not prose. These files' headers document the defects they fixed, so
+  // a raw `includes()` matches the explanation and reports the very defect that had been removed.
+  const codeOnly = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ \t]*\/\/.*$/gm, " ");
+
   const bridgeSrc = read("tools", "license-issuer", "roadmap-bridge.mts");
   check(
     "the bridge reads nothing but a fixed command from argv",
@@ -444,20 +448,34 @@ try {
     "serial numbers, ids, canonicalisation and signing must have exactly one implementation"
   );
   check(
-    "the bridge resolves the key through the shared location contract, not its own string",
-    bridgeSrc.includes("issuerKeyPathFor(") && !/join\([^)]*issuer-keys/.test(bridgeSrc)
+    "the bridge resolves the key through the ONE canonical resolver, not its own string",
+    codeOnly(bridgeSrc).includes("resolveIssuerKeyLocation(") && !/join\([^)]*issuer-keys/.test(codeOnly(bridgeSrc))
   );
   check(
-    "the Electron main process resolves the same key through the same contract",
-    read("app", "main", "licensing", "issuerRuntime.ts").includes("issuerKeyPathFor(")
+    "the bridge derives the history path from the resolved key directory, not by rewriting the key path",
+    codeOnly(bridgeSrc).includes("keyLocation.keyDirectory") && !/keyPath\.replace\(/.test(codeOnly(bridgeSrc)),
+    "`keyPath.replace(/[^/]+$/, …)` only knows forward slashes, so on Windows it consumed the whole path"
   );
-
-  // Source scans must read CODE, not prose. This file's own header documents the defect it fixed —
-  // naming `Math.random()` and the issuance-history write — so a raw `includes()` matched the
-  // explanation and reported the very defect that had been removed. Strip comments first, or the
-  // check punishes documenting the fix.
-  const codeOnly = (source: string): string =>
-    source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ 	]*\/\/.*$/gm, " ");
+  check(
+    "the Electron main process resolves the same key through the same canonical resolver",
+    codeOnly(read("app", "main", "licensing", "issuerRuntime.ts")).includes("resolveIssuerKeyLocation(")
+  );
+  check(
+    "keygen writes the key where every front end will look for it",
+    (() => {
+      const keygenCode = codeOnly(read("tools", "license-issuer", "keygen.mts"));
+      return keygenCode.includes("resolveIssuerKeyLocation(") && !/join\([^)]*issuer-keys/.test(keygenCode);
+    })(),
+    "it used to compose its own path with a different variable order and a cwd fallback"
+  );
+  check(
+    "no issuer component keeps a cwd fallback for the runtime root",
+    (() => {
+      const locations = codeOnly(read("src", "licensing", "issuer", "IssuerLocations.ts"));
+      return !/\?\?\s*"\."/.test(locations) && locations.includes("string | null");
+    })(),
+    "a `\".\"` fallback resolves the PRIVATE KEY against the caller's working directory"
+  );
 
   // ── The THIRD front end: the offline CLI (awkit-vf9r) ────────────────────────────────────────
   // It had drifted into a second, LOOSER issuer — any --type, any --entitlements, no validity
@@ -488,8 +506,8 @@ try {
     "the atomic write, its cleanup, and the append-only audit record belong to the service"
   );
   check(
-    "the CLI resolves the key and output folder through the shared location contract",
-    cliSrc.includes("issuerKeyPathFor(") && cliSrc.includes("issuerOutputDirectoryFor(") && !/join\([^)]*issuer-keys/.test(cliSrc)
+    "the CLI resolves the key and output folder through the ONE canonical resolver",
+    cliSrc.includes("resolveIssuerKeyLocation(") && !/join\([^)]*issuer-keys/.test(cliSrc)
   );
   check(
     "the CLI defaults to the ACTIVE signing key, not a hardcoded one",
@@ -579,8 +597,11 @@ try {
     !readinessBody.includes(PRIVATE_B64) && !/"privateKey"/.test(readinessBody)
   );
 
-  const workstationKeyPath = issuerKeyPathFor(nonElectronRuntimeRoot(), KEY_ID);
-  const workstationHasKey = existsSync(workstationKeyPath);
+  // Through the canonical resolver, exactly as the bridge does — so "does this workstation have a
+  // key" is answered by the same code that decides which file the bridge would sign with.
+  const workstationLocation = resolveIssuerKeyLocation({ runtimeRoot: nonElectronRuntimeRoot(), keyId: KEY_ID });
+  const workstationKeyPath = workstationLocation.keyPath;
+  const workstationHasKey = workstationKeyPath.length > 0 && existsSync(workstationKeyPath);
   if (workstationHasKey) {
     check("readiness reports a usable signing key on this workstation", readiness.ok === true && readiness.readiness?.ready === true);
   } else {
@@ -655,7 +676,7 @@ try {
       goodParseBody.request.availableSignals.every((signal: unknown) => typeof signal === "string")
   );
 
-  const outputDirectory = issuerOutputDirectoryFor(nonElectronRuntimeRoot());
+  const outputDirectory = workstationLocation.outputDirectory ?? "";
   const filesBefore = existsSync(outputDirectory) ? readdirSync(outputDirectory).length : -1;
   const issueResponse = await fetch(`${base}/api/license-issuer/issue`, {
     method: "POST",
