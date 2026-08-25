@@ -22,25 +22,31 @@ how it stayed red long enough to accumulate 33.
   the callback. Put the observed state on a holder object (`const seen = { flag: false }`); a property
   read is not narrowed that way. Do not "fix" it by weakening the assertion.
 
-## Release packaging: portable/NSIS artifacts cannot be built on this workstation (2026-08-25, `awkit-hgol`)
+## Release packaging: `-mx=9` cannot be built on this workstation (2026-08-25, `awkit-hgol`)
 
 `npm run package:portable` gets through every stage — including **strict** offline validation — and
 then dies in `electron-builder`'s final `7za -mx=9` over the 802 MiB tree with
 `Can't allocate required memory!`. Reproduced three times at 6.0–6.7 GB free of 15.9 GB.
 
-What this does and does not block:
+**How the gates were closed anyway (owner decision):** a **verification-only** build with
+`ELECTRON_BUILDER_COMPRESSION_LEVEL=5` exported for one `npm run package:offline` invocation — no
+repository configuration changed, nothing persisted. That drops the LZMA2 dictionary from 64 MB to
+16 MB and the pack completes. `verify:packaged-walkthrough` is then **88/0** and
+`verify:packaged-validation` **87/0**.
 
-- `dist/win-unpacked` **is** produced correctly, from a clean tree, with a signed manifest whose
-  `sourceCommit` equals HEAD. Every packaged gate that drives it (`verify:packaged-licensing`,
-  `verify:packaged-runtime`, and Parts B–J of `verify:packaged-walkthrough`) runs normally.
-- Only the single-file portable EXE and the NSIS installer + `latest.yml` are missing, so
-  `verify:packaged-walkthrough` Parts A/K/L and `verify:packaged-validation`'s portable freshness
-  guard cannot pass.
+**`electron-builder.json` is NOT the lever, and never was.** electron-builder hardcodes `-mx=9` for
+7z archives regardless of the `compression` value — only `"store"` (no compression at all) differs.
+Editing that config would have changed nothing here, and setting it to `"store"` would be a real
+change to release packaging policy for every future build.
 
-**Do not make this go away by lowering `compression` in `electron-builder.json`.** That changes the
-shipped artifact, and doing it to turn a gate green is exactly the move the guard exists to prevent.
-The guard itself is working: `package-portable.ps1` throws rather than leaving a stale EXE that a
-later gate would happily call fresh (its comment has named this `-mx=9` OOM since 2026-07-06).
+**The resulting artifacts must not be shipped.** They are not byte-equivalent to a canonical release
+build. `dist/VERIFICATION-BUILD-0.1.20.md` records that beside them, and `awkit-hgol` stays open until
+a real `-mx=9` build exists. Compression affects the outer container only — `app.asar`, the bundled
+Chromium, `extraResources` and the signed manifest come out exactly as a release build produces them —
+which is why the gate results are still real evidence about the code.
+
+The `package-portable.ps1` guard works and should be left alone: it throws rather than leaving a stale
+EXE that a later gate would happily call fresh (its comment has named this `-mx=9` OOM since 2026-07-06).
 
 **A stale portable EXE still "passes" the existence check.** Part K booted the 22-hour-old artifact
 and reported three green checks about it. Before trusting Part K or L, confirm

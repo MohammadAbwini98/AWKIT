@@ -14,27 +14,33 @@
 
 `npm run typecheck:scripts` is **0 errors, exit 0** (was 33). `verify:packaged-licensing` is
 **40 PASS / 0 FAIL / 0 BLOCKED** — the EXPIRED and MACHINE_MISMATCH cases needed real signatures and
-had never been executed until now. `verify:packaged-walkthrough` proves real licensed packaged
-execution: unlicensed refuses → mint a short-lived `workflow.execute`-only licence externally → import
-through the app's own admin IPC after a fresh reauth → run gate admits, **attributed to the licence and
-explicitly not to grace** → a real workflow COMPLETES in the packaged build → teardown removes the
-licence and the machine is refused again.
+had never been executed until now. `verify:packaged-walkthrough` is **88/0** and proves real licensed
+packaged execution: unlicensed refuses → mint a short-lived `workflow.execute`-only licence externally
+→ import through the app's own admin IPC after a fresh reauth → run gate admits, **attributed to the
+licence and explicitly not to grace** → a real workflow COMPLETES in the packaged build → teardown
+removes the licence and the machine is refused again. `verify:packaged-validation` is **87/0**.
 
-### The one BLOCKED item, and what not to do about it
+### The packaged gates are green on a VERIFICATION build — read this before shipping anything
 
-`awkit-hgol`: `electron-builder`'s `7za -mx=9` cannot allocate memory for the 802 MiB tree on this
-16 GB box (three reproductions). So the single-file portable EXE and the NSIS installer + `latest.yml`
-do not exist for 0.1.20, and walkthrough Parts A/K/L plus `verify:packaged-validation`'s freshness
-guard cannot pass.
+`verify:packaged-walkthrough` is **88/0** and `verify:packaged-validation` **87/0**, but the artifacts
+they drove were built with `ELECTRON_BUILDER_COMPRESSION_LEVEL=5` exported for one
+`npm run package:offline` invocation (owner decision, 2026-08-25), because `-mx=9` OOMs on this box —
+four reproductions, including a pack-only retry, an 8 GB Node heap, and a fully quiet machine.
 
-- **Do NOT lower `compression` in `electron-builder.json` to get past it.** That changes the shipped
-  artifact, and doing it to turn a gate green is the exact failure the guard prevents.
-- **`dist/win-unpacked` is genuine and current** — clean tree, manifest `sourceCommit` = `8369931`,
-  `sourceTreeDirty: false`, signature verified, strict offline validation passed. Every packaged gate
-  that drives it runs normally.
-- **Part K's three green checks are not evidence about current HEAD.** They booted the 22-hour-old
-  portable, because "portable EXE exists" is an existence check. `verify:packaged-validation` is what
-  actually notices staleness (it reported 1321 minutes). Read those two together, never Part K alone.
+- **`dist/SpecterStudio 0.1.20.exe` and `… Setup 0.1.20.exe` must NOT be shipped.** They are not
+  byte-equivalent to a canonical release build. `dist/VERIFICATION-BUILD-0.1.20.md` sits beside them
+  saying so. `awkit-hgol` stays open until a real `-mx=9` release build exists.
+- **Compression is the only difference.** `app.asar`, the bundled Chromium, `extraResources` and the
+  signed manifest are produced exactly as a release build produces them — `sourceCommit 339032b`
+  = HEAD, `sourceTreeDirty: false`, strict offline validation passed. That is why the gate results are
+  real evidence about the code.
+- **`electron-builder.json` was NOT changed, and changing it would not have helped anyway:**
+  electron-builder hardcodes `-mx=9` for 7z regardless of the `compression` value (only `"store"`
+  differs). The env var is the only lever short of a bigger machine.
+- **A stale portable EXE still satisfies Part K.** Before the rebuild, Part K reported three green
+  checks while booting a 22-hour-old artifact, because "portable EXE exists" is an existence check.
+  `verify:packaged-validation`'s freshness guard is what noticed (1321 minutes old). Read the two
+  together; never trust Part K alone.
 
 ### Issuer-key handling in this session
 

@@ -7,9 +7,25 @@ Two blockers left over from the License Issuer work, both resolved as far as thi
 ```text
 typecheck:scripts 33 errors -> 0 ......... DONE, exit 0
 packaged licensing negative matrix ....... 40 PASS / 0 FAIL / 0 BLOCKED
-packaged licensed EXECUTION .............. PROVEN (walkthrough 85/2)
-portable + NSIS release artifacts ........ BLOCKED - 7-Zip -mx=9 OOM on this box
+packaged licensed EXECUTION .............. PROVEN (walkthrough 88/0)
+packaged validation ...................... 87 PASS / 0 FAIL
+portable + NSIS at RELEASE compression ... BLOCKED - 7-Zip -mx=9 OOM on this box
 ```
+
+**The packaged gates are green on a VERIFICATION build (owner decision, 2026-08-25).** `-mx=9`
+failed four times, so `ELECTRON_BUILDER_COMPRESSION_LEVEL=5` was exported for one
+`npm run package:offline` invocation — no repository configuration was changed and nothing was
+persisted. That cut the LZMA2 dictionary from 64 MB to 16 MB and the pack completed. Worth knowing
+for next time: `electron-builder` hardcodes `-mx=9` for 7z archives *regardless* of the `compression`
+config value (only `"store"` differs), so editing `electron-builder.json` was never the lever — the
+env var is.
+
+Compression changes the outer container and nothing else, which is why these artifacts are valid
+evidence: `app.asar`, the bundled Chromium, `extraResources` and the signed manifest are produced
+exactly as a release build produces them (`sourceCommit 339032b` = HEAD, `sourceTreeDirty: false`,
+strict offline validation passed). They are **not** byte-equivalent to a canonical release build,
+so they must not be shipped; `dist/VERIFICATION-BUILD-0.1.20.md` records that beside them and
+`awkit-hgol` stays open for a real `-mx=9` release build.
 
 **`AWKIT-BLD-001` closed.** All 33 diagnostics fixed at their cause across eleven verifier scripts —
 no `tsconfig` change, no `@ts-ignore`, no widening to `any`, no assertion deleted, no private member
@@ -42,7 +58,7 @@ verify:packaged-licensing ......... 40 PASS / 0 FAIL / 0 BLOCKED
   all five refuse a real packaged run; EXPIRED and MACHINE_MISMATCH needed real
   signatures and had never been executed before
   migration grace admits for 14 days and is attributed as grace, NOT as a licence
-verify:packaged-walkthrough ....... 85 passed / 2 failed (both = absent NSIS artifact)
+verify:packaged-walkthrough ....... 88 passed / 0 failed
   unlicensed packaged app REFUSES a real run
   minted licence: trial, workflow.execute only, <2h, bound to THIS fingerprint
   imported through the app's own administrator IPC after a fresh reauth
@@ -52,6 +68,9 @@ verify:packaged-walkthrough ....... 85 passed / 2 failed (both = absent NSIS art
   teardown removed the licence through the app's IPC, machine back to
   NOT_ACTIVATED, runs refused again, no mint artifacts left behind
   no non-loopback TCP connection from any app process across the whole run
+  the portable EXE boots on a second fresh profile (Part K)
+  NSIS installer sha512 matches latest.yml, bit-exact (Part L)
+verify:packaged-validation ........ 87 passed / 0 failed
 ```
 
 **One verifier defect found by running it, and fixed.** The walkthrough reported
@@ -59,7 +78,8 @@ verify:packaged-walkthrough ....... 85 passed / 2 failed (both = absent NSIS art
 the file correctly: `writeRunStateArtifacts` runs in the engine's post-run flush, *after* the instance
 reports `completed`, and this check sampled once immediately while the `run report written` check
 beside it polls for 10 s. Measured: the run completed at 19:13:4x and all four state artifacts landed
-at 19:13:54.364. The check now polls with the same bounded window; the assertion is unchanged. 84/3 → 85/2.
+at 19:13:54.364. The check now polls with the same bounded window; the assertion is unchanged. 84/3 → 85/2,
+and 88/0 once the artifacts existed.
 
 **The packaged artifact carries no signing material.** Scanned the freshly built tree: no PKCS8
 Ed25519 private-key prefix, no PEM private-key block, and no occurrence of the real `key2` bytes
@@ -69,22 +89,23 @@ Ed25519 private-key prefix, no PEM private-key block, and no occurrence of the r
 keygen, no roadmap bridge, no Test Lab (`verify:test-lab-cli-only` 24/24 agrees). `SPECTER_ISSUER_KEY`
 appears only as an env-var *name* compiled from `IssuerLocations.ts`.
 
-**BLOCKED, stated plainly (`awkit-hgol`).** The single-file portable EXE and the NSIS installer cannot
-be built here: `electron-builder`'s `7za -mx=9` over the 802 MiB tree fails with
-`Can't allocate required memory!`, reproduced three times at 6.0–6.7 GB free of 15.9 GB — including a
-pack-only retry and a run with an 8 GB Node heap. Everything before that step succeeds, **including
-strict offline validation**, so `dist/win-unpacked` is genuine: built from a clean tree, manifest
-`sourceCommit` = `8369931` = the HEAD it was built from, `sourceTreeDirty: false`, Ed25519 signature
-verified. Walkthrough Parts A/K/L and `verify:packaged-validation`'s portable freshness guard are the
-only casualties. Part K's three green checks booted the **22-hour-old** portable and are therefore not
-evidence about current HEAD — `verify:packaged-validation` is the gate that noticed, reporting the EXE
-as 1321 minutes old. The compression setting was deliberately NOT lowered to force it through.
+**What remains BLOCKED (`awkit-hgol`), stated plainly.** A **release-compression** (`-mx=9`) build
+still cannot be produced here: `electron-builder`'s `7za -mx=9` over the 802 MiB tree fails with
+`Can't allocate required memory!` — reproduced **four** times at 6.0–6.7 GB free of 15.9 GB, including
+a pack-only retry, a run with an 8 GB Node heap, and one on a fully quiet machine. Everything before
+that step succeeds, **including strict offline validation**. The gates are green on the verification
+build described above; the bead stays open until a real `-mx=9` release build exists.
+
+An earlier run of this work is worth recording as a trap: before the artifacts were rebuilt, Part K
+reported three green checks while booting the **22-hour-old** portable, because "portable EXE exists"
+is an existence check. `verify:packaged-validation`'s freshness guard is what noticed, reporting the
+EXE as 1321 minutes old. Read those two together; Part K alone cannot tell you what it tested.
 
 Verified: `npm run build` PASS · `typecheck:scripts` **0 errors, exit 0** · `verify:licensing` **192/192** ·
 `verify:issuer-key-resolution` **83/83** · `verify:license-dispatch-gate` **34/34** ·
 `verify:security` **53/53** · `verify:release-key-custody` **58/58** · `verify:test-lab-cli-only` **24/24** ·
 `verify:packaged-runtime` **25/25** · `verify:packaged-licensing` **40/40** ·
-`verify:packaged-walkthrough` **85/2 (both NSIS)** · `verify:packaged-validation` **86/1 (portable freshness)** ·
+`verify:packaged-walkthrough` **88/0** · `verify:packaged-validation` **87/0** ·
 `verify:source-hygiene` **11/11** · `verify:verifier-classification` reconciled ·
 `verify:roadmap-dashboard` **171/171**, Overview **Sources agree** · `validate:offline` completed
 (and strict, inside packaging) · `git diff --check` clean.

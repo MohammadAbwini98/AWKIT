@@ -2572,9 +2572,18 @@ These were found and corrected while building the campaign. They are not open AW
   every packaged gate that drives it runs normally; only `verify:packaged-walkthrough` Parts A/K/L and
   `verify:packaged-validation`'s portable freshness guard are blocked. Not a product defect — the
   packaged application is fine; the release compressor cannot get the memory it wants on this box.
-  Resolution is an owner decision between a build machine with more free memory and a deliberate
-  compression-policy change (which alters the shipped artifact and must not be made silently to turn a
-  gate green).
+  **Closed for verification purposes on owner decision (2026-08-25):** a fourth reproduction on a
+  fully quiet machine confirmed it is not transient, so the artifacts were rebuilt with
+  `ELECTRON_BUILDER_COMPRESSION_LEVEL=5` exported for one `npm run package:offline` invocation — no
+  repository configuration changed, nothing persisted — and the pack completed (`PACKAGE_EXIT=0`).
+  `verify:packaged-walkthrough` then went to **88/0** (Parts A/K/L green, NSIS sha512 bit-exact
+  against `latest.yml`) and `verify:packaged-validation` to **87/0**. Compression affects the outer
+  container only, so those results are real evidence about the code; the artifacts are nonetheless not
+  byte-equivalent to a release build and must not be shipped
+  (`dist/VERIFICATION-BUILD-0.1.20.md` records that beside them). Note for whoever picks this up:
+  `electron-builder` hardcodes `-mx=9` for 7z regardless of the `compression` config value (only
+  `"store"` differs), so editing `electron-builder.json` was never the lever. `awkit-hgol` stays open
+  for a real `-mx=9` release build on a machine with more free memory.
 - Live Oracle: blocked because no approved URL/user/password is configured and the local Oracle container is absent.
 - ~~Oracle packaged driver bundle: local development offline validation reported a zero-megabyte
   Oracle bundle warning.~~ **Withdrawn 2026-07-26 — never a defect or a warning.** `validate:offline`

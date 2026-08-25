@@ -38,14 +38,18 @@ roadmap-dashboard}.mts|mjs`, new `scripts/lib/verify-harness.d.mts`, `src/runner
 `verify:protected-login-recorder` **74/74** · `verify:runner` **129/129** ·
 `verify:release-key-custody` **58/58** · `verify:test-lab-cli-only` **24/24** ·
 `verify:packaged-runtime` **25/25** · `verify:packaged-licensing` **40 PASS / 0 FAIL / 0 BLOCKED** ·
-`verify:packaged-walkthrough` **85 passed / 2 failed** · `verify:packaged-validation` **86/1** ·
+`verify:packaged-walkthrough` **88 passed / 0 failed** · `verify:packaged-validation` **87/0** ·
 `verify:source-hygiene` **11/11** · `verify:verifier-classification` reconciled (199) ·
 `verify:roadmap-dashboard` **171/171**, Sources agree · `validate:offline` completed ·
 `git diff --check` clean.
 
-**BLOCKED:** the portable EXE and NSIS installer cannot be built here (`awkit-hgol`) — `7za -mx=9`
-OOM over the 802 MiB tree, three reproductions. That is the sole cause of the walkthrough's 2 failures
-and packaged-validation's 1. **NOT RUN:** `verify:reports-settings-a11y` exits non-zero on its
+**BLOCKED:** a RELEASE-compression (`-mx=9`) build still cannot be produced here (`awkit-hgol`) — OOM
+over the 802 MiB tree, four reproductions. On the owner's decision the gates were closed with a
+VERIFICATION build instead: `ELECTRON_BUILDER_COMPRESSION_LEVEL=5` for one `package:offline`
+invocation, no repo config change, nothing persisted. Compression is the only difference — manifest
+`sourceCommit 339032b` = HEAD, `sourceTreeDirty: false`, strict offline validation passed — so the
+results are real evidence about the code, but the artifacts must not be shipped
+(`dist/VERIFICATION-BUILD-0.1.20.md` records that, and the bead stays open). **NOT RUN:** `verify:reports-settings-a11y` exits non-zero on its
 documented NOT-RUN third state (14 PASS / 0 FAIL / 1 NOT RUN), unchanged by this work.
 **Result:** PASS, with one truthful BLOCKED. Ledger unchanged **64 PASS / 2 NOT RUN / 0 BLOCKED**.
 
