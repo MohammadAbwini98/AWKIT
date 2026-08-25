@@ -161,19 +161,24 @@ async function main(): Promise<void> {
     const gate = new InstancePauseController();
     check("gate starts unpaused", gate.isPaused === false);
     gate.setPaused(true);
-    let released = false;
-    const parked = gate.waitWhilePaused().then(() => { released = true; });
+    // Observed state lives on a holder object, not a bare `let`. TypeScript's control-flow analysis
+    // narrows `let released = false` to the literal `false` and does not track the assignment inside
+    // the `.then()` callback, so `released === true` was a compile error (TS2367) — the assertion was
+    // correct and the compiler could not see it. A property read is not narrowed that way, so the
+    // check is unchanged and the gate type-checks.
+    const wait = { released: false };
+    const parked = gate.waitWhilePaused().then(() => { wait.released = true; });
     await sleep(400);
-    check("waitWhilePaused stays parked while the pause holds", released === false);
+    check("waitWhilePaused stays parked while the pause holds", wait.released === false);
     gate.setPaused(false);
     await parked;
-    check("waitWhilePaused releases on resume", released === true);
+    check("waitWhilePaused releases on resume", wait.released === true);
     const gate2 = new InstancePauseController();
     gate2.setPaused(true);
-    let cancelledOut = false;
-    const parked2 = gate2.waitWhilePaused(() => true).then(() => { cancelledOut = true; });
+    const cancel = { released: false };
+    const parked2 = gate2.waitWhilePaused(() => true).then(() => { cancel.released = true; });
     await parked2;
-    check("a cancel during the pause breaks the wait without a resume", cancelledOut === true);
+    check("a cancel during the pause breaks the wait without a resume", cancel.released === true);
     gate2.setPaused(false);
 
     // LIVE wiring: a paused run executes nothing, and Stop ends it promptly. Two goto steps so

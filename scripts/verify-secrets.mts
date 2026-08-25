@@ -16,13 +16,18 @@ import { join } from "node:path";
 
 let passed = 0;
 let failed = 0;
-function check(name: string, cond: boolean): void {
+/**
+ * `detail` is printed on failure only. Callers already passed it — the parameter was simply never
+ * declared, so every diagnostic string they computed was silently discarded by the compiler's
+ * arity check and never reached the operator reading a red run.
+ */
+function check(name: string, cond: boolean, detail?: string): void {
   if (cond) {
     passed += 1;
     console.log(`  ✓ ${name}`);
   } else {
     failed += 1;
-    console.log(`  ✗ ${name}`);
+    console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ""}`);
   }
 }
 

@@ -19,13 +19,18 @@ import { resolveJsonPath } from "../src/data/JsonPathResolver";
 
 let passed = 0;
 let failed = 0;
-function check(name: string, cond: boolean): void {
+/**
+ * `detail` is printed on failure only. Callers already passed it — the parameter was simply never
+ * declared, so every diagnostic string they computed (`ungated=… gated=…`, `gates=… handlers=…`)
+ * was discarded and a red run said nothing about WHICH channel was ungated.
+ */
+function check(name: string, cond: boolean, detail?: string): void {
   if (cond) {
     passed += 1;
     console.log(`  ✓ ${name}`);
   } else {
     failed += 1;
-    console.log(`  ✗ ${name}`);
+    console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ""}`);
   }
 }
 

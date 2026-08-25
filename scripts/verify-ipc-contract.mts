@@ -178,7 +178,10 @@ const AUTHZ_REGISTRY: Record<string, { level: "NONE" | "TRUSTED"; reason: string
   const cardinalityFloor = 150;
   check("the authz scan saw the full registration set", handlerSlices.length >= cardinalityFloor, `${handlerSlices.length} handlers scanned`);
 
-  const classify = ({ channel, body }: { channel: string; body: string }): "PERMISSION" | "TRUSTED" | undefined => {
+  // "NONE" belongs in the return type: it is one of the two levels `AUTHZ_REGISTRY` can declare, and
+  // the check below reads "declares NONE/TRUSTED or enforces a permission". Omitting it made the
+  // annotation contradict both the registry and the assertion it feeds.
+  const classify = ({ channel, body }: { channel: string; body: string }): "PERMISSION" | "TRUSTED" | "NONE" | undefined => {
     if (PERM_TOKENS.some((t) => body.includes(t))) return "PERMISSION";
     // An explicit trusted-sender check IS a declared TRUSTED level.
     if (body.includes("assertTrustedSender")) return "TRUSTED";

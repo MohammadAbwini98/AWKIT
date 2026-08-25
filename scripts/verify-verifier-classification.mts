@@ -13,7 +13,7 @@
  *
  * Run: npx tsx scripts/verify-verifier-classification.mts
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, type Dirent } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { VERIFIER_CLASSES, VERIFIER_CLASSIFICATION, type VerifierClass } from "./lib/verifier-classification";
@@ -69,10 +69,10 @@ else pass("every entry uses a taxonomy class");
 // justified non-command helper.
 // AWKIT-QA-007: RECURSIVE scan — nested verifier directories (e.g. scripts/zvec-spike) were
 // invisible to the flat readdir, so files there never reconciled against anything.
-function listVerifierFiles(dir) {
-  let entries;
+function listVerifierFiles(dir: string): string[] {
+  let entries: Dirent[];
   try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return []; }
-  const out = [];
+  const out: string[] = [];
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {

@@ -598,17 +598,21 @@ check("legacy fixed wait still works when smart-waits disabled", smartOffActions
   {
     const qDir = await mkdtemp(join(tmpdir(), "awtkit-qa002-"));
     const qSvc = new SessionCaptureService(qDir);
-    let ran = false;
+    // Holder object rather than a bare `let`: TypeScript narrows `let ran = false` to the literal
+    // `false` and does not track the assignment inside the queued callback, so `ran === true` was a
+    // compile error (TS2367) even though the assertion is exactly right. A property read is not
+    // narrowed that way.
+    const after = { ran: false };
     const enqueue = (op: () => Promise<unknown>) =>
       (qSvc as unknown as { enqueue(op: () => Promise<unknown>): Promise<unknown> }).enqueue(op);
     await enqueue(async () => {
       throw new Error("synthetic queue rejection");
     }).catch(() => undefined);
     await enqueue(async () => {
-      ran = true;
+      after.ran = true;
       return null;
     });
-    results.push({ name: "QA-002 an operation enqueued AFTER a rejection still runs and lands", pass: ran === true });
+    results.push({ name: "QA-002 an operation enqueued AFTER a rejection still runs and lands", pass: after.ran === true });
     results.push({ name: "QA-002 list() works after a rejected operation poisoned nothing", pass: Array.isArray(await qSvc.list()) });
     await rm(qDir, { recursive: true, force: true });
   }

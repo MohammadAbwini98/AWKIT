@@ -31,7 +31,13 @@ const evidenceDir = path.join(root, "test-artifacts", "reports-settings-a11y", s
 let passed = 0;
 let failed = 0;
 let notRun = 0;
-const results: { name: string; pass: boolean; detail: string }[] = [];
+/**
+ * `skipped` marks the NOT-RUN third state (AWKIT-QA-007): a check whose precondition was absent is
+ * neither a pass nor a defect. It was written by `checkSkip` and read by the summary, but was never
+ * declared here — so the row type lied about the shape it actually carries, and the summary had to
+ * cast through `any` to read it back.
+ */
+const results: { name: string; pass: boolean; detail: string; skipped?: boolean }[] = [];
 function check(name: string, cond: unknown, detail = ""): void {
   const pass = Boolean(cond);
   results.push({ name, pass, detail });
@@ -338,7 +344,7 @@ async function main(): Promise<number> {
   // AWKIT-QA-007: the notRun counter is printed AND fails the suite — a skipped a11y check used
   // to vanish from both the headline and the exit code while its row read pass:false.
   if (notRun > 0) {
-    for (const r of results.filter((x: any) => x.skipped)) console.error(`  ~ NOT RUN: ${r.name}`);
+    for (const r of results.filter((x) => x.skipped)) console.error(`  ~ NOT RUN: ${r.name}`);
     return 1;
   }
   console.log(`Evidence: ${evidenceDir}`);

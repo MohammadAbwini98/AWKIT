@@ -76,10 +76,13 @@ async function main(): Promise<void> {
       value: `${BASE}/form`,
       config: { routeMode: "switchToLatestTab", urlMatch: "contains", routeWaitUntil: "load" }
     } as never);
+    // Through the executor's public read accessor, not its private field: the assertion is the same
+    // one, and it now survives a refactor of how the executor stores that page internally.
+    const landedOn = exec.getActivePage();
     check(
       "REC-039 switching back to main lands on the URL-matching page (not creation-order .pop())",
-      exec.activePage === main || exec.activePage.url().includes("/form"),
-      `active=${exec.activePage.url()}`
+      landedOn === main || landedOn.url().includes("/form"),
+      `active=${landedOn.url()}`
     );
     await context.close();
   }

@@ -19,6 +19,7 @@ import { BrowserWorkerPool } from "@src/runner/browser/BrowserWorkerPool";
 import { BackpressureController } from "@src/runner/concurrency/BackpressureController";
 import { loadConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfig";
 import { InstanceManager } from "@src/instances/InstanceManager";
+import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import { classifyError, isDangerousMutationStep } from "@src/runner/runtime/ErrorClassifier";
 import { RetryPolicy } from "@src/runner/runtime/RetryPolicy";
 import { FlowRunStateMachine, canTransitionNode } from "@src/runner/runtime/RuntimeStateMachine";
@@ -487,13 +488,25 @@ async function partK(): Promise<void> {
     logs: join(tmpdir(), "wfs-conc-iso", "logs"),
     reports: join(tmpdir(), "wfs-conc-iso", "reports")
   };
-  const profile = {
+  // A REAL `ConcurrentRunProfile`, not an approximation of one. This fixture used to declare
+  // `runMode: "concurrent"` and `browserWindowMode: "scopedWindows"` — neither is a member of
+  // `ConcurrentRunMode` / `BrowserWindowMode` — and omitted the required `resourceControls` and
+  // `failurePolicy`. `createInstancesForRun` happens not to read those fields, so the isolation
+  // proof still ran; it was simply proving it against a shape the product cannot produce.
+  const profile: ConcurrentRunProfile = {
     id: "wf-isolation",
     scenarioId: "sc-isolation",
-    runMode: "concurrent" as const,
+    runMode: "fixedConcurrent",
     maxConcurrentInstances: 2,
-    browserWindowMode: "scopedWindows" as const,
-    instanceTemplate: { browser: "chromium" as const, headless: true, isolationMode: "browserContext" as const }
+    browserWindowMode: "headless",
+    instanceTemplate: { browser: "chromium", headless: true, isolationMode: "browserContext" },
+    resourceControls: { maxBrowserContextsPerProcess: 2, delayBetweenInstanceStartsMs: 0 },
+    failurePolicy: {
+      stopAllOnCriticalFailure: false,
+      continueOtherInstancesOnFailure: true,
+      retryFailedInstance: false,
+      retryCount: 0
+    }
   };
   const template = { sharedParam: "initial", loopCounter: 0 };
   const instances = manager.createInstancesForRun(profile, [{}, {}, {}, {}], dirs, template);

@@ -16,8 +16,13 @@ import {
 import type { WorkflowSecuritySettings } from "@src/security/browser/CertificateTrust";
 
 let passed = 0;
-const check = (label: string, value: boolean) => {
-  if (!value) throw new Error(label);
+/**
+ * `detail` is folded into the THROWN message, not just logged. This suite fails by throwing, so a
+ * discarded detail meant the operator saw only the label — with none of the actual value that made
+ * it fail. Callers already computed and passed it; the parameter was simply never declared.
+ */
+const check = (label: string, value: boolean, detail?: string) => {
+  if (!value) throw new Error(detail ? `${label} — ${detail}` : label);
   passed += 1;
   console.log(`  âœ“ ${label}`);
 };
@@ -197,7 +202,10 @@ check(
 
 console.log("\nSave-path converter `toWorkflowProfile` preserves, not re-derives (AWKIT-WFB-001):");
 {
-  const flowNodeData = (overrides: Partial<Extract<ScenarioNode["data"], { kind: "flowRef" }>> = {}) =>
+  // `ScenarioFlowNodeData` is ONE interface with `kind: "flowRef" | "start" | "end"`, not a
+  // discriminated union of separate members, so `Extract<…, { kind: "flowRef" }>` collapsed to
+  // `never` — the helper's overrides parameter accepted nothing and every call site was unchecked.
+  const flowNodeData = (overrides: Partial<ScenarioNode["data"]> = {}) =>
     ({
       kind: "flowRef",
       flowId: "flow-a",

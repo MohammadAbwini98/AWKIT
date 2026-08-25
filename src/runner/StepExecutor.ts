@@ -220,6 +220,19 @@ export class StepExecutor {
   }
 
   /**
+   * The page actions currently run on — the read half of {@link setActivePage}.
+   *
+   * Read-only observation, deliberately narrower than the setter that already exists beside it: it
+   * hands back the `Page` this executor is pointed at and nothing else, so a caller can assert WHERE
+   * a tab-switching step landed without reaching past the class boundary. `verify:recorder-third-pass`
+   * (REC-039) was doing exactly that through the private field; the answer it needs is a legitimate
+   * public fact about this executor, so it gets an accessor rather than the field being opened up.
+   */
+  getActivePage(): Page {
+    return this.activePage;
+  }
+
+  /**
    * Observe a newly-created page from PlaywrightRunner's context-level `'page'` handler — the single
    * observation point for popup identity (FR-C1.1). The page receives one deterministic synthetic
    * alias; a step that expects it promotes it to the recorded alias by claiming the same `Page`
