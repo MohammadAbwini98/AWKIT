@@ -6,6 +6,10 @@ None.
 
 ## Open test and harness findings
 
+None.
+
+## Resolved test and harness findings
+
 ### AWKIT-BLD-001 — `npm run typecheck:scripts` fails with 33 pre-existing errors, so `verify:all-typecheck` cannot pass
 
 - **Classification:** Test/harness finding (gate is red before any change)
@@ -14,8 +18,7 @@ None.
   signal it was built for is unavailable. No product code is affected — `tsc --noEmit` over `app/` +
   `src/` (the `npm run build` gate) is clean.
 - **Priority recommendation:** P3
-- **Status:** **Open** — measured 2026-08-25, deliberately not fixed by `awkit-uwfo` (unrelated files;
-  RULES forbids unrelated refactors in a scoped change).
+- **Status:** **Resolved 2026-08-25 in a17b6e4** — 33 errors → **0**, `typecheck:scripts` exit 0.
 - **Owner routing:** Verifier/script maintenance
 - **Affected area:** `scripts/verify-cancellation.mts`, `verify-concurrency.mts`,
   `verify-ipc-contract.mts`, `verify-protected-login-recorder.mts`, `verify-recorder-draft.mts`,
@@ -29,6 +32,32 @@ None.
 - **Fix direction:** widen the local `check()` signatures to accept the detail argument they are
   already called with, declare the two implicit `any` parameters, and expose or stop reaching for
   `StepExecutor.activePage`. Then keep the gate green so it can do its job.
+
+- **Evidence after fix:** every diagnostic was traced to a cause and fixed there — no `tsconfig`
+  change, no `@ts-ignore`, no widening to `any`, no assertion removed, no private member made public.
+  **16× TS2554**: the local `check()` helpers in `verify-{secrets,security,workflow-sentinels}.mts`
+  never declared the `detail` parameter their callers already passed, so every computed diagnostic
+  string was discarded; declared **and used** (printed on failure; folded into the thrown message in
+  workflow-sentinels, which fails by throwing). **4× TS7023/TS7006**: `listVerifierFiles` annotated
+  `string[]`/`Dirent[]`, which resolves the two downstream implicit anys. **3× TS2341**: `StepExecutor`
+  gained the read half of the public `setActivePage()` it already exposed — `getActivePage()` — and
+  REC-039 asserts through it. **3× TS2367**: TypeScript narrows `let flag = false` to the literal
+  `false` and does not track assignment inside a `.then()`/queued callback, so a correct `flag === true`
+  could not compile; observed state moved onto a holder object, assertions unchanged. **2× TS7016**:
+  added `scripts/lib/verify-harness.d.mts`, the sibling-declaration pattern `release-key-custody.d.mts`
+  already uses. **2× TS2322/TS2698**: `ScenarioFlowNodeData` is one interface with a `kind` union, not
+  a discriminated union, so `Extract<…, { kind: "flowRef" }>` was `never` and the fixture helper's
+  overrides parameter accepted nothing; now `Partial<ScenarioNode["data"]>`. **1× TS2345**: the
+  `verify-concurrency` Part K fixture declared a `runMode`/`browserWindowMode` that are not members and
+  omitted required fields; it is now a genuine `ConcurrentRunProfile`. **1× TS2322**: `classify()` in
+  `verify-ipc-contract` omitted `"NONE"` although the registry declares it. **1× TS2353**: the
+  a11y results row type never declared the `skipped` NOT-RUN marker it carries, and the summary's
+  `any` cast is gone.
+  Behaviour re-measured after the fixes: security **53/53**, secrets **24/24**, ipc-contract **9/9**,
+  classification reconciled, workflow-sentinels **29/29**, recorder-draft **109/109** (cardinality
+  exact), cancellation **34/34**, concurrency **84/84**, recorder-third-pass **6/6** (REC-039 through
+  the new accessor), protected-login-recorder **74/74** (cardinality exact), runner **129/129**,
+  reports-settings-a11y **14 PASS / 0 FAIL / 1 NOT RUN** (its documented strict third state, unchanged).
 
 ## Resolved comprehensive-campaign defects
 ### AWKIT-REC-042 — User scroll is never captured, so scroll-dependent recordings replay against unscrolled pages
