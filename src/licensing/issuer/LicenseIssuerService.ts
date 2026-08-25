@@ -7,7 +7,7 @@
  */
 import { createPrivateKey, createPublicKey, randomBytes, randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import type { LicensePayload } from "../LicenseCanonical";
 import {
   LICENSE_SCHEMA_VERSION,
@@ -17,12 +17,14 @@ import {
 import { signLicensePayload } from "../crypto/LicenseSignature";
 import { findTrustedKey, TRUSTED_KEYS, type TrustedKey } from "../crypto/TrustedKeys";
 import { evaluateKeyCustody } from "../../security/keyCustody";
+import type { IssuerKeySource, IssuerLocationProblem } from "./IssuerLocations";
 import {
   ISSUER_ENTITLEMENTS,
   ISSUER_LICENSE_TYPES,
   ISSUER_MAX_FUTURE_START_DAYS,
   ISSUER_MAX_VALIDITY_DAYS,
   ISSUER_MIN_VALIDITY_MINUTES,
+  issuerReadinessStateFor,
   type IssueLicenseInput,
   type IssuedLicenseResult,
   type IssuerReadiness,
@@ -38,6 +40,7 @@ export class LicenseIssuerError extends Error {
 
 export interface LicenseIssuerServiceOptions {
   keyId: string;
+  /** Absolute path. A relative one is refused: it would resolve differently per caller cwd. */
   keyPath: string;
   outputDirectory: string;
   product: string;
@@ -45,9 +48,42 @@ export interface LicenseIssuerServiceOptions {
   trustedKeys?: readonly TrustedKey[];
   now?: () => number;
   idFactory?: () => string;
+  /** Which source produced `keyPath`, straight from `resolveIssuerKeyLocation`. Reported as-is. */
+  keySource?: IssuerKeySource;
+  /**
+   * Redacted key location to include in `readiness()`, so the operator can provision the key.
+   *
+   * Opt-in per composition root, NOT a default: the Electron main process passes it (its renderer is
+   * the reauth-gated Issuer account inside the same app), while the dashboard bridge deliberately
+   * does not, because its answer is served to a browser over HTTP.
+   */
+  keyLocationDisclosure?: string;
+  /**
+   * A location problem the canonical resolver already detected. Readiness reports it as
+   * `CONFIGURATION_ERROR` without touching the filesystem — there is nowhere defensible to look.
+   */
+  locationProblem?: IssuerLocationProblem;
 }
 
 const MAX_KEY_BYTES = 16 * 1024;
+/**
+ * `readFile` error codes that mean "the path exists but this process cannot open it", as opposed to
+ * "there is nothing there". Separating them is the difference between telling an operator to
+ * provision a key and telling them to fix an ACL — advice that is useless the wrong way round.
+ */
+const INACCESSIBLE_CODES = new Set(["EACCES", "EPERM", "EISDIR", "EBUSY", "EMFILE", "ENFILE", "ELOOP", "EAGAIN"]);
+
+/**
+ * Turn an `fs` error code into the reason an operator can act on. Exported so the gate can drive the
+ * whole table rather than only the codes a test machine happens to be able to produce — a denied ACL
+ * is awkward to create portably, and "we never tested EACCES" is how it would silently regress to
+ * `ISSUER_KEY_INVALID` and send the operator to inspect a perfectly good key file.
+ */
+export function classifyKeyReadError(code: string | undefined): IssuerReasonCode {
+  if (code === "ENOENT" || code === "ENOTDIR") return "ISSUER_KEY_MISSING";
+  if (code !== undefined && INACCESSIBLE_CODES.has(code)) return "ISSUER_KEY_INACCESSIBLE";
+  return "ISSUER_KEY_INVALID";
+}
 const FINGERPRINT_HASH = /^[a-f0-9]{64}$/i;
 const CONFIDENCE_LEVELS = new Set(["high", "medium", "limited"]);
 const ENTITLEMENT_SET = new Set<string>(ISSUER_ENTITLEMENTS);
@@ -170,21 +206,23 @@ export class LicenseIssuerService {
   }
 
   async readiness(): Promise<IssuerReadiness> {
+    let reason: IssuerReasonCode | undefined;
     try {
       await this.loadSigningKey();
-      return {
-        ready: true,
-        keyId: this.options.keyId,
-        outputDirectory: this.options.outputDirectory
-      };
     } catch (error) {
-      return {
-        ready: false,
-        keyId: this.options.keyId,
-        outputDirectory: this.options.outputDirectory,
-        reason: error instanceof LicenseIssuerError ? error.reason : "ISSUER_KEY_INVALID"
-      };
+      reason = error instanceof LicenseIssuerError ? error.reason : "ISSUER_KEY_INVALID";
     }
+    return {
+      ready: reason === undefined,
+      state: issuerReadinessStateFor(reason),
+      keyId: this.options.keyId,
+      outputDirectory: this.options.outputDirectory,
+      keySource: this.options.keySource ?? "default-location",
+      // `?? null` and never `?? this.options.keyPath`: a surface that did not opt in must not learn
+      // the path by accident, and an un-redacted path must never be the fallback.
+      expectedKeyLocation: this.options.keyLocationDisclosure ?? null,
+      reason
+    };
   }
 
   async issue(input: unknown): Promise<IssuedLicenseResult> {
@@ -267,8 +305,19 @@ export class LicenseIssuerService {
   }
 
   private async loadSigningKey(): Promise<string> {
+    // Configuration first, and BEFORE any filesystem contact. If the canonical resolver could not
+    // name a defensible location, or the path is relative (so it would mean different files in the
+    // app, the bridge and the CLI), there is nothing to open and nothing to diagnose from disk.
+    if (this.options.locationProblem) throw new LicenseIssuerError("ISSUER_KEY_LOCATION_INVALID");
+    if (!this.options.keyPath || !isAbsolute(this.options.keyPath)) {
+      throw new LicenseIssuerError("ISSUER_KEY_LOCATION_INVALID");
+    }
+
     const trusted = findTrustedKey(this.options.keyId, this.trustedKeys);
-    if (!trusted) throw new LicenseIssuerError("ISSUER_KEY_MISMATCH");
+    // A key id this build does not carry is a configuration/rotation error, not a bad key file: the
+    // file was never opened, so blaming its contents (the old `ISSUER_KEY_MISMATCH`) sent the
+    // operator to inspect the one thing that is not wrong.
+    if (!trusted) throw new LicenseIssuerError("ISSUER_KEY_UNKNOWN_ID");
     if (trusted.retired) throw new LicenseIssuerError("ISSUER_KEY_RETIRED");
 
     // Custody BEFORE the read (awkit-5ea). `SPECTER_ISSUER_KEY` can point anywhere, and a key in a
@@ -283,8 +332,7 @@ export class LicenseIssuerService {
     try {
       encoded = (await readFile(this.options.keyPath, { encoding: "utf8" })).trim();
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      throw new LicenseIssuerError(code === "ENOENT" ? "ISSUER_KEY_MISSING" : "ISSUER_KEY_INVALID");
+      throw new LicenseIssuerError(classifyKeyReadError((error as NodeJS.ErrnoException).code));
     }
     if (!encoded || Buffer.byteLength(encoded, "utf8") > MAX_KEY_BYTES) {
       throw new LicenseIssuerError("ISSUER_KEY_INVALID");

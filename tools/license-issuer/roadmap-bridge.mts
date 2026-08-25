@@ -20,12 +20,13 @@
  *   node node_modules/tsx/dist/cli.mjs tools/license-issuer/roadmap-bridge.mts issue < payload.json
  */
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { LICENSING_PRODUCT, type ActivationRequest, type LicenseDocument } from "../../src/licensing/LicenseTypes";
 import {
   DEFAULT_ISSUER_KEY_ID,
-  issuerKeyPathFor,
   issuerOutputDirectoryFor,
-  nonElectronRuntimeRoot
+  nonElectronRuntimeRoot,
+  resolveIssuerKeyLocation
 } from "../../src/licensing/issuer/IssuerLocations";
 import {
   ISSUER_ENTITLEMENTS,
@@ -52,15 +53,22 @@ const HISTORY_LIMIT = 25;
 const HISTORY_TAIL_BYTES = 512 * 1024;
 
 const runtimeRoot = nonElectronRuntimeRoot();
-const keyPath = issuerKeyPathFor(runtimeRoot, DEFAULT_ISSUER_KEY_ID);
-const outputDirectory = issuerOutputDirectoryFor(runtimeRoot);
+/** The canonical resolver — the same call the Electron main process, the CLI and keygen make. */
+const keyLocation = resolveIssuerKeyLocation({ runtimeRoot, keyId: DEFAULT_ISSUER_KEY_ID });
+const keyPath = keyLocation.keyPath;
+const outputDirectory = keyLocation.outputDirectory ?? (runtimeRoot ? issuerOutputDirectoryFor(runtimeRoot) : "");
 
 function service(): LicenseIssuerService {
   return new LicenseIssuerService({
     keyId: DEFAULT_ISSUER_KEY_ID,
     keyPath,
     outputDirectory,
-    product: LICENSING_PRODUCT
+    product: LICENSING_PRODUCT,
+    keySource: keyLocation.source,
+    locationProblem: keyLocation.problem
+    // `keyLocationDisclosure` is deliberately NOT set. This process answers a LOCAL HTTP server that
+    // serves a browser page; a key path in that response would be readable by anything that can
+    // reach it. The in-app console is the only surface told where the key lives.
   });
 }
 
@@ -113,7 +121,12 @@ function safeRequestView(request: ActivationRequest) {
 
 /** Issuance history lives next to the external key and is read here, never copied into the repo. */
 async function readHistory(): Promise<Array<Record<string, unknown>>> {
-  const historyPath = keyPath.replace(/[^\/]+$/, "issuance-history.jsonl");
+  // From the resolver's `keyDirectory`, never by rewriting the tail of `keyPath`. The old
+  // `keyPath.replace(/[^\/]+$/, …)` only knew about forward slashes: on Windows the whole path is a
+  // single run of non-`/` characters, so the replacement consumed ALL of it and left the bare
+  // relative name — read from whatever directory the bridge happened to be started in.
+  if (!keyLocation.keyDirectory) return [];
+  const historyPath = join(keyLocation.keyDirectory, "issuance-history.jsonl");
   let text: string;
   try {
     const handle = await readFile(historyPath, { encoding: "utf8" });

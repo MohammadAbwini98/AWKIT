@@ -3,8 +3,8 @@ import { getRuntimeDataRoot } from "../appPaths";
 import { LICENSING_PRODUCT } from "./licenseRuntime";
 import {
   DEFAULT_ISSUER_KEY_ID,
-  issuerKeyPathFor,
-  issuerOutputDirectoryFor
+  issuerOutputDirectoryFor,
+  resolveIssuerKeyLocation
 } from "@src/licensing/issuer/IssuerLocations";
 import { LicenseIssuerService } from "@src/licensing/issuer/LicenseIssuerService";
 
@@ -16,12 +16,23 @@ export function getIssuerOutputDirectory(): string {
 
 export function getLicenseIssuerService(): LicenseIssuerService {
   if (issuerService) return issuerService;
+  // The canonical resolver (IssuerLocations.ts) — the same call the dashboard bridge, the CLI and
+  // keygen make, so all four can never disagree about which file is the signing key.
+  const location = resolveIssuerKeyLocation({
+    runtimeRoot: getRuntimeDataRoot(),
+    keyId: DEFAULT_ISSUER_KEY_ID
+  });
   issuerService = new LicenseIssuerService({
-    keyId: DEFAULT_ISSUER_KEY_ID,
-    // Same resolution the developer-tooling bridge uses, so both see one key (IssuerLocations.ts).
-    keyPath: issuerKeyPathFor(getRuntimeDataRoot(), DEFAULT_ISSUER_KEY_ID),
+    keyId: location.keyId,
+    keyPath: location.keyPath,
     outputDirectory: getIssuerOutputDirectory(),
-    product: LICENSING_PRODUCT
+    product: LICENSING_PRODUCT,
+    keySource: location.source,
+    // Disclosed here and nowhere else: the Issuer console is behind the exclusive Issuer role and a
+    // fresh reauth inside this app, and an operator told "the key was not found" with no location
+    // has no way to act. The value is `redactKeyPath`'d — a place, never key material.
+    keyLocationDisclosure: location.displayPath || undefined,
+    locationProblem: location.problem
   });
   return issuerService;
 }

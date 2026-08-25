@@ -72,13 +72,57 @@ a day count could not express. The service accepts exactly one of `validityDays`
 truncates both boundaries to the minute, and then requires at least one minute, at most 3650 days, and
 a start no more than 365 days in the future.
 
+## One resolver, four front ends (`awkit-uwfo`)
+
+`resolveIssuerKeyLocation()` in `src/licensing/issuer/IssuerLocations.ts` is the single answer to
+"where is the key, where did that answer come from, and is there an answer at all". The Electron main
+composition root, `roadmap-bridge.mts`, `issue-license.mts` and `keygen.mts` all call it, so a key can
+never be generated in one place and looked for in another.
+
+It **never** returns a working-directory-relative path. No profile variable, a relative
+`SPECTER_ISSUER_KEY`, or a key id that is not a plain file-name segment each fail closed with a
+`problem`, which readiness reports as `CONFIGURATION_ERROR`. (`nonElectronRuntimeRoot()` used to end
+`?? "."`, which resolved a PRIVATE KEY under the caller's cwd — the repository root for the bridge.)
+
+`--key` on the CLI is the one exception, and deliberately so: it is an explicit operator argument in a
+single process, so a relative value is resolved against that shell's cwd rather than refused. An
+environment variable is inherited by children that do not share a cwd, which is why the same leniency
+would be wrong there.
+
+## Readiness states
+
+`readiness()` answers with one of five states rather than a bare boolean, because "provision a key",
+"fix this file's permissions" and "this build does not trust that key id" need different actions:
+
+| State | Reason codes | What the operator does |
+|---|---|---|
+| `READY` | — | Issue. |
+| `MISSING` | `ISSUER_KEY_MISSING` | Provision the key at the reported location. |
+| `INACCESSIBLE` | `ISSUER_KEY_INACCESSIBLE` | Fix permissions / the path is a folder / something holds it open. |
+| `INVALID_FORMAT` | `ISSUER_KEY_INVALID` | The bytes are not a PKCS8 Ed25519 private key. |
+| `CONFIGURATION_ERROR` | `ISSUER_KEY_UNKNOWN_ID`, `ISSUER_KEY_MISMATCH`, `ISSUER_KEY_RETIRED`, `ISSUER_KEY_UNSAFE_LOCATION`, `ISSUER_KEY_LOCATION_INVALID` | The key file is fine; the configuration around it is not. |
+
+The in-app console also shows `expectedKeyLocation` — the `redactKeyPath`'d location, so a MISSING key
+is actionable. The dashboard bridge deliberately leaves it unset: its answer is served to a browser
+over HTTP, and `verify:roadmap-license-issuer` asserts no key path appears there.
+
+Gates: `npm run verify:issuer-key-resolution` (83) and `npm run verify:issuer-readiness-gui` (21,
+real Electron, needs a build).
+
 ## Key custody (do NOT violate)
 
 - The private key is **never** committed to source control, placed in `resources/`, `.env`, SQLite, or
   any packaged file.
 - By default the private key lives outside the repo at:
   `%LOCALAPPDATA%\SpecterStudio\issuer-keys\<keyId>.ed25519.pkcs8.b64`
-- Override with `--key <path>` or the `SPECTER_ISSUER_KEY` environment variable.
+- Override with `--key <path>` or the `SPECTER_ISSUER_KEY` environment variable. The variable must be
+  an **absolute** path.
+- There is no fallback, dev, or auto-generated key. A missing key blocks issuance and names the
+  location to provision; nothing manufactures signing material to make the issuer ready.
+- `keygen.mts` defaults to `DEFAULT_ISSUER_KEY_ID` (the ACTIVE key) and refuses to overwrite an
+  existing file, so running it bare on a provisioned workstation stops with an explanation rather than
+  writing a second key. It used to default to `key1` — verification-only since 2026-08-19 — which
+  would have produced a key that can never sign and whose public half matches nothing shipped.
 
 ## Commands
 

@@ -33,10 +33,11 @@
  */
 import { execFile } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
 import { LICENSE_FILE_NAME, buildEnvelope } from "@src/licensing/store/LicenseStore";
+import { redactKeyPath } from "@src/security/keyCustody";
 
 const execFileAsync = promisify(execFile);
 
@@ -84,18 +85,30 @@ export function resolveIssuerKey(): IssuerKeyResolution {
         `do not sign with the production release key on an ordinary developer machine.`
     };
   }
+  // Absolute or nothing, for the same reason `resolveIssuerKeyLocation` refuses a relative
+  // `SPECTER_ISSUER_KEY`: this value is read here and then handed to a CHILD process, and a gate
+  // whose signing key depends on the launching shell's working directory is not a gate.
+  if (!isAbsolute(configured)) {
+    return {
+      available: false,
+      reason: `${ISSUER_KEY_ENV} must be an absolute path; it is set to a relative one.`
+    };
+  }
+  // Paths are reported through `redactKeyPath`, so a BLOCKED record naming the location does not
+  // also print the operator's account name into a committed report or a CI log.
+  const shown = redactKeyPath(configured);
   if (!existsSync(configured)) {
-    return { available: false, reason: `${ISSUER_KEY_ENV} points at ${configured}, which does not exist.` };
+    return { available: false, reason: `${ISSUER_KEY_ENV} points at ${shown}, which does not exist.` };
   }
   try {
     if (readFileSync(configured, "utf8").trim().length === 0) {
-      return { available: false, reason: `${ISSUER_KEY_ENV} points at ${configured}, which is empty.` };
+      return { available: false, reason: `${ISSUER_KEY_ENV} points at ${shown}, which is empty.` };
     }
   } catch (error) {
     return {
       available: false,
-      reason: `${ISSUER_KEY_ENV} points at ${configured}, which is unreadable: ${
-        error instanceof Error ? error.message : String(error)
+      reason: `${ISSUER_KEY_ENV} points at ${shown}, which is unreadable: ${
+        (error as NodeJS.ErrnoException)?.code ?? (error instanceof Error ? error.name : "unknown")
       }`
     };
   }

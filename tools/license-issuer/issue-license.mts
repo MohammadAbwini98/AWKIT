@@ -21,13 +21,14 @@
  *     --valid-from 2026-09-01T09:00 --expires 2026-09-01T17:00
  */
 import { readFile } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 import { LICENSING_PRODUCT } from "../../src/licensing/LicenseTypes";
 import {
   DEFAULT_ISSUER_KEY_ID,
   ISSUER_KEY_PATH_ENV,
-  issuerKeyPathFor,
   issuerOutputDirectoryFor,
-  nonElectronRuntimeRoot
+  nonElectronRuntimeRoot,
+  resolveIssuerKeyLocation
 } from "../../src/licensing/issuer/IssuerLocations";
 import {
   ISSUER_ENTITLEMENTS,
@@ -66,11 +67,20 @@ const REASON_HELP: Record<string, string> = {
   ISSUER_KEY_UNSAFE_LOCATION:
     "The signing key sits in a cloud-synced folder, so its custody cannot be assured. Move it to\n" +
     "non-synced storage (awkit-5ea).",
+  ISSUER_KEY_INACCESSIBLE:
+    "The signing key exists but could not be opened — check the file permissions, that the path is a\n" +
+    "file rather than a folder, and that nothing else holds it open.",
   ISSUER_KEY_INVALID: "The signing key could not be read as a PKCS8 Ed25519 private key.",
   ISSUER_KEY_MISMATCH:
     "The key does not match the trusted list for that key id. A license signed with it would be\n" +
     "UNKNOWN_KEY in the field.",
   ISSUER_KEY_RETIRED: "That key id is retired and must not sign anything further.",
+  ISSUER_KEY_UNKNOWN_ID:
+    "This build does not trust that key id, so nothing it signed could ever validate. Check --keyId\n" +
+    "against TRUSTED_KEYS, and remember that a rotation ships in a build before it can issue.",
+  ISSUER_KEY_LOCATION_INVALID:
+    "The signing-key location could not be resolved. " + ISSUER_KEY_PATH_ENV + " must be an ABSOLUTE\n" +
+    "path, the key id must be a plain file-name segment, and a per-user profile directory must exist.",
   ISSUER_WRITE_FAILED: "The license could not be written to the output folder."
 };
 
@@ -92,8 +102,28 @@ async function main(): Promise<void> {
 
   const keyId = arg("keyId") ?? DEFAULT_ISSUER_KEY_ID;
   const runtimeRoot = nonElectronRuntimeRoot();
-  const keyPath = arg("key") ?? issuerKeyPathFor(runtimeRoot, keyId);
-  const outputDirectory = arg("out-dir") ?? issuerOutputDirectoryFor(runtimeRoot);
+  // The canonical resolver — same call as the Electron main process, the dashboard bridge and keygen.
+  const keyLocation = resolveIssuerKeyLocation({ runtimeRoot, keyId });
+  // `--key` is an EXPLICIT operator argument in this one process, so a relative value is resolved
+  // against this shell's cwd rather than refused. The resolver's own answers are never cwd-relative:
+  // `SPECTER_ISSUER_KEY` crosses process boundaries, so a relative override there is a hard error.
+  const keyOverride = arg("key");
+  const keyPath = keyOverride === undefined ? keyLocation.keyPath : resolve(keyOverride);
+  const outDirOverride = arg("out-dir");
+  const outputDirectory =
+    outDirOverride !== undefined
+      ? resolve(outDirOverride)
+      : keyLocation.outputDirectory ?? (runtimeRoot !== null ? issuerOutputDirectoryFor(runtimeRoot) : "");
+
+  if (keyOverride === undefined && !isAbsolute(keyPath)) {
+    die(
+      `Cannot determine where the signing key lives (${keyLocation.problem ?? "UNRESOLVED"}).\n` +
+        `Set ${ISSUER_KEY_PATH_ENV} to an ABSOLUTE key path, or pass --key <absolute path>.`
+    );
+  }
+  if (!outputDirectory) {
+    die("Cannot determine the issuer output folder. Pass --out-dir <absolute path>.");
+  }
 
   let activationRequest: unknown;
   try {
@@ -132,7 +162,15 @@ async function main(): Promise<void> {
       : { validityDays: Number(days ?? "365") })
   } as unknown as IssueLicenseInput;
 
-  const service = new LicenseIssuerService({ keyId, keyPath, outputDirectory, product: LICENSING_PRODUCT });
+  const service = new LicenseIssuerService({
+    keyId,
+    keyPath,
+    outputDirectory,
+    product: LICENSING_PRODUCT,
+    keySource: keyLocation.source,
+    // An explicit `--key` supersedes whatever the resolver could or could not work out.
+    locationProblem: keyOverride === undefined ? keyLocation.problem : undefined
+  });
 
   try {
     const issued = await service.issue(input);

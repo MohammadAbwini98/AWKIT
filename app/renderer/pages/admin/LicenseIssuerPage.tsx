@@ -6,7 +6,8 @@ import {
   ISSUER_LICENSE_TYPES,
   type IssueLicenseInput,
   type IssuedLicenseResult,
-  type IssuerReadiness
+  type IssuerReadiness,
+  type IssuerReadinessState
 } from "@src/licensing/issuer/LicenseIssuerContracts";
 import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
@@ -39,20 +40,45 @@ function issuerReasonMessage(reason?: string): string {
     case "ISSUER_OPTIONS_INVALID":
       return "Choose a valid license type, duration, and at least one entitlement.";
     case "ISSUER_KEY_MISSING":
-      return "The external signing key was not found on this issuer workstation.";
+      return "The external signing key was not found on this issuer workstation. Provision it at the location below — SpecterStudio will never create one for you.";
     case "ISSUER_KEY_UNSAFE_LOCATION":
       return "The external signing key is in a cloud-synced folder. Move it to a non-synced location on this workstation before issuing.";
+    case "ISSUER_KEY_INACCESSIBLE":
+      return "The external signing key is there but could not be opened. Check its file permissions, and that the path is a file rather than a folder.";
     case "ISSUER_KEY_INVALID":
-      return "The external signing key is unreadable or malformed.";
+      return "The external signing key is not a readable PKCS8 Ed25519 private key.";
     case "ISSUER_KEY_MISMATCH":
-      return "The external signing key does not match SpecterStudio's trusted public key.";
+      return "The external signing key does not match SpecterStudio's trusted public key for this key ID.";
     case "ISSUER_KEY_RETIRED":
       return "This signing key is retired and cannot issue new licenses.";
+    case "ISSUER_KEY_UNKNOWN_ID":
+      return "This build does not trust the configured signing key ID, so nothing it signed could validate in the field.";
+    case "ISSUER_KEY_LOCATION_INVALID":
+      return "The signing-key location could not be resolved. SPECTER_ISSUER_KEY must be an absolute path on this workstation.";
     case "ISSUER_WRITE_FAILED":
       return "The license or issuance history could not be written safely.";
     default:
       return adminReasonMessage(reason);
   }
+}
+
+/**
+ * The badge/metric wording per readiness state.
+ *
+ * All five used to render as "Key unavailable", which told an operator nothing about what to do: a
+ * key to provision, an ACL to fix, and a key ID this build does not trust need three different
+ * actions.
+ */
+const READINESS_LABELS: Record<IssuerReadinessState, { badge: string; metric: string }> = {
+  READY: { badge: "Ready", metric: "Ready" },
+  MISSING: { badge: "Key missing", metric: "Not provisioned" },
+  INACCESSIBLE: { badge: "Key unreadable", metric: "Unreadable" },
+  INVALID_FORMAT: { badge: "Key unusable", metric: "Unusable" },
+  CONFIGURATION_ERROR: { badge: "Configuration error", metric: "Misconfigured" }
+};
+
+function readinessLabels(readiness: IssuerReadiness | null): { badge: string; metric: string } {
+  return READINESS_LABELS[readiness?.state ?? "CONFIGURATION_ERROR"];
 }
 
 /** Issuer-only, offline UI for turning an activation request into an automatically saved signed license. */
@@ -130,7 +156,9 @@ export function LicenseIssuerPage() {
   };
 
   const issueLicense = useCallback(async () => {
-    if (!activationRequest || busy) return;
+    // Both preconditions, restated at the call site. The main process refuses either way; this keeps
+    // a stale render or a keyboard activation from firing a request that can only be refused.
+    if (!activationRequest || !readiness?.ready || busy) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -156,7 +184,7 @@ export function LicenseIssuerPage() {
     } finally {
       setBusy(false);
     }
-  }, [activationRequest, busy, entitlements, licenseType, sessionRef, validityDays]);
+  }, [activationRequest, busy, entitlements, licenseType, readiness?.ready, sessionRef, validityDays]);
 
   const retryPending = async () => {
     const call = pendingFn;
@@ -188,6 +216,25 @@ export function LicenseIssuerPage() {
       : [...current, entitlement]);
   };
 
+  /**
+   * Why issuance is not available yet, or `null` when it is.
+   *
+   * The two preconditions are deliberately INDEPENDENT: an activation request loads and is reviewed
+   * whether or not a key is present (so the operator can confirm the machine before provisioning),
+   * and the key is checked whether or not a request is loaded. Signing needs BOTH — the main process
+   * enforces the same rule, so this only explains the gate rather than being it.
+   */
+  const issueBlockedReason: string | null =
+    !readiness?.ready
+      ? `Signing key: ${readinessLabels(readiness).badge} — issuance is blocked until it reports Ready.`
+      : !activationRequest
+        ? "Load an activation request before issuing."
+        : entitlements.length === 0
+          ? "Select at least one entitlement."
+          : !Number.isInteger(validityDays) || validityDays < 1 || validityDays > 3650
+            ? "Validity must be a whole number of days between 1 and 3650."
+            : null;
+
   if (loading) return <AdminPage><AdminLoading label="Loading issuer console…" /></AdminPage>;
   if (denied) {
     return (
@@ -215,9 +262,10 @@ export function LicenseIssuerPage() {
       <AdminMetrics label="Issuer summary">
         <AdminMetricCard
           label="Signing key"
-          value={readiness?.ready ? "Ready" : "Unavailable"}
+          value={readinessLabels(readiness).metric}
           icon={KeyRound}
           tone={readiness?.ready ? "success" : "danger"}
+          hint={readiness?.keySource === "environment-override" ? "SPECTER_ISSUER_KEY override" : undefined}
         />
         <AdminMetricCard
           label="Activation request"
@@ -239,13 +287,21 @@ export function LicenseIssuerPage() {
       </AdminMetrics>
 
       <div className="awkit-admin-dashboard-grid">
-      <AdminSectionCard title="Signing readiness" icon={KeyRound} meta={<AdminStatusBadge status={readiness?.ready ? "valid" : "invalid"} label={readiness?.ready ? "Ready" : "Key unavailable"} />}>
+      <AdminSectionCard
+        title="Signing readiness"
+        icon={KeyRound}
+        meta={<AdminStatusBadge status={readiness?.ready ? "valid" : "invalid"} label={readinessLabels(readiness).badge} />}
+      >
         <p className="awkit-admin-muted">
           The private key stays outside the application package. SpecterStudio only reads it inside the
           trusted main process while issuing a license.
         </p>
         <div className="awkit-license-grid">
           <Field label="Signing key" value={readiness?.keyId ?? "—"} mono />
+          <Field label="Readiness" value={readiness?.state ?? "—"} mono />
+          {/* The expected location, so a MISSING key can actually be provisioned. It is the redacted
+              path the main process resolved — a place, never key material. */}
+          <Field label="Expected key location" value={readiness?.expectedKeyLocation ?? "—"} mono />
           <Field label="Output folder" value={readiness?.outputDirectory ?? "—"} mono />
         </div>
         {!readiness?.ready ? (
@@ -318,10 +374,14 @@ export function LicenseIssuerPage() {
             className="toolbar-button primary"
             type="button"
             onClick={() => void issueLicense()}
-            disabled={!activationRequest || !readiness?.ready || busy || entitlements.length === 0 || !Number.isInteger(validityDays) || validityDays < 1 || validityDays > 3650}
+            disabled={busy || issueBlockedReason !== null}
+            title={issueBlockedReason ?? undefined}
           >
             <ShieldCheck size={14} /> {busy ? "Issuing…" : "Issue and save license"}
           </button>
+          {issueBlockedReason ? (
+            <p className="form-message warn" role="status">{issueBlockedReason}</p>
+          ) : null}
         </div>
       </AdminSectionCard>
 

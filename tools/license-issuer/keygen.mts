@@ -9,16 +9,34 @@
  */
 import { generateKeyPairSync } from "node:crypto";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, resolve } from "node:path";
+import {
+  DEFAULT_ISSUER_KEY_ID,
+  ISSUER_KEY_PATH_ENV,
+  nonElectronRuntimeRoot,
+  resolveIssuerKeyLocation
+} from "../../src/licensing/issuer/IssuerLocations";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-const keyId = arg("keyId") ?? "key1";
-const defaultDir = join(process.env.LOCALAPPDATA ?? process.env.HOME ?? ".", "SpecterStudio", "issuer-keys");
-const keyPath = arg("key") ?? process.env.SPECTER_ISSUER_KEY ?? join(defaultDir, `${keyId}.ed25519.pkcs8.b64`);
+const keyId = arg("keyId") ?? DEFAULT_ISSUER_KEY_ID;
+// The canonical resolver, so a key is GENERATED exactly where the app, the bridge and the CLI will
+// later look for it. This file used to compose its own path with a different variable order and a
+// `"."` fallback, which could write a private key into the current working directory.
+const keyLocation = resolveIssuerKeyLocation({ runtimeRoot: nonElectronRuntimeRoot(), keyId });
+const keyOverride = arg("key");
+const keyPath = keyOverride === undefined ? keyLocation.keyPath : resolve(keyOverride);
+
+if (!keyPath) {
+  console.error(
+    `Cannot determine where to write the key (${keyLocation.problem ?? "UNRESOLVED"}). Set ` +
+      `${ISSUER_KEY_PATH_ENV} to an ABSOLUTE path, or pass --key <absolute path>.`
+  );
+  process.exit(1);
+}
 
 if (existsSync(keyPath)) {
   console.error(`Refusing to overwrite existing key at ${keyPath}. Choose a new --keyId or --key path.`);
