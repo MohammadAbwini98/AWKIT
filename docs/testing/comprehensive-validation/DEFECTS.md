@@ -6,7 +6,29 @@ None.
 
 ## Open test and harness findings
 
-None.
+### AWKIT-BLD-001 — `npm run typecheck:scripts` fails with 33 pre-existing errors, so `verify:all-typecheck` cannot pass
+
+- **Classification:** Test/harness finding (gate is red before any change)
+- **Severity:** S3 / The gate exists to catch a removed export that only fails at `tsx` runtime. While
+  it is red, a NEW error in the verifier scripts is indistinguishable from the standing 33, so the
+  signal it was built for is unavailable. No product code is affected — `tsc --noEmit` over `app/` +
+  `src/` (the `npm run build` gate) is clean.
+- **Priority recommendation:** P3
+- **Status:** **Open** — measured 2026-08-25, deliberately not fixed by `awkit-uwfo` (unrelated files;
+  RULES forbids unrelated refactors in a scoped change).
+- **Owner routing:** Verifier/script maintenance
+- **Affected area:** `scripts/verify-cancellation.mts`, `verify-concurrency.mts`,
+  `verify-ipc-contract.mts`, `verify-protected-login-recorder.mts`, `verify-recorder-draft.mts`,
+  `verify-recorder-third-pass.mts`, `verify-reports-settings-a11y.mts`, `verify-secrets.mts`,
+  `verify-security.mts`, `verify-verifier-classification.mts`, `verify-workflow-sentinels.mts`.
+- **Evidence:** 33 errors at `HEAD` (`7ba0874`) and 33 with the `awkit-uwfo` working tree applied,
+  measured by stashing the change and re-running — so the count is a standing baseline, not a
+  regression. Dominant shapes: `TS2554 Expected 2 arguments, but got 3` on local `check(...)` helpers
+  whose third detail parameter was never declared; `TS2341` private-member access in
+  `verify-recorder-third-pass.mts`; implicit `any` in `verify-verifier-classification.mts`.
+- **Fix direction:** widen the local `check()` signatures to accept the detail argument they are
+  already called with, declare the two implicit `any` parameters, and expose or stop reaching for
+  `StepExecutor.activePage`. Then keep the gate green so it can do its job.
 
 ## Resolved comprehensive-campaign defects
 ### AWKIT-REC-042 — User scroll is never captured, so scroll-dependent recordings replay against unscrolled pages

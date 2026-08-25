@@ -1,5 +1,40 @@
 # KNOWN_ISSUES
 
+## `typecheck:scripts` is RED with 33 pre-existing errors (2026-08-25, `AWKIT-BLD-001`)
+
+`npm run typecheck:scripts` — and therefore `npm run verify:all-typecheck` — exits non-zero with
+**33 errors** in eleven verifier scripts. Measured as a standing baseline, not a regression: 33 at
+`HEAD` (`7ba0874`) and 33 with the `awkit-uwfo` change applied, established by stashing the work and
+re-running. `tsc --noEmit` over `app/` + `src/` (the `npm run build` gate) is clean.
+
+**Why this matters more than the count suggests:** the gate exists to catch a removed export that
+would otherwise only fail at `tsx` runtime. While it is red, a NEW error is indistinguishable from
+the standing 33, so a fresh break can hide in the noise. When adding to `scripts/**/*.mts`, run
+`npx tsc -p tsconfig.scripts.json --noEmit | grep <your-file>` rather than trusting the exit code.
+
+Dominant shapes: `TS2554 Expected 2 arguments, but got 3` on local `check(...)` helpers whose third
+detail parameter was never declared; `TS2341` private-member access in `verify-recorder-third-pass.mts`;
+implicit `any` in `verify-verifier-classification.mts`. Full file list and fix direction in
+`docs/testing/comprehensive-validation/DEFECTS.md` › `AWKIT-BLD-001`.
+
+## Issuer readiness is profile-scoped — an isolated `%LOCALAPPDATA%` legitimately reports MISSING (2026-08-25)
+
+Every GUI verifier launches on an isolated, empty `%LOCALAPPDATA%` (`isolatedLaunchEnv`), and the
+issuer key lives under `%LOCALAPPDATA%\SpecterStudio\issuer-keys\`. So the License Issuer page in ANY
+GUI verifier run correctly shows **MISSING**, even on a workstation where the authorized key is
+provisioned. That is not a defect and must not be "fixed" by pointing the resolver anywhere else.
+
+Before treating an "Unavailable" report as a path bug, establish which profile produced it:
+
+```powershell
+echo {} | node node_modules/tsx/dist/cli.mjs tools/license-issuer/roadmap-bridge.mts readiness
+```
+
+That answers for the REAL profile, through the same resolver the app uses. To exercise the READY path
+in a GUI run, set `SPECTER_ISSUER_KEY` to the authorized absolute path in the launch env — which is
+what `verify:issuer-readiness-gui` does, and why it reports **BLOCKED** rather than passing when no
+authorized key exists. Never copy the private key into a temp profile to make a test go green.
+
 ## RESOLVED (2026-08-23): all 38 review defects fixed; two catalogued families closed by guards — and a THIRD review pass filed 12 new defects mid-campaign
 
 The 38-defect campaign (`AWKIT-MAP-002..005`, `AWKIT-WFB-001/002`, `AWKIT-RUN-001..011`,

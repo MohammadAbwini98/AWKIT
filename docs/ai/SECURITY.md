@@ -64,6 +64,20 @@
 - The package contains the Issuer UI and trusted signing logic but never a private signing key. The key is
   provisioned separately under `%LOCALAPPDATA%\SpecterStudio\issuer-keys\` on the issuer workstation (or
   selected by the `SPECTER_ISSUER_KEY` path variable), and only the Electron main process reads it.
+- **One resolver decides the location:** `resolveIssuerKeyLocation()` in
+  `src/licensing/issuer/IssuerLocations.ts`, used by the Electron main composition root, the dashboard
+  bridge, the issuer CLI and keygen. It never returns a working-directory-relative path — no profile
+  variable, a relative `SPECTER_ISSUER_KEY`, or an unusable key id all fail closed as
+  `CONFIGURATION_ERROR` rather than resolving a private key under the caller's cwd. Never add a second
+  place that composes an `issuer-keys` path; `verify:roadmap-license-issuer` fails if one appears.
+- **Readiness names a location only where it is safe to.** `IssuerReadiness.expectedKeyLocation` carries
+  the `redactKeyPath`'d location (`%LOCALAPPDATA%\…`) so an operator can provision a missing key. It is
+  opt-in per composition root: the Electron main process passes it (exclusive `Issuer` role, fresh
+  reauth, same process boundary); the dashboard bridge must NOT, because its answer is served to a
+  browser over HTTP. It is a location, never key material — no readiness, issuance result,
+  issuance-history record, audit entry, IPC payload, or rendered page ever carries the key bytes.
+- There is deliberately no fallback, dev, or auto-generated signing key. A missing key blocks issuance
+  and says where to provision one; it is never manufactured to make the issuer ready.
 - Issuance requires the built-in `Issuer` role as the account's sole role, only one stored user may hold
   it, and every signing call requires fresh reauthentication. A permission grant or Super User session is
   insufficient at the IPC boundary.

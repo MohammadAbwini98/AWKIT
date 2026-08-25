@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("259 issues parse", beads.stats.total === 259, `got ${beads.stats.total}`);
+  check("260 issues parse", beads.stats.total === 260, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -347,8 +347,11 @@ try {
   // and closed each rose by three while the four owner-gated outstanding issues remained unchanged.
   // Then 3/256 of 259 on 2026-08-22: `awkit-cey` (REC-022) closed on executed live IdP walkthrough
   // evidence; no issue filed. Measured state is {closed: 256, blocked: 3, open: 0} over 259 parsed.
-    "3 outstanding / 256 closed",
-    beads.stats.outstanding === 3 && beads.stats.closed === 256,
+  // Then 3/257 of 260 on 2026-08-25: `awkit-uwfo` (License Issuer signing-key readiness - one
+  // canonical resolver plus the five readiness states) was filed and closed in the same session, so
+  // total and closed each rose by one while the three owner-gated outstanding issues held.
+    "3 outstanding / 257 closed",
+    beads.stats.outstanding === 3 && beads.stats.closed === 257,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

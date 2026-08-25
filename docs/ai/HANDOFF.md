@@ -1,5 +1,56 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-25) — License Issuer signing-key readiness fixed and proven end to end (`awkit-uwfo`)
+
+### Transfer
+
+- **Ledger unchanged at 64 PASS / 2 NOT RUN / 0 BLOCKED** — an issuer defect fix adds no
+  Recorder/Reports/Settings validation case. Tracker: `awkit-uwfo` filed and closed (260 total /
+  257 closed / 3 outstanding, all four owner-gated items unchanged in kind).
+- **Branch:** `main`, committed and pushed. No branch or worktree created.
+- **State:** complete. Nothing is paused or half-applied.
+
+### What was wrong, and what was not
+
+The report ("Signing key: Unavailable", key `key2`, "not found on this issuer workstation") was
+**not** a broken path resolver on a provisioned machine — measured first: the authorized `key2`
+private half is present under `%LOCALAPPDATA%\SpecterStudio\issuer-keys\`, and both plain Node and a
+real Electron probe resolved and matched it. That message is correct wherever the key is genuinely
+absent, which includes the isolated `%LOCALAPPDATA%` every GUI verifier launches on.
+
+The real defects were that the operator could not act on it, and that the surrounding path logic was
+unsafe:
+
+1. one boolean + one reason code, so provision-a-key / fix-an-ACL / untrusted-key-id were
+   indistinguishable → five explicit readiness states;
+2. the payload never named the expected key location → redacted `expectedKeyLocation`, disclosed on
+   the Electron IPC boundary only (never on the dashboard's HTTP surface);
+3. `nonElectronRuntimeRoot()` ended `?? "."`, so a PRIVATE KEY could resolve under the caller's cwd —
+   the repository root for the dashboard bridge → returns `null`, resolver fails closed;
+4. the bridge built its issuance-history path with a forward-slash-only regex that consumed a whole
+   Windows path, leaving a bare relative name → taken from the resolver's `keyDirectory`.
+
+### Contracts a follower must not break
+
+- **`resolveIssuerKeyLocation()` is the only resolver.** Four front ends call it: the Electron main
+  composition root, the dashboard bridge, the issuer CLI and keygen. `verify:roadmap-license-issuer`
+  fails if any of them builds an `issuer-keys` path itself.
+- **`keyLocationDisclosure` is opt-in per composition root.** The dashboard bridge must keep leaving it
+  unset; its readiness answer reaches a browser over HTTP and a check asserts no key path appears there.
+- **No fallback key, ever.** Nothing in this change creates, generates, or substitutes signing material.
+  `verify:issuer-key-resolution` asserts a missing key is reported and not created, and that a refused
+  issuance writes nothing.
+- **`AWKIT_PACKAGED_LICENSE_ISSUER_KEY` was deliberately NOT set here.** Arming the packaged release
+  gate with the production key on a developer workstation is exactly what `resolveIssuerKey()`'s
+  no-fallback rule exists to prevent; `verify:packaged-licensing` / `verify:packaged-walkthrough` remain
+  NOT RUN for that reason and against a stale `dist/win-unpacked` predating this change.
+
+### Known red gate, pre-existing
+
+`npm run typecheck:scripts` fails with **33 errors, all pre-existing** (33 at `HEAD`, 33 after this
+change, measured by stashing). Filed as `AWKIT-BLD-001`. Not fixed here — the files are unrelated to
+licensing and RULES forbids unrelated refactors in a scoped change.
+
 ## HANDOFF (2026-08-23) - third-pass codebase review: 12 new defects filed (2×P1, 5×P2, 5×P3); no code changed
 
 ### Transfer

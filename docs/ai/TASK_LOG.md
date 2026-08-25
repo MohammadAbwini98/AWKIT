@@ -1,5 +1,53 @@
 # TASK_LOG
 
+## 2026-08-25 — License Issuer signing-key readiness: one canonical resolver, five states (`awkit-uwfo`)
+
+**Agent:** Claude Code (Opus 5). **Task:** fix the License Issuer's "Signing key: Unavailable /
+key not found" state without weakening licensing security.
+
+**Reproduced first.** The authorized `key2` private half IS present on this workstation; the
+dashboard bridge under plain Node and a purpose-built real-Electron probe both resolved it and matched
+it against the shipped public half. The reported state is correct only where the key is genuinely
+absent (an isolated `%LOCALAPPDATA%`, or an unprovisioned workstation) — so the defects were that the
+state was unactionable and that the path logic around it was unsafe.
+
+**Change.** `resolveIssuerKeyLocation()` in `IssuerLocations.ts` is now the ONE resolver, used by the
+Electron main composition root, the dashboard bridge, the issuer CLI and keygen; it reports the source
+of its answer, a redacted display path, and a `problem` when there is no defensible answer.
+`IssuerReadiness` gained `state` over the five-value `ISSUER_READINESS_STATES`, `keySource`, and an
+opt-in redacted `expectedKeyLocation` (Electron IPC only — the dashboard's HTTP surface still carries
+no key path). New reason codes `ISSUER_KEY_INACCESSIBLE` / `ISSUER_KEY_UNKNOWN_ID` /
+`ISSUER_KEY_LOCATION_INVALID`, with one exhaustive reason→state map and an exported
+`classifyKeyReadError`. Removed the `?? "."` runtime-root fallback that could resolve a private key
+under the caller's cwd; refuse a relative `SPECTER_ISSUER_KEY`; take the bridge's issuance-history path
+from `keyDirectory` instead of a forward-slash-only tail rewrite; `resolveIssuerKey()` in the packaged
+gate now requires an absolute path and redacts paths in its BLOCKED reasons. The page renders the state,
+the expected location, and a stated reason for the disabled Issue button.
+
+**Files:** `src/licensing/issuer/{IssuerLocations,LicenseIssuerContracts,LicenseIssuerService}.ts`,
+`app/main/licensing/issuerRuntime.ts`, `app/renderer/pages/admin/LicenseIssuerPage.tsx`,
+`tools/license-issuer/{roadmap-bridge,issue-license,keygen}.mts`,
+`scripts/helpers/packaged-license.mts`, `scripts/verify-roadmap-license-issuer.mts`,
+`scripts/lib/verifier-classification.ts`, `package.json`, plus new
+`scripts/verify-issuer-key-resolution.mts` and `scripts/verify-issuer-readiness-gui.mts`.
+
+**Tests run:** `npm run build` PASS · `verify:issuer-key-resolution` **83/83** (new) ·
+`verify:issuer-readiness-gui` **21/21, 0 BLOCKED** (new) · `verify:licensing` **192/192** ·
+`verify:roadmap-license-issuer` **155/155** · `verify:security` **53/53** ·
+`verify:release-key-custody` **58/58** · `verify:ipc-contract` **9/9** ·
+`verify:source-hygiene` **11/11** · `verify:verifier-classification` reconciled (199) ·
+`verify:roadmap-dashboard` PASS, Sources agree · `validate:offline` completed ·
+`git diff --check` clean. Two mutations were run against the new gate and both failed it as intended.
+A real end-to-end run with the PRODUCTION key scored **21/21**: the app exported a genuine activation
+request, the issuer signed it, the signature verified against the shipped public keys, the licence
+imported through the app's own IPC, and a real workflow completed with licensing enforced (no bypass).
+
+**Not run:** `verify:packaged-licensing` / `verify:packaged-walkthrough` — they need
+`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`, which is deliberately unset on a developer workstation, and the
+`dist/win-unpacked` artifact predates this change. `verify:runner`, mock-site verifiers: no runner or
+mock-site change. **`typecheck:scripts` FAIL — 33 errors, all pre-existing** (33 at HEAD, 33 after;
+filed as `AWKIT-BLD-001`). **Result:** PASS. Ledger unchanged **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## 2026-08-24 — Workflows table/list page realigned to the system UI
 
 **Agent:** opencode (ox-alpha). **Task:** align the Workflows library table/list page with the

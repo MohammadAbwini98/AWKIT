@@ -468,8 +468,26 @@ npm run verify:session-context # tsx scripts/verify-session-context.mts — main
 npm run verify:admin-gui    # node scripts/verify-admin-gui.mjs — REAL Electron Super User admin area incl.
                             # real Licensing page (11; needs build)
 npm run verify:avatar       # tsx scripts/verify-avatar-initials.mts — initials + palette (24)
-npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain/RBAC/gate latch (167)
-npm run verify:roadmap-license-issuer # dashboard License Issuer page + the trusted issuer bridge (139)
+npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain/RBAC/gate latch (192)
+npm run verify:roadmap-license-issuer # dashboard License Issuer page + the trusted issuer bridge (155
+                            # with an authorized key present; fewer, and BLOCKED reported, without one)
+npm run verify:issuer-key-resolution  # tsx scripts/verify-issuer-key-resolution.mts (83) — awkit-uwfo:
+                            # the ONE canonical signing-key resolver (default location, absolute
+                            # SPECTER_ISSUER_KEY override, relative override refused, unresolvable
+                            # profile refused, bad key ids, no cwd dependence) and all five readiness
+                            # states driven against REAL key files — valid, absent, unopenable
+                            # (a directory), malformed, empty, untrusted key id, retired, mismatched.
+                            # Also: signing into folders whose names carry spaces and shell
+                            # metacharacters, the real issuer CLI spawned with fixed argv and NO shell,
+                            # a missing key blocking issuance while writing nothing, the renderer/IPC/
+                            # history/report boundary carrying no key material, and the signed .dat
+                            # imported through the production LicenseValidator/LicenseStore/LicenseService.
+                            # EPHEMERAL Ed25519 pair — never reads a production private key.
+npm run verify:issuer-readiness-gui   # tsx scripts/verify-issuer-readiness-gui.mts (21; needs build) —
+                            # REAL Electron, two launches on isolated profiles. No key: the page must
+                            # render MISSING and NAME the redacted provisioning location. Authorized key
+                            # via SPECTER_ISSUER_KEY: it must render READY. Reads readiness only, never
+                            # signs, and reports BLOCKED (never PASS) where no authorized key exists.
 npm run verify:license-dispatch-gate # real ExecutionEngine queue at zero concurrency + production wiring/shell guard
 # E2E QA suites (2026-07-19 assessment — specs/e2e/*, report docs/testing/; all REAL Electron, isolated
 # fresh %LOCALAPPDATA% profiles, run AFTER `npm run build`):

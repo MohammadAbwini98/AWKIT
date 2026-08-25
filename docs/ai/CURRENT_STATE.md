@@ -1,5 +1,96 @@
 # CURRENT_STATE
 
+## License Issuer signing key: one canonical resolver, five readiness states (`awkit-uwfo`, 2026-08-25)
+
+The License Issuer console showed **Signing key: Unavailable / Key unavailable**, key `key2`, and
+"The external signing key was not found on this issuer workstation." Measured first, not assumed: the
+authorized `key2` private half **is** present at
+`%LOCALAPPDATA%\SpecterStudio\issuer-keys\key2.ed25519.pkcs8.b64`, and both the dashboard bridge under
+plain Node and a real Electron probe resolved it and matched it against the shipped public half. So the
+report was reproducible only where the key genuinely is absent — the isolated `%LOCALAPPDATA%` every GUI
+verifier launches on, or a workstation that was never provisioned.
+
+**What was actually wrong is that the operator could not tell those apart, or act on either.**
+
+```text
+one canonical external key resolver ..... IMPLEMENTED AND VERIFIED
+READY/MISSING/INACCESSIBLE/INVALID_FORMAT/CONFIGURATION_ERROR  IMPLEMENTED AND VERIFIED
+UI shows Ready against the real key ..... IMPLEMENTED AND VERIFIED (real Electron)
+UI names the provisioning location ...... IMPLEMENTED AND VERIFIED (real Electron)
+end-to-end issuance with the PRODUCTION key  EXECUTED, 21/21
+```
+
+**Four defects, all fixed.**
+
+1. **Readiness could not distinguish anything.** `IssuerReadiness` was `{ready, keyId, outputDirectory,
+   reason?}`, and the service collapsed permission errors, a directory at the key path and malformed
+   bytes into one `ISSUER_KEY_INVALID`. It now carries an explicit `state` from the five-value
+   `ISSUER_READINESS_STATES`, with `ISSUER_KEY_INACCESSIBLE`, `ISSUER_KEY_UNKNOWN_ID` and
+   `ISSUER_KEY_LOCATION_INVALID` added and one exhaustive reason→state map.
+2. **The payload never said where the key belongs.** `expectedKeyLocation` is now returned — the
+   `redactKeyPath`'d location (`%LOCALAPPDATA%\…`), never key material — and the page renders it. It is
+   **opt-in per composition root**: the Electron main process passes it (reauth-gated Issuer role,
+   same process boundary); the dashboard bridge deliberately does not, because its answer is served to a
+   browser over HTTP, and `verify:roadmap-license-issuer` still asserts no HTTP readiness body carries a
+   key path.
+3. **A private key could resolve against the caller's working directory.** `nonElectronRuntimeRoot()`
+   ended `?? "."`, so with no profile variable the key became `./SpecterStudio/issuer-keys/…` — the
+   repository root for the dashboard bridge. It now returns `string | null` and the resolver fails closed
+   with `CONFIGURATION_ERROR`. A relative `SPECTER_ISSUER_KEY` is refused for the same reason: an env var
+   crosses processes that do not share a cwd.
+4. **The bridge's issuance-history path was built by rewriting the key path** with
+   `keyPath.replace(/[^\/]+$/, …)` — forward slashes only, so on Windows the whole path is one run of
+   non-`/` characters and the replacement consumed all of it, leaving the bare relative name. It now comes
+   from the resolver's `keyDirectory`.
+
+**One resolver, four front ends.** `resolveIssuerKeyLocation()` in
+`src/licensing/issuer/IssuerLocations.ts` is the single answer to "where is the key, where did that
+answer come from, and is there an answer at all". `app/main/licensing/issuerRuntime.ts`,
+`tools/license-issuer/roadmap-bridge.mts`, `tools/license-issuer/issue-license.mts` and
+`tools/license-issuer/keygen.mts` all call it — keygen previously composed its own path with a different
+variable order and its own `"."` fallback, so it could write a private key into the current directory,
+and it defaulted to the retired `key1`.
+
+**Nothing was weakened.** No fallback or dev key exists; no key is generated to make the issuer ready;
+signature validation is untouched; unsigned licences are still refused; there is still exactly one
+signing authority; custody (`awkit-5ea`) is still evaluated before the key is opened. Issuance still
+requires **both** a valid activation request and a `READY` key, and loading a request stays independent
+of the key so an operator can review which machine asked before provisioning.
+
+**End-to-end, executed with the production key** (isolated profile; the real installation's
+`%LOCALAPPDATA%\SpecterStudio\Licensing` untouched; licensing **enforced**, no test bypass):
+
+```text
+app exported a real activation request .......... fingerprint 096814ea…, confidence high
+signed by key2 through LicenseIssuerService ..... SPEC-875E-C3B4-D42E, 1-day window
+signature verifies vs the SHIPPED public keys ... true
+bound to the fingerprint the app produced ....... true
+refused on any other fingerprint ................ MACHINE_MISMATCH
+imported through the app's licensing IPC ........ ok, EXPIRING_SOON (operable — a 1-day licence
+                                                  is inside the 7-day window; not a defect)
+entitlements granted ............................ workflow.execute, workflow.concurrent, automation.browser
+real workflow executed under the licence ........ completed (mock-simple-workflow, 3 flows)
+```
+
+Verified: `npm run build` PASS · `verify:issuer-key-resolution` **83/83** (new) ·
+`verify:issuer-readiness-gui` **21/21, 0 BLOCKED** (new) · `verify:licensing` **192/192** ·
+`verify:roadmap-license-issuer` **155/155** (was 139; six new contract checks, and the production-key
+branch ran) · `verify:security` **53/53** · `verify:release-key-custody` **58/58** ·
+`verify:ipc-contract` **9/9** · `verify:source-hygiene` **11/11** ·
+`verify:verifier-classification` reconciled (199 scripts) · `verify:roadmap-dashboard` PASS,
+Overview **Sources agree** · `validate:offline` completed · `git diff --check` clean.
+Two mutations were run against the new gate and both failed it as intended (collapsing the read-error
+classification breaks 6 checks; restoring the `"."` fallback breaks 2).
+
+**`npm run typecheck:scripts` FAILS — 33 errors, all pre-existing.** Measured against `HEAD` by
+stashing this work: 33 before, 33 after. None are in licensing or issuer files; they are in
+`verify-{cancellation,concurrency,ipc-contract,protected-login-recorder,recorder-draft,
+recorder-third-pass,reports-settings-a11y,secrets,security,verifier-classification,workflow-sentinels}.mts`.
+Filed as `AWKIT-BLD-001`; deliberately not fixed here, as unrelated refactors.
+
+Ledger unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED** (an issuer defect fix adds no
+Recorder/Reports/Settings validation case).
+
 ## Workflows table/list page realigned to the SpecterStudio system UI (2026-08-24)
 
 The Workflows library (table/list page only) had drifted onto a bespoke transparent, borderless
