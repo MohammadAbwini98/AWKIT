@@ -21,6 +21,8 @@ import type {
   DurableRunRecord
 } from "@src/runner/store/RuntimeStoreSchema";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
+import { ReportExportService } from "@src/reports/ReportExportService";
+import ExcelJS from "exceljs";
 import type {} from "../app/renderer/types/preload.d.ts";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -704,6 +706,89 @@ async function rejected(call: () => Promise<unknown>): Promise<{ rejected: boole
 
 const fixture = await seedFixture();
 writeFileSync(join(evidenceRoot, "expected-fixture.json"), JSON.stringify(fixture, null, 2), "utf8");
+
+// Serializer contract: direct product service evidence complements the renderer/IPC proof below.
+// The 1,200-step fixture is intentionally large enough to catch accidental summary-only exports,
+// and contains every CSV edge that has regressed in real support data.
+const specialStepName = 'Step, "quoted"\nالعربية';
+const specialError = 'First line, with comma\nSecond "quoted" line — 日本語';
+const largeSteps = Array.from({ length: 1_200 }, (_, index) => ({
+  stepId: `step-${index + 1}`,
+  stepName: index === 0 ? specialStepName : `Step ${index + 1}`,
+  actionType: index % 2 === 0 ? "click" : "fill",
+  status: index === 0 ? "failed" as const : "passed" as const,
+  startedAt: iso(Date.now() - 5_000 + index),
+  endedAt: iso(Date.now() - 4_999 + index),
+  durationMs: 1,
+  outputs: {},
+  error: index === 0 ? specialError : undefined,
+  attemptCount: index === 0 ? 3 : 1,
+  failurePolicy: index === 0 ? "continue" : "stop"
+}));
+const exportFixture: ConcurrentRunReport = {
+  executionId: "export-large-failed",
+  scenarioId: "workflow-export-fixture",
+  scenarioName: "Export, Unicode العربية",
+  runMode: "concurrent",
+  maxConcurrentInstances: 2,
+  status: "failed",
+  startedAt: iso(Date.now() - 10_000),
+  endedAt: iso(Date.now()),
+  durationMs: 10_000,
+  passedFlows: 1,
+  failedFlows: 1,
+  skippedFlows: 0,
+  instances: [
+    {
+      instanceId: "instance-failed",
+      status: "failed",
+      durationMs: 7_000,
+      currentDataRowIndex: 4,
+      error: specialError,
+      screenshots: [],
+      downloadedFiles: [],
+      scenarioResult: {
+        scenarioId: "workflow-export-fixture",
+        executionId: "export-large-failed",
+        instanceId: "instance-failed",
+        status: "failed",
+        startedAt: iso(Date.now() - 10_000),
+        endedAt: iso(Date.now() - 3_000),
+        durationMs: 7_000,
+        logs: [],
+        flows: [{ flowId: "large-flow", status: "failed", startedAt: iso(Date.now() - 10_000), endedAt: iso(Date.now() - 3_000), durationMs: 7_000, steps: largeSteps, outputs: {}, error: specialError }]
+      }
+    },
+    { instanceId: "instance-passed", status: "passed", durationMs: 2_000, currentDataRowIndex: 5, screenshots: [], downloadedFiles: [] }
+  ],
+  runtimeInputs: { password: FORBIDDEN_SENTINEL, token: FORBIDDEN_SENTINEL }
+};
+const reportExporter = new ReportExportService();
+const [csvArtifact, xlsxArtifact, jsonArtifact] = await Promise.all([
+  reportExporter.export(exportFixture, "csv"),
+  reportExporter.export(exportFixture, "xlsx"),
+  reportExporter.export(exportFixture, "json")
+]);
+const csvText = Buffer.from(csvArtifact.dataBase64, "base64").toString("utf8");
+check("REPORT-EXPORT CSV uses a UTF-8 BOM and real CSV MIME type", csvText.startsWith("\uFEFF") && csvArtifact.mimeType.startsWith("text/csv"));
+check("REPORT-EXPORT CSV escapes commas, quotes and multiline Unicode", csvText.includes('"Step, ""quoted""\nالعربية"') && csvText.includes('"First line, with comma\nSecond ""quoted"" line — 日本語"'));
+check("REPORT-EXPORT CSV contains all 1,200 step rows plus header and empty-instance row", csvText.split("\r\n").length === 1_202, `${csvText.split("\r\n").length} rows`);
+check("REPORT-EXPORT CSV represents failed and passed instances in one run", csvText.includes("instance-failed,failed") && csvText.includes("instance-passed,passed"));
+
+const workbook = new ExcelJS.Workbook();
+await workbook.xlsx.load(Buffer.from(xlsxArtifact.dataBase64, "base64") as never);
+check("REPORT-EXPORT XLSX opens as a genuine workbook", workbook.worksheets.length === 3 && xlsxArtifact.filename.endsWith(".xlsx"));
+check("REPORT-EXPORT XLSX has Summary, Instances and Steps sheets", ["Summary", "Instances", "Steps"].every((name) => Boolean(workbook.getWorksheet(name))));
+check("REPORT-EXPORT XLSX retains every large-fixture step and instance-only row", workbook.getWorksheet("Steps")?.rowCount === 1_202, String(workbook.getWorksheet("Steps")?.rowCount));
+check("REPORT-EXPORT XLSX overall status agrees with runtime", workbook.getWorksheet("Summary")?.getCell("B5").value === "failed", String(workbook.getWorksheet("Summary")?.getCell("B5").value));
+
+const safeJson = Buffer.from(jsonArtifact.dataBase64, "base64").toString("utf8");
+check("REPORT-EXPORT JSON omits runtime inputs and secret canaries", !safeJson.includes("runtimeInputs") && !safeJson.includes(FORBIDDEN_SENTINEL));
+const passingArtifact = await reportExporter.export({ ...exportFixture, executionId: "export-pass", status: "passed", instances: [{ ...exportFixture.instances[1], instanceId: "only-pass" }], failedFlows: 0, passedFlows: 1 }, "csv");
+check(
+  "REPORT-EXPORT PASS run is represented as passed",
+  Buffer.from(passingArtifact.dataBase64, "base64").toString("utf8").includes('export-pass,workflow-export-fixture,"Export, Unicode العربية",passed')
+);
 
 const env: Record<string, string> = Object.fromEntries(
   Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)
@@ -1610,10 +1695,11 @@ try {
   // blob URLs. Observe the same anchor click + Blob bytes without suppressing the actual click, then
   // persist those exact bytes into the evidence directory.
   await win.evaluate(`(() => {
-    window.__awkitReportExportCapture = { filename: "", content: "" };
+    window.__awkitReportExportCapture = { filename: "", content: "", size: 0 };
     const originalCreate = URL.createObjectURL.bind(URL);
     URL.createObjectURL = function (blob) {
       if (blob instanceof Blob) {
+        window.__awkitReportExportCapture.size = blob.size;
         blob.text().then(function (content) {
           window.__awkitReportExportCapture.content = content;
         });
@@ -1647,11 +1733,31 @@ try {
   }
   check("SYS-REP-008 export action produces JSON bytes", exported !== undefined, exportError);
   check(
-    "SYS-REP-008 export is the complete stored report, not a summary card",
-    exported?.id === REPORT_ID && exported.executionId === REPORT_ID && Array.isArray(exported.instances),
+    "SYS-REP-008 JSON export contains safe summary, instance and step evidence",
+    (exported?.summary as Record<string, unknown> | undefined)?.runId === REPORT_ID && Array.isArray(exported?.instances) && Array.isArray(exported?.steps),
     JSON.stringify(exported ?? null).slice(0, 400)
   );
-  check("SYS-REP-008 exported report remains redacted", exported !== undefined && !JSON.stringify(exported).includes(FORBIDDEN_SENTINEL));
+  check("SYS-REP-008 JSON export excludes runtime inputs and remains redacted", exported !== undefined && !JSON.stringify(exported).includes("runtimeInputs") && !JSON.stringify(exported).includes(FORBIDDEN_SENTINEL));
+  check(
+    "SYS-REP-008 Run Artifacts exposes genuine JSON, CSV and Excel controls",
+    (await win.locator(`#report-export-${REPORT_ID}`).count()) === 1 &&
+      (await win.locator(`#report-export-csv-${REPORT_ID}`).count()) === 1 &&
+      (await win.locator(`#report-export-xlsx-${REPORT_ID}`).count()) === 1
+  );
+
+  await win.evaluate(() => { (window as any).__awkitReportExportCapture = { filename: "", content: "", size: 0 }; });
+  await win.locator(`#report-export-csv-${REPORT_ID}`).click();
+  await win.waitForFunction(() => (window as any).__awkitReportExportCapture?.size > 0);
+  const csvUi = await win.evaluate(() => (window as any).__awkitReportExportCapture as { filename: string; content: string; size: number });
+  // Blob.text() uses TextDecoder, which intentionally consumes a leading BOM. The direct serializer
+  // check above proves the raw BOM; here the observable UI contract is the header plus real bytes.
+  check("SYS-REP-008 CSV control downloads .csv evidence bytes", csvUi.filename === `report-${REPORT_ID}.csv` && csvUi.content.startsWith("Run ID,") && csvUi.size > 0, JSON.stringify({ filename: csvUi.filename, size: csvUi.size }));
+
+  await win.evaluate(() => { (window as any).__awkitReportExportCapture = { filename: "", content: "", size: 0 }; });
+  await win.locator(`#report-export-xlsx-${REPORT_ID}`).click();
+  await win.waitForFunction(() => (window as any).__awkitReportExportCapture?.size > 0);
+  const xlsxUi = await win.evaluate(() => (window as any).__awkitReportExportCapture as { filename: string; size: number });
+  check("SYS-REP-008 Excel control downloads non-empty .xlsx evidence bytes", xlsxUi.filename === `report-${REPORT_ID}.xlsx` && xlsxUi.size > 1_000, JSON.stringify(xlsxUi));
   await win.screenshot({ path: join(screenshots, "05-run-artifacts.png"), fullPage: true });
 
   // ── SYS-REP-006 — the retention message ────────────────────────────────────

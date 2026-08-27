@@ -342,7 +342,52 @@ async function main() {
     const recoverResult = await recoverExec.executeFlow(recoverFlow, recoverCtx);
     const recoveredValue = await recoverPage.inputValue("#firstName");
     check("failure edge routes to recovery step", recoverResult.status === "passed" && recoveredValue === "Recovered", `status=${recoverResult.status} value=${recoveredValue}`);
+    check(
+      "authored failure-edge recovery is marked non-terminal",
+      recoverResult.steps.find((step) => step.stepId === "bad")?.failureDisposition === "recoveryRouted",
+      JSON.stringify(recoverResult.steps)
+    );
     await recoverPage.close();
+
+    // Final run outcome is independent from reaching End. These are deliberately live browser
+    // flows: before the failure latch, the Continue case below executed both later actions and then
+    // returned `passed`, so this assertion is a direct regression discriminator rather than a
+    // source-code sentinel.
+    {
+      const terminalPage = await browser.newPage();
+      await gotoForm(terminalPage);
+      const terminalCtx = await makeContext("terminal-failure-contract");
+      const terminalExec = new FlowExecutor(
+        new StepExecutor(terminalPage, new LocatorFactory(terminalPage), new ValueResolver(terminalCtx), terminalCtx)
+      );
+      const stopped = await terminalExec.executeFlow(simpleFlow("stop-on-failure", [
+        { id: "stop-bad", type: "click", name: "Stop here", locator: { strategy: "id", value: "missing-stop" }, timeoutMs: 250, onFailure: { action: "stop", screenshot: false } },
+        { id: "must-not-run", type: "fill", name: "Must not run", locator: { strategy: "id", value: "firstName" }, value: "wrong" }
+      ]), terminalCtx);
+      check("one terminal step failure that stops execution makes the flow FAILED", stopped.status === "failed", stopped.status);
+      check("stop policy prevents later work", (await terminalPage.inputValue("#firstName")) !== "wrong");
+
+      const continued = await terminalExec.executeFlow(simpleFlow("continue-after-failure", [
+        { id: "continue-bad", type: "click", name: "Expected terminal failure", locator: { strategy: "id", value: "missing-continue" }, timeoutMs: 250, onFailure: { action: "continue", screenshot: false } },
+        { id: "cleanup-one", type: "fill", name: "Cleanup one", locator: { strategy: "id", value: "firstName" }, value: "CleanupOne" },
+        { id: "cleanup-two", type: "fill", name: "Cleanup two", locator: { strategy: "id", value: "lastName" }, value: "CleanupTwo" }
+      ]), terminalCtx);
+      check("Continue policy reaches End but final flow status remains FAILED", continued.status === "failed", continued.status);
+      check(
+        "an early terminal failure does not prevent multiple later successful cleanup steps",
+        (await terminalPage.inputValue("#firstName")) === "CleanupOne" && (await terminalPage.inputValue("#lastName")) === "CleanupTwo"
+      );
+      check(
+        "continued terminal failure remains visible in step evidence",
+        continued.steps.some((step) => step.stepId === "continue-bad" && step.status === "failed" && step.failureDisposition === undefined)
+      );
+      check(
+        "continued run retains the terminal error after successful graph termination",
+        typeof continued.error === "string" && continued.error.length > 0,
+        continued.error
+      );
+      await terminalPage.close();
+    }
 
     // ── Validation and execution must agree about a fixed-time wait ──────────
     /*

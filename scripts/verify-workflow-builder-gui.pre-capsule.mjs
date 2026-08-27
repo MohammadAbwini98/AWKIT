@@ -940,6 +940,75 @@ try {
   check("Workflow Builder leaves native input Ctrl+Z local", await win.locator(WF_NAME_INPUT).inputValue() === originalWorkflowName);
   await win.waitForTimeout(380);
 
+  // --- 1b. Workflow-node copy/paste round-trips through the real store. ---
+  const workflowCopyBaseline = await win.evaluate(() => ({
+    ids: [...document.querySelectorAll(".awkit-flow-node[data-id]")].map((node) => node.getAttribute("data-id")),
+    edges: document.querySelectorAll("g.awkit-flow-edge").length
+  }));
+  const workflowSourceBefore = await win.evaluate(() => window.playwrightFlowStudio.workflows.get("verify-workflow"));
+  const workflowSourceBox = await win.locator('.awkit-flow-node[data-id="verify-flow-a"]').boundingBox();
+  await win.locator('.awkit-flow-node[data-id="verify-flow-a"] .scenario-flow-node').click();
+  await win.keyboard.press("Control+c");
+  await win.keyboard.press("Control+v");
+  await win.waitForFunction((count) => document.querySelectorAll(".awkit-flow-node[data-id]").length === count + 1, workflowCopyBaseline.ids.length);
+  const pastedWorkflowNodeId = await win.evaluate((known) =>
+    [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .map((node) => node.getAttribute("data-id"))
+      .find((id) => id && !known.includes(id)) ?? "",
+    workflowCopyBaseline.ids
+  );
+  const workflowPasteBox = await win.locator(`.awkit-flow-node[data-id="${pastedWorkflowNodeId}"]`).boundingBox();
+  check("Workflow Ctrl+C/Ctrl+V creates a node with a fresh identity", Boolean(pastedWorkflowNodeId) && pastedWorkflowNodeId !== "verify-flow-a", pastedWorkflowNodeId);
+  check("Workflow copy/paste keeps source and copy as separate nodes", Boolean(await win.$('.awkit-flow-node[data-id="verify-flow-a"]')) && Boolean(await win.$(`.awkit-flow-node[data-id="${pastedWorkflowNodeId}"]`)));
+  check("Workflow paste offsets the copy instead of overlapping exactly", Boolean(workflowSourceBox && workflowPasteBox && Math.abs(workflowPasteBox.x - workflowSourceBox.x) > 8 && Math.abs(workflowPasteBox.y - workflowSourceBox.y) > 8), JSON.stringify({ workflowSourceBox, workflowPasteBox }));
+  check("Workflow paste does not duplicate unrelated connectors", await win.locator("g.awkit-flow-edge").count() === workflowCopyBaseline.edges);
+
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(700);
+  const savedWorkflowPaste = await win.evaluate(() => window.playwrightFlowStudio.workflows.get("verify-workflow"));
+  const pastedWorkflowNode = savedWorkflowPaste?.nodes?.find((node) => node.id === pastedWorkflowNodeId);
+  check("Workflow copy → paste → save persists the portable flow reference", pastedWorkflowNode?.type === "flowRef" && pastedWorkflowNode?.flowId === "verify-flow-a" && pastedWorkflowNode?.failurePolicy === "stop", JSON.stringify(pastedWorkflowNode));
+
+  const workflowSelect = win.locator(".sb-toolbar-field.editor-identity-select select");
+  await workflowSelect.selectOption("verify-workflow-loop-authoring");
+  await win.waitForTimeout(300);
+  await workflowSelect.selectOption("verify-workflow");
+  await win.waitForSelector(`.awkit-flow-node[data-id="${pastedWorkflowNodeId}"]`);
+  check("Workflow pasted node survives a real builder reload", Boolean(await win.$(`.awkit-flow-node[data-id="${pastedWorkflowNodeId}"]`)));
+
+  await win.locator(`.awkit-flow-node[data-id="${pastedWorkflowNodeId}"] .scenario-flow-node`).click();
+  const pastedWorkflowName = win.locator(".scenario-properties-panel").getByLabel("Flow", { exact: true });
+  await pastedWorkflowName.fill("Edited pasted flow reference");
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(700);
+  const editedWorkflowPaste = await win.evaluate(() => window.playwrightFlowStudio.workflows.get("verify-workflow"));
+  check("Workflow pasted node remains editable after reload and second save", editedWorkflowPaste?.nodes?.find((node) => node.id === pastedWorkflowNodeId)?.alias === "Edited pasted flow reference");
+  const originalWorkflowSource = workflowSourceBefore?.nodes?.find((node) => node.id === "verify-flow-a");
+  const editedWorkflowSource = editedWorkflowPaste?.nodes?.find((node) => node.id === "verify-flow-a");
+  check(
+    "Workflow copying never mutates the source identity or portable configuration",
+    editedWorkflowSource?.id === originalWorkflowSource?.id &&
+      editedWorkflowSource?.flowId === originalWorkflowSource?.flowId &&
+      editedWorkflowSource?.alias === originalWorkflowSource?.alias &&
+      editedWorkflowSource?.order === originalWorkflowSource?.order &&
+      editedWorkflowSource?.required === originalWorkflowSource?.required &&
+      JSON.stringify(editedWorkflowSource?.inputBindings) === JSON.stringify(originalWorkflowSource?.inputBindings) &&
+      JSON.stringify(editedWorkflowSource?.retryPolicy) === JSON.stringify(originalWorkflowSource?.retryPolicy) &&
+      editedWorkflowSource?.failurePolicy === originalWorkflowSource?.failurePolicy,
+    JSON.stringify({ originalWorkflowSource, editedWorkflowSource })
+  );
+
+  await win.locator(`.awkit-flow-node[data-id="${pastedWorkflowNodeId}"] .scenario-flow-node`).click();
+  await win.getByRole("button", { name: "Remove flow" }).click();
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(500);
+  check("Workflow verifier cleanup removes only the pasted node", (await win.evaluate(() => window.playwrightFlowStudio.workflows.get("verify-workflow")))?.nodes?.some((node) => node.id === pastedWorkflowNodeId) === false);
+
+  const beforeWorkflowTextPaste = await win.locator(".awkit-flow-node[data-id]").count();
+  await win.locator(WF_NAME_INPUT).focus();
+  await win.keyboard.press("Control+v");
+  check("Workflow canvas paste is not hijacked while editing text", await win.locator(".awkit-flow-node[data-id]").count() === beforeWorkflowTextPaste);
+
   // --- 2. Import-from-file: dirty guard, conflict guard, cancellation, dismissal, validation ---
   const incomingReplacement = importFixture("Incoming Replacement", ["verify-flow-a"]);
   await win.locator('.awkit-flow-node[data-id="verify-flow-a"] .scenario-flow-node').click();

@@ -4,7 +4,7 @@
  * debug output leaks canaries/grows unbounded, timeout policy loses validation, or embedded and
  * standalone roadmap derivations/UI sources diverge.
  */
-import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,6 +21,7 @@ import {
   isValidSessionInactivityMinutes
 } from "../src/security/session/SessionPolicy";
 import { DEFAULT_SESSION_POLICY, SessionManager } from "../src/security/session/SessionManager";
+import { InstalledChromeResolver } from "../src/session/InstalledChromeResolver";
 
 let passed = 0;
 let failed = 0;
@@ -64,6 +65,45 @@ check(
   securityKernelSource.includes("sessionInactivityMinutesToMs(settings.superUser.sessionInactivityMinutes)")
 );
 
+const [recorderIpc, executionIpc, debugBundleIpc, sessionContextSource, instanceManagerSource] = await Promise.all([
+  source("app/main/ipc/recorder.ipc.ts"),
+  source("app/main/ipc/execution.ipc.ts"),
+  source("app/main/ipc/debug.ipc.ts"),
+  source("app/main/security/sessionContext.ts"),
+  source("src/instances/InstanceManager.ts")
+]);
+check("trusted Super User guard checks the exact built-in role", sessionContextSource.includes("isSuperUser(actor.user)"));
+check("Recorder installed-Chrome IPC uses the exact Super User guard", recorderIpc.includes("assertSenderSuperUser(event"));
+check("execution installed-Chrome IPC uses the exact Super User guard", executionIpc.includes("assertSenderSuperUser(event"));
+check("diagnostic export IPC uses the exact Super User guard", debugBundleIpc.includes("assertSenderSuperUser(event"));
+check("Recorder installed Chrome uses an AWKIT-owned profile", recorderIpc.includes('"profiles", "installed-chrome-recorder"'));
+check(
+  "run instances receive an AWKIT-owned per-instance Chrome profile",
+  instanceManagerSource.includes('userDataDir: isolationMode === "persistentContext" ? join(instanceRoot, "profile")')
+);
+
+console.log("\nInstalled Chrome resolution:");
+const chromeRoot = await mkdtemp(join(tmpdir(), "awkit-chrome-resolver-"));
+try {
+  const configuredChrome = join(chromeRoot, "configured", "chrome.exe");
+  await mkdir(dirname(configuredChrome), { recursive: true });
+  await writeFile(configuredChrome, "test executable sentinel", "utf8");
+  const configured = await new InstalledChromeResolver({}).resolve(configuredChrome);
+  check("valid configured chrome.exe resolves explicitly", configured.available && configured.source === "configured");
+  const invalid = await new InstalledChromeResolver({}).resolve(join(chromeRoot, "configured", "not-chrome.exe"));
+  check("invalid configured path fails explicitly", !invalid.available && invalid.code === "CHROME_EXECUTABLE_INVALID");
+  const unavailable = await new InstalledChromeResolver({}).resolve();
+  check("missing Chrome reports CHROME_UNAVAILABLE without fallback", !unavailable.available && unavailable.code === "CHROME_UNAVAILABLE");
+
+  const discoveredChrome = join(chromeRoot, "Google", "Chrome", "Application", "chrome.exe");
+  await mkdir(dirname(discoveredChrome), { recursive: true });
+  await writeFile(discoveredChrome, "test executable sentinel", "utf8");
+  const discovered = await new InstalledChromeResolver({ LOCALAPPDATA: chromeRoot }).resolve();
+  check("Chrome discovery checks supported local installation roots", discovered.available && discovered.source === "discovered");
+} finally {
+  await rm(chromeRoot, { recursive: true, force: true });
+}
+
 console.log("\nSession policy:");
 check("compatibility default remains 30 minutes", DEFAULT_SESSION_INACTIVITY_MINUTES === 30);
 check("lower bound is accepted", isValidSessionInactivityMinutes(MIN_SESSION_INACTIVITY_MINUTES));
@@ -100,7 +140,11 @@ const root = await mkdtemp(join(tmpdir(), "awkit-debug-"));
 try {
   const logs = new DebugLogService(() => root, () => new Date("2026-08-08T12:00:00.000Z"));
   await logs.log("info", "off", "must-not-write");
-  check("debug-off writes nothing", (await readdir(root)).length === 0);
+  check("debug-off suppresses optional info logs", (await readdir(root)).length === 0);
+  await logs.log("error", "application", "critical failure while debug is off", { password: "DebugOffSecret!" });
+  const debugOffEntries = await logs.readEntries();
+  check("critical errors persist even while optional debug mode is off", debugOffEntries.some((entry) => entry.level === "error"));
+  check("debug-off critical errors are still redacted", !(await readFile(join(root, "debug.jsonl"), "utf8")).includes("DebugOffSecret!"));
   logs.setEnabled(true);
   const canaries = ["CanaryPassword-91!", "CanaryOtp-824611", "CanaryBearer-XYZ", "CanaryCookie-ABC"];
   await Promise.all([

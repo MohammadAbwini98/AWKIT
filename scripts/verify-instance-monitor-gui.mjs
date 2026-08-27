@@ -131,6 +131,11 @@ try {
 
   const card = win.locator('article[aria-label="Workflow Mock — Instance Summary Workflow"]');
   await card.waitFor({ state: "visible" });
+  const admission = await win.evaluate(() => window.playwrightFlowStudio.executions.validate("mock-instance-summary-workflow"));
+  check("Workflow card uses the authoritative execution admission result", admission.valid === true, JSON.stringify(admission.issues ?? []));
+  await card.getByText("Runnable", { exact: true }).waitFor({ state: "visible" });
+  check("A structurally valid persisted workflow is labelled Runnable", await card.getByText("Runnable", { exact: true }).isVisible());
+  check("Runnable card exposes no generic false-negative reason", !/Not Runnable|Invalid|Execution validation rejected/i.test((await card.textContent()) ?? ""));
   await card.focus();
   await card.getByLabel("Total runs").fill("4");
   await card.getByLabel("Concurrent").fill("2");
@@ -208,6 +213,51 @@ try {
   }, undefined, { timeout: 15000 });
   check("Bulk stop cancels running and queued instances", (await win.locator(".instance-table tbody .state-pill", { hasText: "Cancelled" }).count()) === 4);
   check("Bulk stop disables after no cancellable work remains", await win.locator("#im-stop-all").isDisabled());
+
+  // Create real recent-run history through the trusted IPC and cancel each run immediately. This
+  // gives both containers enough product data to overflow without cloning DOM or using fake rows.
+  for (let index = 0; index < 10; index += 1) {
+    await win.evaluate(async (workflowId) => {
+      await window.playwrightFlowStudio.executions.runWorkflow({
+        workflowId,
+        dryRun: false,
+        headless: true,
+        totalInstances: 1,
+        maxConcurrentInstances: 1,
+        isolationMode: "browserContext",
+        stopOnError: true,
+        screenshotOnFailure: true
+      });
+      await window.playwrightFlowStudio.executions.stopAll();
+    }, "mock-instance-summary-workflow");
+    await win.waitForFunction((expected) => document.querySelectorAll('[data-testid="workflow-run-record"]').length >= expected, index + 2);
+  }
+  await win.setViewportSize({ width: 980, height: 560 });
+  const runList = win.getByTestId("workflow-run-records");
+  const runScroll = await runList.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY
+  }));
+  check("Workflow Runs use a contained vertical scroller for long history", runScroll.scrollHeight > runScroll.clientHeight && /auto|scroll/.test(runScroll.overflowY), JSON.stringify(runScroll));
+  await runList.evaluate((element) => { element.scrollTop = 0; });
+  await runList.focus();
+  await win.keyboard.press("PageDown");
+  check("Workflow Runs scroller responds to keyboard navigation", await runList.evaluate((element) => element.scrollTop > 0));
+  check("Workflow Runs scroller shows a visible focus outline", await runList.evaluate((element) => getComputedStyle(element).outlineStyle !== "none"));
+
+  const instanceRegion = win.getByRole("region", { name: "Workflow instances" });
+  const instanceScroll = await instanceRegion.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY
+  }));
+  check("Instances use a contained vertical scroller at a small viewport", instanceScroll.scrollHeight > instanceScroll.clientHeight && /auto|scroll/.test(instanceScroll.overflowY), JSON.stringify(instanceScroll));
+  await instanceRegion.evaluate((element) => { element.scrollTop = 0; });
+  await instanceRegion.focus();
+  await win.keyboard.press("PageDown");
+  check("Instances scroller responds to keyboard navigation", await instanceRegion.evaluate((element) => element.scrollTop > 0));
+  check("Instances scroller shows a visible focus outline", await instanceRegion.evaluate((element) => getComputedStyle(element).outlineStyle !== "none"));
   check("Instance Monitor emits no renderer errors", pageErrors.length === 0 && consoleErrors.length === 0, JSON.stringify({ pageErrors, consoleErrors }));
 
   const passed = results.filter((result) => result.pass).length;

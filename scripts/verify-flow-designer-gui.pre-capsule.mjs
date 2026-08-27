@@ -951,7 +951,89 @@ try {
   check("native input Ctrl+Z remains local to the text field", await flowNameInput.inputValue() === originalFlowName);
   await win.waitForTimeout(380);
 
-  // --- 1b. A rapid pointer lifecycle must not leave a queued pan updater reading a released
+  // --- 1b. Node copy/paste is a real canvas + persistence operation. ---
+  const copyBaseline = await win.evaluate(() => ({
+    ids: [...document.querySelectorAll(".awkit-flow-node[data-id]")].map((node) => node.getAttribute("data-id")),
+    edges: document.querySelectorAll("g.awkit-flow-edge").length
+  }));
+  const copySourceBefore = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-flow-designer"));
+  const sourceBox = await win.locator('.awkit-flow-node[data-id="fill"]').boundingBox();
+  await win.locator('.awkit-flow-node[data-id="fill"] .action-flow-node').click();
+  await win.keyboard.press("Control+c");
+  await win.keyboard.press("Control+v");
+  await win.waitForFunction((count) => document.querySelectorAll(".awkit-flow-node[data-id]").length === count + 1, copyBaseline.ids.length);
+  const pastedId = await win.evaluate((known) =>
+    [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .map((node) => node.getAttribute("data-id"))
+      .find((id) => id && !known.includes(id)) ?? "",
+    copyBaseline.ids
+  );
+  const pastedBox = await win.locator(`.awkit-flow-node[data-id="${pastedId}"]`).boundingBox();
+  check("Flow Ctrl+C/Ctrl+V creates a node with a fresh identity", Boolean(pastedId) && pastedId !== "fill", pastedId);
+  check("Flow copy/paste leaves the source node rendered and selected data separate", Boolean(await win.$('.awkit-flow-node[data-id="fill"]')) && Boolean(await win.$(`.awkit-flow-node[data-id="${pastedId}"]`)));
+  check("Flow paste offsets the copy instead of overlapping exactly", Boolean(sourceBox && pastedBox && Math.abs(pastedBox.x - sourceBox.x) > 8 && Math.abs(pastedBox.y - sourceBox.y) > 8), JSON.stringify({ sourceBox, pastedBox }));
+  check("Flow paste does not duplicate unrelated connectors", await win.locator("g.awkit-flow-edge").count() === copyBaseline.edges);
+
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForFunction(() => document.querySelector(".editor-command-save-state")?.textContent?.includes("Saved"));
+  const savedPaste = await win.evaluate((id) => window.playwrightFlowStudio.flows.get(id), "verify-flow-designer");
+  const pastedSavedNode = savedPaste?.nodes?.find((node) => node.id === pastedId);
+  check("Flow copy → paste → save persists portable configuration", pastedSavedNode?.type === "fill" && pastedSavedNode?.locator?.value === "username" && pastedSavedNode?.valueSource?.value === "user1", JSON.stringify(pastedSavedNode));
+
+  await navClick(win, "Reports");
+  const copyReloadDialog = win.getByRole("alertdialog");
+  if (await copyReloadDialog.isVisible().catch(() => false)) {
+    await copyReloadDialog.getByRole("button", { name: "Save and Continue" }).click();
+  }
+  await win.waitForSelector(".flow-designer-shell", { state: "detached" });
+  await navClick(win, "Flow Designer");
+  await win.waitForSelector(".flow-designer-shell");
+  if (!await win.$(`.awkit-flow-node[data-id="${pastedId}"]`)) {
+    await win.getByLabel("Saved flow").click();
+    await win.getByRole("option", { name: /Verify — Flow Designer/ }).click();
+  }
+  await win.waitForSelector(`.awkit-flow-node[data-id="${pastedId}"]`);
+  await win.locator(".flow-designer-shell").focus();
+  await win.keyboard.press("Control+Home");
+  const reloadedPastedBox = await win.locator(`.awkit-flow-node[data-id="${pastedId}"]`).boundingBox();
+  const reloadedLayout = await win.evaluate(() => {
+    const rect = (selector) => {
+      const value = document.querySelector(selector)?.getBoundingClientRect();
+      return value ? { top: value.top, bottom: value.bottom, height: value.height } : null;
+    };
+    return {
+      canvas: rect(".awkit-flow-canvas"),
+      shell: rect(".flow-designer-shell"),
+      transform: document.querySelector(".awkit-flow-transform")?.getAttribute("style"),
+      scrollY: window.scrollY,
+      documentHeight: document.documentElement.scrollHeight,
+      viewportHeight: window.innerHeight
+    };
+  });
+  check("Flow pasted node survives a real designer reload", Boolean(reloadedPastedBox), JSON.stringify({ reloadedPastedBox, reloadedLayout }));
+
+  await win.locator(`.awkit-flow-node[data-id="${pastedId}"] .action-flow-node`).click();
+  const pastedName = win.locator(".properties-panel").getByLabel("Name", { exact: true });
+  await pastedName.fill("Edited pasted username");
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForFunction(() => document.querySelector(".editor-command-save-state")?.textContent?.includes("Saved"));
+  const editedPaste = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-flow-designer"));
+  check("Flow pasted node remains editable after reload and second save", editedPaste?.nodes?.find((node) => node.id === pastedId)?.name === "Edited pasted username");
+  check("Copying never mutates the persisted source node", JSON.stringify(editedPaste?.nodes?.find((node) => node.id === "fill")) === JSON.stringify(copySourceBefore?.nodes?.find((node) => node.id === "fill")));
+
+  await win.locator(`.awkit-flow-node[data-id="${pastedId}"] .action-flow-node`).click();
+  await win.keyboard.press("Delete");
+  await win.waitForFunction((id) => !document.querySelector(`.awkit-flow-node[data-id="${id}"]`), pastedId);
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForFunction(() => document.querySelector(".editor-command-save-state")?.textContent?.includes("Saved"));
+  check("Flow verifier cleanup removes only the pasted node", (await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-flow-designer")))?.nodes?.some((node) => node.id === pastedId) === false);
+
+  const beforeTextPasteCount = await win.locator(".awkit-flow-node[data-id]").count();
+  await flowNameInput.focus();
+  await win.keyboard.press("Control+v");
+  check("Flow canvas paste is not hijacked while editing text", await win.locator(".awkit-flow-node[data-id]").count() === beforeTextPasteCount);
+
+  // --- 1c. A rapid pointer lifecycle must not leave a queued pan updater reading a released
   // gesture. This is the real originX crash path: pointer-up clears the gesture before React may
   // flush the pointer-move state update.
   const emptyPoint = await win.evaluate(() => {

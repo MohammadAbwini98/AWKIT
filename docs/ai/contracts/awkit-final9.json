@@ -113,7 +113,9 @@
       "scripts/verify-super-user-controls.mts",
       "scripts/verify-instance-monitor-gui.mjs",
       "scripts/verify-flow-designer-gui.mjs",
+      "scripts/verify-flow-designer-gui.pre-capsule.mjs",
       "scripts/verify-workflow-builder-gui.mjs",
+      "scripts/verify-workflow-builder-gui.pre-capsule.mjs",
       "scripts/verify-source-hygiene.mts",
       "scripts/lib/verifier-classification.ts",
       "package.json",
@@ -140,24 +142,33 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "qa",
       "allowed_paths": [
-        "app/renderer/components/instances/WorkflowRunCard.tsx",
-        "app/renderer/pages/Settings.tsx",
-        "app/renderer/styles/global.css"
+        "scripts/verify-runner.mts",
+        "scripts/verify-recorder-draft.mts",
+        "scripts/verify-reports-populated-gui.mts",
+        "scripts/verify-super-user-controls.mts",
+        "scripts/verify-instance-monitor-gui.mjs",
+        "scripts/verify-flow-designer-gui.mjs",
+        "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+        "scripts/verify-workflow-builder-gui.mjs",
+        "scripts/verify-workflow-builder-gui.pre-capsule.mjs",
+        "scripts/verify-source-hygiene.mts"
       ],
       "forbidden_paths": [
+        "app/renderer/**",
         "src/recorder/**",
         "src/session/**",
         "src/runner/**",
         "src/reports/**",
         "app/main/**",
+        "app/renderer/**",
         "src/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Renderer correction from focused QA: required Runnable wording, valid Hologram focus treatment, and visibility of retained critical logs while optional debug mode is off."
+      "note": "QA stage: focused regression, mutation-discriminating and GUI evidence for the nine requirements."
     },
     "writer_sequence": [
       "runtime",
@@ -715,6 +726,71 @@
         "released_at": "2026-08-27T13:00:44.981Z",
         "released_reason": "QA found Runnable label, focus-token, and debug-off critical-log visibility mismatches; switch to renderer correction",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:frontend:2026-08-27T13:01:03.785Z",
+        "task": "awkit-final9",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/instances/WorkflowRunCard.tsx",
+          "app/renderer/pages/Settings.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-08-27T13:01:03.785Z",
+        "acquired_at_commit": "371339eafd522a7f8a4856b7b8344c9accbaf7de",
+        "released_at": "2026-08-27T13:02:22.121Z",
+        "released_reason": "Runnable wording, valid focus treatment, and critical-log visibility corrected; build passed; resume QA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T13:02:39.251Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-instance-monitor-gui.mjs",
+          "scripts/verify-recorder-draft.mts",
+          "scripts/verify-reports-populated-gui.mts",
+          "scripts/verify-runner.mts",
+          "scripts/verify-source-hygiene.mts",
+          "scripts/verify-super-user-controls.mts",
+          "scripts/verify-workflow-builder-gui.mjs",
+          "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+        ],
+        "acquired_at": "2026-08-27T13:02:39.251Z",
+        "acquired_at_commit": "cda33d26118133c9f54bceb95799ecbd88c7e9c6",
+        "released_at": "2026-08-27T13:31:14.054Z",
+        "released_reason": "amendment added paths outside qa's ownership (app/renderer/styles/global.css) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-08-27T13:04:23.030Z",
+            "added": [
+              "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+              "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+            ],
+            "reason": "Add real-Electron copy/paste round-trip coverage inside the existing broad designer walkthroughs",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-08-27T13:31:14.054Z",
+            "added": [
+              "app/renderer/styles/global.css"
+            ],
+            "reason": "Real-Electron copy reload exposed a zero-height Flow Designer canvas when validation banners add dynamic shell rows",
+            "triggered_escalation": [
+              "frontend"
+            ],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }

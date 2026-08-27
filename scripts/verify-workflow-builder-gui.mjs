@@ -30,7 +30,7 @@ const broad = runLegacyGuiCoverage({
   root,
   script: "verify-workflow-builder-gui.pre-capsule.mjs",
   supersededChecks: supersededURouteChecks,
-  expectedChecks: 58
+  expectedChecks: 68
 });
 
 console.log("\nWorkflow Builder: approved 7282178 Loop capsule contract");

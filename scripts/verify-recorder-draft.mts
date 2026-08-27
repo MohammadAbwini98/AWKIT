@@ -72,6 +72,44 @@ svc.urlHistoryLoad = null;
 await svc.ensureUrlHistoryLoaded();
 check("restart restores the saved URL history", svc.getUrls().length === 2);
 
+// ── User-curated Favorites are a separate, durable collection ──────────────
+svc.favoriteUrls = [];
+await svc.saveFavoriteUrl("example.com");
+check("favorite normalizes a bare host", svc.getFavoriteUrls()[0]?.url === "https://example.com/");
+await svc.saveFavoriteUrl("https://example.com/");
+check("favorite canonical URL is deduped", svc.getFavoriteUrls().length === 1);
+await svc.saveFavoriteUrl("https://example.com/distinct-path");
+check("genuinely distinct favorite URLs remain distinct", svc.getFavoriteUrls().length === 2);
+check("adding favorites does not mutate captured/recent history", svc.getUrls().length === 2);
+const favoritePayload = JSON.parse(await readFile(urlsPath, "utf8"));
+check("favorites persist separately from captured/recent URLs", favoritePayload.urls.length === 2 && favoritePayload.favorites.length === 2);
+
+svc.favoriteUrls = [];
+svc.urlHistoryLoad = null;
+await svc.ensureUrlHistoryLoaded();
+check("restart restores favorite URLs", svc.getFavoriteUrls().length === 2);
+const removedFavorite = svc.getFavoriteUrls()[0];
+await svc.removeFavoriteUrl(removedFavorite.id);
+check("removing a favorite does not remove its captured history peer", svc.getFavoriteUrls().length === 1 && svc.getUrls().length === 2);
+svc.favoriteUrls = [];
+svc.urlHistoryLoad = null;
+await svc.ensureUrlHistoryLoaded();
+check("favorite removal survives reload", svc.getFavoriteUrls().length === 1);
+await svc.saveFavoriteUrl(removedFavorite.url);
+check("a removed favorite can be re-added without duplicates", svc.getFavoriteUrls().length === 2);
+
+const compatiblePayload = JSON.parse(await readFile(urlsPath, "utf8"));
+compatiblePayload.futureCompatibleField = { retained: true };
+await writeFile(urlsPath, JSON.stringify(compatiblePayload), "utf8");
+svc.urlHistoryExtras = {};
+svc.urlHistoryLoad = null;
+await svc.ensureUrlHistoryLoaded();
+await svc.saveFavoriteUrl("https://favorite.test/unicode-%D8%B9%D8%B1%D8%A8%D9%8A");
+check(
+  "favorite persistence preserves unknown compatible fields",
+  JSON.parse(await readFile(urlsPath, "utf8")).futureCompatibleField?.retained === true
+);
+
 // ── Wait-time capture (Task 1) ───────────────────────────────────────────────
 svc.actions = [{ id: "seed", type: "click", name: "Click" }];
 svc.captureWaitTime = true;
@@ -730,7 +768,7 @@ await rm(dir, { recursive: true, force: true });
 // AWKIT-QA-005: cardinality assertion — an uncaught throw shrinks results.length, so this pins the
 // EXPECTED count; a shortened run FAILS instead of printing a full-looking tally. Intentional
 // additions must bump EXPECTED_CHECKS.
-const EXPECTED_CHECKS = 109;
+const EXPECTED_CHECKS = 119;
 {
   const { assertCardinality } = await import("./lib/verify-harness.mjs");
   const passed = results.filter((r) => r.pass).length;
