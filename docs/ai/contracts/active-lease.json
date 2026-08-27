@@ -1,36 +1,23 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "runtime",
+  "holder": "recorder",
   "status": "active",
   "allowed_paths": [
-    "app/main/ipc/debug.ipc.ts",
-    "app/main/ipc/execution.ipc.ts",
-    "app/main/ipc/recorder.ipc.ts",
-    "app/main/ipc/report.ipc.ts",
-    "app/main/ipc/settings.ipc.ts",
-    "app/main/main.ts",
-    "app/main/preload.ts",
-    "app/main/security/sessionContext.ts",
-    "app/main/uiSettings.ts",
-    "src/instances/InstanceConfig.ts",
-    "src/instances/InstanceManager.ts",
-    "src/runner/BrowserContextFactory.ts",
-    "src/runner/ExecutionEngine.ts",
-    "src/runner/FlowExecutor.ts",
-    "src/runner/RunnerResult.ts"
+    "src/recorder/RecorderService.ts",
+    "src/session/InstalledChromeResolver.ts"
   ],
-  "acquired_at": "2026-08-27T07:04:20.075Z",
-  "acquired_at_commit": "6f2637710a8cb56f891ff13a20aaaaf3410c9034",
+  "acquired_at": "2026-08-27T07:08:26.872Z",
+  "acquired_at_commit": "97e577b0f40f74ee1c9459575268a855ad3d92d9",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-cey.json",
-    "docs/ai/contracts/awkit-final9.json"
+    "docs/ai/contracts/awkit-final9.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "8f6d8e1ce6018680defb33e867395fd9eeb0f5cb6bfcde1686c85c16319b29ff",
-    "docs/ai/contracts/awkit-cey.json": "e5c7678ab4874f7c83b605171b7aa93ac5ac1ea83bccaf85203eacf8e43af93c",
-    "docs/ai/contracts/awkit-final9.json": "0ffaec0f29ba41e45e1666bf6abac27a83e96291df1e00c163a2706b35d6f0b9"
+    "docs/ai/contracts/active-lease.json": "fe3ba4dd17c88579eeac05d2527be4434265f8d06ec304338259ef066c13d314",
+    "docs/ai/contracts/awkit-final9.json": "54d8c13188723e9d10377be846381f3554cdfa3d82cd825fdeb5febb564d2d7f",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",

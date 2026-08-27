@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-final9",
-      "agent": "Electron Main / Runner Engineer",
+      "agent": "Recorder / Playwright Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-08-27T07:04:20.075Z",
-      "note": "write lease: app/main/ipc/debug.ipc.ts, app/main/ipc/execution.ipc.ts, app/main/ipc/recorder.ipc.ts, app/main/ipc/report.ipc.ts, app/main/ipc/settings.ipc.ts, app/main/main.ts, app/main/preload.ts, app/main/security/sessionContext.ts, app/main/uiSettings.ts, src/instances/InstanceConfig.ts, src/instances/InstanceManager.ts, src/runner/BrowserContextFactory.ts, src/runner/ExecutionEngine.ts, src/runner/FlowExecutor.ts, src/runner/RunnerResult.ts"
+      "claimedAt": "2026-08-27T07:08:26.872Z",
+      "note": "write lease: src/recorder/RecorderService.ts, src/session/InstalledChromeResolver.ts"
     }
   ]
 }

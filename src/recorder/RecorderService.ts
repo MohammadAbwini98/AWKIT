@@ -71,13 +71,18 @@ const URL_HISTORY_LIMIT = 200;
 
 /** On-disk shape of the persistent, reusable recorded-URL history (survives draft discard/restart). */
 interface RecordedUrlHistory {
-  version: 1;
+  version: 1 | 2;
   urls: RecordedUrl[];
+  /** User-curated entries. Deliberately separate from automatic capture history. */
+  favorites?: RecordedUrl[];
+  [key: string]: unknown;
 }
 
 /** Options accepted when starting a recording session. */
 export interface StartRecordingOptions {
   executablePath?: string;
+  /** AWKIT-owned scoped profile; when present the Recorder launches a persistent context. */
+  userDataDir?: string;
   /** When true, insert fixed-time wait steps for meaningful pauses between recorded actions. */
   captureWaitTime?: boolean;
   /**
@@ -117,6 +122,9 @@ export class RecorderService {
   private lastActionPage: Page | null = null;
   /** Reusable, deduped URL history — persisted separately from the draft so it survives save/restart. */
   private recordedUrls: RecordedUrl[] = [];
+  private favoriteUrls: RecordedUrl[] = [];
+  /** Compatible top-level fields from newer persisted files, retained losslessly on rewrite. */
+  private urlHistoryExtras: Record<string, unknown> = {};
   private urlSessionId = "";
   /** Whether the active session records think-time wait steps between actions (Task 1). */
   private captureWaitTime = false;
@@ -371,6 +379,43 @@ export class RecorderService {
     return this.recordedUrls;
   }
 
+  /** Return user-curated favorites without mixing them into captured/recent history. */
+  public getFavoriteUrls(): RecordedUrl[] {
+    return this.favoriteUrls;
+  }
+
+  /** Normalize, mask and durably add a favorite. Exact canonical URLs dedupe; distinct URLs remain distinct. */
+  public async saveFavoriteUrl(rawUrl: string): Promise<RecordedUrl[]> {
+    await this.ensureUrlHistoryLoaded();
+    const normalized = RecorderService.normalizeUrl(rawUrl);
+    if (!normalized) return this.favoriteUrls;
+    const url = RecorderService.maskUrl(normalized);
+    const existing = this.favoriteUrls.find((entry) => entry.url === url);
+    if (existing) {
+      existing.timestamp = new Date().toISOString();
+      this.favoriteUrls = [existing, ...this.favoriteUrls.filter((entry) => entry !== existing)];
+    } else {
+      const recent = this.recordedUrls.find((entry) => entry.url === url);
+      this.favoriteUrls = [{
+        id: randomUUID(),
+        url,
+        ...(recent?.title ? { title: recent.title } : {}),
+        timestamp: new Date().toISOString(),
+        source: "favorite"
+      }, ...this.favoriteUrls].slice(0, URL_HISTORY_LIMIT);
+    }
+    await this.persistUrlHistory();
+    return this.favoriteUrls;
+  }
+
+  /** Remove one favorite by its stable id. Captured history and the recorded Flow are untouched. */
+  public async removeFavoriteUrl(id: string): Promise<RecordedUrl[]> {
+    await this.ensureUrlHistoryLoaded();
+    this.favoriteUrls = this.favoriteUrls.filter((entry) => entry.id !== id);
+    await this.persistUrlHistory();
+    return this.favoriteUrls;
+  }
+
   // ── Draft persistence ──────────────────────────────────────────────────────
   // A recording session (actions + URLs) is kept in memory. Without persistence it is lost when
   // the app closes before the user saves it as a flow. We mirror the session to a small JSON draft
@@ -427,6 +472,9 @@ export class RecorderService {
           const raw = await readFile(this.urlHistoryPath, "utf8");
           const parsed = JSON.parse(raw) as Partial<RecordedUrlHistory>;
           if (Array.isArray(parsed.urls)) this.recordedUrls = parsed.urls as RecordedUrl[];
+          if (Array.isArray(parsed.favorites)) this.favoriteUrls = parsed.favorites as RecordedUrl[];
+          const { version: _version, urls: _urls, favorites: _favorites, ...extras } = parsed;
+          this.urlHistoryExtras = extras;
         } catch {
           // No history file yet — try migrating any URLs left in a legacy draft, then persist.
           await this.migrateLegacyDraftUrls();
@@ -453,7 +501,12 @@ export class RecorderService {
 
   private async persistUrlHistory(): Promise<void> {
     if (!this.urlHistoryPath) return;
-    const payload: RecordedUrlHistory = { version: 1, urls: this.recordedUrls };
+    const payload: RecordedUrlHistory = {
+      ...this.urlHistoryExtras,
+      version: 2,
+      urls: this.recordedUrls,
+      favorites: this.favoriteUrls
+    };
     try {
       // AWKIT-DUR-003: same atomic writer as the draft.
       await writeJsonFileAtomic(this.urlHistoryPath, payload);
@@ -707,18 +760,30 @@ export class RecorderService {
     // recorder never attempts to download or locate a globally installed browser.
     // buildChromiumHardeningArgs: no-egress hardening for the AWKIT-owned recorder browser
     // (never applied to the user's real Chrome in SessionCaptureService).
-    this.browser = await chromium.launch({
+    const launchOptions = {
       headless: false,
       executablePath: options.executablePath,
       args: buildChromiumHardeningArgs()
-    });
-    // Certificate trust is applied at CONTEXT creation, BEFORE any page exists or navigates below —
-    // never by automating Chromium's interstitial ("Advanced" / "Proceed" / the hidden bypass phrase).
-    this.context = await this.browser.newContext(
-      buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
-    );
+    };
+    // Installed Chrome uses only the AWKIT-owned directory supplied by trusted main. The user's
+    // daily profile is never inspected or referenced, and no fallback occurs if this launch fails.
+    if (options.userDataDir) {
+      await mkdir(options.userDataDir, { recursive: true });
+      this.browser = null;
+      this.context = await chromium.launchPersistentContext(options.userDataDir, {
+        ...launchOptions,
+        ...buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
+      });
+    } else {
+      this.browser = await chromium.launch(launchOptions);
+      // Certificate trust is applied at CONTEXT creation, BEFORE any page exists or navigates below —
+      // never by automating Chromium's interstitial ("Advanced" / "Proceed" / the hidden bypass phrase).
+      this.context = await this.browser.newContext(
+        buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
+      );
+    }
     this.logCertificateTrustBypass();
-    this.page = await this.context.newPage();
+    this.page = this.context.pages()[0] ?? await this.context.newPage();
 
     // Capture URLs visited during recording (initial page + any tab the site opens).
     this.attachUrlCapture(this.page);

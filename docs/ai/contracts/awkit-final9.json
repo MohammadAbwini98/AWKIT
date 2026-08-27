@@ -132,35 +132,22 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "recorder",
       "allowed_paths": [
-        "app/main/ipc/debug.ipc.ts",
-        "app/main/ipc/execution.ipc.ts",
-        "app/main/ipc/recorder.ipc.ts",
-        "app/main/ipc/report.ipc.ts",
-        "app/main/ipc/settings.ipc.ts",
-        "app/main/main.ts",
-        "app/main/preload.ts",
-        "app/main/security/sessionContext.ts",
-        "app/main/uiSettings.ts",
-        "src/instances/InstanceConfig.ts",
-        "src/instances/InstanceManager.ts",
-        "src/runner/BrowserContextFactory.ts",
-        "src/runner/ExecutionEngine.ts",
-        "src/runner/FlowExecutor.ts",
-        "src/runner/RunnerResult.ts"
+        "src/recorder/RecorderService.ts",
+        "src/session/InstalledChromeResolver.ts"
       ],
       "forbidden_paths": [
+        "app/main/**",
         "app/renderer/**",
-        "src/recorder/**",
-        "src/session/**",
+        "src/runner/**",
         "src/reports/**",
         "scripts/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "First writer stage: trusted Electron/runtime and execution semantics."
+      "note": "Recorder/session stage: persistent favorites and safe installed-Chrome discovery/launch options."
     },
     "writer_sequence": [
       "runtime",
@@ -434,6 +421,36 @@
         "acquired_at_commit": "6f2637710a8cb56f891ff13a20aaaaf3410c9034",
         "released_at": "2026-08-27T07:04:10.443Z",
         "released_reason": "Correcting the routed UiSettings file path before implementation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:runtime:2026-08-27T07:04:20.075Z",
+        "task": "awkit-final9",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/ipc/debug.ipc.ts",
+          "app/main/ipc/execution.ipc.ts",
+          "app/main/ipc/recorder.ipc.ts",
+          "app/main/ipc/report.ipc.ts",
+          "app/main/ipc/settings.ipc.ts",
+          "app/main/main.ts",
+          "app/main/preload.ts",
+          "app/main/security/sessionContext.ts",
+          "app/main/uiSettings.ts",
+          "src/instances/InstanceConfig.ts",
+          "src/instances/InstanceManager.ts",
+          "src/runner/BrowserContextFactory.ts",
+          "src/runner/ExecutionEngine.ts",
+          "src/runner/FlowExecutor.ts",
+          "src/runner/RunnerResult.ts"
+        ],
+        "acquired_at": "2026-08-27T07:04:20.075Z",
+        "acquired_at_commit": "6f2637710a8cb56f891ff13a20aaaaf3410c9034",
+        "released_at": "2026-08-27T07:07:36.882Z",
+        "released_reason": "Runtime failure latch and trusted browser-policy foundation committed as 97e577b; advance to Recorder/session implementation",
         "amendments": [],
         "overrides": [],
         "violations": []
