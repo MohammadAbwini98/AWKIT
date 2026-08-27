@@ -143,9 +143,9 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "app/renderer/layout/DesignerCanvasLayout.tsx"
+        "src/instances/InstanceManager.ts"
       ],
       "forbidden_paths": [
         "app/renderer/**",
@@ -160,7 +160,7 @@
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Frontend follow-up: make the properties drawer clear validation banners as well as the action bar."
+      "note": "Runtime follow-up: shorten fresh persistent-profile paths so installed Chrome can create its Windows cache hierarchy."
     },
     "writer_sequence": [
       "runtime",
@@ -832,6 +832,60 @@
             "reason": "Validation-banner reload proved the floating properties drawer measures only the toolbar and overlaps the banner/canvas boundary",
             "triggered_escalation": [
               "frontend"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:frontend:2026-08-27T13:37:33.360Z",
+        "task": "awkit-final9",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/layout/DesignerCanvasLayout.tsx"
+        ],
+        "acquired_at": "2026-08-27T13:37:33.360Z",
+        "acquired_at_commit": "c4a151a9f27085cf129dfc474f7fdb7859c0a82c",
+        "released_at": "2026-08-27T13:40:05.151Z",
+        "released_reason": "drawer/header measurement fixed and Flow Designer GUI passes 122 of 122; returning to QA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T13:40:22.975Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-instance-monitor-gui.mjs",
+          "scripts/verify-recorder-draft.mts",
+          "scripts/verify-reports-populated-gui.mts",
+          "scripts/verify-runner.mts",
+          "scripts/verify-source-hygiene.mts",
+          "scripts/verify-super-user-controls.mts",
+          "scripts/verify-workflow-builder-gui.mjs",
+          "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+        ],
+        "acquired_at": "2026-08-27T13:40:22.975Z",
+        "acquired_at_commit": "af45c630daff27d24b4bc4695536acf3fe1523b4",
+        "released_at": "2026-08-27T16:46:39.905Z",
+        "released_reason": "amendment added paths outside qa's ownership (src/instances/InstanceManager.ts) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-08-27T16:46:39.904Z",
+            "added": [
+              "src/instances/InstanceManager.ts"
+            ],
+            "reason": "Real installed Chrome execution fails on Windows because the generated persistent profile path exceeds Chrome cache path limits",
+            "triggered_escalation": [
+              "runtime",
+              "qc"
             ],
             "approved_by": "manager"
           }
