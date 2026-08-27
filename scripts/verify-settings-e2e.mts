@@ -440,6 +440,7 @@ try {
       paths: function () { return api.settings.validatePaths(); },
       roadmap: function () { return api.roadmap.getSnapshot(); },
       debugLogs: function () { return api.debug.list(); },
+      diagnosticBundle: function () { return api.debug.exportBundle(); },
       debugMode: function () { return api.settings.update({ superUser: { debugMode: true } }); },
       sessionPolicy: function () { return api.settings.update({ superUser: { sessionInactivityMinutes: 31 } }); },
       secretAvailable: function () { return api.secrets.isAvailable(); },
@@ -1398,6 +1399,42 @@ try {
   check("SET-019 reset defaults survive restart", (await snapshotSettings(win)).execution.maxRuns === 100);
   check("SET-016/019 user profiles survive restart", (await win.evaluate(() => window.playwrightFlowStudio.settings.getStorageStats())).flows === 3);
   check("SET-013/019 secret survives restart", (await win.evaluate(() => window.playwrightFlowStudio.secrets.list())).some((s) => s.name === PERSISTED_SECRET));
+  const diagnosticBundle = await win.evaluate(async () => {
+    const exported = await window.playwrightFlowStudio.debug.exportBundle();
+    const bytes = Uint8Array.from(atob(exported.dataBase64), (character) => character.charCodeAt(0));
+    const text = new TextDecoder().decode(bytes);
+    return {
+      filename: exported.filename,
+      mimeType: exported.mimeType,
+      text,
+      payload: JSON.parse(text) as Record<string, any>
+    };
+  });
+  check(
+    "SET-001 Super User exports a genuine offline diagnostic JSON artifact",
+    diagnosticBundle.filename.startsWith("specterstudio-diagnostics-") &&
+      diagnosticBundle.filename.endsWith(".json") &&
+      diagnosticBundle.mimeType === "application/json;charset=utf-8" &&
+      diagnosticBundle.payload.schemaVersion === 1,
+    `${diagnosticBundle.filename} ${diagnosticBundle.mimeType}`
+  );
+  check(
+    "SET-001 diagnostic bundle carries support-grade platform, configuration, report and log sections",
+    diagnosticBundle.payload.application?.name === "SpecterStudio" &&
+      typeof diagnosticBundle.payload.platform?.platform === "string" &&
+      typeof diagnosticBundle.payload.configuration?.customPathsConfigured === "number" &&
+      Array.isArray(diagnosticBundle.payload.recentReports) &&
+      Array.isArray(diagnosticBundle.payload.logs),
+    Object.keys(diagnosticBundle.payload).join(",")
+  );
+  check(
+    "SET-001 diagnostic bundle excludes stored secret names, values and reusable profile paths",
+    !diagnosticBundle.text.includes(PERSISTED_SECRET) &&
+      !diagnosticBundle.text.includes(SECRET_VALUE_1) &&
+      !diagnosticBundle.text.includes(SECRET_VALUE_2) &&
+      !diagnosticBundle.text.includes(join(runtimeRoot, "sessions")),
+    diagnosticBundle.text.slice(0, 240)
+  );
 
   // Administrator: Settings allowed, SU-only Branding hidden, mutations permitted.
   await signOut(win);
@@ -1427,6 +1464,7 @@ try {
     const calls = {
       roadmap: function () { return window.playwrightFlowStudio.roadmap.getSnapshot(); },
       debugLogs: function () { return window.playwrightFlowStudio.debug.list(); },
+      diagnosticBundle: function () { return window.playwrightFlowStudio.debug.exportBundle(); },
       debugMode: function () { return window.playwrightFlowStudio.settings.update({ superUser: { debugMode: true } }); },
       sessionPolicy: function () { return window.playwrightFlowStudio.settings.update({ superUser: { sessionInactivityMinutes: 31 } }); }
     };
@@ -1474,6 +1512,7 @@ try {
       stats: function () { return api.settings.getStorageStats(); },
       paths: function () { return api.settings.validatePaths(); },
       defaults: function () { return api.settings.getDefaultPaths(); },
+      diagnosticBundle: function () { return api.debug.exportBundle(); },
       secretAvailable: function () { return api.secrets.isAvailable(); },
       secretList: function () { return api.secrets.list(); },
       secretSet: function () { return api.secrets.set(${JSON.stringify(PERSISTED_SECRET)}, "VIEWER-MUST-NOT-WRITE"); },
@@ -1553,7 +1592,7 @@ writeFileSync(
 );
 const passed = results.filter((result) => result.pass).length;
 const skipped = results.filter((result) => result.skipped === true).length;
-const failed = results.length - passed;
+const failed = results.filter((result) => !result.pass && result.skipped !== true).length;
 console.log(`\nSettings E2E: ${passed} PASS / ${failed} FAIL / ${skipped} NOT RUN`);
 for (const result of results.filter((r) => r.skipped)) console.error(`  ~ NOT RUN: ${result.name} — ${result.detail ?? ""}`);
 // AWKIT-QA-007: NOT-RUN work must fail the suite like a failure would.
