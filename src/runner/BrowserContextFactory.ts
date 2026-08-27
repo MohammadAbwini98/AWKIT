@@ -312,7 +312,12 @@ export class BrowserContextFactory {
       launchOptions.ignoreDefaultArgs = overrides.ignoreDefaultArgs;
     }
 
-    if (this.options.productionOffline) {
+    if (config.browserDistribution === "installedChrome") {
+      if (!config.executablePath) {
+        throw new Error("Installed Chrome mode requires a validated Google Chrome executable path.");
+      }
+      launchOptions.executablePath = config.executablePath;
+    } else if (this.options.productionOffline) {
       const bundledBrowser = new BundledBrowserResolver(this.options.resourcesRoot).resolveChromium();
       if (!bundledBrowser.exists) {
         throw new Error(`Bundled Chromium is required for production offline mode: ${bundledBrowser.executablePath}`);

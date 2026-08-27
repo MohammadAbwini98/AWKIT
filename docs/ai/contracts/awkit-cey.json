@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 1,
   "task": {
     "id": "awkit-cey",
@@ -446,6 +446,25 @@
         "acquired_at_commit": "617a0d8ea8f821cc5141a12f4a4bcd3c0594aea3",
         "released_at": "2026-08-22T16:14:45.436Z",
         "released_reason": "Verifier repairs committed as 48e82df and the writer slot now advances to the final project-state closure commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-cey:project-state:2026-08-22T16:14:59.442Z",
+        "task": "awkit-cey",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/testing/**",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-22T16:14:59.442Z",
+        "acquired_at_commit": "48e82df5034edf39af5dbf0d9a6bf6bad6d558fc",
+        "released_at": "2026-08-26T18:25:47.832Z",
+        "released_reason": "awkit-cey is closed and contract completion is complete; release stale pointer before new owner task",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -481,6 +481,7 @@ export class FlowExecutor {
   private async executeWithRetry(step: FlowStep, context?: InstanceExecutionContext): Promise<StepExecutionResult> {
     const retryCount = step.retry?.count ?? 0;
     let lastResult: StepExecutionResult | undefined;
+    let attemptsExecuted = 0;
 
     // Failure-evidence precedence (awkit-5yx): an explicit per-step override
     // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
@@ -488,6 +489,13 @@ export class FlowExecutor {
     const captureOnFailure = step.onFailure?.screenshot ?? this.screenshotOnFailureDefault;
     // FR-B2: evidence from every failing attempt, accumulated in order (never overwritten, B2.2).
     const evidence: StepEvidenceRef[] = [];
+    const withReportMetadata = (result: StepExecutionResult, attemptCount: number): StepExecutionResult => ({
+      ...result,
+      stepName: step.name ?? step.id,
+      actionType: step.type,
+      attemptCount,
+      failurePolicy: step.onFailure?.action ?? "stop"
+    });
 
     const logRetry = (level: "info" | "warn", message: string): void => {
       this.logger?.log({
@@ -503,6 +511,7 @@ export class FlowExecutor {
     };
 
     for (let attempt = 0; ; attempt += 1) {
+      attemptsExecuted = attempt + 1;
       const result = await this.stepExecutor.execute(step);
       if (result.status !== "failed") {
         // A later attempt passed (or the first attempt did). Carry forward the evidence accumulated
@@ -510,7 +519,7 @@ export class FlowExecutor {
         // wrong (B2.2). No evidence is captured for the passing attempt, and its `screenshotPath` is
         // left exactly as the attempt produced it (unset by default on success).
         if (evidence.length > 0) result.evidence = evidence;
-        return result;
+        return withReportMetadata(result, attempt + 1);
       }
       lastResult = result;
 
@@ -558,7 +567,7 @@ export class FlowExecutor {
     // automation error on `lastResult` is untouched and remains the primary cause (B2.4/B2.5).
     if (evidence.length > 0 && lastResult) lastResult.evidence = evidence;
 
-    return lastResult!;
+    return withReportMetadata(lastResult!, attemptsExecuted);
   }
 
   private async handleFailure(
@@ -727,15 +736,24 @@ export class FlowExecutor {
     manualHandoff?: FlowExecutionResult["manualHandoff"]
   ): FlowExecutionResult {
     const endedAt = new Date().toISOString();
+    // Graph termination and execution outcome are deliberately independent. A continued failure,
+    // a failed parallel branch, or an early failure followed by successful cleanup may still reach
+    // End, but no terminally failed step may be rewritten into a passing flow/report.
+    const terminalFailure = steps.find((step) => step.status === "failed");
+    const effectiveStatus = status === "passed" && terminalFailure ? "failed" : status;
+    const effectiveError =
+      effectiveStatus === "failed"
+        ? error ?? terminalFailure?.error ?? `Step ${terminalFailure?.stepName ?? terminalFailure?.stepId ?? "unknown"} failed.`
+        : error;
     return {
       flowId,
-      status,
+      status: effectiveStatus,
       startedAt,
       endedAt,
       durationMs: Date.parse(endedAt) - Date.parse(startedAt),
       steps,
       outputs,
-      error,
+      error: effectiveError,
       manualHandoff
     };
   }

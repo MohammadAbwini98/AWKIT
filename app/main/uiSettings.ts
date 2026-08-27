@@ -207,6 +207,12 @@ export interface UiSettings {
     debugMode: boolean;
     /** Sliding application-session inactivity timeout, in whole minutes. */
     sessionInactivityMinutes: number;
+    /** Optional browser distribution for authorized Recorder and Runner launches. */
+    chrome: {
+      mode: "bundledChromium" | "installedChrome";
+      /** Explicit Google Chrome executable override; empty means safe platform discovery. */
+      executablePath: string;
+    };
   };
   tables: { flows: TableState; workflows: TableState };
 }
@@ -319,7 +325,11 @@ const defaultSettings: UiSettings = {
   },
   superUser: {
     debugMode: false,
-    sessionInactivityMinutes: DEFAULT_SESSION_INACTIVITY_MINUTES
+    sessionInactivityMinutes: DEFAULT_SESSION_INACTIVITY_MINUTES,
+    chrome: {
+      mode: "bundledChromium",
+      executablePath: ""
+    }
   },
   tables: { flows: { ...defaultTableState }, workflows: { ...defaultTableState } }
 };
@@ -354,6 +364,7 @@ function pruneUnknownSettings(settings: UiSettings): UiSettings {
     retainKnownKeys(settings[key], defaultSettings[key] as unknown as Record<string, unknown>);
   }
   retainKnownKeys(settings.recorder, defaultSettings.recorder as unknown as Record<string, unknown>);
+  retainKnownKeys(settings.superUser.chrome, defaultSettings.superUser.chrome as unknown as Record<string, unknown>);
   retainKnownKeys(
     settings.recorder.security,
     defaultSettings.recorder.security as unknown as Record<string, unknown>
@@ -427,7 +438,11 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     workflowRunCards: { ...defaultSettings.workflowRunCards, ...parsed.workflowRunCards },
     paths: { ...defaultSettings.paths, ...parsed.paths },
     semantic: { ...defaultSettings.semantic, ...parsed.semantic },
-    superUser: { ...defaultSettings.superUser, ...parsed.superUser },
+    superUser: {
+      ...defaultSettings.superUser,
+      ...parsed.superUser,
+      chrome: { ...defaultSettings.superUser.chrome, ...parsed.superUser?.chrome }
+    },
     tables: {
       flows: { ...defaultTableState, ...parsed.tables?.flows },
       workflows: { ...defaultTableState, ...parsed.tables?.workflows }
@@ -460,7 +475,11 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
     workflowRunCards: { ...current.workflowRunCards, ...patch.workflowRunCards } as UiSettings["workflowRunCards"],
     paths: { ...current.paths, ...patch.paths },
     semantic: { ...current.semantic, ...patch.semantic },
-    superUser: { ...current.superUser, ...patch.superUser },
+    superUser: {
+      ...current.superUser,
+      ...patch.superUser,
+      chrome: { ...current.superUser.chrome, ...patch.superUser?.chrome }
+    },
     tables: {
       flows: { ...current.tables.flows, ...patch.tables?.flows },
       workflows: { ...current.tables.workflows, ...patch.tables?.workflows }
@@ -585,6 +604,8 @@ export async function replaceUiSettings(incoming: unknown): Promise<UiSettings> 
     // confirmation dialog, and the file may have come from another machine or environment. Disabling
     // certificate validation stays an explicit, confirmed action in Settings → Recorder Security.
     next.recorder.security = { ...DEFAULT_RECORDER_SECURITY_SETTINGS };
+    // A portable settings file must not silently opt another machine into an installed executable.
+    next.superUser.chrome = { ...defaultSettings.superUser.chrome };
     const errors = validateSettings(next);
     if (errors.length) throw new Error(`Settings failed validation: ${errors.join(" ")}`);
     await writeSettings(next);
@@ -696,6 +717,12 @@ export function validateSettings(settings: UiSettings): string[] {
 
   if (typeof settings.superUser.debugMode !== "boolean") {
     errors.push("Debug mode must be true or false.");
+  }
+  if (!["bundledChromium", "installedChrome"].includes(settings.superUser.chrome.mode)) {
+    errors.push("Chrome execution mode must be bundled Chromium or installed Chrome.");
+  }
+  if (typeof settings.superUser.chrome.executablePath !== "string") {
+    errors.push("Configured Chrome executable path must be a string.");
   }
   if (
     !isValidSessionInactivityMinutes(settings.superUser.sessionInactivityMinutes)

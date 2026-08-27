@@ -36,6 +36,13 @@ export interface StepEvidenceRef {
 
 export interface StepExecutionResult {
   stepId: string;
+  /** Safe report metadata captured at execution time so later profile edits cannot rewrite history. */
+  stepName?: string;
+  actionType?: string;
+  /** Number of attempts actually executed, including the first attempt. */
+  attemptCount?: number;
+  /** Terminal failure-policy action in force for this step. */
+  failurePolicy?: string;
   status: StepExecutionStatus;
   startedAt: string;
   endedAt: string;

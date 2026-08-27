@@ -22,7 +22,7 @@ import {
   createReportStore,
   createWorkflowProfileStore
 } from "../profileStores";
-import { assertSenderPermission } from "../security/sessionContext";
+import { assertSenderPermission, assertSenderSuperUser } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 import { getDebugLogService } from "../debugLogService";
 import { getSecurityKernel } from "../security/securityKernel";
@@ -100,6 +100,11 @@ export function registerSettingsIpc(): void {
     }
     if (patch.superUser?.sessionInactivityMinutes !== undefined) {
       await assertSenderPermission(event, Permission.SESSION_POLICY_MANAGE);
+    }
+    if (patch.superUser?.chrome !== undefined) {
+      await assertSenderSuperUser(event, Permission.SETTINGS_EDIT, {
+        audit: { eventType: "INSTALLED_CHROME_SETTINGS_DENIED", channel: "settings:update" }
+      });
     }
     const next = await updateUiSettings(patch);
     if (patch.superUser?.debugMode !== undefined) {

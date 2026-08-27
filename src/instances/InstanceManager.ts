@@ -111,6 +111,8 @@ export class InstanceManager {
       id: instanceId,
       name: `Instance ${index + 1}`,
       browser: profile.instanceTemplate.browser,
+      browserDistribution: profile.instanceTemplate.browserDistribution ?? "bundledChromium",
+      executablePath: profile.instanceTemplate.executablePath,
       headless: profile.browserWindowMode === "headless" ? true : profile.instanceTemplate.headless,
       isolationMode: profile.instanceTemplate.isolationMode,
       baseUrl: profile.instanceTemplate.baseUrl,

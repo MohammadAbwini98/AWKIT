@@ -15,6 +15,7 @@ import { assertTrustedSender } from "../ipc/senderGuard";
 import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import type { Permission } from "@src/security/authz/Permissions";
 import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
+import { isSuperUser } from "@src/security/authz/Permissions";
 
 /** `webContents.id` → the sessionRef that authenticated from that window. */
 const boundSessions = new Map<number, string>();
@@ -95,6 +96,21 @@ export async function assertSenderPermission(
     }
     throw error;
   }
+}
+
+/**
+ * Exact-role boundary for capabilities reserved to Super Users. A broad permission grant is not
+ * enough: the trusted actor resolved from the sender-bound session must hold the built-in role.
+ */
+export async function assertSenderSuperUser(
+  event: IpcMainInvokeEvent,
+  permission: Permission,
+  options: { sensitive?: boolean; audit?: DenialAudit } = {}
+): Promise<AuthorizedActor> {
+  const actor = await assertSenderPermission(event, permission, options);
+  if (isSuperUser(actor.user)) return actor;
+  await recordDenial(options.audit, permission, AuthReason.NOT_AUTHORIZED, actor, actor.sessionRef);
+  throw new SecurityError(AuthReason.NOT_AUTHORIZED);
 }
 
 /**

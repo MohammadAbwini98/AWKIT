@@ -4,6 +4,9 @@ export interface InstanceConfig {
   id: string;
   name: string;
   browser: "chromium";
+  browserDistribution?: "bundledChromium" | "installedChrome";
+  /** Trusted-main resolved executable. Required when browserDistribution is installedChrome. */
+  executablePath?: string;
   headless: boolean;
   isolationMode: InstanceIsolationMode;
   baseUrl?: string;

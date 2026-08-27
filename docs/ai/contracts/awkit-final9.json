@@ -1,0 +1,443 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-final9",
+    "title": "AWKIT final automation, execution, UX, reporting, Chrome and diagnostics completion",
+    "objective": "Investigate, implement and verify the nine owner requirements across execution semantics, authoritative runnable state, large-list scrolling, node copy and paste, Recorder URL favorites, genuine CSV/XLSX exports, Super-User-only installed Chrome, Workflow table width and support-grade diagnostics without weakening offline or security boundaries.",
+    "requested_by": "owner",
+    "risk_level": 3,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6f2637710a8cb56f891ff13a20aaaaf3410c9034",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "run-app-demo.mjs",
+        "git_status": "!!",
+        "sha256": "6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b",
+        "note": "Ignored owner helper inherited from prior work. Do not edit, stage, move or delete it."
+      }
+    ],
+    "preserved_notes": [
+      "The released active-lease.json and awkit-cey.json lifecycle updates predate this contract and are retained as intentional control-plane changes."
+    ]
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "general_engineering_change": true,
+    "electron_main_change": true,
+    "ipc_change": true,
+    "runner_change": true,
+    "execution_change": true,
+    "concurrency_change": true,
+    "persisted_shape_change": true,
+    "filesystem_write_change": true,
+    "playwright_change": true,
+    "recorder_change": true,
+    "browser_behavior_change": true,
+    "auth_change": true,
+    "authorization_change": true,
+    "secret_handling_change": true,
+    "protected_login_change": true,
+    "packaging_change": true,
+    "offline_boundary_change": true,
+    "new_dependency": true,
+    "public_contract_change": true,
+    "broad_investigation": true,
+    "project_state_change": true,
+    "cross_layer_count": 7
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "integration",
+      "recorder",
+      "qa",
+      "qc",
+      "security",
+      "researcher",
+      "persistence",
+      "performance",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/main/ipc/debug.ipc.ts",
+      "app/main/ipc/execution.ipc.ts",
+      "app/main/ipc/recorder.ipc.ts",
+      "app/main/ipc/report.ipc.ts",
+      "app/main/ipc/settings.ipc.ts",
+      "app/main/main.ts",
+      "app/main/preload.ts",
+      "app/main/security/sessionContext.ts",
+      "app/main/uiSettings.ts",
+      "app/renderer/components/flow/FlowCanvas.tsx",
+      "app/renderer/components/shared/nodeClipboard.ts",
+      "app/renderer/components/workflow/WorkflowCard.tsx",
+      "app/renderer/pages/FlowDesigner.tsx",
+      "app/renderer/pages/InstanceMonitor.tsx",
+      "app/renderer/pages/Recorder.tsx",
+      "app/renderer/pages/Reports.tsx",
+      "app/renderer/pages/Settings.tsx",
+      "app/renderer/pages/WorkflowBuilder.tsx",
+      "app/renderer/styles/global.css",
+      "src/instances/InstanceConfig.ts",
+      "src/instances/InstanceManager.ts",
+      "src/recorder/RecorderService.ts",
+      "src/reports/ReportExportService.ts",
+      "src/runner/BrowserContextFactory.ts",
+      "src/runner/ExecutionEngine.ts",
+      "src/runner/FlowExecutor.ts",
+      "src/runner/RunnerResult.ts",
+      "src/session/InstalledChromeResolver.ts",
+      "scripts/verify-runner.mts",
+      "scripts/verify-recorder-draft.mts",
+      "scripts/verify-reports-populated-gui.mts",
+      "scripts/verify-super-user-controls.mts",
+      "scripts/verify-instance-monitor-gui.mjs",
+      "scripts/verify-workflow-builder-gui.mjs",
+      "scripts/verify-source-hygiene.mjs",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "package-lock.json",
+      ".beads/issues.jsonl",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/contracts/awkit-final9.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/testing/comprehensive-validation/DEFECTS.md",
+      "docs/testing/comprehensive-validation/EXECUTION_RESULTS.md",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "architect",
+      "uiux",
+      "integration",
+      "security",
+      "researcher",
+      "persistence",
+      "performance"
+    ],
+    "writer": {
+      "agent_id": "runtime",
+      "allowed_paths": [
+        "app/main/ipc/debug.ipc.ts",
+        "app/main/ipc/execution.ipc.ts",
+        "app/main/ipc/recorder.ipc.ts",
+        "app/main/ipc/report.ipc.ts",
+        "app/main/ipc/settings.ipc.ts",
+        "app/main/main.ts",
+        "app/main/preload.ts",
+        "app/main/security/sessionContext.ts",
+        "app/main/uiSettings.ts",
+        "src/instances/InstanceConfig.ts",
+        "src/instances/InstanceManager.ts",
+        "src/runner/BrowserContextFactory.ts",
+        "src/runner/ExecutionEngine.ts",
+        "src/runner/FlowExecutor.ts",
+        "src/runner/RunnerResult.ts"
+      ],
+      "forbidden_paths": [
+        "app/renderer/**",
+        "src/recorder/**",
+        "src/session/**",
+        "src/reports/**",
+        "scripts/**",
+        "package.json",
+        "package-lock.json",
+        "docs/**"
+      ],
+      "note": "First writer stage: trusted Electron/runtime and execution semantics."
+    },
+    "writer_sequence": [
+      "runtime",
+      "recorder",
+      "frontend",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Preserve window.playwrightFlowStudio, existing stores, unknown compatible persisted fields and Hologram tokens.",
+      "Enabled controls must have trusted underlying behavior; UI validity must use execution admission logic.",
+      "Work directly on main with coherent commits and no stash, reset, worktree, new branch or history rewrite."
+    ],
+    "security": [
+      "Never export or log passwords, secrets, tokens, cookies, authenticated browser state, protected contents or private keys.",
+      "Installed Chrome is Super-User-only at the trusted IPC boundary, uses an AWKIT-owned scoped profile, never the daily profile, and never silently falls back.",
+      "Do not bypass CAPTCHA, MFA, OTP, passkeys, device approval, bot detection or access controls; protected login continues through manual handoff."
+    ],
+    "offline": [
+      "Bundled Chromium remains the default and production must not download a browser or require global Node, Playwright, Chrome, admin rights, network access, CDN or cloud logging.",
+      "Mutable favorites, profiles, logs and reports live under approved runtime-data locations, never resources or app.asar."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "AC-1",
+      "description": "Any terminally failed step latches the final run and persisted report to FAILED even when execution continues to End or another branch succeeds.",
+      "evidence_required": [
+        "EV-runner",
+        "EV-reports"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "description": "Runnable badges and reasons use the authoritative execution admission model across persistence-compatible workflow data.",
+      "evidence_required": [
+        "EV-build",
+        "EV-instance-monitor"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "description": "Instances and Workflow Runs have contained keyboard-accessible scrolling at long-list and small-window sizes.",
+      "evidence_required": [
+        "EV-instance-monitor"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "description": "Supported designer nodes copy and paste safely across compatible canvases with new identity, offset position and round-trip persistence.",
+      "evidence_required": [
+        "EV-designers"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "description": "Recorder favorites are distinct from capture history and persist through create, reload, remove and re-add without unsafe duplicates.",
+      "evidence_required": [
+        "EV-recorder"
+      ]
+    },
+    {
+      "id": "AC-6",
+      "description": "Reports export redacted evidence as escaped CSV and structurally valid XLSX with UI/runtime status agreement.",
+      "evidence_required": [
+        "EV-reports",
+        "EV-offline"
+      ]
+    },
+    {
+      "id": "AC-7",
+      "description": "Installed Chrome is optional, Super-User-only at UI and IPC, explicitly resolved, app-profile-isolated and never silently substituted.",
+      "evidence_required": [
+        "EV-super-user",
+        "EV-offline"
+      ]
+    },
+    {
+      "id": "AC-8",
+      "description": "The Workflow table alone fills its usable content width and remains responsive in both themes.",
+      "evidence_required": [
+        "EV-workflow-builder"
+      ]
+    },
+    {
+      "id": "AC-9",
+      "description": "Critical failures are safely structured, redacted, rotated and exportable in an offline diagnostic bundle with useful correlation context.",
+      "evidence_required": [
+        "EV-diagnostics",
+        "EV-source-hygiene"
+      ]
+    },
+    {
+      "id": "AC-10",
+      "description": "Authoritative tracker, validation, defect, AI-memory and roadmap sources agree after truthful reconciliation.",
+      "evidence_required": [
+        "EV-classification",
+        "EV-roadmap"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-build",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Pre-change baseline passed."
+    },
+    {
+      "id": "EV-mock-site",
+      "type": "verifier",
+      "command": "npm run verify:mock-site",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Pre-change baseline 172/172."
+    },
+    {
+      "id": "EV-runner",
+      "type": "verifier",
+      "command": "npm run verify:runner",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Pre-change baseline 129/129; new failure-latch cases pending."
+    },
+    {
+      "id": "EV-instance-monitor",
+      "type": "gui",
+      "command": "npm run verify:instance-monitor-gui",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-designers",
+      "type": "gui",
+      "command": "focused Flow Designer and Workflow Builder GUI verifiers",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-recorder",
+      "type": "verifier",
+      "command": "npm run verify:recorder-draft and npm run verify:recorder-gui",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-reports",
+      "type": "verifier",
+      "command": "npm run verify:reports-populated-gui",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-super-user",
+      "type": "security",
+      "command": "npm run verify:super-user-controls",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Pre-change baseline 49/49; installed-Chrome cases pending."
+    },
+    {
+      "id": "EV-workflow-builder",
+      "type": "gui",
+      "command": "npm run verify:workflow-builder-gui",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-diagnostics",
+      "type": "security",
+      "command": "focused logging and diagnostic-bundle verifier",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-source-hygiene",
+      "type": "security",
+      "command": "npm run verify:source-hygiene",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-offline",
+      "type": "packaged",
+      "command": "npm run validate:offline",
+      "required": true,
+      "result": "FAIL",
+      "artifact": null,
+      "note": "Pre-change harness invocation failed because Get-FileHash was unavailable inside one validation scope; direct helper and cmdlet probes passed. Rerun required."
+    },
+    {
+      "id": "EV-classification",
+      "type": "verifier",
+      "command": "npm run verify:verifier-classification",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Pre-change baseline: 199 scripts classified."
+    },
+    {
+      "id": "EV-roadmap",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Pre-change baseline: 171/171, Sources agree."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "EV-build"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending",
+    "note": "Implementation and post-change evidence pending."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-final9:runtime:2026-08-27T07:03:29.363Z",
+        "task": "awkit-final9",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/ipc/debug.ipc.ts",
+          "app/main/ipc/execution.ipc.ts",
+          "app/main/ipc/recorder.ipc.ts",
+          "app/main/ipc/report.ipc.ts",
+          "app/main/ipc/settings.ipc.ts",
+          "app/main/main.ts",
+          "app/main/preload.ts",
+          "app/main/security/sessionContext.ts",
+          "app/main/services/uiSettings.ts",
+          "src/instances/InstanceConfig.ts",
+          "src/instances/InstanceManager.ts",
+          "src/runner/BrowserContextFactory.ts",
+          "src/runner/ExecutionEngine.ts",
+          "src/runner/FlowExecutor.ts",
+          "src/runner/RunnerResult.ts"
+        ],
+        "acquired_at": "2026-08-27T07:03:29.363Z",
+        "acquired_at_commit": "6f2637710a8cb56f891ff13a20aaaaf3410c9034",
+        "released_at": "2026-08-27T07:04:10.443Z",
+        "released_reason": "Correcting the routed UiSettings file path before implementation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
