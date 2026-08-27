@@ -677,9 +677,14 @@ try {
   await win.evaluate(() =>
     window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: false, captureWaitTime: true } }));
   await startAndWaitRecording(win, `${labUrl}?rec034=1`);
-  await win.waitForTimeout(1_200);
-  const untrustedFixtureActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
-  const identityResolvedFixtureAction = untrustedFixtureActions.find((action) => action.type === "click");
+  const identityResolvedFixtureAction = await poll(
+    "the Recorder Lab positional fixture click",
+    async () => {
+      const actions = await win!.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+      return actions.find((action) => action.type === "click") ?? null;
+    },
+    5_000
+  );
   check(
     "fixture positional click carries the Element Identity Contract before flow finalization",
     identityResolvedFixtureAction?.locator?.identity?.schemaVersion === 1,
