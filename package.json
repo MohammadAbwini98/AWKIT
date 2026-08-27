@@ -270,6 +270,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "@zvec/zvec": "0.6.0",
+    "exceljs": "4.4.0",
     "framer-motion": "11.18.2",
     "ldapts": "7.4.0",
     "lucide-react": "^0.468.0",

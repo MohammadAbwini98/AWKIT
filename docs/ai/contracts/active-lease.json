@@ -1,34 +1,22 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "frontend",
+  "holder": "release",
   "status": "active",
   "allowed_paths": [
-    "app/renderer/components/canvas/FlowCanvas.tsx",
-    "app/renderer/components/instances/WorkflowRunCard.tsx",
-    "app/renderer/components/scenario/scenarioDesignerTypes.ts",
-    "app/renderer/components/scenario/workflowDocumentMapping.ts",
-    "app/renderer/components/shared/nodeClipboard.ts",
-    "app/renderer/components/workflow/flowDesignerTypes.ts",
-    "app/renderer/components/workflow/flowProfileMapping.ts",
-    "app/renderer/pages/ExecutionReports.tsx",
-    "app/renderer/pages/FlowChartDesigner.tsx",
-    "app/renderer/pages/InstanceMonitor.tsx",
-    "app/renderer/pages/Recorder.tsx",
-    "app/renderer/pages/ScenarioBuilder.tsx",
-    "app/renderer/pages/Settings.tsx",
-    "app/renderer/styles/global.css"
+    "package-lock.json",
+    "package.json"
   ],
-  "acquired_at": "2026-08-27T07:12:34.691Z",
-  "acquired_at_commit": "cf135a78a9b4e2329075ba80b0ac54a6f8cf354d",
+  "acquired_at": "2026-08-27T07:20:22.195Z",
+  "acquired_at_commit": "605d82455eb7612248e8965d0ec1c6fb923d144b",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-final9.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "e9af4db24c5d2c336202d9c5c33e7d95a3f9a77aa74da2ca55bf522a740fb64f",
-    "docs/ai/contracts/awkit-final9.json": "b5b1ebbb23f44730e6be49430c5b196c17809022e4b24036231a545fc2cf5279",
+    "docs/ai/contracts/active-lease.json": "4dd865f8a3944ea352ef2a61838d5a4434afbaed93aedf1b6beaff84e5a48db4",
+    "docs/ai/contracts/awkit-final9.json": "255a5cdb11c9a53cdd226a7485fc93512f6cb9979e13cccf17387b4ad6fa1b2a",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

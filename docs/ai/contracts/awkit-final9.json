@@ -136,32 +136,19 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "release",
       "allowed_paths": [
-        "app/renderer/components/canvas/FlowCanvas.tsx",
-        "app/renderer/components/shared/nodeClipboard.ts",
-        "app/renderer/components/instances/WorkflowRunCard.tsx",
-        "app/renderer/components/scenario/scenarioDesignerTypes.ts",
-        "app/renderer/components/scenario/workflowDocumentMapping.ts",
-        "app/renderer/components/workflow/flowDesignerTypes.ts",
-        "app/renderer/components/workflow/flowProfileMapping.ts",
-        "app/renderer/pages/FlowChartDesigner.tsx",
-        "app/renderer/pages/InstanceMonitor.tsx",
-        "app/renderer/pages/Recorder.tsx",
-        "app/renderer/pages/ExecutionReports.tsx",
-        "app/renderer/pages/ScenarioBuilder.tsx",
-        "app/renderer/pages/Settings.tsx",
-        "app/renderer/styles/global.css"
+        "package.json",
+        "package-lock.json"
       ],
       "forbidden_paths": [
         "app/main/**",
+        "app/renderer/**",
         "src/**",
         "scripts/**",
-        "package.json",
-        "package-lock.json",
         "docs/**"
       ],
-      "note": "Renderer stage: authoritative validity, contained scrolling, node copy/paste, Favorites, exports, Chrome controls and diagnostics UX."
+      "note": "Release dependency stage: add the packaged workbook writer required for genuine XLSX output."
     },
     "writer_sequence": [
       "runtime",
@@ -507,6 +494,35 @@
         "acquired_at_commit": "cf135a78a9b4e2329075ba80b0ac54a6f8cf354d",
         "released_at": "2026-08-27T07:12:02.286Z",
         "released_reason": "Correct renderer file ownership paths discovered from live implementation before editing",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:frontend:2026-08-27T07:12:34.691Z",
+        "task": "awkit-final9",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/canvas/FlowCanvas.tsx",
+          "app/renderer/components/instances/WorkflowRunCard.tsx",
+          "app/renderer/components/scenario/scenarioDesignerTypes.ts",
+          "app/renderer/components/scenario/workflowDocumentMapping.ts",
+          "app/renderer/components/shared/nodeClipboard.ts",
+          "app/renderer/components/workflow/flowDesignerTypes.ts",
+          "app/renderer/components/workflow/flowProfileMapping.ts",
+          "app/renderer/pages/ExecutionReports.tsx",
+          "app/renderer/pages/FlowChartDesigner.tsx",
+          "app/renderer/pages/InstanceMonitor.tsx",
+          "app/renderer/pages/Recorder.tsx",
+          "app/renderer/pages/ScenarioBuilder.tsx",
+          "app/renderer/pages/Settings.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-08-27T07:12:34.691Z",
+        "acquired_at_commit": "cf135a78a9b4e2329075ba80b0ac54a6f8cf354d",
+        "released_at": "2026-08-27T07:19:49.396Z",
+        "released_reason": "Renderer implementation committed as 605d824; advance to report serialization",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-final9",
-      "agent": "React / Renderer Engineer",
+      "agent": "Packaging / Offline / Release Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-08-27T07:12:34.691Z",
-      "note": "write lease: app/renderer/components/canvas/FlowCanvas.tsx, app/renderer/components/instances/WorkflowRunCard.tsx, app/renderer/components/scenario/scenarioDesignerTypes.ts, app/renderer/components/scenario/workflowDocumentMapping.ts, app/renderer/components/shared/nodeClipboard.ts, app/renderer/components/workflow/flowDesignerTypes.ts, app/renderer/components/workflow/flowProfileMapping.ts, app/renderer/pages/ExecutionReports.tsx, app/renderer/pages/FlowChartDesigner.tsx, app/renderer/pages/InstanceMonitor.tsx, app/renderer/pages/Recorder.tsx, app/renderer/pages/ScenarioBuilder.tsx, app/renderer/pages/Settings.tsx, app/renderer/styles/global.css"
+      "claimedAt": "2026-08-27T07:20:22.195Z",
+      "note": "write lease: package-lock.json, package.json"
     }
   ]
 }
