@@ -77,10 +77,12 @@
       "app/main/ipc/recorder.ipc.ts",
       "app/main/ipc/report.ipc.ts",
       "app/main/ipc/settings.ipc.ts",
+      "app/main/debugLogService.ts",
       "app/main/main.ts",
       "app/main/preload.ts",
       "app/main/security/sessionContext.ts",
       "app/main/uiSettings.ts",
+      "app/main/windowManager.ts",
       "app/renderer/components/canvas/FlowCanvas.tsx",
       "app/renderer/components/shared/nodeClipboard.ts",
       "app/renderer/components/instances/WorkflowRunCard.tsx",
@@ -136,22 +138,37 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "software",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "src/reports/ReportExportService.ts"
+        "app/main/debugLogService.ts",
+        "app/main/ipc/debug.ipc.ts",
+        "app/main/ipc/execution.ipc.ts",
+        "app/main/ipc/recorder.ipc.ts",
+        "app/main/ipc/report.ipc.ts",
+        "app/main/ipc/settings.ipc.ts",
+        "app/main/main.ts",
+        "app/main/preload.ts",
+        "app/main/security/sessionContext.ts",
+        "app/main/uiSettings.ts",
+        "app/main/windowManager.ts",
+        "src/instances/InstanceConfig.ts",
+        "src/instances/InstanceManager.ts",
+        "src/runner/BrowserContextFactory.ts",
+        "src/runner/ExecutionEngine.ts",
+        "src/runner/FlowExecutor.ts",
+        "src/runner/RunnerResult.ts"
       ],
       "forbidden_paths": [
-        "app/main/**",
         "app/renderer/**",
-        "src/runner/**",
         "src/recorder/**",
         "src/session/**",
+        "src/reports/**",
         "scripts/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Software stage: redacted CSV and genuine XLSX report serialization."
+      "note": "Runtime integration stage: trusted IPC, installed-Chrome authorization/profile isolation, exports and diagnostics."
     },
     "writer_sequence": [
       "runtime",
@@ -543,6 +560,22 @@
         "acquired_at_commit": "605d82455eb7612248e8965d0ec1c6fb923d144b",
         "released_at": "2026-08-27T07:21:07.532Z",
         "released_reason": "Packaged ExcelJS dependency committed as a9cbaf6; advance to report export service",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:software:2026-08-27T07:21:29.248Z",
+        "task": "awkit-final9",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/reports/ReportExportService.ts"
+        ],
+        "acquired_at": "2026-08-27T07:21:29.248Z",
+        "acquired_at_commit": "a9cbaf62f7e6f6cb40013648622205d5e418d0ae",
+        "released_at": "2026-08-27T07:24:31.358Z",
+        "released_reason": "Report serializers committed as 01528d0; return to runtime for trusted IPC, Chrome launch and diagnostics wiring",
         "amendments": [],
         "overrides": [],
         "violations": []

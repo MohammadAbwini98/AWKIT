@@ -1,21 +1,37 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "software",
+  "holder": "runtime",
   "status": "active",
   "allowed_paths": [
-    "src/reports/ReportExportService.ts"
+    "app/main/debugLogService.ts",
+    "app/main/ipc/debug.ipc.ts",
+    "app/main/ipc/execution.ipc.ts",
+    "app/main/ipc/recorder.ipc.ts",
+    "app/main/ipc/report.ipc.ts",
+    "app/main/ipc/settings.ipc.ts",
+    "app/main/main.ts",
+    "app/main/preload.ts",
+    "app/main/security/sessionContext.ts",
+    "app/main/uiSettings.ts",
+    "app/main/windowManager.ts",
+    "src/instances/InstanceConfig.ts",
+    "src/instances/InstanceManager.ts",
+    "src/runner/BrowserContextFactory.ts",
+    "src/runner/ExecutionEngine.ts",
+    "src/runner/FlowExecutor.ts",
+    "src/runner/RunnerResult.ts"
   ],
-  "acquired_at": "2026-08-27T07:21:29.248Z",
-  "acquired_at_commit": "a9cbaf62f7e6f6cb40013648622205d5e418d0ae",
+  "acquired_at": "2026-08-27T07:25:33.677Z",
+  "acquired_at_commit": "01528d04eb571bc4f22116536ecaeae0d3cbe652",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-final9.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "70c3bcc174b22b15b85a80f0bc9fc4e47b1cf371cd91f5d8651f6b1fde7b246d",
-    "docs/ai/contracts/awkit-final9.json": "5c3ca12be9930df7175b38bf77f7a32bf43e868dea67c80e58c437434e7a3125",
+    "docs/ai/contracts/active-lease.json": "361ce0518b0cf75a141a4c5b92c8eb59c69e68d5132ffc695895a83e7bebf087",
+    "docs/ai/contracts/awkit-final9.json": "c5c06649275e20feed0f110d607ff0eabe911d70953561c5dc2073be81153cca",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

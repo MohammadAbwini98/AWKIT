@@ -12,6 +12,8 @@ import { getUiSettings } from "../uiSettings";
 import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
+import { InstalledChromeResolver } from "@src/session/InstalledChromeResolver";
+import { assertSenderSuperUser } from "../security/sessionContext";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -29,9 +31,23 @@ export function registerRecorderIpc(): void {
   // before this, any sender — including one with no session at all — could start a browser, persist
   // URL history, and create flows. Same class of gap as AWKIT-REP-001 and AWKIT-SET-001.
   ipcMain.handle("recorder:start", async (event, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
-    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    const settings = await getUiSettings();
+    const installedChrome = settings.superUser.chrome.mode === "installedChrome";
+    if (installedChrome) {
+      await assertSenderSuperUser(event, Permission.PAGE_RECORDER, {
+        audit: { eventType: "INSTALLED_CHROME_RECORDER_DENIED", channel: "recorder:start" }
+      });
+    } else {
+      await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    }
     let executablePath: string | undefined;
-    if (isProductionOffline()) {
+    let userDataDir: string | undefined;
+    if (installedChrome) {
+      const resolution = await new InstalledChromeResolver().resolve(settings.superUser.chrome.executablePath);
+      if (!resolution.available) throw new Error(`${resolution.code}: ${resolution.message}`);
+      executablePath = resolution.executablePath;
+      userDataDir = join(getRuntimeDataRoot(), "profiles", "installed-chrome-recorder");
+    } else if (isProductionOffline()) {
       const bundled = new BundledBrowserResolver(getResourcesRoot()).resolveChromium();
       if (!bundled.exists) {
         throw new Error(`Bundled Chromium is required for offline recording: ${bundled.executablePath}`);
@@ -43,9 +59,9 @@ export function registerRecorderIpc(): void {
     // is always current regardless of when the Recorder page loaded it. Certificate trust is likewise
     // read from Settings at launch time (never from the renderer), so a Recorder session always reflects
     // the persisted, permission-gated value — including after a relaunch.
-    const settings = await getUiSettings();
     await recorderService.startRecording(url, {
       executablePath,
+      userDataDir,
       captureWaitTime: options?.captureWaitTime ?? false,
       captureSmartWaits: options?.captureSmartWaits ?? true,
       ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection ?? false,
@@ -97,6 +113,20 @@ export function registerRecorderIpc(): void {
   ipcMain.handle("recorder:saveUrl", async (event, url: string) => {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return await recorderService.saveUrl(url);
+  });
+  ipcMain.handle("recorder:getFavoriteUrls", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await recorderService.ensureUrlHistoryLoaded();
+    return recorderService.getFavoriteUrls();
+  });
+  ipcMain.handle("recorder:saveFavoriteUrl", async (event, url: string) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    return recorderService.saveFavoriteUrl(url);
+  });
+  ipcMain.handle("recorder:removeFavoriteUrl", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    if (typeof id !== "string" || !id.trim()) throw new Error("A favorite URL id is required.");
+    return recorderService.removeFavoriteUrl(id);
   });
 
   // ── Protected login / popup manual handoff ─────────────────────────────────

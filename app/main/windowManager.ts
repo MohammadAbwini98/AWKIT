@@ -1,6 +1,7 @@
 import { BrowserWindow, shell } from "electron";
 import { join } from "node:path";
 import { getResourcesRoot } from "./appPaths";
+import { getDebugLogService } from "./debugLogService";
 
 /**
  * Frameless launch splash. Shows the Specter Studio brand animation (a self-contained,
@@ -119,6 +120,19 @@ export function createMainWindow(options: { show?: boolean } = {}): BrowserWindo
   };
   window.webContents.on("will-navigate", (event, url) => guardNavigation(event, url));
   window.webContents.on("will-redirect", (event, url) => guardNavigation(event, url));
+  window.webContents.on("unresponsive", () => {
+    void getDebugLogService().log("error", "renderer", "Main renderer became unresponsive.", {
+      webContentsId: window.webContents.id
+    });
+  });
+  window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _url, isMainFrame) => {
+    if (!isMainFrame) return;
+    void getDebugLogService().log("error", "renderer", "Main renderer failed to load.", {
+      webContentsId: window.webContents.id,
+      errorCode,
+      errorDescription
+    });
+  });
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);

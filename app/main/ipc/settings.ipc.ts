@@ -27,6 +27,7 @@ import { Permission } from "@src/security/authz/Permissions";
 import { getDebugLogService } from "../debugLogService";
 import { getSecurityKernel } from "../security/securityKernel";
 import { sessionInactivityMinutesToMs } from "@src/security/session/SessionPolicy";
+import { InstalledChromeResolver } from "@src/session/InstalledChromeResolver";
 
 /**
  * Config groups the Settings page owns; a patch touching any of these requires SETTINGS_EDIT. Everything
@@ -165,6 +166,12 @@ export function registerSettingsIpc(): void {
   ipcMain.handle("settings:getDefaultPaths", async (event) => {
     await assertSenderPermission(event, Permission.PAGE_SETTINGS);
     return getDefaultPaths();
+  });
+  ipcMain.handle("settings:detectInstalledChrome", async (event, configuredPath?: string) => {
+    await assertSenderSuperUser(event, Permission.SETTINGS_EDIT, {
+      audit: { eventType: "INSTALLED_CHROME_DETECTION_DENIED", channel: "settings:detectInstalledChrome" }
+    });
+    return new InstalledChromeResolver().resolve(configuredPath);
   });
   ipcMain.handle("settings:openRuntimeFolder", async (event) => {
     await assertSenderPermission(event, Permission.SETTINGS_EDIT);

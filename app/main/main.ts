@@ -15,6 +15,37 @@ import { getDebugLogService } from "./debugLogService";
 
 let mainWindow: BrowserWindow | null = null;
 
+process.on("uncaughtException", (error) => {
+  void getDebugLogService().log("fatal", "main", "Uncaught main-process exception.", {
+    errorType: error.name,
+    errorMessage: error.message,
+    stack: error.stack
+  });
+});
+process.on("unhandledRejection", (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  void getDebugLogService().log("error", "main", "Unhandled main-process promise rejection.", {
+    errorType: error.name,
+    errorMessage: error.message,
+    stack: error.stack
+  });
+});
+app.on("render-process-gone", (_event, webContents, details) => {
+  void getDebugLogService().log("error", "renderer", "Renderer process terminated.", {
+    webContentsId: webContents.id,
+    reason: details.reason,
+    exitCode: details.exitCode
+  });
+});
+app.on("child-process-gone", (_event, details) => {
+  void getDebugLogService().log("error", "browser", "Electron child process terminated.", {
+    processType: details.type,
+    reason: details.reason,
+    exitCode: details.exitCode,
+    serviceName: details.serviceName
+  });
+});
+
 
 // Cross-process guard (awkit-ekd.6): only one SpecterStudio instance may run per user-data profile.
 // SecurityStore / uiSettings / the runtime SQLite stores have no cross-process writer lock, so two

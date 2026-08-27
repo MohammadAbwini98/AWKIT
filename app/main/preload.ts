@@ -103,7 +103,9 @@ async function invoke(channel: string, ...args: unknown[]): Promise<never> {
   try {
     return (await ipcRenderer.invoke(channel, ...args)) as never;
   } catch (error) {
-    throw toDisplayableIpcError(error);
+    const safe = toDisplayableIpcError(error);
+    ipcRenderer.send("debug:rendererIpcFailure", { channel, name: safe.name, message: safe.message });
+    throw safe;
   }
 }
 
@@ -242,6 +244,11 @@ const api = {
     import: (incoming: unknown) => invoke("settings:import", incoming) as Promise<UiSettings>,
     validate: () => invoke("settings:validate") as Promise<string[]>,
     getDefaultPaths: () => invoke("settings:getDefaultPaths") as Promise<Record<string, string>>,
+    detectInstalledChrome: (configuredPath?: string) =>
+      invoke("settings:detectInstalledChrome", configuredPath) as Promise<
+        | { available: true; executablePath: string; source: "configured" | "discovered" }
+        | { available: false; code: "CHROME_UNAVAILABLE" | "CHROME_EXECUTABLE_INVALID"; message: string }
+      >,
     validatePaths: () =>
       invoke("settings:validatePaths") as Promise<
         Record<string, { path: string; exists: boolean; writable: boolean }>
@@ -259,7 +266,8 @@ const api = {
       }>
   },
   debug: {
-    list: (limit?: number) => invoke("debug:list", limit) as Promise<DebugLogEntry[]>
+    list: (limit?: number) => invoke("debug:list", limit) as Promise<DebugLogEntry[]>,
+    exportBundle: () => invoke("debug:exportBundle") as Promise<{ filename: string; mimeType: string; dataBase64: string }>
   },
   roadmap: {
     getSnapshot: () => invoke("roadmap:getSnapshot") as Promise<RoadmapSnapshot>
@@ -429,7 +437,8 @@ const api = {
   reports: {
     list: () => invoke("report:list") as Promise<unknown[]>,
     get: (id: string) => invoke("reports:get", id) as Promise<unknown | null>,
-    export: (id: string) => invoke("reports:export", id) as Promise<unknown>,
+    export: (id: string, format: "json" | "csv" | "xlsx" = "json") =>
+      invoke("reports:export", id, format) as Promise<{ filename: string; mimeType: string; dataBase64: string }>,
     openFolder: (id: string) => invoke("reports:openFolder", id) as Promise<string>
   },
   telemetry: {
@@ -478,6 +487,9 @@ const api = {
     getStatus: () => invoke("recorder:getStatus") as Promise<RecorderStatus>,
     getUrls: () => invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
+    getFavoriteUrls: () => invoke("recorder:getFavoriteUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
+    saveFavoriteUrl: (url: string) => invoke("recorder:saveFavoriteUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
+    removeFavoriteUrl: (id: string) => invoke("recorder:removeFavoriteUrl", id) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>,
     // ── Protected login / popup manual handoff ───────────────────────────────
     getHandoff: () =>
@@ -568,5 +580,18 @@ const api = {
 };
 
 contextBridge.exposeInMainWorld("playwrightFlowStudio", api);
+
+const reportRendererFailure = (operation: string, reason: unknown): void => {
+  const error = reason instanceof Error ? reason : new Error(typeof reason === "string" ? reason : "Unknown renderer failure");
+  ipcRenderer.send("debug:rendererError", {
+    operation,
+    name: error.name,
+    message: error.message,
+    stack: error.stack
+  });
+};
+
+window.addEventListener("error", (event) => reportRendererFailure("window.error", event.error ?? event.message));
+window.addEventListener("unhandledrejection", (event) => reportRendererFailure("unhandledrejection", event.reason));
 
 export type PlaywrightFlowStudioApi = typeof api;

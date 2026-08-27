@@ -21,7 +21,7 @@ import { executionEngine } from "@src/runner/ExecutionEngine";
 import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { ConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfig";
 import { getSessionService } from "./session.ipc";
-import { assertSenderPermission } from "../security/sessionContext";
+import { assertSenderPermission, assertSenderSuperUser } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
@@ -33,6 +33,7 @@ import {
   explainIgnoreHttpsErrors,
   resolveIgnoreHttpsErrors
 } from "@src/security/browser/CertificateTrust";
+import { InstalledChromeResolver } from "@src/session/InstalledChromeResolver";
 
 export interface RunWorkflowRequest {
   workflowId: string;
@@ -75,7 +76,14 @@ export function registerExecutionIpc(): void {
     // no browser is launched, so Viewer's pre-run preview still works). Authorization (who) precedes the
     // licensing gate (which machine) inside runWorkflow — independent checks, authorization first.
     if (request.dryRun === false) {
-      await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
+      const settings = await getUiSettings();
+      if (settings.superUser.chrome.mode === "installedChrome") {
+        await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {
+          audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:runWorkflow" }
+        });
+      } else {
+        await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
+      }
     }
     return runWorkflow(request);
   });
@@ -495,7 +503,8 @@ async function resolveInstanceTemplate(
   // Certificate trust is resolved ONCE here, at the top of the run, and stamped onto the instance
   // template. Precedence: run override → workflow security → application setting → false. Every context
   // the run creates (initial, retry, restart, parallel isolated) inherits this single value.
-  const { recorder } = await getUiSettings();
+  const settings = await getUiSettings();
+  const { recorder } = settings;
   const certificateTrustSources = {
     run: request.ignoreHttpsErrors,
     workflow: workflow.security,
@@ -515,6 +524,16 @@ async function resolveInstanceTemplate(
     // field still means "use the artifact profile's default" rather than "capture nothing".
     screenshotOnFailure: typeof request.screenshotOnFailure === "boolean" ? request.screenshotOnFailure : undefined
   };
+
+  if (settings.superUser.chrome.mode === "installedChrome") {
+    const resolution = await new InstalledChromeResolver().resolve(settings.superUser.chrome.executablePath);
+    if (!resolution.available) throw new Error(`${resolution.code}: ${resolution.message}`);
+    base.browserDistribution = "installedChrome";
+    base.executablePath = resolution.executablePath;
+    base.isolationMode = "persistentContext";
+  } else {
+    base.browserDistribution = "bundledChromium";
+  }
 
   if (ignoreHttpsErrors) {
     // One warning per run (ids only — never URLs or credentials). Per-context warnings are emitted by

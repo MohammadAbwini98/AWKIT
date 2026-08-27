@@ -4,11 +4,13 @@ import { createReportStore } from "../profileStores";
 import { getConfiguredPaths } from "../storagePaths";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
+import { ReportExportService, type ReportExportFormat } from "@src/reports/ReportExportService";
 
 type StoredReport = ConcurrentRunReport & { id: string };
 
 export function registerReportIpc(): void {
   const store = createReportStore();
+  const exporter = new ReportExportService();
 
   ipcMain.handle("reports:list", async (event) => {
     await assertSenderPermission(event, Permission.PAGE_REPORTS, {
@@ -34,11 +36,14 @@ export function registerReportIpc(): void {
     });
     return store.delete(id);
   });
-  ipcMain.handle("reports:export", async (event, id: string) => {
+  ipcMain.handle("reports:export", async (event, id: string, format: ReportExportFormat = "json") => {
     await assertSenderPermission(event, Permission.REPORT_EXPORT, {
       audit: { eventType: "REPORT_EXPORT_DENIED", channel: "reports:export" }
     });
-    return store.export(id);
+    if (!["json", "csv", "xlsx"].includes(format)) throw new Error("Unsupported report export format.");
+    const report = await store.get(id);
+    if (!report) throw new Error("Report not found.");
+    return exporter.export(report, format);
   });
   ipcMain.handle("reports:openFolder", async (event, id: string) => {
     await assertSenderPermission(event, Permission.REPORT_EXPORT, {
