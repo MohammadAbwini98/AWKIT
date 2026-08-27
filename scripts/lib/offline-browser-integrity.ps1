@@ -1,5 +1,20 @@
 Set-StrictMode -Version Latest
 
+function Get-AwkitFileSha256 {
+  param([Parameter(Mandatory = $true)][string]$LiteralPath)
+
+  $resolvedPath = (Resolve-Path -LiteralPath $LiteralPath).Path
+  $stream = [System.IO.File]::OpenRead($resolvedPath)
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $digestBytes = $sha256.ComputeHash($stream)
+    return -join ($digestBytes | ForEach-Object { $_.ToString("x2") })
+  } finally {
+    $stream.Dispose()
+    $sha256.Dispose()
+  }
+}
+
 function Get-AwkitOfflineBrowserPolicy {
   param([Parameter(Mandatory = $true)][string]$RootPath)
 
@@ -44,7 +59,7 @@ function Get-AwkitPayloadTreeDigest {
 
   foreach ($file in $files) {
     $relativePath = $file.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/")
-    $fileHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    $fileHash = Get-AwkitFileSha256 -LiteralPath $file.FullName
     [void]$lines.Append($relativePath)
     [void]$lines.Append("`0")
     [void]$lines.Append([string]$file.Length)
@@ -135,7 +150,7 @@ function Assert-AwkitBrowserArchive {
     throw "Browser archive size mismatch: expected $($Policy.browser.archive.size), found $($archive.Length)."
   }
 
-  $actualHash = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $actualHash = Get-AwkitFileSha256 -LiteralPath $ArchivePath
   if ($actualHash -ne [string]$Policy.browser.archive.sha256) {
     throw "Browser archive SHA-256 mismatch; acquisition is not approved."
   }
@@ -162,7 +177,7 @@ function Assert-AwkitBrowserTree {
     throw "Browser version mismatch: expected $($Policy.browser.version), found $actualVersion."
   }
 
-  $executableHash = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
+  $executableHash = Get-AwkitFileSha256 -LiteralPath $executable
   if ($executableHash -ne [string]$Policy.browser.executableSha256) {
     throw "Browser executable SHA-256 mismatch; payload is not approved."
   }
