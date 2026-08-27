@@ -1,30 +1,21 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "qa",
+  "holder": "frontend",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-flow-designer-gui.mjs",
-    "scripts/verify-flow-designer-gui.pre-capsule.mjs",
-    "scripts/verify-instance-monitor-gui.mjs",
-    "scripts/verify-recorder-draft.mts",
-    "scripts/verify-reports-populated-gui.mts",
-    "scripts/verify-runner.mts",
-    "scripts/verify-source-hygiene.mts",
-    "scripts/verify-super-user-controls.mts",
-    "scripts/verify-workflow-builder-gui.mjs",
-    "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+    "app/renderer/layout/DesignerCanvasLayout.tsx"
   ],
-  "acquired_at": "2026-08-27T13:35:16.006Z",
-  "acquired_at_commit": "d71c5861c3d0048b7e4a5fccefa2cbf6e6820e8f",
+  "acquired_at": "2026-08-27T13:37:33.360Z",
+  "acquired_at_commit": "c4a151a9f27085cf129dfc474f7fdb7859c0a82c",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-final9.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "32ca176b8c820385a290464181d8aad5b98ca60b666ae2e76a35906cf72b9d16",
-    "docs/ai/contracts/awkit-final9.json": "68afc3d6cee81466618433b5883727bfa1e0a34915302629c14c6a27edc9b513",
+    "docs/ai/contracts/active-lease.json": "db01fa664f3a4d462aa814e6af2a38274e5adcf5774419e82d6e27cd720a652c",
+    "docs/ai/contracts/awkit-final9.json": "68390cad82c1045bb1d7c67bdfd0879d234893ed99024e24527f3f960bbf4e5b",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

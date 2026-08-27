@@ -30,7 +30,9 @@ export function DesignerCanvasLayout({
     const actionBar = section.querySelector<HTMLElement>(".flow-action-bar");
     if (!actionBar) return;
     const apply = () => {
-      section.style.setProperty("--awkit-action-bar-h", `${actionBar.offsetHeight}px`);
+      const sectionTop = section.getBoundingClientRect().top;
+      const actionBarBottom = actionBar.getBoundingClientRect().bottom;
+      section.style.setProperty("--awkit-action-bar-h", `${Math.max(actionBar.offsetHeight, actionBarBottom - sectionTop)}px`);
     };
     apply();
     const observer = new ResizeObserver(apply);

@@ -90,6 +90,7 @@
       "app/renderer/components/scenario/workflowDocumentMapping.ts",
       "app/renderer/components/workflow/flowDesignerTypes.ts",
       "app/renderer/components/workflow/flowProfileMapping.ts",
+      "app/renderer/layout/DesignerCanvasLayout.tsx",
       "app/renderer/pages/FlowChartDesigner.tsx",
       "app/renderer/pages/InstanceMonitor.tsx",
       "app/renderer/pages/Recorder.tsx",
@@ -142,18 +143,9 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "frontend",
       "allowed_paths": [
-        "scripts/verify-flow-designer-gui.mjs",
-        "scripts/verify-flow-designer-gui.pre-capsule.mjs",
-        "scripts/verify-instance-monitor-gui.mjs",
-        "scripts/verify-recorder-draft.mts",
-        "scripts/verify-reports-populated-gui.mts",
-        "scripts/verify-runner.mts",
-        "scripts/verify-source-hygiene.mts",
-        "scripts/verify-super-user-controls.mts",
-        "scripts/verify-workflow-builder-gui.mjs",
-        "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+        "app/renderer/layout/DesignerCanvasLayout.tsx"
       ],
       "forbidden_paths": [
         "app/renderer/**",
@@ -168,7 +160,7 @@
         "package-lock.json",
         "docs/**"
       ],
-      "note": "QA continuation: finish the focused GUI round trips and cross-cutting regression campaign after the canvas-height repair."
+      "note": "Frontend follow-up: make the properties drawer clear validation banners as well as the action bar."
     },
     "writer_sequence": [
       "runtime",
@@ -807,6 +799,43 @@
         "released_at": "2026-08-27T13:34:38.281Z",
         "released_reason": "zero-height Flow Designer canvas fixed; returning focused verification to QA",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T13:35:16.006Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-instance-monitor-gui.mjs",
+          "scripts/verify-recorder-draft.mts",
+          "scripts/verify-reports-populated-gui.mts",
+          "scripts/verify-runner.mts",
+          "scripts/verify-source-hygiene.mts",
+          "scripts/verify-super-user-controls.mts",
+          "scripts/verify-workflow-builder-gui.mjs",
+          "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+        ],
+        "acquired_at": "2026-08-27T13:35:16.006Z",
+        "acquired_at_commit": "d71c5861c3d0048b7e4a5fccefa2cbf6e6820e8f",
+        "released_at": "2026-08-27T13:36:57.750Z",
+        "released_reason": "amendment added paths outside qa's ownership (app/renderer/layout/DesignerCanvasLayout.tsx) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-08-27T13:36:57.749Z",
+            "added": [
+              "app/renderer/layout/DesignerCanvasLayout.tsx"
+            ],
+            "reason": "Validation-banner reload proved the floating properties drawer measures only the toolbar and overlaps the banner/canvas boundary",
+            "triggered_escalation": [
+              "frontend"
+            ],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }
