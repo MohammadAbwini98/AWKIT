@@ -99,6 +99,7 @@
       "app/renderer/styles/global.css",
       "src/instances/InstanceConfig.ts",
       "src/instances/InstanceManager.ts",
+      "src/logging/DebugLogService.ts",
       "src/recorder/RecorderService.ts",
       "src/reports/ReportExportService.ts",
       "src/runner/BrowserContextFactory.ts",
@@ -138,37 +139,22 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "software",
       "allowed_paths": [
-        "app/main/debugLogService.ts",
-        "app/main/ipc/debug.ipc.ts",
-        "app/main/ipc/execution.ipc.ts",
-        "app/main/ipc/recorder.ipc.ts",
-        "app/main/ipc/report.ipc.ts",
-        "app/main/ipc/settings.ipc.ts",
-        "app/main/main.ts",
-        "app/main/preload.ts",
-        "app/main/security/sessionContext.ts",
-        "app/main/uiSettings.ts",
-        "app/main/windowManager.ts",
-        "src/instances/InstanceConfig.ts",
-        "src/instances/InstanceManager.ts",
-        "src/runner/BrowserContextFactory.ts",
-        "src/runner/ExecutionEngine.ts",
-        "src/runner/FlowExecutor.ts",
-        "src/runner/RunnerResult.ts"
+        "src/logging/DebugLogService.ts"
       ],
       "forbidden_paths": [
         "app/renderer/**",
         "src/recorder/**",
         "src/session/**",
+        "src/runner/**",
         "src/reports/**",
         "scripts/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Runtime integration stage: trusted IPC, installed-Chrome authorization/profile isolation, exports and diagnostics."
+      "note": "Logging policy stage: always retain support-critical failures while keeping verbose diagnostics optional."
     },
     "writer_sequence": [
       "runtime",
@@ -576,6 +562,38 @@
         "acquired_at_commit": "a9cbaf62f7e6f6cb40013648622205d5e418d0ae",
         "released_at": "2026-08-27T07:24:31.358Z",
         "released_reason": "Report serializers committed as 01528d0; return to runtime for trusted IPC, Chrome launch and diagnostics wiring",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:runtime:2026-08-27T07:25:33.677Z",
+        "task": "awkit-final9",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/debugLogService.ts",
+          "app/main/ipc/debug.ipc.ts",
+          "app/main/ipc/execution.ipc.ts",
+          "app/main/ipc/recorder.ipc.ts",
+          "app/main/ipc/report.ipc.ts",
+          "app/main/ipc/settings.ipc.ts",
+          "app/main/main.ts",
+          "app/main/preload.ts",
+          "app/main/security/sessionContext.ts",
+          "app/main/uiSettings.ts",
+          "app/main/windowManager.ts",
+          "src/instances/InstanceConfig.ts",
+          "src/instances/InstanceManager.ts",
+          "src/runner/BrowserContextFactory.ts",
+          "src/runner/ExecutionEngine.ts",
+          "src/runner/FlowExecutor.ts",
+          "src/runner/RunnerResult.ts"
+        ],
+        "acquired_at": "2026-08-27T07:25:33.677Z",
+        "acquired_at_commit": "01528d04eb571bc4f22116536ecaeae0d3cbe652",
+        "released_at": "2026-08-27T07:28:18.024Z",
+        "released_reason": "Trusted IPC and diagnostics integration committed as 1476917; advance to logging retention policy",
         "amendments": [],
         "overrides": [],
         "violations": []

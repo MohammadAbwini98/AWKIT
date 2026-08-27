@@ -67,7 +67,9 @@ export class DebugLogService {
   }
 
   async log(level: DebugLogLevel, source: string, message: string, detail?: unknown): Promise<void> {
-    if (!this.enabled) return;
+    // Debug Mode controls verbose informational telemetry only. Support-critical warnings, errors
+    // and fatals are always retained locally so a failure remains diagnosable after restart.
+    if (!this.enabled && level === "info") return;
     let entry: DebugLogEntry = {
       at: this.now().toISOString(),
       level,
