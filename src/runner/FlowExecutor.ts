@@ -145,6 +145,7 @@ export class FlowExecutor {
         if (failureResult.stop) {
           return this.finish(flow.id, startedAt, steps, outputs, "failed", stepResult.error);
         }
+        if (failureResult.recoveryRouted) stepResult.failureDisposition = "recoveryRouted";
         currentStep = failureResult.nextStep;
         continue;
       }
@@ -575,7 +576,7 @@ export class FlowExecutor {
     stepResult: StepExecutionResult,
     flow: FlowProfile,
     byId: Map<string, FlowStep>
-  ): Promise<{ stop: boolean; nextStep?: FlowStep }> {
+  ): Promise<{ stop: boolean; nextStep?: FlowStep; recoveryRouted?: boolean }> {
     const action = step.onFailure?.action ?? "stop";
 
     if (action === "continue") {
@@ -585,7 +586,8 @@ export class FlowExecutor {
 
     if (action === "goToFailureEdge") {
       const nextStepId = this.resolveEdgeTarget(flow.edges, step.id, "failure");
-      return { stop: !nextStepId, nextStep: nextStepId ? byId.get(nextStepId) : undefined };
+      const nextStep = nextStepId ? byId.get(nextStepId) : undefined;
+      return { stop: !nextStep, nextStep, recoveryRouted: Boolean(nextStep) };
     }
 
     if (action === "manualHandoff") {
@@ -739,7 +741,9 @@ export class FlowExecutor {
     // Graph termination and execution outcome are deliberately independent. A continued failure,
     // a failed parallel branch, or an early failure followed by successful cleanup may still reach
     // End, but no terminally failed step may be rewritten into a passing flow/report.
-    const terminalFailure = steps.find((step) => step.status === "failed");
+    const terminalFailure = steps.find(
+      (step) => step.status === "failed" && step.failureDisposition !== "recoveryRouted"
+    );
     const effectiveStatus = status === "passed" && terminalFailure ? "failed" : status;
     const effectiveError =
       effectiveStatus === "failed"

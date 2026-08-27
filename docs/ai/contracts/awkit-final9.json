@@ -113,7 +113,7 @@
       "scripts/verify-super-user-controls.mts",
       "scripts/verify-instance-monitor-gui.mjs",
       "scripts/verify-workflow-builder-gui.mjs",
-      "scripts/verify-source-hygiene.mjs",
+      "scripts/verify-source-hygiene.mts",
       "scripts/lib/verifier-classification.ts",
       "package.json",
       "package-lock.json",
@@ -139,22 +139,23 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "software",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "src/logging/DebugLogService.ts"
+        "src/runner/FlowExecutor.ts",
+        "src/runner/RunnerResult.ts"
       ],
       "forbidden_paths": [
         "app/renderer/**",
         "src/recorder/**",
         "src/session/**",
-        "src/runner/**",
         "src/reports/**",
-        "scripts/**",
+        "app/main/**",
+        "app/renderer/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Logging policy stage: always retain support-critical failures while keeping verbose diagnostics optional."
+      "note": "Runtime correction from focused QA: distinguish authored failure-edge recovery from terminal failures that merely continue to End."
     },
     "writer_sequence": [
       "runtime",
@@ -594,6 +595,44 @@
         "acquired_at_commit": "01528d04eb571bc4f22116536ecaeae0d3cbe652",
         "released_at": "2026-08-27T07:28:18.024Z",
         "released_reason": "Trusted IPC and diagnostics integration committed as 1476917; advance to logging retention policy",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:software:2026-08-27T07:28:39.785Z",
+        "task": "awkit-final9",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/logging/DebugLogService.ts"
+        ],
+        "acquired_at": "2026-08-27T07:28:39.785Z",
+        "acquired_at_commit": "147691774c4c5cd7de67a7159e4bf18c39671bc6",
+        "released_at": "2026-08-27T07:29:18.290Z",
+        "released_reason": "Critical diagnostic retention committed as d259b86; advance to focused verification",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T12:35:19.189Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-instance-monitor-gui.mjs",
+          "scripts/verify-recorder-draft.mts",
+          "scripts/verify-reports-populated-gui.mts",
+          "scripts/verify-runner.mts",
+          "scripts/verify-source-hygiene.mts",
+          "scripts/verify-super-user-controls.mts",
+          "scripts/verify-workflow-builder-gui.mjs"
+        ],
+        "acquired_at": "2026-08-27T12:35:19.189Z",
+        "acquired_at_commit": "d259b866eb9472fcd7d4325244115fe7fb5f3d65",
+        "released_at": "2026-08-27T12:39:46.548Z",
+        "released_reason": "work complete",
         "amendments": [],
         "overrides": [],
         "violations": []

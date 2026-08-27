@@ -43,6 +43,12 @@ export interface StepExecutionResult {
   attemptCount?: number;
   /** Terminal failure-policy action in force for this step. */
   failurePolicy?: string;
+  /**
+   * A failed step remains terminal by default. `recoveryRouted` is set only when the authored
+   * go-to-failure-connector policy successfully transfers control to a recovery node; it lets the
+   * final outcome distinguish an explicitly recovered failure from a failure that merely continued.
+   */
+  failureDisposition?: "recoveryRouted";
   status: StepExecutionStatus;
   startedAt: string;
   endedAt: string;
