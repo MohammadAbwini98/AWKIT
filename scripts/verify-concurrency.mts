@@ -11,7 +11,7 @@
  */
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { ResourceLockManager } from "@src/runner/concurrency/ResourceLockManager";
 import { profileKey, downloadDirKey } from "@src/runner/concurrency/ResourceKey";
 import { Semaphore } from "@src/runner/concurrency/Semaphore";
@@ -529,6 +529,85 @@ async function partK(): Promise<void> {
   );
 }
 
+/** Installed Chrome: short AWKIT-owned profiles plus captured-session compatibility. */
+async function partL(): Promise<void> {
+  console.log("\nPart L - installed Chrome profile paths");
+  const manager = new InstanceManager();
+  const root = join(tmpdir(), "SpecterStudio", "runtime");
+  const dirs = {
+    root,
+    downloads: join(root, "downloads"),
+    screenshots: join(root, "screenshots"),
+    logs: join(root, "logs"),
+    reports: join(root, "reports")
+  };
+  const profile: ConcurrentRunProfile = {
+    id: `installed-chrome-${"long-workflow-identifier-".repeat(8)}`,
+    scenarioId: "sc-installed-chrome",
+    runMode: "fixedConcurrent",
+    maxConcurrentInstances: 2,
+    browserWindowMode: "headless",
+    instanceTemplate: {
+      browser: "chromium",
+      browserDistribution: "installedChrome",
+      executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      headless: true,
+      isolationMode: "persistentContext"
+    },
+    resourceControls: { maxBrowserContextsPerProcess: 2, delayBetweenInstanceStartsMs: 0 },
+    failurePolicy: {
+      stopAllOnCriticalFailure: false,
+      continueOtherInstancesOnFailure: true,
+      retryFailedInstance: false,
+      retryCount: 0
+    }
+  };
+
+  const instances = manager.createInstancesForRun(profile, [{}, {}], dirs);
+  const generatedProfiles = instances.map((instance) => instance.config.userDataDir);
+  check(
+    "fresh persistent profiles use the approved short profiles directory",
+    generatedProfiles.every(
+      (profilePath) =>
+        typeof profilePath === "string" &&
+        dirname(profilePath) === join(root, "profiles") &&
+        /^instance-[a-f0-9]{20}$/.test(basename(profilePath))
+    ),
+    JSON.stringify(generatedProfiles)
+  );
+  check(
+    "long workflow and execution identifiers are not repeated in Chrome profile paths",
+    generatedProfiles.every((profilePath) => typeof profilePath === "string" && profilePath.length < 180),
+    JSON.stringify(generatedProfiles)
+  );
+  check(
+    "parallel installed-Chrome instances receive distinct scoped profiles",
+    new Set(generatedProfiles).size === instances.length,
+    JSON.stringify(generatedProfiles)
+  );
+  check(
+    "resource locks use the same effective generated profile as browser launch",
+    instances.every((instance) => instance.resourcePolicy.userDataDir === instance.config.userDataDir)
+  );
+
+  const capturedSessionDir = join(root, "sessions", "captured-login-profile");
+  const captured = manager.createInstancesForRun(
+    {
+      ...profile,
+      id: "installed-chrome-captured-session",
+      maxConcurrentInstances: 1,
+      instanceTemplate: { ...profile.instanceTemplate, userDataDir: capturedSessionDir }
+    },
+    [{}],
+    dirs
+  )[0];
+  check(
+    "explicit captured-session profile is preserved for launch and locking",
+    captured.config.userDataDir === capturedSessionDir && captured.resourcePolicy.userDataDir === capturedSessionDir,
+    JSON.stringify({ config: captured.config.userDataDir, resource: captured.resourcePolicy.userDataDir })
+  );
+}
+
 async function main(): Promise<void> {
   console.log("Concurrency & stability layer verification");
   console.log(`Limits in effect: ${JSON.stringify(loadConcurrencyLimits())}`);
@@ -543,6 +622,7 @@ async function main(): Promise<void> {
   await partI();
   await partJ();
   await partK();
+  await partL();
 
   console.log(`\nResult: ${passed} passed, ${failed} failed.`);
   if (failed > 0) process.exit(1);
