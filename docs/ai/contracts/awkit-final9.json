@@ -136,19 +136,22 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "software",
       "allowed_paths": [
-        "package.json",
-        "package-lock.json"
+        "src/reports/ReportExportService.ts"
       ],
       "forbidden_paths": [
         "app/main/**",
         "app/renderer/**",
-        "src/**",
+        "src/runner/**",
+        "src/recorder/**",
+        "src/session/**",
         "scripts/**",
+        "package.json",
+        "package-lock.json",
         "docs/**"
       ],
-      "note": "Release dependency stage: add the packaged workbook writer required for genuine XLSX output."
+      "note": "Software stage: redacted CSV and genuine XLSX report serialization."
     },
     "writer_sequence": [
       "runtime",
@@ -523,6 +526,23 @@
         "acquired_at_commit": "cf135a78a9b4e2329075ba80b0ac54a6f8cf354d",
         "released_at": "2026-08-27T07:19:49.396Z",
         "released_reason": "Renderer implementation committed as 605d824; advance to report serialization",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:release:2026-08-27T07:20:22.195Z",
+        "task": "awkit-final9",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package-lock.json",
+          "package.json"
+        ],
+        "acquired_at": "2026-08-27T07:20:22.195Z",
+        "acquired_at_commit": "605d82455eb7612248e8965d0ec1c6fb923d144b",
+        "released_at": "2026-08-27T07:21:07.532Z",
+        "released_reason": "Packaged ExcelJS dependency committed as a9cbaf6; advance to report export service",
         "amendments": [],
         "overrides": [],
         "violations": []
