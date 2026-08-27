@@ -79,7 +79,7 @@ check("diagnostic export IPC uses the exact Super User guard", debugBundleIpc.in
 check("Recorder installed Chrome uses an AWKIT-owned profile", recorderIpc.includes('"profiles", "installed-chrome-recorder"'));
 check(
   "run instances receive an AWKIT-owned per-instance Chrome profile",
-  instanceManagerSource.includes('userDataDir: isolationMode === "persistentContext" ? join(instanceRoot, "profile")')
+  instanceManagerSource.includes('join(dirs.root, "profiles", `instance-${persistentProfileKey}`)')
 );
 
 console.log("\nInstalled Chrome resolution:");
