@@ -140,22 +140,24 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "software",
+      "agent_id": "frontend",
       "allowed_paths": [
-        "src/reports/ReportExportService.ts"
+        "app/renderer/components/instances/WorkflowRunCard.tsx",
+        "app/renderer/pages/Settings.tsx",
+        "app/renderer/styles/global.css"
       ],
       "forbidden_paths": [
-        "app/renderer/**",
         "src/recorder/**",
         "src/session/**",
         "src/runner/**",
+        "src/reports/**",
         "app/main/**",
-        "app/renderer/**",
+        "src/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Report export runtime correction from QA: use ExcelJS through its actual CommonJS default export shape."
+      "note": "Renderer correction from focused QA: required Runnable wording, valid Hologram focus treatment, and visibility of retained critical logs while optional debug mode is off."
     },
     "writer_sequence": [
       "runtime",
@@ -673,6 +675,45 @@
         "acquired_at_commit": "cb5e4da792d34314fa65f318bca7d9620a4a0bc5",
         "released_at": "2026-08-27T12:54:58.946Z",
         "released_reason": "Focused Reports gate found ExcelJS CommonJS interop defect before GUI launch; switch to report service correction",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:software:2026-08-27T12:55:16.494Z",
+        "task": "awkit-final9",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/reports/ReportExportService.ts"
+        ],
+        "acquired_at": "2026-08-27T12:55:16.494Z",
+        "acquired_at_commit": "cb5e4da792d34314fa65f318bca7d9620a4a0bc5",
+        "released_at": "2026-08-27T12:56:35.910Z",
+        "released_reason": "ExcelJS runtime interop corrected and build/tsx import verified; resume focused QA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T12:57:00.050Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-instance-monitor-gui.mjs",
+          "scripts/verify-recorder-draft.mts",
+          "scripts/verify-reports-populated-gui.mts",
+          "scripts/verify-runner.mts",
+          "scripts/verify-source-hygiene.mts",
+          "scripts/verify-super-user-controls.mts",
+          "scripts/verify-workflow-builder-gui.mjs"
+        ],
+        "acquired_at": "2026-08-27T12:57:00.050Z",
+        "acquired_at_commit": "371339eafd522a7f8a4856b7b8344c9accbaf7de",
+        "released_at": "2026-08-27T13:00:44.981Z",
+        "released_reason": "QA found Runnable label, focus-token, and debug-off critical-log visibility mismatches; switch to renderer correction",
         "amendments": [],
         "overrides": [],
         "violations": []

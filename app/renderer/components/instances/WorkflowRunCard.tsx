@@ -33,9 +33,9 @@ interface WorkflowRunCardProps {
 }
 
 const statusLabel: Record<WorkflowCardStatus, string> = {
-  active: "Active",
-  inactive: "Inactive",
-  invalid: "Invalid",
+  active: "Runnable",
+  inactive: "Not Runnable",
+  invalid: "Not Runnable",
   checking: "Checking"
 };
 

@@ -1,13 +1,15 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "software",
+  "holder": "frontend",
   "status": "active",
   "allowed_paths": [
-    "src/reports/ReportExportService.ts"
+    "app/renderer/components/instances/WorkflowRunCard.tsx",
+    "app/renderer/pages/Settings.tsx",
+    "app/renderer/styles/global.css"
   ],
-  "acquired_at": "2026-08-27T12:55:16.494Z",
-  "acquired_at_commit": "cb5e4da792d34314fa65f318bca7d9620a4a0bc5",
+  "acquired_at": "2026-08-27T13:01:03.785Z",
+  "acquired_at_commit": "371339eafd522a7f8a4856b7b8344c9accbaf7de",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-final9.json",
@@ -19,11 +21,11 @@
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "32f14f584337969a6ae7946724d6f0dccb8730a8c862d1bab73aa7bbc73fa677",
-    "docs/ai/contracts/awkit-final9.json": "50512071ecc1acd292c96c126c2fc1b674d863386eb670b013595e96ac3fdd49",
+    "docs/ai/contracts/active-lease.json": "d752a8f4e669a8ec5d4e57ddba0a01987364cb8e03d9d28f5bbb13ba028cd103",
+    "docs/ai/contracts/awkit-final9.json": "08ab72256fde65a1de6d533fc7c8c3d6f45a77407715f014400e8e921a3a902a",
     "scripts/verify-instance-monitor-gui.mjs": "7936063aad466ddf6fb947b8b3f50e581c80c06d4c46d91d91db2bfab51bcbd7",
     "scripts/verify-recorder-draft.mts": "39090f843902ee1bcc209322b5b9f0d45509955a3a63fedec8cb262392b43a27",
-    "scripts/verify-reports-populated-gui.mts": "18a96533a40cf512981bc6ca0049c7a478946807372c1e1ec8b38281c77ffd22",
+    "scripts/verify-reports-populated-gui.mts": "3d8059a3e10dff254702e79af452c26f7e8e7f9afa1fa06a99b5cb085326fe37",
     "scripts/verify-runner.mts": "fe11013c64fdc4383359a54c0436abef22370f54bc5e19e4b4ff8f8d0806b126",
     "scripts/verify-super-user-controls.mts": "9b0778fe4f5c7e308134cafc0fc33d0572ca63930ebafc879c4963bf154818a3",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"

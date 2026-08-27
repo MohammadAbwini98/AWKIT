@@ -677,7 +677,7 @@ export function SettingsPage() {
                 {debugLogsLoading ? "Refreshing…" : "Refresh"}
               </button>
             </div>
-            {settings.superUser.debugMode && debugLogs.length ? (
+            {debugLogs.length ? (
               <div className="awkit-table-wrap settings-debug-log-table">
                 <table className="awkit-table">
                   <thead><tr><th>Time</th><th>Severity</th><th>Source</th><th>Message</th></tr></thead>
@@ -695,7 +695,9 @@ export function SettingsPage() {
               </div>
             ) : (
               <p className="form-message">
-                {settings.superUser.debugMode ? "No debug entries have been written yet." : "Debug logging is off."}
+                {settings.superUser.debugMode
+                  ? "No debug entries have been written yet."
+                  : "Optional debug logging is off. Critical warnings and failures are still retained automatically."}
               </p>
             )}
           </section>
