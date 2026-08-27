@@ -1,4 +1,4 @@
-import { Workbook } from "exceljs";
+import ExcelJS from "exceljs";
 import type { ConcurrentRunReport, InstanceReport } from "./ExecutionReport";
 import { SecretMasker } from "./SecretMasker";
 
@@ -173,7 +173,7 @@ export class ReportExportService {
   }
 
   private async toWorkbook(report: ConcurrentRunReport): Promise<Uint8Array> {
-    const workbook = new Workbook();
+    const workbook = new ExcelJS.Workbook();
     workbook.creator = "SpecterStudio";
     workbook.created = new Date(report.startedAt);
 

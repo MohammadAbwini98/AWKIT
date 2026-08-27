@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-final9",
-      "agent": "Electron Main / Runner Engineer",
+      "agent": "General Software Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-08-27T12:40:15.359Z",
-      "note": "write lease: src/runner/FlowExecutor.ts, src/runner/RunnerResult.ts"
+      "claimedAt": "2026-08-27T12:55:16.494Z",
+      "note": "write lease: src/reports/ReportExportService.ts"
     }
   ]
 }

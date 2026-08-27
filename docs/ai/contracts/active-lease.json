@@ -1,22 +1,31 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "runtime",
+  "holder": "software",
   "status": "active",
   "allowed_paths": [
-    "src/runner/FlowExecutor.ts",
-    "src/runner/RunnerResult.ts"
+    "src/reports/ReportExportService.ts"
   ],
-  "acquired_at": "2026-08-27T12:40:15.359Z",
-  "acquired_at_commit": "d259b866eb9472fcd7d4325244115fe7fb5f3d65",
+  "acquired_at": "2026-08-27T12:55:16.494Z",
+  "acquired_at_commit": "cb5e4da792d34314fa65f318bca7d9620a4a0bc5",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-final9.json",
+    "scripts/verify-instance-monitor-gui.mjs",
+    "scripts/verify-recorder-draft.mts",
+    "scripts/verify-reports-populated-gui.mts",
+    "scripts/verify-runner.mts",
+    "scripts/verify-super-user-controls.mts",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "35b1a0b6787a26367624aa1f09ad9dbfe5e6c154e745b8582e8f3b572f47f471",
-    "docs/ai/contracts/awkit-final9.json": "591bc08c67f5af40a8305e72761e722f123de1ebc73b39f734570d78f73384f3",
+    "docs/ai/contracts/active-lease.json": "32f14f584337969a6ae7946724d6f0dccb8730a8c862d1bab73aa7bbc73fa677",
+    "docs/ai/contracts/awkit-final9.json": "50512071ecc1acd292c96c126c2fc1b674d863386eb670b013595e96ac3fdd49",
+    "scripts/verify-instance-monitor-gui.mjs": "7936063aad466ddf6fb947b8b3f50e581c80c06d4c46d91d91db2bfab51bcbd7",
+    "scripts/verify-recorder-draft.mts": "39090f843902ee1bcc209322b5b9f0d45509955a3a63fedec8cb262392b43a27",
+    "scripts/verify-reports-populated-gui.mts": "18a96533a40cf512981bc6ca0049c7a478946807372c1e1ec8b38281c77ffd22",
+    "scripts/verify-runner.mts": "fe11013c64fdc4383359a54c0436abef22370f54bc5e19e4b4ff8f8d0806b126",
+    "scripts/verify-super-user-controls.mts": "9b0778fe4f5c7e308134cafc0fc33d0572ca63930ebafc879c4963bf154818a3",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

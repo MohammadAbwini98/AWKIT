@@ -112,6 +112,7 @@
       "scripts/verify-reports-populated-gui.mts",
       "scripts/verify-super-user-controls.mts",
       "scripts/verify-instance-monitor-gui.mjs",
+      "scripts/verify-flow-designer-gui.mjs",
       "scripts/verify-workflow-builder-gui.mjs",
       "scripts/verify-source-hygiene.mts",
       "scripts/lib/verifier-classification.ts",
@@ -139,23 +140,22 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "software",
       "allowed_paths": [
-        "src/runner/FlowExecutor.ts",
-        "src/runner/RunnerResult.ts"
+        "src/reports/ReportExportService.ts"
       ],
       "forbidden_paths": [
         "app/renderer/**",
         "src/recorder/**",
         "src/session/**",
-        "src/reports/**",
+        "src/runner/**",
         "app/main/**",
         "app/renderer/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Runtime correction from focused QA: distinguish authored failure-edge recovery from terminal failures that merely continue to End."
+      "note": "Report export runtime correction from QA: use ExcelJS through its actual CommonJS default export shape."
     },
     "writer_sequence": [
       "runtime",
@@ -633,6 +633,46 @@
         "acquired_at_commit": "d259b866eb9472fcd7d4325244115fe7fb5f3d65",
         "released_at": "2026-08-27T12:39:46.548Z",
         "released_reason": "work complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:runtime:2026-08-27T12:40:15.359Z",
+        "task": "awkit-final9",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "src/runner/FlowExecutor.ts",
+          "src/runner/RunnerResult.ts"
+        ],
+        "acquired_at": "2026-08-27T12:40:15.359Z",
+        "acquired_at_commit": "d259b866eb9472fcd7d4325244115fe7fb5f3d65",
+        "released_at": "2026-08-27T12:42:43.925Z",
+        "released_reason": "Recovered-failure distinction verified by build and runner 129/129; return to focused QA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T12:43:13.982Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-instance-monitor-gui.mjs",
+          "scripts/verify-recorder-draft.mts",
+          "scripts/verify-reports-populated-gui.mts",
+          "scripts/verify-runner.mts",
+          "scripts/verify-source-hygiene.mts",
+          "scripts/verify-super-user-controls.mts",
+          "scripts/verify-workflow-builder-gui.mjs"
+        ],
+        "acquired_at": "2026-08-27T12:43:13.982Z",
+        "acquired_at_commit": "cb5e4da792d34314fa65f318bca7d9620a4a0bc5",
+        "released_at": "2026-08-27T12:54:58.946Z",
+        "released_reason": "Focused Reports gate found ExcelJS CommonJS interop defect before GUI launch; switch to report service correction",
         "amendments": [],
         "overrides": [],
         "violations": []
