@@ -142,18 +142,9 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "frontend",
       "allowed_paths": [
-        "scripts/verify-runner.mts",
-        "scripts/verify-recorder-draft.mts",
-        "scripts/verify-reports-populated-gui.mts",
-        "scripts/verify-super-user-controls.mts",
-        "scripts/verify-instance-monitor-gui.mjs",
-        "scripts/verify-flow-designer-gui.mjs",
-        "scripts/verify-flow-designer-gui.pre-capsule.mjs",
-        "scripts/verify-workflow-builder-gui.mjs",
-        "scripts/verify-workflow-builder-gui.pre-capsule.mjs",
-        "scripts/verify-source-hygiene.mts"
+        "app/renderer/styles/global.css"
       ],
       "forbidden_paths": [
         "app/renderer/**",
@@ -168,7 +159,7 @@
         "package-lock.json",
         "docs/**"
       ],
-      "note": "QA stage: focused regression, mutation-discriminating and GUI evidence for the nine requirements."
+      "note": "Frontend follow-up: repair the zero-height Flow Designer canvas exposed by the real copy/paste reload verifier."
     },
     "writer_sequence": [
       "runtime",

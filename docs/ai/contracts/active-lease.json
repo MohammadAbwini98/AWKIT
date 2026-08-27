@@ -1,41 +1,18 @@
 {
   "task": "awkit-final9",
   "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "qa",
-  "status": "released",
+  "holder": "frontend",
+  "status": "active",
   "allowed_paths": [
-    "scripts/verify-flow-designer-gui.mjs",
-    "scripts/verify-flow-designer-gui.pre-capsule.mjs",
-    "scripts/verify-instance-monitor-gui.mjs",
-    "scripts/verify-recorder-draft.mts",
-    "scripts/verify-reports-populated-gui.mts",
-    "scripts/verify-runner.mts",
-    "scripts/verify-source-hygiene.mts",
-    "scripts/verify-super-user-controls.mts",
-    "scripts/verify-workflow-builder-gui.mjs",
-    "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+    "app/renderer/styles/global.css"
   ],
-  "acquired_at": "2026-08-27T13:02:39.251Z",
-  "acquired_at_commit": "cda33d26118133c9f54bceb95799ecbd88c7e9c6",
+  "acquired_at": "2026-08-27T13:32:23.079Z",
+  "acquired_at_commit": "255322433a7496160fc9cce160cae98f1a197a26",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-final9.json",
-    "scripts/verify-instance-monitor-gui.mjs",
-    "scripts/verify-recorder-draft.mts",
-    "scripts/verify-reports-populated-gui.mts",
-    "scripts/verify-runner.mts",
-    "scripts/verify-super-user-controls.mts",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-final9.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "ddc825f5cc9e8856c2e61d7a38cd8fa4a99921a4f2fdd85264ab2b3a7bdeab9c",
-    "docs/ai/contracts/awkit-final9.json": "92bfdd3621f4267285c01f719075be10476895dbf83de145be0b1f4278e0aa35",
-    "scripts/verify-instance-monitor-gui.mjs": "7936063aad466ddf6fb947b8b3f50e581c80c06d4c46d91d91db2bfab51bcbd7",
-    "scripts/verify-recorder-draft.mts": "39090f843902ee1bcc209322b5b9f0d45509955a3a63fedec8cb262392b43a27",
-    "scripts/verify-reports-populated-gui.mts": "3d8059a3e10dff254702e79af452c26f7e8e7f9afa1fa06a99b5cb085326fe37",
-    "scripts/verify-runner.mts": "fe11013c64fdc4383359a54c0436abef22370f54bc5e19e4b4ff8f8d0806b126",
-    "scripts/verify-super-user-controls.mts": "9b0778fe4f5c7e308134cafc0fc33d0572ca63930ebafc879c4963bf154818a3",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-final9.json": "862a62a47f1528327f6e284184ee9c5069b32d4cf454fda6f8ade20d76171ee9"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -47,32 +24,7 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1787676844024.896"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-08-27T13:04:23.030Z",
-      "added": [
-        "scripts/verify-flow-designer-gui.pre-capsule.mjs",
-        "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
-      ],
-      "reason": "Add real-Electron copy/paste round-trip coverage inside the existing broad designer walkthroughs",
-      "triggered_escalation": [],
-      "approved_by": "manager"
-    },
-    {
-      "timestamp": "2026-08-27T13:31:14.054Z",
-      "added": [
-        "app/renderer/styles/global.css"
-      ],
-      "reason": "Real-Electron copy reload exposed a zero-height Flow Designer canvas when validation banners add dynamic shell rows",
-      "triggered_escalation": [
-        "frontend"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-27T13:31:14.054Z",
-  "released_reason": "amendment added paths outside qa's ownership (app/renderer/styles/global.css) — routing re-run requires a different specialist",
-  "archived_at": "2026-08-27T13:31:14.056Z"
+  "violations": []
 }

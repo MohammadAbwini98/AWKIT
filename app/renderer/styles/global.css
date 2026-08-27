@@ -3614,16 +3614,21 @@ table {
 }
 
 .flow-designer-shell {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
 }
 
 .flow-designer-body {
   display: grid;
+  flex: 1 1 0;
   grid-template-columns: 224px minmax(0, 1fr);
   min-height: 0;
+}
+
+.flow-designer-shell > .react-flow-shell {
+  flex: 1 1 0;
 }
 
 .flow-action-bar {
