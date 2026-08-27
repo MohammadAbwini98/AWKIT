@@ -56,7 +56,7 @@ export class InstanceManager {
         resourcePolicy: {
           exclusiveAccountKey: config.envFile,
           storageStatePath: config.storageState,
-          userDataDir: config.isolationMode === "persistentContext" ? paths.userDataDir : undefined,
+          userDataDir: config.isolationMode === "persistentContext" ? config.userDataDir : undefined,
           downloadsPath: paths.downloads,
           screenshotsPath: paths.screenshots,
           logsPath: paths.logs
@@ -141,6 +141,12 @@ export class InstanceManager {
     isolationMode: InstanceConfig["isolationMode"]
   ): InstanceRuntimePaths {
     const instanceRoot = join(dirs.root, "instances", executionId, instanceId);
+    // Chrome creates deeply nested cache paths below userDataDir. Repeating the full execution and
+    // instance ids here exceeded Windows' path limit for installed Chrome even though the AWKIT path
+    // itself was valid. Keep fresh persistent profiles under the approved runtime root with a stable,
+    // collision-resistant short key. Explicit captured-session profiles still win in
+    // createInstanceConfig and are never relocated.
+    const persistentProfileKey = crypto.createHash("sha256").update(instanceId).digest("hex").slice(0, 20);
 
     return {
       downloads: join(dirs.downloads, executionId, instanceId),
@@ -150,7 +156,7 @@ export class InstanceManager {
       storage: join(instanceRoot, "storage"),
       traces: join(instanceRoot, "traces"),
       observation: join(instanceRoot, "observation"),
-      userDataDir: isolationMode === "persistentContext" ? join(instanceRoot, "profile") : undefined
+      userDataDir: isolationMode === "persistentContext" ? join(dirs.root, "profiles", `instance-${persistentProfileKey}`) : undefined
     };
   }
 }
