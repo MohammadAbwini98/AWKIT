@@ -319,7 +319,7 @@ if (Test-Path $oracleDir) {
       if (-not (Test-Path $abs)) {
         $failures.Add("Oracle bundle: checksums.json lists a missing file: $rel")
       } else {
-        $actual = (Get-FileHash -Algorithm SHA256 $abs).Hash.ToLower()
+        $actual = Get-AwkitFileSha256 -LiteralPath $abs
         if ($actual -ne $expected) {
           $failures.Add("Oracle bundle: checksum mismatch for $rel (corrupted or tampered).")
         }
@@ -420,7 +420,7 @@ if (Test-Property $manifestJson "semanticNative") {
         $failures.Add("Semantic native host asset size mismatch for $($asset.relativePath): manifest $($asset.size), on disk $actualSize.")
         continue
       }
-      $actualHash = (Get-FileHash -Algorithm SHA256 $abs).Hash.ToLower()
+      $actualHash = Get-AwkitFileSha256 -LiteralPath $abs
       if ($actualHash -ne ([string]$asset.sha256).ToLower()) {
         $failures.Add("Semantic native host asset checksum mismatch for $($asset.relativePath) (corrupted or tampered).")
         continue
