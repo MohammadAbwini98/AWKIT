@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-final9",
-      "agent": "React / Renderer Engineer",
+      "agent": "Quality Assurance Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-08-27T13:32:23.079Z",
-      "note": "write lease: app/renderer/styles/global.css"
+      "claimedAt": "2026-08-27T13:35:16.006Z",
+      "note": "write lease: scripts/verify-flow-designer-gui.mjs, scripts/verify-flow-designer-gui.pre-capsule.mjs, scripts/verify-instance-monitor-gui.mjs, scripts/verify-recorder-draft.mts, scripts/verify-reports-populated-gui.mts, scripts/verify-runner.mts, scripts/verify-source-hygiene.mts, scripts/verify-super-user-controls.mts, scripts/verify-workflow-builder-gui.mjs, scripts/verify-workflow-builder-gui.pre-capsule.mjs"
     }
   ]
 }

@@ -142,9 +142,18 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "qa",
       "allowed_paths": [
-        "app/renderer/styles/global.css"
+        "scripts/verify-flow-designer-gui.mjs",
+        "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+        "scripts/verify-instance-monitor-gui.mjs",
+        "scripts/verify-recorder-draft.mts",
+        "scripts/verify-reports-populated-gui.mts",
+        "scripts/verify-runner.mts",
+        "scripts/verify-source-hygiene.mts",
+        "scripts/verify-super-user-controls.mts",
+        "scripts/verify-workflow-builder-gui.mjs",
+        "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
       ],
       "forbidden_paths": [
         "app/renderer/**",
@@ -159,7 +168,7 @@
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Frontend follow-up: repair the zero-height Flow Designer canvas exposed by the real copy/paste reload verifier."
+      "note": "QA continuation: finish the focused GUI round trips and cross-cutting regression campaign after the canvas-height repair."
     },
     "writer_sequence": [
       "runtime",
@@ -782,6 +791,22 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:frontend:2026-08-27T13:32:23.079Z",
+        "task": "awkit-final9",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-08-27T13:32:23.079Z",
+        "acquired_at_commit": "255322433a7496160fc9cce160cae98f1a197a26",
+        "released_at": "2026-08-27T13:34:38.281Z",
+        "released_reason": "zero-height Flow Designer canvas fixed; returning focused verification to QA",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }

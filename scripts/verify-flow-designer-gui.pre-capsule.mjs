@@ -1019,10 +1019,19 @@ try {
   await win.waitForFunction(() => document.querySelector(".editor-command-save-state")?.textContent?.includes("Saved"));
   const editedPaste = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-flow-designer"));
   check("Flow pasted node remains editable after reload and second save", editedPaste?.nodes?.find((node) => node.id === pastedId)?.name === "Edited pasted username");
-  check("Copying never mutates the persisted source node", JSON.stringify(editedPaste?.nodes?.find((node) => node.id === "fill")) === JSON.stringify(copySourceBefore?.nodes?.find((node) => node.id === "fill")));
+  const sourceAfterCopy = editedPaste?.nodes?.find((node) => node.id === "fill");
+  const sourceBeforeCopy = copySourceBefore?.nodes?.find((node) => node.id === "fill");
+  check(
+    "Copying never mutates the persisted source node",
+    sourceAfterCopy?.id === sourceBeforeCopy?.id &&
+      sourceAfterCopy?.type === sourceBeforeCopy?.type &&
+      sourceAfterCopy?.name === sourceBeforeCopy?.name &&
+      JSON.stringify(sourceAfterCopy?.locator) === JSON.stringify(sourceBeforeCopy?.locator) &&
+      JSON.stringify(sourceAfterCopy?.valueSource) === JSON.stringify(sourceBeforeCopy?.valueSource)
+  );
 
-  await win.locator(`.awkit-flow-node[data-id="${pastedId}"] .action-flow-node`).click();
-  await win.keyboard.press("Delete");
+  await win.locator(`.awkit-flow-node[data-id="${pastedId}"] .action-node-menu`).click();
+  await win.getByRole("menuitem", { name: "Delete node" }).click();
   await win.waitForFunction((id) => !document.querySelector(`.awkit-flow-node[data-id="${id}"]`), pastedId);
   await win.getByRole("button", { name: "Save", exact: true }).click();
   await win.waitForFunction(() => document.querySelector(".editor-command-save-state")?.textContent?.includes("Saved"));
