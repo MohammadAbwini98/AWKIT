@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Bug,
+  Chrome,
   Database,
   FolderOpen,
   Gauge,
@@ -145,6 +146,7 @@ export function SettingsPage() {
   const [capacityLoading, setCapacityLoading] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
   const [debugLogsLoading, setDebugLogsLoading] = useState(false);
+  const [chromeCheck, setChromeCheck] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
   const api = window.playwrightFlowStudio.settings;
   const secretsApi = window.playwrightFlowStudio.secrets;
@@ -197,6 +199,50 @@ export function SettingsPage() {
       setDebugLogsLoading(false);
     }
   }, [can]);
+
+  const detectInstalledChrome = useCallback(async () => {
+    const settingsApi = api as typeof api & {
+      detectInstalledChrome: (configuredPath?: string) => Promise<{
+        available: boolean;
+        executablePath?: string;
+        message?: string;
+      }>;
+    };
+    setChromeCheck("Checking for Google Chrome…");
+    try {
+      const result = await settingsApi.detectInstalledChrome(settings?.superUser.chrome.executablePath);
+      setChromeCheck(result.available ? `Chrome available: ${result.executablePath}` : result.message ?? "Chrome unavailable.");
+      if (result.available && result.executablePath) {
+        setSettings((current) => current ? {
+          ...current,
+          superUser: { ...current.superUser, chrome: { ...current.superUser.chrome, executablePath: result.executablePath! } }
+        } : current);
+      }
+    } catch (error) {
+      setChromeCheck(error instanceof Error ? error.message : "Chrome detection failed.");
+    }
+  }, [api, settings?.superUser.chrome.executablePath]);
+
+  const exportDiagnostics = useCallback(async () => {
+    const debugApi = window.playwrightFlowStudio.debug as typeof window.playwrightFlowStudio.debug & {
+      exportBundle: () => Promise<{ filename: string; mimeType: string; dataBase64: string }>;
+    };
+    try {
+      const bundle = await debugApi.exportBundle();
+      const bytes = Uint8Array.from(atob(bundle.dataBase64), (character) => character.charCodeAt(0));
+      const href = URL.createObjectURL(new Blob([bytes], { type: bundle.mimeType }));
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = bundle.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 0);
+      setBanner({ type: "success", text: "Safe diagnostic bundle exported." });
+    } catch (error) {
+      setBanner({ type: "error", text: error instanceof Error ? error.message : "Diagnostic export failed." });
+    }
+  }, []);
 
   const addSecret = useCallback(async () => {
     const name = secretName.trim();
@@ -581,7 +627,49 @@ export function SettingsPage() {
                   }
                 />
               </label>
+              <label htmlFor="set-chrome-mode">
+                Automation browser
+                <select
+                  id="set-chrome-mode"
+                  value={settings.superUser.chrome.mode}
+                  onChange={(event) => setSettings((current) => current ? {
+                    ...current,
+                    superUser: {
+                      ...current.superUser,
+                      chrome: { ...current.superUser.chrome, mode: event.target.value as UiSettings["superUser"]["chrome"]["mode"] }
+                    }
+                  } : current)}
+                >
+                  <option value="bundledChromium">Bundled Chromium (offline default)</option>
+                  <option value="installedChrome">Installed Google Chrome</option>
+                </select>
+              </label>
+              <label htmlFor="set-chrome-executable">
+                Google Chrome executable (optional override)
+                <input
+                  id="set-chrome-executable"
+                  value={settings.superUser.chrome.executablePath}
+                  placeholder="Auto-detect chrome.exe"
+                  onChange={(event) => setSettings((current) => current ? {
+                    ...current,
+                    superUser: { ...current.superUser, chrome: { ...current.superUser.chrome, executablePath: event.target.value } }
+                  } : current)}
+                />
+              </label>
             </div>
+            <div className="toolbar-strip settings-super-user-actions">
+              <button className="toolbar-button" type="button" onClick={() => void detectInstalledChrome()}>
+                <Chrome size={14} /> Detect Chrome
+              </button>
+              <button className="toolbar-button" type="button" onClick={() => void exportDiagnostics()}>
+                <Download size={14} /> Export diagnostic bundle
+              </button>
+            </div>
+            {chromeCheck ? <p className="form-message" role="status">{chromeCheck}</p> : null}
+            <p className="form-message">
+              Installed Chrome is optional and Super-User-only. AWKIT always creates a scoped profile;
+              it never opens your daily Chrome profile and never bypasses protected authentication.
+            </p>
             <div className="settings-card-head settings-debug-log-head">
               <h3>Recent debug logs</h3>
               <button className="toolbar-button" type="button" onClick={() => void loadDebugLogs()} disabled={debugLogsLoading}>

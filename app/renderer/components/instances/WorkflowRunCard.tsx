@@ -12,7 +12,7 @@ export interface WorkflowCardParams {
   stopOnError: boolean;
 }
 
-export type WorkflowCardStatus = "active" | "inactive" | "invalid";
+export type WorkflowCardStatus = "active" | "inactive" | "invalid" | "checking";
 
 interface WorkflowRunCardProps {
   workflow: WorkflowProfile;
@@ -35,7 +35,8 @@ interface WorkflowRunCardProps {
 const statusLabel: Record<WorkflowCardStatus, string> = {
   active: "Active",
   inactive: "Inactive",
-  invalid: "Invalid"
+  invalid: "Invalid",
+  checking: "Checking"
 };
 
 function formatDate(value?: string): string {

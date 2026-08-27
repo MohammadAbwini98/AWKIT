@@ -49,6 +49,7 @@ export function Recorder() {
   const [protectedDetectionIgnored, setProtectedDetectionIgnored] = useState(false);
 
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
+  const [favoriteUrls, setFavoriteUrls] = useState<RecordedUrl[]>([]);
   const [urlSearch, setUrlSearch] = useState("");
   const [urlPage, setUrlPage] = useState(1);
   const [urlPageSize, setUrlPageSize] = useState(10);
@@ -86,6 +87,10 @@ export function Recorder() {
       .catch(() => undefined);
     window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
     window.playwrightFlowStudio.recorder.getUrls().then(setUrls).catch(() => undefined);
+    const favoritesApi = window.playwrightFlowStudio.recorder as typeof window.playwrightFlowStudio.recorder & {
+      getFavoriteUrls: () => Promise<RecordedUrl[]>;
+    };
+    favoritesApi.getFavoriteUrls().then(setFavoriteUrls).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -264,6 +269,30 @@ export function Recorder() {
       setStatusMsg("URL saved.");
     } catch {
       setStatusMsg("Could not save URL.");
+    }
+  };
+
+  const addFavorite = async (value: string) => {
+    const favoritesApi = window.playwrightFlowStudio.recorder as typeof window.playwrightFlowStudio.recorder & {
+      saveFavoriteUrl: (url: string) => Promise<RecordedUrl[]>;
+    };
+    try {
+      setFavoriteUrls(await favoritesApi.saveFavoriteUrl(value));
+      setStatusMsg("URL added to Favorites.");
+    } catch {
+      setStatusMsg("Could not update Favorites.");
+    }
+  };
+
+  const removeFavorite = async (id: string) => {
+    const favoritesApi = window.playwrightFlowStudio.recorder as typeof window.playwrightFlowStudio.recorder & {
+      removeFavoriteUrl: (id: string) => Promise<RecordedUrl[]>;
+    };
+    try {
+      setFavoriteUrls(await favoritesApi.removeFavoriteUrl(id));
+      setStatusMsg("URL removed from Favorites.");
+    } catch {
+      setStatusMsg("Could not update Favorites.");
     }
   };
 
@@ -1024,6 +1053,44 @@ export function Recorder() {
         </aside>
       </div>
 
+      <section className="form-panel recorder-favorites-panel" aria-labelledby="recorder-favorites-title">
+        <header className="recorder-panel-header">
+          <div className="recorder-panel-title">
+            <Bookmark size={18} aria-hidden />
+            <div>
+              <h3 id="recorder-favorites-title">Favorite URLs</h3>
+              <span>{favoriteUrls.length} saved favorite{favoriteUrls.length === 1 ? "" : "s"}</span>
+            </div>
+          </div>
+          <button className="toolbar-button" type="button" disabled={!url.trim()} onClick={() => void addFavorite(url)}>
+            <Bookmark size={14} /> Favorite current URL
+          </button>
+        </header>
+        {favoriteUrls.length === 0 ? (
+          <TableEmptyState filtered={false} title="No favorite URLs yet." hint="Favorite a target or a captured URL for quick reuse." />
+        ) : (
+          <div className="recorder-favorites-list" role="list">
+            {favoriteUrls.map((favorite) => (
+              <div className="recorder-favorite-item" role="listitem" key={favorite.id}>
+                <button
+                  className="recorder-favorite-use"
+                  disabled={isRecording}
+                  type="button"
+                  onClick={() => useSavedUrl(favorite.url)}
+                  title={`Use ${favorite.url}`}
+                >
+                  <Bookmark size={15} aria-hidden />
+                  <span><strong>{favorite.title || favorite.url}</strong><small>{favorite.url}</small></span>
+                </button>
+                <button className="icon-button" type="button" title="Remove from Favorites" aria-label={`Remove ${favorite.url} from Favorites`} onClick={() => void removeFavorite(favorite.id)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="form-panel recorder-saved-urls-panel">
         <header className="recorder-panel-header">
           <div className="recorder-panel-title">
@@ -1112,6 +1179,14 @@ export function Recorder() {
                           </button>
                           <button type="button" title="Copy URL" onClick={(event) => { event.stopPropagation(); copyUrl(record.url); }}>
                             <Copy size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Add to Favorites"
+                            aria-label={`Add ${record.url} to Favorites`}
+                            onClick={(event) => { event.stopPropagation(); void addFavorite(record.url); }}
+                          >
+                            <Bookmark size={14} />
                           </button>
                         </div>
                       </td>

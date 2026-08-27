@@ -75,7 +75,9 @@ import { isExecutionBlocking, validateFlowSet } from "@src/validation/FlowValida
 import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import type { WorkflowFlowNode } from "@src/profiles/WorkflowProfile";
 import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
+import { copyDesignerNode, isTextEditingTarget, readDesignerNode } from "../components/shared/nodeClipboard";
 import {
   parseWorkflowConflictName,
   validateWorkflowProfile,
@@ -221,6 +223,7 @@ function ScenarioBuilderContent() {
 
   // Task 07: save success/failure toast
   const [toast, setToast] = useState<ToastState | null>(null);
+  const pasteOffsetRef = useRef(0);
   // Task 03/04: Saved Flows search + incremental "Load More"
   const [flowSearch, setFlowSearch] = useState("");
   const [flowVisibleCount, setFlowVisibleCount] = useState(SAVED_FLOWS_PAGE_SIZE);
@@ -314,6 +317,77 @@ const workflowProfile = useMemo(
   }, [edges]);
   const orderedNodes = useMemo(() => nodes.filter((node) => node.data.kind === "flowRef").sort((a, b) => a.data.order - b.data.order), [nodes]);
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
+
+  useEffect(() => {
+    const onClipboardKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextEditingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      if (key === "c") {
+        if (!selectedNode || selectedNode.data.kind !== "flowRef") return;
+        const persisted = workflowProfile.nodes.find((node): node is WorkflowFlowNode => node.id === selectedNode.id && node.type === "flowRef");
+        if (!persisted) return;
+        event.preventDefault();
+        copyDesignerNode({ source: "workflow", node: persisted });
+        pasteOffsetRef.current = 0;
+        setToast({ tone: "success", message: `Copied ${selectedNode.data.name}.` });
+        return;
+      }
+      if (key !== "v") return;
+      const payload = readDesignerNode();
+      if (!payload) return;
+      if (payload.source === "flow" && payload.step.type !== "runFlow") {
+        event.preventDefault();
+        setToast({ tone: "error", message: "Only Run Flow nodes are compatible with the Workflow canvas." });
+        return;
+      }
+      event.preventDefault();
+      pasteOffsetRef.current += 32;
+      const flowFailureAction = payload.source === "flow" ? payload.step.onFailure?.action : undefined;
+      const source: WorkflowFlowNode = payload.source === "workflow" ? payload.node : {
+        id: payload.step.id,
+        type: "flowRef" as const,
+        flowId: payload.step.flowId!,
+        alias: payload.step.name,
+        order: 1,
+        required: true,
+        inputBindings: {},
+        failurePolicy: flowFailureAction === "continue" || flowFailureAction === "manualHandoff" ? flowFailureAction : "stop",
+        position: payload.step.position
+      };
+      const id = `flowref-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      const order = Math.max(0, ...nodes.filter((node) => node.data.kind === "flowRef").map((node) => node.data.order)) + 1;
+      const originalNode: WorkflowFlowNode = {
+        ...source,
+        id,
+        alias: `${source.alias} Copy`,
+        order,
+        position: {
+          x: (source.position?.x ?? 320) + pasteOffsetRef.current,
+          y: (source.position?.y ?? 180) + pasteOffsetRef.current
+        }
+      };
+      const pasted = createScenarioNode(
+        originalNode.flowId,
+        order,
+        originalNode.position!,
+        originalNode.required,
+        undefined,
+        flowLibrary,
+        originalNode.alias,
+        originalNode.size,
+        "flowRef",
+        id,
+        originalNode
+      );
+      setNodes((current) => normalizeOrders([...current, pasted]));
+      setSelectedNodeId(id);
+      setSelectedEdgeId(null);
+      setSaveState("Unsaved changes");
+      setToast({ tone: "success", message: "Flow node pasted with a new identity. Connectors were not copied." });
+    };
+    document.addEventListener("keydown", onClipboardKey);
+    return () => document.removeEventListener("keydown", onClipboardKey);
+  }, [flowLibrary, nodes, selectedNode, setNodes, workflowProfile]);
 
   // Points 2–4: scenario connector-structure issues. Advisory since Stage 2b — save never blocks;
   // the run gate (PreRunValidator) is what stops an invalid workflow from executing.
@@ -939,7 +1013,8 @@ const workflowProfile = useMemo(
           node.alias,
           node.size,
           node.type,
-          node.id
+          node.id,
+          node.type === "flowRef" ? node : undefined
         )
       );
       // Only reframe when we actually rearranged, so normal loads keep the persisted zoom.
@@ -1699,7 +1774,8 @@ function createScenarioNode(
   alias?: string,
   size?: { width: number; height: number },
   kind: ScenarioFlowNodeData["kind"] = "flowRef",
-  canvasId = flowId
+  canvasId = flowId,
+  originalNode?: WorkflowFlowNode
 ): ScenarioNode {
   const libraryItem = library.find((flow) => flow.flowId === flowId) ?? {
     flowId,
@@ -1717,6 +1793,7 @@ function createScenarioNode(
     type: "scenarioFlow",
     position,
     data: {
+      originalNode: originalNode ? structuredClone(originalNode) : undefined,
       kind,
       flowId,
       name: alias ?? libraryItem.name,

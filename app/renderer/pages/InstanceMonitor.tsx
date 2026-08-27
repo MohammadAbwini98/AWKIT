@@ -20,16 +20,14 @@ import {
   type WorkflowRunSummaryStatus
 } from "@src/instances/instanceCardLogic";
 import { ConcurrentExecutionCoordinator } from "@src/orchestrator/ConcurrentExecutionCoordinator";
-import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import type { BrowserWindowMode, ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { InstanceIsolationMode } from "@src/instances/InstanceIsolationMode";
 import type { InstanceStatus } from "@src/instances/InstanceStatus";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
-import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
 const coordinator = new ConcurrentExecutionCoordinator();
-const orchestrator = new ScenarioOrchestrator();
 
 // Workflow cards grid: always render every card, but cap the grid at two rows tall and let it
 // scroll internally once the cards overflow that height (no "Load More" paging).
@@ -129,6 +127,9 @@ export function InstanceMonitor() {
   const [stopAllConfirmOpen, setStopAllConfirmOpen] = useState(false);
   const [stoppingAll, setStoppingAll] = useState(false);
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatusSnapshot | null>(null);
+  const [workflowStatusMap, setWorkflowStatusMap] = useState(
+    () => new Map<string, { status: WorkflowCardStatus; blockReason: string }>()
+  );
   const gridRef = useRef<HTMLDivElement>(null);
   const gridColumns = useGridColumns(gridRef);
 
@@ -270,28 +271,38 @@ export function InstanceMonitor() {
   const validationErrors = useMemo(() => validateRunSettings(selectedWorkflowId, runCount, maxParallel), [maxParallel, runCount, selectedWorkflowId]);
 
   // ── Workflow card derived data + handlers ────────────────────────────────────
-  // Per-workflow status: invalid (validation errors) / inactive (no flows) / active.
-  const workflowStatusMap = useMemo(() => {
-    const map = new Map<string, { status: WorkflowCardStatus; blockReason: string }>();
-    for (const workflow of workflows) {
-      if (workflow.nodes.length === 0) {
-        map.set(workflow.id, { status: "inactive", blockReason: "No flows added — open Workflow Builder to add flows." });
-        continue;
-      }
+  // The cards use the exact trusted admission validator used by execution: flows, active paths,
+  // legacy-compatibility grants and nested references can no longer drift from a renderer-only plan.
+  useEffect(() => {
+    let cancelled = false;
+    setWorkflowStatusMap(new Map(workflows.map((workflow) => [workflow.id, {
+      status: "checking" as WorkflowCardStatus,
+      blockReason: "Checking execution readiness…"
+    }])));
+    void Promise.all(workflows.map(async (workflow) => {
       try {
-        const plan = orchestrator.createExecutionPlan(workflowToScenarioProfile(workflow));
-        const errors = plan.validationIssues.filter((issue) => issue.severity === "error");
-        if (errors.length) {
-          map.set(workflow.id, { status: "invalid", blockReason: errors.map((issue) => issue.message).join(" ") });
-          continue;
-        }
+        const result = await window.playwrightFlowStudio.executions.validate(workflow.id) as {
+          valid?: boolean;
+          issues?: Array<{ message?: string; blocking?: boolean; severity?: string }>;
+        };
+        const reasons = (result.issues ?? [])
+          .filter((issue) => issue.blocking === true || issue.severity === "error")
+          .map((issue) => issue.message)
+          .filter((message): message is string => Boolean(message));
+        return [workflow.id, result.valid
+          ? { status: "active" as WorkflowCardStatus, blockReason: "" }
+          : { status: "invalid" as WorkflowCardStatus, blockReason: reasons.join(" ") || "Execution validation rejected this workflow." }
+        ] as const;
       } catch (error) {
-        map.set(workflow.id, { status: "invalid", blockReason: error instanceof Error ? error.message : "Workflow is invalid." });
-        continue;
+        return [workflow.id, {
+          status: "invalid" as WorkflowCardStatus,
+          blockReason: error instanceof Error ? error.message : "Execution validation could not be completed."
+        }] as const;
       }
-      map.set(workflow.id, { status: "active", blockReason: "" });
-    }
-    return map;
+    })).then((entries) => {
+      if (!cancelled) setWorkflowStatusMap(new Map(entries));
+    });
+    return () => { cancelled = true; };
   }, [workflows]);
 
   const defaultCardParams = useCallback(
@@ -603,7 +614,7 @@ export function InstanceMonitor() {
               style={needsScroll && gridScrollHeight ? { maxHeight: gridScrollHeight } : undefined}
             >
               {visibleWorkflows.map((workflow) => {
-                const meta = workflowStatusMap.get(workflow.id) ?? { status: "active" as WorkflowCardStatus, blockReason: "" };
+              const meta = workflowStatusMap.get(workflow.id) ?? { status: "checking" as WorkflowCardStatus, blockReason: "Checking execution readiness…" };
                 const params = getCardParams(workflow.id);
                 return (
                   <WorkflowRunCard
@@ -841,7 +852,7 @@ export function InstanceMonitor() {
               </div>
               <span>{workflowRuns.length} run{workflowRuns.length === 1 ? "" : "s"}</span>
             </div>
-            <div className="im-workflow-run-list" data-testid="workflow-run-records">
+            <div className="im-workflow-run-list" data-testid="workflow-run-records" role="region" aria-label="Workflow run history" tabIndex={0}>
               {workflowRuns.map((summary) => {
                 const workflow = resolveWorkflow(summary.scenarioId);
                 const active = summary.running + summary.paused;
@@ -886,7 +897,7 @@ export function InstanceMonitor() {
             <span>Run a workflow card above to launch instances; they will appear here.</span>
           </div>
         ) : (
-          <div className="instance-table-wrapper" style={{ marginTop: "16px" }}>
+          <div className="instance-table-wrapper" style={{ marginTop: "16px" }} role="region" aria-label="Workflow instances" tabIndex={0}>
             <table className="instance-table">
               <colgroup>
                 <col style={{ minWidth: "130px" }} />

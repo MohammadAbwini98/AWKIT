@@ -39,11 +39,13 @@ import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, defaultNodeData, type FlowDesi
 import {
   createEdge,
   fromFlowStep,
+  toFlowStep,
   toFlowProfile,
   type FlowDesignerEdge,
   type FlowDesignerNode,
   type FlowProfileMeta
 } from "../components/workflow/flowProfileMapping";
+import { copyDesignerNode, isTextEditingTarget, readDesignerNode } from "../components/shared/nodeClipboard";
 import {
   flowEdgeKind,
   flowEdgeToNormal,
@@ -184,6 +186,7 @@ function FlowChartDesignerContent() {
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const pendingSnapshot = useRef(true);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const pasteOffsetRef = useRef(0);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
 
   const historyState = useMemo(() => ({ nodes, edges, flowName }), [edges, flowName, nodes]);
@@ -218,6 +221,61 @@ function FlowChartDesignerContent() {
 
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
+
+  useEffect(() => {
+    const onClipboardKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextEditingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      if (key === "c") {
+        if (!selectedNode || selectedNode.data.stepType === "start" || selectedNode.data.stepType === "end") return;
+        event.preventDefault();
+        copyDesignerNode({ source: "flow", step: toFlowStep(selectedNode, edges) });
+        pasteOffsetRef.current = 0;
+        setToast({ tone: "success", message: `Copied ${selectedNode.data.name}.` });
+        return;
+      }
+      if (key !== "v") return;
+      const payload = readDesignerNode();
+      if (!payload) return;
+      event.preventDefault();
+      pasteOffsetRef.current += 32;
+      const id = `copy-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      let step: FlowStep;
+      if (payload.source === "flow") {
+        if (payload.step.type === "start" || payload.step.type === "end") return;
+        step = {
+          ...payload.step,
+          id,
+          name: `${payload.step.name} Copy`,
+          position: {
+            x: (payload.step.position?.x ?? 320) + pasteOffsetRef.current,
+            y: (payload.step.position?.y ?? 180) + pasteOffsetRef.current
+          },
+          next: undefined
+        };
+      } else {
+        step = {
+          id,
+          type: "runFlow",
+          name: `${payload.node.alias} Copy`,
+          flowId: payload.node.flowId,
+          position: {
+            x: (payload.node.position?.x ?? 320) + pasteOffsetRef.current,
+            y: (payload.node.position?.y ?? 180) + pasteOffsetRef.current
+          },
+          onFailure: { action: payload.node.failurePolicy ?? "stop", screenshot: true }
+        };
+      }
+      const pasted = styledNode({ id, type: "actionNode", position: step.position!, data: fromFlowStep(step) });
+      setNodes((current) => [...current, pasted]);
+      setSelectedNodeId(id);
+      setSelectedEdgeId(null);
+      setSaveState("Unsaved changes");
+      setToast({ tone: "success", message: "Node pasted with a new identity. Connectors were not copied." });
+    };
+    document.addEventListener("keydown", onClipboardKey);
+    return () => document.removeEventListener("keydown", onClipboardKey);
+  }, [edges, selectedNode, setNodes]);
 
   useEffect(() => {
     if (!pendingLoopFitRef.current) return;

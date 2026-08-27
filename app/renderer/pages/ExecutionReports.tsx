@@ -67,16 +67,24 @@ export function ExecutionReports() {
     }
   }, []);
 
-  const exportReport = useCallback(async (report: StoredReport) => {
+  const exportReport = useCallback(async (report: StoredReport, format: "json" | "csv" | "xlsx") => {
     setError("");
     try {
-      // Export the permission-gated stored record, not the lossy card projection.
-      const complete = await window.playwrightFlowStudio.reports.export(report.id);
-      const blob = new Blob([JSON.stringify(complete, null, 2)], { type: "application/json" });
+      const reportsApi = window.playwrightFlowStudio.reports as typeof window.playwrightFlowStudio.reports & {
+        export: (id: string, format?: "json" | "csv" | "xlsx") => Promise<{
+          filename: string;
+          mimeType: string;
+          dataBase64: string;
+        }>;
+      };
+      // Main owns serialization and redaction. XLSX is a real workbook, never renamed CSV bytes.
+      const exported = await reportsApi.export(report.id, format);
+      const bytes = Uint8Array.from(atob(exported.dataBase64), (character) => character.charCodeAt(0));
+      const blob = new Blob([bytes], { type: exported.mimeType });
       const href = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = href;
-      link.download = `report-${report.id}.json`;
+      link.download = exported.filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -156,13 +164,37 @@ export function ExecutionReports() {
                   {canExport ? (
                     <button
                       className="toolbar-button"
-                      id={`report-export-${report.id}`}
-                      title="Export report JSON"
+                      id={`report-export-csv-${report.id}`}
+                      title="Export report as CSV"
                       type="button"
-                      onClick={() => void exportReport(report)}
+                      onClick={() => void exportReport(report, "csv")}
                     >
                       <Download size={14} />
-                      Export
+                      CSV
+                    </button>
+                  ) : null}
+                  {canExport ? (
+                    <button
+                      className="toolbar-button"
+                      id={`report-export-xlsx-${report.id}`}
+                      title="Export report as Excel workbook"
+                      type="button"
+                      onClick={() => void exportReport(report, "xlsx")}
+                    >
+                      <Download size={14} />
+                      Excel
+                    </button>
+                  ) : null}
+                  {canExport ? (
+                    <button
+                      className="toolbar-button"
+                      id={`report-export-${report.id}`}
+                      title="Export report as JSON"
+                      type="button"
+                      onClick={() => void exportReport(report, "json")}
+                    >
+                      <Download size={14} />
+                      JSON
                     </button>
                   ) : null}
                 </div>

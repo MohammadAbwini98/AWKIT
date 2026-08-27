@@ -50,6 +50,7 @@ export function toWorkflowProfile(
     nodes: orderedNodes.map((node) =>
       node.data.kind === "flowRef"
         ? ({
+            ...(originalNodeById.get(node.id) ?? node.data.originalNode ?? {}),
             id: node.id,
             type: "flowRef" as const,
             flowId: node.data.flowId,

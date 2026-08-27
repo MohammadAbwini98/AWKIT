@@ -1,8 +1,11 @@
 import type { ScenarioLink } from "@src/profiles/ScenarioProfile";
 import type { EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
+import type { WorkflowFlowNode } from "@src/profiles/WorkflowProfile";
 
 export interface ScenarioFlowNodeData extends Record<string, unknown> {
+  /** Original persisted node, retained for lossless compatible-field round trips and copy/paste. */
+  originalNode?: WorkflowFlowNode;
   kind: "flowRef" | "start" | "end";
   flowId: string;
   name: string;

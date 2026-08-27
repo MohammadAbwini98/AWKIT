@@ -3927,8 +3927,17 @@ table {
 /* ── Instance Monitor Table ─────────────────────────────────────────────────── */
 
 .instance-table-wrapper {
-  overflow-x: auto;
+  max-block-size: min(52vh, 34rem);
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
   width: 100%;
+}
+
+.instance-table-wrapper:focus-visible,
+.im-workflow-run-list:focus-visible {
+  outline: 2px solid var(--awkit-focus-ring);
+  outline-offset: 2px;
 }
 
 .instance-table {
@@ -3960,6 +3969,9 @@ table {
   font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .instance-table tbody tr:hover {
@@ -5944,7 +5956,52 @@ table {
   display: grid;
   gap: var(--space-2);
   margin-top: var(--space-3);
-  overflow-x: auto;
+  max-block-size: min(44vh, 28rem);
+  min-height: 0;
+  overflow: auto;
+  padding-inline-end: var(--space-1);
+  scrollbar-gutter: stable;
+}
+
+.recorder-favorites-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.recorder-favorite-item {
+  align-items: center;
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  padding: var(--space-2);
+}
+
+.recorder-favorite-use {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--awkit-text);
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  min-width: 0;
+  text-align: left;
+}
+
+.recorder-favorite-use > span {
+  display: grid;
+  min-width: 0;
+}
+
+.recorder-favorite-use strong,
+.recorder-favorite-use small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .im-workflow-run-record {

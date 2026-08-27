@@ -7,6 +7,8 @@ export type ValidationState = "valid" | "warning" | "error";
 export type SimpleValueSourceKind = "static" | "dynamic";
 
 export interface FlowDesignerNodeData extends Record<string, unknown> {
+  /** Original persisted step, retained so compatible unknown top-level fields survive edits/paste. */
+  originalStep?: FlowStep;
   stepType: StepType;
   name: string;
   description: string;

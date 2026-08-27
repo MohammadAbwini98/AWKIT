@@ -81,15 +81,19 @@
       "app/main/preload.ts",
       "app/main/security/sessionContext.ts",
       "app/main/uiSettings.ts",
-      "app/renderer/components/flow/FlowCanvas.tsx",
+      "app/renderer/components/canvas/FlowCanvas.tsx",
       "app/renderer/components/shared/nodeClipboard.ts",
-      "app/renderer/components/workflow/WorkflowCard.tsx",
-      "app/renderer/pages/FlowDesigner.tsx",
+      "app/renderer/components/instances/WorkflowRunCard.tsx",
+      "app/renderer/components/scenario/scenarioDesignerTypes.ts",
+      "app/renderer/components/scenario/workflowDocumentMapping.ts",
+      "app/renderer/components/workflow/flowDesignerTypes.ts",
+      "app/renderer/components/workflow/flowProfileMapping.ts",
+      "app/renderer/pages/FlowChartDesigner.tsx",
       "app/renderer/pages/InstanceMonitor.tsx",
       "app/renderer/pages/Recorder.tsx",
-      "app/renderer/pages/Reports.tsx",
+      "app/renderer/pages/ExecutionReports.tsx",
+      "app/renderer/pages/ScenarioBuilder.tsx",
       "app/renderer/pages/Settings.tsx",
-      "app/renderer/pages/WorkflowBuilder.tsx",
       "app/renderer/styles/global.css",
       "src/instances/InstanceConfig.ts",
       "src/instances/InstanceManager.ts",
@@ -132,22 +136,32 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "recorder",
+      "agent_id": "frontend",
       "allowed_paths": [
-        "src/recorder/RecorderService.ts",
-        "src/session/InstalledChromeResolver.ts"
+        "app/renderer/components/canvas/FlowCanvas.tsx",
+        "app/renderer/components/shared/nodeClipboard.ts",
+        "app/renderer/components/instances/WorkflowRunCard.tsx",
+        "app/renderer/components/scenario/scenarioDesignerTypes.ts",
+        "app/renderer/components/scenario/workflowDocumentMapping.ts",
+        "app/renderer/components/workflow/flowDesignerTypes.ts",
+        "app/renderer/components/workflow/flowProfileMapping.ts",
+        "app/renderer/pages/FlowChartDesigner.tsx",
+        "app/renderer/pages/InstanceMonitor.tsx",
+        "app/renderer/pages/Recorder.tsx",
+        "app/renderer/pages/ExecutionReports.tsx",
+        "app/renderer/pages/ScenarioBuilder.tsx",
+        "app/renderer/pages/Settings.tsx",
+        "app/renderer/styles/global.css"
       ],
       "forbidden_paths": [
         "app/main/**",
-        "app/renderer/**",
-        "src/runner/**",
-        "src/reports/**",
+        "src/**",
         "scripts/**",
         "package.json",
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Recorder/session stage: persistent favorites and safe installed-Chrome discovery/launch options."
+      "note": "Renderer stage: authoritative validity, contained scrolling, node copy/paste, Favorites, exports, Chrome controls and diagnostics UX."
     },
     "writer_sequence": [
       "runtime",
@@ -451,6 +465,48 @@
         "acquired_at_commit": "6f2637710a8cb56f891ff13a20aaaaf3410c9034",
         "released_at": "2026-08-27T07:07:36.882Z",
         "released_reason": "Runtime failure latch and trusted browser-policy foundation committed as 97e577b; advance to Recorder/session implementation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:recorder:2026-08-27T07:08:26.872Z",
+        "task": "awkit-final9",
+        "holder": "recorder",
+        "status": "released",
+        "allowed_paths": [
+          "src/recorder/RecorderService.ts",
+          "src/session/InstalledChromeResolver.ts"
+        ],
+        "acquired_at": "2026-08-27T07:08:26.872Z",
+        "acquired_at_commit": "97e577b0f40f74ee1c9459575268a855ad3d92d9",
+        "released_at": "2026-08-27T07:10:36.764Z",
+        "released_reason": "Recorder/session implementation committed as cf135a7; advance to renderer UX",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:frontend:2026-08-27T07:11:00.674Z",
+        "task": "awkit-final9",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/flow/FlowCanvas.tsx",
+          "app/renderer/components/shared/nodeClipboard.ts",
+          "app/renderer/components/workflow/WorkflowCard.tsx",
+          "app/renderer/pages/FlowDesigner.tsx",
+          "app/renderer/pages/InstanceMonitor.tsx",
+          "app/renderer/pages/Recorder.tsx",
+          "app/renderer/pages/Reports.tsx",
+          "app/renderer/pages/Settings.tsx",
+          "app/renderer/pages/WorkflowBuilder.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-08-27T07:11:00.674Z",
+        "acquired_at_commit": "cf135a78a9b4e2329075ba80b0ac54a6f8cf354d",
+        "released_at": "2026-08-27T07:12:02.286Z",
+        "released_reason": "Correct renderer file ownership paths discovered from live implementation before editing",
         "amendments": [],
         "overrides": [],
         "violations": []

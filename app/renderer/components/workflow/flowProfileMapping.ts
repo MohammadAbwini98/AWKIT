@@ -148,6 +148,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
   const omit = (field: (typeof OPTIONAL_STEP_FIELDS)[number], atDefault: boolean): boolean => wasAbsent(field) && atDefault;
 
   const step: FlowStep = {
+    ...(data.originalStep ?? {}),
     id: node.id,
     type: data.stepType,
     name: data.name,
@@ -373,6 +374,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
 
   return {
     ...defaultNodeData(step.type, step.name, step.description ?? catalogItem.description),
+    originalStep: structuredClone(step),
     locatorStrategy: step.locator?.strategy ?? "role",
     locatorValue: step.locator?.value ?? "",
     locatorName: step.locator?.name ?? "",
