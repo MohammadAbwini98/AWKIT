@@ -1,5 +1,23 @@
 # AWKIT Comprehensive Validation Defects
 
+## Resolved 2026-08-27 — `awkit-final9` execution, UX, export, Chrome and diagnostics findings
+
+| Finding | Root cause | Resolution / evidence |
+| --- | --- | --- |
+| FINAL9-001 continued failure could finish green | Graph termination at End was allowed to overwrite earlier terminal step failure. | Terminal-failure latch plus explicit `recoveryRouted` distinction; Runner 136/136 and Reports status agreement. |
+| FINAL9-002 false Not Runnable | Instance Monitor used a partial/generic derived verdict instead of execution admission. | `executions.validate` is authoritative and real reasons render; Instance Monitor 27/27 plus designer validation suites. |
+| FINAL9-003 inaccessible long run lists | Overflow/min-height ownership sat outside the list's flex boundary. | Contained focusable scrollers for Workflow Runs and Instances; real-Electron small-viewport and keyboard checks 27/27. |
+| FINAL9-004 no safe node clipboard | Designers had no shared portable clipboard or compatibility mapping. | Application-scoped structured clone, fresh ids/offsets, no edges, Start/End and text-edit guards, Run Flow cross-mapping; Flow 122/122 and Workflow 68 broad checks. |
+| FINAL9-005 favorites mixed with URL history | Recorder persisted only one recent/captured list. | Schema-v2 separate favorites with normalization, dedupe, remove/re-add and unknown-field preservation; 119/119. |
+| FINAL9-006 report export was incomplete | Reports lacked CSV and real workbook serialization. | Escaped CSV and ExcelJS Summary/Instances/Steps workbook with centralized redaction; populated Reports 168/0/3 and live engine 21/21. |
+| FINAL9-007 installed Chrome trust/runtime gaps | Browser distribution lacked complete exact-role enforcement/discovery/profile isolation; long generated profile paths also exceeded Chrome's Windows cache limit. | Exact Super User IPC guards, explicit resolver errors/no fallback, AWKIT-owned short hashed profiles, captured-session precedence; Super User 61/61, concurrency 89/89 and real host Chrome Recorder/execution PASS. |
+| FINAL9-008 Workflow table left unused width | A stale constrained wrapper prevented the table from consuming its panel. | Workflow-list-only Hologram layout correction; rendered widths pass at 1024–1920. |
+| FINAL9-009 insufficient failure extraction | Optional debug-off suppressed critical evidence and no safe support artifact spanned responsible layers. | Critical error/fatal retention, deterministic redaction/rotation/correlation and exact-SU offline bundle; Settings E2E 182/182 plus redaction/retention checks. |
+
+Two verifier defects and one environment-sensitive gate were also resolved without weakening product
+assertions: Recorder identity capture now waits for the observable fixture click; Settings does not
+double-count NOT RUN as FAIL; offline SHA-256 uses a module-independent .NET helper.
+
 ## Open product defects
 
 None.

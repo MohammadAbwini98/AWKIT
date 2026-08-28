@@ -1,5 +1,47 @@
 # TASK_LOG
 
+## 2026-08-27 — Final nine-item automation/runtime/UX/reporting/Chrome/diagnostics campaign (`awkit-final9`)
+
+**Agent:** Codex. **Task:** investigate, implement and prove the owner's nine cross-layer completion
+requirements on `main`.
+
+**Implementation:** latched terminal step failures through Flow/Workflow/instance/report aggregation
+while preserving explicit recovery routing; switched Instance Monitor runnable labels/reasons to the
+execution admission model; repaired contained scrolling and designer canvas/drawer sizing; added an
+application-scoped Flow/Workflow node clipboard with compatible Run Flow mapping; split Recorder URL
+favorites from recent history in a schema-v2 unknown-field-preserving store; added redacted CSV and
+real ExcelJS XLSX report serializers; enforced exact Super User installed-Chrome Recorder/execution
+IPC with explicit resolver failures and AWKIT-owned profiles; removed the Workflow table width cap;
+and wired structured redacted rotated logs plus a Super-User diagnostic bundle across renderer/main/
+IPC/runtime failure boundaries. Real installed Chrome then exposed a Windows nested-cache path limit;
+fresh per-instance profiles now use a short SHA-256 key under the runtime root while explicit captured
+session profiles still win.
+
+**Verifier/harness corrections found by execution:** `validate:offline` depended on PowerShell module
+auto-loading under npm, so hashing now uses a deterministic .NET helper; Recorder GUI's positional
+identity probe used a fixed delay and now waits for the observable click; the Settings E2E summary no
+longer double-counts NOT RUN as FAIL. Assertions and strict exit policies remain intact.
+
+**Files:** execution/instance/runner contracts; Recorder service/session resolver; report and logging
+services; Electron main/preload/IPC/settings/window wiring; Flow/Workflow/Instance/Recorder/Reports/
+Settings renderer surfaces and Hologram CSS; ExcelJS dependency; focused Runner, concurrency, designer,
+Recorder, Reports, Super User, Settings and offline verifiers; task contract and authoritative project
+state. See commits from `97e577b` through the final closeout commit.
+
+**Exact verification:** build PASS; Mock Site **172/172**; Runner **136/136**; concurrency **89/89**;
+Flow Designer **122/122 + 16/16**; Workflow Builder **68 broad + 17/17**; Instance Monitor **27/27**;
+Reports populated **168 PASS / 0 FAIL / 3 NOT RUN**; Reports live engine **21/21**; Recorder draft
+**119/119**, GUI **166/166**, authz **58/58**, protected login **74/74**, redaction **15/15**; Super
+User controls **61/61**; Settings persistence **3/3**; Settings E2E **182/182**; source hygiene
+**11/11**; exact offline validation PASS; packaging-input preflight PASS; scripts typecheck PASS;
+agent routing **1037/1037**; verifier classification reconciled **199** commands; roadmap **171/171,
+Sources agree** before final source reconciliation. Real host installed-Chrome Recorder start and
+workflow execution both completed with AWKIT profile isolation.
+
+**Not claimed:** no fresh canonical `-mx=9` portable/NSIS build was produced; existing `awkit-hgol`
+documents the workstation OOM. Clean/offline VM and NSIS install/uninstall remain external release
+gates. Populated Reports' three NOT RUN subcases are reported separately, never counted as PASS.
+
 ## 2026-08-25 — Script typecheck gate to zero, and packaged licensing executed (`AWKIT-BLD-001`, `awkit-hgol`)
 
 **Agent:** Claude Code (Opus 5). **Task:** resolve the two blockers left by `awkit-uwfo` — the 33

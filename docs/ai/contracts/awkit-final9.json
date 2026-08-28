@@ -109,15 +109,19 @@
       "src/runner/RunnerResult.ts",
       "src/session/InstalledChromeResolver.ts",
       "scripts/verify-runner.mts",
+      "scripts/verify-concurrency.mts",
       "scripts/verify-recorder-draft.mts",
       "scripts/verify-reports-populated-gui.mts",
       "scripts/verify-super-user-controls.mts",
+      "scripts/verify-settings-e2e.mts",
       "scripts/verify-instance-monitor-gui.mjs",
       "scripts/verify-flow-designer-gui.mjs",
       "scripts/verify-flow-designer-gui.pre-capsule.mjs",
       "scripts/verify-workflow-builder-gui.mjs",
       "scripts/verify-workflow-builder-gui.pre-capsule.mjs",
       "scripts/verify-source-hygiene.mts",
+      "scripts/lib/offline-browser-integrity.ps1",
+      "scripts/validate-offline-bundle.ps1",
       "scripts/lib/verifier-classification.ts",
       "package.json",
       "package-lock.json",
@@ -143,9 +147,16 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "src/instances/InstanceManager.ts"
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-final9.json",
+        "docs/testing/comprehensive-validation/DEFECTS.md",
+        "docs/testing/comprehensive-validation/EXECUTION_RESULTS.md"
       ],
       "forbidden_paths": [
         "app/renderer/**",
@@ -160,7 +171,7 @@
         "package-lock.json",
         "docs/**"
       ],
-      "note": "Runtime follow-up: shorten fresh persistent-profile paths so installed Chrome can create its Windows cache hierarchy."
+      "note": "Project-state closeout: reconcile the tracker, contract, authoritative AI state, defect ledger, handoff, and exact execution evidence."
     },
     "writer_sequence": [
       "runtime",
@@ -278,7 +289,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Pre-change baseline passed."
+      "note": "Post-change TypeScript and Electron/Vite production build passed after the Windows-safe Chrome profile correction."
     },
     {
       "id": "EV-mock-site",
@@ -287,7 +298,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Pre-change baseline 172/172."
+      "note": "Post-change 172/172."
     },
     {
       "id": "EV-runner",
@@ -296,39 +307,43 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Pre-change baseline 129/129; new failure-latch cases pending."
+      "note": "Post-change 136/136, including stop, Continue-to-End, early failure plus later passes, parallel branch aggregation, workflow aggregation, and authored recovery distinctions."
     },
     {
       "id": "EV-instance-monitor",
       "type": "gui",
       "command": "npm run verify:instance-monitor-gui",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "test-artifacts/instance-monitor-gui",
+      "note": "27/27 real-Electron checks: authoritative Runnable state/reasons, long Workflow Runs and Instances, small viewport, keyboard scrolling, and visible focus."
     },
     {
       "id": "EV-designers",
       "type": "gui",
       "command": "focused Flow Designer and Workflow Builder GUI verifiers",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "test-artifacts/flow-designer and test-artifacts/workflow-builder",
+      "note": "Flow Designer 122/122 plus 16/16 capsule checks; Workflow Builder 68 broad plus 17/17 capsule checks. Both prove copy, paste, offset, save, reload, edit, second save, source immutability, and text-edit guards."
     },
     {
       "id": "EV-recorder",
       "type": "verifier",
       "command": "npm run verify:recorder-draft and npm run verify:recorder-gui",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "test-artifacts/recorder-gui/2026-08-27T17-18-00-677Z",
+      "note": "Recorder draft/favorites 119/119; GUI 166/166; protected login 74/74; redaction 15/15; authorization 58/58."
     },
     {
       "id": "EV-reports",
       "type": "verifier",
       "command": "npm run verify:reports-populated-gui",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "test-artifacts/reports-populated-gui/2026-08-27T17-10-41-934Z",
+      "note": "Populated Reports 168 PASS / 0 FAIL / 3 NOT RUN with genuine 1,200-step CSV/XLSX and redaction; live engine 21/21 supplies the two live-state cases."
     },
     {
       "id": "EV-super-user",
@@ -337,40 +352,43 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Pre-change baseline 49/49; installed-Chrome cases pending."
+      "note": "61/61 plus real host Chrome discovery, installed-Chrome Recorder launch, installed-Chrome workflow completion, exact IPC denial coverage, and concurrency profile-isolation 89/89."
     },
     {
       "id": "EV-workflow-builder",
       "type": "gui",
       "command": "npm run verify:workflow-builder-gui",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "test-artifacts/workflow-builder",
+      "note": "68 broad checks plus 17/17 capsule checks; table fills its content surface at 1024, 1280, 1440, and 1920 widths."
     },
     {
       "id": "EV-diagnostics",
       "type": "security",
       "command": "focused logging and diagnostic-bundle verifier",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "test-artifacts/settings-e2e/2026-08-27T17-28-20-526Z",
+      "note": "Settings E2E 182/182 exports and decodes the real diagnostic artifact, checks support context and secret/profile exclusion, and proves pre-auth, Administrator, and Viewer IPC denial. Debug retention/redaction is also covered by Super User controls 61/61."
     },
     {
       "id": "EV-source-hygiene",
       "type": "security",
       "command": "npm run verify:source-hygiene",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "11/11."
     },
     {
       "id": "EV-offline",
       "type": "packaged",
       "command": "npm run validate:offline",
       "required": true,
-      "result": "FAIL",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pre-change harness invocation failed because Get-FileHash was unavailable inside one validation scope; direct helper and cmdlet probes passed. Rerun required."
+      "note": "Exact npm gate and PackagingInputsOnly preflight pass. Validator now uses profile-independent .NET SHA-256 instead of an auto-loaded PowerShell cmdlet."
     },
     {
       "id": "EV-classification",
@@ -379,7 +397,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Pre-change baseline: 199 scripts classified."
+      "note": "Post-change: all 199 verify/validate commands classified; 201 verifier files referenced or justified."
     },
     {
       "id": "EV-roadmap",
@@ -388,7 +406,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Pre-change baseline: 171/171, Sources agree."
+      "note": "Pre-closeout reconciliation: 171/171 and Overview says Sources agree; rerun after final source updates required."
     }
   ],
   "scope_escapes": [],
@@ -401,10 +419,10 @@
     "push_evidence_id": "EV-build"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending",
-    "note": "Implementation and post-change evidence pending."
+    "status": "complete",
+    "qa_status": "passed",
+    "qc_status": "passed",
+    "note": "All nine product requirements are implemented and focused gates pass. Fresh canonical packaging and clean-machine acceptance remain external release evidence under existing tracked blockers and are not claimed here."
   },
   "write_lease": {
     "history": [
@@ -887,6 +905,142 @@
               "runtime",
               "qc"
             ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:runtime:2026-08-27T16:47:24.454Z",
+        "task": "awkit-final9",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "src/instances/InstanceManager.ts"
+        ],
+        "acquired_at": "2026-08-27T16:47:24.454Z",
+        "acquired_at_commit": "efe40bc9c3cabb97aa79d624880e4110ba942a27",
+        "released_at": "2026-08-27T16:52:06.790Z",
+        "released_reason": "Installed Chrome profile-path fix committed as 4a2fe01; return to QA for deterministic regression coverage",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T16:52:25.854Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-concurrency.mts"
+        ],
+        "acquired_at": "2026-08-27T16:52:25.854Z",
+        "acquired_at_commit": "4a2fe01aedcdb2d77ed49e4f8050c7b55984abc6",
+        "released_at": "2026-08-27T16:58:23.163Z",
+        "released_reason": "QA regression committed as 1c002ab; offline gate isolated to profile-dependent PowerShell invocation and needs release-script correction",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:release:2026-08-27T16:59:04.124Z",
+        "task": "awkit-final9",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package.json",
+          "scripts/lib/offline-browser-integrity.ps1"
+        ],
+        "acquired_at": "2026-08-27T16:59:04.124Z",
+        "acquired_at_commit": "1c002abc90cdadf4bf780f7995f3ebbb9c901726",
+        "released_at": "2026-08-27T17:00:12.026Z",
+        "released_reason": "amendment added paths outside release's ownership (scripts/validate-offline-bundle.ps1) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-08-27T16:59:44.227Z",
+            "added": [
+              "scripts/lib/offline-browser-integrity.ps1"
+            ],
+            "reason": "Offline payload digest must not depend on PowerShell module auto-loading under npm",
+            "triggered_escalation": [
+              "qa",
+              "qc"
+            ],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-08-27T17:00:12.024Z",
+            "added": [
+              "scripts/validate-offline-bundle.ps1"
+            ],
+            "reason": "Use deterministic .NET SHA-256 helper throughout the offline validator",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:release:2026-08-27T17:01:01.540Z",
+        "task": "awkit-final9",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/lib/offline-browser-integrity.ps1"
+        ],
+        "acquired_at": "2026-08-27T17:01:01.540Z",
+        "acquired_at_commit": "d015e25b4ba06468ca93662e4e449bb5ac62aab1",
+        "released_at": "2026-08-27T17:01:54.624Z",
+        "released_reason": "Deterministic SHA-256 helper committed; validator call sites require QA-owned update",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-final9:qa:2026-08-27T17:02:09.751Z",
+        "task": "awkit-final9",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/validate-offline-bundle.ps1",
+          "scripts/verify-recorder-gui.mts",
+          "scripts/verify-settings-e2e.mts",
+          "scripts/verify-super-user-controls.mts"
+        ],
+        "acquired_at": "2026-08-27T17:02:09.751Z",
+        "acquired_at_commit": "d92f9bacedb60cf0987de565f2fbb5357980c0f5",
+        "released_at": "2026-08-27T17:31:27.548Z",
+        "released_reason": "Focused QA and diagnostic verification complete; hand off to project-state reconciliation",
+        "amendments": [
+          {
+            "timestamp": "2026-08-27T17:05:28.181Z",
+            "added": [
+              "scripts/verify-super-user-controls.mts"
+            ],
+            "reason": "Update the installed-Chrome profile source assertion to the new short AWKIT-owned path",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-08-27T17:16:46.035Z",
+            "added": [
+              "scripts/verify-recorder-gui.mts"
+            ],
+            "reason": "Synchronize the positional identity probe on the observable recorded click instead of a fixed 1.2 second delay",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-08-27T17:23:16.904Z",
+            "added": [
+              "scripts/verify-settings-e2e.mts"
+            ],
+            "reason": "Add real diagnostic bundle export and direct-IPC authorization evidence to the comprehensive Settings gate",
+            "triggered_escalation": [],
             "approved_by": "manager"
           }
         ],

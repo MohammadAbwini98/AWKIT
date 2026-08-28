@@ -1,5 +1,23 @@
 # KNOWN_ISSUES
 
+## Final-nine evidence boundaries (2026-08-27, `awkit-final9`)
+
+- **Installed Chrome is proven in the development-host build, not a fresh canonical package.** The
+  locally installed Chrome was discovered, Recorder launched it, and a workflow completed through
+  it using an AWKIT-owned profile. Deterministic tests cover missing/invalid paths, direct IPC denial,
+  short per-instance profiles and explicit captured-session compatibility. A fresh `-mx=9` packaged
+  rerun remains coupled to the existing `awkit-hgol` release-compression blocker below; do not cite
+  the August 25 artifact as evidence for this change.
+- **Populated Reports keeps three honest NOT RUN subcases.** The seeded-store fixture cannot create a
+  live instance distribution or backpressure state; `verify:reports-live-engine` proves both against
+  a real engine (21/21). Deleting a retained run underneath an already-open drawer is unreachable in
+  one session because the app and a second sql.js connection do not share in-memory state. These are
+  evidence-shape limits, not hidden product failures.
+- **Canonical offline hashing no longer depends on PowerShell module auto-loading.** If future
+  validators add file hashes, call `Get-AwkitFileSha256`; `Get-FileHash` was unavailable specifically
+  in npm's child PowerShell despite working interactively and made `validate:offline` environment
+  dependent.
+
 ## RESOLVED (2026-08-25): `typecheck:scripts` is GREEN again — keep it that way (`AWKIT-BLD-001`)
 
 `npm run typecheck:scripts` was red with **33** standing errors in eleven verifier scripts; it is now

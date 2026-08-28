@@ -1,5 +1,67 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-27, latest) — nine-item final automation completion implemented and verified
+
+### Transfer
+
+- **Branch:** `main`; all implementation and verifier increments are committed directly. No branch,
+  worktree, stash, reset or history rewrite was used. The ignored owner helper `run-app-demo.mjs`
+  remains untouched at SHA-256 `6ccf51889395ff65f00d43a9a31e8a7e2339d07d524bbdddca071e062aa08c3b`.
+- **Task:** `awkit-final9`. Runtime, persistence, IPC, renderer, reports, browser security and
+  diagnostics are implemented. Project-state reconciliation and final push are the only closeout
+  steps after this entry.
+- **Release boundary:** the development-host installed-Chrome Recorder and execution paths passed
+  against `C:\Program Files\Google\Chrome\Application\chrome.exe`. A fresh canonical packaged
+  artifact is not claimed: `awkit-hgol` still blocks `-mx=9` packaging on this 16-GB workstation.
+
+### What is now true
+
+1. Any terminally failed step latches Flow/Workflow/instance/report status to FAILED even if Continue
+   reaches End or another branch passes; authored failure-edge recovery remains non-terminal.
+2. Instance Monitor displays `executions.validate` verdicts and real reasons, not a generic derived
+   false negative.
+3. Workflow Runs and Instances own contained, keyboard-scrollable, focus-visible list regions.
+4. Flow and Workflow nodes support safe application-scoped copy/paste with new ids, offset placement,
+   compatible cross-designer Run Flow mapping, no topology duplication and text-input guards.
+5. Recorder Favorites persist separately from recent/captured URLs, including normalize/dedupe,
+   remove/re-add and unknown-compatible-field preservation.
+6. Reports export escaped CSV and real XLSX (Summary/Instances/Steps) with redacted evidence.
+7. Installed Chrome is explicit and exact-Super-User-only at trusted IPC boundaries, uses an
+   AWKIT-owned profile and never silently falls back. Generated profile paths are Windows-safe and
+   explicit captured-session profiles remain untouched.
+8. The Workflow table—not the canvas—fills the usable content surface responsively.
+9. Critical structured logs persist safely with rotation/redaction, and Super Users can export a
+   real offline diagnostic JSON bundle. Pre-auth, Administrator and Viewer bypass attempts fail.
+
+### Exact evidence to carry forward
+
+- Required: build PASS; `verify:mock-site` **172/172**; `verify:runner` **136/136**;
+  `validate:offline` PASS; `verify:verifier-classification` reconciled **199** commands;
+  `verify:roadmap-dashboard` **171/171, Sources agree** before final document reconciliation.
+- Runtime/UI: concurrency **89/89**; Flow Designer **122/122 + 16/16**; Workflow Builder **68 broad +
+  17/17**; Instance Monitor **27/27**; Reports populated **168/0/3 NOT RUN** and live engine **21/21**.
+- Recorder/security/diagnostics: draft **119/119**; GUI **166/166**; authz **58/58**; protected login
+  **74/74**; redaction **15/15**; Super User controls **61/61**; Settings E2E **182/182**; settings
+  persistence **3/3**; source hygiene **11/11**.
+- The first parallel Electron batch produced two launch collisions; both gates passed alone. Recorder
+  GUI initially sampled its positional fixture before the recorded click arrived; the verifier now
+  waits for the observable click and passes 166/166 without weakening its identity assertion.
+- `validate:offline` initially failed because npm's child PowerShell could not auto-load
+  `Get-FileHash`. The canonical helper now uses .NET SHA-256, and both the exact command and
+  `-PackagingInputsOnly` preflight pass.
+
+**Validation ledger:** **64 PASS / 2 NOT RUN / 0 BLOCKED**. Tracker: **262 total / 258 closed /
+4 outstanding** after creating and closing `awkit-final9`; the four pre-existing owner/release-gated
+records remain outstanding.
+
+### Remaining external gates
+
+- Fresh canonical `-mx=9` portable/NSIS production artifact (`awkit-hgol`, blocked by memory).
+- Clean offline Windows VM and NSIS install/uninstall walkthrough.
+- Populated Reports' three explicit NOT RUN subcases remain correctly classified: two are proven by
+  the separate live-engine gate; the stale-row retention drawer state is unreachable in one live
+  in-memory store session.
+
 ## HANDOFF (2026-08-25, latest) — script typecheck gate green; packaged licensing executed; packaging BLOCKED
 
 ### Transfer

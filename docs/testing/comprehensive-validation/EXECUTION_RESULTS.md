@@ -1,5 +1,45 @@
 # AWKIT Comprehensive Validation Execution Results
 
+## `awkit-final9` nine-item completion campaign — 2026-08-27
+
+| Evidence | Result | Classification |
+| --- | ---: | --- |
+| `npm run build` | PASS | Product build/typecheck/bundles |
+| `npm run verify:mock-site` | 172/172 | Local Feature Test Lab |
+| `npm run verify:runner` | 136/136 | Failure latch, parallel/workflow/recovery runtime |
+| `npm run verify:concurrency` | 89/89 | Isolation, locks, live Chromium, installed-Chrome profile paths |
+| `npm run verify:flow-designer` | 122/122 broad + 16/16 capsule | Real Electron, copy/save/reload/edit and validity |
+| `npm run verify:workflow-builder` | 68 broad + 17/17 capsule | Real Electron, copy/save/reload/edit and full-width table |
+| `npm run verify:instance-monitor-gui` | 27/27 | Authoritative Runnable model and scrolling |
+| `npm run verify:reports-populated-gui` | 168 PASS / 0 FAIL / 3 NOT RUN | CSV/XLSX/redaction/status/UI; three limits stated below |
+| `npm run verify:reports-live-engine` | 21/21 | Live distribution and backpressure cases omitted by seeded store |
+| `npm run verify:recorder-draft` | 119/119 | Separate persistent Favorites and draft/session behavior |
+| `npm run verify:recorder-gui` | 166/166 | Rendered Recorder UX and favorites |
+| Recorder authz / protected login / redaction | 58/58; 74/74; 15/15 | Trusted boundary and secret safety |
+| `npm run verify:super-user-controls` | 61/61 | Exact-role Chrome/diagnostic guards, resolver and log policy |
+| `npm run verify:settings-persistence` | 3/3 | Atomic concurrent settings persistence |
+| `AWKIT_ALLOW_OS_SHELL_LAUNCH=1 npm run verify:settings-e2e` | 182/182 | Real diagnostic artifact, role denials, restart and Explorer cleanup |
+| `npm run validate:offline` | PASS | Exact required gate after deterministic hash correction |
+| `npm run validate:offline -- -PackagingInputsOnly` | PASS | Bundled Chromium policy/tree/signature preflight |
+| `npm run typecheck:scripts` | PASS | Verifier TypeScript |
+| `npm run verify:source-hygiene` | 11/11 | TypeScript/Markdown control characters and modal focus |
+| `npm run verify:agent-routing` | 1037/1037 | Contract/lease/routing controls |
+| `npm run verify:verifier-classification` | PASS | 199 commands classified; 201 verifier files referenced/justified |
+| `npm run verify:roadmap-dashboard` | 171/171, Sources agree | Pre-final-source reconciliation; rerun required after this entry |
+
+The populated Reports NOT RUN rows are not product failures: live instance distribution and
+backpressure are supplied by the separate 21/21 live-engine gate; the stale-retained-row drawer state
+cannot be created in one session because a second sql.js connection cannot mutate the app's in-memory
+store. Initial parallel Electron launch collisions were environment/harness failures; the affected
+Instance Monitor and Recorder redaction gates passed when serialized. Recorder GUI's first run was
+165/1 because the fixture click arrived after a fixed sample; observable synchronization corrected the
+harness and the unchanged identity assertion passed in the 166/166 rerun.
+
+Real Google Chrome evidence was collected on the host: discovery resolved
+`C:\Program Files\Google\Chrome\Application\chrome.exe`, Recorder start succeeded, and an IPC-started
+workflow completed using a short AWKIT-owned per-instance profile. No fresh canonical packaged Chrome
+claim is made; `awkit-hgol` still blocks release-compression packaging on this workstation.
+
 ## awkit-cey / REC-022 closeout — QC-driven verifier repair - 2026-08-22
 
 Independent QC of the REC-022 workstream found three assertions in this workstream's **own committed

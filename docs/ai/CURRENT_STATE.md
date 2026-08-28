@@ -1,5 +1,80 @@
 # CURRENT_STATE
 
+## Nine-item automation/runtime/UX/reporting/Chrome/diagnostics completion (`awkit-final9`, 2026-08-27)
+
+All nine owner requirements are implemented on `main` and have focused runtime evidence. The work
+followed the complete path from renderer controls through persistence and trusted IPC into execution,
+reports, browser launch and support diagnostics. No assertion was weakened and no mutable data was
+introduced under `resources/` or `app.asar`.
+
+1. **Terminal failures now latch the run to FAILED.** The old final reducer could treat arrival at End
+   as success after a Continue-policy failure. `RunnerResult`, `FlowExecutor` and `ExecutionEngine`
+   now distinguish a terminally failed step from an authored failure-edge recovery
+   (`failureDisposition: recoveryRouted`) and aggregate the terminal-failure latch through instance,
+   workflow, persisted report and multi-instance results. Runner **136/136** covers stop, Continue to
+   End, early failure plus later passes, parallel failure plus success, workflow aggregation and
+   intentional recovery.
+2. **Runnable state is authoritative.** Instance Monitor previously consumed a partial/generic derived
+   state that could disagree with execution admission. It now calls `executions.validate` and renders
+   that model's real reasons. Flow Designer and Workflow Builder keep validation draft/save/reload,
+   legacy-compatible, loop and nested-flow mappings aligned with the same runtime validators.
+3. **Instances and Workflow Runs scroll inside the application shell.** The relevant list containers
+   now own vertical overflow, minimum-height/flex constraints and keyboard focus treatment. Real
+   Electron evidence is **27/27** at long history and a small viewport; no page-level double scroll or
+   renderer error occurred.
+4. **Designer node copy/paste is real and portable.** An application-scoped clipboard supports
+   Ctrl+C/Ctrl+V without exposing configuration to the OS clipboard or intercepting input editing.
+   Flow nodes and Workflow flow-reference nodes get fresh ids and offset positions; Start/End and
+   incompatible cross-designer types are refused; unrelated edges are never copied; safe references
+   and unknown compatible node fields survive structured cloning. Both designer suites prove
+   copy -> paste -> save -> reload -> edit -> second save and source immutability.
+5. **Recorder Favorites are a separate durable collection.** Recorder URL persistence is schema v2
+   with distinct recent/captured and favorite arrays, normalized dedupe, remove/re-add and unknown-field
+   preservation. The UI exposes favorite/unfavorite and select/launch actions without modifying the
+   recorded Flow. Draft/favorites evidence is **119/119** and Recorder GUI is **166/166**.
+6. **Report CSV and XLSX exports are genuine.** `ReportExportService` emits BOM-prefixed escaped CSV
+   and an ExcelJS workbook with Summary, Instances and Steps sheets. A 1,200-step fixture, Unicode,
+   commas, quotes, multiline errors, PASS/FAILED and multi-instance evidence all round-trip; XLSX is
+   parsed back as a real workbook. Export fields are redacted and omit runtime inputs/secrets.
+7. **Installed normal Chrome is optional and Super-User-only.** Settings, Recorder and execution use
+   explicit `installedChrome` configuration; discovery reports unavailable/invalid/launch errors and
+   never silently substitutes bundled Chromium. Exact-role authorization is enforced in Electron main
+   for Recorder, execution and diagnostic export. Chrome uses AWKIT-owned profiles only. A real host
+   Chrome Recorder launch and workflow run completed. Fresh instance profile names are short SHA-256
+   keys under `<runtime>/profiles` to avoid Chrome's nested Windows cache path limit; explicit captured
+   session profiles still win. Concurrency **89/89** proves short paths, distinct instances, matching
+   resource locks and session-reuse compatibility.
+8. **The Workflow library table fills its usable width.** The change is confined to the Workflow list
+   surface and shared Hologram table/layout rules. Real Electron checks prove the table fills its panel
+   at 1024/1280/1440/1920 widths with a compact action column and no unnecessary horizontal scroll.
+9. **Diagnostics are support-grade and safe.** Main/renderer/IPC/runtime/Recorder/browser/persistence/
+   report/cancellation and authorization failures feed structured local logs with severity, subsystem,
+   operation and correlations where available. Error/fatal events persist even when optional debug is
+   off; deterministic redaction removes passwords, OTPs, bearer values, cookies and URL secrets;
+   bounded rotation survives restarts. The Super-User-only diagnostic export is an offline JSON artifact
+   containing version, platform, safe configuration summary, recent report ids/statuses and redacted
+   logs—never secrets or session profiles. Settings E2E **182/182** exported and decoded the artifact
+   and proved pre-auth, Administrator and Viewer direct-IPC denial.
+
+**Focused evidence:** build PASS; Mock Site **172/172**; Runner **136/136**; concurrency **89/89**;
+Flow Designer **122/122 + 16/16**; Workflow Builder **68 broad + 17/17**; Instance Monitor **27/27**;
+Recorder draft **119/119**, GUI **166/166**, authz **58/58**, protected login **74/74**, redaction
+**15/15**; Reports populated **168 PASS / 0 FAIL / 3 NOT RUN** (the two live-state cases pass in
+Reports live engine **21/21**; stale retention deletion is unreachable in one live store session);
+Settings persistence **3/3**; Settings E2E **182/182**; Super User controls **61/61**; source hygiene
+**11/11**; offline validation and packaging-input preflight PASS; verifier classification reconciles
+all **199** commands; roadmap **171/171, Sources agree** before final source reconciliation.
+
+**Validation ledger:** **64 PASS / 2 NOT RUN / 0 BLOCKED**. The tracker now contains **262 total /
+258 closed / 4 outstanding** issues: this campaign added and closed `awkit-final9` while the four
+existing owner/release-gated records remain outstanding.
+
+**Honest limitations:** the installed-Chrome path was executed against the locally installed Chrome
+in the development build, not a newly produced canonical `-mx=9` portable/NSIS artifact. That release
+artifact remains blocked by the existing `awkit-hgol` 16-GB-workstation compression OOM; a stale
+package is not accepted as evidence. Clean/offline Windows VM and NSIS install/uninstall remain the
+standing external release gates.
+
 ## Script typecheck gate green; packaged licensing proven end to end (`AWKIT-BLD-001`, 2026-08-25)
 
 Two blockers left over from the License Issuer work, both resolved as far as this workstation allows.
