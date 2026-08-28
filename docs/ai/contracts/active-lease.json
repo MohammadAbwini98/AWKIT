@@ -4,28 +4,17 @@
   "holder": "qa",
   "status": "released",
   "allowed_paths": [
-    "scripts/verify-flow-designer-gui.mjs",
-    "scripts/verify-flow-designer-gui.pre-capsule.mjs",
-    "scripts/verify-instance-monitor-gui.mjs",
-    "scripts/verify-recorder-draft.mts",
-    "scripts/verify-reports-populated-gui.mts",
-    "scripts/verify-runner.mts",
-    "scripts/verify-source-hygiene.mts",
-    "scripts/verify-super-user-controls.mts",
-    "scripts/verify-workflow-builder-gui.mjs",
-    "scripts/verify-workflow-builder-gui.pre-capsule.mjs"
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
-  "acquired_at": "2026-08-27T13:40:22.975Z",
-  "acquired_at_commit": "af45c630daff27d24b4bc4695536acf3fe1523b4",
+  "acquired_at": "2026-08-28T13:11:38.044Z",
+  "acquired_at_commit": "6bfbbabf90dfe4eaf8391852dba0667717e3af00",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-final9.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-final9.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "9434011619bf02173ecf426b102d578cd93ba29a662abc8d124112363da6e007",
-    "docs/ai/contracts/awkit-final9.json": "fc01d26e494ff070c54ce388f05b62f042f0f68e7ae2c031971e41d643b04cbd",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/active-lease.json": "3964c44ad7fbcb55ca463a5b940a9313b848b597c8d814d641499f332238adc9",
+    "docs/ai/contracts/awkit-final9.json": "d50ddab608c8598fb37f6eeaf32c05f37527a967810829eb4a8b3023b81cec80"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -37,23 +26,10 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1787676844024.896"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-08-27T16:46:39.904Z",
-      "added": [
-        "src/instances/InstanceManager.ts"
-      ],
-      "reason": "Real installed Chrome execution fails on Windows because the generated persistent profile path exceeds Chrome cache path limits",
-      "triggered_escalation": [
-        "runtime",
-        "qc"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-08-27T16:46:39.905Z",
-  "released_reason": "amendment added paths outside qa's ownership (src/instances/InstanceManager.ts) — routing re-run requires a different specialist",
-  "archived_at": "2026-08-27T16:46:39.907Z"
+  "released_at": "2026-08-28T13:12:07.115Z",
+  "released_reason": "Roadmap exact pins reconciled in 5488134; final dashboard passes 171/171 with Sources agree",
+  "archived_at": "2026-08-28T13:12:07.117Z"
 }
