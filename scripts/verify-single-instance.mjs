@@ -12,7 +12,7 @@ import path from "node:path";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { env, cleanup } = isolatedLaunchEnv("awkit-single-instance");
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-single-instance");
 
 const results = [];
 function check(name, pass, detail) {
@@ -20,7 +20,7 @@ function check(name, pass, detail) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-const primary = await electron.launch({ args: [root], cwd: root, env });
+const primary = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
 let secondary = null;
 try {
   const primaryWin = await resolveMainWindow(primary);
@@ -34,7 +34,7 @@ try {
   let secondOpenedWindow = false;
   try {
     secondary = await Promise.race([
-      electron.launch({ args: [root], cwd: root, env }),
+      electron.launch({ args: [root, ...electronArgs], cwd: root, env }),
       new Promise((_, reject) => setTimeout(() => reject(new Error("second launch timed out")), 12000))
     ]);
     // Give it a moment to either open a window or quit from the failed lock.
@@ -51,6 +51,31 @@ try {
   if (secondary) await secondary.close().catch(() => undefined);
   await primary.close().catch(() => undefined);
   cleanup();
+}
+
+// Inverse contract: the guard is per Electron user-data profile, not global to every verifier on
+// the machine. Two suites with distinct APPDATA + LOCALAPPDATA roots must both reach a window. The
+// old harness isolated LOCALAPPDATA only, so this exact parallel launch made the second process quit.
+const profileA = isolatedLaunchEnv("awkit-single-instance-a");
+const profileB = isolatedLaunchEnv("awkit-single-instance-b");
+let appA = null;
+let appB = null;
+try {
+  [appA, appB] = await Promise.all([
+    electron.launch({ args: [root, ...profileA.electronArgs], cwd: root, env: profileA.env }),
+    electron.launch({ args: [root, ...profileB.electronArgs], cwd: root, env: profileB.env })
+  ]);
+  const [winA, winB] = await Promise.all([resolveMainWindow(appA), resolveMainWindow(appB)]);
+  check(
+    "distinct isolated profiles can run concurrently",
+    !winA.isClosed() && !winB.isClosed(),
+    `APPDATA roots: ${profileA.env.APPDATA} | ${profileB.env.APPDATA}`
+  );
+} finally {
+  await appA?.close().catch(() => undefined);
+  await appB?.close().catch(() => undefined);
+  profileA.cleanup();
+  profileB.cleanup();
 }
 
 const passed = results.filter((r) => r.pass).length;

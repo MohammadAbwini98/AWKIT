@@ -32,15 +32,29 @@ export const DEFAULT_CREDS = Object.freeze({
  */
 export function isolatedLaunchEnv(label = "awkit-gui", extraEnv = {}) {
   const dataRoot = mkdtempSync(path.join(tmpdir(), `${label}-`));
+  const roamingDataRoot = path.join(dataRoot, "Roaming");
   // AWKIT_TEST_LICENSE_BYPASS: licensing enforcement is ON by default since 2026-07-29 (awkit-1cc),
   // and an isolated profile is by construction a FRESH install — which gets no migration window — so
   // without this every GUI verifier that runs a real workflow would be refused at the run gate. The
   // variable is read only when `app.isPackaged` is false, so it cannot weaken a shipped build.
   // `extraEnv` is spread last so a suite that is testing licensing can delete or override it.
-  const env = { ...process.env, LOCALAPPDATA: dataRoot, AWKIT_TEST_LICENSE_BYPASS: "1", ...extraEnv };
+  // AWKIT's mutable stores deliberately use LOCALAPPDATA, while Electron keys
+  // requestSingleInstanceLock() from its roaming APPDATA-backed userData path. Isolating only the
+  // former made two otherwise independent GUI verifiers collide: the second Electron process saw
+  // the first suite's lock and quit during electron.launch(). Keep both roots unique per suite.
+  const env = {
+    ...process.env,
+    APPDATA: roamingDataRoot,
+    LOCALAPPDATA: dataRoot,
+    AWKIT_TEST_LICENSE_BYPASS: "1",
+    ...extraEnv
+  };
   delete env.ELECTRON_RUN_AS_NODE; // GUI app, not plain Node
   return {
     env,
+    // Electron establishes the requestSingleInstanceLock identity before AWKIT reads LOCALAPPDATA.
+    // Pass the user-data root explicitly when a verifier needs true cross-process isolation.
+    electronArgs: [`--user-data-dir=${path.join(roamingDataRoot, "SpecterStudio")}`],
     dataRoot,
     cleanup() {
       // `force: true` swallows ENOENT but NOT the Windows file-lock errors, and Electron does not
@@ -51,7 +65,11 @@ export function isolatedLaunchEnv(label = "awkit-gui", extraEnv = {}) {
       // `maxRetries` is Node's own bounded retry for precisely this set (EBUSY, EMFILE, ENFILE,
       // ENOTEMPTY, EPERM) with a linear backoff, so no hand-rolled loop and no fixed sleep. Shared
       // harness code, so this covers every GUI verifier rather than the one where it was noticed.
-      rmSync(dataRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      // Concurrent Electron shutdown can release several profile writers in sequence; ten linear
+      // retries proved too short for the second profile even after both process trees were gone.
+      // Node retries only on the documented transient filesystem codes, so this remains bounded and
+      // error-driven rather than an unconditional sleep.
+      rmSync(dataRoot, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 });
     }
   };
 }
@@ -167,4 +185,3 @@ export async function signInFirstRun(win, creds = DEFAULT_CREDS) {
   await win.waitForSelector(".app-shell", { timeout: 25000 });
   return { recoveryCode };
 }
-

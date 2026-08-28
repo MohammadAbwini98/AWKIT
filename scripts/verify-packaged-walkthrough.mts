@@ -210,6 +210,7 @@ interface PsProcess {
   ParentProcessId: number;
   Name: string;
   ExecutablePath: string | null;
+  CommandLine: string | null;
 }
 interface PsConnection {
   OwningProcess: number;
@@ -224,7 +225,7 @@ interface SystemSample {
 async function sampleSystem(): Promise<SystemSample | null> {
   const raw = await psJson<{ procs: PsProcess[] | PsProcess; conns: PsConnection[] | PsConnection | null }>(
     "$ErrorActionPreference='SilentlyContinue';" +
-      "$procs = Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath;" +
+      "$procs = Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine;" +
       "$conns = Get-NetTCPConnection -State Established,SynSent -ErrorAction SilentlyContinue | Select-Object OwningProcess,RemoteAddress,RemotePort;" +
       "@{procs=$procs;conns=$conns} | ConvertTo-Json -Depth 4 -Compress"
   );
@@ -405,7 +406,12 @@ const api = {
     ),
   recorderStart: (t: Api, url: string) => t.win.evaluate((u) => (window as any).playwrightFlowStudio.recorder.start(u), url),
   recorderStatus: (t: Api) => t.win.evaluate(() => (window as any).playwrightFlowStudio.recorder.getStatus()),
-  recorderCancel: (t: Api) => t.win.evaluate(() => (window as any).playwrightFlowStudio.recorder.cancel())
+  recorderCancel: (t: Api) => t.win.evaluate(() => (window as any).playwrightFlowStudio.recorder.cancel()),
+  settingsGet: (t: Api) => t.win.evaluate(() => (window as any).playwrightFlowStudio.settings.get()),
+  settingsUpdate: (t: Api, patch: unknown) =>
+    t.win.evaluate((p) => (window as any).playwrightFlowStudio.settings.update(p), patch),
+  detectInstalledChrome: (t: Api, configuredPath?: string) =>
+    t.win.evaluate((p) => (window as any).playwrightFlowStudio.settings.detectInstalledChrome(p), configuredPath)
 };
 
 /** Licensing IPC needs a session ref and a FRESH re-auth for import/remove (both are sensitive). */
@@ -799,6 +805,19 @@ async function main(): Promise<void> {
     await registerAppPids(sessionA, observer);
     const winA = await resolvePackagedMainWindow(sessionA);
     await winA.waitForLoadState("domcontentloaded");
+    const preAuthChromeProbe = (await winA.evaluate(async () => {
+      try {
+        await (window as any).playwrightFlowStudio.settings.detectInstalledChrome();
+        return { denied: false, message: "allowed" };
+      } catch (error) {
+        return { denied: true, message: error instanceof Error ? error.message : String(error) };
+      }
+    })) as { denied: boolean; message: string };
+    check(
+      "packaged installed-Chrome detection rejects an unauthenticated direct IPC call",
+      preAuthChromeProbe.denied && /NOT_AUTHORIZED|not authorized/i.test(preAuthChromeProbe.message),
+      preAuthChromeProbe.message
+    );
     await ensureWalkthroughAuthenticated(winA);
     const tA: Api = { win: winA };
     check("packaged app launched and opened a window", true);
@@ -835,6 +854,73 @@ async function main(): Promise<void> {
     const appRoot = join(freshRootA, "SpecterStudio");
     for (const folder of ["flows", "workflows", "logs", "screenshots", "runtime"]) {
       check(`fresh runtime folder created: ${folder}/`, existsSync(join(appRoot, folder)));
+    }
+
+    console.log("\nPart C2 — installed Google Chrome from the fresh packaged app (Super User)");
+    const chromeResolution = (await api.detectInstalledChrome(tA)) as any;
+    if (!chromeResolution?.available) {
+      blocked += 1;
+      console.log(`  ⊘ Packaged installed Chrome — BLOCKED: ${chromeResolution?.code ?? "CHROME_UNAVAILABLE"}: ${chromeResolution?.message ?? "not found"}`);
+      summary.installedChrome = { blocked: true, resolution: chromeResolution };
+    } else {
+      check("packaged app discovers a real installed Google Chrome executable", existsSync(chromeResolution.executablePath), chromeResolution.executablePath);
+      const invalidResolution = (await api.detectInstalledChrome(tA, join(freshRootA, "missing", "chrome.exe"))) as any;
+      check(
+        "an explicit invalid Chrome path fails without silent fallback",
+        invalidResolution?.available === false && invalidResolution?.code === "CHROME_EXECUTABLE_INVALID",
+        JSON.stringify(invalidResolution)
+      );
+      await api.settingsUpdate(tA, {
+        superUser: { chrome: { mode: "installedChrome", executablePath: chromeResolution.executablePath } }
+      });
+      const installedSettings = (await api.settingsGet(tA)) as any;
+      check(
+        "Super User installed-Chrome selection persists through packaged settings IPC",
+        installedSettings?.superUser?.chrome?.mode === "installedChrome" &&
+          installedSettings?.superUser?.chrome?.executablePath === chromeResolution.executablePath
+      );
+
+      const installedRecorder = (await api.recorderStart(tA, `${MOCK_BASE}/recorder-lab`)) as any;
+      check("packaged Recorder launches through installed Chrome", installedRecorder?.isRecording === true, JSON.stringify(installedRecorder)?.slice(0, 180));
+      const recorderProfile = join(appRoot, "profiles", "installed-chrome-recorder");
+      const installedProcess = await pollUntil(async () => {
+        const system = await sampleSystem();
+        if (!system) return null;
+        return system.procs.find(
+          (proc) =>
+            proc.Name.toLowerCase() === "chrome.exe" &&
+            (proc.ExecutablePath ?? "").toLowerCase() === String(chromeResolution.executablePath).toLowerCase() &&
+            (proc.CommandLine ?? "").toLowerCase().includes(recorderProfile.toLowerCase())
+        ) ?? null;
+      }, 20_000, 500);
+      check("installed Chrome is the actual recorded process executable", Boolean(installedProcess), chromeResolution.executablePath);
+      check("installed Chrome uses the AWKIT-owned recorder profile", existsSync(recorderProfile) && Boolean(installedProcess), recorderProfile);
+      const dailyProfile = join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "User Data").toLowerCase();
+      check(
+        "packaged Recorder never points at the user's daily Chrome profile",
+        Boolean(installedProcess) && !(installedProcess?.CommandLine ?? "").toLowerCase().includes(dailyProfile),
+        (installedProcess?.CommandLine ?? "missing process").slice(0, 240)
+      );
+      await api.recorderCancel(tA);
+      const installedRecorderStopped = await pollUntil(async () => {
+        const status = (await api.recorderStatus(tA)) as any;
+        return status?.isRecording === false ? true : null;
+      }, 15_000, 500);
+      check("installed-Chrome Recorder cancels cleanly", installedRecorderStopped === true);
+
+      // Bundled Chromium remains the canonical offline default for the rest of this walkthrough.
+      await api.settingsUpdate(tA, {
+        superUser: { chrome: { mode: "bundledChromium", executablePath: "" } }
+      });
+      const restoredSettings = (await api.settingsGet(tA)) as any;
+      check("bundled Chromium remains available after installed-Chrome proof", restoredSettings?.superUser?.chrome?.mode === "bundledChromium");
+      summary.installedChrome = {
+        available: true,
+        source: chromeResolution.source,
+        executablePath: chromeResolution.executablePath,
+        recorderProfile,
+        processId: installedProcess?.ProcessId
+      };
     }
     const beforeImport = (await api.workflows(tA)) as any[];
     check(

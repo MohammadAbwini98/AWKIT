@@ -13,6 +13,8 @@ import { resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs"
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-instance-monitor-"));
 const localAppData = path.join(tempRoot, "LocalAppData");
+const roamingAppData = path.join(tempRoot, "AppData");
+const electronUserData = path.join(roamingAppData, "SpecterStudio");
 const runtimeRoot = path.join(localAppData, "SpecterStudio");
 const port = 4412;
 const base = `http://127.0.0.1:${port}`;
@@ -112,12 +114,12 @@ try {
   await waitForServer();
   const env = {
     ...process.env,
+    APPDATA: roamingAppData,
     LOCALAPPDATA: localAppData,
-    APPDATA: path.join(tempRoot, "AppData"),
     PRODUCTION_OFFLINE: "true"
   };
   delete env.ELECTRON_RUN_AS_NODE;
-  app = await electron.launch({ args: [root], cwd: root, env });
+  app = await electron.launch({ args: [root, `--user-data-dir=${electronUserData}`], cwd: root, env });
   const win = await resolveMainWindow(app);
   const consoleErrors = [];
   const pageErrors = [];

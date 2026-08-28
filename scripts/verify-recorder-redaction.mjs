@@ -36,7 +36,7 @@ const flowName = "REC-007 Redaction Capture";
 const workflowId = "rec-007-redaction-workflow";
 const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const evidenceDir = path.join(root, "test-artifacts", "recorder-redaction", runStamp);
-const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-rec007", {
+const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-rec007", {
   PRODUCTION_OFFLINE: "true",
   AWKIT_MAX_BROWSERS: "1",
   AWKIT_MAX_ACTIVE_FLOWS: "1"
@@ -160,7 +160,7 @@ try {
   await waitForServer();
   console.log(`REC-007 evidence: ${evidenceDir}\n`);
 
-  app = await electron.launch({ args: [root], cwd: root, env });
+  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
   const win = await resolveMainWindow(app);
   win.on("console", (message) => {
     if (message.type() === "error") rendererErrors.push(message.text());
