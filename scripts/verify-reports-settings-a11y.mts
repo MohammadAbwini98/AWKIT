@@ -12,6 +12,7 @@ import { _electron as electron } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { SqliteRuntimeStore } from "@src/runner/store/SqliteRuntimeStore";
 import {
   DEFAULT_CREDS,
   isolatedLaunchEnv,
@@ -31,6 +32,51 @@ const evidenceDir = path.join(root, "test-artifacts", "reports-settings-a11y", s
 let passed = 0;
 let failed = 0;
 let notRun = 0;
+
+/**
+ * Seed the production SQLite store before Electron starts. Workflow Reports intentionally renders
+ * an EmptyState on a fresh profile, but SYS-REP-016 is specifically a table-header contract. A real
+ * durable row is therefore a test precondition, not renderer injection: the page still reaches it
+ * through the app's normal persistence -> main -> IPC -> preload -> renderer path.
+ */
+async function seedWorkflowReportHistory(dataRoot: string): Promise<void> {
+  const runtimeDir = path.join(dataRoot, "SpecterStudio", "runtime");
+  await mkdir(runtimeDir, { recursive: true });
+  const store = await SqliteRuntimeStore.open(path.join(runtimeDir, "runtime.sqlite"), () => undefined);
+  const now = Date.now();
+  for (const [index, status] of ["completed", "failed"].entries()) {
+    const startedAt = new Date(now - (index + 1) * 60_000).toISOString();
+    const endedAt = new Date(now - (index + 1) * 60_000 + 1_500).toISOString();
+    store.upsertRun({
+      instanceId: `a11y-report-${index + 1}`,
+      executionId: `a11y-execution-${index + 1}`,
+      scenarioId: `a11y-workflow-${index + 1}`,
+      scenarioName: `Accessibility Workflow ${index + 1}`,
+      triggerType: "manual",
+      status,
+      flowRunStatus: status,
+      startedAt,
+      endedAt,
+      durationMs: 1_500,
+      queueWaitMs: 25,
+      retryCount: status === "failed" ? 1 : 0,
+      errorClass: status === "failed" ? "assertion" : undefined,
+      error: status === "failed" ? "Synthetic accessibility fixture failure [REDACTED]" : undefined,
+      machineId: "a11y-fixture-machine",
+      executionMode: "sequential",
+      browserPoolMode: "dedicated",
+      configuredConcurrency: 1,
+      observedPeakConcurrency: 1,
+      workloadClass: "light",
+      headed: false,
+      resourceProfile: "balanced",
+      isolationClass: "DEDICATED_BROWSER",
+      workloadWeight: 1,
+      updatedAt: endedAt
+    });
+  }
+  await store.close();
+}
 /**
  * `skipped` marks the NOT-RUN third state (AWKIT-QA-007): a check whose precondition was absent is
  * neither a pass nor a defect. It was written by `checkSkip` and read by the summary, but was never
@@ -85,6 +131,7 @@ async function tabThrough(win: any, n: number) {
 async function main(): Promise<number> {
   await mkdir(evidenceDir, { recursive: true });
   const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-a11y");
+  await seedWorkflowReportHistory(dataRoot);
   const app = await electron.launch({ args: [root], env, cwd: root });
   const win = await resolveMainWindow(app);
   const bw = await app.browserWindow(win);
@@ -130,14 +177,7 @@ async function main(): Promise<number> {
       });
       return out;
     });
-    if (sortHeaders.length === 0) {
-      // Workflow Reports renders an EmptyState with no seeded history, so there is no table to audit
-      // here. The aria-sort contract is exercised against seeded data by verify:reports-populated-gui.
-      checkSkip(
-        "Reports: sortable table headers expose aria-sort",
-        "Workflow Reports shows its EmptyState on a fresh profile — no table to audit; covered against seeded data by verify:reports-populated-gui"
-      );
-    }
+    check("Reports: persisted history renders sortable table headers", sortHeaders.length > 1, `${sortHeaders.length} sortable headers`);
     if (sortHeaders.length > 0) {
       // Click one to establish a definite sort state, then re-read.
       await win.locator("button.awkit-sort-header").first().click();

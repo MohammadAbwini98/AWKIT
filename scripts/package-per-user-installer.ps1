@@ -12,10 +12,10 @@ powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "generate-depe
 if ($LASTEXITCODE -ne 0) { throw "dependency manifest generation failed with exit code $LASTEXITCODE" }
 powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "validate-offline-bundle.ps1") -Strict
 if ($LASTEXITCODE -ne 0) { throw "strict offline validation failed with exit code $LASTEXITCODE" }
+. (Join-Path $PSScriptRoot "lib\set-packaging-compression.ps1")
 npx electron-builder --win nsis --config electron-builder.json
 # $ErrorActionPreference="Stop" does NOT trip on a native-exe non-zero exit; check explicitly so a
-# failed pack (e.g. the 7-Zip "-mx=9" OOM observed on low-memory machines) can't masquerade as
-# success and leave a stale installer on disk. Observed 2026-07-06.
+# failed pack can't masquerade as success and leave a stale installer on disk.
 if ($LASTEXITCODE -ne 0) { throw "electron-builder (nsis) failed with exit code $LASTEXITCODE" }
 
 $packageJson = Get-Content -Raw (Join-Path $PSScriptRoot "..\package.json") | ConvertFrom-Json

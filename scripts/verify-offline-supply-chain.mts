@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { loadDependencyManifest } from "../src/offline/DependencyManifest";
 import { validateOfflineSupplyChain } from "../src/offline/SupplyChainIntegrity";
 
@@ -124,6 +125,63 @@ await check("packaging excludes the redundant vendor browser mirror", () => {
     (entry: { from?: string }) => entry.from === "vendor"
   );
   assert.ok(vendorResource?.filter.includes("!browsers/**"));
+});
+
+const compressionPolicyPath = join(ROOT, "scripts", "lib", "set-packaging-compression.ps1");
+const compressionPolicySource = await readFile(compressionPolicyPath, "utf8");
+const readCompressionLevel = (sourcePath: string) => {
+  const result = spawnSync(
+    "powershell",
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      `. '${sourcePath.replaceAll("'", "''")}'; [Console]::Write($env:ELECTRON_BUILDER_COMPRESSION_LEVEL)`
+    ],
+    { cwd: ROOT, encoding: "utf8", windowsHide: true }
+  );
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const match = result.stdout.match(/([0-9]+)\s*$/);
+  assert.ok(match, `compression level missing from helper output: ${result.stdout}`);
+  return match[1];
+};
+const require = createRequire(import.meta.url);
+const { compute7zCompressArgs } = require("app-builder-lib/out/targets/archive.js") as {
+  compute7zCompressArgs: (format: string, options: { compression?: string }) => string[];
+};
+
+await check("canonical wrappers apply the bounded-memory compression policy", async () => {
+  for (const scriptName of ["package-portable.ps1", "package-per-user-installer.ps1"]) {
+    const source = await readFile(join(ROOT, "scripts", scriptName), "utf8");
+    assert.match(source, /lib\\set-packaging-compression\.ps1/);
+    assert.ok(source.indexOf("set-packaging-compression.ps1") < source.indexOf("npx electron-builder"));
+  }
+});
+await check("the real electron-builder argument resolver emits -mx=5", () => {
+  const previous = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
+  try {
+    process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = readCompressionLevel(compressionPolicyPath);
+    assert.ok(compute7zCompressArgs("7z", { compression: "normal" }).includes("-mx=5"));
+  } finally {
+    if (previous === undefined) delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
+    else process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = previous;
+  }
+});
+await check("a mutation back to maximum compression is rejected", async () => {
+  const mutationDir = await mkdtemp(join(tmpdir(), "awkit-compression-mutation-"));
+  try {
+    const mutatedPath = join(mutationDir, "set-packaging-compression.ps1");
+    const mutated = compressionPolicySource.replace(
+      '$env:ELECTRON_BUILDER_COMPRESSION_LEVEL = "5"',
+      '$env:ELECTRON_BUILDER_COMPRESSION_LEVEL = "9"'
+    );
+    assert.notEqual(mutated, compressionPolicySource, "mutation did not alter the policy fixture");
+    await writeFile(mutatedPath, mutated, "utf8");
+    assert.notEqual(readCompressionLevel(mutatedPath), "5", "max-compression mutation escaped detection");
+  } finally {
+    await rm(mutationDir, { recursive: true, force: true });
+  }
 });
 
 const preflight = spawnSync(

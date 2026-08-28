@@ -33,10 +33,10 @@ powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "validate-offl
 if ($LASTEXITCODE -ne 0) { throw "strict offline validation failed with exit code $LASTEXITCODE" }
 
 Write-Step "Packaging the portable EXE"
+. (Join-Path $PSScriptRoot "lib\set-packaging-compression.ps1")
 npx electron-builder --win portable --config electron-builder.json
 # $ErrorActionPreference="Stop" does NOT trip on a native-exe non-zero exit; check explicitly so a
-# failed pack (e.g. the 7-Zip "-mx=9" OOM observed on low-memory machines) can't masquerade as
-# success and leave a stale EXE on disk. Observed 2026-07-06.
+# failed pack can't masquerade as success and leave a stale EXE on disk.
 if ($LASTEXITCODE -ne 0) { throw "electron-builder (portable) failed with exit code $LASTEXITCODE" }
 
 Write-Step "Writing the artifact provenance"
