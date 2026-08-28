@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("261 issues parse", beads.stats.total === 261, `got ${beads.stats.total}`);
+  check("262 issues parse", beads.stats.total === 262, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -354,8 +354,11 @@ try {
   // the portable/NSIS artifacts on this 16 GB workstation - 7-Zip -mx=9 OOM over the 802 MiB tree),
   // so the total rose by one and outstanding three to four. Resolution is an owner decision between a
   // larger build machine and a compression-policy change, so it joins the owner-gated set.
-    "4 outstanding / 257 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 257,
+  // Then 4/258 of 262 on 2026-08-27: `awkit-final9` was filed and closed after the nine-item
+  // implementation and focused campaign completed. Total and closed each rose by one; the same four
+  // owner/release-gated issues remain outstanding.
+    "4 outstanding / 258 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 258,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
