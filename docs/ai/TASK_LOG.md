@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-08-29 — Codex — close release packaging, packaged Chrome and clean-machine installer gates
+
+**Task:** close code-resolvable release-readiness gaps without reopening the completed nine-item
+campaign. **Root cause/fix:** electron-builder's installed 7z argument builder inherited `-mx=9`;
+`7za.exe` reached about 2.14 GiB private memory and exhausted system commit over the 827.6 MiB staged
+tree. Canonical portable/installer wrappers now set the supported level 5 policy (about 0.64 GiB
+private), guarded through the real argument builder and a reverted-policy negative control. No
+runtime assets were removed; duplicate inventory found only 0.18 MiB of harmless copies.
+
+**Verifier and harness completion:** Reports accessibility seeds production `SqliteRuntimeStore`
+data and is 17/0/0; deleting the real sortable header produced 2 FAIL. Electron GUI suites now pass
+explicit unique `--user-data-dir` profiles; the pre-fix parallel Recorder launch collided, while the
+fixed Instance Monitor 27/27 and Recorder redaction 15/15 pass concurrently. Single-instance 4/4
+proves the actual same-profile/distinct-profile contract. Packaged walkthrough 35/0/1 exercises real
+installed Chrome Recorder, invalid-path refusal, pre-auth denial and app-owned profile isolation; its
+licensed workflow segment remains blocked on authorized issuer-key access.
+
+**Clean machine:** restored the `AWKIT-CleanMachine` clean checkpoint, delivered the fresh artifacts
+as read-only media and executed the authoritative driver on offline Windows 11 Pro: **21 PASS / 0
+FAIL / 3 NOT EXECUTED**. Guest hashes matched; no source/Node/network/profile existed; portable and
+installed builds launched as `awkituser`; NSIS installed per-user with no UAC and uninstalled cleanly.
+The artifact helper now alternates two ISO files and switches the existing Hyper-V DVD directly,
+avoiding VMMS's invalid post-eject object; it explicitly releases the COM image-builder locks.
+
+**Tracker:** closed `awkit-hgol` and stale Reports item `awkit-az7`; `awkit-7bu` and `awkit-cm8`
+remain blocked on authorized real-Oracle evidence and, for `awkit-cm8`, the sustained soak. Ledger
+unchanged at 64 PASS / 2 NOT RUN / 0 BLOCKED. Exact final command matrix and push result are recorded
+in the latest CURRENT_STATE/HANDOFF entry.
+
 ## 2026-08-27 — Final nine-item automation/runtime/UX/reporting/Chrome/diagnostics campaign (`awkit-final9`)
 
 **Agent:** Codex. **Task:** investigate, implement and prove the owner's nine cross-layer completion

@@ -357,8 +357,11 @@ try {
   // Then 4/258 of 262 on 2026-08-27: `awkit-final9` was filed and closed after the nine-item
   // implementation and focused campaign completed. Total and closed each rose by one; the same four
   // owner/release-gated issues remain outstanding.
-    "4 outstanding / 258 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 258,
+  // Then 2/260 of 262 on 2026-08-29: canonical bounded-memory packaging plus the clean-machine
+  // installer path closed `awkit-hgol`; current Reports evidence ownership showed `awkit-az7` was
+  // stale bookkeeping, so it closed too. `awkit-7bu` and `awkit-cm8` remain externally blocked.
+    "2 outstanding / 260 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 260,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -602,10 +605,13 @@ try {
   // artifacts on this workstation (7-Zip -mx=9 OOM over the 802 MiB tree, reproduced three times).
   // It is declared rather than edge-blocked for the same reason as the others: no `blocks` edge can
   // express "needs a build machine with more free memory, or an owner decision on compression".
+  // Then 2 on 2026-08-29: `awkit-hgol` closed on canonical package + clean-machine evidence, and
+  // stale Reports bookkeeping item `awkit-az7` closed after its current NOT RUN ownership was
+  // re-derived. The real Oracle/operator/soak items remain declared blocked.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 4 &&
-      order.externallyBlocked.length === 4 &&
+    order.stats.declaredBlocked === 2 &&
+      order.externallyBlocked.length === 2 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

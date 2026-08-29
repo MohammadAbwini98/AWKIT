@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## Release residuals after canonical packaging and clean-machine execution (2026-08-29)
+
+- **Windows Authenticode is not configured.** The dependency manifest is validly Ed25519-signed, but
+  the portable and NSIS executables report `NotSigned`; SmartScreen behavior was recorded on the clean
+  guest. Do not conflate the detached dependency signature with Windows publisher signing.
+- **Packaged installed-Chrome Recorder is proven; licensed workflow execution is authorization-
+  blocked.** Packaged discovery, explicit invalid-path failure, Super-User setting persistence, real
+  Chrome launch, AWKIT-owned profile isolation and bundled-mode restoration pass. The genuine packaged
+  workflow path still needs the explicitly provisioned issuer key; no agent should synthesize or
+  discover that private key.
+- **Clean-machine coverage is partial by the driver contract.** The release run is 21 PASS / 0 FAIL /
+  3 NOT EXECUTED. The three rows are upgrade-profile, summary and validation/grant/migration sections;
+  preserve them as NOT EXECUTED unless those actual lifecycle boundaries run.
+- **Hyper-V invalidates a DVD device object immediately after eject on this Gen-1 guest.** The
+  artifact helper avoids that transition: it alternates two host ISO files, directly switches the
+  existing DVD from old to new, then removes the old unmounted file. COM image-builder objects are
+  explicitly released so repeat calls do not retain locks on the staging files.
+
+## RESOLVED: release packaging memory exhaustion (`awkit-hgol`, 2026-08-29)
+
+The inherited electron-builder 7z policy used `-mx=9`; `7za.exe` reached about 2.14 GiB private memory
+and exhausted system commit while compressing the 827.6 MiB staged tree. Both canonical wrappers now
+set the supported `ELECTRON_BUILDER_COMPRESSION_LEVEL=5`. The same stage used about 0.64 GiB private
+memory and both portable/NSIS packages completed. This changes archive size/compression time only;
+the unpacked payload, Chromium, app.asar, resources, signing and offline validation remain intact.
+`verify:offline-supply-chain` exercises the installed argument builder and rejects a mutated `-mx=9`
+policy. Do not restore maximum compression without demonstrating adequate release-host commit.
+
 ## Final-nine evidence boundaries (2026-08-27, `awkit-final9`)
 
 - **Installed Chrome is proven in the development-host build, not a fresh canonical package.** The
@@ -40,7 +68,7 @@ how it stayed red long enough to accumulate 33.
   the callback. Put the observed state on a holder object (`const seen = { flag: false }`); a property
   read is not narrowed that way. Do not "fix" it by weakening the assertion.
 
-## Release packaging: `-mx=9` cannot be built on this workstation (2026-08-25, `awkit-hgol`)
+## SUPERSEDED: `-mx=9` could not be built on this workstation (2026-08-25, `awkit-hgol`)
 
 `npm run package:portable` gets through every stage — including **strict** offline validation — and
 then dies in `electron-builder`'s final `7za -mx=9` over the 802 MiB tree with
@@ -57,14 +85,15 @@ repository configuration changed, nothing persisted. That drops the LZMA2 dictio
 Editing that config would have changed nothing here, and setting it to `"store"` would be a real
 change to release packaging policy for every future build.
 
-**The resulting artifacts must not be shipped.** They are not byte-equivalent to a canonical release
+**Historical verification artifacts must not be shipped.** They are not byte-equivalent to the then-canonical release
 build. `dist/VERIFICATION-BUILD-0.1.20.md` records that beside them, and `awkit-hgol` stays open until
 a real `-mx=9` build exists. Compression affects the outer container only — `app.asar`, the bundled
 Chromium, `extraResources` and the signed manifest come out exactly as a release build produces them —
 which is why the gate results are still real evidence about the code.
 
 The `package-portable.ps1` guard works and should be left alone: it throws rather than leaving a stale
-EXE that a later gate would happily call fresh (its comment has named this `-mx=9` OOM since 2026-07-06).
+EXE that a later gate would happily call fresh. The 2026-08-29 canonical policy above supersedes this
+historical one-off workaround and `awkit-hgol` is closed.
 
 **A stale portable EXE still "passes" the existence check.** Part K booted the 22-hour-old artifact
 and reported three green checks about it. Before trusting Part K or L, confirm

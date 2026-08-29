@@ -1,5 +1,47 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-29, latest) — canonical packages and clean-machine installer path executed
+
+### Transfer
+
+- **Branch:** `main`, direct commits only. Implementation commits are `9e1586a` and `9768d6f`;
+  authoritative-state closeout and final push follow this entry.
+- **Packaging:** `awkit-hgol` is closed. The canonical wrappers set
+  `ELECTRON_BUILDER_COMPRESSION_LEVEL=5`, which bounds the installed electron-builder 7-Zip policy at
+  `-mx=5`. This is a deliberate release policy, not the old one-off verification environment.
+- **Artifacts under test:** 0.1.21 from clean source commit
+  `9768d6fa38439e91af2a3369a1271c4114c6dd6b`; portable SHA-256
+  `a9ef0eeab1c6e38d53936fc019761a7cd0bb3efb96fc4ee4de8ceb77d85bc560`, NSIS SHA-256
+  `0c4168d1d8dd70ab7a94b566dbf56f60f4e1331d0ff82e2900f36f08f176d012`.
+
+### Evidence and boundaries
+
+- Canonical `package:offline` completed portable + NSIS with strict offline validation. The package
+  remains complete: 827.6 MiB unpacked, one 415.4 MiB Chrome-for-Testing tree, 90.4 MiB `app.asar`,
+  37.6 MiB Zvec host; duplicate inventory found only 0.18 MiB of harmless duplicates.
+- Packaged walkthrough is **35 PASS / 0 FAIL / 1 BLOCKED**. Real installed Chrome was discovered and
+  launched by packaged Recorder as Super User with an AWKIT-owned scoped profile; invalid path and
+  pre-auth direct-IPC denial are explicit, and bundled mode was restored. Genuine packaged workflow
+  execution through installed Chrome remains **BLOCKED**, not failed, because this run did not have
+  authorization to use an issuer private key.
+- Clean offline Windows 11 VM run is **21 PASS / 0 FAIL / 3 NOT EXECUTED**. Portable launch,
+  standard-user ownership, LocalAppData storage, guest hash match, no network/global Node, per-user
+  NSIS install/launch/no-UAC/uninstall all passed. Legacy upgrade/migration sections remain explicitly
+  NOT EXECUTED. See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
+- Reports accessibility is **17/0/0** using the production runtime store; its broken-`aria-sort`
+  negative control produced 2 FAIL. Reports populated remains **168/0/3 NOT RUN**: two rows are owned
+  by live-engine **21/21**, and the stale-retention drawer branch is unreachable in one live store
+  session. Stale tracker item `awkit-az7` is closed accordingly.
+- Electron parallel collision was a harness user-data/singleton collision, not product concurrency:
+  fixed suites pass simultaneously (**27/27** + **15/15**) and `verify:single-instance` proves same
+  profile rejects while distinct profiles run concurrently (**4/4**).
+- Detached dependency-manifest integrity is Ed25519-signed and verified. The Windows EXEs are still
+  **not Authenticode-signed**; the clean guest recorded `NotSigned`, so SmartScreen remains expected.
+
+**Ledger:** **64 PASS / 2 NOT RUN / 0 BLOCKED**. Tracker: **262 total / 260 closed / 2 blocked
+outstanding** (`awkit-7bu`, `awkit-cm8`). Do not close either without authorized real-Oracle evidence;
+the latter also retains the sustained multi-day soak.
+
 ## HANDOFF (2026-08-27, latest) — nine-item final automation completion implemented and verified
 
 ### Transfer

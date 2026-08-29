@@ -2577,7 +2577,7 @@ These were found and corrected while building the campaign. They are not open AW
 
 ## Environmental gaps, not defects
 
-- **Portable / NSIS release artifacts cannot be built on this workstation (2026-08-25, `awkit-hgol`).**
+- **RESOLVED 2026-08-29 — portable / NSIS release compression exhausted host commit (`awkit-hgol`).**
   `npm run package:portable` completes preflight, build, Zvec staging, the portable fresh-state gate,
   dependency-manifest generation + signing, and **strict** offline validation — then the final
   `electron-builder` step fails: `7za.exe a -bd -mx=9` over the 802 MiB `win-unpacked` tree exits 8
@@ -2600,8 +2600,10 @@ These were found and corrected while building the campaign. They are not open AW
   byte-equivalent to a release build and must not be shipped
   (`dist/VERIFICATION-BUILD-0.1.20.md` records that beside them). Note for whoever picks this up:
   `electron-builder` hardcodes `-mx=9` for 7z regardless of the `compression` config value (only
-  `"store"` differs), so editing `electron-builder.json` was never the lever. `awkit-hgol` stays open
-  for a real `-mx=9` release build on a machine with more free memory.
+  `"store"` differs), so editing `electron-builder.json` was never the lever. Resolution is the
+  canonical wrapper policy `ELECTRON_BUILDER_COMPRESSION_LEVEL=5`: measured private memory fell from
+  about 2.14 GiB to 0.64 GiB, both packages completed, strict offline validation and payload integrity
+  passed, and a real-argument mutation control rejects a return to `-mx=9`. `awkit-hgol` is closed.
 - Live Oracle: blocked because no approved URL/user/password is configured and the local Oracle container is absent.
 - ~~Oracle packaged driver bundle: local development offline validation reported a zero-megabyte
   Oracle bundle warning.~~ **Withdrawn 2026-07-26 — never a defect or a warning.** `validate:offline`
@@ -2609,6 +2611,8 @@ These were found and corrected while building the campaign. They are not open AW
   measured contents are AWKIT's 40,550-byte bridge jar plus manifest and checksums (42,893 bytes
   total). Shipping zero Oracle driver bytes is the enforced user-selected-driver model, not a gap. See
   `EXECUTION_RESULTS.md` › Additional offline note.
-- Clean/offline Windows VM walkthrough: not run.
+- Clean/offline Windows VM walkthrough: **partially executed 2026-08-29, 21 PASS / 0 FAIL / 3 NOT
+  EXECUTED**. Standard-user portable and per-user NSIS install/launch/uninstall passed; the driver does
+  not automate its legacy upgrade-profile/summary/migration sections.
 - CAPTCHA/MFA/OTP/protected-login completion: intentionally blocked for authorized manual handoff.
 - Firefox/WebKit certification: not run under this Chromium-first scope.

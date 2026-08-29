@@ -1,5 +1,65 @@
 # CURRENT_STATE
 
+## Release packaging and clean-machine gates closed where executable (`awkit-hgol`, 2026-08-29)
+
+Canonical portable and NSIS packaging now succeeds on the 15.9-GB release workstation. The root
+cause was measured in electron-builder's installed 7-Zip argument builder: every non-store 7z archive
+inherits `-mx=9`; the failing `7za.exe` reached about **2.14 GiB private / 1.08 GiB working set** and
+exhausted the host's system commit while compressing the **827.6 MiB** staged application. The staged
+tree contains the one required **415.4 MiB** Chrome-for-Testing payload, a **90.4 MiB** `app.asar` and
+the **37.6 MiB** Zvec host. Full SHA-256 inventory found only about **0.18 MiB** of duplicates, so
+removing runtime content was neither justified nor useful.
+
+Both packaging wrappers now deterministically set electron-builder's supported
+`ELECTRON_BUILDER_COMPRESSION_LEVEL=5`. This changes only the outer archive's compression; it does
+not change `app.asar`, Chromium, runtime resources, Ed25519 dependency-manifest signing, licensing,
+offline behavior or per-user install scope. The same 7-Zip stage measured about **0.64 GiB private /
+0.49 GiB working set** and completed. `verify:offline-supply-chain` drives the installed
+`compute7zCompressArgs`, proves `-mx=5`, and includes a real reverted-policy `-mx=9` negative control.
+
+Fresh 0.1.21 artifacts from clean commit `9768d6fa38439e91af2a3369a1271c4114c6dd6b`:
+
+- portable `SpecterStudio 0.1.21.exe`: **236,657,420 bytes**, SHA-256
+  `a9ef0eeab1c6e38d53936fc019761a7cd0bb3efb96fc4ee4de8ceb77d85bc560`;
+- NSIS `SpecterStudio Setup 0.1.21.exe`: **263,872,975 bytes**, SHA-256
+  `0c4168d1d8dd70ab7a94b566dbf56f60f4e1331d0ff82e2900f36f08f176d012`.
+
+The dependency manifest is validly Ed25519-signed and strict offline validation passes. Windows
+Authenticode signing is **not configured** (`NotSigned` on the clean guest), so SmartScreen remains a
+release warning rather than an integrity claim.
+
+Fresh packaged evidence: walkthrough **35 PASS / 0 FAIL / 1 BLOCKED** (the one block is the explicit
+issuer-key authorization required for licensed workflow execution); installed-Chrome discovery,
+invalid-path refusal, Super-User setting persistence and a real packaged Recorder launch all passed
+with an AWKIT-owned profile and no daily-profile reuse; packaged runtime **25/25**; packaged assets
+and dependency checks pass. Reports accessibility now seeds a real `SqliteRuntimeStore` before launch
+and is **17 PASS / 0 FAIL / 0 NOT RUN**; breaking the actual sortable header produced **2 FAIL**.
+Parallel Electron suites now use explicit unique `--user-data-dir` profiles: the old harness collided
+at Electron's singleton boundary, while the fixed instance-monitor **27/27** and Recorder-redaction
+**15/15** run concurrently.
+
+The repository clean-machine driver executed against the same hashes on an offline Windows 11 Pro
+VM with no source tree, Node, network adapter or existing profile: **21 PASS / 0 FAIL / 3 NOT
+EXECUTED**. Portable launch, LocalAppData placement, non-admin ownership, per-user NSIS install,
+installed launch, no-UAC behavior and uninstall passed. The three explicit NOT EXECUTED rows are the
+driver's legacy upgrade-profile/summary/migration sections; they are not counted as PASS. Evidence is
+recorded in `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
+
+**Validation ledger:** unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**. Tracker after reconciliation:
+**262 total / 260 closed / 2 blocked outstanding**. `awkit-hgol` and stale Reports bookkeeping item
+`awkit-az7` are closed. `awkit-7bu` remains blocked on the authorized Oracle credential lifecycle;
+`awkit-cm8` remains blocked on packaged real-Oracle execution and the sustained multi-day soak.
+
+Clean-machine validation is optional and non-blocking by owner policy.
+Its execution status remains truthful:
+- not executed remains NOT EXECUTED;
+- successful execution may be recorded as PASSED;
+- failed execution remains FAILED and blocking;
+- an explicit owner waiver is recorded as OWNER WAIVED / NON-BLOCKING.
+
+This policy does not waive checksum, offline-bundle, packaged-startup,
+artifact-integrity, dependency-manifest, or security validation.
+
 ## Nine-item automation/runtime/UX/reporting/Chrome/diagnostics completion (`awkit-final9`, 2026-08-27)
 
 All nine owner requirements are implemented on `main` and have focused runtime evidence. The work

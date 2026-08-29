@@ -28,7 +28,8 @@ $appVersion = (Get-Content -Raw (Join-Path $PSScriptRoot "..\..\package.json") |
 $portable = "SpecterStudio $appVersion.exe"
 $setup = "SpecterStudio Setup $appVersion.exe"
 $stage = Join-Path $VmRoot "artifact-stage"
-$iso = Join-Path $VmRoot "artifacts.iso"
+$primaryIso = Join-Path $VmRoot "artifacts.iso"
+$alternateIso = Join-Path $VmRoot "artifacts-next.iso"
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
@@ -78,19 +79,22 @@ public static class AwkitIsoWriter
 '@
 }
 
-# A previously delivered artifacts.iso is still LOCKED by the running VM's DVD drive, so writing
-# over it fails. Eject it first (and dismount any host-side mount, which once left the guest unable
-# to boot from the DVD at all). Re-attached below.
-# Keep plain coordinates, NOT the drive objects: ejecting invalidates the object handle, and
-# reusing it later fails with "the object was not found" from the Hyper-V WMI layer.
-$mounted = @(Get-VMDvdDrive -VMName $VMName | Where-Object { $_.Path -eq $iso } |
-  ForEach-Object { [pscustomobject]@{ ControllerNumber = $_.ControllerNumber; ControllerLocation = $_.ControllerLocation } })
-foreach ($d in $mounted) {
-  Set-VMDvdDrive -VMName $VMName -ControllerNumber $d.ControllerNumber -ControllerLocation $d.ControllerLocation -Path $null
-  Write-Output ("ejected prior artifacts DVD at {0}:{1}" -f $d.ControllerNumber, $d.ControllerLocation)
-}
+# A mounted ISO is locked. Alternate two files and switch the drive directly from old to new; an
+# eject followed by an immediate reattach makes VMMS expose stale device identity for this Gen-1 VM.
+$mounted = @(Get-VMDvdDrive -VMName $VMName | Where-Object {
+  $_.Path -eq $primaryIso -or $_.Path -eq $alternateIso
+} | ForEach-Object {
+  [pscustomobject]@{
+    ControllerNumber = $_.ControllerNumber
+    ControllerLocation = $_.ControllerLocation
+    Path = $_.Path
+  }
+})
+$previousIso = @($mounted)[0].Path
+$iso = if ($previousIso -eq $primaryIso) { $alternateIso } else { $primaryIso }
 if (Test-Path $iso) {
   try { if ((Get-DiskImage -ImagePath $iso -ErrorAction Stop).Attached) { Dismount-DiskImage -ImagePath $iso | Out-Null } } catch { }
+  Remove-Item $iso -Force
 }
 
 Write-Output "Building artifacts ISO (this takes a minute for ~450 MB)"
@@ -102,7 +106,18 @@ $fsi.UDFRevision = 0x102
 $fsi.VolumeName = "AWKITREL"
 $fsi.Root.AddTree($stage, $false)
 $result = $fsi.CreateResultImage()
-[AwkitIsoWriter]::Write($result.ImageStream, $iso)
+$imageStream = $result.ImageStream
+[AwkitIsoWriter]::Write($imageStream, $iso)
+foreach ($comObject in @($imageStream, $result, $fsi)) {
+  if ($null -ne $comObject -and [Runtime.InteropServices.Marshal]::IsComObject($comObject)) {
+    [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($comObject)
+  }
+}
+$imageStream = $null
+$result = $null
+$fsi = $null
+[GC]::Collect()
+[GC]::WaitForPendingFinalizers()
 Write-Output ("artifacts ISO: {0} ({1:N1} MB)" -f $iso, ((Get-Item $iso).Length / 1MB))
 
 # Swap the answer-file DVD (setup is long finished) for the artifacts DVD. On a re-delivery there is
@@ -112,9 +127,13 @@ $target = @($mounted)[0]
 if (-not $target) { $target = Get-VMDvdDrive -VMName $VMName | Where-Object { $_.Path -like "*autounattend*" } | Select-Object -First 1 }
 if (-not $target) { $target = Get-VMDvdDrive -VMName $VMName | Where-Object { -not $_.Path } | Select-Object -First 1 }
 if ($target) {
-  Set-VMDvdDrive -VMName $VMName -ControllerNumber $target.ControllerNumber -ControllerLocation $target.ControllerLocation -Path $iso
+  Set-VMDvdDrive -VMName $VMName -ControllerNumber $target.ControllerNumber `
+    -ControllerLocation $target.ControllerLocation -Path $iso
 } else {
   Add-VMDvdDrive -VMName $VMName -Path $iso
+}
+if ($previousIso -and $previousIso -ne $iso -and (Test-Path $previousIso)) {
+  Remove-Item $previousIso -Force
 }
 Get-VMDvdDrive -VMName $VMName | Select-Object ControllerNumber, ControllerLocation, Path | Format-Table -AutoSize | Out-String | Write-Output
 Write-Output "Artifacts are now available to the guest as a read-only DVD."

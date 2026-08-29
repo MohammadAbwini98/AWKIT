@@ -85,6 +85,13 @@ npm run package:portable
 npm run package:nsis
 ```
 
+Both canonical package wrappers set electron-builder's supported
+`ELECTRON_BUILDER_COMPRESSION_LEVEL=5` before invoking it. On this 15.9-GB workstation the inherited
+`-mx=9` 7-Zip policy exhausted system commit; `-mx=5` preserves the complete unpacked payload and
+integrity/signing/offline gates while bounding compressor memory. `npm run verify:offline-supply-chain`
+drives the installed electron-builder argument builder and negative-controls this policy. Do not
+override it back to 9 for a release without an explicitly qualified high-commit build host.
+
 Release signing requires the ignored private Ed25519 key at
 `.release-local/offline-manifest-private.pem`, or an explicit
 `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY`. Generate a new key only for a deliberate trust-root setup:

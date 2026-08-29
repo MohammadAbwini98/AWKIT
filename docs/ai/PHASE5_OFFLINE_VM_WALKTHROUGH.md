@@ -1,5 +1,13 @@
 # Phase 5 — Clean Offline VM Walkthrough & Release Candidate Gate
 
+> **2026-08-29 release update:** the repository's current automated clean-machine driver was executed
+> against fresh 0.1.21 portable and NSIS artifacts on the offline `AWKIT-CleanMachine` Windows 11 Pro
+> guest: **21 PASS / 0 FAIL / 3 NOT EXECUTED**. Standard-user portable launch, approved LocalAppData
+> placement, per-user NSIS install/launch/no-UAC/uninstall and guest-side hash equality all passed.
+> The three driver-omitted upgrade-profile/summary/migration sections remain NOT EXECUTED. This
+> supersedes the historical “NOT PERFORMED” status below without rewriting that dated record. See
+> `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
+
 **Created:** 2026-07-06 (Claude Fable 5). **Updated:** 2026-07-07 (Phase 5.1 verification — Chromium
 no-egress hardening validated; strict-net walkthrough passes). Local-only, uncommitted, on
 `feature/smart-wait-engine`. Builds on Phase 4 (`docs/ai/PHASE4_RELEASE_HARDENING.md`).

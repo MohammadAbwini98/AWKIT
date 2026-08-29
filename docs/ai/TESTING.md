@@ -290,8 +290,8 @@ remain structural and legacy workflows remain compatible.
   strict no-egress check passing (bundled Chromium made zero non-loopback connections — the Phase 5
   Google-service burst is eliminated). `verify:packaged-runtime` is now **25** (adds the process-tree
   teardown assertion). NOTE: packaged verifiers drive `dist/win-unpacked` (rebuilt hardened); the
-  final single-file EXEs could not be max-compressed on the dev machine (7-Zip `-mx=9` OOM — see
-  KNOWN_ISSUES).
+  canonical single-file EXEs now use the bounded `-mx=5` release policy; `-mx=9` exhausted host commit
+  without changing the unpacked payload. See KNOWN_ISSUES and `verify:offline-supply-chain`.
 - `scripts/seed-mock-fixtures.mjs` (`npm run seed:mock-fixtures`) — imports test-only mock
   flows/workflows/data source into the runtime userData folders for manual GUI testing against the
   mock site. Sources live in `resources/test-fixtures/mock-site/` (see its README); they never
