@@ -1,14 +1,18 @@
 {
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/testing/comprehensive-validation/DEFECTS.md"
   ],
-  "acquired_at": "2026-08-29T20:13:29.671Z",
-  "acquired_at_commit": "b17fe0964495ff242cd016d8b2ac55a94db3bd91",
+  "acquired_at": "2026-08-29T20:21:08.168Z",
+  "acquired_at_commit": "eefc0492b4969d1eea325c20a5c3b93cc2fce0ce",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -19,12 +23,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1788031140366.5784"
+    "build": "dir(1):native-hosts:1788034476855.1013"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-29T20:20:30.383Z",
-  "released_reason": "Canonical v0.1.22 portable succeeded from clean source commit 8546453; signed manifest pair committed as 2890566 and artifact hash recorded for project-state reconciliation",
-  "archived_at": "2026-08-29T20:20:30.385Z"
+  "violations": []
 }

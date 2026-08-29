@@ -159,7 +159,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "175/175 after both in-memory negative controls; Overview reports Sources agree before final project-state reconciliation."
+      "note": "177/177 after the original two mutation controls plus an executing above-threshold PowerShell probe and reverted Write-Host formatting negative control; Overview reports Sources agree."
     },
     {
       "id": "EV-build",
@@ -175,18 +175,18 @@
       "type": "security",
       "command": "npm run validate:offline -- -Strict",
       "required": true,
-      "result": "BLOCKED",
-      "artifact": null,
-      "note": "Direct strict validation correctly rejected the restored v0.1.21 manifest after the v0.1.22 checkpoint. The canonical pipeline cannot regenerate it on this host until the 1,536 MiB commit preflight is satisfied; the original failed release had reached the packaging step, proving strict validation passed before 7za failed."
+      "result": "PASS",
+      "artifact": "resources/dependency-manifest.json",
+      "note": "The successful npm run package:portable regenerated and Ed25519-signed the v0.1.22 manifest, then passed strict offline validation before electron-builder. The manifest records clean source commit 85464531f4c1019020936800194295ab11b9db99."
     },
     {
       "id": "EV-portable",
       "type": "packaged",
       "command": "npm run package:portable",
       "required": true,
-      "result": "BLOCKED",
+      "result": "PASS",
       "artifact": "dist/SpecterStudio 0.1.22.exe",
-      "note": "No v0.1.22 EXE was claimed. Current host has 717 MiB free Windows commit, below the measured 1,536 MiB floor; operator must close memory-heavy work or increase pagefile capacity before retrying npm run package:portable."
+      "note": "Succeeded from clean source commit 85464531f4c1019020936800194295ab11b9db99 after both memory checks passed at 1,871/1,879 MiB. Artifact is 236,659,371 bytes with SHA-256 7d6982cc92079ef44d9b07344d427a4b5dac91bb40ea19812f15202a3f375d31; Authenticode remains NotSigned as documented."
     }
   ],
   "scope_escapes": [],
@@ -199,10 +199,10 @@
     "push_evidence_id": "EV-build"
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "pending",
-    "note": "The diagnostic and exit-code fixes are implemented and regression-proven. The fresh v0.1.22 artifact and strict current-manifest gate remain truthfully BLOCKED by host commit exhaustion; no service or user application was stopped without authorization."
+    "qc_status": "APPROVED",
+    "note": "Root cause, safe resource refusal and exit-code preservation remain regression-proven. The successful preflight rendering defect is fixed with an executing reverted-format negative control, strict offline validation passes, and the genuine v0.1.22 portable artifact was generated from a clean source commit."
   },
   "write_lease": {
     "history": [

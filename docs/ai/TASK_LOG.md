@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-08-29 — Codex — clean tree, repair preflight rendering, and generate v0.1.22 portable
+
+**Request/result:** reconciled and committed the existing v0.1.22 incident checkpoint, released its
+stale assignment/lease state, and returned `main` to clean before running the current-version
+portable command. The first retry reproduced a new early failure: PowerShell treated the formatted
+available-memory value as `Write-Host -ForegroundColor`. The release script now assigns the formatted
+text to `$preflightMessage`; an executing verifier proves the real above-floor output and a reverted
+format fails. Commits: `7f3e379`, `ac1291d`, `98aee0a`, `0340c06` plus lease handoff checkpoints.
+
+**Artifact evidence:** `npm run package:portable` PASS from clean source commit
+`85464531f4c1019020936800194295ab11b9db99`. Build PASS; portable fresh-state **10/10**; strict
+offline validation PASS; Ed25519 manifest signing PASS; electron-builder portable PASS; provenance
+written. Final artifact `dist/SpecterStudio 0.1.22.exe` is 236,659,371 bytes with SHA-256
+`7d6982cc92079ef44d9b07344d427a4b5dac91bb40ea19812f15202a3f375d31`; Authenticode is NotSigned.
+The signed manifest pair was committed as `2890566` and records the build commit with a clean source
+tree. `verify:roadmap-dashboard` PASS **177/177** with mutation-style coverage; AI memory check PASS.
+The broader packaged-validation/runtime/walkthrough GUI suites were NOT RUN for this exact artifact.
+
 ## 2026-08-29 — Codex — diagnose and harden v0.1.22 portable packaging failure
 
 **Reproduction/root cause:** the Program Status action committed v0.1.22 and reached the final

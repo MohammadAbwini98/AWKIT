@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## v0.1.22 portable generated from a clean source commit (2026-08-29)
+
+The requested clean-tree packaging retry is complete. The first retry exposed a PowerShell
+operator-precedence defect in the new successful memory-preflight message: `Write-Host (...) -f`
+treated the first measured value as `-ForegroundColor` and stopped before the build. Commit
+`98aee0a` now formats into `$preflightMessage` before calling `Write-Host`; the roadmap verifier
+executes the real above-threshold function body and a reverted-format negative control, passing
+**177/177**.
+
+`npm run package:portable` then succeeded from clean source commit
+`85464531f4c1019020936800194295ab11b9db99`. Both resource checks passed at **1,871 MiB** and
+**1,879 MiB** free Windows commit. The command ran the application build, staged Zvec, passed the
+portable fresh-state gate **10/10**, generated and Ed25519-signed the v0.1.22 dependency manifest,
+passed strict offline validation, built the real portable target and wrote release provenance.
+
+Artifact: `dist/SpecterStudio 0.1.22.exe`, **236,659,371 bytes**, SHA-256
+`7d6982cc92079ef44d9b07344d427a4b5dac91bb40ea19812f15202a3f375d31`. The signed manifest records
+v0.1.22, the exact source commit above and `sourceTreeDirty: false`; its canonical pair is committed
+in `2890566`. Windows Authenticode is still **NotSigned**, matching the documented SmartScreen
+warning rather than a signing claim. Broader packaged-runtime/GUI walkthrough suites were not rerun
+for this artifact; this task proves generation, manifest integrity and the packaging pipeline, not a
+new clean-machine acceptance campaign.
+
+Tracker counts remain **262 total / 260 closed / 2 blocked outstanding**. The validation ledger
+remains **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## v0.1.22 portable failure diagnosed and guarded; artifact retry awaits host commit headroom (2026-08-29)
 
 The Program Status portable action reached electron-builder and failed in NSIS/7-Zip at 22:22 on

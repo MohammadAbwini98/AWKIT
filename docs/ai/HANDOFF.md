@@ -1,5 +1,32 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-29, latest) — v0.1.22 portable generated; repository cleanup complete
+
+### Transfer
+
+- **Artifact:** `dist/SpecterStudio 0.1.22.exe`, 236,659,371 bytes, SHA-256
+  `7d6982cc92079ef44d9b07344d427a4b5dac91bb40ea19812f15202a3f375d31`.
+- **Source identity:** built by `npm run package:portable` from clean commit
+  `85464531f4c1019020936800194295ab11b9db99`; the signed manifest records that commit and
+  `sourceTreeDirty: false`, then the manifest pair was committed as `2890566`.
+- **Packaging result:** application build PASS, portable fresh-state **10/10**, strict offline
+  validation PASS, Ed25519 dependency-manifest signing PASS, electron-builder portable target PASS
+  at level 5. Both memory checks passed at 1,871/1,879 MiB free commit.
+- **Incidental fix:** the first clean retry stopped before build because PowerShell parsed
+  `Write-Host (...) -f` as a foreground-color argument. `98aee0a` formats first and writes second;
+  `0340c06` executes the real success branch and a reverted-format negative control. Roadmap result:
+  **177/177**, Overview **Sources agree**.
+
+### Boundaries
+
+- Authenticode remains **NotSigned**; SmartScreen warning is expected. The offline manifest is
+  cryptographically signed and verified, but that does not substitute for Authenticode.
+- The wider packaged-validation, packaged-runtime and packaged-walkthrough GUI suites were **NOT
+  RUN** for this exact v0.1.22 recut. Existing 2026-08-29 clean-machine evidence belongs to the
+  earlier exact artifacts and is not silently inherited by this EXE.
+- Tracker/ledger counts remain **262 / 260 closed / 2 blocked** and **64 PASS / 2 NOT RUN / 0
+  BLOCKED**.
+
 ## HANDOFF (2026-08-29, latest) — v0.1.22 portable failure is host commit exhaustion
 
 ### Transfer

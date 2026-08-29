@@ -68,7 +68,7 @@ how it stayed red long enough to accumulate 33.
   the callback. Put the observed state on a holder object (`const seen = { flag: false }`); a property
   read is not narrowed that way. Do not "fix" it by weakening the assertion.
 
-## ACTIVE ENVIRONMENT BLOCK: v0.1.22 packaging host has less commit than bounded 7-Zip needs (2026-08-29)
+## RESOLVED ENVIRONMENT BLOCK: v0.1.22 packaging host had less commit than bounded 7-Zip needed (2026-08-29)
 
 Do not diagnose the v0.1.22 portable failure from the electron-builder stack tail alone. Windows
 System event 2004 at 22:22:23 proves the responsible boundary: the whole host exhausted virtual
@@ -83,9 +83,13 @@ not name processes and never stops Oracle or a user application. `release-portab
 the package child code before cleanup; otherwise `git restore` changes `$LASTEXITCODE` to zero and
 creates the misleading outer report seen in this incident.
 
-Retry **v0.1.22** with `npm run package:portable` after freeing commit. Do not use the dashboard's
-“Generate next portable EXE” action for that retry because it is a semantic-version release action
-and will target v0.1.23. Until a fresh artifact is produced, v0.1.22 packaging is BLOCKED, not PASS.
+The environment block cleared when free commit recovered above the floor. The first clean retry
+exposed a separate PowerShell precedence bug in the successful preflight message (`Write-Host (...)
+-f`); `98aee0a` formats the message before writing it and `0340c06` executes both the real success
+branch and a reverted-format negative control (**177/177** roadmap checks). A second clean retry
+succeeded from `85464531`, producing `SpecterStudio 0.1.22.exe` (236,659,371 bytes, SHA-256
+`7d6982cc92079ef44d9b07344d427a4b5dac91bb40ea19812f15202a3f375d31`). Preserve this incident as
+the reason both the memory guard and the executable success-branch regression must remain.
 
 ## SUPERSEDED: `-mx=9` could not be built on this workstation (2026-08-25, `awkit-hgol`)
 

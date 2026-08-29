@@ -2577,15 +2577,19 @@ These were found and corrected while building the campaign. They are not open AW
 
 ## Environmental gaps, not defects
 
-- **ACTIVE 2026-08-29 — v0.1.22 portable retry blocked by host-wide Windows commit exhaustion.**
+- **RESOLVED 2026-08-29 — v0.1.22 portable retry was blocked by host-wide Windows commit exhaustion.**
   System event 2004 at 22:22:23 names the exact failure window: Oracle used 5,753,339,904 bytes,
   Comet 1,983,148,032 bytes and the canonical level-5 `7za.exe` 685,993,984 bytes. Live free commit
   then measured 717-814 MiB under a 32,556 MiB limit; a script typecheck also hit V8 OOM at 615 MiB.
   Product-side diagnostics are fixed: portable packaging now refuses below 1,536 MiB before costly
   work and immediately before electron-builder, emits a safe actionable dashboard label, and the
   outer release wrapper preserves the child failure code across manifest cleanup. Roadmap regression
-  is 175/175 with negative controls. No fresh v0.1.22 EXE is claimed until the operator frees commit
-  or increases pagefile capacity; AWKIT does not stop Oracle or user applications automatically.
+  was 175/175 with negative controls. After commit headroom recovered, an additional successful-path
+  formatting defect was fixed and mutation-proven at 177/177. The clean retry then passed build,
+  fresh-state 10/10, signed-manifest generation, strict offline validation and electron-builder,
+  producing `SpecterStudio 0.1.22.exe` from clean commit `85464531` (236,659,371 bytes, SHA-256
+  `7d6982cc92079ef44d9b07344d427a4b5dac91bb40ea19812f15202a3f375d31`). AWKIT still does not stop
+  Oracle or user applications automatically; the guard remains required.
 
 - **RESOLVED 2026-08-29 — portable / NSIS release compression exhausted host commit (`awkit-hgol`).**
   `npm run package:portable` completes preflight, build, Zvec staging, the portable fresh-state gate,
