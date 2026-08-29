@@ -20,11 +20,15 @@ function Assert-PackagingCommitHeadroom {
     $availableMiB = [int64][Math]::Floor(([double]$operatingSystem.FreeVirtualMemory) / 1024)
     $commitLimitMiB = [int64][Math]::Floor(([double]$operatingSystem.TotalVirtualMemorySize) / 1024)
     if ($availableMiB -lt $MinimumPackagingCommitHeadroomMiB) {
-        throw (
+        $message = (
             "Insufficient free Windows commit for portable packaging: {0} MiB available of {1} MiB; " +
             "at least {2} MiB is required for the bounded-memory 7-Zip stage. Close memory-heavy " +
             "applications or services, or increase the Windows pagefile, then retry."
         ) -f $availableMiB, $commitLimitMiB, $MinimumPackagingCommitHeadroomMiB
+        # The roadmap server accepts only explicit [FAIL] labels from this trusted local script; the
+        # message contains aggregate memory values and remediation, never process names or paths.
+        Write-Host "[FAIL]  $message"
+        throw $message
     }
 
     Write-Host (
@@ -36,6 +40,9 @@ function Assert-PackagingCommitHeadroom {
 Write-Step "Validating offline packaging inputs"
 & (Join-Path $PSScriptRoot "validate-offline-bundle.ps1") -PackagingInputsOnly
 if ($LASTEXITCODE -ne 0) { throw "offline packaging preflight failed with exit code $LASTEXITCODE" }
+# Fail before the expensive build/signing stages when the host is already below the measured floor.
+# The same check runs again immediately before electron-builder in case commit pressure changes.
+Assert-PackagingCommitHeadroom
 
 Write-Step "Building the application bundle"
 npm run build
