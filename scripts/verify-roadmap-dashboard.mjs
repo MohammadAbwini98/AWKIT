@@ -49,6 +49,31 @@ function check(label, condition, detail = "") {
   }
 }
 
+function hasPortableCommitHeadroomGuard(source) {
+  const packagingStep = source.indexOf('Write-Step "Packaging the portable EXE"');
+  const preflight = source.indexOf("Assert-PackagingCommitHeadroom", packagingStep);
+  const builder = source.indexOf("npx electron-builder --win portable", packagingStep);
+  return (
+    packagingStep >= 0 &&
+    preflight > packagingStep &&
+    builder > preflight &&
+    source.includes("Win32_OperatingSystem") &&
+    source.includes("FreeVirtualMemory") &&
+    source.includes("MinimumPackagingCommitHeadroomMiB") &&
+    source.includes("free Windows commit") &&
+    source.includes("increase the Windows pagefile")
+  );
+}
+
+function preservesPortableChildExitCode(source) {
+  const child = source.indexOf('& powershell -ExecutionPolicy Bypass -File (Join-Path $ScriptsDir "package-portable.ps1")');
+  const capture = source.indexOf("$packageExitCode = $LASTEXITCODE", child);
+  const branch = source.indexOf("if ($packageExitCode -ne 0)", capture);
+  const cleanup = source.indexOf("Restore-GeneratedReleaseFiles", branch);
+  const report = source.indexOf("exit $packageExitCode", cleanup);
+  return child >= 0 && capture > child && branch > capture && cleanup > branch && report > cleanup;
+}
+
 /** A frozen clock, so the snapshot is a pure function of the files on disk. */
 const NOW = Date.parse("2026-07-27T12:00:00Z");
 
@@ -1058,6 +1083,22 @@ try {
       !releaseScriptSrc.includes("--no-verify")
   );
   const packageScriptSrc = readFileSync(join(REPO_ROOT, "scripts", "package-portable.ps1"), "utf8");
+  check(
+    "portable packaging rejects insufficient Windows commit before electron-builder starts",
+    hasPortableCommitHeadroomGuard(packageScriptSrc),
+    "the old pipeline reaches 7za.exe and fails as an opaque NSIS child-process error"
+  );
+  check(
+    "portable release cleanup preserves the child packaging exit code",
+    preservesPortableChildExitCode(releaseScriptSrc),
+    "Restore-GeneratedReleaseFiles currently overwrites $LASTEXITCODE with git restore's success code"
+  );
+  check(
+    "the portable release exit-code assertion kills the old cleanup ordering",
+    !preservesPortableChildExitCode(
+      releaseScriptSrc.replace("$packageExitCode = $LASTEXITCODE", "$packageExitCode = 0")
+    )
+  );
   check(
     "the dashboard release pipeline rejects bundled databases and proves first-run Super User setup",
     packageScriptSrc.includes("npm run verify:portable-fresh-state") &&
