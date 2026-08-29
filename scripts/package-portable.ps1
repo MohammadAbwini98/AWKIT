@@ -31,10 +31,11 @@ function Assert-PackagingCommitHeadroom {
         throw $message
     }
 
-    Write-Host (
+    $preflightMessage = (
         "Packaging memory preflight: {0} MiB free Windows commit of {1} MiB " +
         "({2} MiB minimum)."
     ) -f $availableMiB, $commitLimitMiB, $MinimumPackagingCommitHeadroomMiB
+    Write-Host $preflightMessage
 }
 
 Write-Step "Validating offline packaging inputs"
