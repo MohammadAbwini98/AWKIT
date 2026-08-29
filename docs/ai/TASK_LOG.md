@@ -29,6 +29,14 @@ remain blocked on authorized real-Oracle evidence and, for `awkit-cm8`, the sust
 unchanged at 64 PASS / 2 NOT RUN / 0 BLOCKED. Exact final command matrix and push result are recorded
 in the latest CURRENT_STATE/HANDOFF entry.
 
+**Artifact recut:** after state reconciliation, canonical packaging ran again from clean commit
+`1032d677`. Windows time service corrected a 9.5-hour host skew during the first recut, and
+`verify:packaged-validation` correctly rejected its just-built but pre-correction mtime as 577 minutes
+old. No timestamp was touched and no assertion changed; a second stabilized-clock recut produced
+portable SHA-256 `9128ef60db999a46913204b07c9b86ddcad2ba76759d2a351c0aa5170a8b5b05`
+and NSIS SHA-256 `9a3e1d20136eb8e8c9f5a0c9fdc909b4481cdea965fb98de0a0929700157ddc5`,
+then packaged validation passed 87/87.
+
 ## 2026-08-27 — Final nine-item automation/runtime/UX/reporting/Chrome/diagnostics campaign (`awkit-final9`)
 
 **Agent:** Codex. **Task:** investigate, implement and prove the owner's nine cross-layer completion

@@ -17,12 +17,12 @@ offline behavior or per-user install scope. The same 7-Zip stage measured about 
 0.49 GiB working set** and completed. `verify:offline-supply-chain` drives the installed
 `compute7zCompressArgs`, proves `-mx=5`, and includes a real reverted-policy `-mx=9` negative control.
 
-Fresh 0.1.21 artifacts from clean commit `9768d6fa38439e91af2a3369a1271c4114c6dd6b`:
+Latest 0.1.21 artifacts from clean commit `1032d6779d333c7512632ffe72f0cb90ccb03133`:
 
-- portable `SpecterStudio 0.1.21.exe`: **236,657,420 bytes**, SHA-256
-  `a9ef0eeab1c6e38d53936fc019761a7cd0bb3efb96fc4ee4de8ceb77d85bc560`;
-- NSIS `SpecterStudio Setup 0.1.21.exe`: **263,872,975 bytes**, SHA-256
-  `0c4168d1d8dd70ab7a94b566dbf56f60f4e1331d0ff82e2900f36f08f176d012`.
+- portable `SpecterStudio 0.1.21.exe`: **236,658,037 bytes**, SHA-256
+  `9128ef60db999a46913204b07c9b86ddcad2ba76759d2a351c0aa5170a8b5b05`;
+- NSIS `SpecterStudio Setup 0.1.21.exe`: **263,873,323 bytes**, SHA-256
+  `9a3e1d20136eb8e8c9f5a0c9fdc909b4481cdea965fb98de0a0929700157ddc5`.
 
 The dependency manifest is validly Ed25519-signed and strict offline validation passes. Windows
 Authenticode signing is **not configured** (`NotSigned` on the clean guest), so SmartScreen remains a
@@ -38,17 +38,29 @@ Parallel Electron suites now use explicit unique `--user-data-dir` profiles: the
 at Electron's singleton boundary, while the fixed instance-monitor **27/27** and Recorder-redaction
 **15/15** run concurrently.
 
-The repository clean-machine driver executed against the same hashes on an offline Windows 11 Pro
-VM with no source tree, Node, network adapter or existing profile: **21 PASS / 0 FAIL / 3 NOT
-EXECUTED**. Portable launch, LocalAppData placement, non-admin ownership, per-user NSIS install,
-installed launch, no-UAC behavior and uninstall passed. The three explicit NOT EXECUTED rows are the
-driver's legacy upgrade-profile/summary/migration sections; they are not counted as PASS. Evidence is
-recorded in `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
+The repository clean-machine driver executed the immediately preceding canonical build at
+`9768d6fa` on an offline Windows 11 Pro VM with no source tree, Node, network adapter or existing
+profile: **21 PASS / 0 FAIL / 3 NOT EXECUTED**. Its portable/NSIS hashes are preserved in the dated
+result record. The later `1032d677` recut changes project-state documentation and the clean-machine
+ISO helper, not the packaged product payload (`app.asar` SHA-256 remains
+`02e204a6a4899fae48bc92d090ae4650aaffbb3950c7cb5c0669ada2a2d558f2`). Portable launch,
+LocalAppData placement, non-admin ownership, per-user NSIS install, installed launch, no-UAC behavior
+and uninstall passed. The three explicit NOT EXECUTED rows are the driver's legacy upgrade-profile/
+summary/migration sections; they are not counted as PASS. Evidence is recorded in
+`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
 
 **Validation ledger:** unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**. Tracker after reconciliation:
 **262 total / 260 closed / 2 blocked outstanding**. `awkit-hgol` and stale Reports bookkeeping item
 `awkit-az7` are closed. `awkit-7bu` remains blocked on the authorized Oracle credential lifecycle;
 `awkit-cm8` remains blocked on packaged real-Oracle execution and the sustained multi-day soak.
+
+**Final verification:** canonical `package:offline` PASS after the host clock stabilized; packaged
+validation **87/87**; packaged runtime **25/25**; packaged walkthrough **35 PASS / 0 FAIL / 1
+BLOCKED**; packaged licensing **24 PASS / 0 FAIL / 2 BLOCKED**; packaged assets 17/17 manifest
+checks; build PASS; script typecheck PASS; Mock Site **172/172**; Runner **136/136**; Reports +
+Settings accessibility **17/0/0**; single-instance **4/4**; NSIS policy **12/12**; supply chain
+**25/25**; source hygiene **11/11**; offline validation PASS; clean-machine policy **28/28**;
+verifier classification **199/199**; roadmap **171/171, Sources agree**; AI-memory check PASS.
 
 Clean-machine validation is optional and non-blocking by owner policy.
 Its execution status remains truthful:

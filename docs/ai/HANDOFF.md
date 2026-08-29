@@ -5,14 +5,15 @@
 ### Transfer
 
 - **Branch:** `main`, direct commits only. Implementation commits are `9e1586a` and `9768d6f`;
-  authoritative-state closeout and final push follow this entry.
+  clean-machine/state reconciliation is `1032d67`; this entry records the final artifact metadata
+  and only the direct push follows it.
 - **Packaging:** `awkit-hgol` is closed. The canonical wrappers set
   `ELECTRON_BUILDER_COMPRESSION_LEVEL=5`, which bounds the installed electron-builder 7-Zip policy at
   `-mx=5`. This is a deliberate release policy, not the old one-off verification environment.
-- **Artifacts under test:** 0.1.21 from clean source commit
-  `9768d6fa38439e91af2a3369a1271c4114c6dd6b`; portable SHA-256
-  `a9ef0eeab1c6e38d53936fc019761a7cd0bb3efb96fc4ee4de8ceb77d85bc560`, NSIS SHA-256
-  `0c4168d1d8dd70ab7a94b566dbf56f60f4e1331d0ff82e2900f36f08f176d012`.
+- **Latest artifacts:** 0.1.21 from clean source commit
+  `1032d6779d333c7512632ffe72f0cb90ccb03133`; portable SHA-256
+  `9128ef60db999a46913204b07c9b86ddcad2ba76759d2a351c0aa5170a8b5b05`, NSIS SHA-256
+  `9a3e1d20136eb8e8c9f5a0c9fdc909b4481cdea965fb98de0a0929700157ddc5`.
 
 ### Evidence and boundaries
 
@@ -24,10 +25,16 @@
   pre-auth direct-IPC denial are explicit, and bundled mode was restored. Genuine packaged workflow
   execution through installed Chrome remains **BLOCKED**, not failed, because this run did not have
   authorization to use an issuer private key.
-- Clean offline Windows 11 VM run is **21 PASS / 0 FAIL / 3 NOT EXECUTED**. Portable launch,
+- Clean offline Windows 11 VM run is **21 PASS / 0 FAIL / 3 NOT EXECUTED** against the immediately
+  preceding canonical `9768d6fa` artifacts recorded in the dated result file. Portable launch,
   standard-user ownership, LocalAppData storage, guest hash match, no network/global Node, per-user
   NSIS install/launch/no-UAC/uninstall all passed. Legacy upgrade/migration sections remain explicitly
   NOT EXECUTED. See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
+- The latest recut retained the identical packaged product payload (`app.asar` SHA-256
+  `02e204a6a4899fae48bc92d090ae4650aaffbb3950c7cb5c0669ada2a2d558f2`) and passed packaged
+  validation **87/87**. Windows time service corrected a 9.5-hour host-clock skew during the first
+  `1032d677` recut; the freshness verifier correctly rejected that artifact, so it was rebuilt under
+  the stabilized clock rather than touching mtimes or weakening the `<180 min` gate.
 - Reports accessibility is **17/0/0** using the production runtime store; its broken-`aria-sort`
   negative control produced 2 FAIL. Reports populated remains **168/0/3 NOT RUN**: two rows are owned
   by live-engine **21/21**, and the stale-retention drawer branch is unreachable in one live store
