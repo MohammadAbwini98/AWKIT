@@ -1,20 +1,22 @@
 {
-  "task": "awkit-final9",
-  "contract_path": "docs/ai/contracts/awkit-final9.json",
-  "holder": "qa",
+  "task": "roadmap-release-sync-20260829",
+  "contract_path": "docs/ai/contracts/roadmap-release-sync-20260829.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "scripts/verify-roadmap-dashboard.mjs"
+    "docs/ai/**"
   ],
-  "acquired_at": "2026-08-28T13:11:38.044Z",
-  "acquired_at_commit": "6bfbbabf90dfe4eaf8391852dba0667717e3af00",
+  "acquired_at": "2026-08-29T18:57:18.470Z",
+  "acquired_at_commit": "4684a180d7d0c3dce4c8d4502b9afa1e1193937c",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-final9.json"
+    "docs/ai/contracts/roadmap-release-sync-20260829.json",
+    "src/roadmap/ImplementationRoadmap.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "3964c44ad7fbcb55ca463a5b940a9313b848b597c8d814d641499f332238adc9",
-    "docs/ai/contracts/awkit-final9.json": "d50ddab608c8598fb37f6eeaf32c05f37527a967810829eb4a8b3023b81cec80"
+    "docs/ai/contracts/active-lease.json": "672d9286d5fd3dbeef66d0f9bbbad1ed8bb9199c7e14a596cc45854fdaadec1e",
+    "docs/ai/contracts/roadmap-release-sync-20260829.json": "3e3e17e2c1329bc45b850e007b6ada876902b30615a80c00aab8b78bfa13ce4c",
+    "src/roadmap/ImplementationRoadmap.ts": "5d0e8cafbeefb1f4f52c8e6dcbab87bdd6d6c57fba35e1d622846fc3751f20df"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,12 +26,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1787676844024.896"
+    "build": "dir(1):native-hosts:1788000192768.4165"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-08-28T13:12:07.115Z",
-  "released_reason": "Roadmap exact pins reconciled in 5488134; final dashboard passes 171/171 with Sources agree",
-  "archived_at": "2026-08-28T13:12:07.117Z"
+  "released_at": "2026-08-29T19:02:33.015Z",
+  "released_reason": "Roadmap Phase J synchronized; build, classification, memory, task gate, and 171/171 Sources agree verification passed",
+  "archived_at": "2026-08-29T19:02:33.016Z"
 }

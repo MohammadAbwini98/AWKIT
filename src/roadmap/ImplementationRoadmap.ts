@@ -100,10 +100,10 @@ export const implementationRoadmap: RoadmapPhase[] = [
   {
     id: "J",
     title: "Offline Standalone Packaging",
-    status: "partially-completed",
+    status: "complete",
     deliverables: ["Offline packaging scripts", "Bundled Chromium", "Dependency manifest", "Portable package", "Installer", "Startup check"],
     acceptance: "App runs on production Windows with no internet, no npm install, no global Node/Playwright/Chromium, and no admin permission.",
-    implementationNote: "Every deliverable is built - packaging scripts and validators, bundled Chromium, dependency manifest, portable and per-user NSIS packaging, and the startup gate. Not complete because the acceptance sentence IS the clean-machine offline GUI walkthrough, which has never been executed; owner policy (2026-07-24) made that gate optional and non-blocking for releases, which does not make it passed."
+    implementationNote: "Acceptance was executed on 2026-08-29 against canonical 0.1.21 portable and per-user NSIS artifacts in a restored offline Windows 11 Pro VM with no source tree, network adapter, global Node/Playwright/Chromium, existing AWKIT profile, admin rights or UAC: 21 PASS / 0 FAIL / 3 NOT EXECUTED. Portable launch, LocalAppData placement, guest hash match, standard-user ownership, install, installed launch and uninstall passed. The three NOT EXECUTED rows are legacy upgrade-profile/summary/migration procedures and are not counted as PASS. The later canonical recut retained the identical app.asar payload and passed packaged validation 87/87. Separate release risks remain visible outside this phase: Windows Authenticode is not configured; licensed installed-Chrome workflow evidence needs an authorized issuer key; awkit-7bu and awkit-cm8 retain real-Oracle and sustained-soak gates."
   },
   {
     id: "K",

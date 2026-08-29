@@ -30,6 +30,10 @@
   standard-user ownership, LocalAppData storage, guest hash match, no network/global Node, per-user
   NSIS install/launch/no-UAC/uninstall all passed. Legacy upgrade/migration sections remain explicitly
   NOT EXECUTED. See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
+- Roadmap Phase J is now **complete** because that run satisfies the phase's offline/no-global-runtime/
+  no-admin acceptance. This is not a broader release waiver: the three legacy procedures stay NOT
+  EXECUTED; Authenticode is still absent; authorized issuer-key, real-Oracle and sustained-soak gates
+  remain separate and visible.
 - The latest recut retained the identical packaged product payload (`app.asar` SHA-256
   `02e204a6a4899fae48bc92d090ae4650aaffbb3950c7cb5c0669ada2a2d558f2`) and passed packaged
   validation **87/87**. Windows time service corrected a 9.5-hour host-clock skew during the first

@@ -49,6 +49,13 @@ and uninstall passed. The three explicit NOT EXECUTED rows are the driver's lega
 summary/migration sections; they are not counted as PASS. Evidence is recorded in
 `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`.
 
+Roadmap Phase J, **Offline Standalone Packaging**, is now **complete** against its stated acceptance:
+the app ran on production Windows offline, as a standard user, with no source checkout, npm install,
+global Node/Playwright/Chromium, existing AWKIT profile, admin rights or UAC. This phase result does
+not convert its three legacy procedures to PASS and does not close separate release risks: Windows
+Authenticode remains unconfigured, licensed installed-Chrome workflow evidence still needs an
+authorized issuer key, and `awkit-7bu` / `awkit-cm8` retain real-Oracle and sustained-soak gates.
+
 **Validation ledger:** unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**. Tracker after reconciliation:
 **262 total / 260 closed / 2 blocked outstanding**. `awkit-hgol` and stale Reports bookkeeping item
 `awkit-az7` are closed. `awkit-7bu` remains blocked on the authorized Oracle credential lifecycle;

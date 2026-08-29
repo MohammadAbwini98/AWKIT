@@ -145,9 +145,9 @@ npm run verify:agent-routing # node scripts/verify-agent-routing.mjs — 616 det
 node tools/agents/task-gate.mjs docs/ai/contracts/<task>.json
                             # operational completion gate: live baseline diff + preserved paths +
                             # guarded fields + contract evidence + QA/QC + lease violations.
-npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 167 checks over the
+npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 171 checks over the
                             # tools/roadmap dashboard: source readability, exact record counts
-                            # (259 beads / 66 cases / 36 defects / 101 CSV rows / 11 phases), the
+                            # (262 beads / 66 cases / 90 resolved defects / 101 CSV rows / 11 phases), the
                             # FOUR-WAY ledger reconciliation (case file = its own rollup =
                             # CURRENT_STATE.md = HANDOFF.md — this is what catches doc drift),
                             # ordering invariants incl. a SYNTHETIC 2-cycle proving the cycle branch

@@ -397,12 +397,15 @@ guards is removed** — that is the only thing separating a control from decorat
   `docs/OFFLINE_STANDALONE_PACKAGING.md` and the Phase 5 checklist in
   `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3 (offline Windows VM). As of the **2026-07-24 owner
   policy** this walkthrough is **optional and non-blocking** for release promotion (see the
-  authoritative banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`); its execution status stays truthful
-  (currently **NOT EXECUTED**) and a **FAIL, if ever executed, remains blocking**. The automated
-  dev-machine half is `npm run verify:packaged-walkthrough` (fresh-profile packaged run); the true
-  clean/offline VM walkthrough remains a human step and has NOT been performed. This policy does not
-  waive the checksum, offline-bundle, packaged-startup, artifact-integrity, dependency-manifest, or
-  security gates.
+  authoritative banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`). On 2026-08-29 the repository
+  driver executed the offline Windows 11 standard-user portable/NSIS path: **21 PASS / 0 FAIL / 3
+  NOT EXECUTED**. Guest hashes, no-network/no-global-Node posture, portable launch, LocalAppData
+  placement, per-user install, installed launch, no-UAC behavior and uninstall passed. The three
+  legacy upgrade-profile/summary/migration rows remain NOT EXECUTED and are not counted as PASS; the
+  later canonical recut retained the identical `app.asar` payload but was not itself rerun in the VM.
+  A future clean-machine FAIL remains blocking. The dev-machine half remains
+  `npm run verify:packaged-walkthrough`; owner policy does not waive checksum, offline-bundle,
+  packaged-startup, artifact-integrity, dependency-manifest, or security gates.
 
 ### Visual QA — Hologram UI (Phase 14)
 

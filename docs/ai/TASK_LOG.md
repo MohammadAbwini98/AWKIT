@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-08-29 — Codex — synchronize roadmap Phase J with executed release evidence
+
+**Task:** update the Program Status dashboard from authoritative sources after the canonical
+packaging and clean-machine closeout. **Correction:** `ImplementationRoadmap` still described the
+offline Windows walkthrough as never executed and left Phase J partially completed, while the dated
+VM result, CURRENT_STATE and HANDOFF already recorded **21 PASS / 0 FAIL / 3 NOT EXECUTED**. Phase J
+is now **complete** against its stated acceptance: portable and per-user NSIS ran offline on Windows
+11 as a standard user with no source checkout, network adapter, npm install, global Node/Playwright/
+Chromium, existing AWKIT profile, admin rights or UAC.
+
+**Boundaries preserved:** the three legacy upgrade-profile/summary/migration procedures remain NOT
+EXECUTED and are not counted as PASS; the later canonical recut retained the same `app.asar` payload
+but was not itself rerun in the VM. Windows Authenticode remains unconfigured, packaged licensed
+installed-Chrome execution still needs an authorized issuer key, and `awkit-7bu` / `awkit-cm8`
+retain the real-Oracle and sustained-soak gates. TESTING no longer says the walkthrough was never
+performed, and COMMANDS now carries the current dashboard counts.
+
+**Verification:** `npm run build` PASS; `npm run verify:verifier-classification` reconciled all
+**199/199** commands; `npm run verify:roadmap-dashboard` **171/171**, Overview **Sources agree**;
+live `/api/snapshot` reported **11/11 phases complete (100%)**, tracker **262 total / 260 closed / 2
+blocked**, ledger **64 PASS / 2 NOT RUN / 0 BLOCKED**, traceability **86 PASS / 12 NOT RUN / 3
+BLOCKED / 0 FAIL**, and no stale claims. No product runtime, tests, assertions or derived dashboard
+asset was edited directly.
+
 ## 2026-08-29 — Codex — close release packaging, packaged Chrome and clean-machine installer gates
 
 **Task:** close code-resolvable release-readiness gaps without reopening the completed nine-item
