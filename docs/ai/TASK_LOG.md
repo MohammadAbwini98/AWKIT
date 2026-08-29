@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-08-29 — Codex — diagnose and harden v0.1.22 portable packaging failure
+
+**Reproduction/root cause:** the Program Status action committed v0.1.22 and reached the final
+electron-builder portable stage before failing. Windows System event 2004 at 22:22:23 correlated the
+failure to exhausted system commit: Oracle 5,753,339,904 bytes, Comet 1,983,148,032 bytes and the
+level-5 7za child 685,993,984 bytes, under a fixed 32,556 MiB limit. Live checks found only 717-814
+MiB free; disk had about 378 GiB free. A second bug in `release-portable.ps1` called manifest cleanup
+before formatting the error, so successful `git restore` replaced the real child `$LASTEXITCODE`
+with zero.
+
+**Implementation:** `package-portable.ps1` now requires 1,536 MiB free Windows commit before the
+expensive stages and immediately before electron-builder. Its trusted `[FAIL]` label contains only
+aggregate capacity and actionable remediation, so the local dashboard can explain the refusal
+without exposing process details or paths. `release-portable.ps1` stores the child code before
+cleanup. Compression remains deterministic level 5; payload, signing, provenance, offline and
+fresh-state gates are unchanged. No service or user application is stopped automatically.
+
+**Verification:** red-first roadmap result **172/174**, then **175/175** after implementation with
+two mutation-style negative controls. PowerShell parsing PASS; `npm run build` PASS. Canonical
+`npm run package:portable` negative path exited 1 after input validation at **717 MiB free / 1,536
+MiB required**, before build, manifest generation or electron-builder. `typecheck:scripts` hit V8
+OOM at 615 MiB free (environment failure). Direct strict offline validation rejected the restored
+v0.1.21 manifest against v0.1.22/current HEAD (stale-artifact failure). A new v0.1.22 portable EXE is
+**BLOCKED**, not PASS, until the operator frees commit or increases the pagefile. Commits:
+`e99cfb1`, `8cadc58`, `9785a11`, `5fff11f`; tracker counts remain 262/260/2 and the follow-up is
+recorded on `awkit-hgol`.
+
 ## 2026-08-29 — Codex — synchronize roadmap Phase J with executed release evidence
 
 **Task:** update the Program Status dashboard from authoritative sources after the canonical

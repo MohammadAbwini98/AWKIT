@@ -1,5 +1,38 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-29, latest) — v0.1.22 portable failure is host commit exhaustion
+
+### Transfer
+
+- **Branch:** `main`, direct commits. Preserve the owner-created v0.1.22 checkpoint `83198b43`; the
+  fix/test increments are `e99cfb1`, `8cadc58`, `9785a11` and `5fff11f`.
+- **Root cause:** Windows Resource-Exhaustion-Detector event 2004 at 22:22:23 exactly matches the
+  failed `7za.exe` window. Oracle held 5,753,339,904 bytes, Comet 1,983,148,032 bytes and the
+  bounded level-5 7za child 685,993,984 bytes. Only 0.7-0.9 GiB remained under the 32,556 MiB commit
+  limit. This is not disk exhaustion and does not justify removing offline payload content.
+- **Fix:** portable packaging now requires 1,536 MiB free Windows commit before expensive work and
+  immediately before electron-builder, emits a safe actionable `[FAIL]` dashboard label, and keeps
+  the deterministic level-5 compression policy. The release wrapper saves the child exit code
+  before manifest cleanup, eliminating the false outer `exit 0` report.
+
+### Evidence and next action
+
+- Red baseline: roadmap verifier **172/174**, failing exactly the two new regression assertions.
+  Fixed result: **175/175**, including negative controls that remove the headroom calls and replace
+  the captured child code with zero.
+- `npm run build` **PASS**. `npm run package:portable` now exits **1** early and actionably at **717
+  MiB free / 1,536 MiB required**, before build/signing/electron-builder and without generated-file
+  residue. `typecheck:scripts` separately hit a V8 OOM at 615 MiB free, corroborating host-wide
+  commit pressure. Direct strict validation rejected the intentionally restored v0.1.21 manifest
+  against v0.1.22/current HEAD; do not label that stale-artifact result a product failure.
+- **Not completed:** no fresh v0.1.22 EXE exists. Close memory-heavy applications/services or
+  increase the Windows pagefile, then run `npm run package:portable` to rebuild the current version.
+  Do not click “Generate next portable EXE” for this retry because that action advances to v0.1.23.
+  AWKIT will not stop `OracleServiceORCL` or close a user's browser automatically.
+- Tracker and ledger counts remain **262 / 260 closed / 2 blocked** and **64 PASS / 2 NOT RUN / 0
+  BLOCKED** respectively. `awkit-hgol` carries the dated incident note while remaining closed for the
+  canonical level-5 policy already proven on a healthy host.
+
 ## HANDOFF (2026-08-29, latest) — canonical packages and clean-machine installer path executed
 
 ### Transfer

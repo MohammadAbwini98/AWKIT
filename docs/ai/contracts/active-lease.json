@@ -1,22 +1,28 @@
 {
-  "task": "roadmap-release-sync-20260829",
-  "contract_path": "docs/ai/contracts/roadmap-release-sync-20260829.json",
+  "task": "awkit-portable-oom-0829",
+  "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "docs/ai/**"
+    ".beads/issues.jsonl",
+    "docs/OFFLINE_STANDALONE_PACKAGING.md",
+    "docs/ai/COMMANDS.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/testing/comprehensive-validation/DEFECTS.md",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-08-29T18:57:18.470Z",
-  "acquired_at_commit": "4684a180d7d0c3dce4c8d4502b9afa1e1193937c",
+  "acquired_at": "2026-08-29T19:42:44.949Z",
+  "acquired_at_commit": "5fff11f400d7ea5a13fd5bd2ffc61dc2d3c1620f",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/roadmap-release-sync-20260829.json",
-    "src/roadmap/ImplementationRoadmap.ts"
+    "docs/ai/contracts/awkit-portable-oom-0829.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "672d9286d5fd3dbeef66d0f9bbbad1ed8bb9199c7e14a596cc45854fdaadec1e",
-    "docs/ai/contracts/roadmap-release-sync-20260829.json": "3e3e17e2c1329bc45b850e007b6ada876902b30615a80c00aab8b78bfa13ce4c",
-    "src/roadmap/ImplementationRoadmap.ts": "5d0e8cafbeefb1f4f52c8e6dcbab87bdd6d6c57fba35e1d622846fc3751f20df"
+    "docs/ai/contracts/active-lease.json": "725af113a9bbee2669b311d257d3b26048bfd52d15b47697a04e598c64027cb2",
+    "docs/ai/contracts/awkit-portable-oom-0829.json": "719788f7576ef29ada6e5df4da93a56ba31a4933fe8d05cf4b3bc8565450a497"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,12 +32,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1788000192768.4165"
+    "build": "dir(1):native-hosts:1788031140366.5784"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-29T19:02:33.015Z",
-  "released_reason": "Roadmap Phase J synchronized; build, classification, memory, task gate, and 171/171 Sources agree verification passed",
-  "archived_at": "2026-08-29T19:02:33.016Z"
+  "violations": []
 }

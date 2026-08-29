@@ -92,6 +92,14 @@ integrity/signing/offline gates while bounding compressor memory. `npm run verif
 drives the installed electron-builder argument builder and negative-controls this policy. Do not
 override it back to 9 for a release without an explicitly qualified high-commit build host.
 
+`package:portable` additionally checks free Windows commit before expensive work and immediately
+before electron-builder. The current measured floor is **1,536 MiB**; below it the command exits 1
+with a safe `[FAIL]` message explaining the aggregate available/required values and recommending that
+the operator close memory-heavy work or increase the pagefile. It does not stop services. To retry an
+already committed version, run `npm run package:portable`; `release-portable.ps1` and the dashboard
+action are for the **next** semantic version. The release wrapper captures the child exit code before
+generated-manifest cleanup so a successful `git restore` cannot misreport a failed package as exit 0.
+
 Release signing requires the ignored private Ed25519 key at
 `.release-local/offline-manifest-private.pem`, or an explicit
 `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY`. Generate a new key only for a deliberate trust-root setup:

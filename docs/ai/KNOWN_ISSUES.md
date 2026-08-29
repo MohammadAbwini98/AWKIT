@@ -68,6 +68,25 @@ how it stayed red long enough to accumulate 33.
   the callback. Put the observed state on a holder object (`const seen = { flag: false }`); a property
   read is not narrowed that way. Do not "fix" it by weakening the assertion.
 
+## ACTIVE ENVIRONMENT BLOCK: v0.1.22 packaging host has less commit than bounded 7-Zip needs (2026-08-29)
+
+Do not diagnose the v0.1.22 portable failure from the electron-builder stack tail alone. Windows
+System event 2004 at 22:22:23 proves the responsible boundary: the whole host exhausted virtual
+memory while the canonical level-5 `7za.exe` used about 654 MiB private commit. Oracle and Comet
+were the two largest concurrent consumers, and live free commit fell to 717 MiB under a fixed 32,556
+MiB limit. The repository still has about 378 GiB free disk; deleting packaged assets is irrelevant.
+
+`package-portable.ps1` now refuses below 1,536 MiB free commit before expensive work and immediately
+before electron-builder. The `[FAIL]` message is safe for the local dashboard and tells the operator
+to close memory-heavy applications/services or increase the Windows pagefile. It deliberately does
+not name processes and never stops Oracle or a user application. `release-portable.ps1` also saves
+the package child code before cleanup; otherwise `git restore` changes `$LASTEXITCODE` to zero and
+creates the misleading outer report seen in this incident.
+
+Retry **v0.1.22** with `npm run package:portable` after freeing commit. Do not use the dashboard's
+“Generate next portable EXE” action for that retry because it is a semantic-version release action
+and will target v0.1.23. Until a fresh artifact is produced, v0.1.22 packaging is BLOCKED, not PASS.
+
 ## SUPERSEDED: `-mx=9` could not be built on this workstation (2026-08-25, `awkit-hgol`)
 
 `npm run package:portable` gets through every stage — including **strict** offline validation — and

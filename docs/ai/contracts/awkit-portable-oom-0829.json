@@ -1,0 +1,261 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-portable-oom-0829",
+    "title": "Diagnose and harden the portable release against Windows commit exhaustion",
+    "objective": "Prove the cause of the v0.1.22 portable packaging failure, make the guarded packaging pipeline fail early with safe actionable resource diagnostics, preserve the real electron-builder exit code through release cleanup, and verify a genuine portable artifact when the host has sufficient commit headroom.",
+    "requested_by": "owner",
+    "risk_level": 2,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "83198b43bf19387698503fb3867bf9572f16ef97",
+    "working_tree_expected": "clean",
+    "preserved_paths": [],
+    "preserved_notes": [
+      "The owner-created v0.1.22 version checkpoint at baseline commit 83198b43 is intentional evidence from the failed release and must not be reset, amended, or discarded."
+    ]
+  },
+  "classification": {
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/package-portable.ps1",
+      "scripts/release-portable.ps1",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/OFFLINE_STANDALONE_PACKAGING.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/testing/comprehensive-validation/DEFECTS.md",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl",
+        "docs/OFFLINE_STANDALONE_PACKAGING.md",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/testing/comprehensive-validation/DEFECTS.md",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "scripts/package-portable.ps1",
+        "scripts/release-portable.ps1",
+        "scripts/verify-roadmap-dashboard.mjs"
+      ],
+      "note": "Release and QA changes are committed; project-state is reconciling the timestamp-correlated root cause, implemented diagnostics, exact environment block and roadmap evidence."
+    },
+    "writer_sequence": [
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Keep the dashboard action on the canonical release-portable.ps1 to package-portable.ps1 pipeline.",
+      "Do not silently stop user services or applications; resource remediation must be explicit and operator-controlled.",
+      "Preserve the existing deterministic electron-builder compression policy unless evidence proves it is insufficient on an otherwise healthy release host."
+    ],
+    "security": [
+      "Do not include account names, command lines, secrets, or process inventories in shipped error messages.",
+      "Do not alter signing-key custody or weaken manifest, provenance, fresh-state, or strict-offline gates."
+    ],
+    "compatibility": [
+      "Windows PowerShell 5.1 remains supported and no administrator rights may be required for the resource preflight."
+    ],
+    "offline": [
+      "No dependency, runtime download, network service, global Node, global Playwright, or global browser may be introduced.",
+      "Portable output and signed manifest behavior must remain compatible with the existing offline release contract."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "AC-1",
+      "description": "The v0.1.22 failure has timestamp-correlated operating-system evidence identifying the responsible resource boundary and child process.",
+      "evidence_required": [
+        "EV-root-cause"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "description": "Portable packaging checks free Windows commit immediately before electron-builder and fails early with a safe, actionable message when the available headroom is below the measured bounded-memory requirement.",
+      "evidence_required": [
+        "EV-roadmap-verifier",
+        "EV-resource-refusal"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "description": "A child packaging failure remains non-zero and the original exit code is reported after generated-file cleanup runs.",
+      "evidence_required": [
+        "EV-roadmap-verifier"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "description": "The fixed release scripts retain build, offline validation, signing, provenance, and genuine portable packaging behavior.",
+      "evidence_required": [
+        "EV-build",
+        "EV-offline",
+        "EV-portable"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "description": "Authoritative roadmap sources remain consistent after the fix.",
+      "evidence_required": [
+        "EV-roadmap-verifier"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-root-cause",
+      "type": "inspection",
+      "command": "Get-WinEvent System event 2004 around 2026-08-29 22:22",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Windows System event log / Microsoft-Windows-Resource-Exhaustion-Detector event 2004",
+      "note": "At 22:22:23 Windows diagnosed low virtual memory; oracle.exe consumed 5,753,339,904 bytes, comet.exe 1,983,148,032 bytes, and electron-builder's 7za.exe 685,993,984 bytes. This exactly matches the packaging failure window."
+    },
+    {
+      "id": "EV-resource-refusal",
+      "type": "packaged",
+      "command": "npm run package:portable",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Negative-path acceptance passed: exit 1 after input validation with 717 MiB available of 32,556 MiB, a trusted [FAIL] label, 1,536 MiB minimum and pagefile/application/service remediation; build, manifest generation and electron-builder did not start."
+    },
+    {
+      "id": "EV-roadmap-verifier",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "175/175 after both in-memory negative controls; Overview reports Sources agree before final project-state reconciliation."
+    },
+    {
+      "id": "EV-build",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "PASS",
+      "artifact": null,
+      "note": "Application build completed successfully at v0.1.22 after the release-script changes."
+    },
+    {
+      "id": "EV-offline",
+      "type": "security",
+      "command": "npm run validate:offline -- -Strict",
+      "required": true,
+      "result": "BLOCKED",
+      "artifact": null,
+      "note": "Direct strict validation correctly rejected the restored v0.1.21 manifest after the v0.1.22 checkpoint. The canonical pipeline cannot regenerate it on this host until the 1,536 MiB commit preflight is satisfied; the original failed release had reached the packaging step, proving strict validation passed before 7za failed."
+    },
+    {
+      "id": "EV-portable",
+      "type": "packaged",
+      "command": "npm run package:portable",
+      "required": true,
+      "result": "BLOCKED",
+      "artifact": "dist/SpecterStudio 0.1.22.exe",
+      "note": "No v0.1.22 EXE was claimed. Current host has 717 MiB free Windows commit, below the measured 1,536 MiB floor; operator must close memory-heavy work or increase pagefile capacity before retrying npm run package:portable."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false,
+    "push_evidence_id": "EV-build"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending",
+    "note": "The diagnostic and exit-code fixes are implemented and regression-proven. The fresh v0.1.22 artifact and strict current-manifest gate remain truthfully BLOCKED by host commit exhaustion; no service or user application was stopped without authorization."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-portable-oom-0829:qa:2026-08-29T19:34:53.506Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-29T19:34:53.506Z",
+        "acquired_at_commit": "83198b43bf19387698503fb3867bf9572f16ef97",
+        "released_at": "2026-08-29T19:36:04.256Z",
+        "released_reason": "Red-first roadmap regression committed as e99cfb1; handing the writer slot to release for the packaging fix",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-portable-oom-0829:release:2026-08-29T19:36:22.376Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/package-portable.ps1",
+          "scripts/release-portable.ps1"
+        ],
+        "acquired_at": "2026-08-29T19:36:22.376Z",
+        "acquired_at_commit": "e99cfb1569925dff3e5ff14f72fbd242b5ebc15f",
+        "released_at": "2026-08-29T19:40:21.335Z",
+        "released_reason": "Release implementation committed as 8cadc58 and 9785a11; returning to QA for final regression strengthening and evidence",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-portable-oom-0829:qa:2026-08-29T19:40:32.695Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-29T19:40:32.695Z",
+        "acquired_at_commit": "9785a111ad18dccaa2911a7ced52213c78edd0ab",
+        "released_at": "2026-08-29T19:41:53.597Z",
+        "released_reason": "QA regression strengthened and committed as 5fff11f plus current early-preflight coverage; handing off to project-state for authoritative reconciliation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

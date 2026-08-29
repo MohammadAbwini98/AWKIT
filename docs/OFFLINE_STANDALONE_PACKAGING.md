@@ -132,6 +132,14 @@ before the build when inputs are missing, unpinned, unsigned, or hash-inconsiste
 process exit code is checked explicitly; a failed gate cannot continue to electron-builder.
 Output is written to `dist/`.
 
+The portable pipeline also requires **1,536 MiB of free Windows commit** (RAM plus pagefile) before
+the expensive stages and checks again immediately before electron-builder. This floor is more than
+twice the measured private commit of the canonical level-5 7-Zip stage. A refusal reports aggregate
+available/required values and remediation through a safe `[FAIL]` dashboard label; it never exposes
+the process inventory or stops applications/services. Close memory-heavy work or increase the
+Windows pagefile, then rerun `npm run package:portable`. When rebuilding an already-committed version,
+use that command directly—the dashboard release action intentionally increments the patch version.
+
 After a successful package, `dist/release-provenance.json` records the source commit/cleanliness,
 Electron and Playwright versions, Chrome version/revision/source date/archive hash/executable hash/
 tree identity, manifest signing key id, and the final artifact size/hash.

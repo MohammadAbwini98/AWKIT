@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## v0.1.22 portable failure diagnosed and guarded; artifact retry awaits host commit headroom (2026-08-29)
+
+The Program Status portable action reached electron-builder and failed in NSIS/7-Zip at 22:22 on
+the v0.1.22 version checkpoint (`83198b43`). Windows System event **2004** at **22:22:23** is the
+authoritative root-cause evidence: the host entered a low-virtual-memory condition while
+`oracle.exe` held **5,753,339,904 bytes**, Comet held **1,983,148,032 bytes**, and electron-builder's
+level-5 `7za.exe` child held **685,993,984 bytes**. The machine has a fixed **32,556 MiB** Windows
+commit limit; live retries observed only **717-814 MiB free**. Disk space was not the failure.
+
+Two release-script defects are fixed on `main`. `package-portable.ps1` now queries
+`Win32_OperatingSystem.FreeVirtualMemory`, requires **1,536 MiB** free Windows commit before
+expensive build/signing work and again immediately before electron-builder, and emits an actionable,
+safe `[FAIL]` label that the local dashboard can display. It reports only aggregate capacity and
+remediation, never process names or paths. `release-portable.ps1` captures the child exit code before
+`Restore-GeneratedReleaseFiles`; the cleanup command can no longer overwrite the failure with its
+own successful `git restore` exit code and produce the false `Portable packaging failed (exit 0)`
+message.
+
+Focused proof is **175/175** in `verify:roadmap-dashboard`, including in-memory negative controls for
+both the absent memory check and the old exit-code ordering. `npm run build` passes. The canonical
+`npm run package:portable` negative path exits **1** immediately after input validation with **717
+MiB available / 1,536 MiB required**, before build, manifest mutation or electron-builder. The fresh
+`SpecterStudio 0.1.22.exe` is therefore **BLOCKED by host resources, not claimed PASS**. A direct
+`typecheck:scripts` attempt independently hit V8 `Fatal process out of memory: Zone` with only **615
+MiB** commit free. The operator must close memory-heavy work/services or increase pagefile capacity,
+then rerun `npm run package:portable`; AWKIT does not stop Oracle or user applications automatically.
+
+Tracker counts remain **262 total / 260 closed / 2 blocked outstanding**; the timestamped follow-up
+is recorded on closed packaging item `awkit-hgol`. The validation ledger remains **64 PASS / 2 NOT
+RUN / 0 BLOCKED**.
+
 ## Release packaging and clean-machine gates closed where executable (`awkit-hgol`, 2026-08-29)
 
 Canonical portable and NSIS packaging now succeeds on the 15.9-GB release workstation. The root
