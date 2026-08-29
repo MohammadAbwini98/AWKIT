@@ -2,7 +2,7 @@
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "scripts/package-portable.ps1"
   ],
@@ -26,5 +26,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-29T20:11:48.011Z",
+  "released_reason": "PowerShell successful-preflight formatting fixed and committed as 98aee0a; handing writer slot to QA for regression coverage",
+  "archived_at": "2026-08-29T20:11:48.013Z"
 }

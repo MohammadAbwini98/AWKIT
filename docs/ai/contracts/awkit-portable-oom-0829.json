@@ -47,16 +47,16 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "qa",
       "allowed_paths": [
-        "scripts/package-portable.ps1"
+        "scripts/verify-roadmap-dashboard.mjs"
       ],
       "forbidden_paths": [
         "scripts/package-portable.ps1",
         "scripts/release-portable.ps1",
         "scripts/verify-roadmap-dashboard.mjs"
       ],
-      "note": "The first clean-tree retry exposed a PowerShell formatting defect in the successful memory-preflight message; release owns the minimal script correction before packaging is retried."
+      "note": "The successful memory-preflight formatting defect is fixed; QA owns a regression assertion that executes the real function body on the above-threshold branch before packaging is retried."
     },
     "writer_sequence": [
       "qa",
@@ -268,6 +268,22 @@
         "acquired_at_commit": "5fff11f400d7ea5a13fd5bd2ffc61dc2d3c1620f",
         "released_at": "2026-08-29T20:09:31.644Z",
         "released_reason": "Project-state reconciliation committed as 7f3e379; tree cleanup complete and current-version portable retry is ready when host commit headroom remains above the guarded floor",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-portable-oom-0829:release:2026-08-29T20:11:09.296Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/package-portable.ps1"
+        ],
+        "acquired_at": "2026-08-29T20:11:09.296Z",
+        "acquired_at_commit": "ac1291d54a15456c99f75ca2cf466521da3bc797",
+        "released_at": "2026-08-29T20:11:48.011Z",
+        "released_reason": "PowerShell successful-preflight formatting fixed and committed as 98aee0a; handing writer slot to QA for regression coverage",
         "amendments": [],
         "overrides": [],
         "violations": []
