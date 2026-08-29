@@ -50,10 +50,16 @@ function check(label, condition, detail = "") {
 }
 
 function hasPortableCommitHeadroomGuard(source) {
+  const inputPreflightStep = source.indexOf('Write-Step "Validating offline packaging inputs"');
+  const earlyPreflight = source.indexOf("Assert-PackagingCommitHeadroom", inputPreflightStep);
+  const buildStep = source.indexOf('Write-Step "Building the application bundle"', inputPreflightStep);
   const packagingStep = source.indexOf('Write-Step "Packaging the portable EXE"');
   const preflight = source.indexOf("Assert-PackagingCommitHeadroom", packagingStep);
   const builder = source.indexOf("npx electron-builder --win portable", packagingStep);
   return (
+    inputPreflightStep >= 0 &&
+    earlyPreflight > inputPreflightStep &&
+    buildStep > earlyPreflight &&
     packagingStep >= 0 &&
     preflight > packagingStep &&
     builder > preflight &&
@@ -61,7 +67,8 @@ function hasPortableCommitHeadroomGuard(source) {
     source.includes("FreeVirtualMemory") &&
     source.includes("MinimumPackagingCommitHeadroomMiB") &&
     source.includes("free Windows commit") &&
-    source.includes("increase the Windows pagefile")
+    source.includes("increase the Windows pagefile") &&
+    source.includes('Write-Host "[FAIL]  $message"')
   );
 }
 
@@ -1087,6 +1094,12 @@ try {
     "portable packaging rejects insufficient Windows commit before electron-builder starts",
     hasPortableCommitHeadroomGuard(packageScriptSrc),
     "the old pipeline reaches 7za.exe and fails as an opaque NSIS child-process error"
+  );
+  check(
+    "the portable commit-headroom assertion kills the old unchecked pipeline",
+    !hasPortableCommitHeadroomGuard(
+      packageScriptSrc.replaceAll("\nAssert-PackagingCommitHeadroom\n", "\n# commit-headroom check removed\n")
+    )
   );
   check(
     "portable release cleanup preserves the child packaging exit code",
