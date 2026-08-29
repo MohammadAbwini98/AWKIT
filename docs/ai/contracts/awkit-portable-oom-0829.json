@@ -35,6 +35,8 @@
       "scripts/package-portable.ps1",
       "scripts/release-portable.ps1",
       "scripts/verify-roadmap-dashboard.mjs",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
       "docs/OFFLINE_STANDALONE_PACKAGING.md",
       "docs/ai/COMMANDS.md",
       "docs/ai/CURRENT_STATE.md",
@@ -47,16 +49,17 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/verify-roadmap-dashboard.mjs"
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ],
       "forbidden_paths": [
         "scripts/package-portable.ps1",
         "scripts/release-portable.ps1",
         "scripts/verify-roadmap-dashboard.mjs"
       ],
-      "note": "The successful memory-preflight formatting defect is fixed; QA owns a regression assertion that executes the real function body on the above-threshold branch before packaging is retried."
+      "note": "The successful memory-preflight branch is regression-proven; release owns the canonical signed-manifest outputs from the real v0.1.22 portable retry."
     },
     "writer_sequence": [
       "qa",
@@ -284,6 +287,22 @@
         "acquired_at_commit": "ac1291d54a15456c99f75ca2cf466521da3bc797",
         "released_at": "2026-08-29T20:11:48.011Z",
         "released_reason": "PowerShell successful-preflight formatting fixed and committed as 98aee0a; handing writer slot to QA for regression coverage",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-portable-oom-0829:qa:2026-08-29T20:12:05.047Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-29T20:12:05.047Z",
+        "acquired_at_commit": "1699eea7338d38d2ef357f5e38ee2e79163305a2",
+        "released_at": "2026-08-29T20:13:08.278Z",
+        "released_reason": "Successful-preflight execution probe and reverted-format negative control pass 177/177; committed as 0340c06 and returning to release for the real portable retry",
         "amendments": [],
         "overrides": [],
         "violations": []

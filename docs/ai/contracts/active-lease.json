@@ -2,7 +2,7 @@
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
   "holder": "qa",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "scripts/verify-roadmap-dashboard.mjs"
   ],
@@ -22,5 +22,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-29T20:13:08.278Z",
+  "released_reason": "Successful-preflight execution probe and reverted-format negative control pass 177/177; committed as 0340c06 and returning to release for the real portable retry",
+  "archived_at": "2026-08-29T20:13:08.282Z"
 }
