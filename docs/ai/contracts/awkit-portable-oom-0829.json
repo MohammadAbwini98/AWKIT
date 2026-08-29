@@ -5,7 +5,7 @@
     "title": "Diagnose and harden the portable release against Windows commit exhaustion",
     "objective": "Prove the cause of the v0.1.22 portable packaging failure, make the guarded packaging pipeline fail early with safe actionable resource diagnostics, preserve the real electron-builder exit code through release cleanup, and verify a genuine portable artifact when the host has sufficient commit headroom.",
     "requested_by": "owner",
-    "risk_level": 2,
+    "risk_level": 3,
     "mode": "change"
   },
   "repository": {
@@ -19,6 +19,7 @@
   },
   "classification": {
     "packaging_change": true,
+    "offline_boundary_change": true,
     "project_state_change": true,
     "cross_layer_count": 2
   },
@@ -35,6 +36,8 @@
       "scripts/package-portable.ps1",
       "scripts/release-portable.ps1",
       "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-portable-oom-0829.json",
       "resources/dependency-manifest.json",
       "resources/dependency-manifest.sig",
       "docs/OFFLINE_STANDALONE_PACKAGING.md",
@@ -324,6 +327,27 @@
         "acquired_at_commit": "b17fe0964495ff242cd016d8b2ac55a94db3bd91",
         "released_at": "2026-08-29T20:20:30.383Z",
         "released_reason": "Canonical v0.1.22 portable succeeded from clean source commit 8546453; signed manifest pair committed as 2890566 and artifact hash recorded for project-state reconciliation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-portable-oom-0829:project-state:2026-08-29T20:21:08.168Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/testing/comprehensive-validation/DEFECTS.md"
+        ],
+        "acquired_at": "2026-08-29T20:21:08.168Z",
+        "acquired_at_commit": "eefc0492b4969d1eea325c20a5c3b93cc2fce0ce",
+        "released_at": "2026-08-29T20:26:52.737Z",
+        "released_reason": "v0.1.22 artifact, resolved block, exact hash, signed-manifest identity and NOT RUN boundaries committed as 15dff3a; roadmap 177/177, script typecheck and AI memory checks pass",
         "amendments": [],
         "overrides": [],
         "violations": []

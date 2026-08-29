@@ -2,7 +2,7 @@
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
@@ -27,5 +27,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-29T20:26:52.737Z",
+  "released_reason": "v0.1.22 artifact, resolved block, exact hash, signed-manifest identity and NOT RUN boundaries committed as 15dff3a; roadmap 177/177, script typecheck and AI memory checks pass",
+  "archived_at": "2026-08-29T20:26:52.740Z"
 }
