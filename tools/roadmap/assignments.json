@@ -17,13 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-portable-oom-0829",
-      "agent": "Packaging / Offline / Release Engineer",
-      "state": "in-progress",
-      "claimedAt": "2026-08-29T20:13:29.671Z",
-      "note": "write lease: resources/dependency-manifest.json, resources/dependency-manifest.sig"
-    }
-  ]
+  "claims": []
 }

@@ -2,7 +2,7 @@
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -23,5 +23,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-29T20:20:30.383Z",
+  "released_reason": "Canonical v0.1.22 portable succeeded from clean source commit 8546453; signed manifest pair committed as 2890566 and artifact hash recorded for project-state reconciliation",
+  "archived_at": "2026-08-29T20:20:30.385Z"
 }
