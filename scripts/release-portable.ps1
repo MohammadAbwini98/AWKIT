@@ -183,9 +183,10 @@ if ($postVersionChanges.Count -gt 0) {
 # ---- 8. run the canonical guarded packaging pipeline ------------------------
 Write-Step "Running the guarded portable packaging pipeline"
 & powershell -ExecutionPolicy Bypass -File (Join-Path $ScriptsDir "package-portable.ps1")
-if ($LASTEXITCODE -ne 0) {
+$packageExitCode = $LASTEXITCODE
+if ($packageExitCode -ne 0) {
     Restore-GeneratedReleaseFiles
-    throw "Portable packaging failed (exit $LASTEXITCODE). Version $nextVersion remains committed for diagnosis."
+    throw "Portable packaging failed (exit $packageExitCode). Version $nextVersion remains committed for diagnosis."
 }
 Write-Ok "Portable packaging completed."
 
