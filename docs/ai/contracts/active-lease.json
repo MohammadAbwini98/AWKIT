@@ -2,7 +2,7 @@
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl",
     "docs/OFFLINE_STANDALONE_PACKAGING.md",
@@ -36,5 +36,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-29T20:09:31.644Z",
+  "released_reason": "Project-state reconciliation committed as 7f3e379; tree cleanup complete and current-version portable retry is ready when host commit headroom remains above the guarded floor",
+  "archived_at": "2026-08-29T20:09:31.646Z"
 }

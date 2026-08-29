@@ -255,6 +255,30 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-portable-oom-0829:project-state:2026-08-29T19:42:44.949Z",
+        "task": "awkit-portable-oom-0829",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/OFFLINE_STANDALONE_PACKAGING.md",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/testing/comprehensive-validation/DEFECTS.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-29T19:42:44.949Z",
+        "acquired_at_commit": "5fff11f400d7ea5a13fd5bd2ffc61dc2d3c1620f",
+        "released_at": "2026-08-29T20:09:31.644Z",
+        "released_reason": "Project-state reconciliation committed as 7f3e379; tree cleanup complete and current-version portable retry is ready when host commit headroom remains above the guarded floor",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
