@@ -19,7 +19,7 @@
  */
 
 import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -70,6 +70,33 @@ function hasPortableCommitHeadroomGuard(source) {
     source.includes("increase the Windows pagefile") &&
     source.includes('Write-Host "[FAIL]  $message"')
   );
+}
+
+function probePortableCommitHeadroomSuccess(source) {
+  const functionStart = source.indexOf("function Assert-PackagingCommitHeadroom");
+  const firstPipelineStep = source.indexOf('Write-Step "Validating offline packaging inputs"', functionStart);
+  if (functionStart < 0 || firstPipelineStep < 0) {
+    return { ok: false, detail: "headroom function or pipeline marker is missing" };
+  }
+
+  const functionSource = source.slice(functionStart, firstPipelineStep);
+  const harness = `${functionSource}
+function Get-CimInstance {
+  [pscustomobject]@{ FreeVirtualMemory = 2105344; TotalVirtualMemorySize = 33337344 }
+}
+$MinimumPackagingCommitHeadroomMiB = 1536
+Assert-PackagingCommitHeadroom
+`;
+  const result = spawnSync(
+    "powershell",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", harness],
+    { cwd: REPO_ROOT, encoding: "utf8", windowsHide: true }
+  );
+  const expected = "Packaging memory preflight: 2056 MiB free Windows commit of 32556 MiB (1536 MiB minimum).";
+  return {
+    ok: result.status === 0 && result.stdout.includes(expected) && result.stderr.trim() === "",
+    detail: `exit=${result.status}; stdout=${JSON.stringify(result.stdout.trim())}; stderr=${JSON.stringify(result.stderr.trim())}`
+  };
 }
 
 function preservesPortableChildExitCode(source) {
@@ -1100,6 +1127,21 @@ try {
     !hasPortableCommitHeadroomGuard(
       packageScriptSrc.replaceAll("\nAssert-PackagingCommitHeadroom\n", "\n# commit-headroom check removed\n")
     )
+  );
+  const successfulHeadroomProbe = probePortableCommitHeadroomSuccess(packageScriptSrc);
+  check(
+    "portable packaging renders the successful commit-headroom preflight",
+    successfulHeadroomProbe.ok,
+    successfulHeadroomProbe.detail
+  );
+  const brokenSuccessfulMessage = packageScriptSrc
+    .replace("$preflightMessage = (", "Write-Host (")
+    .replace("\n    Write-Host $preflightMessage", "");
+  const brokenHeadroomProbe = probePortableCommitHeadroomSuccess(brokenSuccessfulMessage);
+  check(
+    "the successful commit-headroom probe kills the old Write-Host formatting",
+    !brokenHeadroomProbe.ok,
+    "the old formatting unexpectedly executed successfully"
   );
   check(
     "portable release cleanup preserves the child packaging exit code",

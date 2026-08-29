@@ -1,19 +1,15 @@
 {
   "task": "awkit-portable-oom-0829",
   "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "qa",
+  "status": "active",
   "allowed_paths": [
-    "scripts/package-portable.ps1"
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
-  "acquired_at": "2026-08-29T20:11:09.296Z",
-  "acquired_at_commit": "ac1291d54a15456c99f75ca2cf466521da3bc797",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-portable-oom-0829.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-portable-oom-0829.json": "7995b9f8142541dec630a769aabd3c954e8d2a05854056f230cf22b5b14a2afa"
-  },
+  "acquired_at": "2026-08-29T20:12:05.047Z",
+  "acquired_at_commit": "1699eea7338d38d2ef357f5e38ee2e79163305a2",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6054:1785324381414.4578",
@@ -26,8 +22,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-29T20:11:48.011Z",
-  "released_reason": "PowerShell successful-preflight formatting fixed and committed as 98aee0a; handing writer slot to QA for regression coverage",
-  "archived_at": "2026-08-29T20:11:48.013Z"
+  "violations": []
 }
