@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
-import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
+import { DEFAULT_CREDS, isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 import { navClick } from "./lib/e2e-qa-lib.mjs";
 import { readLoopCapsuleVisual } from "./lib/loop-capsule-visual-oracle.mjs";
 
@@ -2156,7 +2156,7 @@ try {
   const resolutionSummary = win.getByTestId("node-validation-summary");
   check("Resolution summary is scoped to the selected step", await resolutionSummary.locator("[data-validation-code]").count() === 1 && !(await resolutionSummary.textContent()).includes("Pick second option"));
   await resolutionSummary.getByRole("button", { name: "Review direct action", exact: true }).click();
-  const confirmationReason = win.getByLabel("Confirmation reason", { exact: true });
+  const confirmationReason = win.getByTestId("interaction-prerequisite-controls").getByLabel(/Confirmation reason/);
   check("Primary prerequisite action focuses its corrective field", await confirmationReason.evaluate((field) => field === document.activeElement));
   const confirmDirect = win.getByTestId("confirm-no-prerequisite");
   check("Direct-action confirmation rejects a missing reason", await confirmDirect.isDisabled());
@@ -2190,6 +2190,12 @@ try {
   check("Both saved corrections pass fresh production run validation", resolvedValidation.status === "validated", JSON.stringify({ status: resolvedValidation.status, issues: resolvedValidation.validation?.issues }));
   await win.reload();
   await resolveMainWindow(app);
+  await win.waitForSelector(".app-shell, .awkit-login-card", { state: "visible" });
+  if (await win.locator("#awkit-login-username").isVisible().catch(() => false)) {
+    await win.fill("#awkit-login-username", DEFAULT_CREDS.username);
+    await win.locator('.awkit-login-form input[type="password"]').first().fill(DEFAULT_CREDS.password);
+    await win.getByRole("button", { name: "Sign in", exact: true }).click();
+  }
   await win.locator(".app-shell").waitFor({ state: "visible" });
   await navClick(win, "Flow Designer");
   await openResolution();
