@@ -81,8 +81,9 @@ export function FlowNodePropertiesPanel({
     setFallbackReason(selectedNode?.data.locatorApprovedFallbackReason ?? "");
   }, [selectedNode?.id, selectedNode?.data.locatorApprovedFallbackReason]);
   useEffect(() => {
-    setPrerequisiteReason(selectedNode?.data.locatorExecutionDecision?.reason ?? "");
-  }, [selectedNode?.id, selectedNode?.data.locatorExecutionDecision?.reason]);
+    const decision = selectedNode?.data.locatorExecutionDecision;
+    setPrerequisiteReason(decision?.status === "user-confirmed" ? decision.reason : "");
+  }, [selectedNode?.id, selectedNode?.data.locatorExecutionDecision?.reason, selectedNode?.data.locatorExecutionDecision?.status]);
   useEffect(() => {
     if (stepType !== "reuseSession") return;
     let cancelled = false;
