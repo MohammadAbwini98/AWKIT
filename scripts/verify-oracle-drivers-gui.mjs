@@ -54,7 +54,7 @@ try {
   await dialog.getByText(/Oracle queries are unavailable:/).waitFor();
   check("Empty Oracle setup explains missing profiles beside a disabled control", await dialog.getByRole("combobox", { name: "Oracle connection profile" }).isDisabled());
   check("Empty Oracle setup cannot create an invalid data source", await dialog.getByRole("button", { name: "Create", exact: true }).isDisabled());
-  await dialog.getByLabel("Mode", { exact: true }).selectOption("snapshot");
+  await dialog.locator("label", { hasText: "Mode" }).locator("select").selectOption("snapshot");
   check("Unavailable Oracle runtime disables snapshot refresh", await dialog.getByRole("button", { name: "Refresh snapshot", exact: true }).isDisabled());
   check("Empty profile selector does not expose a misleading search menu", await dialog.locator('.searchable-select-trigger').count() === 0);
   for (const theme of ["light", "dark"]) {
@@ -243,7 +243,7 @@ try {
   await sourceDialog.getByLabel("SQL Query (read-only SELECT)", { exact: true }).fill("SELECT :id AS id FROM dual");
   await sourceDialog.getByRole("button", { name: "Add", exact: true }).click();
   await sourceDialog.getByLabel("Name / :placeholder", { exact: true }).fill("id");
-  await sourceDialog.getByLabel("JDBC Type", { exact: true }).selectOption("INTEGER");
+  await sourceDialog.locator("label", { hasText: "JDBC Type" }).locator("select").selectOption("INTEGER");
   await sourceDialog.getByLabel("Value", { exact: true }).fill("7");
   await sourceDialog.getByLabel("Query Timeout (ms)", { exact: true }).fill("15000");
   await sourceDialog.getByLabel("Max Rows", { exact: true }).fill("123");

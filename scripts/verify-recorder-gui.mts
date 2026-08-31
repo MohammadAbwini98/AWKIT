@@ -293,6 +293,17 @@ async function startAndWaitRecording(win: Page, url: string): Promise<void> {
   await field.fill(url);
   await field.blur();
   await startButton(win).click();
+  // Renderer reload restores the draft; starting another recording requires this real
+  // destructive-action confirmation. Never bypass it through IPC or mistake it for a start.
+  const overwrite = win.getByRole("button", { name: "Discard draft and start", exact: true });
+  if (await overwrite.isVisible()) await overwrite.click();
+  // Service isRecording becomes true BEFORE Chromium launch/navigation completes. The
+  // rendered settled message is the production handler's completion signal.
+  await poll("start handler completed", async () => {
+    const message = (await statusText(win).textContent()) ?? "";
+    if (message.startsWith("Error:")) throw new Error(message);
+    return message.startsWith("Recording") ? true : null;
+  }, 60000, 150);
   await poll("recording active", async () => ((await recorderState(win)).isRecording ? true : null), 40_000, 200);
   await waitUiRecording(win);
 }
