@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelRightClose, PanelRightOpen, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { CanvasNode as Node } from "../canvas";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
@@ -11,10 +11,9 @@ import { locatorContainerChain, type AsyncCompletionMode, type LoaderCompletion,
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
 import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
 import {
-  createInteractionDecisionBinding,
-  isSensitiveInteractionStep,
-  supportsAutomaticPrerequisiteTrial
+  isSensitiveInteractionStep
 } from "@src/profiles/interactionPrerequisiteDecision";
+import { confirmDirectActionPatch, interactionReviewForNode, type DesignerValidationFinding } from "./flowValidationPresentation";
 import { useNavigation } from "../../state/navigation";
 
 /** Completion-policy options for the Async Completion editor. */
@@ -49,7 +48,7 @@ interface DataSourceOption {
 
 interface FlowNodePropertiesPanelProps {
   selectedNode: Node<FlowDesignerNodeData> | null;
-  validationMessages: string[];
+  validationFindings: DesignerValidationFinding[];
   dataSources: DataSourceOption[];
   flows: DataSourceOption[];
   collapsed: boolean;
@@ -60,7 +59,7 @@ interface FlowNodePropertiesPanelProps {
 
 export function FlowNodePropertiesPanel({
   selectedNode,
-  validationMessages,
+  validationFindings,
   dataSources,
   flows,
   collapsed,
@@ -72,6 +71,10 @@ export function FlowNodePropertiesPanel({
   const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string; targetUrl?: string }[]>([]);
   const [fallbackReason, setFallbackReason] = useState("");
   const [prerequisiteReason, setPrerequisiteReason] = useState("");
+  const locatorValueRef = useRef<HTMLInputElement>(null);
+  const prerequisiteReasonRef = useRef<HTMLTextAreaElement>(null);
+  const recorderLinkRef = useRef<HTMLButtonElement>(null);
+  const propertiesBodyRef = useRef<HTMLDivElement>(null);
   const { navigateTo } = useNavigation();
   const stepType = selectedNode?.data.stepType;
   useEffect(() => {
@@ -141,12 +144,27 @@ export function FlowNodePropertiesPanel({
     set({ targetLocator: { strategy: "css", value: "", resolution: "resolved", resolvedBy: "user", ...(data.targetLocator ?? {}), ...patch } });
   };
   const clearTarget = () => set({ targetLocator: undefined });
-  const typeErrors = data && definition ? definition.validate(data) : [];
-  // A recorded locator that resolves to multiple elements must not read as "valid".
-  const locatorQualityErrors =
-    data?.locatorQuality && data.locatorQuality.isUnique === false && data.locatorResolution !== "resolved"
-      ? [data.locatorQuality.warning ?? `${data.name} locator matches ${data.locatorQuality.matchCount} elements (not unique).`]
-      : [];
+  const interactionReview = selectedNode ? interactionReviewForNode(selectedNode) : undefined;
+  const mappedStep = interactionReview?.step;
+  const locatorResolution = mappedStep?.locator?.resolution;
+  const locatorBlocked = validationFindings.some((finding) => finding.code === "locatorNeedsReview" || finding.code === "missingRequiredLocator");
+  const sensitive = mappedStep ? isSensitiveInteractionStep(mappedStep) : false;
+  const trialSupported = interactionReview?.trialSupported ?? false;
+  const prerequisiteConfirmed = interactionReview?.decisionValid ?? false;
+  const focusFinding = (finding: DesignerValidationFinding) => {
+    const target = finding.code === "interactionPrerequisiteBlocked"
+      ? prerequisiteReasonRef.current ?? recorderLinkRef.current
+      : finding.actionLabel === "Review locator"
+        ? locatorValueRef.current
+        : propertiesBodyRef.current?.querySelector<HTMLInputElement>("input, select, textarea");
+    let details = target?.closest("details");
+    while (details) {
+      details.open = true;
+      details = details.parentElement?.closest("details") ?? null;
+    }
+    target?.focus();
+    target?.scrollIntoView({ block: "nearest" });
+  };
   const kind = data?.valueSourceType === "dynamic" ? "dynamic" : "static";
   const smartWaitCount = (data?.beforeWaits?.length ?? 0) + (data?.afterWaits?.length ?? 0);
   const updateWait = (phase: "beforeWaits" | "afterWaits", index: number, patch: Partial<WaitCondition>) => {
@@ -529,7 +547,18 @@ export function FlowNodePropertiesPanel({
         </button>
       </div>
 
-      <div className="properties-body">
+      <div className="properties-body" ref={propertiesBodyRef}>
+      <section className="property-section" aria-label="Step validation" data-testid="node-validation-summary" aria-live="polite">
+        <h3>Step validation</h3>
+        {validationFindings.length ? validationFindings.map((finding) => (
+          <div key={finding.key} className={`locator-review-state ${finding.blocking ? "warn" : ""}`} data-validation-code={finding.code}>
+            <strong>{finding.blocking ? "Blocks run" : finding.severity === "error" ? "Off-path error" : "Warning"}</strong>
+            <span>{finding.message}</span>
+            <button type="button" className="toolbar-button primary" onClick={() => focusFinding(finding)}>{finding.actionLabel}</button>
+          </div>
+        )) : <div className="locator-review-state ok" role="status">No validation issues for this step.</div>}
+        <p className="form-message">Edits update this draft immediately. Use Save to store the flow.</p>
+      </section>
       {data && selectedNode && definition ? (
         <>
           <details className="property-group" open>
@@ -604,7 +633,7 @@ export function FlowNodePropertiesPanel({
                 <label>
                   Value
                   {/* Editing the value invalidates recorder uniqueness metadata. */}
-                  <input value={data.locatorValue} onChange={(e) => editLocator({ locatorValue: e.target.value })} />
+                  <input ref={locatorValueRef} value={data.locatorValue} onChange={(e) => editLocator({ locatorValue: e.target.value })} />
                 </label>
                 <label>
                   Accessible Name
@@ -617,6 +646,8 @@ export function FlowNodePropertiesPanel({
                   </label>
                 ) : null}
                 {data.locatorQuality ? (
+                  <details>
+                    <summary>Recorded locator evidence</summary>
                   <div className={`locator-quality ${data.locatorQuality.isUnique ? "ok" : "warn"}`}>
                     <strong>
                       {data.locatorQuality.isUnique
@@ -637,10 +668,11 @@ export function FlowNodePropertiesPanel({
                       {typeof data.locatorQuality.candidateCount === "number" ? ` · ${data.locatorQuality.candidateCount} candidates evaluated` : ""}
                     </span>
                   </div>
+                  </details>
                 ) : null}
                 {data.locatorIdentity ? (
-                  <div className="locator-review-state ok" data-testid="element-identity-state" role="status">
-                    <strong>Element identity: Resolved</strong>
+                  <div className="locator-review-state" data-testid="element-identity-state" role="status">
+                    <strong>Recorded element identity</strong>
                     <span>
                       Primary matches at capture: {data.locatorQuality?.matchCount ?? "unknown"}
                       {data.locatorIdentity.confidence.basis.length
@@ -651,112 +683,65 @@ export function FlowNodePropertiesPanel({
                 ) : null}
                 {data.locatorPrerequisite ? (
                   <div
-                    className={`locator-review-state ${data.locatorPrerequisite.status === "unknown" ? "warn" : "ok"}`}
+                    className={`locator-review-state ${prerequisiteConfirmed ? "ok" : "warn"}`}
                     data-testid="interaction-prerequisite-state"
-                    role={
-                      data.locatorPrerequisite.status === "unknown" &&
-                      (!data.locatorExecutionDecision || data.locatorExecutionDecision.status === "blocked")
-                        ? "alert"
-                        : "status"
-                    }
+                    role="status"
                   >
                     <strong>
                       Interaction prerequisite: {data.locatorPrerequisite.status === "unknown"
-                        ? data.locatorExecutionDecision?.status === "automatic"
-                          ? "Unknown — direct actionability trial"
-                          : data.locatorExecutionDecision?.status === "user-confirmed"
-                            ? "Unknown — user confirmed"
-                            : "Unknown — execution blocked"
+                        ? prerequisiteConfirmed
+                          ? "Ready — actionability checked at runtime"
+                          : "Needs a decision — execution blocked"
                         : data.locatorPrerequisite.status === "resolved" ? "Resolved" : "None"}
                     </strong>
-                    {data.locatorPrerequisite.hover?.reason ? <span>{data.locatorPrerequisite.hover.reason}</span> : null}
-                    {data.locatorPrerequisite.status === "unknown" ? (() => {
-                      const decisionStep = {
-                        type: data.stepType,
-                        name: data.name,
-                        safety: data.safety,
-                        locator: {
-                          strategy: data.locatorStrategy,
-                          value: data.locatorValue,
-                          name: data.locatorName || undefined,
-                          exact: data.locatorExact || undefined,
-                          identity: data.locatorIdentity,
-                          prerequisite: data.locatorPrerequisite,
-                          executionDecision: data.locatorExecutionDecision
-                        }
-                      };
-                      const sensitive = isSensitiveInteractionStep(decisionStep);
-                      // Ask the domain which step types can be proven without acting, rather than
-                      // hardcoding `click`. That hardcoding is the documented reason
-                      // PREREQUISITE_TRIAL_MODES exists, and it had survived here: a dblclick,
-                      // contextMenu, fill or select whose prerequisite came back `unknown` showed
-                      // both resolution controls permanently disabled, so the validator's
-                      // `interactionPrerequisiteBlocked` error could never be cleared.
-                      const trialSupported = supportsAutomaticPrerequisiteTrial(decisionStep);
-                      return (
-                        <div className="locator-approval-form" data-testid="interaction-prerequisite-controls">
-                          <span>
-                            {sensitive
-                              ? "Sensitive actions must re-record or resolve the prerequisite; direct trial and confirmation are disabled."
-                              : "A direct trial uses Playwright actionability checks first. It never uses force click."}
-                          </span>
-                          <button
-                            type="button"
-                            className="toolbar-button"
-                            data-testid="try-direct-action"
-                            disabled={!trialSupported || !data.locatorIdentity}
-                            onClick={() => set({
-                              locatorExecutionDecision: {
-                                schemaVersion: 1,
-                                status: "automatic",
-                                reason: "Playwright actionability trial required before the real action"
-                              }
-                            })}
-                          >
-                            Try direct action
-                          </button>
-                          <label>
-                            Confirmation reason
-                            <textarea
-                              value={prerequisiteReason}
-                              onChange={(event) => setPrerequisiteReason(event.target.value)}
-                              aria-describedby="interaction-prerequisite-help"
-                            />
-                          </label>
-                          <span id="interaction-prerequisite-help">Confirm why this exact resolved target needs no hover prerequisite. Normal Playwright actionability remains enforced.</span>
-                          <button
-                            type="button"
-                            className="toolbar-button"
-                            data-testid="confirm-no-prerequisite"
-                            disabled={!trialSupported || !data.locatorIdentity || prerequisiteReason.trim().length < 8}
-                            onClick={() => {
-                              const reason = prerequisiteReason.trim();
-                              set({
-                                locatorExecutionDecision: {
-                                  schemaVersion: 1,
-                                  status: "user-confirmed",
-                                  reason,
-                                  binding: createInteractionDecisionBinding(decisionStep)
-                                }
-                              });
-                            }}
-                          >
-                            Confirm no prerequisite
-                          </button>
-                          <button
-                            type="button"
-                            className="toolbar-button"
-                            data-testid="rerecord-prerequisite"
-                            onClick={() => void navigateTo("recorder")}
-                          >
-                            Re-record prerequisite
-                          </button>
-                        </div>
-                      );
-                    })() : null}
+                    {data.locatorPrerequisite.status === "unknown" ? (
+                      <>
+                        <span>The recorded prerequisite is still unknown. A confirmation permits normal Playwright checks; it does not bypass them or run the action now.</span>
+                        {prerequisiteConfirmed ? (
+                          <>
+                            <span>{mappedStep?.locator?.executionDecision?.reason}</span>
+                            <button type="button" className="toolbar-button" data-testid="review-direct-action" onClick={() => set({
+                              locatorExecutionDecision: { schemaVersion: 1, status: "blocked", reason: "User requested a new direct-action review." }
+                            })}>Change decision</button>
+                          </>
+                        ) : trialSupported && data.locatorIdentity ? (
+                          <div className="locator-approval-form" data-testid="interaction-prerequisite-controls">
+                            <label>
+                              Confirmation reason
+                              <textarea
+                                ref={prerequisiteReasonRef}
+                                value={prerequisiteReason}
+                                onChange={(event) => setPrerequisiteReason(event.target.value)}
+                                aria-describedby="interaction-prerequisite-help"
+                              />
+                            </label>
+                            <span id="interaction-prerequisite-help">Explain why this exact recorded target needs no hover prerequisite (at least 8 characters). Playwright still checks actionability and element identity at runtime.</span>
+                            <button
+                              type="button"
+                              className="toolbar-button primary"
+                              data-testid="confirm-no-prerequisite"
+                              disabled={prerequisiteReason.trim().length < 8}
+                              onClick={() => {
+                                const patch = confirmDirectActionPatch(selectedNode, prerequisiteReason);
+                                if (patch) set(patch);
+                              }}
+                            >Confirm direct action</button>
+                          </div>
+                        ) : (
+                          <span>{sensitive
+                            ? "Sensitive actions cannot use direct-action confirmation. Record the prerequisite and target again."
+                            : !data.locatorIdentity
+                              ? "Recorded element identity is missing. Record the target again before confirming direct action."
+                              : "This action has no supported actionability trial. Record its prerequisite again."}</span>
+                        )}
+                        {data.locatorPrerequisite.hover?.reason ? (
+                          <details><summary>Recorded prerequisite evidence</summary><p>{data.locatorPrerequisite.hover.reason}</p></details>
+                        ) : null}
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
-                {data.locatorResolution || isPositionalLocator({
+                {locatorResolution || isPositionalLocator({
                   strategy: data.locatorStrategy,
                   value: data.locatorValue,
                   name: data.locatorName || undefined,
@@ -765,23 +750,24 @@ export function FlowNodePropertiesPanel({
                   context: data.locatorContext
                 }) ? (
                   <div
-                    className={`locator-review-state ${data.locatorResolution === "resolved" ? "ok" : data.locatorResolution === "user-approved-fallback" ? "approved" : "warn"}`}
+                    className={`locator-review-state ${locatorBlocked ? "warn" : locatorResolution === "user-approved-fallback" ? "approved" : "ok"}`}
                     data-testid="locator-review-state"
-                    role={!data.locatorResolution || data.locatorResolution === "needs-review" || data.locatorResolution === "invalid" ? "alert" : "status"}
+                    role="status"
                   >
                     <strong>
-                      {data.locatorResolution === "resolved"
+                      {!locatorBlocked && locatorResolution === "resolved"
                         ? "Resolved locator"
-                        : data.locatorResolution === "user-approved-fallback"
+                        : !locatorBlocked && locatorResolution === "user-approved-fallback"
                           ? "User-approved fallback (lower resilience)"
-                          : data.locatorResolution === "invalid"
+                          : locatorResolution === "invalid"
                             ? "Invalid locator — execution blocked"
                             : "Needs element identity proof — execution blocked"}
                     </strong>
-                    {data.locatorReviewReason ? <span>{data.locatorReviewReason}</span> : null}
+                    {data.locatorReviewReason ? <details><summary>Recorded review reason</summary><p>{data.locatorReviewReason}</p></details> : null}
                     {data.locatorAlternatives?.length ? (
                       <details>
                         <summary>{data.locatorAlternatives.length} ranked alternative{data.locatorAlternatives.length === 1 ? "" : "s"}</summary>
+                        <p>These are recorded suggestions, not verified replacements. Recorder can validate a candidate against the live page; selecting one here cannot prove uniqueness.</p>
                         <ol className="locator-alternative-list">
                           {data.locatorAlternatives.map((candidate, index) => (
                             <li key={`${candidate.strategy}:${candidate.value}:${index}`}>
@@ -804,7 +790,7 @@ export function FlowNodePropertiesPanel({
                         </ol>
                       </details>
                     ) : null}
-                    {data.locatorResolution === "user-approved-fallback" ? (
+                    {!locatorBlocked && locatorResolution === "user-approved-fallback" ? (
                       <>
                         <span>Reason: {data.locatorApprovedFallbackReason}</span>
                         <button
@@ -842,11 +828,13 @@ export function FlowNodePropertiesPanel({
                         <span id="locator-approval-help">Explain why this exact positional target is acceptable. Sensitive actions remain prohibited.</span>
                         <button
                           type="button"
-                          className="toolbar-button"
+                          className="toolbar-button primary"
                           data-testid="approve-locator-fallback"
-                          disabled={fallbackReason.trim().length < 8}
+                          disabled={sensitive || fallbackReason.trim().length < 8}
                           onClick={() => {
+                            if (sensitive || !mappedStep?.locator) return;
                             const locator = {
+                              ...mappedStep.locator,
                               strategy: data.locatorStrategy,
                               value: data.locatorValue,
                               name: data.locatorName || undefined,
@@ -878,6 +866,14 @@ export function FlowNodePropertiesPanel({
                       </div>
                     ) : null}
                   </div>
+                ) : null}
+                {locatorBlocked || (data.locatorPrerequisite?.status === "unknown" && !prerequisiteConfirmed) ? (
+                  <details className="locator-review-state" open={!trialSupported || !data.locatorIdentity || sensitive}>
+                    <summary>Replace the step with a new recording</summary>
+                    <p>Save this draft first. In Recorder, record the target and any required hover, then save the recording. Open that flow in Flow Designer, copy the verified step into this flow, reconnect it and remove the old step.</p>
+                    <p>Opening Recorder does not replace this step. Editing a recorded locator cannot establish new identity proof here; the blocker stays until valid evidence or an eligible fallback approval exists.</p>
+                    <button ref={recorderLinkRef} type="button" className="toolbar-button" data-testid="rerecord-prerequisite" onClick={() => void navigateTo("recorder")}>Open Recorder</button>
+                  </details>
                 ) : null}
               </section>
             </details>
@@ -1080,7 +1076,7 @@ export function FlowNodePropertiesPanel({
                 ) : data.waitType === "selector" ? (
                   <label>
                     Selector
-                    <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
+                    <input ref={locatorValueRef} value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
                   </label>
                 ) : data.waitType === "textVisible" ? (
                   <label>
@@ -1201,7 +1197,7 @@ export function FlowNodePropertiesPanel({
                 </label>
                 <label>
                   Element locator (optional)
-                  <input value={data.locatorValue} placeholder="leave empty for whole page" onChange={(e) => set({ locatorValue: e.target.value })} />
+                  <input ref={locatorValueRef} value={data.locatorValue} placeholder="leave empty for whole page" onChange={(e) => set({ locatorValue: e.target.value })} />
                 </label>
                 <span className="form-message">Saved under the configured screenshots path and attached to the run report.</span>
               </section>
@@ -1222,7 +1218,7 @@ export function FlowNodePropertiesPanel({
                 {data.scrollTarget === "element" ? (
                   <label>
                     Element locator
-                    <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
+                    <input ref={locatorValueRef} value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
                   </label>
                 ) : null}
                 <label>
@@ -1262,7 +1258,7 @@ export function FlowNodePropertiesPanel({
                 ) : data.loopType === "elements" ? (
                   <label>
                     Element locator
-                    <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
+                    <input ref={locatorValueRef} value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
                   </label>
                 ) : (
                   <span className="form-message">Iterates the workflow data source rows.</span>
@@ -1610,23 +1606,13 @@ export function FlowNodePropertiesPanel({
         <div className="empty-properties">Select a node on the canvas to edit its configuration.</div>
       )}
 
-      <section className="property-section">
-        <h3>Validation</h3>
-        <div className="validation-list">
-          {[...typeErrors, ...locatorQualityErrors, ...validationMessages].length ? (
-            [...typeErrors, ...locatorQualityErrors, ...validationMessages].map((message) => <span key={message}>{message}</span>)
-          ) : (
-            <strong>Node configuration is valid.</strong>
-          )}
-        </div>
-      </section>
       </div>
 
-      {/* Node edits are live-bound (onUpdateNode) — the footer only offers a safe "Done"/collapse
+      {/* Node edits are live-bound (onUpdateNode) — the footer only offers a safe close/collapse
           action; there is no fake save here. */}
       <div className="properties-footer single">
         <button className="toolbar-button primary" type="button" onClick={onToggleCollapsed}>
-          Done
+          Close properties
         </button>
       </div>
     </aside>

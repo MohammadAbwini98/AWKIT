@@ -29,6 +29,7 @@ import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphL
 import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { SearchableSelect } from "../components/shared/SearchableSelect";
 import { FlowNodePropertiesPanel } from "../components/workflow/FlowNodePropertiesPanel";
+import { findingsForNode, presentFlowValidation, type DesignerValidationAdvisory, type ValidationLocation } from "../components/workflow/flowValidationPresentation";
 import { flowNodeCatalog, getFlowNodeCatalogItem } from "../components/workflow/flowNodeCatalog";
 import { getNodeDefinition } from "../components/workflow/flowNodeRegistry";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, defaultNodeData, type FlowDesignerNodeData } from "../components/workflow/flowDesignerTypes";
@@ -65,8 +66,6 @@ import { connectorKind } from "@src/profiles/FlowProfile";
 import {
   executionBlockingErrorsOf,
   validateFlowDefinition,
-  warningsOf,
-  type FlowValidationIssue,
   type FlowValidationReport
 } from "@src/validation/FlowValidator";
 import { isNativeUndoTarget, useEditorHistory } from "../lib/editorHistory";
@@ -333,14 +332,13 @@ function FlowChartDesignerContent() {
   // Blocking = would the run gate reject this flow right now (active-path errors + connector
   // structure). DERIVED state only — never persisted onto the profile.
   const blockingIssues = useMemo(() => executionBlockingErrorsOf(validationReport), [validationReport]);
-  const warningIssues = useMemo(() => warningsOf(validationReport), [validationReport]);
   // Renderer-only advisories the engine has no rule for yet (locator uniqueness, conditional
   // config completeness, ambiguous priorities). Additive on top of the engine — never a second
   // implementation of an engine rule.
-  const advisoryMessages = useMemo(() => rendererAdvisories(nodes, edges), [nodes, edges]);
-  const validationMessages = useMemo(
-    () => [...validationReport.issues.map((issue) => issue.message), ...advisoryMessages],
-    [validationReport, advisoryMessages]
+  const advisories = useMemo(() => rendererAdvisories(nodes, edges), [nodes, edges]);
+  const validationFindings = useMemo(
+    () => presentFlowValidation(validationReport, advisories),
+    [validationReport, advisories]
   );
 
   // Point 3: a node with a self-loop connector forces any other outgoing connector to Conditional.
@@ -641,7 +639,7 @@ function FlowChartDesignerContent() {
    * open its properties panel). Flow-level issues have no anchor and only close the panel.
    */
   const navigateToIssue = useCallback(
-    (issue: FlowValidationIssue) => {
+    (issue: ValidationLocation) => {
       if (issue.nodeId) selectNode(issue.nodeId);
       else if (issue.edgeId) selectEdge(issue.edgeId);
       setIssuesOpen(false);
@@ -1225,7 +1223,7 @@ function FlowChartDesignerContent() {
         ) : selectedNode ? (
           <FlowNodePropertiesPanel
             selectedNode={selectedNode}
-            validationMessages={validationMessages}
+            validationFindings={findingsForNode(validationFindings, selectedNode.id)}
             dataSources={dataSources}
             flows={savedFlows
               .filter((flow) => flow.id !== flowId && flow.nodes.length > 2)
@@ -1338,16 +1336,16 @@ function FlowChartDesignerContent() {
             <div className="editor-command-controls">
               <button
                 type="button"
-                className={`validation-chip ${blockingIssues.length ? "block" : validationMessages.length ? "warn" : "ok"}`}
+                className={`validation-chip ${blockingIssues.length ? "block" : validationFindings.length ? "warn" : "ok"}`}
                 onClick={() => setIssuesOpen((open) => !open)}
-                title={blockingIssues.length ? "This draft has errors that block execution — click to review" : validationMessages.length ? "Click to review validation findings" : "No validation findings"}
+                title={blockingIssues.length ? "This draft has errors that block execution — click to review" : validationFindings.length ? "Click to review validation findings" : "No validation findings"}
                 data-testid="flow-validation-chip"
               >
                 <ShieldCheck size={14} />
                 {blockingIssues.length
                   ? `Draft — not runnable (${blockingIssues.length})`
-                  : validationMessages.length
-                    ? `${validationMessages.length} finding${validationMessages.length === 1 ? "" : "s"}`
+                  : validationFindings.length
+                    ? `${validationFindings.length} finding${validationFindings.length === 1 ? "" : "s"}`
                     : "Runnable"}
               </button>
               <span className="editor-command-save-state" title={saveState}>{saveState}</span>
@@ -1355,27 +1353,22 @@ function FlowChartDesignerContent() {
           </div>
         </EditorCommandBar>
 
-        {issuesOpen && (validationReport.issues.length > 0 || advisoryMessages.length > 0) ? (
+        {issuesOpen && validationFindings.length > 0 ? (
           <div className="validation-issues-panel" data-testid="flow-validation-panel">
-            {validationReport.issues.map((issue) => (
+            {validationFindings.map((issue) => (
               <button
-                key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "flow"}-${issue.message}`}
+                key={issue.key}
                 type="button"
                 className={`validation-issue-row ${issue.severity}`}
                 onClick={() => navigateToIssue(issue)}
                 title={issue.nodeId ? "Select the affected node" : issue.edgeId ? "Select the affected connector" : "Flow-level finding"}
               >
-                <span className={`validation-issue-badge ${issue.severity}${issue.severity === "error" && !issue.onActivePath && issue.code !== "connectorStructure" ? " offpath" : ""}`}>
-                  {issue.severity === "warning" ? "warning" : issue.onActivePath || issue.code === "connectorStructure" ? "blocks run" : "off-path"}
+                <span className={`validation-issue-badge ${issue.severity}${issue.severity === "error" && !issue.blocking ? " offpath" : ""}`}>
+                  {issue.blocking ? "blocks run" : issue.severity === "warning" ? "warning" : "off-path"}
                 </span>
                 <span>{issue.message}</span>
+                <strong>{issue.actionLabel}</strong>
               </button>
-            ))}
-            {advisoryMessages.map((message) => (
-              <div key={message} className="validation-issue-row advisory">
-                <span className="validation-issue-badge advisory">advisory</span>
-                <span>{message}</span>
-              </div>
             ))}
           </div>
         ) : null}
@@ -1480,15 +1473,15 @@ export function FlowChartDesigner() {
  *  - a dead-end non-End node (reachable but with no outgoing connector) — candidate engine rule.
  * These are advisories: they never block save and never block the run gate.
  */
-function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {
-  const messages: string[] = [];
+function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): DesignerValidationAdvisory[] {
+  const messages: DesignerValidationAdvisory[] = [];
   const nodeName = (id: string) => nodes.find((n) => n.id === id)?.data.name ?? id;
   const outgoing = new Set(edges.map((edge) => edge.source));
 
   nodes.forEach((node) => {
-    if (node.data.stepType !== "end" && !outgoing.has(node.id)) messages.push(`${node.data.name} has no outgoing connector.`);
+    if (node.data.stepType !== "end" && !outgoing.has(node.id)) messages.push({ code: "deadEnd", nodeId: node.id, message: `${node.data.name} has no outgoing connector.` });
     if (node.data.locatorQuality && node.data.locatorQuality.isUnique === false && node.data.locatorResolution !== "resolved") {
-      messages.push(`${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality.matchCount} elements) — it may fail in Playwright strict mode.`);
+      messages.push({ code: "locatorQuality", nodeId: node.id, message: `${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality.matchCount} elements) — it may fail in Playwright strict mode.` });
     }
   });
 
@@ -1499,15 +1492,15 @@ function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]
       const c = data.conditional;
       const needsValue = !["always", "exists", "notExists", "truthy", "falsy"].includes(c.operator);
       if (needsValue && (c.expectedValue === undefined || String(c.expectedValue).trim() === "")) {
-        messages.push(`Conditional connector from ${nodeName(edge.source)} needs an expected value for operator "${c.operator}".`);
+        messages.push({ code: "conditionalValue", edgeId: edge.id, message: `Conditional connector from ${nodeName(edge.source)} needs an expected value for operator "${c.operator}".` });
       }
       if ((c.sourceField === "variable" || c.sourceField === "dataSourceValue") && !c.variableName?.trim()) {
-        messages.push(`Conditional connector from ${nodeName(edge.source)} needs a variable/path.`);
+        messages.push({ code: "conditionalVariable", edgeId: edge.id, message: `Conditional connector from ${nodeName(edge.source)} needs a variable/path.` });
       }
     }
     if (edgeKind === "loop" && data?.loop) {
       const l = data.loop;
-      if (l.mode === "staticList" && !(l.staticValues && l.staticValues.length)) messages.push(`Loop connector from ${nodeName(edge.source)} (static list) needs at least one value.`);
+      if (l.mode === "staticList" && !(l.staticValues && l.staticValues.length)) messages.push({ code: "loopValues", edgeId: edge.id, message: `Loop connector from ${nodeName(edge.source)} (static list) needs at least one value.` });
     }
   });
 
@@ -1522,7 +1515,7 @@ function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]
   });
   condBySource.forEach((priorities, source) => {
     const dupes = priorities.filter((p, i) => priorities.indexOf(p) !== i);
-    if (dupes.length) messages.push(`${nodeName(source)} has multiple conditional connectors with the same priority — routing may be ambiguous.`);
+    if (dupes.length) messages.push({ code: "conditionalPriority", nodeId: source, message: `${nodeName(source)} has multiple conditional connectors with the same priority — routing may be ambiguous.` });
   });
 
   return messages;
