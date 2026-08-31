@@ -10,6 +10,7 @@ import type {
   AmbiguityResolutionChoice, 
   AmbiguityResolutionPayload 
 } from "./RecorderTypes";
+import { RECORDED_URL_SENSITIVE_QUERY_KEYS as SENSITIVE_QUERY_KEYS } from "./recordedUrlPolicy";
 import { removeRecordedAction } from "./recordedActionMutations";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
@@ -44,20 +45,7 @@ interface RecorderDraft {
 /** Debounce window (ms) for writing the draft to disk during recording. */
 const DRAFT_PERSIST_DEBOUNCE_MS = 400;
 
-/** Query-string keys whose values are masked before a recorded URL is stored/shown. */
-const SENSITIVE_QUERY_KEYS = new Set([
-  "token",
-  "access_token",
-  "refresh_token",
-  "id_token",
-  "code",
-  "password",
-  "secret",
-  "session",
-  "auth",
-  "key",
-  "api_key"
-]);
+
 
 /** Skip consecutive identical URLs recorded within this window (ms) to avoid noisy duplicates. */
 const URL_DEDUPE_WINDOW_MS = 1500;
