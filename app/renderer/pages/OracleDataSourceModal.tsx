@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useModalFocusContract } from "../components/shared/useModalFocusContract";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import { SearchableSelect } from "../components/shared/SearchableSelect";
+import { useNavigation } from "../state/navigation";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import type { OracleBindDefinition, OracleDataSourceProfile } from "@src/data/DataSourceProfile";
 
 /** Bind source kinds a Data Source query may use — only those resolvable at data-source resolution
@@ -42,9 +44,13 @@ function newBind(): OracleBindDefinition {
  */
 export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataSourceModalProps) {
   const editing = Boolean(initial);
+  const { navigateTo } = useNavigation();
+  const { can } = usePermissions();
   // AWKIT-A11Y-001: the modal focus contract (focus in / Tab trap / Escape / focus return).
   const { dialogRef } = useModalFocusContract(onClose);
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(true);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
   const [availability, setAvailability] = useState<{ available: boolean; reason?: string; driverExpected: boolean } | null>(null);
 
   const [name, setName] = useState(initial?.name ?? "");
@@ -65,11 +71,14 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
   useEffect(() => {
     let cancelled = false;
     const api = window.playwrightFlowStudio;
-    api.oracle.availability().then((a) => !cancelled && setAvailability(a)).catch(() => undefined);
+    api.oracle.availability().then((a) => !cancelled && setAvailability(a)).catch(() => {
+      if (!cancelled) setAvailability({ available: false, driverExpected: false, reason: "Could not check the Oracle runtime. Check Settings → Database Drivers." });
+    });
     api.oracle
       .listProfiles()
       .then((list) => !cancelled && setProfiles(list.map((p) => ({ id: p.id, name: p.name }))))
-      .catch(() => undefined);
+      .catch(() => { if (!cancelled) setProfilesError("Could not load Oracle connection profiles. Close and reopen this dialog to retry."); })
+      .finally(() => { if (!cancelled) setProfilesLoading(false); });
     return () => {
       cancelled = true;
     };
@@ -78,6 +87,15 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
   const updateBind = (index: number, patch: Partial<OracleBindDefinition>) =>
     setBinds((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
   const removeBind = (index: number) => setBinds((prev) => prev.filter((_, i) => i !== index));
+  const profileSelected = profiles.some((profile) => profile.id === connectionProfileId);
+  const profileUnavailable = profilesLoading || Boolean(profilesError) || !profiles.length;
+  const profileHint = profilesLoading
+    ? "Loading Oracle connection profiles…"
+    : profilesError ?? (!profiles.length
+      ? "No Oracle connection profiles configured. A saved profile supplies the database address and credentials; it is separate from the Java runtime and JDBC driver."
+      : connectionProfileId && !profileSelected
+        ? "The saved connection profile is no longer available. Choose another profile before saving."
+        : "Choose the saved database connection to use. Credentials stay in the connection profile, outside this data source.");
 
   const buildInput = () => ({
     id: initial?.id,
@@ -93,7 +111,7 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
       setError("A Data Source name is required.");
       return null;
     }
-    if (!connectionProfileId) {
+    if (!profileSelected) {
       setError("Select an Oracle connection profile.");
       return null;
     }
@@ -153,26 +171,13 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div ref={dialogRef} tabIndex={-1} className="modal-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} className="modal-dialog oracle-data-source-dialog" role="dialog" aria-modal="true" aria-labelledby="oracle-data-source-title" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{editing ? "Edit Oracle Data Source" : "Create Oracle Data Source"}</h2>
+          <h2 id="oracle-data-source-title">{editing ? "Edit Oracle Data Source" : "Create Oracle Data Source"}</h2>
         </div>
 
-        <div style={{ maxHeight: "68vh", overflowY: "auto" }}>
+        <div className="oracle-data-source-body">
           <section className="property-section">
-            {availability && !availability.available ? (
-              <span className="form-message" role="alert">
-                Oracle is unavailable in this build: {availability.reason ?? "runtime not found"}. You can configure the Data
-                Source now; it will run once the Oracle runtime is present.
-              </span>
-            ) : null}
-            {availability?.available && !availability.driverExpected ? (
-              <span className="form-message">
-                No Oracle JDBC driver is selected — running with the database-free mock (queries return sample data). Import and
-                select a driver in Settings → Database Drivers to run real queries.
-              </span>
-            ) : null}
-
             <div className="two-column-fields">
               <label>
                 Name
@@ -192,16 +197,35 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
               <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this data source returns" />
             </label>
 
-            <label>
-              Connection Profile
-              <SearchableSelect
-                ariaLabel="Oracle connection profile"
+            <div className="oracle-connection-section">
+            <label htmlFor="oracle-connection-profile">Connection Profile</label>
+              <select
+                id="oracle-connection-profile"
+                aria-label="Oracle connection profile"
+                aria-describedby="oracle-profile-hint oracle-runtime-hint"
                 value={connectionProfileId}
-                placeholder={profiles.length ? "Select a connection profile…" : "No Oracle profiles yet"}
-                options={profiles.map((p) => ({ value: p.id, label: p.name }))}
-                onChange={setConnectionProfileId}
-              />
-            </label>
+                disabled={profileUnavailable || busy || refreshing}
+                onChange={(event) => setConnectionProfileId(event.target.value)}
+              >
+                <option value="">{profilesLoading ? "Loading profiles…" : profilesError ? "Profiles unavailable" : profiles.length ? "Select a connection profile…" : "No Oracle connection profiles configured"}</option>
+                {connectionProfileId && !profileSelected ? <option value={connectionProfileId}>Unavailable profile ({connectionProfileId})</option> : null}
+                {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+              </select>
+              <p className="form-message" id="oracle-profile-hint" role="status">{profileHint}</p>
+              <p className="form-message" id="oracle-runtime-hint" role="status">
+                {!availability ? "Checking Oracle runtime…" : !availability.available
+                  ? `Oracle queries are unavailable: ${availability.reason ?? "runtime not configured"}. Configure Java and a JDBC driver in Settings → Database Drivers. Existing profile configuration can still be saved; snapshot refresh is unavailable.`
+                  : !availability.driverExpected
+                    ? "Development mock runtime only — no real Oracle driver selected. Configure Java and a JDBC driver in Settings → Database Drivers for real queries."
+                    : "Oracle runtime is available. Saving configures the source; it does not run the query."}
+              </p>
+              {can(Permission.PAGE_SETTINGS) && (!availability?.available || !availability.driverExpected) ? (
+                <div>
+                  <button type="button" className="toolbar-button" disabled={busy || refreshing} onClick={() => { onClose(); navigateTo("settings"); }}>Close and open Settings</button>
+                  <p className="form-message">Opens Database Drivers on the Settings page. Unsaved changes in this dialog will be discarded. Driver setup does not create a connection profile.</p>
+                </div>
+              ) : null}
+            </div>
 
             <label>
               SQL Query (read-only SELECT)
@@ -292,7 +316,7 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
               <div className="smart-wait-list">
                 <div className="smart-wait-list-heading">
                   <strong>Offline Snapshot</strong>
-                  <button className="toolbar-button" type="button" onClick={() => void refreshSnapshot()} disabled={refreshing || busy}>
+                  <button className="toolbar-button" type="button" onClick={() => void refreshSnapshot()} disabled={refreshing || busy || !profileSelected || !availability?.available} title={!availability?.available ? "Configure the Oracle runtime before refreshing a snapshot" : undefined}>
                     <RefreshCw size={14} /> {refreshing ? "Refreshing…" : "Refresh snapshot"}
                   </button>
                 </div>
@@ -314,7 +338,7 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
           <button className="toolbar-button" type="button" onClick={onClose} disabled={busy || refreshing}>
             Cancel
           </button>
-          <button className="toolbar-button primary" type="button" onClick={() => void saveAndClose()} disabled={busy || refreshing}>
+          <button className="toolbar-button primary" type="button" onClick={() => void saveAndClose()} disabled={busy || refreshing || profilesLoading || Boolean(profilesError) || !profileSelected}>
             {busy ? "Saving…" : editing ? "Save" : "Create"}
           </button>
         </div>

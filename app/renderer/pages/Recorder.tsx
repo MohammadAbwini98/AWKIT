@@ -50,6 +50,9 @@ export function Recorder() {
 
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
   const [favoriteUrls, setFavoriteUrls] = useState<RecordedUrl[]>([]);
+  const [urlTab, setUrlTab] = useState<"recorded" | "favorites">("recorded");
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const favoriteMutation = useRef(false);
   const [urlSearch, setUrlSearch] = useState("");
   const [urlPage, setUrlPage] = useState(1);
   const [urlPageSize, setUrlPageSize] = useState(10);
@@ -272,38 +275,49 @@ export function Recorder() {
     }
   };
 
-  const addFavorite = async (value: string) => {
-    const favoritesApi = window.playwrightFlowStudio.recorder as typeof window.playwrightFlowStudio.recorder & {
-      saveFavoriteUrl: (url: string) => Promise<RecordedUrl[]>;
-    };
+  // Compare against canonical, redacted URLs returned by the existing store. This lookup
+  // changes no stored data and never exposes a redacted query value.
+  const favoriteForUrl = (value: string) => favoriteUrls.find((favorite) => {
     try {
-      setFavoriteUrls(await favoritesApi.saveFavoriteUrl(value));
-      setStatusMsg("URL added to Favorites.");
+      const raw = value.trim();
+      const normalized = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) || /^(about:|data:|file:)/i.test(raw) ? raw : `https://${raw}`;
+      const candidate = new URL(normalized);
+      const stored = new URL(favorite.url);
+      for (const [key, saved] of stored.searchParams) {
+        if (saved === "***" && candidate.searchParams.has(key)) candidate.searchParams.set(key, "***");
+      }
+      return candidate.href === stored.href;
+    } catch {
+      return favorite.url === value.trim();
+    }
+  });
+  const currentFavorite = favoriteForUrl(url);
+  const toggleFavorite = async (value: string) => {
+    if (!value.trim() || favoriteMutation.current) return;
+    favoriteMutation.current = true;
+    setFavoriteBusy(true);
+    const favorite = favoriteForUrl(value);
+    try {
+      const api = window.playwrightFlowStudio.recorder;
+      setFavoriteUrls(await (favorite ? api.removeFavoriteUrl(favorite.id) : api.saveFavoriteUrl(value)));
+      setStatusMsg(favorite ? "URL removed from Favorites." : "URL added to Favorites.");
     } catch {
       setStatusMsg("Could not update Favorites.");
+    } finally {
+      favoriteMutation.current = false;
+      setFavoriteBusy(false);
     }
   };
 
-  const removeFavorite = async (id: string) => {
-    const favoritesApi = window.playwrightFlowStudio.recorder as typeof window.playwrightFlowStudio.recorder & {
-      removeFavoriteUrl: (id: string) => Promise<RecordedUrl[]>;
-    };
-    try {
-      setFavoriteUrls(await favoritesApi.removeFavoriteUrl(id));
-      setStatusMsg("URL removed from Favorites.");
-    } catch {
-      setStatusMsg("Could not update Favorites.");
-    }
-  };
-
+  const visibleUrls = urlTab === "favorites" ? favoriteUrls : urls;
   const filteredUrls = useMemo(() => {
     const query = urlSearch.trim().toLowerCase();
-    const sorted = [...urls].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    const sorted = [...visibleUrls].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
     if (!query) return sorted;
     return sorted.filter((record) =>
       `${record.url} ${record.title ?? ""} ${record.source} ${record.sessionId ?? ""}`.toLowerCase().includes(query)
     );
-  }, [urls, urlSearch]);
+  }, [visibleUrls, urlSearch]);
 
   const urlTotalPages = Math.max(1, Math.ceil(filteredUrls.length / urlPageSize));
   const urlPageClamped = Math.min(urlPage, urlTotalPages);
@@ -578,12 +592,23 @@ export function Recorder() {
           <div className="recorder-control-actions">
             <button
               type="button"
+              className="toolbar-button recorder-favorite-toggle"
+              aria-pressed={Boolean(currentFavorite)}
+              aria-label={currentFavorite ? "Remove current URL from Favorites" : "Favorite current URL"}
+              title={currentFavorite ? "Remove current URL from Favorites" : "Favorite current URL"}
+              disabled={!url.trim() || favoriteBusy}
+              onClick={() => void toggleFavorite(url)}
+            >
+              <Bookmark size={16} aria-hidden />
+            </button>
+            <button
+              type="button"
               className="toolbar-button recorder-button-subtle"
               disabled={isRecording || !url.trim()}
               onClick={() => void saveCurrentUrl()}
               title="Save this URL to the reusable list"
             >
-              <Bookmark size={16} />
+              <Save size={16} />
               Save URL
             </button>
             <button
@@ -1053,62 +1078,50 @@ export function Recorder() {
         </aside>
       </div>
 
-      <section className="form-panel recorder-favorites-panel" aria-labelledby="recorder-favorites-title">
-        <header className="recorder-panel-header">
-          <div className="recorder-panel-title">
-            <Bookmark size={18} aria-hidden />
-            <div>
-              <h3 id="recorder-favorites-title">Favorite URLs</h3>
-              <span>{favoriteUrls.length} saved favorite{favoriteUrls.length === 1 ? "" : "s"}</span>
-            </div>
-          </div>
-          <button className="toolbar-button" type="button" disabled={!url.trim()} onClick={() => void addFavorite(url)}>
-            <Bookmark size={14} /> Favorite current URL
-          </button>
-        </header>
-        {favoriteUrls.length === 0 ? (
-          <TableEmptyState filtered={false} title="No favorite URLs yet." hint="Favorite a target or a captured URL for quick reuse." />
-        ) : (
-          <div className="recorder-favorites-list" role="list">
-            {favoriteUrls.map((favorite) => (
-              <div className="recorder-favorite-item" role="listitem" key={favorite.id}>
-                <button
-                  className="recorder-favorite-use"
-                  disabled={isRecording}
-                  type="button"
-                  onClick={() => useSavedUrl(favorite.url)}
-                  title={`Use ${favorite.url}`}
-                >
-                  <Bookmark size={15} aria-hidden />
-                  <span><strong>{favorite.title || favorite.url}</strong><small>{favorite.url}</small></span>
-                </button>
-                <button className="icon-button" type="button" title="Remove from Favorites" aria-label={`Remove ${favorite.url} from Favorites`} onClick={() => void removeFavorite(favorite.id)}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
       <section className="form-panel recorder-saved-urls-panel">
         <header className="recorder-panel-header">
           <div className="recorder-panel-title">
             <Globe size={18} />
             <div>
-              <h3>Recorded URLs</h3>
+              <h3>URL history</h3>
               <span>{filteredUrls.length} matching URL{filteredUrls.length === 1 ? "" : "s"}</span>
             </div>
           </div>
         </header>
 
+        <div className="recorder-url-tabs" role="tablist" aria-label="URL history">
+          {(["recorded", "favorites"] as const).map((tab) => (
+            <button
+              key={tab}
+              id={`recorder-url-tab-${tab}`}
+              type="button"
+              role="tab"
+              aria-selected={urlTab === tab}
+              aria-controls="recorder-url-panel"
+              tabIndex={urlTab === tab ? 0 : -1}
+              className="toolbar-button"
+              onClick={() => { setUrlTab(tab); setUrlPage(1); }}
+              onKeyDown={(event) => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                event.preventDefault();
+                const next = event.key === "Home" ? "recorded" : event.key === "End" ? "favorites" : tab === "recorded" ? "favorites" : "recorded";
+                setUrlTab(next);
+                setUrlPage(1);
+                document.getElementById(`recorder-url-tab-${next}`)?.focus();
+              }}
+            >
+              {tab === "recorded" ? "Recorded URLs" : "Favorite URLs"}
+            </button>
+          ))}
+        </div>
+        <div id="recorder-url-panel" role="tabpanel" aria-labelledby={`recorder-url-tab-${urlTab}`}>
         <div className="table-search recorder-url-search">
           <Search size={15} />
           {/* A placeholder is not an accessible name: it is not reliably announced as one, and it
               disappears the moment the user types. */}
           <input
             value={urlSearch}
-            aria-label="Search recorded URLs"
+            aria-label={urlTab === "favorites" ? "Search favorite URLs" : "Search recorded URLs"}
             placeholder="Search by URL, title, source, or session..."
             onChange={(e) => {
               setUrlSearch(e.target.value);
@@ -1122,8 +1135,8 @@ export function Recorder() {
           ) : null}
         </div>
 
-        {urls.length === 0 ? (
-          <TableEmptyState filtered={false} title="No URLs recorded yet." hint="Start recording and navigate to pages to see them here." />
+        {visibleUrls.length === 0 ? (
+          <TableEmptyState filtered={false} title={urlTab === "favorites" ? "No favorite URLs yet." : "No URLs recorded yet."} hint={urlTab === "favorites" ? "Use the bookmark beside a URL to add it to Favorites." : "Start recording and navigate to pages to see them here."} />
         ) : filteredUrls.length === 0 ? (
           <TableEmptyState filtered title="No matching URLs found." hint="Adjust your search text." />
         ) : (
@@ -1132,11 +1145,11 @@ export function Recorder() {
               <table className="wl-table recorded-urls-table">
                 <colgroup>
                   <col style={{ width: "12%" }} />
-                  <col style={{ width: "22%" }} />
-                  <col style={{ width: "36%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "30%" }} />
                   <col style={{ width: "13%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "17%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -1161,7 +1174,7 @@ export function Recorder() {
                           type="button"
                           className="recorded-url-row-activator recorded-url-use"
                           disabled={isRecording}
-                          aria-label={`Use recorded URL ${record.title || record.url}`}
+                          aria-label={`Use ${urlTab === "favorites" ? "favorite" : "recorded"} URL ${record.title || record.url}`}
                           onClick={(event) => { event.stopPropagation(); useSavedUrl(record.url); }}
                         />
                         {new Date(record.timestamp).toLocaleTimeString()}
@@ -1182,9 +1195,12 @@ export function Recorder() {
                           </button>
                           <button
                             type="button"
-                            title="Add to Favorites"
-                            aria-label={`Add ${record.url} to Favorites`}
-                            onClick={(event) => { event.stopPropagation(); void addFavorite(record.url); }}
+                            className="recorder-favorite-toggle"
+                            title={favoriteForUrl(record.url) ? "Remove from Favorites" : "Add to Favorites"}
+                            aria-label={`${favoriteForUrl(record.url) ? "Remove" : "Add"} ${record.url} ${favoriteForUrl(record.url) ? "from" : "to"} Favorites`}
+                            aria-pressed={Boolean(favoriteForUrl(record.url))}
+                            disabled={favoriteBusy}
+                            onClick={(event) => { event.stopPropagation(); void toggleFavorite(record.url); }}
                           >
                             <Bookmark size={14} />
                           </button>
@@ -1208,6 +1224,7 @@ export function Recorder() {
             />
           </>
         )}
+        </div>
       </section>
       {reviewOpen ? (
         <div className="modal-overlay" role="presentation" onClick={() => setReviewOpen(false)}>
