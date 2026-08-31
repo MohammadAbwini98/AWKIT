@@ -16,18 +16,19 @@
 // Run after `npm run build`:
 //   npm run verify:recorder-gui
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ConsoleMessage, type ElectronApplication, type Page } from "playwright";
 import {
   isolatedLaunchEnv,
+  DEFAULT_CREDS,
   resolveMainWindow,
   signInFirstRun
 // @ts-expect-error Shared GUI helper is intentionally plain ESM JavaScript.
 } from "./lib/gui-verify-harness.mjs";
 // @ts-expect-error Shared E2E helper is intentionally plain ESM JavaScript.
-import { navClick } from "./lib/e2e-qa-lib.mjs";
+import { loginAs, navClick } from "./lib/e2e-qa-lib.mjs";
 import type {} from "../app/renderer/types/preload.d.ts";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -539,6 +540,69 @@ try {
   const beforeCopyTarget = await urlField(win).inputValue();
   await rows.nth(1).getByTitle("Copy URL").click();
   check("REC-019 nested Copy does not trigger row URL selection", await urlField(win).inputValue() === beforeCopyTarget);
+
+  // Favorites use the real renderer controls and the existing durable recorder-urls store.
+  const historyCount = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;
+  const detailsRow = rows.filter({ hasText: `${baseUrl}/details` }).first();
+  const favoriteToggle = detailsRow.locator('.recorder-favorite-toggle');
+  check("Favorites start with an unselected bookmark", await favoriteToggle.getAttribute("aria-pressed") === "false");
+  await favoriteToggle.click();
+  await poll("favorite selected", async () => await favoriteToggle.getAttribute("aria-pressed") === "true" ? true : null);
+  check("Adding a favorite updates the recorded-row bookmark immediately", await favoriteToggle.getAttribute("aria-pressed") === "true");
+  await urlField(page).fill(`${baseUrl}/details`);
+  const currentBookmark = page.locator('.recorder-control-actions .recorder-favorite-toggle');
+  check("Current URL bookmark reflects the stored favorite", await currentBookmark.getAttribute("aria-pressed") === "true");
+  const selectedStyle = await favoriteToggle.evaluate((button) => ({ color: getComputedStyle(button).color, fill: getComputedStyle(button.querySelector('svg')!).fill }));
+  check("Selected bookmark has a filled favorite indicator", selectedStyle.fill === selectedStyle.color && selectedStyle.fill !== "none", JSON.stringify(selectedStyle));
+  await page.getByRole("tab", { name: "Favorite URLs", exact: true }).click();
+  check("Favorites use the single URL-history table", await page.locator('.recorded-urls-table').count() === 1 && await rows.count() === 1 && await page.locator('.recorder-favorites-list').count() === 0);
+  await urlField(page).fill(`${baseUrl}/form`);
+  await currentBookmark.click();
+  await poll("two favorites", async () => await rows.count() === 2 ? true : null);
+  await search.fill("details");
+  check("Favorite table search filters stored favorites", await rows.count() === 1 && ((await rows.first().textContent()) ?? "").includes("/details"));
+  await search.fill("no-favorite-matches");
+  check("Favorite filtering has an explicit empty result", await rows.count() === 0 && await page.getByText("No matching URLs found.", { exact: true }).isVisible());
+  await search.fill("");
+  await page.getByRole("tab", { name: "Favorite URLs", exact: true }).focus();
+  await page.keyboard.press("ArrowLeft");
+  const recordedTab = page.getByRole("tab", { name: "Recorded URLs", exact: true });
+  check("URL tabs support arrow-key selection and focus", await recordedTab.getAttribute("aria-selected") === "true" && await recordedTab.evaluate((element) => element === document.activeElement));
+
+  const historyFile = JSON.parse(readFileSync(join(appDataRoot, "recorder-urls.json"), "utf8"));
+  check("Favorite controls persist to the authoritative URL store", historyFile.favorites.length === 2 && historyFile.urls.length === historyCount);
+  await page.reload();
+  await page.locator('.app-shell, #awkit-login-username').first().waitFor({ timeout: 20000 });
+  if (await page.locator('#awkit-login-username').isVisible()) {
+    await loginAs(page, DEFAULT_CREDS.username, DEFAULT_CREDS.password);
+    await page.locator('.app-shell').waitFor();
+  }
+  await navClick(page, "Recorder");
+  await page.getByRole("tab", { name: "Favorite URLs", exact: true }).click();
+  await poll("favorites after renderer reload", async () => await rows.count() === 2 ? true : null);
+  check("Favorite rows and selected indicators survive reload", await rows.locator('.recorder-favorite-toggle[aria-pressed="true"]').count() === 2);
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.recorder-saved-urls-panel').screenshot({ path: join(evidenceDir, `favorites-${theme}.png`) });
+    await page.setViewportSize({ width: 1024, height: 768 });
+    check(`Favorite table stays inside the ${theme} narrow window`, await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
+    await page.locator('.recorder-saved-urls-panel').screenshot({ path: join(evidenceDir, `favorites-${theme}-narrow.png`) });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await detailsRow.locator('.recorder-favorite-toggle').click();
+  await poll("favorite removed", async () => await rows.count() === 1 ? true : null);
+  check("Removing a favorite immediately removes its favorite row", !(await rows.first().textContent())?.includes('/details'));
+  await recordedTab.click();
+  check("Removing a favorite restores the normal recorded-row bookmark", await detailsRow.locator('.recorder-favorite-toggle').getAttribute('aria-pressed') === 'false');
+  await navClick(page, "Dashboard");
+  await navClick(page, "Recorder");
+  await page.locator('.recorder-page').waitFor();
+  const restoredFavorites = await page.evaluate(() => window.playwrightFlowStudio.recorder.getFavoriteUrls());
+  const removedPayload = JSON.parse(readFileSync(join(appDataRoot, "recorder-urls.json"), "utf8"));
+  check("Favorite removal persists without deleting URL history", restoredFavorites.length === 1 && removedPayload.favorites.length === 1 && removedPayload.urls.length === historyCount);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
 
   // ── REC-004 (Cancel half) ──────────────────────────────────────────────────
   const urlsBeforeCancel = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;

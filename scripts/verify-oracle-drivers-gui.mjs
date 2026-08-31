@@ -22,20 +22,61 @@
 // since validate()/testBridge/testLoad re-probe them for real.
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
-import { mkdirSync, cpSync, existsSync } from "node:fs";
+import { mkdirSync, cpSync, existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
+import { navClick } from "./lib/e2e-qa-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const JAVA_ID = process.env.AWKIT_GUI_JAVA_RUNTIME_ID ?? "Local-JDK-17";
 const BUNDLE_ID = process.env.AWKIT_GUI_DRIVER_BUNDLE_ID ?? "Oracle-ojdbc17-local-19c-validation";
 const TEMP_PROFILE_ID = "awkit-gui-usage-probe";
+const evidenceDir = path.join(root, "test-artifacts", "oracle-modal", new Date().toISOString().replace(/[:.]/g, "-"));
+mkdirSync(evidenceDir, { recursive: true });
 
 const results = [];
 function check(name, pass, detail) {
   results.push({ name, pass: Boolean(pass), detail });
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
+}
+
+// The missing-runtime/profile path must execute without inheriting configured user stores.
+const emptyRuntime = isolatedLaunchEnv("awkit-oracle-modal-empty", { PRODUCTION_OFFLINE: "true" });
+const emptyApp = await electron.launch({ args: [root], cwd: root, env: emptyRuntime.env });
+try {
+  const emptyWin = await resolveMainWindow(emptyApp);
+  await signInFirstRun(emptyWin);
+  await navClick(emptyWin, "Data Sources");
+  await emptyWin.getByRole("button", { name: "Add Oracle Source", exact: true }).click();
+  const dialog = emptyWin.getByRole("dialog", { name: "Create Oracle Data Source" });
+  await dialog.getByText(/No Oracle connection profiles configured\. A saved profile/).waitFor();
+  await dialog.getByText(/Oracle queries are unavailable:/).waitFor();
+  check("Empty Oracle setup explains missing profiles beside a disabled control", await dialog.getByRole("combobox", { name: "Oracle connection profile" }).isDisabled());
+  check("Empty Oracle setup cannot create an invalid data source", await dialog.getByRole("button", { name: "Create", exact: true }).isDisabled());
+  await dialog.getByLabel("Mode", { exact: true }).selectOption("snapshot");
+  check("Unavailable Oracle runtime disables snapshot refresh", await dialog.getByRole("button", { name: "Refresh snapshot", exact: true }).isDisabled());
+  check("Empty profile selector does not expose a misleading search menu", await dialog.locator('.searchable-select-trigger').count() === 0);
+  for (const theme of ["light", "dark"]) {
+    await emptyWin.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 600, height: 760 }]) {
+      await emptyWin.setViewportSize(viewport);
+      const size = await dialog.boundingBox();
+      check(`Oracle modal fits ${theme} ${viewport.width}px window`, size && size.x >= 0 && size.width <= viewport.width && size.y >= 0 && size.y + size.height <= viewport.height + 1, JSON.stringify(size));
+      if (viewport.width === 1440) check(`Oracle modal is substantially wider in ${theme}`, size.width >= 850, `width=${size.width}`);
+      await dialog.screenshot({ path: path.join(evidenceDir, `oracle-empty-${theme}-${viewport.width}.png`) });
+    }
+  }
+  await emptyWin.emulateMedia({ reducedMotion: "reduce" });
+  const settingsButton = dialog.getByRole("button", { name: "Close and open Settings", exact: true });
+  await settingsButton.focus();
+  check("Oracle setup action supports keyboard focus", await settingsButton.evaluate((button) => button === document.activeElement));
+  await emptyWin.keyboard.press("Enter");
+  await emptyWin.getByRole("heading", { name: "Java Runtime for Database Drivers" }).waitFor();
+  check("Oracle setup action opens actual Database Driver settings", await emptyWin.getByRole("heading", { name: "Java Runtime for Database Drivers" }).isVisible());
+} finally {
+  await emptyApp.close();
+  emptyRuntime.cleanup();
 }
 
 // Navigate to Settings via the nav item rather than win.reload() — a full reload re-mounts the
@@ -192,6 +233,32 @@ try {
   check("referencing profile increments Java usage", afterJavaUse === beforeJavaUse + 1, `before=${beforeJavaUse} after=${afterJavaUse}`);
   check("referencing profile increments bundle usage", afterBundleUse === beforeBundleUse + 1, `before=${beforeBundleUse} after=${afterBundleUse}`);
 
+  // Save through the real modal, then inspect the production store and reopen the saved source.
+  await navClick(win, "Data Sources");
+  await win.getByRole("button", { name: "Add Oracle Source", exact: true }).click();
+  const sourceDialog = win.getByRole("dialog", { name: "Create Oracle Data Source" });
+  const profileSelect = sourceDialog.getByRole("combobox", { name: "Oracle connection profile" });
+  await profileSelect.selectOption(TEMP_PROFILE_ID);
+  await sourceDialog.getByLabel("Name", { exact: true }).fill("GUI Oracle modal persistence");
+  await sourceDialog.getByLabel("SQL Query (read-only SELECT)", { exact: true }).fill("SELECT :id AS id FROM dual");
+  await sourceDialog.getByRole("button", { name: "Add", exact: true }).click();
+  await sourceDialog.getByLabel("Name / :placeholder", { exact: true }).fill("id");
+  await sourceDialog.getByLabel("JDBC Type", { exact: true }).selectOption("INTEGER");
+  await sourceDialog.getByLabel("Value", { exact: true }).fill("7");
+  await sourceDialog.getByLabel("Query Timeout (ms)", { exact: true }).fill("15000");
+  await sourceDialog.getByLabel("Max Rows", { exact: true }).fill("123");
+  await sourceDialog.getByLabel("Fetch Size", { exact: true }).fill("64");
+  await sourceDialog.getByRole("button", { name: "Create", exact: true }).click();
+  await sourceDialog.waitFor({ state: "hidden" });
+  const persistedSource = (await win.evaluate(() => window.playwrightFlowStudio.oracle.listDataSources())).find((source) => source.name === "GUI Oracle modal persistence");
+  check("Oracle modal persists profile, SQL, binds and query limits", persistedSource?.connectionProfileId === TEMP_PROFILE_ID && persistedSource.query.sql === "SELECT :id AS id FROM dual" && persistedSource.query.binds[0]?.source.value === "7" && persistedSource.query.binds[0]?.jdbcType === "INTEGER" && persistedSource.query.timeoutMs === 15000 && persistedSource.query.maxRows === 123 && persistedSource.query.fetchSize === 64);
+  await win.locator('tr', { hasText: 'GUI Oracle modal persistence' }).getByTitle('Edit Oracle Data Source').click();
+  const reopened = win.getByRole("dialog", { name: "Edit Oracle Data Source" });
+  check("Oracle modal restores saved query configuration on reopen", await reopened.getByLabel("Fetch Size", { exact: true }).inputValue() === "64" && await reopened.getByRole("combobox", { name: "Oracle connection profile" }).inputValue() === TEMP_PROFILE_ID && await reopened.getByLabel("Value", { exact: true }).inputValue() === "7");
+  await reopened.screenshot({ path: path.join(evidenceDir, "oracle-configured.png") });
+  await reopened.getByRole("button", { name: "Cancel", exact: true }).click();
+  await win.evaluate((id) => window.playwrightFlowStudio.oracle.deleteDataSource(id), persistedSource.id);
+
   // Rendered remove buttons must be disabled while referenced. Re-mount the cards (nav bounce) so they
   // re-fetch usage — a reload would drop the authenticated shell.
   await remountSettings(win);
@@ -236,5 +303,7 @@ try {
 }
 
 const passed = results.filter((r) => r.pass).length;
+writeFileSync(path.join(evidenceDir, "results.json"), JSON.stringify({ passed, total: results.length, results }, null, 2));
+console.log(`Oracle modal evidence: ${evidenceDir}`);
 console.log(`\nDatabase Drivers GUI: ${passed}/${results.length} checks passed`);
 process.exit(passed === results.length ? 0 : 1);
