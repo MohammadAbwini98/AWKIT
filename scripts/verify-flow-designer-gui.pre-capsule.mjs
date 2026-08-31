@@ -203,6 +203,33 @@ function seedFlowFixture(localAppData) {
   };
   writeFileSync(path.join(flowsDir, `${fixableFlow.id}.json`), `${JSON.stringify(fixableFlow, null, 2)}\n`, "utf8");
 
+  // Resolution metadata is deliberately scoped: omitting context from the UI confirmation must fail.
+  // These fixtures exercise persisted validation; they never claim a live target-identity proof.
+  const resolutionFlow = {
+    id: "zz-verify-validation-resolution", name: "Verify Validation Resolution", version: 1,
+    createdAt: now, updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start" },
+      { id: "prerequisite", type: "click", name: "Open scoped item", locator: {
+        strategy: "role", value: "button", name: "Open", resolution: "resolved", resolvedBy: "recorder",
+        quality: { strategy: "role", isUnique: true, matchCount: 1, confidence: "high" },
+        context: { frameChain: [{ selector: "iframe[data-testid=details]", name: "details" }], container: { strategy: "css", value: "#row-123", type: "tableRow" } },
+        identity: { schemaVersion: 1, primary: { strategy: "role", value: "button", name: "Open" }, owner: { tag: "button", role: "button", accessibleName: "Open" }, fingerprint: { tag: "tag", role: "role", name: "name", text: "text", attributes: {}, ancestry: ["parent"] }, confidence: { level: "high", basis: ["primary", "fingerprint"] } },
+        prerequisite: { schemaVersion: 1, status: "unknown", hover: { required: true, resolved: false, reason: "Hover trigger could not be identified." } },
+        executionDecision: { schemaVersion: 1, status: "blocked", reason: "Review required." }
+      } },
+      { id: "unresolved", type: "click", name: "Pick second option", locator: {
+        strategy: "css", value: ".pos-btn >> nth=1", resolution: "needs-review", resolvedBy: "recorder",
+        context: { container: { strategy: "css", value: "#options", type: "section" } },
+        quality: { strategy: "fallback", disambiguation: "positional", isUnique: false, matchCount: 3, confidence: "low", warning: "Primary locator was not unique." },
+        reviewReason: "Only position distinguishes these controls."
+      } },
+      { id: "end", type: "end", name: "End" }
+    ],
+    edges: [{ id: "e0", source: "start", target: "prerequisite", type: "success" }, { id: "e1", source: "prerequisite", target: "unresolved", type: "success" }, { id: "e2", source: "unresolved", target: "end", type: "success" }]
+  };
+  writeFileSync(path.join(flowsDir, `${resolutionFlow.id}.json`), `${JSON.stringify(resolutionFlow, null, 2)}\n`, "utf8");
+
   const workflowsDir = path.join(localAppData, "SpecterStudio", "workflows");
   mkdirSync(workflowsDir, { recursive: true });
   const workflowFor = (id, name, flowId) => ({
@@ -227,7 +254,8 @@ function seedFlowFixture(localAppData) {
   for (const workflow of [
     workflowFor("verify-wf-valid", "Verify WF Valid", "verify-flow-designer"),
     workflowFor("verify-wf-invalid", "Verify WF Invalid", "verify-invalid-draft"),
-    workflowFor("verify-wf-legacy", "Verify WF Legacy", "verify-zc-legacy-flow")
+    workflowFor("verify-wf-legacy", "Verify WF Legacy", "verify-zc-legacy-flow"),
+    workflowFor("verify-wf-resolution", "Verify WF Resolution", "zz-verify-validation-resolution")
   ]) {
     writeFileSync(path.join(workflowsDir, `${workflow.id}.json`), `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
   }
@@ -2108,6 +2136,79 @@ try {
   const revokedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));
   const revokedNode = revokedProfile?.nodes?.find((node) => node.id === "positional");
   check("Revoked approval remains blocked after save/reload", revokedNode?.locator?.resolution === "needs-review" && !revokedNode?.locator?.approvedFallbackBinding, JSON.stringify(revokedNode?.locator));
+
+  // Real UI -> persisted profile -> production runtime validation. No live trial is implied.
+  console.log("\nValidation resolution: scoped confirmation, deduplication and persisted authority");
+  const resolutionId = "zz-verify-validation-resolution";
+  const originalResolution = await win.evaluate((id) => window.playwrightFlowStudio.flows.get(id), resolutionId);
+  const openResolution = async () => {
+    await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
+    await win.locator(".searchable-select-menu").getByText("Verify Validation Resolution", { exact: true }).click();
+    await win.locator('.awkit-flow-node[data-id="prerequisite"]').waitFor({ state: "visible" });
+  };
+  const reviewResolutionStep = async (name) => {
+    await win.getByTestId("flow-validation-chip").click();
+    await win.locator(".validation-issue-row", { hasText: name }).first().click();
+    await win.getByTestId("node-validation-summary").waitFor({ state: "visible" });
+  };
+  await openResolution();
+  await reviewResolutionStep("Open scoped item");
+  const resolutionSummary = win.getByTestId("node-validation-summary");
+  check("Resolution summary is scoped to the selected step", await resolutionSummary.locator("[data-validation-code]").count() === 1 && !(await resolutionSummary.textContent()).includes("Pick second option"));
+  await resolutionSummary.getByRole("button", { name: "Review direct action", exact: true }).click();
+  const confirmationReason = win.getByLabel("Confirmation reason", { exact: true });
+  check("Primary prerequisite action focuses its corrective field", await confirmationReason.evaluate((field) => field === document.activeElement));
+  const confirmDirect = win.getByTestId("confirm-no-prerequisite");
+  check("Direct-action confirmation rejects a missing reason", await confirmDirect.isDisabled());
+  await confirmationReason.fill("This captured scoped target is directly actionable.");
+  await confirmDirect.focus();
+  await win.keyboard.press("Enter");
+  await resolutionSummary.locator('[data-validation-code="interactionPrerequisiteBlocked"]').waitFor({ state: "detached" });
+  check("Confirmation removes the real draft blocker before Close properties", await resolutionSummary.locator("[data-validation-code]").count() === 0 && (await win.getByTestId("interaction-prerequisite-state").textContent()).includes("Ready"));
+  check("Resolution remains an unknown recorded prerequisite with explicit runtime checks", (await win.getByTestId("interaction-prerequisite-state").textContent()).includes("actionability checked at runtime"));
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "prerequisite")?.locator?.executionDecision?.status === "user-confirmed", resolutionId);
+  const storedResolution = await win.evaluate((id) => window.playwrightFlowStudio.flows.get(id), resolutionId);
+  const originalTarget = originalResolution.nodes.find((node) => node.id === "prerequisite");
+  const storedTarget = storedResolution.nodes.find((node) => node.id === "prerequisite");
+  check("Saving the real UI decision preserves its exact scope binding", JSON.stringify(storedTarget.locator.executionDecision.binding.context) === JSON.stringify(originalTarget.locator.context));
+  check("Saving preserves recorder identity and prerequisite evidence", JSON.stringify(storedTarget.locator.identity) === JSON.stringify(originalTarget.locator.identity) && JSON.stringify(storedTarget.locator.prerequisite) === JSON.stringify(originalTarget.locator.prerequisite));
+  const partiallyResolved = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-resolution", dryRun: true }));
+  check("Production run validation clears only the confirmed prerequisite blocker", partiallyResolved.status === "validationFailed" && !(partiallyResolved.validation?.issues ?? []).some((issue) => issue.code === "interactionPrerequisiteBlocked") && (partiallyResolved.validation?.issues ?? []).some((issue) => issue.code === "locatorNeedsReview"));
+  await reviewResolutionStep("Pick second option");
+  check("Locator review and uniqueness messages consolidate into one step issue", await resolutionSummary.locator("[data-validation-code]").count() === 1 && (await resolutionSummary.textContent()).includes("Review locator"));
+  await resolutionSummary.getByRole("button", { name: "Review locator", exact: true }).click();
+  check("Primary locator action focuses the locator editor", await win.getByLabel("Value", { exact: true }).evaluate((field) => field === document.activeElement));
+  await win.getByTestId("locator-review-state").getByLabel("Approval reason").fill("Reviewed this exact scoped positional fixture.");
+  await win.getByTestId("approve-locator-fallback").click();
+  await resolutionSummary.locator('[data-validation-code="locatorNeedsReview"]').waitFor({ state: "detached" });
+  check("Eligible approval removes the blocker and retains lower-resilience warning", (await win.getByTestId("locator-review-state").textContent()).includes("User-approved fallback") && await resolutionSummary.locator('[data-validation-code="locatorQuality"]').count() === 1);
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "unresolved")?.locator?.resolution === "user-approved-fallback", resolutionId);
+  const resolvedValidation = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-resolution", dryRun: true }));
+  check("Both saved corrections pass fresh production run validation", resolvedValidation.status === "validated", JSON.stringify({ status: resolvedValidation.status, issues: resolvedValidation.validation?.issues }));
+  await win.reload();
+  await resolveMainWindow(app);
+  await win.locator(".app-shell").waitFor({ state: "visible" });
+  await navClick(win, "Flow Designer");
+  await openResolution();
+  await win.locator('.awkit-flow-node[data-id="prerequisite"] .action-flow-node').click();
+  await win.getByTestId("interaction-prerequisite-state").waitFor({ state: "visible" });
+  check("Reopening the application retains the valid direct-action decision", (await win.getByTestId("interaction-prerequisite-state").textContent()).includes("Ready") && await resolutionSummary.locator('[data-validation-code="interactionPrerequisiteBlocked"]').count() === 0);
+  if (process.env.AWKIT_FLOW_VALIDATION_EVIDENCE) await win.screenshot({ path: process.env.AWKIT_FLOW_VALIDATION_EVIDENCE });
+  if (process.env.AWKIT_FLOW_VALIDATION_EVIDENCE_DARK) {
+    const originalTheme = await win.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light");
+    await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+    await win.screenshot({ path: process.env.AWKIT_FLOW_VALIDATION_EVIDENCE_DARK });
+    await win.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), originalTheme);
+  }
+  await win.getByTestId("review-direct-action").click();
+  await resolutionSummary.locator('[data-validation-code="interactionPrerequisiteBlocked"]').waitFor({ state: "visible" });
+  check("Changing a confirmation immediately restores its blocker", !(await win.getByTestId("interaction-prerequisite-state").textContent()).includes("Ready"));
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "prerequisite")?.locator?.executionDecision?.status === "blocked", resolutionId);
+  const revokedValidation = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-resolution", dryRun: true }));
+  check("Revoked confirmation is blocked by persisted production validation", revokedValidation.status === "validationFailed" && (revokedValidation.validation?.issues ?? []).some((issue) => issue.code === "interactionPrerequisiteBlocked"));
 
   // awkit-x48: a rejected IPC call must reach the renderer as the handler's own sentence, not
   // wrapped in Electron's `Error invoking remote method '<channel>': ` preamble. Unit coverage lives

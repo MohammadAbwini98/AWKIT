@@ -29,7 +29,7 @@ const broad = runLegacyGuiCoverage({
   root,
   script: "verify-flow-designer-gui.pre-capsule.mjs",
   supersededChecks: supersededURouteChecks,
-  expectedChecks: 122
+  expectedChecks: 137
 });
 
 console.log("\nFlow Designer: approved 7282178 Loop capsule contract");

@@ -35,6 +35,7 @@ import { readFile } from "node:fs/promises";
 import type { FlowProfile, FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
 import { createLocatorApprovalBinding } from "../src/profiles/locatorApproval";
 import { createInteractionDecisionBinding } from "../src/profiles/interactionPrerequisiteDecision";
+import { confirmDirectActionPatch, findingsForNode, interactionReviewForNode, presentFlowValidation } from "../app/renderer/components/workflow/flowValidationPresentation";
 
 let passed = 0;
 let failed = 0;
@@ -549,7 +550,7 @@ console.log("\nUnknown interaction prerequisite decision lifecycle (awkit-aek):"
   check("target edit invalidates prerequisite confirmation", edited.locator?.executionDecision?.status === "blocked" && edited.locator.executionDecision.binding === undefined);
 
   const panelSource = await readFile("app/renderer/components/workflow/FlowNodePropertiesPanel.tsx", "utf8");
-  check("Designer exposes direct-trial prerequisite control", panelSource.includes('data-testid="try-direct-action"'));
+  check("Designer does not imply that a policy change performs a live trial", !panelSource.includes('data-testid="try-direct-action"'));
   check("Designer exposes reason-bound confirmation control", panelSource.includes('data-testid="confirm-no-prerequisite"'));
   check("Designer exposes re-record prerequisite control", panelSource.includes('data-testid="rerecord-prerequisite"'));
   check("old duplicate prerequisite-as-locator warning is removed", !panelSource.includes("Interaction prerequisite unresolved — execution blocked"));
@@ -568,7 +569,7 @@ console.log("\nUnknown interaction prerequisite decision lifecycle (awkit-aek):"
    */
   check(
     "prerequisite controls ask the domain which types support a trial",
-    panelSource.includes("supportsAutomaticPrerequisiteTrial") && panelSource.includes("trialSupported")
+    panelSource.includes("interactionReviewForNode(selectedNode)") && panelSource.includes("trialSupported")
   );
   check(
     "prerequisite controls do not re-hardcode a step type",
@@ -577,6 +578,57 @@ console.log("\nUnknown interaction prerequisite decision lifecycle (awkit-aek):"
   );
   // Non-vacuity: the two assertions above are only meaningful if the file was actually read.
   check("the panel source guard actually read the panel", panelSource.length > 2000 && panelSource.includes("interaction-prerequisite-controls"));
+
+  // Exercise the actual renderer action, not a hand-built binding that misses UI projection bugs.
+  const scopedStep = structuredClone(decisionStep);
+  scopedStep.locator!.context = {
+    frameChain: [{ selector: "iframe[data-testid=details-frame]", name: "details" }],
+    container: { strategy: "css", value: "[data-row-id=123]", type: "tableRow" }
+  };
+  scopedStep.locator!.executionDecision = { schemaVersion: 1, status: "blocked", reason: "Review required" };
+  const scopedNode = nodeFor(scopedStep);
+  const reportFor = (step: FlowStep) => validateFlowDefinition({
+    id: "resolution-workflow", name: "Resolution workflow", version: 1,
+    nodes: [{ id: "start", name: "Start", type: "start" }, step, { id: "end", name: "End", type: "end" }],
+    edges: [{ id: "e1", source: "start", target: step.id, type: "success" }, { id: "e2", source: step.id, target: "end", type: "success" }]
+  });
+  const isBlocked = (step: FlowStep) => reportFor(step).issues.some((issue) => issue.code === "interactionPrerequisiteBlocked");
+  check("scoped UI confirmation starts with a real validator blocker", isBlocked(toFlowStep(scopedNode, [])));
+  check("short UI confirmation reason cannot change policy", confirmDirectActionPatch(scopedNode, "short") === undefined);
+  const patch = confirmDirectActionPatch(scopedNode, "The captured target is directly actionable.");
+  check("the real UI action produces an exact scoped confirmation", patch?.locatorExecutionDecision?.binding?.context?.frameChain?.[0]?.name === "details");
+  scopedNode.data = { ...scopedNode.data, ...patch };
+  const confirmedStep = toFlowStep(scopedNode, []);
+  check("UI action clears the real blocker without any close/save action", !isBlocked(confirmedStep) && interactionReviewForNode(scopedNode).decisionValid);
+  const reopenedNode = nodeFor(JSON.parse(JSON.stringify(confirmedStep)) as FlowStep);
+  check("confirmed UI policy survives serialization and reopening", interactionReviewForNode(reopenedNode).decisionValid && !isBlocked(toFlowStep(reopenedNode, [])));
+  check("confirmation preserves context identity and prerequisite evidence", json(confirmedStep.locator?.context) === json(scopedStep.locator?.context) && json(confirmedStep.locator?.identity) === json(scopedStep.locator?.identity) && json(confirmedStep.locator?.prerequisite) === json(scopedStep.locator?.prerequisite));
+  reopenedNode.data.locatorContext = { container: { strategy: "css", value: "#different-row", type: "tableRow" } };
+  check("retargeting scope invalidates the displayed and persisted confirmation", !interactionReviewForNode(reopenedNode).decisionValid && isBlocked(toFlowStep(reopenedNode, [])));
+  for (const stepType of ["click", "dblclick", "contextMenu", "fill", "select", "check", "uncheck", "radio", "hover"] as const) {
+    const supported = nodeFor({ ...scopedStep, type: stepType });
+    check(`UI confirmation supports the domain trial contract for ${stepType}`, confirmDirectActionPatch(supported, "The target is directly actionable.")?.locatorExecutionDecision?.status === "user-confirmed");
+  }
+  const sensitiveNode = nodeFor({ ...scopedStep, safety: { sideEffectLevel: "dangerousMutation", retryable: false } });
+  check("sensitive action cannot acquire UI confirmation authority", confirmDirectActionPatch(sensitiveNode, "An attempted unsafe confirmation.") === undefined);
+  check("unsupported action cannot acquire UI confirmation authority", confirmDirectActionPatch(nodeFor({ ...scopedStep, type: "press" }), "An unsupported trial confirmation.") === undefined);
+  const noIdentity = nodeFor({ ...scopedStep, locator: { ...scopedStep.locator!, identity: undefined } });
+  check("missing identity cannot acquire UI confirmation authority", confirmDirectActionPatch(noIdentity, "An identity-free confirmation.") === undefined);
+
+  const unresolved = structuredClone(scopedStep);
+  unresolved.locator!.resolution = "needs-review";
+  unresolved.locator!.reviewReason = "The primary locator matches multiple controls.";
+  unresolved.locator!.quality = { strategy: "role", isUnique: false, matchCount: 3, confidence: "low" };
+  const rawReport = reportFor(unresolved);
+  const findings = presentFlowValidation(rawReport, [
+    { code: "locatorQuality", nodeId: unresolved.id, message: "The same non-unique locator." },
+    { code: "locatorQuality", nodeId: "another-step", message: "An independent non-unique locator." }
+  ]);
+  const selectedFindings = findingsForNode(findings, unresolved.id);
+  check("duplicate quality and review findings consolidate by step and root cause", selectedFindings.length === 2 && selectedFindings.filter((finding) => finding.actionLabel === "Review locator").length === 1);
+  check("selected-step findings exclude another step's issues", !selectedFindings.some((finding) => finding.nodeId === "another-step") && findingsForNode(findings, "another-step").length === 1);
+  check("presentation preserves the independent prerequisite blocker and raw validation", selectedFindings.some((finding) => finding.code === "interactionPrerequisiteBlocked" && finding.blocking) && rawReport.issues.length === 2);
+  check("UI wires the real confirmation helper and an honest close control", panelSource.includes("confirmDirectActionPatch(selectedNode, prerequisiteReason)") && panelSource.includes("Close properties"));
 }
 
 console.log("\nRecorder popup/window metadata survives the designer round trip (awkit-4t9, FR-C1 prerequisite):");
