@@ -31,5 +31,18 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [
+    {
+      "path": "build",
+      "detectedAt": "2026-08-31T14:09:05.434Z",
+      "via": "bash",
+      "resolved": false
+    },
+    {
+      "path": "package-lock.json",
+      "detectedAt": "2026-08-31T14:09:05.434Z",
+      "via": "bash",
+      "resolved": false
+    }
+  ]
 }
