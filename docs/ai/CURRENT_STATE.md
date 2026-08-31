@@ -32,7 +32,8 @@ Executed proof: `npm run build` PASS; `typecheck:scripts` PASS; Flow GUI **138/1
 **119/119**; Oracle Drivers/Data Source modal **46/46** using real local Java 17 plus `ojdbc17`;
 `verify:validation` **163/163**; `verify:oracle-data-source` **28/28**; `verify:mock-site`
 **172/172**; core Recorder locator/popup/Smart Wait coverage **217/217**; verifier classification
-reconciled all **199** commands. Light/dark and responsive
+reconciled all **199** commands; roadmap dashboard **177/177** with Overview **Sources agree**.
+Light/dark and responsive
 captures are under `test-artifacts/{flow-validation-*.png,recorder-gui/2026-08-31T22-28-06-557Z,
 oracle-modal/2026-08-31T22-33-58-228Z}`. The first configured Oracle attempt correctly failed because
 the local validation stores were empty; the documented helpers seeded the machine's real JDK/JAR and

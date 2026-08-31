@@ -22,7 +22,8 @@ to the actual Database Drivers settings and round-trips query/bind/limit configu
 Flow mapping **189/189**; Recorder GUI **185/0/0**; recorder-draft **119/119**; core Recorder
 **217/217**; Oracle real-Java/real-driver GUI and modal **46/46**; validation **163/163**;
 Oracle Data Source **28/28**;
-mock-site **172/172**; verifier classification **199/199**. Rendered light/dark/responsive evidence
+mock-site **172/172**; verifier classification **199/199**; roadmap dashboard **177/177** with
+**Sources agree**. Rendered light/dark/responsive evidence
 was inspected under `test-artifacts/flow-validation-*.png`,
 `test-artifacts/recorder-gui/2026-08-31T22-28-06-557Z/` and
 `test-artifacts/oracle-modal/2026-08-31T22-33-58-228Z/`. The first Oracle configured run failed on

@@ -4,31 +4,22 @@
   "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
-    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-manifest-sync-0831.json",
     "docs/ai/contracts/awkit-ui0831.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-08-31T22:49:43.367Z",
-  "acquired_at_commit": "4b635a31c5c76e04de85d95a475743388df83c20",
+  "acquired_at": "2026-08-31T22:55:56.150Z",
+  "acquired_at_commit": "e6d8bae18365cb0702a6f6c1b36b3ece1385c111",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-manifest-sync-0831.json",
     "docs/ai/contracts/awkit-ui0831.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "302a16f3725c26c00c87bd060035ff3e5d53d7c3551e7f9c7e4efb95a29a4522",
-    "docs/ai/contracts/active-lease.json": "7445d058de43db8fee58ff041540d34e10f856f96c0b6ed9e17202e594bf3d75",
-    "docs/ai/contracts/awkit-manifest-sync-0831.json": "46e916321e5a6d0519f09431520845664a42183395fb5ee21443bc7c891871d1",
-    "docs/ai/contracts/awkit-ui0831.json": "5e487041aec63b5e3e75ce28a9d9d7cbbb1b1657a0145cfebab0c0b676d513fc",
+    "docs/ai/contracts/active-lease.json": "7c11ba691a8775ac4f146561c8483513b9b45679157790c93c43048923923fa2",
+    "docs/ai/contracts/awkit-ui0831.json": "6bda8c16a6438cbb8111834cc0e16c5f5e324a38f7cc4191cba037ce0a6cab22",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -41,17 +32,7 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1788195763485.3335"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-08-31T22:54:03.612Z",
-      "added": [
-        ".beads/interactions.jsonl"
-      ],
-      "reason": "bd close appends the canonical closure audit record alongside the exported issue snapshot.",
-      "triggered_escalation": [],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": []
 }

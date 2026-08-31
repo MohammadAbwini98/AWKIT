@@ -55,6 +55,7 @@
       ".beads/interactions.jsonl",
       "scripts/verify-flow-step-mapping.mts",
       "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
       "src/recorder/recordedUrlPolicy.ts",
       "src/recorder/RecorderService.ts"
     ],
@@ -67,14 +68,9 @@
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        ".beads/issues.jsonl",
-        ".beads/interactions.jsonl",
         "docs/ai/CURRENT_STATE.md",
-        "docs/ai/FEATURES.md",
-        "docs/ai/KNOWN_ISSUES.md",
         "docs/ai/TASK_LOG.md",
         "docs/ai/contracts/active-lease.json",
-        "docs/ai/contracts/awkit-manifest-sync-0831.json",
         "docs/ai/contracts/awkit-ui0831.json",
         "tools/roadmap/assignments.json"
       ]
@@ -160,7 +156,8 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
-      "result": "NOT RUN"
+      "result": "PASS",
+      "artifact": "177/177 PASS; Overview Sources agree; red pre-fix run was 175/177 on stale 262/260 tracker pins"
     },
     {
       "id": "verify:flow-designer",
@@ -399,6 +396,57 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ui0831:project-state:2026-08-31T22:49:43.367Z",
+        "task": "awkit-ui0831",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-manifest-sync-0831.json",
+          "docs/ai/contracts/awkit-ui0831.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-31T22:49:43.367Z",
+        "acquired_at_commit": "4b635a31c5c76e04de85d95a475743388df83c20",
+        "released_at": "2026-08-31T22:54:33.409Z",
+        "released_reason": "Project state and task closure committed in 871e64a; hand off stale roadmap count assertions to QA.",
+        "amendments": [
+          {
+            "timestamp": "2026-08-31T22:54:03.612Z",
+            "added": [
+              ".beads/interactions.jsonl"
+            ],
+            "reason": "bd close appends the canonical closure audit record alongside the exported issue snapshot.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:qa:2026-08-31T22:54:54.271Z",
+        "task": "awkit-ui0831",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-08-31T22:54:54.271Z",
+        "acquired_at_commit": "871e64afe82eef06399b2e537b5ad6352e277566",
+        "released_at": "2026-08-31T22:55:32.932Z",
+        "released_reason": "Roadmap count pin updated and 177/177 Sources agree in e6d8bae; return to project-state for final evidence and gate.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
@@ -411,8 +459,8 @@
     "destructive_reset": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "complete",
+    "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED"
   }
 }
