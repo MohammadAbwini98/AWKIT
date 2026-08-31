@@ -1,5 +1,44 @@
 # TASK_LOG
 
+## 2026-09-01 — Codex — fix Flow validation UX, Recorder Favorites and Oracle modal
+
+**Request/result:** completed `awkit-ui0831` directly on `main`. Flow Designer now consolidates
+node findings, shows one corrective action per blocker, persists a context/identity/prerequisite-
+bound direct-action decision, refreshes validation immediately and clears stale load banners after
+save. The production run gate still performs strict locator and Playwright actionability checks;
+sensitive actions cannot use confirmation. A QA rerun found that blocked system text pre-filled the
+confirmation field, and the UI now requires a fresh user reason while restoring only a valid saved
+user-confirmed reason.
+
+Recorder now presents Recorded URLs and Favorite URLs as tabs over one full-width table. The current
+URL bookmark has immediate token-based amber selected state, add/remove/reload persistence, keyboard
+tab navigation, search and responsive horizontal table scrolling. It reuses the existing favorite
+store and the Recorder's exact sensitive-query-key redaction policy; a literal non-sensitive `***`
+query value has a negative-control regression. The Oracle modal is wider and responsive, explains
+the difference between connection profiles and Java/JDBC setup, disables unavailable actions, links
+to the actual Database Drivers settings and round-trips query/bind/limit configuration.
+
+**Verification:** build PASS; script typecheck PASS; Flow GUI **138/138** plus capsule **16/16**;
+Flow mapping **189/189**; Recorder GUI **185/0/0**; recorder-draft **119/119**; core Recorder
+**217/217**; Oracle real-Java/real-driver GUI and modal **46/46**; validation **163/163**;
+Oracle Data Source **28/28**;
+mock-site **172/172**; verifier classification **199/199**. Rendered light/dark/responsive evidence
+was inspected under `test-artifacts/flow-validation-*.png`,
+`test-artifacts/recorder-gui/2026-08-31T22-28-06-557Z/` and
+`test-artifacts/oracle-modal/2026-08-31T22-33-58-228Z/`. The first Oracle configured run failed on
+empty local validation-store metadata; the repository helpers registered the machine's real Java 17
+and local `ojdbc17.jar`, after which all 46 checks passed, including actual driver loading. Initial
+Flow runs failed on a verifier label selector, missing post-reload sign-in and then the real
+pre-filled-reason defect; all were corrected before the final green run. No attached screenshot
+files were present beyond the text request, so live rendered Electron captures are the visual proof.
+
+**Files:** renderer changes in `FlowNodePropertiesPanel.tsx`, `flowValidationPresentation.ts`,
+`FlowChartDesigner.tsx`, `Recorder.tsx`, `OracleDataSourceModal.tsx` and `global.css`; shared Recorder
+policy in `recordedUrlPolicy.ts` / `RecorderService.ts`; focused coverage in the existing Flow,
+Recorder and Oracle verifiers. Graphify refreshed successfully; it warned that 49 non-code/config
+sources produced zero graph nodes. Tracker closed at **263 total / 261 closed / 2 blocked**; ledger
+unchanged at **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## 2026-08-29 — Codex — clean tree, repair preflight rendering, and generate v0.1.22 portable
 
 **Request/result:** reconciled and committed the existing v0.1.22 incident checkpoint, released its

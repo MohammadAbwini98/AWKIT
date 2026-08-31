@@ -905,15 +905,19 @@ positional locators. A step that is `needs-review` for any other reason — an a
 matching two or more elements, a closed shadow root, an unsupported cross-origin frame — gets no
 resolve affordance at all. The ranked alternatives are rendered read-only; nothing adopts one.
 
-**The workaround is a trap, which is what makes this worth writing down.** Editing the locator by
-hand calls `editLocator` (`FlowNodePropertiesPanel.tsx:105`), which clears `locatorQuality`. The
-visible "matches N elements" warning therefore disappears and the step *looks* repaired — but
-`resolution` is never touched, so it stays `needs-review`, preflight still refuses it, and the review
-chip never clears. Anyone debugging this will believe they fixed the step.
+Editing the locator by hand still clears stale quality/identity evidence while leaving
+`resolution: needs-review`; preflight therefore continues to refuse it. Since `awkit-ui0831`, the
+selected-step validation summary keeps the blocker visible, consolidates duplicate root-cause text
+and offers one honest primary action. The UI explicitly says that editing cannot establish identity
+proof and routes the user to Recorder, so the old disappearing-warning trap no longer masquerades as
+a successful repair. It deliberately does not promote a stored alternative without live uniqueness
+proof.
 
-Until `awkit-871` lands, the only supported path for such a step is to re-record it and resolve it in
-the Recorder's ambiguity dialog, which does offer select-candidate / scope-to-ancestor /
-approve-fallback / defer.
+Until `awkit-871` lands, the only supported path for such a step remains re-recording it and
+resolving it in the Recorder's ambiguity dialog, which offers select-candidate / scope-to-ancestor /
+approve-fallback / defer. Node Properties now provides exact re-record/replacement instructions and
+labels its navigation action `Open Recorder`; opening Recorder does not falsely claim the existing
+step was replaced.
 
 **When fixing:** keep the positional refusal absolute for `dangerousMutation` / `externalCommit`
 steps, and make sure a hand-edited locator cannot end up *looking* resolved while still blocking —

@@ -257,6 +257,12 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `WorkflowFlowNode.size`).
 - ✅ **Saved Flows search by name + "Load More"** (10 initially, +10 per click).
 - ✅ Save success/failure **toast** (`components/shared/Toast.tsx`).
+- ✅ **Actionable validation resolution:** Node Properties receives only the selected step's
+  deduplicated findings, distinguishes blockers/warnings/resolved state and exposes one primary
+  correction. Eligible non-sensitive unknown prerequisites accept a fresh user reason bound to the
+  exact action, scoped locator, recorded identity and prerequisite evidence; save/reload and the
+  production run gate revalidate that authority. Stored locator candidates remain evidence until a
+  live Recorder capture proves them; strict mode and sensitive-action refusal are unchanged.
 
 ### Libraries & data
 - ✅ Flows library + Workflows library with pagination, page size, sorting, advanced filters,
@@ -270,11 +276,15 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   as JSON sources, so they work anywhere JSON sources do (node mappings, workflow/flow inputs, loops,
   previews). UI: "Add Oracle Source" in `DataSourceManager` → `OracleDataSourceModal`; node panel via
   `OracleNodeSection`. Credentials live in the DPAPI `SecretStore` and are referenced by name only.
+  The modal uses a wide responsive layout, groups the connection profile separately from Java/JDBC
+  availability, disables invalid create/snapshot actions and routes keyboard users to the real
+  Database Drivers settings. A configured source round-trips SQL, binds, timeout, max rows and fetch
+  size through create/edit.
   **Read-only by policy** (SELECT / WITH…SELECT only). Behaviorally important:
   - a **packaged build never serves mock rows** — with no real driver the feature reports *unavailable*
     rather than returning synthetic data (Snapshot sources keep working, they never launch the bridge);
-  - the real Oracle driver has **not** yet been linked and **no authorized Oracle DB has been used** —
-    everything here is verified against a database-free mock executor. See
+  - real local Java 17 and `ojdbc17` driver loading are verified through the isolated bridge, while
+    the current modal regression does **not** connect to an authorized Oracle DB. See
     `ORACLE_JDBC_VALIDATION_GATES.md` for what must clear before this is production-ready.
 - ✅ **Data Source Editor** (`pages/DataSourceEditor.tsx`, hidden route `dataSourceEditor`):
   visual table editor for root-array JSON — inline cell editing (type-preserving), add/delete/
@@ -286,7 +296,11 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   "Save to Flow Library" shows success/failure feedback (shared `Toast` + inline banner) with an
   `isSaving` guard against duplicate-click corruption. **Auto-captures visited URLs** (main-frame
   navigations + opened tabs) with sensitive query values masked, shown in a searchable/paginated
-  "Recorded URLs" table (Time/Title/URL/Source/Session/copy) via `recorder.getUrls()`.
+  URL-history table (Time/Title/URL/Source/Session/open/copy/favorite) via `recorder.getUrls()`.
+  Recorded URLs and Favorite URLs are keyboard-accessible tabs over that one table and the existing
+  store; the current-URL bookmark exposes pressed state, uses the Hologram amber selected treatment
+  and survives reload. Favorite identity shares the Recorder's exact sensitive-query-key redaction
+  policy, without treating literal stars on unrelated keys as secrets.
 - ✅ **Protected-login pause boundary:** while detection is shown, the automation browser stays open
   but inert so false positives can resume in place. `recordActionFromPage` drops every action while
   paused; the protected-login verifier proves password/OTP attempts preserve the exact non-empty

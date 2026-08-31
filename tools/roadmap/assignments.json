@@ -19,11 +19,11 @@
   ],
   "claims": [
     {
-      "itemId": "bead:awkit-manifest-sync-0831",
-      "agent": "Packaging / Offline / Release Engineer",
+      "itemId": "bead:awkit-ui0831",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-08-31T12:38:14.135Z",
-      "note": "write lease: resources/dependency-manifest.json, resources/dependency-manifest.sig"
+      "claimedAt": "2026-08-31T22:49:43.367Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/FEATURES.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-manifest-sync-0831.json, docs/ai/contracts/awkit-ui0831.json, tools/roadmap/assignments.json"
     }
   ]
 }

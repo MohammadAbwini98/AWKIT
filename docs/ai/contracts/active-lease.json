@@ -1,23 +1,35 @@
 {
-  "task": "awkit-manifest-sync-0831",
-  "contract_path": "docs/ai/contracts/awkit-manifest-sync-0831.json",
-  "holder": "release",
+  "task": "awkit-ui0831",
+  "contract_path": "docs/ai/contracts/awkit-ui0831.json",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
-  ],
-  "acquired_at": "2026-08-31T12:38:14.135Z",
-  "acquired_at_commit": "8b469800d4ad14ee8276866b79b4db6f73236fb7",
-  "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-manifest-sync-0831.json",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "docs/ai/contracts/awkit-ui0831.json",
+    "tools/roadmap/assignments.json"
+  ],
+  "acquired_at": "2026-08-31T22:49:43.367Z",
+  "acquired_at_commit": "4b635a31c5c76e04de85d95a475743388df83c20",
+  "baseline_dirty": [
+    ".beads/issues.jsonl",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-manifest-sync-0831.json",
+    "docs/ai/contracts/awkit-ui0831.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-manifest-sync-0831.json": "3a106b2db5423f53cb86b52a036a4185ccf2dd1712c66bfcda6ba5f56a5ca0fa",
-    "resources/dependency-manifest.json": "ebdf1f09105d9582c253063523516219e473287562f4fee0897eb488a96ad99d",
-    "resources/dependency-manifest.sig": "e649ad89ad4d5ed3489dc879d1e351dee2ee187f5e7219f6c33cc3e29de8d45f"
+    ".beads/issues.jsonl": "302a16f3725c26c00c87bd060035ff3e5d53d7c3551e7f9c7e4efb95a29a4522",
+    "docs/ai/contracts/active-lease.json": "7445d058de43db8fee58ff041540d34e10f856f96c0b6ed9e17202e594bf3d75",
+    "docs/ai/contracts/awkit-manifest-sync-0831.json": "46e916321e5a6d0519f09431520845664a42183395fb5ee21443bc7c891871d1",
+    "docs/ai/contracts/awkit-ui0831.json": "5e487041aec63b5e3e75ce28a9d9d7cbbb1b1657a0145cfebab0c0b676d513fc",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,22 +39,19 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1788073861255.3835"
+    "build": "dir(1):native-hosts:1788195763485.3335"
   },
-  "amendments": [],
-  "overrides": [],
-  "violations": [
+  "amendments": [
     {
-      "path": "build",
-      "detectedAt": "2026-08-31T14:09:05.434Z",
-      "via": "bash",
-      "resolved": false
-    },
-    {
-      "path": "package-lock.json",
-      "detectedAt": "2026-08-31T14:09:05.434Z",
-      "via": "bash",
-      "resolved": false
+      "timestamp": "2026-08-31T22:54:03.612Z",
+      "added": [
+        ".beads/interactions.jsonl"
+      ],
+      "reason": "bd close appends the canonical closure audit record alongside the exported issue snapshot.",
+      "triggered_escalation": [],
+      "approved_by": "manager"
     }
-  ]
+  ],
+  "overrides": [],
+  "violations": []
 }

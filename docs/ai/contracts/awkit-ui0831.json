@@ -1,0 +1,418 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-ui0831",
+    "title": "Flow validation, Recorder Favorites and Oracle modal UX",
+    "objective": "Implement the attached user request with actual persisted resolution and regression evidence, preserving strict-mode safety, recorder evidence, storage and Oracle runtime boundaries.",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "4eb05289e938ce5d1b37289485dadcc967ce8930",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1,
+    "recorder_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "recorder",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/pages/Recorder.tsx",
+      "app/renderer/pages/OracleDataSourceModal.tsx",
+      "app/renderer/pages/FlowChartDesigner.tsx",
+      "app/renderer/components/workflow/FlowNodePropertiesPanel.tsx",
+      "app/renderer/components/workflow/flowValidationPresentation.ts",
+      "app/renderer/styles/global.css",
+      "scripts/verify-recorder-gui.mts",
+      "scripts/verify-flow-designer-gui.mjs",
+      "scripts/verify-interaction-prerequisite.mts",
+      "scripts/verify-oracle-drivers-gui.mjs",
+      "docs/ai/contracts/awkit-ui0831.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-manifest-sync-0831.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/FEATURES.md",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "scripts/verify-flow-step-mapping.mts",
+      "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+      "src/recorder/recordedUrlPolicy.ts",
+      "src/recorder/RecorderService.ts"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-manifest-sync-0831.json",
+        "docs/ai/contracts/awkit-ui0831.json",
+        "tools/roadmap/assignments.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "UX",
+      "description": "Actionable deduplicated validation, favorite/history tabs with durable toggles, responsive Oracle modal with honest unavailable state; real regression proof.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:mock-site",
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "verify:flow-designer",
+        "verify:recorder-gui",
+        "verify:oracle-drivers-gui",
+        "verify:validation",
+        "verify:oracle-data-source"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "PASS at HEAD 4b635a3; Electron main/preload/renderer bundles built"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "result": "PASS",
+      "artifact": "PASS after final verifier edits"
+    },
+    {
+      "id": "verify:flow-step-mapping",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:flow-step-mapping",
+      "result": "PASS",
+      "artifact": "189/189 PASS including persisted identity, context and decision mapping"
+    },
+    {
+      "id": "verify:recorder-draft",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:recorder-draft",
+      "result": "PASS",
+      "artifact": "119/119 PASS including favorite-store reload persistence"
+    },
+    {
+      "id": "verify:recorder",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:recorder",
+      "result": "PASS",
+      "artifact": "217/217 PASS across locator, popup and Smart Wait behavior"
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "result": "PASS",
+      "artifact": "172/172 PASS"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "artifact": "199 commands reconciled"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "NOT RUN"
+    },
+    {
+      "id": "verify:flow-designer",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:flow-designer",
+      "result": "PASS",
+      "artifact": "138/138 broad GUI plus 16/16 capsule; light/dark rendered evidence"
+    },
+    {
+      "id": "verify:recorder-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:recorder-gui",
+      "result": "PASS",
+      "artifact": "185 PASS / 0 FAIL / 0 NOT RUN; light/dark/narrow rendered evidence and reload persistence"
+    },
+    {
+      "id": "verify:oracle-drivers-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:oracle-drivers-gui",
+      "result": "PASS",
+      "artifact": "46/46 PASS with real Java 17 and ojdbc17; light/dark/600-1440px rendered evidence"
+    },
+    {
+      "id": "verify:validation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:validation",
+      "result": "PASS",
+      "artifact": "163/163 PASS"
+    },
+    {
+      "id": "verify:oracle-data-source",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:oracle-data-source",
+      "result": "PASS",
+      "artifact": "28/28 PASS"
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-ui0831:frontend:2026-08-31T18:29:20.712Z",
+        "task": "awkit-ui0831",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/workflow/FlowNodePropertiesPanel.tsx",
+          "app/renderer/components/workflow/flowValidationPresentation.ts",
+          "app/renderer/pages/FlowChartDesigner.tsx",
+          "app/renderer/pages/OracleDataSourceModal.tsx",
+          "app/renderer/pages/Recorder.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-08-31T18:29:20.712Z",
+        "acquired_at_commit": "4eb05289e938ce5d1b37289485dadcc967ce8930",
+        "released_at": "2026-08-31T18:38:34.172Z",
+        "released_reason": "Frontend changes committed with TypeScript passing; handing off to focused regression verification.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:qa:2026-08-31T18:38:57.227Z",
+        "task": "awkit-ui0831",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-flow-step-mapping.mts",
+          "scripts/verify-oracle-drivers-gui.mjs",
+          "scripts/verify-recorder-gui.mts"
+        ],
+        "acquired_at": "2026-08-31T18:38:57.227Z",
+        "acquired_at_commit": "82c38681fbd83bddea098b3283b02dc4c9cbdf60",
+        "released_at": "2026-08-31T18:48:31.468Z",
+        "released_reason": "QA source coverage committed; focused GUI findings require table-width correction in renderer.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:frontend:2026-08-31T18:48:53.714Z",
+        "task": "awkit-ui0831",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-08-31T18:48:53.714Z",
+        "acquired_at_commit": "ad05cdfacfd97e559c527e1040d0701e1e9f8b12",
+        "released_at": "2026-08-31T18:49:03.09Z",
+        "released_reason": "Rendered table-width correction committed; return to GUI verification",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:qa:2026-08-31T18:49:26.117Z",
+        "task": "awkit-ui0831",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-flow-step-mapping.mts",
+          "scripts/verify-oracle-drivers-gui.mjs",
+          "scripts/verify-recorder-gui.mts"
+        ],
+        "acquired_at": "2026-08-31T18:49:26.117Z",
+        "acquired_at_commit": "ff251593bf00572ead064b9b62e18125d91ef27c",
+        "released_at": "2026-08-31T18:50:14.949Z",
+        "released_reason": "Review found a literal-star favorite matching edge case; share existing recorder redaction-key policy before final GUI runs.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:recorder:2026-08-31T18:50:59.436Z",
+        "task": "awkit-ui0831",
+        "holder": "recorder",
+        "status": "released",
+        "allowed_paths": [
+          "src/recorder/RecorderService.ts",
+          "src/recorder/recordedUrlPolicy.ts"
+        ],
+        "acquired_at": "2026-08-31T18:50:59.436Z",
+        "acquired_at_commit": "ff251593bf00572ead064b9b62e18125d91ef27c",
+        "released_at": "2026-08-31T18:51:08.102Z",
+        "released_reason": "Unchanged sensitive-key policy exported for consistent favorite view matching.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:frontend:2026-08-31T18:51:16.213Z",
+        "task": "awkit-ui0831",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/OracleDataSourceModal.tsx",
+          "app/renderer/pages/Recorder.tsx"
+        ],
+        "acquired_at": "2026-08-31T18:51:16.213Z",
+        "acquired_at_commit": "8981bb719a8ca4b8fc37aa2edbd93ce13db44558",
+        "released_at": "2026-08-31T18:51:22.391Z",
+        "released_reason": "Reviewed favorite identity fix and settings navigation wording committed.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:frontend:2026-08-31T22:21:34.711Z",
+        "task": "awkit-ui0831",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/FlowChartDesigner.tsx"
+        ],
+        "acquired_at": "2026-08-31T22:21:34.711Z",
+        "acquired_at_commit": "b1914f90828b48f30cd22c8dcdb48d6b47979f2f",
+        "released_at": "2026-08-31T22:21:56.239Z",
+        "released_reason": "Frontend commit b1914f9 completed while delayed grant output was still returning; archive and release the now-visible lease before QA.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:qa:2026-08-31T22:22:10.218Z",
+        "task": "awkit-ui0831",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-recorder-gui.mts"
+        ],
+        "acquired_at": "2026-08-31T22:22:10.218Z",
+        "acquired_at_commit": "b1914f90828b48f30cd22c8dcdb48d6b47979f2f",
+        "released_at": "2026-08-31T22:23:10.064Z",
+        "released_reason": "QA edge cases committed and script typecheck passes; start final serial verification.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:qa:2026-08-31T22:38:39.968Z",
+        "task": "awkit-ui0831",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.mjs",
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+          "scripts/verify-recorder-gui.mts"
+        ],
+        "acquired_at": "2026-08-31T22:38:39.968Z",
+        "acquired_at_commit": "0a62d42ef6db84cb11852d531830600e72f392fc",
+        "released_at": "2026-08-31T22:43:54.638Z",
+        "released_reason": "QA harness selector and authenticated reload fix committed in 3ef4a3a; hand off blocked-reason UX correction to frontend.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:frontend:2026-08-31T22:44:32.413Z",
+        "task": "awkit-ui0831",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/workflow/FlowNodePropertiesPanel.tsx"
+        ],
+        "acquired_at": "2026-08-31T22:44:32.413Z",
+        "acquired_at_commit": "3ef4a3a96966e3a9090bf87a32bdf95155561362",
+        "released_at": "2026-08-31T22:45:07.411Z",
+        "released_reason": "Fresh direct-action confirmation reason fix committed in 5298803; return to QA for full Flow verification.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui0831:frontend:2026-08-31T22:45:50.494Z",
+        "task": "awkit-ui0831",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/workflow/FlowNodePropertiesPanel.tsx"
+        ],
+        "acquired_at": "2026-08-31T22:45:50.494Z",
+        "acquired_at_commit": "5298803dfb9506d1bb7b5ead3a8f86989ba22c63",
+        "released_at": "2026-08-31T22:46:10.401Z",
+        "released_reason": "Null-safe confirmation reason compatibility committed in 4b635a3; implementation complete.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

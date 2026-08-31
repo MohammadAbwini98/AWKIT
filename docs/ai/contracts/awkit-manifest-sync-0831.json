@@ -25,7 +25,13 @@
   },
   "routing": {
     "manager": "manager",
-    "activated_agents": ["manager", "qa", "qc", "release", "project-state"],
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
     "expected_paths": [
       "resources/dependency-manifest.json",
       "resources/dependency-manifest.sig",
@@ -34,7 +40,10 @@
       "tools/roadmap/assignments.json"
     ],
     "consultants": [],
-    "reviewers": ["qa", "qc"],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
     "writer": {
       "agent_id": "release",
       "allowed_paths": [
@@ -47,17 +56,23 @@
     {
       "id": "ACC-1",
       "description": "The regenerated manifest pair is committed to main and the working tree is clean, with no user work discarded and no reverting of resources/**.",
-      "evidence_required": ["manifest-head-identity"]
+      "evidence_required": [
+        "manifest-head-identity"
+      ]
     },
     {
       "id": "ACC-2",
       "description": "The digest the signature attests to is the digest of the manifest bytes actually committed, so the pair is internally coherent rather than a stale signature over older content.",
-      "evidence_required": ["manifest-digest-binding"]
+      "evidence_required": [
+        "manifest-digest-binding"
+      ]
     },
     {
       "id": "ACC-3",
       "description": "The committed manifest verifies against the committed Ed25519 signature and the offline bundle still passes integrity validation at HEAD.",
-      "evidence_required": ["offline-integrity-validation"]
+      "evidence_required": [
+        "offline-integrity-validation"
+      ]
     }
   ],
   "evidence": [
@@ -118,8 +133,49 @@
     }
   ],
   "write_lease": {
-    "history": [],
-    "overrides": []
+    "history": [
+      {
+        "id": "awkit-manifest-sync-0831:release:2026-08-31T12:38:14.135Z",
+        "task": "awkit-manifest-sync-0831",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-08-31T12:38:14.135Z",
+        "acquired_at_commit": "8b469800d4ad14ee8276866b79b4db6f73236fb7",
+        "released_at": "2026-08-31T18:28:24.588Z",
+        "released_reason": "Independent QC approved stale-lease retirement only; old release task QA and scope escapes remain open.",
+        "amendments": [],
+        "overrides": [],
+        "violations": [
+          {
+            "path": "build",
+            "detectedAt": "2026-08-31T14:09:05.434Z",
+            "via": "bash",
+            "resolved": false
+          },
+          {
+            "path": "package-lock.json",
+            "detectedAt": "2026-08-31T14:09:05.434Z",
+            "via": "bash",
+            "resolved": false
+          }
+        ]
+      }
+    ],
+    "overrides": [
+      {
+        "timestamp": "2026-08-31T18:28:22.463Z",
+        "reason": "Independent QC /root/lease_qc APPROVED lease recovery only: clean main 4eb0528; package-lock changes only app versions; build is ignored generated zvec output; no active packaging process observed. Retire stale lease for the new user-authorized UI task. No release acceptance or generated-content validation is claimed; original violations, scope escapes and QA remain unresolved.",
+        "affected_paths": [
+          "build",
+          "package-lock.json"
+        ],
+        "qc_required": true
+      }
+    ]
   },
   "scope_escapes": [
     {
@@ -152,7 +208,7 @@
   "completion": {
     "status": "implemented",
     "qa_status": "pending",
-    "qc_status": "pending",
-    "blocking_note": "Implemented, not complete. All three acceptance criteria are now proven by executed evidence: ACC-1 by inspection plus commit 1933077, ACC-2 by the byte-level digest match, ACC-3 by ordinary validate:offline PASS at HEAD 6ea461c. The completion gate nevertheless stays CLOSED because qa_status and qc_status are both still pending: routing activated qa and qc as reviewers and neither has reviewed. The manager does not self-approve on their behalf. Correction of record: ACC-3 originally cited the -Strict gate. That was a specification error by the manager, caught by EXECUTING the gate rather than by reasoning about it — -Strict is release-only and structurally unsatisfiable by any development commit (see the offline-strict-validation evidence note). Its FAIL is retained in the evidence list rather than deleted, so the record shows the gate ran, what it said, and why it does not apply. Known residual risk carried forward: the committed pair is valid and self-consistent but NOT release-current, and -Strict will keep reporting so until a release cut regenerates and re-signs it. SESSION ADDENDUM 2026-08-31 (resumption after a context-limit interruption; every statement below was observed live, none carried over from the prior session's report): (1) SCOPE DRIFT. A full v0.1.25 release cut was performed under this lease, which was granted for a v0.1.24 manifest-sync task and never amended. Commits 0bcf56d (version bump) and bb2543f (regenerated manifest pair for 0.1.25) both post-date the grant at 8b46980. `git diff --stat 8b46980..HEAD` is 7 files / 176 insertions / 28 deletions and reaches package.json, package-lock.json and tools/roadmap/assignments.json, none of which are in routing.expected_paths. Three scope escapes and two lease violations (build, package-lock.json) are the honest record of that; they are recorded UNRESOLVED and are the reason the gate is shut. (2) PUSH STATE. main is 24 commits ahead of origin/main and 0 behind — counted with `git log --oneline origin/main..main` and `git log --oneline main..origin/main`, because `git rev-list` is absent from the guard's read-only grammar. origin/main is still 1f29595; the prior session's push never happened. No work is at risk: all 24 commits are durable in the local repository, and nothing has been reset, stashed, discarded, force-pushed or rewritten. (3) v0.1.25 ARTIFACT. `dist/SpecterStudio 0.1.25.exe` DOES exist on disk and is the newest file in dist/ by mtime, which contradicts the prior session's report that no portable EXE was produced. It must NOT be treated as an accepted release artifact: dist/release-provenance.json still describes 0.1.22 (source.commit 8546453, artifacts.portable.file 'dist/SpecterStudio 0.1.22.exe'), and `write-artifact-provenance.mjs` is the LAST step of scripts/package-portable.ps1 (line 83), so the pipeline died at or before provenance. Whether the EXE's bytes are complete is INCONCLUSIVE — its size could not be measured, since Read refuses binary files and every shell stat command is outside this actor's grammar. A grep for 0.1.25 across docs/ returns no matches, so no document claims that release exists. (4) CRASH DIAGNOSIS, not a blind retry. scripts/package-portable.ps1:11 requires 1536 MiB of free Windows commit and its own comment measures the 7za stage at ~654 MiB private commit for the ~828 MiB payload. Assert-PackagingCommitHeadroom runs at line 46 and again at line 74 — before electron-builder, but NOT during compression — which is consistent with the reported death mid-compression and means the guard cannot catch it. (5) CORRECT RESUME PATH, for whoever holds the lease next: `npm run package:portable`. It reads package.json's version and never writes it (line 81-82), so it cannot bump to 0.1.26; docs/ai/COMMANDS.md:99-100 says so explicitly — 'To retry an already committed version, run npm run package:portable; release-portable.ps1 and the dashboard action are for the next semantic version.' Version 0.1.25 is already committed at 0bcf56d, so no bump is needed or wanted. (6) WHAT THIS ACTOR COULD NOT DO. The root session canonicalises to \"manager\" and the lease holder is \"release\", so `git push origin main`, `npm run build`, `npm run verify:verifier-classification` and `npm run verify:roadmap-dashboard` were each attempted exactly once and each denied by the PreToolUse guard. They are recorded as BLOCKED / NOT RUN. Nothing was fabricated, no gate was bypassed, and no approval was self-granted: qa_status and qc_status stay pending because qa and qc have not reviewed. (7) FOLLOW-UP RECOVERY PUSH. A later recovery session successfully pushed main to origin/main at 7b934b38fcd9c38990e802ea156a5f737ffbac06 and verified divergence 0/0 after `git fetch origin`. That clears the push evidence item only; the unresolved scope escapes, lease violations, qa_status pending and qc_status pending still block completion."
+    "qc_status": "APPROVED",
+    "blocking_note": "Implemented, not complete. All three acceptance criteria are now proven by executed evidence: ACC-1 by inspection plus commit 1933077, ACC-2 by the byte-level digest match, ACC-3 by ordinary validate:offline PASS at HEAD 6ea461c. The completion gate nevertheless stays CLOSED because qa_status and qc_status are both still pending: routing activated qa and qc as reviewers and neither has reviewed. The manager does not self-approve on their behalf. Correction of record: ACC-3 originally cited the -Strict gate. That was a specification error by the manager, caught by EXECUTING the gate rather than by reasoning about it — -Strict is release-only and structurally unsatisfiable by any development commit (see the offline-strict-validation evidence note). Its FAIL is retained in the evidence list rather than deleted, so the record shows the gate ran, what it said, and why it does not apply. Known residual risk carried forward: the committed pair is valid and self-consistent but NOT release-current, and -Strict will keep reporting so until a release cut regenerates and re-signs it. SESSION ADDENDUM 2026-08-31 (resumption after a context-limit interruption; every statement below was observed live, none carried over from the prior session's report): (1) SCOPE DRIFT. A full v0.1.25 release cut was performed under this lease, which was granted for a v0.1.24 manifest-sync task and never amended. Commits 0bcf56d (version bump) and bb2543f (regenerated manifest pair for 0.1.25) both post-date the grant at 8b46980. `git diff --stat 8b46980..HEAD` is 7 files / 176 insertions / 28 deletions and reaches package.json, package-lock.json and tools/roadmap/assignments.json, none of which are in routing.expected_paths. Three scope escapes and two lease violations (build, package-lock.json) are the honest record of that; they are recorded UNRESOLVED and are the reason the gate is shut. (2) PUSH STATE. main is 24 commits ahead of origin/main and 0 behind — counted with `git log --oneline origin/main..main` and `git log --oneline main..origin/main`, because `git rev-list` is absent from the guard's read-only grammar. origin/main is still 1f29595; the prior session's push never happened. No work is at risk: all 24 commits are durable in the local repository, and nothing has been reset, stashed, discarded, force-pushed or rewritten. (3) v0.1.25 ARTIFACT. `dist/SpecterStudio 0.1.25.exe` DOES exist on disk and is the newest file in dist/ by mtime, which contradicts the prior session's report that no portable EXE was produced. It must NOT be treated as an accepted release artifact: dist/release-provenance.json still describes 0.1.22 (source.commit 8546453, artifacts.portable.file 'dist/SpecterStudio 0.1.22.exe'), and `write-artifact-provenance.mjs` is the LAST step of scripts/package-portable.ps1 (line 83), so the pipeline died at or before provenance. Whether the EXE's bytes are complete is INCONCLUSIVE — its size could not be measured, since Read refuses binary files and every shell stat command is outside this actor's grammar. A grep for 0.1.25 across docs/ returns no matches, so no document claims that release exists. (4) CRASH DIAGNOSIS, not a blind retry. scripts/package-portable.ps1:11 requires 1536 MiB of free Windows commit and its own comment measures the 7za stage at ~654 MiB private commit for the ~828 MiB payload. Assert-PackagingCommitHeadroom runs at line 46 and again at line 74 — before electron-builder, but NOT during compression — which is consistent with the reported death mid-compression and means the guard cannot catch it. (5) CORRECT RESUME PATH, for whoever holds the lease next: `npm run package:portable`. It reads package.json's version and never writes it (line 81-82), so it cannot bump to 0.1.26; docs/ai/COMMANDS.md:99-100 says so explicitly — 'To retry an already committed version, run npm run package:portable; release-portable.ps1 and the dashboard action are for the next semantic version.' Version 0.1.25 is already committed at 0bcf56d, so no bump is needed or wanted. (6) WHAT THIS ACTOR COULD NOT DO. The root session canonicalises to \"manager\" and the lease holder is \"release\", so `git push origin main`, `npm run build`, `npm run verify:verifier-classification` and `npm run verify:roadmap-dashboard` were each attempted exactly once and each denied by the PreToolUse guard. They are recorded as BLOCKED / NOT RUN. Nothing was fabricated, no gate was bypassed, and no approval was self-granted: qa_status and qc_status stay pending because qa and qc have not reviewed. (7) FOLLOW-UP RECOVERY PUSH. A later recovery session successfully pushed main to origin/main at 7b934b38fcd9c38990e802ea156a5f737ffbac06 and verified divergence 0/0 after `git fetch origin`. That clears the push evidence item only; the unresolved scope escapes, lease violations, qa_status pending and qc_status pending still block completion.\n2026-08-31 independent QC /root/lease_qc approves ONLY emergency retirement of the stale lease, not release acceptance or full task QC. The override mechanism shares qc_status with completion; all scope escapes and pending QA remain blocking, all prior FAIL/NOT RUN evidence and original unresolved violations are retained."
   }
 }

@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## Flow validation, Recorder Favorites and Oracle modal UX complete (`awkit-ui0831`, 2026-09-01)
+
+Flow Designer validation is now step-scoped and deduplicated. Blocking findings, warnings and
+resolved state have distinct presentation, and each blocker exposes one production-backed primary
+action. A reasoned direct-action confirmation is bound to the exact action, locator, frame/container
+context, element identity, prerequisite evidence and safety policy; it removes only the matching
+blocker, survives save/reload and is revalidated by the production run gate. It never bypasses
+Playwright actionability or strict locator checks. Blocked system text no longer pre-fills the user's
+confirmation reason, and a successful save clears the stale load-only banner. Non-positional
+review-required locators still require a new Recorder capture because stored alternatives alone do
+not prove live uniqueness; the UI now states that boundary rather than presenting a false fix.
+
+Recorder URL history and favorites now share one card and one table, with keyboard-accessible
+Recorded URLs / Favorite URLs tabs, search, pagination, empty states and the existing open/copy/
+favorite actions. The bookmark beside the current URL uses the Hologram amber selected state,
+updates from the authoritative IPC result and survives a renderer reload. Favorites remain the
+existing `recorder-urls.json` view; no second store was introduced. Favorite matching shares the
+Recorder's sensitive-query-key policy, so redacted secrets compare correctly while a literal
+non-sensitive `***` value remains distinct.
+
+The Oracle Data Source dialog is substantially wider, responsive down to a 600 px window, grouped
+around an explicit Connection Profile section and scrollable with stable footer actions. With no
+profile/runtime it shows a disabled native selector, the exact missing state beside it, disabled
+Create/snapshot actions and a real keyboard-operable route to Settings > Database Drivers. With a
+configured profile it preserves SQL, binds, JDBC type, timeout, max rows and fetch size through
+create/reopen. Runtime, credential and read-only security architecture is unchanged.
+
+Executed proof: `npm run build` PASS; `typecheck:scripts` PASS; Flow GUI **138/138** plus capsule
+**16/16** and mapping **189/189**; Recorder GUI **185 PASS / 0 FAIL / 0 NOT RUN** and recorder-draft
+**119/119**; Oracle Drivers/Data Source modal **46/46** using real local Java 17 plus `ojdbc17`;
+`verify:validation` **163/163**; `verify:oracle-data-source` **28/28**; `verify:mock-site`
+**172/172**; core Recorder locator/popup/Smart Wait coverage **217/217**; verifier classification
+reconciled all **199** commands. Light/dark and responsive
+captures are under `test-artifacts/{flow-validation-*.png,recorder-gui/2026-08-31T22-28-06-557Z,
+oracle-modal/2026-08-31T22-33-58-228Z}`. The first configured Oracle attempt correctly failed because
+the local validation stores were empty; the documented helpers seeded the machine's real JDK/JAR and
+the full rerun passed. Two Flow reruns exposed and then verified fixes for an exact-label harness
+selector, authenticated reload handling and the pre-filled confirmation-reason defect.
+
+Tracker: **263 total / 261 closed / 2 blocked outstanding** (`awkit-7bu`, `awkit-cm8`). The
+comprehensive-validation ledger remains **64 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## v0.1.22 portable generated from a clean source commit (2026-08-29)
 
 The requested clean-tree packaging retry is complete. The first retry exposed a PowerShell
