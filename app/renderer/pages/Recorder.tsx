@@ -13,6 +13,7 @@ import type {
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
 import { locatorContainerChain } from "@src/profiles/FlowProfile";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { RECORDED_URL_SENSITIVE_QUERY_KEYS } from "@src/recorder/recordedUrlPolicy";
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
@@ -284,7 +285,7 @@ export function Recorder() {
       const candidate = new URL(normalized);
       const stored = new URL(favorite.url);
       for (const [key, saved] of stored.searchParams) {
-        if (saved === "***" && candidate.searchParams.has(key)) candidate.searchParams.set(key, "***");
+        if (saved === "***" && RECORDED_URL_SENSITIVE_QUERY_KEYS.has(key.toLowerCase()) && candidate.searchParams.has(key)) candidate.searchParams.set(key, "***");
       }
       return candidate.href === stored.href;
     } catch {

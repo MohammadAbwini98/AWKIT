@@ -222,7 +222,7 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
               {can(Permission.PAGE_SETTINGS) && (!availability?.available || !availability.driverExpected) ? (
                 <div>
                   <button type="button" className="toolbar-button" disabled={busy || refreshing} onClick={() => { onClose(); navigateTo("settings"); }}>Close and open Settings</button>
-                  <p className="form-message">Opens Database Drivers on the Settings page. Unsaved changes in this dialog will be discarded. Driver setup does not create a connection profile.</p>
+                  <p className="form-message">In Settings, find Database Drivers. Unsaved changes in this dialog will be discarded. Driver setup does not create a connection profile.</p>
                 </div>
               ) : null}
             </div>
