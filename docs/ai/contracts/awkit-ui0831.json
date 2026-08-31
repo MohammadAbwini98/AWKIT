@@ -447,6 +447,26 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ui0831:project-state:2026-08-31T22:55:56.150Z",
+        "task": "awkit-ui0831",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-ui0831.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-08-31T22:55:56.150Z",
+        "acquired_at_commit": "e6d8bae18365cb0702a6f6c1b36b3ece1385c111",
+        "released_at": "2026-08-31T22:57:24.357Z",
+        "released_reason": "All acceptance evidence PASS; task gate canComplete true with no blockers or scope escapes; project state committed in 74734f9.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

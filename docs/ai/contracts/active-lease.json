@@ -2,7 +2,7 @@
   "task": "awkit-ui0831",
   "contract_path": "docs/ai/contracts/awkit-ui0831.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/TASK_LOG.md",
@@ -34,5 +34,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-08-31T22:57:24.357Z",
+  "released_reason": "All acceptance evidence PASS; task gate canComplete true with no blockers or scope escapes; project state committed in 74734f9.",
+  "archived_at": "2026-08-31T22:57:24.359Z"
 }

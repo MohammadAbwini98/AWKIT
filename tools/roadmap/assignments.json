@@ -17,13 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-ui0831",
-      "agent": "Documentation / Project-State Specialist",
-      "state": "in-progress",
-      "claimedAt": "2026-08-31T22:55:56.150Z",
-      "note": "write lease: docs/ai/CURRENT_STATE.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-ui0831.json, tools/roadmap/assignments.json"
-    }
-  ]
+  "claims": []
 }
