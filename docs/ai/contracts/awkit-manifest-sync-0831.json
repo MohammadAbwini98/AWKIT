@@ -20,14 +20,18 @@
   "classification": {
     "packaging_change": true,
     "offline_boundary_change": true,
-    "cross_layer_count": 1
+    "project_state_change": true,
+    "cross_layer_count": 2
   },
   "routing": {
     "manager": "manager",
-    "activated_agents": ["manager", "qa", "qc", "release"],
+    "activated_agents": ["manager", "qa", "qc", "release", "project-state"],
     "expected_paths": [
       "resources/dependency-manifest.json",
-      "resources/dependency-manifest.sig"
+      "resources/dependency-manifest.sig",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-manifest-sync-0831.json",
+      "tools/roadmap/assignments.json"
     ],
     "consultants": [],
     "reviewers": ["qa", "qc"],
@@ -94,6 +98,16 @@
       "note": "EXECUTED by the release lease holder; exit 1 with exactly one failure: 'ERROR: Strict mode requires manifest application.sourceCommit to equal the release Git HEAD (6ea461cc93cc4c1ce55ad72f93af85249f36e363).' Recorded as FAIL, not hidden or relabelled. It is nevertheless demoted to required:false because it was mis-specified for this task, not because it failed. scripts/validate-offline-bundle.ps1:165-172 asserts manifest application.sourceCommit === git rev-parse HEAD, which no ordinary development commit can satisfy: committing the manifest necessarily creates a commit whose SHA differs from the sourceCommit the manifest names. docs/OFFLINE_STANDALONE_PACKAGING.md:44-46 states this outright — sourceCommit 'is intentionally historical between releases and is not expected to equal the current HEAD during normal development' — and docs/ai/CURRENT_STATE.md:5219 calls -Strict 'the release-only gate'. Forcing it green would require regenerating the manifest, which the same policy (line 43-44) forbids for ordinary development commits. The strict gate is satisfied at packaging time instead: 'Every packaging wrapper regenerates and re-signs the pair as production-offline before strict validation' (OFFLINE_STANDALONE_PACKAGING.md:51-53). Consequence to carry forward: this pair is valid and self-consistent but NOT release-current, and -Strict will keep reporting so until a release cut regenerates it."
     },
     {
+      "id": "push-origin-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending",
+      "note": "Owner authorised the push explicitly on 2026-08-31 (\"yes push\", reaffirmed \"push\" after being told the gate blocked it and that the push is NOT a precondition for the portable build). This is the one evidence item that cannot be PASS before the action it records; tools/agents/lease-guard.mjs:410-415 evaluates a prospective copy with only this item forced to PASS while every other evidence, preserved-path, scope, QA/QC and lease-history blocker stays live, so authorising it does not weaken any other gate. Result stays \"pending\" until the push actually runs, then becomes PASS with the observed ref update.",
+      "expected": "origin/main advances from 8b46980 to the pushed HEAD; no force, no history rewrite."
+    },
+    {
       "id": "typecheck-build",
       "type": "build",
       "required": false,
@@ -113,7 +127,8 @@
     "commit_policy": "coherent",
     "force_push": false,
     "destructive_reset": false,
-    "push_authorized": false
+    "push_authorized": true,
+    "push_evidence_id": "push-origin-main"
   },
   "completion": {
     "status": "implemented",
