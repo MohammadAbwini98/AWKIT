@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("262 issues parse", beads.stats.total === 262, `got ${beads.stats.total}`);
+  check("263 issues parse", beads.stats.total === 263, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -419,8 +419,10 @@ try {
   // Then 2/260 of 262 on 2026-08-29: canonical bounded-memory packaging plus the clean-machine
   // installer path closed `awkit-hgol`; current Reports evidence ownership showed `awkit-az7` was
   // stale bookkeeping, so it closed too. `awkit-7bu` and `awkit-cm8` remain externally blocked.
-    "2 outstanding / 260 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 260,
+  // Then 2/261 of 263 on 2026-09-01: `awkit-ui0831` was filed and closed after the Flow validation,
+  // Recorder Favorites and Oracle modal UX implementation and focused GUI/runtime campaign.
+    "2 outstanding / 261 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 261,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
