@@ -17,5 +17,13 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-manifest-sync-0831",
+      "agent": "Packaging / Offline / Release Engineer",
+      "state": "in-progress",
+      "claimedAt": "2026-08-31T12:38:14.135Z",
+      "note": "write lease: resources/dependency-manifest.json, resources/dependency-manifest.sig"
+    }
+  ]
 }

@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-manifest-sync-0831",
+    "title": "Commit the regenerated offline dependency manifest and its Ed25519 signature",
+    "objective": "Bring the working tree to a clean state on main by committing resources/dependency-manifest.json and resources/dependency-manifest.sig, which were regenerated on 2026-08-30 and already describe the current HEAD (v0.1.24, sourceCommit 8b469800d4ad14ee8276866b79b4db6f73236fb7, sourceTreeDirty false). The files are preserved by committing them, never by reverting them.",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8b469800d4ad14ee8276866b79b4db6f73236fb7",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [],
+    "preserved_notes": [
+      "The two resources/dependency-manifest.* files are dirty at grant time and are the SUBJECT of this task, not frozen bystanders — so they are deliberately absent from preserved_paths, whose fingerprints must survive the task unchanged. Committing them is the preservation.",
+      "No reset, checkout or clean is authorised against these files. The regenerated content is the only copy of the manifest that matches HEAD."
+    ]
+  },
+  "classification": {
+    "packaging_change": true,
+    "offline_boundary_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": ["manager", "qa", "qc", "release"],
+    "expected_paths": [
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig"
+    ],
+    "consultants": [],
+    "reviewers": ["qa", "qc"],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "ACC-1",
+      "description": "The regenerated manifest pair is committed to main and the working tree is clean, with no user work discarded and no reverting of resources/**.",
+      "evidence_required": ["manifest-head-identity"]
+    },
+    {
+      "id": "ACC-2",
+      "description": "The digest the signature attests to is the digest of the manifest bytes actually committed, so the pair is internally coherent rather than a stale signature over older content.",
+      "evidence_required": ["manifest-digest-binding"]
+    },
+    {
+      "id": "ACC-3",
+      "description": "The committed manifest verifies against the committed Ed25519 signature and the offline boundary still holds under strict validation.",
+      "evidence_required": ["offline-strict-validation"]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "manifest-head-identity",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff -- resources/dependency-manifest.json resources/dependency-manifest.sig",
+      "artifact": null,
+      "result": "PASS",
+      "note": "Inspected directly. The only manifest changes are manifestGeneratedAt 2026-08-29T20:14:48Z -> 2026-08-30T07:11:09Z, application.version 0.1.22 -> 0.1.24 and application.sourceCommit 8546453... -> 8b46980..., with sourceTreeDirty false. 8b469800d4ad14ee8276866b79b4db6f73236fb7 is exactly HEAD, and 0.1.24 is the version HEAD bumped to, so the regenerated manifest describes the commit it sits on. The signature file changes only manifestSha256 and signatureBase64; algorithm Ed25519 and keyId ed25519:aa5b9dd8... are unchanged, so no key rotation or signing-procedure change is involved. Committed as 1933077 (2 files changed, 5 insertions, 5 deletions) — the regenerated content was preserved by committing it; nothing under resources/ was reverted, reset or cleaned."
+    },
+    {
+      "id": "manifest-digest-binding",
+      "type": "inspection",
+      "required": true,
+      "command": "node tools/agents/lease-cli.mjs grant (fingerprints recorded in docs/ai/contracts/active-lease.json)",
+      "artifact": "docs/ai/contracts/active-lease.json",
+      "result": "PASS",
+      "note": "Executed, not asserted. tools/agents/lease.mjs:175 hashes the raw file bytes with createHash(\"sha256\").update(data).digest(\"hex\") and recorded baseline_dirty_fingerprints[\"resources/dependency-manifest.json\"] = ebdf1f09105d9582c253063523516219e473287562f4fee0897eb488a96ad99d. resources/dependency-manifest.sig records manifestSha256 = ebdf1f09105d9582c253063523516219e473287562f4fee0897eb488a96ad99d. Identical, and both are raw-byte SHA-256, so the digest the signature attests to is the digest of the exact manifest bytes committed in 1933077 — the signature is not stale over older content. This is deliberately a weaker claim than ACC-3: it proves digest/content binding only. It does NOT verify the Ed25519 signature over that digest against the trusted public key, and it does not re-check the offline boundary; both remain the job of offline-strict-validation."
+    },
+    {
+      "id": "offline-strict-validation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline -- -Strict",
+      "artifact": null,
+      "result": "NOT RUN",
+      "note": "NOT RUN, and not claimed as passing. This is the gate that recomputes the manifest SHA-256, verifies the Ed25519 signature over it and re-checks the offline boundary. tools/agents/lease-guard.mjs restricts writer commands to the lease holder (isAllowedActiveShellCommand returns false when actor !== lease.holder), and the acting actor here is manager, not release. Running it therefore requires the release specialist to hold the lease and execute it."
+    },
+    {
+      "id": "typecheck-build",
+      "type": "build",
+      "required": false,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "NOT RUN",
+      "note": "Not required: this task changes no TypeScript, no bundled source and no npm script. Blocked by the same lease-holder restriction as offline-strict-validation."
+    }
+  ],
+  "write_lease": {
+    "history": [],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "pending",
+    "qc_status": "pending",
+    "blocking_note": "Implemented, not complete. ACC-1 and ACC-2 are proven; ACC-3 stays unproven until npm run validate:offline -- -Strict is executed by the release lease holder, and qa/qc review has not run. The completion gate is expected to remain closed until then. The commit itself is not gated on it, per the one-branch continuous-implementation directive: the manifest pair is committed and the failure to run strict validation is reported rather than papered over."
+  }
+}

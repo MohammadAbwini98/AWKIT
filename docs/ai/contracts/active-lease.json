@@ -1,20 +1,24 @@
 {
-  "task": "awkit-portable-oom-0829",
-  "contract_path": "docs/ai/contracts/awkit-portable-oom-0829.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-manifest-sync-0831",
+  "contract_path": "docs/ai/contracts/awkit-manifest-sync-0831.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/testing/comprehensive-validation/DEFECTS.md"
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-08-29T20:21:08.168Z",
-  "acquired_at_commit": "eefc0492b4969d1eea325c20a5c3b93cc2fce0ce",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-08-31T12:38:14.135Z",
+  "acquired_at_commit": "8b469800d4ad14ee8276866b79b4db6f73236fb7",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-manifest-sync-0831.json",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-manifest-sync-0831.json": "3a106b2db5423f53cb86b52a036a4185ccf2dd1712c66bfcda6ba5f56a5ca0fa",
+    "resources/dependency-manifest.json": "ebdf1f09105d9582c253063523516219e473287562f4fee0897eb488a96ad99d",
+    "resources/dependency-manifest.sig": "e649ad89ad4d5ed3489dc879d1e351dee2ee187f5e7219f6c33cc3e29de8d45f"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6054:1785324381414.4578",
@@ -23,12 +27,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1788034476855.1013"
+    "build": "dir(1):native-hosts:1788073861255.3835"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-08-29T20:26:52.737Z",
-  "released_reason": "v0.1.22 artifact, resolved block, exact hash, signed-manifest identity and NOT RUN boundaries committed as 15dff3a; roadmap 177/177, script typecheck and AI memory checks pass",
-  "archived_at": "2026-08-29T20:26:52.740Z"
+  "violations": []
 }
