@@ -691,6 +691,10 @@ function FlowChartDesignerContent() {
       const profiles = await window.playwrightFlowStudio.flows.list();
       setSavedFlows(profiles);
       setSavedSnapshot(serializeFlowDoc(toSave)); // clear dirty: current document is now the saved baseline
+      // The load banner describes the document as it existed when opened. The live chip/report
+      // already reflects this saved document, so keeping an old blocker banner here would tell the
+      // user their successful correction changed nothing until the next reload.
+      setLoadBanner(null);
       // Validate what was ACTUALLY saved (not the live canvas) so the draft message is truthful.
       const savedReport = validateFlowDefinition(toSave, { referenceableFlowIds: new Set(profiles.map((profile) => profile.id)) });
       const savedBlocking = executionBlockingErrorsOf(savedReport);
@@ -1239,7 +1243,7 @@ function FlowChartDesignerContent() {
       <div className="flow-designer-shell">
         {/* Stage 2c validate-on-load banner. Opening a flow NEVER modifies or saves it — this
             reports what was found and offers only deterministic, execution-preserving fixes. */}
-        {loadBanner ? (
+        {loadBanner && !isDirty ? (
           <div className={`validation-load-banner ${loadBanner.underCompatibility ? "legacy" : loadBanner.runnable ? "warn" : "block"}`} data-testid="flow-validation-banner">
             <span className="validation-load-banner-text">
               {loadBanner.underCompatibility ? (
