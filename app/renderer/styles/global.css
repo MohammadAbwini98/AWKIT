@@ -8046,6 +8046,7 @@ table {
 
 .recorded-urls-table {
   table-layout: fixed;
+  width: 100%;
   min-width: calc(var(--space-5) * 32);
 }
 
