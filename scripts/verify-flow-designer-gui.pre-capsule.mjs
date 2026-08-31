@@ -2185,6 +2185,7 @@ try {
   check("Eligible approval removes the blocker and retains lower-resilience warning", (await win.getByTestId("locator-review-state").textContent()).includes("User-approved fallback") && await resolutionSummary.locator('[data-validation-code="locatorQuality"]').count() === 1);
   await win.getByRole("button", { name: "Save", exact: true }).click();
   await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "unresolved")?.locator?.resolution === "user-approved-fallback", resolutionId);
+  check("Saving both corrections clears the stale load-only blocker banner", await win.getByTestId("flow-validation-banner").count() === 0);
   const resolvedValidation = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-resolution", dryRun: true }));
   check("Both saved corrections pass fresh production run validation", resolvedValidation.status === "validated", JSON.stringify({ status: resolvedValidation.status, issues: resolvedValidation.validation?.issues }));
   await win.reload();

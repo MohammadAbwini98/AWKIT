@@ -607,6 +607,25 @@ try {
   check("Removing a favorite immediately removes its favorite row", !(await rows.first().textContent())?.includes('/details'));
   await recordedTab.click();
   check("Removing a favorite restores the normal recorded-row bookmark", await detailsRow.locator('.recorder-favorite-toggle').getAttribute('aria-pressed') === 'false');
+  // A literal star string is valid ordinary data. Only keys from the Recorder's redaction policy
+  // may equate a raw value with the stored *** marker.
+  await urlField(page).fill(`${baseUrl}/details?tag=***`);
+  await currentBookmark.click();
+  await urlField(page).fill(`${baseUrl}/details?tag=other`);
+  check("Literal *** in a normal query key does not favorite a different URL", await currentBookmark.getAttribute("aria-pressed") === "false");
+  await currentBookmark.click();
+  let policyFavorites = await page.evaluate(() => window.playwrightFlowStudio.recorder.getFavoriteUrls());
+  check("Literal-star and ordinary query values remain distinct favorites", policyFavorites.some((item) => item.url.endsWith("tag=***")) && policyFavorites.some((item) => item.url.endsWith("tag=other")));
+  await currentBookmark.click();
+  await urlField(page).fill(`${baseUrl}/details?tag=***`);
+  await currentBookmark.click();
+  await urlField(page).fill(`${baseUrl}/details?token=first`);
+  await currentBookmark.click();
+  await urlField(page).fill(`${baseUrl}/details?token=second`);
+  check("Sensitive query values still match the same redacted favorite", await currentBookmark.getAttribute("aria-pressed") === "true");
+  await currentBookmark.click();
+  policyFavorites = await page.evaluate(() => window.playwrightFlowStudio.recorder.getFavoriteUrls());
+  check("Redacted favorite toggle removes only the matching sensitive URL", policyFavorites.length === 1 && policyFavorites[0].url === `${baseUrl}/form`);
   await navClick(page, "Dashboard");
   await navClick(page, "Recorder");
   await page.locator('.recorder-page').waitFor();
