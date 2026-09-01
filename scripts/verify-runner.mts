@@ -19,6 +19,7 @@ import type { FlowExecutionResult } from "@src/runner/RunnerResult";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
+import { scenarioToWorkflowProfile, workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import { executionBlockingErrorsOf, validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { Page } from "playwright";
@@ -191,6 +192,69 @@ async function main() {
     await page.waitForURL("**/success*");
     ok("assert text contains", await exec.execute({ id: "as", type: "assertText", name: "as", locator: { strategy: "id", value: "successMessage" }, config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "successful" } }));
     await page.close();
+
+    // ── Recorder XPath → Workflow Builder → Runner ───────────────────────────
+    // Workflow Builder stores references to saved flows rather than copying their steps. This
+    // deliberately drives that real reference conversion before the production runner consumes
+    // the flow, so an XPath can neither be rewritten by the workflow boundary nor replayed by an
+    // unrecorded Default alternative.
+    {
+      const recordedXPath = "//*[@id='firstName']";
+      const xpathFlow = simpleFlow("recorder-xpath-workflow-flow", [
+        { id: "xpath-goto", type: "goto", name: "Open form", url: `${BASE}/form` },
+        {
+          id: "xpath-fill",
+          type: "fill",
+          name: "Fill through exact recorded XPath",
+          locator: { strategy: "xpath", value: recordedXPath, resolution: "resolved", resolvedBy: "recorder" },
+          value: "XPath workflow replay"
+        },
+        {
+          id: "xpath-assert",
+          type: "assertText",
+          name: "Assert XPath replay value",
+          locator: { strategy: "xpath", value: recordedXPath, resolution: "resolved", resolvedBy: "recorder" },
+          config: { assertionType: "value", comparisonOperator: "equals", expectedValue: "XPath workflow replay" }
+        }
+      ]);
+      const workflow: WorkflowProfile = {
+        id: "workflow-recorder-xpath",
+        name: "Recorder XPath workflow",
+        version: 1,
+        nodes: [
+          { id: "start", type: "start", alias: "Start", order: 0 },
+          { id: "xpath-flow-ref", type: "flowRef", flowId: xpathFlow.id, alias: "Recorded XPath flow", order: 1, required: true, inputBindings: {} },
+          { id: "end", type: "end", alias: "End", order: 2 }
+        ],
+        edges: [
+          { id: "start-to-xpath", source: "start", target: "xpath-flow-ref", type: "success" },
+          { id: "xpath-to-end", source: "xpath-flow-ref", target: "end", type: "success" }
+        ],
+        runtimeInputs: [],
+        execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
+      };
+      const scenarioFromBuilder = workflowToScenarioProfile(scenarioToWorkflowProfile(workflowToScenarioProfile(workflow)));
+      check(
+        "Workflow Builder conversion preserves the Recorder XPath flow reference",
+        scenarioFromBuilder.flows.length === 1 && scenarioFromBuilder.flows[0]?.flowId === xpathFlow.id,
+        JSON.stringify(scenarioFromBuilder.flows)
+      );
+      const xpathRunner = new PlaywrightRunner({ flows: [xpathFlow], productionOffline: false, resourcesRoot: join(process.cwd(), "resources") });
+      const xpathResult = await xpathRunner.executeScenario(
+        scenarioFromBuilder,
+        await makeContext(xpathFlow.id),
+        { id: "recorder-xpath-workflow-instance", scenarioId: scenarioFromBuilder.id, name: "Recorder XPath workflow", browser: "chromium", headless: true, isolationMode: "browserContext", timeoutMs: 30_000, viewport: { width: 1280, height: 800 } }
+      );
+      const xpathSteps = xpathResult.flows[0]?.steps ?? [];
+      check(
+        "Runner replays the exact persisted XPath after the Workflow Builder round trip",
+        xpathFlow.nodes.some((step) => step.id === "xpath-fill" && step.locator?.strategy === "xpath" && step.locator.value === recordedXPath && !step.locator.alternatives?.length) &&
+          xpathResult.status === "passed" &&
+          xpathSteps.some((step) => step.stepId === "xpath-fill" && step.status === "passed") &&
+          xpathSteps.some((step) => step.stepId === "xpath-assert" && step.status === "passed"),
+        `status=${xpathResult.status} steps=${xpathSteps.map((step) => `${step.stepId}:${step.status}`).join(",")}`
+      );
+    }
 
     console.log("Unknown interaction prerequisite runtime trial:");
     const trialPage = await browser.newPage();

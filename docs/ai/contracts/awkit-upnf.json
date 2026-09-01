@@ -1,0 +1,421 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-upnf",
+    "title": "Audit and finalize Recorder XPath mode",
+    "objective": "Independently audit Recorder XPath mode at commit 10d6ca1, repair any production or verifier defects, strengthen regression coverage, and reconcile the IPC and settings E2E exceptions.",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": false,
+    "interaction_change": true,
+    "accessibility_change": false,
+    "electron_main_change": false,
+    "ipc_change": false,
+    "persisted_shape_change": false,
+    "filesystem_write_change": false,
+    "recorder_change": true,
+    "browser_behavior_change": true,
+    "mock_site_required": false,
+    "public_contract_change": false,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "recorder",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/recorder/RecorderService.ts",
+      "scripts/verify-recorder-locator.mts",
+      "scripts/verify-ipc-contract.mts",
+      "scripts/verify-runner.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/contracts/awkit-upnf.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+      "docs/testing/comprehensive-validation/TRACEABILITY_MATRIX.csv",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl"
+    ],
+    "consultants": [
+      "architect",
+      "uiux",
+      "frontend"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-roadmap-dashboard.mjs"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "XPATH_AUDIT",
+      "description": "All Recorder locator-bearing capture paths honor the active mode prospectively, preserve Default output, round-trip through existing mappings and runtime, and report special-context limitations truthfully.",
+      "evidence_required": [
+        "build",
+        "verify:recorder",
+        "verify:recorder-gui",
+        "verify:runner",
+        "verify:flow-step-mapping",
+        "verify:settings-persistence",
+        "verify:mock-site",
+        "verify:ipc-contract",
+        "verify:settings-e2e",
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "validate:offline",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "npm run build passed after the XPath capture repair."
+    },
+    {
+      "id": "verify:recorder",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder",
+      "result": "PASS",
+      "artifact": "npm run verify:recorder: 272 passed, 0 failed; includes Default parity, XPath action/wait/signal capture, switching and special-context truthfulness."
+    },
+    {
+      "id": "verify:recorder-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:recorder-gui",
+      "result": "PASS",
+      "artifact": "npm run verify:recorder-gui: 192 PASS / 0 FAIL / 0 NOT RUN; light, dark and narrow evidence captured."
+    },
+    {
+      "id": "verify:runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "result": "PASS",
+      "artifact": "npm run verify:runner: 138 passed, 0 failed; includes exact persisted XPath through Flow-to-Workflow-to-Runner replay."
+    },
+    {
+      "id": "verify:flow-step-mapping",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:flow-step-mapping",
+      "result": "PASS",
+      "artifact": "npm run verify:flow-step-mapping: 194 passed, 0 failed."
+    },
+    {
+      "id": "verify:settings-persistence",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:settings-persistence",
+      "result": "PASS",
+      "artifact": "npm run verify:settings-persistence: 6/6 checks passed."
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "result": "PASS",
+      "artifact": "npm run verify:mock-site: 177/177 mock-site checks passed."
+    },
+    {
+      "id": "verify:ipc-contract",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ipc-contract",
+      "result": "PASS",
+      "artifact": "npm run verify:ipc-contract: 9/9; verifier now recognizes the existing assertSenderSuperUser guard."
+    },
+    {
+      "id": "verify:settings-e2e",
+      "type": "gui",
+      "required": true,
+      "command": "AWKIT_ALLOW_OS_SHELL_LAUNCH=1 npm run verify:settings-e2e",
+      "result": "PASS",
+      "artifact": "AWKIT_ALLOW_OS_SHELL_LAUNCH=1 npm run verify:settings-e2e: 182 PASS / 0 FAIL / 0 NOT RUN."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "artifact": "npm run verify:verifier-classification: all 199 classified commands reconciled."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "npm run verify:roadmap-dashboard: 177/177 checks passed with Sources agree."
+    },
+    {
+      "id": "validate:offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline",
+      "result": "PASS",
+      "artifact": "npm run validate:offline passed; Zvec 17/17 checksummed."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "git diff --check passed with no whitespace errors."
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-upnf:project-state:2026-09-01T16:11:52.328Z",
+        "task": "awkit-upnf",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/contracts/awkit-upnf.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-01T16:11:52.328Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T16:12:13.136Z",
+        "released_reason": "Audit contract and active roadmap claim established; handing failing coverage to QA.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:qa:2026-09-01T16:13:57.501Z",
+        "task": "awkit-upnf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-ipc-contract.mts",
+          "scripts/verify-recorder-locator.mts"
+        ],
+        "acquired_at": "2026-09-01T16:13:57.501Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T16:16:12.573Z",
+        "released_reason": "Added failing XPath nested-wait and production signal-binding regressions; baseline now 268 PASS / 4 FAIL as expected.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:recorder:2026-09-01T16:16:31.054Z",
+        "task": "awkit-upnf",
+        "holder": "recorder",
+        "status": "released",
+        "allowed_paths": [
+          "src/recorder/RecorderService.ts"
+        ],
+        "acquired_at": "2026-09-01T16:16:31.054Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T16:18:28.887Z",
+        "released_reason": "Smart Wait signal enqueue and recursive XPath locator conversion implemented; new failures are fixed, with one unrelated popup timing flake to rerun.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:qa:2026-09-01T16:18:45.187Z",
+        "task": "awkit-upnf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-ipc-contract.mts",
+          "scripts/verify-recorder-locator.mts"
+        ],
+        "acquired_at": "2026-09-01T16:18:45.187Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T16:21:25.686Z",
+        "released_reason": "IPC verifier now recognizes the stricter superuser gate; Smart Wait fixture timestamps made deterministic.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:recorder:2026-09-01T16:21:36.829Z",
+        "task": "awkit-upnf",
+        "holder": "recorder",
+        "status": "released",
+        "allowed_paths": [
+          "src/recorder/RecorderService.ts"
+        ],
+        "acquired_at": "2026-09-01T16:21:36.829Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T16:22:41.518Z",
+        "released_reason": "Recorder production defects fixed; focused verifier passes 272/272 including popup stability.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:qa:2026-09-01T16:35:33.671Z",
+        "task": "awkit-upnf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-runner.mts"
+        ],
+        "acquired_at": "2026-09-01T16:35:33.671Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T19:19:21.306Z",
+        "released_reason": "XPath workflow runner regression passed; handing dashboard count reconciliation to QA.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:qa:2026-09-01T19:19:46.305Z",
+        "task": "awkit-upnf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs",
+          "scripts/verify-runner.mts"
+        ],
+        "acquired_at": "2026-09-01T19:19:46.305Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T19:21:23.662Z",
+        "released_reason": "Recorder XPath and roadmap verifier evidence complete; handing final state reconciliation to project-state.",
+        "amendments": [
+          {
+            "timestamp": "2026-09-01T19:19:50.121Z",
+            "added": [
+              "scripts/verify-roadmap-dashboard.mjs"
+            ],
+            "reason": "The active audit adds one tracked Beads item, so the dashboard's exact exported-count sentinel must be reconciled.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:qa:2026-09-01T19:21:26.616Z",
+        "task": "awkit-upnf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-runner.mts"
+        ],
+        "acquired_at": "2026-09-01T19:21:26.616Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T19:21:31.598Z",
+        "released_reason": "amendment added paths outside qa's ownership (docs/ai/CURRENT_STATE.md, docs/ai/TASK_LOG.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, .beads/issues.jsonl, tools/roadmap/assignments.json) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-09-01T19:21:31.597Z",
+            "added": [
+              "docs/ai/CURRENT_STATE.md",
+              "docs/ai/TASK_LOG.md",
+              "docs/ai/HANDOFF.md",
+              "docs/ai/KNOWN_ISSUES.md",
+              ".beads/issues.jsonl",
+              "tools/roadmap/assignments.json"
+            ],
+            "reason": "Audit completion requires authoritative state, tracker, and assignment reconciliation.",
+            "triggered_escalation": [
+              "project-state"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:project-state:2026-09-01T19:25:46.841Z",
+        "task": "awkit-upnf",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-upnf.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-01T19:25:46.841Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T19:29:54.482Z",
+        "released_reason": "Authoritative audit evidence, tracker closure, and project-state documentation recorded; handing final dashboard-pin reconciliation to QA.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-upnf:qa:2026-09-01T19:29:56.550Z",
+        "task": "awkit-upnf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-01T19:29:56.550Z",
+        "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
+        "released_at": "2026-09-01T19:31:16.201Z",
+        "released_reason": "Final dashboard pin reconciled and 177/177 Sources agree proof recorded.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "closed_note": "Independent audit reran every required gate after fixing the Smart Wait/nested-wait XPath capture defect. All required evidence passed; audit QA and independent review approved closure."
+  }
+}

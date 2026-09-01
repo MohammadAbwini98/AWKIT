@@ -1,6 +1,6 @@
 # CURRENT_STATE
 
-## Recorder Default/XPath locator recording mode complete (`awkit-xpathmode`, 2026-09-01)
+## Recorder Default/XPath audit finalized (`awkit-upnf`, 2026-09-01)
 
 Recorder Controls now exposes a compact, persisted **Locator Recording** choice. **Default** remains
 the new-install and legacy-settings default and leaves the established ranked locator generator
@@ -18,20 +18,30 @@ are retained as `needs-review`, and validation blocks execution rather than fabr
 path. Recorder-to-Flow and Flow Designer round trips now retain unknown locator metadata while still
 hashing raw identity/guard evidence at the existing persistence boundary.
 
-Executed proof: build PASS; script typecheck PASS; core Recorder **267/267**; Flow mapping **194/194**;
-settings persistence **6/6**; Recorder GUI **192 PASS / 0 FAIL / 0 NOT RUN**; runner **136/136**;
-mock site **177/177**; locator guard **35/35**; frame chain **31/31**; closed shadow **23/23**;
-Recorder E2E **63/63**; WDU live Recorder **95/95** across 16 cases; all remaining focused Recorder,
-popup, upload, dialog, draft, hover, navigation and authorization suites passed. Offline validation
-PASS and verifier classification reconciled **199** commands. Inspected light/dark and narrow captures
-are under `test-artifacts/recorder-gui/2026-09-01T15-38-52-814Z/locator-mode-*.png`.
+Independent audit found and repaired one capture defect: raw production Smart Wait signals and nested
+`anyOf` wait locators had bypassed the active recording-mode conversion, so XPath mode could retain a
+Default locator/alternative. `RecorderService` now converts every locator-bearing captured
+action/wait/signal exactly once at capture time. The mode remains prospective; existing recordings
+and actions captured before a mode switch are unchanged. The validation and Runner paths still use
+the same persisted `Locator` and `LocatorFactory`/`StepExecutor` runtime contract—no parallel XPath
+architecture was introduced.
 
-Two unrelated standing verification boundaries remain truthful: `verify:ipc-contract` is **8/9**
-because pre-existing `debug:exportBundle` and `settings:detectInstalledChrome` lack registry
-classification, and `verify:settings-e2e` is **179 PASS / 0 FAIL / 1 NOT RUN** because its real
-Explorer launch requires the owner-approved `AWKIT_ALLOW_OS_SHELL_LAUNCH=1` opt-in. The new Recorder
-IPC channel passed authorization coverage. Tracker closes at **264 total / 262 closed / 2 blocked**;
-the comprehensive ledger is **65 PASS / 2 NOT RUN / 0 BLOCKED**.
+The reported IPC **8/9** was a verifier false negative, not an unsecured handler: both apparent
+exceptions already used the stronger `assertSenderSuperUser` guard. The verifier now recognizes that
+approved authorization form and passes **9/9**. The settings E2E gate was rerun with its documented,
+owner-authorized Explorer opt-in and passes **182 PASS / 0 FAIL / 0 NOT RUN**.
+
+Final evidence: build PASS; script typecheck PASS; core Recorder **272/272**; Recorder GUI
+**192 PASS / 0 FAIL / 0 NOT RUN**; Runner **138/138**, including a persisted XPath through
+Flow-to-Workflow-to-Runner conversion; Flow mapping **194/194**; settings persistence **6/6**;
+mock site **177/177**; verifier classification reconciled **199** commands; roadmap dashboard
+**177/177** with **Sources agree**; strict offline validation PASS; and `git diff --check` PASS.
+Light/dark/narrow GUI proof is under
+`test-artifacts/recorder-gui/2026-09-01T19-12-54-711Z/`.
+
+Tracker closes at **265 total / 263 closed / 2 blocked**; the comprehensive ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED**. Open/closed Shadow DOM remains deliberately `needs-review` and
+blocked rather than silently rewritten; last-resort positional XPath remains lower-confidence.
 
 ## Flow validation, Recorder Favorites and Oracle modal UX complete (`awkit-ui0831`, 2026-09-01)
 

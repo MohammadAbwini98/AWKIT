@@ -24,7 +24,7 @@ import { normalizeOrigin } from "../session/sessionMatch";
 // AWKIT-DUR-003: drafts and URL history go through the ONE atomic temp+rename+retry writer.
 import { writeJsonFileAtomic } from "../session/atomicWrite";
 import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
-import type { DialogExpectation, FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
+import type { DialogExpectation, FlowStep, LocatorCandidate, WaitCondition } from "../profiles/FlowProfile";
 import { buildFrameChain } from "./frameChainCapture";
 import { LocatorFactory } from "../runner/LocatorFactory";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
@@ -860,13 +860,7 @@ export class RecorderService {
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
     // metadata is stored (method + URL path, selectors, short text) — never headers/bodies/secrets.
     await context.exposeBinding("__awtkit_recordSignal", (source: { page?: Page }, raw: RecordedSignal) => {
-      if (!this.isRecording || !this.captureSmartWaits) return;
-      // AWKIT-REC-040: tag the signal with its source page (in-memory only).
-      const s: RecordedSignal = this.pageMarkers.has(source.page as Page)
-        ? (Object.assign({}, raw, { __src: this.markerFor(source.page as Page) }) as RecordedSignal)
-        : raw;
-      const cap = 2000;
-      if (this.signals.length > cap) this.signals.splice(0, this.signals.length - cap);
+      this.recordSignalFromPage(source.page, raw);
     });
 
     // Inject the shared capture script. It generates ranked, uniqueness-validated
@@ -1114,7 +1108,16 @@ export class RecorderService {
             return Boolean(root && root.__awtkitCaptureInstalled);
           })
           .catch(() => false);
-        if (!installed) await opened.evaluate(getRecorderInitScriptContent()).catch((error) => this.noteInstrumentationError(error));
+        if (!installed) {
+          await opened.evaluate(getRecorderInitScriptContent()).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            // A popup may commit its first URL between the marker probe and the live fallback.
+            // The context-level init script is already registered and instruments that new document,
+            // so an execution-context teardown caused by this navigation is expected rather than an
+            // instrumentation failure. Every other injection error remains visible to the user.
+            if (!/execution context was destroyed.*navigation/i.test(message)) this.noteInstrumentationError(error);
+          });
+        }
       }
 
       const identityUrl = await this.popupIdentityUrl(opened);
@@ -1805,9 +1808,76 @@ export class RecorderService {
     }
   }
 
+  /** Apply the active capture strategy to every locator-bearing wait shape, including nested OR groups. */
+  private applyWaitLocatorRecordingMode(wait: WaitCondition): void {
+    const apply = (locator: RecordedActionLocator | undefined): void => {
+      this.applyLocatorRecordingMode(locator);
+      if (locator && wait.evidence) wait.evidence.targetIdentity = locator.identity;
+    };
+
+    switch (wait.type) {
+      case "loaderHidden":
+      case "elementVisible":
+      case "elementHidden":
+      case "elementEnabled":
+        apply(wait.locator as RecordedActionLocator);
+        return;
+      case "toastVisible":
+        apply(wait.locator as RecordedActionLocator | undefined);
+        return;
+      case "tableHasRows":
+        apply(wait.tableLocator as RecordedActionLocator);
+        this.applyLocatorRecordingMode(wait.rowLocator as RecordedActionLocator | undefined);
+        return;
+      case "listHasItems":
+        apply(wait.listLocator as RecordedActionLocator);
+        this.applyLocatorRecordingMode(wait.itemLocator as RecordedActionLocator | undefined);
+        return;
+      case "anyOf":
+        for (const condition of wait.conditions) this.applyWaitLocatorRecordingMode(condition);
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** Freeze a Smart Wait signal's locator strategy at signal time so later mode switches are prospective. */
+  private applySignalLocatorRecordingMode(signal: RecordedSignal): void {
+    switch (signal.kind) {
+      case "loaderHidden":
+      case "toast":
+        this.applyLocatorRecordingMode(signal.locator as RecordedActionLocator | undefined);
+        return;
+      case "enabled":
+        this.applyLocatorRecordingMode(signal.locator as RecordedActionLocator);
+        return;
+      case "rows":
+        this.applyLocatorRecordingMode(signal.container as RecordedActionLocator);
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** Production adapter for page-side Smart Wait observations. */
+  private recordSignalFromPage(sourcePage: Page | undefined, raw: RecordedSignal): void {
+    if (!this.isRecording || !this.captureSmartWaits) return;
+    const signal = Object.assign({}, raw) as RecordedSignal;
+    this.applySignalLocatorRecordingMode(signal);
+    // AWKIT-REC-040: tag the signal with its source page (in-memory only).
+    const scoped = sourcePage && this.pageMarkers.has(sourcePage)
+      ? (Object.assign(signal, { __src: this.markerFor(sourcePage) }) as RecordedSignal)
+      : signal;
+    this.signals.push(scoped);
+    const cap = 2000;
+    if (this.signals.length > cap) this.signals.splice(0, this.signals.length - cap);
+  }
+
   private applyActionLocatorRecordingMode(action: Omit<RecordedAction, "id">): void {
     this.applyLocatorRecordingMode(action.locator);
     this.applyLocatorRecordingMode(action.targetLocator);
+    for (const wait of action.beforeWaits ?? []) this.applyWaitLocatorRecordingMode(wait);
+    for (const wait of action.afterWaits ?? []) this.applyWaitLocatorRecordingMode(wait);
   }
 
   /**

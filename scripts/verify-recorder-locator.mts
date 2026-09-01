@@ -48,6 +48,8 @@ interface RecordedAction {
   locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
   targetLocator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
   valueSource?: { type: string; value: string };
+  beforeWaits?: WaitCondition[];
+  afterWaits?: WaitCondition[];
 }
 
 async function makeContext(): Promise<InstanceExecutionContext> {
@@ -93,6 +95,7 @@ async function main() {
   const context = await browser.newContext();
 
   const recorded: RecordedAction[] = [];
+  const rawRecorded: RecordedAction[] = [];
   const bindingRecorder = new RecorderService() as any;
   bindingRecorder.isRecording = true;
   bindingRecorder.captureWaitTime = false;
@@ -100,6 +103,7 @@ async function main() {
   bindingRecorder.actions = [];
   bindingRecorder.lastActionAt = 0;
   await context.exposeBinding("__awtkit_recordAction", (source, action: RecordedAction) => {
+    rawRecorded.push(JSON.parse(JSON.stringify(action)) as RecordedAction);
     bindingRecorder.recordActionFromPage(source.page, action, source.frame);
     const stored = (bindingRecorder.getAmbiguityState()?.action ?? bindingRecorder.getActions().at(-1)) as RecordedAction | undefined;
     if (stored) recorded.push(stored);
@@ -117,6 +121,7 @@ async function main() {
   // Runs `interact` against `html`, returns the single action the capture script produced.
   async function capture(html: string, interact: (page: Page) => Promise<void>): Promise<RecordedAction | undefined> {
     recorded.length = 0;
+    rawRecorded.length = 0;
     bindingRecorder.actions = [];
     bindingRecorder.ambiguityState = null;
     bindingRecorder.isRecording = true;
@@ -438,7 +443,10 @@ async function main() {
   {
     bindingRecorder.setLocatorRecordingMode("default");
     const action = await capture(`<button data-testid="default-mode" onclick="window.__hit='default'">Default mode</button>`, (p) => p.getByTestId("default-mode").click());
+    const rawLocator = JSON.parse(JSON.stringify(rawRecorded.at(-1)?.locator ?? null)) as Record<string, unknown> | null;
+    if (rawLocator) delete rawLocator.recordingXPath;
     check("locator mode: Default keeps the existing preferred strategy", action?.locator?.strategy === "testId", JSON.stringify(action?.locator));
+    check("locator mode: Default preserves the complete pre-change locator payload", JSON.stringify(action?.locator) === JSON.stringify(rawLocator), JSON.stringify({ rawLocator, stored: action?.locator }));
     check("locator mode: Default persists no internal XPath candidate", !JSON.stringify(action).includes("recordingXPath"), JSON.stringify(action));
   }
 
@@ -523,6 +531,7 @@ async function main() {
 
   {
     recorded.length = 0;
+    rawRecorded.length = 0;
     bindingRecorder.actions = [];
     bindingRecorder.lastActionAt = 0;
     bindingRecorder.lastActionPage = undefined;
@@ -538,6 +547,111 @@ async function main() {
     const sessionActions = (bindingRecorder as RecorderService).getActions().filter((entry) => entry.type === "click");
     check("mode switching: Default → XPath → Default is prospective", sessionActions.length === 3 && sessionActions[0].locator?.strategy === "testId" && sessionActions[1].locator?.strategy === "xpath" && sessionActions[2].locator?.strategy === "testId", JSON.stringify(sessionActions.map((entry) => entry.locator)));
     check("mode switching: earlier Default action is not rewritten", sessionActions[0].locator?.value === "mode-a", JSON.stringify(sessionActions[0]));
+  }
+
+  {
+    const nestedRecorder = new RecorderService() as any;
+    nestedRecorder.isRecording = true;
+    nestedRecorder.captureWaitTime = false;
+    nestedRecorder.captureSmartWaits = false;
+    nestedRecorder.actions = [];
+    nestedRecorder.lastActionAt = 0;
+    nestedRecorder.setLocatorRecordingMode("xpath");
+    const candidate = (id: string) => ({
+      strategy: "testId",
+      value: id,
+      alternatives: [{ strategy: "css", value: `[data-testid="${id}"]` }],
+      recordingXPath: { value: `//*[@data-testid='${id}']`, isUnique: true, matchCount: 1, visibleMatchCount: 1, confidence: "high", positional: false }
+    });
+    nestedRecorder.recordActionFromPage(page, {
+      type: "drag",
+      name: "All locator-bearing action fields",
+      locator: { ...candidate("source"), interaction: { hoverContainer: candidate("hover") } },
+      targetLocator: candidate("target"),
+      beforeWaits: [
+        { type: "elementVisible", locator: candidate("visible") },
+        { type: "anyOf", conditions: [
+          { type: "elementHidden", locator: candidate("hidden") },
+          { type: "tableHasRows", tableLocator: candidate("table"), rowLocator: candidate("row"), minRows: 1 }
+        ] }
+      ],
+      afterWaits: [
+        { type: "loaderHidden", locator: candidate("loader") },
+        { type: "elementEnabled", locator: candidate("enabled") },
+        { type: "toastVisible", locator: candidate("toast") },
+        { type: "listHasItems", listLocator: candidate("list"), itemLocator: candidate("item"), minItems: 1 }
+      ]
+    });
+    const stored = nestedRecorder.getActions().at(-1) as RecordedAction | undefined;
+    const nestedLocators = stored ? [
+      stored.locator,
+      stored.locator?.interaction?.hoverContainer,
+      stored.targetLocator,
+      (stored.beforeWaits?.[0] as any)?.locator,
+      ((stored.beforeWaits?.[1] as any)?.conditions?.[0] as any)?.locator,
+      ((stored.beforeWaits?.[1] as any)?.conditions?.[1] as any)?.tableLocator,
+      ((stored.beforeWaits?.[1] as any)?.conditions?.[1] as any)?.rowLocator,
+      (stored.afterWaits?.[0] as any)?.locator,
+      (stored.afterWaits?.[1] as any)?.locator,
+      (stored.afterWaits?.[2] as any)?.locator,
+      (stored.afterWaits?.[3] as any)?.listLocator,
+      (stored.afterWaits?.[3] as any)?.itemLocator
+    ] : [];
+    check(
+      "XPath action contract: source, target, hover and every nested wait locator use XPath only",
+      nestedLocators.length === 12 && nestedLocators.every((locator) => locator?.strategy === "xpath" && !locator.alternatives?.length && !("recordingXPath" in locator)),
+      JSON.stringify(nestedLocators)
+    );
+  }
+
+  {
+    const signalContext = await browser.newContext();
+    const signalPage = await signalContext.newPage();
+    const signalRecorder = new RecorderService() as any;
+    signalRecorder.isRecording = true;
+    signalRecorder.captureWaitTime = false;
+    signalRecorder.captureSmartWaits = true;
+    signalRecorder.actions = [];
+    signalRecorder.lastActionAt = 0;
+    signalRecorder.setLocatorRecordingMode("xpath");
+    await signalRecorder.wireContext(signalContext);
+    await signalPage.goto("data:text/html,<button>signal</button>");
+    signalRecorder.recordActionFromPage(signalPage, {
+      type: "click",
+      name: "Trigger loader",
+      locator: { strategy: "testId", value: "trigger", recordingXPath: { value: "//*[@data-testid='trigger']", isUnique: true, matchCount: 1, visibleMatchCount: 1, confidence: "high", positional: false } }
+    });
+    signalRecorder.lastActionAt = Date.now() - 1_000;
+    const shownAt = Date.now() - 500;
+    const hiddenAt = shownAt + 100;
+    await signalPage.evaluate(async ({ shownAt, hiddenAt }) => {
+      await (window as any).__awtkit_recordSignal({
+        kind: "loaderHidden",
+        selector: "[data-testid='loader']",
+        shownAt,
+        hiddenAt,
+        cause: "click",
+        locator: {
+          strategy: "testId",
+          value: "loader",
+          alternatives: [{ strategy: "css", value: "[data-testid='loader']" }],
+          recordingXPath: { value: "//*[@data-testid='loader']", isUnique: true, matchCount: 1, visibleMatchCount: 1, confidence: "high", positional: false }
+        }
+      });
+    }, { shownAt, hiddenAt });
+    const buffered = signalRecorder.signals.at(-1) as any;
+    signalRecorder.setLocatorRecordingMode("default");
+    signalRecorder.recordActionFromPage(signalPage, {
+      type: "click",
+      name: "Next action",
+      locator: { strategy: "testId", value: "next", recordingXPath: { value: "//*[@data-testid='next']", isUnique: true, matchCount: 1, visibleMatchCount: 1, confidence: "high", positional: false } }
+    });
+    const [first, second] = signalRecorder.getActions().filter((action: RecordedAction) => action.type === "click") as RecordedAction[];
+    const wait = first?.afterWaits?.find((entry) => entry.type === "loaderHidden") as Extract<WaitCondition, { type: "loaderHidden" }> | undefined;
+    check("XPath Smart Wait: production page binding enqueues the observed signal", signalRecorder.signals.length === 1, JSON.stringify(signalRecorder.signals));
+    check("XPath Smart Wait: locator is frozen as XPath when the signal is captured", buffered?.locator?.strategy === "xpath" && buffered.locator.value === "//*[@data-testid='loader']" && !buffered.locator.alternatives?.length, JSON.stringify(buffered));
+    check("XPath Smart Wait: later mode switch does not rewrite the earlier signal", wait?.locator.strategy === "xpath" && wait.locator.value === "//*[@data-testid='loader']" && second?.locator?.strategy === "testId", JSON.stringify({ wait, second: second?.locator }));
+    await signalContext.close();
   }
 
   {

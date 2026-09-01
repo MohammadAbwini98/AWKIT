@@ -1,21 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-01, latest) — Recorder Default/XPath locator mode complete
+## HANDOFF (2026-09-01, latest) — Recorder Default/XPath audit finalized
 
 ### Transfer
 
-- **Branch:** `main`, direct commits only. `awkit-xpathmode` adds the persisted Locator Recording
-  control with Default as the legacy/new-install default and XPath as a prospective capture mode.
-- **Runtime contract:** XPath is stored as the existing `strategy: "xpath"` locator and executes
-  through LocatorFactory/StepExecutor. There is no XPath-only runner and no silent fallback to the
-  Default alternatives.
-- **Round trips:** draft/save/reload, Flow conversion, Flow Designer edit/re-save, drag target, frame
-  context and forward locator metadata are covered. Existing recordings are not rewritten.
-- **Evidence:** build PASS; Recorder 267/267; Flow mapping 194/194; settings 6/6; GUI 192/0/0;
-  runner 136/136; mock site 177/177; locator/frame/shadow, E2E, WDU and all focused Recorder suites
-  PASS. Offline validation PASS. Light/dark/narrow captures were inspected under
-  `test-artifacts/recorder-gui/2026-09-01T15-38-52-814Z/`.
-- **Project state:** tracker **264 total / 262 closed / 2 blocked**; validation ledger
+- **Branch:** `main`, direct commits only. `awkit-upnf` independently audited the XPath mode added
+  by `awkit-xpathmode` and repaired an actual Smart Wait/nested-wait capture defect.
+- **Runtime contract:** all new XPath-mode action, drag, wait and production Smart Wait signal
+  locators are stored as the existing `strategy: "xpath"` contract and execute through the existing
+  LocatorFactory/StepExecutor path. Default alternatives are removed; no XPath-only runtime exists.
+- **Round trips:** Default raw parity, prospective Default-to-XPath-to-Default switching,
+  save/reload/edit/re-save, Flow/Workflow conversion and exact Runner replay are covered. Existing
+  recordings remain backward compatible.
+- **Verification:** build PASS; Recorder **272/272**; GUI **192/0/0**; Flow mapping **194/194**;
+  settings persistence **6/6**; Runner **138/138**; mock site **177/177**; IPC **9/9**; settings E2E
+  **182/0/0** with its authorized opt-in; verifier classification **199**; roadmap **177/177 —
+  Sources agree**; strict offline validation and `git diff --check` PASS.
+- **Project state:** tracker **265 total / 263 closed / 2 blocked**; validation ledger
   **65 PASS / 2 NOT RUN / 0 BLOCKED**.
 
 ### Boundaries
@@ -25,9 +26,9 @@
   Default locator.
 - A last-resort positional XPath is marked lower-confidence; the user should re-record or edit it if
   the page structure changes.
-- `verify:ipc-contract` remains 8/9 on the unrelated existing `debug:exportBundle` and
-  `settings:detectInstalledChrome` registry omissions. `verify:settings-e2e` remains 179/0/1 because
-  the real Explorer launch is owner-opt-in. These are not claimed as passes.
+- The former IPC 8/9 exception is resolved as a verifier recognition defect: both handlers were
+  always protected by `assertSenderSuperUser`. The former settings E2E NOT RUN is resolved by the
+  authorized `AWKIT_ALLOW_OS_SHELL_LAUNCH=1` run; no XPath audit gate is outstanding.
 
 ## HANDOFF (2026-08-29, latest) — v0.1.22 portable generated; repository cleanup complete
 

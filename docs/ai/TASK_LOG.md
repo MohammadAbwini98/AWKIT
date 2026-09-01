@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-01 — Codex — audit and finalize Recorder XPath locator mode
+
+**Request/result:** independently audited `10d6ca1` (`awkit-upnf`) directly on `main`. The audit
+found a real capture-path defect: production Smart Wait signal locators and recursive nested wait
+locators did not receive the active XPath conversion, allowing Default candidates/alternatives to
+remain. `RecorderService` now converts all locator-bearing captured action, drag, wait and signal
+payloads at capture time, prospectively and through the existing locator/runtime architecture.
+
+**Additional findings:** `verify:ipc-contract` at 8/9 was a verifier false negative; both named
+handlers use the existing stricter `assertSenderSuperUser` guard. The verifier now recognizes it and
+passes 9/9. Added a real Runner regression for persisted XPath through Flow-to-Workflow conversion;
+fixed its test fixture to declare Chromium explicitly. Reconciled the roadmap's pinned total after
+the audit work item was added.
+
+**Final verification:** build PASS; typecheck:scripts PASS; Recorder **272/272**; Recorder GUI
+**192 PASS / 0 FAIL / 0 NOT RUN**; Runner **138/138**; Flow mapping **194/194**; settings persistence
+**6/6**; mock site **177/177**; IPC **9/9**; settings E2E **182/0/0** with its authorized Explorer
+opt-in; verifier classification **199**; roadmap **177/177 — Sources agree**; offline validation
+PASS; `git diff --check` PASS. XPath behaves truthfully for invalid, ambiguous, non-resolving,
+frame, drag/drop, hover and Shadow DOM boundaries; Shadow DOM remains `needs-review`/blocked rather
+than silently falling back.
+
+**Files:** `src/recorder/RecorderService.ts`, Recorder/Runner/IPC/dashboard verifiers, Beads and
+roadmap claim, task contract, and current-state/handoff/task-log sources.
+
 ## 2026-09-01 — Codex — add Recorder Default/XPath locator recording mode
 
 **Request/result:** completed `awkit-xpathmode` directly on `main`. Recorder Controls now provides a

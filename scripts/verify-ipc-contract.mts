@@ -163,7 +163,10 @@ const AUTHZ_REGISTRY: Record<string, { level: "NONE" | "TRUSTED"; reason: string
 };
 
 {
-  const PERM_TOKENS = ["assertSenderPermission(", "authorize("];
+  // `assertSenderSuperUser` is the stricter session + permission gate used by sensitive export and
+  // host-discovery handlers. Treating it as ungated made the verifier report two secured handlers as
+  // contract violations while the production code correctly denied non-superusers.
+  const PERM_TOKENS = ["assertSenderPermission(", "assertSenderSuperUser(", "authorize("];
   const handlerSlices: Array<{ channel: string; file: string; body: string }> = [];
   const HANDLE_RE = /ipcMain\.handle\(\s*"([^"]+)"/g;
   for (const file of readdirSync(IPC_DIR).filter((f) => f.endsWith(".ts"))) {
