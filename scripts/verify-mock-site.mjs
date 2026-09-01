@@ -107,6 +107,14 @@ try {
   check("recorder full name field exists", await page.getByLabel("Full name").isVisible());
   check("recorder email placeholder exists", await page.getByPlaceholder("ada@example.test").isVisible());
   check("recorder select exists", await page.getByTestId("recorder-plan").isVisible());
+  check("XPath recording fixture is visible", await page.getByTestId("xpath-recording-fixture").isVisible());
+  check("XPath fixture keeps duplicate text genuinely ambiguous", (await page.getByRole("button", { name: "Review order", exact: true }).count()) === 2);
+  await page.getByTestId("xpath-card-beta").getByRole("button", { name: "Review order", exact: true }).click();
+  check("XPath fixture stable ancestor selects the intended duplicate", (await page.getByTestId("xpath-recording-result").textContent()) === "beta");
+  await page.getByRole("button", { name: `Owner's "Draft"`, exact: true }).click();
+  check("XPath fixture mixed-quote target is actionable", (await page.getByTestId("xpath-recording-result").textContent()) === "quoted");
+  await page.getByTestId("xpath-nested-button").locator("strong").click();
+  check("XPath fixture nested event target reaches its semantic owner", (await page.getByTestId("xpath-recording-result").textContent()) === "nested");
   check("saved URL reuse links exist", (await page.locator("[data-testid^='saved-url-']").count()) >= 4);
   check("custom-owner fixture has the named subscriptions link", await page.getByRole("link", { name: "Subscriptions", exact: true }).isVisible());
   check("custom-owner fixture intentionally repeats its internal icon id", (await page.locator("#icon").count()) === 4);

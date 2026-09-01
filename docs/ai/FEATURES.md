@@ -301,6 +301,13 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   store; the current-URL bookmark exposes pressed state, uses the Hologram amber selected treatment
   and survives reload. Favorite identity shares the Recorder's exact sensitive-query-key redaction
   policy, without treating literal stars on unrelated keys as secrets.
+- ✅ **Locator Recording mode:** Recorder Controls persists a compact Default/XPath choice. Default
+  keeps the established ranked resilient generator. XPath affects only newly captured element
+  locators, uses the existing `strategy: "xpath"` profile/runtime path, supports live mode switching,
+  retains frame context and round-trips through Flow Designer/Workflow/Runner without schema forks.
+  Stable ids/test ids/attributes/text/ancestor relationships precede structural position; quote-safe
+  XPath uses `concat(...)`. Shadow-boundary XPath is retained as review-required and blocked rather
+  than silently replaced with a Default locator.
 - ✅ **Protected-login pause boundary:** while detection is shown, the automation browser stays open
   but inert so false positives can resume in place. `recordActionFromPage` drops every action while
   paused; the protected-login verifier proves password/OTP attempts preserve the exact non-empty

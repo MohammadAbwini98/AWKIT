@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-09-01 — Codex — add Recorder Default/XPath locator recording mode
+
+**Request/result:** completed `awkit-xpathmode` directly on `main`. Recorder Controls now provides a
+compact, keyboard-accessible Default/XPath radio group backed by the shared UI settings store.
+Default preserves the existing locator generator byte-for-byte at the persistence boundary. XPath
+affects only later captures, records the existing `xpath` locator strategy with no hidden Default
+fallback, supports live Default → XPath → Default switching, and reuses LocatorFactory/StepExecutor.
+The generator prefers stable ids, test ids, meaningful attributes, semantic text and stable ancestor
+relationships, escapes mixed quotes with `concat(...)`, and uses positional structure only last.
+Frames retain their context. Shadow-root XPath is retained as review-required and blocked by static
+validation because XPath cannot cross the recorded shadow boundary.
+
+**Compatibility/persistence:** legacy settings hydrate to Default; existing recordings are unchanged.
+Recorder draft/save/reload, Recorder-to-Flow, Flow Designer edit/re-save, drag target, workflow/runner
+and report-facing profile data all retain the exact XPath. The Recorder flow builder and production
+designer mapping now preserve forward locator fields while excluding raw internal XPath capture and
+hashing identity/guard evidence through the existing security boundary.
+
+**Verification:** build PASS; typecheck:scripts PASS; Recorder **267/267**; Flow mapping **194/194**;
+settings persistence **6/6**; GUI **192/0/0**; runner **136/136**; mock site **177/177**; locator guard
+**35/35**; frame chain **31/31**; closed shadow **23/23**; Recorder E2E **63/63**; WDU live Recorder
+**95/95** (16 cases); every other focused Recorder/popup/upload/dialog/draft/hover/navigation/authz
+suite passed; offline validation PASS; verifier classification reconciled **199** commands. Rendered
+light/dark and narrow Recorder control captures were inspected under
+`test-artifacts/recorder-gui/2026-09-01T15-38-52-814Z/`.
+
+`verify:ipc-contract` remains **8/9** on two unrelated existing channel-registry omissions
+(`debug:exportBundle`, `settings:detectInstalledChrome`). `verify:settings-e2e` is **179 PASS / 0 FAIL /
+1 NOT RUN** because the real Explorer launch requires explicit owner opt-in. Neither boundary belongs
+to the new Recorder mode; both are reported without converting them to PASS. Tracker: **264 total /
+262 closed / 2 blocked**. Ledger: **65 PASS / 2 NOT RUN / 0 BLOCKED**.
+
 ## 2026-09-01 — Codex — fix Flow validation UX, Recorder Favorites and Oracle modal
 
 **Request/result:** completed `awkit-ui0831` directly on `main`. Flow Designer now consolidates

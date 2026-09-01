@@ -2,12 +2,30 @@ import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDe
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
+export type LocatorRecordingMode = "default" | "xpath";
+
+/** Page-side XPath candidate consumed by RecorderService before an action enters the draft. */
+export interface RecordedXPathCapture {
+  value: string;
+  matchCount: number;
+  visibleMatchCount: number;
+  isUnique: boolean;
+  confidence: "high" | "medium" | "low";
+  source: "id" | "testId" | "attribute" | "text" | "relationship" | "structural" | "unavailable";
+  positional: boolean;
+  error?: string;
+}
+
 export interface RecordedActionLocator {
+  /** Forward-compatible locator metadata survives draft and profile round trips. */
+  [key: string]: unknown;
   strategy: string;
   value: string;
   name?: string;
   /** For role/text strategies: match the accessible name/text exactly. */
   exact?: boolean;
+  /** Internal capture candidate. RecorderService removes this before persistence in every mode. */
+  recordingXPath?: RecordedXPathCapture;
   /** Uniqueness/quality metadata computed at record time. */
   quality?: LocatorQuality;
   /** Ranked fallback candidates the runner can try when the primary is ambiguous. */

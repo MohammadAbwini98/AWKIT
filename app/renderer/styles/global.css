@@ -7386,6 +7386,95 @@ table {
   color: var(--awkit-text-secondary);
 }
 
+.recorder-locator-mode {
+  align-items: center;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.recorder-locator-mode legend {
+  color: var(--awkit-text-primary);
+  float: left;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+}
+
+.recorder-locator-mode-options {
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  padding: var(--space-1);
+}
+
+.recorder-locator-mode-option {
+  cursor: pointer;
+  position: relative;
+}
+
+.recorder-locator-mode-option input {
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
+.recorder-locator-mode-option span {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-3);
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    border-color var(--awkit-dur-fast) var(--awkit-ease-out),
+    color var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.recorder-locator-mode-option:hover span {
+  color: var(--awkit-text-primary);
+}
+
+.recorder-locator-mode-option.is-active span {
+  background: var(--awkit-surface);
+  border-color: var(--awkit-border-strong);
+  box-shadow: var(--awkit-shadow-soft);
+  color: var(--awkit-accent);
+}
+
+.recorder-locator-mode-option input:focus-visible + span {
+  box-shadow: var(--awkit-focus-ring);
+  outline: none;
+}
+
+.recorder-locator-mode-option input:disabled + span {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.recorder-locator-mode-help {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recorder-locator-mode-option span {
+    transition: none;
+  }
+}
+
 .recorder-switch {
   align-items: center;
   background: var(--awkit-surface-soft);

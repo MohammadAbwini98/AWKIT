@@ -8,7 +8,8 @@ import type {
   RecordedUrl, 
   RecorderHandoffInfo,
   AmbiguityState,
-  AmbiguityResolutionChoice
+  AmbiguityResolutionChoice,
+  LocatorRecordingMode
 } from "@src/recorder/RecorderTypes";
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
 import { locatorContainerChain } from "@src/profiles/FlowProfile";
@@ -20,6 +21,8 @@ export function Recorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [captureWaitTime, setCaptureWaitTime] = useState(false);
   const [captureSmartWaits, setCaptureSmartWaits] = useState(true);
+  const [locatorRecordingMode, setLocatorRecordingMode] = useState<LocatorRecordingMode>("default");
+  const [locatorModeBusy, setLocatorModeBusy] = useState(false);
   const [instrumentationError, setInstrumentationError] = useState("");
   /** True while the live Recorder session is running with HTTPS certificate validation disabled. */
   const [ignoreHttpsErrors, setIgnoreHttpsErrors] = useState(false);
@@ -238,6 +241,7 @@ export function Recorder() {
       .then((settings) => {
         setCaptureWaitTime(settings.recorder?.captureWaitTime ?? false);
         setCaptureSmartWaits(settings.recorder?.captureSmartWaits ?? true);
+        setLocatorRecordingMode(settings.recorder?.locatorRecordingMode === "xpath" ? "xpath" : "default");
       })
       .catch(() => undefined);
   }, []);
@@ -256,6 +260,26 @@ export function Recorder() {
       window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: next } }).catch(() => undefined);
       return next;
     });
+  };
+
+  const changeLocatorRecordingMode = async (next: LocatorRecordingMode) => {
+    if (next === locatorRecordingMode || locatorModeBusy) return;
+    const previous = locatorRecordingMode;
+    setLocatorModeBusy(true);
+    try {
+      await window.playwrightFlowStudio.settings.update({ recorder: { locatorRecordingMode: next } });
+      await window.playwrightFlowStudio.recorder.setLocatorRecordingMode(next);
+      setLocatorRecordingMode(next);
+      setStatusMsg(
+        `${next === "xpath" ? "XPath" : "Default"} locator recording selected. Existing actions were not changed.`
+      );
+    } catch {
+      await window.playwrightFlowStudio.settings.update({ recorder: { locatorRecordingMode: previous } }).catch(() => undefined);
+      await window.playwrightFlowStudio.recorder.setLocatorRecordingMode(previous).catch(() => undefined);
+      setToast({ tone: "error", message: "Could not change the locator recording mode." });
+    } finally {
+      setLocatorModeBusy(false);
+    }
   };
 
   const useSavedUrl = (value: string) => {
@@ -653,6 +677,33 @@ export function Recorder() {
           </button>
           <span className="recorder-switch-note">Records pauses of 0.5s or longer between actions as wait steps.</span>
         </div>
+
+        <fieldset className="recorder-locator-mode" data-testid="recorder-locator-mode">
+          <legend>Locator Recording</legend>
+          <div className="recorder-locator-mode-options">
+            {(["default", "xpath"] as const).map((mode) => (
+              <label
+                key={mode}
+                className={`recorder-locator-mode-option${locatorRecordingMode === mode ? " is-active" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="recorder-locator-mode"
+                  value={mode}
+                  checked={locatorRecordingMode === mode}
+                  disabled={locatorModeBusy}
+                  onChange={() => void changeLocatorRecordingMode(mode)}
+                />
+                <span>{mode === "default" ? "Default" : "XPath"}</span>
+              </label>
+            ))}
+          </div>
+          <p className="recorder-locator-mode-help" aria-live="polite">
+            {locatorRecordingMode === "default"
+              ? "Uses AWKIT's existing resilient locator generation."
+              : "Records element locators as XPath. Existing actions keep their recorded strategy."}
+          </p>
+        </fieldset>
 
         <div className="recorder-command-row">
           <button

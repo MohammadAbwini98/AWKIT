@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("263 issues parse", beads.stats.total === 263, `got ${beads.stats.total}`);
+  check("264 issues parse", beads.stats.total === 264, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -421,8 +421,10 @@ try {
   // stale bookkeeping, so it closed too. `awkit-7bu` and `awkit-cm8` remain externally blocked.
   // Then 2/261 of 263 on 2026-09-01: `awkit-ui0831` was filed and closed after the Flow validation,
   // Recorder Favorites and Oracle modal UX implementation and focused GUI/runtime campaign.
-    "2 outstanding / 261 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 261,
+  // Then 2/262 of 264 on 2026-09-01: `awkit-xpathmode` added and closed the switchable Default/XPath
+  // Recorder locator mode with persisted settings, round-trip/replay proof and truthful shadow limits.
+    "2 outstanding / 262 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 262,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -494,7 +496,7 @@ try {
   console.log("Validation ledger:");
   const ledger = parseLedger();
   check("the ledger parse is not degraded", ledger.degraded === false);
-  check("66 cases", ledger.stats.cases === 66, `got ${ledger.stats.cases}`);
+  check("67 cases", ledger.stats.cases === 67, `got ${ledger.stats.cases}`);
   check(
     "heading, status and priority counts agree",
     ledger.stats.cases === ledger.stats.statusLines && ledger.stats.cases === ledger.stats.priorityLines,
@@ -502,8 +504,8 @@ try {
   );
   check("every status is in the allowed set", ledger.cases.every((c) => LEDGER_STATUSES.has(c.status)));
   check(
-    "tally is 64 PASS / 2 NOT RUN / 0 BLOCKED",
-    ledger.tally.pass === 64 && ledger.tally.notRun === 2 && ledger.tally.blocked === 0,
+    "tally is 65 PASS / 2 NOT RUN / 0 BLOCKED",
+    ledger.tally.pass === 65 && ledger.tally.notRun === 2 && ledger.tally.blocked === 0,
     `got ${ledger.tally.pass}/${ledger.tally.notRun}/${ledger.tally.blocked}`
   );
   check("statuses sum to the case count", ledger.tally.total === ledger.stats.cases);
@@ -526,10 +528,10 @@ try {
      ====================================================================== */
   console.log("Traceability matrix:");
   const trace = parseTraceability();
-  check("101 rows", trace.stats.rows === 101, `got ${trace.stats.rows}`);
+  check("102 rows", trace.stats.rows === 102, `got ${trace.stats.rows}`);
   check(
-    "86 PASS / 12 NOT RUN / 3 BLOCKED",
-    trace.stats.pass === 86 && trace.stats.notRun === 12 && trace.stats.blocked === 3,
+    "87 PASS / 12 NOT RUN / 3 BLOCKED",
+    trace.stats.pass === 87 && trace.stats.notRun === 12 && trace.stats.blocked === 3,
     `got ${trace.stats.pass}/${trace.stats.notRun}/${trace.stats.blocked}`
   );
   check("every status is allowed", trace.rows.every((r) => TRACE_STATUSES.has(r.status)));

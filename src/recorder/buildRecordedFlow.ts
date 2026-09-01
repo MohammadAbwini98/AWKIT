@@ -43,6 +43,21 @@ function hashIdentity(draft: ElementIdentityContract, locator: RecordedActionLoc
   };
 }
 
+/**
+ * Preserve forward-compatible locator fields while excluding Recorder-only raw capture evidence.
+ * Identity and guards are rebuilt below through the hashing boundary, so raw fingerprints can never
+ * be copied to a saved profile by this generic preservation path.
+ */
+function forwardLocatorFields(locator: RecordedActionLocator): Partial<StepLocator> {
+  const forward = { ...locator } as Record<string, unknown>;
+  for (const key of [
+    "strategy", "value", "name", "exact", "recordingXPath", "quality", "alternatives", "context",
+    "interaction", "identity", "prerequisite", "executionDecision", "resolution", "resolvedBy",
+    "approvedFallbackReason", "approvedFallbackBinding", "reviewReason", "guard", "blueprintCapture"
+  ]) delete forward[key];
+  return forward as Partial<StepLocator>;
+}
+
 function hashWaitLocator(locator: StepLocator): StepLocator {
   return locator.identity
     ? { ...locator, identity: hashIdentity(locator.identity, locator as RecordedActionLocator), guard: locator.guard ? hashGuard(locator.guard) : undefined }
@@ -116,6 +131,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
 
     if (action.locator) {
       step.locator = {
+        ...forwardLocatorFields(action.locator),
         strategy: action.locator.strategy as NonNullable<FlowStep["locator"]>["strategy"],
         value: action.locator.value
       };
@@ -245,6 +261,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
     if (action.type === "drag" && action.targetLocator) {
       const t = action.targetLocator;
       step.targetLocator = {
+        ...forwardLocatorFields(t),
         strategy: t.strategy as NonNullable<FlowStep["targetLocator"]>["strategy"],
         value: t.value
       };

@@ -1038,14 +1038,60 @@ try {
   console.log("\nSET-004 / SET-005 — Settings → Recorder session scope");
   const smartSwitch = win.getByRole("switch", { name: /Smart waits/ });
   const waitSwitch = win.getByRole("switch", { name: /Capture waiting time/ });
+  const locatorModeGroup = win.getByTestId("recorder-locator-mode");
+  const defaultLocatorMode = win.getByRole("radio", { name: "Default", exact: true });
+  const xpathLocatorMode = win.getByRole("radio", { name: "XPath", exact: true });
   const readCaptureSettings = () =>
     page.evaluate(async () => {
       const s = await window.playwrightFlowStudio.settings.get();
       return {
         captureWaitTime: s.recorder?.captureWaitTime ?? null,
-        captureSmartWaits: s.recorder?.captureSmartWaits ?? null
+        captureSmartWaits: s.recorder?.captureSmartWaits ?? null,
+        locatorRecordingMode: s.recorder?.locatorRecordingMode ?? null
       };
     });
+
+  // Start from the product default so the GUI check is deterministic even when this verifier follows
+  // another local run that intentionally persisted XPath. The settings verifier separately proves a
+  // missing/legacy field hydrates to Default on a newly initialized installation.
+  await win.evaluate(() => window.playwrightFlowStudio.settings.update({ recorder: { locatorRecordingMode: "default" } }));
+  await navClick(win, "Flows");
+  await navClick(win, "Recorder");
+  await win.waitForSelector(".recorder-page", { timeout: 20_000 });
+  await win.waitForTimeout(500);
+  check(
+    "Locator Recording initializes with Default visibly selected",
+    await defaultLocatorMode.isChecked(),
+    `default=${await defaultLocatorMode.isChecked()} xpath=${await xpathLocatorMode.isChecked()}`
+  );
+
+  await locatorModeGroup.getByText("XPath", { exact: true }).click();
+  await win.waitForTimeout(500);
+  const xpathSetting = await readCaptureSettings();
+  const xpathHelp = (await win.getByTestId("recorder-locator-mode").textContent()) ?? "";
+  check(
+    "selecting XPath visibly activates and persists the XPath recording mode",
+    (await xpathLocatorMode.isChecked()) && xpathSetting.locatorRecordingMode === "xpath",
+    JSON.stringify(xpathSetting)
+  );
+  check(
+    "XPath mode explains that new element locators are recorded as XPath",
+    /records element locators as XPath/i.test(xpathHelp),
+    xpathHelp.trim().slice(0, 180)
+  );
+  for (const theme of ["light", "dark"] as const) {
+    await win.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+    await win.setViewportSize({ width: 1440, height: 900 });
+    await win.locator(".recorder-control-bar").screenshot({ path: join(evidenceDir, `locator-mode-${theme}.png`) });
+    await win.setViewportSize({ width: 1024, height: 768 });
+    check(
+      `Locator Recording stays inside the ${theme} narrow layout`,
+      await win.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)
+    );
+    await win.locator(".recorder-control-bar").screenshot({ path: join(evidenceDir, `locator-mode-${theme}-narrow.png`) });
+  }
+  await win.setViewportSize({ width: 1440, height: 900 });
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 
   const beforeToggle = await readCaptureSettings();
   await smartSwitch.click();
@@ -1066,8 +1112,9 @@ try {
   check(
     "SET-004 the switches restore from Settings when the page is reopened",
     (await smartSwitch.getAttribute("aria-checked")) === String(afterToggle.captureSmartWaits) &&
-      (await waitSwitch.getAttribute("aria-checked")) === String(afterToggle.captureWaitTime),
-    `smart=${await smartSwitch.getAttribute("aria-checked")} wait=${await waitSwitch.getAttribute("aria-checked")}`
+      (await waitSwitch.getAttribute("aria-checked")) === String(afterToggle.captureWaitTime) &&
+      (await xpathLocatorMode.isChecked()),
+    `smart=${await smartSwitch.getAttribute("aria-checked")} wait=${await waitSwitch.getAttribute("aria-checked")} xpath=${await xpathLocatorMode.isChecked()}`
   );
 
   // Launch-time values for the live-session probe. Smart Wait capture ON with waiting-time capture
@@ -1097,6 +1144,17 @@ try {
 
   await startAndWaitRecording(win, `${labUrl}?rec013=1`);
   check("SET-004 both capture switches lock during a session, so they cannot change mid-recording", (await smartSwitch.isDisabled()) && (await waitSwitch.isDisabled()));
+  check(
+    "Locator Recording remains switchable during a live Recorder session",
+    !(await defaultLocatorMode.isDisabled()) && !(await xpathLocatorMode.isDisabled()) && (await xpathLocatorMode.isChecked())
+  );
+  await locatorModeGroup.getByText("Default", { exact: true }).click();
+  await win.waitForTimeout(500);
+  check(
+    "switching XPath to Default during recording persists immediately without stopping the session",
+    (await defaultLocatorMode.isChecked()) && (await readCaptureSettings()).locatorRecordingMode === "default" && (await recorderState(win)).isRecording,
+    JSON.stringify(await readCaptureSettings())
+  );
 
   // Because the page locks its own switches, Settings is the only route left to change the value
   // mid-recording — which is precisely the scenario this case is about.

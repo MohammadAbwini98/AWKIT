@@ -38,6 +38,9 @@ export interface TableState {
 /** UI theme preference. "system" follows the OS prefers-color-scheme. */
 export type AppearanceMode = "light" | "dark" | "system";
 
+/** Locator generator used for element actions captured after the preference is applied. */
+export type LocatorRecordingMode = "default" | "xpath";
+
 export interface UiSettings {
   // ── Core layout (existing flat fields, kept for backward compatibility) ──────
   sidebarCollapsed: boolean;
@@ -66,6 +69,8 @@ export interface UiSettings {
   };
   /** Recorder preferences that persist across sessions. */
   recorder: {
+    /** Existing resilient generation remains the default; XPath affects only later captures. */
+    locatorRecordingMode: LocatorRecordingMode;
     /** Capture the user's think-time between actions as fixed-time wait steps. */
     captureWaitTime: boolean;
     /** Observe page/network signals and attach condition-based Smart Waits to recorded actions. */
@@ -239,6 +244,7 @@ const defaultSettings: UiSettings = {
   workflowBuilderZoomPercent: 0,
   selectedBuilderWorkflowId: "",
   recorder: {
+    locatorRecordingMode: "default",
     captureWaitTime: false,
     captureSmartWaits: true,
     security: { ...DEFAULT_RECORDER_SECURITY_SETTINGS },
@@ -421,6 +427,7 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     recorder: {
       ...defaultSettings.recorder,
       ...parsed.recorder,
+      locatorRecordingMode: parsed.recorder?.locatorRecordingMode === "xpath" ? "xpath" : "default",
       // `security` is nested one level deeper than the other recorder keys, so it needs its own
       // normalization: a settings file predating this feature has no `security` key at all, and a
       // hand-edited/corrupt one must fall back to validation-ON rather than inheriting a junk value.
@@ -656,6 +663,9 @@ export function validateSettings(settings: UiSettings): string[] {
   }
   if (typeof settings.recorder.captureSmartWaits !== "boolean") {
     errors.push("Recorder Smart Wait capture must be true or false.");
+  }
+  if (!["default", "xpath"].includes(settings.recorder.locatorRecordingMode)) {
+    errors.push("Recorder locator recording mode must be default or xpath.");
   }
   if (typeof settings.recorder.ignoreProtectedLoginDetection !== "boolean") {
     errors.push("Protected login detection override must be true or false.");

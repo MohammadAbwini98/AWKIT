@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-01, latest) — Recorder Default/XPath locator mode complete
+
+### Transfer
+
+- **Branch:** `main`, direct commits only. `awkit-xpathmode` adds the persisted Locator Recording
+  control with Default as the legacy/new-install default and XPath as a prospective capture mode.
+- **Runtime contract:** XPath is stored as the existing `strategy: "xpath"` locator and executes
+  through LocatorFactory/StepExecutor. There is no XPath-only runner and no silent fallback to the
+  Default alternatives.
+- **Round trips:** draft/save/reload, Flow conversion, Flow Designer edit/re-save, drag target, frame
+  context and forward locator metadata are covered. Existing recordings are not rewritten.
+- **Evidence:** build PASS; Recorder 267/267; Flow mapping 194/194; settings 6/6; GUI 192/0/0;
+  runner 136/136; mock site 177/177; locator/frame/shadow, E2E, WDU and all focused Recorder suites
+  PASS. Offline validation PASS. Light/dark/narrow captures were inspected under
+  `test-artifacts/recorder-gui/2026-09-01T15-38-52-814Z/`.
+- **Project state:** tracker **264 total / 262 closed / 2 blocked**; validation ledger
+  **65 PASS / 2 NOT RUN / 0 BLOCKED**.
+
+### Boundaries
+
+- XPath cannot cross a Shadow DOM boundary. Recorder retains the requested XPath strategy plus host
+  context, marks it `needs-review`, and static validation blocks execution. It never substitutes the
+  Default locator.
+- A last-resort positional XPath is marked lower-confidence; the user should re-record or edit it if
+  the page structure changes.
+- `verify:ipc-contract` remains 8/9 on the unrelated existing `debug:exportBundle` and
+  `settings:detectInstalledChrome` registry omissions. `verify:settings-e2e` remains 179/0/1 because
+  the real Explorer launch is owner-opt-in. These are not claimed as passes.
+
 ## HANDOFF (2026-08-29, latest) — v0.1.22 portable generated; repository cleanup complete
 
 ### Transfer

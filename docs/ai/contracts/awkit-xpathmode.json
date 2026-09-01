@@ -1,0 +1,482 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-xpathmode",
+    "title": "Recorder locator recording mode: Default or XPath",
+    "objective": "Add a persisted, session-switchable Recorder locator recording preference while preserving the existing Default generator and reusing the existing locator schema, validation and runner for XPath.",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "electron_main_change": true,
+    "ipc_change": true,
+    "persisted_shape_change": true,
+    "filesystem_write_change": true,
+    "recorder_change": true,
+    "browser_behavior_change": true,
+    "mock_site_required": true,
+    "public_contract_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 5
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "runtime",
+      "integration",
+      "recorder",
+      "qa",
+      "qc",
+      "persistence",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/main/uiSettings.ts",
+      "app/main/ipc/recorder.ipc.ts",
+      "app/main/preload.ts",
+      "app/renderer/pages/Recorder.tsx",
+      "app/renderer/styles/global.css",
+      "src/recorder/RecorderService.ts",
+      "src/recorder/RecorderTypes.ts",
+      "src/recorder/recorderInitScript.ts",
+      "app/renderer/components/workflow/flowProfileMapping.ts",
+      "src/recorder/buildRecordedFlow.ts",
+      "scripts/verify-recorder-locator.mts",
+      "scripts/verify-recorder-gui.mts",
+      "scripts/verify-flow-step-mapping.mts",
+      "scripts/verify-settings-persistence.mjs",
+      "scripts/verify-mock-site.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "mock-site/public/recorder-lab.html",
+      "mock-site/README.md",
+      "docs/ai/contracts/awkit-xpathmode.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/FEATURES.md",
+      "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+      "docs/testing/comprehensive-validation/TRACEABILITY_MATRIX.csv",
+      "docs/testing/comprehensive-validation/DEFECTS.md",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl"
+    ],
+    "consultants": [
+      "architect",
+      "uiux",
+      "integration",
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/contracts/awkit-xpathmode.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "LOCATOR_MODE",
+      "description": "Default remains behavior-compatible; XPath captures new element locators through the existing schema/runtime, survives round trips, switches prospectively, validates truthfully and preserves DOM contexts.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:recorder",
+        "verify:locator-guard",
+        "verify:recorder-gui",
+        "verify:settings-persistence",
+        "verify:flow-step-mapping",
+        "verify:frame-chain",
+        "verify:closed-shadow",
+        "verify:mock-site",
+        "verify:runner",
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "validate:offline",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "Fresh final build passed: embedded roadmap snapshot generation, tsc --noEmit, and Electron main/preload/renderer production bundles."
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "result": "PASS",
+      "artifact": "Fresh final scripts typecheck passed with zero diagnostics."
+    },
+    {
+      "id": "verify:recorder",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder",
+      "result": "PASS",
+      "artifact": "267/267 checks passed, covering unchanged Default capture, stable XPath strategies, representative controls, quoted text, duplicate candidates, mode switching, frames, shadow limitations, save/reload and real StepExecutor replay."
+    },
+    {
+      "id": "verify:locator-guard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:locator-guard",
+      "result": "PASS",
+      "artifact": "35/35 locator guard checks passed."
+    },
+    {
+      "id": "verify:recorder-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:recorder-gui",
+      "result": "PASS",
+      "artifact": "192 PASS / 0 FAIL / 0 NOT RUN. Final rendered light, dark, light-narrow and dark-narrow evidence is under test-artifacts/recorder-gui/2026-09-01T15-38-52-814Z and was visually inspected."
+    },
+    {
+      "id": "verify:settings-persistence",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:settings-persistence",
+      "result": "PASS",
+      "artifact": "6/6 checks passed, including default initialization, persisted XPath selection, restart restore and cleanup back to Default."
+    },
+    {
+      "id": "verify:flow-step-mapping",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:flow-step-mapping",
+      "result": "PASS",
+      "artifact": "194/194 checks passed, including XPath/frame/unknown locator field preservation through repeated edit and persistence mapping cycles."
+    },
+    {
+      "id": "verify:frame-chain",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:frame-chain",
+      "result": "PASS",
+      "artifact": "31/31 frame-chain checks passed."
+    },
+    {
+      "id": "verify:closed-shadow",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:closed-shadow",
+      "result": "PASS",
+      "artifact": "23/23 closed-shadow checks passed; XPath mode reports unsupported shadow traversal truthfully rather than falling back."
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "result": "PASS",
+      "artifact": "177/177 mock-site checks passed, including the extended Recorder locator fixture."
+    },
+    {
+      "id": "verify:runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "result": "PASS",
+      "artifact": "136/136 live runner checks passed using the existing LocatorFactory and execution path."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "artifact": "All 199 verify:/validate: commands are classified; 201 verifier source files are referenced or justified."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "177/177 checks passed. Overview reads Sources agree; tracker is 262 closed / 2 outstanding, ledger is 65 PASS / 2 NOT RUN / 0 BLOCKED, and traceability is 87 PASS / 12 NOT RUN / 3 BLOCKED."
+    },
+    {
+      "id": "validate:offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline",
+      "result": "PASS",
+      "artifact": "Offline validation passed; no runtime network dependency or mutable resources/app.asar storage was introduced."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "Final working diff passed git diff --check; only Git line-ending conversion warnings were emitted."
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-xpathmode:runtime:2026-09-01T09:40:31.393Z",
+        "task": "awkit-xpathmode",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/ipc/recorder.ipc.ts",
+          "app/main/preload.ts",
+          "app/main/uiSettings.ts"
+        ],
+        "acquired_at": "2026-09-01T09:40:31.393Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T09:41:25.958Z",
+        "released_reason": "Persisted mode and typed IPC bridge implemented; handing capture-time strategy selection to Recorder owner.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:recorder:2026-09-01T09:41:38.610Z",
+        "task": "awkit-xpathmode",
+        "holder": "recorder",
+        "status": "released",
+        "allowed_paths": [
+          "src/recorder/RecorderService.ts",
+          "src/recorder/RecorderTypes.ts",
+          "src/recorder/recorderInitScript.ts"
+        ],
+        "acquired_at": "2026-09-01T09:41:38.610Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T09:46:49.834Z",
+        "released_reason": "Capture-time XPath candidate generation and prospective RecorderService mode application typecheck clean; handing compact control to frontend.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:frontend:2026-09-01T09:47:05.701Z",
+        "task": "awkit-xpathmode",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/Recorder.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-01T09:47:05.701Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T09:48:44.483Z",
+        "released_reason": "Accessible compact Locator Recording fieldset, persisted selection, live mode switching, helper text and tokenized styling implemented; typecheck clean. Handing regression coverage to QA.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:qa:2026-09-01T09:48:59.491Z",
+        "task": "awkit-xpathmode",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "mock-site/README.md",
+          "mock-site/public/recorder-lab.html",
+          "scripts/verify-flow-step-mapping.mts",
+          "scripts/verify-mock-site.mjs",
+          "scripts/verify-recorder-gui.mts",
+          "scripts/verify-recorder-locator.mts",
+          "scripts/verify-roadmap-dashboard.mjs",
+          "scripts/verify-settings-persistence.mjs"
+        ],
+        "acquired_at": "2026-09-01T09:48:59.491Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T10:02:16.411Z",
+        "released_reason": "work complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:recorder:2026-09-01T10:02:59.292Z",
+        "task": "awkit-xpathmode",
+        "holder": "recorder",
+        "status": "released",
+        "allowed_paths": [
+          "src/recorder/RecorderTypes.ts",
+          "src/recorder/buildRecordedFlow.ts"
+        ],
+        "acquired_at": "2026-09-01T10:02:59.292Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T10:04:00.164Z",
+        "released_reason": "Recorder forward-compatible persistence boundary complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:frontend:2026-09-01T10:04:11.696Z",
+        "task": "awkit-xpathmode",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/workflow/flowProfileMapping.ts"
+        ],
+        "acquired_at": "2026-09-01T10:04:11.696Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T10:05:00.425Z",
+        "released_reason": "Flow Designer locator forward compatibility complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:qa:2026-09-01T10:05:37.628Z",
+        "task": "awkit-xpathmode",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "mock-site/README.md",
+          "mock-site/public/recorder-lab.html",
+          "scripts/verify-flow-step-mapping.mts",
+          "scripts/verify-mock-site.mjs",
+          "scripts/verify-recorder-gui.mts",
+          "scripts/verify-recorder-locator.mts",
+          "scripts/verify-roadmap-dashboard.mjs",
+          "scripts/verify-settings-persistence.mjs"
+        ],
+        "acquired_at": "2026-09-01T10:05:37.628Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T10:28:36.968Z",
+        "released_reason": "Focused QA and rendered GUI evidence complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:project-state:2026-09-01T15:27:39.773Z",
+        "task": "awkit-xpathmode",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+          "docs/testing/comprehensive-validation/TRACEABILITY_MATRIX.csv",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-01T15:27:39.773Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T15:30:03.614Z",
+        "released_reason": "Project state, tracker and validation ledger synchronized",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:qa:2026-09-01T15:30:16.835Z",
+        "task": "awkit-xpathmode",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-01T15:30:16.835Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T15:31:16.297Z",
+        "released_reason": "Roadmap verifier pins updated for closed task and new validation case",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:project-state:2026-09-01T15:31:25.904Z",
+        "task": "awkit-xpathmode",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/HANDOFF.md"
+        ],
+        "acquired_at": "2026-09-01T15:31:25.904Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T15:31:41.982Z",
+        "released_reason": "Handoff ledger tally reconciled",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:frontend:2026-09-01T15:37:58.037Z",
+        "task": "awkit-xpathmode",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-01T15:37:58.037Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T15:38:09.750Z",
+        "released_reason": "Replaced the remaining fixed locator-mode control dimension with canonical spacing tokens",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xpathmode:project-state:2026-09-01T15:43:41.757Z",
+        "task": "awkit-xpathmode",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md"
+        ],
+        "acquired_at": "2026-09-01T15:43:41.757Z",
+        "acquired_at_commit": "c065835693ed9f01c3b0e66135a7804f644a0ed8",
+        "released_at": "2026-09-01T15:43:57.443Z",
+        "released_reason": "Project records now point to the final post-token GUI evidence set",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
+  }
+}

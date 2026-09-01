@@ -46,6 +46,7 @@ interface RecordedAction {
   type: string;
   name: string;
   locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
+  targetLocator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
   valueSource?: { type: string; value: string };
 }
 
@@ -431,6 +432,139 @@ async function main() {
     const hit = (await page.evaluate(() => (window as unknown as { __hit?: string }).__hit ?? null)) as string | null;
     return { status: result.status, error: result.error, hit };
   }
+
+  console.log("Part X — Locator recording mode: Default → XPath → Default");
+
+  {
+    bindingRecorder.setLocatorRecordingMode("default");
+    const action = await capture(`<button data-testid="default-mode" onclick="window.__hit='default'">Default mode</button>`, (p) => p.getByTestId("default-mode").click());
+    check("locator mode: Default keeps the existing preferred strategy", action?.locator?.strategy === "testId", JSON.stringify(action?.locator));
+    check("locator mode: Default persists no internal XPath candidate", !JSON.stringify(action).includes("recordingXPath"), JSON.stringify(action));
+  }
+
+  const xpathCases: Array<{ label: string; html: string; interact: (target: Page) => Promise<void>; expectedHit: string }> = [
+    { label: "button with stable data-testid", html: `<button data-testid="xpath-button" onclick="window.__hit='button'">Run XPath</button>`, interact: (p) => p.getByTestId("xpath-button").click(), expectedHit: "button" },
+    { label: "input without id", html: `<label>Customer reference <input name="customerReference" oninput="window.__hit=this.value"></label>`, interact: (p) => p.getByLabel("Customer reference").fill("input"), expectedHit: "input" },
+    { label: "link", html: `<a href="#details" aria-label="Open details" onclick="event.preventDefault();window.__hit='link'">Details</a>`, interact: (p) => p.getByRole("link", { name: "Open details" }).click(), expectedHit: "link" },
+    { label: "select", html: `<label>Plan <select name="plan" onchange="window.__hit=this.value"><option>Starter</option><option value="select">Team</option></select></label>`, interact: async (p) => { await p.getByLabel("Plan").selectOption("select"); }, expectedHit: "select" },
+    { label: "checkbox", html: `<label><input name="updates" type="checkbox" onchange="window.__hit='checkbox'"> Updates</label>`, interact: (p) => p.getByRole("checkbox", { name: "Updates" }).check(), expectedHit: "checkbox" },
+    { label: "radio", html: `<label><input name="contact" value="email" type="radio"> Email</label><label><input name="contact" value="phone" type="radio" onchange="window.__hit='radio'"> Phone</label>`, interact: (p) => p.getByRole("radio", { name: "Phone" }).check(), expectedHit: "radio" },
+    { label: "nested event target", html: `<button data-testid="nested-owner" onclick="window.__hit='nested'"><span><strong>Nested action</strong></span></button>`, interact: (p) => p.getByText("Nested action").click(), expectedHit: "nested" },
+    { label: "duplicate text scoped by stable ancestor", html: `<div data-testid="card-a"><button onclick="window.__hit='a'">Review order</button></div><div data-testid="card-b"><button onclick="window.__hit='duplicate'">Review order</button></div>`, interact: (p) => p.getByTestId("card-b").getByRole("button", { name: "Review order" }).click(), expectedHit: "duplicate" },
+    { label: "text containing both quote styles", html: `<button onclick="window.__hit='quoted'">Owner's &quot;Draft&quot;</button>`, interact: (p) => p.getByRole("button", { name: `Owner's "Draft"` }).click(), expectedHit: "quoted" }
+  ];
+
+  bindingRecorder.setLocatorRecordingMode("xpath");
+  for (let index = 0; index < xpathCases.length; index += 1) {
+    const fixture = xpathCases[index];
+    const action = await capture(fixture.html, fixture.interact);
+    check(`XPath ${fixture.label}: action captured with no Default fallback`, Boolean(action) && action?.locator?.strategy === "xpath" && !action.locator.alternatives?.length, JSON.stringify(action));
+    const candidate = action?.locator
+      ? await new LocatorFactory(page).locateCandidate({ strategy: "xpath", value: action.locator.value }, action.locator.context).catch(() => null)
+      : null;
+    check(`XPath ${fixture.label}: exact stored XPath resolves once`, candidate ? (await candidate.count()) === 1 : false, action?.locator?.value);
+    const flow = action ? buildRecordedFlow(`XPath ${fixture.label}`, [{ ...action, id: `xpath-${index}` } as any]) : undefined;
+    const step = flow?.nodes.find((node) => node.type !== "start" && node.type !== "end");
+    const reopened = step ? JSON.parse(JSON.stringify(step)) as FlowStep : undefined;
+    check(`XPath ${fixture.label}: save/reload preserves XPath`, reopened?.locator?.strategy === "xpath" && reopened.locator.value === action?.locator?.value, JSON.stringify(reopened?.locator));
+    const replay = reopened ? await run(fixture.html, reopened) : { status: "missing", hit: null };
+    check(`XPath ${fixture.label}: replay reaches intended element`, replay.status === "passed" && replay.hit === fixture.expectedHit, `${replay.status}/${replay.hit}`);
+  }
+
+  {
+    const action = await capture(`<button onclick="window.__hit='quoted'">Owner's &quot;Draft&quot;</button>`, (p) => p.getByRole("button", { name: `Owner's "Draft"` }).click());
+    check("XPath quoting: both quote styles are escaped with concat()", action?.locator?.value.includes("concat(") === true, action?.locator?.value);
+  }
+
+  {
+    const html = `<div data-testid="drag-source" draggable="true" style="padding:8px">Card</div><div data-testid="drag-target" style="padding:24px">Zone</div><script>var target=document.querySelector('[data-testid="drag-target"]');target.addEventListener('dragover',function(event){event.preventDefault();});target.addEventListener('drop',function(event){event.preventDefault();window.__hit='drag';});</script>`;
+    const action = await capture(html, (p) => p.dragAndDrop('[data-testid="drag-source"]', '[data-testid="drag-target"]'));
+    check("XPath drag: source and target are both XPath", action?.type === "drag" && action.locator?.strategy === "xpath" && action.targetLocator?.strategy === "xpath", JSON.stringify(action));
+    const flow = action ? buildRecordedFlow("XPath drag", [{ ...action, id: "xpath-drag" } as any]) : undefined;
+    const step = flow?.nodes.find((node) => node.type === "drag");
+    const replay = step ? await run(html, JSON.parse(JSON.stringify(step))) : { status: "missing", hit: null };
+    check("XPath drag: both locators replay through StepExecutor", replay.status === "passed" && replay.hit === "drag", `${replay.status}/${replay.hit}`);
+  }
+
+  {
+    const child = `<button data-testid='frame-xpath' onclick='parent.__hit="frame"'>Frame action</button>`;
+    const html = `<iframe name="xpath-frame" srcdoc="${child.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></iframe>`;
+    const action = await capture(html, (p) => p.frameLocator('iframe[name="xpath-frame"]').getByTestId("frame-xpath").click());
+    check("XPath frame: target and frame context are retained", action?.locator?.strategy === "xpath" && Boolean(action.locator.context?.frame), JSON.stringify(action?.locator));
+    const flow = action ? buildRecordedFlow("XPath frame", [{ ...action, id: "xpath-frame" } as any]) : undefined;
+    const step = flow?.nodes.find((node) => node.type === "click");
+    const replay = step ? await run(html, JSON.parse(JSON.stringify(step))) : { status: "missing", hit: null };
+    check("XPath frame: replay reaches the child-frame target", replay.status === "passed" && replay.hit === "frame", `${replay.status}/${replay.hit}`);
+  }
+
+  {
+    const html = `<div id="xpath-shadow-host"></div><script>const root=document.getElementById('xpath-shadow-host').attachShadow({mode:'open'});root.innerHTML='<button data-testid="shadow-xpath">Shadow action</button>';</script>`;
+    const action = await capture(html, (p) => p.getByTestId("shadow-xpath").click());
+    check(
+      "XPath shadow limitation: the selected strategy stays XPath with no silent Default fallback",
+      action?.locator?.strategy === "xpath" && !action.locator.alternatives?.length,
+      JSON.stringify(action?.locator)
+    );
+    check(
+      "XPath shadow limitation: host context is preserved and marked needs-review",
+      action?.locator?.context?.shadow?.boundary === "open" &&
+        action.locator.resolution === "needs-review" &&
+        /XPath cannot execute through.*Shadow DOM/i.test(action.locator.reviewReason ?? ""),
+      JSON.stringify(action?.locator)
+    );
+    const flow = action ? buildRecordedFlow("XPath shadow limitation", [{ ...action, id: "xpath-shadow" } as any]) : undefined;
+    const report = flow ? validateFlowDefinition(flow) : undefined;
+    check(
+      "XPath shadow limitation: static preflight blocks instead of fabricating executable XPath",
+      Boolean(report) && hasActivePathError(report!) && executionBlockingErrorsOf(report!).some((issue) => issue.code === "locatorNeedsReview"),
+      report ? JSON.stringify(executionBlockingErrorsOf(report)) : "no flow"
+    );
+  }
+
+  {
+    recorded.length = 0;
+    bindingRecorder.actions = [];
+    bindingRecorder.lastActionAt = 0;
+    bindingRecorder.lastActionPage = undefined;
+    bindingRecorder.isRecording = true;
+    await page.goto("data:text/html;charset=utf-8," + encodeURIComponent(`<button data-testid="mode-a">A</button><button data-testid="mode-b">B</button><button data-testid="mode-c">C</button>`));
+    bindingRecorder.setLocatorRecordingMode("default");
+    await page.getByTestId("mode-a").click();
+    bindingRecorder.setLocatorRecordingMode("xpath");
+    await page.getByTestId("mode-b").click();
+    bindingRecorder.setLocatorRecordingMode("default");
+    await page.getByTestId("mode-c").click();
+    await page.waitForTimeout(120);
+    const sessionActions = (bindingRecorder as RecorderService).getActions().filter((entry) => entry.type === "click");
+    check("mode switching: Default → XPath → Default is prospective", sessionActions.length === 3 && sessionActions[0].locator?.strategy === "testId" && sessionActions[1].locator?.strategy === "xpath" && sessionActions[2].locator?.strategy === "testId", JSON.stringify(sessionActions.map((entry) => entry.locator)));
+    check("mode switching: earlier Default action is not rewritten", sessionActions[0].locator?.value === "mode-a", JSON.stringify(sessionActions[0]));
+  }
+
+  {
+    await page.setContent(`<button id="present">Present</button>`);
+    let invalidMessage = "";
+    try {
+      await (await new LocatorFactory(page).locateCandidate({ strategy: "xpath", value: "//*[" })).count();
+    } catch (error) {
+      invalidMessage = error instanceof Error ? error.message : String(error);
+    }
+    check("XPath negative: invalid syntax is rejected truthfully", /xpath|selector|unexpected|invalid/i.test(invalidMessage), invalidMessage);
+
+    const reviewRecorder = new RecorderService() as any;
+    reviewRecorder.ambiguityPage = page;
+    let missingMessage = "";
+    try {
+      await reviewRecorder.proveCandidateUnique(
+        { id: "missing-xpath", type: "click", name: "Missing XPath", locator: { strategy: "xpath", value: "//*[@id='missing']" } },
+        { strategy: "xpath", value: "//*[@id='missing']" }
+      );
+    } catch (error) {
+      missingMessage = error instanceof Error ? error.message : String(error);
+    }
+    check("XPath negative: non-resolving XPath reports zero matches", /total matches: 0/i.test(missingMessage), missingMessage);
+  }
+
+  bindingRecorder.setLocatorRecordingMode("default");
 
   // C1. Duplicate modal (hidden template + visible modal), repeated label → visible dialog wins.
   {

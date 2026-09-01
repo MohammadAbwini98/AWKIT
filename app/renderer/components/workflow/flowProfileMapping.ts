@@ -162,6 +162,9 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     // silently dropped Recorder-captured locators on `wait`/`screenshot`, which the runner still uses.
     locator: data.locatorValue
       ? {
+        // Carry forward locator fields introduced by newer Recorder/runtime versions. Editable
+        // fields below remain authoritative, while unknown metadata survives open/edit/re-save.
+        ...(data.originalStep?.locator ?? {}),
         strategy: data.locatorStrategy,
         value: data.locatorValue,
         name: data.locatorName || undefined,

@@ -4,6 +4,8 @@ import { rename, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { 
   RecordedAction, 
+  RecordedActionLocator,
+  LocatorRecordingMode,
   RecordedUrl, 
   RecorderHandoffInfo, 
   AmbiguityState, 
@@ -78,6 +80,8 @@ export interface StartRecordingOptions {
    * actions and attach condition-based Smart Waits (`afterWaits`) to the preceding action.
    */
   captureSmartWaits?: boolean;
+  /** Locator strategy applied prospectively as each new element action crosses the page binding. */
+  locatorRecordingMode?: LocatorRecordingMode;
   /**
    * When true, the Recorder does not auto-pause on a detected protected login / SSO / protected
    * popup (global Settings override). Never bypasses authentication — the user still logs in
@@ -118,6 +122,8 @@ export class RecorderService {
   private captureWaitTime = false;
   /** Whether the active session observes condition-based Smart Waits between actions (Phase 2). */
   private captureSmartWaits = true;
+  /** Active capture preference. Existing actions are never revisited when this changes. */
+  private locatorRecordingMode: LocatorRecordingMode = "default";
   /** Async Activity Awareness tuning for adaptive Smart-Wait timeouts (applied in {@link attachSmartWaits}). */
   private asyncAwareness: { enabled: boolean; adaptiveTimeouts: boolean; minimumTimeoutMs: number; maximumTimeoutMs: number; loaderAppearanceGraceMs: number } = {
     enabled: true,
@@ -717,6 +723,7 @@ export class RecorderService {
     this.instrumentationError = undefined;
     this.captureWaitTime = options.captureWaitTime ?? false;
     this.captureSmartWaits = options.captureSmartWaits ?? true;
+    this.locatorRecordingMode = options.locatorRecordingMode ?? "default";
     this.asyncAwareness = {
       enabled: options.asyncAwareness?.enabled ?? true,
       adaptiveTimeouts: options.asyncAwareness?.adaptiveTimeouts ?? true,
@@ -1708,6 +1715,101 @@ export class RecorderService {
     this.ignoredDetectionKeys = new Set<string>();
   }
 
+  /** Change only the strategy used for element locators captured after this call. */
+  public setLocatorRecordingMode(mode: LocatorRecordingMode): void {
+    this.locatorRecordingMode = mode;
+  }
+
+  /**
+   * Consume the page-side XPath candidate before an action enters in-memory or on-disk state.
+   * Default mode removes the internal candidate and leaves every existing locator field untouched.
+   * XPath mode deliberately removes ranked alternatives so replay can never silently fall back to a
+   * non-XPath strategy.
+   */
+  private applyLocatorRecordingMode(locator?: RecordedActionLocator): void {
+    if (!locator) return;
+    const xpath = locator.recordingXPath;
+    delete locator.recordingXPath;
+
+    const hoverContainer = locator.interaction?.hoverContainer as RecordedActionLocator | undefined;
+    if (hoverContainer) this.applyLocatorRecordingMode(hoverContainer);
+
+    if (this.locatorRecordingMode === "default") return;
+
+    locator.strategy = "xpath";
+    locator.value = xpath?.value ?? "";
+    delete locator.name;
+    delete locator.exact;
+    delete locator.alternatives;
+
+    // XPath candidates are generated to be unique in their document. Container scoping is therefore
+    // unnecessary and could make a leading `//` expression escape its intended scope. Frame and
+    // shadow chains remain because they identify the browsing/root context in which the XPath lives.
+    if (locator.context) {
+      const { container: _container, containers: _containers, ...context } = locator.context;
+      locator.context = context;
+    }
+
+    const shadowBoundary = locator.context?.shadow?.boundary;
+    const shadowLimitation = shadowBoundary && shadowBoundary !== "none";
+    const missing = !xpath || !xpath.value || Boolean(xpath.error);
+    const ambiguous = Boolean(xpath && !xpath.isUnique);
+    const warning = shadowLimitation
+      ? `XPath cannot execute through the recorded ${shadowBoundary} Shadow DOM boundary; the host context was preserved for review.`
+      : missing
+        ? `The Recorder could not produce a valid XPath for this element${xpath?.error ? `: ${xpath.error}` : "."}`
+        : ambiguous
+          ? `The generated XPath resolves ${xpath?.matchCount ?? 0} elements; refine it before replay.`
+          : xpath?.positional
+            ? "This XPath required a positional structural segment and may need review after layout changes."
+            : undefined;
+
+    locator.quality = {
+      strategy: "xpath",
+      isUnique: Boolean(xpath?.isUnique) && !shadowLimitation,
+      matchCount: xpath?.matchCount ?? 0,
+      visibleMatchCount: xpath?.visibleMatchCount ?? 0,
+      confidence: shadowLimitation || missing || ambiguous ? "low" : (xpath?.confidence ?? "low"),
+      candidateCount: 1,
+      ...(warning ? { warning } : {}),
+      ...(xpath?.positional ? { disambiguation: "positional" as const } : {})
+    };
+
+    if (shadowLimitation || ambiguous) {
+      locator.resolution = "needs-review";
+      locator.resolvedBy = "recorder";
+      locator.reviewReason = warning;
+    } else if (missing) {
+      locator.resolution = "invalid";
+      locator.resolvedBy = "recorder";
+      locator.reviewReason = warning;
+    } else {
+      locator.resolution = "resolved";
+      locator.resolvedBy = "recorder";
+      delete locator.reviewReason;
+    }
+
+    if (locator.identity) {
+      const basis = locator.identity.confidence.basis
+        .filter((entry) => entry !== "alternatives" && entry !== "container-chain" && entry !== "primary");
+      locator.identity = {
+        ...locator.identity,
+        primary: { strategy: "xpath", value: locator.value },
+        alternatives: undefined,
+        context: locator.context,
+        confidence: {
+          level: locator.quality.isUnique && !xpath?.positional ? "high" : "guarded",
+          basis: ["primary", "xpath", ...basis]
+        }
+      };
+    }
+  }
+
+  private applyActionLocatorRecordingMode(action: Omit<RecordedAction, "id">): void {
+    this.applyLocatorRecordingMode(action.locator);
+    this.applyLocatorRecordingMode(action.targetLocator);
+  }
+
   /**
    * Record one action attributed to the page it happened on.
    *
@@ -1720,6 +1822,7 @@ export class RecorderService {
     // the automation browser may stay open during the "detected" phase, so the guard — not just a
     // closed browser — is what guarantees nothing on a protected page is ever recorded.
     if (!this.isRecording) return;
+    this.applyActionLocatorRecordingMode(action);
     const now = Date.now();
     // Causal evidence for the next navigation on this page: if the URL changes after this, the
     // change is explained by an action the user actually performed and needs no step of its own.

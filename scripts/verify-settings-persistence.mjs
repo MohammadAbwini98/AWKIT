@@ -8,7 +8,7 @@
 // Run: node scripts/verify-settings-persistence.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
-import { readdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,6 +19,18 @@ const results = [];
 function check(name, pass, detail) {
   results.push({ name, pass: Boolean(pass), detail });
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
+}
+
+// Source-level default guard: the persisted integration run below necessarily starts with whatever
+// the previous local session saved. This assertion covers the distinct new-install/legacy-file
+// contract without destructively resetting the operator's unrelated settings.
+{
+  const source = await readFile(path.join(root, "app/main/uiSettings.ts"), "utf8");
+  check(
+    "Recorder locator mode defaults to Default when no persisted field exists",
+    /recorder:\s*\{[\s\S]{0,200}?locatorRecordingMode:\s*"default"/.test(source) &&
+      /locatorRecordingMode:\s*parsed\.recorder\?\.locatorRecordingMode\s*===\s*"xpath"\s*\?\s*"xpath"\s*:\s*"default"/.test(source)
+  );
 }
 
 // The app shows a branding splash window first; wait for the MAIN window that exposes the
@@ -58,6 +70,7 @@ let storageDir = "";
       patches.push(window.playwrightFlowStudio.settings.update({ workflowRunCards: { [`perf-race-${i}`]: { totalRuns: i, concurrentInstances: 1, runMode: "headless", isolationMode: "browserContext", screenshotOnFailure: true, stopOnError: false } } }));
     }
     await Promise.all(patches);
+    await window.playwrightFlowStudio.settings.update({ recorder: { locatorRecordingMode: "xpath" } });
     const s = await window.playwrightFlowStudio.settings.get();
     return s.paths.logsPath; // any resolved path lets us locate the storage dir
   });
@@ -68,6 +81,10 @@ let storageDir = "";
     return ok;
   });
   check("40 concurrent settings patches all persist (no lost updates)", persisted === 40, `persisted=${persisted}/40`);
+  check(
+    "XPath Recorder locator preference is stored through the shared settings architecture",
+    (await win.evaluate(async () => (await window.playwrightFlowStudio.settings.get()).recorder.locatorRecordingMode)) === "xpath"
+  );
   await app.close();
 }
 
@@ -98,12 +115,21 @@ let storageDir = "";
   const { app: app2, win: win2 } = await launch();
   const persistedValue = await win2.evaluate(() => window.playwrightFlowStudio.settings.get().then((s) => s.selectedBuilderWorkflowId));
   check("Update fired just before close is flushed on shutdown", persistedValue === stamp, `value=${persistedValue}`);
+  check(
+    "XPath Recorder locator preference survives app restart",
+    (await win2.evaluate(async () => (await window.playwrightFlowStudio.settings.get()).recorder.locatorRecordingMode)) === "xpath"
+  );
   // Cleanup the race-test keys via a full replace (settings.update only merges, can't delete keys).
   await win2.evaluate(async () => {
     const s = await window.playwrightFlowStudio.settings.get();
     const cards = { ...s.workflowRunCards };
     for (const k of Object.keys(cards)) if (k.startsWith("perf-race-")) delete cards[k];
-    await window.playwrightFlowStudio.settings.import({ ...s, workflowRunCards: cards, selectedBuilderWorkflowId: "" }).catch(() => undefined);
+    await window.playwrightFlowStudio.settings.import({
+      ...s,
+      recorder: { ...s.recorder, locatorRecordingMode: "default" },
+      workflowRunCards: cards,
+      selectedBuilderWorkflowId: ""
+    }).catch(() => undefined);
   });
   await app2.close();
 }

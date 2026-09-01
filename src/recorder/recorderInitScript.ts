@@ -839,6 +839,166 @@ export function installRecorderCapture(): void {
     disambiguation?: string;
   }
 
+  interface RecordingXPathCapture {
+    value: string;
+    matchCount: number;
+    visibleMatchCount: number;
+    isUnique: boolean;
+    confidence: "high" | "medium" | "low";
+    source: "id" | "testId" | "attribute" | "text" | "relationship" | "structural" | "unavailable";
+    positional: boolean;
+    error?: string;
+  }
+
+  /** Quote arbitrary text as one XPath 1.0 string literal, including values containing both quotes. */
+  const xpathLiteral = (value: string): string => {
+    if (value.indexOf("'") < 0) return "'" + value + "'";
+    if (value.indexOf('"') < 0) return '"' + value + '"';
+    const parts = value.split("'");
+    const tokens: string[] = [];
+    for (let index = 0; index < parts.length; index += 1) {
+      if (parts[index]) tokens.push("'" + parts[index] + "'");
+      if (index < parts.length - 1) tokens.push('"\'"');
+    }
+    return "concat(" + tokens.join(", ") + ")";
+  };
+
+  const xpathMatches = (value: string, root: Node): Element[] => {
+    try {
+      const result = document.evaluate(value, root, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+      const matches: Element[] = [];
+      for (let index = 0; index < result.snapshotLength; index += 1) {
+        const node = result.snapshotItem(index);
+        if (node?.nodeType === 1) matches.push(node as Element);
+      }
+      return matches;
+    } catch {
+      return [];
+    }
+  };
+
+  const stableXPathAttribute = (el: Element, name: string): string | undefined => {
+    const value = attr(el, name);
+    if (!value || value.length > 200) return undefined;
+    if ((name === "id" || name === "name") && looksGeneratedId(value)) return undefined;
+    return value;
+  };
+
+  const absoluteXPath = (el: Element): string => {
+    const segments: string[] = [];
+    let current: Element | null = el;
+    while (current) {
+      const tag = tagOf(current);
+      let sameTagIndex = 1;
+      let sameTagCount = 0;
+      const parentElement: Element | null = current.parentElement;
+      if (parentElement) {
+        for (let sibling = parentElement.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
+          if (tagOf(sibling) !== tag) continue;
+          sameTagCount += 1;
+          if (sibling === current) sameTagIndex = sameTagCount;
+        }
+      }
+      segments.unshift(tag + (sameTagCount > 1 ? "[" + sameTagIndex + "]" : ""));
+      current = parentElement;
+    }
+    return "/" + segments.join("/");
+  };
+
+  /**
+   * Build one deterministic XPath without changing Default candidate selection. Stable attributes
+   * and semantic text are tried first; an anchored relationship is next; the absolute structural
+   * path is retained only as the last representable fallback.
+   */
+  const buildRecordingXPath = (el: Element): RecordingXPathCapture => {
+    const rootNode = el.getRootNode();
+    const root = rootNode instanceof Document ? rootNode : document;
+    const candidates: Array<{ value: string; source: RecordingXPathCapture["source"]; confidence: RecordingXPathCapture["confidence"]; positional: boolean }> = [];
+    const tag = tagOf(el);
+    const add = (value: string, source: RecordingXPathCapture["source"], confidence: RecordingXPathCapture["confidence"] = "high", positional = false): void => {
+      if (!candidates.some((candidate) => candidate.value === value)) candidates.push({ value, source, confidence, positional });
+    };
+
+    const id = stableXPathAttribute(el, "id");
+    if (id) add("//*[@id=" + xpathLiteral(id) + "]", "id");
+
+    for (const testAttribute of ["data-testid", "data-test", "data-cy", "data-qa"]) {
+      const value = stableXPathAttribute(el, testAttribute);
+      if (value) add("//*[@" + testAttribute + "=" + xpathLiteral(value) + "]", "testId");
+    }
+
+    const attributes: Array<{ name: string; value: string }> = [];
+    for (const name of ["name", "aria-label", "placeholder", "title", "alt", "role", "href", "type", "data-id", "data-key", "data-row-key", "data-item-key"]) {
+      const value = stableXPathAttribute(el, name);
+      if (!value || (name === "type" && (value === "text" || value === "button"))) continue;
+      attributes.push({ name, value });
+      add("//" + tag + "[@" + name + "=" + xpathLiteral(value) + "]", "attribute");
+    }
+    for (let left = 0; left < Math.min(attributes.length, 5); left += 1) {
+      for (let right = left + 1; right < Math.min(attributes.length, 5); right += 1) {
+        add(
+          "//" + tag + "[@" + attributes[left].name + "=" + xpathLiteral(attributes[left].value) + "][@" + attributes[right].name + "=" + xpathLiteral(attributes[right].value) + "]",
+          "attribute",
+          "medium"
+        );
+      }
+    }
+
+    const text = norm(el.textContent).slice(0, 100);
+    if (text && (tag === "button" || tag === "a" || tag === "label" || tag === "option" || Boolean(attr(el, "role")))) {
+      add("//" + tag + "[normalize-space(.)=" + xpathLiteral(text) + "]", "text", "medium");
+    }
+
+    // Try a stable unique ancestor plus the target's strongest local attribute/text relationship.
+    let ancestor = el.parentElement;
+    for (let depth = 0; ancestor && depth < 8; depth += 1, ancestor = ancestor.parentElement) {
+      const ancestorId = stableXPathAttribute(ancestor, "id");
+      const ancestorTestId = stableXPathAttribute(ancestor, "data-testid");
+      const base = ancestorId
+        ? "//*[@id=" + xpathLiteral(ancestorId) + "]"
+        : ancestorTestId
+          ? "//*[@data-testid=" + xpathLiteral(ancestorTestId) + "]"
+          : "";
+      if (!base || xpathMatches(base, root).length !== 1) continue;
+      if (attributes[0]) {
+        add(base + "//" + tag + "[@" + attributes[0].name + "=" + xpathLiteral(attributes[0].value) + "]", "relationship", "medium");
+      }
+      if (text) add(base + "//" + tag + "[normalize-space(.)=" + xpathLiteral(text) + "]", "relationship", "medium");
+      break;
+    }
+
+    // XPath cannot traverse a shadow root in Playwright. Keep a syntactically valid description for
+    // editing/diagnostics, while RecorderService marks the preserved shadow context needs-review.
+    const inShadow = rootNode instanceof ShadowRoot;
+    if (inShadow && candidates.length === 0) add("//" + tag, "unavailable", "low");
+    if (!inShadow) add(absoluteXPath(el), "structural", "low", true);
+
+    for (const candidate of candidates) {
+      const matches = inShadow ? [] : xpathMatches(candidate.value, root);
+      if (!inShadow && matches.length === 1 && matches[0] === el) {
+        return {
+          ...candidate,
+          matchCount: 1,
+          visibleMatchCount: isVisibleMatch(el) ? 1 : 0,
+          isUnique: true
+        };
+      }
+    }
+
+    const fallback = candidates[candidates.length - 1];
+    if (!fallback) {
+      return { value: "", matchCount: 0, visibleMatchCount: 0, isUnique: false, confidence: "low", source: "unavailable", positional: false, error: "no XPath candidate" };
+    }
+    const matches = inShadow ? [] : xpathMatches(fallback.value, root);
+    return {
+      ...fallback,
+      matchCount: matches.length,
+      visibleMatchCount: matches.filter(isVisibleMatch).length,
+      isUnique: false,
+      ...(inShadow ? { error: "Shadow DOM is outside Playwright XPath traversal" } : {})
+    };
+  };
+
   interface ContainerContext {
     type: "dialog" | "tableRow" | "card" | "listItem" | "landmark" | "form" | "section";
     strategy: string;
@@ -1265,7 +1425,12 @@ export function installRecorderCapture(): void {
       quality.warning = "Positional fallback locator — it may break if the page layout changes.";
     }
 
-    const locator: Record<string, unknown> = { strategy: chosen.strategy, value: chosen.value, quality };
+    const locator: Record<string, unknown> = {
+      strategy: chosen.strategy,
+      value: chosen.value,
+      quality,
+      recordingXPath: buildRecordingXPath(el)
+    };
     if (chosen.name) locator.name = chosen.name;
     if (chosen.exact) locator.exact = true;
 

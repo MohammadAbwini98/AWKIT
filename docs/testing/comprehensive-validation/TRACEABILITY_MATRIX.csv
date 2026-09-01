@@ -77,6 +77,7 @@ Recorder,Browser crash recovery,REC-024,Electron + browser process,NOT RUN,Teard
 Recorder,Authorization boundary,REC-028,Real Electron + preload + sender-bound IPC,PASS,verify:recorder-authz 44/44; AWKIT-REC-001 found and fixed; route deep-link and mid-session revocation remain
 Recorder,HTTPS trust and popup identity,REC-026 through REC-027,Real Chromium + settings GUI,PASS,certificate 49/49 + GUI 31/31; popup identity 43/43
 Recorder,Accessibility/responsive/reduced motion,REC-029,Electron GUI/manual,NOT RUN,
+Recorder,Default/XPath locator recording mode,REC-030,Real Electron + Chromium + production mapping/runner,PASS,recorder 267/267; Flow mapping 194/194; settings 6/6; GUI 192/192; runner 136/136; frame and shadow limitations explicit
 System Reports,Route rendering,SYS-REP-001,Real Electron,PASS,verify:reports 31/31
 System Reports,Complete range/refresh race matrix,SYS-REP-002,Real Electron,PASS,All five presets plus rapid switch and repeated refresh passed
 System Reports,Populated overview truth,SYS-REP-003,Electron + telemetry + SQLite,PASS,32 durable runs matched IPC and visible cards

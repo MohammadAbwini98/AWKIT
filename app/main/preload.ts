@@ -17,7 +17,7 @@ import type {
 import type { RunWorkflowRequest } from "./ipc/execution.ipc";
 import type { FlowValidationStatusDto as FlowValidationStatus } from "./ipc/validation.ipc";
 import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
-import type { DeepPartial, UiSettings } from "./uiSettings";
+import type { DeepPartial, LocatorRecordingMode, UiSettings } from "./uiSettings";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
 import type { SecretSummary } from "./secretStore";
 import type { OracleConnectionProfileView } from "@src/oracle/OracleConnectionProfile";
@@ -476,6 +476,8 @@ const api = {
     // from the permission-gated Settings store at launch, so it cannot be forced from the renderer.
     start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
       invoke("recorder:start", url, options) as Promise<RecorderStatus>,
+    setLocatorRecordingMode: (mode: LocatorRecordingMode) =>
+      invoke("recorder:setLocatorRecordingMode", mode) as Promise<{ mode: LocatorRecordingMode }>,
     stop: () => invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => invoke("recorder:cancel") as Promise<{ success: boolean }>,
     getActions: () => invoke("recorder:getActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,

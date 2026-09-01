@@ -8,7 +8,7 @@ import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import { FileLocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { getSessionService } from "./session.ipc";
-import { getUiSettings } from "../uiSettings";
+import { getUiSettings, type LocatorRecordingMode } from "../uiSettings";
 import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
@@ -64,11 +64,21 @@ export function registerRecorderIpc(): void {
       userDataDir,
       captureWaitTime: options?.captureWaitTime ?? false,
       captureSmartWaits: options?.captureSmartWaits ?? true,
+      locatorRecordingMode: settings.recorder.locatorRecordingMode,
       ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection ?? false,
       asyncAwareness: settings.recorder.asyncAwareness,
       ignoreHttpsErrors: resolveIgnoreHttpsErrors({ app: settings.recorder.security })
     });
     return recorderService.getStatus();
+  });
+
+  ipcMain.handle("recorder:setLocatorRecordingMode", async (event, mode: LocatorRecordingMode) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    if (mode !== "default" && mode !== "xpath") {
+      throw new Error("Recorder locator recording mode must be default or xpath.");
+    }
+    recorderService.setLocatorRecordingMode(mode);
+    return { mode };
   });
 
   ipcMain.handle("recorder:stop", async (event) => {

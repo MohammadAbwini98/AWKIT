@@ -51,6 +51,25 @@
         <p id="rec013Status" data-testid="rec013-status" role="status">REC-013 harness idle</p>
       </section>
 
+      <section data-testid="xpath-recording-fixture" aria-labelledby="xpath-recording-title">
+        <h2 id="xpath-recording-title">XPath locator recording</h2>
+        <p>
+          Stable XPath candidates should prefer ids, test ids, meaningful attributes, text, and scoped
+          relationships before using structural positions. The repeated and quoted labels below are
+          intentional negative controls.
+        </p>
+        <div class="grid">
+          <button type="button" data-testid="xpath-stable-button" onclick="document.getElementById('xpathRecordingResult').textContent='stable-button';">Stable XPath button</button>
+          <label>XPath input without id <input name="xpathCustomerReference" placeholder="Customer reference" oninput="document.getElementById('xpathRecordingResult').textContent='input:'+this.value;" /></label>
+          <a href="#xpath-link" aria-label="Open XPath details" onclick="event.preventDefault(); document.getElementById('xpathRecordingResult').textContent='link';">Open details</a>
+        </div>
+        <div data-testid="xpath-card-alpha"><button type="button" onclick="document.getElementById('xpathRecordingResult').textContent='alpha';">Review order</button></div>
+        <div data-testid="xpath-card-beta"><button type="button" onclick="document.getElementById('xpathRecordingResult').textContent='beta';">Review order</button></div>
+        <button type="button" onclick="document.getElementById('xpathRecordingResult').textContent='quoted';">Owner's &quot;Draft&quot;</button>
+        <button type="button" data-testid="xpath-nested-button" onclick="document.getElementById('xpathRecordingResult').textContent='nested';"><span><strong>Nested XPath target</strong></span></button>
+        <output id="xpathRecordingResult" data-testid="xpath-recording-result" aria-live="polite">XPath fixture idle</output>
+      </section>
+
       <section data-testid="keyboard-shortcut-capture" aria-labelledby="keyboard-shortcut-title">
         <h2 id="keyboard-shortcut-title">Keyboard shortcut capture and replay</h2>
         <p>

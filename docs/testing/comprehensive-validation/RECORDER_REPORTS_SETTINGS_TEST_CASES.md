@@ -509,6 +509,24 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   shortcut reported every text-labelled `INPUT` as unnamed and invented two defects that were not
   there; `placeholder` is deliberately excluded.
 
+### REC-030 — Default/XPath locator recording mode
+
+- **Priority / layer:** P0 / Recorder capture, persistence, validation and replay
+- **Preconditions:** Fresh/legacy settings and an active Recorder session on the Recorder Lab XPath
+  fixture, including stable, duplicate, framed and open-shadow elements.
+- **Steps:** Assert Default initialization; capture representative controls; switch
+  Default → XPath → Default while recording; save/reload/edit/re-save; replay through StepExecutor;
+  exercise invalid, non-resolving, quoted, duplicate, frame, drag and Shadow DOM cases.
+- **Expected:** Default retains the established strategies; XPath persists `strategy: "xpath"` with
+  no hidden fallback; only later actions change; exact XPath survives every round trip and reaches the
+  intended element; invalid/ambiguous paths report truthfully; frame context remains; shadow XPath is
+  review-required and blocked rather than fabricated.
+- **Status:** `PASS` — `verify:recorder` **267/267**, `verify:flow-step-mapping` **194/194**,
+  `verify:settings-persistence` **6/6**, `verify:recorder-gui` **192 PASS / 0 FAIL / 0 NOT RUN**,
+  `verify:runner` **136/136**, `verify:frame-chain` **31/31**, `verify:closed-shadow` **23/23** and
+  `verify:mock-site` **177/177**. Light/dark and narrow captures are under
+  `test-artifacts/recorder-gui/2026-09-01T15-38-52-814Z/locator-mode-*.png`.
+
 ## 4. System Reports cases
 
 ### SYS-REP-001 — All Reports routes render valid terminal states
@@ -1147,7 +1165,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   control. High-contrast mode and the unavailable-secret control subcases remain unexecuted.
 - **Recorder:** component contracts are strong, but release approval for the Recorder feature requires
   REC-001 through REC-004 and REC-013, REC-016, REC-018, REC-021, REC-023 through REC-025, REC-028 and
-  REC-029 to execute. REC-018 is the decisive record→save→reopen→replay gate.
+  REC-029 through REC-030 to execute. REC-018 is the decisive record→save→reopen→replay gate.
 - **System Reports:** **14 PASS / 2 NOT RUN**, with `verify:reports-populated-gui` at
   **155 PASS / 0 FAIL / 3 NOT RUN** and `verify:reports-live-engine` at **21 PASS / 0 FAIL**.
   Empty-state GUI, backend analytics, populated overview truth, the full sort/filter matrix, the

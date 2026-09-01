@@ -985,6 +985,55 @@ console.log("\nDrag: source + drop-target locators both survive the round-trip (
   check("the dragTarget editor section is exclusive to drag nodes", dragDef.sections.includes("dragTarget") && !getNodeDefinition("click").sections.includes("dragTarget") && !getNodeDefinition("fill").sections.includes("dragTarget"));
 }
 
+console.log("\nXPath locator persistence: load → edit → re-save stays XPath and keeps forward fields:");
+{
+  const xpath = {
+    strategy: "xpath" as const,
+    value: "//*[@data-testid='save-order']",
+    resolution: "resolved" as const,
+    resolvedBy: "recorder" as const,
+    context: { frameChain: [{ selector: "iframe[name='orders']", name: "orders" }] },
+    futureLocatorMetadata: { schemaVersion: 2, origin: "future-recorder" }
+  } as NonNullable<FlowStep["locator"]> & { futureLocatorMetadata: { schemaVersion: number; origin: string } };
+  const recorded = baseStep({ type: "click", name: "Save order", locator: xpath });
+  const roundTripped = cycleN(recorded, 2);
+  check(
+    "XPath primary strategy/value survives repeated Flow Designer cycles",
+    roundTripped.locator?.strategy === "xpath" && roundTripped.locator?.value === xpath.value,
+    json(roundTripped.locator)
+  );
+  check(
+    "XPath frame context survives repeated Flow Designer cycles",
+    json(roundTripped.locator?.context) === json(xpath.context),
+    json(roundTripped.locator?.context)
+  );
+  check(
+    "unknown locator fields survive Recorder → Flow Designer forward-compatible round trips",
+    json((roundTripped.locator as typeof xpath | undefined)?.futureLocatorMetadata) === json(xpath.futureLocatorMetadata),
+    json(roundTripped.locator)
+  );
+
+  const loaded = fromFlowStep(recorded);
+  const editedNode = {
+    id: recorded.id,
+    type: "action",
+    position: recorded.position ?? { x: 0, y: 0 },
+    data: { ...loaded, locatorValue: "//*[@data-testid='save-order-v2']" }
+  } as FlowDesignerNode;
+  const edited = toFlowStep(editedNode, []);
+  check(
+    "editing an XPath keeps the XPath strategy and persists the exact edited value",
+    edited.locator?.strategy === "xpath" && edited.locator?.value === "//*[@data-testid='save-order-v2']",
+    json(edited.locator)
+  );
+  check(
+    "editing an XPath does not discard its context or unknown metadata",
+    json(edited.locator?.context) === json(xpath.context) &&
+      json((edited.locator as typeof xpath | undefined)?.futureLocatorMetadata) === json(xpath.futureLocatorMetadata),
+    json(edited.locator)
+  );
+}
+
 console.log("\nClose Popup is authorable AND runnable — alias contract (AWKIT-FLO-001):");
 {
   // The executor throws without config.popupAlias ?? step.pageAlias; the shared validator and the
