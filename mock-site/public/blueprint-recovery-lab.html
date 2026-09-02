@@ -10,8 +10,8 @@
     <main class="card wide">
       <h1>Blueprint Recovery Lab</h1>
       <p class="hint">
-        Records a stable target beyond the normal recovery scan, then inserts a sibling and changes
-        one ancestry segment so Locator Blueprint recovery must identify the original element.
+        Records a stable target beyond the normal recovery scan, then inserts a sibling and a wrapper
+        so adaptive Locator Blueprint recovery must identify the original element after its ancestry shifts.
       </p>
 
       <nav data-testid="blueprint-decoy-zone" aria-label="Blueprint recovery decoy">
@@ -23,13 +23,13 @@
       </nav>
 
       <section data-testid="blueprint-recovery-scenario" aria-labelledby="blueprint-scenario-title">
-        <h2 id="blueprint-scenario-title">Inserted-sibling recovery</h2>
+        <h2 id="blueprint-scenario-title">Inserted-wrapper recovery</h2>
         <p>
           Expected: the original selector stops matching after mutation, while blueprint-guided
-          recovery clicks the moved target and never the same-name decoy.
+          recovery follows the shifted structural identity to the moved target and never the same-name decoy.
         </p>
         <div class="button-row">
-          <button data-testid="blueprint-mutate">Insert sibling and drift ancestry</button>
+          <button data-testid="blueprint-mutate">Insert sibling and wrapper</button>
           <button data-testid="blueprint-mutate-below-threshold">Apply below-threshold drift</button>
           <button data-testid="blueprint-reset">Reset blueprint scenario</button>
         </div>
@@ -78,15 +78,23 @@
         const mutate = (belowThreshold = false) => {
           if (!targetNode || targetNode.classList.contains("blueprint-mutated-target")) reset();
           const priorParent = targetNode.parentElement;
-          const parent = document.createElement("article");
+          // Keep a div in the ancestry but insert a new article between it and the target. The old
+          // ancestry is [div, section, main]; the new one is [article, div, section]. Fixed-index
+          // ancestry comparison sees zero matches, while ordered-sequence comparison retains the
+          // two stable ancestors. The sibling also shifts document order, so exact positional replay
+          // cannot accidentally make this scenario pass.
+          const parent = document.createElement("div");
           parent.className = "blueprint-mutated-parent";
           const inserted = document.createElement("aside");
           inserted.dataset.testid = "blueprint-inserted-node";
           inserted.textContent = "Inserted before the recorded target";
+          const wrapper = document.createElement("article");
+          wrapper.dataset.testid = "blueprint-inserted-wrapper";
           targetNode.removeAttribute("data-test");
           targetNode.className = "blueprint-mutated-target";
           if (belowThreshold) targetNode.textContent = targetLabel.replace("charlie", "delta");
-          parent.append(inserted, targetNode);
+          wrapper.append(targetNode);
+          parent.append(inserted, wrapper);
           priorParent.replaceWith(parent);
           mutationStatus.textContent = belowThreshold ? "mutated-below-threshold" : "mutated-above-threshold";
           result.textContent = "idle";
