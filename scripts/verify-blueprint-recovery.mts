@@ -31,7 +31,7 @@ import {
   type ElementBlueprint,
   type PageBlueprint
 } from "@src/runner/LocatorBlueprintStore";
-import { hashFingerprint, hashToken } from "@src/runner/locatorFingerprint";
+import { hashFingerprint, hashToken, similarity } from "@src/runner/locatorFingerprint";
 
 const results: { name: string; pass: boolean }[] = [];
 function check(name: string, pass: boolean, detail?: string): void {
@@ -125,6 +125,49 @@ check("raw label/text token is NOT persisted (hashed away)", !serialized1.includ
 check("raw attribute VALUE is NOT persisted (hashed away)", !serialized1.includes(PII_ATTR_VALUE));
 check("URL query token is NOT persisted (canonicalUrl is origin+pathname only)", !serialized1.includes(PII_QUERY_TOKEN));
 check("canonicalUrl is origin + pathname only", bp1?.canonicalUrl === "https://shop.example.com/checkout");
+
+// ── 2b. Adaptive hashed-fingerprint scoring ──────────────────────────────────
+// Scrapling's useful relocation idea is broad structural comparison rather than selector replay.
+// AWKIT keeps its own privacy-hashed schema and strict LocatorFactory threshold/margin, but a benign
+// wrapper insertion should retain ordered ancestry evidence instead of losing every shifted index.
+const stableRaw = rawFp({
+  attributes: { id: "checkout-field", "data-testid": "checkout-field" },
+  ancestry: ["form|checkout", "section|main", "main"]
+});
+const wrapperShiftRaw = rawFp({
+  attributes: { id: "checkout-field-v2", "data-testid": "checkout-field" },
+  ancestry: ["div|wrapper", "form|checkout", "section|main"]
+});
+const structurallyDifferentRaw = rawFp({
+  name: "Different account control",
+  text: "Different account control",
+  attributes: { name: "other-control" },
+  ancestry: ["aside|secondary", "nav", "body"]
+});
+const stableHashed = hashFingerprint(stableRaw);
+const wrapperShiftHashed = hashFingerprint(wrapperShiftRaw);
+const structurallyDifferentHashed = hashFingerprint(structurallyDifferentRaw);
+const wrapperShiftScore = similarity(stableHashed, wrapperShiftHashed);
+const structurallyDifferentScore = similarity(stableHashed, structurallyDifferentHashed);
+check(
+  "adaptive similarity retains ordered ancestry through one inserted wrapper",
+  wrapperShiftScore >= 0.86,
+  wrapperShiftScore.toFixed(6)
+);
+check(
+  "adaptive similarity gives partial attribute credit without treating a changed id as exact",
+  wrapperShiftScore < 1,
+  wrapperShiftScore.toFixed(6)
+);
+check(
+  "materially different identity stays below the production recovery threshold",
+  structurallyDifferentScore < 0.86,
+  structurallyDifferentScore.toFixed(6)
+);
+check(
+  "adaptive scorer remains symmetric for hashed fingerprints",
+  similarity(stableHashed, wrapperShiftHashed) === similarity(wrapperShiftHashed, stableHashed)
+);
 
 // ── 3. computePageKey normalization ──────────────────────────────────────────
 const kBase = computePageKey("https://a.example.com/orders", "Orders - Acme Store");
