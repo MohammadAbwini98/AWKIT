@@ -154,13 +154,13 @@ async function main(): Promise<void> {
     const seeded = await seedFactory.resolve(step);
     check("original recorded locator resolves before drift", (await seeded.count()) === 1);
 
-    console.log("Above-threshold inserted-sibling recovery:");
+    console.log("Above-threshold inserted-wrapper recovery:");
     await mutate(page, false);
     const driftFactory = new LocatorFactory(page, { recoveryStore, scope, recoveryGraceMs: 0 });
     const counts = await candidateCounts(driftFactory, step);
     check("DOM mutation retires every recorded locator candidate", counts.every((count) => count === 0), JSON.stringify(counts));
     const shiftedOrder = await page.locator(MUTATED_SELECTOR).evaluate((node) => Array.from(document.body.querySelectorAll("*")).indexOf(node));
-    check("fixture inserted exactly one node before the recorded target", shiftedOrder === elementBlueprint.documentOrder + 1, `${elementBlueprint.documentOrder} -> ${shiftedOrder}`);
+    check("fixture inserts one sibling plus one wrapper before the recorded target", shiftedOrder === elementBlueprint.documentOrder + 2, `${elementBlueprint.documentOrder} -> ${shiftedOrder}`);
 
     const score = await fingerprintScore(page, blueprint);
     check("browser-captured fingerprint remains just above the 0.86 recovery threshold", score >= RECOVERY_THRESHOLD && score < 0.87, score.toFixed(6));
