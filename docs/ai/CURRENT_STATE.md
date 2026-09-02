@@ -1,5 +1,40 @@
 # CURRENT_STATE
 
+## System-refactor planning reconciled; implementation not started (`awkit-rfpln`, 2026-09-02)
+
+The two owner-supplied system-refactoring documents were audited against live `main` at `18dc90d`
+and imported as repository-canonical planning sources under `docs/plans/`. This was a documentation-
+only reconciliation: no execution, Recorder, persistence, IPC, profile, browser, renderer, packaging
+or other production behavior changed.
+
+The live runtime is substantially more mature than the generic proposal assumed. `ExecutionEngine`,
+`InstanceManager`/`InstancePool`, `ConcurrentExecutionCoordinator`, `ScenarioOrchestrator`,
+`BrowserContextFactory`, the Recorder's existing `StepLocator` path, versioned runtime SQLite and the
+profile JSON stores remain canonical. Repeated license checks are intentional defense-in-depth over
+one pure policy, Recorder/Runner/manual-session browser lifecycles remain deliberately separate, and
+JSON reports remain complementary to SQLite telemetry. The plan forbids replacement queue states,
+an XPath-only runtime, a single merged browser owner, a second telemetry store or an `INCONCLUSIVE`
+evidence status.
+
+Measured follow-up debt is limited to: core runner imports of Electron-main composition, factory-
+created same-folder profile/report stores with instance-local write queues, oversized execution IPC
+composition, proven-dead orchestration/lifecycle stubs, and focused architecture/store-race proof.
+Legacy backend-only IPC removal needs an owner/public-consumer decision. The proposal's blanket
+unknown-field preservation conflicts with SET-017, which intentionally prunes unknown fixed-schema
+Settings keys; no Settings change is authorized without an explicit decision.
+
+The single recommended first implementation phase is **R0 — characterize architecture and make
+regressions fail loudly**. It adds focused architecture, store-race and execution-invariant evidence
+with red controls before any production ownership moves. No implementation Bead or ongoing roadmap
+claim was created by this planning task.
+
+Planning baseline: tracker **265 total / 263 closed / 2 blocked**; comprehensive ledger **65 PASS /
+2 NOT RUN / 0 BLOCKED**; traceability **87 PASS / 12 NOT RUN / 3 BLOCKED**. At discovery,
+`verify:roadmap-dashboard` passed **177/177** with **Sources agree**, verifier classification
+reconciled **199** commands (**1 / 11 / 63 / 36 / 77 / 11 / 0** by taxonomy), AI-memory validation
+passed, and `git diff --check` passed. Production build/runtime/package commands were **NOT RUN**
+because this task changed documentation and control-plane state only.
+
 ## Recorder Default/XPath audit finalized (`awkit-upnf`, 2026-09-01)
 
 Recorder Controls now exposes a compact, persisted **Locator Recording** choice. **Default** remains

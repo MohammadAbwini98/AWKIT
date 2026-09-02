@@ -1,11 +1,12 @@
-# PROJECT_BRIEF — WebFlow Studio
+# PROJECT_BRIEF — SpecterStudio
 
 ## Confirmed
 
 - **What it is:** an offline-capable **Windows desktop application** for visually designing and
   running **Playwright** web UI automation. Built with Electron + React + TypeScript.
-- **Product name:** **WebFlow Studio** (renamed from the earlier "Playwright Flow Studio";
-  `productName`/`appId` in `electron-builder.json` are `WebFlow Studio` / `com.webflowstudio.app`).
+- **Product name:** **SpecterStudio** (the package and `electron-builder.json` use
+  `SpecterStudio` / `com.specterstudio.app`; the preload API remains the compatibility contract
+  `window.playwrightFlowStudio`).
 - **Main goal:** let users build reusable **flows** (sequences of Playwright steps) and link them
   into **workflows**, bind runtime/JSON data, run isolated concurrent browser instances, and
   produce logs, screenshots, downloads, and reports — all runnable fully offline in production.
@@ -34,7 +35,9 @@
 - Not a web/server application; not multi-tenant; no cloud backend.
 - Not a general scraper — it is for **authorized** automation only (no CAPTCHA/MFA/bot-detection
   bypass; manual handoff is used for human-required steps).
-- Does not use SQLite today (JSON file storage) despite the spec allowing it later.
+- Does not require a server database. User-authored profiles and settings use JSON stores; durable
+  execution/runtime history uses the versioned local SQLite-compatible `sql.js` store. Both remain
+  under standard-user mutable data roots outside `resources` / `app.asar`.
 
 ## Unknown / Needs Verification
 

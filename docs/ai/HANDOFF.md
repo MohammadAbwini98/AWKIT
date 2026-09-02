@@ -1,5 +1,42 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-02, latest) — system-refactor plan reconciled; implementation not started
+
+### Transfer
+
+- **Branch/baseline:** `main` at `18dc90d` before this documentation task. The supplied plan and
+  checklist were reconciled into `docs/plans/`; no production source was changed.
+- **Live architecture:** preserve ExecutionEngine/InstanceManager/InstancePool/
+  ConcurrentExecutionCoordinator, ScenarioOrchestrator, separate Runner/Recorder/manual-session
+  browser lifecycles, the existing `StepLocator` runtime, profile JSON, durable runtime SQLite and
+  complementary JSON reports.
+- **Measured debt:** remove core-to-main composition imports through narrow ports; create shared
+  per-folder profile/report store ownership; extract execution composition from IPC without moving
+  sender authorization or collapsing validation/license/capacity gates; prove and remove dead stubs.
+- **Clarifications:** backend-only IPC/profile projections need an owner/public-consumer decision.
+  Settings unknown fixed-schema keys remain intentionally pruned by SET-017 unless the owner changes
+  that rule.
+- **Next phase:** R0 only — add focused architecture, same-folder store-race and execution-invariant
+  characterization with mutation/red controls. Do not move production ownership in the first commit.
+- **Verification:** roadmap **177/177 — Sources agree**; verifier classification **199**
+  (**1 documentation / 11 static / 63 unit / 36 integration / 77 real-browser / 11 packaged / 0
+  clean-machine**); AI-memory check PASS; `git diff --check` PASS. Build/runtime/package suites were
+  **NOT RUN** because only documentation/control-plane sources changed.
+- **Project state:** no implementation Bead or future-work claim was created. Tracker remains
+  **265 total / 263 closed / 2 blocked**; comprehensive ledger remains **65 PASS / 2 NOT RUN / 0
+  BLOCKED**; traceability remains **87 PASS / 12 NOT RUN / 3 BLOCKED**.
+
+### Boundaries
+
+- Do not invent queue/status values, merge defense-in-depth license checks, create a parallel
+  orchestrator/locator/runtime/store, or make one abstraction own all browser lifecycles.
+- Do not retire preload/main channels or the lossy backend-only scenario projection until public or
+  external consumer status is explicitly resolved.
+- Do not use `INCONCLUSIVE` for verification. Report exact `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, or
+  `NOT APPLICABLE` results and never inherit artifact-specific packaged proof.
+- Every implementation phase requires its own Bead, task contract, lease, focused evidence, roadmap
+  reconciliation and direct-to-`main` commit.
+
 ## HANDOFF (2026-09-01, latest) — Recorder Default/XPath audit finalized
 
 ### Transfer

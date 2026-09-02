@@ -1,40 +1,39 @@
 {
-  "task": "awkit-upnf",
-  "contract_path": "docs/ai/contracts/awkit-upnf.json",
-  "holder": "qa",
+  "task": "awkit-rfpln",
+  "contract_path": "docs/ai/contracts/awkit-rfpln.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "scripts/verify-roadmap-dashboard.mjs"
-  ],
-  "acquired_at": "2026-09-01T19:29:56.550Z",
-  "acquired_at_commit": "10d6ca166f20768355c06200074179eb709a7e55",
-  "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
+    "docs/ai/PROJECT_BRIEF.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-upnf.json",
-    "scripts/verify-ipc-contract.mts",
-    "scripts/verify-recorder-locator.mts",
-    "scripts/verify-roadmap-dashboard.mjs",
-    "scripts/verify-runner.mts",
-    "src/recorder/RecorderService.ts"
+    "docs/ai/contracts/awkit-rfpln.json",
+    "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
+  ],
+  "acquired_at": "2026-09-02T19:45:31.810Z",
+  "acquired_at_commit": "18dc90d5a97cd37a2304d8a9885b899cc148d4cc",
+  "baseline_dirty": [
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/PROJECT_BRIEF.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-rfpln.json",
+    "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "b6c0748560e51031228511db0e0b816720691da8164bd896728e86383ee033d9",
-    ".beads/issues.jsonl": "253b29baf45abc9cd72e484ba334436363702de614788196bf241d8c8574ee55",
-    "docs/ai/CURRENT_STATE.md": "9c161dc634a07d4134e118529f3804c61efca23f673161de2a5c5cf65500c4b6",
-    "docs/ai/HANDOFF.md": "c193df7cddd0295f8d79a65620cf7fde6159da66b88e4d1b4b7bbf55c801c548",
-    "docs/ai/TASK_LOG.md": "0ee2d84a090b8096299702c108bde7b8606d63e4badece8513dc64516bb2a631",
-    "docs/ai/contracts/active-lease.json": "fd714cf0c733bdced2fd555476e5a8b94f7b821b68a0b68770122a1e2a84bd25",
-    "docs/ai/contracts/awkit-upnf.json": "34833cce918f7b05f8422aa8fdf34f212d768f58559f948798b76ae02643aa91",
-    "scripts/verify-ipc-contract.mts": "067845282f000ba7ef96bc855f25331eec9acbfc71824ceec4a3e79b60e2c8c8",
-    "scripts/verify-recorder-locator.mts": "d40822da615bc205ec225f7211ffbce561eff83988cf257edb4721ae09303fdd",
-    "scripts/verify-roadmap-dashboard.mjs": "83de1d42b93db8c002537a2c0c1224f94cffcf069e6b3de9fdaa33ef17455fcb",
-    "scripts/verify-runner.mts": "abdbd1b5071fe0709eb896905554d33afc5fe4a265f1a6fc709615074af8cc4a",
-    "src/recorder/RecorderService.ts": "427efe2ff0f3e5e733860462ab478fadc134d12920ff3c370a070a5e5af8fffa"
+    "docs/ai/CURRENT_STATE.md": "835bfb819eb80c7ba04f4e8ba0edc0837de6d06ad6d2298bd818d5d0a6d10625",
+    "docs/ai/HANDOFF.md": "b0b3cae1a61bd6e8a06481d28f583b8308d312efaf281e157009ec39d16411d8",
+    "docs/ai/PROJECT_BRIEF.md": "5e2542ef5826046abf210ff1d4c663976336b1b55d69a551e240befe569487ee",
+    "docs/ai/TASK_LOG.md": "63162194fab0f50139961263e7979ac5968cddd175952c4c0864ff64fef9bf4b",
+    "docs/ai/contracts/active-lease.json": "1ff7108671f38f4be44e06ba3188c5727bf27b39784053c260524a654f980a5f",
+    "docs/ai/contracts/awkit-rfpln.json": "f2e5ca91f7b660fdbea44c1914ebe3224b20f9c450230cc2b86016fb71315528",
+    "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md": "b03f545fc4dab27104897c9858690e1f8998b4fae70e9de7641cc22377835648",
+    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md": "d8fd9cfe90f3aa665956a8829342bc2fd329ee728da2f5cb88ce224c837e2743"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -49,7 +48,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-01T19:31:16.201Z",
-  "released_reason": "Final dashboard pin reconciled and 177/177 Sources agree proof recorded.",
-  "archived_at": "2026-09-01T19:31:16.202Z"
+  "released_at": "2026-09-02T19:46:21.311Z",
+  "released_reason": "Corrected newly staged Markdown whitespace; cached diff check now passes.",
+  "archived_at": "2026-09-02T19:46:21.313Z"
 }

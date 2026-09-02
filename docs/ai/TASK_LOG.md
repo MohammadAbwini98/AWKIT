@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-09-02 — Codex — reconcile system-refactoring plan against live AWKIT
+
+**Request/result:** audited the two owner-supplied Markdown documents against `main` at `18dc90d`,
+current production call paths, project rules, tracker/ledger sources, verifier classification and
+roadmap. Added repository-canonical plan/checklist copies under `docs/plans/`; this task made no
+production implementation change.
+
+**Findings:** the existing execution, queue/status, orchestration, Recorder/Runner locator,
+browser/session, runtime SQLite, profile JSON, licensing and reporting architectures are largely
+canonical and must not be recreated. Actionable debt is core-to-main composition imports,
+instance-local write queues across factory-created same-folder stores, broad execution IPC
+composition, dead stubs and missing focused architecture/store-race proof. Backend-only IPC removal
+and Settings unknown-key behavior require decisions; SET-017 remains authoritative meanwhile.
+
+**Planning result:** replaced the generic phase order with R0–R9, including dependencies, data-
+compatibility rules, red/mutation evidence, per-phase acceptance and direct-to-main project-state
+closeout. The single first phase is R0 characterization; it deliberately makes no production move.
+Corrected `PROJECT_BRIEF.md` from stale WebFlow Studio/no-SQLite claims to current SpecterStudio,
+profile-JSON and durable-runtime-SQLite facts.
+
+**Verification:** `npm run verify:roadmap-dashboard` **177/177 PASS** with **Sources agree**;
+`npm run verify:verifier-classification` **199/199 classified** with **1 documentation-consistency /
+11 static-source / 63 unit / 36 integration / 77 real-browser / 11 packaged / 0 clean-machine**;
+AI-memory check PASS; `git diff --check` PASS. `npm run build`, runtime, GUI, packaged and clean-
+machine suites were **NOT RUN** because this task changed documentation/control-plane state only.
+
+**Files:** both `docs/plans/` documents, `PROJECT_BRIEF.md`, `CURRENT_STATE.md`, `HANDOFF.md`, this
+task log, task contract and lease/assignment control-plane state.
+
 ## 2026-09-01 — Codex — audit and finalize Recorder XPath locator mode
 
 **Request/result:** independently audited `10d6ca1` (`awkit-upnf`) directly on `main`. The audit

@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-rfpln",
+    "title": "Reconcile the system refactoring plans against live AWKIT",
+    "objective": "Audit the two supplied refactoring documents against current main and authoritative repository sources, replace generic or conflicting proposals with an execution-ready dependency sequence, and commit only documentation and project-state corrections without implementing the refactor.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "18dc90d5a97cd37a2304d8a9885b899cc148d4cc",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "broad_investigation": true,
+    "project_state_change": true,
+    "cross_layer_count": 8
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "qa",
+      "qc",
+      "researcher",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+      "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+      "docs/ai/PROJECT_BRIEF.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-rfpln.json"
+    ],
+    "consultants": [
+      "architect",
+      "researcher"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/PROJECT_BRIEF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-rfpln.json",
+        "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+        "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "Current production call paths and authoritative AWKIT documentation override generic proposals.",
+      "Do not introduce parallel admission, orchestration, queue, browser/session, Recorder, persistence, IPC, licensing, or reporting architectures.",
+      "Do not modify production implementation in this task."
+    ],
+    "security": [
+      "Preserve trusted-process authorization, license enforcement, protected-login manual handoff, secret masking, and no-bypass boundaries."
+    ],
+    "compatibility": [
+      "Preserve existing persisted profiles and unknown fields; record the current fixed-schema Settings pruning policy as an explicit clarification gate rather than silently changing it."
+    ],
+    "offline": [
+      "Preserve bundled Chromium, standard-user operation, local mutable-data roots, and zero production internet dependency."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "PLAN-MATRIX",
+      "description": "Both supplied documents are represented by canonical repository copies and every proposed phase or checklist section is classified against live code as implemented, partial, required, conflicting, or needing clarification.",
+      "evidence_required": [
+        "repository-inspection",
+        "document-reconciliation"
+      ]
+    },
+    {
+      "id": "PLAN-SEQUENCE",
+      "description": "The implementation plan gives small ordered work items with exact ownership, dependencies, compatibility/security/offline constraints, acceptance, verifiers, evidence, and rollback considerations, and identifies one first implementation phase.",
+      "evidence_required": [
+        "document-reconciliation"
+      ]
+    },
+    {
+      "id": "DOCS-ONLY",
+      "description": "No production, test, fixture, package, generated roadmap, or runtime implementation file changes in this planning task.",
+      "evidence_required": [
+        "diff-scope"
+      ]
+    },
+    {
+      "id": "CONSISTENCY",
+      "description": "Authoritative documentation, verifier classification, AI memory, and roadmap sources remain internally consistent and the roadmap reports Sources agree.",
+      "evidence_required": [
+        "roadmap-consistency",
+        "verifier-classification",
+        "ai-memory",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "repository-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "git status/log/fetch; graphify query/explain; bd stats/ready/list; source and authoritative-doc inspection",
+      "result": "PASS",
+      "artifact": "Inspected main/origin at 18dc90d, Beads 265/263/2, roadmap and ledger sources, Graphify, authoritative docs, production call paths and persisted contracts."
+    },
+    {
+      "id": "document-reconciliation",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md; docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md"
+    },
+    {
+      "id": "diff-scope",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --name-only; git diff --stat",
+      "result": "PASS",
+      "artifact": "Only docs/plans, docs/ai project-state sources and task/lease control-plane files changed; no production, verifier, fixture, package or generated roadmap source changed."
+    },
+    {
+      "id": "roadmap-consistency",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "npm run verify:roadmap-dashboard: 177/177 checks passed and Overview reports Sources agree."
+    },
+    {
+      "id": "verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "artifact": "All 199 commands reconciled: 1 documentation, 11 static, 63 unit, 36 integration, 77 real-browser, 11 packaged and 0 clean-machine."
+    },
+    {
+      "id": "ai-memory",
+      "type": "verifier",
+      "required": true,
+      "command": "node scripts/ai-memory/check-memory.mjs",
+      "result": "PASS",
+      "artifact": "node scripts/ai-memory/check-memory.mjs passed."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "git diff --check passed; only line-ending normalization warnings were emitted."
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-rfpln:project-state:2026-09-02T19:31:24.302Z",
+        "task": "awkit-rfpln",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/PROJECT_BRIEF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-rfpln.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
+        ],
+        "acquired_at": "2026-09-02T19:31:24.302Z",
+        "acquired_at_commit": "18dc90d5a97cd37a2304d8a9885b899cc148d4cc",
+        "released_at": "2026-09-02T19:43:03.424Z",
+        "released_reason": "Refactoring plan reconciliation complete; documentation consistency gates passed and no implementation work was started.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-rfpln:project-state:2026-09-02T19:45:31.810Z",
+        "task": "awkit-rfpln",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/PROJECT_BRIEF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-rfpln.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
+        ],
+        "acquired_at": "2026-09-02T19:45:31.810Z",
+        "acquired_at_commit": "18dc90d5a97cd37a2304d8a9885b899cc148d4cc",
+        "released_at": "2026-09-02T19:46:21.311Z",
+        "released_reason": "Corrected newly staged Markdown whitespace; cached diff check now passes.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "closed_note": "Live-code and authoritative-source review reconciled both supplied documents into an execution-ready R0-R9 sequence without production changes. Documentation, scope, classification, AI-memory and roadmap consistency checks passed; R0 is the sole recommended first implementation phase."
+  }
+}
