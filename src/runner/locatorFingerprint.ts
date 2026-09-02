@@ -125,7 +125,18 @@ export function fingerprintsEqual(a: LocatorElementFingerprint, b: LocatorElemen
   return aKeys.every((key) => a.attributes[key] === b.attributes[key]);
 }
 
-/** Weighted lexical/structural similarity of two hashed fingerprints in [0, 1]. */
+/**
+ * Weighted lexical/structural similarity of two hashed fingerprints in [0, 1].
+ *
+ * The structural portion deliberately follows the useful part of adaptive-relocation systems such
+ * as Scrapling without importing their runtime or weakening AWKIT's resolution gates: attribute
+ * dictionaries get partial credit when the same identity-bearing keys survive value drift, and the
+ * short ancestry path is compared as an ORDERED sequence instead of fixed indexes so inserting a
+ * benign wrapper does not erase every parent signal. LocatorFactory still owns the 0.86 confidence
+ * threshold, 0.08 runner-up margin, bounded scans, page/context gates, and sensitive-action refusal.
+ * Persisted fingerprints remain the existing privacy-hashed schema; no page text or raw attributes
+ * are introduced by this scoring change.
+ */
 export function similarity(a: LocatorElementFingerprint, b: LocatorElementFingerprint): number {
   const textScore = (left: string, right: string): number => {
     if (!left || !right) return 0;
@@ -135,16 +146,40 @@ export function similarity(a: LocatorElementFingerprint, b: LocatorElementFinger
     const common = [...leftTokens].filter((token) => rightTokens.has(token)).length;
     return common / Math.max(leftTokens.size, rightTokens.size, 1);
   };
+
+  // A bounded longest-common-subsequence score is the hashed-token equivalent of path sequence
+  // matching: it preserves parent order while tolerating an inserted/removed wrapper. Ancestry is
+  // capped at three entries by createPageFingerprint, so this dynamic-programming table is tiny.
+  const orderedSequenceScore = (left: string[], right: string[]): number => {
+    if (left.length === 0 || right.length === 0) return 0;
+    const row = new Array<number>(right.length + 1).fill(0);
+    for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+      let diagonal = 0;
+      for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+        const previous = row[rightIndex];
+        row[rightIndex] =
+          left[leftIndex - 1] === right[rightIndex - 1]
+            ? diagonal + 1
+            : Math.max(row[rightIndex], row[rightIndex - 1]);
+        diagonal = previous;
+      }
+    }
+    return row[right.length] / Math.max(left.length, right.length, 1);
+  };
+
   const attributeKeys = new Set([...Object.keys(a.attributes), ...Object.keys(b.attributes)]);
-  const attributeScore = attributeKeys.size
-    ? [...attributeKeys].filter((key) => a.attributes[key] && a.attributes[key] === b.attributes[key]).length /
-      attributeKeys.size
-    : 0;
-  const ancestryScore =
-    Math.max(a.ancestry.length, b.ancestry.length) > 0
-      ? a.ancestry.filter((value, index) => value === b.ancestry[index]).length /
-        Math.max(a.ancestry.length, b.ancestry.length)
-      : 0;
+  const attributeScore = (() => {
+    if (attributeKeys.size === 0) return 0;
+    const sharedKeys = [...attributeKeys].filter((key) => key in a.attributes && key in b.attributes).length;
+    const exactValues = [...attributeKeys].filter(
+      (key) => a.attributes[key] !== undefined && a.attributes[key] === b.attributes[key]
+    ).length;
+    const keyShapeScore = sharedKeys / attributeKeys.size;
+    const retainedValueScore = exactValues / attributeKeys.size;
+    return (keyShapeScore + retainedValueScore) / 2;
+  })();
+  const ancestryScore = orderedSequenceScore(a.ancestry, b.ancestry);
+
   return (
     (a.tag === b.tag ? 0.12 : 0) +
     (a.role && a.role === b.role ? 0.18 : 0) +
