@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## R0 architecture and regression characterization complete (`awkit-id8i`, 2026-09-03)
+
+R0 is complete without moving production ownership or changing production behavior. The new
+`verify:r0-characterization` gate runs **85/85** checks against real stores and the existing execution,
+capacity, browser-pool and licensing paths. Every guard has a targeted negative/mutation control.
+
+The architecture guard pins `ExecutionEngine`'s sanctioned `appPaths` bridge and its two current
+unwanted Electron-main imports (`ipc/session.ipc` and `profileStores`) independently, so R1A can remove
+the latter without broadly banning valid application/core dependencies. It also proves
+`execution.ipc.ts` is the only production `startRun` caller and that `ScenarioOrchestrator` is live.
+Six other candidates have no static/dynamic production import, identifier, IPC/preload, persistence,
+test/tool or built-bundle consumer and are therefore **apparently dead**, not deleted: `ExecutionQueue`,
+`FlowOrchestrator`, `FlowOutputRegistry`, `ConditionalFlowRouter`, `InstanceStatusChangedEvent` and
+`InstanceLockManager`. R3 still owns any removal.
+
+Real `JsonProfileStore` instances targeting the same resolved folder can enter their independent atomic
+replacement queues concurrently. Atomic replacement leaves valid whole JSON and no temporary residue,
+but a deterministic stale-snapshot case loses a field written by the other instance. A separate store
+can still save after another instance receives `ENOSPC`. This confirms R1B is required; it does not
+authorize a coordinator implementation in R0. Configured-path factories still resolve through
+`getConfiguredPaths()`, and unknown fields owned by the winning snapshot survive save/reload.
+
+Cancellation coverage pins pending/queued cancellation, dispatch gating, idempotent repeated cancel,
+running-stop semantics, final status/history truth, repeat refusal while active and admission of new work
+after cancellation. Capacity coverage pins sequential/parallel execution, saturation, promotion after
+release, browser-pool backpressure, cancellation under saturation and host/workload/safety-derived
+recommendations. Thirteen independent licensing checkpoint groups are source/behavior guarded across
+startup, periodic/focus/renderer revalidation, run request, pre-run, dispatch/resume and repeat; removal
+of each is detected. No new lifecycle state, queue, policy, store, runtime or test seam was added.
+
+Executed evidence: build PASS; script typecheck PASS; R0 **85/85**; Runner **138/138**; profile store
+**26/26**; licensing **192/192**; dispatch gate **34/34**; machine profile **15/15**; capacity planner
+**35/35**; capacity modes **10/10**; concurrency defaults **18/18**; browser pool **25/25**; stress
+cancellation **8/8**; stress concurrency **13/13**; durable store **16/16**; startup recovery **10/10**;
+real-browser concurrency **89/89**; real-browser cancellation **34/34**; write queue **29/29**; report
+compatibility **27/27**; portable fresh state **10/10**; real-Electron settings persistence **6/6**;
+source hygiene **11/11**; agent routing **1037/1037**; strict offline validation PASS; AI-memory check
+PASS. Verifier classification reconciles **200** commands (**1 / 11 / 63 / 37 / 77 / 11 / 0**).
+The Recorder/Reports/Settings validation ledger is unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED**
+because it has no R0 case. The next production phase is **R1A — narrow injected ports for the two
+unwanted `ExecutionEngine` dependencies**.
+
 ## System-refactor planning reconciled; implementation not started (`awkit-rfpln`, 2026-09-02)
 
 The two owner-supplied system-refactoring documents were audited against live `main` at `18dc90d`

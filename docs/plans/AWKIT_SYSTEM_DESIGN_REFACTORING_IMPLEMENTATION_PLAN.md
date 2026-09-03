@@ -1,6 +1,6 @@
 # AWKIT System Design Refactoring — Reconciled Implementation Plan
 
-**Status:** planning complete; production refactor not started
+**Status:** planning complete; R0 characterization complete; production ownership refactor not started
 
 **Repository baseline:** `main` at `18dc90d5a97cd37a2304d8a9885b899cc148d4cc`
 
@@ -149,7 +149,7 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
 
 ### R0 — Characterize architecture and make regressions fail loudly
 
-**Classification:** first implementation phase; verifier-only; no product behavior change.
+**Classification:** **complete 2026-09-03**; verifier-only; no product behavior change.
 
 **Dependencies:** none.
 
@@ -171,7 +171,8 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
    - terminal stop cannot relabel history;
    - parked instances retain capacity;
    - request/pre-run/dispatch/repeat/resume licensing checkpoints use the same pure policy;
-   - a second profile-store instance targeting the same folder cannot interleave a mutation.
+   - two current profile-store instances targeting the same folder can interleave their independent
+     queues, while the future R1B coordinator must make that interleaving impossible.
 3. Add mutation/negative controls that break each structural and behavioral assertion.
 4. Register any new command in `scripts/lib/verifier-classification.ts` and roadmap sources.
 
@@ -192,6 +193,21 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
 - Each new check fails under a targeted broken-behavior mutation and passes restored code.
 - Baseline semantics and live/dead import inventory are explicit.
 - `build`, script typecheck, focused gates, classification and roadmap all report exact counts.
+
+**Executed evidence (2026-09-03)**
+
+- `verify:r0-characterization` passes **85/85**, with a targeted negative/mutation control for every
+  architecture, race, lifecycle, capacity, checkpoint and consumer guard.
+- The exact current upward edges are `ipc/session.ipc` and `profileStores`; `appPaths` remains a
+  separately sanctioned bridge. `execution.ipc.ts` is the sole production `startRun` caller.
+- Real same-folder stores overlap (`maxActive = 2`); atomic replacement remains whole-file safe, while a
+  stale snapshot can lose the other instance's field. R1B is confirmed, not implemented.
+- Cancellation, saturation/release, browser backpressure, canonical capacity derivation and thirteen
+  independent licensing checkpoint groups are pinned without sleeps or production seams.
+- Six candidates are apparently dead by production/dynamic/IPC/preload/persistence/test-tool/built-bundle
+  evidence; `ScenarioOrchestrator` is live. R3 still owns deletion.
+- No R1+ production file changed. Build, script typecheck, Runner and all focused R0 gates pass; the
+  command is registered as integration evidence.
 
 **Rollback/risk**
 
@@ -495,7 +511,7 @@ rules allow it; code changes remain serialized.
 ## 6. Dependency order and independent work
 
 ```text
-R0 Characterization
+R0 Characterization (complete)
  ├─> R1A Engine ports ─┐
  ├─> R1B Store owner ──┼─> R2 Execution application service ─┐
  ├─> R3 Lifecycle/dead stubs (logically independent) ─────────┤
@@ -569,9 +585,9 @@ the live call path has no parallel runtime/policy/storage owner, cross-layer GUI
 fresh packaged evidence is recorded, authoritative sources agree, and all work is committed/pushed to
 `main` without discarded user work.
 
-## 10. Single recommended first implementation phase
+## 10. Single recommended next implementation phase
 
-Start with **R0 — Characterize architecture and make regressions fail loudly**. It is the smallest safe
-step, creates the missing proof for the real ownership defects, and prevents the first production edit from
-accidentally replacing working admission, cancellation, persistence or Recorder behavior with a parallel
-architecture.
+Start with **R1A — Narrow ExecutionEngine ports**. R0 now provides the mutation-backed boundary and
+behavioral baseline. Remove only the `ipc/session.ipc` and `profileStores` imports through narrow injected
+ports from Electron-main composition; retain the sanctioned `appPaths` bridge, independent admission and
+licensing checkpoints, existing lifecycle/status/report behavior and the one canonical engine.

@@ -1,5 +1,38 @@
 # TASK_LOG
 
+## 2026-09-03 — Codex — R0 architecture and regression characterization
+
+**Task:** execute only R0 from the reconciled refactoring plan on `main`, making the current execution
+architecture, same-folder store race, cancellation, capacity, license checkpoints and suspected dead
+modules measurable before any production ownership refactor.
+
+**Result:** added `verify:r0-characterization` with **85/85** integration/static checks and targeted
+negative controls. It pins the two exact unwanted `ExecutionEngine` Electron-main imports without
+banning the sanctioned `appPaths` bridge, exercises real same-folder `JsonProfileStore` instances,
+deterministically characterizes cancellation/dispatch and capacity/backpressure, guards thirteen
+independent licensing checkpoint groups and classifies six lifecycle/orchestration candidates as
+apparently dead. `ScenarioOrchestrator` is proven production-used. No production source or behavior was
+changed and no test seam was added.
+
+**Confirmed risk:** independently constructed same-folder stores can overlap their instance-local write
+queues. Atomic replacement keeps the file valid, but a stale snapshot can overwrite another instance's
+field. R1B owns the fix. R1A remains first because the two exact upward dependencies are now guarded.
+
+**Files:** `scripts/verify-r0-characterization.mts`, `scripts/verify-runner.mts`, `package.json`, verifier
+classification, roadmap count guard, task contract/Beads/assignment and the authoritative plan/AI docs.
+The `verify-runner` edit removes a pre-existing invalid fixture-only `scenarioId` member exposed by
+`typecheck:scripts`; it does not affect production behavior.
+
+**Verification:** build PASS; typecheck:scripts PASS; R0 **85/85**; Runner **138/138**; profile store
+**26/26**; licensing **192/192**; license dispatch **34/34**; machine profile **15/15**; capacity planner
+**35/35**; capacity modes **10/10**; concurrency defaults **18/18**; browser pool **25/25**; stress
+cancellation **8/8**; stress concurrency **13/13**; durable store **16/16**; startup recovery **10/10**;
+real-browser concurrency **89/89**; real-browser cancellation **34/34**; write queue **29/29**; report
+compatibility **27/27**; portable fresh state **10/10**; settings persistence **6/6**; source hygiene
+**11/11**; agent routing **1037/1037**; verifier classification **200/200**; offline PASS; AI-memory PASS.
+The first script typecheck exposed two fixture diagnostics and the first roadmap run exposed only the
+new Bead cardinality pin; both were corrected and rerun green. No required command remains blocked.
+
 ## 2026-09-02 — Codex — reconcile system-refactoring plan against live AWKIT
 
 **Request/result:** audited the two owner-supplied Markdown documents against `main` at `18dc90d`,

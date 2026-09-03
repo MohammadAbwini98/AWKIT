@@ -242,6 +242,11 @@ npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Elect
                             # Structural, not timing. Requires build. (13/13)
 npm run verify:write-queue  # tsx scripts/verify-write-queue.mts — unit checks for the serial write queue
 npm run verify:profile-store  # tsx scripts/verify-profile-store.mts — atomic write / corrupt-quarantine / id-rename durability for the JSON profile store
+npm run verify:r0-characterization # tsx scripts/verify-r0-characterization.mts through the maintained
+                            # benchmark Electron composition — mutation-backed R0 guard for the exact
+                            # ExecutionEngine→Electron-main edges, real same-folder store overlap/stale
+                            # snapshots, cancellation/dispatch races, capacity/backpressure, independent
+                            # licensing checkpoints and dead-module consumers. No network/browser. (85/85)
 npm run verify:run-report-compatibility # tsx scripts/verify-run-report-compatibility.mts - a run
                             # admitted under a Legacy Compatibility grant says so in its execution
                             # report (awkit-vbj): the block names each admitted flow and its grant

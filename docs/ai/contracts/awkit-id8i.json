@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-id8i",
+    "title": "R0 architecture and regression characterization",
+    "objective": "Execute only R0 from the reconciled refactoring plan by adding behavior-grounded guards for execution architecture, same-folder store races, cancellation, capacity, independent license checkpoints, and dead orchestration/lifecycle consumers without moving production ownership.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "b10b14115439f2e4e2ca48c477b2c40411f9edc0",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      }
+    ]
+  },
+  "classification": {
+    "general_engineering_change": true,
+    "runner_change": false,
+    "execution_change": false,
+    "concurrency_change": false,
+    "persisted_shape_change": false,
+    "filesystem_write_change": false,
+    "licensing_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "broad_investigation": true,
+    "project_state_change": true,
+    "cross_layer_count": 7
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "software",
+      "qa",
+      "qc",
+      "researcher",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/verify-r0-characterization.mts",
+      "scripts/verify-runner.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "scripts/lib/verifier-classification.ts",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-id8i.json",
+      "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+      "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md"
+    ],
+    "consultants": [
+      "architect",
+      "software",
+      "researcher"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-id8i.json",
+        "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+        "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+        "scripts/lib/verifier-classification.ts",
+        "tools/roadmap/assignments.json"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "Do not begin R1A, R1B, R2, R3, or any production ownership migration.",
+      "Guards must identify exact prohibited Electron-main dependencies and exact candidate consumers rather than broadly banning valid core/application imports.",
+      "Do not introduce a second execution, orchestration, queue, browser/session, persistence, licensing, or reporting authority."
+    ],
+    "security": [
+      "Preserve all independent licensing checkpoints and existing trusted-process, authorization, protected-login, CAPTCHA/MFA, and secret-masking boundaries."
+    ],
+    "compatibility": [
+      "Exercise real stores and preserve existing profile shapes, unknown fields, configured-path behavior, and atomic-replacement defaults.",
+      "Do not add lifecycle statuses or change persisted execution/report semantics."
+    ],
+    "offline": [
+      "All characterization must run without production network access and must not change bundled-runtime or packaged-source boundaries."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "R0-ARCH",
+      "description": "An executable guard pins the exact ExecutionEngine Electron-main dependency and dead-module consumer boundary with mutation controls.",
+      "evidence_required": [
+        "r0-characterization"
+      ]
+    },
+    {
+      "id": "R0-STORE",
+      "description": "Real same-folder stores demonstrate independent queue overlap, atomic-file validity, stale-snapshot exposure, configured paths, compatibility, reload, and failure behavior.",
+      "evidence_required": [
+        "r0-characterization",
+        "profile-store"
+      ]
+    },
+    {
+      "id": "R0-LIFECYCLE",
+      "description": "Deterministic lifecycle and capacity tests cover pending/queued cancellation, admission race controls, saturation, release recovery, final status, and independent licensing checkpoints.",
+      "evidence_required": [
+        "r0-characterization",
+        "runner-and-focused"
+      ]
+    },
+    {
+      "id": "R0-CONSISTENCY",
+      "description": "R0 evidence is recorded in authoritative sources, verifier classification is complete, roadmap reports Sources agree, and all results use the repository evidence vocabulary.",
+      "evidence_required": [
+        "build",
+        "classification",
+        "roadmap",
+        "offline",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "r0-characterization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:r0-characterization",
+      "result": "PASS 85/85",
+      "artifact": null
+    },
+    {
+      "id": "profile-store",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:profile-store",
+      "result": "PASS 26/26",
+      "artifact": null
+    },
+    {
+      "id": "runner-and-focused",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner plus relevant cancellation, concurrency, licensing, persistence and packaged-source verifiers",
+      "result": "PASS: Runner 138/138; cancellation 34/34; concurrency 89/89; licensing 192/192; focused store, capacity, recovery, report and packaged-source gates all green",
+      "artifact": null
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build; npm run typecheck:scripts",
+      "result": "PASS",
+      "artifact": null
+    },
+    {
+      "id": "classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS 200/200; 1 documentation, 11 static, 63 unit, 37 integration, 77 real-browser, 11 packaged, 0 clean-machine",
+      "artifact": null
+    },
+    {
+      "id": "roadmap",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline",
+      "result": "PASS",
+      "artifact": null
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": null
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-id8i:qa:2026-09-03T12:02:41.356Z",
+        "task": "awkit-id8i",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts"
+        ],
+        "acquired_at": "2026-09-03T12:02:41.356Z",
+        "acquired_at_commit": "b10b14115439f2e4e2ca48c477b2c40411f9edc0",
+        "released_at": "2026-09-03T12:12:05.501Z",
+        "released_reason": "R0 characterization verifier added and its 85 mutation-backed checks pass; rerouting the writer slot to Release for npm command registration.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:release:2026-09-03T12:12:22.114Z",
+        "task": "awkit-id8i",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package.json"
+        ],
+        "acquired_at": "2026-09-03T12:12:22.114Z",
+        "acquired_at_commit": "eb926c6768af686230eb7bc594cb60776973cdf6",
+        "released_at": "2026-09-03T12:13:20.892Z",
+        "released_reason": "Registered verify:r0-characterization through the maintained benchmark Electron composition; npm command passes 85/85.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:project-state:2026-09-03T12:13:46.995Z",
+        "task": "awkit-id8i",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-id8i.json",
+          "docs/ai/validation/VALIDATION_LEDGER.md",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T12:13:46.995Z",
+        "acquired_at_commit": "2df39c16964762cf983bb7cf1aaae5c43a917335",
+        "released_at": "2026-09-03T12:14:39.392Z",
+        "released_reason": "Correcting the planned ledger path: the authoritative Recorder/Reports/Settings ledger has no R0 case and no status moves, so R0 will record it as unchanged rather than editing a nonexistent validation path.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:project-state:2026-09-03T12:14:51.063Z",
+        "task": "awkit-id8i",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-id8i.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T12:14:51.063Z",
+        "acquired_at_commit": "2df39c16964762cf983bb7cf1aaae5c43a917335",
+        "released_at": "2026-09-03T12:17:04.486Z",
+        "released_reason": "Refreshing the project-state lease after Beads generated interactions.jsonl; amend observed no effective addition because the contract was already expanded.",
+        "amendments": [
+          {
+            "timestamp": "2026-09-03T12:16:41.580Z",
+            "added": [],
+            "reason": "The Beads CLI records the R0 task lifecycle in interactions.jsonl alongside issues.jsonl; include that generated tracker record without broadening production scope.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:project-state:2026-09-03T12:17:08.922Z",
+        "task": "awkit-id8i",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-id8i.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T12:17:08.922Z",
+        "acquired_at_commit": "2df39c16964762cf983bb7cf1aaae5c43a917335",
+        "released_at": "2026-09-03T12:18:08.648Z",
+        "released_reason": "Rerouting to QA for two test-only typecheck corrections: R0 closure narrowing and a pre-existing invalid InstanceConfig field in verify-runner.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:qa:2026-09-03T12:18:12.842Z",
+        "task": "awkit-id8i",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-runner.mts"
+        ],
+        "acquired_at": "2026-09-03T12:18:12.842Z",
+        "acquired_at_commit": "2df39c16964762cf983bb7cf1aaae5c43a917335",
+        "released_at": "2026-09-03T12:20:26.736Z",
+        "released_reason": "Both verifier-only typecheck diagnostics are corrected; typecheck:scripts passes, R0 remains 85/85, and verify:runner passes 138/138.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:project-state:2026-09-03T12:20:47.783Z",
+        "task": "awkit-id8i",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-id8i.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T12:20:47.783Z",
+        "acquired_at_commit": "76003cc8b12280fea1c1832b533afc51a2f54a16",
+        "released_at": "2026-09-03T12:25:30.654Z",
+        "released_reason": "Rerouting to QA to advance the roadmap verifier's exact tracker cardinality for the newly created R0 Bead.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:qa:2026-09-03T12:25:35.078Z",
+        "task": "awkit-id8i",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-03T12:25:35.078Z",
+        "acquired_at_commit": "76003cc8b12280fea1c1832b533afc51a2f54a16",
+        "released_at": "2026-09-03T12:28:27.551Z",
+        "released_reason": "work complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:project-state:2026-09-03T12:29:49.522Z",
+        "task": "awkit-id8i",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-id8i.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T12:29:49.522Z",
+        "acquired_at_commit": "20ed19f6c5a974cc8cb71fc3fb5b574cd672f178",
+        "released_at": "2026-09-03T12:35:07.611Z",
+        "released_reason": "R0 Bead closed and authoritative evidence recorded; rerouting the exact final tracker pin to QA before final contract closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

@@ -1,5 +1,19 @@
 # KNOWN_ISSUES
 
+## Same-folder profile-store instances have independent write queues (confirmed 2026-09-03)
+
+`JsonProfileStore` serializes and atomically replaces within one instance, but separately constructed
+instances targeting the same resolved folder own separate queues. R0's real-store probe synchronizes
+two instances at their atomic rename boundary and observes `maxActive = 2`. The destination remains
+whole valid JSON and temporary files are cleaned, but a deterministic stale-snapshot save loses a field
+written by the other instance. A failure in one instance (`ENOSPC`) does not poison a second instance's
+subsequent save.
+
+This is not an atomic-replace defect and must not be hidden with sleeps/retries. R1B must compose one
+coordinator/store authority keyed by the canonical resolved folder, preserve configured-path switching,
+unknown profile fields, save/reload behavior and failure isolation, and keep JSON formats unchanged.
+Until R1B lands, avoid independently constructing multiple mutable store instances for one folder.
+
 ## Release residuals after canonical packaging and clean-machine execution (2026-08-29)
 
 - **Windows Authenticode is not configured.** The dependency manifest is validly Ed25519-signed, but

@@ -1,6 +1,6 @@
 # AWKIT Refactoring Integration & Handoff Checklist — Reconciled
 
-**Status:** planning complete; production refactor not started
+**Status:** planning complete; R0 characterization complete; production ownership refactor not started
 
 **Repository baseline:** `main` at `18dc90d5a97cd37a2304d8a9885b899cc148d4cc`
 
@@ -146,15 +146,15 @@ execution/store changes. XPath must never acquire a fallback or alternate runtim
 
 | Command / scenario | Layer | Expected count | Actual result | Evidence path / note |
 |---|---|---:|---|---|
-| R0 architecture characterization | integration + mutation | Pin when introduced | NOT RUN | No code phase authorized yet |
-| `npm run build` | type/bundle | command success | NOT RUN | Required after production/script changes |
-| Focused subsystem verifiers | unit/integration/browser | Pin per phase | NOT RUN | Select from companion plan |
-| `npm run verify:mock-site` | fixture contract | current total | NOT RUN | When fixture/runtime behavior changes |
-| `npm run verify:verifier-classification` | documentation consistency | 199 at planning baseline | PASS at baseline | Rerun at closeout |
-| `npm run verify:roadmap-dashboard` | documentation consistency | 177 at planning baseline | PASS at baseline | Must say `Sources agree` |
-| `npm run validate:offline` | integration/offline | command success | NOT RUN | Required for runtime/package changes |
+| R0 architecture characterization | integration + mutation | 85 | PASS 85/85 | Exact-edge, real-store, lifecycle, capacity, license and dead-consumer guards |
+| `npm run build` | type/bundle | command success | PASS | Typecheck and bundles complete |
+| Focused subsystem verifiers | unit/integration/browser | Per command | PASS | Runner 138/138 plus store/cancel/concurrency/license gates recorded in task log |
+| `npm run verify:mock-site` | fixture contract | current total | NOT APPLICABLE | R0 changed no fixture or observable scenario |
+| `npm run verify:verifier-classification` | documentation consistency | 200 | PASS 200/200 | R0 command classified as integration |
+| `npm run verify:roadmap-dashboard` | documentation consistency | 177 | PASS 177/177 | Overview says `Sources agree` |
+| `npm run validate:offline` | integration/offline | command success | PASS | Strict offline validation completed |
 | Packaged/clean-profile suites | packaged/acceptance | Pin artifact identity | NOT RUN | R8 only; do not inherit old package evidence |
-| `git diff --check` | source hygiene | command success | NOT RUN | Every phase |
+| `git diff --check` | source hygiene | command success | PASS | R0 closeout |
 
 Record exact PASS / FAIL / BLOCKED / NOT RUN counts. A denied command is `NOT RUN`. A genuine external
 dependency may be `BLOCKED`; a failure is never relabelled. Include a red/mutation control for each new
@@ -223,9 +223,9 @@ advance. For each R phase:
 | Verifier classification | Register every new command |
 | Roadmap | Run verifier and confirm `Sources agree`; never hand-edit derived totals |
 
-For this planning-only task, no implementation Bead was created and no future work was falsely marked
-active. The task contract and temporary lease/claim track the documentation change; the claim must be
-cleared before commit.
+R0 used Bead/task contract `awkit-id8i`; its lease/claim is cleared at closeout. The comprehensive
+Recorder/Reports/Settings validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED** because it has
+no R0 case, so no unrelated row was fabricated or moved.
 
 ## 14. Git handoff
 
@@ -240,7 +240,7 @@ cleared before commit.
 
 | Risk / decision | Owner phase | Gate |
 |---|---|---|
-| Same-folder store serialization is not proven | R0/R1B | concurrent write + restart + failure-injection test |
+| Same-folder stores are proven to overlap and can lose stale-snapshot fields | R1B | one resolved-folder coordinator + concurrent/restart/failure-injection regression |
 | Core imports main composition | R1A | architecture negative control + unchanged Runner behavior |
 | Execution IPC extraction could collapse policies | R2 | independent denial tests at every checkpoint |
 | Dead-looking IPC may have external consumers | R4 | owner/public API decision before removal |
@@ -251,7 +251,7 @@ cleared before commit.
 
 ## 16. Next agent start point
 
-Start only with **R0 — Characterize architecture and make regressions fail loudly** from the companion
-plan. Create/claim its Bead and task contract, then add focused architecture, store-race and execution
-invariant characterization with red controls. Do not move production ownership in the same first commit.
-R0 is the only recommended first implementation phase.
+Start only with **R1A — Narrow ExecutionEngine ports** from the companion plan. R0 is complete and its
+85-check gate must stay green. Inject only the minimum session/report ports from Electron-main
+composition, remove the two exact upward imports, retain the sanctioned `appPaths` bridge and do not
+combine R1B or R2 ownership work into the same phase.

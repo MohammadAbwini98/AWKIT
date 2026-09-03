@@ -1,39 +1,39 @@
 {
-  "task": "awkit-rfpln",
-  "contract_path": "docs/ai/contracts/awkit-rfpln.json",
+  "task": "awkit-id8i",
+  "contract_path": "docs/ai/contracts/awkit-id8i.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
-    "docs/ai/PROJECT_BRIEF.md",
+    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-rfpln.json",
+    "docs/ai/contracts/awkit-id8i.json",
     "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
-    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
+    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+    "scripts/lib/verifier-classification.ts",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-02T19:45:31.810Z",
-  "acquired_at_commit": "18dc90d5a97cd37a2304d8a9885b899cc148d4cc",
+  "acquired_at": "2026-09-03T12:29:49.522Z",
+  "acquired_at_commit": "20ed19f6c5a974cc8cb71fc3fb5b574cd672f178",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/PROJECT_BRIEF.md",
-    "docs/ai/TASK_LOG.md",
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "AWTKIT.rar",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-rfpln.json",
-    "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
-    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md"
+    "docs/ai/contracts/awkit-id8i.json",
+    "scripts/lib/verifier-classification.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "835bfb819eb80c7ba04f4e8ba0edc0837de6d06ad6d2298bd818d5d0a6d10625",
-    "docs/ai/HANDOFF.md": "b0b3cae1a61bd6e8a06481d28f583b8308d312efaf281e157009ec39d16411d8",
-    "docs/ai/PROJECT_BRIEF.md": "5e2542ef5826046abf210ff1d4c663976336b1b55d69a551e240befe569487ee",
-    "docs/ai/TASK_LOG.md": "63162194fab0f50139961263e7979ac5968cddd175952c4c0864ff64fef9bf4b",
-    "docs/ai/contracts/active-lease.json": "1ff7108671f38f4be44e06ba3188c5727bf27b39784053c260524a654f980a5f",
-    "docs/ai/contracts/awkit-rfpln.json": "f2e5ca91f7b660fdbea44c1914ebe3224b20f9c450230cc2b86016fb71315528",
-    "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md": "b03f545fc4dab27104897c9858690e1f8998b4fae70e9de7641cc22377835648",
-    "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md": "d8fd9cfe90f3aa665956a8829342bc2fd329ee728da2f5cb88ce224c837e2743"
+    ".beads/interactions.jsonl": "7cce22ba30fae1d1bea6d9a439457d10abe4ee85800ddba42568d459a81a17c3",
+    ".beads/issues.jsonl": "5cf91f5b5838d8716d3bbd999dd5cadb025b3fd42d9b390a84c4034a5be5fa2d",
+    "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
+    "docs/ai/contracts/active-lease.json": "d0736967a261f1bfd84529b7cec59f63ea508811898811f854c5f490cf2414e1",
+    "docs/ai/contracts/awkit-id8i.json": "72f92b1dcc3a3f5a740792ae63fab2ddf9e1b4581b5d0607a03de16847d01986",
+    "scripts/lib/verifier-classification.ts": "4bd79fa2e2e223678debf6c17179dec06e5ce89d8e97bb477f120f88bc3c15cb"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -48,7 +48,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-02T19:46:21.311Z",
-  "released_reason": "Corrected newly staged Markdown whitespace; cached diff check now passes.",
-  "archived_at": "2026-09-02T19:46:21.313Z"
+  "released_at": "2026-09-03T12:35:07.611Z",
+  "released_reason": "R0 Bead closed and authoritative evidence recorded; rerouting the exact final tracker pin to QA before final contract closeout.",
+  "archived_at": "2026-09-03T12:35:07.612Z"
 }

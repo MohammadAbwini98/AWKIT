@@ -139,6 +139,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:stress:artifacts": { class: "integration", why: "Artifact stress writing real artifact files." },
   "verify:locks": { class: "integration", why: "Real lock manager + real BrowserContextFactory lock path + fs (no browser launched)." },
   "verify:profile-store": { class: "integration", why: "Real atomic fs writes / corrupt-quarantine / id-rename in a temp dir." },
+  "verify:r0-characterization": { class: "integration", why: "R0 refactoring baseline: AST-resolved production dependency/license-checkpoint guards plus real same-folder JsonProfileStore atomic-write overlap/failure behavior and the real ExecutionEngine lifecycle, coordinator, browser-pool, backpressure and capacity planner without launching a browser." },
   "verify:machine-profile": { class: "integration", why: "Machine-profile atomic fs round-trip + recalibration on hardware change." },
   "verify:oracle-bridge": { class: "integration", why: "Builds the real Java bridge core and checks its contract." },
   "verify:oracle-bridge-real-build": { class: "integration", why: "Real direct-JDBC executor build + class load." },

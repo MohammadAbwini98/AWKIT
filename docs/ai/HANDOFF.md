@@ -1,5 +1,31 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-03, latest) — R0 complete; R1A ready
+
+- **Scope completed:** verifier-only R0 characterization. No R1A/R1B production ownership move, no new
+  lifecycle status, no parallel queue/store/license/browser/reporting authority and no production test
+  seam.
+- **Architecture:** `ExecutionEngine` still imports the sanctioned `appPaths` bridge plus the two exact
+  R1A targets `ipc/session.ipc` and `profileStores`. The 85-check R0 gate detects either target's removal,
+  an added Electron-main edge and every targeted mutation independently.
+- **Store finding:** two real same-folder `JsonProfileStore` instances overlap their instance-local
+  queues; replacement remains atomic, but stale snapshots can lose the other writer's field. R1B remains
+  necessary and must key one write authority by resolved configured folder while preserving shapes and
+  unknown fields.
+- **Lifecycle/capacity/license:** deterministic pending/queued/running cancellation, saturation/recovery,
+  browser backpressure and canonical capacity behavior are pinned. Thirteen independent licensing
+  checkpoint groups remain deliberate defense-in-depth and must not be consolidated.
+- **Dead candidates:** `ExecutionQueue`, `FlowOrchestrator`, `FlowOutputRegistry`,
+  `ConditionalFlowRouter`, `InstanceStatusChangedEvent` and `InstanceLockManager` are apparently dead by
+  production/dynamic/IPC/preload/persistence/test-tool/built-bundle evidence. `ScenarioOrchestrator` is
+  production-used. Do not delete candidates before R3.
+- **Verification:** R0 **85/85**, Runner **138/138**, all focused store/cancellation/concurrency/license
+  gates green, build/typecheck/source-hygiene/offline/AI-memory green, classifier **200** commands. The
+  comprehensive ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED** because no case applies to R0.
+- **Next phase:** R1A only. Inject the narrow session/report ports from Electron-main composition and
+  remove exactly the two unwanted imports. Preserve `appPaths`, all independent gates and the current
+  runtime/queue/report semantics; keep the R0 gate green.
+
 ## HANDOFF (2026-09-02, latest) — system-refactor plan reconciled; implementation not started
 
 ### Transfer
