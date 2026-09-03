@@ -1,8 +1,9 @@
 /**
  * R0 refactoring characterization.
  *
- * This verifier deliberately records today's boundaries without moving them. It combines
- * AST-resolved dependency/checkpoint guards with real store/lifecycle/capacity implementations.
+ * This verifier records the R0 baseline and advances its dependency oracle after each approved
+ * refactoring tranche. It combines AST-resolved dependency/checkpoint guards with real
+ * store/lifecycle/capacity implementations.
  * Every section includes a mutation control: the guard must reject the concrete regression it is
  * intended to detect, rather than merely proving that a file or string exists.
  *
@@ -18,6 +19,7 @@ import ts from "typescript";
 
 import { JsonProfileStore } from "../src/storage/ProfileStore";
 import { ExecutionEngine } from "../src/runner/ExecutionEngine";
+import type { ExecutionEnginePorts } from "../src/runner/ExecutionEnginePorts";
 import { InstanceManager, type StorageDirs } from "../src/instances/InstanceManager";
 import { ConcurrentExecutionCoordinator } from "../src/orchestrator/ConcurrentExecutionCoordinator";
 import type { ConcurrentRunProfile } from "../src/instances/ConcurrentRunProfile";
@@ -143,40 +145,68 @@ function replaceNode(text: string, node: ts.Node, replacement = "(void 0)"): str
 }
 
 async function architectureAndDeadCode(): Promise<void> {
-  console.log("\nR0.1/R0.6 - architecture dependency and dead-code consumers");
+  console.log("\nR0.1/R1A/R0.6 - architecture dependency and dead-code consumers");
   const enginePath = "src/runner/ExecutionEngine.ts";
   const engineText = source(enginePath);
-  const mainImports = importsOf(enginePath, engineText).filter((item) => item.startsWith("../../app/main/"));
-  const expectedMainImports = [
-    "../../app/main/appPaths",
-    "../../app/main/ipc/session.ipc",
-    "../../app/main/profileStores"
-  ];
-  const prohibited = mainImports.filter((item) => item !== "../../app/main/appPaths");
-
-  const assertCurrentBoundary = (text: string): void => {
-    const actual = importsOf(enginePath, text).filter((item) => item.startsWith("../../app/main/")).sort();
-    invariant(JSON.stringify(actual) === JSON.stringify([...expectedMainImports].sort()), `ExecutionEngine Electron-main edges changed: ${actual.join(", ")}`);
-  };
+  const portPath = "src/runner/ExecutionEnginePorts.ts";
+  const expectedMainEdges = ["app/main/appPaths.ts"];
+  const mainEdges = (path: string, text: string): string[] =>
+    importsOf(path, text)
+      .map((specifier) => resolveImport(path, specifier))
+      .filter((resolved): resolved is string => resolved?.startsWith("app/main/") === true)
+      .sort();
   const assertR1aCleanBoundary = (text: string): void => {
-    const edges = importsOf(enginePath, text).filter(
-      (item) => item.startsWith("../../app/main/") && item !== "../../app/main/appPaths"
+    const actual = mainEdges(enginePath, text);
+    invariant(
+      JSON.stringify(actual) === JSON.stringify(expectedMainEdges),
+      `ExecutionEngine Electron-main edges changed: ${actual.join(", ") || "none"}`
     );
-    invariant(edges.length === 0, `R1A removal gate blocked by: ${edges.join(", ")}`);
   };
 
-  assertCurrentBoundary(engineText);
-  check(
-    "current boundary identifies only the sanctioned appPaths bridge plus the two exact unwanted Electron-main edges",
-    JSON.stringify(prohibited.sort()) === JSON.stringify(["../../app/main/ipc/session.ipc", "../../app/main/profileStores"].sort()),
-    prohibited.join(", ")
-  );
-  mutationRejected("the current unwanted ExecutionEngine -> Electron-main dependency at the future R1A removal gate", () => assertR1aCleanBoundary(engineText));
-  mutationRejected("an additional ExecutionEngine -> Electron-main dependency", () => {
-    assertCurrentBoundary(`import { registerExecutionIpc } from "../../app/main/ipc/execution.ipc";\n${engineText}`);
+  assertR1aCleanBoundary(engineText);
+  check("R1A leaves only the separately sanctioned ExecutionEngine -> appPaths bridge", true, expectedMainEdges[0]);
+  mutationRejected("reintroducing ExecutionEngine -> session.ipc", () => {
+    assertR1aCleanBoundary(`import { getSessionService } from "../../app/main/ipc/session.ipc";\n${engineText}`);
   });
-  assertCurrentBoundary(`import type { FlowStep } from "@src/profiles/FlowProfile";\n${engineText}`);
+  mutationRejected("reintroducing ExecutionEngine -> profileStores", () => {
+    assertR1aCleanBoundary(`import { createReportStore } from "../../app/main/profileStores";\n${engineText}`);
+  });
+  mutationRejected("a replacement ExecutionEngine -> Electron-main dependency through an alias", () => {
+    assertR1aCleanBoundary(`import { registerExecutionIpc } from "@main/ipc/execution.ipc";\n${engineText}`);
+  });
+  assertR1aCleanBoundary(`import type { FlowStep } from "@src/profiles/FlowProfile";\n${engineText}`);
   check("valid core/application imports are not broadly banned by the architecture guard", true);
+  check(
+    "the narrow ExecutionEngine port contract is itself framework-independent",
+    mainEdges(portPath, source(portPath)).length === 0
+  );
+
+  const executionIpcPath = "app/main/ipc/execution.ipc.ts";
+  const mainPath = "app/main/main.ts";
+  const assertProductionPortComposition = (ipcText: string, mainText: string): void => {
+    const portCalls = calls(executionIpcPath, (call, sf) => callText(call, sf) === "executionEngine.setExecutionPorts", ipcText);
+    invariant(portCalls.length === 1, `production ExecutionEngine port registrations: ${portCalls.length}`);
+    const wiring = portCalls[0].arguments[0]?.getText(parse(executionIpcPath, ipcText)) ?? "";
+    invariant(/sessionAccess:\s*getSessionService\(\)/.test(wiring), "production session-access adapter is missing");
+    invariant(/createReportStore\(\)\.import\(report\)/.test(wiring), "production report-persistence adapter is missing");
+    invariant(
+      /!executionEngine\.dispatchGateRegistered\s*\|\|\s*!executionEngine\.executionPortsRegistered/.test(mainText),
+      "bootstrap no longer fails closed when execution ports are missing"
+    );
+  };
+  const executionIpcText = source(executionIpcPath);
+  const mainText = source(mainPath);
+  assertProductionPortComposition(executionIpcText, mainText);
+  check("Electron main composes both narrow ports and bootstrap rejects missing production composition", true);
+  mutationRejected("production session access being omitted from composition", () => {
+    assertProductionPortComposition(executionIpcText.replace("sessionAccess: getSessionService()", "sessionAccess: undefined"), mainText);
+  });
+  mutationRejected("production report persistence being disconnected from createReportStore", () => {
+    assertProductionPortComposition(executionIpcText.replace("await createReportStore().import(report);", "void report;"), mainText);
+  });
+  mutationRejected("production bootstrap accepting an unconfigured ExecutionEngine", () => {
+    assertProductionPortComposition(executionIpcText, mainText.replace(" || !executionEngine.executionPortsRegistered", ""));
+  });
 
   const productionFiles = [...walkFiles("app"), ...walkFiles("src")]
     .map(normalizedRepoPath)
@@ -249,6 +279,100 @@ async function architectureAndDeadCode(): Promise<void> {
     !sourceIsPackagedDirectly && bundledDeadSymbols.length === 0,
     `packaged symbols=${bundledDeadSymbols.join(", ") || "none"}`
   );
+}
+
+async function executionPortBehavior(): Promise<void> {
+  console.log("\nR1A - injected session access and report persistence behavior");
+  const persisted: Array<Record<string, unknown>> = [];
+  const sessionAccess: ExecutionEnginePorts["sessionAccess"] = {
+    list: async () => [],
+    getById: async () => null,
+    startCapture: async () => ({ active: false, status: "closed" }),
+    getStatus: () => ({ active: false, status: "idle" }),
+    stopCapture: () => undefined,
+    hasCapturedData: () => false,
+    markUsed: async () => undefined
+  };
+  const ports: ExecutionEnginePorts = {
+    sessionAccess,
+    reportPersistence: {
+      persist: async (report) => {
+        persisted.push(report as unknown as Record<string, unknown>);
+      }
+    }
+  };
+  const engine = new ExecutionEngine(ports);
+  check("constructor injection registers the complete ExecutionEngine port pair", engine.executionPortsRegistered);
+  check("a bare verifier engine remains constructible but is not mistaken for production composition", !new ExecutionEngine().executionPortsRegistered);
+  const internals = engine as unknown as {
+    sessionAccess?: ExecutionEnginePorts["sessionAccess"];
+    runReports: Map<string, unknown[]>;
+    runStartTimes: Map<string, string>;
+    processQueue: (
+      executionId: string,
+      profile: ConcurrentRunProfile,
+      flows: [],
+      scenario: { id: string; name: string },
+      workflowDataSource: undefined,
+      dataSources: Record<string, never>,
+      dirs: StorageDirs,
+      runtimeInputs: Record<string, unknown>
+    ) => Promise<void>;
+  };
+  check("the exact injected session-access object is retained for runner composition", internals.sessionAccess === sessionAccess);
+  mutationRejected("a different session-access object being substituted", () => {
+    invariant(internals.sessionAccess !== sessionAccess, "injected session access identity changed");
+  });
+
+  const folder = await mkdtemp(join(tmpdir(), "awkit-r1a-report-"));
+  try {
+    const executionId = "r1a-report";
+    const profile = runProfile(1);
+    const dirs: StorageDirs = {
+      root: folder,
+      downloads: join(folder, "downloads"),
+      screenshots: join(folder, "screenshots"),
+      logs: join(folder, "logs"),
+      reports: join(folder, "reports")
+    };
+    const instance = new InstanceManager().createInstancesForRun(profile, [{}], dirs)[0];
+    engine.pool.add({
+      ...instance,
+      executionId,
+      status: "completed",
+      startedAt: "2026-09-03T00:00:00.000Z",
+      endedAt: "2026-09-03T00:00:01.000Z"
+    });
+    internals.runReports.set(executionId, []);
+    internals.runStartTimes.set(executionId, "2026-09-03T00:00:00.000Z");
+    await internals.processQueue(
+      executionId,
+      profile,
+      [],
+      { id: "r1a-scenario", name: "R1A scenario" },
+      undefined,
+      {},
+      dirs,
+      { compatibility: "preserved" }
+    );
+
+    const reportPath = join(dirs.reports, executionId, "report.json");
+    const writtenReport = JSON.parse(await readFile(reportPath, "utf8")) as Record<string, unknown>;
+    const persistedReport = persisted[0];
+    const { id, ...profileProjection } = persistedReport ?? {};
+    check("ReportService still writes the canonical nested report artifact", existsSync(reportPath));
+    check("the injected report port receives exactly one profile projection with the execution id", persisted.length === 1 && id === executionId);
+    check(
+      "the profile projection remains byte-for-field compatible with the canonical JSON report",
+      JSON.stringify(profileProjection) === JSON.stringify(writtenReport)
+    );
+    mutationRejected("a report adapter dropping the runtimeInputs compatibility field", () => {
+      const { runtimeInputs: _removed, ...mutated } = profileProjection;
+      invariant(JSON.stringify(mutated) === JSON.stringify(writtenReport), "report profile projection diverged from report.json");
+    });
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
 }
 
 interface StoreDoc {
@@ -649,6 +773,7 @@ async function main(): Promise<void> {
   console.log("AWKIT R0 architecture and regression characterization");
   await architectureAndDeadCode();
   await storeConcurrency();
+  await executionPortBehavior();
   await cancellationLifecycle();
   await capacityCharacterization();
   await licensingCheckpoints();
