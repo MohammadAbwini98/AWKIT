@@ -425,10 +425,10 @@ try {
   // Recorder locator mode with persisted settings, round-trip/replay proof and truthful shadow limits.
   // Then 3/262 of 265 on 2026-09-01: `awkit-upnf` was filed for the independent XPath audit.
   // The audit then closed after its focused and release-gate verification campaign: 2/263 of 265.
-  // Then 3/263 of 266 on 2026-09-03: `awkit-id8i` was filed and remains in progress while R0
-  // architecture/regression characterization runs; the two external blockers remain unchanged.
-    "3 outstanding / 263 closed",
-    beads.stats.outstanding === 3 && beads.stats.closed === 263,
+  // Then 3/263 of 266 on 2026-09-03 when `awkit-id8i` was filed for R0 characterization, and
+  // 2/264 when its 85-check mutation-backed baseline closed; the two external blockers are unchanged.
+    "2 outstanding / 264 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 264,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
