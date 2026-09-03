@@ -1,5 +1,39 @@
 # TASK_LOG
 
+## 2026-09-03 — Codex — R1A decouple ExecutionEngine from Electron main
+
+**Task/result:** executed R1A only on `main`. Added the narrow framework-independent
+`ExecutionSessionAccess` and `ExecutionReportPersistence` ports, removed `ExecutionEngine`'s imports
+of `app/main/ipc/session.ipc` and `app/main/profileStores`, and composed their existing concrete
+behavior from `execution.ipc.ts`. The sanctioned `appPaths` bridge remains. Production bootstrap now
+requires both the existing dispatch gate and the port pair; bare verifier/benchmark construction
+remains supported. No new engine, contracts layer, orchestrator, browser owner, queue, policy system,
+store coordinator, IPC decomposition, persisted shape, folder/default, or public API was introduced.
+
+**Compatibility proof:** `ExecutionEngine` still owns lifecycle, dispatch, cancellation and report
+completion. `ReportService` writes the same nested `report.json`; the persistence port receives those
+same fields plus the execution id used by the existing report profile store. Runner session behavior
+uses the same main-owned service through the narrow structural port. The R0 verifier advanced from
+85 to **99/99** with independent negative controls for both forbidden imports, an alias replacement
+main edge, omitted adapters/bootstrap, session-object substitution and a dropped report field.
+
+**Files:** `src/runner/ExecutionEnginePorts.ts`, `ExecutionEngine.ts`, `PlaywrightRunner.ts`,
+`StepExecutor.ts`, `app/main/ipc/execution.ipc.ts`, `app/main/main.ts`,
+`scripts/verify-r0-characterization.mts`, refactoring plan/checklist, architecture/current-state/
+handoff/task-log, comprehensive validation evidence, task contract, Beads/assignment and roadmap
+cardinality guard. `AWTKIT.rar` remained untouched.
+
+**Verification:** build PASS; typecheck:scripts PASS; R0 **99/99**; Runner **138/138**; profile store
+**26/26**; write queue **29/29**; run-report compatibility **27/27**; session context **11/11**;
+protected-login Recorder **74/74**; Reports live engine **21/21**; Reports GUI **31/31**;
+Reports/Settings a11y **17/17**; licensing **192/192**; license dispatch **34/34**; cancellation
+**34/34**; concurrency **89/89**; source hygiene **11/11**; offline PASS; verifier classification
+**200/200**. Populated Reports attempt one **FAILED** after its assertions at the final full-page
+screenshot (`page.screenshot` timeout 30,000 ms); no repo-owned Electron process leaked. A clean retry
+passed **168 PASS / 0 FAIL / 3 NOT RUN**, evidence
+`test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z`. Mock Site was **NOT APPLICABLE**:
+there is no observable Recorder/Runner/session/report scenario change to encode in a fixture.
+
 ## 2026-09-03 — Codex — R0 architecture and regression characterization
 
 **Task:** execute only R0 from the reconciled refactoring plan on `main`, making the current execution

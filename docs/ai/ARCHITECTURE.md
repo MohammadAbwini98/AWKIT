@@ -102,6 +102,7 @@ src/                    framework-agnostic core (no Electron/React imports, exce
                         OracleProfileService, OracleConnectionProfile, OracleDataSourceBinds,
                         OracleNodeExecution, OracleResultMapper, OracleTypeConversion, OracleErrors
   runner/               PlaywrightRunner, FlowExecutor, StepExecutor, ExecutionEngine,
+                        ExecutionEnginePorts (framework-independent session access + report persistence),
                         BrowserContextFactory, LocatorFactory, ValueResolver, ExpressionEvaluator,
                         ConnectorConditionEvaluator (structured conditional connectors),
                         NetworkDiagnosticsObserver (non-gating WebSocket/SSE lifecycle plus sanitized
@@ -438,7 +439,9 @@ failure boundary under `src/testing/failures/`:
   motion freezes only the visible circular sweep. Legacy `loopBack` retains its separate cross-node
   directional return renderer and runtime model.
 - **Auto Secure Login / Reuse Session:** `StepExecutor` is injected with a `BrowserRestarter` callback and
-  the `SessionCaptureService` (from `ExecutionEngine`). `PlaywrightRunner` owns a mutable `BrowserHolder`
+  the narrow `ExecutionSessionAccess` port (from `ExecutionEngine`). Electron main supplies the existing
+  `SessionCaptureService` implementation at `execution.ipc.ts`; core runner code does not import its IPC
+  composition module. `PlaywrightRunner` owns a mutable `BrowserHolder`
   with a browser generation id. The restarter performs a generation-guarded two-phase swap for session
   profiles: launch and verify the new persistent context/page, publish the new runtime, re-point the live
   executor's active page, close the old generation with an explicit reason, then verify the new runtime
@@ -731,6 +734,10 @@ and the pointer swap is an irreversible commit point.
   never `resources/`/`app.asar`/install dir.
 - `src/` core stays UI-agnostic; the one bridge is `ExecutionEngine`/IPC importing
   `app/main/appPaths` for resource/data roots and offline mode.
+- `ExecutionEngine` owns runtime/session/report decisions but receives session access and report-profile
+  persistence through `ExecutionEnginePorts`. `app/main/ipc/execution.ipc.ts` is the production
+  composition root and `main.ts` rejects startup if the port pair is missing. Report persistence still
+  uses the current per-write `createReportStore()` factory; resolved-folder coordination belongs to R1B.
 
 ## Inferred
 

@@ -14,6 +14,18 @@ represented by suite totals in the original comprehensive campaign:
 
 Status is restricted to `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, or `NOT APPLICABLE`.
 
+## 1.1 R1A current-run regression evidence (2026-09-03)
+
+R1A changes dependency composition only, so no case status moves and the ledger remains **65 PASS /
+2 NOT RUN / 0 BLOCKED**. Current-run evidence re-executed the affected behavior: Runner **138/138**;
+protected-login/session capture and reuse **74/74**; report compatibility **27/27**; Reports live engine
+**21/21**; Reports GUI **31/31**; Reports/Settings accessibility **17/17**; profile store **26/26**;
+write queue **29/29**; and session-context authorization **11/11**. The first populated Reports GUI
+attempt **FAILED** at its final evidence screenshot after the behavioral assertions (`page.screenshot`
+timeout 30,000 ms); a clean retry passed **168 PASS / 0 FAIL / 3 NOT RUN** with evidence at
+`test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z`. Its three NOT RUN subcases retain their
+existing ownership; live distribution/backpressure are independently PASS in the live-engine suite.
+
 - `PASS` means the exact scope stated in that case was executed and observed.
 - A component-level `PASS` does not imply that the full Electron user journey passed.
 - `BLOCKED` means an external/manual prerequisite is required.

@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-03, latest) — R1A complete; R1B ready
+
+- **Delivered:** `ExecutionEngine` now consumes the framework-independent `ExecutionSessionAccess`
+  and `ExecutionReportPersistence` ports. Its former `session.ipc` and `profileStores` imports are
+  gone; `appPaths` remains the one sanctioned main bridge.
+- **Composition:** the existing `execution.ipc.ts` root injects `getSessionService()` and the existing
+  `createReportStore().import(report)` behavior. `main.ts` fails closed if either the independent
+  dispatch gate or the port pair is absent. Bare verifier/benchmark engines stay constructible.
+- **Compatibility:** the canonical nested JSON report is still written first; the injected store
+  projection is the same report plus its existing execution id. Session lookup/capture/reuse/mark-used,
+  lifecycle/status, cancellation, capacity/backpressure, thirteen license checkpoint groups, JSON/
+  profile formats, folders/defaults, IPC/preload, offline and security behavior are unchanged.
+- **Architecture proof:** `verify:r0-characterization` is **99/99**. Separate mutation controls reject
+  each former import, an alias-based replacement main edge, missing adapters/bootstrap enforcement,
+  substituted session access and dropped report fields. It permits only `appPaths`.
+- **Verification:** build/typecheck PASS; Runner **138/138**; profile-store **26/26**; write-queue
+  **29/29**; report compatibility **27/27**; session-context **11/11**; protected-login Recorder
+  **74/74**; Reports live **21/21**, base GUI **31/31**, accessibility **17/17**; licensing **192/192**;
+  dispatch **34/34**; cancellation **34/34**; concurrency **89/89**; hygiene/offline/classification
+  green. Populated Reports first **FAILED** only at a 30-second final screenshot timeout; clean retry
+  passed **168/0/3 NOT RUN** with evidence at
+  `test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z`.
+- **Ledger/fixture boundary:** comprehensive ledger totals remain **65 PASS / 2 NOT RUN / 0 BLOCKED**;
+  no row changed. Mock Site is **NOT APPLICABLE** because this dependency inversion changes no
+  observable scenario or fixture contract.
+- **Next:** R1B only — coordinate writes per resolved configured folder while preserving current
+  factories, path-change behavior, atomic replacement, JSON shapes and unknown-field compatibility.
+  Do not combine R2 IPC decomposition or any new store/repository framework with R1B.
+
 ## HANDOFF (2026-09-03, latest) — R0 complete; R1A ready
 
 - **Scope completed:** verifier-only R0 characterization. No R1A/R1B production ownership move, no new

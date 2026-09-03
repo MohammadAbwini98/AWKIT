@@ -1,5 +1,46 @@
 # CURRENT_STATE
 
+## R1A ExecutionEngine ports complete (`awkit-2q2d`, 2026-09-03)
+
+R1A is implemented as a narrow dependency inversion, not a replacement runtime. `ExecutionEngine`
+no longer imports `app/main/ipc/session.ipc` or `app/main/profileStores`; the separately sanctioned
+`app/main/appPaths` bridge remains. New framework-independent `ExecutionSessionAccess` and
+`ExecutionReportPersistence` interfaces live in `src/runner/ExecutionEnginePorts.ts`. The existing
+`execution.ipc.ts` composition root supplies `getSessionService()` and a per-write
+`createReportStore().import(report)` adapter, deliberately leaving R1B's store-lifetime and
+same-folder coordination decision untouched.
+
+`ExecutionEngine` remains the one execution authority. It still writes the canonical nested
+`report.json`, then passes the identical report fields plus the existing profile-store `id` to the
+injected persistence port. `PlaywrightRunner` and `StepExecutor` depend on the narrow session shape,
+not the main-process implementation. Bare verifier/benchmark engines remain constructible, while
+production startup now fails closed unless both the independent license dispatch gate and the port
+pair are registered. No lifecycle value, cancellation/capacity rule, licensing checkpoint, report or
+session shape, folder/default, IPC/preload contract, browser owner, queue, policy, or offline/security
+boundary changed.
+
+`verify:r0-characterization` now passes **99/99**. Its real mutation controls reject reintroducing
+either former import, an alias-based replacement Electron-main dependency, omitted production session
+access, disconnected report persistence, missing production bootstrap enforcement, substituted session
+identity, and a report projection that drops `runtimeInputs`; it also proves `appPaths` remains the only
+permitted main edge and the canonical JSON report matches the injected profile projection field-for-field.
+
+Executed evidence: build PASS; script typecheck PASS; Runner **138/138**; profile store **26/26**;
+write queue **29/29**; report compatibility **27/27**; session context **11/11**; protected-login
+Recorder **74/74**; Reports live engine **21/21**; Reports GUI **31/31**; Reports/Settings a11y
+**17/17**; licensing **192/192**; license dispatch **34/34**; cancellation **34/34**; concurrency
+**89/89**; source hygiene **11/11**; strict offline validation PASS; verifier classification **200**
+commands. The first populated Reports GUI attempt completed its behavioral assertions but **FAILED**
+when the final evidence screenshot exceeded 30 seconds; the clean retry passed **168 PASS / 0 FAIL /
+3 NOT RUN** and produced evidence under `test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z`.
+The three NOT RUN subcases remain honestly owned by the existing ledger, with live distribution and
+backpressure proven separately by the 21/21 live-engine run.
+
+The Recorder/Reports/Settings ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED**: R1A changes no
+case status, but its current-run session/report evidence is recorded there. No Mock Site fixture was
+changed because dependency composition did not change observable scenario behavior; `verify:mock-site`
+is **NOT APPLICABLE** to this tranche. R1B is the next production phase after closeout reconciliation.
+
 ## R0 architecture and regression characterization complete (`awkit-id8i`, 2026-09-03)
 
 R0 is complete without moving production ownership or changing production behavior. The new

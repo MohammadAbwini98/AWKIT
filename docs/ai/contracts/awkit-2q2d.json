@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-2q2d",
+    "title": "R1A: decouple ExecutionEngine from Electron main",
+    "objective": "Execute R1A only by replacing ExecutionEngine's session.ipc and profileStores imports with the minimum framework-independent injected session-access and report-persistence ports, composed from existing Electron main without changing runtime, persistence, licensing, offline, security, or compatibility behavior.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6389a6771e44dc3d78cc2dc5224c8f521ea80d50",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      }
+    ]
+  },
+  "classification": {
+    "electron_main_change": true,
+    "ipc_change": true,
+    "runner_change": true,
+    "execution_change": true,
+    "concurrency_change": false,
+    "persisted_shape_change": false,
+    "filesystem_write_change": false,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": false,
+    "protected_login_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "broad_investigation": true,
+    "project_state_change": true,
+    "cross_layer_count": 4
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "researcher",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/runner/ExecutionEngine.ts",
+      "src/runner/ExecutionEnginePorts.ts",
+      "src/runner/PlaywrightRunner.ts",
+      "src/runner/StepExecutor.ts",
+      "app/main/ipc/execution.ipc.ts",
+      "app/main/main.ts",
+      "scripts/verify-r0-characterization.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+      "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+      "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+      "docs/ai/contracts/awkit-2q2d.json"
+    ],
+    "consultants": [
+      "architect",
+      "integration",
+      "researcher"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json",
+        "docs/ai/ARCHITECTURE.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+        "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+        "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+        "docs/ai/contracts/awkit-2q2d.json"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "R1A only: do not begin R1B store coordination, R2 IPC decomposition, or later refactoring phases.",
+      "Keep ExecutionEngine authoritative and create no replacement engine, contracts layer, orchestrator, browser owner, queue, policy system, repository framework, or telemetry store.",
+      "Remove only the session.ipc and profileStores upward imports; retain the separately sanctioned appPaths bridge.",
+      "Compose production ports in the existing execution IPC composition root and retain safe constructor behavior for verifier and benchmark engines."
+    ],
+    "security": [
+      "Preserve sender authorization, protected-login/manual-handoff behavior, all thirteen independent licensing checkpoint groups, secret masking, and app-owned session profiles.",
+      "No CAPTCHA, MFA, OTP, passkey, approval, bot-detection, or daily-browser-profile automation is introduced."
+    ],
+    "compatibility": [
+      "No persisted file shape, id, folder, default, lifecycle status, JSON report, SQLite row, session profile, or preload/IPC API contract changes.",
+      "Report profile import and session reuse/capture access retain current production behavior through injected concrete adapters."
+    ],
+    "offline": [
+      "No runtime network dependency, new dependency, resource-path change, global browser/runtime dependency, or mutable write under resources/app.asar."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "R1A-PORTS",
+      "description": "ExecutionEngine consumes only narrow framework-independent session-access and report-persistence ports, with no forbidden or replacement Electron-main dependency and with appPaths still permitted.",
+      "evidence_required": [
+        "r0-characterization",
+        "build"
+      ]
+    },
+    {
+      "id": "R1A-BEHAVIOR",
+      "description": "Session reuse, report persistence, lifecycle, cancellation, capacity, concurrency, and independent licensing semantics remain unchanged through the production composition.",
+      "evidence_required": [
+        "runner-session-report",
+        "licensing",
+        "cancellation-concurrency"
+      ]
+    },
+    {
+      "id": "R1A-COMPATIBILITY",
+      "description": "JSON/profile/report compatibility, source hygiene, and strict offline behavior remain green without R1B or R2 scope.",
+      "evidence_required": [
+        "profile-report-compatibility",
+        "offline-hygiene"
+      ]
+    },
+    {
+      "id": "R1A-CLOSEOUT",
+      "description": "Beads, ledger, assignment, plans and AI state record current evidence; task gate passes; roadmap Overview says Sources agree; coherent commits are pushed to main.",
+      "evidence_required": [
+        "classification-roadmap",
+        "ai-memory",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "r0-characterization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:r0-characterization",
+      "result": "pass",
+      "artifact": "99 PASS / 0 FAIL; former-import, replacement-edge, composition and compatibility mutations rejected"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build; npm run typecheck:scripts",
+      "result": "pass",
+      "artifact": "build PASS; typecheck:scripts PASS"
+    },
+    {
+      "id": "runner-session-report",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner; npm run verify:protected-login-recorder; npm run verify:reports-live-engine; npm run verify:reports-populated-gui",
+      "result": "pass",
+      "artifact": "Runner 138/138; protected login 74/74; live reports 21/21; populated reports retry 168 PASS / 0 FAIL / 3 NOT RUN at test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z; first populated attempt failed only at final screenshot timeout"
+    },
+    {
+      "id": "profile-report-compatibility",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:run-report-compatibility; npm run verify:profile-store; npm run verify:write-queue; npm run verify:session-context",
+      "result": "pass",
+      "artifact": "27/27; 26/26; 29/29; 11/11"
+    },
+    {
+      "id": "licensing",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:licensing; npm run verify:license-dispatch-gate",
+      "result": "pass",
+      "artifact": "192/192; 34/34"
+    },
+    {
+      "id": "cancellation-concurrency",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:cancellation; npm run verify:concurrency",
+      "result": "pass",
+      "artifact": "34/34; 89/89"
+    },
+    {
+      "id": "offline-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene; npm run validate:offline",
+      "result": "pass",
+      "artifact": "source hygiene 11/11; strict offline validation completed"
+    },
+    {
+      "id": "classification-roadmap",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification; npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "ai-memory",
+      "type": "inspection",
+      "required": true,
+      "command": "node scripts/ai-memory/check-memory.mjs",
+      "result": "pass",
+      "artifact": "AI memory files passed required checks"
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "pass",
+      "artifact": "PASS before project-state closeout commit"
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-2q2d:runtime:2026-09-03T16:05:47.103Z",
+        "task": "awkit-2q2d",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/ipc/execution.ipc.ts",
+          "app/main/main.ts",
+          "src/runner/ExecutionEngine.ts",
+          "src/runner/ExecutionEnginePorts.ts",
+          "src/runner/PlaywrightRunner.ts",
+          "src/runner/StepExecutor.ts"
+        ],
+        "acquired_at": "2026-09-03T16:05:47.103Z",
+        "acquired_at_commit": "6389a6771e44dc3d78cc2dc5224c8f521ea80d50",
+        "released_at": "2026-09-03T16:09:45.235Z",
+        "released_reason": "Runtime R1A implementation committed in bebc7be; build and script typecheck pass, Runner 138/138, report compatibility 27/27, license dispatch 34/34; hand off to QA to update mutation-backed architecture and behavior characterization.",
+        "amendments": [
+          {
+            "timestamp": "2026-09-03T16:06:22.843Z",
+            "added": [
+              "app/main/main.ts"
+            ],
+            "reason": "Production must fail closed if the injected ExecutionEngine ports are not registered before startup; extend the existing main-process bootstrap check.",
+            "triggered_escalation": [
+              "qa",
+              "qc"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-2q2d:qa:2026-09-03T16:10:04.934Z",
+        "task": "awkit-2q2d",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts"
+        ],
+        "acquired_at": "2026-09-03T16:10:04.934Z",
+        "acquired_at_commit": "bebc7bece72285799098fc46bf7d4ff999ca7f67",
+        "released_at": "2026-09-03T16:15:05.801Z",
+        "released_reason": "work complete",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pass",
+    "qc_status": "approved"
+  }
+}

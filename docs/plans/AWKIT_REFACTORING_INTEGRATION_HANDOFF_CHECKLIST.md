@@ -1,6 +1,6 @@
 # AWKIT Refactoring Integration & Handoff Checklist — Reconciled
 
-**Status:** planning complete; R0 characterization complete; production ownership refactor not started
+**Status:** planning complete; R0 and R1A complete; R1B is next
 
 **Repository baseline:** `main` at `18dc90d5a97cd37a2304d8a9885b899cc148d4cc`
 
@@ -146,10 +146,10 @@ execution/store changes. XPath must never acquire a fallback or alternate runtim
 
 | Command / scenario | Layer | Expected count | Actual result | Evidence path / note |
 |---|---|---:|---|---|
-| R0 architecture characterization | integration + mutation | 85 | PASS 85/85 | Exact-edge, real-store, lifecycle, capacity, license and dead-consumer guards |
+| R0/R1A architecture characterization | integration + mutation | 99 | PASS 99/99 | Only `appPaths` remains; former/replacement main edges and composition drift fail |
 | `npm run build` | type/bundle | command success | PASS | Typecheck and bundles complete |
-| Focused subsystem verifiers | unit/integration/browser | Per command | PASS | Runner 138/138 plus store/cancel/concurrency/license gates recorded in task log |
-| `npm run verify:mock-site` | fixture contract | current total | NOT APPLICABLE | R0 changed no fixture or observable scenario |
+| Focused subsystem verifiers | unit/integration/browser | Per command | PASS | Runner/session/report/store/cancel/concurrency/license gates recorded in task log |
+| `npm run verify:mock-site` | fixture contract | current total | NOT APPLICABLE | R1A changes dependency composition, not observable scenario behavior |
 | `npm run verify:verifier-classification` | documentation consistency | 200 | PASS 200/200 | R0 command classified as integration |
 | `npm run verify:roadmap-dashboard` | documentation consistency | 177 | PASS 177/177 | Overview says `Sources agree` |
 | `npm run validate:offline` | integration/offline | command success | PASS | Strict offline validation completed |
@@ -223,9 +223,10 @@ advance. For each R phase:
 | Verifier classification | Register every new command |
 | Roadmap | Run verifier and confirm `Sources agree`; never hand-edit derived totals |
 
-R0 used Bead/task contract `awkit-id8i`; its lease/claim is cleared at closeout. The comprehensive
-Recorder/Reports/Settings validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED** because it has
-no R0 case, so no unrelated row was fabricated or moved.
+R0 used Bead/task contract `awkit-id8i`; R1A uses `awkit-2q2d`. The comprehensive Recorder/Reports/
+Settings validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED** because the dependency inversion
+changes no case status. Current session/report regression evidence is recorded without fabricating or
+moving a row.
 
 ## 14. Git handoff
 
@@ -241,7 +242,7 @@ no R0 case, so no unrelated row was fabricated or moved.
 | Risk / decision | Owner phase | Gate |
 |---|---|---|
 | Same-folder stores are proven to overlap and can lose stale-snapshot fields | R1B | one resolved-folder coordinator + concurrent/restart/failure-injection regression |
-| Core imports main composition | R1A | architecture negative control + unchanged Runner behavior |
+| Core imports main composition | R1A — resolved | 99-check architecture negative controls + unchanged Runner/session/report behavior |
 | Execution IPC extraction could collapse policies | R2 | independent denial tests at every checkpoint |
 | Dead-looking IPC may have external consumers | R4 | owner/public API decision before removal |
 | Settings unknown-key policy conflicts with proposal | R5 | explicit decision; SET-017 retained until then |
@@ -251,7 +252,8 @@ no R0 case, so no unrelated row was fabricated or moved.
 
 ## 16. Next agent start point
 
-Start only with **R1A — Narrow ExecutionEngine ports** from the companion plan. R0 is complete and its
-85-check gate must stay green. Inject only the minimum session/report ports from Electron-main
-composition, remove the two exact upward imports, retain the sanctioned `appPaths` bridge and do not
-combine R1B or R2 ownership work into the same phase.
+Start only with **R1B — One write coordinator per resolved profile folder** from the companion plan.
+R0 and R1A are complete and the 99-check characterization must stay green. Preserve the R1A ports and
+the sanctioned `appPaths` bridge; coordinate existing profile/report store handles by current resolved
+folder without changing shapes, defaults, atomic replacement or Settings path-switch behavior. Do not
+combine R2 ownership/IPC work into the phase.

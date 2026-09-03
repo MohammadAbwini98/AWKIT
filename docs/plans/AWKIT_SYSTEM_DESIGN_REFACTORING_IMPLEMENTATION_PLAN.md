@@ -1,6 +1,6 @@
 # AWKIT System Design Refactoring — Reconciled Implementation Plan
 
-**Status:** planning complete; R0 characterization complete; production ownership refactor not started
+**Status:** planning complete; R0 and R1A complete; R1B is the next production tranche
 
 **Repository baseline:** `main` at `18dc90d5a97cd37a2304d8a9885b899cc148d4cc`
 
@@ -224,6 +224,8 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
 
 #### R1A — Narrow ExecutionEngine ports
 
+**Classification:** **complete 2026-09-03**.
+
 - Introduce only the minimum framework-agnostic ports required for session lookup/use and JSON report
   persistence; do not create a generic repository/service framework.
 - Inject those ports from Electron main composition.
@@ -233,6 +235,21 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
   only after packaged-path characterization.
 - Preserve constructor compatibility for verifier/benchmark engines through explicit safe defaults,
   without a production fail-open path.
+
+**Executed evidence (2026-09-03)**
+
+- `ExecutionEngine` has no `session.ipc` or `profileStores` import; `appPaths` remains the sole permitted
+  main-process edge. `ExecutionEnginePorts.ts` contains only the session-access and report-persistence
+  shapes used by the runner.
+- Existing Electron main composition injects `getSessionService()` and
+  `createReportStore().import(report)`. The report store remains per-write so R1A does not silently
+  implement R1B; production bootstrap fails closed if ports are absent.
+- R0 characterization passes **99/99** with real negative controls for both former imports, an alias-
+  based replacement dependency, missing production composition and report/session compatibility drift.
+- Build, scripts typecheck, Runner/session/protected-login, report compatibility/live/GUI/a11y,
+  profile-store/write-queue, licensing/dispatch, cancellation/concurrency, source/offline and verifier-
+  classification gates pass. Populated Reports' first screenshot attempt failed at the evidence capture;
+  its clean retry passed **168/0/3 NOT RUN**. No fixture behavior changed, so Mock Site is not applicable.
 
 #### R1B — One write coordinator per resolved profile folder
 
@@ -587,7 +604,7 @@ fresh packaged evidence is recorded, authoritative sources agree, and all work i
 
 ## 10. Single recommended next implementation phase
 
-Start with **R1A — Narrow ExecutionEngine ports**. R0 now provides the mutation-backed boundary and
-behavioral baseline. Remove only the `ipc/session.ipc` and `profileStores` imports through narrow injected
-ports from Electron-main composition; retain the sanctioned `appPaths` bridge, independent admission and
-licensing checkpoints, existing lifecycle/status/report behavior and the one canonical engine.
+Start with **R1B — One write coordinator per resolved profile folder**. R1A is complete and leaves the
+existing report-store factory lifetime deliberately unchanged. Coordinate handles by their resolved,
+current configured folder while preserving factory compatibility, atomic replacement, JSON shapes,
+unknown fields and path-change behavior. Do not begin R2 execution IPC decomposition in the same tranche.
