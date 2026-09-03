@@ -1,7 +1,8 @@
 import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
-import { replaceFileAtomically, type AtomicReplaceOptions } from "../../app/main/atomicReplace";
+import { replaceFileAtomically, type AtomicReplaceOptions } from "./atomicReplace";
+import { runExclusive } from "./folderWriteCoordinator";
 
 export interface ProfileStore<TProfile extends { id: string }> {
   list(): Promise<TProfile[]>;
@@ -29,22 +30,18 @@ export interface JsonProfileStoreOptions<TProfile extends { id: string }> {
 
 export class JsonProfileStore<TProfile extends { id: string }> implements ProfileStore<TProfile> {
   private readonly extension: string;
-  // Serializes every on-disk mutation (writeProfile/delete) for this store so overlapping saves
-  // to the same folder can never physically interleave. FIFO; a failed task rejects for its caller
-  // but never blocks the ones queued behind it (both branches of the chain settle the tail).
-  private writeChain: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: JsonProfileStoreOptions<TProfile>) {
     this.extension = options.extension ?? ".json";
   }
 
+  // Every on-disk mutation for this store runs under the one coordination authority for its
+  // RESOLVED folder, not a queue owned by this instance — two stores constructed independently
+  // against the same configured folder must not be able to interleave their replacements.
+  // FIFO; a failed task rejects for its caller but never blocks the ones queued behind it (that
+  // guarantee now lives in the coordinator, which settles the lane tail on both branches).
   private serialize<T>(task: () => Promise<T>): Promise<T> {
-    const result = this.writeChain.then(task, task);
-    this.writeChain = result.then(
-      () => undefined,
-      () => undefined
-    );
-    return result;
+    return runExclusive(this.options.folder, task);
   }
 
   async list(): Promise<TProfile[]> {
@@ -65,9 +62,13 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
 
   async create(profile: TProfile): Promise<TProfile> {
     await this.ensureStoreFolder();
-    const existing = await this.get(profile.id);
-    if (existing) throw new Error(`Profile already exists: ${profile.id}`);
-    await this.writeProfile(profile);
+    // Check-then-write is one critical section: with per-folder coordination two independently
+    // constructed stores can no longer both observe "absent" and both create the same id.
+    await this.serialize(async () => {
+      const existing = await this.get(profile.id);
+      if (existing) throw new Error(`Profile already exists: ${profile.id}`);
+      await this.writeProfileUnlocked(profile);
+    });
     return profile;
   }
 
@@ -75,15 +76,19 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
     await this.ensureStoreFolder();
     // Write the new record first, then drop the old one on an id rename. A crash between the two
     // leaves both files (a recoverable duplicate), never zero files — the record is never lost.
-    await this.writeProfile(profile);
-    if (id !== profile.id) {
-      await this.delete(id);
-    }
+    // Both halves run in ONE critical section so no other writer to this folder can observe (or
+    // write into) the window between them.
+    await this.serialize(async () => {
+      await this.writeProfileUnlocked(profile);
+      if (id !== profile.id) {
+        await this.deleteUnlocked(id);
+      }
+    });
     return profile;
   }
 
   async delete(id: string): Promise<void> {
-    await this.serialize(() => rm(this.pathForId(id), { force: true }));
+    await this.serialize(() => this.deleteUnlocked(id));
   }
 
   async clone(id: string, nextId = `${id}-copy`): Promise<TProfile> {
@@ -179,8 +184,24 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
   }
 
   private writeProfile(profile: TProfile): Promise<void> {
+    return this.serialize(() => this.writeProfileUnlocked(profile));
+  }
+
+  /**
+   * The write itself, WITHOUT taking the folder lane. Composite operations (`create`'s
+   * check-then-write, `update`'s write-then-delete) hold the lane across all of their steps, so
+   * they must call the unlocked internals — re-entering `serialize` from inside a task already
+   * running on that folder's lane would wait on a tail that only settles once the caller returns,
+   * i.e. self-deadlock.
+   */
+  private writeProfileUnlocked(profile: TProfile): Promise<void> {
     const contents = `${JSON.stringify(profile, null, 2)}\n`;
-    return this.serialize(() => this.atomicWrite(this.pathForId(profile.id), contents));
+    return this.atomicWrite(this.pathForId(profile.id), contents);
+  }
+
+  /** As `delete`, without taking the folder lane. See `writeProfileUnlocked`. */
+  private deleteUnlocked(id: string): Promise<void> {
+    return rm(this.pathForId(id), { force: true });
   }
 
   /**
