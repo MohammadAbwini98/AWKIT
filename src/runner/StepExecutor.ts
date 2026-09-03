@@ -14,9 +14,9 @@ import { ValueResolver } from "./ValueResolver";
 import { assertNavigableUrl } from "./urlPolicy";
 import { describeCertificateError, isCertificateError } from "@src/security/browser/CertificateTrust";
 import { isPathInside, safePathComponent } from "@src/utils/pathSafety";
-import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { SessionProfile } from "@src/session/SessionProfile";
 import { findBestSessionForUrl, normalizeOrigin } from "@src/session/sessionMatch";
+import type { ExecutionSessionAccess } from "./ExecutionEnginePorts";
 import type { TraceService } from "./artifacts/TraceService";
 import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
@@ -150,7 +150,7 @@ export class StepExecutor {
     private readonly runChildFlow?: ChildFlowRunner,
     private readonly progress?: RunnerProgressReporter,
     private readonly browserRestarter?: BrowserRestarter,
-    private readonly sessionService?: SessionCaptureService,
+    private readonly sessionService?: ExecutionSessionAccess,
     private readonly assertBrowserRuntimeAlive?: BrowserRuntimeLivenessCheck,
     /** Optional failure-trace capture (armed only when the engine provides a traces dir). */
     private readonly traceService?: TraceService,

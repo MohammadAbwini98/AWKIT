@@ -22,7 +22,7 @@ import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { ExecutionPauseGate } from "./runtime/ExecutionPauseGate";
 import { ValueResolver } from "./ValueResolver";
 import { PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
-import type { SessionCaptureService } from "@src/session/SessionCaptureService";
+import type { ExecutionSessionAccess } from "./ExecutionEnginePorts";
 import type { Browser, BrowserContext, Page } from "playwright";
 import { loopIterationLimit, resolveLoopConnectorValues } from "./LoopConnectorRuntime";
 import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
@@ -74,8 +74,8 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   scenarioOrchestrator?: ScenarioOrchestrator;
   /** Optional live-progress sink so the engine can surface per-step progress in real time. */
   progress?: RunnerProgressReporter;
-  /** Session capture service (Main process only) — enables Auto Secure Login / Reuse Session nodes. */
-  sessionService?: SessionCaptureService;
+  /** Injected session access — enables Auto Secure Login / Reuse Session nodes. */
+  sessionService?: ExecutionSessionAccess;
   /**
    * Called whenever a browser runtime becomes current for this run (initial launch and every
    * mid-run Reuse Session / Auto Secure Login swap). Lets the engine's BrowserWorkerPool track

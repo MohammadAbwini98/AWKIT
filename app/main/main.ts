@@ -101,11 +101,11 @@ async function bootstrap(): Promise<void> {
   });
 
   registerIpcHandlers();
-  if (!executionEngine.dispatchGateRegistered) {
+  if (!executionEngine.dispatchGateRegistered || !executionEngine.executionPortsRegistered) {
     dialog.showMessageBoxSync({
       type: "error",
       title: "SpecterStudio",
-      message: "SpecterStudio cannot start because license dispatch enforcement is unavailable.",
+      message: "SpecterStudio cannot start because execution composition is unavailable.",
       buttons: ["Exit"]
     });
     app.exit(1);

@@ -57,6 +57,16 @@ export interface RunWorkflowRequest {
 }
 
 export function registerExecutionIpc(): void {
+  executionEngine.setExecutionPorts({
+    sessionAccess: getSessionService(),
+    // Preserve the existing per-report factory behavior. R1B separately owns any store registry or
+    // same-folder write coordination; R1A only reverses this dependency through a narrow port.
+    reportPersistence: {
+      persist: async (report) => {
+        await createReportStore().import(report);
+      }
+    }
+  });
   executionEngine.setDispatchGate(licenseDispatchGate);
   // Let the runner resolve `type:"secret"` value sources from the encrypted secret store at run time
   // (audit §15). Values live only in the main process; they never enter workflow JSON or the renderer.

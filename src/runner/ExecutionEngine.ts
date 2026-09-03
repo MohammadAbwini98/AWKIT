@@ -17,7 +17,6 @@ import type { ConcurrentRunProfile } from "../instances/ConcurrentRunProfile";
 import type { InstanceRuntimeState } from "../instances/InstanceRuntimeState";
 import type { InstanceStatus } from "../instances/InstanceStatus";
 import { getAppMode, getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../../app/main/appPaths";
-import { getSessionService } from "../../app/main/ipc/session.ipc";
 import type { FlowProfile } from "../profiles/FlowProfile";
 import { collectSecretNames } from "../profiles/FlowValidation";
 import { registerSecretValues } from "../reports/SecretMasker";
@@ -26,7 +25,11 @@ import type { ResolvedDataSource } from "./InstanceExecutionContext";
 import type { OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { ReportService } from "../reports/ReportService";
 import type { InstanceReport } from "../reports/ExecutionReport";
-import { createReportStore } from "../../app/main/profileStores";
+import type {
+  ExecutionEnginePorts,
+  ExecutionReportPersistence,
+  ExecutionSessionAccess
+} from "./ExecutionEnginePorts";
 import { RunLogger } from "./artifacts/RunLogger";
 import { writeRunStateArtifacts } from "./artifacts/RunStateArtifacts";
 import { BrowserWorkerPool, BrowserPoolSaturatedError, type BrowserWorkerSlot } from "./browser/BrowserWorkerPool";
@@ -151,6 +154,9 @@ export class ExecutionEngine {
   private readonly coordinator = new ConcurrentExecutionCoordinator();
   private readonly manager = new InstanceManager();
   private dispatchGate?: DispatchGate;
+  private sessionAccess?: ExecutionSessionAccess;
+  private reportPersistence?: ExecutionReportPersistence;
+  private portsRegistered = false;
 
   private readonly activeRuns = new Map<string, Promise<void>>();
   private readonly runReports = new Map<string, InstanceReport[]>();
@@ -292,6 +298,25 @@ export class ExecutionEngine {
     this.browserPool.concurrencyLimits,
     globalResourceLocks
   );
+
+  /**
+   * Bare verifier/benchmark engines intentionally remain constructible without Electron composition.
+   * Their session-dependent steps fail closed and their per-run report artifact still comes from
+   * ReportService; production registers both ports before the main window is allowed to start.
+   */
+  public constructor(ports?: ExecutionEnginePorts) {
+    if (ports) this.setExecutionPorts(ports);
+  }
+
+  public setExecutionPorts(ports: ExecutionEnginePorts): void {
+    this.sessionAccess = ports.sessionAccess;
+    this.reportPersistence = ports.reportPersistence;
+    this.portsRegistered = true;
+  }
+
+  public get executionPortsRegistered(): boolean {
+    return this.portsRegistered;
+  }
 
   public getInstances(): InstanceRuntimeState[] {
     return this.pool.list();
@@ -1120,8 +1145,7 @@ export class ExecutionEngine {
         });
         
         await reportService.writeReport(finalReport);
-        const store = createReportStore();
-        await store.import({ ...finalReport, id: executionId });
+        await this.reportPersistence?.persist({ ...finalReport, id: executionId });
         // Phase A5: close shared browsers that no other run is still using (idle → no lingering Chromium).
         await this.sharedBrowserPool.drainIdle().catch(() => undefined);
         // Observability: flush any partial capacity/admission/lifecycle bucket so teardown loses nothing.
@@ -1502,7 +1526,7 @@ export class ExecutionEngine {
       // Run-level choice (run card / Settings execution defaults) wins over the artifact-profile
       // default; a per-step `onFailure.screenshot` still wins over both, in FlowExecutor.
       screenshotOnFailure: instance.config.screenshotOnFailure ?? browserConfig.artifact.screenshotOnFailure,
-      sessionService: getSessionService(),
+      sessionService: this.sessionAccess,
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: async ({ runtime, generation }) => {
         this.browserPool.registerRuntime(slot!, runtime, generation);
