@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("266 issues parse", beads.stats.total === 266, `got ${beads.stats.total}`);
+  check("267 issues parse", beads.stats.total === 267, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -427,8 +427,10 @@ try {
   // The audit then closed after its focused and release-gate verification campaign: 2/263 of 265.
   // Then 3/263 of 266 on 2026-09-03 when `awkit-id8i` was filed for R0 characterization, and
   // 2/264 when its 85-check mutation-backed baseline closed; the two external blockers are unchanged.
-    "2 outstanding / 264 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 264,
+  // Then 3/264 of 267 when `awkit-2q2d` was filed for R1A, and 2/265 when its narrow injected
+  // ExecutionEngine ports and 99-check characterization closed; the external blockers remain unchanged.
+    "2 outstanding / 265 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 265,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -483,8 +485,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "104 edges are present to classify",
-    beads.stats.edges === 104,
+    "105 edges are present to classify",
+    beads.stats.edges === 105,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
