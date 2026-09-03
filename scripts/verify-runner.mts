@@ -243,7 +243,7 @@ async function main() {
       const xpathResult = await xpathRunner.executeScenario(
         scenarioFromBuilder,
         await makeContext(xpathFlow.id),
-        { id: "recorder-xpath-workflow-instance", scenarioId: scenarioFromBuilder.id, name: "Recorder XPath workflow", browser: "chromium", headless: true, isolationMode: "browserContext", timeoutMs: 30_000, viewport: { width: 1280, height: 800 } }
+        { id: "recorder-xpath-workflow-instance", name: "Recorder XPath workflow", browser: "chromium", headless: true, isolationMode: "browserContext", timeoutMs: 30_000, viewport: { width: 1280, height: 800 } }
       );
       const xpathSteps = xpathResult.flows[0]?.steps ?? [];
       check(

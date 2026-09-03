@@ -309,7 +309,8 @@ async function storeConcurrency(): Promise<void> {
     await Promise.all([writeA, writeB]);
 
     const reloaded = await new JsonProfileStore<StoreDoc>({ folder }).get("shared");
-    check("each atomic replacement exposes a complete document, never a truncated file", bOnDisk?.payload === "writer-B" && reloaded?.name === "writer-A");
+    const bSnapshot = bOnDisk as StoreDoc | null;
+    check("each atomic replacement exposes a complete document, never a truncated file", bSnapshot?.payload === "writer-B" && reloaded?.name === "writer-A");
     check("the deterministic last writer reloads exactly from a fresh store", reloaded?.name === "writer-A" && reloaded.payload === "original");
     check("unknown fields carried by the winning snapshot survive save/reload", reloaded?.future?.preserved === true && reloaded.future.aOnly === true);
     check("independent stale snapshots can lose the other writer's field", reloaded?.future?.bOnly === undefined, JSON.stringify(reloaded));
