@@ -28,7 +28,7 @@
     "persisted_shape_change": false,
     "filesystem_write_change": false,
     "licensing_change": false,
-    "packaging_change": false,
+    "packaging_change": true,
     "offline_boundary_change": false,
     "broad_investigation": true,
     "project_state_change": true,
@@ -77,17 +77,7 @@
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        ".beads/interactions.jsonl",
-        ".beads/issues.jsonl",
-        "docs/ai/COMMANDS.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
         "docs/ai/contracts/awkit-id8i.json",
-        "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
-        "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
-        "scripts/lib/verifier-classification.ts",
         "tools/roadmap/assignments.json"
       ]
     }
@@ -151,24 +141,24 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:r0-characterization",
-      "result": "PASS 85/85",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "85/85 mutation-backed checks"
     },
     {
       "id": "profile-store",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:profile-store",
-      "result": "PASS 26/26",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "26/26 checks"
     },
     {
       "id": "runner-and-focused",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:runner plus relevant cancellation, concurrency, licensing, persistence and packaged-source verifiers",
-      "result": "PASS: Runner 138/138; cancellation 34/34; concurrency 89/89; licensing 192/192; focused store, capacity, recovery, report and packaged-source gates all green",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Runner 138/138; cancellation 34/34; concurrency 89/89; licensing 192/192; focused store, capacity, recovery, report and packaged-source gates all green"
     },
     {
       "id": "build",
@@ -183,16 +173,16 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:verifier-classification",
-      "result": "PASS 200/200; 1 documentation, 11 static, 63 unit, 37 integration, 77 real-browser, 11 packaged, 0 clean-machine",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "200/200 classified: 1 documentation, 11 static, 63 unit, 37 integration, 77 real-browser, 11 packaged, 0 clean-machine"
     },
     {
       "id": "roadmap",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "177/177; Overview reads Sources agree; tracker 266 total / 264 closed / 2 blocked"
     },
     {
       "id": "offline",
@@ -419,6 +409,39 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-id8i:qa:2026-09-03T12:36:13.049Z",
+        "task": "awkit-id8i",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-03T12:36:13.049Z",
+        "acquired_at_commit": "49f69fde1382839db83d0401f1381ade58e8589b",
+        "released_at": "2026-09-03T12:36:55.871Z",
+        "released_reason": "Final roadmap closure pin passes 177/177 with Sources agree; rerouting to project-state for contract completion and claim release.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-id8i:project-state:2026-09-03T12:37:25.449Z",
+        "task": "awkit-id8i",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/contracts/awkit-id8i.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T12:37:25.449Z",
+        "acquired_at_commit": "bd27171686773fb3e0c4889034b36e983fb201a9",
+        "released_at": "2026-09-03T12:38:38.574Z",
+        "released_reason": "R0 contract passes task-gate with all required evidence PASS, QA PASS, QC approved, Bead closed, and final roadmap Sources agree.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
@@ -431,8 +454,10 @@
     "destructive_reset": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "closed_at": "2026-09-03",
+    "closed_note": "R0 completed without production ownership changes: 85/85 mutation-backed characterization checks and every required/focused gate passed; the real same-folder store race is recorded for R1B, six apparently-dead candidates remain for R3, and R1A is ready."
   }
 }
