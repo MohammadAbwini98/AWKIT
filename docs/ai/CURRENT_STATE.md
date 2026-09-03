@@ -39,7 +39,8 @@ backpressure proven separately by the 21/21 live-engine run.
 The Recorder/Reports/Settings ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED**: R1A changes no
 case status, but its current-run session/report evidence is recorded there. No Mock Site fixture was
 changed because dependency composition did not change observable scenario behavior; `verify:mock-site`
-is **NOT APPLICABLE** to this tranche. R1B is the next production phase after closeout reconciliation.
+is **NOT APPLICABLE** to this tranche. Beads is **267 total / 265 closed / 2 blocked**, and the roadmap
+passes **177/177** with **Sources agree**. R1B is the next production phase.
 
 ## R0 architecture and regression characterization complete (`awkit-id8i`, 2026-09-03)
 

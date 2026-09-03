@@ -22,6 +22,8 @@
   green. Populated Reports first **FAILED** only at a 30-second final screenshot timeout; clean retry
   passed **168/0/3 NOT RUN** with evidence at
   `test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z`.
+- **Project state:** `awkit-2q2d` is closed; Beads is **267 total / 265 closed / 2 blocked** and the
+  roadmap passes **177/177** with its Overview reading **Sources agree**.
 - **Ledger/fixture boundary:** comprehensive ledger totals remain **65 PASS / 2 NOT RUN / 0 BLOCKED**;
   no row changed. Mock Site is **NOT APPLICABLE** because this dependency inversion changes no
   observable scenario or fixture contract.

@@ -32,7 +32,9 @@ Reports/Settings a11y **17/17**; licensing **192/192**; license dispatch **34/34
 screenshot (`page.screenshot` timeout 30,000 ms); no repo-owned Electron process leaked. A clean retry
 passed **168 PASS / 0 FAIL / 3 NOT RUN**, evidence
 `test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z`. Mock Site was **NOT APPLICABLE**:
-there is no observable Recorder/Runner/session/report scenario change to encode in a fixture.
+there is no observable Recorder/Runner/session/report scenario change to encode in a fixture. Verifier
+classification reconciles **200/200** commands; roadmap passes **177/177** with **Sources agree** at
+**267 total / 265 closed / 2 blocked**; AI-memory and `git diff --check` pass.
 
 ## 2026-09-03 — Codex — R0 architecture and regression characterization
 

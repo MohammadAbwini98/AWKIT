@@ -76,7 +76,8 @@
       "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
       "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
       "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
-      "docs/ai/contracts/awkit-2q2d.json"
+      "docs/ai/contracts/awkit-2q2d.json",
+      "docs/ai/contracts/active-lease.json"
     ],
     "consultants": [
       "architect",
@@ -90,17 +91,11 @@
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        ".beads/issues.jsonl",
-        ".beads/interactions.jsonl",
-        "tools/roadmap/assignments.json",
-        "docs/ai/ARCHITECTURE.md",
         "docs/ai/CURRENT_STATE.md",
         "docs/ai/HANDOFF.md",
         "docs/ai/TASK_LOG.md",
-        "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
-        "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
-        "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
-        "docs/ai/contracts/awkit-2q2d.json"
+        "docs/ai/contracts/awkit-2q2d.json",
+        "tools/roadmap/assignments.json"
       ]
     }
   },
@@ -165,7 +160,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:r0-characterization",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "99 PASS / 0 FAIL; former-import, replacement-edge, composition and compatibility mutations rejected"
     },
     {
@@ -173,7 +168,7 @@
       "type": "build",
       "required": true,
       "command": "npm run build; npm run typecheck:scripts",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "build PASS; typecheck:scripts PASS"
     },
     {
@@ -181,7 +176,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:runner; npm run verify:protected-login-recorder; npm run verify:reports-live-engine; npm run verify:reports-populated-gui",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "Runner 138/138; protected login 74/74; live reports 21/21; populated reports retry 168 PASS / 0 FAIL / 3 NOT RUN at test-artifacts/reports-populated-gui/2026-09-03T16-23-06-946Z; first populated attempt failed only at final screenshot timeout"
     },
     {
@@ -189,7 +184,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:run-report-compatibility; npm run verify:profile-store; npm run verify:write-queue; npm run verify:session-context",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "27/27; 26/26; 29/29; 11/11"
     },
     {
@@ -197,7 +192,7 @@
       "type": "security",
       "required": true,
       "command": "npm run verify:licensing; npm run verify:license-dispatch-gate",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "192/192; 34/34"
     },
     {
@@ -205,7 +200,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:cancellation; npm run verify:concurrency",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "34/34; 89/89"
     },
     {
@@ -213,7 +208,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:source-hygiene; npm run validate:offline",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "source hygiene 11/11; strict offline validation completed"
     },
     {
@@ -221,15 +216,15 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:verifier-classification; npm run verify:roadmap-dashboard",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "classification 200/200; roadmap 177/177; Overview reads Sources agree; tracker 267 total / 265 closed / 2 blocked"
     },
     {
       "id": "ai-memory",
       "type": "inspection",
       "required": true,
       "command": "node scripts/ai-memory/check-memory.mjs",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "AI memory files passed required checks"
     },
     {
@@ -237,7 +232,7 @@
       "type": "inspection",
       "required": true,
       "command": "git diff --check",
-      "result": "pass",
+      "result": "PASS",
       "artifact": "PASS before project-state closeout commit"
     }
   ],
@@ -292,6 +287,68 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-2q2d:project-state:2026-09-03T16:30:12.816Z",
+        "task": "awkit-2q2d",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/ARCHITECTURE.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-2q2d.json",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T16:30:12.816Z",
+        "acquired_at_commit": "9a20c83939ae926ddd1e946b4e47c68db183ce9a",
+        "released_at": "2026-09-03T16:34:55.704Z",
+        "released_reason": "R1A implementation evidence, Bead closure, ledger, architecture, plan and AI state committed in 2378bef; hand off exact roadmap cardinality pins to QA.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-2q2d:qa:2026-09-03T16:35:32.406Z",
+        "task": "awkit-2q2d",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-03T16:35:32.406Z",
+        "acquired_at_commit": "2378bef49bfc6d92359b3b779c563b52493d2fb5",
+        "released_at": "2026-09-03T16:37:32.781Z",
+        "released_reason": "Updated only the exact R1A Bead cardinality pins; roadmap passes 177/177 and Overview reads Sources agree; committed in 2efafb8.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-2q2d:project-state:2026-09-03T16:37:55.768Z",
+        "task": "awkit-2q2d",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-2q2d.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-03T16:37:55.768Z",
+        "acquired_at_commit": "2efafb8b199e263b04361207529cc189f6044bf8",
+        "released_at": "2026-09-03T16:38:56.806Z",
+        "released_reason": "R1A contract passes task-gate with all required evidence PASS, QA PASS, QC approved, Bead closed, and roadmap 177/177 Sources agree.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
@@ -304,8 +361,10 @@
     "destructive_reset": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pass",
-    "qc_status": "approved"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "closed_at": "2026-09-03",
+    "closed_note": "R1A removed only the two unwanted ExecutionEngine Electron-main imports through narrow injected session/report ports; appPaths remains sanctioned, all required evidence passes, and R1B is ready without starting store coordination or R2."
   }
 }

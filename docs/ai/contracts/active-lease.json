@@ -1,23 +1,26 @@
 {
-  "task": "awkit-id8i",
-  "contract_path": "docs/ai/contracts/awkit-id8i.json",
+  "task": "awkit-2q2d",
+  "contract_path": "docs/ai/contracts/awkit-2q2d.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "docs/ai/contracts/awkit-id8i.json",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/awkit-2q2d.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-03T12:37:25.449Z",
-  "acquired_at_commit": "bd27171686773fb3e0c4889034b36e983fb201a9",
+  "acquired_at": "2026-09-03T16:37:55.768Z",
+  "acquired_at_commit": "2efafb8b199e263b04361207529cc189f6044bf8",
   "baseline_dirty": [
     "AWTKIT.rar",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-id8i.json"
+    "docs/ai/contracts/awkit-2q2d.json"
   ],
   "baseline_dirty_fingerprints": {
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
-    "docs/ai/contracts/active-lease.json": "5807efbc33af5c24a88b6139051c83530e47a848e19b46e756a6c0e95f2c2fe4",
-    "docs/ai/contracts/awkit-id8i.json": "e2d643753f8f59886f567eff772a7a3f43e081454b0fbb66e78e0b9aac9ba831"
+    "docs/ai/contracts/active-lease.json": "7da877e9ffd840f57a6ccd94c1c450088621ff8a40bfd89500e1dbdeeca2fdbe",
+    "docs/ai/contracts/awkit-2q2d.json": "6f7e0a2b7f92e4257eab7a98717834a95aa2305a06da350f08323a25b453653d"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,7 +35,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-03T12:38:38.574Z",
-  "released_reason": "R0 contract passes task-gate with all required evidence PASS, QA PASS, QC approved, Bead closed, and final roadmap Sources agree.",
-  "archived_at": "2026-09-03T12:38:38.575Z"
+  "released_at": "2026-09-03T16:38:56.806Z",
+  "released_reason": "R1A contract passes task-gate with all required evidence PASS, QA PASS, QC approved, Bead closed, and roadmap 177/177 Sources agree.",
+  "archived_at": "2026-09-03T16:38:56.807Z"
 }
