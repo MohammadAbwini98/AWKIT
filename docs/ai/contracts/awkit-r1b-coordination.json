@@ -475,6 +475,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:project-state:2026-09-04T16:10:25.157Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-04T16:10:25.157Z",
+        "acquired_at_commit": "2cccdc1cc169b50cff0986f2a951f37b4ac94ade",
+        "released_at": "2026-09-04T16:15:01.621Z",
+        "released_reason": "R1B closeout complete: contract finalized, all required evidence PASS, task gate ok true, main pushed to 8175b6a with AWTKIT.rar preserved",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

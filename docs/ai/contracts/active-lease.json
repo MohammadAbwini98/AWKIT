@@ -9,25 +9,19 @@
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md"
   ],
-  "acquired_at": "2026-09-04T16:10:25.157Z",
-  "acquired_at_commit": "2cccdc1cc169b50cff0986f2a951f37b4ac94ade",
+  "acquired_at": "2026-09-04T17:29:08.856Z",
+  "acquired_at_commit": "8175b6a602e84263576dc953885785679a3a5b4d",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
     "AWTKIT.rar",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-r1b-coordination.json"
+    "docs/ai/contracts/awkit-r1b-coordination.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "6cbfef46037a0f75d594cb97e2b3f5ed0df4af5ca692331b3b9ebffba95f0ec4",
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
-    "docs/ai/HANDOFF.md": "65e93b06d318b1ab60431f54925bdb5fd49fe286e597198ffe58ff1492245e46",
-    "docs/ai/KNOWN_ISSUES.md": "e75905f5d48ba25089f31c45eba7ccfae934c5dc0258baed37fbe7427c11bb2a",
-    "docs/ai/TASK_LOG.md": "8b71fd3c12c801f14cd75bd1cb562276cdc6e3412fd74581b5b0982521512df9",
-    "docs/ai/contracts/active-lease.json": "79aa9cce67656c43f9f46f53cc39717004a486c78d17408d4b0190bfe982bddf",
-    "docs/ai/contracts/awkit-r1b-coordination.json": "4964f71f12f94112b3b6daced77ccc66d9c463cb1119e11b8709dfc002794c38"
+    "docs/ai/contracts/active-lease.json": "f3ba88b83cea870f100af3d2310c4cf8f4773d71ffa5e700e0b4340d01fc4abb",
+    "docs/ai/contracts/awkit-r1b-coordination.json": "50372344ddc55d4bbc4909e262c7bc437d64d4a3b1c837ac98205f698cd9c665",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
