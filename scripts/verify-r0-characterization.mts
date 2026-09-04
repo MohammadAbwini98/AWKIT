@@ -188,6 +188,10 @@ async function architectureAndDeadCode(): Promise<void> {
   );
 
   const executionIpcPath = "app/main/ipc/execution.ipc.ts";
+  // R2 moved application-level run preparation (including the single ExecutionEngine.startRun call)
+  // out of the IPC facade into this service. Port composition and bootstrap wiring stayed in the IPC
+  // layer, so the two paths below are deliberately different files.
+  const executionServicePath = "app/main/execution/ExecutionApplicationService.ts";
   const mainPath = "app/main/main.ts";
   const assertProductionPortComposition = (ipcText: string, mainText: string): void => {
     const portCalls = calls(executionIpcPath, (call, sf) => callText(call, sf) === "executionEngine.setExecutionPorts", ipcText);
@@ -220,17 +224,19 @@ async function architectureAndDeadCode(): Promise<void> {
   const startRunConsumers = productionFiles.filter((path) =>
     calls(path, (call, sf) => callText(call, sf) === "executionEngine.startRun").length > 0
   );
-  invariant(JSON.stringify(startRunConsumers) === JSON.stringify(["app/main/ipc/execution.ipc.ts"]), `execution entry points: ${startRunConsumers.join(", ")}`);
-  check("execution.ipc remains the single production caller that starts ExecutionEngine runs", true, startRunConsumers[0]);
+  invariant(JSON.stringify(startRunConsumers) === JSON.stringify([executionServicePath]), `execution entry points: ${startRunConsumers.join(", ")}`);
+  check("the execution application service remains the single production caller that starts ExecutionEngine runs", true, startRunConsumers[0]);
   mutationRejected("a parallel production execution entry", () => {
-    const mutated = [...startRunConsumers, "app/main/validation/index.ts"];
-    invariant(mutated.length === 1 && mutated[0] === "app/main/ipc/execution.ipc.ts", `execution entry points: ${mutated.join(", ")}`);
+    // The regression R2 can introduce: the IPC facade keeps (or regains) its own direct engine call
+    // alongside the extracted service, so run preparation exists in two places at once.
+    const mutated = [...startRunConsumers, executionIpcPath];
+    invariant(mutated.length === 1 && mutated[0] === executionServicePath, `execution entry points: ${mutated.join(", ")}`);
   });
 
   const scenarioConsumers = productionFiles.filter((path) => importsOf(path).some((specifier) => resolveImport(path, specifier) === "src/orchestrator/ScenarioOrchestrator.ts"));
   check(
     "ScenarioOrchestrator is live in both execution composition and runner traversal (not a replacement target)",
-    scenarioConsumers.includes("app/main/ipc/execution.ipc.ts") && scenarioConsumers.includes("src/runner/PlaywrightRunner.ts"),
+    scenarioConsumers.includes(executionServicePath) && scenarioConsumers.includes("src/runner/PlaywrightRunner.ts"),
     scenarioConsumers.join(", ")
   );
 
@@ -1267,6 +1273,27 @@ function functionBodySpan(path: string, text: string, name: string): SourceSpan 
   return spans[0];
 }
 
+/**
+ * Body span of the single `<name>(...)` method declaration in `path`.
+ *
+ * R2 moved run preparation onto `ExecutionApplicationService`, so the scoped predicates below now
+ * range over a class member rather than a top-level function. The cardinality invariant is the same
+ * one `functionBodySpan` carries and matters for the same reason: a renamed, overloaded or duplicated
+ * method would otherwise yield an empty/ambiguous span that every scoped predicate ranges over
+ * vacuously.
+ */
+function methodBodySpan(path: string, text: string, name: string): SourceSpan {
+  const sf = parse(path, text);
+  const spans: SourceSpan[] = [];
+  walk(sf, (node) => {
+    if (ts.isMethodDeclaration(node) && node.name.getText(sf) === name && node.body) {
+      spans.push({ start: node.body.getStart(sf), end: node.body.end });
+    }
+  });
+  invariant(spans.length === 1, `expected exactly one \`${name}(...)\` method in ${path}, found ${spans.length}`);
+  return spans[0];
+}
+
 /** Body span of the inline handler passed to the single `ipcMain.handle("<channel>", ...)` registration. */
 function ipcHandlerSpan(path: string, text: string, channel: string): SourceSpan {
   const registrations = calls(path, (call, sf) => callText(call, sf) === "ipcMain.handle" && stringArg(call, 0) === channel, text);
@@ -1319,27 +1346,40 @@ function objectLiteralNamed(path: string, text: string, span: SourceSpan, name: 
 }
 
 /**
- * R2 - application-level run preparation, characterized BEFORE the extraction.
+ * R2 - application-level run preparation, characterized AFTER the extraction.
  *
- * R2 will move run preparation out of `app/main/ipc/execution.ipc.ts` into a separate application
- * service. Every assertion here describes the code AS IT IS TODAY; none of them anticipate the new
- * shape. Each control is paired with an in-memory mutation of the real source that reproduces one
- * concrete regression the move could introduce, so the control is proven to FAIL for that regression
- * rather than merely proving that some identifier still exists. A TypeScript compile error is never
- * accepted as mutation evidence -- only the guard's own rejection is.
+ * R2 moved run preparation out of `app/main/ipc/execution.ipc.ts` into
+ * `app/main/execution/ExecutionApplicationService.ts`. The layering is now: IPC transport +
+ * sender/session/RBAC authorization -> ExecutionApplicationService -> ExecutionEngine. Every
+ * assertion here describes the code AS IT IS TODAY; the controls were re-pointed at whichever module
+ * now owns each behavior, and none of them were relaxed to accommodate the move. Controls that
+ * describe the IPC handler's authorization decision (R2.1, R2.6) stay on the IPC facade; controls
+ * that describe run preparation (R2.2, R2.3, R2.5, R2.7-R2.11) follow `runWorkflow` into the service.
+ * R2.4 keeps its existing owners -- the engine-side gate consultations characterized in R0.3/R0.5 and
+ * the `setDispatchGate(licenseDispatchGate)` registration asserted by `verify:license-dispatch-gate`
+ * -- because the extraction moved neither. R2.10 is
+ * deliberately split across both modules and therefore also asserts that the two halves are wired to
+ * each other. Each control is paired with an in-memory mutation of the real source that reproduces
+ * one concrete regression, so the control is proven to FAIL for that regression rather than merely
+ * proving that some identifier still exists. A TypeScript compile error is never accepted as mutation
+ * evidence -- only the guard's own rejection is.
  */
 async function runPreparationCharacterization(): Promise<void> {
-  console.log("\nR2 - application-level run preparation (pre-refactor characterization)");
+  console.log("\nR2 - application-level run preparation (post-extraction characterization)");
   const ipcPath = "app/main/ipc/execution.ipc.ts";
+  const servicePath = "app/main/execution/ExecutionApplicationService.ts";
   const enginePath = "src/runner/ExecutionEngine.ts";
   const ipcText = source(ipcPath);
+  const serviceText = source(servicePath);
   const engineText = source(enginePath);
 
-  // --- R2.1 sender/RBAC authorization completes before the privileged run-preparation call ---------
+  // --- R2.1 sender/RBAC authorization completes before the call into the application service --------
+  // Authorization stayed in the IPC handler; the privileged work it guards is now one hop away, so the
+  // control asserts the same ordering against the service call rather than against an inline function.
   const assertAuthorizationPrecedesRunPreparation = (text: string): void => {
     const handler = ipcHandlerSpan(ipcPath, text, "execution:runWorkflow");
     const authorizations = callsWithin(ipcPath, text, handler, (call, sf) => /^assertSender[A-Za-z]*$/.test(callText(call, sf)));
-    const privileged = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "runWorkflow");
+    const privileged = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "applicationService.runWorkflow");
     // Cardinality BEFORE ordering. `every(authorization precedes privileged)` is vacuously true over an
     // empty authorization set, which is itself the regression this control exists to reject.
     invariant(authorizations.length === 2, `execution:runWorkflow authorization calls: ${authorizations.length}`);
@@ -1348,36 +1388,114 @@ async function runPreparationCharacterization(): Promise<void> {
       JSON.stringify(callees) === JSON.stringify(["assertSenderPermission", "assertSenderSuperUser"]),
       `execution:runWorkflow authorization callees: ${callees.join(", ")}`
     );
-    invariant(privileged.length === 1, `execution:runWorkflow privileged runWorkflow(request) calls: ${privileged.length}`);
+    invariant(
+      privileged.length === 1,
+      `execution:runWorkflow privileged applicationService.runWorkflow(request) calls: ${privileged.length}`
+    );
     const privilegedStart = privileged[0].getStart();
     // Positional, not merely both-present: "both are present" passes trivially when the order is inverted.
     const late = authorizations.filter((call) => call.getStart() >= privilegedStart).map((call) => call.expression.getText());
-    invariant(late.length === 0, `runWorkflow(request) is reached before authorization completes: ${late.join(", ")}`);
+    invariant(
+      late.length === 0,
+      `applicationService.runWorkflow(request) is reached before authorization completes: ${late.join(", ")}`
+    );
   };
   assertAuthorizationPrecedesRunPreparation(ipcText);
   check(
-    "every sender/RBAC authorization in execution:runWorkflow completes before the privileged runWorkflow(request) call",
+    "every sender/RBAC authorization in execution:runWorkflow completes before the call into ExecutionApplicationService",
     true,
-    "assertSenderSuperUser + assertSenderPermission both precede runWorkflow(request)"
+    "assertSenderSuperUser + assertSenderPermission both precede applicationService.runWorkflow(request)"
   );
   const hoistedPrivilegedCall = mutateOnce(
     mutateOnce(
       ipcText,
       "    if (request.dryRun === false) {",
-      "    const hoisted = runWorkflow(request);\n    if (request.dryRun === false) {"
+      "    const hoisted = applicationService.runWorkflow(request);\n    if (request.dryRun === false) {"
     ),
-    "    return runWorkflow(request);",
+    "    return applicationService.runWorkflow(request);",
     "    return hoisted;"
   );
-  mutationRejected("the privileged runWorkflow(request) call being hoisted above the sender/RBAC authorization block", () => {
+  mutationRejected("the call into ExecutionApplicationService being hoisted above the sender/RBAC authorization block", () => {
     assertAuthorizationPrecedesRunPreparation(hoistedPrivilegedCall);
   });
 
+  // --- R2.2/R2.3 both licensing checkpoints are consulted AND enforced before dispatch --------------
+  // R0.5 counts these checkpoints per module, which rejects deletion. It cannot reject the shape the
+  // extraction actually risks: the checkpoint still being called while its decision is ignored, or the
+  // pre-run checkpoint drifting past the dispatch it is supposed to gate. Both subjects moved into
+  // `ExecutionApplicationService.runWorkflow`, so both are asserted there, positionally.
+  const assertLicensingGatesEnforcedBeforeDispatch = (text: string): void => {
+    const body = methodBodySpan(servicePath, text, "runWorkflow");
+    const gates = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "applyRunGateEnforcement");
+    // Cardinality BEFORE ordering, again: the per-guard ordering loop below is vacuously satisfied by an
+    // empty set, which is exactly the "licensing removed" regression.
+    invariant(gates.length === 2, `runWorkflow applyRunGateEnforcement calls: ${gates.length}`);
+    const triggers = gates.map((call) => stringArg(call, 0) ?? "none");
+    invariant(
+      JSON.stringify(triggers) === JSON.stringify(["run-request", "pre-run"]),
+      `runWorkflow licensing triggers in source order: ${triggers.join(", ")}`
+    );
+    const guards = nodesWithin(servicePath, text, body, ts.isIfStatement)
+      .filter((node) => /^!\w+\.allowed$/.test(node.expression.getText()))
+      .sort((a, b) => a.getStart() - b.getStart());
+    invariant(guards.length === 2, `runWorkflow licensing decision guards: ${guards.length}`);
+    const guardExpressions = guards.map((node) => node.expression.getText());
+    invariant(
+      JSON.stringify(guardExpressions) === JSON.stringify(["!gate.allowed", "!preRunGate.allowed"]),
+      `runWorkflow licensing decision guards: ${guardExpressions.join(", ")}`
+    );
+    const dispatches = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
+    invariant(dispatches.length === 1, `runWorkflow executionEngine.startRun calls: ${dispatches.length}`);
+    const dispatch = dispatches[0];
+    for (let index = 0; index < gates.length; index += 1) {
+      // Consulted, then enforced, then dispatched -- for each checkpoint independently.
+      invariant(
+        gates[index].getStart() < guards[index].getStart(),
+        `the ${triggers[index]} decision is enforced before it is obtained`
+      );
+      invariant(
+        guards[index].end < dispatch.getStart(),
+        `the ${triggers[index]} licensing decision is enforced after the run is dispatched`
+      );
+      invariant(
+        /licenseBlockedResult\(/.test(guards[index].thenStatement.getText()),
+        `the ${triggers[index]} guard no longer short-circuits with a license-blocked result`
+      );
+    }
+  };
+  assertLicensingGatesEnforcedBeforeDispatch(serviceText);
+  check(
+    "run preparation consults and enforces both the run-request and pre-run licensing checkpoints before dispatch",
+    true,
+    'applyRunGateEnforcement("run-request") -> !gate.allowed -> applyRunGateEnforcement("pre-run") -> !preRunGate.allowed -> executionEngine.startRun'
+  );
+  const requestTimeLicensingRemoved = mutateOnce(
+    serviceText,
+    '    const gate = applyRunGateEnforcement("run-request").decision;',
+    "    const gate = { allowed: true, status: { userAction: \"\" } } as unknown as RunGateDecision;"
+  );
+  mutationRejected("the request-time licensing checkpoint being removed from run preparation", () => {
+    assertLicensingGatesEnforcedBeforeDispatch(requestTimeLicensingRemoved);
+  });
+  // Deliberately a BYPASS, not a deletion: the pre-run checkpoint is still called, so a control that
+  // only counts call sites still passes. The decision is simply never acted on.
+  const preRunLicensingIgnored = mutateOnce(
+    serviceText,
+    "    if (!preRunGate.allowed) return licenseBlockedResult(preRunGate, validation);",
+    "    void preRunGate;"
+  );
+  mutationRejected("the pre-run licensing decision being obtained and then ignored before dispatch", () => {
+    assertLicensingGatesEnforcedBeforeDispatch(preRunLicensingIgnored);
+  });
+
   // --- R2.5 workflow validation runs and gates the run --------------------------------------------
+  // `runWorkflow` is now a method on ExecutionApplicationService, so the span is resolved with
+  // `methodBodySpan` -- which carries the same exactly-one cardinality invariant `functionBodySpan`
+  // did, for the same reason: an ambiguous span would make every scoped predicate below vacuous.
   const assertWorkflowValidationGatesTheRun = (text: string): void => {
-    const body = functionBodySpan(ipcPath, text, "runWorkflow");
-    const validations = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "validateWorkflow");
-    const dispatches = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
+    const body = methodBodySpan(servicePath, text, "runWorkflow");
+    const validations = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "validateWorkflow");
+    const dispatches = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
     invariant(validations.length === 1, `runWorkflow validateWorkflow calls: ${validations.length}`);
     invariant(dispatches.length === 1, `runWorkflow executionEngine.startRun calls: ${dispatches.length}`);
     invariant(
@@ -1385,7 +1503,7 @@ async function runPreparationCharacterization(): Promise<void> {
       `validateWorkflow argument: ${validations[0].arguments[0]?.getText() ?? "none"}`
     );
     invariant(validations[0].getStart() < dispatches[0].getStart(), "validateWorkflow no longer runs before ExecutionEngine.startRun");
-    const guards = nodesWithin(ipcPath, text, body, ts.isIfStatement).filter((node) => node.expression.getText() === "!validation.valid");
+    const guards = nodesWithin(servicePath, text, body, ts.isIfStatement).filter((node) => node.expression.getText() === "!validation.valid");
     invariant(guards.length === 1, `runWorkflow \`!validation.valid\` guards: ${guards.length}`);
     invariant(
       guards[0].getStart() > validations[0].getStart() && guards[0].end < dispatches[0].getStart(),
@@ -1396,21 +1514,21 @@ async function runPreparationCharacterization(): Promise<void> {
       "the !validation.valid guard no longer short-circuits with a validationFailed result"
     );
   };
-  assertWorkflowValidationGatesTheRun(ipcText);
+  assertWorkflowValidationGatesTheRun(serviceText);
   check(
     "run preparation validates the workflow and blocks dispatch on the !validation.valid guard",
     true,
     "validateWorkflow(request.workflowId) -> !validation.valid -> executionEngine.startRun"
   );
   const validationSkipped = mutateOnce(
-    ipcText,
-    "  const validation = await validateWorkflow(request.workflowId);",
-    "  const validation = { workflow: undefined, scenario: undefined, plan: undefined, issues: [], valid: true };"
+    serviceText,
+    "    const validation = await validateWorkflow(request.workflowId);",
+    "    const validation = { workflow: undefined, scenario: undefined, plan: undefined, issues: [], valid: true };"
   );
   mutationRejected("workflow validation being skipped in run preparation", () => {
     assertWorkflowValidationGatesTheRun(validationSkipped);
   });
-  const validationGuardDefeated = mutateOnce(ipcText, "  if (!validation.valid) {", "  if (false) {");
+  const validationGuardDefeated = mutateOnce(serviceText, "    if (!validation.valid) {", "    if (false) {");
   mutationRejected("the !validation.valid guard no longer blocking dispatch of an invalid workflow", () => {
     assertWorkflowValidationGatesTheRun(validationGuardDefeated);
   });
@@ -1473,49 +1591,49 @@ async function runPreparationCharacterization(): Promise<void> {
 
   // --- R2.7 Legacy Compatibility attribution reaches the run profile -------------------------------
   const assertLegacyCompatibilityAttribution = (text: string): void => {
-    const body = functionBodySpan(ipcPath, text, "runWorkflow");
+    const body = methodBodySpan(servicePath, text, "runWorkflow");
     const collected = callsWithin(
-      ipcPath,
+      servicePath,
       text,
       body,
       (call, sf) => callText(call, sf) === "issue.key.startsWith" && stringArg(call, 0) === "legacyCompatibility."
     );
     invariant(collected.length === 1, `runWorkflow legacyCompatibility issue collections: ${collected.length}`);
-    const recorded = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "service.recordRunUnderCompatibility");
+    const recorded = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "service.recordRunUnderCompatibility");
     invariant(recorded.length === 1, `runWorkflow recordRunUnderCompatibility calls: ${recorded.length}`);
     invariant(
       recorded[0].arguments[0]?.getText() === "compatibilityFlowIds",
       `recordRunUnderCompatibility argument: ${recorded[0].arguments[0]?.getText() ?? "none"}`
     );
-    const snapshots = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "service.grantsMap");
+    const snapshots = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "service.grantsMap");
     invariant(snapshots.length === 1, `runWorkflow grant snapshot calls: ${snapshots.length}`);
     // Recording the run on the grant is not attribution: the report is blind unless the snapshot is
     // carried into the ConcurrentRunProfile that the run is started with.
-    const profile = objectLiteralNamed(ipcPath, text, body, "profile");
+    const profile = objectLiteralNamed(servicePath, text, body, "profile");
     const attribution = profile.properties.filter((property) => ts.isSpreadAssignment(property) && /legacyCompatibility/.test(property.getText()));
     invariant(attribution.length === 1, `ConcurrentRunProfile legacyCompatibility attribution properties: ${attribution.length}`);
     // Deadlines are snapshotted at admission, not re-derived at read time (grants expire and are revoked).
-    const deadlines = nodesWithin(ipcPath, text, body, ts.isPropertyAssignment).filter((property) => property.name.getText() === "expiresAt");
+    const deadlines = nodesWithin(servicePath, text, body, ts.isPropertyAssignment).filter((property) => property.name.getText() === "expiresAt");
     invariant(deadlines.length === 1, `runWorkflow expiresAt attribution properties: ${deadlines.length}`);
     invariant(
       /grant\??\.expiresAt/.test(deadlines[0].initializer.getText()),
       `expiresAt attribution source: ${deadlines[0].initializer.getText()}`
     );
   };
-  assertLegacyCompatibilityAttribution(ipcText);
+  assertLegacyCompatibilityAttribution(serviceText);
   check(
     "Legacy Compatibility runs are recorded on the grant AND attributed onto the ConcurrentRunProfile with snapshotted deadlines",
     true,
     "recordRunUnderCompatibility + grantsMap snapshot + profile legacyCompatibility spread"
   );
-  const attributionDropped = mutateOnce(ipcText, "    ...(legacyCompatibility ? { legacyCompatibility } : {}),", "");
+  const attributionDropped = mutateOnce(serviceText, "      ...(legacyCompatibility ? { legacyCompatibility } : {}),", "");
   mutationRejected("Legacy Compatibility attribution being dropped from the ConcurrentRunProfile", () => {
     assertLegacyCompatibilityAttribution(attributionDropped);
   });
   const compatibilityRunUnrecorded = mutateOnce(
-    ipcText,
-    "    await service.recordRunUnderCompatibility(compatibilityFlowIds).catch(() => undefined);",
-    "    void compatibilityFlowIds;"
+    serviceText,
+    "      await service.recordRunUnderCompatibility(compatibilityFlowIds).catch(() => undefined);",
+    "      void compatibilityFlowIds;"
   );
   mutationRejected("a run under Legacy Compatibility no longer being recorded against its grant", () => {
     assertLegacyCompatibilityAttribution(compatibilityRunUnrecorded);
@@ -1532,8 +1650,8 @@ async function runPreparationCharacterization(): Promise<void> {
     return declarations[0].parameters.map((parameter) => parameter.name.getText(sf));
   };
   const productionStartRunCall = (text: string): ts.CallExpression => {
-    const body = functionBodySpan(ipcPath, text, "runWorkflow");
-    const dispatches = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
+    const body = methodBodySpan(servicePath, text, "runWorkflow");
+    const dispatches = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
     invariant(dispatches.length === 1, `runWorkflow executionEngine.startRun calls: ${dispatches.length}`);
     return dispatches[0];
   };
@@ -1553,13 +1671,13 @@ async function runPreparationCharacterization(): Promise<void> {
     const argument = call.arguments[index].getText();
     invariant(/^request\.runtimeInputs\s*\?\?\s*\{\s*\}$/.test(argument), `startRun runtimeInputs argument: ${argument}`);
   };
-  assertRuntimeInputsReachTheRun(ipcText, engineText);
+  assertRuntimeInputsReachTheRun(serviceText, engineText);
   check(
     "run preparation forwards request.runtimeInputs into the ExecutionEngine.startRun runtimeInputs parameter",
     true,
     "startRun argument 4 = request.runtimeInputs ?? {}"
   );
-  const runtimeInputsDropped = mutateOnce(ipcText, "    request.runtimeInputs ?? {},", "    {},");
+  const runtimeInputsDropped = mutateOnce(serviceText, "      request.runtimeInputs ?? {},", "      {},");
   mutationRejected("run preparation dropping request.runtimeInputs on the way into the run", () => {
     assertRuntimeInputsReachTheRun(runtimeInputsDropped, engineText);
   });
@@ -1569,14 +1687,14 @@ async function runPreparationCharacterization(): Promise<void> {
     "    runtimeInputs: Record<string, unknown>,\n    dirs: StorageDirs,"
   );
   mutationRejected("the runtime-inputs argument position silently drifting away from the engine parameter it feeds", () => {
-    assertRuntimeInputsReachTheRun(ipcText, startRunParametersReordered);
+    assertRuntimeInputsReachTheRun(serviceText, startRunParametersReordered);
   });
 
   // --- R2.9 resolved data sources are passed into the run -----------------------------------------
   const assertDataSourcesReachTheRun = (text: string, engine: string): void => {
     const parameters = startRunParameterNames(engine);
-    const body = functionBodySpan(ipcPath, text, "runWorkflow");
-    const resolved = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "resolveWorkflowDataSources");
+    const body = methodBodySpan(servicePath, text, "runWorkflow");
+    const resolved = callsWithin(servicePath, text, body, (call, sf) => callText(call, sf) === "resolveWorkflowDataSources");
     invariant(resolved.length === 1, `runWorkflow resolveWorkflowDataSources calls: ${resolved.length}`);
     invariant(
       resolved[0].arguments[0]?.getText() === "validation.workflow",
@@ -1595,43 +1713,90 @@ async function runPreparationCharacterization(): Promise<void> {
       invariant(argument === name, `startRun ${name} argument at position ${index}: ${argument}`);
     }
     // The bound workflow source also selects the run mode and the profile's data-source projection.
-    const profile = objectLiteralNamed(ipcPath, text, body, "profile");
+    const profile = objectLiteralNamed(servicePath, text, body, "profile");
     for (const property of ["runMode", "dataSource"]) {
       const matches = profile.properties.filter((candidate) => ts.isPropertyAssignment(candidate) && candidate.name.getText() === property);
       invariant(matches.length === 1, `ConcurrentRunProfile ${property} properties: ${matches.length}`);
       invariant(/workflowDataSource/.test(matches[0].getText()), `ConcurrentRunProfile ${property} no longer derives from workflowDataSource`);
     }
   };
-  assertDataSourcesReachTheRun(ipcText, engineText);
+  assertDataSourcesReachTheRun(serviceText, engineText);
   check(
     "run preparation resolves the workflow data sources and forwards both the bound source and the resolved map into the run",
     true,
     "resolveWorkflowDataSources(validation.workflow) -> startRun workflowDataSource + dataSources"
   );
   const dataSourceResolutionRemoved = mutateOnce(
-    ipcText,
-    "  const { workflowDataSource, dataSources } = await resolveWorkflowDataSources(validation.workflow);",
-    "  const workflowDataSource = undefined;\n  const dataSources = {};"
+    serviceText,
+    "    const { workflowDataSource, dataSources } = await resolveWorkflowDataSources(validation.workflow);",
+    "    const workflowDataSource = undefined;\n    const dataSources = {};"
   );
   mutationRejected("workflow data-source resolution being removed from run preparation", () => {
     assertDataSourcesReachTheRun(dataSourceResolutionRemoved, engineText);
   });
   const dataSourceArgumentDropped = mutateOnce(
-    ipcText,
-    "    workflowDataSource,\n    dataSources\n  );",
-    "    workflowDataSource\n  );"
+    serviceText,
+    "      workflowDataSource,\n      dataSources\n    );",
+    "      workflowDataSource\n    );"
   );
   mutationRejected("the resolved data-source map being dropped from the ExecutionEngine.startRun arguments", () => {
     assertDataSourcesReachTheRun(dataSourceArgumentDropped, engineText);
   });
 
   // --- R2.10 Settings-derived capacity is applied to the engine before every run -------------------
-  const assertSettingsDerivedCapacityApplied = (text: string): void => {
-    const run = functionBodySpan(ipcPath, text, "runWorkflow");
-    const applied = callsWithin(ipcPath, text, run, (call, sf) => callText(call, sf) === "applyRuntimeConcurrencyFromSettings");
-    invariant(applied.length === 1, `runWorkflow applyRuntimeConcurrencyFromSettings calls: ${applied.length}`);
-    invariant(applied[0].getStart() < productionStartRunCall(text).getStart(), "Settings-derived capacity is applied after the run is started");
-    const apply = functionBodySpan(ipcPath, text, "applyRuntimeConcurrencyFromSettings");
+  // Deliberately SPLIT across both modules by R2: the per-run CALL moved into the application service
+  // with `runWorkflow`, while the function it calls stays exported from the IPC facade because
+  // `settings.ipc.ts` imports it. Either half asserted alone would pass while the two were
+  // disconnected -- a service holding a stub that never reads Settings, or an IPC function that
+  // nothing calls before a run -- so the injection that joins them is asserted between them.
+  const assertSettingsDerivedCapacityApplied = (ipc: string, service: string): void => {
+    // Half 1 (service): the per-run application, sequenced before dispatch.
+    const run = methodBodySpan(servicePath, service, "runWorkflow");
+    const applied = callsWithin(servicePath, service, run, (call, sf) => callText(call, sf) === "this.applyRuntimeConcurrencyFromSettings");
+    invariant(applied.length === 1, `runWorkflow this.applyRuntimeConcurrencyFromSettings calls: ${applied.length}`);
+    invariant(applied[0].getStart() < productionStartRunCall(service).getStart(), "Settings-derived capacity is applied after the run is started");
+
+    // The seam between the halves. `this.applyRuntimeConcurrencyFromSettings` is only the IPC facade's
+    // capacity function if the facade still exports it, still injects it by that name, and the service
+    // still stores exactly that injected value on the field the call above reads.
+    const wholeIpc: SourceSpan = { start: 0, end: ipc.length };
+    const exported = nodesWithin(ipcPath, ipc, wholeIpc, ts.isFunctionDeclaration).filter(
+      (node) =>
+        node.name?.text === "applyRuntimeConcurrencyFromSettings" &&
+        node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
+    );
+    invariant(exported.length === 1, `exported applyRuntimeConcurrencyFromSettings declarations in ${ipcPath}: ${exported.length}`);
+    const constructions = nodesWithin(ipcPath, ipc, wholeIpc, ts.isNewExpression).filter(
+      (node) => node.expression.getText() === "ExecutionApplicationService"
+    );
+    invariant(constructions.length === 1, `ExecutionApplicationService constructions in ${ipcPath}: ${constructions.length}`);
+    const dependencies = constructions[0].arguments?.[0];
+    invariant(
+      dependencies !== undefined && ts.isObjectLiteralExpression(dependencies),
+      "ExecutionApplicationService is no longer constructed with an injected dependency literal"
+    );
+    const injected = dependencies.properties.filter(
+      (property) =>
+        (ts.isShorthandPropertyAssignment(property) && property.name.text === "applyRuntimeConcurrencyFromSettings") ||
+        (ts.isPropertyAssignment(property) &&
+          property.name.getText() === "applyRuntimeConcurrencyFromSettings" &&
+          property.initializer.getText() === "applyRuntimeConcurrencyFromSettings")
+    );
+    invariant(
+      injected.length === 1,
+      `ExecutionApplicationService is not injected with the IPC facade's own applyRuntimeConcurrencyFromSettings: matches=${injected.length}`
+    );
+    const stored = nodesWithin(servicePath, service, { start: 0, end: service.length }, ts.isBinaryExpression).filter(
+      (node) =>
+        node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        node.left.getText() === "this.applyRuntimeConcurrencyFromSettings" &&
+        node.right.getText() === "dependencies.applyRuntimeConcurrencyFromSettings"
+    );
+    invariant(stored.length === 1, `service assignments of the injected capacity function: ${stored.length}`);
+
+    // Half 2 (IPC facade): what that injected function actually does.
+    const apply = functionBodySpan(ipcPath, ipc, "applyRuntimeConcurrencyFromSettings");
+    const text = ipc;
     const wiring = {
       getUiSettings: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "getUiSettings"),
       computeEffectiveConcurrency: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "computeEffectiveConcurrency"),
@@ -1672,23 +1837,34 @@ async function runPreparationCharacterization(): Promise<void> {
       `sequential-mode limiter values: ${pinned.map((node) => node.right.getText()).join(", ")}`
     );
   };
-  assertSettingsDerivedCapacityApplied(ipcText);
+  assertSettingsDerivedCapacityApplied(ipcText, serviceText);
   check(
     "run preparation applies the Settings-derived capacity to the engine before dispatch, including the sequential operation limiters",
     true,
-    "applyRuntimeConcurrencyFromSettings -> computeEffectiveConcurrency -> configureConcurrency + setMachineRunContext"
+    "injected applyRuntimeConcurrencyFromSettings -> computeEffectiveConcurrency -> configureConcurrency + setMachineRunContext"
   );
   const perRunCapacityRemoved = mutateOnce(
-    ipcText,
-    "  await applyRuntimeConcurrencyFromSettings();",
-    "  // per-run Settings-derived capacity application removed"
+    serviceText,
+    "    await this.applyRuntimeConcurrencyFromSettings();",
+    "    // per-run Settings-derived capacity application removed"
   );
   mutationRejected("run preparation no longer applying the Settings-derived capacity before a run", () => {
-    assertSettingsDerivedCapacityApplied(perRunCapacityRemoved);
+    assertSettingsDerivedCapacityApplied(ipcText, perRunCapacityRemoved);
   });
   const capacityNeverConfigured = mutateOnce(ipcText, "    executionEngine.configureConcurrency(overrides);", "    void overrides;");
   mutationRejected("the resolved Settings capacity never being pushed into the execution engine", () => {
-    assertSettingsDerivedCapacityApplied(capacityNeverConfigured);
+    assertSettingsDerivedCapacityApplied(capacityNeverConfigured, serviceText);
+  });
+  // The two halves live in different modules, so they can be severed without either half changing:
+  // the service keeps calling `this.applyRuntimeConcurrencyFromSettings()` and the IPC facade keeps
+  // exporting the real function, but the service is handed a stub that never reads Settings.
+  const capacityInjectionSevered = mutateOnce(
+    ipcText,
+    "    applyRuntimeConcurrencyFromSettings,",
+    "    applyRuntimeConcurrencyFromSettings: async () => undefined,"
+  );
+  mutationRejected("the service being wired to a capacity stub instead of the Settings-derived implementation", () => {
+    assertSettingsDerivedCapacityApplied(capacityInjectionSevered, serviceText);
   });
 
   // --- R2.11 no parallel production run entry point, whatever the receiver is named ----------------
@@ -1710,11 +1886,11 @@ async function runPreparationCharacterization(): Promise<void> {
     .map((path) => ({ path, text: source(path) }))
     .filter((entry) => entry.text.includes("startRun"));
   invariant(
-    startRunCandidates.some((entry) => entry.path === ipcPath),
+    startRunCandidates.some((entry) => entry.path === servicePath),
     "the known production run entry point was dropped by the candidate prefilter, so this scan would range over the wrong set"
   );
   const expectedStartRunSites = [
-    "app/main/ipc/execution.ipc.ts::executionEngine.startRun",
+    "app/main/execution/ExecutionApplicationService.ts::executionEngine.startRun",
     "src/runner/ExecutionEngine.ts::this.observations.startRun"
   ];
   const assertNoParallelStartRunReceiver = (sites: string[]): void => {
@@ -1733,8 +1909,10 @@ async function runPreparationCharacterization(): Promise<void> {
   const parallelEntryPointSites = startRunReceivers([
     ...startRunCandidates,
     {
-      path: "app/main/execution/ExecutionApplicationService.ts",
-      text: "export class ExecutionApplicationService {\n  async prepare(): Promise<void> {\n    await this.engine.startRun(executionId, profile, rows, dirs, runtimeInputs, scenario, flows);\n  }\n}\n"
+      // A module that does not exist in the tree, so the injected site is unambiguously an
+      // ADDITIONAL entry point rather than a re-reading of the real one.
+      path: "app/main/execution/ParallelRunEntryPoint.ts",
+      text: "export class ParallelRunEntryPoint {\n  async prepare(): Promise<void> {\n    await this.engine.startRun(executionId, profile, rows, dirs, runtimeInputs, scenario, flows);\n  }\n}\n"
     }
   ]);
   invariant(
@@ -1764,8 +1942,13 @@ async function licensingCheckpoints(): Promise<void> {
     { label: "periodic main-process revalidation", path: "app/main/licensing/licenseEnforcementService.ts", expected: 1, matches: (text) => callNodes("app/main/licensing/licenseEnforcementService.ts", text, "applyRunGateEnforcement", "interval") },
     { label: "application-focus main-process revalidation", path: "app/main/licensing/licenseEnforcementService.ts", expected: 1, matches: (text) => callNodes("app/main/licensing/licenseEnforcementService.ts", text, "applyRunGateEnforcement", "window-focus") },
     { label: "authoritative renderer-triggered revalidation IPC", path: "app/main/ipc/licensing.ipc.ts", expected: 1, matches: (text) => callNodes("app/main/ipc/licensing.ipc.ts", text, "applyRunGateEnforcement", "revalidate-ipc") },
-    { label: "run-request checks for new and repeat requests", path: "app/main/ipc/execution.ipc.ts", expected: 2, matches: (text) => callNodes("app/main/ipc/execution.ipc.ts", text, "applyRunGateEnforcement", "run-request") },
-    { label: "pre-run check immediately before ExecutionEngine.startRun", path: "app/main/ipc/execution.ipc.ts", expected: 1, matches: (text) => callNodes("app/main/ipc/execution.ipc.ts", text, "applyRunGateEnforcement", "pre-run") },
+    // R2 split run preparation out of the IPC facade, so the two run-request checkpoints now live in
+    // two different modules. They are asserted per module at an exact count each -- strictly more
+    // precise than the single `expected: 2` over one file, which would have been satisfied by either
+    // checkpoint being duplicated while the other was deleted.
+    { label: "run-request check for a new run request", path: "app/main/execution/ExecutionApplicationService.ts", expected: 1, matches: (text) => callNodes("app/main/execution/ExecutionApplicationService.ts", text, "applyRunGateEnforcement", "run-request") },
+    { label: "run-request check for a repeat request", path: "app/main/ipc/execution.ipc.ts", expected: 1, matches: (text) => callNodes("app/main/ipc/execution.ipc.ts", text, "applyRunGateEnforcement", "run-request") },
+    { label: "pre-run check immediately before ExecutionEngine.startRun", path: "app/main/execution/ExecutionApplicationService.ts", expected: 1, matches: (text) => callNodes("app/main/execution/ExecutionApplicationService.ts", text, "applyRunGateEnforcement", "pre-run") },
     { label: "stale-dispatch and parked-resume revalidation", path: "app/main/licensing/licenseEnforcementService.ts", expected: 2, matches: (text) => callNodes("app/main/licensing/licenseEnforcementService.ts", text, "applyRunGateEnforcement", "pre-run") },
     { label: "initial dispatch, final dispatch, and repeat-instance engine gates", path: "src/runner/ExecutionEngine.ts", expected: 3, matches: (text) => callNodes("src/runner/ExecutionEngine.ts", text, "this.evaluateDispatchGate") },
     { label: "preload exposure of the authoritative revalidate IPC", path: "app/main/preload.ts", expected: 1, matches: (text) => calls("app/main/preload.ts", (call, sf) => callText(call, sf) === "invoke" && stringArg(call, 0) === "licensing:revalidate", text) },
