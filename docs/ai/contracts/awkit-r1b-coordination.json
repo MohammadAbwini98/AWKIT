@@ -1,0 +1,498 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-r1b-coordination",
+    "title": "R1B: one write coordinator per resolved store folder",
+    "objective": "Execute R1B only by giving every JsonProfileStore instance that resolves to the same storage folder a single shared write-coordination authority, eliminating the characterized same-folder stale-snapshot race without changing persisted shapes, atomic replacement, failure isolation, configured-path switching, report persistence, offline behavior or the existing store factories.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8e96e003e691620704b02f164512a00af375e653",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      }
+    ]
+  },
+  "classification": {
+    "electron_main_change": true,
+    "ipc_change": false,
+    "runner_change": false,
+    "execution_change": false,
+    "concurrency_change": true,
+    "persisted_shape_change": false,
+    "filesystem_write_change": true,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": false,
+    "protected_login_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "broad_investigation": false,
+    "project_state_change": true,
+    "cross_layer_count": 4
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "qa",
+      "qc",
+      "persistence",
+      "performance",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/storage/ProfileStore.ts",
+      "src/storage/folderWriteCoordinator.ts",
+      "app/main/profileStores.ts",
+      "scripts/verify-r0-characterization.mts",
+      "scripts/verify-profile-store.mts",
+      "scripts/verify-write-queue.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+      "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+      "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+      "docs/ai/contracts/awkit-r1b-coordination.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "architect",
+      "performance"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "R1B only: do not begin R2 execution IPC decomposition or any later refactoring phase.",
+      "Introduce no new persistence architecture, database, repository framework, queue system or replacement store; the coordinator is a serialization authority only.",
+      "Establish exactly one write-coordination authority per resolved storage folder, shared across independently constructed store instances.",
+      "Different resolved folders must remain independently writable and must not be unnecessarily serialized.",
+      "Avoid global singleton state that prevents safe configured-path changes or isolated tests; coordination must be keyed by resolved folder and must not outlive its pending work.",
+      "src/storage/ProfileStore.ts imports src/storage/atomicReplace.ts directly; the app/main/atomicReplace.ts re-export stays for existing main callers.",
+      "Existing store factory signatures and per-call path resolution stay unchanged so callers can migrate later."
+    ],
+    "security": [
+      "No change to sender authorization, licensing checkpoints, protected-login handoff, secret masking or app-owned session profiles.",
+      "No new process-wide mutable state that a lower-privileged caller could use to observe or block another caller's writes."
+    ],
+    "compatibility": [
+      "Preserve atomic temp-file plus replace behavior, current JSON shapes, legacy-profile compatibility, unknown fields where the owning schema permits them, failure isolation, configured Settings path switching and report persistence behavior.",
+      "A write failure such as ENOSPC must not permanently poison the coordinator; later valid writes to the same folder must still succeed.",
+      "Atomic replacement must still leave valid complete JSON and no orphan temp files, and corrupt-file quarantine plus pretty-print behavior are unchanged.",
+      "Save/reload, edit/re-save, import/export, reports and legacy fixtures remain compatible."
+    ],
+    "offline": [
+      "No runtime network dependency, new dependency, resource-path change, global runtime dependency, or mutable write under resources/ or app.asar; non-admin operation preserved."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "R1B-COORDINATOR",
+      "description": "Independently created store instances resolving to the same folder share one write-coordination boundary with no overlapping mutation or replace critical sections, while different resolved folders keep independent concurrency and no global singleton blocks path changes or tests.",
+      "evidence_required": [
+        "r0-characterization",
+        "store-coordination"
+      ]
+    },
+    {
+      "id": "R1B-RACE",
+      "description": "The characterized same-folder stale-snapshot lost-update race is eliminated or explicitly bounded by existing store semantics, and negative/mutation controls fail if independent per-instance queues are restored.",
+      "evidence_required": [
+        "r0-characterization",
+        "build"
+      ]
+    },
+    {
+      "id": "R1B-COMPATIBILITY",
+      "description": "Atomic replacement, failure isolation, JSON/profile/report formats, legacy fixtures, unknown-field handling, configured-path switching and runner behavior are unchanged, with strict offline and source hygiene green.",
+      "evidence_required": [
+        "report-settings-compatibility",
+        "runner",
+        "offline-hygiene"
+      ]
+    },
+    {
+      "id": "R1B-CLOSEOUT",
+      "description": "Beads, validation ledger, assignments, plans and AI state record current evidence; the roadmap Overview reads Sources agree; coherent commits are pushed to main with AWTKIT.rar preserved.",
+      "evidence_required": [
+        "classification-roadmap",
+        "ai-memory",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "r0-characterization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:r0-characterization",
+      "result": "PASS",
+      "artifact": "133 PASS / 0 FAIL. Mutation negative control: restoring an instance-local write queue in JsonProfileStore.serialize turned this suite red at exit 1 with 122 PASS / 11 FAIL, then src/storage was restored byte-clean and it returned to 133/0."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build; npm run typecheck:scripts",
+      "result": "PASS",
+      "artifact": "build: typecheck plus bundles clean. typecheck:scripts: no diagnostics. Both stayed green under the instance-local-queue mutation, which proves the 21 red assertions were assertion failures and not compile errors."
+    },
+    {
+      "id": "store-coordination",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:profile-store; npm run verify:write-queue",
+      "result": "PASS",
+      "artifact": "verify:profile-store 74/74; verify:write-queue 47/47. Under the instance-local-queue mutation verify:profile-store went to exit 1 at 64/74, ten red assertions including 6 independently constructed stores never overlap inside atomic replacement (maxActive=6) and two independently constructed stores creating one id: exactly one wins (fulfilled=2, rejected=0)."
+    },
+    {
+      "id": "report-settings-compatibility",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:run-report-compatibility; npm run verify:settings-persistence",
+      "result": "PASS",
+      "artifact": "verify:run-report-compatibility 27 / 0; verify:settings-persistence 6/6. verify:reports-populated-gui also run: 168 PASS / 0 FAIL / 3 NOT RUN. Both GUI suites first failed against a stale dist/ bundle; a controlled A/B with the coordinator byte-identical to HEAD and the bundle rebuilt passed, so the failures were staleness and not a coordinator regression."
+    },
+    {
+      "id": "runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "result": "PASS",
+      "artifact": "138 / 0."
+    },
+    {
+      "id": "offline-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene; npm run validate:offline",
+      "result": "PASS",
+      "artifact": "verify:source-hygiene 11 passed, 0 failed. validate:offline passed with dev-mode warnings that are non-fatal and pre-existing. No new dependency, no resource-path change, no mutable write under resources/ or app.asar."
+    },
+    {
+      "id": "classification-roadmap",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification; npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "verify:verifier-classification reconciled across 200 commands; no new verify:* or validate:* script was added by this tranche. verify:roadmap-dashboard 177/177, exit 0, with OK the Overview banner reads \"Sources agree\". Reaching it required moving three hardcoded non-vacuity baselines that the new bead awkit-oqvw shifted: total 267 to 268, closed 265 to 266, edges 105 to 106. Measured before the move at 174/177, then 176/177, then 177/177; committed as f67108a. A SECOND pin move was then required: filing the three open QC follow-up beads awkit-utbf, awkit-s410 and awkit-dhw6 and refreshing bd export -o .beads/issues.jsonl (271 issues exported) dropped the suite to 175/177, exit 1, on exactly two stale baselines. Total 268 to 271 and outstanding 2 to 5; closed stayed 266 and edges stayed 106 because all three new beads carry dependency_count 0, and both of those checks reported OK throughout. Both assertion labels were updated to quote the numbers they assert. Final re-run 177/177, exit 0, with OK the Overview banner reads \"Sources agree\". Both pins remain strict equality against parser-measured values, so a future bead add or close still turns this suite red. No comparison was relaxed and no check removed."
+    },
+    {
+      "id": "ai-memory",
+      "type": "inspection",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "exit 0, output \"AI memory files passed required checks.\" No AI memory file needed correction; docs/ai/CURRENT_STATE.md, HANDOFF.md, TASK_LOG.md and KNOWN_ISSUES.md were already reconciled in 13ab1a9 and the checker confirmed them green with no edit. The command string was corrected from the bare \"node scripts/ai-memory/check-memory.mjs\" to the npm alias because tools/agents/lease-guard.mjs isProjectStateCommand admits only the npm form for the project-state holder; package.json defines ai:memory:check as exactly that node invocation, so the executed process is identical."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "exit 0, no output; no whitespace errors or conflict markers."
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "PASS",
+      "artifact": "exit 0. Fast-forward 8e96e00..f78eb32 on main -> main, publishing all six R1B commits: 4181f27 coordinator, e7fbedc verifier hardening, 13ab1a9 project-state closeout, f67108a first roadmap pin move, 2cccdc1 second roadmap pin move for the three QC follow-up beads, f78eb32 beads and AI-memory residual-scope record. No force, no reset, no branch other than main. Before the push git status -sb read \"## main...origin/main [ahead 6]\" with 0 behind. AWTKIT.rar was never staged and stayed untracked throughout. The finalization commit that records this evidence and closes the contract is published by a second identical run of the same authorized command."
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-r1b-coordination:persistence:2026-09-03T18:09:08.029Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "persistence",
+        "status": "released",
+        "allowed_paths": [
+          "src/storage/ProfileStore.ts",
+          "src/storage/folderWriteCoordinator.ts"
+        ],
+        "acquired_at": "2026-09-03T18:09:08.029Z",
+        "acquired_at_commit": "8e96e003e691620704b02f164512a00af375e653",
+        "released_at": "2026-09-03T18:24:08.685Z",
+        "released_reason": "R1B implementation committed as 4181f27, handing the serialized writer slot to QA for the R0.2 rewrite and coordination coverage",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-03T18:24:42.534Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-profile-store.mts",
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-03T18:24:42.534Z",
+        "acquired_at_commit": "4181f270aecb60c9b41c0ed5035c843a855ab283",
+        "released_at": "2026-09-03T21:33:09.459Z",
+        "released_reason": "QA verifier work complete, manager takes the writer slot for the production mutation proof and the remaining gates",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:persistence:2026-09-03T21:37:52.625Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "persistence",
+        "status": "released",
+        "allowed_paths": [
+          "src/storage/ProfileStore.ts",
+          "src/storage/folderWriteCoordinator.ts"
+        ],
+        "acquired_at": "2026-09-03T21:37:52.625Z",
+        "acquired_at_commit": "4181f270aecb60c9b41c0ed5035c843a855ab283",
+        "released_at": "2026-09-03T21:46:31.738Z",
+        "released_reason": "mutation negative control and settings-persistence A/B complete, src/storage restored byte-identical to 4181f27, handing the writer slot to QA for the remaining gates",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-03T21:49:59.236Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-profile-store.mts",
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-03T21:49:59.236Z",
+        "acquired_at_commit": "4181f270aecb60c9b41c0ed5035c843a855ab283",
+        "released_at": "2026-09-04T14:01:44.242Z",
+        "released_reason": "qa agent terminated by an API session rate limit before making any edit, manager takes the writer slot to finish the QC-identified verifier hardening and the repository gates",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-04T14:02:14.637Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-profile-store.mts",
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-04T14:02:14.637Z",
+        "acquired_at_commit": "4181f270aecb60c9b41c0ed5035c843a855ab283",
+        "released_at": "2026-09-04T14:09:24.217Z",
+        "released_reason": "six QC-identified vacuity fixes complete with all suites green at 74, 133 and 47, handing the writer slot back to persistence to re-prove the mutation negative control against the hardened verifiers",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:persistence:2026-09-04T14:13:01.496Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "persistence",
+        "status": "released",
+        "allowed_paths": [
+          "src/storage/ProfileStore.ts",
+          "src/storage/folderWriteCoordinator.ts"
+        ],
+        "acquired_at": "2026-09-04T14:13:01.496Z",
+        "acquired_at_commit": "4181f270aecb60c9b41c0ed5035c843a855ab283",
+        "released_at": "2026-09-04T14:19:52.347Z",
+        "released_reason": "mutation negative control re-proven against the hardened suites at 21 red assertions, src/storage restored byte-clean, handing the writer slot to qa so the verifier work can be staged and committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-04T14:20:07.586Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-profile-store.mts",
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-04T14:20:07.586Z",
+        "acquired_at_commit": "4181f270aecb60c9b41c0ed5035c843a855ab283",
+        "released_at": "2026-09-04T14:21:18.321Z",
+        "released_reason": "verifier work committed as e7fbedc, handing the writer slot to project-state for the stale-snapshot reconciliation and the Beads, ledger and roadmap closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:project-state:2026-09-04T14:21:35.985Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md",
+          "docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md",
+          "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-04T14:21:35.985Z",
+        "acquired_at_commit": "e7fbedc1574c72f7a74d74954c8871f483de3063",
+        "released_at": "2026-09-04T14:36:20.608Z",
+        "released_reason": "project-state closeout committed as 13ab1a9, rerouting to qa to move the roadmap-dashboard bead pins",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-04T14:36:41.589Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-04T14:36:41.589Z",
+        "acquired_at_commit": "13ab1a900a3378d5fda7ff6d314a9269118ec6be",
+        "released_at": "2026-09-04T14:41:50.597Z",
+        "released_reason": "roadmap dashboard pins moved and committed as f67108a, verifier 177/177 with Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:project-state:2026-09-04T14:46:29.678Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-04T14:46:29.678Z",
+        "acquired_at_commit": "f67108aa6ae40246a34b8a5b372b6202cf5752d6",
+        "released_at": "2026-09-04T14:48:28.338Z",
+        "released_reason": "ai memory check green, no edits needed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:project-state:2026-09-04T14:53:38.380Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-04T14:53:38.380Z",
+        "acquired_at_commit": "f67108aa6ae40246a34b8a5b372b6202cf5752d6",
+        "released_at": "2026-09-04T15:02:46.265Z",
+        "released_reason": "project-state QC finding intake complete, rerouting the writer slot to qa for the roadmap-dashboard pin move",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-04T15:03:04.639Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-04T15:03:04.639Z",
+        "acquired_at_commit": "f67108aa6ae40246a34b8a5b372b6202cf5752d6",
+        "released_at": "2026-09-04T15:06:17.642Z",
+        "released_reason": "qa moved the two stale roadmap bead baselines to measured values, verify:roadmap-dashboard 177 of 177 exit 0 with Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:qa:2026-09-04T16:09:05.423Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-04T16:09:05.423Z",
+        "acquired_at_commit": "f67108aa6ae40246a34b8a5b372b6202cf5752d6",
+        "released_at": "2026-09-04T16:10:04.834Z",
+        "released_reason": "roadmap verifier pin move committed as 2cccdc1, rerouting the writer slot to project-state for the beads and AI-memory closeout commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "closed_at": "2026-09-04T15:41:00.000Z",
+    "closed_note": "Closeout run 2026-09-04: GLM 5.3 delegation was attempted and FAILED — no glm-delegate MCP server is registered in AWKIT (claude mcp list returns only claude.ai stitch and codebase-memory-mcp), and direct invocation of the SpecterERP stdio server is rejected by tools/agents/lease-guard.mjs, which admits no arbitrary interpreter under any lease state. Registering it would have required writing an AWKIT .mcp.json and restarting Claude Code, which the owner's fallback clause excludes; the closeout was therefore completed directly by the Manager and no API key was read, printed, copied or committed. Final gates: verify:verifier-classification reconciled across 200 commands, verify:roadmap-dashboard 177/177 with OK the Overview banner reads \"Sources agree\", git diff --check exit 0 with no output, task-gate scope_escapes 0 and AWTKIT.rar verified preserved at its contract-creation fingerprint. QA: 14 gates PASS, 0 FAIL, 0 NOT RUN; verify:mock-site NOT APPLICABLE (no scenario or fixture contract changed). Mutation negative control produced 21 red assertions across verify:r0-characterization (11) and verify:profile-store (10), with build and typecheck:scripts staying green, which proves they were assertion failures and not compile errors. QC: independent review returned APPROVE WITH FINDINGS on 2026-09-04 — no defect in the shipped coordinator and no re-entrant call site; the stale-snapshot classification was checked against ProfileStore.ts:11 and :81-86 and judged accurate, neither overclaim nor underclaim; all eight owner constraints PASS. Three non-blocking findings were recorded rather than fixed and filed as open beads awkit-utbf, awkit-s410 and awkit-dhw6, detailed in the R1B residual-scope section of docs/ai/KNOWN_ISSUES.md. QC did not execute any verifier; it reviewed assertion design."
+  }
+}

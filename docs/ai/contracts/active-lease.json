@@ -1,26 +1,33 @@
 {
-  "task": "awkit-2q2d",
-  "contract_path": "docs/ai/contracts/awkit-2q2d.json",
+  "task": "awkit-r1b-coordination",
+  "contract_path": "docs/ai/contracts/awkit-r1b-coordination.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "docs/ai/CURRENT_STATE.md",
+    ".beads/issues.jsonl",
     "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-2q2d.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md"
   ],
-  "acquired_at": "2026-09-03T16:37:55.768Z",
-  "acquired_at_commit": "2efafb8b199e263b04361207529cc189f6044bf8",
+  "acquired_at": "2026-09-04T16:10:25.157Z",
+  "acquired_at_commit": "2cccdc1cc169b50cff0986f2a951f37b4ac94ade",
   "baseline_dirty": [
+    ".beads/issues.jsonl",
     "AWTKIT.rar",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-2q2d.json"
+    "docs/ai/contracts/awkit-r1b-coordination.json"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/issues.jsonl": "6cbfef46037a0f75d594cb97e2b3f5ed0df4af5ca692331b3b9ebffba95f0ec4",
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
-    "docs/ai/contracts/active-lease.json": "7da877e9ffd840f57a6ccd94c1c450088621ff8a40bfd89500e1dbdeeca2fdbe",
-    "docs/ai/contracts/awkit-2q2d.json": "6f7e0a2b7f92e4257eab7a98717834a95aa2305a06da350f08323a25b453653d"
+    "docs/ai/HANDOFF.md": "65e93b06d318b1ab60431f54925bdb5fd49fe286e597198ffe58ff1492245e46",
+    "docs/ai/KNOWN_ISSUES.md": "e75905f5d48ba25089f31c45eba7ccfae934c5dc0258baed37fbe7427c11bb2a",
+    "docs/ai/TASK_LOG.md": "8b71fd3c12c801f14cd75bd1cb562276cdc6e3412fd74581b5b0982521512df9",
+    "docs/ai/contracts/active-lease.json": "79aa9cce67656c43f9f46f53cc39717004a486c78d17408d4b0190bfe982bddf",
+    "docs/ai/contracts/awkit-r1b-coordination.json": "4964f71f12f94112b3b6daced77ccc66d9c463cb1119e11b8709dfc002794c38"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -34,8 +41,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-03T16:38:56.806Z",
-  "released_reason": "R1A contract passes task-gate with all required evidence PASS, QA PASS, QC approved, Bead closed, and roadmap 177/177 Sources agree.",
-  "archived_at": "2026-09-03T16:38:56.807Z"
+  "violations": []
 }
