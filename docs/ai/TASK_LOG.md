@@ -1,5 +1,58 @@
 # TASK_LOG
 
+## 2026-09-04 — Claude (project-state) — R1B one write coordinator per resolved profile folder
+
+**Task/result:** R1B implemented and verified on `main`, then reconciled into the authoritative
+sources. Tracked as `awkit-oqvw` (filed and closed in this session, blocked-by `awkit-2q2d`). `JsonProfileStore` had serialized its writes on a promise chain owned by the *instance*, so
+two independently constructed stores pointing at the same folder held separate chains and their
+atomic-replace critical sections could overlap. `src/storage/folderWriteCoordinator.ts` now holds a
+process-wide `Map` of lanes keyed by `folderCoordinationKey(folder)` (`resolve()`, separator
+normalisation, lowercased on win32); `runExclusive` chains work on the lane tail, with `pending`
+incremented synchronously at admission and decremented in a microtask off the settled tail so a lane
+is evicted only after every admitted task settles. `ProfileStore.serialize()` delegates to it, and
+`create()`'s check-then-write and `update()`'s write-then-delete each run inside ONE lane task.
+Eliminated in-process, each with red-then-green mutation evidence: overlapping atomic-replace
+critical sections (`maxActive` **2 → 1**), `create()`'s check-then-write TOCTOU, and the `update()`
+id-rename window.
+
+**Explicitly not eliminated:** the caller-owned stale-snapshot lost update. `list()`/`get()` take no
+lane and `update(id, wholeDocument)` has no version/etag/mtime field, so two callers submitting full
+documents from the same older snapshot resolve **last-admitted-writer-wins with no field merge**.
+That is the store's existing whole-document replacement semantics, not an R1B regression; the
+remedies (optimistic locking, a version field, deep merging) were prohibited for this task and need
+an owner decision. The plan's acceptance line that read "serialize and preserve both valid documents"
+was corrected, because it asserted a merge that is not implemented and was not proven.
+
+**Files:** implementation `src/storage/folderWriteCoordinator.ts`, `src/storage/ProfileStore.ts`
+(commit `4181f27`); verifiers `scripts/verify-r0-characterization.mts`,
+`scripts/verify-profile-store.mts`, `scripts/verify-write-queue.mts` (commit `e7fbedc`, 3 files,
++1454 / -81); this reconciliation touched
+`docs/plans/AWKIT_SYSTEM_DESIGN_REFACTORING_IMPLEMENTATION_PLAN.md`,
+`docs/plans/AWKIT_REFACTORING_INTEGRATION_HANDOFF_CHECKLIST.md`, `docs/ai/CURRENT_STATE.md`,
+`docs/ai/HANDOFF.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/ai/TASK_LOG.md` and `.beads/issues.jsonl`.
+`AWTKIT.rar` remained untouched.
+
+**Verification, all PASS:** build (typecheck + bundles); `typecheck:scripts` (no diagnostics);
+`verify:r0-characterization` **133 PASS / 0 FAIL**; `verify:profile-store` **74/74**;
+`verify:write-queue` **47/47**; `verify:run-report-compatibility` **27 / 0**; `verify:runner`
+**138 / 0**; `verify:settings-persistence` **6/6**; `verify:reports-populated-gui` **168 PASS / 0 FAIL
+/ 3 NOT RUN**; `verify:source-hygiene` **11 passed, 0 failed**; `validate:offline` (dev-mode warnings
+non-fatal); `verify:verifier-classification` (**200** commands); `git diff --check` exit 0. Mutation
+negative control: restoring an instance-local queue in `serialize()` turned **21 assertions red**
+(`verify:profile-store` exit 1 at **64/74**, `verify:r0-characterization` exit 1 at **122 PASS /
+11 FAIL**) while build and typecheck stayed green, so those are assertion failures not compile
+errors; `src/storage` was then restored byte-clean. Mock Site **NOT APPLICABLE** — no observable
+scenario or fixture contract changed. Validation ledger unchanged at **65 PASS / 2 NOT RUN /
+0 BLOCKED**.
+
+**Not run / open:** `verify:roadmap-dashboard` — see the R1B closeout note; adding and closing a bead
+moves the hardcoded `267 issues parse` and `2 outstanding / 265 closed` pins inside
+`scripts/verify-roadmap-dashboard.mjs`, which was outside this task's write lease. Two open findings
+were recorded rather than fixed: `gateBoundDominatesAFreeWriter` still measures its gate bound
+against a two-round-trip proxy (18.7x margin vs a 4x threshold, so not vacuous today), and the
+`folderWriteCoordinator.ts` comments credit the non-poisoning guarantee to the unreachable rejected
+arm of `then(task, task)` instead of the `settled` assignment.
+
 ## 2026-09-03 — Codex — R1A decouple ExecutionEngine from Electron main
 
 **Task/result:** executed R1A only on `main`. Added the narrow framework-independent

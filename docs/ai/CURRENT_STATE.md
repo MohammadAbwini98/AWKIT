@@ -1,5 +1,62 @@
 # CURRENT_STATE
 
+## R1B one write coordinator per resolved profile folder complete (2026-09-04)
+
+R1B is implemented as a serialization authority only — no store registry, document cache,
+transaction log, repository framework or replacement store. `JsonProfileStore` previously serialized
+its writes on a promise chain owned by the **instance**, so two independently constructed stores
+pointing at the same folder held separate chains and their atomic-replace critical sections could
+overlap. `src/storage/folderWriteCoordinator.ts` now holds a process-wide `Map` of lanes keyed by
+`folderCoordinationKey(folder)` (`resolve()`, separator normalisation, lowercased on win32).
+`runExclusive` chains work on that lane's tail; a `pending` count is incremented synchronously at
+admission and decremented in a microtask chained off the settled tail, so a lane is evicted only once
+every admitted task has settled and coordination never outlives its work. Different resolved folders
+keep independent lanes, so a configured Settings path change simply routes to a different key.
+`ProfileStore.serialize()` delegates to `runExclusive`, and `create()`'s check-then-write and
+`update()`'s write-then-delete each run inside ONE lane task via unlocked internals. Implementation is
+commit `4181f27`; the hardened verifiers are commit `e7fbedc`.
+
+Three characterized behaviors are eliminated **in-process**, each backed by red-then-green mutation
+evidence: overlapping atomic-replace critical sections between independently constructed same-folder
+stores (`maxActive` **2 → 1**); `create()`'s check-then-write TOCTOU, where two stores creating one id
+now resolve as exactly one fulfilled and one rejected; and the `update()` id-rename window, where no
+competing same-folder writer observes both ids or neither.
+
+R1B does **not** eliminate the caller-owned stale-snapshot lost update, and nothing here should be
+read as saying two stale snapshots are merged. `list()` and `get()` take no lane, and
+`update(id, wholeDocument)` is whole-document replacement with no version, etag or mtime field — the
+`ProfileStore` interface has none. Two callers that each read the same older document, each modify a
+different field, and each submit a full-document `update()` therefore resolve
+**last-admitted-writer-wins with no field merge**. That is the store's existing whole-document
+replacement semantics, not an R1B regression; closing it would need optimistic locking, a version
+field or deep merging, all of which were explicitly out of scope for this tranche and require an
+owner decision. No persisted shape, JSON format, folder, default, factory signature, IPC/preload
+contract, licensing checkpoint, browser owner, report behavior or offline/security boundary changed.
+
+Executed evidence, all **PASS**: build (typecheck + bundles clean); `typecheck:scripts` (no
+diagnostics); `verify:r0-characterization` **133 PASS / 0 FAIL**; `verify:profile-store` **74/74**;
+`verify:write-queue` **47/47**; `verify:run-report-compatibility` **27 / 0**; `verify:runner`
+**138 / 0**; `verify:settings-persistence` **6/6**; `verify:reports-populated-gui` **168 PASS / 0 FAIL
+/ 3 NOT RUN**; `verify:source-hygiene` **11 passed, 0 failed**; `validate:offline` (dev-mode warnings
+non-fatal); `verify:verifier-classification` (classification reconciled, **200** commands);
+`git diff --check` (exit 0, no output). These supersede the stale R1A tallies below: profile store was
+**26/26** and write queue **29/29** there, and are now **74/74** and **47/47** with R0 at **133/0**.
+
+Mutation negative control: restoring an instance-local write queue in `JsonProfileStore.serialize()`
+turned **21 assertions red** against the hardened suites — `verify:profile-store` exit 1 at
+**64/74** (10 red) and `verify:r0-characterization` exit 1 at **122 PASS / 11 FAIL** (11 red).
+Typecheck and build stayed green under the mutation, so those are assertion failures and not compile
+errors. `src/storage` was then restored byte-clean (`git status --porcelain src/storage` empty).
+
+The Recorder/Reports/Settings validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED**: R1B
+moves no case status, because it changes write serialization inside the persistence layer and no
+case's stated scope or observed result changed. No Mock Site fixture changed, so `verify:mock-site` is
+**NOT APPLICABLE** to this tranche. Beads is **268 total / 266 closed / 2 blocked** after
+`awkit-oqvw` was filed and closed for R1B; the two outstanding items remain the externally blocked
+Oracle beads `awkit-7bu` and `awkit-cm8`. `tools/roadmap/assignments.json` carries no claim, because
+R1B completed within the session that would have made the claim. **R2 — extract one execution
+application service — is the next production phase.**
+
 ## R1A ExecutionEngine ports complete (`awkit-2q2d`, 2026-09-03)
 
 R1A is implemented as a narrow dependency inversion, not a replacement runtime. `ExecutionEngine`

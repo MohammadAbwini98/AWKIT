@@ -1,6 +1,57 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-03, latest) — R1A complete; R1B ready
+## HANDOFF (2026-09-04, latest) — R1B complete; R2 ready
+
+- **Delivered:** one write-coordination authority per resolved profile folder.
+  `src/storage/folderWriteCoordinator.ts` holds a process-wide `Map` of lanes keyed by
+  `folderCoordinationKey(folder)` (`resolve()`, separator normalisation, lowercased on win32).
+  `runExclusive` chains work on the lane tail; `pending` is incremented synchronously at admission and
+  decremented in a microtask off the settled tail, so a lane is evicted only after every admitted task
+  settles. `ProfileStore.serialize()` delegates to it, and `create()`'s check-then-write and
+  `update()`'s write-then-delete each run inside ONE lane task. Commits `4181f27` (implementation) and
+  `e7fbedc` (verifiers, 3 files, +1454 / -81).
+- **Root cause it fixes:** `JsonProfileStore` serialized on a promise chain owned by the *instance*,
+  so two independently constructed same-folder stores had separate chains and their atomic-replace
+  critical sections could overlap.
+- **Eliminated in-process, each with red-then-green mutation evidence:** overlapping atomic-replace
+  critical sections (`maxActive` **2 → 1**); `create()`'s check-then-write TOCTOU (one fulfilled, one
+  rejected); the `update()` id-rename window (no competing writer sees both ids or neither).
+- **NOT eliminated, and do not soften this:** the caller-owned stale-snapshot lost update. `list()`
+  and `get()` take no lane and `update(id, wholeDocument)` has no version/etag/mtime field, so two
+  callers submitting full documents from the same older snapshot resolve **last-admitted-writer-wins
+  with no field merge**. Existing whole-document semantics, not an R1B regression. Optimistic locking,
+  a version field and deep merging were all prohibited here and need an owner decision.
+- **Verification, all PASS:** build; `typecheck:scripts`; `verify:r0-characterization` **133 PASS /
+  0 FAIL**; `verify:profile-store` **74/74**; `verify:write-queue` **47/47**;
+  `verify:run-report-compatibility` **27 / 0**; `verify:runner` **138 / 0**;
+  `verify:settings-persistence` **6/6**; `verify:reports-populated-gui` **168 PASS / 0 FAIL / 3 NOT
+  RUN**; `verify:source-hygiene` **11 passed, 0 failed**; `validate:offline`;
+  `verify:verifier-classification` (**200** commands); `git diff --check` exit 0. Mutation control:
+  an instance-local queue restored in `serialize()` turned **21 assertions red** (profile store
+  **64/74**, R0 **122 PASS / 11 FAIL**) with build and typecheck still green; `src/storage` was then
+  restored byte-clean.
+- **Open findings, deliberately not fixed:** `gateBoundDominatesAFreeWriter` in
+  `scripts/verify-r0-characterization.mts` (~L549-567) still measures its gate bound against a
+  two-round-trip proxy rather than the operation it gates (margin 18.7x vs a 4x threshold, so not
+  currently vacuous, but the same defect already fixed in `verify-profile-store.mts`); and the
+  `folderWriteCoordinator.ts` comments credit the non-poisoning guarantee to the unreachable rejected
+  arm of `then(task, task)` when it actually comes from the `settled` assignment.
+- **Scope limits to carry forward:** the guarantee is in-process only (`lanes` is module state);
+  `quarantineCorrupt`'s rename (`ProfileStore.ts:173`) and `ensureSeeded`'s copy
+  (`ProfileStore.ts:123-127`) run outside any lane. Full detail in `docs/ai/KNOWN_ISSUES.md`.
+- **Trap:** rebuild before believing a GUI verifier. `verify:settings-persistence` and
+  `verify:reports-populated-gui` both failed against a stale `dist/` and were wrongly suspected of
+  being R1B regressions; a controlled A/B with the coordinator byte-identical to HEAD and the bundle
+  rebuilt passed both.
+- **Project state:** `awkit-oqvw` filed and closed; Beads **268 total / 266 closed / 2 blocked**.
+  Validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED** — R1B moves no case status.
+  `tools/roadmap/assignments.json` carries no claim, because the work completed in the same session.
+- **Next:** R2 only — extract one execution application service from `execution.ipc.ts`, keeping
+  sender/session/RBAC checks in the handler and every licensing checkpoint independent. Keep R0
+  **133**, profile store **74** and write queue **47** green. Do not decide the deferred
+  stale-snapshot question inside R2.
+
+## HANDOFF (2026-09-03) — R1A complete; R1B ready
 
 - **Delivered:** `ExecutionEngine` now consumes the framework-independent `ExecutionSessionAccess`
   and `ExecutionReportPersistence` ports. Its former `session.ipc` and `profileStores` imports are

@@ -1,6 +1,6 @@
 # AWKIT Refactoring Integration & Handoff Checklist — Reconciled
 
-**Status:** planning complete; R0 and R1A complete; R1B is next
+**Status:** planning complete; R0, R1A and R1B complete; R2 is next
 
 **Repository baseline:** `main` at `18dc90d5a97cd37a2304d8a9885b899cc148d4cc`
 
@@ -241,7 +241,9 @@ moving a row.
 
 | Risk / decision | Owner phase | Gate |
 |---|---|---|
-| Same-folder stores are proven to overlap and can lose stale-snapshot fields | R1B | one resolved-folder coordinator + concurrent/restart/failure-injection regression |
+| Same-folder store write overlap (interleaved atomic replacement, `create` check-then-write TOCTOU, the `update` id-rename window) | R1B — resolved | `folderWriteCoordinator` lane per resolved folder; `verify:r0-characterization` **133/0**, `verify:profile-store` **74/74**, `verify:write-queue` **47/47**, mutation control **21 red** |
+| Caller-owned stale-snapshot field loss: `list`/`get` take no lane and `update(id, wholeDocument)` has no version/etag/mtime, so two full-document writes are last-admitted-writer-wins with no field merge | open — needs an owner decision, not a phase | Bounded existing whole-document semantics, unchanged by R1B. Optimistic locking, a version field and deep merging were all prohibited for R1B, so no gate can close this until the owner picks one |
+| The coordination guarantee is in-process only (`lanes` is module state); `quarantineCorrupt`'s rename and `ensureSeeded`'s copy run outside any lane | open — see `docs/ai/KNOWN_ISSUES.md` | No gate; recorded as a scope limit so a later phase does not mistake it for a regression |
 | Core imports main composition | R1A — resolved | 99-check architecture negative controls + unchanged Runner/session/report behavior |
 | Execution IPC extraction could collapse policies | R2 | independent denial tests at every checkpoint |
 | Dead-looking IPC may have external consumers | R4 | owner/public API decision before removal |
@@ -252,8 +254,15 @@ moving a row.
 
 ## 16. Next agent start point
 
-Start only with **R1B — One write coordinator per resolved profile folder** from the companion plan.
-R0 and R1A are complete and the 99-check characterization must stay green. Preserve the R1A ports and
-the sanctioned `appPaths` bridge; coordinate existing profile/report store handles by current resolved
-folder without changing shapes, defaults, atomic replacement or Settings path-switch behavior. Do not
-combine R2 ownership/IPC work into the phase.
+Start only with **R2 — Extract one execution application service** from the companion plan. R0, R1A
+and R1B are complete; `verify:r0-characterization` is now **133/0** and must stay green, together with
+`verify:profile-store` **74/74** and `verify:write-queue` **47/47**. Preserve the R1A ports, the
+sanctioned `appPaths` bridge and the R1B per-resolved-folder write lane; keep sender/session/RBAC
+checks in each IPC handler and every licensing checkpoint independent. Do not introduce a new store,
+repository or queue framework, and do not close the deferred caller-owned stale-snapshot decision
+inside R2 — optimistic locking, a version field and deep merging each need an explicit owner decision.
+
+Before believing a GUI verifier, rebuild. `verify:settings-persistence` and
+`verify:reports-populated-gui` both failed against a stale `dist/` bundle during R1B and were wrongly
+suspected of being coordinator regressions; a controlled A/B with the coordinator byte-identical to
+HEAD and the bundle rebuilt passed both.

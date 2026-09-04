@@ -1,6 +1,41 @@
 # KNOWN_ISSUES
 
-## Same-folder profile-store instances have independent write queues (confirmed 2026-09-03)
+## R1B write coordination — residual scope limits (2026-09-04)
+
+R1B gave every `JsonProfileStore` mutation one write lane per resolved folder. These are the parts it
+deliberately does **not** cover. None is a regression; each is recorded so a later phase does not
+mistake it for one.
+
+- **Whole-document `update()` is still last-admitted-writer-wins, with no field merge.** `list()` and
+  `get()` take no lane, and `update(id, wholeDocument)` has no version, etag or mtime field — the
+  `ProfileStore` interface has none. Two callers that each read the same older document, each change a
+  different field, and each submit a full document produce the later-admitted document, not a merge.
+  This is the store's existing whole-document replacement semantics. Do not describe serialization as
+  preserving both writers' content. Closing it needs optimistic locking, a version field or deep
+  merging, all of which were prohibited for R1B and need an explicit owner decision.
+- **The guarantee is in-process only.** `lanes` in `src/storage/folderWriteCoordinator.ts` is module
+  state, so two Electron processes — or the app plus a `tsx` verifier — pointed at the same folder
+  still overlap. Do not cite R1B as cross-process mutual exclusion.
+- **Two folder mutations run outside any lane.** `quarantineCorrupt`'s `rename`
+  (`src/storage/ProfileStore.ts:173`) is reachable from the unlaned `list()`/`get()`/`export()` read
+  path, so it can rename a writer's brand-new *good* file to `.corrupt-<ts>`. `ensureSeeded`'s
+  `copyFile` (`src/storage/ProfileStore.ts:123-127`) is guarded only by a
+  `getProfileFiles().length > 0` check, which cannot see an in-flight `.tmp`.
+- **A stale `dist/` bundle is a GUI-verifier trap.** `verify:settings-persistence` and
+  `verify:reports-populated-gui` both failed against a stale bundle during R1B and were wrongly
+  suspected of being coordinator regressions. A controlled A/B settled it: with the coordinator
+  byte-identical to HEAD but the bundle rebuilt, both pass. Rebuild before believing a GUI verifier.
+- **Open finding, not fixed:** `gateBoundDominatesAFreeWriter` in
+  `scripts/verify-r0-characterization.mts` (around L549-567) still measures its gate bound against a
+  two-round-trip `writeFile` + `rm` proxy rather than the operation it actually gates. The measured
+  margin is 18.7x against a 4x threshold, so it is not currently vacuous — but it is the same defect
+  that was fixed in `scripts/verify-profile-store.mts`.
+- **Open finding, not fixed:** the comments in `src/storage/folderWriteCoordinator.ts` attribute the
+  non-poisoning guarantee to the rejected arm of `then(task, task)`. That arm is unreachable, because
+  `owned.tail` is assigned the never-rejecting `settled` promise; the real guarantee comes from that
+  `settled` assignment. The behavior is correct, the explanation is not.
+
+## Same-folder profile-store instances have independent write queues (RESOLVED by R1B 2026-09-04; confirmed 2026-09-03)
 
 `JsonProfileStore` serializes and atomically replaces within one instance, but separately constructed
 instances targeting the same resolved folder own separate queues. R0's real-store probe synchronizes
@@ -13,6 +48,10 @@ This is not an atomic-replace defect and must not be hidden with sleeps/retries.
 coordinator/store authority keyed by the canonical resolved folder, preserve configured-path switching,
 unknown profile fields, save/reload behavior and failure isolation, and keep JSON formats unchanged.
 Until R1B lands, avoid independently constructing multiple mutable store instances for one folder.
+
+**Status 2026-09-04:** the overlap half is resolved — `src/storage/folderWriteCoordinator.ts` keys one
+lane per resolved folder and `maxActive` is now 1. The stale-snapshot half is **not** resolved; it is
+bounded existing whole-document semantics and is carried in the R1B residual-scope section above.
 
 ## Release residuals after canonical packaging and clean-machine execution (2026-08-29)
 

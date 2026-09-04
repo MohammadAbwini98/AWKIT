@@ -1,6 +1,6 @@
 # AWKIT System Design Refactoring — Reconciled Implementation Plan
 
-**Status:** planning complete; R0 and R1A complete; R1B is the next production tranche
+**Status:** planning complete; R0, R1A and R1B complete; R2 is the next production tranche
 
 **Repository baseline:** `main` at `18dc90d5a97cd37a2304d8a9885b899cc148d4cc`
 
@@ -253,6 +253,8 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
 
 #### R1B — One write coordinator per resolved profile folder
 
+**Classification:** **complete 2026-09-04**.
+
 - Make store instances targeting the same resolved folder share serialization, or expose one cached
   main-process store registry keyed by resolved folder.
 - Path changes in Settings must select the new folder safely; never retain a stale store after a path
@@ -278,10 +280,57 @@ dependency; AWKIT's single-writer `main` policy still prevents simultaneous repo
 **Acceptance and verifiers**
 
 - No non-sanctioned `src/** → app/main/**` import remains.
-- Concurrent writers through two acquired handles serialize and preserve both valid documents.
+- Concurrent writers through two independently constructed same-folder handles serialize: their
+  atomic-replace critical sections cannot overlap, each admitted write lands as one complete valid
+  document with no interleaving and no temporary residue, and `create`'s check-then-write and
+  `update`'s write-then-delete each run as a single critical section. This does **not** mean two
+  stale snapshots are merged: `update(id, wholeDocument)` remains whole-document replacement with no
+  version, etag or mtime field, so two callers that each read the same older document and each submit
+  a full document resolve **last-admitted-writer-wins with no field merge**. That is the store's
+  existing whole-document semantics, not a coordination defect, and closing it would require
+  optimistic locking, a version field or deep merging — none of which are in scope here.
 - Runs still write the same JSON report and SQLite rows; report list/delete/export sees the same file.
 - Required: R0 gate, `verify:profile-store`, `verify:write-queue`, `verify:run-report-compatibility`,
   `verify:runner`, `verify:reports-populated-gui`, build, script typecheck.
+
+**Executed evidence (2026-09-04)**
+
+- `src/storage/folderWriteCoordinator.ts` holds a process-wide `Map` of lanes keyed by
+  `folderCoordinationKey(folder)` (`resolve()`, separator normalisation, lowercased on win32).
+  `runExclusive` chains work on that lane's tail; a `pending` count is incremented synchronously at
+  admission and decremented in a microtask chained off the settled tail, so a lane is evicted only
+  once every admitted task has settled and coordination never outlives its work. Different resolved
+  folders keep independent lanes. `ProfileStore.serialize()` delegates to `runExclusive`, and
+  `create()`'s check-then-write and `update()`'s write-then-delete each run inside ONE lane task via
+  unlocked internals. Implementation commit `4181f27`; verifier commit `e7fbedc`.
+- Three characterized behaviors are eliminated in-process, each with red-then-green mutation
+  evidence: overlapping atomic-replace critical sections between independently constructed same-folder
+  stores (`maxActive` **2 → 1**); `create()`'s check-then-write TOCTOU (two stores creating one id now
+  resolve as exactly one fulfilled and one rejected); and the `update()` id-rename window (no
+  competing same-folder writer observes both ids or neither).
+- The caller-owned stale-snapshot lost update is **not** eliminated. `list()` and `get()` take no
+  lane and `update(id, wholeDocument)` has no version/etag/mtime field, so two callers that each read
+  the same older document and each submit a full document resolve last-admitted-writer-wins with no
+  field merge. This is bounded existing whole-document semantics, not an R1B regression, and the
+  remedies (optimistic locking, a version field, deep merging) are out of scope for this tranche.
+- Executed gates, all **PASS**: build (typecheck + bundles); `typecheck:scripts` (no diagnostics);
+  `verify:r0-characterization` **133 PASS / 0 FAIL**; `verify:profile-store` **74/74**;
+  `verify:write-queue` **47/47**; `verify:run-report-compatibility` **27 / 0**; `verify:runner`
+  **138 / 0**; `verify:settings-persistence` **6/6**; `verify:reports-populated-gui` **168 PASS /
+  0 FAIL / 3 NOT RUN**; `verify:source-hygiene` **11 passed, 0 failed**; `validate:offline` (dev-mode
+  warnings non-fatal); `verify:verifier-classification` (classification reconciled, **200** commands);
+  `git diff --check` (exit 0, no output).
+- Mutation negative control: restoring an instance-local write queue in `JsonProfileStore.serialize()`
+  turned **21 assertions red** — `verify:profile-store` exit 1 at **64/74** (10 red) and
+  `verify:r0-characterization` exit 1 at **122 PASS / 11 FAIL** (11 red). Typecheck and build stayed
+  green under the mutation, so these are assertion failures, not compile errors. `src/storage` was
+  then restored byte-clean.
+- Two folder mutations deliberately remain outside any lane and are recorded in `KNOWN_ISSUES.md`:
+  `quarantineCorrupt`'s `rename` (`src/storage/ProfileStore.ts:173`) reachable from the unlaned
+  `list()`/`get()`/`export()` read path, and `ensureSeeded`'s `copyFile`
+  (`src/storage/ProfileStore.ts:123-127`) guarded only by a `getProfileFiles().length > 0` check that
+  cannot see an in-flight `.tmp`. The guarantee is also **in-process only** — `lanes` is module state,
+  so two Electron processes, or the app plus a `tsx` verifier, still overlap.
 
 **Rollback/risk**
 
@@ -604,7 +653,13 @@ fresh packaged evidence is recorded, authoritative sources agree, and all work i
 
 ## 10. Single recommended next implementation phase
 
-Start with **R1B — One write coordinator per resolved profile folder**. R1A is complete and leaves the
-existing report-store factory lifetime deliberately unchanged. Coordinate handles by their resolved,
-current configured folder while preserving factory compatibility, atomic replacement, JSON shapes,
-unknown fields and path-change behavior. Do not begin R2 execution IPC decomposition in the same tranche.
+Start with **R2 — Extract one execution application service; preserve independent gates**. R0, R1A and
+R1B are complete: `ExecutionEngine` runs on narrow injected ports, and every `JsonProfileStore`
+mutation now runs under one write-coordination authority per resolved folder, so
+`verify:r0-characterization` (133), `verify:profile-store` (74) and `verify:write-queue` (47) must all
+stay green through R2. Move workflow/profile loading, projection, pre-run validation, compatibility
+attribution, data-source resolution, capacity application and instance-template construction out of
+`execution.ipc.ts` into one main-process application service, keeping sender/session/RBAC checks in the
+IPC handler and every licensing checkpoint independent. Do not fold the deferred caller-owned
+stale-snapshot decision (optimistic locking, a version field or deep merging) into R2 — it needs an
+explicit owner decision first.
