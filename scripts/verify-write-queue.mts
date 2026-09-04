@@ -5,10 +5,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 
 import { isTransientReplaceError, replaceFileAtomically } from "../app/main/atomicReplace";
 import { createSerialQueue } from "../app/main/writeQueue";
+import { activeFolderCoordinationKeys, folderCoordinationKey, runExclusive } from "../src/storage/folderWriteCoordinator";
 
 const results: { name: string; pass: boolean; detail?: string }[] = [];
 function check(name: string, pass: boolean, detail?: string) {
@@ -16,6 +17,33 @@ function check(name: string, pass: boolean, detail?: string) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolvePromise!: () => void;
+  const promise = new Promise<void>((resolve) => { resolvePromise = resolve; });
+  return { promise, resolve: resolvePromise };
+}
+
+/**
+ * Yields the event loop a bounded number of times. Used instead of `delay(ms)` for the coordination
+ * checks below: it varies task length deterministically without waiting on wall-clock time, so the
+ * results do not depend on how loaded the host is.
+ */
+function drainEventLoop(turns: number): Promise<void> {
+  return new Promise<void>((settle) => {
+    let remaining = Math.max(1, turns);
+    const step = (): void => {
+      remaining -= 1;
+      if (remaining <= 0) settle();
+      else setImmediate(step);
+    };
+    setImmediate(step);
+  });
+}
+
+/** Long enough for any genuinely un-queued task to arrive; a task waiting on a lane can never
+ *  arrive however long this is, so both arms of the gate terminate. */
+const GATE_DRAIN_TURNS = 200;
 
 // 1. FIFO order preserved even with varying task durations.
 {
@@ -205,6 +233,177 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
       `order=${order}`
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// 6. Per-resolved-folder write coordination (src/storage/folderWriteCoordinator.ts) — R1B.
+//
+// `createSerialQueue` above is owned by whoever constructs it, so it can only serialize the writes
+// that go through that one object. R1B needs the queue to be owned by the DESTINATION instead, so
+// that stores constructed independently — different call sites, different times, no shared object —
+// still take turns on one folder. These drive the coordinator directly; the store-level behavior it
+// produces is asserted in verify-profile-store.mts and verify-r0-characterization.mts.
+//
+// Timing here is event-loop turns, never wall-clock sleeps, so nothing depends on host speed.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+{
+  // 6a. One key: FIFO admission and mutual exclusion, with tasks of deliberately different lengths.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-fifo-"));
+    const lengths = [30, 5, 20, 1, 10];
+    const order: number[] = [];
+    const running: number[] = [];
+    let maxConcurrent = 0;
+    await Promise.all(lengths.map((turns, i) => runExclusive(folder, async () => {
+      running.push(i);
+      maxConcurrent = Math.max(maxConcurrent, running.length);
+      await drainEventLoop(turns);
+      order.push(i);
+      running.splice(running.indexOf(i), 1);
+    })));
+    check("Coordinator runs same-folder tasks in FIFO order regardless of length", JSON.stringify(order) === JSON.stringify([0, 1, 2, 3, 4]), `order=${order}`);
+    check("Coordinator never runs two same-folder tasks at once", maxConcurrent === 1 && order.length === lengths.length, `maxConcurrent=${maxConcurrent}, completed=${order.length}`);
+
+    // Control: the identical tasks without the coordinator finish shortest-first and overlap.
+    const looseOrder: number[] = [];
+    const looseRunning: number[] = [];
+    let looseMax = 0;
+    await Promise.all(lengths.map(async (turns, i) => {
+      looseRunning.push(i);
+      looseMax = Math.max(looseMax, looseRunning.length);
+      await drainEventLoop(turns);
+      looseOrder.push(i);
+      looseRunning.splice(looseRunning.indexOf(i), 1);
+    }));
+    check(
+      "control: without the coordinator the same tasks overlap and complete out of order",
+      looseMax === lengths.length && JSON.stringify(looseOrder) !== JSON.stringify([0, 1, 2, 3, 4]),
+      `maxConcurrent=${looseMax}, order=${looseOrder}`
+    );
+    await rm(folder, { recursive: true, force: true });
+  }
+
+  // 6b. A rejecting task must reach its own caller and must not strand or poison the lane.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-reject-"));
+    const ran: string[] = [];
+    const sentinel = new Error("coordinated-boom");
+    const first = runExclusive(folder, async () => { ran.push("a"); return "a-value"; });
+    const failing = runExclusive(folder, async () => { ran.push("bad"); throw sentinel; });
+    const later = runExclusive(folder, async () => { ran.push("c"); return "c-value"; });
+    const failure = await failing.then(() => null, (error: unknown) => error);
+    check("a task's own rejection reaches its own caller unchanged", failure === sentinel, String(failure));
+    check("the value of a resolved task is returned to its caller", (await first) === "a-value" && (await later) === "c-value");
+    check("a rejected task does not strand the tasks queued behind it", JSON.stringify(ran) === JSON.stringify(["a", "bad", "c"]), `ran=${ran}`);
+    // A lane poisoned by the failure would reject or hang here instead of running normally.
+    const afterFailure = await runExclusive(folder, async () => "still-usable");
+    check("the lane is still usable for a brand-new task after a failure", afterFailure === "still-usable", afterFailure);
+    await drainEventLoop(8);
+    check("a failed task leaves no stranded lane behind", !activeFolderCoordinationKeys().includes(folderCoordinationKey(folder)), activeFolderCoordinationKeys().join(", ") || "none");
+    await rm(folder, { recursive: true, force: true });
+  }
+
+  // 6c. Same gate, two shapes: same key must exclude, different keys must not. Running one harness
+  // both ways is what makes each result meaningful — a harness that simply never overlaps would
+  // report "excluded" for both.
+  {
+    const folderA = await mkdtemp(join(tmpdir(), "awkit-coord-a-"));
+    const folderB = await mkdtemp(join(tmpdir(), "awkit-coord-b-"));
+    const measure = async (keys: readonly [string, string]): Promise<{ max: number; done: string[] }> => {
+      const arrived = deferred();
+      const done: string[] = [];
+      let entered = 0;
+      let active = 0;
+      let max = 0;
+      await Promise.all(keys.map((key, i) => runExclusive(key, async () => {
+        active += 1;
+        max = Math.max(max, active);
+        entered += 1;
+        if (entered >= keys.length) arrived.resolve();
+        await Promise.race([arrived.promise, drainEventLoop(GATE_DRAIN_TURNS)]);
+        done.push(`t${i}`);
+        active -= 1;
+      })));
+      return { max, done };
+    };
+    const different = await measure([folderA, folderB]);
+    const same = await measure([folderA, folderA]);
+    check("different resolved folders are coordinated independently and may overlap", different.max === 2 && different.done.length === 2, `maxConcurrent=${different.max}`);
+    check("the same resolved folder excludes, measured by the SAME harness", same.max === 1 && same.done.length === 2, `maxConcurrent=${same.max}`);
+    check("distinct folders produce distinct coordination keys", folderCoordinationKey(folderA) !== folderCoordinationKey(folderB), `${folderCoordinationKey(folderA)} vs ${folderCoordinationKey(folderB)}`);
+    await rm(folderA, { recursive: true, force: true });
+    await rm(folderB, { recursive: true, force: true });
+  }
+
+  // 6d. Lane lifetime: a key exists only while it is coordinating something.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-life-"));
+    const key = folderCoordinationKey(folder);
+    check("no lane exists for a folder nothing has written to", !activeFolderCoordinationKeys().includes(key), key);
+    const sampled: string[][] = [];
+    await runExclusive(folder, async () => { sampled.push(activeFolderCoordinationKeys()); });
+    // Positive control: without this, the eviction check below would also pass against a stub that
+    // simply never reported any key.
+    check("the lane is live while its task is running", sampled.length === 1 && sampled[0].includes(key), sampled.map((s) => `[${s.join(",")}]`).join(" "));
+    await drainEventLoop(8);
+    check("the lane is evicted once it has nothing left to coordinate", !activeFolderCoordinationKeys().includes(key), activeFolderCoordinationKeys().join(", ") || "none");
+    // Re-entrancy: an evicted key must be recreated, not treated as permanently retired.
+    const reentry = await measureSameFolderExclusion(folder);
+    check("a folder written again after eviction is coordinated again", reentry.max === 1 && reentry.completed === 2, `maxConcurrent=${reentry.max}, completed=${reentry.completed}`);
+    await rm(folder, { recursive: true, force: true });
+  }
+
+  // 6e. Path spelling: one folder must be one lane, however each caller happened to write the path.
+  // A store configured from Settings, one from a default, and one from a joined path can all name
+  // the same directory differently; if those split into separate keys the coordinator silently
+  // stops coordinating exactly when two different call sites are involved.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-spelling-"));
+    const spellings = [
+      folder,
+      `${folder}${sep}`,
+      `${folder}${sep}${sep}`,
+      `${folder}${sep}.`,
+      `${folder}${sep}nested${sep}..`,
+      folder.replace(/[\\/]/g, "/")
+    ];
+    const keys = new Set(spellings.map(folderCoordinationKey));
+    check("every spelling of one folder resolves to a single coordination key", spellings.length === 6 && keys.size === 1, `${spellings.length} spellings -> ${keys.size} key(s): ${[...keys].join(" | ")}`);
+    check("a sibling folder is NOT folded into that key", folderCoordinationKey(`${folder}-sibling`) !== [...keys][0], folderCoordinationKey(`${folder}-sibling`));
+    // Behavioural, not just textual: two differently spelled paths must actually take turns.
+    const arrived = deferred();
+    let entered = 0;
+    let active = 0;
+    let max = 0;
+    await Promise.all([spellings[3], spellings[1]].map((spelling) => runExclusive(spelling, async () => {
+      active += 1;
+      max = Math.max(max, active);
+      entered += 1;
+      if (entered >= 2) arrived.resolve();
+      await Promise.race([arrived.promise, drainEventLoop(GATE_DRAIN_TURNS)]);
+      active -= 1;
+    })));
+    check("two differently spelled paths for one folder actually exclude each other", max === 1 && entered === 2, `maxConcurrent=${max}, entered=${entered}`);
+    await rm(folder, { recursive: true, force: true });
+  }
+}
+
+async function measureSameFolderExclusion(folder: string): Promise<{ max: number; completed: number }> {
+  const arrived = deferred();
+  let entered = 0;
+  let active = 0;
+  let max = 0;
+  let completed = 0;
+  await Promise.all([0, 1].map(() => runExclusive(folder, async () => {
+    active += 1;
+    max = Math.max(max, active);
+    entered += 1;
+    if (entered >= 2) arrived.resolve();
+    await Promise.race([arrived.promise, drainEventLoop(GATE_DRAIN_TURNS)]);
+    completed += 1;
+    active -= 1;
+  })));
+  return { max, completed };
 }
 
 const passed = results.filter((r) => r.pass).length;

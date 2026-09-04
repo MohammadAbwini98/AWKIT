@@ -11,12 +11,14 @@
  * Electron test composition. No Chromium or network is used.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { mkdtemp, readFile, readdir, rename, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
+import { replaceFileAtomically } from "../src/storage/atomicReplace";
+import { activeFolderCoordinationKeys, folderCoordinationKey } from "../src/storage/folderWriteCoordinator";
 import { JsonProfileStore } from "../src/storage/ProfileStore";
 import { ExecutionEngine } from "../src/runner/ExecutionEngine";
 import type { ExecutionEnginePorts } from "../src/runner/ExecutionEnginePorts";
@@ -42,6 +44,9 @@ process.env.PRODUCTION_OFFLINE = "false";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 let passed = 0;
 let failed = 0;
+/** Every failing label, restated in the summary. This verifier emits ~130 lines, so a single FAIL in
+ *  the middle is easy to lose in a scrollback or a truncated CI log. */
+const failures: string[] = [];
 
 function check(label: string, condition: unknown, detail = ""): void {
   if (condition) {
@@ -49,6 +54,7 @@ function check(label: string, condition: unknown, detail = ""): void {
     console.log(`  [PASS] ${label}${detail ? ` -- ${detail}` : ""}`);
   } else {
     failed += 1;
+    failures.push(`${label}${detail ? ` -- ${detail}` : ""}`);
     console.error(`  [FAIL] ${label}${detail ? ` -- ${detail}` : ""}`);
   }
 }
@@ -270,8 +276,20 @@ async function architectureAndDeadCode(): Promise<void> {
     });
   }
 
-  const builder = JSON.parse(source("electron-builder.json")) as { files?: string[] };
-  const sourceIsPackagedDirectly = (builder.files ?? []).some((entry) => entry === "src/**" || entry.startsWith("src/"));
+  const builder = JSON.parse(source("electron-builder.json")) as { files?: unknown };
+  // `(builder.files ?? [])` made the packaging conclusion below fail OPEN: if the key were ever
+  // removed or renamed, `sourceIsPackagedDirectly` would be false and "dead candidates are not raw
+  // packaged sources" would pass by never reading a packaging rule at all. Prove the allowlist exists
+  // and is a non-empty array of strings BEFORE anything is derived from it.
+  const builderFiles = builder.files;
+  const builderFilesDeclared = Array.isArray(builderFiles) && builderFiles.length > 0 && builderFiles.every((entry) => typeof entry === "string");
+  check(
+    "electron-builder.json still declares a non-empty string `files` allowlist for the packaging conclusion to be derived from",
+    builderFilesDeclared,
+    Array.isArray(builderFiles) ? `entries=${builderFiles.length}` : `files=${JSON.stringify(builderFiles)}`
+  );
+  const builderFileEntries: string[] = builderFilesDeclared ? (builderFiles as string[]) : [];
+  const sourceIsPackagedDirectly = builderFileEntries.some((entry) => entry === "src/**" || entry.startsWith("src/"));
   const builtText = walkFiles("out", new Set([".js", ".mjs"])).map((path) => readFileSync(path, "utf8")).join("\n");
   const bundledDeadSymbols = candidates.filter((candidate) => builtText.includes(candidate.symbol)).map((candidate) => candidate.symbol);
   check(
@@ -388,100 +406,465 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
   return { promise, resolve: resolvePromise };
 }
 
-async function storeConcurrency(): Promise<void> {
-  console.log("\nR0.2 - same-folder real-store concurrency");
-  const folder = await mkdtemp(join(tmpdir(), "awkit-r0-store-"));
-  try {
-    const seed = new JsonProfileStore<StoreDoc>({ folder });
-    const original: StoreDoc = { id: "shared", name: "original", payload: "original", future: { preserved: true } };
-    await seed.create(original);
-    const snapshotA = structuredClone((await seed.get("shared"))!);
-    const snapshotB = structuredClone((await seed.get("shared"))!);
+/**
+ * Yields the event loop a bounded number of times. NOT a sleep: no wall-clock duration is waited on
+ * and nothing depends on how fast the host is, only on the loop having been given `turns` chances to
+ * make progress. Used as the always-terminating arm of the concurrency gate below.
+ */
+function drainEventLoop(turns: number): Promise<void> {
+  return new Promise<void>((settle) => {
+    let remaining = Math.max(1, turns);
+    const step = (): void => {
+      remaining -= 1;
+      if (remaining <= 0) settle();
+      else setImmediate(step);
+    };
+    setImmediate(step);
+  });
+}
 
-    const bothArrived = deferred();
-    const releaseRenames = deferred();
-    const bFinished = deferred();
-    let arrived = 0;
-    let active = 0;
-    let maxActive = 0;
-    let bOnDisk: StoreDoc | null = null;
+/**
+ * Retained for callers that only need to yield the loop. It is NOT a valid bound for the concurrency
+ * gate below -- see `drainFilesystemTurns`.
+ */
+const GATE_DRAIN_TURNS = 200;
 
-    const makeRename = (owner: "A" | "B") => async (from: string, to: string): Promise<void> => {
+/**
+ * How many real filesystem round trips the gate's escape arm spends before giving up on a writer that
+ * has not arrived. A genuinely free writer needs at most two (`mkdir` + `writeFile`).
+ *
+ * Sized by measurement, not by estimate: at 64 turns the observed margin was only 4.2x
+ * (fastestBound=9.978ms vs slowestFreeWriter=2.367ms), because a `readdir` of a nearly empty folder
+ * is several times cheaper than the `writeFile` a competitor must complete. 64 was therefore already
+ * within one bad scheduling quantum of being unsound. `gateBoundDominatesAFreeWriter` re-measures the
+ * ratio on every run and FAILS below 4x, so this constant can never quietly stop being a bound.
+ */
+const GATE_FS_TURNS = 256;
+
+/**
+ * The always-terminating arm of the concurrency gate, paced in the SAME currency a competing writer
+ * spends: real filesystem round trips.
+ *
+ * MEASURED CORRECTION (2026-09-04). This arm used to be `drainEventLoop(200)`, justified in a comment
+ * as "a handful of loop turns". That claim was false. 200 chained `setImmediate` turns cost a median
+ * of 0.746 ms on this host, while a free writer still has to complete a `writeFile` -- a libuv
+ * THREADPOOL round trip -- at a median of 0.855 ms. In 19 of 25 samples the free writer was SLOWER
+ * than the bound, so the holder routinely raced ahead of a competitor that was not blocked by
+ * anything at all. The damage ran in both directions: the pre-R1B mutation control intermittently
+ * reported `maxActive=1` (failing to reproduce the overlap it exists to demonstrate), and the
+ * different-resolved-folder independence checks intermittently reported `maxActive=1` too -- which,
+ * had the assertions been written the other way round, is exactly the shape of a check that passes
+ * because nothing happened rather than because coordination worked.
+ *
+ * Spending filesystem round trips instead makes the bound dominate a free writer BY CONSTRUCTION
+ * rather than by luck, while a writer queued behind a folder lane still cannot arrive no matter how
+ * many are spent. Still no wall-clock sleep and no timer: nothing waits on a duration.
+ */
+async function drainFilesystemTurns(folder: string, turns: number): Promise<void> {
+  for (let turn = 0; turn < turns; turn += 1) {
+    await readdir(folder).catch(() => [] as string[]);
+  }
+}
+
+interface OverlapProbe {
+  /** Instrumented `renameImpl` for one writer. */
+  renameFor(owner: string): (from: string, to: string) => Promise<void>;
+  /** Settles the first time any writer is inside atomic replacement. */
+  readonly firstEntered: Promise<void>;
+  /** Highest number of writers simultaneously inside atomic replacement. */
+  readonly maxActive: number;
+  /** Ordered `owner:enter` / `owner:exit` log. */
+  readonly events: readonly string[];
+  /** Live coordination keys sampled at the instant each writer entered. */
+  readonly keysOnEnter: readonly (readonly string[])[];
+  /** Renames that threw, i.e. attempts `replaceFileAtomically` went on to retry. */
+  readonly renameFailures: readonly string[];
+}
+
+/**
+ * Measures whether two writers can be inside atomic replacement at the same instant, deterministically
+ * and WITHOUT a sleep or a wall-clock timer.
+ *
+ * Each rename records `enter`, waits on a gate, renames, then records `exit`. The gate is
+ * `race(allArrived, drainFilesystemTurns(folder, n))`, which terminates on BOTH branches:
+ *   - independent per-instance queues -> every writer reaches its rename, `allArrived` wins, and the
+ *     writers are held together long enough for the overlap to be observable;
+ *   - one lane per resolved folder    -> the queued writer can never arrive, so the bounded drain
+ *     wins and the holder proceeds alone.
+ * So neither the fixed build nor a mutated one can hang here, and the two outcomes are distinguishable
+ * (`maxActive` 2 vs 1, interleaved vs strictly serial event log).
+ *
+ * MEASURED CORRECTION (2026-09-04): `exit` is recorded in a `finally`. It used to be recorded only on
+ * the success path, and `replaceFileAtomically` RETRIES `renameImpl` on a transient `EPERM`/`EBUSY`
+ * (`src/storage/atomicReplace.ts`), so a single writer whose first rename lost a Windows sharing race
+ * re-entered with `active` still held at 1. That fabricated `maxActive=2` and an interleaved log
+ * (`A:enter A:enter A:exit B:enter B:exit`) for ONE writer, failing the R1B non-overlap assertions
+ * against a correct implementation. Releasing in `finally` makes a retry read as what it is -- a
+ * second sequential attempt -- and `renameFailures` keeps it visible instead of silent.
+ */
+function overlapProbe(writerCount: number): OverlapProbe {
+  const allArrived = deferred();
+  const firstEntered = deferred();
+  const events: string[] = [];
+  const keysOnEnter: string[][] = [];
+  const renameFailures: string[] = [];
+  let arrived = 0;
+  let active = 0;
+  let maxActive = 0;
+
+  return {
+    renameFor: (owner: string) => async (from: string, to: string): Promise<void> => {
       active += 1;
       maxActive = Math.max(maxActive, active);
+      events.push(`${owner}:enter`);
+      keysOnEnter.push(activeFolderCoordinationKeys());
       arrived += 1;
-      if (arrived === 2) bothArrived.resolve();
-      await releaseRenames.promise;
-      if (owner === "A") await bFinished.promise;
-      await rename(from, to);
-      if (owner === "B") {
-        bOnDisk = JSON.parse(await readFile(to, "utf8")) as StoreDoc;
-        bFinished.resolve();
+      firstEntered.resolve();
+      if (arrived >= writerCount) allArrived.resolve();
+      try {
+        await Promise.race([allArrived.promise, drainFilesystemTurns(dirname(to), GATE_FS_TURNS)]);
+        await rename(from, to);
+      } catch (error) {
+        renameFailures.push(`${owner}: ${(error as Error).message}`);
+        throw error;
+      } finally {
+        events.push(`${owner}:exit`);
+        active -= 1;
       }
-      active -= 1;
+    },
+    firstEntered: firstEntered.promise,
+    get maxActive() { return maxActive; },
+    get events() { return events; },
+    get keysOnEnter() { return keysOnEnter; },
+    get renameFailures() { return renameFailures; }
+  };
+}
+
+/**
+ * Re-measures, at run time, the assumption every `maxActive === 1` assertion in this section rests on:
+ * that the gate's escape arm outlasts a writer that is genuinely free. If it does not, "no overlap was
+ * observed" stops being evidence of coordination and becomes an artifact of the holder finishing
+ * first -- the exact defect this harness shipped with until 2026-09-04.
+ */
+async function gateBoundDominatesAFreeWriter(folder: string): Promise<{ bound: number; free: number }> {
+  const time = async (work: () => Promise<unknown>): Promise<number> => {
+    const started = process.hrtime.bigint();
+    await work();
+    return Number(process.hrtime.bigint() - started) / 1e6;
+  };
+  // Slowest observed bound vs fastest observed free writer would flatter the margin, so take the
+  // pessimistic pairing: the cheapest bound against the dearest free writer.
+  const bounds: number[] = [];
+  const frees: number[] = [];
+  for (let sample = 0; sample < 5; sample += 1) {
+    bounds.push(await time(() => drainFilesystemTurns(folder, GATE_FS_TURNS)));
+    frees.push(await time(async () => {
+      const scratch = join(folder, `bound-probe-${sample}.tmp`);
+      await writeFile(scratch, "x".repeat(512), "utf8");
+      await rm(scratch, { force: true });
+    }));
+  }
+  return { bound: Math.min(...bounds), free: Math.max(...frees) };
+}
+
+/** First place the log shows one critical section opening before the previous one closed, or null. */
+function firstInterleave(events: readonly string[]): string | null {
+  for (let index = 0; index + 1 < events.length; index += 1) {
+    if (events[index].endsWith(":enter") && events[index + 1].endsWith(":enter")) {
+      return `${events[index]} -> ${events[index + 1]}`;
+    }
+  }
+  return null;
+}
+
+interface PairHarness {
+  write(owner: "A" | "B", doc: StoreDoc): Promise<unknown>;
+}
+
+/**
+ * Issues two whole-document writes derived from the SAME loaded snapshot — the stale-snapshot shape
+ * R0 characterized. `B` is issued only once `A` is already inside atomic replacement, so admission
+ * order is fixed by construction rather than by filesystem scheduling: whatever the harness observes
+ * afterwards is a property of the coordination design, not of which `mkdir` happened to land first.
+ */
+async function runOrderedPair(
+  harness: PairHarness,
+  base: StoreDoc,
+  probe: OverlapProbe,
+  betweenWrites?: () => Promise<void>
+): Promise<PromiseSettledResult<unknown>[]> {
+  const snapshotA = structuredClone(base);
+  const snapshotB = structuredClone(base);
+  const writeA = harness.write("A", { ...snapshotA, name: "writer-A", future: { ...snapshotA.future, aOnly: true } });
+  await probe.firstEntered;
+  if (betweenWrites) await betweenWrites();
+  const writeB = harness.write("B", { ...snapshotB, payload: "writer-B", future: { ...snapshotB.future, bOnly: true } });
+  return Promise.allSettled([writeA, writeB]);
+}
+
+/**
+ * The PRE-R1B design rebuilt locally: a write chain owned by the INSTANCE rather than by the
+ * destination folder. Two of these pointed at one folder is exactly what shipped before
+ * `folderWriteCoordinator`, so it is the control that proves the R0.2 assertions above can still
+ * fail. It deliberately reuses the real `replaceFileAtomically` so the injected seam behaves
+ * identically to the store's own write path.
+ */
+class InstanceQueuedStore {
+  private chain: Promise<unknown> = Promise.resolve();
+
+  constructor(
+    private readonly folder: string,
+    private readonly renameImpl: (from: string, to: string) => Promise<void>
+  ) {}
+
+  update(doc: StoreDoc): Promise<unknown> {
+    const task = async (): Promise<void> => {
+      const target = join(this.folder, `${doc.id}.json`);
+      const tmp = `${target}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`;
+      await writeFile(tmp, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
+      await replaceFileAtomically(tmp, target, { renameImpl: this.renameImpl });
     };
+    const result = this.chain.then(task, task);
+    this.chain = result.then(() => undefined, () => undefined);
+    return result;
+  }
+}
 
-    const storeA = new JsonProfileStore<StoreDoc>({ folder, atomicReplace: { renameImpl: makeRename("A") } });
-    const storeB = new JsonProfileStore<StoreDoc>({ folder, atomicReplace: { renameImpl: makeRename("B") } });
-    const writeA = storeA.update("shared", { ...snapshotA, name: "writer-A", future: { ...snapshotA.future, aOnly: true } });
-    const writeB = storeB.update("shared", { ...snapshotB, payload: "writer-B", future: { ...snapshotB.future, bOnly: true } });
-    await bothArrived.promise;
-    const whileBothWaiting = JSON.parse(await readFile(join(folder, "shared.json"), "utf8")) as StoreDoc;
-    check("separate real store instances enter atomic replacement concurrently for one resolved folder", maxActive === 2, `maxActive=${maxActive}`);
-    check("the previous complete JSON remains readable while both replacements are waiting", JSON.stringify(whileBothWaiting) === JSON.stringify(original));
-    releaseRenames.resolve();
-    await Promise.all([writeA, writeB]);
+const SHARED_DOC: StoreDoc = { id: "shared", name: "original", payload: "original", future: { preserved: true } };
 
+async function seedShared(folder: string): Promise<void> {
+  await new JsonProfileStore<StoreDoc>({ folder }).create(structuredClone(SHARED_DOC));
+}
+
+async function storeConcurrency(): Promise<void> {
+  console.log("\nR1B/R0.2 - one write coordinator per resolved store folder");
+  const folder = await mkdtemp(join(tmpdir(), "awkit-r1b-store-"));
+  try {
+    const original = SHARED_DOC;
+    await seedShared(folder);
+
+    // ── Case 0: the harness proves its own bound before asserting anything with it ─────────────
+    // Every `maxActive === 1` below means "the queued writer could not arrive". That is only evidence
+    // if a writer that CAN arrive would have. Measure it rather than assume it.
+    const margin = await gateBoundDominatesAFreeWriter(folder);
+    check(
+      "harness precondition: the concurrency gate outlasts a genuinely free writer, so an unobserved overlap cannot be a timing artifact",
+      margin.bound > margin.free * 4,
+      `slowestFreeWriter=${margin.free.toFixed(3)}ms fastestBound=${margin.bound.toFixed(3)}ms ratio=${(margin.bound / margin.free).toFixed(1)}x`
+    );
+
+    // ── Case 1+2: two INDEPENDENTLY CONSTRUCTED stores, one resolved folder ────────────────────
+    // Nothing is shared between them but the folder string: no store registry, no handed-in queue,
+    // no common parent object. If serialization were still owned by the instance they would overlap.
+    const probe = overlapProbe(2);
+    const storeA = new JsonProfileStore<StoreDoc>({ folder, atomicReplace: { renameImpl: probe.renameFor("A") } });
+    const storeB = new JsonProfileStore<StoreDoc>({ folder, atomicReplace: { renameImpl: probe.renameFor("B") } });
+    check("the two same-folder writers are separately constructed store instances, not one shared object", storeA !== storeB && storeA instanceof JsonProfileStore && storeB instanceof JsonProfileStore);
+
+    const midFlight: { doc: StoreDoc | null } = { doc: null };
+    const settled = await runOrderedPair(
+      { write: (owner, doc) => (owner === "A" ? storeA : storeB).update("shared", doc) },
+      original,
+      probe,
+      async () => { midFlight.doc = JSON.parse(await readFile(join(folder, "shared.json"), "utf8")) as StoreDoc; }
+    );
+
+    check("both same-folder writes complete", settled.length === 2 && settled.every((result) => result.status === "fulfilled"), settled.map((r) => r.status).join(", "));
+    // Reported separately so a transient Windows sharing retry is diagnosed as a retry, rather than
+    // surfacing as an unexplained extra `enter` in the interleave and event-count assertions below.
+    check("each same-folder writer renamed once, so the event log below counts writers and not retries", probe.renameFailures.length === 0, probe.renameFailures.join(" | "));
+    check("no two same-folder replacement critical sections are ever active at the same instant", probe.maxActive === 1, `maxActive=${probe.maxActive}`);
+    check(
+      "the same-folder critical sections are strictly serial: every enter is followed by its own exit",
+      probe.events.length === 4 && firstInterleave(probe.events) === null,
+      probe.events.join(" ")
+    );
+    check("the previous complete JSON stays readable while a replacement holds the folder", JSON.stringify(midFlight.doc) === JSON.stringify(original), JSON.stringify(midFlight.doc));
+    check(
+      "exactly one coordination key is live for the folder at every entry into replacement",
+      probe.keysOnEnter.length === 2 && probe.keysOnEnter.every((keys) => keys.length === 1 && keys[0] === folderCoordinationKey(folder)),
+      probe.keysOnEnter.map((keys) => `[${keys.join(",")}]`).join(" ")
+    );
+
+    // ── Case 3: the stale-snapshot lost update is BOUNDED, not eliminated ──────────────────────
+    // `update(id, wholeDocument)` has no version/etag, so a whole-document replacement written from
+    // an older snapshot still discards the earlier writer's field. R1B does not add optimistic
+    // concurrency, and pretending otherwise here would be a false PASS. What IS now true, and is what
+    // these assert, is that the two replacements never physically overlap and the surviving document
+    // is exactly the last ADMITTED writer's — the same answer on every run.
     const reloaded = await new JsonProfileStore<StoreDoc>({ folder }).get("shared");
-    const bSnapshot = bOnDisk as StoreDoc | null;
-    check("each atomic replacement exposes a complete document, never a truncated file", bSnapshot?.payload === "writer-B" && reloaded?.name === "writer-A");
-    check("the deterministic last writer reloads exactly from a fresh store", reloaded?.name === "writer-A" && reloaded.payload === "original");
-    check("unknown fields carried by the winning snapshot survive save/reload", reloaded?.future?.preserved === true && reloaded.future.aOnly === true);
-    check("independent stale snapshots can lose the other writer's field", reloaded?.future?.bOnly === undefined, JSON.stringify(reloaded));
-    check("same-folder overlap leaves no temporary files", (await readdir(folder)).every((entry) => !entry.endsWith(".tmp")));
+    check("the last admitted writer's whole document is the final state, read back from a fresh store", reloaded?.payload === "writer-B" && reloaded?.name === "original", JSON.stringify(reloaded));
+    check("each replacement published a complete document, never a truncated or merged file", JSON.stringify(reloaded) === JSON.stringify({ id: "shared", name: "original", payload: "writer-B", future: { preserved: true, bOnly: true } }), JSON.stringify(reloaded));
+    check("unknown fields carried by the surviving snapshot survive save/reload", reloaded?.future?.preserved === true && reloaded?.future?.bOnly === true);
+    check(
+      "stale-snapshot lost update stays BOUNDED by existing store semantics, not eliminated: whole-document replacement is still last-writer-wins, so the earlier writer's field is not merged in",
+      reloaded?.future?.aOnly === undefined,
+      JSON.stringify(reloaded?.future)
+    );
 
-    const sharedFolder = await mkdtemp(join(tmpdir(), "awkit-r0-store-shared-control-"));
+    // Determinism: the outcome is decided by admission order, not by a race inside replacement. Each
+    // repeat fires both writes simultaneously, then asserts the document on disk is exactly the whole
+    // document of whichever writer the coordinator admitted LAST, and that they never overlapped.
+    const outcomes: string[] = [];
+    for (let run = 0; run < 5; run += 1) {
+      const repeatFolder = await mkdtemp(join(tmpdir(), "awkit-r1b-determinism-"));
+      try {
+        await seedShared(repeatFolder);
+        const repeatProbe = overlapProbe(2);
+        const repeatA = new JsonProfileStore<StoreDoc>({ folder: repeatFolder, atomicReplace: { renameImpl: repeatProbe.renameFor("A") } });
+        const repeatB = new JsonProfileStore<StoreDoc>({ folder: repeatFolder, atomicReplace: { renameImpl: repeatProbe.renameFor("B") } });
+        await Promise.all([
+          repeatA.update("shared", { ...original, name: "writer-A", future: { preserved: true, aOnly: true } }),
+          repeatB.update("shared", { ...original, payload: "writer-B", future: { preserved: true, bOnly: true } })
+        ]);
+        const finalDoc = await new JsonProfileStore<StoreDoc>({ folder: repeatFolder }).get("shared");
+        const lastAdmitted = [...repeatProbe.events].reverse().find((event) => event.endsWith(":enter"))?.split(":")[0] ?? "?";
+        const expected = lastAdmitted === "A"
+          ? { id: "shared", name: "writer-A", payload: "original", future: { preserved: true, aOnly: true } }
+          : { id: "shared", name: "original", payload: "writer-B", future: { preserved: true, bOnly: true } };
+        outcomes.push(`${repeatProbe.maxActive}|${lastAdmitted}|${JSON.stringify(finalDoc) === JSON.stringify(expected)}`);
+      } finally {
+        await rm(repeatFolder, { recursive: true, force: true });
+      }
+    }
+    check(
+      "repeated same-folder races never overlap and always leave exactly the last-admitted writer's whole document",
+      outcomes.length === 5 && outcomes.every((outcome) => outcome.startsWith("1|") && outcome.endsWith("|true")),
+      outcomes.join(", ")
+    );
+
+    // ── Mutation control: restore the pre-R1B per-instance queues and the above must fail ───────
+    const legacyFolder = await mkdtemp(join(tmpdir(), "awkit-r1b-legacy-control-"));
     try {
-      const base = new JsonProfileStore<StoreDoc>({ folder: sharedFolder });
-      await base.create(original);
-      let queue = Promise.resolve();
-      let coordinatedActive = 0;
-      let coordinatedMax = 0;
-      const coordinatedRename = (from: string, to: string): Promise<void> => {
-        const result = queue.then(async () => {
-          coordinatedActive += 1;
-          coordinatedMax = Math.max(coordinatedMax, coordinatedActive);
-          try { await rename(from, to); } finally { coordinatedActive -= 1; }
-        });
-        queue = result.catch(() => undefined);
-        return result;
-      };
-      const left = new JsonProfileStore<StoreDoc>({ folder: sharedFolder, atomicReplace: { renameImpl: coordinatedRename } });
-      const right = new JsonProfileStore<StoreDoc>({ folder: sharedFolder, atomicReplace: { renameImpl: coordinatedRename } });
-      await Promise.all([
-        left.update("shared", { ...original, name: "left" }),
-        right.update("shared", { ...original, name: "right" })
-      ]);
-      mutationRejected("the independent-queue overlap risk after a shared coordinator mutation", () => {
-        invariant(coordinatedMax === 2, `shared coordinator reduced maxActive to ${coordinatedMax}`);
+      await seedShared(legacyFolder);
+      const legacyProbe = overlapProbe(2);
+      const legacyA = new InstanceQueuedStore(legacyFolder, legacyProbe.renameFor("A"));
+      const legacyB = new InstanceQueuedStore(legacyFolder, legacyProbe.renameFor("B"));
+      const legacySettled = await runOrderedPair(
+        { write: (owner, doc) => (owner === "A" ? legacyA : legacyB).update(doc) },
+        original,
+        legacyProbe
+      );
+      check("mutation control: the legacy facade completed both writes, so it is a like-for-like control", legacySettled.length === 2 && legacySettled.every((result) => result.status === "fulfilled"));
+      check("mutation control: per-instance write chains let two same-folder writers overlap", legacyProbe.maxActive === 2, `maxActive=${legacyProbe.maxActive}`);
+      mutationRejected("the non-overlap assertion when independent per-instance queues are restored", () => {
+        invariant(legacyProbe.maxActive === 1, `restored per-instance queues overlapped: maxActive=${legacyProbe.maxActive}`);
+      });
+      mutationRejected("the strictly-serial event-log assertion when independent per-instance queues are restored", () => {
+        const interleave = firstInterleave(legacyProbe.events);
+        invariant(interleave === null, `interleaved critical sections: ${interleave} in ${legacyProbe.events.join(" ")}`);
       });
     } finally {
-      await rm(sharedFolder, { recursive: true, force: true });
+      await rm(legacyFolder, { recursive: true, force: true });
     }
 
-    const failureFolder = await mkdtemp(join(tmpdir(), "awkit-r0-store-failure-"));
+    // ── Case 4: different resolved folders keep independent concurrency (negative control) ──────
+    const folderX = await mkdtemp(join(tmpdir(), "awkit-r1b-folder-x-"));
+    const folderY = await mkdtemp(join(tmpdir(), "awkit-r1b-folder-y-"));
+    try {
+      await seedShared(folderX);
+      await seedShared(folderY);
+      const crossProbe = overlapProbe(2);
+      const storeX = new JsonProfileStore<StoreDoc>({ folder: folderX, atomicReplace: { renameImpl: crossProbe.renameFor("A") } });
+      const storeY = new JsonProfileStore<StoreDoc>({ folder: folderY, atomicReplace: { renameImpl: crossProbe.renameFor("B") } });
+      const crossSettled = await runOrderedPair(
+        { write: (owner, doc) => (owner === "A" ? storeX : storeY).update("shared", doc) },
+        original,
+        crossProbe
+      );
+      check("both cross-folder writes complete", crossSettled.length === 2 && crossSettled.every((result) => result.status === "fulfilled"));
+      check("different resolved folders are NOT serialized against each other", crossProbe.maxActive === 2, `maxActive=${crossProbe.maxActive}`);
+      check("distinct folders produce distinct coordination keys", folderCoordinationKey(folderX) !== folderCoordinationKey(folderY), `${folderCoordinationKey(folderX)} vs ${folderCoordinationKey(folderY)}`);
+      check(
+        "each folder holds its own live coordination key at the same instant",
+        crossProbe.keysOnEnter.length === 2 && crossProbe.keysOnEnter[1].length === 2 &&
+          crossProbe.keysOnEnter[1].includes(folderCoordinationKey(folderX)) &&
+          crossProbe.keysOnEnter[1].includes(folderCoordinationKey(folderY)),
+        crossProbe.keysOnEnter.map((keys) => `[${keys.join(",")}]`).join(" ")
+      );
+    } finally {
+      await rm(folderX, { recursive: true, force: true });
+      await rm(folderY, { recursive: true, force: true });
+    }
+
+    // Differently spelled paths for ONE folder must not split into two lanes.
+    const spellings = [
+      folder,
+      `${folder}${sep}`,
+      `${folder}${sep}.`,
+      `${folder}${sep}nested${sep}..`,
+      folder.replace(/[\\/]/g, "/")
+    ];
+    const spellingKeys = new Set(spellings.map(folderCoordinationKey));
+    check("differently spelled paths for one folder collapse to a single coordination key", spellings.length === 5 && spellingKeys.size === 1, [...spellingKeys].join(" | "));
+    const spellingProbe = overlapProbe(2);
+    const spelledA = new JsonProfileStore<StoreDoc>({ folder: spellings[2], atomicReplace: { renameImpl: spellingProbe.renameFor("A") } });
+    const spelledB = new JsonProfileStore<StoreDoc>({ folder: spellings[1], atomicReplace: { renameImpl: spellingProbe.renameFor("B") } });
+    const spellingSettled = await runOrderedPair(
+      { write: (owner, doc) => (owner === "A" ? spelledA : spelledB).update("shared", doc) },
+      original,
+      spellingProbe
+    );
+    check(
+      "stores configured with different spellings of one folder share the lane rather than splitting it",
+      spellingSettled.length === 2 && spellingProbe.maxActive === 1 && firstInterleave(spellingProbe.events) === null && spellingProbe.events.length === 4,
+      `maxActive=${spellingProbe.maxActive}, events=${spellingProbe.events.join(" ")}`
+    );
+
+    // ── Case 7: a store constructed AFTER the lane was evicted joins the same coordinator ───────
+    await drainEventLoop(8);
+    const keysBetween = activeFolderCoordinationKeys();
+    check("no coordination key outlives the writes it coordinated", keysBetween.length === 0, keysBetween.join(", "));
+    const recreatedProbe = overlapProbe(2);
+    const recreatedA = new JsonProfileStore<StoreDoc>({ folder, atomicReplace: { renameImpl: recreatedProbe.renameFor("A") } });
+    const recreatedB = new JsonProfileStore<StoreDoc>({ folder, atomicReplace: { renameImpl: recreatedProbe.renameFor("B") } });
+    const recreatedSettled = await runOrderedPair(
+      { write: (owner, doc) => (owner === "A" ? recreatedA : recreatedB).update("shared", doc) },
+      original,
+      recreatedProbe
+    );
+    check(
+      "stores recreated for the same folder after eviction join one coordinator again, with no overlap",
+      recreatedSettled.length === 2 && recreatedProbe.maxActive === 1 && recreatedProbe.events.length === 4 && firstInterleave(recreatedProbe.events) === null,
+      `maxActive=${recreatedProbe.maxActive}, events=${recreatedProbe.events.join(" ")}`
+    );
+    check(
+      "the recreated pair rejoins the SAME coordination key the evicted lane used",
+      recreatedProbe.keysOnEnter.length === 2 && recreatedProbe.keysOnEnter.every((keys) => keys.length === 1 && keys[0] === folderCoordinationKey(folder)),
+      recreatedProbe.keysOnEnter.map((keys) => `[${keys.join(",")}]`).join(" ")
+    );
+
+    // ── Case 5: atomic replacement still leaves valid complete JSON and no orphan temp files ────
+    const entries = await readdir(folder);
+    const jsonEntries = entries.filter((entry) => entry.endsWith(".json"));
+    const tmpEntries = entries.filter((entry) => entry.endsWith(".tmp"));
+    check("the coordinated folder is non-empty and holds exactly the one profile file", entries.length > 0 && jsonEntries.length === 1, `entries=${entries.length}, json=${jsonEntries.length}`);
+    check("coordinated same-folder writes leave no orphan temp files", tmpEntries.length === 0, tmpEntries.join(", ") || "none");
+    let roundTripped = 0;
+    for (const entry of jsonEntries) {
+      const raw = await readFile(join(folder, entry), "utf8");
+      const parsed = JSON.parse(raw) as StoreDoc;
+      if (raw === `${JSON.stringify(parsed, null, 2)}\n`) roundTripped += 1;
+    }
+    check("every persisted file is complete JSON that round-trips through the store's pretty-print", jsonEntries.length > 0 && roundTripped === jsonEntries.length, `${roundTripped}/${jsonEntries.length}`);
+
+    // ── Case 6: a failed write does not block, poison or strand later writes to the same folder ─
+    const failureFolder = await mkdtemp(join(tmpdir(), "awkit-r1b-failure-"));
     try {
       const good = new JsonProfileStore<StoreDoc>({ folder: failureFolder });
-      await good.create(original);
+      await good.create(structuredClone(original));
       let failureAttempts = 0;
+      const enospc = (): NodeJS.ErrnoException => {
+        const error = new Error("ENOSPC: no space left on device") as NodeJS.ErrnoException;
+        error.code = "ENOSPC";
+        return error;
+      };
       const failing = new JsonProfileStore<StoreDoc>({
         folder: failureFolder,
         atomicReplace: {
           renameImpl: async () => {
             failureAttempts += 1;
-            const error = new Error("ENOSPC: no space left on device") as NodeJS.ErrnoException;
-            error.code = "ENOSPC";
-            throw error;
+            throw enospc();
           }
         }
       });
@@ -490,11 +873,88 @@ async function storeConcurrency(): Promise<void> {
         good.update("shared", { ...original, name: "survivor", future: { preserved: true, futureVersion: 2 } })
       ]);
       const afterFailure = await new JsonProfileStore<StoreDoc>({ folder: failureFolder }).get("shared");
-      check("one store failure does not poison a separate store instance's successful save", failure.status === "rejected" && success.status === "fulfilled" && afterFailure?.name === "survivor");
-      check("non-transient failure is reported once and leaves no temp residue", failureAttempts === 1 && (await readdir(failureFolder)).every((entry) => !entry.endsWith(".tmp")));
+      check("one store failure does not poison a separate store instance's successful save", failure.status === "rejected" && success.status === "fulfilled" && afterFailure?.name === "survivor", `${failure.status}/${success.status}/${afterFailure?.name}`);
+      // `.every()` is vacuously true over an empty listing, so the residue clause used to pass just as
+      // well if the folder had been emptied — or had never been written at all. Capture the listing
+      // once, prove it is non-empty AND still holds the record the writers were contending over, and
+      // only then assert the residue predicate over it.
+      const failureEntries = await readdir(failureFolder);
+      check(
+        "the failure folder is non-empty and still holds shared.json, so the residue check below has something to range over",
+        failureEntries.length > 0 && failureEntries.includes("shared.json"),
+        `entries=${failureEntries.join(", ") || "none"}`
+      );
+      check("non-transient failure is reported once and leaves no temp residue", failureAttempts === 1 && failureEntries.length > 0 && failureEntries.every((entry) => !entry.endsWith(".tmp")), `attempts=${failureAttempts}, entries=${failureEntries.join(", ") || "none"}`);
       check("unknown fields survive the successful writer beside a failed writer", afterFailure?.future?.futureVersion === 2);
+
+      // Strictly sequential: the failure is fully settled BEFORE the next write is admitted, so this
+      // proves the lane was not left stranded or poisoned rather than merely overtaken.
+      let sequentialFailure: NodeJS.ErrnoException | null = null;
+      try {
+        await failing.update("shared", { ...original, name: "still-must-not-land" });
+      } catch (error) {
+        sequentialFailure = error as NodeJS.ErrnoException;
+      }
+      check("the sequential failing write rejects with its original errno", sequentialFailure?.code === "ENOSPC", String(sequentialFailure));
+      const laterWrite = await good.update("shared", { ...original, name: "after-failure", future: { preserved: true, futureVersion: 3 } });
+      const afterLater = await new JsonProfileStore<StoreDoc>({ folder: failureFolder }).get("shared");
+      check("a later valid write to the SAME folder still succeeds after a failure settled", laterWrite.name === "after-failure" && afterLater?.name === "after-failure" && afterLater?.future?.futureVersion === 3, JSON.stringify(afterLater));
+      await drainEventLoop(8);
+      const keysAfterFailure = activeFolderCoordinationKeys();
+      check("the failed write left no stranded coordination lane", keysAfterFailure.length === 0, keysAfterFailure.join(", ") || "none");
     } finally {
       await rm(failureFolder, { recursive: true, force: true });
+    }
+
+    // ── Case 8: a configured-path change routes to a new key and strands nothing behind ─────────
+    const oldConfigured = await mkdtemp(join(tmpdir(), "awkit-r1b-configured-old-"));
+    const newConfigured = await mkdtemp(join(tmpdir(), "awkit-r1b-configured-new-"));
+    try {
+      await seedShared(oldConfigured);
+      await seedShared(newConfigured);
+      const switchProbe = overlapProbe(2);
+      const beforeSwitch = new JsonProfileStore<StoreDoc>({ folder: oldConfigured, atomicReplace: { renameImpl: switchProbe.renameFor("A") } });
+      const afterSwitch = new JsonProfileStore<StoreDoc>({ folder: newConfigured, atomicReplace: { renameImpl: switchProbe.renameFor("B") } });
+      const switchSettled = await runOrderedPair(
+        { write: (owner, doc) => (owner === "A" ? beforeSwitch : afterSwitch).update("shared", doc) },
+        original,
+        switchProbe
+      );
+      check(
+        "a write to the newly configured folder does not queue behind the previously configured one",
+        switchSettled.length === 2 && switchProbe.maxActive === 2 && firstInterleave(switchProbe.events) !== null,
+        `maxActive=${switchProbe.maxActive}, events=${switchProbe.events.join(" ")}`
+      );
+      check(
+        "the newly configured folder is coordinated under its own key while the old one is still busy",
+        switchProbe.keysOnEnter.length === 2 &&
+          switchProbe.keysOnEnter[0].length === 1 && switchProbe.keysOnEnter[0][0] === folderCoordinationKey(oldConfigured) &&
+          switchProbe.keysOnEnter[1].length === 2 && switchProbe.keysOnEnter[1].includes(folderCoordinationKey(newConfigured)),
+        switchProbe.keysOnEnter.map((keys) => `[${keys.join(",")}]`).join(" ")
+      );
+      await drainEventLoop(8);
+      const oldKey = folderCoordinationKey(oldConfigured);
+      const newKey = folderCoordinationKey(newConfigured);
+      const keysAfterSwitch = activeFolderCoordinationKeys();
+      // What the second conjunct used to say — `!keysAfterSwitch.includes(oldKey)` — was implied by
+      // `length === 0` and so asserted nothing. The proposition it was reaching for is a PRECONDITION,
+      // not a postcondition: two DISTINCT keys have to have been live at once for "neither survives"
+      // to describe a real path change rather than a contest that never routed anywhere.
+      check(
+        "the path change put two DISTINCT coordination keys live at the same instant, so releasing both is a real transition",
+        oldKey !== newKey &&
+          switchProbe.keysOnEnter.length === 2 &&
+          switchProbe.keysOnEnter[1].includes(oldKey) && switchProbe.keysOnEnter[1].includes(newKey),
+        `old=${oldKey} new=${newKey} onEnter=${switchProbe.keysOnEnter.map((keys) => `[${keys.join(",")}]`).join(" ")}`
+      );
+      check(
+        "neither the old nor the new configured folder key survives the path change",
+        keysAfterSwitch.length === 0,
+        keysAfterSwitch.join(", ") || "none"
+      );
+    } finally {
+      await rm(oldConfigured, { recursive: true, force: true });
+      await rm(newConfigured, { recursive: true, force: true });
     }
 
     const profileStoresPath = "app/main/profileStores.ts";
@@ -532,6 +992,54 @@ async function storeConcurrency(): Promise<void> {
     mutationRejected("configured report-path resolution being bypassed", () => {
       invariant(reportAccess, "report configured-path node missing");
       assertConfiguredFactories(replaceNode(factoryText, reportAccess, "undefined"));
+    });
+
+    // ── Case 8, source level: every factory must resolve its destination on EVERY call ──────────
+    // Coordination is keyed by the folder string a store was CONSTRUCTED with, so a factory that
+    // resolved its path once at module scope would keep handing out stores aimed at the folder
+    // configured at import time. A Settings path change would then be coordinated under — and would
+    // write into — the stale folder, and every runtime assertion above would still pass, because the
+    // defect is in what the factory hands the store, not in the coordinator. That makes it a property
+    // of the real `profileStores.ts` and it is asserted against the real source.
+    const expectedResolvers = new Map([
+      ["createFlowProfileStore", "getConfiguredPaths"],
+      ["createWorkflowProfileStore", "getConfiguredPaths"],
+      ["createDataSourceProfileStore", "getConfiguredPaths"],
+      ["createRuntimeInputProfileStore", "getRuntimePaths"],
+      ["createInstanceProfileStore", "getRuntimePaths"],
+      ["createReportStore", "getConfiguredPaths"]
+    ]);
+    const assertPerCallResolution = (text: string): void => {
+      const sf = parse(profileStoresPath, text);
+      const seen = new Set<string>();
+      walk(sf, (node) => {
+        if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) return;
+        const resolver = expectedResolvers.get(node.name.text);
+        if (!resolver) return;
+        let resolvesPerCall = false;
+        walk(node.body, (child) => {
+          if (ts.isCallExpression(child) && child.expression.getText(sf) === resolver) resolvesPerCall = true;
+        });
+        invariant(resolvesPerCall, `${node.name.text} does not call ${resolver}() inside its own body — its destination folder looks resolved once outside the factory`);
+        seen.add(node.name.text);
+      });
+      // Cardinality: without this a renamed or deleted factory would simply not be visited, and the
+      // loop above would pass by never running.
+      invariant(
+        seen.size === expectedResolvers.size,
+        `expected ${expectedResolvers.size} store factories, matched ${seen.size}: ${[...seen].sort().join(", ")}`
+      );
+    };
+    assertPerCallResolution(factoryText);
+    check(`all ${expectedResolvers.size} store factories resolve their destination folder per call, so a configured-path change cannot be coordinated under a stale key`, true);
+    mutationRejected("a factory reading a module-scope cached path instead of resolving per call", () => {
+      assertPerCallResolution(factoryText.replace("folder: getConfiguredPaths().reports", "folder: cachedPaths.reports"));
+    });
+    mutationRejected("runtime-path resolution being hoisted out of a factory body", () => {
+      assertPerCallResolution(factoryText.replace("const paths = getRuntimePaths();", ""));
+    });
+    mutationRejected("a store factory silently dropping out of the scanned set", () => {
+      assertPerCallResolution(factoryText.replace("export function createReportStore(", "export function createReportStoreRenamed("));
     });
   } finally {
     await rm(folder, { recursive: true, force: true });
@@ -778,6 +1286,7 @@ async function main(): Promise<void> {
   await capacityCharacterization();
   await licensingCheckpoints();
   console.log(`\nR0 characterization: ${passed} PASS / ${failed} FAIL`);
+  for (const failure of failures) console.error(`  [FAILED] ${failure}`);
   process.exitCode = failed === 0 ? 0 : 1;
 }
 
