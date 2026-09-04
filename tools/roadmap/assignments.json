@@ -19,11 +19,11 @@
   ],
   "claims": [
     {
-      "itemId": "bead:awkit-r1b-coordination",
-      "agent": "Documentation / Project-State Specialist",
+      "itemId": "bead:awkit-glm-delegation-tooling",
+      "agent": "Manager / Orchestrator",
       "state": "in-progress",
-      "claimedAt": "2026-09-04T17:29:08.856Z",
-      "note": "write lease: .beads/issues.jsonl, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md"
+      "claimedAt": "2026-09-04T18:27:07.543Z",
+      "note": "write lease: .claude/agents/awkit-manager.md, .claude/mcp/, .claude/mcp/glm_delegate_server.py, .claude/settings.local.json, .codex/skills/agent-routing/SKILL.md, .gemini/skills/agent-routing/SKILL.md, .mcp.json, tools/agents/routing-matrix.mjs"
     }
   ]
 }

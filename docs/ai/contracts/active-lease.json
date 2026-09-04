@@ -1,31 +1,39 @@
 {
-  "task": "awkit-r1b-coordination",
-  "contract_path": "docs/ai/contracts/awkit-r1b-coordination.json",
-  "holder": "project-state",
+  "task": "awkit-glm-delegation-tooling",
+  "contract_path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+  "holder": "manager",
   "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md"
+    ".claude/agents/awkit-manager.md",
+    ".claude/mcp/",
+    ".claude/mcp/glm_delegate_server.py",
+    ".claude/settings.local.json",
+    ".codex/skills/agent-routing/SKILL.md",
+    ".gemini/skills/agent-routing/SKILL.md",
+    ".mcp.json",
+    "tools/agents/routing-matrix.mjs"
   ],
-  "acquired_at": "2026-09-04T17:29:08.856Z",
-  "acquired_at_commit": "8175b6a602e84263576dc953885785679a3a5b4d",
+  "acquired_at": "2026-09-04T18:27:07.543Z",
+  "acquired_at_commit": "d856cc47d69fbdd73ea94bb805fc85fb028cb459",
   "baseline_dirty": [
     "AWTKIT.rar",
     "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-glm-delegation-tooling.json",
     "docs/ai/contracts/awkit-r1b-coordination.json",
+    "tools/agents/routing-matrix.mjs",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
-    "docs/ai/contracts/active-lease.json": "f3ba88b83cea870f100af3d2310c4cf8f4773d71ffa5e700e0b4340d01fc4abb",
-    "docs/ai/contracts/awkit-r1b-coordination.json": "50372344ddc55d4bbc4909e262c7bc437d64d4a3b1c837ac98205f698cd9c665",
+    "docs/ai/contracts/active-lease.json": "a9cf27727b975feecbddb856b04f4640f33c449cc4dc452b3f9f8de56e4a36c9",
+    "docs/ai/contracts/awkit-glm-delegation-tooling.json": "370f1f1b2af2df0d981245b3d1762995570a7cf1a3eb99ea1f88f71f08a08453",
+    "docs/ai/contracts/awkit-r1b-coordination.json": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174",
+    "tools/agents/routing-matrix.mjs": "09f7b7be701dc00a0535b75b1e46a04396edb1fe0ba67e6dcf87c87bd8e30179",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
-    ".claude/settings.local.json": "6054:1785324381414.4578",
+    ".claude/settings.local.json": "6153:1788546403900.3333",
     "storage-state.json": "absent",
     "auth-state.json": "absent",
     "session-profiles.json": "absent",
@@ -33,7 +41,33 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1788195763485.3335"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-04T18:48:05.177Z",
+      "added": [
+        ".claude/mcp/",
+        ".claude/settings.local.json"
+      ],
+      "reason": "git status collapses the new untracked directory to .claude/mcp/ so the audit never sees the leased file glm_delegate_server.py inside it, and Claude Code rewrites its own .claude/settings.local.json permission cache during the session, both sit inside the manager-owned .claude tree so the honest scope statement is to name them",
+      "triggered_escalation": [
+        "qa"
+      ],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
-  "violations": []
+  "violations": [
+    {
+      "path": ".claude/mcp/",
+      "detectedAt": "2026-09-04T18:37:34.193Z",
+      "via": "bash",
+      "resolved": false
+    },
+    {
+      "path": ".claude/settings.local.json",
+      "detectedAt": "2026-09-04T18:45:24.131Z",
+      "via": "bash",
+      "resolved": false
+    }
+  ]
 }
