@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("267 issues parse", beads.stats.total === 267, `got ${beads.stats.total}`);
+  check("268 issues parse", beads.stats.total === 268, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -429,8 +429,14 @@ try {
   // 2/264 when its 85-check mutation-backed baseline closed; the two external blockers are unchanged.
   // Then 3/264 of 267 when `awkit-2q2d` was filed for R1A, and 2/265 when its narrow injected
   // ExecutionEngine ports and 99-check characterization closed; the external blockers remain unchanged.
-    "2 outstanding / 265 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 265,
+  // Then 2/266 of 268 on 2026-09-04: `awkit-oqvw` (R1B, one write coordinator per resolved profile
+  // folder) was filed and closed in the same session, so total and closed each rose by one while the
+  // two externally blocked Oracle issues `awkit-7bu` and `awkit-cm8` remain outstanding. That same
+  // filing carried one `blocks` dependency on `awkit-2q2d`, taking edges 105 → 106; the export diff
+  // confirms it is the only edge added and that no existing edge changed (`awkit-oqvw` ships
+  // `dependency_count: 1`, and `awkit-2q2d` moved on exactly one field, `dependent_count` 0 → 1).
+    "2 outstanding / 266 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 266,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -485,8 +491,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "105 edges are present to classify",
-    beads.stats.edges === 105,
+    "106 edges are present to classify",
+    beads.stats.edges === 106,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
