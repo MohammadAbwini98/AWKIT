@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("268 issues parse", beads.stats.total === 268, `got ${beads.stats.total}`);
+  check("271 issues parse", beads.stats.total === 271, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -435,8 +435,14 @@ try {
   // filing carried one `blocks` dependency on `awkit-2q2d`, taking edges 105 → 106; the export diff
   // confirms it is the only edge added and that no existing edge changed (`awkit-oqvw` ships
   // `dependency_count: 1`, and `awkit-2q2d` moved on exactly one field, `dependent_count` 0 → 1).
-    "2 outstanding / 266 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 266,
+  // Then 5/266 of 271 on 2026-09-04: the R1B closeout review filed three OPEN follow-ups —
+  // `awkit-s410` (lane eviction has no non-vacuous mutation evidence), `awkit-utbf` (same-key
+  // re-entrancy self-deadlocks silently with no guard) and `awkit-dhw6` (document that path
+  // aliasing splits a folder coordination lane). Nothing closed, so closed held at 266 while the
+  // total rose 268 → 271 and outstanding 2 → 5; all three ship `dependency_count: 0`, so the edge
+  // pin below stays at 106.
+    "5 outstanding / 266 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 266,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
