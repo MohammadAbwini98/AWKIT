@@ -22,7 +22,7 @@ does have a subagent runtime, gets generated definitions under `.claude/agents/`
 
 | Role | Mode | Owns | Mandate |
 | --- | --- | --- | --- |
-| `manager` | writer | `tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**`<br>`.agents/**`<br>`.cursor/**`<br>`.cbmignore`<br>`.graphifyignore`<br>`scripts/AGENTS.md`<br>`src/AGENTS.md`<br>`AGENTS.md`<br>`CLAUDE.md`<br>`GEMINI.md` | Owns task decomposition, deterministic routing, context budgets, the serialized write lease, acceptance synthesis and final repository gates; it delegates detailed discovery. |
+| `manager` | writer | `tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**`<br>`.agents/**`<br>`.cursor/**`<br>`.cbmignore`<br>`.graphifyignore`<br>`.mcp.json`<br>`scripts/AGENTS.md`<br>`src/AGENTS.md`<br>`AGENTS.md`<br>`CLAUDE.md`<br>`GEMINI.md` | Owns task decomposition, deterministic routing, context budgets, the serialized write lease, acceptance synthesis and final repository gates; it delegates detailed discovery. |
 | `architect` | read-only | — | Analyzes Electron boundaries, IPC, runner/orchestration, persistence contracts, offline packaging, compatibility, concurrency and architectural debt before implementation. |
 | `uiux` | read-only | — | Design authority for interaction, Hologram tokens, focus, reduced motion and accessibility. Specifies behavior; frontend implements it. |
 | `frontend` | writer | `app/renderer/**`<br>`logos/**`<br>`UI Samples/**`<br>`ui-mock.html`<br>`capture-dribbble.mjs`<br>`get-videos.mjs` | Renderer: React, both designers, admin screens, renderer state, Hologram styles. |

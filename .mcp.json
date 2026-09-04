@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "glm-delegate": {
+      "type": "stdio",
+      "command": "python",
+      "args": [".claude/mcp/glm_delegate_server.py"],
+      "env": {
+        "GLM_API_KEY": "${GLM_API_KEY:-}",
+        "GLM_MODEL": "glm-5.3",
+        "GLM_BASE_URL": "https://api.z.ai/api/anthropic",
+        "GLM_MCP_TIMEOUT_SECONDS": "900",
+        "GLM_MCP_MAX_TOKENS": "16384"
+      }
+    }
+  }
+}

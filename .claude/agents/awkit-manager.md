@@ -32,6 +32,7 @@ Only inside a granted write lease, and only within:
 - `.cursor/**`
 - `.cbmignore`
 - `.graphifyignore`
+- `.mcp.json`
 - `scripts/AGENTS.md`
 - `src/AGENTS.md`
 - `AGENTS.md`

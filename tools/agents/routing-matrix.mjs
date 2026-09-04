@@ -93,6 +93,7 @@ export const AGENTS = Object.freeze([
       ".cursor/**",
       ".cbmignore",
       ".graphifyignore",
+      ".mcp.json",
       "scripts/AGENTS.md",
       "src/AGENTS.md",
       "AGENTS.md",
@@ -1137,6 +1138,12 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: ["agent_infrastructure_change"],
     note: "Cross-agent discovery and local instruction boundaries."
   })),
+  {
+    glob: ".mcp.json",
+    owner: "manager",
+    impliesFlags: ["agent_infrastructure_change"],
+    note: "Project-scoped MCP server registration for development agents. Never read by the app."
+  },
   {
     glob: ".codex/**",
     owner: "manager",
