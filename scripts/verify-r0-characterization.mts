@@ -1221,6 +1221,531 @@ async function capacityCharacterization(): Promise<void> {
   });
 }
 
+interface SourceSpan {
+  start: number;
+  end: number;
+}
+
+/**
+ * Apply one targeted textual regression to an in-memory copy of a real production source.
+ *
+ * Nothing on disk is touched. The two invariants are the whole point: `mutationRejected` passes on ANY
+ * thrown error, so a mutation whose anchor silently matched zero times would make its paired negative
+ * control pass on the mutation's own failure to apply rather than on the guard rejecting the
+ * regression. Callers therefore build every mutated text at TOP LEVEL (outside the `mutationRejected`
+ * closure) so an anchor drift crashes this verifier loudly instead of being absorbed as a pass.
+ *
+ * Line-ending agnostic: `\n` anchors are rewritten to CRLF when the file on disk uses CRLF, so an
+ * anchor can never fail merely because of how the working tree checked the file out.
+ */
+function mutateOnce(text: string, anchor: string, replacement: string): string {
+  const crlf = text.includes("\r\n");
+  const wanted = crlf ? anchor.split("\n").join("\r\n") : anchor;
+  const applied = crlf ? replacement.split("\n").join("\r\n") : replacement;
+  const occurrences = text.split(wanted).length - 1;
+  invariant(occurrences === 1, `mutation anchor matched ${occurrences} times, expected exactly 1: ${JSON.stringify(anchor)}`);
+  const at = text.indexOf(wanted);
+  const mutated = `${text.slice(0, at)}${applied}${text.slice(at + wanted.length)}`;
+  invariant(mutated !== text, `mutation produced an identical source: ${JSON.stringify(anchor)}`);
+  return mutated;
+}
+
+/**
+ * Body span of the single `function <name>` declaration in `path`. The cardinality invariant matters:
+ * a renamed or duplicated declaration would otherwise yield an empty/ambiguous span that every scoped
+ * predicate below would range over vacuously.
+ */
+function functionBodySpan(path: string, text: string, name: string): SourceSpan {
+  const sf = parse(path, text);
+  const spans: SourceSpan[] = [];
+  walk(sf, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name && node.body) {
+      spans.push({ start: node.body.getStart(sf), end: node.body.end });
+    }
+  });
+  invariant(spans.length === 1, `expected exactly one \`function ${name}\` in ${path}, found ${spans.length}`);
+  return spans[0];
+}
+
+/** Body span of the inline handler passed to the single `ipcMain.handle("<channel>", ...)` registration. */
+function ipcHandlerSpan(path: string, text: string, channel: string): SourceSpan {
+  const registrations = calls(path, (call, sf) => callText(call, sf) === "ipcMain.handle" && stringArg(call, 0) === channel, text);
+  invariant(registrations.length === 1, `expected exactly one ipcMain.handle("${channel}") in ${path}, found ${registrations.length}`);
+  const handler = registrations[0].arguments[1];
+  invariant(
+    handler !== undefined && (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler)),
+    `ipcMain.handle("${channel}") no longer registers an inline handler function`
+  );
+  return { start: handler.getStart(), end: handler.end };
+}
+
+function callsWithin(
+  path: string,
+  text: string,
+  span: SourceSpan,
+  predicate: (call: ts.CallExpression, sf: ts.SourceFile) => boolean
+): ts.CallExpression[] {
+  return calls(path, (call, sf) => call.getStart(sf) >= span.start && call.end <= span.end && predicate(call, sf), text);
+}
+
+function nodesWithin<T extends ts.Node>(path: string, text: string, span: SourceSpan, guard: (node: ts.Node) => node is T): T[] {
+  const sf = parse(path, text);
+  const found: T[] = [];
+  walk(sf, (node) => {
+    if (guard(node) && node.getStart(sf) >= span.start && node.end <= span.end) found.push(node);
+  });
+  return found;
+}
+
+/** The single `const <name> = { ... }` object literal declared inside `span`. */
+function objectLiteralNamed(path: string, text: string, span: SourceSpan, name: string): ts.ObjectLiteralExpression {
+  const sf = parse(path, text);
+  const literals: ts.ObjectLiteralExpression[] = [];
+  walk(sf, (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer !== undefined &&
+      ts.isObjectLiteralExpression(node.initializer) &&
+      node.getStart(sf) >= span.start &&
+      node.end <= span.end
+    ) {
+      literals.push(node.initializer);
+    }
+  });
+  invariant(literals.length === 1, `expected exactly one \`const ${name} = { ... }\` literal in ${path}, found ${literals.length}`);
+  return literals[0];
+}
+
+/**
+ * R2 - application-level run preparation, characterized BEFORE the extraction.
+ *
+ * R2 will move run preparation out of `app/main/ipc/execution.ipc.ts` into a separate application
+ * service. Every assertion here describes the code AS IT IS TODAY; none of them anticipate the new
+ * shape. Each control is paired with an in-memory mutation of the real source that reproduces one
+ * concrete regression the move could introduce, so the control is proven to FAIL for that regression
+ * rather than merely proving that some identifier still exists. A TypeScript compile error is never
+ * accepted as mutation evidence -- only the guard's own rejection is.
+ */
+async function runPreparationCharacterization(): Promise<void> {
+  console.log("\nR2 - application-level run preparation (pre-refactor characterization)");
+  const ipcPath = "app/main/ipc/execution.ipc.ts";
+  const enginePath = "src/runner/ExecutionEngine.ts";
+  const ipcText = source(ipcPath);
+  const engineText = source(enginePath);
+
+  // --- R2.1 sender/RBAC authorization completes before the privileged run-preparation call ---------
+  const assertAuthorizationPrecedesRunPreparation = (text: string): void => {
+    const handler = ipcHandlerSpan(ipcPath, text, "execution:runWorkflow");
+    const authorizations = callsWithin(ipcPath, text, handler, (call, sf) => /^assertSender[A-Za-z]*$/.test(callText(call, sf)));
+    const privileged = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "runWorkflow");
+    // Cardinality BEFORE ordering. `every(authorization precedes privileged)` is vacuously true over an
+    // empty authorization set, which is itself the regression this control exists to reject.
+    invariant(authorizations.length === 2, `execution:runWorkflow authorization calls: ${authorizations.length}`);
+    const callees = authorizations.map((call) => call.expression.getText()).sort();
+    invariant(
+      JSON.stringify(callees) === JSON.stringify(["assertSenderPermission", "assertSenderSuperUser"]),
+      `execution:runWorkflow authorization callees: ${callees.join(", ")}`
+    );
+    invariant(privileged.length === 1, `execution:runWorkflow privileged runWorkflow(request) calls: ${privileged.length}`);
+    const privilegedStart = privileged[0].getStart();
+    // Positional, not merely both-present: "both are present" passes trivially when the order is inverted.
+    const late = authorizations.filter((call) => call.getStart() >= privilegedStart).map((call) => call.expression.getText());
+    invariant(late.length === 0, `runWorkflow(request) is reached before authorization completes: ${late.join(", ")}`);
+  };
+  assertAuthorizationPrecedesRunPreparation(ipcText);
+  check(
+    "every sender/RBAC authorization in execution:runWorkflow completes before the privileged runWorkflow(request) call",
+    true,
+    "assertSenderSuperUser + assertSenderPermission both precede runWorkflow(request)"
+  );
+  const hoistedPrivilegedCall = mutateOnce(
+    mutateOnce(
+      ipcText,
+      "    if (request.dryRun === false) {",
+      "    const hoisted = runWorkflow(request);\n    if (request.dryRun === false) {"
+    ),
+    "    return runWorkflow(request);",
+    "    return hoisted;"
+  );
+  mutationRejected("the privileged runWorkflow(request) call being hoisted above the sender/RBAC authorization block", () => {
+    assertAuthorizationPrecedesRunPreparation(hoistedPrivilegedCall);
+  });
+
+  // --- R2.5 workflow validation runs and gates the run --------------------------------------------
+  const assertWorkflowValidationGatesTheRun = (text: string): void => {
+    const body = functionBodySpan(ipcPath, text, "runWorkflow");
+    const validations = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "validateWorkflow");
+    const dispatches = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
+    invariant(validations.length === 1, `runWorkflow validateWorkflow calls: ${validations.length}`);
+    invariant(dispatches.length === 1, `runWorkflow executionEngine.startRun calls: ${dispatches.length}`);
+    invariant(
+      validations[0].arguments[0]?.getText() === "request.workflowId",
+      `validateWorkflow argument: ${validations[0].arguments[0]?.getText() ?? "none"}`
+    );
+    invariant(validations[0].getStart() < dispatches[0].getStart(), "validateWorkflow no longer runs before ExecutionEngine.startRun");
+    const guards = nodesWithin(ipcPath, text, body, ts.isIfStatement).filter((node) => node.expression.getText() === "!validation.valid");
+    invariant(guards.length === 1, `runWorkflow \`!validation.valid\` guards: ${guards.length}`);
+    invariant(
+      guards[0].getStart() > validations[0].getStart() && guards[0].end < dispatches[0].getStart(),
+      "the !validation.valid guard no longer sits between validation and dispatch"
+    );
+    invariant(
+      /status:\s*"validationFailed"/.test(guards[0].thenStatement.getText()),
+      "the !validation.valid guard no longer short-circuits with a validationFailed result"
+    );
+  };
+  assertWorkflowValidationGatesTheRun(ipcText);
+  check(
+    "run preparation validates the workflow and blocks dispatch on the !validation.valid guard",
+    true,
+    "validateWorkflow(request.workflowId) -> !validation.valid -> executionEngine.startRun"
+  );
+  const validationSkipped = mutateOnce(
+    ipcText,
+    "  const validation = await validateWorkflow(request.workflowId);",
+    "  const validation = { workflow: undefined, scenario: undefined, plan: undefined, issues: [], valid: true };"
+  );
+  mutationRejected("workflow validation being skipped in run preparation", () => {
+    assertWorkflowValidationGatesTheRun(validationSkipped);
+  });
+  const validationGuardDefeated = mutateOnce(ipcText, "  if (!validation.valid) {", "  if (false) {");
+  mutationRejected("the !validation.valid guard no longer blocking dispatch of an invalid workflow", () => {
+    assertWorkflowValidationGatesTheRun(validationGuardDefeated);
+  });
+
+  // --- R2.6 the installed-Chrome Super User rule ---------------------------------------------------
+  const assertInstalledChromeSuperUserRule = (text: string): void => {
+    const handler = ipcHandlerSpan(ipcPath, text, "execution:runWorkflow");
+    const branches = nodesWithin(ipcPath, text, handler, ts.isIfStatement).sort((a, b) => a.getStart() - b.getStart());
+    invariant(branches.length === 2, `execution:runWorkflow authorization branches: ${branches.length}`);
+    invariant(branches[0].expression.getText() === "request.dryRun === false", `real-run branch condition: ${branches[0].expression.getText()}`);
+    invariant(
+      branches[1].expression.getText() === 'settings.superUser.chrome.mode === "installedChrome"',
+      `installed-Chrome branch condition: ${branches[1].expression.getText()}`
+    );
+    const thenArm = branches[1].thenStatement;
+    const elseArm = branches[1].elseStatement;
+    invariant(elseArm !== undefined, "the installed-Chrome branch no longer has an else arm for the bundled-Chromium path");
+    const superUser = callsWithin(ipcPath, text, { start: thenArm.getStart(), end: thenArm.end }, (call, sf) => callText(call, sf) === "assertSenderSuperUser");
+    const permission = callsWithin(ipcPath, text, { start: elseArm.getStart(), end: elseArm.end }, (call, sf) => callText(call, sf) === "assertSenderPermission");
+    invariant(superUser.length === 1, `installed-Chrome then-arm assertSenderSuperUser calls: ${superUser.length}`);
+    invariant(permission.length === 1, `bundled-Chromium else-arm assertSenderPermission calls: ${permission.length}`);
+    invariant(
+      superUser[0].arguments[1]?.getText() === "Permission.WORKFLOW_EXECUTE",
+      `installed-Chrome super-user permission: ${superUser[0].arguments[1]?.getText() ?? "none"}`
+    );
+    const audit = superUser[0].arguments[2]?.getText() ?? "";
+    invariant(/eventType:\s*"INSTALLED_CHROME_EXECUTION_DENIED"/.test(audit), `installed-Chrome denial audit event: ${audit || "none"}`);
+    invariant(/channel:\s*"execution:runWorkflow"/.test(audit), `installed-Chrome denial audit channel: ${audit || "none"}`);
+  };
+  assertInstalledChromeSuperUserRule(ipcText);
+  check(
+    "an installedChrome real run requires Super User, and only the bundled-Chromium arm falls back to the plain execute permission",
+    true,
+    "installedChrome -> assertSenderSuperUser(INSTALLED_CHROME_EXECUTION_DENIED); else -> assertSenderPermission"
+  );
+  const superUserDowngraded = mutateOnce(
+    ipcText,
+    "        await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {",
+    "        await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE, {"
+  );
+  mutationRejected("the installed-Chrome arm being downgraded from Super User to the plain execute permission", () => {
+    assertInstalledChromeSuperUserRule(superUserDowngraded);
+  });
+  const installedChromeConditionInverted = mutateOnce(
+    ipcText,
+    '      if (settings.superUser.chrome.mode === "installedChrome") {',
+    '      if (settings.superUser.chrome.mode !== "installedChrome") {'
+  );
+  mutationRejected("the installed-Chrome mode test being inverted so installed Chrome takes the weaker arm", () => {
+    assertInstalledChromeSuperUserRule(installedChromeConditionInverted);
+  });
+  const installedChromeAuditDropped = mutateOnce(
+    ipcText,
+    'eventType: "INSTALLED_CHROME_EXECUTION_DENIED"',
+    'eventType: "WORKFLOW_EXECUTION_DENIED"'
+  );
+  mutationRejected("the installed-Chrome denial losing its distinct audit event type", () => {
+    assertInstalledChromeSuperUserRule(installedChromeAuditDropped);
+  });
+
+  // --- R2.7 Legacy Compatibility attribution reaches the run profile -------------------------------
+  const assertLegacyCompatibilityAttribution = (text: string): void => {
+    const body = functionBodySpan(ipcPath, text, "runWorkflow");
+    const collected = callsWithin(
+      ipcPath,
+      text,
+      body,
+      (call, sf) => callText(call, sf) === "issue.key.startsWith" && stringArg(call, 0) === "legacyCompatibility."
+    );
+    invariant(collected.length === 1, `runWorkflow legacyCompatibility issue collections: ${collected.length}`);
+    const recorded = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "service.recordRunUnderCompatibility");
+    invariant(recorded.length === 1, `runWorkflow recordRunUnderCompatibility calls: ${recorded.length}`);
+    invariant(
+      recorded[0].arguments[0]?.getText() === "compatibilityFlowIds",
+      `recordRunUnderCompatibility argument: ${recorded[0].arguments[0]?.getText() ?? "none"}`
+    );
+    const snapshots = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "service.grantsMap");
+    invariant(snapshots.length === 1, `runWorkflow grant snapshot calls: ${snapshots.length}`);
+    // Recording the run on the grant is not attribution: the report is blind unless the snapshot is
+    // carried into the ConcurrentRunProfile that the run is started with.
+    const profile = objectLiteralNamed(ipcPath, text, body, "profile");
+    const attribution = profile.properties.filter((property) => ts.isSpreadAssignment(property) && /legacyCompatibility/.test(property.getText()));
+    invariant(attribution.length === 1, `ConcurrentRunProfile legacyCompatibility attribution properties: ${attribution.length}`);
+    // Deadlines are snapshotted at admission, not re-derived at read time (grants expire and are revoked).
+    const deadlines = nodesWithin(ipcPath, text, body, ts.isPropertyAssignment).filter((property) => property.name.getText() === "expiresAt");
+    invariant(deadlines.length === 1, `runWorkflow expiresAt attribution properties: ${deadlines.length}`);
+    invariant(
+      /grant\??\.expiresAt/.test(deadlines[0].initializer.getText()),
+      `expiresAt attribution source: ${deadlines[0].initializer.getText()}`
+    );
+  };
+  assertLegacyCompatibilityAttribution(ipcText);
+  check(
+    "Legacy Compatibility runs are recorded on the grant AND attributed onto the ConcurrentRunProfile with snapshotted deadlines",
+    true,
+    "recordRunUnderCompatibility + grantsMap snapshot + profile legacyCompatibility spread"
+  );
+  const attributionDropped = mutateOnce(ipcText, "    ...(legacyCompatibility ? { legacyCompatibility } : {}),", "");
+  mutationRejected("Legacy Compatibility attribution being dropped from the ConcurrentRunProfile", () => {
+    assertLegacyCompatibilityAttribution(attributionDropped);
+  });
+  const compatibilityRunUnrecorded = mutateOnce(
+    ipcText,
+    "    await service.recordRunUnderCompatibility(compatibilityFlowIds).catch(() => undefined);",
+    "    void compatibilityFlowIds;"
+  );
+  mutationRejected("a run under Legacy Compatibility no longer being recorded against its grant", () => {
+    assertLegacyCompatibilityAttribution(compatibilityRunUnrecorded);
+  });
+
+  // --- shared: bind call-site argument positions to the engine's declared parameter names ----------
+  const startRunParameterNames = (text: string): string[] => {
+    const sf = parse(enginePath, text);
+    const declarations: ts.MethodDeclaration[] = [];
+    walk(sf, (node) => {
+      if (ts.isMethodDeclaration(node) && node.name.getText(sf) === "startRun") declarations.push(node);
+    });
+    invariant(declarations.length === 1, `ExecutionEngine startRun declarations: ${declarations.length}`);
+    return declarations[0].parameters.map((parameter) => parameter.name.getText(sf));
+  };
+  const productionStartRunCall = (text: string): ts.CallExpression => {
+    const body = functionBodySpan(ipcPath, text, "runWorkflow");
+    const dispatches = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
+    invariant(dispatches.length === 1, `runWorkflow executionEngine.startRun calls: ${dispatches.length}`);
+    return dispatches[0];
+  };
+
+  // --- R2.8 runtime inputs are passed from the request into the run --------------------------------
+  const assertRuntimeInputsReachTheRun = (text: string, engine: string): void => {
+    const parameters = startRunParameterNames(engine);
+    const call = productionStartRunCall(text);
+    invariant(
+      call.arguments.length === parameters.length,
+      `startRun call passes ${call.arguments.length} arguments for ${parameters.length} declared parameters`
+    );
+    // Positional index is resolved from the ENGINE signature, so a silent parameter reorder cannot leave
+    // this control asserting a hardcoded slot that no longer means "runtime inputs".
+    const index = parameters.indexOf("runtimeInputs");
+    invariant(index === 4, `ExecutionEngine.startRun runtimeInputs parameter index: ${index}`);
+    const argument = call.arguments[index].getText();
+    invariant(/^request\.runtimeInputs\s*\?\?\s*\{\s*\}$/.test(argument), `startRun runtimeInputs argument: ${argument}`);
+  };
+  assertRuntimeInputsReachTheRun(ipcText, engineText);
+  check(
+    "run preparation forwards request.runtimeInputs into the ExecutionEngine.startRun runtimeInputs parameter",
+    true,
+    "startRun argument 4 = request.runtimeInputs ?? {}"
+  );
+  const runtimeInputsDropped = mutateOnce(ipcText, "    request.runtimeInputs ?? {},", "    {},");
+  mutationRejected("run preparation dropping request.runtimeInputs on the way into the run", () => {
+    assertRuntimeInputsReachTheRun(runtimeInputsDropped, engineText);
+  });
+  const startRunParametersReordered = mutateOnce(
+    engineText,
+    "    dirs: StorageDirs,\n    runtimeInputs: Record<string, unknown>,",
+    "    runtimeInputs: Record<string, unknown>,\n    dirs: StorageDirs,"
+  );
+  mutationRejected("the runtime-inputs argument position silently drifting away from the engine parameter it feeds", () => {
+    assertRuntimeInputsReachTheRun(ipcText, startRunParametersReordered);
+  });
+
+  // --- R2.9 resolved data sources are passed into the run -----------------------------------------
+  const assertDataSourcesReachTheRun = (text: string, engine: string): void => {
+    const parameters = startRunParameterNames(engine);
+    const body = functionBodySpan(ipcPath, text, "runWorkflow");
+    const resolved = callsWithin(ipcPath, text, body, (call, sf) => callText(call, sf) === "resolveWorkflowDataSources");
+    invariant(resolved.length === 1, `runWorkflow resolveWorkflowDataSources calls: ${resolved.length}`);
+    invariant(
+      resolved[0].arguments[0]?.getText() === "validation.workflow",
+      `resolveWorkflowDataSources argument: ${resolved[0].arguments[0]?.getText() ?? "none"}`
+    );
+    const call = productionStartRunCall(text);
+    invariant(
+      call.arguments.length === parameters.length,
+      `startRun call passes ${call.arguments.length} arguments for ${parameters.length} declared parameters`
+    );
+    invariant(resolved[0].getStart() < call.getStart(), "data sources are resolved after the run is started");
+    for (const name of ["workflowDataSource", "dataSources"]) {
+      const index = parameters.indexOf(name);
+      invariant(index >= 0, `ExecutionEngine.startRun declares no ${name} parameter`);
+      const argument = call.arguments[index].getText();
+      invariant(argument === name, `startRun ${name} argument at position ${index}: ${argument}`);
+    }
+    // The bound workflow source also selects the run mode and the profile's data-source projection.
+    const profile = objectLiteralNamed(ipcPath, text, body, "profile");
+    for (const property of ["runMode", "dataSource"]) {
+      const matches = profile.properties.filter((candidate) => ts.isPropertyAssignment(candidate) && candidate.name.getText() === property);
+      invariant(matches.length === 1, `ConcurrentRunProfile ${property} properties: ${matches.length}`);
+      invariant(/workflowDataSource/.test(matches[0].getText()), `ConcurrentRunProfile ${property} no longer derives from workflowDataSource`);
+    }
+  };
+  assertDataSourcesReachTheRun(ipcText, engineText);
+  check(
+    "run preparation resolves the workflow data sources and forwards both the bound source and the resolved map into the run",
+    true,
+    "resolveWorkflowDataSources(validation.workflow) -> startRun workflowDataSource + dataSources"
+  );
+  const dataSourceResolutionRemoved = mutateOnce(
+    ipcText,
+    "  const { workflowDataSource, dataSources } = await resolveWorkflowDataSources(validation.workflow);",
+    "  const workflowDataSource = undefined;\n  const dataSources = {};"
+  );
+  mutationRejected("workflow data-source resolution being removed from run preparation", () => {
+    assertDataSourcesReachTheRun(dataSourceResolutionRemoved, engineText);
+  });
+  const dataSourceArgumentDropped = mutateOnce(
+    ipcText,
+    "    workflowDataSource,\n    dataSources\n  );",
+    "    workflowDataSource\n  );"
+  );
+  mutationRejected("the resolved data-source map being dropped from the ExecutionEngine.startRun arguments", () => {
+    assertDataSourcesReachTheRun(dataSourceArgumentDropped, engineText);
+  });
+
+  // --- R2.10 Settings-derived capacity is applied to the engine before every run -------------------
+  const assertSettingsDerivedCapacityApplied = (text: string): void => {
+    const run = functionBodySpan(ipcPath, text, "runWorkflow");
+    const applied = callsWithin(ipcPath, text, run, (call, sf) => callText(call, sf) === "applyRuntimeConcurrencyFromSettings");
+    invariant(applied.length === 1, `runWorkflow applyRuntimeConcurrencyFromSettings calls: ${applied.length}`);
+    invariant(applied[0].getStart() < productionStartRunCall(text).getStart(), "Settings-derived capacity is applied after the run is started");
+    const apply = functionBodySpan(ipcPath, text, "applyRuntimeConcurrencyFromSettings");
+    const wiring = {
+      getUiSettings: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "getUiSettings"),
+      computeEffectiveConcurrency: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "computeEffectiveConcurrency"),
+      configureConcurrency: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "executionEngine.configureConcurrency"),
+      buildMachineRunContext: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "buildMachineRunContext"),
+      setMachineRunContext: callsWithin(ipcPath, text, apply, (call, sf) => callText(call, sf) === "executionEngine.setMachineRunContext")
+    };
+    const counts = Object.entries(wiring).map(([name, matches]) => `${name}=${matches.length}`).join(" ");
+    invariant(Object.values(wiring).every((matches) => matches.length === 1), `settings-derived capacity wiring: ${counts}`);
+    invariant(
+      wiring.computeEffectiveConcurrency[0].arguments[0]?.getText() === "runtime",
+      `computeEffectiveConcurrency input: ${wiring.computeEffectiveConcurrency[0].arguments[0]?.getText() ?? "none"}`
+    );
+    invariant(
+      wiring.configureConcurrency[0].arguments[0]?.getText() === "overrides",
+      `configureConcurrency input: ${wiring.configureConcurrency[0].arguments[0]?.getText() ?? "none"}`
+    );
+    invariant(
+      wiring.computeEffectiveConcurrency[0].getStart() < wiring.configureConcurrency[0].getStart(),
+      "the engine is configured before the Settings-derived capacity is computed"
+    );
+    // The host caps pushed into the engine must be the resolved ones, not constants.
+    const overrides = objectLiteralNamed(ipcPath, text, apply, "overrides");
+    const derived = overrides.properties
+      .filter((property) => ts.isPropertyAssignment(property) && /^effective\./.test(property.initializer.getText()))
+      .map((property) => property.name?.getText() ?? "");
+    invariant(
+      JSON.stringify(derived.sort()) === JSON.stringify(["maxActiveFlows", "maxBrowsersPerHost"]),
+      `Settings-derived host caps: ${derived.join(", ") || "none"}`
+    );
+    // Sequential mode still pins every per-instance operation limiter, not only the two host caps.
+    const pinned = nodesWithin(ipcPath, text, apply, ts.isBinaryExpression).filter(
+      (node) => node.operatorToken.kind === ts.SyntaxKind.EqualsToken && /^overrides\.maxConcurrent/.test(node.left.getText())
+    );
+    invariant(pinned.length === 5, `sequential-mode operation limiters pinned: ${pinned.length}`);
+    invariant(
+      pinned.every((node) => node.right.getText() === "1"),
+      `sequential-mode limiter values: ${pinned.map((node) => node.right.getText()).join(", ")}`
+    );
+  };
+  assertSettingsDerivedCapacityApplied(ipcText);
+  check(
+    "run preparation applies the Settings-derived capacity to the engine before dispatch, including the sequential operation limiters",
+    true,
+    "applyRuntimeConcurrencyFromSettings -> computeEffectiveConcurrency -> configureConcurrency + setMachineRunContext"
+  );
+  const perRunCapacityRemoved = mutateOnce(
+    ipcText,
+    "  await applyRuntimeConcurrencyFromSettings();",
+    "  // per-run Settings-derived capacity application removed"
+  );
+  mutationRejected("run preparation no longer applying the Settings-derived capacity before a run", () => {
+    assertSettingsDerivedCapacityApplied(perRunCapacityRemoved);
+  });
+  const capacityNeverConfigured = mutateOnce(ipcText, "    executionEngine.configureConcurrency(overrides);", "    void overrides;");
+  mutationRejected("the resolved Settings capacity never being pushed into the execution engine", () => {
+    assertSettingsDerivedCapacityApplied(capacityNeverConfigured);
+  });
+
+  // --- R2.11 no parallel production run entry point, whatever the receiver is named ----------------
+  // The exact-match `executionEngine.startRun` scan in the R0.1 section cannot see a second entry point
+  // that reaches the engine through a differently named receiver -- exactly the shape a run-preparation
+  // extraction produces. Capture permissively (ANY `<receiver>.startRun(...)`), validate strictly.
+  const startRunReceivers = (entries: Array<{ path: string; text: string }>): string[] => {
+    const sites: string[] = [];
+    for (const entry of entries) {
+      for (const call of calls(entry.path, (node) => ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "startRun", entry.text)) {
+        sites.push(`${entry.path}::${call.expression.getText()}`);
+      }
+    }
+    return sites.sort();
+  };
+  const startRunCandidates = [...walkFiles("app"), ...walkFiles("src")]
+    .map(normalizedRepoPath)
+    .filter((path) => !path.startsWith("src/testing/"))
+    .map((path) => ({ path, text: source(path) }))
+    .filter((entry) => entry.text.includes("startRun"));
+  invariant(
+    startRunCandidates.some((entry) => entry.path === ipcPath),
+    "the known production run entry point was dropped by the candidate prefilter, so this scan would range over the wrong set"
+  );
+  const expectedStartRunSites = [
+    "app/main/ipc/execution.ipc.ts::executionEngine.startRun",
+    "src/runner/ExecutionEngine.ts::this.observations.startRun"
+  ];
+  const assertNoParallelStartRunReceiver = (sites: string[]): void => {
+    invariant(
+      JSON.stringify(sites) === JSON.stringify(expectedStartRunSites),
+      `production .startRun(...) call sites: ${sites.join(", ") || "none"}`
+    );
+  };
+  const observedStartRunSites = startRunReceivers(startRunCandidates);
+  assertNoParallelStartRunReceiver(observedStartRunSites);
+  check(
+    "every production .startRun(...) call site is the single execution entry point plus the unrelated observability collector",
+    true,
+    observedStartRunSites.join(", ")
+  );
+  const parallelEntryPointSites = startRunReceivers([
+    ...startRunCandidates,
+    {
+      path: "app/main/execution/ExecutionApplicationService.ts",
+      text: "export class ExecutionApplicationService {\n  async prepare(): Promise<void> {\n    await this.engine.startRun(executionId, profile, rows, dirs, runtimeInputs, scenario, flows);\n  }\n}\n"
+    }
+  ]);
+  invariant(
+    parallelEntryPointSites.length === observedStartRunSites.length + 1,
+    `the injected parallel entry point was not observed: ${parallelEntryPointSites.join(", ")}`
+  );
+  mutationRejected("a second production run entry point that reaches the engine through a differently named receiver", () => {
+    assertNoParallelStartRunReceiver(parallelEntryPointSites);
+  });
+}
+
 interface CheckpointSpec {
   label: string;
   path: string;
@@ -1284,6 +1809,7 @@ async function main(): Promise<void> {
   await executionPortBehavior();
   await cancellationLifecycle();
   await capacityCharacterization();
+  await runPreparationCharacterization();
   await licensingCheckpoints();
   console.log(`\nR0 characterization: ${passed} PASS / ${failed} FAIL`);
   for (const failure of failures) console.error(`  [FAILED] ${failure}`);
