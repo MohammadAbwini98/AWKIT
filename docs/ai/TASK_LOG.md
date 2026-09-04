@@ -45,13 +45,49 @@ errors; `src/storage` was then restored byte-clean. Mock Site **NOT APPLICABLE**
 scenario or fixture contract changed. Validation ledger unchanged at **65 PASS / 2 NOT RUN /
 0 BLOCKED**.
 
-**Not run / open:** `verify:roadmap-dashboard` — see the R1B closeout note; adding and closing a bead
-moves the hardcoded `267 issues parse` and `2 outstanding / 265 closed` pins inside
-`scripts/verify-roadmap-dashboard.mjs`, which was outside this task's write lease. Two open findings
-were recorded rather than fixed: `gateBoundDominatesAFreeWriter` still measures its gate bound
-against a two-round-trip proxy (18.7x margin vs a 4x threshold, so not vacuous today), and the
-`folderWriteCoordinator.ts` comments credit the non-poisoning guarantee to the unreachable rejected
-arm of `then(task, task)` instead of the `settled` assignment.
+**Not run / open (superseded — see the correction below):** `verify:roadmap-dashboard` — adding and
+closing a bead moves the hardcoded issue-count and outstanding/closed pins inside
+`scripts/verify-roadmap-dashboard.mjs`, which was outside this task's write lease at the time this
+entry was written. Two open findings were recorded rather than fixed:
+`gateBoundDominatesAFreeWriter` still measures its gate bound against a two-round-trip proxy (18.7x
+margin vs a 4x threshold, so not vacuous today), and the `folderWriteCoordinator.ts` comments credit
+the non-poisoning guarantee to the unreachable rejected arm of `then(task, task)` instead of the
+`settled` assignment.
+
+**Correction (2026-09-04):** the "Not run / open" line above understated the evidence. It was true
+when written, but was superseded the same day by commit `f67108a`, which moved the roadmap bead
+baselines: `verify:roadmap-dashboard` then passed **177/177, exit 0**, with the Overview banner
+reading **"Sources agree"**. `verify:roadmap-dashboard` is therefore **PASS** for R1B, not NOT RUN.
+
+**QC review (2026-09-04) — APPROVE WITH FINDINGS.** An independent QC review of the R1B tranche
+(`4181f27` implementation, `e7fbedc` verifiers, `13ab1a9` docs/state closeout, `f67108a` roadmap
+bead baselines) returned **APPROVE WITH FINDINGS**. R1B stands as delivered — QC found no defect in
+the shipped coordinator and no re-entrant call site. Three findings were recorded, not fixed, and
+each is now filed as an open bead and detailed in the R1B residual-scope section of
+`docs/ai/KNOWN_ISSUES.md`:
+
+- **`awkit-utbf` (finding B, QC's first priority)** — the documented same-key re-entrancy
+  self-deadlock (`src/storage/ProfileStore.ts:190-196`) has no guard and no diagnostic. Not
+  reachable today, but if the discipline is broken the whole folder wedges process-wide for the life
+  of the process and the symptom is a CI timeout with no failing assertion name.
+- **`awkit-s410` (finding A)** — the four lane-eviction assertions
+  (`scripts/verify-r0-characterization.mts:817`, `:904`, `:952` and
+  `scripts/verify-profile-store.mts:727`) pass vacuously under the mutation that was actually run,
+  because that mutation was applied to `serialize()` rather than to
+  `src/storage/folderWriteCoordinator.ts`, which was never mutation-tested. The one non-vacuous
+  control is `scripts/verify-write-queue.mts:344-347`.
+- **`awkit-dhw6` (finding C)** — the textual lane key
+  (`src/storage/folderWriteCoordinator.ts:45-60`) splits across path aliases (junction/symlink,
+  `subst`, mapped drive vs UNC, 8.3 vs long name, `\\?\` prefix). Documentation only. The direction
+  is fail-degraded (lost serialization), never fail-dangerous (a wrong merge).
+
+QC also established that `ensureSeeded`'s unlaned `copyFile` is **not reachable in the shipped app**
+— a repository-wide grep finds `seedFolder` only inside `src/storage/ProfileStore.ts` itself (the
+option declaration and its three uses) and no production caller, including every factory in
+`app/main/profileStores.ts`, ever supplies it. `quarantineCorrupt`'s unlaned `rename`
+(`src/storage/ProfileStore.ts:173`) is the one of that pair with a live consequence. Filing the
+three beads moved the tracker to **271 total / 5 outstanding / 266 closed**, dependency edges
+**unchanged at 106** (no `blocks` edge was added). None of the three findings blocks R1B or R2.
 
 ## 2026-09-03 — Codex — R1A decouple ExecutionEngine from Electron main
 

@@ -36,6 +36,43 @@
   currently vacuous, but the same defect already fixed in `verify-profile-store.mts`); and the
   `folderWriteCoordinator.ts` comments credit the non-poisoning guarantee to the unreachable rejected
   arm of `then(task, task)` when it actually comes from the `settled` assignment.
+- **QC verdict: APPROVE WITH FINDINGS.** An independent QC review of R1B (`4181f27`, `e7fbedc`,
+  `13ab1a9`, `f67108a`) accepted the tranche. It found no defect in the shipped coordinator and no
+  re-entrant call site. **None of the three findings below blocks R1B**, and none blocks starting R2.
+  They are carried-forward work, listed in QC's stated priority order, and detailed in the R1B
+  residual-scope section of `docs/ai/KNOWN_ISSUES.md`.
+- **Carried forward 1 of 3 — `awkit-utbf` (finding B), do this first.** Cheapest fix with the
+  largest payoff: it converts a silent permanent hang into a red. `src/storage/ProfileStore.ts:190-196`
+  documents that re-entering `serialize()` from inside a lane task self-deadlocks, and every current
+  call site is correct, so nothing is broken today. But there is no guard: an inner `runExclusive` on
+  the same key awaits the outer task's own `settled` promise, so `pending` never reaches zero, the
+  lane is never evicted, and because lanes are keyed by folder and shared process-wide every store
+  pointed at that folder wedges for the life of the process. With no per-check timeout in the
+  verifiers the symptom is a CI job timeout carrying no failing assertion name. Fix with either a
+  source-level guard (no `this.writeProfile(`, `this.create(`, `this.update(`, `this.delete(` or
+  `this.import(` lexically inside a `this.serialize(` argument) or a runtime same-key re-entrancy
+  throw in `runExclusive`.
+- **Carried forward 2 of 3 — `awkit-s410` (finding A), one mutation against the coordinator itself.**
+  The four assertions claiming the lane is released (`scripts/verify-r0-characterization.mts:817`,
+  `:904`, `:952` and `scripts/verify-profile-store.mts:727`) all test
+  `activeFolderCoordinationKeys()` for `length === 0`. The mutation that produced the 21 red
+  assertions was applied to `serialize()` in `src/storage/ProfileStore.ts`, under which the
+  coordinator is never called and the function returns `[]` — so all four passed **vacuously**.
+  `src/storage/folderWriteCoordinator.ts` was never mutation-tested and `verify:write-queue` was not
+  in the mutation run, so "a lane cannot be evicted with work queued behind it" is not among the 21
+  reds, and a too-eager coordinator (pending increment at `:80` below the await, or the
+  `lanes.get(key) === owned` guard at `:95` deleted) would still pass. Only
+  `scripts/verify-write-queue.mts:344-347` is non-vacuous, and it has never been mutation-tested.
+  Fix with one mutation against the coordinator, or an assertion that samples the active keys from
+  **inside** a queued task and requires the key still present.
+- **Carried forward 3 of 3 — `awkit-dhw6` (finding C), documentation only.** The textual lane key at
+  `src/storage/folderWriteCoordinator.ts:45-60` is correct and the deliberate rejection of `realpath`
+  is **not** in question — do not add `realpath`. What is missing is the stated consequence: two
+  spellings of the same physical directory (junction/symlink vs target, `subst` vs real path, mapped
+  drive vs UNC, 8.3 vs long name, `\\?\` prefix vs plain) get different lanes and silently revert to
+  pre-R1B behavior for that pair. QC could construct no pair of distinct folders that collapse into
+  one key, so the direction is **fail-degraded (lost serialization), never fail-dangerous (a wrong
+  merge)**. Record that direction, do not restate it as a correctness hazard.
 - **Scope limits to carry forward:** the guarantee is in-process only (`lanes` is module state);
   `quarantineCorrupt`'s rename (`ProfileStore.ts:173`) and `ensureSeeded`'s copy
   (`ProfileStore.ts:123-127`) run outside any lane. Full detail in `docs/ai/KNOWN_ISSUES.md`.
@@ -43,7 +80,9 @@
   `verify:reports-populated-gui` both failed against a stale `dist/` and were wrongly suspected of
   being R1B regressions; a controlled A/B with the coordinator byte-identical to HEAD and the bundle
   rebuilt passed both.
-- **Project state:** `awkit-oqvw` filed and closed; Beads **268 total / 266 closed / 2 blocked**.
+- **Project state:** `awkit-oqvw` filed and closed. After the three QC follow-ups were filed OPEN,
+  Beads measures **271 total / 5 outstanding / 266 closed**, with dependency edges **unchanged at
+  106** — no `blocks` edge was added for the follow-ups.
   Validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED** — R1B moves no case status.
   `tools/roadmap/assignments.json` carries no claim, because the work completed in the same session.
 - **Next:** R2 only — extract one execution application service from `execution.ipc.ts`, keeping

@@ -16,11 +16,17 @@ mistake it for one.
 - **The guarantee is in-process only.** `lanes` in `src/storage/folderWriteCoordinator.ts` is module
   state, so two Electron processes — or the app plus a `tsx` verifier — pointed at the same folder
   still overlap. Do not cite R1B as cross-process mutual exclusion.
-- **Two folder mutations run outside any lane.** `quarantineCorrupt`'s `rename`
-  (`src/storage/ProfileStore.ts:173`) is reachable from the unlaned `list()`/`get()`/`export()` read
-  path, so it can rename a writer's brand-new *good* file to `.corrupt-<ts>`. `ensureSeeded`'s
-  `copyFile` (`src/storage/ProfileStore.ts:123-127`) is guarded only by a
-  `getProfileFiles().length > 0` check, which cannot see an in-flight `.tmp`.
+- **Two folder mutations run outside any lane — but only one of them is reachable in the shipped
+  app.** `quarantineCorrupt`'s `rename` (`src/storage/ProfileStore.ts:173`) is the one with a live
+  consequence: it is reachable from the unlaned read path (`list()` → `readProfileFile` →
+  `quarantineCorrupt`), so it can move a writer's just-saved *good* record to a `.corrupt-<ts>`
+  sibling — the bytes survive, but the record disappears from `list()` and there is no recovery UI.
+  `ensureSeeded`'s `copyFile` (`src/storage/ProfileStore.ts:123-127`) is guarded only by a
+  `getProfileFiles().length > 0` check, which cannot see an in-flight `.tmp`, but that race is **not
+  reachable in the shipped app**: a repository-wide grep for `seedFolder` returns source matches only
+  inside `src/storage/ProfileStore.ts` itself — the option declaration (L20) and its three uses
+  (L116, L122, L126). No production caller ever supplies `seedFolder`, and none of the factories in
+  `app/main/profileStores.ts` do. A later tranche should not spend effort on the `ensureSeeded` path.
 - **A stale `dist/` bundle is a GUI-verifier trap.** `verify:settings-persistence` and
   `verify:reports-populated-gui` both failed against a stale bundle during R1B and were wrongly
   suspected of being coordinator regressions. A controlled A/B settled it: with the coordinator
@@ -34,6 +40,50 @@ mistake it for one.
   non-poisoning guarantee to the rejected arm of `then(task, task)`. That arm is unreachable, because
   `owned.tail` is assigned the never-rejecting `settled` promise; the real guarantee comes from that
   `settled` assignment. The behavior is correct, the explanation is not.
+- **Open finding, not fixed (QC finding A) — lane eviction is not covered by non-vacuous evidence.**
+  All four assertions that claim the coordination lane is released correctly compare the result of
+  `activeFolderCoordinationKeys()` against `length === 0`:
+  `scripts/verify-r0-characterization.mts:817`, `:904` and `:952`, and
+  `scripts/verify-profile-store.mts:727`. The mutation control that produced the 21 red assertions
+  was applied to `JsonProfileStore.serialize()` in `src/storage/ProfileStore.ts`, so under that
+  mutation `folderWriteCoordinator` is never called at all and the function returns `[]` — all four
+  assertions pass **vacuously**. `src/storage/folderWriteCoordinator.ts` itself was never
+  mutation-tested and `verify:write-queue` was not part of the mutation run, so the advertised
+  invariant "a lane cannot be evicted with work queued behind it" is **not** among the 21 red
+  assertions. The same four assertions would also pass against a coordinator that evicts too
+  eagerly — for example with `owned.pending += 1`
+  (`src/storage/folderWriteCoordinator.ts:80`) moved below the await, or with the
+  `lanes.get(key) === owned` generation guard at `:95` deleted. The only non-vacuous eviction
+  evidence is the single positive control at `scripts/verify-write-queue.mts:344-347`, which has
+  never been mutation-tested. Remedy for a later tranche: one mutation against
+  `folderWriteCoordinator.ts` itself, or an assertion that samples the active keys from **inside** a
+  queued task and requires the key to still be present.
+- **Open finding, not fixed (QC finding B) — a latent self-deadlock has no guard and no diagnostic.**
+  `src/storage/ProfileStore.ts:190-196` correctly documents that re-entering `serialize()` from
+  inside a lane task self-deadlocks, and both composite operations correctly call
+  `writeProfileUnlocked` / `deleteUnlocked`. QC traced every current call site and found **no**
+  re-entrant path, so the shipped code is correct — this is about the failure signature if that
+  discipline is ever broken. An inner `runExclusive` on the same key awaits the outer task's own
+  `settled` promise, so it deadlocks permanently with no timeout and no diagnostic: `pending` never
+  reaches zero, the lane is never evicted, and because lanes are keyed by folder and shared
+  process-wide, **every** store in the Electron main process pointed at that folder wedges silently
+  for the life of the process. The verifiers have no per-check timeout, so the symptom is a CI job
+  timeout with no failing assertion name — strictly worse than a red. Remedy for a later tranche: a
+  source-level guard asserting that no call to `this.writeProfile(`, `this.create(`, `this.update(`,
+  `this.delete(` or `this.import(` appears lexically inside a `this.serialize(` argument, or a
+  runtime same-key re-entrancy throw in `runExclusive`.
+- **Open finding, not fixed (QC finding C) — path aliasing silently splits a lane.**
+  `src/storage/folderWriteCoordinator.ts:45-60` keys the lane textually (`resolve()` plus separator
+  normalisation, lowercased on win32) and deliberately rejects `realpath` because the folder is
+  created lazily. That decision is sound and is **not** in question; what is missing is its stated
+  consequence. Two spellings that name the same physical directory by a different route get different
+  keys and therefore different lanes, silently reverting to pre-R1B behavior for that pair. Verified
+  splitting cases: an NTFS junction or symlink vs. its target; a `subst` drive vs. the real path; a
+  mapped drive `Z:\flows` vs. the UNC `\\nas\share\flows`; an 8.3 short name vs. the long name; an
+  extended-length `\\?\C:\...` prefix vs. plain `C:\...`. QC checked the opposite direction and could
+  construct no pair of genuinely distinct folders that collapse to one key, so the direction of this
+  failure is **fail-degraded (lost serialization), never fail-dangerous (a wrong merge)**. Record that
+  direction explicitly; do not restate this as a correctness hazard.
 
 ## Same-folder profile-store instances have independent write queues (RESOLVED by R1B 2026-09-04; confirmed 2026-09-03)
 
