@@ -182,16 +182,16 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main",
-      "result": "pending",
-      "artifact": ""
+      "result": "PASS",
+      "artifact": "To https://github.com/MohammadAbwini98/AWKIT.git  d856cc4..d97e185  main -> main. Two commits: d9b1fca build: add project-scoped glm delegation tooling, d97e185 docs: record the glm delegation tooling contract evidence."
     },
     {
       "id": "glm-connected",
       "type": "inspection",
       "required": false,
       "command": "claude mcp list",
-      "result": "NOT RUN",
-      "artifact": "Recorded after the registration is committed. If Claude Code must be restarted before the project-scoped MCP server is loaded, this stays NOT RUN and the R2 analysis does not begin until glm-delegate reports connected."
+      "result": "BLOCKED",
+      "artifact": "The command ran and the server is registered and discovered, but it is NOT connected. Verbatim output line: \"glm-delegate: python .claude/mcp/glm_delegate_server.py - Pending approval (run `claude` to approve)\". A project-scoped .mcp.json server requires the user to approve it interactively before its tools are exposed; this session is non-interactive and cannot perform that approval. R2 does not begin until this reads Connected. For contrast, the same run showed codebase-memory-mcp as Connected, which proves the health check itself works and the Pending state is specific to the new project-scoped entry."
     }
   ],
   "write_lease": {
@@ -240,7 +240,7 @@
     "push_evidence_id": "push-main"
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
     "notes": "REVIEWER INDEPENDENCE DISCLOSURE: Claude acted as both implementer and reviewer here. The owner's task text assigns Claude the Manager role with responsibility for decisions, repository writes, leases, commits, QA/QC and truthful verification, and the session directive forbids spawning subagents unless requested, so no independent qa or qc agent reviewed this change. QA rests on five executed commands whose real output is recorded above, not on assertion. QC was a full line-by-line read of all 777 lines of the delegation server and all 16 lines of .mcp.json against every declared security constraint, plus a repository-wide search proving no production module references the server and a line-level check that the routing-matrix diff adds exactly one path. That review found and fixed one real defect: SECRET_NAME_HINTS was matched against the basename only, so issuer-keys.json was refused while issuer-keys/anything.json would have been read and sent to the external endpoint; _is_readable_file now matches every segment of the repository-relative path. Two constraints remain unproven by execution rather than by inspection and are stated as such: the server has never been started, because no allowed shell grammar in this repository can run python or syntax-check a .py file, and glm-connected is therefore NOT RUN."
