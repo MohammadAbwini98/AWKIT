@@ -2,8 +2,10 @@
   color: var(--awkit-text);
   background: var(--awkit-bg);
   color-scheme: light;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Inter-first stack per the approved design system. Every family here is either already present on
+     the machine or a platform UI font — there is no @font-face, no webfont download and no remote
+     @import, so this stays offline-safe. --font-sans is declared in the token block below. */
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   font-optical-sizing: auto;
@@ -42,24 +44,32 @@ body {
   --awkit-space-5: var(--space-4h);
   --awkit-space-6: var(--space-5);
 
-  /* Radius — one unified scale (docs/ui-design-and-motion-direction.md §6.3). Small controls migrated
-     from --radius-sm → --radius-xs to keep 8px; --radius-md (12→14) and --radius-lg (16→18) adopt the
-     canonical values. Old --awkit-radius-* names are aliased in the awkit token block below. */
-  --radius-xs: 8px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
+  /* Radius — retuned onto the approved design system's semantic ladder (6 / 8 / 12 / 16 / full).
+     The ladder has four finite steps, so --radius-sm collapses onto the 8px control step and
+     --radius-xl onto the 16px shell step; that is deliberate, since the system documents no radius
+     above 16px ("do not create oversized rounded cards"). --radius-2xs is new for the 6px tier.
+     Old --awkit-radius-* names are aliased in the awkit token block below. */
+  --radius-2xs: 6px;  /* counters, chips, compact edge labels */
+  --radius-xs: 8px;   /* buttons, inputs, navigation rows, icon containers */
+  --radius-sm: 8px;   /* control tier — was 10px */
+  --radius-md: 12px;  /* workflow nodes, menus, input-adjacent surfaces — was 14px */
+  --radius-lg: 16px;  /* pickers, floating toolbar shells — was 18px */
+  --radius-xl: 16px;  /* panel shells — was 22px; capped at the system's largest step */
   --radius-pill: 999px;
 
   /* Type scale — rem-based (root = 16px), size-specific leading + tracking (§6.1). Spine only:
      call sites are not migrated yet. Pair each --text-* with its matching --leading-* / --tracking-*. */
-  --text-2xs: 0.6875rem;  /* 11px */
-  --text-xs: 0.75rem;     /* 12px */
+  --font-sans:
+    Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --text-2xs: 0.625rem;   /* 10px — label / badge / category floor */
+  --text-xs: 0.75rem;     /* 12px — support text, numeric readout */
   --text-sm: 0.8125rem;   /* 13px */
-  --text-base: 0.875rem;  /* 14px — default body */
-  --text-md: 1rem;        /* 16px */
-  --text-lg: 1.125rem;    /* 18px */
+  --text-base: 0.875rem;  /* 14px — default body / control text */
+  --text-md: 0.9375rem;   /* 15px — node title, panel heading */
+  --text-lg: 1.0625rem;   /* 17px — workspace title */
   --text-xl: 1.375rem;    /* 22px */
   --text-2xl: 1.75rem;    /* 28px */
   --leading-2xs: 1.4;
@@ -104,27 +114,32 @@ body {
   --brand-700: #6d28d9;
   --brand-800: #5b21b6;
   --brand-900: #4c1d95;
-  /* surfaces */
-  --awkit-bg: #f6f4f9;
-  --awkit-surface: #ffffff;
-  --awkit-surface-soft: #faf9fc;
-  --awkit-surface-raised: #ffffff;
-  --awkit-surface-inset: #efedf3;
-  --awkit-border: rgba(34, 24, 58, 0.08);
-  --awkit-border-strong: rgba(34, 24, 58, 0.14);
+  /* surfaces — Claude design-system neutrals. Violet is ACCENT ONLY and must never come back as a
+     canvas, surface or border color: the old values here were all violet-tinted (#f6f4f9, #faf9fc,
+     #efedf3 and rgba(34,24,58,…) borders), which is what made the whole app read as a purple wash. */
+  --awkit-bg: #f4f5f7;            /* app canvas */
+  --awkit-surface: #ffffff;       /* application chrome — sidebar, top header */
+  --awkit-surface-soft: #f9fafb;  /* gray-50 — quiet inner surface / hover tint */
+  --awkit-surface-raised: #ffffff;/* raised nodes, toolbars, forms, menus, dialogs */
+  --awkit-surface-inset: #f3f4f6; /* gray-100 — wells and inset tracks */
+  --awkit-border: #e5e7eb;        /* gray-200 — standard 1px frame */
+  --awkit-border-strong: #d1d5db; /* gray-300 — emphasised frame */
+  --awkit-divider: #f3f4f6;       /* gray-100 — internal section divider */
+  --awkit-hover-surface: #f9fafb; /* gray-50 — neutral control hover tint */
 
-  /* text */
-  --awkit-text: #20172f;
-  --awkit-text-secondary: #5e556d;
-  --awkit-text-muted: #91899f;
+  /* text — neutral gray for all normal reading; violet is never body copy */
+  --awkit-text: #111827;
+  --awkit-text-secondary: #4b5563;
+  --awkit-text-muted: #6b7280;
 
-  /* accent — Hologram violet */
-  --awkit-accent: #7c3aed;
-  --awkit-accent-hover: #6d28d9;
+  /* accent — Hologram violet. These are runtime-overridden by src/theme/accentColor.ts; the values
+     below are only the defaults. Never hardcode a literal in a CONSUMER of one of these. */
+  --awkit-accent: #7c3aed;         /* brand-600 */
+  --awkit-accent-hover: #6d28d9;   /* brand-700 */
   --awkit-accent-contrast: #ffffff;
-  --awkit-accent-soft: #f0e9ff;
-  --awkit-accent-muted: #c7b3f6;
-  --awkit-lavender-soft: #f3f0ff;
+  --awkit-accent-soft: #f5f3ff;    /* brand-50 */
+  --awkit-accent-muted: #c4b5fd;   /* brand-300 */
+  --awkit-lavender-soft: #f5f3ff;  /* brand-50 */
 
   /* legacy accent aliases (older rules reference these names) */
   --awkit-purple: var(--awkit-accent);
@@ -146,7 +161,7 @@ body {
   --awkit-info: #3b82f6;
   --awkit-info-soft: #eaf1fe;
   --awkit-info-muted: #bfdbfe;
-  --awkit-neutral-soft: #f0eff4;
+  --awkit-neutral-soft: #f3f4f6;
 
   /* gauge / pressure bands (Reports > Chrome consumption) */
   --awkit-band-normal: var(--awkit-success);
@@ -169,14 +184,15 @@ body {
 
   /* rgb triplets for translucent glows/shadows built inline with rgba() */
   --awkit-accent-rgb: 124, 58, 237;
-  --awkit-shadow-rgb: 32, 23, 47;
+  /* Shadow ink is the design system's neutral rgb(16,24,40), not the old violet-tinted 32,23,47. */
+  --awkit-shadow-rgb: 16, 24, 40;
   /* Material: genuinely translucent glass for floating-over-canvas chrome only (§6.6), paired with a
      real blur. --awkit-glass-blur is theme-independent (dark inherits it). --awkit-scrim is the modal/
      drawer dimming spine (kept alongside --awkit-overlay; not yet applied). */
   --awkit-glass: rgba(255, 255, 255, 0.72);
   --awkit-glass-blur: blur(20px) saturate(180%);
-  --awkit-overlay: rgba(32, 23, 47, 0.4);
-  --awkit-scrim: rgba(32, 23, 47, 0.4);
+  --awkit-overlay: rgba(16, 24, 40, 0.4);
+  --awkit-scrim: rgba(16, 24, 40, 0.4);
 
   /* depth & radius — back-compat aliases onto the unified --radius-* scale above (§6.3). */
   --awkit-radius-sm: var(--radius-sm);
@@ -184,15 +200,24 @@ body {
   --awkit-radius-card: var(--radius-lg);
   --awkit-radius-panel: var(--radius-xl);
   --awkit-radius-pill: var(--radius-pill);
-  --awkit-shadow-soft: 0 4px 20px rgba(32, 23, 47, 0.04);
+  /* Elevation — the design system's four soft, purposeful steps in neutral rgb(16,24,40).
+     Elevation is for floating or interactive surfaces only; static chrome is separated by borders. */
+  --awkit-shadow-soft: 0 1px 2px rgba(16, 24, 40, 0.06);
   --shadow-soft: var(--awkit-shadow-soft);
-  --awkit-shadow-card: 0 1px 2px rgba(32, 23, 47, 0.04), 0 12px 32px rgba(32, 23, 47, 0.06);
-  --awkit-shadow-float: 0 16px 44px rgba(32, 23, 47, 0.14), 0 4px 12px rgba(32, 23, 47, 0.08);
-  --awkit-shadow-hover: 0 18px 46px rgba(32, 23, 47, 0.12), 0 4px 10px rgba(32, 23, 47, 0.06);
-  /* node card resting / hover elevation — Workflow `shadow-node` / `shadow-node-hover`. */
-  --awkit-shadow-node: 0 1px 2px rgba(32, 23, 47, 0.06), 0 4px 16px rgba(32, 23, 47, 0.08);
-  --awkit-shadow-node-hover: 0 4px 8px rgba(32, 23, 47, 0.08), 0 12px 28px rgba(32, 23, 47, 0.14);
-  --awkit-focus-ring: 0 0 0 3px rgba(124, 58, 237, 0.22);
+  --awkit-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.08);
+  --awkit-shadow-float: 0 6px 24px rgba(16, 24, 40, 0.14);
+  --awkit-shadow-hover: 0 4px 8px rgba(16, 24, 40, 0.08), 0 12px 28px rgba(16, 24, 40, 0.14);
+  /* node card resting / hover elevation — `shadow-node` / `shadow-node-hover`; node-hover is also
+     the documented elevation for menus and dialogs. --awkit-shadow-panel is the right-side
+     configuration panel's directional shadow (`shadow-panel`). */
+  --awkit-shadow-node: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.08);
+  --awkit-shadow-node-hover: 0 4px 8px rgba(16, 24, 40, 0.08), 0 12px 28px rgba(16, 24, 40, 0.14);
+  --awkit-shadow-panel: -8px 0 30px rgba(16, 24, 40, 0.08);
+  /* Focus ring — 2px accent ring at 70% over a one-step surface-coloured offset. It MUST resolve
+     through --awkit-accent-rgb: that token is runtime-overridden per user accent, so a literal
+     rgba(124, 58, 237, …) here (what this token used to be) freezes the ring at violet and silently
+     breaks every custom accent. Never inline a hex in a consumer of an accent-owned token. */
+  --awkit-focus-ring: 0 0 0 2px var(--awkit-surface), 0 0 0 4px rgba(var(--awkit-accent-rgb), 0.7);
 
   /* motion — one canonical spine; --awkit-motion-* kept as back-compat aliases (do not add new uses) */
   --awkit-dur-press: 90ms;
@@ -201,9 +226,17 @@ body {
   --awkit-dur-panel: 240ms;
   --awkit-dur-slow: 260ms;
   --awkit-dur-modal: 300ms;
+  /* Programmatic canvas layout: node transforms and paths glide for 350ms on --awkit-ease-out,
+     which is already the design system's cubic-bezier(.22, 1, .36, 1). */
+  --awkit-dur-layout: 350ms;
+  --awkit-delay-toolbar: 150ms; /* floating toolbar rise is delayed 150ms */
   --awkit-ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* entering / exiting UI */
   --awkit-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* moving / morphing on screen */
   --awkit-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS-like drawer / sheet curve */
+  /* CSS approximation of the design system's entry springs (node stiffness 380/damping 30, menu
+     420/32). CSS has no spring timing function; this is the closest single curve with a small,
+     controlled overshoot. Anything using it must still be neutralised under reduced motion. */
+  --awkit-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --awkit-motion-fast: var(--awkit-dur-fast);
   --awkit-motion-base: var(--awkit-dur-med);
   --awkit-motion-slow: var(--awkit-dur-slow);
@@ -226,13 +259,15 @@ body {
   --awkit-surface-soft: #171a22;
   --awkit-surface-raised: #1b1f29;
   --awkit-surface-inset: #100f15;
-  --awkit-border: rgba(255, 255, 255, 0.08);
+  --awkit-border: rgba(255, 255, 255, 0.1);          /* standard border — white / 10% */
   --awkit-border-strong: rgba(255, 255, 255, 0.16);
+  --awkit-divider: rgba(255, 255, 255, 0.05);        /* subtle divider — white / 5% */
+  --awkit-hover-surface: rgba(255, 255, 255, 0.05);  /* neutral control hover tint */
 
-  /* text */
-  --awkit-text: #f3f1f8;
-  --awkit-text-secondary: #b3adc2;
-  --awkit-text-muted: #7d7790;
+  /* text — neutral gray, de-tinted from the old violet-leaning values */
+  --awkit-text: #f3f4f6;
+  --awkit-text-secondary: #d1d5db;
+  --awkit-text-muted: #9ca3af;
 
   /* accent — brighter violet for dark surfaces */
   --awkit-accent: #8b5cf6;
@@ -281,15 +316,20 @@ body {
   --awkit-scrim: rgba(0, 0, 0, 0.6);
 
   /* depth */
-  --awkit-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.24);
+  /* Elevation (dark) — same four steps and same geometry as light, in black ink at the higher
+     alphas dark surfaces need to separate at all. */
+  --awkit-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-soft: var(--awkit-shadow-soft);
-  --awkit-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
-  --awkit-shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45), 0 24px 64px rgba(0, 0, 0, 0.4);
-  --awkit-shadow-hover: 0 18px 46px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.4);
+  --awkit-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --awkit-shadow-float: 0 6px 24px rgba(0, 0, 0, 0.5);
+  --awkit-shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.55);
   /* node card resting / hover elevation (dark). */
   --awkit-shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.45);
   --awkit-shadow-node-hover: 0 4px 8px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.55);
-  --awkit-focus-ring: 0 0 0 3px rgba(139, 92, 246, 0.35);
+  --awkit-shadow-panel: -8px 0 30px rgba(0, 0, 0, 0.45);
+  /* Focus ring (dark) — same accent-driven formula; --awkit-accent-rgb is re-declared above, so this
+     inherits the dark accent AND any runtime accent override. No literal color here either. */
+  --awkit-focus-ring: 0 0 0 2px var(--awkit-surface), 0 0 0 4px rgba(var(--awkit-accent-rgb), 0.7);
 }
 
 button,
@@ -302,9 +342,10 @@ button {
   cursor: pointer;
 }
 
+/* Disabled: the design system's documented pairing is opacity .40 with a not-allowed cursor. */
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
 /* Universal pointer-down press feedback (docs/ui-design-and-motion-direction.md §8): every enabled
@@ -9399,8 +9440,14 @@ table {
   border-radius: var(--radius-xs);
 }
 
+/* Selection: the design system specifies a brand-200 fill with brand-900 text. Both sides are
+   expressed through accent-owned tokens rather than literal brand-* values, because the accent is
+   user-customisable — a literal violet foreground would clash the moment someone picks a blue or
+   green accent. --awkit-accent-muted is the tint step and --awkit-text is the readable neutral that
+   holds contrast against it in BOTH themes. */
 ::selection {
   background: var(--awkit-accent-muted);
+  color: var(--awkit-text);
 }
 
 ::-webkit-scrollbar {
