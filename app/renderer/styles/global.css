@@ -4678,7 +4678,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px dashed var(--awkit-border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   display: grid;
   gap: 10px;
   justify-items: center;
@@ -4707,7 +4707,7 @@ table {
 .report-card {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   display: grid;
   gap: 6px;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4872,7 +4872,7 @@ table {
 
 .settings-banner {
   border: 1px solid;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   padding: 10px 12px;
 }
@@ -4952,13 +4952,13 @@ table {
   color: var(--awkit-text-secondary);
   cursor: pointer;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin-bottom: 10px;
 }
 
 .form-message.warn {
   color: var(--awkit-warning);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .settings-actions {
@@ -5001,7 +5001,7 @@ table {
 
 .settings-secret-row strong {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .settings-secret-row span {
@@ -5067,7 +5067,7 @@ table {
 
 .oracle-driver-title strong {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .oracle-driver-default {
@@ -5077,7 +5077,7 @@ table {
 .oracle-driver-badge {
   border-radius: var(--radius-pill);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.02em;
   padding: 1px 8px;
   text-transform: uppercase;
@@ -5119,7 +5119,7 @@ table {
 
 .oracle-driver-meta strong {
   color: var(--awkit-text-secondary);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .oracle-driver-path {
@@ -5170,10 +5170,10 @@ table {
 }
 
 .settings-path-label em {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 10px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: 1px 7px;
   text-transform: uppercase;
 }
@@ -8654,7 +8654,7 @@ table {
   border-radius: var(--radius-pill);
   color: var(--awkit-text-muted);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   padding: 5px 12px;
   transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
 }
@@ -8691,7 +8691,7 @@ table {
   border: none;
   border-radius: var(--radius-md);
   color: var(--awkit-accent-contrast);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   padding: 8px 16px;
 }
 .awkit-primary-button:hover {
@@ -8741,7 +8741,7 @@ table {
 }
 .awkit-obs-table th {
   color: var(--awkit-text-muted);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 .awkit-obs-table td {
   color: var(--awkit-text);
@@ -8763,7 +8763,7 @@ table {
   border-radius: var(--radius-pill, 999px);
   display: inline-block;
   font-size: var(--text-xs, 11px);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   padding: 2px 8px;
   text-transform: capitalize;
 }
@@ -8796,7 +8796,7 @@ table {
 .awkit-filter-field > span {
   color: var(--awkit-text-muted);
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -8820,7 +8820,7 @@ table {
   color: var(--awkit-text-secondary);
   display: inline-flex;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   gap: 6px;
   height: 33px;
   padding: 0 14px;
@@ -8862,7 +8862,7 @@ table {
   border-radius: var(--radius-pill);
   color: #fff;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.03em;
   padding: 1px 6px;
   text-transform: uppercase;
@@ -8870,7 +8870,7 @@ table {
 .awkit-delta-chip {
   border-radius: var(--radius-pill);
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin-left: 6px;
   padding: 1px 6px;
   white-space: nowrap;
@@ -8937,7 +8937,7 @@ table {
 .awkit-compare-stats dd {
   color: var(--awkit-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin: 0;
 }
 
@@ -8986,7 +8986,7 @@ table {
 .awkit-bar-value {
   color: var(--awkit-text);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   text-align: right;
 }
 
@@ -8996,7 +8996,7 @@ table {
 .awkit-donut-center {
   fill: var(--awkit-text);
   font-size: var(--text-xl);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 .awkit-donut-center-sub {
   fill: var(--awkit-text-muted);
@@ -9032,7 +9032,7 @@ table {
   border-bottom: 1px solid var(--awkit-border);
   color: var(--awkit-text-muted);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.04em;
   padding: 8px 10px;
   text-align: left;
@@ -9069,7 +9069,7 @@ table {
   color: inherit;
   display: inline-flex;
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   gap: 3px;
   padding: 0;
 }
@@ -9081,7 +9081,7 @@ table {
   border: none;
   color: var(--awkit-blue-deep);
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   gap: 4px;
   padding: 0;
 }
@@ -9186,7 +9186,7 @@ table {
 }
 .awkit-detail-grid dd {
   font-size: var(--text-base);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin: 2px 0 0;
 }
 .awkit-detail-error {
@@ -9252,7 +9252,7 @@ table {
   color: var(--awkit-text-muted);
   display: flex;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   justify-content: space-between;
 }
 .awkit-gauge-info {
@@ -9270,7 +9270,7 @@ table {
 }
 .awkit-gauge-value {
   font-size: 26px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 .awkit-gauge-unit {
   fill: var(--awkit-text-muted);
@@ -9411,7 +9411,7 @@ table {
 }
 .awkit-flaky-high {
   color: var(--awkit-danger);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 .awkit-storage-note {
   align-items: flex-start;
@@ -9747,7 +9747,7 @@ table {
 
 .properties-tab.active::after {
   background: var(--awkit-accent);
-  border-radius: 999px 999px 0 0;
+  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
   bottom: -1px;
   content: "";
   height: 3px;
@@ -11381,7 +11381,7 @@ table {
   flex: none;
   border-radius: var(--radius-pill);
   object-fit: cover;
-  font-weight: 650;
+  font-weight: var(--weight-semibold);
   line-height: 1;
   color: #ffffff;
   user-select: none;
@@ -11423,7 +11423,7 @@ table {
 .awkit-account-trigger[aria-expanded="true"] { background: var(--awkit-surface-inset); border-color: var(--awkit-border); }
 .awkit-account-meta { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; line-height: 1.15; }
 .awkit-account-name {
-  font-size: var(--text-xs); font-weight: 600; color: var(--awkit-text);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--awkit-text);
   max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .awkit-account-role { font-size: 10px; color: var(--awkit-text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -11457,7 +11457,7 @@ table {
 .awkit-account-menu-identity { display: flex; flex-direction: column; min-width: 0; }
 .awkit-account-menu-identity strong { font-size: var(--text-sm); color: var(--awkit-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .awkit-account-menu-username { font-size: var(--text-xs); color: var(--awkit-text-secondary); }
-.awkit-account-menu-role { font-size: var(--text-xs); color: var(--awkit-accent); font-weight: 600; margin-top: 2px; }
+.awkit-account-menu-role { font-size: var(--text-xs); color: var(--awkit-accent); font-weight: var(--weight-semibold); margin-top: 2px; }
 .awkit-account-menu-item {
   display: flex; align-items: center; gap: var(--space-2); width: 100%;
   padding: var(--space-2) var(--space-2);
@@ -11537,7 +11537,7 @@ table {
 }
 .awkit-admin-summary-item:last-child { border-inline-end: 0; margin-inline-end: 0; padding-inline-end: 0; }
 .awkit-admin-summary-item > span { color: var(--awkit-text-secondary); font-size: var(--text-xs); }
-.awkit-admin-summary-item > strong { color: var(--awkit-text); font-size: var(--text-sm); font-weight: 650; }
+.awkit-admin-summary-item > strong { color: var(--awkit-text); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 .awkit-admin-summary-item > small { color: var(--awkit-text-muted); font-size: var(--text-2xs); }
 .awkit-admin-summary-item .awkit-admin-badge { width: fit-content; }
 .awkit-admin-split {
@@ -11606,7 +11606,7 @@ table {
   color: var(--awkit-text);
   font-size: var(--text-xl);
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-xl);
   line-height: 1.2;
 }
@@ -11643,7 +11643,7 @@ table {
 .awkit-admin-table { border-collapse: collapse; display: table; font-size: var(--text-sm); table-layout: auto; width: 100%; }
 .awkit-admin-table th {
   text-align: left; padding: var(--space-2) var(--space-3); color: var(--awkit-text-secondary);
-  font-size: var(--text-xs); font-weight: 600; border-bottom: 1px solid var(--awkit-border-strong); white-space: nowrap;
+  font-size: var(--text-xs); font-weight: var(--weight-semibold); border-bottom: 1px solid var(--awkit-border-strong); white-space: nowrap;
 }
 .awkit-admin-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--awkit-border); vertical-align: middle; }
 .awkit-admin-table tbody tr { transition: background var(--awkit-dur-fast) var(--awkit-ease-out); }
@@ -11658,16 +11658,16 @@ table {
   display: inline-flex;
   flex: 0 0 2rem;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   height: 2rem;
   justify-content: center;
 }
 .awkit-admin-user-identity { display: flex; flex-direction: column; min-width: 0; }
 .awkit-admin-user-identity > span { color: var(--awkit-text-secondary); font-size: var(--text-xs); display: inline-flex; align-items: center; gap: var(--space-2); }
-.awkit-admin-tag { display: inline-flex; align-items: center; gap: 2px; color: var(--awkit-warning); font-style: normal; font-weight: 600; }
+.awkit-admin-tag { display: inline-flex; align-items: center; gap: 2px; color: var(--awkit-warning); font-style: normal; font-weight: var(--weight-semibold); }
 .awkit-admin-status {
   display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-sm);
-  font-size: var(--text-xs); font-weight: 600; text-transform: capitalize;
+  font-size: var(--text-xs); font-weight: var(--weight-semibold); text-transform: capitalize;
   background: var(--awkit-surface-soft); border: 1px solid var(--awkit-border-strong);
 }
 .awkit-admin-status.active { color: var(--awkit-success); border-color: var(--awkit-success-muted); background: var(--awkit-success-soft); }
@@ -11682,7 +11682,7 @@ table {
 .awkit-admin-badge {
   display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
   padding: 2px var(--space-2); border-radius: var(--radius-pill, 999px);
-  font-size: var(--text-xs); font-weight: 600; line-height: var(--leading-xs, 1.4);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold); line-height: var(--leading-xs, 1.4);
   border: 1px solid transparent;
 }
 .awkit-admin-badge svg { flex: none; }
@@ -11722,13 +11722,13 @@ table {
   gap: var(--space-2); padding: var(--space-5) var(--space-4);
   color: var(--awkit-text-secondary); font-size: var(--text-sm); text-align: center;
 }
-.awkit-admin-state strong { color: var(--awkit-text); font-size: var(--text-md); font-weight: 620; }
+.awkit-admin-state strong { color: var(--awkit-text); font-size: var(--text-md); font-weight: var(--weight-semibold); }
 .awkit-admin-state-empty { border: 1px dashed var(--awkit-border-strong); border-radius: var(--radius-md); }
 .awkit-admin-spin { animation: awkit-login-spin 0.9s linear infinite; color: var(--awkit-accent); }
 @media (prefers-reduced-motion: reduce) { .awkit-admin-spin { animation: none; } }
 .awkit-admin-role-chip {
   display: inline-block; margin: 2px; padding: 2px var(--space-2); border-radius: var(--radius-sm);
-  background: var(--awkit-accent-soft); color: var(--awkit-accent); font-size: var(--text-xs); font-weight: 600;
+  background: var(--awkit-accent-soft); color: var(--awkit-accent); font-size: var(--text-xs); font-weight: var(--weight-semibold);
 }
 .awkit-admin-row-actions { align-items: center; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .awkit-admin-row-actions .toolbar-button { font-size: var(--text-xs); padding: 2px var(--space-2); }
@@ -11806,7 +11806,7 @@ table {
   margin-inline-start: auto;
   white-space: nowrap;
 }
-.awkit-admin-matrix-count { color: var(--awkit-text-muted); font-weight: 500; margin-inline-start: var(--space-2); }
+.awkit-admin-matrix-count { color: var(--awkit-text-muted); font-weight: var(--weight-medium); margin-inline-start: var(--space-2); }
 .awkit-admin-search-field {
   align-items: center;
   background: var(--awkit-surface);
@@ -11833,7 +11833,7 @@ table {
 .awkit-admin-filter-field > span { color: var(--awkit-text-secondary); font-size: var(--text-xs); }
 .awkit-admin-filter-field-inline { align-items: center; display: flex; gap: var(--space-2); }
 .awkit-admin-event-time { display: grid; gap: 1px; white-space: nowrap; }
-.awkit-admin-event-time strong { color: var(--awkit-text); font-size: var(--text-xs); font-weight: 600; }
+.awkit-admin-event-time strong { color: var(--awkit-text); font-size: var(--text-xs); font-weight: var(--weight-semibold); }
 .awkit-admin-event-time span { color: var(--awkit-text-muted); font-size: var(--text-2xs); }
 .awkit-admin-modal-backdrop {
   position: fixed; inset: 0; z-index: var(--awkit-z-drawer, 40); display: grid; place-items: center;
@@ -11910,7 +11910,7 @@ table {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .accent-input-row {
@@ -11963,7 +11963,7 @@ table {
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--awkit-warning);
   background: var(--awkit-warning-soft);
   border: 1px solid var(--awkit-warning-muted);
@@ -11987,7 +11987,7 @@ table {
 
 .accent-preview-caption {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .accent-preview-row {
@@ -12001,7 +12001,7 @@ table {
   border: 0;
   border-radius: var(--radius-sm);
   padding: 6px 14px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   cursor: default;
   background: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
@@ -12014,14 +12014,14 @@ table {
 .accent-preview-nav {
   border-radius: var(--radius-sm);
   padding: 6px 12px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   background: var(--awkit-accent-soft);
   color: var(--awkit-accent-hover);
 }
 
 .accent-preview-tab {
   padding: 4px 8px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--awkit-accent);
   border-bottom: 2px solid var(--awkit-accent);
 }
@@ -12039,7 +12039,7 @@ table {
   border-radius: var(--radius-pill);
   padding: 2px 10px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   background: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
 }
@@ -12058,7 +12058,7 @@ table {
 .accent-preview-node {
   border-radius: var(--radius-md);
   padding: 10px 12px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--awkit-text);
   background: var(--awkit-accent-soft);
   border: 2px solid var(--awkit-accent);
@@ -12092,7 +12092,7 @@ table {
   border: 1px solid var(--awkit-border-strong);
   background: var(--awkit-surface);
   color: var(--awkit-text);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   cursor: pointer;
 }
 
@@ -12109,7 +12109,7 @@ table {
 .accent-preset-swatch {
   width: 18px;
   height: 18px;
-  border-radius: 5px;
+  border-radius: var(--radius-2xs);
   border: 1px solid var(--awkit-border-strong);
 }
 
@@ -12257,7 +12257,7 @@ table {
 
 .branding-preview-caption {
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .branding-preview-row {
@@ -12303,7 +12303,7 @@ table {
 
 .branding-preview-name > span:first-child {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .branding-preview-name small {
