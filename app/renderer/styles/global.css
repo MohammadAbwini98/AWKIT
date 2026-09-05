@@ -11016,8 +11016,11 @@ table {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--awkit-shadow-panel, 0 18px 48px rgba(20, 14, 40, 0.14));
-  padding: var(--space-5) var(--space-5) var(--space-5);
+  /* --awkit-shadow-float, not --awkit-shadow-panel: the latter is the right-hand config panel's
+     DIRECTIONAL shadow (-8px 0 30px), which casts sideways on a centred card instead of lifting it.
+     The literal fallback it carried was violet-tinted ink predating the neutral-surface rule. */
+  box-shadow: var(--awkit-shadow-float);
+  padding: var(--space-5);
   animation: awkit-login-rise var(--awkit-dur-panel) var(--awkit-ease-out);
 }
 
@@ -11073,7 +11076,9 @@ table {
 .awkit-login-brand h1 {
   margin: 0;
   font-size: var(--text-xl);
-  font-weight: 650;
+  line-height: var(--leading-xl);
+  letter-spacing: var(--tracking-xl);
+  font-weight: var(--weight-semibold);
   color: var(--awkit-text);
 }
 
@@ -11091,10 +11096,31 @@ table {
   border: 1px solid var(--awkit-info-muted);
   border-left-width: 3px;
   border-left-color: var(--awkit-info);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   background: var(--awkit-info-soft);
-  color: var(--awkit-text-primary);
+  /* Was --awkit-text-primary, which is declared NOWHERE in this file and carried no fallback, so the
+     declaration was invalid-at-computed-value and the copy silently fell back to inherited colour. */
+  color: var(--awkit-text);
   font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+/* Submit failure. Scoped to the auth forms only — the global `.form-message.error` (a bare bold red
+   line) stays as-is for the rest of the app. Mirrors .awkit-login-notice so info and danger read as
+   one family. Body copy keeps --awkit-text rather than --awkit-danger: red-on-danger-soft measures
+   ~3.9:1, under the 4.5:1 floor for 13px text, and the tinted field + left rule already carry the
+   severity (the element also ships role="alert"). */
+.awkit-login-form .form-message.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--awkit-danger-muted);
+  border-left-width: 3px;
+  border-left-color: var(--awkit-danger);
+  border-radius: var(--radius-xs);
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
   line-height: var(--leading-sm);
 }
 
@@ -11109,16 +11135,23 @@ table {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  height: 38px;
+  height: 40px;
   padding: 0 var(--space-3);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   cursor: pointer;
   transition: border-color var(--awkit-dur-fast) var(--awkit-ease-out), background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+/* Hover is excluded on the active tab (it already carries the accent surface) and on disabled tabs —
+   unconfigured providers render with `disabled` + `aria-disabled`, so they must stay inert. Rides the
+   background transition already declared above; adds no new motion. */
+.awkit-login-tab:not(.is-active):not(:disabled):hover {
+  background: var(--awkit-hover-surface);
 }
 
 .awkit-login-tab.is-active {
@@ -11141,7 +11174,7 @@ table {
 .awkit-login-soon {
   font-style: normal;
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-2xs);
   text-transform: uppercase;
   color: var(--awkit-text-muted);
@@ -11152,17 +11185,18 @@ table {
 
 .awkit-login-field {
   display: grid;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .awkit-login-field-label {
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   color: var(--awkit-text-secondary);
 }
 
 .awkit-login-field input {
   width: 100%;
-  height: 38px;
+  height: 40px;
 }
 
 .awkit-login-password {
@@ -11175,9 +11209,11 @@ table {
   padding-right: 40px;
 }
 
+/* 30px is an inner inset of the 40px field (5px of breathing room each side) and has no equivalent on
+   the 4px space scale, so it stays literal; `right` does map exactly onto --space-1 (4px). */
 .awkit-login-reveal {
   position: absolute;
-  right: 4px;
+  right: var(--space-1);
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -11188,11 +11224,12 @@ table {
   border: none;
   background: transparent;
   color: var(--awkit-text-muted);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-2xs);
   cursor: pointer;
 }
 
 .awkit-login-reveal:hover:not(:disabled) {
+  background: var(--awkit-hover-surface);
   color: var(--awkit-text-secondary);
 }
 
@@ -11204,7 +11241,7 @@ table {
 .awkit-login-caps {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--text-xs);
   color: var(--awkit-warning);
 }
@@ -11219,20 +11256,29 @@ table {
   margin: 0;
   padding-left: var(--space-4);
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--awkit-danger);
 }
 
+/* Primary CTA tier: deliberately taller than the 40px tab/input controls. */
 .awkit-login-submit {
   width: 100%;
-  height: 40px;
+  height: 44px;
 }
 
 .awkit-login-actions {
   display: flex;
   gap: var(--space-2);
   justify-content: flex-end;
+}
+
+/* The secondary button in an auth action row is a bare .toolbar-button (34px). It sets an explicit
+   height, so flex `stretch` cannot equalise it and it would sit 10px shorter than the CTA. Matched
+   here, scoped to the auth row only — the global .toolbar-button tier is untouched. The :not() keeps
+   the CTA governed by .awkit-login-submit above rather than by this higher-specificity selector. */
+.awkit-login-actions .toolbar-button:not(.awkit-login-submit) {
+  height: 44px;
 }
 
 .awkit-login-actions .awkit-login-submit {
@@ -11249,10 +11295,11 @@ table {
   font: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-2xs);
 }
 
 .awkit-login-link:hover:not(:disabled) {
+  background: var(--awkit-hover-surface);
   text-decoration: underline;
 }
 
@@ -11281,7 +11328,7 @@ table {
   color: var(--awkit-text);
   font-family: var(--awkit-font-mono, ui-monospace, monospace);
   font-size: var(--text-md);
-  font-weight: 650;
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-xs);
 }
 
