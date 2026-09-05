@@ -120,10 +120,13 @@ console.log("\nMultiple admitted flows are all named:");
 
 console.log("\nThe chain from admission to report is wired (source guards):");
 {
-  const ipcSource = readFileSync(resolve(ROOT, "app/main/ipc/execution.ipc.ts"), "utf8");
+  // R2 (awkit-r2) extracted run preparation out of execution.ipc.ts into
+  // ExecutionApplicationService.ts. The admission/snapshot/profile-assembly wiring these guards
+  // prove now lives there; the IPC handler is a thin transport wrapper around the service.
+  const serviceSource = readFileSync(resolve(ROOT, "app/main/execution/ExecutionApplicationService.ts"), "utf8");
   const engineSource = readFileSync(resolve(ROOT, "src/runner/ExecutionEngine.ts"), "utf8");
   const profileSource = readFileSync(resolve(ROOT, "src/instances/ConcurrentRunProfile.ts"), "utf8");
-  check("the source guard actually read the run gate", ipcSource.includes("recordRunUnderCompatibility") && ipcSource.length > 5000);
+  check("the source guard actually read the run gate", serviceSource.includes("recordRunUnderCompatibility") && serviceSource.length > 10000);
 
   check("the run profile can carry the attribution", profileSource.includes("legacyCompatibility"));
   check("the engine passes it into the report", /legacyCompatibility:\s*profile\.legacyCompatibility/.test(engineSource));
@@ -131,14 +134,14 @@ console.log("\nThe chain from admission to report is wired (source guards):");
   // an unqualified match was satisfied by that unrelated call — a guard passing for the wrong reason.
   check(
     "admission snapshots the grants for the attribution",
-    /grantSnapshot\s*=\s*await\s+\w+\.grantsMap\(\)/.test(ipcSource)
+    /grantSnapshot\s*=\s*await\s+\w+\.grantsMap\(\)/.test(serviceSource)
   );
-  check("admission puts the attribution on the run profile", /legacyCompatibility\s*\}\s*:\s*\{\}\)/.test(ipcSource));
+  check("admission puts the attribution on the run profile", /legacyCompatibility\s*\}\s*:\s*\{\}\)/.test(serviceSource));
 
   // Ordering: the snapshot must be taken at admission, not re-derived later. `grantsMap()` is read
   // in the same request that records the run, before the profile is constructed.
-  const grantsAt = ipcSource.search(/grantSnapshot\s*=\s*await\s+\w+\.grantsMap\(\)/);
-  const profileAt = ipcSource.indexOf("const profile: ConcurrentRunProfile");
+  const grantsAt = serviceSource.search(/grantSnapshot\s*=\s*await\s+\w+\.grantsMap\(\)/);
+  const profileAt = serviceSource.indexOf("const profile: ConcurrentRunProfile");
   check("the grant snapshot is taken before the run profile is built", grantsAt > 0 && profileAt > grantsAt, `grants@${grantsAt} profile@${profileAt}`);
 }
 
