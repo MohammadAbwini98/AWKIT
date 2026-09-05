@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("271 issues parse", beads.stats.total === 271, `got ${beads.stats.total}`);
+  check("275 issues parse", beads.stats.total === 275, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -441,8 +441,19 @@ try {
   // aliasing splits a folder coordination lane). Nothing closed, so closed held at 266 while the
   // total rose 268 → 271 and outstanding 2 → 5; all three ship `dependency_count: 0`, so the edge
   // pin below stays at 106.
-    "5 outstanding / 266 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 266,
+  // Then 9/266 of 275 on 2026-09-05: the R2 closeout filed four OPEN follow-ups — `awkit-syaa`
+  // (`execution:repeatInstance` can relaunch an installed-Chrome run without the Super User branch),
+  // `awkit-9a1l` (the pre-run licensing control has no adjacency assertion), `awkit-ttvb`
+  // (`execution:validate` reaches the application service with no authorization and no control) and
+  // `awkit-wknd` (`settings.superUser.chrome.mode` is now read in two modules by two separate
+  // `getUiSettings` calls). Nothing closed, so closed held at 266 while the total rose 271 → 275 and
+  // outstanding 5 → 9; all four ship `dependency_count: 0`, so the edge pin below stays at 106.
+  // Counted from the export TEXT this session: 275 issue records, 266 `"status":"closed"`, and 9 not
+  // closed - 7 `open` plus the 2 `blocked` (`awkit-7bu`, `awkit-cm8`). `bd stats` again printed
+  // "Blocked: 0" for the same tracker because that field counts dependency-blocked issues, not the
+  // `blocked` STATUS; `bd list --status blocked` shows the two. Do not pin against `bd stats`.
+    "9 outstanding / 266 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 266,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
