@@ -150,6 +150,9 @@ body {
 
   /* status */
   --awkit-success: #14a46c;
+  /* Success used as TEXT needs a darker step than the fill/icon token: --awkit-success (#14a46c)
+     is 3.20:1 on --awkit-surface, below WCAG AA 4.5:1 for the small text it is used on. */
+  --awkit-success-text: #15803d;
   --awkit-success-soft: #e7f7ef;
   --awkit-success-muted: #a9e7ce;
   --awkit-warning: #c47a08;
@@ -282,6 +285,7 @@ body {
 
   /* status */
   --awkit-success: #34d399;
+  --awkit-success-text: #86efac;
   --awkit-success-soft: rgba(52, 211, 153, 0.13);
   --awkit-success-muted: rgba(52, 211, 153, 0.38);
   --awkit-warning: #fbbf24;
@@ -615,14 +619,14 @@ button:not(:disabled):not([role="switch"]):active,
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: inline-flex;
-  font-weight: 500;
-  gap: 7px;
-  height: 34px;
+  font-weight: var(--weight-medium);
+  gap: var(--space-2);
+  height: 36px;
   justify-content: center;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   transition:
     background var(--awkit-dur-fast) var(--awkit-ease-out),
     border-color var(--awkit-dur-fast) var(--awkit-ease-out),
@@ -632,14 +636,14 @@ button:not(:disabled):not([role="switch"]):active,
 
 .icon-button {
   padding: 0;
-  width: 34px;
+  width: 36px;
 }
 
 .toolbar-button.primary {
   background: var(--awkit-accent);
   border-color: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .toolbar-button.primary:hover:not(:disabled) {
@@ -1038,11 +1042,11 @@ button:not(:disabled):not([role="switch"]):active,
   align-items: start;
   background: var(--awkit-surface-soft);
   border: 1px dashed var(--awkit-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   justify-items: start;
-  padding: 18px;
+  padding: var(--space-4h);
 }
 
 .empty-state span {
@@ -1132,17 +1136,17 @@ label {
   color: var(--awkit-text-secondary);
   display: grid;
   font-size: var(--text-sm);
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 input,
 select {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
-  height: 34px;
-  padding: 0 10px;
+  height: 36px;
+  padding: 0 var(--space-3);
   transition:
     border-color var(--awkit-dur-fast) var(--awkit-ease-out),
     box-shadow var(--awkit-dur-fast) var(--awkit-ease-out);
@@ -1163,16 +1167,16 @@ textarea:focus-visible {
 textarea {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   font: inherit;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-3);
 }
 
 .inline-check {
   align-items: center;
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .inline-check input {
@@ -2047,7 +2051,7 @@ div.validation-issue-row {
 
 .form-message.error {
   color: var(--awkit-danger);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .smart-wait-list {
@@ -11844,8 +11848,8 @@ table {
 .awkit-admin-modal-icon { display: inline-grid; place-items: center; color: var(--awkit-accent); }
 .awkit-admin-modal-body { color: var(--awkit-text-secondary); font-size: var(--text-sm); margin: 0; }
 .awkit-admin-modal-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
-.form-message.success { color: #15803d; }
-[data-theme="dark"] .form-message.success { color: #86efac; }
+.form-message.success { color: var(--awkit-success-text); }
+[data-theme="dark"] .form-message.success { color: var(--awkit-success-text); }
 .awkit-not-authorized { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-4); }
 .awkit-not-authorized .awkit-admin-modal-icon { color: var(--awkit-warning); }
 
