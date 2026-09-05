@@ -1197,7 +1197,7 @@ textarea {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: inline-flex;
   gap: 7px;
@@ -1208,7 +1208,7 @@ textarea {
 .canvas-toolbar.floating {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 20px rgba(var(--awkit-shadow-rgb), 0.10);
   left: 18px;
   padding: 6px;
@@ -1223,10 +1223,10 @@ textarea {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-accent-muted);
   border-left: 5px solid var(--awkit-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: 0 6px 18px rgba(var(--awkit-shadow-rgb), 0.12);
   display: grid;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 10px;
   grid-template-columns: 38px minmax(0, 1fr) auto;
   min-height: 76px;
@@ -1280,7 +1280,7 @@ textarea {
 .workflow-stage em,
 .flow-node em {
   background: var(--awkit-accent-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-hover);
   font-size: var(--text-2xs);
   font-style: normal;
@@ -1290,7 +1290,7 @@ textarea {
 .stage-badge {
   align-items: center;
   background: var(--awkit-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-contrast);
   display: inline-flex;
   height: 34px;
@@ -1300,7 +1300,7 @@ textarea {
 
 .workflow-connector {
   border-color: var(--awkit-accent-muted);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border-style: solid;
   border-width: 2px 2px 0 0;
   height: 96px;
@@ -1329,7 +1329,7 @@ textarea {
 .mini-map {
   background: var(--awkit-glass);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   bottom: 18px;
   box-shadow: 0 8px 20px rgba(var(--awkit-shadow-rgb), 0.10);
   display: grid;
@@ -1344,13 +1344,13 @@ textarea {
 
 .mini-map span {
   background: var(--awkit-accent-muted);
-  border-radius: 5px;
+  border-radius: var(--radius-2xs);
 }
 
 .node-palette {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1389,7 +1389,7 @@ textarea {
 .node-handle {
   background: var(--awkit-surface);
   border: 2px solid var(--awkit-accent-muted);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   height: 12px;
   width: 12px;
 }
@@ -1415,7 +1415,7 @@ textarea {
 .flow-node-palette {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 8px 20px rgba(var(--awkit-shadow-rgb), 0.10);
   display: grid;
   gap: 10px;
@@ -1458,7 +1458,7 @@ textarea {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: grid;
   gap: 9px;
@@ -1492,7 +1492,7 @@ textarea {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 20px rgba(var(--awkit-shadow-rgb), 0.10);
   display: flex;
   gap: 8px;
@@ -1525,10 +1525,10 @@ textarea {
 
 .validation-chip {
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   gap: 6px;
   min-height: 30px;
   padding: 0 10px;
@@ -1550,7 +1550,7 @@ button.validation-chip {
   cursor: pointer;
   font: inherit;
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
 }
 
 .validation-chip.block {
@@ -1597,10 +1597,10 @@ div.validation-issue-row {
 }
 
 .validation-issue-badge {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex-shrink: 0;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.04em;
   padding: 1px 8px;
   text-transform: uppercase;
@@ -1770,7 +1770,7 @@ div.validation-issue-row {
 .action-node-icon {
   align-items: center;
   background: var(--awkit-accent-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-accent);
   display: flex;
   height: 32px;
@@ -1798,7 +1798,7 @@ div.validation-issue-row {
 
 .action-flow-node em {
   background: var(--awkit-accent-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-hover);
   font-size: var(--text-2xs);
   font-style: normal;
@@ -1870,7 +1870,7 @@ div.validation-issue-row {
   cursor: pointer;
   display: flex;
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   gap: 10px;
   padding: 7px 10px;
   text-align: left;
@@ -1902,9 +1902,9 @@ div.validation-issue-row {
 .self-loop-edge-label {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   padding: 2px 6px;
   pointer-events: none;
   white-space: nowrap;
@@ -1923,7 +1923,7 @@ div.validation-issue-row {
 .empty-properties {
   background: var(--awkit-surface-soft);
   border: 1px dashed var(--awkit-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 14px;
 }
 
@@ -1935,7 +1935,7 @@ div.validation-issue-row {
 .validation-list span {
   background: var(--awkit-warning-soft);
   border: 1px solid var(--awkit-warning-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   color: var(--awkit-warning);
   font-size: var(--text-xs);
   padding: 8px;
@@ -1944,7 +1944,7 @@ div.validation-issue-row {
 .validation-list strong {
   background: var(--awkit-success-soft);
   border: 1px solid var(--awkit-success-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   color: var(--awkit-success);
   font-size: var(--text-xs);
   padding: 8px;
@@ -1958,7 +1958,7 @@ div.validation-issue-row {
 .locator-quality {
   display: grid;
   gap: 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   padding: 8px;
   font-size: var(--text-xs);
 }
@@ -2080,7 +2080,7 @@ div.validation-issue-row {
 .smart-wait-card {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   display: grid;
   gap: 7px;
   padding: 9px;
@@ -2129,7 +2129,7 @@ div.validation-issue-row {
 .async-badge {
   border-radius: var(--radius-pill, 999px);
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin-left: auto;
   padding: 1px 8px;
   white-space: nowrap;
@@ -2171,7 +2171,7 @@ div.validation-issue-row {
 .anyof-branch {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   display: grid;
   gap: 6px;
   padding: 8px;
@@ -2235,14 +2235,14 @@ div.validation-issue-row {
 .form-canvas {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   padding: 16px;
 }
 
 .form-section,
 .drop-zone {
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   display: grid;
   gap: 14px;
   padding: 16px;
@@ -2264,7 +2264,7 @@ div.validation-issue-row {
 .file-input-row button {
   background: var(--awkit-accent-soft);
   border: 1px solid var(--awkit-accent-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-accent-hover);
   height: 34px;
   padding: 0 10px;
@@ -2292,9 +2292,9 @@ div.validation-issue-row {
 
 .scenario-chain article {
   border: 1px solid var(--awkit-accent-muted);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--awkit-accent-hover);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: 18px;
 }
 
@@ -2309,7 +2309,7 @@ div.validation-issue-row {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.06);
   display: flex;
   gap: 10px;
@@ -2384,7 +2384,7 @@ div.validation-issue-row {
 .scenario-flow-library button {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: grid;
   gap: 4px;
@@ -2401,7 +2401,7 @@ div.validation-issue-row {
 .flow-order-item {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2455,7 +2455,7 @@ div.validation-issue-row {
 .flow-order-item-bottom .icon-button {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-danger);
   height: 26px;
   width: 26px;
@@ -2522,10 +2522,10 @@ div.validation-issue-row {
 .scenario-node-order {
   align-items: center;
   background: var(--awkit-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-contrast);
   display: flex;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   height: 32px;
   justify-content: center;
   width: 32px;
@@ -2559,7 +2559,7 @@ div.validation-issue-row {
 .output-mapping-list article {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   display: grid;
   gap: 4px;
   padding: 10px;
@@ -3613,7 +3613,7 @@ table {
   color: var(--awkit-text-secondary);
   cursor: pointer;
   font-size: var(--text-2xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   list-style: revert;
   padding: 8px 0 2px;
   text-transform: uppercase;
@@ -3633,7 +3633,7 @@ table {
   color: var(--awkit-text-secondary);
   cursor: pointer;
   font-size: var(--text-2xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   list-style: none;
   padding: 8px 0 4px;
   text-transform: uppercase;
@@ -3802,7 +3802,7 @@ table {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   cursor: pointer;
   display: inline-flex;
@@ -3855,7 +3855,7 @@ table {
 .panel-rail-label {
   color: var(--awkit-text-secondary);
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.08em;
   margin: 0;
   text-transform: uppercase;
@@ -3871,8 +3871,9 @@ table {
 
 [data-theme="light"] .flow-designer-body .react-flow-shell,
 [data-theme="light"] .scenario-canvas-panel {
-  --awkit-canvas-bg: #f4f1f8;
-  --awkit-canvas-dot: #cac5d3;
+  /* Neutral Claude canvas values; matches the :root defaults at lines 175-179. */
+  --awkit-canvas-bg: #f4f5f7;
+  --awkit-canvas-dot: #c4c9d2;
 }
 
 /* Stack inner card title/subtitle so they don't run together. */
@@ -4154,7 +4155,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px dashed var(--awkit-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--awkit-text-secondary);
   display: grid;
   font-size: var(--text-sm);
@@ -4185,7 +4186,7 @@ table {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.06);
   display: flex;
   flex-wrap: nowrap;
@@ -4209,7 +4210,7 @@ table {
 .sb-toolbar-field span {
   color: var(--awkit-text-secondary);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -4406,7 +4407,7 @@ table {
 
 .editor-execution-value {
   color: var(--awkit-text);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   text-transform: capitalize;
 }
 
@@ -4558,7 +4559,7 @@ table {
 .sb-section-header h2 {
   flex: 1;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4570,7 +4571,7 @@ table {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: inline-flex;
   height: 26px;
@@ -4600,7 +4601,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.06);
   display: flex;
   flex-direction: column;
@@ -5228,7 +5229,7 @@ table {
   backdrop-filter: var(--awkit-glass-blur);
   -webkit-backdrop-filter: var(--awkit-glass-blur);
   border: 1px solid var(--awkit-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-soft);
   display: flex;
   gap: 2px;
@@ -5240,7 +5241,7 @@ table {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   cursor: pointer;
   display: inline-flex;
@@ -5257,7 +5258,7 @@ table {
 .canvas-zoom-control .zoom-value {
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   min-width: 46px;
 }
 
@@ -5586,7 +5587,7 @@ table {
   padding: 4px 8px;
   margin: 4px 0 8px;
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
 }
@@ -6472,7 +6473,7 @@ table {
   margin: 0 0 8px;
   padding: 5px 8px;
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
 }
@@ -9691,7 +9692,7 @@ table {
 .drawer-node-icon {
   align-items: center;
   background: var(--awkit-accent-soft);
-  border-radius: 11px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-accent);
   display: flex;
   flex: 0 0 auto;
@@ -9741,7 +9742,7 @@ table {
 
 .properties-tab.active {
   color: var(--awkit-text);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .properties-tab.active::after {
@@ -9822,11 +9823,11 @@ table {
 
 .action-node-index {
   background: var(--awkit-accent-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   color: var(--awkit-accent-hover);
   flex: 0 0 auto;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.01em;
   padding: 1px 6px;
 }
@@ -9834,7 +9835,7 @@ table {
 .action-node-title {
   color: var(--awkit-text);
   font-size: var(--text-base);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -9852,7 +9853,7 @@ table {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: inline-flex;
   flex: 0 0 auto;
@@ -9896,10 +9897,10 @@ table {
 .template-edge-label {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-text-secondary);
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   padding: 2px 9px;
   pointer-events: all;
   position: absolute;
@@ -9918,7 +9919,7 @@ table {
   align-items: center;
   background: var(--awkit-surface);
   border: 1.5px solid var(--awkit-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: var(--awkit-shadow-soft);
   color: var(--awkit-connector-default);
   cursor: pointer;
@@ -9957,7 +9958,7 @@ table {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: inline-flex;
   height: 34px;
@@ -9980,7 +9981,7 @@ table {
 
 .canvas-zoom-button.zoom-value {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   min-width: 54px;
 }
 
@@ -10323,7 +10324,7 @@ table {
 .canvas-picker-scroll h3 {
   color: var(--awkit-text-muted);
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.08em; /* uppercase label tracking — kept over the scale's --tracking-2xs */
   text-transform: uppercase;
 }
@@ -10740,10 +10741,10 @@ table {
   pointer-events: none;
   background: var(--awkit-canvas-bg);
   color: var(--awkit-text-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   padding: 0 6px;
   font-size: var(--text-2xs);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
@@ -10755,7 +10756,7 @@ table {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--awkit-accent-muted);
   background: var(--awkit-surface);
   color: var(--awkit-accent);
@@ -10833,7 +10834,7 @@ table {
 .awkit-step-node {
   position: relative;
   width: 320px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--awkit-node-border);
   background: var(--awkit-node-surface);
   box-shadow: var(--awkit-shadow-card);
@@ -10871,7 +10872,7 @@ table {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--awkit-surface-soft);
   box-shadow: inset 0 0 0 1px var(--awkit-border);
   color: var(--awkit-text);
@@ -10890,7 +10891,7 @@ table {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   color: var(--awkit-text-muted);
 }
 .awkit-step-node-badge {
@@ -10900,11 +10901,11 @@ table {
   height: 16px;
   min-width: 16px;
   padding: 0 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   background: var(--awkit-surface-inset);
   color: var(--awkit-text-muted);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 .awkit-step-node-title {
   margin: 0;
@@ -10912,7 +10913,7 @@ table {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   line-height: 1.2;
   color: var(--awkit-text);
 }
@@ -10924,7 +10925,7 @@ table {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--awkit-text-muted);
   cursor: pointer;
@@ -10950,11 +10951,11 @@ table {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
@@ -10969,7 +10970,7 @@ table {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--awkit-accent-muted);
   background: var(--awkit-surface);
   color: var(--awkit-accent);
