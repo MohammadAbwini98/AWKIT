@@ -422,13 +422,14 @@ button:not(:disabled):not([role="switch"]):active,
 .app-frame-wordmark {
   color: var(--awkit-text);
   font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-lg);
   white-space: nowrap;
 }
 
+/* Internal separator inside chrome — divider, not the chrome frame border. */
 .app-frame-divider {
-  background: var(--awkit-border);
+  background: var(--awkit-divider);
   flex-shrink: 0;
   height: 14px;
   width: 1px;
@@ -476,7 +477,7 @@ button:not(:disabled):not([role="switch"]):active,
    seen constantly, so nothing moves; feedback is immediate color, not a transform. */
 @media (hover: hover) and (pointer: fine) {
   .win-control:hover {
-    background: var(--awkit-surface-inset);
+    background: var(--awkit-hover-surface);
     color: var(--awkit-text);
   }
 
@@ -514,13 +515,15 @@ button:not(:disabled):not([role="switch"]):active,
   overflow: hidden;
 }
 
+/* Application chrome: sits on --awkit-surface and is separated from the --awkit-bg canvas by a 1px
+   border, never a shadow (elevation is reserved for floating/interactive surfaces). */
 .top-header {
   align-items: center;
   background: var(--awkit-surface);
   border-bottom: 1px solid var(--awkit-border);
   display: flex;
-  gap: 14px;
-  padding: 0 16px;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
 }
 
 .header-title {
@@ -530,8 +533,25 @@ button:not(:disabled):not([role="switch"]):active,
   min-width: 220px;
 }
 
+/* Workspace / route title — 17px semibold per the design system's title step. */
 .header-title strong {
-  font-size: 15px;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-lg);
+  line-height: var(--leading-lg);
+}
+
+/* Shell controls: 8px control radius, neutral hover tint. Scoped to the header so page-level
+   toolbars keep their current geometry until their own migration phase. */
+.top-header .icon-button,
+.top-header .toolbar-button {
+  border-radius: var(--radius-xs);
+  font-size: var(--text-base);
+}
+
+.top-header .icon-button:hover:not(:disabled),
+.top-header .toolbar-button:not(.primary):hover:not(:disabled) {
+  background: var(--awkit-hover-surface);
 }
 
 .header-title span,
@@ -561,19 +581,20 @@ button:not(:disabled):not([role="switch"]):active,
   font-size: var(--text-sm);
 }
 
+/* Chip tier — 6px radius (--radius-2xs), 12px support text. */
 .header-status-chip {
   align-items: center;
   background: var(--awkit-warning-soft);
   border: 1px solid var(--awkit-warning-muted);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-2xs);
   color: var(--awkit-warning);
   display: inline-flex;
   flex-shrink: 0;
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   gap: 6px;
   height: 26px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
 }
 
 .header-status-chip::before {
@@ -656,15 +677,16 @@ button:not(:disabled):not([role="switch"]):active,
   align-items: center;
 }
 
+/* Internal section separator inside the sidebar chrome — --awkit-divider, not the chrome frame. */
 .brand-block {
   align-items: center;
-  border-bottom: 1px solid var(--awkit-border);
+  border-bottom: 1px solid var(--awkit-divider);
   display: flex;
   font-size: var(--text-sm);
   font-weight: 700;
-  gap: 8px;
+  gap: var(--space-2);
   height: 60px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
 }
 
 .left-navigation.collapsed .brand-block {
@@ -678,12 +700,12 @@ button:not(:disabled):not([role="switch"]):active,
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: flex;
   flex: 1;
   gap: 10px;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 6px var(--space-2);
 }
 
 .left-navigation.collapsed .brand-tile {
@@ -709,13 +731,18 @@ button:not(:disabled):not([role="switch"]):active,
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: inline-flex;
   height: 28px;
   justify-content: center;
   margin-left: auto;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out);
   width: 28px;
+}
+
+.nav-collapse-button:hover {
+  background: var(--awkit-hover-surface);
 }
 
 .left-navigation.collapsed .nav-collapse-button {
@@ -741,8 +768,8 @@ button:not(:disabled):not([role="switch"]):active,
 /* SpecterStudio app mark (concept 1c) used as the sidebar brand icon. The squircle shape
    is baked into the SVG (transparent corners); the radius here only rounds the drop shadow. */
 .brand-app-icon {
-  border-radius: 9px;
-  box-shadow: 0 1px 3px rgba(16, 15, 21, 0.24);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--awkit-shadow-soft);
   display: block;
   flex-shrink: 0;
   height: 32px;
@@ -784,7 +811,8 @@ button:not(:disabled):not([role="switch"]):active,
   border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: flex;
-  font-weight: 500;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
   gap: 10px;
   min-height: 36px;
   padding: 0 10px;
@@ -794,8 +822,9 @@ button:not(:disabled):not([role="switch"]):active,
     color var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
+/* Neutral control hover — the shared neutral hover tint, not a status/accent surface. */
 .nav-item:hover {
-  background: var(--awkit-neutral-soft);
+  background: var(--awkit-hover-surface);
   color: var(--awkit-text);
 }
 
@@ -805,15 +834,23 @@ button:not(:disabled):not([role="switch"]):active,
   width: 42px;
 }
 
+/* Active row: soft accent fill + accent text. BOTH sides must resolve through the accent tokens —
+   the accent is user-customisable at runtime (src/theme/accentColor.ts), so a --brand-* or hex
+   literal here would freeze the selected row at violet for every custom accent. */
 .nav-item.active {
-  background: var(--awkit-lavender-soft);
+  background: var(--awkit-accent-soft);
   color: var(--awkit-accent);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
+}
+
+.nav-item.active:hover {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent);
 }
 
 /* Sidebar footer (Settings / Dark Mode / workspace) — pinned under the scrolling nav list. */
 .nav-footer {
-  border-top: 1px solid var(--awkit-border);
+  border-top: 1px solid var(--awkit-divider);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -833,7 +870,7 @@ button:not(:disabled):not([role="switch"]):active,
 /* Non-interactive workspace identity row (template user footer). */
 .nav-workspace {
   align-items: center;
-  border-top: 1px solid var(--awkit-border);
+  border-top: 1px solid var(--awkit-divider);
   display: flex;
   gap: 10px;
   margin-top: 6px;
@@ -844,7 +881,7 @@ button:not(:disabled):not([role="switch"]):active,
 .nav-workspace-mark {
   align-items: center;
   background: var(--awkit-surface-inset);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: inline-flex;
   flex-shrink: 0;
@@ -926,7 +963,11 @@ button:not(:disabled):not([role="switch"]):active,
   margin: 8px 0 0;
 }
 
+/* Main content surface: the app CANVAS, deliberately --awkit-bg so the surrounding chrome
+   (sidebar / top header / status bar, all on --awkit-surface) reads as a separate plane. */
 .main-surface {
+  background: var(--awkit-bg);
+  font-size: var(--text-base);
   min-width: 0;
   overflow: auto;
 }
@@ -3385,6 +3426,7 @@ table {
   width: 28px;
 }
 
+/* Status bar is application chrome: --awkit-surface, framed off the canvas by a 1px border. */
 .status-bar {
   align-items: center;
   background: var(--awkit-surface);
@@ -3394,6 +3436,15 @@ table {
   gap: 10px;
   overflow-x: auto;
   padding: 0 14px;
+}
+
+/* Chip/counter tier inside the shell only — the shared .status-chip pill is still used by pages
+   that have not been migrated yet, so this is scoped rather than retuned globally. Every readout
+   here carries a live number, so the digits are tabular and do not reflow on each 2s poll. */
+.status-bar .status-chip {
+  border-radius: var(--radius-2xs);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 /* =====================================================================
@@ -10458,10 +10509,13 @@ table {
 }
 
 .nav-group-toggle:hover { color: var(--awkit-text-secondary); }
+/* Group counter — chip/counter tier: 6px radius, 10px label floor, tabular so the digits do not
+   jitter as groups are permission-filtered. */
 .nav-group-toggle > span:nth-child(2) {
   background: var(--awkit-surface-inset);
-  border-radius: 4px;
-  font-size: 10px;
+  border-radius: var(--radius-2xs);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
   min-width: 18px;
   padding: 1px 4px;
   text-align: center;

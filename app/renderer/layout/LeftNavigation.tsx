@@ -142,9 +142,14 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
                 if (!route) return null;
 
                 const Icon = route.icon;
+                const isActive = route.id === activeRouteId;
                 return (
                   <button
-                    className={route.id === activeRouteId ? "nav-item active" : "nav-item"}
+                    // Collapsed rows are icon-only, so they carry an explicit name; expanded rows are
+                    // named by their own text (which e2e helpers match on) and must not be relabelled.
+                    aria-label={collapsed ? route.label : undefined}
+                    aria-current={isActive ? "page" : undefined}
+                    className={isActive ? "nav-item active" : "nav-item"}
                     key={route.id}
                     onClick={() => onRouteChange(route.id)}
                     title={collapsed ? route.label : route.description}
@@ -162,6 +167,8 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
       <div className="nav-footer">
         {can(Permission.PAGE_SETTINGS) ? (
           <button
+            aria-label={collapsed ? "Settings" : undefined}
+            aria-current={activeRouteId === "settings" ? "page" : undefined}
             className={activeRouteId === "settings" ? "nav-item active" : "nav-item"}
             onClick={() => onRouteChange("settings")}
             title={collapsed ? "Settings" : undefined}
@@ -171,12 +178,19 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
             {!collapsed ? <span>Settings</span> : null}
           </button>
         ) : null}
-        <button className="nav-item" onClick={() => onRouteChange("projectContract")} title={collapsed ? "Help Center" : undefined} type="button">
+        <button
+          aria-label={collapsed ? "Help Center" : undefined}
+          className="nav-item"
+          onClick={() => onRouteChange("projectContract")}
+          title={collapsed ? "Help Center" : undefined}
+          type="button"
+        >
           <HelpCircle size={17} />
           {!collapsed ? <span>Help Center</span> : null}
         </button>
         <button
           className="nav-item nav-theme-toggle"
+          aria-label={collapsed ? "Dark Mode" : undefined}
           aria-pressed={isDark}
           onClick={() => setAppearance(isDark ? "light" : "dark")}
           title={isDark ? "Switch to light mode" : "Switch to dark mode"}
