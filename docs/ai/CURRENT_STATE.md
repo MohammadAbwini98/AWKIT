@@ -1,5 +1,63 @@
 # CURRENT_STATE
 
+## R2 one execution application service complete (2026-09-05)
+
+R2 extracted application-level run preparation and orchestration out of `app/main/ipc/execution.ipc.ts`
+into exactly ONE new Electron-main service, `app/main/execution/ExecutionApplicationService.ts`
+(458 lines). `execution.ipc.ts` is now 199 lines and is transport plus sender/session/RBAC
+authorization only. The layering is **IPC transport + authorization → `ExecutionApplicationService` →
+`ExecutionEngine`**. The service is a preparation/orchestration seam, **not** a new authority:
+`ExecutionEngine` remains the one execution authority, `executionEngine.startRun` remains the single
+canonical dispatch, and both licensing checkpoints (`run-request`, `pre-run`) remain independent and
+still precede that dispatch. This is a **pure refactor with no intended behavior change** — no
+lifecycle value, cancellation or capacity rule, licensing checkpoint, report or session shape,
+folder/default, IPC/preload contract, browser owner, or offline/security boundary changed.
+Commits: `5cdee63` (characterization first), `2ed0111` (the extraction), `5ce0074` (R0
+characterization verifier migrated to the new module boundary), `aeac35d` (the legacy-compatibility
+attribution guard followed into `ExecutionApplicationService`).
+
+Executed evidence:
+
+- `verify:r0-characterization` — **PASS**, **162 assertions, 0 failed**.
+- `verify:run-report-compatibility` — **PASS**, **27 passed / 0 failed**, after the guard was
+  re-pointed from `execution.ipc.ts` to `ExecutionApplicationService.ts` in `aeac35d`.
+- `validate:offline -Strict` — **FAIL, and NOT caused by R2.**
+  `resources/dependency-manifest.json:12` pins `"sourceCommit":
+  "b5d4ba5957f488bcfbdc9db840153c01b65227df"`, which is **50 commits behind** the R2 baseline
+  (`git log --oneline b5d4ba5..a6211d5`). It was already failing before R2 began. Regenerating a
+  packaged manifest is a build-release operation and was out of R2 scope. Record this as a
+  **pre-existing FAIL**, never as a pass and never as an R2 regression.
+- `verify:e2e-rbac` — **69/70, environmental, not an R2 defect.**
+  `scripts/verify-e2e-rbac-gui.mjs:96` asserts the text "Key unavailable" appears when **no**
+  external issuer signing key is provisioned; this machine has one provisioned, so the negative case
+  cannot be exercised here. R2's blast radius was exactly two files (`git show --stat 2ed0111`),
+  neither related to issuer signing.
+- The remainder of the §8 suite passed. Any check not named above is **NOT RUN** for this tranche —
+  do not infer PASS for it.
+
+QC: an independent `awkit-qc-reviewer` returned **APPROVED WITH FINDINGS — no blocking findings**,
+marking PASS on all nine assessed dimensions (R2-only scope, IPC trust boundary, authorization
+ordering, independent licensing checkpoints, public contract preservation, one canonical `startRun`,
+runtime/data/capacity fidelity, test credibility with one concern, offline/security). Four
+out-of-scope findings were filed rather than fixed: **`awkit-syaa` (P1)** `execution:repeatInstance`
+lacks the installed-Chrome / Super User branch `execution:runWorkflow` has; **`awkit-9a1l` (P2)** the
+pre-run licensing control asserts position but not `await`-adjacency; **`awkit-ttvb` (P2)**
+`execution:validate` and the `dryRun !== false` path reach the application service with no
+authorization and no control pinning that; **`awkit-wknd` (P3)** `settings.superUser.chrome.mode` is
+now read by two `getUiSettings()` calls in two files. Details in the R2 residual-scope section of
+`docs/ai/KNOWN_ISSUES.md`. QC's one non-blocking CONCERN: the R2 controls were rewritten in `5ce0074`
+*after* the extraction landed in `2ed0111`, inverting characterize-first; the mitigation actually
+applied was diffing the real pre-image rather than trusting the controls.
+
+The Recorder/Reports/Settings validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED**: R2 moves
+no case status, because it relocates preparation code inside the Electron main process and no case's
+stated scope or observed result changed. No Mock Site fixture changed, so `verify:mock-site` is
+**NOT APPLICABLE** to this tranche. Beads is **275 total / 266 closed / 7 open / 2 blocked** after the
+four R2 follow-ups above were filed OPEN; the two blocked items remain the externally blocked Oracle
+beads `awkit-7bu` and `awkit-cm8`, and the three open R1B follow-ups (`awkit-utbf`, `awkit-s410`,
+`awkit-dhw6`) are unchanged. `tools/roadmap/assignments.json` carries no claim — the R2 claim was
+cleared at closeout. **R3 has NOT started and is not authorized.**
+
 ## R1B one write coordinator per resolved profile folder complete (2026-09-04)
 
 R1B is implemented as a serialization authority only — no store registry, document cache,

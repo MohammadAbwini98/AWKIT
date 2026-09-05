@@ -1,6 +1,91 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-04, latest) — R1B complete; R2 ready
+## HANDOFF (2026-09-05, latest) — R2 complete; R3 NOT started and NOT authorized
+
+- **Delivered:** application-level run preparation and orchestration extracted out of
+  `app/main/ipc/execution.ipc.ts` into exactly ONE new Electron-main service,
+  `app/main/execution/ExecutionApplicationService.ts` (458 lines). `execution.ipc.ts` is now 199 lines
+  and is transport plus sender/session/RBAC authorization only. Commits: `5cdee63` (characterization),
+  `2ed0111` (the extraction), `5ce0074` (R0 verifier migrated to the new module boundary), `aeac35d`
+  (legacy-compatibility attribution guard followed into the service).
+- **Layering, and the rule that goes with it:** **IPC transport + authorization →
+  `ExecutionApplicationService` → `ExecutionEngine`**. Authorization completes in the IPC facade
+  *before* the service is invoked; the service performs no authorization and must not acquire any.
+  The service is a preparation/orchestration **seam, not a new authority** — `ExecutionEngine` is
+  still the one execution authority and `executionEngine.startRun` still the one canonical dispatch,
+  with both licensing checkpoints (`run-request`, `pre-run`) independent and still ahead of it.
+- **Pure refactor, no intended behavior change.** No lifecycle value, cancellation or capacity rule,
+  licensing checkpoint, report or session shape, folder/default, IPC/preload contract, browser owner,
+  or offline/security boundary changed.
+- **Verification — record these exactly, do not upgrade any of them:**
+  `verify:r0-characterization` **PASS, 162 assertions, 0 failed**;
+  `verify:run-report-compatibility` **PASS, 27 passed / 0 failed** (after the guard was re-pointed
+  from `execution.ipc.ts` to `ExecutionApplicationService.ts` in `aeac35d`);
+  `validate:offline -Strict` **FAIL — pre-existing, NOT caused by R2**
+  (`resources/dependency-manifest.json:12` pins a `sourceCommit` 50 commits behind the R2 baseline;
+  regenerating a packaged manifest is a build-release operation, out of R2 scope);
+  `verify:e2e-rbac` **69/70 — environmental** (`scripts/verify-e2e-rbac-gui.mjs:96` needs *no*
+  issuer signing key provisioned, and this machine has one). The remainder of the §8 suite passed.
+  Anything not named here is **NOT RUN** — do not infer PASS for it.
+- **QC verdict: APPROVED WITH FINDINGS — no blocking findings.** An independent `awkit-qc-reviewer`
+  marked PASS on all nine dimensions it assessed (R2-only scope, IPC trust boundary, authorization
+  ordering, independent licensing checkpoints, public contract preservation, one canonical
+  `startRun`, runtime/data/capacity fidelity, test credibility with one concern, offline/security).
+  Its one non-blocking **CONCERN**: the R2 controls were rewritten in `5ce0074` *after* the extraction
+  landed in `2ed0111`, inverting characterize-first; the mitigation actually applied was diffing the
+  real pre-image rather than trusting the controls.
+- **Carried forward, filed OPEN and deliberately not fixed under R2** (full detail in the R2
+  residual-scope section of `docs/ai/KNOWN_ISSUES.md`). R2 changed **zero** authorization calls —
+  `git log -G "assertSender" -- app/main/ipc/execution.ipc.ts` returns only `1476917`, `2f1a5a9`,
+  `31b5206`, not `2ed0111` — so none of these is an R2 regression:
+  - **`awkit-syaa` (P1), do this first — a real authorization gap, merely not R2's to fix.**
+    `execution:repeatInstance` (`app/main/ipc/execution.ipc.ts:126-127`) asserts only
+    `Permission.WORKFLOW_EXECUTE` with no installed-Chrome / Super User branch, while
+    `execution:runWorkflow` has one at `:63-71`. `src/runner/ExecutionEngine.ts:2094` re-executes from
+    the stored `runContexts` entry, whose template may carry `browserDistribution:
+    "installedChrome"`. Bounded: `:2094-2097` throws unless a context survives from a prior,
+    Super-User-authorized run in the same process lifetime.
+  - **`awkit-9a1l` (P2)** — the pre-run licensing control
+    (`scripts/verify-r0-characterization.mts:1427-1465`, position asserted at `:1456-1459`) has no
+    "no `await` between" adjacency test, whereas R0.4 does exactly that at `:1151-1155`. An awaited
+    step could be inserted between `ExecutionApplicationService.ts:213` and `:214` with all controls
+    green.
+  - **`awkit-ttvb` (P2)** — `execution:validate` (`execution.ipc.ts:58`) and the `dryRun !== false`
+    path reach the application service with no authorization, and **no control covers it**; R2.1
+    (`scripts/verify-r0-characterization.mts:1379-1385`) scopes only the real-run path. Remedy is a
+    **decision** (document the view-level exemption and pin it, or gate it), not a patch.
+  - **`awkit-wknd` (P3)** — `settings.superUser.chrome.mode` is now read by two separate
+    `getUiSettings()` calls in two files (`execution.ipc.ts:64-65` for authorization,
+    `ExecutionApplicationService.ts:247`/`:269` for browser distribution). Non-atomicity is
+    pre-existing; R2 changed only proximity. Awareness only.
+- **Project state:** Beads **275 total / 266 closed / 7 open / 2 blocked**. The four R2 follow-ups
+  above are the new OPEN items; the three R1B follow-ups (`awkit-utbf`, `awkit-s410`, `awkit-dhw6`)
+  are unchanged, and the two BLOCKED items remain the externally blocked Oracle beads `awkit-7bu` and
+  `awkit-cm8`. Validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED** — R2 moves no case
+  status. `tools/roadmap/assignments.json` carries no claim; the R2 claim was cleared at closeout.
+- **OPEN BLOCKER at closeout — `verify:roadmap-dashboard` is RED at 175/177, and the project-state
+  lease cannot reach the fix.** Filing the four follow-up beads moved the tracker's non-vacuity pins,
+  which are hardcoded in `scripts/verify-roadmap-dashboard.mjs` — a QA-owned file. Exactly two checks
+  fail, both of them the pins themselves, and nothing else regressed:
+  `scripts/verify-roadmap-dashboard.mjs:134` still pins `beads.stats.total === 271` (got **275**), and
+  `:444-445` still pins `outstanding === 5 && closed === 266` (got **outstanding 9, closed 266**).
+  `.beads/issues.jsonl` was correctly refreshed with `bd export -o .beads/issues.jsonl`, so this is a
+  stale pin and not a stale export — the independent recount check ("every issue record in the export
+  was parsed, none silently dropped") passed. **The Overview banner check passed and reads "Sources
+  agree"**, as did both narrative-tally consistency checks and the 106-edge pin (all four new beads
+  ship `dependency_count: 0`). Remedy is to move the two pins deliberately to `275` and
+  `9 outstanding / 266 closed`, with the customary dated comment — never to relax them to a range,
+  because their whole purpose is to catch an unrefreshed export. This is the recurring hazard already
+  recorded in `docs/ai/KNOWN_ISSUES.md` (2026-08-21): closing or filing a bead breaks a QA-owned pin
+  that the project-state lease cannot reach.
+- **Next — R3 has NOT started, is NOT in progress, and is NOT authorized.** Do not describe it
+  otherwise. Whatever phase comes next inherits: the `app/main/execution/` layer and its
+  authorization-in-the-facade rule; the four R2 follow-ups above (start with `awkit-syaa`); the three
+  still-open R1B follow-ups and the deferred stale-snapshot question, which R2 did not touch; and the
+  pre-existing `validate:offline -Strict` manifest failure, which needs a build-release owner, not a
+  refactor.
+
+## HANDOFF (2026-09-04) — R1B complete; R2 ready
 
 - **Delivered:** one write-coordination authority per resolved profile folder.
   `src/storage/folderWriteCoordinator.ts` holds a process-wide `Map` of lanes keyed by

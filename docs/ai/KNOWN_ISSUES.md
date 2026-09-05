@@ -1,5 +1,82 @@
 # KNOWN_ISSUES
 
+## R2 execution application service — residual scope limits (2026-09-05)
+
+R2 moved run preparation and orchestration out of `app/main/ipc/execution.ipc.ts` into
+`app/main/execution/ExecutionApplicationService.ts`. It was a pure refactor with no intended behavior
+change. These are the things it deliberately does **not** cover. **None is a regression** — R2 changed
+zero authorization calls (`git log -G "assertSender" -- app/main/ipc/execution.ipc.ts` returns only
+`1476917`, `2f1a5a9` and `31b5206`; the R2 commit `2ed0111` does not appear) — and each is recorded so
+a later phase does not mistake it for one.
+
+- **Open finding, not fixed (`awkit-9a1l`, P2) — the pre-run licensing control asserts position but
+  not adjacency.** `assertLicensingGatesEnforcedBeforeDispatch`
+  (`scripts/verify-r0-characterization.mts:1427-1465`) checks cardinality, trigger order and guard
+  expressions, and at `:1456-1459` requires each licensing guard's `end` to precede
+  `executionEngine.startRun`'s `getStart()`. It has **no** "no `await` between" assertion. R0.4 does
+  exactly that for the engine's own final dispatch gate: `:1151-1155` walks `processQueue` for any
+  `AwaitExpression` after `finalGate.end` and before `runningUpdate.pos` and folds `!awaitBetween`
+  into the invariant. Consequence: an awaited step could be inserted between the pre-run guard at
+  `app/main/execution/ExecutionApplicationService.ts:213` and the canonical dispatch at `:214` — the
+  window in which a licensing decision goes stale before the browser launches — with every current
+  control still green. **Not a regression:** the pre-R2 baseline asserted only a *count* for this
+  checkpoint, so R2 removed no adjacency assertion; it added a positional one that stopped one notch
+  short of the standard R0.4 already set. Remedy: extend the R2 control with the same `awaitBetween`
+  test, and prove it non-vacuous by inserting an `await` between `:213` and `:214`.
+- **Open finding, not fixed (`awkit-syaa`, P1) — `execution:repeatInstance` can relaunch an
+  installed-Chrome run without the Super User branch.** `app/main/ipc/execution.ipc.ts:126-127`
+  asserts only `Permission.WORKFLOW_EXECUTE`, with no installed-Chrome branch;
+  `execution:runWorkflow` has one at `:63-71`, where a real run reads `settings.superUser.chrome.mode`
+  and routes to `assertSenderSuperUser` when the mode is `installedChrome`.
+  `src/runner/ExecutionEngine.ts:2094` re-executes from the stored in-memory `runContexts` entry,
+  whose instance template may carry `browserDistribution: "installedChrome"`, so an execute-permitted
+  non-Super-User can relaunch an installed-Chrome run. **Severity is bounded and this is
+  pre-existing, not R2's doing:** `ExecutionEngine.ts:2094-2097` throws unless a `runContexts` entry
+  survives from a prior, Super-User-authorized run in the same process lifetime — there is no
+  cross-restart path. Remedy: give `repeatInstance` the same branch, resolved from the instance's own
+  stored template rather than only from current settings, plus a control pinning it. This is the one
+  finding in this section that is a real authorization gap; it is merely not R2's to fix.
+- **Open finding, not fixed (`awkit-ttvb`, P2) — `execution:validate` reaches the application service
+  with no authorization, and no control covers it.** `app/main/ipc/execution.ipc.ts:58` invokes
+  `applicationService.validateWorkflow` with no sender/RBAC check at all, and the authorization block
+  at `:59-73` is entered only when `request.dryRun` is exactly `false`, so any request with `dryRun`
+  omitted or `true` reaches `applicationService.runWorkflow` before any authorization. The in-code
+  rationale at `:60-62` states this is view-level because no browser is launched, so a Viewer's
+  pre-run preview still works. Pre-existing and apparently intentional. What R2 changed is the
+  *framing*: under the new layering these paths are literally "application-service invocation without
+  authorization", and **no characterization control covers them** — the R2.1 control
+  `assertAuthorizationPrecedesRunPreparation`
+  (`scripts/verify-r0-characterization.mts:1379-1385`) scopes itself to the `execution:runWorkflow`
+  handler's real-run path and asserts exactly two `assertSender*` calls there. Remedy is a
+  **decision, not a patch**: either document the view-level exemption and add a control pinning it,
+  or gate the paths. Do not silently pick one.
+- **Open finding, not fixed (`awkit-wknd`, P3) — `settings.superUser.chrome.mode` now has two
+  readers in two files.** `app/main/ipc/execution.ipc.ts:64-65` reads it via `getUiSettings()` to
+  choose the authorization branch; `app/main/execution/ExecutionApplicationService.ts:247` and
+  `:269` read it again via a second `getUiSettings()` to choose browser distribution
+  (`installedChrome` + `InstalledChromeResolver` + `persistentContext` at `:269-274`, else
+  `bundledChromium` at `:276`). The reads are not atomic, so a settings write landing between them
+  can authorize against one mode and launch under the other. **The non-atomicity is pre-existing** —
+  both reads predate R2, when both lived in `execution.ipc.ts`. What R2 changed is proximity: the two
+  readers now sit on opposite sides of the IPC/service boundary, so a future edit to one is less
+  likely to be noticed against the other. Documentation/awareness only; collapsing the two reads is
+  behavior change.
+- **QC CONCERN, non-blocking — the R2 controls were written after the code.** The R2 characterization
+  controls were rewritten in `5ce0074`, *after* the extraction landed in `2ed0111`, which inverts the
+  characterize-first discipline. The mitigation actually applied was diffing the real pre-image rather
+  than trusting the controls. Treat any R2 control as corroborating rather than independent evidence.
+- **Pre-existing, unrelated to R2: `validate:offline -Strict` FAILS.**
+  `resources/dependency-manifest.json:12` pins `"sourceCommit":
+  "b5d4ba5957f488bcfbdc9db840153c01b65227df"`, **50 commits behind** the R2 baseline
+  (`git log --oneline b5d4ba5..a6211d5`). It was already failing before R2 began. Regenerating a
+  packaged manifest is a build-release operation. Do not record this as an R2 regression, and do not
+  record it as a pass.
+- **Environmental, not a defect: `verify:e2e-rbac` is 69/70 on this workstation.**
+  `scripts/verify-e2e-rbac-gui.mjs:96` asserts the text "Key unavailable" appears when **no** external
+  issuer signing key is provisioned; this machine has one provisioned, so the negative case cannot be
+  exercised here. R2's blast radius was exactly two files (`git show --stat 2ed0111`), neither related
+  to issuer signing.
+
 ## R1B write coordination — residual scope limits (2026-09-04)
 
 R1B gave every `JsonProfileStore` mutation one write lane per resolved folder. These are the parts it

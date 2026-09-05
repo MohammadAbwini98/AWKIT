@@ -1,5 +1,58 @@
 # TASK_LOG
 
+## 2026-09-05 — Claude (project-state) — R2 one execution application service
+
+**Task/result:** R2 implemented and QC-reviewed on `main`, then reconciled into the authoritative
+sources. Application-level run preparation and orchestration were extracted out of
+`app/main/ipc/execution.ipc.ts` into exactly ONE new Electron-main service,
+`app/main/execution/ExecutionApplicationService.ts` (458 lines); `execution.ipc.ts` is now 199 lines
+and is transport plus sender/session/RBAC authorization only. Layering is **IPC transport +
+authorization → `ExecutionApplicationService` → `ExecutionEngine`**, with authorization completing in
+the IPC facade before the service is invoked. The service is a preparation/orchestration seam, not a
+new authority: `ExecutionEngine` remains the one execution authority, `executionEngine.startRun` the
+one canonical dispatch, and both licensing checkpoints (`run-request`, `pre-run`) independent and
+ahead of it. Pure refactor, no intended behavior change. Commits `5cdee63` (characterization),
+`2ed0111` (extraction), `5ce0074` (R0 verifier migrated to the new module boundary), `aeac35d`
+(legacy-compatibility attribution guard followed into the service).
+
+**Files (this documentation task):** `docs/ai/CURRENT_STATE.md` (new R2 section, with the ledger
+tally restated), `docs/ai/HANDOFF.md` (R2 closeout; R3 explicitly NOT started), `docs/ai/TASK_LOG.md`
+(this entry), `docs/ai/ARCHITECTURE.md` (`app/main/execution/` recorded as a new main-process layer
+plus the authorization rule), `docs/ai/KNOWN_ISSUES.md` (R2 residual-scope section),
+`.beads/issues.jsonl` (re-exported with `bd export -o`), `tools/roadmap/assignments.json` (R2 claim
+cleared). No source file was changed by this task.
+
+**Tests run:** `verify:r0-characterization` **PASS, 162 assertions, 0 failed**;
+`verify:run-report-compatibility` **PASS, 27 passed / 0 failed** (after the guard was re-pointed from
+`execution.ipc.ts` to `ExecutionApplicationService.ts` in `aeac35d`). `verify:e2e-rbac` **69/70 —
+environmental, not an R2 defect**: `scripts/verify-e2e-rbac-gui.mjs:96` asserts "Key unavailable"
+appears when *no* external issuer signing key is provisioned, and this machine has one, so the
+negative case cannot be exercised here; R2's blast radius was exactly two files
+(`git show --stat 2ed0111`), neither related to issuer signing. `validate:offline -Strict` **FAIL —
+pre-existing, NOT caused by R2**: `resources/dependency-manifest.json:12` pins a `sourceCommit`
+(`b5d4ba5…`) **50 commits behind** the R2 baseline (`git log --oneline b5d4ba5..a6211d5`), and it was
+already failing before R2 began; regenerating a packaged manifest is a build-release operation, out
+of R2 scope. The remainder of the §8 suite passed.
+
+**Tests NOT run:** anything not named above is **NOT RUN** for this tranche — including the
+clean-machine GUI walkthrough and any packaged-artifact gate. Do not infer PASS for them.
+`verify:mock-site` is **NOT APPLICABLE**: no Mock Site fixture changed.
+
+**QC:** independent `awkit-qc-reviewer` returned **APPROVED WITH FINDINGS — no blocking findings**,
+PASS on all nine assessed dimensions. Non-blocking CONCERN: the R2 controls were rewritten in
+`5ce0074` *after* the extraction landed in `2ed0111`, inverting characterize-first; the mitigation
+actually applied was diffing the real pre-image rather than trusting the controls.
+
+**Project state:** four out-of-scope findings filed OPEN rather than fixed — `awkit-syaa` (P1,
+`execution:repeatInstance` lacks the installed-Chrome / Super User branch), `awkit-9a1l` (P2, the
+pre-run licensing control asserts position but not `await`-adjacency), `awkit-ttvb` (P2,
+`execution:validate` and the `dryRun !== false` path reach the service with no authorization and no
+control), `awkit-wknd` (P3, `settings.superUser.chrome.mode` read by two `getUiSettings()` calls in
+two files). R2 changed zero authorization calls, confirmed by
+`git log -G "assertSender" -- app/main/ipc/execution.ipc.ts` returning only `1476917`, `2f1a5a9`,
+`31b5206`. Beads **275 total / 266 closed / 7 open / 2 blocked**. Validation ledger unchanged at
+**65 PASS / 2 NOT RUN / 0 BLOCKED**. **R3 has NOT started and is not authorized.**
+
 ## 2026-09-04 — Claude (project-state) — R1B one write coordinator per resolved profile folder
 
 **Task/result:** R1B implemented and verified on `main`, then reconciled into the authoritative

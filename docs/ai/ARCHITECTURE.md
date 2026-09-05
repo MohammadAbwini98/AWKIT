@@ -738,6 +738,21 @@ and the pointer swap is an irreversible commit point.
   persistence through `ExecutionEnginePorts`. `app/main/ipc/execution.ipc.ts` is the production
   composition root and `main.ts` rejects startup if the port pair is missing. Report persistence still
   uses the current per-write `createReportStore()` factory; resolved-folder coordination belongs to R1B.
+- **`app/main/execution/` is an Electron-main application layer between IPC and the runner (R2,
+  2026-09-05).** `app/main/execution/ExecutionApplicationService.ts` holds run preparation and
+  orchestration — workflow validation, instance-template resolution, storage-dir resolution, the two
+  licensing checkpoints, and the single dispatch. The layering is **IPC transport + authorization →
+  `ExecutionApplicationService` → `ExecutionEngine`**, and it is one-directional: the service never
+  calls back into IPC handlers.
+  - **Rule: authorization completes in the IPC facade before the service is invoked.**
+    `app/main/ipc/execution.ipc.ts` is transport plus sender/session/RBAC checks only; every
+    `assertSender*` call stays there and must finish before `applicationService.*` is called.
+    `ExecutionApplicationService` performs **no** authorization and must not acquire any. (Known
+    exception, pre-existing and tracked as `awkit-ttvb`: `execution:validate` and the
+    `dryRun !== false` path reach the service with no authorization at all.)
+  - **The service is a seam, not an authority.** `ExecutionEngine` remains the one execution
+    authority and `executionEngine.startRun` the one canonical dispatch. Do not move lifecycle,
+    cancellation, capacity or report decisions into the service.
 
 ## Inferred
 
