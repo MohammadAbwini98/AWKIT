@@ -687,7 +687,7 @@ button:not(:disabled):not([role="switch"]):active,
   border-bottom: 1px solid var(--awkit-divider);
   display: flex;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: var(--space-2);
   height: 60px;
   padding: 0 var(--space-3);
@@ -756,13 +756,13 @@ button:not(:disabled):not([role="switch"]):active,
 .brand-mark {
   align-items: center;
   background: var(--awkit-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   box-shadow: 0 1px 2px rgba(var(--awkit-accent-rgb), 0.30);
   color: var(--awkit-accent-contrast);
   display: inline-flex;
   flex-shrink: 0;
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   height: 32px;
   justify-content: center;
   letter-spacing: 0.02em;
@@ -802,7 +802,7 @@ button:not(:disabled):not([role="switch"]):active,
 .nav-group-label {
   color: var(--awkit-text-muted);
   font-size: var(--text-2xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.08em;
   padding: 0 10px 4px;
   text-transform: uppercase;
@@ -890,7 +890,7 @@ button:not(:disabled):not([role="switch"]):active,
   display: inline-flex;
   flex-shrink: 0;
   font-size: var(--text-2xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   height: 30px;
   justify-content: center;
   letter-spacing: 0.02em;
@@ -905,7 +905,7 @@ button:not(:disabled):not([role="switch"]):active,
 
 .nav-workspace-name > span:first-child {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -919,7 +919,7 @@ button:not(:disabled):not([role="switch"]):active,
 .theme-switch {
   background: var(--awkit-surface-inset);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   height: 18px;
   margin-left: auto;
@@ -2192,7 +2192,7 @@ div.validation-issue-row {
 .recorder-review-item {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -2580,7 +2580,7 @@ td {
 
 th {
   color: var(--awkit-text-secondary);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .toolbar-strip {
@@ -2622,7 +2622,7 @@ table {
 .instance-dashboard article {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 5px;
   padding: 12px;
@@ -2636,10 +2636,10 @@ table {
 
 .state-pill,
 .status-chip {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: 4px 9px;
   white-space: nowrap;
 }
@@ -2706,10 +2706,10 @@ table {
 
 .instance-paths {
   background: var(--awkit-accent-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-hover);
   display: inline-flex;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: 4px 8px;
 }
 
@@ -2750,7 +2750,7 @@ table {
   align-items: start;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 10px;
   grid-template-columns: auto minmax(0, 1fr);
@@ -2777,7 +2777,7 @@ table {
 .binding-preview {
   background: var(--awkit-accent-soft);
   border: 1px solid var(--awkit-accent-muted);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 5px;
   padding: 12px;
@@ -2810,7 +2810,7 @@ table {
 .variable-mapper article {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 5px;
   padding: 12px;
@@ -2833,7 +2833,7 @@ table {
 
 .data-source-card em {
   background: var(--awkit-accent-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-hover);
   font-size: var(--text-2xs);
   font-style: normal;
@@ -2857,7 +2857,7 @@ table {
 
 .json-preview {
   background: var(--awkit-text);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-surface-inset);
   font-family: "Cascadia Code", Consolas, monospace;
   font-size: var(--text-xs);
@@ -2888,7 +2888,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 7px;
   grid-template-columns: auto minmax(0, 1fr);
@@ -2907,7 +2907,7 @@ table {
 .timeline article,
 .check-row {
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 6px;
   padding: 14px;
@@ -2940,7 +2940,7 @@ table {
 .security-note {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 7px;
   padding: 12px;
@@ -3024,17 +3024,17 @@ table {
 
 .timeline.structured em {
   background: var(--awkit-surface-inset);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-text-secondary);
   font-size: var(--text-2xs);
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   padding: 4px 8px;
 }
 
 .error-text {
   color: var(--awkit-danger);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .security-note {
@@ -3075,7 +3075,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 12px;
   grid-template-columns: auto minmax(0, 1fr) minmax(90px, auto);
@@ -3119,7 +3119,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 7px;
   grid-template-columns: auto minmax(0, 1fr);
@@ -3135,7 +3135,7 @@ table {
   align-items: center;
   background: var(--awkit-success-soft);
   border: 1px solid var(--awkit-success-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 14px;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -3163,7 +3163,7 @@ table {
 .roadmap-card {
   border: 1px solid var(--awkit-border);
   border-left-width: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 10px;
   padding: 14px;
@@ -3199,16 +3199,16 @@ table {
 .roadmap-phase-id {
   color: var(--awkit-text-secondary);
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
 }
 
 .roadmap-status {
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   gap: 5px;
   padding: 5px 9px;
 }
@@ -3259,7 +3259,7 @@ table {
 .roadmap-deliverables span {
   background: var(--awkit-surface-inset);
   border: 1px solid var(--awkit-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-text-secondary);
   font-size: var(--text-xs);
   padding: 5px 8px;
@@ -3275,7 +3275,7 @@ table {
 .roadmap-acceptance strong {
   color: var(--awkit-text);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   line-height: 1.45;
 }
 
@@ -3296,7 +3296,7 @@ table {
 .contract-card {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
 }
 
 .contract-overview article {
@@ -3369,14 +3369,14 @@ table {
 .contract-chip-grid span {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-text-secondary);
   font-size: var(--text-xs);
   padding: 6px 9px;
 }
 
 .contract-chip-grid.compact span {
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
 }
 
 .contract-list {
@@ -3410,7 +3410,7 @@ table {
   align-items: start;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 10px;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -3420,11 +3420,11 @@ table {
 .contract-phase-list article > span {
   align-items: center;
   background: var(--awkit-accent-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-accent-hover);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   height: 28px;
   justify-content: center;
   width: 28px;
@@ -3929,7 +3929,7 @@ table {
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
 }
 
@@ -3948,7 +3948,7 @@ table {
   color: var(--awkit-accent);
   cursor: pointer;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   padding: 0;
   text-align: left;
   text-decoration: underline;
@@ -4069,7 +4069,7 @@ table {
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
   position: sticky;
   top: 0;
@@ -4124,7 +4124,7 @@ table {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: inline-flex;
   height: 26px;
@@ -4774,7 +4774,7 @@ table {
 
 .modal-icon {
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: inline-flex;
   height: 34px;
   justify-content: center;
@@ -5279,7 +5279,7 @@ table {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: flex;
   flex: 1;
@@ -5307,7 +5307,7 @@ table {
 .table-filters-panel {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: grid;
   gap: 12px;
   padding: 14px;
@@ -5338,7 +5338,7 @@ table {
   display: inline-flex;
   font: inherit;
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 4px;
   letter-spacing: 0.02em;
   padding: 10px 12px;
@@ -5398,7 +5398,7 @@ table {
 .table-page-controls button {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   cursor: pointer;
   font-size: var(--text-xs);
@@ -5486,7 +5486,7 @@ table {
   cursor: pointer;
   font: inherit;
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.02em;
   padding: 4px 2px;
   text-transform: uppercase;
@@ -5519,7 +5519,7 @@ table {
 .ds-cell input {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   font-size: var(--text-sm);
   padding: 5px 7px;
   width: 100%;
@@ -5542,7 +5542,7 @@ table {
 
 .ds-cell.ds-type-boolean input {
   color: var(--awkit-success);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .ds-cell.ds-type-null input {
@@ -5624,7 +5624,7 @@ table {
   gap: 8px;
   max-width: 420px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   box-shadow: 0 8px 24px rgba(var(--awkit-shadow-rgb), 0.18);
   font-size: var(--text-sm);
@@ -5682,7 +5682,7 @@ table {
   color: inherit;
   cursor: pointer;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
   opacity: 0.7;
 }
 
@@ -5704,7 +5704,7 @@ table {
   padding: 8px 12px;
   margin-bottom: 12px;
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
   width: 100%;
@@ -5751,7 +5751,7 @@ table {
   box-sizing: border-box;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.06);
   padding: 14px;
   transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
@@ -5814,9 +5814,9 @@ table {
 .workflow-card-badge {
   flex-shrink: 0;
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -5875,7 +5875,7 @@ table {
   font-size: var(--text-xs);
   color: var(--awkit-danger);
   background: var(--awkit-danger-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   padding: 6px 8px;
 }
 
@@ -5962,7 +5962,7 @@ table {
   font-size: var(--text-sm);
   padding: 5px 7px;
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
 }
 
 .workflow-card-toggles {
@@ -5999,10 +5999,10 @@ table {
   height: 34px;
   flex-shrink: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   cursor: pointer;
 }
 
@@ -6327,7 +6327,7 @@ table {
 .im-classic {
   margin-top: 12px;
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   padding: 8px 12px;
   background: var(--awkit-surface-soft);
 }
@@ -6335,7 +6335,7 @@ table {
 .im-classic > summary {
   cursor: pointer;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--awkit-text-secondary);
   display: flex;
   align-items: center;
@@ -6379,7 +6379,7 @@ table {
   border: 1px solid var(--awkit-warning-muted);
   border-left: 4px solid var(--awkit-warning);
   background: var(--awkit-warning-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   padding: 12px 14px;
 }
 
@@ -6522,7 +6522,7 @@ table {
   box-sizing: border-box;
   padding: 6px 8px;
   border: 1px solid var(--awkit-border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--awkit-surface);
   color: var(--awkit-text);
   font-size: var(--text-sm);
@@ -6546,7 +6546,7 @@ table {
   right: 0;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: 0 10px 26px rgba(var(--awkit-shadow-rgb), 0.16);
   overflow: hidden;
   transform-origin: top;
@@ -7358,14 +7358,14 @@ table {
   display: inline-flex;
   flex-shrink: 0;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 7px;
   min-height: 26px;
   padding: 0 10px;
 }
 
 .recorder-status-pill::before {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   content: "";
   height: 7px;
   width: 7px;
@@ -7418,7 +7418,7 @@ table {
 .recorder-field-label {
   color: var(--awkit-text-secondary);
   font-size: var(--text-2xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -7494,10 +7494,10 @@ table {
 }
 
 .recorder-locator-mode legend {
-  color: var(--awkit-text-primary);
+  color: var(--awkit-text);
   float: left;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   margin: 0;
   padding: 0;
 }
@@ -7530,7 +7530,7 @@ table {
   color: var(--awkit-text-secondary);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: var(--space-1) var(--space-3);
   transition:
     background var(--awkit-dur-fast) var(--awkit-ease-out),
@@ -7539,7 +7539,7 @@ table {
 }
 
 .recorder-locator-mode-option:hover span {
-  color: var(--awkit-text-primary);
+  color: var(--awkit-text);
 }
 
 .recorder-locator-mode-option.is-active span {
@@ -7580,7 +7580,7 @@ table {
   cursor: pointer;
   display: inline-flex;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 8px;
   min-height: 32px;
   padding: 6px 10px;
@@ -7615,7 +7615,7 @@ table {
 
 .recorder-switch-track span {
   background: var(--awkit-surface);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   height: 14px;
   transform: translateX(0);
   transition: transform var(--awkit-dur-fast) var(--awkit-ease-out);
@@ -7895,7 +7895,7 @@ table {
 .recorder-recording-dot {
   animation: recorder-pulse 1.35s ease-out infinite;
   background: var(--awkit-danger);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   height: 10px;
   width: 10px;
 }
@@ -7949,11 +7949,11 @@ table {
   align-items: center;
   background: var(--awkit-surface-inset);
   border: 1px solid var(--awkit-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--awkit-text-secondary);
   display: inline-flex;
   font-size: var(--text-2xs);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   height: 28px;
   justify-content: center;
   width: 28px;
@@ -8008,7 +8008,7 @@ table {
   align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: inline-flex;
   height: 34px;
@@ -8063,7 +8063,7 @@ table {
 .recorder-action-badge {
   border-radius: var(--radius-pill);
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   padding: 2px 7px;
 }
 
@@ -8106,7 +8106,7 @@ table {
   color: var(--awkit-accent);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 6px;
   max-width: 190px;
   min-width: 0;
@@ -8384,7 +8384,7 @@ table {
   border-radius: var(--radius-pill);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 5px;
   line-height: 1;
   padding: 4px 10px;
@@ -8597,7 +8597,7 @@ table {
   border-radius: var(--radius-pill);
   display: inline-flex;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: 3px;
   padding: 2px 7px;
 }
@@ -9518,7 +9518,7 @@ table {
   background: var(--awkit-border-strong);
   border: 3px solid transparent;
   background-clip: content-box;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -10032,7 +10032,7 @@ table {
 
 .awkit-spinner {
   border: 2px solid var(--awkit-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border-top-color: var(--awkit-accent);
   display: inline-block;
   height: 18px;
@@ -10042,7 +10042,7 @@ table {
 .awkit-loader-dot {
   animation: awkit-loader-pulse 900ms var(--awkit-motion-ease) infinite;
   background: var(--awkit-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-block;
   height: 6px;
   width: 6px;
@@ -10502,7 +10502,7 @@ table {
   color: var(--awkit-text-muted);
   display: grid;
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   gap: var(--space-2);
   grid-template-columns: minmax(0, 1fr) auto auto;
   letter-spacing: 0.06em;
@@ -11277,8 +11277,8 @@ table {
   justify-content: flex-end;
 }
 
-/* The secondary button in an auth action row is a bare .toolbar-button (34px). It sets an explicit
-   height, so flex `stretch` cannot equalise it and it would sit 10px shorter than the CTA. Matched
+/* The secondary button in an auth action row is a bare .toolbar-button (36px). It sets an explicit
+   height, so flex `stretch` cannot equalise it and it would sit 8px shorter than the CTA. Matched
    here, scoped to the auth row only — the global .toolbar-button tier is untouched. The :not() keeps
    the CTA governed by .awkit-login-submit above rather than by this higher-specificity selector. */
 .awkit-login-actions .toolbar-button:not(.awkit-login-submit) {
@@ -12212,7 +12212,7 @@ table {
 
 .nav-workspace-name > span:first-child {
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -12319,7 +12319,7 @@ table {
 .theme-switch {
   background: var(--awkit-surface-inset);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   height: 18px;
   margin-left: auto;
