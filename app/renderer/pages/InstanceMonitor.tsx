@@ -1071,6 +1071,8 @@ export function InstanceMonitor() {
               <LiveExecutionReportModal
                 instance={target}
                 workflow={workflows.find((workflow) => workflow.id === target.scenarioId)}
+                canExecute={canExecute}
+                canStop={canStop}
                 onClose={() => setReportInstanceId(null)}
               />
             );

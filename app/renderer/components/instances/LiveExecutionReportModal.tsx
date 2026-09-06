@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useModalFocusContract } from "../shared/useModalFocusContract";
-import { Activity, AlertTriangle, Camera, CheckCircle2, Clock, Loader2, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, Camera, CheckCircle2, Clock, Loader2, Pause, Play, RotateCcw, X, XCircle } from "lucide-react";
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
@@ -20,6 +20,10 @@ type StoredReport = ConcurrentRunReport & { id: string };
 interface LiveExecutionReportModalProps {
   instance: InstanceRuntimeState;
   workflow?: WorkflowProfile;
+  /** Permission.WORKFLOW_EXECUTE — gates Restart, matching the instance table's repeat action. */
+  canExecute: boolean;
+  /** Permission.WORKFLOW_STOP — gates Pause/Resume, matching the instance table's pause action. */
+  canStop: boolean;
   onClose: () => void;
 }
 
@@ -33,6 +37,20 @@ const STATUS_LABEL: Record<ExecutionStepStatus, string> = {
   skipped: "Skipped",
   cancelled: "Cancelled"
 };
+
+/**
+ * Step-outcome legend. Every one of the eight ExecutionStepStatus values has exactly one bucket, so
+ * the rendered counts always reconcile to steps.length. Buckets with a zero count are not rendered.
+ */
+const LEGEND_BUCKETS: { key: string; label: string; tone: string; match: ExecutionStepStatus[] }[] = [
+  { key: "succeeded", label: "Succeeded", tone: "succeeded", match: ["succeeded"] },
+  { key: "running", label: "Running", tone: "running", match: ["running"] },
+  { key: "waiting", label: "Waiting", tone: "waiting", match: ["waiting", "waitingForManualAction"] },
+  { key: "failed", label: "Failed", tone: "failed", match: ["failed"] },
+  { key: "skipped", label: "Skipped / not taken", tone: "skipped", match: ["skipped"] },
+  { key: "pending", label: "Pending", tone: "pending", match: ["pending"] },
+  { key: "cancelled", label: "Cancelled", tone: "cancelled", match: ["cancelled"] }
+];
 
 function formatTime(iso?: string): string {
   if (!iso) return "—";
@@ -64,7 +82,7 @@ function formatRelativeTime(iso: string | undefined, nowMs: number): string {
   return `${hours}h ago`;
 }
 
-export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveExecutionReportModalProps) {
+export function LiveExecutionReportModal({ instance, workflow, canExecute, canStop, onClose }: LiveExecutionReportModalProps) {
   // AWKIT-A11Y-001: the modal focus contract (focus in / Tab trap / Escape / focus return).
   const { dialogRef } = useModalFocusContract(onClose);
   const [report, setReport] = useState<StoredReport | undefined>(undefined);
@@ -147,12 +165,31 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
   const historyComparison = useMemo(() => compareElapsedToHistory(instance.durationMs, baseline, model.live), [instance.durationMs, baseline, model.live]);
   const historyScopeLabel = baseline ? (baseline.machineScoped ? "this machine" : "all machines") : "";
 
+  // Control state mirrors the instance table's predicates exactly so the monitor cannot grant an
+  // action the table would refuse. Pause/Resume are WORKFLOW_STOP; Restart is WORKFLOW_EXECUTE.
+  const isPaused = instance.status === "paused" || instance.status === "waitingForManualAction";
+  const isRunning = instance.status === "running" || instance.status === "starting";
+  const isDone = ["completed", "failed", "cancelled", "stopped"].includes(instance.status);
+  const runControl = (action: Promise<unknown>) => {
+    action.catch(() => undefined);
+  };
+
+  const skippedCount = model.steps.filter((step) => step.status === "skipped").length;
+  const totalRetries = model.steps.reduce((sum, step) => sum + (step.retryCount ?? 0), 0);
+  const legend = LEGEND_BUCKETS.map((bucket) => ({
+    ...bucket,
+    count: model.steps.filter((step) => bucket.match.includes(step.status)).length
+  })).filter((bucket) => bucket.count > 0);
+
+  const failedStep = model.steps.find((step) => step.status === "failed");
+  const manualStep = model.steps.find((step) => step.status === "waitingForManualAction");
+
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div ref={dialogRef} tabIndex={-1} className="modal-dialog report-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} className="modal-dialog report-modal run-monitor" role="dialog" aria-modal="true" aria-label="Live run monitor" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header report-modal-header">
           <h2>
-            <Activity size={18} /> Execution Report
+            <Activity size={18} /> Live Run Monitor
           </h2>
           <button className="icon-button" type="button" title="Close" onClick={onClose}>
             <X size={18} />
@@ -187,9 +224,16 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
             ) : null}
             <span>{updateLabel}</span>
           </div>
+          <div className="run-monitor-stats">
+            <RunStat label="Elapsed" value={formatDuration(instance.durationMs)} />
+            <RunStat label="Steps done" value={`${model.stats.completedSteps} / ${model.stats.totalSteps}`} />
+            <RunStat label="Retries" value={String(totalRetries)} />
+            <RunStat label="Skipped" value={String(skippedCount)} />
+          </div>
         </section>
 
-        <div className="report-body">
+        <div className="report-body run-monitor-body">
+          <div className="run-monitor-main">
           {/* Live node map */}
           <section className="report-section">
             <h3>Flows &amp; steps</h3>
@@ -245,10 +289,37 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
               <StatCard label="Errors" value={model.stats.errorCount} tone={model.stats.errorCount ? "bad" : undefined} />
             </div>
           </section>
+          </div>
+          <aside className="run-monitor-aside">
+            {failedStep ? (
+              <div className="run-monitor-alert" role="status">
+                <AlertTriangle size={14} />
+                <span>
+                  <strong>Run stopped at {failedStep.label}</strong>
+                  {failedStep.error ?? "This step failed before the workflow could continue."}
+                </span>
+              </div>
+            ) : manualStep ? (
+              <div className="run-monitor-alert tone-warning" role="status">
+                <AlertTriangle size={14} />
+                <span>
+                  <strong>Waiting for manual action</strong>
+                  {manualStep.message ?? "Complete the required action in the browser to continue."}
+                </span>
+              </div>
+            ) : null}
 
           {/* Human-readable timeline */}
           <section className="report-section">
-            <h3>Activity timeline</h3>
+            <h3>
+              Execution log
+              <span
+                className="run-monitor-log-count"
+                title={model.events.length >= 200 ? "Showing the most recent 200 entries" : `${model.events.length} entries`}
+              >
+                {model.events.length}
+              </span>
+            </h3>
             {model.events.length === 0 ? (
               <p className="report-empty">No activity recorded yet.</p>
             ) : (
@@ -263,6 +334,48 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
               </ol>
             )}
           </section>
+            {legend.length ? (
+              <section className="report-section">
+                <h3>Step outcomes</h3>
+                <ul className="run-monitor-legend">
+                  {legend.map((bucket) => (
+                    <li key={bucket.key}>
+                      <span className={`run-monitor-legend-swatch tone-${bucket.tone}`} aria-hidden />
+                      <span>{bucket.label}</span>
+                      <span className="run-monitor-legend-count">{bucket.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </aside>
+        </div>
+        <div className="run-monitor-controls toolbar-strip">
+          <button
+            disabled={!isDone || !canExecute}
+            title={!canExecute ? "Requires the Execute Workflows permission" : isDone ? "Repeat (re-run) this instance" : "Instance must finish before it can be repeated"}
+            type="button"
+            onClick={() => runControl(window.playwrightFlowStudio.executions.repeatInstance(instance.instanceId))}
+          >
+            <RotateCcw size={14} /> Restart
+          </button>
+          <button
+            disabled={!isRunning || !canStop}
+            title={!canStop ? "Requires the Stop Workflows permission" : isRunning ? "Pause this instance" : "Instance is not running"}
+            type="button"
+            onClick={() => runControl(window.playwrightFlowStudio.executions.pauseInstance(instance.instanceId))}
+          >
+            <Pause size={14} /> Pause
+          </button>
+          <button
+            disabled={!isPaused || !canStop}
+            title={!canStop ? "Requires the Stop Workflows permission" : isPaused ? "Resume this instance" : "Instance is not paused"}
+            type="button"
+            onClick={() => runControl(window.playwrightFlowStudio.executions.resumeInstance(instance.instanceId))}
+          >
+            <Play size={14} /> Resume
+          </button>
+          <p className="run-monitor-controls-note">{updateLabel}</p>
         </div>
       </div>
     </div>
@@ -325,6 +438,15 @@ function StatCard({ label, value, tone, hint }: { label: string; value: number |
     <div className={`report-stat ${tone ? `tone-${tone}` : ""} ${unavailable ? "unavailable" : ""}`}>
       <span className="report-stat-value">{display}</span>
       <span className="report-stat-label">{label}{hint && !unavailable ? ` · ${hint}` : ""}</span>
+    </div>
+  );
+}
+
+function RunStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="run-monitor-stat">
+      <span className="run-monitor-stat-value">{value}</span>
+      <span className="run-monitor-stat-label">{label}</span>
     </div>
   );
 }
