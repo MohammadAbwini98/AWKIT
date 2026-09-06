@@ -15,10 +15,11 @@ Then open <http://127.0.0.1:4380>. Override the port with `ROADMAP_PORT`.
 
 ## What it reads
 
-Thirteen sources, listed in `lib/sources.mjs` and shown with their parse state, size, mtime and
-record count in the dashboard's own **Sources** view. Eleven are parsed; two are registered but not
-parsed, and the page states why. Nothing else in `tools/roadmap` hardcodes a repository path, so a
-renamed document fails in one place with a clear message instead of degrading silently in three.
+Fourteen sources, listed in `lib/sources.mjs` and shown with their parse state, size, mtime and
+record count in the dashboard's own **Sources** view. Eleven are parsed; three are registered but
+not parsed, and the page states why. Nothing else in `tools/roadmap` hardcodes a repository path,
+so a renamed document fails in one place with a clear message instead of degrading silently in
+three.
 
 | Source | Used for |
 |---|---|
@@ -32,6 +33,7 @@ renamed document fails in one place with a clear message instead of degrading si
 | `docs/ai/KNOWN_ISSUES.md` | fragile areas and bead references found in prose |
 | `scripts/lib/verifier-classification.ts` + `package.json` | per-class verifier counts |
 | `app/renderer/styles/global.css` | served verbatim at `/app.css`; never parsed |
+| `docs/ai/contracts/active-lease.json` | registered, not parsed — `assignments.json` already owns the assignee answer |
 | `docs/ai/FEATURES.md` | registered, not parsed — it joins to nothing |
 
 The ninth view, **Licenses Issue**, reads none of these: it is the only page here that is a tool
@@ -50,9 +52,9 @@ to invent one. Instead there are two structurally separate fields:
   observation about an area of the codebase. Never the words "working on".
 
 **2. Where sources disagree, both are shown.** Nothing is reconciled, averaged, or silently
-preferred. Today the ledger measures 61/4/1 and two bead descriptions still claim otherwise; the
-Overview banner names both with their sources. A disagreement is a finding about the repository, not
-a rendering problem.
+preferred. Today the ledger measures 65 PASS / 2 NOT RUN / 0 BLOCKED and two bead descriptions
+still claim otherwise; the Overview banner names both with their sources. A disagreement is a
+finding about the repository, not a rendering problem.
 
 **3. Rank is a suggestion, not a plan.** The Work Queue orders by declared `blocks` edges with
 priority as tiebreak. It knows nothing about effort, value, or any dependency nobody wrote down —
@@ -216,7 +218,7 @@ the fingerprint-unchanged path, and `POST /api/refresh` backs the Refresh button
 npm run verify:roadmap-dashboard
 ```
 
-157 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
+177 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
 recovery, a negative case proving a mangled phase literal is rejected, ordering invariants, a
 **synthetic 2-cycle** proving the cycle branch fires (there are no real cycles today), byte-identical
 determinism, the provenance rules driven against a claims fixture, server routes including 304 and

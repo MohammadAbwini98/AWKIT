@@ -267,7 +267,31 @@
     }
   ],
   "write_lease": {
-    "history": [],
+    "history": [
+      {
+        "id": "awkit-hygiene-0906:project-state:2026-09-06T17:52:15.660Z",
+        "task": "awkit-hygiene-0906",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/COMMANDS.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-sec005.json",
+          "tools/roadmap/README.md",
+          "tools/roadmap/assignments.json",
+          "tools/roadmap/lib/link.mjs",
+          "tools/roadmap/lib/parse-ledger.mjs",
+          "tools/roadmap/lib/sources.mjs"
+        ],
+        "acquired_at": "2026-09-06T17:52:15.660Z",
+        "acquired_at_commit": "6e51957d8fcd1c7ec50a8ed876a69317ba10d410",
+        "released_at": "2026-09-06T19:23:11.684Z",
+        "released_reason": "awkit-hygiene-0906 complete: SEC-005 bookkeeping absorbed, stale 66/39 references corrected, pushed 43b755c, task gate canComplete true with no blockers",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
     "overrides": []
   },
   "scope_escapes": [],

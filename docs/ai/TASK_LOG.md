@@ -1,6 +1,25 @@
 # TASK_LOG
 
-## 2026-09-06 (latest) — awkit-hygiene-0906 — post-SEC-005 repository hygiene (Claude)
+## 2026-09-06 (latest) — awkit-roadmap-docs-0906 — README stale count correction (Claude Opus 5)
+
+**Task:** correct three already-verified stale counts in `tools/roadmap/README.md` left open by
+`awkit-hygiene-0906` below. Source registry: "Thirteen sources ... Eleven are parsed; two are
+registered but not parsed" -> "Fourteen sources ... Eleven are parsed; three are registered but
+not parsed" (measured from `lib/sources.mjs`; `verify:roadmap-dashboard` prints `OK 14 sources are
+registered`). Ledger consistency-rule tally `61/4/1` -> `65 PASS / 2 NOT RUN / 0 BLOCKED` (verifier
+prints `OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED`). Verification section `157 checks` -> `177
+checks` (`177/177 roadmap dashboard checks passed`). Also added one `docs/ai/contracts/active-lease.json`
+row to the "What it reads" table so it enumerates every registered source.
+
+**Files changed:** `tools/roadmap/README.md`, `docs/ai/TASK_LOG.md`. Documentation only — no
+verifier, parser or production source changed.
+
+**Tests run:** `npm run verify:roadmap-dashboard` **177/177**, Overview banner reads "Sources
+agree"; `npm run verify:verifier-classification` reconciled (200 total); `git diff --check` clean.
+**Not run:** `npm run build`, `verify:security`, `verify:accent-gui`, `verify:branding-gui` — out
+of scope for a documentation-count correction.
+
+## 2026-09-06 — awkit-hygiene-0906 — post-SEC-005 repository hygiene (Claude)
 
 **Task:** absorb the uncommitted SEC-005 lease-release bookkeeping and correct verified stale
 documentation references. Run by the manager plus the `project-state` lease holder, with GLM-5.3 as a

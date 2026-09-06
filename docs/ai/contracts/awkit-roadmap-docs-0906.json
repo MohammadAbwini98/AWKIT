@@ -1,0 +1,287 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-roadmap-docs-0906",
+    "title": "Correct three verified stale counts in tools/roadmap/README.md and absorb the prior release bookkeeping",
+    "objective": "Correct exactly three already-verified stale claims in tools/roadmap/README.md — the source registry sentence that still says \"Thirteen sources ... Eleven are parsed; two are registered but not parsed\" when lib/sources.mjs registers 14 with 11 parsed and 3 unparsed; the consistency-rule sentence that still asserts the ledger measures 61/4/1 when the measured tally is 65 PASS / 2 NOT RUN / 0 BLOCKED; and the Verification section that still says 157 checks when verify:roadmap-dashboard runs more — and absorb into the same commit the legitimate lease-release bookkeeping left uncommitted by awkit-hygiene-0906 (docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-hygiene-0906.json, tools/roadmap/assignments.json). No verifier logic, parser or production source is altered to match README prose, no awkit-hygiene-0906 semantics are modified, no general README rewrite is performed, and no protected owner material is staged, edited, moved or reset.",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "43b755ce22f106e1adbf10a7f727d459be0df45c",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-hygiene-0906.json",
+      "docs/ai/contracts/awkit-roadmap-docs-0906.json",
+      "tools/roadmap/README.md",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-hygiene-0906.json",
+        "tools/roadmap/README.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "RMD-SOURCE-REGISTRY-COUNT",
+      "description": "The tools/roadmap/README.md \"What it reads\" sentence states the registry's real cardinality — the number of entries in tools/roadmap/lib/sources.mjs SOURCES, split into parsed and registered-but-unparsed — measured from the registry itself and corroborated by the roadmap verifier's own source-count line. Only the count words change; the surrounding architecture description is left intact.",
+      "evidence_required": [
+        "source-registry-measurement",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "RMD-LEDGER-TALLY",
+      "description": "The tools/roadmap/README.md consistency-rule sentence states the ledger's measured PASS / NOT RUN / BLOCKED tally instead of the stale 61/4/1. Only the tally is replaced; no validation case status is changed and docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md is not edited.",
+      "evidence_required": [
+        "ledger-tally-measurement",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "RMD-VERIFIER-CHECK-COUNT",
+      "description": "The tools/roadmap/README.md Verification section states the number of checks verify:roadmap-dashboard actually runs, taken from an executed run of that verifier. scripts/verify-roadmap-dashboard.mjs is not modified to match the prose.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "RMD-BOOKKEEPING-ABSORBED",
+      "description": "The awkit-hygiene-0906 lease-release bookkeeping is committed on main unchanged in meaning: the active-lease release record is the truthful one the release tool wrote, the awkit-hygiene-0906.json diff is an append to write_lease.history only with its push evidence, completion evidence and acceptance semantics untouched, and the tools/roadmap/assignments.json diff is a claim-only change — the completed awkit-hygiene-0906 claim removed or rotated in place to the successor task by the lease tool — with the owner $comment block and the AWKIT-SEC-005 claim intact. No protected owner path is staged.",
+      "evidence_required": [
+        "bookkeeping-absorption-audit",
+        "staged-path-audit",
+        "push-origin-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "source-registry-measurement",
+      "type": "inspection",
+      "required": true,
+      "command": "read tools/roadmap/lib/sources.mjs and count SOURCES entries by their parsed flag",
+      "result": "pass",
+      "observed": "tools/roadmap/lib/sources.mjs SOURCES holds 14 entries: 11 with parsed true, and 3 with parsed false — activeLease (docs/ai/contracts/active-lease.json), globalCss (app/renderer/styles/global.css) and features (docs/ai/FEATURES.md), each carrying a skipReason. Corroborated independently by the verifier's own printed line 'OK 14 sources are registered' and by 'OK every unparsed source states why'. The README's prior 'Thirteen sources ... Eleven are parsed; two are registered but not parsed' was therefore stale by one registered source and one unparsed source."
+    },
+    {
+      "id": "ledger-tally-measurement",
+      "type": "inspection",
+      "required": true,
+      "command": "measure docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md with the parser's own CASE_HEADING regex and its Status body key",
+      "result": "pass",
+      "observed": "Matching the ledger with the parser's own CASE_HEADING regex yields 67 validation cases; matching the Status body key yields 65 PASS / 2 NOT RUN / 0 BLOCKED (65 + 2 + 0 = 67, so every case is accounted for). Corroborated independently by the verifier's own printed line 'OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED'. The README's prior '61/4/1' was stale in all three positions. No case status was changed and the ledger file was not edited."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "pass",
+      "observed": "Executed by the lease holder (project-state); the main session's manager actor is not permitted to run verify:* scripts. Output ended '200  (sum of the classified buckets)' and 'classification reconciled ✓'. No registry entry was added or changed by this task — the run is a regression check that the README edit did not disturb the verifier registry."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pass",
+      "observed": "Executed by the lease holder (project-state) both before and after the README edit. Post-edit run printed '177/177 roadmap dashboard checks passed', 'OK 14 sources are registered', 'OK every unparsed source states why', 'OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED' and 'OK the Overview banner reads \"Sources agree\"'. The live count 177 is the value written into the README Verification section, replacing the stale 157. scripts/verify-roadmap-dashboard.mjs was not modified."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "pass",
+      "observed": "Empty output and exit status 0 — no whitespace errors or conflict markers introduced by the README, TASK_LOG or contract edits."
+    },
+    {
+      "id": "bookkeeping-absorption-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff -- docs/ai/contracts/active-lease.json docs/ai/contracts/awkit-hygiene-0906.json tools/roadmap/assignments.json",
+      "result": "pass",
+      "observed": "awkit-hygiene-0906.json: write_lease.history goes from [] to exactly one appended release record — id awkit-hygiene-0906:project-state:2026-09-06T17:52:15.660Z, holder project-state, status released, its 8 allowed_paths, acquired_at_commit 6e51957d, released_at 2026-09-06T19:23:11.684Z, released_reason 'awkit-hygiene-0906 complete: SEC-005 bookkeeping absorbed, stale 66/39 references corrected, pushed 43b755c, task gate canComplete true with no blockers', with empty amendments/overrides/violations. Purely additive: no acceptance, evidence, completion or push-evidence field of that task was touched, so no old task semantics were modified. assignments.json: the sole change is a claim-only rotation of the second claim, itemId bead:awkit-hygiene-0906 -> bead:awkit-roadmap-docs-0906 with a new claimedAt 2026-09-06T19:43:21.111Z and a note listing this task's three lease paths; the owner $comment block and the defect:AWKIT-SEC-005 claim are byte-identical. active-lease.json: replaced by the lease tool with this task's active grant; the prior release record it held is not lost, because lease.mjs archiveLease had already appended the durable copy into the task contract's write_lease.history before the new grant overwrote the transient file. No protected owner path appears in any of these diffs."
+    },
+    {
+      "id": "staged-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --cached --name-only",
+      "result": "pass",
+      "observed": "Staged with 'git add -- <explicit paths>' (the guard rejects the form without --). Exactly six paths: docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-hygiene-0906.json, docs/ai/contracts/awkit-roadmap-docs-0906.json, tools/roadmap/README.md, tools/roadmap/assignments.json. None of the protected owner paths — AWTKIT.rar, 'Building priorities and integration-handoff/', docs/ai/contracts/awkit-r2.json, awkit-glm-delegation-tooling.json, awkit-r1b-coordination.json, awkit-ui1.json — is staged; all remain dirty and untouched in the working tree."
+    },
+    {
+      "id": "push-origin-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "write_lease": {
+    "history": [],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-origin-main"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "Every number written into tools/roadmap/README.md was measured twice by independent methods before the edit and re-confirmed after it: the source registry by reading lib/sources.mjs SOURCES directly (14 registered / 11 parsed / 3 unparsed) and by the verifier's own 'OK 14 sources are registered' line; the ledger tally by matching the ledger with the parser's own CASE_HEADING regex and Status body key (67 cases, 65 PASS / 2 NOT RUN / 0 BLOCKED) and by the verifier's own 'OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED' line; the check count by an executed run printing '177/177 roadmap dashboard checks passed'. npm run verify:roadmap-dashboard and npm run verify:verifier-classification were both executed by the lease holder after the edit and passed (177/177 with the Overview banner still reading 'Sources agree'; 200 classified with 'classification reconciled'). git diff --check is clean. No verifier, parser or production source was altered to match the prose.",
+    "qa_known_limitations": "Only the roadmap and verifier-classification checks were run; this task deliberately did not re-run the full product battery, verify:security, verify:accent-gui, verify:branding-gui, the canvas verifiers or the reports verifiers, and did not run npm run build, because no executable code was changed — the only content edit is Markdown prose in tools/roadmap/README.md plus the TASK_LOG entry and control-plane bookkeeping. The carried state of those unrun checks is unchanged and is not re-asserted by this task. One further edit beyond the three corrected sentences was necessary and is disclosed: the 'What it reads' table enumerated only 13 sources with 2 unparsed rows, so correcting the prose to 14/3 without adding the missing docs/ai/contracts/active-lease.json row would have introduced a new self-contradiction; exactly one table row was added, sourced verbatim from that entry's own skipReason in lib/sources.mjs. Additional stale-looking figures elsewhere in the README (the 67-case, 34-defect, 101-row, 111-issue and 24-of-29 figures, and the 13-syscall poll figure, which is correct because the watcher excludes one registered source) were recorded and deliberately left unchanged to keep this tranche narrow.",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

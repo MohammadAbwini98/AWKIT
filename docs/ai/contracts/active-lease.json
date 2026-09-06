@@ -1,20 +1,15 @@
 {
-  "task": "awkit-hygiene-0906",
-  "contract_path": "docs/ai/contracts/awkit-hygiene-0906.json",
+  "task": "awkit-roadmap-docs-0906",
+  "contract_path": "docs/ai/contracts/awkit-roadmap-docs-0906.json",
   "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "docs/ai/COMMANDS.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-sec005.json",
-    "tools/roadmap/README.md",
-    "tools/roadmap/assignments.json",
-    "tools/roadmap/lib/link.mjs",
-    "tools/roadmap/lib/parse-ledger.mjs",
-    "tools/roadmap/lib/sources.mjs"
+    "docs/ai/contracts/awkit-hygiene-0906.json",
+    "tools/roadmap/README.md"
   ],
-  "acquired_at": "2026-09-06T17:52:15.660Z",
-  "acquired_at_commit": "6e51957d8fcd1c7ec50a8ed876a69317ba10d410",
+  "acquired_at": "2026-09-06T19:43:21.111Z",
+  "acquired_at_commit": "43b755ce22f106e1adbf10a7f727d459be0df45c",
   "baseline_dirty": [
     "AWTKIT.rar",
     "Building priorities and integration-handoff/",
@@ -23,19 +18,19 @@
     "docs/ai/contracts/awkit-hygiene-0906.json",
     "docs/ai/contracts/awkit-r1b-coordination.json",
     "docs/ai/contracts/awkit-r2.json",
-    "docs/ai/contracts/awkit-sec005.json",
+    "docs/ai/contracts/awkit-roadmap-docs-0906.json",
     "docs/ai/contracts/awkit-ui1.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
     "Building priorities and integration-handoff/": "absent",
-    "docs/ai/contracts/active-lease.json": "008212ef196b57f81069831df4cd3be5c7ec692eac9d947ef914e206e5dc65a7",
+    "docs/ai/contracts/active-lease.json": "9bd35d0a77fba9bdee19d08664f988bab8b2779dc48c9efbe207b8310db75d73",
     "docs/ai/contracts/awkit-glm-delegation-tooling.json": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71",
-    "docs/ai/contracts/awkit-hygiene-0906.json": "eb3ca467c2774d2f8e2f267382dff26995f5312ddb5ab33296a17898cc1eecc6",
+    "docs/ai/contracts/awkit-hygiene-0906.json": "b7e9d013ec752565c27899a132f33b15dba0140cbdeb70f2e80ba109cffddf48",
     "docs/ai/contracts/awkit-r1b-coordination.json": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174",
     "docs/ai/contracts/awkit-r2.json": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228",
-    "docs/ai/contracts/awkit-sec005.json": "f1ebd3b5863ea96f83411b835bae16caf9f3dfd8ea154182992260c122709e02",
+    "docs/ai/contracts/awkit-roadmap-docs-0906.json": "5ea38b30d44b8d27a678b62b646a8a1a5d542ab303a31e1059a3ad49ac3dbe52",
     "docs/ai/contracts/awkit-ui1.json": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552",
     "tools/roadmap/assignments.json": "59ced317a73e274f4989fa447e4c8f50ee297a5667c69687867468dfe782644f"
   },
