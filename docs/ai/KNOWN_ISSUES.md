@@ -1,5 +1,71 @@
 # KNOWN_ISSUES
 
+## RESOLVED (2026-09-06) — `verify:security` 52/53: the SEC-005 assertion went stale when its target file moved
+
+**Status: RESOLVED 2026-09-06.** `verify:security` is now **61 passed, 0 failed** (52 passed / 1 failed
+before the repair; **58 passed, 0 failed** was an intermediate reading, taken before the
+validated-binding clause and mutant C existed). Only `scripts/verify-security.mts` changed — committed
+as **`bb99dfb`**, 1 file changed, 138 insertions / 3 deletions. **No production code was changed**, and
+`git diff` on `app/main/execution/ExecutionApplicationService.ts` is empty.
+
+**What was actually wrong — verifier / stale artifact, never a product defect.** The SEC-005 check read
+`app/main/ipc/execution.ipc.ts` looking for `async function readDataFile`. That responsibility had moved
+to `app/main/execution/ExecutionApplicationService.ts`, and the IPC module now contains **zero**
+occurrences of `readDataFile`. `indexOf` returned `-1`, the body slice degenerated to a single
+character, and the check failed closed **while saying nothing about whether the invariant held**. The
+invariant did hold throughout: `readDataFile`
+(`app/main/execution/ExecutionApplicationService.ts:440-452`) calls
+`isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)` and throws
+before reaching `JSON.parse`.
+
+**Keep this trap — it generalizes beyond SEC-005.** A source-scanning assertion whose target file moves
+**fails closed and tells you nothing**: the failure looks like a product regression, carries no
+diagnostic, and a reader cannot distinguish "the guard is gone" from "the file moved". A fixed-size
+window after an `indexOf` hit (here `+1200` chars) makes it worse, because a partial match still yields
+a plausible-looking body.
+
+**Second, subtler trap this round exposed — correct ordering over the WRONG BINDING still passes an
+order-only check.** Proving that a guard runs *before* the operation it protects is not the same as
+proving the operation *consumes what the guard validated*. Here the guard validated `resolved`, but
+repointing the read inside the parse to `readFile(file, …)` — the raw, unresolved, unvalidated argument
+— leaves the guard and its ordering **byte-identical**, so an order-only predicate stays green while
+confinement is fully bypassed. Neither of the two original mutants could catch it, precisely because
+neither disturbs the guard or its position. **An ordering assertion must also prove same-binding
+consumption**, and the binding must be *derived from the guard itself* (here, a balanced-paren scan of
+the guard's own third argument) rather than hardcoded — a hardcoded `"resolved"` would only prove that
+something spelled "resolved" appears somewhere. Shape-validate the derived identifier before
+interpolating it into a `RegExp`, and fail closed when it cannot be derived.
+
+**Mitigation now in place** (the pattern to copy for any other source-scanning check):
+- Bound the function body between two real anchors (`async function readDataFile` …
+  `function resolveDataFilePath`) instead of a fixed character window.
+- Add an **anchor/cardinality guard** that fails loudly *with the resolved indices* when either anchor
+  is missing or misordered, so a future move or rename reports itself rather than masquerading as a
+  regression.
+- Assert the invariant with a pure predicate — a rejecting `if (!isReadableDataSourceFile(` guard
+  exists, throws, sits strictly **before** `JSON.parse(`, **and the parse consumes the binding the
+  guard validated** — and carry permanent in-verifier mutants built by string surgery on the real body,
+  each with its own non-vacuity assertion.
+- Derive the validated binding from the guard's own argument list, shape-validate it as an identifier
+  before it reaches a `RegExp`, and search only the region from the protected operation onward.
+
+**Closed on the assertion (the product was never affected):** the GLM-5.3 review's false-PASS avenue —
+the predicate not tying the parse to the **validated binding** — is fixed by the sixth clause, and
+**mutation C** now guards it permanently: it repoints `readFile(resolved, ...)` to
+`readFile(file, ...)` while leaving the guard and ordering byte-identical, and is rejected with a
+reason-specificity assertion proving it fails for the CONSUMPTION reason rather than incidental
+guard/order damage. Its non-vacuity assertion is three-part (text changed, pre-parse prefix
+byte-identical, mutant really names `file`), and the reason-specificity assertion was itself
+mutation-tested: sentinel prefix → **60 passed, 1 failed**; reverted → **61 passed, 0 failed**.
+
+**Mutation-proven, on disk, against the real source:** deleting the `isReadableDataSourceFile` guard →
+**55 passed, 3 failed** ("no rejecting guard: `if (!isReadableDataSourceFile(` is absent from the
+readDataFile body"); hoisting `JSON.parse` above the guard → **55 passed, 3 failed** ("ORDER violated:
+isReadableDataSourceFile at 538 is not strictly before JSON.parse at 485"). Both reversed by inverse
+edit; `git diff --check` empty. The third mutant (**C**, validated-path consumption) is an in-verifier
+mutant only and required no on-disk edit, since its whole point is that the production bytes before the
+parse are left untouched.
+
 ## GUI verify harness leaks an orphaned Electron process and its temp profile when the bridged window never appears (2026-09-06)
 
 - Both `scripts/verify-accent-gui.mjs` and `scripts/verify-branding-gui.mjs` call `isolatedLaunchEnv()`

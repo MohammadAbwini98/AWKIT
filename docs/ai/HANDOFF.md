@@ -1,5 +1,71 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-06, latest — supersedes the SEC-005 bullets below) — `verify:security` repaired and green
+
+- **Supersedes exactly two bullets in the sections below:** "`verify:security` stays **52 PASS /
+  1 FAIL** (SEC-005), a stale verifier path, out of scope" and the "Carried known verifier defect …
+  deliberately unrepaired" bullet. Both were accurate when written. **Everything else in those
+  sections still stands, and renderer implementation remains closed — do not reopen it.**
+- **`verify:security` is 61 passed, 0 failed** (exit 0). History: **52 passed, 1 failed** before the
+  repair → **58 passed, 0 failed** at an *intermediate* reading, taken before the validated-binding
+  clause and mutant C existed → **61 passed, 0 failed** final. Cite 61/0; 58/0 is superseded.
+- **It was a verifier / stale-artifact defect, never a product defect.** The assertion read
+  `app/main/ipc/execution.ipc.ts` for `async function readDataFile`; that responsibility had moved to
+  `app/main/execution/ExecutionApplicationService.ts` and the IPC module contains **zero** occurrences
+  of `readDataFile`, so `indexOf` returned `-1`, the body slice collapsed to one character, and the
+  check failed closed while asserting nothing. The guard itself never broke:
+  `ExecutionApplicationService.ts:440-452` calls
+  `isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)` and
+  throws before `JSON.parse`. **No production code was changed** — only
+  `scripts/verify-security.mts`.
+- **Repair shape, for anyone writing a similar check:** bound the body between two real anchors
+  (`async function readDataFile` … `function resolveDataFilePath`) instead of a fixed +1200-char
+  window; add an anchor/cardinality guard that fails loudly with the resolved indices on a future move
+  or rename; assert with a pure predicate that a rejecting `if (!isReadableDataSourceFile(` guard
+  exists, throws, sits strictly before `JSON.parse(`, **and that the parse consumes the same binding
+  the guard validated**; carry permanent in-verifier mutants with their own non-vacuity assertions.
+- **Mutation evidence, on disk against the real source:** guard deleted → **55 passed, 3 failed** ("no
+  rejecting guard: `if (!isReadableDataSourceFile(` is absent from the readDataFile body");
+  `JSON.parse` hoisted above the guard → **55 passed, 3 failed** ("ORDER violated:
+  isReadableDataSourceFile at 538 is not strictly before JSON.parse at 485"). Both reversed by inverse
+  edit; `git diff` on `ExecutionApplicationService.ts` empty, `git diff --check` empty.
+  `npm run build` **PASS** (`tsc --noEmit` clean).
+  `npm run verify:verifier-classification` **PASS** (5/5 assertions, 200 classified / 202 files) — no
+  new `verify:*` / `validate:*` script was added, so the registry needed no edit.
+- **Do not upgrade anything else.** `accent-gui` and `branding-gui` stay **BLOCKED** and were
+  deliberately not retried — this tranche changed no renderer file and nothing in the GUI host
+  environment. Any check not named above is **NOT RUN** for this tranche.
+- **Project state:** validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED**; Beads
+  unchanged at **275 total / 266 closed / 7 open / 2 blocked** — no bead was created or closed, since
+  `AWKIT-SEC-005` is owned by `docs/testing/comprehensive-validation/DEFECTS.md`.
+  `tools/roadmap/assignments.json` carries the `awkit-sec005` claim.
+- **FOLLOW-UP CLOSED — the sixth clause landed and was measured.** The GLM-5.3 review had found a
+  further false-PASS avenue: the predicate did not tie the parse to the **validated binding**, so
+  changing `readFile(resolved, ...)` to `readFile(file, ...)` would bypass confinement while SEC-005
+  stayed green. The sixth clause now proves **validated-path consumption** — ordering alone is not
+  confinement, since the guard validates one binding and the parse must consume *that same binding*.
+  It derives the validated identifier from the guard's own third argument by a balanced-paren scan,
+  shape-validates it as an identifier before interpolating into a `RegExp` (fail-closed: an
+  underivable binding is reported unprovable, never assumed sound), and searches only from
+  `JSON.parse(` onward inside the already-bounded body.
+- **Mutation C — validated-path consumption.** Repoints `readFile(resolved, ...)` to
+  `readFile(file, ...)` inside the `JSON.parse`, leaving the guard and its ordering byte-identical.
+  A genuine bypass (`file` is the unresolved, unvalidated argument) that **mutants A and B cannot
+  detect**, because nothing about the guard or its position changes. The predicate rejects it, and a
+  dedicated reason-specificity assertion proves it fails for the CONSUMPTION reason, not incidental
+  guard/order damage. Non-vacuity is **three-part**: the surgery changed the text, the pre-parse prefix
+  stayed byte-identical, and the mutant really names `file`. The reason-specificity assertion was
+  itself mutation-tested — sentinel prefix → **60 passed, 1 failed**; reverted → **61 passed, 0
+  failed**.
+- **Committed as `bb99dfb`** ("test: repair SEC-005 execution service security assertion"), 1 file
+  changed, **138 insertions / 3 deletions**, staging only `scripts/verify-security.mts`.
+  `app/main/execution/ExecutionApplicationService.ts` is byte-identical to HEAD and absent from
+  `git diff --stat`.
+- **Next:** re-run `accent-gui`/`branding-gui` on a healthy host before any release-level claim. The
+  **canvas** and **reports** verifiers are **NOT RUN** this tranche. `verify:roadmap-dashboard` and
+  `git push origin main` are **NOT RUN / not performed** — sequenced by the Manager after these
+  project-state edits; do not cite either as done. R3 remains **NOT started and NOT authorized.**
+
 ## HANDOFF (2026-09-06, later — supersedes the section below) — scope escapes resolved, push authorized
 
 - **Supersedes two bullets in the section below:** "The single remaining gate is owner-only" and

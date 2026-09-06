@@ -285,8 +285,11 @@ None.
 - **Priority recommendation:** P2
 - **Status:** **Resolved 2026-08-24 in b72ad08**
 - **Owner routing:** Execution IPC / data-source read confinement
-- **Affected area:** `app/main/ipc/execution.ipc.ts:441-459` (`readDataFile`/
-  `resolveDataFilePath`); contrast the confined path every other read uses,
+- **Affected area:** `app/main/execution/ExecutionApplicationService.ts:440-452` (`readDataFile`/
+  `resolveDataFilePath`) — corrected 2026-09-06; the code was originally at
+  `app/main/ipc/execution.ipc.ts:441-459` and moved out of the IPC module during the R2 execution
+  application-service extraction, which is what made the verifier assertion stale (see the follow-up
+  below). Contrast the confined path every other read uses,
   `app/main/ipc/dataSource.ipc.ts:27-51` (`assertReadableDataFile`); the create/import channels
   do not validate the profile's `file` field, so an absolute path persists unchallenged.
   `docs/security/FULL_SECURITY_AUDIT.md` §14 claims "all JSON data-source reads" are confined —
@@ -295,7 +298,76 @@ None.
   `assertReadableDataFile` (or validate `file` at create/import); add a `verify:security` case
   asserting a runtime-root data source is rejected at run time.
 
-- **Evidence after fix:** `verify:security` 53/53 SEC-005: readDataFile routes through §14 confinement before parsing; real temp-file probes prove a runtime-root absolute path is REJECTED while the data-sources workspace stays readable. Execution-time exfiltration path closed.
+- **Evidence after fix (as recorded 2026-08-24 in `b72ad08`):** `verify:security` 53/53 SEC-005: readDataFile routes through §14 confinement before parsing; real temp-file probes prove a runtime-root absolute path is REJECTED while the data-sources workspace stays readable. Execution-time exfiltration path closed.
+
+- **Follow-up correction (2026-09-06) — the 53/53 tally above stopped being true; the product fix
+  never stopped being true.** The SEC-005 assertion in `scripts/verify-security.mts` located the
+  function by searching `app/main/ipc/execution.ipc.ts` for `async function readDataFile`. After
+  `readDataFile` moved to `app/main/execution/ExecutionApplicationService.ts`, that IPC module
+  contained **zero** occurrences of `readDataFile`: `indexOf` returned `-1`, the body slice
+  degenerated to a single character, and the check **failed closed while asserting nothing about the
+  invariant**. Live result was `verify:security` **52 passed, 1 failed** — not 53/53 — until repaired
+  today. Classification of that failure: **verifier / stale artifact, not a product defect.**
+  The production guard was never broken: `readDataFile`
+  (`app/main/execution/ExecutionApplicationService.ts:440-452`) calls
+  `isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)` and
+  throws before reaching `JSON.parse`. **No production code was changed on 2026-09-06** — the repair
+  touched only the SEC-005 block of `scripts/verify-security.mts`.
+- **Evidence after the 2026-09-06 verifier repair:** `verify:security` **52 passed, 1 failed** before
+  the repair, **58 passed, 0 failed** at an intermediate reading (before the validated-binding clause
+  and mutant C existed), and **61 passed, 0 failed** final (exit 0). **Cite 61/0; both 53/53 and 58/0
+  are superseded.** `npm run build` **PASS** (exit 0, `tsc --noEmit` clean, all bundles built; only the
+  pre-existing `securityKernel.ts` static/dynamic import warning, which predates this task).
+  `npm run verify:verifier-classification` **PASS** (5/5 assertions, 200 classified / 202 files) — no
+  new `verify:*` / `validate:*` script was added, so the registry needed no edit. `git diff --check`
+  empty. The repair is committed as **`bb99dfb`** ("test: repair SEC-005 execution service security
+  assertion"), 1 file changed, **138 insertions / 3 deletions**, staging only
+  `scripts/verify-security.mts`. The repaired check now reads the
+  authoritative execution-service file, bounds the `readDataFile` body between
+  `async function readDataFile` and `function resolveDataFilePath` (the house idiom, replacing a fixed
+  +1200-char window), fails loudly with the resolved indices if the function is moved or renamed
+  again, asserts via a pure predicate that a rejecting `if (!isReadableDataSourceFile(` guard exists,
+  throws, sits strictly before `JSON.parse(`, **and that the parse consumes the same binding the guard
+  validated**, and carries three permanent in-verifier mutants built by string surgery on the real
+  body, each with its own non-vacuity assertion.
+- **Mutation evidence (on-disk, against the real production source):** deleting the
+  `isReadableDataSourceFile` guard gave **55 passed, 3 failed**, SEC-005 reporting "no rejecting
+  guard: `if (!isReadableDataSourceFile(` is absent from the readDataFile body"; hoisting `JSON.parse`
+  above the guard gave **55 passed, 3 failed**, SEC-005 reporting "ORDER violated:
+  isReadableDataSourceFile at 538 is not strictly before JSON.parse at 485". Both mutations were
+  reversed by inverse edit — `git diff` on
+  `app/main/execution/ExecutionApplicationService.ts` is empty (byte-identical to HEAD) and
+  `git diff --check` is clean.
+- **Follow-up on the assertion CLOSED (2026-09-06) — the sixth clause landed and was measured at
+  61/0.** The GLM-5.3 review's further false-PASS avenue — the predicate not tying the parse to the
+  **validated binding**, so that changing `readFile(resolved, ...)` to `readFile(file, ...)` would
+  bypass confinement while SEC-005 stayed green — is now closed. The sixth clause proves
+  **validated-path consumption**: ordering alone is not confinement, because the guard validates one
+  binding and the parse must consume *that same binding*. It derives the validated identifier from the
+  guard's own third argument via a balanced-paren scan, shape-validates it as an identifier before
+  interpolating into a `RegExp` (fail-closed — an underivable binding is reported unprovable, never
+  assumed sound), and searches only the region from `JSON.parse(` onward inside the already-bounded
+  `readDataFile` body. The product guard was unaffected throughout; this was assertion strength, never
+  a reopening of the defect.
+- **Mutation C — validated-path consumption (2026-09-06).** Repoints `readFile(resolved, ...)` to
+  `readFile(file, ...)` inside the `JSON.parse`, leaving the guard and its ordering **byte-identical**.
+  That is a genuine confinement bypass (`file` is the unresolved, unvalidated argument) which mutants A
+  and B **cannot** detect, because nothing about the guard or its position changes. The predicate
+  rejects it, and a dedicated reason-specificity assertion proves it fails for the CONSUMPTION reason
+  rather than incidental guard/order damage. Measured reason, verbatim: "parse does not consume the
+  VALIDATED binding: the guard validated `resolved` but the parsed expression
+  `JSON.parse(await readFile(file, "utf8"));` contains no `readFile(resolved, …)` — the parsed bytes
+  come from a path the guard never checked". Non-vacuity is **three-part**: the surgery changed the
+  text, the pre-parse prefix stayed byte-identical (so guard and ordering are provably undisturbed),
+  and the mutant really names `file`. The reason-specificity assertion was itself mutation-tested —
+  sentinel prefix → **60 passed, 1 failed**; reverted → **61 passed, 0 failed**.
+- **Classification unchanged:** AWKIT-SEC-005 is a **verifier / stale-artifact** defect, not a product
+  defect. `app/main/execution/ExecutionApplicationService.ts` is byte-identical to HEAD and absent from
+  `git diff --stat`; the guard in `readDataFile` was correct throughout.
+- **Not run in this tranche (do not read as PASS):** `verify:accent-gui` and `verify:branding-gui`
+  remain **BLOCKED**; the canvas verifiers and the reports verifiers are **NOT RUN**.
+  `verify:roadmap-dashboard` and `git push origin main` are **NOT RUN / not performed** as of this
+  entry.
 
 ---
 

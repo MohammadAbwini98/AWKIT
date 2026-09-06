@@ -1,0 +1,363 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-sec005",
+    "title": "Repair the stale AWKIT-SEC-005 execution-service security assertion",
+    "objective": "Repair the stale security verifier so AWKIT-SEC-005 proves the real validation-before-parse invariant at the authoritative execution-service layer (app/main/execution/ExecutionApplicationService.ts) instead of the vacated IPC module, prove the repaired assertion with two mutations that must both be rejected, and reconcile the authoritative defect and project-state records. Correct production security behavior must not be changed merely to turn the verifier green.",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ee999c5e838d8adf0ab24f81ad429db35b4334d8",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "runtime",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/verify-security.mts",
+      "app/main/execution/ExecutionApplicationService.ts",
+      "docs/ai/contracts/awkit-sec005.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/testing/comprehensive-validation/DEFECTS.md",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/testing/comprehensive-validation/DEFECTS.md",
+        "tools/roadmap/assignments.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "SEC-005-VERIFIER",
+      "description": "AWKIT-SEC-005 inspects the authoritative readDataFile implementation in app/main/execution/ExecutionApplicationService.ts and proves, structurally and in order, that isReadableDataSourceFile runs before JSON.parse, AND that the parse consumes the same binding the guard validated; the assertion is not satisfied by the presence of either string alone, nor by correct ordering over an unvalidated path.",
+      "evidence_required": [
+        "build",
+        "verify:security",
+        "mutation-a-validation-removed",
+        "mutation-b-parse-before-validation",
+        "mutation-c-validated-path-consumption",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "SEC-005-STATE",
+      "description": "The authoritative defect record, known issues and project-state memory files record the verified SEC-005 outcome truthfully, the verifier registry stays consistent, and the derived roadmap dashboard still reports that sources agree.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "push-origin-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "observed": "Exit 0. tsc --noEmit clean; all bundles built. Only the pre-existing securityKernel.ts static/dynamic import warning, which predates this task."
+    },
+    {
+      "id": "verify:security",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:security",
+      "result": "PASS",
+      "observed": "61 passed, 0 failed (exit 0), including all 11 SEC-005 check lines. This is the measured post-Mutation-C count; the earlier 58/0 was an intermediate reading taken before the validated-binding clause and mutant C existed."
+    },
+    {
+      "id": "mutation-a-validation-removed",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:security (with the isReadableDataSourceFile guard removed from ExecutionApplicationService.readDataFile)",
+      "result": "PASS",
+      "observed": "Predicate rejects the guard-removed body. Proven twice: as an on-disk mutation of the real source under the runtime lease (source restored afterwards), and now permanently as in-verifier mutant A, whose non-vacuity assertion proves the surgery really removed the guard. Both observed in the 61/0 run."
+    },
+    {
+      "id": "mutation-b-parse-before-validation",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:security (with JSON.parse moved ahead of the isReadableDataSourceFile guard in ExecutionApplicationService.readDataFile)",
+      "result": "PASS",
+      "observed": "Predicate rejects the reordered body for the ORDER reason. Proven on-disk under the runtime lease and now permanently as in-verifier mutant B with its own non-vacuity assertion. Both observed in the 61/0 run."
+    },
+    {
+      "id": "mutation-c-validated-path-consumption",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:security (with readFile(resolved, ...) repointed to readFile(file, ...) inside the JSON.parse, leaving the guard and its ordering byte-identical)",
+      "result": "PASS",
+      "observed": "Predicate rejects mutant C, and a dedicated reason-specificity assertion proves it fails for the CONSUMPTION reason rather than incidental guard/order damage. Measured reason: 'parse does not consume the VALIDATED binding: the guard validated `resolved` but the parsed expression `JSON.parse(await readFile(file, \"utf8\"));` contains no `readFile(resolved, …)` — the parsed bytes come from a path the guard never checked'. Non-vacuity is asserted three ways: the surgery changed the text, the pre-parse prefix stayed byte-identical, and the mutant really names `file`. The reason-specificity assertion was itself mutation-tested (temporarily flipped to a sentinel prefix -> 60 passed, 1 failed; reverted -> 61 passed, 0 failed)."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "observed": "5/5 assertions, 200 classified across 202 files. No new verify:*/validate:* npm script was added by this task, so scripts/lib/verifier-classification.ts needed no edit."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "observed": "177/177 roadmap dashboard checks passed, exit 0. Overview banner line verbatim: 'OK the Overview banner reads \"Sources agree\"'. The two-narrative consistency check retained BOTH sources rather than silently degrading to one: the run reports that docs/ai/CURRENT_STATE.md and docs/ai/HANDOFF.md each agree with the measured validation-ledger tally of 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Beads unchanged at 275 issues / 266 closed / 9 outstanding, 106 edges; traceability matrix 102 rows (87 PASS / 12 NOT RUN / 3 BLOCKED); 11 roadmap phases; 14 sources registered and readable. Executed by the project-state lease holder, because tools/agents/lease-guard.mjs line 323 requires actor === lease.holder and line 290 scopes this command to the project-state role; the root Manager is refused it by design. Measured against the working tree with the doc reconciliation uncommitted."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "observed": "Empty output, exit 0 — no whitespace or conflict-marker damage. Independently confirmed alongside it that app/main/execution/ExecutionApplicationService.ts is absent from git diff --stat, so no temporary mutation artifact survived in production source."
+    },
+    {
+      "id": "push-origin-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending"
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-sec005:qa:2026-09-06T15:59:33.085Z",
+        "task": "awkit-sec005",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-security.mts"
+        ],
+        "acquired_at": "2026-09-06T15:59:33.085Z",
+        "acquired_at_commit": "ee999c5e838d8adf0ab24f81ad429db35b4334d8",
+        "released_at": "2026-09-06T16:12:04.636Z",
+        "released_reason": "sec005-verifier-assertion-repaired-and-green",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-sec005:runtime:2026-09-06T16:12:37.532Z",
+        "task": "awkit-sec005",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/execution/ExecutionApplicationService.ts"
+        ],
+        "acquired_at": "2026-09-06T16:12:37.532Z",
+        "acquired_at_commit": "ee999c5e838d8adf0ab24f81ad429db35b4334d8",
+        "released_at": "2026-09-06T16:16:46.834Z",
+        "released_reason": "sec005-on-disk-mutation-proof-complete-source-restored",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-sec005:project-state:2026-09-06T16:18:59.483Z",
+        "task": "awkit-sec005",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/testing/comprehensive-validation/DEFECTS.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-06T16:18:59.483Z",
+        "acquired_at_commit": "ee999c5e838d8adf0ab24f81ad429db35b4334d8",
+        "released_at": "2026-09-06T16:25:51.090Z",
+        "released_reason": "sec005-project-state-closeout-written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-sec005:qa:2026-09-06T16:29:03.974Z",
+        "task": "awkit-sec005",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-security.mts"
+        ],
+        "acquired_at": "2026-09-06T16:29:03.974Z",
+        "acquired_at_commit": "ee999c5e838d8adf0ab24f81ad429db35b4334d8",
+        "released_at": "2026-09-06T16:55:44.251Z",
+        "released_reason": "SEC-005 verifier repair committed as bb99dfb with verify:security 61 passed 0 failed, build PASS, verifier-classification 5 of 5",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-origin-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "PASS",
+    "qa_basis": "Granted on executed evidence, not on agent assertion. The repaired assertion was proven red-to-green against the real source: npm run verify:security measured 61 passed / 0 failed (exit 0), up from 52 passed / 1 failed before the repair; the intermediate 58/0 reading predates the validated-binding clause and mutant C and is superseded. All three security properties are proven structurally inside the authoritative readDataFile() body: the rejecting guard exists, it throws strictly before JSON.parse, and the parse consumes the same binding the guard validated (the identifier is derived from the guard's own third argument by a balanced-paren scan, so it cannot be satisfied by the token 'resolved' merely appearing somewhere). Each of the three mutants carries its own non-vacuity assertion, and mutant C additionally asserts the guard region is byte-identical and that rejection occurs for the consumption reason specifically rather than for incidental guard or order damage; the reason-specificity assertion was itself mutation-tested (60 passed / 1 failed when flipped to a sentinel, 61 passed / 0 failed when reverted). Supporting checks: npm run build PASS (tsc --noEmit clean), npm run verify:verifier-classification PASS (5/5, 200 classified / 202 files), git diff --check empty. Production source app/main/execution/ExecutionApplicationService.ts was NOT modified and is absent from git diff --stat, so no mutation artifact survived.",
+    "qa_known_limitations": "An independent GLM-5.3 read-only review raised one residual, adjudicated as non-blocking and inherent rather than as a defect in this changeset: sec005InvariantHolds is a textual predicate, so it proves the positive properties it asserts but cannot prove the ABSENCE of additional adversarial code in the body. A body that reassigned the validated binding after the guard, or that performed an extra unguarded read, could still satisfy it. Verified against source that the reassignment example would additionally require changing 'const resolved' (ExecutionApplicationService.ts:445) to 'let', so it does not typecheck as GLM stated it. GLM's second claim, that the anchor slice might span unrelated helper functions, was checked and does not hold in the current source: readDataFile ends at line 452 and resolveDataFilePath begins at line 454, so the extracted slice is exactly the function body. The residual risk of a future function being inserted between those two anchors is noted; the anchor guard asserts only bodyEnd > bodyStart. The predicate is strictly stronger than the assertion it replaced, which was fully vacuous.",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

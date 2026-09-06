@@ -1,5 +1,95 @@
 # TASK_LOG
 
+## 2026-09-06 (latest) — awkit-sec005 — SEC-005 security verifier repaired (Claude Opus 5)
+
+**Task:** diagnose and repair the standing `verify:security` failure attributed to `AWKIT-SEC-005`, and
+reconcile the project-state records that had gone stale around it.
+
+**Root cause — verifier / stale artifact, not a product defect.** The SEC-005 assertion in
+`scripts/verify-security.mts` read `app/main/ipc/execution.ipc.ts` looking for
+`async function readDataFile`. That responsibility had moved to
+`app/main/execution/ExecutionApplicationService.ts`, and the IPC module contains **zero** occurrences of
+`readDataFile`: `indexOf` returned `-1`, the body slice degenerated to a single character, and the check
+failed closed while saying nothing about whether the invariant held. The production invariant was never
+broken — `readDataFile` (`app/main/execution/ExecutionApplicationService.ts:440-452`) calls
+`isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)` and throws
+before reaching `JSON.parse`.
+
+**Repair (SEC-005 block only).** Reads the authoritative execution-service file; bounds the
+`readDataFile` body between `async function readDataFile` and `function resolveDataFilePath` (the house
+idiom, replacing a fixed +1200-char window); adds an anchor/cardinality check that fails loudly with the
+resolved indices if the function is ever moved or renamed again; asserts via a pure predicate that a
+rejecting `if (!isReadableDataSourceFile(` guard exists, throws, sits strictly before `JSON.parse(`,
+**and that the parse consumes the same binding the guard validated**; and carries three permanent
+in-verifier mutants built by string surgery on the real body, each with its own non-vacuity assertion.
+
+**Sixth predicate clause — validated-path consumption.** Ordering alone is not confinement: the guard
+validates one binding and the parse must consume *that same binding*. The clause derives the validated
+identifier from the guard's own third argument via a balanced-paren scan, shape-validates it as an
+identifier before interpolating into a `RegExp` (fail-closed — an underivable binding is reported
+unprovable, never assumed sound), and searches only the region from `JSON.parse(` onward inside the
+already-bounded `readDataFile` body.
+
+**Files changed (code):** `scripts/verify-security.mts` — **no production code was changed.**
+Committed as **`bb99dfb`** ("test: repair SEC-005 execution service security assertion"), 1 file
+changed, **138 insertions / 3 deletions**, staging only `scripts/verify-security.mts`.
+
+**Project-state files updated:** `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`,
+`docs/ai/KNOWN_ISSUES.md`, `docs/testing/comprehensive-validation/DEFECTS.md`,
+`tools/roadmap/assignments.json`, and this log.
+
+**Checks executed:**
+- `npm run verify:security` **before**: **52 passed, 1 failed**
+- `npm run verify:security` **final**: **61 passed, 0 failed** (exit 0). An intermediate reading of
+  **58 passed, 0 failed** was taken before the validated-binding clause and mutant C existed; it is
+  superseded — cite 61/0.
+- `npm run build` **PASS** (exit 0, `tsc --noEmit` clean, all bundles built; only the pre-existing
+  `securityKernel.ts` static/dynamic import warning, which predates this task)
+- `npm run verify:verifier-classification` **PASS** (5/5 assertions, 200 classified / 202 files) — no
+  new `verify:*` / `validate:*` script was added, so `scripts/lib/verifier-classification.ts` needed
+  no edit
+- `git diff --check` **empty**
+
+**Mutation evidence (on disk, against the real production source):**
+- **Mutation A** — `isReadableDataSourceFile` guard deleted: **55 passed, 3 failed**; SEC-005 rejected
+  it with "no rejecting guard: `if (!isReadableDataSourceFile(` is absent from the readDataFile body".
+- **Mutation B** — `JSON.parse` hoisted above the guard: **55 passed, 3 failed**; SEC-005 rejected it
+  with "ORDER violated: isReadableDataSourceFile at 538 is not strictly before JSON.parse at 485".
+- **Mutation C** — validated-path consumption: `readFile(resolved, ...)` repointed to
+  `readFile(file, ...)` inside the `JSON.parse`, leaving the guard and its ordering **byte-identical**.
+  A genuine confinement bypass (`file` is the unresolved, unvalidated argument) that mutants A and B
+  **cannot** detect, since nothing about the guard or its position changes. The predicate rejects it,
+  and a dedicated reason-specificity assertion proves it fails for the CONSUMPTION reason rather than
+  incidental guard/order damage, reporting verbatim: "parse does not consume the VALIDATED binding: the
+  guard validated `resolved` but the parsed expression `JSON.parse(await readFile(file, "utf8"));`
+  contains no `readFile(resolved, …)` — the parsed bytes come from a path the guard never checked".
+  Its non-vacuity assertion is **three-part**: the surgery changed the text, the pre-parse prefix
+  stayed byte-identical, and the mutant really names `file`. C is an in-verifier mutant, so it required
+  no on-disk edit.
+- **The reason-specificity assertion was itself mutation-tested:** temporarily flipped to a sentinel
+  prefix → **60 passed, 1 failed**; reverted → **61 passed, 0 failed**.
+- Mutations A and B were reversed by inverse edit; `git diff` on
+  `app/main/execution/ExecutionApplicationService.ts` is empty, so the production source is
+  byte-identical to HEAD and absent from `git diff --stat`.
+
+**Follow-up CLOSED in this tranche.** The GLM-5.3 review's remaining false-PASS avenue — the predicate
+not tying the parse to the **validated binding** — was closed by the sixth clause and mutant C
+described above, and measured at **61 passed, 0 failed**. Nothing about SEC-005 remains pending at the
+assertion layer.
+
+**Not run:** `verify:accent-gui` and `verify:branding-gui` remain **BLOCKED** and were deliberately not
+retried — no renderer file and nothing in the GUI host environment changed. The **canvas** verifiers
+and the **reports** verifiers are **NOT RUN**. `verify:roadmap-dashboard` and `git push origin main`
+are **NOT RUN / not performed** as of this entry — both are sequenced by the Manager after these
+project-state edits. Any check not named above is **NOT RUN** for this tranche.
+
+**Result:** `verify:security` **61 passed, 0 failed** (52/1 before; 58/0 intermediate);
+`AWKIT-SEC-005` classified as a **verifier / stale-artifact** defect and its DEFECTS.md entry corrected
+(stale affected-area path, an unsupported 53/53 tally, and the superseded 58/0); **no production code
+changed**; validation ledger unmoved at **65 PASS / 2 NOT RUN / 0 BLOCKED**; Beads unchanged at 275
+total / 266 closed / 7 open / 2 blocked (no bead created or closed). Verifier repair committed as
+`bb99dfb`; these project-state files were still uncommitted under the lease at the time of writing.
+
 ## 2026-09-06 (later) — awkit-ui1 — release-gate reconciliation (Claude Opus 5)
 
 **Task:** resolve the `awkit-ui1` completion and push gates without touching owner material. No UI work
