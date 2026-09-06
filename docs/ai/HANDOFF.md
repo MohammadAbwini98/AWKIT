@@ -1,6 +1,42 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-05, latest) — R2 complete; R3 NOT started and NOT authorized
+## HANDOFF (2026-09-06, latest) — renderer Claude Design migration complete; two GUI verifiers environmentally BLOCKED
+
+- **Delivered:** the entire renderer UI migrated to the owner-approved Claude Design system in nine
+  commits on `main`, HEAD `96139c5`: `8136fe4` (token foundation), `e087198` (shell), `462fb6d`
+  (login), `12003ba` (shared components), `4d9e4c6` (application pages), `4c3c250` (workflow editing
+  surfaces), `60ff872` (reports/admin/settings), `43cfcab` (Live Run Monitor), `96139c5` (consistency
+  gaps). Presentation layer only.
+- **Verification — record these exactly, do not upgrade any of them:** `build` **PASS** (~5.97s);
+  `git diff --check` **PASS**; `all-typecheck` **PASS**; `source-hygiene` **11/11**; `accent-theme`
+  **71/71**; `branding` **49/49**; `reports-settings-a11y` **17/17**; `reports` **31/31**;
+  `flow-library` **19/19**; `canvas-perf` **13/13**; `canvas-layout` **35/35**; `flow-designer`
+  **138/138**; `workflow-builder` **68/68**; `editor-history` **14/14**;
+  `verifier-classification` **PASS**; `roadmap-dashboard` **PASS 177/177** with the Overview banner
+  reading "Sources agree"; `instance-monitor-gui` **PASS 27/27**. **`accent-gui` and `branding-gui`
+  are BLOCKED — environmental, not a product defect:** both died in the harness helper
+  `resolveMainWindow` ("main window with the SpecterStudio bridge did not appear within timeout"),
+  exit 1, zero checks executed, and a control re-run of the previously-passing
+  `instance-monitor-gui` BLOCKED identically on the same tree. Anything not named here is **NOT RUN**
+  — do not infer PASS for it.
+- **Live Run Monitor boundary, deliberate:** only real runtime data and actions (status, step states,
+  completed/total steps, real elapsed duration when available, retries/skips, events/logs, restart,
+  pause, resume). `Restart` → `WORKFLOW_EXECUTE`/`canExecute`, `Pause`/`Resume` →
+  `WORKFLOW_STOP`/`canStop`; execution IPC contract unchanged. No seek/scrubber, no 1x/2x/4x speed,
+  no ETA, no time remaining, no total duration, no fake running-step percentage. Do not reintroduce.
+- **Canvas preserved:** React Flow measurement, perf memoization, node/edge behavior, persistence and
+  execution contracts unchanged.
+- **Carried known verifier defect (not a product defect):** `verify:security` **52 PASS / 1 FAIL**
+  (SEC-005). The assertion still targets `readDataFile` in `app/main/ipc/execution.ipc.ts`; the real
+  implementation is in `app/main/execution/ExecutionApplicationService.ts` and still orders
+  `isReadableDataSourceFile(...)` before `JSON.parse(...)`. Fix the assertion, not the product.
+- **Project state:** validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED**; Beads
+  unchanged at **275 total / 266 closed / 7 open / 2 blocked**; `tools/roadmap/assignments.json` was
+  deliberately NOT modified so pre-existing owner changes are preserved.
+- **Next:** re-run `verify:accent-gui` and `verify:branding-gui` on a healthy host — they are the only
+  outstanding checks for this tranche. R3 remains **NOT started and NOT authorized**.
+
+## HANDOFF (2026-09-05) — R2 complete; R3 NOT started and NOT authorized
 
 - **Delivered:** application-level run preparation and orchestration extracted out of
   `app/main/ipc/execution.ipc.ts` into exactly ONE new Electron-main service,

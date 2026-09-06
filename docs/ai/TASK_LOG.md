@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-09-06 — awkit-ui1 — renderer-wide migration to the Claude Design system (Claude)
+
+**Task:** replace the renderer UI with the owner-approved Claude Design system; preserve accent
+customization, reduced motion, focus-visible accessibility, React Flow canvas measurement, test hooks
+and every IPC/runtime contract.
+
+**Commits (nine, on `main`, HEAD `96139c5`):** `8136fe4` design system foundation, `e087198` shell,
+`462fb6d` login, `12003ba` shared components, `4d9e4c6` application pages, `4c3c250` workflow editing
+surfaces, `60ff872` reports/admin/settings, `43cfcab` Live Run Monitor, `96139c5` consistency gaps.
+
+**Files:** `app/renderer/**` (styles, shell, pages, shared components, workflow editing surfaces,
+reports/admin/settings, Live Run Monitor); project-state records in `docs/ai/`.
+
+**Tests run — 17 PASS / 0 FAIL / 2 BLOCKED:** build (~5.97s), git diff --check, all-typecheck,
+source-hygiene 11/11, accent-theme 71/71, branding 49/49, reports-settings-a11y 17/17, reports 31/31,
+flow-library 19/19, canvas-perf 13/13, canvas-layout 35/35, flow-designer 138/138, workflow-builder
+68/68, editor-history 14/14, verifier-classification PASS, roadmap-dashboard PASS 177/177 ("Sources
+agree"), instance-monitor-gui PASS 27/27.
+
+**Tests NOT run / blocked:** `verify:accent-gui` and `verify:branding-gui` — **BLOCKED**, host Electron
+launch failure in `resolveMainWindow`, exit 1, zero checks executed; proven environmental by a control
+re-run of the previously-passing `instance-monitor-gui`, which blocked identically. `verify:security`
+remains 52 PASS / 1 FAIL (SEC-005), a stale assertion pointing at the wrong file — known verifier
+defect, not a product defect, and out of scope for a renderer lease.
+
+**Result:** renderer migration complete and committed; two GUI verifiers outstanding on a healthy host.
+
 ## 2026-09-05 — Claude (project-state) — R2 one execution application service
 
 **Task/result:** R2 implemented and QC-reviewed on `main`, then reconciled into the authoritative

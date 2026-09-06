@@ -1,5 +1,60 @@
 # CURRENT_STATE
 
+## Renderer-wide migration to the Claude Design system complete (2026-09-06)
+
+The entire renderer UI was migrated to the owner-approved Claude Design system across nine commits on
+`main`, HEAD **`96139c5`**: `8136fe4` (token foundation), `e087198` (application shell), `462fb6d`
+(login), `12003ba` (shared components), `4d9e4c6` (application pages), `4c3c250` (workflow editing
+surfaces), `60ff872` (reports, admin and settings), `43cfcab` (Live Run Monitor replaces the old Live
+Workflow Execution presentation), `96139c5` (design consistency gaps closed). One token foundation in
+`app/renderer/styles/global.css` carries light and dark mode; no remote fonts, no CDN assets and no
+second styling framework were introduced.
+
+**Canvas and execution contracts are unchanged.** React Flow measurement, canvas performance
+memoization, node and edge behavior, persistence and the execution IPC contract were all preserved.
+
+**Live Run Monitor capability boundary — deliberate, do not "fix" it.** The monitor surfaces only real
+runtime data and actions: current execution status, real step states, completed/total steps, real
+elapsed duration when available, real retries and skips, execution events and logs, restart, pause and
+resume. `Restart` maps to `WORKFLOW_EXECUTE`/`canExecute` and `Pause`/`Resume` to
+`WORKFLOW_STOP`/`canStop`, so the execution IPC contract is unchanged. Controls that would require
+fabricated data are **deliberately absent**: no seek/timeline scrubber, no 1x/2x/4x execution speed,
+no ETA, no time remaining, no known total duration and no fake running-step percentage. Do not
+reintroduce them. The earlier `toolbar-strip` cascade issue is already resolved via
+`.run-monitor-controls { margin-bottom: 0; }` while retaining the `toolbar-strip` class.
+
+Executed evidence — **17 PASS / 0 FAIL / 2 BLOCKED**:
+
+- `npm run build` **PASS** (typecheck + bundles, fresh build ~5.97s); `git diff --check` **PASS**;
+  `verify:all-typecheck` **PASS**.
+- `verify:source-hygiene` **11/11**; `verify:accent-theme` **71/71**; `verify:branding` **49/49**.
+- `verify:reports-settings-a11y` **17/17**; `verify:reports` **31/31**; `verify:flow-library` **19/19**.
+- `verify:canvas-perf` **13/13**; `verify:canvas-layout` **35/35**; `verify:flow-designer` **138/138**;
+  `verify:workflow-builder` **68/68**; `verify:editor-history` **14/14**.
+- `verify:verifier-classification` **PASS**; `verify:roadmap-dashboard` **PASS, 177/177**, Overview
+  banner reads "Sources agree".
+- `verify:instance-monitor-gui` **PASS 27/27** against this exact tree.
+- `verify:accent-gui` and `verify:branding-gui` — **BLOCKED, environmental, NOT a renderer defect.**
+  Both failed inside the Playwright harness helper `resolveMainWindow` with "main window with the
+  SpecterStudio bridge did not appear within timeout", exit 1, **zero checks executed**. A control
+  re-run of `verify:instance-monitor-gui` — which had passed 27/27 on this same tree — BLOCKED with
+  the identical message, which is what establishes a host Electron launch failure rather than a
+  renderer regression. Neither is recorded as PASS, and both must be re-run on a healthy host.
+- Any check not named above is **NOT RUN** for this tranche — do not infer PASS for it.
+
+`verify:security` remains **52 PASS / 1 FAIL (SEC-005)** — a **known verifier defect, not a product
+defect**. The failing assertion still looks for `readDataFile` in `app/main/ipc/execution.ipc.ts`, but
+the real implementation lives in `app/main/execution/ExecutionApplicationService.ts`, where the correct
+ordering `isReadableDataSourceFile(...)` before `JSON.parse(...)` still holds. It was deliberately left
+unrepaired: repairing it was outside this task's renderer lease.
+
+The Recorder/Reports/Settings validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED**: this
+tranche changes renderer presentation only and moves no case status. No Mock Site fixture changed, so
+`verify:mock-site` is **NOT APPLICABLE** to this tranche. Beads is unchanged at **275 total / 266
+closed / 7 open / 2 blocked** — no work item was filed or closed for this tranche; the two follow-ups
+(re-running the blocked GUI verifiers on a healthy host, and the stale SEC-005 assertion) are recorded
+in `docs/ai/KNOWN_ISSUES.md` instead.
+
 ## R2 one execution application service complete (2026-09-05)
 
 R2 extracted application-level run preparation and orchestration out of `app/main/ipc/execution.ipc.ts`

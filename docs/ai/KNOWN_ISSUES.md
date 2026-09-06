@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## Electron GUI verifiers can be blocked by a host launch failure (2026-09-06)
+
+On 2026-09-06, at HEAD `96139c5` with a clean renderer tree, `verify:accent-gui` and
+`verify:branding-gui` both failed **before executing a single assertion**. Both died inside the shared
+harness helper `resolveMainWindow` (`scripts/lib/gui-verify-harness.mjs`) with `main window with the
+SpecterStudio bridge did not appear within timeout` after its 40s poll for the
+`window.playwrightFlowStudio.settings` preload bridge, exit code 1, **zero checks executed**.
+
+**This is an environment/harness failure, not a renderer regression, and the control run is what
+proves it.** `verify:instance-monitor-gui` had passed **27/27** against this exact tree; a control
+re-run in the same session BLOCKED with the identical message. Two unrelated verifiers plus a
+previously-passing third all failing identically at launch, with no renderer file changed between the
+passing and failing runs, cannot be explained by a per-surface product defect.
+
+Traps for whoever picks this up:
+- **Do not record a blocked GUI verifier as PASS, and do not infer PASS from the static verifiers.**
+  Zero checks executed means zero evidence either way.
+- **Do not "fix" the renderer in response to this.** Diagnose the host first.
+- The failure appeared to worsen within a single session: the first two runs failed at ~50s while the
+  later control hung for the full 600s wrapper timeout. Orphaned Electron processes from earlier runs
+  are a plausible but **unconfirmed** mechanism — process inspection was unavailable at the time.
+- The harness isolates `APPDATA`/`LOCALAPPDATA` into a temp dir (`isolatedLaunchEnv`), so a blocked
+  run is not explained by, and does not corrupt, the real user profile.
+- `verify:branding-gui` prints a **dynamic** denominator (`results.length`), so a bare count is not
+  proof of completeness — capture the verbatim final line and the exit code.
+
+Still outstanding: re-run both verifiers on a healthy host. Until then they stand at **BLOCKED**.
+
 ## R2 execution application service — residual scope limits (2026-09-05)
 
 R2 moved run preparation and orchestration out of `app/main/ipc/execution.ipc.ts` into
