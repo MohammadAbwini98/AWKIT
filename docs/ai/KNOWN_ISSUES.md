@@ -145,19 +145,37 @@ a later phase does not mistake it for one.
   checkpoint, so R2 removed no adjacency assertion; it added a positional one that stopped one notch
   short of the standard R0.4 already set. Remedy: extend the R2 control with the same `awaitBetween`
   test, and prove it non-vacuous by inserting an `await` between `:213` and `:214`.
-- **Open finding, not fixed (`awkit-syaa`, P1) — `execution:repeatInstance` can relaunch an
-  installed-Chrome run without the Super User branch.** `app/main/ipc/execution.ipc.ts:126-127`
-  asserts only `Permission.WORKFLOW_EXECUTE`, with no installed-Chrome branch;
-  `execution:runWorkflow` has one at `:63-71`, where a real run reads `settings.superUser.chrome.mode`
-  and routes to `assertSenderSuperUser` when the mode is `installedChrome`.
-  `src/runner/ExecutionEngine.ts:2094` re-executes from the stored in-memory `runContexts` entry,
-  whose instance template may carry `browserDistribution: "installedChrome"`, so an execute-permitted
-  non-Super-User can relaunch an installed-Chrome run. **Severity is bounded and this is
-  pre-existing, not R2's doing:** `ExecutionEngine.ts:2094-2097` throws unless a `runContexts` entry
-  survives from a prior, Super-User-authorized run in the same process lifetime — there is no
-  cross-restart path. Remedy: give `repeatInstance` the same branch, resolved from the instance's own
-  stored template rather than only from current settings, plus a control pinning it. This is the one
-  finding in this section that is a real authorization gap; it is merely not R2's to fix.
+- **RESOLVED (`awkit-syaa`, P1, 2026-09-07) — `execution:repeatInstance` could relaunch an
+  installed-Chrome run without the Super User branch.** `app/main/ipc/execution.ipc.ts:126-127` had
+  asserted only `Permission.WORKFLOW_EXECUTE`, with no installed-Chrome branch; `execution:runWorkflow`
+  had one at `:63-71`, where a real run reads `settings.superUser.chrome.mode` and routes to
+  `assertSenderSuperUser` when the mode is `installedChrome`. An execute-permitted non-Super-User could
+  therefore relaunch an installed-Chrome run only a Super User was allowed to start. **Fixed by
+  `ee1b8b3`** ("fix: require super user for installed Chrome repeats", `app/main/ipc/execution.ipc.ts`
+  only): outside the try block, looks up the target instance and, when
+  `repeatTarget.config?.browserDistribution === "installedChrome"`, calls `assertSenderSuperUser(event,
+  Permission.WORKFLOW_EXECUTE, { audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel:
+  "execution:repeatInstance" } })`; unknown instance ids fail closed with the engine's own message.
+  **Correction to the original finding's remedy text:** the original text above (superseded) said the
+  fix should resolve from the "instance's own stored template" inside `runContexts`. The shipped fix
+  does not use `runContexts` or a template at all — it resolves from the instance's own stored
+  **`InstanceConfig.browserDistribution`** on `InstanceRuntimeState`, the same field
+  `src/runner/BrowserContextFactory.ts:315` (the launcher) and `ExecutionEngine.repeatInstance`
+  (`src/runner/ExecutionEngine.ts:2085/2094/1583`) already use to relaunch from stored state — so
+  current Settings (`getUiSettings()`) have no bearing on what actually launches, and no second
+  `getUiSettings()` read was added (see `awkit-wknd` below, still open). Covered by
+  `scripts/verify-r0-characterization.mts` R2.6b `assertRepeatInstanceInstalledChromeRule` (six negative
+  mutations, added in `27815c9`). Evidence: `verify:r0-characterization` **169 PASS / 0 FAIL**; `build`
+  PASS; `verify:security` **61/0**. QC approved with observations (see `docs/ai/CURRENT_STATE.md` and
+  `docs/ai/HANDOFF.md` 2026-09-07 sections for the full disposition, including a GLM-5.3 delegate
+  finding adjudicated a false positive).
+- **Open finding, no bead filed (QC observation, 2026-09-07) — `execution:resumeInstance` and
+  `execution:retryHandoff` gate on `Permission.WORKFLOW_STOP` although they resume execution.**
+  `app/main/ipc/execution.ipc.ts:81` and `:89`. Unexploitable under built-in roles today — no built-in
+  role holds `WORKFLOW_STOP` without `WORKFLOW_EXECUTE` (`src/security/authz/Permissions.ts:131-144`)
+  — but reachable via a custom role or a direct grant. No browser launch is involved, so it is not the
+  `awkit-syaa` defect class. No bead has been filed for this yet — the `awkit-syaa` task's scope
+  deliberately forbade expanding into sibling findings; needs its own bead and disposition.
 - **Open finding, not fixed (`awkit-ttvb`, P2) — `execution:validate` reaches the application service
   with no authorization, and no control covers it.** `app/main/ipc/execution.ipc.ts:58` invokes
   `applicationService.validateWorkflow` with no sender/RBAC check at all, and the authorization block

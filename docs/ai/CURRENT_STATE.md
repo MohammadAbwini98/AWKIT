@@ -1,5 +1,124 @@
 # CURRENT_STATE
 
+## awkit-syaa CLOSED: installed-Chrome repeat now requires Super User, matching `runWorkflow` (2026-09-07)
+
+**Defect.** `execution:repeatInstance` (`app/main/ipc/execution.ipc.ts`) asserted only
+`Permission.WORKFLOW_EXECUTE` before relaunching a browser, while `execution:runWorkflow` additionally
+required the exact Super User role for installed-Chrome runs. An execute-permitted non-Super-User could
+therefore relaunch an installed-Chrome run that only a Super User was allowed to start. P1 authorization
+gap.
+
+**Fix — `app/main/ipc/execution.ipc.ts` only, commit `ee1b8b3` "fix: require super user for installed
+Chrome repeats" (16 insertions).** Outside the try block, looks up the target instance and, when
+`repeatTarget.config?.browserDistribution === "installedChrome"`, calls `assertSenderSuperUser(event,
+Permission.WORKFLOW_EXECUTE, { audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel:
+"execution:repeatInstance" } })`. An unknown instance id fails closed with the engine's own
+byte-identical "not found" message. **Deciding input:** the authorization decision is read from the
+instance's own **stored `InstanceConfig.browserDistribution`** (on `InstanceRuntimeState`), never from
+`getUiSettings()` — this is the byte-identical predicate the launcher uses at
+`src/runner/BrowserContextFactory.ts:315`, and `ExecutionEngine.repeatInstance` relaunches from stored
+state (`src/runner/ExecutionEngine.ts:2085/2094/1583`), so current Settings have no bearing on what
+actually launches. Deliberately NO second `getUiSettings()` read was added — that would have worsened
+the already-tracked `awkit-wknd` finding (still open, untouched by this task).
+
+**Test — `scripts/verify-r0-characterization.mts` only, commit `27815c9` "test: cover installed Chrome
+repeat authorization" (188 insertions / 2 deletions).** Re-scoped the stale `runWorkflow` mutation
+anchor to `, channel: "execution:runWorkflow"` (it had been file-wide and silently assumed only one
+installed-Chrome denial site could exist), and added the new R2.6b `assertRepeatInstanceInstalledChromeRule`
+control with six negative mutations.
+
+**Measured evidence.** `npm run verify:r0-characterization` — **169 PASS / 0 FAIL**, exit 0
+(post-fix). `npm run build` — PASS, exit 0, `tsc --noEmit` clean. `npm run verify:security` — **61
+passed / 0 failed**, exit 0. `git diff --check` clean. Mock-site: **NOT APPLICABLE** (not PASS, not
+skipped-for-convenience) — mock-site page content cannot exercise the Electron sender-identity
+boundary; this defect lives entirely in main-process IPC authorization.
+
+**Preserved intermediate FAIL — do not erase from the record.** The first post-implementation run of
+`verify:r0-characterization` FAILED with `Error: mutation anchor matched 2 times, expected exactly 1:
+"eventType: \"INSTALLED_CHROME_EXECUTION_DENIED\""`. Classification: **VERIFIER scoping defect, NOT a
+product defect** — the pre-existing `runWorkflow` mutation anchor was file-wide and had silently
+assumed there could be only one installed-Chrome denial site. The repair re-scoped the anchor to the
+`runWorkflow` channel; the runtime fix was NOT weakened or reformatted to accommodate it.
+
+**Reviewer dispositions.** QA ran the evidence above; all exit 0. Limitation: QA's grep of
+`scripts/verify-security.mts` was BLOCKED by the lease guard, so its statement that `verify:security`
+has no repeat-specific assertion is an INFERENCE, not source-verified. **QC: APPROVED WITH
+OBSERVATIONS** — verified the handler predicate matches the launcher's expression on the same field;
+that the stored-config input is free of the two-read TOCTOU the `runWorkflow` path still has; that the
+unknown-id early return reproduces the engine's message over an identical admission set
+(`InstancePool.ts:7-17`); and that placing the check outside the try is load-bearing against a real
+downgrade path (`assertSenderSuperUser` throws `SecurityError`, `sessionContext.ts:110-114`, which the
+handler's catch at `execution.ipc.ts:149-151` would otherwise flatten into an ordinary
+`{success:false}`). No new permission was added, so no `ALL_PERMISSIONS`/`ADMINISTRATOR_PERMISSIONS`
+denylist implication. **GLM-5.3** (read-only delegate, ~50% of analysis) ran T1/T2/T3; its T3 finding
+M1 ("fails open when `config`/`browserDistribution` is missing") was adjudicated a **FALSE POSITIVE
+against source** — `InstanceRuntimeState.config` is required (`src/instances/InstanceRuntimeState.ts:28`),
+`browserDistribution` is a closed two-literal union (`src/instances/InstanceConfig.ts:7`) defaulted to
+`"bundledChromium"` at `src/instances/InstanceManager.ts:114`, and the launcher uses the byte-identical
+predicate, so when the gate is skipped the launch provably is not installed Chrome. GLM's proposed
+"fail closed on unknown distribution" remedy would have made authorization stricter than the launch it
+guards, denying Super-User-free bundled-Chromium repeats — a real functional regression. Half of T3 was
+**INCONCLUSIVE**: the delegate tool truncates any file at 80000 bytes and `verify-r0-characterization.mts`
+exceeds that, so the new control could not be sent for review.
+
+**GLM-5.3 T4** — a final acceptance audit — was attempted twice: an initial call and the one bounded
+retry the brief allowed. Both attempts returned **zero text content** while consuming their entire
+output budget (16384 and 8000 output tokens respectively), each flagged by the tool as truncated and
+therefore incomplete output rather than a finished report. Classification: **NOT RUN — blocked by
+delegate truncation.** It is NOT a PASS, NOT a FAIL, and NOT an approval. No T4 finding exists, and
+none may be inferred or invented. Acceptance therefore rests on the QA and QC dispositions already
+recorded plus Claude's own independent source validation — GLM is not a substitute for QA or QC, and
+the absent T4 did not lower the evidence bar. Claude's independent validation of the control against
+source (which DID happen and stands on its own) found: every `invariant` message is a description of
+the FAILURE mode, which is the file's consistent idiom and not an inverted assertion; each of the six
+mutants trips a distinct intended assertion first (A → the instance-resolution count falling to 0; B →
+the `"installedChrome"` comparison-value check; B2 → the strict-equality token check; C → the
+audit-channel regex; D → the `superUser` end-before-`try`-start ordering assertion; E → the zero-count
+`getUiSettings` assertion), so no mutant is redundant and none is rejected incidentally; every
+`mutateOnce` anchor occurs exactly once; and the dynamically built RegExp is injection-safe because the
+interpolated name resolves to the plain identifier `repeatTarget`.
+
+**QC's non-blocking observations.** (1) Error precedence changed for one combination: an unknown
+instance id under a blocked licensing gate now reports "Instance … not found." instead of the gate
+message; both are `{success:false}` failures, neither leaks anything, and authorization-before-licensing
+is the stated design — not a defect. (2) **NEW finding, no bead filed** (deliberately — this task's
+scope forbade expanding into sibling findings): `execution:resumeInstance` and `execution:retryHandoff`
+gate on `Permission.WORKFLOW_STOP` (`app/main/ipc/execution.ipc.ts:81`, `:89`) although they resume
+execution. Unexploitable under built-in roles — no built-in role holds `WORKFLOW_STOP` without
+`WORKFLOW_EXECUTE` (`src/security/authz/Permissions.ts:131-144`) — but reachable via a custom role or a
+direct grant; no browser launch is involved, so it is not this defect's class. (3) `mutationRejected`
+accepts any thrown error, so it does not attribute *which* invariant rejected a mutation — pre-existing
+helper behavior, not introduced here; mitigated in practice because each of the six mutations printed
+the invariant's own message quoting the mutated value.
+
+**Prior task absorbed.** `awkit-roadmap-docs-0906` (release bookkeeping) completed and pushed before
+this task started; its commit `9f23e2b` "docs: record awkit-roadmap-docs-0906 push evidence" is the
+`origin/main` ancestor this task built on. Noted here for continuity, not re-executed or re-evidenced
+by this task.
+
+**Project-state tally, restated deliberately:** the Recorder/Reports/Settings validation ledger is
+unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED** across its 67 cases — no ledger case was touched by
+this task. Beads, measured directly (`bd stats` + `bd list --status blocked`, since `bd stats`' own
+"Blocked" column counts dependency-blocked issues, not status-blocked ones — see the trap documented in
+`scripts/verify-roadmap-dashboard.mjs:448-454`): **275 total / 267 closed / 6 open / 2 status-blocked**
+(`awkit-7bu`, `awkit-cm8`, both unchanged by this task), i.e. **8 outstanding / 267 closed**. `bd stats`
+itself reported Open 6 / In Progress 0 / Blocked(dependency) 0 / Closed 267 (6+0+0+267=273, not 275 —
+the 2-issue gap is exactly the status-blocked pair, consistent with the trap).
+
+**Roadmap dashboard baseline moved and repaired.** Closing `awkit-syaa` moved the hardcoded
+non-vacuity baseline in `scripts/verify-roadmap-dashboard.mjs`, so the verifier first FAILED with
+`outstanding 8, closed 267` against a stale pin of `9 outstanding / 266 closed`. QA measured the
+tracker directly before editing, then changed only the label string and its predicate on lines
+455-456, moving them together so they still agree, and kept an exact integer equality rather than
+relaxing it to a range or inequality. The `275 issues parse` check (line 134) and the
+blocked-count-trap comment (lines 448-454) were left byte-identical. Final executed result:
+**177/177 roadmap dashboard checks passed**, exit 0, with the banner line quoted from the executed
+run: `OK the Overview banner reads "Sources agree"`. This was executed, not inferred. Non-vacuity was
+proved by mutation: changing the pinned closed count to 268 produced `FAIL 8 outstanding / 267
+closed - outstanding 8, closed 267` at **176/177**, exit 1; restoring it returned **177/177**, exit
+0. The on-disk file is the passing version. Classification: this was a VERIFIER BASELINE MOVE caused
+by legitimately closing a bead, NOT a product defect and NOT a weakening of the check.
+
 ## SEC-005 security verifier repaired: `verify:security` is green, and the product guard was never broken (`awkit-sec005`, 2026-09-06)
 
 **This section supersedes every `verify:security` **52 PASS / 1 FAIL** statement in the sections below

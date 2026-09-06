@@ -1,5 +1,101 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-07, latest) — awkit-syaa CLOSED: installed-Chrome repeat now requires Super User
+
+- **Bead closed:** `awkit-syaa` ("execution:repeatInstance can relaunch an installed-Chrome run without
+  the Super User branch"), P1 authorization defect. `execution:repeatInstance` had asserted only
+  `Permission.WORKFLOW_EXECUTE`, while `execution:runWorkflow` additionally required Super User for
+  installed-Chrome runs — an execute-permitted non-Super-User could relaunch a run only a Super User
+  could start.
+- **Fix commit `ee1b8b3`** — `app/main/ipc/execution.ipc.ts` only (16 insertions). Outside the try
+  block, looks up the instance and, when `repeatTarget.config?.browserDistribution === "installedChrome"`,
+  calls `assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, { audit: { eventType:
+  "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:repeatInstance" } })`. Unknown instance ids
+  fail closed with the engine's own message. **Decided from the instance's stored
+  `InstanceConfig.browserDistribution`, never from `getUiSettings()`** — the byte-identical predicate
+  the launcher uses (`src/runner/BrowserContextFactory.ts:315`), matching how `ExecutionEngine.repeatInstance`
+  relaunches from stored state (`src/runner/ExecutionEngine.ts:2085/2094/1583`). Deliberately no second
+  `getUiSettings()` read, so as not to worsen the still-open `awkit-wknd` finding.
+- **Test commit `27815c9`** — `scripts/verify-r0-characterization.mts` only (188 insertions / 2
+  deletions). Re-scoped the file-wide `runWorkflow` mutation anchor to `, channel: "execution:runWorkflow"`,
+  then added R2.6b `assertRepeatInstanceInstalledChromeRule` with six negative mutations.
+- **Measured evidence:** `verify:r0-characterization` **169 PASS / 0 FAIL**; `build` PASS (`tsc
+  --noEmit` clean); `verify:security` **61/0**; `git diff --check` clean. Mock-site **NOT APPLICABLE**
+  — this defect is entirely a main-process IPC sender-identity check, unreachable from mock-site page
+  content.
+- **Preserve, do not erase:** the first post-fix `verify:r0-characterization` run FAILED ("mutation
+  anchor matched 2 times, expected exactly 1"). That was a **verifier scoping defect** (the pre-existing
+  anchor was file-wide, not channel-scoped), not a product defect — repaired by re-scoping the anchor,
+  without touching the runtime fix.
+- **QA** ran all evidence above (all exit 0); its statement that `verify:security` has no
+  repeat-specific assertion is an INFERENCE (its grep of `verify-security.mts` was lease-blocked).
+  **QC: APPROVED WITH OBSERVATIONS** — predicate matches the launcher's exactly; input is the stored
+  config (no TOCTOU); unknown-id path reproduces the engine message; the check sits outside the try,
+  which is load-bearing against `assertSenderSuperUser`'s `SecurityError` being flattened by the
+  handler's catch. No new permission, so no `ALL_PERMISSIONS`/`ADMINISTRATOR_PERMISSIONS` denylist
+  implication. **GLM-5.3** delegate's T3 finding M1 (fails open on missing config/distribution) is a
+  **FALSE POSITIVE against source** (`InstanceRuntimeState.config` required, `browserDistribution` a
+  closed two-literal union defaulted to `"bundledChromium"`); its proposed "fail closed on unknown
+  distribution" would have wrongly blocked Super-User-free bundled-Chromium repeats. Half of T3
+  **INCONCLUSIVE** (delegate tool's 80000-byte file truncation).
+- **GLM-5.3 T4** (final acceptance audit) was attempted twice — an initial call and the one bounded
+  retry the brief allowed. Both returned **zero text content** while consuming their entire output
+  budget (16384 and 8000 output tokens respectively), each flagged by the tool as truncated,
+  incomplete output rather than a finished report. Classification: **NOT RUN — blocked by delegate
+  truncation.** Not a PASS, not a FAIL, not an approval; no T4 finding exists or may be inferred.
+  Acceptance rests on the QA and QC dispositions already recorded plus Claude's own independent
+  source validation — GLM is not a substitute for QA or QC, and the absent T4 did not lower the
+  evidence bar. That independent validation (which did happen and stands on its own) found: every
+  `invariant` message describes the FAILURE mode (the file's consistent idiom, not an inverted
+  assertion); each of the six mutants trips a distinct intended assertion first (A → instance-resolution
+  count falling to 0; B → the `"installedChrome"` comparison-value check; B2 → the strict-equality
+  token check; C → the audit-channel regex; D → the `superUser` end-before-`try`-start ordering
+  assertion; E → the zero-count `getUiSettings` assertion), so no mutant is redundant or rejected
+  incidentally; every `mutateOnce` anchor occurs exactly once; and the dynamically built RegExp is
+  injection-safe because the interpolated name resolves to the plain identifier `repeatTarget`.
+- **QC observations, non-blocking:** (1) an unknown instance id under a blocked licensing gate now
+  reports "not found" before the licensing message — both are `{success:false}`, by design, not a
+  defect; (2) **new finding, no bead filed** (out of this task's scope) — `execution:resumeInstance`/
+  `retryHandoff` gate on `Permission.WORKFLOW_STOP` (`execution.ipc.ts:81`,`:89`) though unexploitable
+  under built-in roles; (3) `mutationRejected` accepts any thrown error (pre-existing, not introduced
+  here; mitigated by each mutation's own distinguishing message).
+- **Prior task absorbed, not re-executed:** `awkit-roadmap-docs-0906` completed and pushed
+  (`9f23e2b` "docs: record awkit-roadmap-docs-0906 push evidence") before this task began; that is the
+  `origin/main` ancestor this task built on.
+- **Restated for the two-narrative consistency check:** validation ledger unchanged at **65 PASS / 2
+  NOT RUN / 0 BLOCKED**; Beads measured directly at **275 total / 267 closed / 6 open / 2
+  status-blocked** (`bd list --status blocked` → `awkit-7bu`, `awkit-cm8`; `bd stats`' own "Blocked"
+  column counts dependency-blocked, not status-blocked, issues — do not cite it for this number).
+- **SUPERSEDED (2026-09-07) — see the bullet immediately below for the executed result:** **Not done in
+  this task, by design:** `scripts/verify-roadmap-dashboard.mjs`'s hardcoded non-vacuity baselines
+  (`"9 outstanding / 266 closed"`, `outstanding === 9 && closed === 266`) were not updated — that file
+  is QA-owned, outside this task's lease, and closing `awkit-syaa` moved those numbers. Expect
+  `verify:roadmap-dashboard` to fail until QA updates its baseline. **This prediction did not remain
+  true — QA updated the baseline and the verifier now passes 177/177 with the "Sources agree" banner;
+  see the next bullet.**
+- **Update: QA has since moved that baseline and the verifier is green.** Closing `awkit-syaa` moved
+  the hardcoded non-vacuity baseline in `scripts/verify-roadmap-dashboard.mjs`, so the verifier first
+  FAILED with `outstanding 8, closed 267` against the stale `9 outstanding / 266 closed` pin. QA
+  measured the tracker directly before editing, then changed only the label string and its predicate
+  on lines 455-456, moving them together so they still agree, keeping an exact integer equality rather
+  than a range or inequality. The `275 issues parse` check (line 134) and the blocked-count-trap
+  comment (lines 448-454) were left byte-identical. Final executed result: **177/177 roadmap dashboard
+  checks passed**, exit 0, banner quoted from the executed run: `OK the Overview banner reads "Sources
+  agree"` — executed, not inferred. Non-vacuity proved by mutation: pinning the closed count to 268
+  produced `FAIL 8 outstanding / 267 closed - outstanding 8, closed 267` at **176/177**, exit 1;
+  restoring it returned **177/177**, exit 0; the on-disk file is the passing version. Classification:
+  a VERIFIER BASELINE MOVE caused by legitimately closing a bead, NOT a product defect and NOT a
+  weakening of the check.
+- **Known residue for the next agent:** `scripts/verify-roadmap-dashboard.mjs` carries a running prose
+  comment ledger (lines 135-454) recording WHY each pin move happened. The 8/267 pin move was made
+  WITHOUT appending a corresponding history line, because the QA brief made "change only the label and
+  predicate" and "smallest possible diff" mandatory. That is documentation drift inside a QA-owned
+  file, not a check defect — every assertion is correct and non-vacuous. Whoever picks this up next
+  may append one sentence recording that `awkit-syaa` closed on 2026-09-07, moving 9/266 to 8/267 with
+  the total held at 275.
+- **Unknown, not a claim either way:** nobody has verified whether any other file in the repository
+  also pins the old 9/266 figures.
+
 ## HANDOFF (2026-09-06, latest — supersedes the SEC-005 bullets below) — `verify:security` repaired and green
 
 - **Supersedes exactly two bullets in the sections below:** "`verify:security` stays **52 PASS /

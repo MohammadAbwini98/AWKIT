@@ -265,7 +265,26 @@
     }
   ],
   "write_lease": {
-    "history": [],
+    "history": [
+      {
+        "id": "awkit-roadmap-docs-0906:project-state:2026-09-06T19:43:21.111Z",
+        "task": "awkit-roadmap-docs-0906",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-hygiene-0906.json",
+          "tools/roadmap/README.md"
+        ],
+        "acquired_at": "2026-09-06T19:43:21.111Z",
+        "acquired_at_commit": "43b755ce22f106e1adbf10a7f727d459be0df45c",
+        "released_at": "2026-09-06T20:07:34.535Z",
+        "released_reason": "awkit-roadmap-docs-0906-complete-three-readme-counts-corrected-14-11-3-and-65-2-0-and-177-checks-hygiene-0906-bookkeeping-absorbed-pushed-9f23e2b-task-gate-canComplete-true-no-blockers-no-scope-escapes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
     "overrides": []
   },
   "scope_escapes": [],

@@ -1,5 +1,59 @@
 # TASK_LOG
 
+## 2026-09-07 (latest) — awkit-syaa — installed-Chrome repeat authorization fix, docs reconciliation (Claude Opus 5)
+
+**Task:** close out `awkit-syaa` (P1 authorization defect: `execution:repeatInstance` could relaunch an
+installed-Chrome run without the Super User check `execution:runWorkflow` enforces) and reconcile
+project-state records. Implementation was already committed before this task: `ee1b8b3` "fix: require
+super user for installed Chrome repeats" (`app/main/ipc/execution.ipc.ts`, 16 insertions — gates on the
+instance's own stored `InstanceConfig.browserDistribution`, not `getUiSettings()`) and `27815c9` "test:
+cover installed Chrome repeat authorization" (`scripts/verify-r0-characterization.mts`, 188
+insertions / 2 deletions — re-scoped the `runWorkflow` mutation anchor and added R2.6b
+`assertRepeatInstanceInstalledChromeRule` with six negative mutations).
+
+**This task's actions:** `bd close awkit-syaa`; `bd export -o .beads/issues.jsonl`; measured Beads
+state directly (`bd stats` + `bd list --status blocked`, since `bd stats`' "Blocked" column counts
+dependency-blocked, not status-blocked, issues) rather than assuming a delta; wrote reconciliation
+sections into `docs/ai/CURRENT_STATE.md` and `docs/ai/HANDOFF.md` (new top `##` sections, historical
+`verify:r0-characterization` **162**-assertion entry near the R2 section left untouched — 169 is a
+distinct, later measurement, not a correction of 162); moved the `awkit-syaa` entry in
+`docs/ai/KNOWN_ISSUES.md` from open to RESOLVED and corrected its remedy description (the shipped fix
+reads stored `InstanceConfig.browserDistribution` on `InstanceRuntimeState`, not an in-memory
+`runContexts` instance **template** as the original finding had assumed); added a new open
+`KNOWN_ISSUES.md` entry for QC's unfiled `WORKFLOW_STOP`-on-resume/retry observation; rotated the stale
+`bead:awkit-syaa` claim note in `tools/roadmap/assignments.json`.
+
+**Tests run (not re-run, cited from the committed evidence):** `verify:r0-characterization` **169 PASS
+/ 0 FAIL**; `build` PASS (`tsc --noEmit` clean); `verify:security` **61 passed / 0 failed**; `git diff
+--check` clean. Preserved in the record: an intermediate post-fix `verify:r0-characterization` FAILURE
+("mutation anchor matched 2 times"), classified VERIFIER-scoping not product defect. Mock-site: NOT
+APPLICABLE (main-process IPC sender-identity check, unreachable from page content).
+
+**Tests run by this task:** `npm run verify:verifier-classification`; `npm run verify:roadmap-dashboard`
+(expected and observed to FAIL — see result below).
+
+**Measured Beads tally:** 275 total / 267 closed / 6 open / 2 status-blocked (`awkit-7bu`, `awkit-cm8`),
+i.e. 8 outstanding / 267 closed. Validation ledger unchanged: 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
+**Prior task absorbed, not re-executed:** `awkit-roadmap-docs-0906` (below) had already completed and
+pushed as `9f23e2b` "docs: record awkit-roadmap-docs-0906 push evidence" before this task started.
+
+**Result:** `verify:verifier-classification` — see terminal output reported at handoff.
+`verify:roadmap-dashboard` — **FAILED as expected**: `scripts/verify-roadmap-dashboard.mjs`'s hardcoded
+non-vacuity baselines (`"9 outstanding / 266 closed"`, `outstanding === 9 && closed === 266`) now
+disagree with the post-close Beads state. That file is QA-owned and outside this task's lease — not
+edited here; flagged for a QA lease to update the baseline. `total === 275` pin is unaffected. Also
+recorded: two `bd close`/`bd export` side-effect writes to `.beads/interactions.jsonl` and
+`.beads/issues.jsonl` were flagged by the lease guard as out-of-lease (those files are not in this
+lease's `allowed_paths`); `npm run agent:lease-amend` is a Manager-only command under
+`tools/agents/lease-guard.mjs`'s `isLeaseLifecycleCommand` gate, so this agent could not self-resolve
+it — flagged for the Manager.
+
+**Files changed:** `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`, `docs/ai/KNOWN_ISSUES.md`,
+`docs/ai/TASK_LOG.md`, `tools/roadmap/assignments.json`, `.beads/issues.jsonl`,
+`.beads/interactions.jsonl` (bd side effects, see above). No production or verifier source touched by
+this task — `ee1b8b3`/`27815c9` were already committed before it began.
+
 ## 2026-09-06 (latest) — awkit-roadmap-docs-0906 — README stale count correction (Claude Opus 5)
 
 **Task:** correct three already-verified stale counts in `tools/roadmap/README.md` left open by
