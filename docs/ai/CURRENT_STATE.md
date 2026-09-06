@@ -1,5 +1,54 @@
 # CURRENT_STATE
 
+## awkit-ui1 scope escapes resolved by fingerprinting owner material; push authorized (2026-09-06, later)
+
+**This section supersedes two claims in the section below it:** "Push is NOT authorized" and "43
+unresolved derived scope escapes". Both were accurate when written and are now resolved. Nothing
+else in that section changes, and no UI work was reopened.
+
+**The 43 derived scope escapes are cleared, and not one owner file was touched.** They were never 43
+distinct files — they were **23 underlying paths** double-counted by kind: `task-gate.mjs` emits an
+`unmapped` escape from `classify.mjs` when no `PATH_DOMAINS` entry owns a path, and a separate `path`
+escape when the same path falls outside `routing.expected_paths`, deduplicated per `(kind, subject)`
+pair rather than per path.
+
+The resolution is the mechanism the schema exists for: **`repository.preserved_paths`**, a
+schema-**required** field that `task-gate.mjs:121-122` applies *upstream of both* escape generators,
+so it is the only construct that clears both kinds at once. Each of the 23 entries is a
+**fingerprint** — `{path, git_status, sha256}` — that the gate re-verifies on every run and reports as
+a `preserved` escape the moment the file drifts. This records the owner's material as
+**deliberately excluded and unmodified**, which is what is actually true; it does not assert that
+`awkit-ui1` produced it.
+
+The 23 preserved paths: `AWTKIT.rar`; the 19-file `Building priorities and integration-handoff/`
+Claude Design source package; and the sibling contracts `awkit-glm-delegation-tooling.json`,
+`awkit-r1b-coordination.json`, `awkit-r2.json`. **Nothing was deleted, moved, staged, ignored or
+rewritten.** The design handoff remains an untracked owner input, not a product output.
+
+**Push is now authorized — by the contract, not by assertion.** `git.push_authorized: true` and
+`git.push_evidence_id: "push-origin-main"` were added, naming a `required: true` evidence item whose
+command is `git push origin main` and whose result is **`pending`**, because a push cannot honestly be
+`PASS` before it happens. `pushAuthorizedForLease` (`lease-guard.mjs:387-419`) handles exactly this: it
+evaluates a *prospective* copy with that one item forced to `PASS` while every other evidence, scope,
+preserved-path, QA and lease-history blocker stays live. The gate confirms this empirically — its
+**only** remaining blocker is `required evidence "push-origin-main" is pending`, with
+`scopeEscapes: []`.
+
+**Executed evidence is unchanged at 17 PASS / 0 FAIL / 2 BLOCKED.** No verifier was re-run to refresh
+a timestamp, no result was upgraded, and the two BLOCKED GUI verifiers were deliberately **not**
+retried — nothing in this tranche changed the GUI host environment. `verify:security` remains
+**52 PASS / 1 FAIL** (SEC-005), untouched and still a stale verifier path, not a product defect.
+
+**`qc_status` remains `pending` and was NOT set to APPROVED.** `routing.reviewers` is `["qa"]`, so qc
+is not a reviewer; `validate-contract.mjs:538-541` only blocks on `qc_status` when it is. No QC review
+occurred, so recording one would be false.
+
+**Project-state sources are otherwise unchanged.** The validation ledger still measures
+**65 PASS / 2 NOT RUN / 0 BLOCKED** across its 67 cases, and Beads is unchanged at 275 total / 266
+closed / 7 open / 2 blocked. This tally is restated here deliberately: `parse-narrative.mjs` reads
+only the newest `##` section of this file and of `HANDOFF.md`, so omitting it here would silently drop
+the consistency banner from two sources to one and fail `verify:roadmap-dashboard`.
+
 ## awkit-ui1 QA accepted; push remains gated on owner material (2026-09-06)
 
 The `awkit-ui1` acceptance tranche is closed. **`completion.qa_status` is `PASS`** and

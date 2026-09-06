@@ -1,5 +1,41 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-06, later — supersedes the section below) — scope escapes resolved, push authorized
+
+- **Supersedes two bullets in the section below:** "The single remaining gate is owner-only" and
+  "Push is NOT authorized". Both were accurate when written. Everything else there still stands, and
+  **renderer implementation remains closed — do not reopen it.**
+- **Scope escapes: RESOLVED, with zero owner files touched.** The 43 derived escapes were **23
+  underlying paths** double-counted by kind (`unmapped` from `classify.mjs` + `path` from
+  `task-gate.mjs`, deduplicated per `(kind, subject)`). They are now recorded in the
+  schema-required `repository.preserved_paths` as `{path, git_status, sha256}` fingerprints, which
+  `task-gate.mjs:121-122` filters *upstream of both* escape generators — the only mechanism that
+  clears both kinds. The gate re-verifies all 23 on every run and emits a `preserved` escape on any
+  drift, so this excludes the files without hiding them.
+- **Nothing was deleted, moved, staged, ignored or rewritten.** `AWTKIT.rar`, the 19-file
+  `Building priorities and integration-handoff/` Claude Design source package and the sibling
+  contracts (`awkit-glm-delegation-tooling.json`, `awkit-r1b-coordination.json`, `awkit-r2.json`)
+  remain exactly as the owner left them. The handoff package is an untracked **input**, not a
+  product output.
+- **Push IS now authorized.** `git.push_authorized: true` plus `git.push_evidence_id:
+  "push-origin-main"`, naming a `required:true` evidence item with command `git push origin main`
+  and result **`pending`** — a push cannot honestly be `PASS` before it runs.
+  `pushAuthorizedForLease` (`lease-guard.mjs:387-419`) evaluates a prospective copy with that one
+  item forced to `PASS`; every other blocker stays live. The gate's only remaining blocker is
+  `required evidence "push-origin-main" is pending`, `scopeEscapes: []`.
+- **Do not upgrade any verifier result.** Executed evidence is unchanged at **17 PASS / 0 FAIL /
+  2 BLOCKED**. `accent-gui` and `branding-gui` stay **BLOCKED** and were deliberately not retried —
+  nothing changed the GUI host environment. `verify:security` stays **52 PASS / 1 FAIL** (SEC-005),
+  a stale verifier path, out of scope.
+- **`qc_status` stays `pending`.** `routing.reviewers` is `["qa"]`; qc is not a reviewer, so
+  `validate-contract.mjs:538-541` does not block on it. No QC review happened; recording one would
+  be false.
+- **Project state:** validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED**; Beads
+  unchanged at **275 total / 266 closed / 7 open / 2 blocked**.
+- **Next:** flip `push-origin-main` to `PASS` only after `git push origin main` actually succeeds;
+  re-run `accent-gui`/`branding-gui` on a healthy host before any release-level claim. R3 remains
+  **NOT started and NOT authorized**.
+
 ## HANDOFF (2026-09-06, latest) — awkit-ui1 QA-accepted; renderer migration closed; push gated on owner material only
 
 - **QA status: `qa_status: PASS`, `status: implemented`.** The renderer Claude Design migration is

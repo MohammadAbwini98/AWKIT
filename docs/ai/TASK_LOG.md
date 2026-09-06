@@ -1,5 +1,53 @@
 # TASK_LOG
 
+## 2026-09-06 (later) — awkit-ui1 — release-gate reconciliation (Claude Opus 5)
+
+**Task:** resolve the `awkit-ui1` completion and push gates without touching owner material. No UI work
+was reopened; the renderer migration stayed closed.
+
+**Problem:** the task gate reported `canComplete: false` on **43 unresolved derived scope escapes**.
+These were not 43 files — they were **23 underlying paths** double-counted by kind, since
+`classify.mjs` emits an `unmapped` escape when no `PATH_DOMAINS` entry owns a path and `task-gate.mjs`
+emits a separate `path` escape when the same path is outside `routing.expected_paths`, deduplicated per
+`(kind, subject)`.
+
+**Resolution:** populated the schema-required `repository.preserved_paths` in
+`docs/ai/contracts/awkit-ui1.json` with 23 `{path, git_status, sha256}` fingerprints.
+`task-gate.mjs:121-122` filters preserved paths *upstream of both* escape generators, so it is the only
+mechanism that clears both kinds at once, and the gate re-verifies every fingerprint each run —
+emitting a `preserved` escape on any drift. The owner's material is therefore recorded as deliberately
+excluded and unmodified, not hidden.
+
+**Rejected alternatives:** marking `scope_escapes[].resolved: true` (a no-op — `task-gate.mjs:142-143`
+filters only *recorded* escapes and cannot suppress freshly derived ones); widening
+`routing.expected_paths` (clears only the 3 `path` escapes, leaves 20 `unmapped`, and would falsely
+claim owner artifacts as task outputs); any `allowed_paths: ["**"]`-style broadening.
+
+**Owner material untouched:** `AWTKIT.rar`, the 19-file `Building priorities and integration-handoff/`
+Claude Design source package, and the sibling contracts `awkit-glm-delegation-tooling.json`,
+`awkit-r1b-coordination.json`, `awkit-r2.json` were not deleted, moved, staged, ignored or rewritten.
+
+**Push gate:** added `git.push_authorized: true` and `git.push_evidence_id: "push-origin-main"` with a
+`required:true` evidence item, command `git push origin main`, result `pending`.
+`pushAuthorizedForLease` (`lease-guard.mjs:387-419`) evaluates a prospective copy with that one item
+forced to `PASS` while every other blocker stays live — so the gate's only remaining blocker is that
+pending push, with `scopeEscapes: []`.
+
+**Files:** `docs/ai/contracts/awkit-ui1.json`, `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`,
+`docs/ai/TASK_LOG.md`.
+
+**Tests run:** `verify:verifier-classification` PASS (200 scripts classified, reconciled).
+`verify:roadmap-dashboard` PASS **177/177**, Overview banner reads "Sources agree", `both narrative
+documents assert a tally`.
+
+**Tests NOT run and why:** no product verifier was re-executed — production code did not change in this
+tranche. `verify:accent-gui` and `verify:branding-gui` remain **BLOCKED** with zero assertions and were
+deliberately not retried, since nothing changed the GUI host environment. `verify:security` remains
+**52 PASS / 1 FAIL** (SEC-005, stale verifier path), out of scope and unrepaired.
+
+**Result:** scope escapes resolved; `qc_status` left `pending` because `routing.reviewers` is `["qa"]`
+and no QC review occurred.
+
 ## 2026-09-06 — awkit-ui1 — acceptance/QA closeout (Claude Opus 5, with GLM-5.3 as read-only analysis support)
 
 **Task:** reconcile the `awkit-ui1` acceptance tranche — validate the QA basis, characterize the two
