@@ -20,8 +20,19 @@ excluded and unmodified, not hidden.
 
 **Rejected alternatives:** marking `scope_escapes[].resolved: true` (a no-op — `task-gate.mjs:142-143`
 filters only *recorded* escapes and cannot suppress freshly derived ones); widening
-`routing.expected_paths` (clears only the 3 `path` escapes, leaves 20 `unmapped`, and would falsely
-claim owner artifacts as task outputs); any `allowed_paths: ["**"]`-style broadening.
+`routing.expected_paths` (would clear the 23 `path` escapes but leave the 20 `unmapped` escapes
+unresolved, and would falsely claim owner artifacts as task outputs); any `allowed_paths: ["**"]`-style
+broadening.
+
+**Correction (2026-09-06, later tranche):** the sentence above originally read "clears only the 3
+`path` escapes, leaves 20 `unmapped`", which did not reconcile to 43. Measured from source, the split is
+**20 `unmapped` + 23 `path` = 43**. A `path` escape is emitted for every one of the 23 changed paths,
+since none of them matches `routing.expected_paths`; an `unmapped` escape is emitted only for the 20
+paths that no `PATH_DOMAINS` entry owns — `AWTKIT.rar` and the 19 `Building priorities and
+integration-handoff/` files. The 3 sibling contracts fall under the `docs/**` domain
+(`routing-matrix.mjs:1072`, owner `project-state`), so they yield a `path` escape only. The rejection
+itself is unchanged and still correct: widening `expected_paths` cannot resolve the `unmapped`
+classification, which depends solely on `PATH_DOMAINS`.
 
 **Owner material untouched:** `AWTKIT.rar`, the 19-file `Building priorities and integration-handoff/`
 Claude Design source package, and the sibling contracts `awkit-glm-delegation-tooling.json`,
