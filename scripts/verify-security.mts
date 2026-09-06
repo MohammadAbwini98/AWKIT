@@ -165,13 +165,148 @@ check("setJsonAtPath still writes normal paths", JSON.stringify(setJsonAtPath({ 
 
 // ── AWKIT-SEC-005 — execution-time data-source reads enforce §14 confinement ──
 {
-  const src = readFileSync(join("app", "main", "ipc", "execution.ipc.ts"), "utf8");
+  // The authoritative implementation lives in the execution APPLICATION SERVICE, not the IPC layer.
+  // This check used to read app/main/ipc/execution.ipc.ts, which no longer declares readDataFile at
+  // all: indexOf returned -1, the slice degenerated to a single character, and the assertion failed
+  // closed while saying nothing about whether the invariant still held. The anchor guard below makes
+  // that class of drift fail LOUDLY instead of silently degenerating into a slice of nothing.
+  const sourceFile = join("app", "main", "execution", "ExecutionApplicationService.ts");
+  const src = readFileSync(sourceFile, "utf8");
   const bodyStart = src.indexOf("async function readDataFile");
-  const body = src.slice(bodyStart, bodyStart + 1200);
+  const bodyEnd = src.indexOf("function resolveDataFilePath");
+  check(
+    "SEC-005 readDataFile anchors resolve in the authoritative execution service",
+    bodyStart >= 0 && bodyEnd > bodyStart,
+    `${sourceFile}: start("async function readDataFile")=${bodyStart} end("function resolveDataFilePath")=${bodyEnd} — the function was moved or renamed, so the extracted body is NOT readDataFile`
+  );
+  const body = src.slice(bodyStart, bodyEnd);
+
+  /**
+   * Pure predicate: validation-before-parse must hold INSIDE readDataFile's own body.
+   * Presence of `isReadableDataSourceFile` or `JSON.parse` somewhere in the file proves nothing —
+   * the invariant is that the REJECTING guard runs, throws, and does so strictly BEFORE the parse.
+   */
+  function sec005InvariantHolds(fnBody: string): { ok: boolean; reason: string } {
+    const guardAt = fnBody.indexOf("if (!isReadableDataSourceFile(");
+    if (guardAt < 0) {
+      return { ok: false, reason: "no rejecting guard: `if (!isReadableDataSourceFile(` is absent from the readDataFile body" };
+    }
+    const validateAt = fnBody.indexOf("isReadableDataSourceFile");
+    const parseAt = fnBody.indexOf("JSON.parse(");
+    if (parseAt < 0) {
+      return { ok: false, reason: "no `JSON.parse(` in the readDataFile body — the guard cannot be shown to precede the parse it protects" };
+    }
+    if (!(validateAt < parseAt)) {
+      return { ok: false, reason: `ORDER violated: isReadableDataSourceFile at ${validateAt} is not strictly before JSON.parse at ${parseAt}` };
+    }
+    const throwAt = fnBody.indexOf("throw", guardAt);
+    if (throwAt < 0 || throwAt > parseAt) {
+      return { ok: false, reason: `guard does not reject: no \`throw\` between the guard (${guardAt}) and the parse (${parseAt})` };
+    }
+    if (!fnBody.includes("isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)")) {
+      return { ok: false, reason: "guard is not evaluated against the runtime root + configured data-sources workspace for the RESOLVED path" };
+    }
+    // Ordering alone is not confinement: the guard validates ONE binding, and the parse must consume
+    // THAT SAME binding. `readFile(file, …)` leaves the guard and the ordering perfectly intact while
+    // re-reading the raw, unresolved, unvalidated argument. The identifier is derived from the guard's
+    // own third argument (balanced-paren scan), so this proves same-binding consumption rather than
+    // merely proving that something spelled "resolved" appears somewhere.
+    const argsFrom = fnBody.indexOf("isReadableDataSourceFile(", guardAt) + "isReadableDataSourceFile(".length;
+    let depth = 1;
+    let cursor = argsFrom;
+    while (cursor < fnBody.length && depth > 0) {
+      const ch = fnBody[cursor];
+      if (ch === "(") depth += 1;
+      else if (ch === ")") depth -= 1;
+      if (depth === 0) break;
+      cursor += 1;
+    }
+    const guardArgs = fnBody.slice(argsFrom, cursor);
+    const validated = (guardArgs.split(",").pop() ?? "").trim();
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(validated)) {
+      return { ok: false, reason: `cannot derive the validated binding from the guard argument list \`${guardArgs}\` — same-binding consumption is unprovable` };
+    }
+    const parsedExpression = fnBody.slice(parseAt);
+    if (!new RegExp(`readFile\\(\\s*${validated}\\s*,`).test(parsedExpression)) {
+      return {
+        ok: false,
+        reason: `parse does not consume the VALIDATED binding: the guard validated \`${validated}\` but the parsed expression \`${parsedExpression.trim().split("\n")[0]}\` contains no \`readFile(${validated}, …)\` — the parsed bytes come from a path the guard never checked`,
+      };
+    }
+    return { ok: true, reason: "" };
+  }
+
+  const real = sec005InvariantHolds(body);
   check(
     "SEC-005 readDataFile rejects files confined to the runtime root before parsing",
-    body.includes("isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)") && body.indexOf("isReadableDataSourceFile") < body.indexOf("JSON.parse")
+    real.ok,
+    `${sourceFile}: ${real.reason}`
   );
+
+  // Permanent mutant proof — the predicate must REJECT broken variants built by string surgery on
+  // the REAL body. Without this, a predicate that always returned true would look identical to a
+  // held invariant. Each surgery asserts it actually changed the text, so it cannot go vacuous.
+  const guardAt = body.indexOf("if (!isReadableDataSourceFile(");
+  const parseAt = body.indexOf("return JSON.parse(");
+  const parseLineEnd = body.indexOf("\n", parseAt);
+  const parseLine = parseAt >= 0 && parseLineEnd > parseAt ? body.slice(parseAt, parseLineEnd + 1) : "";
+  const surgeryViable = guardAt >= 0 && parseAt > guardAt && parseLine.length > 0;
+
+  // MUTANT A — validation absent: excise the whole guard statement (condition + throw + brace).
+  const mutantA = surgeryViable ? body.slice(0, guardAt) + body.slice(parseAt) : body;
+  check(
+    "SEC-005 mutant A surgery really deleted the guard (non-vacuous)",
+    mutantA !== body && !mutantA.includes("if (!isReadableDataSourceFile("),
+    `guardAt=${guardAt} parseAt=${parseAt} — surgery was a no-op, so the mutant assertion below would be vacuous`
+  );
+  check(
+    "SEC-005 predicate REJECTS mutant A (validation deleted)",
+    sec005InvariantHolds(mutantA).ok === false,
+    "predicate accepted a readDataFile body with no confinement guard at all"
+  );
+
+  // MUTANT B — parse before validation: hoist the `return JSON.parse(...)` line above the guard.
+  const mutantB = surgeryViable
+    ? body.slice(0, guardAt) + parseLine + body.slice(guardAt, parseAt) + body.slice(parseAt + parseLine.length)
+    : body;
+  check(
+    "SEC-005 mutant B surgery really hoisted the parse above the guard (non-vacuous)",
+    mutantB !== body && mutantB.indexOf("JSON.parse(") < mutantB.indexOf("isReadableDataSourceFile"),
+    `guardAt=${guardAt} parseAt=${parseAt} parseLineLen=${parseLine.length} — surgery was a no-op, so the mutant assertion below would be vacuous`
+  );
+  check(
+    "SEC-005 predicate REJECTS mutant B (parse hoisted above validation)",
+    sec005InvariantHolds(mutantB).ok === false,
+    "predicate accepted a readDataFile body that parses before it validates"
+  );
+
+  // MUTANT C — validated-path consumption: the guard and the ordering are left byte-identical, and
+  // only the read INSIDE the parse is repointed from the validated binding to the raw `file` argument.
+  // That is a genuine confinement bypass (`file` is the unresolved, unvalidated input) which mutants
+  // A and B cannot see, because nothing about the guard or its position changes.
+  const mutatedParseLine = parseLine.replace(/readFile\(\s*[A-Za-z_$][A-Za-z0-9_$]*\s*,/, "readFile(file,");
+  const mutantC = surgeryViable && mutatedParseLine !== parseLine
+    ? body.slice(0, parseAt) + mutatedParseLine + body.slice(parseAt + parseLine.length)
+    : body;
+  check(
+    "SEC-005 mutant C surgery really repointed the read at the raw `file` argument, guard untouched (non-vacuous)",
+    mutantC !== body
+      && mutantC.slice(0, parseAt) === body.slice(0, parseAt)
+      && /readFile\(\s*file\s*,/.test(mutantC.slice(parseAt)),
+    `parseAt=${parseAt} parseLine=${JSON.stringify(parseLine)} — surgery was a no-op or disturbed the guard, so the mutant assertions below would be vacuous`
+  );
+  const mutantCReason = sec005InvariantHolds(mutantC).reason;
+  check(
+    "SEC-005 predicate REJECTS mutant C (parse consumes the unvalidated raw path)",
+    sec005InvariantHolds(mutantC).ok === false,
+    "predicate accepted a readDataFile body whose parse reads a path the guard never validated"
+  );
+  check(
+    "SEC-005 mutant C is rejected for the CONSUMPTION reason, not incidental guard/order damage",
+    mutantCReason.startsWith("parse does not consume the VALIDATED binding"),
+    `mutant C must fail on validated-path consumption; instead the predicate said: ${mutantCReason}`
+  );
+
   // Behavior of the confinement predicate itself (real filesystem evidence):
   const root = mkdtempSync(join(tmpdir(), "awkit-sec005-"));
   try {
