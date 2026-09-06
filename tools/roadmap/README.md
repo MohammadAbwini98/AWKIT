@@ -23,7 +23,7 @@ renamed document fails in one place with a clear message instead of degrading si
 | Source | Used for |
 |---|---|
 | `.beads/issues.jsonl` | open/closed work, priorities, types, and the **only** declared dependency edges |
-| `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md` | the 66-case ledger and its authoritative PASS / NOT RUN / BLOCKED tally |
+| `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md` | the 67-case ledger and its authoritative PASS / NOT RUN / BLOCKED tally |
 | `…/DEFECTS.md` | 34 defects, severity, lifecycle section, and the `Detected by` join |
 | `…/TRACEABILITY_MATRIX.csv` | 101 requirement-coverage rows |
 | `src/roadmap/ImplementationRoadmap.ts` | the A–K phase model rendered in-app |

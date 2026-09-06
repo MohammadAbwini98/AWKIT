@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-hygiene-0906",
+    "title": "Absorb SEC-005 release bookkeeping and correct two verified stale repository references",
+    "objective": "Commit the uncommitted SEC-005 lease-release bookkeeping left behind by the previous tranche (docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-sec005.json, tools/roadmap/assignments.json), and correct exactly two verified stale documentation references: the roadmap ledger parser metadata that still says 66 cases when the ledger measures 67, and the docs/ai/COMMANDS.md verify:security assertion count that still says 39 when the current verifier contract is 61. No SEC-005 security or UI work is reopened, no production source is touched, and no protected owner material is staged, edited, moved or reset.",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6e51957d8fcd1c7ec50a8ed876a69317ba10d410",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/COMMANDS.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-hygiene-0906.json",
+      "docs/ai/contracts/awkit-sec005.json",
+      "tools/roadmap/README.md",
+      "tools/roadmap/assignments.json",
+      "tools/roadmap/lib/link.mjs",
+      "tools/roadmap/lib/parse-ledger.mjs",
+      "tools/roadmap/lib/sources.mjs"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/COMMANDS.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-sec005.json",
+        "tools/roadmap/README.md",
+        "tools/roadmap/assignments.json",
+        "tools/roadmap/lib/link.mjs",
+        "tools/roadmap/lib/parse-ledger.mjs",
+        "tools/roadmap/lib/sources.mjs"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "HYG-STALE-LEDGER-COUNT",
+      "description": "Every stale \"66\" reference to the Recorder/Reports/Settings validation ledger is corrected to the measured count, using the parser's own CASE_HEADING interpretation as the measurement, and the derived roadmap dashboard still reports that its sources agree. The correction is documentation/metadata only: tools/roadmap/lib/parse-ledger.mjs pins no literal count, so no runtime assertion changes.",
+      "evidence_required": [
+        "ledger-count-measurement",
+        "node-check-roadmap-lib",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "HYG-STALE-SECURITY-COUNT",
+      "description": "The docs/ai/COMMANDS.md verify:security line states the verifier's current assertion count, matching the convention its neighbouring lines use, without altering the unrelated (39/39) count that belongs to verify:flow-node-catalog-parity or any other command documentation.",
+      "evidence_required": [
+        "security-count-provenance",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "HYG-BOOKKEEPING-ABSORBED",
+      "description": "The SEC-005 lease-release bookkeeping is committed on main with no protected owner path staged, the verifier registry stays consistent, and the SEC-005 evidence semantics (61/0 final result, Mutation A/B/C, qa_status, completion state, push evidence, release reason, write_lease.history) are preserved unchanged.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "staged-path-audit",
+        "push-origin-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ledger-count-measurement",
+      "type": "inspection",
+      "required": true,
+      "command": "measure docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md with the parser's own CASE_HEADING regex plus its Status and Priority body keys",
+      "result": "PASS",
+      "observed": "67 case headings, 67 \"- **Status:**\" lines, 67 \"- **Priority / layer:**\" lines. The stale text said 66. Independently corroborated by verify:roadmap-dashboard, which printed \"OK 67 cases\", \"OK heading, status and priority counts agree\" and \"OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED\" (65 + 2 = 67). tools/roadmap/lib/parse-ledger.mjs pins no literal count: its degraded check compares statusCount and priorityCount against cases.length only, so this correction is metadata/presentation, not runtime logic."
+    },
+    {
+      "id": "security-count-provenance",
+      "type": "inspection",
+      "required": true,
+      "command": "git log --oneline -5 -- scripts/verify-security.mts",
+      "result": "PASS",
+      "observed": "scripts/verify-security.mts was last modified at bb99dfb \"test: repair SEC-005 execution service security assertion\", the commit whose measured result was 61 passed / 0 failed, and the file is clean in the working tree. The current verifier contract is therefore 61, not the documented 39. Established from Git provenance without rerunning verify:security, which this tranche's scope forbids. docs/ai/COMMANDS.md line 224's (39/39) belongs to verify:flow-node-catalog-parity and was left untouched."
+    },
+    {
+      "id": "node-check-roadmap-lib",
+      "type": "inspection",
+      "required": true,
+      "command": "node --check tools/roadmap/lib/parse-ledger.mjs (and link.mjs, sources.mjs)",
+      "result": "PASS",
+      "observed": "All three files parse cleanly: node --check returned exit 0 with no output for parse-ledger.mjs, link.mjs and sources.mjs."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "observed": "classification reconciled. 200 scripts classified across 1 documentation-consistency / 11 static-source-validation / 63 unit / 37 integration / 77 real-browser / 11 packaged-application / 0 clean-machine-acceptance; no stale entries, taxonomy classes valid, 202 scripts/verify-* files referenced or justified, allowlist current. No verifier was added or renamed by this tranche."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "observed": "177/177 roadmap dashboard checks passed; the Overview banner reads \"Sources agree\". Ledger checks printed: the ledger parse is not degraded; 67 cases; heading, status and priority counts agree; tally is 65 PASS / 2 NOT RUN / 0 BLOCKED; both narrative documents assert a tally; CURRENT_STATE.md and HANDOFF.md each agree with the measured tally; no narrative copy of the ledger tally disagrees. The corrected sources.mjs role string is live data rendered in the Sources view, and the dashboard remains consistent after the change. No generated roadmap output was edited."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "observed": "No whitespace or conflict-marker errors. The only output was a Git advisory that CRLF will be replaced by LF in docs/ai/COMMANDS.md on a future checkout; that reflects the file's pre-existing line endings under the repository's autocrlf handling and is not a check failure. The edit preserved each file's existing line-ending style."
+    },
+    {
+      "id": "staged-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --cached --name-only",
+      "result": "PASS",
+      "observed": "Exactly 9 task-owned paths staged: docs/ai/COMMANDS.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-hygiene-0906.json, docs/ai/contracts/awkit-sec005.json, tools/roadmap/README.md, tools/roadmap/assignments.json, tools/roadmap/lib/link.mjs, tools/roadmap/lib/parse-ledger.mjs, tools/roadmap/lib/sources.mjs. No protected owner path is staged (AWTKIT.rar, Building priorities and integration-handoff/, awkit-glm-delegation-tooling.json, awkit-r1b-coordination.json, awkit-r2.json and awkit-ui1.json all remain unstaged and unmodified by this task). No SEC-005 production file is staged: scripts/verify-security.mts and app/main/execution/ExecutionApplicationService.ts are clean. The four stale-reference source edits are one line each. The awkit-sec005.json diff is a pure append of the sixth write_lease.history release record, with 0 deletions, so every SEC-005 evidence semantic is preserved."
+    },
+    {
+      "id": "push-origin-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "write_lease": {
+    "history": [],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-origin-main"
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Deterministic routing computed risk_level 0 from classification {project_state_change, cross_layer_count 1}, which activates only manager and project-state; qa and qc are not routed at this risk level, so no qa-engineer review was performed and none was required. The gate's unconditional qa_status check is satisfied on the executed evidence instead: the ledger was measured at 67/67/67 with the parser's own regex and independently corroborated by verify:roadmap-dashboard printing \"OK 67 cases\" and \"OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED\"; verify:roadmap-dashboard passed 177/177 with the Overview banner reading \"Sources agree\"; verify:verifier-classification reconciled 200 classified scripts; node --check passed on all three edited .mjs modules; and git diff --check reported no whitespace or conflict errors. The verify:security count of 61 was established from Git provenance (scripts/verify-security.mts unchanged since bb99dfb) rather than by rerunning the verifier, which this tranche's scope excluded.",
+    "qa_known_limitations": "verify:security, verify:accent-gui, verify:branding-gui, the canvas verifiers and the reports verifiers were deliberately NOT rerun: no edit in this tranche touches those surfaces. npm run build was not run because tools/roadmap/** and docs/** lie outside the tsconfig include list (app, src, ...), so the typecheck would not cover the edited files. Two further stale claims were found in tools/roadmap/README.md and deliberately left unchanged as outside this tranche's declared scope: line 53 asserts the ledger tally as 61/4/1 (stale; the measured tally is 65/2/0) and lines 18-19 assert \"Thirteen sources ... Eleven are parsed; two are registered but not parsed\" while lib/sources.mjs registers 14 sources with 3 unparsed, which verify:roadmap-dashboard independently reports as \"OK 14 sources are registered\".",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

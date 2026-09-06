@@ -52,7 +52,7 @@ export const SOURCES = [
     rel: `${VALIDATION}/RECORDER_REPORTS_SETTINGS_TEST_CASES.md`,
     label: "Validation case ledger",
     parsed: true,
-    role: "The 66 Recorder/Reports/Settings cases and the authoritative PASS / NOT RUN / BLOCKED tally."
+    role: "The 67 Recorder/Reports/Settings cases and the authoritative PASS / NOT RUN / BLOCKED tally."
   },
   {
     id: "defects",

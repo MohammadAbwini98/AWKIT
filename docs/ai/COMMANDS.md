@@ -475,7 +475,7 @@ npm run verify:stress:artifacts   # tsx scripts/verify-stress-artifacts.mts — 
                             # Stress tunables: AWKIT_STRESS_INSTANCES=25 AWKIT_STRESS_MAX_BROWSERS=2
                             # AWKIT_STRESS_TIMEOUT_MS=120000
 # Security / RBAC / licensing verifiers (added 2026-07-18/19):
-npm run verify:security     # tsx scripts/verify-security.mts — sender guard, IPC hardening (39)
+npm run verify:security     # tsx scripts/verify-security.mts — sender guard, IPC hardening (61)
 npm run verify:auth         # tsx scripts/verify-auth.mts — auth domain: policy, sessions, rotation (49)
 npm run verify:portable-fresh-state # tsx scripts/verify-portable-fresh-state.mts — release input audit
                             # plus real temporary SQLite proof: zero predefined users, first-run owner

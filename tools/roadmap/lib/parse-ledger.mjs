@@ -5,7 +5,7 @@
  * HANDOFF.md and the bead descriptions all quote. Everything else that states a number is a copy.
  *
  * The file is rigidly templated: every case is `### <ID> - <title>` followed by exactly five
- * bold keys in a fixed order. Measured today: 66 headings, 66 Status lines, 66 Priority lines.
+ * bold keys in a fixed order. Measured today: 67 headings, 67 Status lines, 67 Priority lines.
  *
  * The counts are asserted rather than assumed. If they ever disagree, this parser reports
  * `degraded` and the UI shows a banner instead of a tally, because a ledger that silently

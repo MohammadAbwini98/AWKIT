@@ -14,7 +14,7 @@
  *   dangling  an ID cited that does not exist here          -> grey, inert, labelled
  *
  * The dangling tier is not an edge case to tidy away. DEFECTS.md cites CMP-CON-002, which is not
- * among the ledger's 66 cases. Dropping such tokens would silently hide the fact that the defect
+ * among the ledger's 67 cases. Dropping such tokens would silently hide the fact that the defect
  * register references a case package the dashboard cannot see.
  */
 
