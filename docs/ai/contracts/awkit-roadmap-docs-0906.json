@@ -204,7 +204,7 @@
       "type": "inspection",
       "required": true,
       "command": "read tools/roadmap/lib/sources.mjs and count SOURCES entries by their parsed flag",
-      "result": "pass",
+      "result": "PASS",
       "observed": "tools/roadmap/lib/sources.mjs SOURCES holds 14 entries: 11 with parsed true, and 3 with parsed false — activeLease (docs/ai/contracts/active-lease.json), globalCss (app/renderer/styles/global.css) and features (docs/ai/FEATURES.md), each carrying a skipReason. Corroborated independently by the verifier's own printed line 'OK 14 sources are registered' and by 'OK every unparsed source states why'. The README's prior 'Thirteen sources ... Eleven are parsed; two are registered but not parsed' was therefore stale by one registered source and one unparsed source."
     },
     {
@@ -212,7 +212,7 @@
       "type": "inspection",
       "required": true,
       "command": "measure docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md with the parser's own CASE_HEADING regex and its Status body key",
-      "result": "pass",
+      "result": "PASS",
       "observed": "Matching the ledger with the parser's own CASE_HEADING regex yields 67 validation cases; matching the Status body key yields 65 PASS / 2 NOT RUN / 0 BLOCKED (65 + 2 + 0 = 67, so every case is accounted for). Corroborated independently by the verifier's own printed line 'OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED'. The README's prior '61/4/1' was stale in all three positions. No case status was changed and the ledger file was not edited."
     },
     {
@@ -220,7 +220,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:verifier-classification",
-      "result": "pass",
+      "result": "PASS",
       "observed": "Executed by the lease holder (project-state); the main session's manager actor is not permitted to run verify:* scripts. Output ended '200  (sum of the classified buckets)' and 'classification reconciled ✓'. No registry entry was added or changed by this task — the run is a regression check that the README edit did not disturb the verifier registry."
     },
     {
@@ -228,7 +228,7 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
-      "result": "pass",
+      "result": "PASS",
       "observed": "Executed by the lease holder (project-state) both before and after the README edit. Post-edit run printed '177/177 roadmap dashboard checks passed', 'OK 14 sources are registered', 'OK every unparsed source states why', 'OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED' and 'OK the Overview banner reads \"Sources agree\"'. The live count 177 is the value written into the README Verification section, replacing the stale 157. scripts/verify-roadmap-dashboard.mjs was not modified."
     },
     {
@@ -236,7 +236,7 @@
       "type": "inspection",
       "required": true,
       "command": "git diff --check",
-      "result": "pass",
+      "result": "PASS",
       "observed": "Empty output and exit status 0 — no whitespace errors or conflict markers introduced by the README, TASK_LOG or contract edits."
     },
     {
@@ -244,7 +244,7 @@
       "type": "inspection",
       "required": true,
       "command": "git diff -- docs/ai/contracts/active-lease.json docs/ai/contracts/awkit-hygiene-0906.json tools/roadmap/assignments.json",
-      "result": "pass",
+      "result": "PASS",
       "observed": "awkit-hygiene-0906.json: write_lease.history goes from [] to exactly one appended release record — id awkit-hygiene-0906:project-state:2026-09-06T17:52:15.660Z, holder project-state, status released, its 8 allowed_paths, acquired_at_commit 6e51957d, released_at 2026-09-06T19:23:11.684Z, released_reason 'awkit-hygiene-0906 complete: SEC-005 bookkeeping absorbed, stale 66/39 references corrected, pushed 43b755c, task gate canComplete true with no blockers', with empty amendments/overrides/violations. Purely additive: no acceptance, evidence, completion or push-evidence field of that task was touched, so no old task semantics were modified. assignments.json: the sole change is a claim-only rotation of the second claim, itemId bead:awkit-hygiene-0906 -> bead:awkit-roadmap-docs-0906 with a new claimedAt 2026-09-06T19:43:21.111Z and a note listing this task's three lease paths; the owner $comment block and the defect:AWKIT-SEC-005 claim are byte-identical. active-lease.json: replaced by the lease tool with this task's active grant; the prior release record it held is not lost, because lease.mjs archiveLease had already appended the durable copy into the task contract's write_lease.history before the new grant overwrote the transient file. No protected owner path appears in any of these diffs."
     },
     {
@@ -252,7 +252,7 @@
       "type": "inspection",
       "required": true,
       "command": "git diff --cached --name-only",
-      "result": "pass",
+      "result": "PASS",
       "observed": "Staged with 'git add -- <explicit paths>' (the guard rejects the form without --). Exactly six paths: docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-hygiene-0906.json, docs/ai/contracts/awkit-roadmap-docs-0906.json, tools/roadmap/README.md, tools/roadmap/assignments.json. None of the protected owner paths — AWTKIT.rar, 'Building priorities and integration-handoff/', docs/ai/contracts/awkit-r2.json, awkit-glm-delegation-tooling.json, awkit-r1b-coordination.json, awkit-ui1.json — is staged; all remain dirty and untouched in the working tree."
     },
     {
@@ -260,8 +260,8 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main",
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "Observed this run, not copied from any prior task. Before the push, local HEAD was 05fd8c0fb051f0f448bc10b24b3c49b735503cd8 and origin/main was 43b755ce22f106e1adbf10a7f727d459be0df45c. 'git push origin main' printed 'To https://github.com/MohammadAbwini98/AWKIT.git' and '   43b755c..05fd8c0  main -> main' — a fast-forward, no force, no branch created. Commit 05fd8c0 'docs: correct roadmap reference counts' carries the three README corrections, the one consequent table row, the TASK_LOG entry and the absorbed awkit-hygiene-0906 release bookkeeping across exactly the six bounded paths."
     }
   ],
   "write_lease": {
