@@ -527,7 +527,7 @@ export function FlowNodePropertiesPanel({
             </span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "4px" }}>
+        <div style={{ display: "flex", gap: "var(--space-1)" }}>
           {selectedNode ? (
             <button className="icon-button danger" onClick={onDelete} title="Delete node" type="button">
               <Trash2 size={17} />

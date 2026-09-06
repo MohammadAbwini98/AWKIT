@@ -595,13 +595,13 @@ export function InstanceMonitor() {
         </div>
 
         {workflows.length === 0 ? (
-          <div className="empty-state" style={{ marginTop: 12 }}>
+          <div className="empty-state" style={{ marginTop: "var(--space-3)" }}>
             <MonitorDot size={30} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No workflows created yet.</strong>
             <span>Create your first workflow in Workflow Builder.</span>
           </div>
         ) : filteredWorkflows.length === 0 ? (
-          <div className="empty-state" style={{ marginTop: 12 }}>
+          <div className="empty-state" style={{ marginTop: "var(--space-3)" }}>
             <Search size={26} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No matching workflows found.</strong>
             <span>Adjust your search text.</span>
@@ -645,7 +645,7 @@ export function InstanceMonitor() {
         {runtimeStatus ? (
           <div
             className="toolbar-strip im-runtime-status"
-            style={{ flexWrap: "wrap", gap: "12px", marginTop: 12, fontSize: 12, color: "var(--awkit-text-secondary)", alignItems: "center" }}
+            style={{ flexWrap: "wrap", gap: "var(--space-3)", marginTop: "var(--space-3)", fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)", alignItems: "center" }}
             title="Concurrency runtime status: browser pool, capacity, resource locks, and watchdog activity."
           >
             <span>
@@ -725,7 +725,7 @@ export function InstanceMonitor() {
         ) : null}
 
         {/* Monitor-wide controls (apply across every running workflow) */}
-        <div className="toolbar-strip im-monitor-controls" style={{ flexWrap: "wrap", gap: "8px" }}>
+        <div className="toolbar-strip im-monitor-controls" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
           <button disabled={!hasActive || !canStop} id="im-pause-all" onClick={pauseAll} title={!canStop ? "Requires the Stop Workflows permission" : hasActive ? "Pause all active instances" : "No active instances"} type="button">
             <Pause size={15} />
             Pause All
@@ -768,7 +768,7 @@ export function InstanceMonitor() {
             <ChevronDown size={14} className={classicOpen ? "im-classic-caret open" : "im-classic-caret"} />
             Advanced / Classic run form
           </summary>
-          <div className="toolbar-strip run-toolbar" style={{ flexWrap: "wrap", gap: "8px", marginTop: 10 }}>
+          <div className="toolbar-strip run-toolbar" style={{ flexWrap: "wrap", gap: "var(--space-2)", marginTop: 10 }}>
             <label>
               Workflow
               <select value={selectedWorkflowId} onChange={(event) => setSelectedWorkflowId(event.target.value)}>
@@ -818,7 +818,7 @@ export function InstanceMonitor() {
             </button>
           </div>
           {selectedWorkflowId && workflowDataSource?.dataSourceId ? (
-            <div className="validation-list run-validation" style={{ marginTop: 8 }}>
+            <div className="validation-list run-validation" style={{ marginTop: "var(--space-2)" }}>
               <strong>
                 Data source: {dataSourceNames[workflowDataSource.dataSourceId] ?? workflowDataSource.dataSourceId}
                 {dataSourceRecords === null ? "" : ` — ${dataSourceRecords} record(s)`}
@@ -891,13 +891,13 @@ export function InstanceMonitor() {
 
         {/* Phase 04: stable table with overflow-x wrapper */}
         {instances.length === 0 ? (
-          <div className="empty-state" id="im-empty-state" style={{ marginTop: "16px" }}>
+          <div className="empty-state" id="im-empty-state" style={{ marginTop: "var(--space-4)" }}>
             <MonitorDot size={32} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No active instances.</strong>
             <span>Run a workflow card above to launch instances; they will appear here.</span>
           </div>
         ) : (
-          <div className="instance-table-wrapper" style={{ marginTop: "16px" }} role="region" aria-label="Workflow instances" tabIndex={0}>
+          <div className="instance-table-wrapper" style={{ marginTop: "var(--space-4)" }} role="region" aria-label="Workflow instances" tabIndex={0}>
             <table className="instance-table">
               <colgroup>
                 <col style={{ minWidth: "130px" }} />

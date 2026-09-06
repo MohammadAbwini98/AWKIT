@@ -4532,8 +4532,8 @@ table {
   margin: 0 0 16px;
   padding: 12px;
   background: var(--awkit-surface-inset);
-  border-radius: var(--radius-md, 14px);
-  color: var(--awkit-danger, #ef4444);
+  border-radius: var(--radius-md);
+  color: var(--awkit-danger);
   font-size: var(--text-xs);
   white-space: pre-wrap;
   word-break: break-word;
@@ -10745,7 +10745,7 @@ table {
   z-index: 1;
 }
 .awkit-flow-edge-path {
-  stroke: var(--awkit-connector-default, #c9b8f5);
+  stroke: var(--awkit-connector-default);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;

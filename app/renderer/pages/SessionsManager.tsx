@@ -176,7 +176,7 @@ export function SessionsManager() {
     s === "ready" ? "Ready" : s === "capturing" ? "Capturing…" : "Error";
 
   return (
-    <div className="page-content" style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}>
+    <div className="page-content" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4h)", padding: "var(--space-4h)" }}>
 
       {/* ── Browser Detection Banner ─────────────────────────────── */}
       <div
@@ -184,35 +184,35 @@ export function SessionsManager() {
         style={{
           padding: "14px 20px",
           background: browser?.found ? "var(--awkit-success-soft)" : "var(--awkit-danger-soft)",
-          borderRadius: "8px",
+          borderRadius: "var(--radius-xs)",
           border: `1px solid ${browser?.found ? "var(--awkit-success-muted)" : "var(--awkit-danger-muted)"}`,
           display: "flex",
           alignItems: "center",
-          gap: "12px"
+          gap: "var(--space-3)"
         }}
       >
         <Chrome size={20} color={browser?.found ? "var(--awkit-success)" : "var(--awkit-danger)"} />
         {browser?.found ? (
-          <span style={{ fontSize: "13px", color: "var(--awkit-success)" }}>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--awkit-success)" }}>
             <strong>{browser.browser === "chrome" ? "Google Chrome" : "Microsoft Edge"}</strong> detected at{" "}
             <code style={{ fontSize: "11px", background: "var(--awkit-success-soft)", padding: "2px 6px", borderRadius: "4px" }}>
               {browser.path}
             </code>
           </span>
         ) : (
-          <span style={{ fontSize: "13px", color: "var(--awkit-danger)" }}>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--awkit-danger)" }}>
             No Chrome or Edge browser found. Install one to use Session Capture.
           </span>
         )}
       </div>
 
       {/* ── Capture Session Panel ────────────────────────────────── */}
-      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)" }}>
-        <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="form-panel" style={{ padding: "var(--space-4h)", background: "var(--awkit-surface)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-border)" }}>
+        <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
           <KeyRound size={18} />
           Capture Session
         </h3>
-        <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: "var(--awkit-text-secondary)", lineHeight: 1.5 }}>
+        <p style={{ margin: "0 0 var(--space-4) 0", fontSize: "var(--text-sm)", color: "var(--awkit-text-secondary)", lineHeight: 1.5 }}>
           Opens your real Chrome or Edge browser (no automation flags) so you can log into protected
           sites like Google, Microsoft, or Cloudflare-gated pages. After you log in and close the
           browser, the session is saved for reuse in automation runs.
@@ -221,21 +221,21 @@ export function SessionsManager() {
         {captureStatus.active ? (
           /* ── Active capture state ─ */
           <div className="session-active-capture" style={{
-            padding: "16px 20px",
+            padding: "var(--space-4) var(--space-4h)",
             background: "var(--awkit-warning-soft)",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-xs)",
             border: "1px solid var(--awkit-warning-muted)",
             display: "flex",
             flexDirection: "column",
-            gap: "12px"
+            gap: "var(--space-3)"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <Loader2 size={18} className="session-spin" color="var(--awkit-warning)" />
-              <strong style={{ color: "var(--awkit-warning)", fontSize: "14px" }}>
+              <strong style={{ color: "var(--awkit-warning)", fontSize: "var(--text-base)" }}>
                 Browser is open — log in manually
               </strong>
             </div>
-            <p style={{ margin: 0, fontSize: "13px", color: "var(--awkit-warning)", lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--awkit-warning)", lineHeight: 1.5 }}>
               Session: <strong>{captureStatus.sessionName}</strong>
               {captureStatus.browserPid ? ` (PID ${captureStatus.browserPid})` : ""}.
               Complete your login, then <strong>close the browser window</strong> when done.
@@ -245,8 +245,8 @@ export function SessionsManager() {
               onClick={handleStopCapture}
               style={{
                 display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px",
-                background: "var(--awkit-danger)", color: "var(--awkit-accent-contrast)", border: "none", borderRadius: "6px",
-                cursor: "pointer", fontWeight: 500, width: "fit-content"
+                background: "var(--awkit-danger)", color: "var(--awkit-accent-contrast)", border: "none", borderRadius: "var(--radius-2xs)",
+                cursor: "pointer", fontWeight: "var(--weight-medium)", width: "fit-content"
               }}
             >
               <Square size={14} />
@@ -255,10 +255,10 @@ export function SessionsManager() {
           </div>
         ) : (
           /* ── Capture form ─ */
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div style={{ display: "flex", gap: "12px" }}>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            <div style={{ display: "flex", gap: "var(--space-3)" }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
+                <label style={{ fontSize: "11px", fontWeight: "var(--weight-semibold)", color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Session Name
                 </label>
                 <input
@@ -267,16 +267,16 @@ export function SessionsManager() {
                   onChange={(e) => setSessionName(e.target.value)}
                   placeholder="e.g. Google Work Account"
                   style={{
-                    padding: "10px 12px", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px",
-                    outline: "none", fontSize: "13px", width: "100%", boxSizing: "border-box"
+                    padding: "10px 12px", border: "1px solid var(--awkit-border-strong)", borderRadius: "var(--radius-2xs)",
+                    outline: "none", fontSize: "var(--text-sm)", width: "100%", boxSizing: "border-box"
                   }}
                 />
               </div>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Target URL <span style={{ fontWeight: 400, textTransform: "none" }}>(optional)</span>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
+                <label style={{ fontSize: "11px", fontWeight: "var(--weight-semibold)", color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Target URL <span style={{ fontWeight: "var(--weight-regular)", textTransform: "none" }}>(optional)</span>
                 </label>
-                <div style={{ display: "flex", alignItems: "center", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", padding: "0 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", border: "1px solid var(--awkit-border-strong)", borderRadius: "var(--radius-2xs)", padding: "0 10px" }}>
                   <Globe size={14} color="var(--awkit-text-muted)" />
                   <input
                     type="text"
@@ -285,7 +285,7 @@ export function SessionsManager() {
                     placeholder="https://accounts.google.com"
                     style={{
                       flex: 1, border: "none", padding: "10px 8px", outline: "none",
-                      background: "transparent", fontSize: "13px"
+                      background: "transparent", fontSize: "var(--text-sm)"
                     }}
                   />
                 </div>
@@ -299,9 +299,9 @@ export function SessionsManager() {
                   display: "flex", alignItems: "center", gap: "6px", padding: "10px 20px",
                   background: (isStarting || !browser?.found || !sessionName.trim()) ? "var(--awkit-border-strong)" : "var(--awkit-accent)",
                   color: (isStarting || !browser?.found || !sessionName.trim()) ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)",
-                  border: "none", borderRadius: "6px",
+                  border: "none", borderRadius: "var(--radius-2xs)",
                   cursor: (isStarting || !browser?.found || !sessionName.trim()) ? "not-allowed" : "pointer",
-                  fontWeight: 600, fontSize: "13px"
+                  fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)"
                 }}
               >
                 <Play size={15} />
@@ -311,9 +311,9 @@ export function SessionsManager() {
                 onClick={refresh}
                 title="Refresh"
                 style={{
-                  display: "flex", alignItems: "center", gap: "4px", padding: "10px 12px",
+                  display: "flex", alignItems: "center", gap: "var(--space-1)", padding: "10px 12px",
                   background: "transparent", color: "var(--awkit-text-secondary)",
-                  border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", cursor: "pointer"
+                  border: "1px solid var(--awkit-border-strong)", borderRadius: "var(--radius-2xs)", cursor: "pointer"
                 }}
               >
                 <RefreshCw size={14} />
@@ -325,11 +325,11 @@ export function SessionsManager() {
 
       {/* ── Info Banner ─────────────────────────────────────────── */}
       <div style={{
-        display: "flex", alignItems: "flex-start", gap: "10px", padding: "12px 16px",
-        background: "var(--awkit-accent-soft)", borderRadius: "8px", border: "1px solid var(--awkit-accent-muted)"
+        display: "flex", alignItems: "flex-start", gap: "10px", padding: "var(--space-3) var(--space-4)",
+        background: "var(--awkit-accent-soft)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-accent-muted)"
       }}>
         <Info size={16} color="var(--awkit-accent)" style={{ marginTop: 2, flexShrink: 0 }} />
-        <div style={{ fontSize: "12px", color: "var(--awkit-accent)", lineHeight: 1.5 }}>
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--awkit-accent)", lineHeight: 1.5 }}>
           <strong>How it works:</strong> This opens your real Chrome/Edge browser — not the
           automation Chromium — so login pages like Google won't block you. After you log in
           and close the browser, select the saved session when running a workflow. The
@@ -338,13 +338,13 @@ export function SessionsManager() {
       </div>
 
       {/* ── Saved Sessions Table ─────────────────────────────────── */}
-      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)" }}>
-        <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="form-panel" style={{ padding: "var(--space-4h)", background: "var(--awkit-surface)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-border)" }}>
+        <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
           <KeyRound size={18} />
           Saved Sessions ({filtered.length})
         </h3>
 
-        <div className="table-search" style={{ maxWidth: 460, marginBottom: 12 }}>
+        <div className="table-search" style={{ maxWidth: 460, marginBottom: "var(--space-3)" }}>
           <Search size={15} />
           <input
             value={search}
@@ -419,17 +419,17 @@ export function SessionsManager() {
                               if (e.key === "Escape") setRenamingId(null);
                             }}
                             style={{
-                              padding: "4px 8px", border: "1px solid var(--awkit-accent)", borderRadius: "4px",
-                              outline: "none", fontSize: "13px", width: "100%", boxSizing: "border-box"
+                              padding: "var(--space-1) var(--space-2)", border: "1px solid var(--awkit-accent)", borderRadius: "4px",
+                              outline: "none", fontSize: "var(--text-sm)", width: "100%", boxSizing: "border-box"
                             }}
                           />
                         ) : (
-                          <strong style={{ fontSize: "13px", color: "var(--awkit-text)" }}>{profile.name}</strong>
+                          <strong style={{ fontSize: "var(--text-sm)", color: "var(--awkit-text)" }}>{profile.name}</strong>
                         )}
                       </td>
                       <td title={profile.targetUrl}>
                         <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontSize: "12px", color: "var(--awkit-text-secondary)", fontFamily: "monospace" }}>
+                          <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)", fontFamily: "monospace" }}>
                             {profile.targetUrl || "—"}
                           </span>
                           {profile.origin && profile.origin !== profile.targetUrl ? (
@@ -443,25 +443,25 @@ export function SessionsManager() {
                         </span>
                       </td>
                       <td title={new Date(profile.createdAt).toLocaleString()}>
-                        <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "var(--awkit-text-secondary)" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
                           <Clock size={12} />
                           {new Date(profile.createdAt).toLocaleDateString()}
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontSize: "12px", color: "var(--awkit-text-secondary)" }}>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
                           {profile.lastUsedAt
                             ? new Date(profile.lastUsedAt).toLocaleDateString()
                             : "Never"}
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontSize: "12px", color: "var(--awkit-text-secondary)" }}>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
                           {profile.browserPath?.includes("msedge") ? "Edge" : profile.browserPath?.includes("chrome") ? "Chrome" : "—"}
                         </span>
                       </td>
                       <td>
-                        <div className="table-actions" style={{ display: "flex", gap: "4px" }}>
+                        <div className="table-actions" style={{ display: "flex", gap: "var(--space-1)" }}>
                           <button
                             type="button"
                             title="Rename"
@@ -510,11 +510,11 @@ export function SessionsManager() {
         <div
           style={{
             display: "flex", alignItems: "center", gap: "10px", padding: "14px 20px",
-            background: "var(--awkit-success-soft)", borderRadius: "8px", border: "1px solid var(--awkit-success-muted)"
+            background: "var(--awkit-success-soft)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-success-muted)"
           }}
         >
           <CheckCircle2 size={18} color="var(--awkit-success)" />
-          <span style={{ fontSize: "13px", color: "var(--awkit-success)" }}>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--awkit-success)" }}>
             Session captured successfully! You can now select it when running a workflow.
           </span>
         </div>
