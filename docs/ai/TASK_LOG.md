@@ -1,6 +1,51 @@
 # TASK_LOG
 
-## 2026-09-06 (latest) — awkit-sec005 — SEC-005 security verifier repaired (Claude Opus 5)
+## 2026-09-06 (latest) — awkit-hygiene-0906 — post-SEC-005 repository hygiene (Claude)
+
+**Task:** absorb the uncommitted SEC-005 lease-release bookkeeping and correct verified stale
+documentation references. Run by the manager plus the `project-state` lease holder, with GLM-5.3 as a
+read-only auditor.
+
+**Stale ledger count corrected.** The ledger measures **67** cases; the literal "66" survived in four
+places — the `tools/roadmap/lib/parse-ledger.mjs` comment, the `tools/roadmap/lib/link.mjs` comment,
+the `tools/roadmap/lib/sources.mjs` `role` string (live data, rendered by `renderSources()`), and
+`tools/roadmap/README.md`. Documentation/metadata only: the parser pins no literal count — `degraded`
+compares heading/status/priority counts relative to each other — so no runtime assertion changed.
+
+**COMMANDS.md:** `verify:security` corrected from `(39)` to `(61)`. The unrelated `(39/39)` on
+`verify:flow-node-catalog-parity` was deliberately left untouched. The `(61)` figure was established
+from Git provenance — `scripts/verify-security.mts` was last touched at `bb99dfb`, the commit that
+recorded 61 passed / 0 failed, and is clean — not by rerunning the verifier.
+
+**Files changed (9):** `docs/ai/COMMANDS.md`, `docs/ai/contracts/active-lease.json`,
+`docs/ai/contracts/awkit-hygiene-0906.json` (new), `docs/ai/contracts/awkit-sec005.json`,
+`tools/roadmap/README.md`, `tools/roadmap/assignments.json`, `tools/roadmap/lib/link.mjs`,
+`tools/roadmap/lib/parse-ledger.mjs`, `tools/roadmap/lib/sources.mjs`.
+
+**Tests run:** `node --check` on the three edited `tools/roadmap/lib/*.mjs` files (exit 0);
+`npm run verify:verifier-classification` **PASS** (classification reconciled, 200 scripts);
+`npm run verify:roadmap-dashboard` **177/177 checks passed**, Overview banner reads "Sources agree";
+`git diff --check` clean.
+
+**Not run:** `npm run build` — `tools/**` and `docs/**` sit outside the tsconfig `include`, so a
+typecheck would not cover the edited files. `verify:security`, `verify:accent-gui`,
+`verify:branding-gui`, the canvas verifiers and the reports verifiers are **NOT RUN** — no edit in
+this tranche touches those surfaces.
+
+**Still open, out of this tranche's scope:** `tools/roadmap/README.md` line ~53 still claims the
+ledger measures `61/4/1` (sums to 66; the measured tally is **65 PASS / 2 NOT RUN / 0 BLOCKED**), and
+README lines ~18-19 still say "Thirteen sources ... Eleven are parsed; two are registered but not
+parsed" while `lib/sources.mjs` registers **14** sources with **3** unparsed (`activeLease`,
+`globalCss`, `features`) and `verify:roadmap-dashboard` itself prints "OK 14 sources are registered".
+
+**Result:** committed and pushed to `main` as **`d38b5de`** (the reconciliation) and **`a1b61bd`**
+(push evidence). The task gate on `docs/ai/contracts/awkit-hygiene-0906.json` returned
+`canComplete: true`, `blockers: []`, `scopeEscapes: []`. SEC-005 remains closed and unmodified — its
+`awkit-sec005.json` diff is a pure append (21 insertions, 0 deletions) of the sixth
+`write_lease.history` release record only. No protected owner material was staged, edited, moved or
+reset.
+
+## 2026-09-06 (later) — awkit-sec005 — SEC-005 security verifier repaired (Claude Opus 5)
 
 **Task:** diagnose and repair the standing `verify:security` failure attributed to `AWKIT-SEC-005`, and
 reconcile the project-state records that had gone stale around it.
