@@ -1,12 +1,14 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-06, latest) — renderer Claude Design migration complete; two GUI verifiers environmentally BLOCKED
+## HANDOFF (2026-09-06, latest) — awkit-ui1 QA-accepted; renderer migration closed; push gated on owner material only
 
-- **Delivered:** the entire renderer UI migrated to the owner-approved Claude Design system in nine
-  commits on `main`, HEAD `96139c5`: `8136fe4` (token foundation), `e087198` (shell), `462fb6d`
-  (login), `12003ba` (shared components), `4d9e4c6` (application pages), `4c3c250` (workflow editing
-  surfaces), `60ff872` (reports/admin/settings), `43cfcab` (Live Run Monitor), `96139c5` (consistency
-  gaps). Presentation layer only.
+- **QA status: `qa_status: PASS`, `status: implemented`.** The renderer Claude Design migration is
+  complete and committed — nine commits on `main`, HEAD `96139c5`: `8136fe4` (token foundation),
+  `e087198` (shell), `462fb6d` (login), `12003ba` (shared components), `4d9e4c6` (application pages),
+  `4c3c250` (workflow editing surfaces), `60ff872` (reports/admin/settings), `43cfcab` (Live Run
+  Monitor), `96139c5` (consistency gaps). **There is nothing left to implement.**
+- **Do NOT reopen renderer implementation.** It is closed unless one of the two GUI verifiers below
+  produces a REAL product assertion failure — a launch/window-resolution BLOCK is not one.
 - **Verification — record these exactly, do not upgrade any of them:** `build` **PASS** (~5.97s);
   `git diff --check` **PASS**; `all-typecheck` **PASS**; `source-hygiene` **11/11**; `accent-theme`
   **71/71**; `branding` **49/49**; `reports-settings-a11y` **17/17**; `reports` **31/31**;
@@ -14,11 +16,24 @@
   **138/138**; `workflow-builder` **68/68**; `editor-history` **14/14**;
   `verifier-classification` **PASS**; `roadmap-dashboard` **PASS 177/177** with the Overview banner
   reading "Sources agree"; `instance-monitor-gui` **PASS 27/27**. **`accent-gui` and `branding-gui`
-  are BLOCKED — environmental, not a product defect:** both died in the harness helper
-  `resolveMainWindow` ("main window with the SpecterStudio bridge did not appear within timeout"),
-  exit 1, zero checks executed, and a control re-run of the previously-passing
-  `instance-monitor-gui` BLOCKED identically on the same tree. Anything not named here is **NOT RUN**
-  — do not infer PASS for it.
+  are BLOCKED — zero assertions executed, corrected characterization:** each blocked run's leaked temp
+  profile contains `electron-userdata/DevToolsActivePort` plus
+  `SpecterStudio/Licensing/migration-grace.json` and `SpecterStudio/storage/ui-settings.json`, proving
+  Electron **did** launch; what fails is that the bridged renderer window never appears within
+  `resolveMainWindow`'s 40s deadline. See `docs/ai/KNOWN_ISSUES.md` for the harness leak this exposed
+  (no `try/finally` around launch/resolve, so the process and profile are never cleaned up). **Both
+  must be re-run on a healthy host before any release-level claim.** Anything not named here is
+  **NOT RUN** — do not infer PASS for it.
+- **The single remaining gate is owner-only.** `node tools/agents/task-gate.mjs
+  docs/ai/contracts/awkit-ui1.json` reports `canComplete: false` on **43 unresolved derived scope
+  escapes**, all untracked owner material: `AWTKIT.rar`, the `Building priorities and
+  integration-handoff/` tree, and the sibling contract JSONs (`awkit-glm-delegation-tooling.json`,
+  `awkit-r1b-coordination.json`, `awkit-r2.json`). None originate from the UI migration. They must
+  **NOT** be resolved by staging, deleting or moving owner files — resolution is an owner decision
+  (commit, ignore, or record resolved).
+- **Push is NOT authorized.** `git.push_authorized` is absent from the contract and
+  `git.push_evidence_id` is absent too, so `pushAuthorizedForLease` cannot be satisfied. Commits are
+  preserved on local `main`, which is ahead of `origin/main` by 17 commits after this closeout commit.
 - **Live Run Monitor boundary, deliberate:** only real runtime data and actions (status, step states,
   completed/total steps, real elapsed duration when available, retries/skips, events/logs, restart,
   pause, resume). `Restart` → `WORKFLOW_EXECUTE`/`canExecute`, `Pause`/`Resume` →
@@ -26,15 +41,17 @@
   no ETA, no time remaining, no total duration, no fake running-step percentage. Do not reintroduce.
 - **Canvas preserved:** React Flow measurement, perf memoization, node/edge behavior, persistence and
   execution contracts unchanged.
-- **Carried known verifier defect (not a product defect):** `verify:security` **52 PASS / 1 FAIL**
-  (SEC-005). The assertion still targets `readDataFile` in `app/main/ipc/execution.ipc.ts`; the real
-  implementation is in `app/main/execution/ExecutionApplicationService.ts` and still orders
+- **Carried known verifier defect (not a product defect), deliberately unrepaired, out of scope for
+  awkit-ui1:** `verify:security` **52 PASS / 1 FAIL** (SEC-005). The assertion still targets
+  `readDataFile` in `app/main/ipc/execution.ipc.ts`; the real implementation is in
+  `app/main/execution/ExecutionApplicationService.ts` and still orders
   `isReadableDataSourceFile(...)` before `JSON.parse(...)`. Fix the assertion, not the product.
 - **Project state:** validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED**; Beads
   unchanged at **275 total / 266 closed / 7 open / 2 blocked**; `tools/roadmap/assignments.json` was
   deliberately NOT modified so pre-existing owner changes are preserved.
-- **Next:** re-run `verify:accent-gui` and `verify:branding-gui` on a healthy host — they are the only
-  outstanding checks for this tranche. R3 remains **NOT started and NOT authorized**.
+- **Next:** re-run `verify:accent-gui` and `verify:branding-gui` on a healthy host before any
+  release-level claim; get an owner decision on the 43 derived scope escapes to unblock the task gate.
+  R3 remains **NOT started and NOT authorized**.
 
 ## HANDOFF (2026-09-05) — R2 complete; R3 NOT started and NOT authorized
 

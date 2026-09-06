@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-06 — awkit-ui1 — acceptance/QA closeout (Claude Opus 5, with GLM-5.3 as read-only analysis support)
+
+**Task:** reconcile the `awkit-ui1` acceptance tranche — validate the QA basis, characterize the two
+blocked GUI verifiers accurately, and update project-state records without re-deriving or altering the
+QA decision.
+
+**Executed:** `npm run verify:accent-gui` (**BLOCKED**, exit 1, zero assertions) and
+`npm run verify:branding-gui` (**BLOCKED**, exit 1, zero assertions), one fresh attempt each.
+
+**Decisions:** `completion.qa_status` set to `PASS`; `completion.status` set to `implemented`;
+`qc_status` left `pending` (qc is not a required reviewer under `routing.reviewers: ["qa"]`); no bead
+created or changed.
+
+**Files:** `docs/ai/contracts/awkit-ui1.json`, `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`,
+`docs/ai/TASK_LOG.md` (this entry), `docs/ai/KNOWN_ISSUES.md`.
+
+**Result:** QA accepted. `node tools/agents/task-gate.mjs docs/ai/contracts/awkit-ui1.json` reports
+`canComplete: false` on 43 unresolved derived scope escapes — all untracked owner material
+(`AWTKIT.rar`, `Building priorities and integration-handoff/`, and the three sibling contract JSONs),
+none originating from the UI migration. Push NOT authorized and NOT performed. Evidence tally
+unchanged at **17 PASS / 0 FAIL / 2 BLOCKED**.
+
 ## 2026-09-06 — awkit-ui1 — renderer-wide migration to the Claude Design system (Claude)
 
 **Task:** replace the renderer UI with the owner-approved Claude Design system; preserve accent

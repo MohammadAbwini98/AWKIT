@@ -236,7 +236,7 @@
       "required": false,
       "command": "npm run verify:accent-gui",
       "result": "BLOCKED",
-      "artifact": "Environment/harness Electron launch failure on this host: resolveMainWindow threw \"main window with the SpecterStudio bridge did not appear within timeout\" (40s wait), exit 1, zero checks executed. Not surface-specific and not a renderer regression - see verify:instance-monitor-gui artifact for the control result."
+      "artifact": "BLOCKED - ENVIRONMENT. Fresh re-execution on 2026-09-06 at 24768df: exit 1, ZERO assertions executed. resolveMainWindow threw \"main window with the SpecterStudio bridge did not appear within timeout\" (40s) at scripts/lib/gui-verify-harness.mjs:98 via scripts/verify-accent-gui.mjs:104. CORRECTED CHARACTERISATION: the earlier \"Electron launch failure\" wording is superseded and was inaccurate. The leaked isolated profile for this run contains electron-userdata/DevToolsActivePort plus SpecterStudio/Licensing/migration-grace.json and SpecterStudio/storage/ui-settings.json, which proves Electron DID launch and the main process booted far enough to initialise AWKIT's stores. The accurate statement is that the BRIDGED RENDERER WINDOW never appeared within the 40s deadline. Not a renderer regression: verify:instance-monitor-gui passed 27/27 on this exact tree and a later control re-run blocked identically with no renderer change."
     },
     {
       "id": "verify:branding-gui",
@@ -244,7 +244,7 @@
       "required": false,
       "command": "npm run verify:branding-gui",
       "result": "BLOCKED",
-      "artifact": "Same environment/harness Electron launch failure, identical message, exit 1, zero checks executed."
+      "artifact": "BLOCKED - ENVIRONMENT. Fresh re-execution on 2026-09-06 at 24768df: exit 1, ZERO assertions executed. Identical failure to verify:accent-gui - resolveMainWindow threw \"main window with the SpecterStudio bridge did not appear within timeout\" (40s) at scripts/lib/gui-verify-harness.mjs:98 via scripts/verify-branding-gui.mjs:112 and :133. Same corrected characterisation: the leaked isolated profile proves Electron launched and the main process initialised its stores; what failed is the appearance of the bridged renderer window, not the launch. One fresh attempt only, per the tranche limit; not retried."
     },
     {
       "id": "verify:instance-monitor-gui",
@@ -272,6 +272,42 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ui1:project-state:2026-09-06T12:09:53.110Z",
+        "task": "awkit-ui1",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-06T12:09:53.110Z",
+        "acquired_at_commit": "96139c54cf0ba0e1a66e5c01c592f05db712ef1d",
+        "released_at": "2026-09-06T12:45:44.779Z",
+        "released_reason": "project-state-closeout-committed-as-24768df",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ui1:frontend:2026-09-06T12:54:20.134Z",
+        "task": "awkit-ui1",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/**"
+        ],
+        "acquired_at": "2026-09-06T12:54:20.134Z",
+        "acquired_at_commit": "24768dfd04705c80df93deae28463b73e74131a3",
+        "released_at": "2026-09-06T13:07:15.408Z",
+        "released_reason": "gui-verification-tranche-complete-both-blocked-environment",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
@@ -284,8 +320,9 @@
     "destructive_reset": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending",
+    "qa_notes": "QA PASS recorded 2026-09-06 against the acceptance gate, independently validated against source rather than adopted from analysis: all 15 distinct evidence ids cited by UI-FOUNDATION, UI-RENDERER-WIDE, UI-CANVAS-PRESERVED and UI-RUN-MONITOR resolve in evidence[], and every one is required:true with result PASS. RESIDUAL RISK RECORDED, NOT WAIVED: verify:accent-gui and verify:branding-gui remain BLOCKED - ENVIRONMENT with zero executed assertions, so the accent and branding RUNTIME surfaces have no executed GUI coverage in this tranche. verify:accent-theme (71/71) and verify:branding (49/49) are source-inspecting verifiers and would not catch a token break that fails only at runtime. Executed runtime coverage of the migrated renderer does exist via verify:instance-monitor-gui 27/27 on this exact tree, which proves boot, sign-in and render but not accent application. qc_status is deliberately left pending and NOT set to APPROVED: routing.reviewers is [\"qa\"], so qc is not a required reviewer and pending does not gate completion. This QA PASS does not and cannot unlock push: the task gate independently reports canComplete=false on 43 unresolved derived scope escapes arising from untracked owner material, and git.push_authorized is absent."
   }
 }

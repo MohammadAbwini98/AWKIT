@@ -1,5 +1,60 @@
 # CURRENT_STATE
 
+## awkit-ui1 QA accepted; push remains gated on owner material (2026-09-06)
+
+The `awkit-ui1` acceptance tranche is closed. **`completion.qa_status` is `PASS`** and
+`completion.status` is `implemented` — **not** `complete`, because the operational task gate is still
+red for reasons unrelated to the UI work.
+
+Executed evidence is **unchanged at 17 PASS / 0 FAIL / 2 BLOCKED**. No verifier was re-run merely to
+refresh a timestamp. The only checks executed in this tranche were the two missing GUI verifiers, one
+fresh attempt each; both blocked again with zero assertions.
+
+**Project-state sources are unchanged by this tranche.** The validation ledger still measures
+**65 PASS / 2 NOT RUN / 0 BLOCKED** across its 67 cases, and Beads is unchanged at 275 total / 266
+closed / 7 open / 2 blocked. This ledger tally is restated here deliberately: `parse-narrative.mjs`
+reads only the newest `##` section of this file and of `HANDOFF.md`, so if the newest section omits
+it the consistency banner silently drops from two sources to one and
+`verify:roadmap-dashboard` fails "both narrative documents assert a tally". Keep these numbers in
+whatever section is newest.
+
+**QA basis.** All 15 distinct evidence ids cited by the four acceptance areas resolve in `evidence[]`,
+and every one is `required:true` with `result: "PASS"`. That was validated directly against the
+contract and against `completionBlockers` in `tools/agents/validate-contract.mjs`, which is the code
+that actually defines the gate.
+
+**Residual risk recorded, not waived.** `verify:accent-gui` and `verify:branding-gui` are
+`required:false`, so they cannot block acceptance under the gate rule — but they remain BLOCKED with
+**zero executed assertions**, so the accent and branding *runtime* surfaces have no executed GUI
+coverage in this tranche. `verify:accent-theme` (71/71) and `verify:branding` (49/49) inspect source,
+so neither would catch a token break that fails only at runtime. Executed runtime coverage of the
+migrated renderer does exist — `verify:instance-monitor-gui` **27/27** on this exact tree — but it
+proves boot, sign-in and render, not accent application. Re-run both on a healthy host before any
+release-level claim.
+
+**Corrected failure characterisation — the earlier "Electron launch failure" wording was wrong.** Each
+blocked run leaves an isolated temp profile containing `electron-userdata/DevToolsActivePort` plus
+`SpecterStudio/Licensing/migration-grace.json` and `SpecterStudio/storage/ui-settings.json`. That
+proves Electron **did** launch and the main process booted far enough to initialise AWKIT's stores.
+What actually fails is that the **bridged renderer window never appears** within `resolveMainWindow`'s
+40s deadline. See `docs/ai/KNOWN_ISSUES.md` for the harness defect this exposed.
+
+**`qc_status` is deliberately left `pending` and was NOT set to APPROVED.** `routing.reviewers` is
+`["qa"]`, so qc is not a required reviewer and `pending` does not gate completion. No QC review was
+performed, so recording one would be false.
+
+**Push is NOT authorized.** `node tools/agents/task-gate.mjs docs/ai/contracts/awkit-ui1.json` reports
+`canComplete: false` with a single remaining blocker: **43 unresolved derived scope escapes**. Every
+one of them is untracked owner material — `AWTKIT.rar`, the 20-file
+`Building priorities and integration-handoff/` tree, and the sibling contract JSONs
+`awkit-glm-delegation-tooling.json`, `awkit-r1b-coordination.json`, `awkit-r2.json`. **None originate
+from the UI migration**, and they are structural/pre-existing. `git.push_authorized` is also absent
+from the contract, and `pushAuthorizedForLease` additionally requires a `git.push_evidence_id` naming
+a `required:true` evidence item whose command matches `git push origin main`. Resolving the escapes is
+an **owner-only decision** (commit, ignore, or record them resolved) — they must not be cleared by
+staging, deleting or moving owner files. The nine migration commits plus the closeout remain safe on
+local `main`.
+
 ## Renderer-wide migration to the Claude Design system complete (2026-09-06)
 
 The entire renderer UI was migrated to the owner-approved Claude Design system across nine commits on

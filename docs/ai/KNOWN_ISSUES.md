@@ -1,6 +1,34 @@
 # KNOWN_ISSUES
 
+## GUI verify harness leaks an orphaned Electron process and its temp profile when the bridged window never appears (2026-09-06)
+
+- Both `scripts/verify-accent-gui.mjs` and `scripts/verify-branding-gui.mjs` call `isolatedLaunchEnv()`
+  then `electron.launch()` then `resolveMainWindow()` at TOP LEVEL with no `try/finally`. `app.close()`
+  (verify-accent-gui.mjs:200, verify-branding-gui.mjs:235/245/260) and `cleanup()`
+  (verify-accent-gui.mjs:206, verify-branding-gui.mjs:264) are therefore never reached when
+  `resolveMainWindow` throws.
+- `resolveMainWindow` (scripts/lib/gui-verify-harness.mjs:82-98) polls 300ms for
+  `window.playwrightFlowStudio.settings` and throws a bare "main window with the SpecterStudio bridge
+  did not appear within timeout" after 40s carrying NO diagnostics. The harness performs no kill and
+  no cleanup on any path.
+- Consequence: every blocked run orphans an Electron process and leaks a `%TEMP%/awkit-*-gui-*`
+  profile. Four such profiles were observed on 2026-09-06.
+- The leaked profiles are the evidence that Electron launches successfully: each contains
+  `electron-userdata/DevToolsActivePort`, `SpecterStudio/Licensing/migration-grace.json` and
+  `SpecterStudio/storage/ui-settings.json`. The failure is the bridged renderer window not appearing,
+  NOT a launch failure.
+- Suggested fix (NOT yet implemented, outside the awkit-ui1 renderer lease): wrap the launch/resolve
+  body in `try/finally` so `app.close()` and `cleanup()` always run, and attach diagnostics (window
+  count, titles, main-process stderr) to the timeout error.
+- Follow-up not yet filed as a bead; see the manager report for the recommendation.
+
 ## Electron GUI verifiers can be blocked by a host launch failure (2026-09-06)
+
+**Correction (2026-09-06):** the "host launch failure" framing below is inaccurate — Electron does
+launch; the failure is the bridged renderer window never appearing, and the harness then leaks the
+process/profile because it has no `try/finally`. See the entry above,
+"GUI verify harness leaks an orphaned Electron process and its temp profile when the bridged window
+never appears (2026-09-06)".
 
 On 2026-09-06, at HEAD `96139c5` with a clean renderer tree, `verify:accent-gui` and
 `verify:branding-gui` both failed **before executing a single assertion**. Both died inside the shared
