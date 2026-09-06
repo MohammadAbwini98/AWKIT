@@ -49,6 +49,16 @@ closed / 7 open / 2 blocked. This tally is restated here deliberately: `parse-na
 only the newest `##` section of this file and of `HANDOFF.md`, so omitting it here would silently drop
 the consistency banner from two sources to one and fail `verify:roadmap-dashboard`.
 
+**Push executed 2026-09-06.** `git push origin main` advanced origin/main from `a6211d5` to `568f2ba`
+as a fast-forward — no force, no history rewrite, no branch created. `main` and `origin/main` are now
+identical. Commit `568f2ba` carried exactly four lease-owned files (`docs/ai/CURRENT_STATE.md`,
+`docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`, `docs/ai/contracts/awkit-ui1.json`), 200 insertions and
+2 deletions; no owner material was staged. The `push-origin-main` evidence item is now `PASS` with the
+observed outcome, and the task gate returns `canComplete: true` with `blockers: []` and
+`scopeEscapes: []`. Correction: the pre-push prediction in that evidence item named `182cdd9` as the
+remote tip, which was wrong — `182cdd9` was local-only and the value came from the lease's
+`acquired_at_commit`; the real pre-push `origin/main` was `a6211d5`.
+
 ## awkit-ui1 QA accepted; push remains gated on owner material (2026-09-06)
 
 The `awkit-ui1` acceptance tranche is closed. **`completion.qa_status` is `PASS`** and

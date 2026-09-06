@@ -283,8 +283,8 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main",
-      "result": "pending",
-      "artifact": "Not yet executed. Push is the one evidence item that cannot be PASS before it happens; tools/agents/lease-guard.mjs:410-415 evaluates a prospective copy with this item forced to PASS so every other evidence, scope, preserved-path, QA and lease-history blocker must already pass on its own. Expected on execution: origin/main advances from 182cdd9 to the pushed HEAD, fast-forward only, no force and no history rewrite."
+      "result": "PASS",
+      "artifact": "Executed 2026-09-06. git push origin main advanced origin/main from a6211d5 to 568f2ba as a fast-forward, reported by git as \"a6211d5..568f2ba  main -> main\". No force, no history rewrite, no branch created. Verified after the fact: git log --oneline -1 origin/main is 568f2ba, and both git log --oneline main..origin/main and origin/main..main are empty, so main and origin/main are identical. CORRECTION to this item's pre-push text: it predicted origin/main would advance \"from 182cdd9\". That was wrong - 182cdd9 was a local-only commit that had never been pushed, and the value came from the lease's acquired_at_commit rather than from any remote tip; the real pre-push origin/main was a6211d5, with 18 commits ahead of it covering the entire awkit-ui1 migration series plus the preceding R2 work. The pushed commit 568f2ba staged exactly four lease-owned files (docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-ui1.json) for 200 insertions and 2 deletions; no owner material was staged."
     }
   ],
   "write_lease": {

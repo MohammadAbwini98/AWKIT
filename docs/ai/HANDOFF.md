@@ -35,6 +35,20 @@
 - **Next:** flip `push-origin-main` to `PASS` only after `git push origin main` actually succeeds;
   re-run `accent-gui`/`branding-gui` on a healthy host before any release-level claim. R3 remains
   **NOT started and NOT authorized**.
+- **PUSH EXECUTED 2026-09-06 — this closes the first clause of the `Next` bullet above.**
+  `git push origin main` advanced `origin/main` from `a6211d5` to `568f2ba` as a **fast-forward** — no
+  force, no history rewrite, no branch created. `main` and `origin/main` are now identical. Commit
+  `568f2ba` carried exactly four lease-owned files (`docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`,
+  `docs/ai/TASK_LOG.md`, `docs/ai/contracts/awkit-ui1.json`), 200 insertions / 2 deletions; **no owner
+  material was staged.**
+- **Gate is now green.** The `push-origin-main` evidence item is `PASS` with the observed outcome, and
+  `node tools/agents/task-gate.mjs docs/ai/contracts/awkit-ui1.json` returns **`canComplete: true`**
+  with `blockers: []` and `scopeEscapes: []`.
+- **Correction to that evidence item's pre-push text:** it named `182cdd9` as the remote tip. That was
+  wrong — `182cdd9` was a local-only commit and the value came from the lease's `acquired_at_commit`;
+  the real pre-push `origin/main` was `a6211d5`. The second clause of the `Next` bullet above still
+  stands: `accent-gui`/`branding-gui` remain owed on a healthy host, and R3 is still **NOT started and
+  NOT authorized**.
 
 ## HANDOFF (2026-09-06, latest) — awkit-ui1 QA-accepted; renderer migration closed; push gated on owner material only
 
