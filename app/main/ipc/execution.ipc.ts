@@ -125,6 +125,22 @@ export function registerExecutionIpc(): void {
   });
   ipcMain.handle("execution:repeatInstance", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
+    // AWKIT-SYAA: Repeat relaunches a browser, so it must carry the same installed-Chrome Super User
+    // requirement as `execution:runWorkflow` — otherwise an execute-permitted non-Super-User could
+    // repeat an installed-Chrome run only a Super User was allowed to start. The decision comes from
+    // the instance's own stored `config.browserDistribution`, not `getUiSettings()`: Repeat relaunches
+    // from the stored config, so current settings are not launch truth. A missing instance fails closed
+    // with the engine's own unknown-id message, so the wire contract for an unknown id is unchanged.
+    // This sits OUTSIDE the try on purpose: inside it, a Super User denial would be swallowed by the
+    // catch and downgraded to an ordinary `{ success: false, error }`. Authorization (who) precedes the
+    // licensing gate (which machine).
+    const repeatTarget = executionEngine.getInstances().find((i) => i.instanceId === instanceId);
+    if (!repeatTarget) return { success: false, error: `Instance ${instanceId} not found.` };
+    if (repeatTarget.config?.browserDistribution === "installedChrome") {
+      await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {
+        audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:repeatInstance" }
+      });
+    }
     try {
       const gate = applyRunGateEnforcement("run-request").decision;
       if (!gate.allowed) return { success: false, error: gate.status.userAction };
