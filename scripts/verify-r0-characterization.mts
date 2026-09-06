@@ -1580,13 +1580,199 @@ async function runPreparationCharacterization(): Promise<void> {
   mutationRejected("the installed-Chrome mode test being inverted so installed Chrome takes the weaker arm", () => {
     assertInstalledChromeSuperUserRule(installedChromeConditionInverted);
   });
+  // Anchored on the runWorkflow SITE, by channel: the same audit event type now legitimately appears in
+  // the `execution:repeatInstance` handler too (R2.6b below), so the former file-wide anchor matches
+  // twice and `mutateOnce` refuses it. Scoping the anchor makes the mutation strictly more precise, and
+  // keeping the channel in the REPLACEMENT is deliberate -- the channel invariant must still pass, so
+  // this control is proven to reject the lost event type specifically rather than incidentally.
   const installedChromeAuditDropped = mutateOnce(
     ipcText,
-    'eventType: "INSTALLED_CHROME_EXECUTION_DENIED"',
-    'eventType: "WORKFLOW_EXECUTION_DENIED"'
+    'eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:runWorkflow"',
+    'eventType: "WORKFLOW_EXECUTION_DENIED", channel: "execution:runWorkflow"'
   );
   mutationRejected("the installed-Chrome denial losing its distinct audit event type", () => {
     assertInstalledChromeSuperUserRule(installedChromeAuditDropped);
+  });
+
+  // --- R2.6b Repeat carries the same installed-Chrome rule, decided from the STORED launch config ---
+  // `execution:repeatInstance` relaunches a browser, so the R2.6 rule has to hold here too, and nothing
+  // above sees this handler: R2.6 is scoped to `execution:runWorkflow`, and the R0.5 census only counts
+  // `applyRunGateEnforcement("run-request")` in this file. File-scope matching would be worthless here --
+  // `assertSenderSuperUser`, `INSTALLED_CHROME_EXECUTION_DENIED` and the channel name all already appear
+  // elsewhere in this module -- so every predicate below is scoped INSIDE the handler span, whose own
+  // exactly-one cardinality is enforced by `ipcHandlerSpan`. Two properties are load-bearing beyond "a
+  // Super User check exists": the decision reads the instance's own stored `config.browserDistribution`
+  // (a repeat relaunches from the stored config, so current Settings are not launch truth), and it sits
+  // OUTSIDE the try, because inside it a denial would be caught and downgraded to an ordinary
+  // `{ success: false, error }` result -- a denial that reads like a routine failure.
+  const assertRepeatInstanceInstalledChromeRule = (text: string): void => {
+    const handler = ipcHandlerSpan(ipcPath, text, "execution:repeatInstance");
+    // Cardinality BEFORE ordering, throughout: every positional comparison below reads element [0] of a
+    // collection already pinned to exactly one member, so no ordering claim can be satisfied vacuously
+    // by an empty or missing collection.
+    const permissions = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "assertSenderPermission");
+    invariant(permissions.length === 1, `execution:repeatInstance assertSenderPermission calls: ${permissions.length}`);
+    invariant(
+      permissions[0].arguments[1]?.getText() === "Permission.WORKFLOW_EXECUTE",
+      `execution:repeatInstance base permission: ${permissions[0].arguments[1]?.getText() ?? "none"}`
+    );
+    const resolutions = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "executionEngine.getInstances");
+    invariant(resolutions.length === 1, `execution:repeatInstance instance resolutions: ${resolutions.length}`);
+    // A zero-count assertion, made non-vacuous by the pinned span and the positive counts around it: the
+    // repeat decision must not consult current Settings, because Repeat relaunches from the stored config.
+    const settingsReads = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "getUiSettings");
+    invariant(settingsReads.length === 0, `execution:repeatInstance getUiSettings calls: ${settingsReads.length}`);
+    const superUser = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "assertSenderSuperUser");
+    invariant(superUser.length === 1, `execution:repeatInstance assertSenderSuperUser calls: ${superUser.length}`);
+    invariant(
+      superUser[0].arguments[1]?.getText() === "Permission.WORKFLOW_EXECUTE",
+      `execution:repeatInstance super-user permission: ${superUser[0].arguments[1]?.getText() ?? "none"}`
+    );
+    const audit = superUser[0].arguments[2]?.getText() ?? "";
+    invariant(/eventType:\s*"INSTALLED_CHROME_EXECUTION_DENIED"/.test(audit), `execution:repeatInstance denial audit event: ${audit || "none"}`);
+    invariant(/channel:\s*"execution:repeatInstance"/.test(audit), `execution:repeatInstance denial audit channel: ${audit || "none"}`);
+    invariant(
+      resolutions[0].end <= superUser[0].getStart(),
+      "the repeated instance is resolved after the installed-Chrome authorization decision"
+    );
+
+    // The guarding branch is captured STRUCTURALLY (the single `if` that contains the Super User call)
+    // and only then validated strictly. Collecting it by its literal condition instead would let a
+    // weakened predicate fall out of the collection, and the control would then pass over an empty set.
+    const guards = nodesWithin(ipcPath, text, handler, ts.isIfStatement).filter(
+      (node) => node.getStart() <= superUser[0].getStart() && node.end >= superUser[0].end
+    );
+    invariant(guards.length === 1, `if-statements guarding the repeat Super User check: ${guards.length}`);
+    const condition = guards[0].expression;
+    invariant(ts.isBinaryExpression(condition), `repeat installed-Chrome condition is not a comparison: ${condition.getText()}`);
+    invariant(
+      condition.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken,
+      `repeat installed-Chrome comparison operator: ${condition.operatorToken.getText()}`
+    );
+    invariant(condition.right.getText() === '"installedChrome"', `repeat installed-Chrome comparison value: ${condition.right.getText()}`);
+    invariant(
+      ts.isPropertyAccessExpression(condition.left),
+      `repeat installed-Chrome decision input is not a property access: ${condition.left.getText()}`
+    );
+    // Bound to the instance that was actually resolved from the engine, by its declared name -- not to
+    // any identifier that merely happens to expose a `.config.browserDistribution`.
+    const bindings = nodesWithin(ipcPath, text, handler, ts.isVariableDeclaration).filter(
+      (node) =>
+        node.initializer !== undefined &&
+        node.initializer.getStart() <= resolutions[0].getStart() &&
+        node.initializer.end >= resolutions[0].end
+    );
+    invariant(bindings.length === 1, `execution:repeatInstance resolved-instance bindings: ${bindings.length}`);
+    const instance = bindings[0].name.getText();
+    invariant(
+      new RegExp(`^${instance}\\??\\.config\\??\\.browserDistribution$`).test(condition.left.getText()),
+      `repeat installed-Chrome decision input: ${condition.left.getText()}`
+    );
+
+    const missing = nodesWithin(ipcPath, text, handler, ts.isIfStatement).filter((node) => node.expression.getText() === `!${instance}`);
+    invariant(missing.length === 1, `execution:repeatInstance unknown-instance guards: ${missing.length}`);
+    invariant(/\breturn\b/.test(missing[0].thenStatement.getText()), `the unknown-instance guard no longer returns: ${missing[0].thenStatement.getText()}`);
+    const gates = callsWithin(
+      ipcPath,
+      text,
+      handler,
+      (call, sf) => callText(call, sf) === "applyRunGateEnforcement" && stringArg(call, 0) === "run-request"
+    );
+    invariant(gates.length === 1, `execution:repeatInstance run-request licensing gates: ${gates.length}`);
+    const relaunches = callsWithin(ipcPath, text, handler, (call, sf) => callText(call, sf) === "executionEngine.repeatInstance");
+    invariant(relaunches.length === 1, `execution:repeatInstance engine relaunch calls: ${relaunches.length}`);
+    invariant(missing[0].getStart() > resolutions[0].getStart(), "the unknown-instance guard is evaluated before the instance is resolved");
+    invariant(
+      missing[0].end < gates[0].getStart() && missing[0].end < relaunches[0].getStart(),
+      "the unknown-instance guard no longer short-circuits before the licensing gate and the relaunch"
+    );
+    // Authorization (who) precedes the licensing gate (which machine), and precedes the relaunch itself.
+    invariant(superUser[0].end <= gates[0].getStart(), "the run-request licensing gate is consulted before the installed-Chrome authorization decision");
+    invariant(superUser[0].end <= relaunches[0].getStart(), "the instance is relaunched before the installed-Chrome authorization decision");
+    // OUTSIDE the try, not merely before the relaunch. The catch is asserted to be the swallowing kind
+    // first, so "outside the try" is a claim about a real downgrade path rather than about syntax.
+    const tries = nodesWithin(ipcPath, text, handler, ts.isTryStatement);
+    invariant(tries.length === 1, `execution:repeatInstance try statements: ${tries.length}`);
+    const swallow = tries[0].catchClause;
+    invariant(
+      swallow !== undefined && /success:\s*false/.test(swallow.block.getText()),
+      "the repeat try/catch no longer downgrades a throw to a failed result, so `outside the try` no longer means anything"
+    );
+    invariant(
+      superUser[0].end <= tries[0].getStart(),
+      "the installed-Chrome authorization sits inside the try that downgrades a denial to { success: false, error }"
+    );
+  };
+  assertRepeatInstanceInstalledChromeRule(ipcText);
+  check(
+    "execution:repeatInstance requires Super User for an installedChrome repeat, decided from the instance's own stored launch config, before the licensing gate and outside the catchable try",
+    true,
+    'getInstances().find -> !repeatTarget return -> config.browserDistribution === "installedChrome" -> assertSenderSuperUser(INSTALLED_CHROME_EXECUTION_DENIED, execution:repeatInstance) -> try { applyRunGateEnforcement("run-request") }'
+  );
+  const repeatSuperUserBranch =
+    '    if (repeatTarget.config?.browserDistribution === "installedChrome") {\n' +
+    "      await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {\n" +
+    '        audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:repeatInstance" }\n' +
+    "      });\n" +
+    "    }\n";
+  // Mutation A -- the PRE-FIX handler: execute permission only, no instance resolution, no rule.
+  const repeatAuthorizationRemoved = mutateOnce(
+    ipcText,
+    "    const repeatTarget = executionEngine.getInstances().find((i) => i.instanceId === instanceId);\n" +
+      "    if (!repeatTarget) return { success: false, error: `Instance ${instanceId} not found.` };\n" +
+      repeatSuperUserBranch,
+    ""
+  );
+  mutationRejected("the pre-fix repeat handler, which authorized only the plain execute permission and never consulted the stored launch config", () => {
+    assertRepeatInstanceInstalledChromeRule(repeatAuthorizationRemoved);
+  });
+  // Mutation B -- the predicate still exists and still compares strictly, but no longer against the
+  // value that means installed Chrome, so an installed-Chrome repeat takes the weaker path.
+  const repeatPredicateWeakened = mutateOnce(
+    ipcText,
+    'browserDistribution === "installedChrome"',
+    'browserDistribution === "bundledChromium"'
+  );
+  mutationRejected("the repeat installed-Chrome predicate being weakened so an installed-Chrome repeat skips the Super User check", () => {
+    assertRepeatInstanceInstalledChromeRule(repeatPredicateWeakened);
+  });
+  // Mutation B2 -- a different regression killing a different invariant: the comparison inverted, so
+  // Super User is demanded of everything EXCEPT installed Chrome.
+  const repeatPredicateInverted = mutateOnce(
+    ipcText,
+    '    if (repeatTarget.config?.browserDistribution === "installedChrome") {',
+    '    if (repeatTarget.config?.browserDistribution !== "installedChrome") {'
+  );
+  mutationRejected("the repeat installed-Chrome comparison being inverted so installed Chrome takes the weaker arm", () => {
+    assertRepeatInstanceInstalledChromeRule(repeatPredicateInverted);
+  });
+  // Mutation C -- the denial is still raised, but audited against the wrong channel, so the audit trail
+  // attributes a repeat denial to the run-workflow surface.
+  const repeatAuditChannelWrong = mutateOnce(ipcText, 'channel: "execution:repeatInstance"', 'channel: "execution:runWorkflow"');
+  mutationRejected("the repeat denial being audited against the execution:runWorkflow channel instead of its own", () => {
+    assertRepeatInstanceInstalledChromeRule(repeatAuditChannelWrong);
+  });
+  // Mutation D -- authorization moved INSIDE the catchable try. Every call site still exists and the
+  // decision still precedes the gate; only the throw path changes, from a propagated denial to an
+  // ordinary `{ success: false, error }`. A control that counted calls or compared only against the
+  // gate would pass here.
+  const repeatAuthorizationInsideTry = mutateOnce(
+    mutateOnce(ipcText, repeatSuperUserBranch, ""),
+    '    try {\n      const gate = applyRunGateEnforcement("run-request").decision;',
+    "    try {\n" + repeatSuperUserBranch.trimEnd() + '\n      const gate = applyRunGateEnforcement("run-request").decision;'
+  );
+  mutationRejected("the repeat Super User denial being moved inside the try that downgrades a throw to a failed result", () => {
+    assertRepeatInstanceInstalledChromeRule(repeatAuthorizationInsideTry);
+  });
+  // Mutation E -- the rule survives but its INPUT changes: the decision is taken from current Settings
+  // rather than from the launch configuration the instance was actually started with.
+  const repeatDecidedFromCurrentSettings = mutateOnce(
+    ipcText,
+    '    if (repeatTarget.config?.browserDistribution === "installedChrome") {',
+    '    if ((await getUiSettings()).superUser.chrome.mode === "installedChrome") {'
+  );
+  mutationRejected("the repeat decision being taken from current Settings instead of the instance's stored launch config", () => {
+    assertRepeatInstanceInstalledChromeRule(repeatDecidedFromCurrentSettings);
   });
 
   // --- R2.7 Legacy Compatibility attribution reaches the run profile -------------------------------
