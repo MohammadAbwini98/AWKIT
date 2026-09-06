@@ -452,8 +452,8 @@ try {
   // closed - 7 `open` plus the 2 `blocked` (`awkit-7bu`, `awkit-cm8`). `bd stats` again printed
   // "Blocked: 0" for the same tracker because that field counts dependency-blocked issues, not the
   // `blocked` STATUS; `bd list --status blocked` shows the two. Do not pin against `bd stats`.
-    "9 outstanding / 266 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 266,
+    "8 outstanding / 267 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 267,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
