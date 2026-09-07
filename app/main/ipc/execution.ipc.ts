@@ -60,6 +60,15 @@ export function registerExecutionIpc(): void {
     // A REAL run (dryRun:false) requires execute permission; validation/dry-run stays open (view-level —
     // no browser is launched, so Viewer's pre-run preview still works). Authorization (who) precedes the
     // licensing gate (which machine) inside runWorkflow — independent checks, authorization first.
+    //
+    // AWKIT-TTVB — the exemption above is DECIDED, not accidental (docs/ai/DECISIONS.md). It is kept
+    // rather than gated because gating the dryRun-not-false path would break the documented Viewer
+    // pre-run preview. What makes it safe is a CROSS-MODULE COMPLEMENT: this guard runs when
+    // `request.dryRun === false`, and `ExecutionApplicationService.runWorkflow` returns
+    // `{ status: "validated" }` when `request.dryRun !== false`, before `applyRunGateEnforcement` and
+    // `ExecutionEngine.startRun`. So every request that skips this guard launches no browser. The two
+    // predicates must stay exact complements: changing EITHER one alone is a security change, not a
+    // refactor. Both halves and that ordering are pinned by scripts/verify-r0-characterization.mts.
     if (request.dryRun === false) {
       const settings = await getUiSettings();
       if (settings.superUser.chrome.mode === "installedChrome") {

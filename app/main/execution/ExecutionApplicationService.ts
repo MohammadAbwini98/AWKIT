@@ -113,6 +113,14 @@ export class ExecutionApplicationService {
       return { status: "validationFailed", validation };
     }
 
+    // AWKIT-TTVB — this is the ungated half of the cross-module complement (docs/ai/DECISIONS.md).
+    // This short-circuit is the reason `execution:runWorkflow` can authorize only when
+    // `dryRun === false`: every request that skipped that guard arrives here with `dryRun !== false`
+    // and returns before `applyRunGateEnforcement` and `ExecutionEngine.startRun`, so no browser is
+    // ever launched for it. Narrowing this predicate (for example to `=== true`) would silently
+    // create a privilege escalation with no other control changing. The two predicates must stay
+    // exact complements; both halves and this ordering are pinned by
+    // scripts/verify-r0-characterization.mts.
     if (request.dryRun !== false) {
       return {
         status: "validated",
