@@ -1,13 +1,13 @@
 {
-  "task": "awkit-ttvb",
-  "contract_path": "docs/ai/contracts/awkit-ttvb.json",
-  "holder": "project-state",
+  "task": "awkit-utbf",
+  "contract_path": "docs/ai/contracts/awkit-utbf.json",
+  "holder": "qa",
   "status": "active",
   "allowed_paths": [
-    "docs/ai/contracts/awkit-ttvb.json"
+    "scripts/verify-write-queue.mts"
   ],
-  "acquired_at": "2026-09-07T08:50:37.049Z",
-  "acquired_at_commit": "03df2eb1c11981b277d1ab53913f4c02c8fb33d4",
+  "acquired_at": "2026-09-07T09:53:30.268Z",
+  "acquired_at_commit": "f3470d40580c22aec954defa3a26cd6e355a8d24",
   "baseline_dirty": [
     "AWTKIT.rar",
     "Building priorities and integration-handoff/",
@@ -17,17 +17,19 @@
     "docs/ai/contracts/awkit-r2.json",
     "docs/ai/contracts/awkit-ttvb.json",
     "docs/ai/contracts/awkit-ui1.json",
+    "docs/ai/contracts/awkit-utbf.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
     "Building priorities and integration-handoff/": "absent",
-    "docs/ai/contracts/active-lease.json": "29a4ac2668e22120e00e4d7bc98a598821858a97474179ec903c466e049eb0d0",
+    "docs/ai/contracts/active-lease.json": "947d01e343fab96e8ffb1382f858358c8eb7e8292ad034ae4147fcf46c0310fd",
     "docs/ai/contracts/awkit-glm-delegation-tooling.json": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71",
     "docs/ai/contracts/awkit-r1b-coordination.json": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174",
     "docs/ai/contracts/awkit-r2.json": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228",
-    "docs/ai/contracts/awkit-ttvb.json": "173fe6633b0eab6b39f2a886c4bf707916ec1c8a714f9dca0d9ee238e7143c6d",
+    "docs/ai/contracts/awkit-ttvb.json": "df802734e71c7af62dc32a9465b1ee78a542d7f2381c113cb64566a41424b457",
     "docs/ai/contracts/awkit-ui1.json": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552",
+    "docs/ai/contracts/awkit-utbf.json": "be06c11df3180a536a026229cc8421fc1a6307c7cc10abb099c712f925d25078",
     "tools/roadmap/assignments.json": "59ced317a73e274f4989fa447e4c8f50ee297a5667c69687867468dfe782644f"
   },
   "baseline_watched_ignored": {

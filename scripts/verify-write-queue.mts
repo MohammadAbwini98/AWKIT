@@ -386,6 +386,165 @@ const GATE_DRAIN_TURNS = 200;
     check("two differently spelled paths for one folder actually exclude each other", max === 1 && entered === 2, `maxConcurrent=${max}, entered=${entered}`);
     await rm(folder, { recursive: true, force: true });
   }
+
+  // 6f. Same-key RE-ENTRANCY: a task already running on a lane that asks for that same lane again —
+  // awkit-utbf.
+  //
+  // `owned.tail.then(task, task)` makes the inner call wait on a tail that only settles once the
+  // OUTER task returns, while the outer task is waiting on the inner one. Nothing breaks the cycle:
+  // there is no timeout and no diagnostic, `pending` never reaches 0, the lane is never evicted, and
+  // every store in the process pointed at that folder wedges for the process lifetime. The symptom
+  // today is a CI timeout with no failing assertion name, which is strictly worse than a red — so
+  // every check below is BOUNDED and reports its own failure by name.
+  //
+  // The contract: a same-key re-entrant call must REJECT, naming the re-entrancy and the coordination
+  // key, without mutating lane state. It must discriminate by async CONTEXT, not by "the lane is
+  // busy" — an ordinary caller outside the running task still queues normally (6f-b), and a nested
+  // call on a DIFFERENT folder is untouched (6f-c). Those two are what stop a guard from satisfying
+  // 6f-a by simply rejecting everything that arrives while a lane is occupied.
+  {
+    type Outcome<T> = { kind: "resolved"; value: T } | { kind: "rejected"; error: unknown } | { kind: "timeout" };
+
+    /** Settles with a NAMED outcome even when `promise` never settles, so a deadlock is reported as a
+     *  failed check instead of hanging the verifier before it can print its totals. */
+    const settleWithin = async <T>(promise: Promise<T>, ms: number): Promise<Outcome<T>> => {
+      promise.catch(() => undefined); // the promise may be abandoned on the timeout path
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const expiry = new Promise<Outcome<T>>((settle) => {
+        timer = setTimeout(() => settle({ kind: "timeout" }), ms);
+      });
+      const outcome = await Promise.race([
+        promise.then<Outcome<T>>(
+          (value) => ({ kind: "resolved", value }),
+          (error: unknown) => ({ kind: "rejected", error })
+        ),
+        expiry
+      ]);
+      if (timer) clearTimeout(timer); // cleared on BOTH outcomes so a live timer cannot hold the loop open
+      return outcome;
+    };
+
+    const REENTRANT_DEADLINE_MS = 1500;
+    /** The guard's message must contain this substring, and the coordination key, verbatim. */
+    const REENTRANCY_MARKER = "re-entrant folder write coordination";
+    const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+    // 6f-a / 6f-d. One run answers both questions: what the re-entrant call DID, and what it LEFT
+    // BEHIND. They share a run because the lane state to inspect is the state that run produced.
+    {
+      const folder = await mkdtemp(join(tmpdir(), "awkit-coord-reentrant-"));
+      const key = folderCoordinationKey(folder);
+      const outcomes: Outcome<string>[] = [];
+      const abandoned: Promise<string>[] = [];
+      let activeWhileRunning: string[] = [];
+
+      await runExclusive(folder, async () => {
+        activeWhileRunning = activeFolderCoordinationKeys();
+        // The defect under test: the task holding the lane asks for the same lane again.
+        const inner = runExclusive(folder, async () => "inner-value");
+        abandoned.push(inner);
+        outcomes.push(await settleWithin(inner, REENTRANT_DEADLINE_MS));
+        // Returning the moment the race settles is what lets the lane drain when no guard exists:
+        // the queued inner task can only start once THIS task's tail settles, so the verifier can
+        // still finish and print totals on the timed-out path.
+      });
+      // Safe only now that the outer task has returned — un-guarded, the abandoned inner runs here.
+      await Promise.all(abandoned.map((p) => p.then(() => undefined, () => undefined)));
+
+      const outcome: Outcome<string> = outcomes[0] ?? { kind: "timeout" };
+      const rejection = outcome.kind === "rejected" ? messageOf(outcome.error) : "";
+
+      // Cardinality FIRST: an empty key set would let the eviction assertion below pass vacuously.
+      check(
+        "exactly one lane is active while the re-entrant task runs, and it is this folder's key",
+        activeWhileRunning.length === 1 && activeWhileRunning[0] === key,
+        `active=[${activeWhileRunning.join(",")}], expected=[${key}]`
+      );
+      check(
+        `a same-key re-entrant call rejects within ${REENTRANT_DEADLINE_MS}ms instead of deadlocking`,
+        outcome.kind === "rejected",
+        outcome.kind === "timeout"
+          ? `did not reject within ${REENTRANT_DEADLINE_MS}ms — the lane deadlocked`
+          : `outcome=${outcome.kind}`
+      );
+      check(
+        `the re-entrancy rejection names same-key re-entrancy ("${REENTRANCY_MARKER}")`,
+        rejection.includes(REENTRANCY_MARKER),
+        rejection || `outcome=${outcome.kind}`
+      );
+      check(
+        "the re-entrancy rejection includes the coordination key",
+        rejection.length > 0 && rejection.includes(key),
+        rejection ? `expected key=${key}` : `outcome=${outcome.kind}`
+      );
+
+      await drainEventLoop(8);
+      const leftBehind = activeFolderCoordinationKeys();
+      check(
+        "a rejected re-entrant call leaves lane state untouched (the lane is still evicted normally)",
+        outcome.kind === "rejected" && leftBehind.length === 0,
+        `outcome=${outcome.kind}, active=${leftBehind.join(",") || "none"}`
+      );
+      await rm(folder, { recursive: true, force: true });
+    }
+
+    // 6f-b. A caller OUTSIDE the running task is not re-entrant, however busy the lane is: it must
+    // still be admitted, and must still run behind the task in FIFO order. This is what proves the
+    // guard discriminates by async context, so it must pass both before and after the guard exists.
+    {
+      const folder = await mkdtemp(join(tmpdir(), "awkit-coord-outside-"));
+      const sequence: string[] = [];
+      const started = deferred();
+      const release = deferred();
+      const running = runExclusive(folder, async () => {
+        sequence.push("running-start");
+        started.resolve();
+        await release.promise;
+        sequence.push("running-end");
+        return "running-value";
+      });
+      await started.promise; // this continuation belongs to the top level, NOT to the running task
+      const outside = runExclusive(folder, async () => { sequence.push("outside"); return "outside-value"; });
+      // Every chance to jump the queue; a task correctly waiting on a lane can never arrive.
+      await drainEventLoop(GATE_DRAIN_TURNS);
+      const jumpedAhead = sequence.includes("outside");
+      release.resolve();
+      const outsideOutcome = await settleWithin(outside, REENTRANT_DEADLINE_MS);
+      const runningOutcome = await settleWithin(running, REENTRANT_DEADLINE_MS);
+      check(
+        "an outside caller on the same key is still admitted while a task is running",
+        outsideOutcome.kind === "resolved" && outsideOutcome.value === "outside-value"
+          && runningOutcome.kind === "resolved" && runningOutcome.value === "running-value",
+        `outside=${outsideOutcome.kind}, running=${runningOutcome.kind}`
+      );
+      check(
+        "an outside same-key caller runs AFTER the running task, in FIFO order",
+        !jumpedAhead && JSON.stringify(sequence) === JSON.stringify(["running-start", "running-end", "outside"]),
+        `sequence=${sequence}`
+      );
+      await drainEventLoop(8);
+      await rm(folder, { recursive: true, force: true });
+    }
+
+    // 6f-c. A nested call on a DIFFERENT folder is not re-entrancy on that key, so it must keep
+    // working. Without this, a guard could satisfy 6f-a by rejecting every nested call there is.
+    {
+      const folderA = await mkdtemp(join(tmpdir(), "awkit-coord-nested-a-"));
+      const folderB = await mkdtemp(join(tmpdir(), "awkit-coord-nested-b-"));
+      const nested = await settleWithin(
+        runExclusive(folderA, async () => runExclusive(folderB, async () => "nested-b-value")),
+        REENTRANT_DEADLINE_MS
+      );
+      check(
+        "a task running on one folder can still nest a call on a DIFFERENT folder",
+        nested.kind === "resolved" && nested.value === "nested-b-value",
+        nested.kind === "resolved" ? String(nested.value) : `outcome=${nested.kind}`
+      );
+      await drainEventLoop(8);
+      await rm(folderA, { recursive: true, force: true });
+      await rm(folderB, { recursive: true, force: true });
+    }
+  }
 }
 
 async function measureSameFolderExclusion(folder: string): Promise<{ max: number; completed: number }> {
