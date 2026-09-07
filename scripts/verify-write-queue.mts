@@ -545,6 +545,72 @@ const GATE_DRAIN_TURNS = 200;
       await rm(folderB, { recursive: true, force: true });
     }
   }
+
+  // 6g. Lane lifetime under a QUEUE: a lane must NOT be evicted while admitted work is still queued
+  // behind the task that is currently running — awkit-s410.
+  //
+  // Every existing eviction check (6b, 6d, 6f-a) samples only the FINAL state, after everything
+  // admitted has drained — 6d and 6f-a hold one task at a time, and 6b admits three at once but does
+  // not sample until all of them plus a fourth have settled — so not one of them ever observes the
+  // lane while work is still queued behind the runner. Measured, not argued: every one of them passed
+  // under the pending-at-start mutant. A coordinator that released the lane on the
+  // RUNNING task's settle — incrementing `pending` at task start rather than at admission, or
+  // deleting the key without consulting the queue behind it — would pass all of them while silently
+  // un-serializing the task waiting behind: that task would then run on a fresh second lane,
+  // concurrently with anything else admitted in the meantime, which is the mutual exclusion this
+  // module exists to provide. Proving it requires TWO tasks on one key at once, with the sample
+  // taken from inside the QUEUED task — it must still see this key live.
+  //
+  // What this block MEASURES is lane-map presence, not overlap: it admits no third caller, so the
+  // un-serialization above is a consequence argued from the implementation (an evicted key means the
+  // next arrival builds a fresh lane whose tail is already resolved), not a concurrency this block
+  // observed. That proxy is sound for the eviction mutant it was built for and is blind to a lane
+  // that stays in the map while its tail stops chaining — measuring that directly needs a third
+  // same-key caller and belongs to its own tranche.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-queued-"));
+    const key = folderCoordinationKey(folder);
+    const release = deferred();
+    const insideT2: string[][] = [];
+
+    const t1 = runExclusive(folder, async () => { await release.promise; return "t1"; });
+    await drainEventLoop(4);          // T1 is running; this continuation is TOP-LEVEL, not T1's ALS context
+
+    const t2 = runExclusive(folder, async () => { insideT2.push(activeFolderCoordinationKeys()); return "t2"; });
+    await drainEventLoop(GATE_DRAIN_TURNS);   // give T2 every chance to jump the queue
+
+    // Named for what the predicate decides: T2's body has NOT run. It deliberately does NOT claim T2
+    // was admitted — a rejected or never-admitted T2 would satisfy this too. Admission is a PAIR-level
+    // fact, established by the Promise.all below resolving and check 2 finding T2's sample, so read
+    // this as the first half of an admitted-but-not-started proof, never as standalone evidence.
+    check(
+      "a second same-key task has not started while the first still holds the lane",
+      insideT2.length === 0,
+      `insideT2=[${insideT2.map((s) => `[${s.join(",")}]`).join(" ")}], expected=[] while T1 still holds the lane`
+    );
+
+    release.resolve();
+    await Promise.all([t1, t2]);
+
+    // Cardinality/presence FIRST — an empty sample would let the eviction assertion below pass vacuously.
+    check(
+      "the lane is still live, and is exactly this one key, while the QUEUED task runs",
+      insideT2.length === 1 && insideT2[0].length === 1 && insideT2[0][0] === key,
+      `insideT2=[${insideT2.map((s) => `[${s.join(",")}]`).join(" ")}], expected=[[${key}]]`
+    );
+
+    await drainEventLoop(8);
+    // Leak check — named for what it actually proves. Absence here is satisfied by a lane evicted
+    // CORRECTLY and, equally, by one evicted a task too early: measured under the pending-at-start
+    // mutant, this check still passed and only the presence sample above went red. The ordering is
+    // established by the PAIR; this half alone catches evict-never, not evict-too-early.
+    check(
+      "no lane survives once the running and queued tasks have both drained",
+      !activeFolderCoordinationKeys().includes(key),
+      `active=${activeFolderCoordinationKeys().join(",") || "none"}, expected: without ${key}`
+    );
+    await rm(folder, { recursive: true, force: true });
+  }
 }
 
 async function measureSameFolderExclusion(folder: string): Promise<{ max: number; completed: number }> {
