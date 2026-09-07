@@ -1,6 +1,85 @@
 # TASK_LOG
 
-## 2026-09-07 (latest) — awkit-syaa — installed-Chrome repeat authorization fix, docs reconciliation (Claude Opus 5)
+## 2026-09-07 (latest) — awkit-ttvb — dry-run authorization complement decided, recorded and pinned (Claude Opus 5)
+
+**Agents involved:** Manager (routing, lease issuance, Git — no Git command was run by any other
+role); Runtime (comment-only invariant documentation); QA (the R2.6c control and its mutations);
+project-state (this entry — Beads, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF, TASK_LOG).
+
+**Task:** close `awkit-ttvb` (P2, "R2 follow-up C"). `execution:runWorkflow` authorizes only when
+`request.dryRun === false` while `ExecutionApplicationService.runWorkflow` short-circuits when
+`request.dryRun !== false` — two literal predicates in two modules that are exact complements, which
+is the only reason the ungated path launches no browser, and nothing asserted the relationship.
+`KNOWN_ISSUES.md` framed the remedy as a **decision** and said "do not silently pick one".
+
+**Decision taken and recorded:** remedy **(a)** — document the view-level exemption and add a control
+pinning it — over **(b)** gating the paths, because (b) is a behavior change that breaks a documented
+product behavior (a Viewer's pre-run preview; no browser is launched on that path). Written into
+`docs/ai/DECISIONS.md`.
+
+**Implementation, committed before this project-state phase:** `dfcbdc5` — comment-only at both halves
+of the invariant (`app/main/ipc/execution.ipc.ts` 9 lines at the dry-run guard,
+`app/main/execution/ExecutionApplicationService.ts` 8 lines at the dry-run short-circuit; no predicate,
+control flow, handler registration or signature changed). `f44b4b2` — `scripts/verify-r0-characterization.mts`
+only, R2.6c, +204 insertions / 0 deletions.
+
+**This task's actions:** `bd show awkit-ttvb` (reported OPEN, P2, no dependency edges); `bd close
+awkit-ttvb` with a reason citing the decision, the control and the evidence; `bd export -o
+.beads/issues.jsonl` as its own command (`bd close` does not refresh the export, and plain `bd export`
+writes to STDOUT); `bd stats` + `bd list --status blocked` to measure the tracker directly; wrote the
+new decision into `docs/ai/DECISIONS.md`; moved the `awkit-ttvb` bullet in `docs/ai/KNOWN_ISSUES.md`
+from open finding to **RESOLVED** with the original finding text preserved verbatim inside it; appended
+new top `##` sections to `docs/ai/CURRENT_STATE.md` and `docs/ai/HANDOFF.md`. The `bead:awkit-ttvb`
+claim in `tools/roadmap/assignments.json` was left in place for the Manager's lease release to
+withdraw; the owner `$comment` block and the `defect:AWKIT-SEC-005` claim were not touched.
+
+**Tests run by this task:** `npm run verify:verifier-classification` — final line `classification
+reconciled ✓`, with all five checks OK and the per-class breakdown printed (200 total: 1
+documentation-consistency, 11 static-source-validation, 63 unit, 37 integration, 77 real-browser, 11
+packaged-application, 0 clean-machine-acceptance). `npm run verify:roadmap-dashboard` — final line
+**`176/177 roadmap dashboard checks passed`**, one FAIL: `FAIL 8 outstanding / 267 closed -
+outstanding 7, closed 268`. Banner check still `OK the Overview banner reads "Sources agree"`.
+
+**Tests cited from the committed evidence, not re-run here:** `verify:r0-characterization` **175 PASS
+/ 0 FAIL** (from a fresh pre-control baseline of **169 PASS / 0 FAIL**, delta +6, executed twice with
+identical totals); `build` PASS; `verify:security` **61 passed / 0 failed**. Five mutations each
+rejected by the control's own `invariant`. **Disclosed limit:** the escalation mutation is rejected by
+the structural operator assertion, not by the explicit complement assertion, which is entailed by the
+other two and is therefore defense-in-depth, not an independently proven control.
+
+**Not run, with why:** `npm run build`, `npm run verify:r0-characterization` and `npm run
+verify:security` were not re-executed in this project-state phase — they were executed and recorded by
+the QA lease holder on the identical tree, and this phase changed only Markdown and the Beads export,
+which none of them read. Mock-site: **NOT APPLICABLE** (determination executed against
+`mock-site/README.md`) — the pinned property is a main-process cross-module source relationship
+enforced before any page opens; no browser page can originate the regression it guards. **Exit codes
+were NOT read for any command** — the lease guard rejects `&&`, `;`, `|` and redirection, so `$?`
+cannot be captured; every result above is read from printed stdout.
+
+**Measured Beads tally:** 275 total / 268 closed / 5 open / 2 status-blocked (`awkit-7bu`,
+`awkit-cm8`), i.e. **7 outstanding / 268 closed**. `bd stats` printed Blocked 0, which counts
+**dependency**-blocked issues and must not be used to erase the two status-blocked ones. Validation
+ledger unchanged: **65 PASS / 2 NOT RUN / 0 BLOCKED** across 67 cases.
+
+**Result:** `awkit-ttvb` CLOSED; decision recorded; invariant pinned. **One stale non-vacuity pin,
+measured here before any alteration and then moved by QA.** Pre-alteration,
+`npm run verify:roadmap-dashboard` finished **176/177** with exactly one FAIL,
+`FAIL 8 outstanding / 267 closed - outstanding 7, closed 268` — the evidence that the pin, not the
+export, was stale. QA then moved it under its own lease and mutation-tested it, from
+`8 outstanding / 267 closed` to `7 outstanding / 268 closed` (total held at 275), and the re-run
+finished **177/177** with the Overview banner reading `Sources agree`. The pin now lives at
+`scripts/verify-roadmap-dashboard.mjs:459-460`. That file is QA-owned and outside this lease, so it
+was not edited here; nothing under `tools/roadmap/` was hand-edited. An expected second
+baseline move (r0-characterization 169 → 175) **does not exist** — a search of `scripts/**` for `169`
+returns only historical Beads-total comments, and neither verifier reported such a mismatch.
+
+**Files changed:** `docs/ai/DECISIONS.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/ai/CURRENT_STATE.md`,
+`docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl` and `.beads/interactions.jsonl`
+(`bd` side effects). `tools/roadmap/assignments.json` was left as the lease grant wrote it. No
+production or verifier source was touched by this phase — `dfcbdc5`/`f44b4b2` were committed before it
+began. No Git command of any kind was run.
+
+## 2026-09-07 — awkit-syaa — installed-Chrome repeat authorization fix, docs reconciliation (Claude Opus 5)
 
 **Task:** close out `awkit-syaa` (P1 authorization defect: `execution:repeatInstance` could relaunch an
 installed-Chrome run without the Super User check `execution:runWorkflow` enforces) and reconcile

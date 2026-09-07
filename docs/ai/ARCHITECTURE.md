@@ -747,9 +747,12 @@ and the pointer swap is an irreversible commit point.
   - **Rule: authorization completes in the IPC facade before the service is invoked.**
     `app/main/ipc/execution.ipc.ts` is transport plus sender/session/RBAC checks only; every
     `assertSender*` call stays there and must finish before `applicationService.*` is called.
-    `ExecutionApplicationService` performs **no** authorization and must not acquire any. (Known
-    exception, pre-existing and tracked as `awkit-ttvb`: `execution:validate` and the
-    `dryRun !== false` path reach the service with no authorization at all.)
+    `ExecutionApplicationService` performs **no** authorization and must not acquire any. (One
+    exemption, deliberate and recorded — not an open issue: `execution:validate` and the
+    `dryRun !== false` path reach the service with no authorization at all. It is kept because it is
+    view-level — no browser, no session, no filesystem write — so a Viewer's pre-run preview still
+    works. The decision is recorded in `docs/ai/DECISIONS.md` (2026-09-07) and the invariant that
+    makes it safe is pinned by control **R2.6c** in `scripts/verify-r0-characterization.mts`.)
   - **The service is a seam, not an authority.** `ExecutionEngine` remains the one execution
     authority and `executionEngine.startRun` the one canonical dispatch. Do not move lifecycle,
     cancellation, capacity or report decisions into the service.

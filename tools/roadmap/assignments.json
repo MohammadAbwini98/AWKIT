@@ -26,11 +26,11 @@
       "note": "awkit-sec005 project-state reconciliation. The sibling claim below uses itemId 'bead:awkit-sec005', which matches no dashboard item because no bead owns AWKIT-SEC-005 - this entry is the one that binds to the real defect item. verify:security repaired to 61 passed / 0 failed (52/1 before the repair, 58/0 at an intermediate reading before the validated-binding clause and mutant C existed); verifier-only change (scripts/verify-security.mts), committed as bb99dfb, no production code changed."
     },
     {
-      "itemId": "bead:awkit-syaa",
+      "itemId": "bead:awkit-ttvb",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-06T23:42:37.009Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-roadmap-docs-0906.json"
+      "claimedAt": "2026-09-07T07:50:47.050Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/ARCHITECTURE.md, docs/ai/CURRENT_STATE.md, docs/ai/DECISIONS.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-syaa.json"
     }
   ]
 }

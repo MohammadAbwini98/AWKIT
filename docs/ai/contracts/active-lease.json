@@ -1,25 +1,28 @@
 {
-  "task": "awkit-syaa",
-  "contract_path": "docs/ai/contracts/awkit-syaa.json",
+  "task": "awkit-ttvb",
+  "contract_path": "docs/ai/contracts/awkit-ttvb.json",
   "holder": "project-state",
   "status": "active",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
+    "docs/ai/ARCHITECTURE.md",
     "docs/ai/CURRENT_STATE.md",
+    "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-roadmap-docs-0906.json"
+    "docs/ai/contracts/awkit-syaa.json"
   ],
-  "acquired_at": "2026-09-06T23:42:37.009Z",
-  "acquired_at_commit": "f668fe3f26905108c7e06824dd0b16b62200f4a9",
+  "acquired_at": "2026-09-07T07:50:47.050Z",
+  "acquired_at_commit": "f44b4b21e5ae5bed59b124fe38ad078b20f31086",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
     "AWTKIT.rar",
     "Building priorities and integration-handoff/",
     "docs/ai/CURRENT_STATE.md",
+    "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
@@ -27,27 +30,32 @@
     "docs/ai/contracts/awkit-glm-delegation-tooling.json",
     "docs/ai/contracts/awkit-r1b-coordination.json",
     "docs/ai/contracts/awkit-r2.json",
-    "docs/ai/contracts/awkit-roadmap-docs-0906.json",
     "docs/ai/contracts/awkit-syaa.json",
+    "docs/ai/contracts/awkit-ttvb.json",
     "docs/ai/contracts/awkit-ui1.json",
+    "scripts/verify-r0-characterization.mts",
+    "scripts/verify-roadmap-dashboard.mjs",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "a74ed29ac4b95987b52d753f6bd835a2bc7ba055dbe498e8ebad10ba52549add",
-    ".beads/issues.jsonl": "8d99335773473737cd20b97333498e16d806d501602d1b4718f926a25bdda4c3",
+    ".beads/interactions.jsonl": "c5c40b08652c4fa7abc86d1d162dd768c982909303bc79d1cd24a41ec65a65fb",
+    ".beads/issues.jsonl": "0f62b6fd2918d80caadbf9c9868c1c50f2a0ce4f73504652431b378e4365c85b",
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
     "Building priorities and integration-handoff/": "absent",
-    "docs/ai/CURRENT_STATE.md": "6c8ec8b157058ad2ae33853fa369c116c41da068737ab9312bc742707035ec74",
-    "docs/ai/HANDOFF.md": "3ecdc495bcfd0f2c823754db2777206ac5ba64a9d60cef4e0067c3cf39e6d156",
-    "docs/ai/KNOWN_ISSUES.md": "7f6b5ed27824b7586c3db4d81d3f7a34dee341b6a4466f633b54c8130773a39f",
-    "docs/ai/TASK_LOG.md": "febfde33e075ca52e2e88b359062c5d6b82e4837242905d444c9e6d156e12b12",
-    "docs/ai/contracts/active-lease.json": "df747e8b8c0e624ed92d88f7771e6aa83d0d0ace820c873323c806a22b50efc1",
+    "docs/ai/CURRENT_STATE.md": "0d8939fbc912c94a81077e6c8982ebec53f78d798709a40c39f772b52a2fb074",
+    "docs/ai/DECISIONS.md": "868bf8bc2337b34ae69d6d58b4493919f60d6ecd8567ec9328595279651135d2",
+    "docs/ai/HANDOFF.md": "0055b00964a861f3592c189745eda20824e2f815c28867e5b025dda5ff3fcd69",
+    "docs/ai/KNOWN_ISSUES.md": "e83b3cf27cf44010fcf31b46bd7c2e9e8182e56fb5dfaf6f50e7806f9df8a79e",
+    "docs/ai/TASK_LOG.md": "e5db7d0f8a5a3b1947c80ce196d265d3d27134baf56e17c56e86b7c1fa6dca71",
+    "docs/ai/contracts/active-lease.json": "dfb8389794c75a6be59d8b4ae9e2b432327f9ff69d764b52ccefd2938fc0d03a",
     "docs/ai/contracts/awkit-glm-delegation-tooling.json": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71",
     "docs/ai/contracts/awkit-r1b-coordination.json": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174",
     "docs/ai/contracts/awkit-r2.json": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228",
-    "docs/ai/contracts/awkit-roadmap-docs-0906.json": "e955c53efb873db677c5c2ad8e828c179da8c8451236b534cd8b6ba47f11502b",
-    "docs/ai/contracts/awkit-syaa.json": "d88b50d6c471d25d12a54b8c12f2e2d23086418fe53ab03dd96c43d0c774b763",
+    "docs/ai/contracts/awkit-syaa.json": "73770804960405af834048e5eb17ea668ee3d5cd1d48b47d26b69ba27f067cab",
+    "docs/ai/contracts/awkit-ttvb.json": "b48c1622385d62590fbe5c2fb41983340e26625dab868fa72032299dbff6051e",
     "docs/ai/contracts/awkit-ui1.json": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552",
+    "scripts/verify-r0-characterization.mts": "caaa793b366f82001f490f5df0fca15c1e7430b2fcf280e3bdf04f2cfd86b507",
+    "scripts/verify-roadmap-dashboard.mjs": "ffe676eafb3cb58ab42d55d5979fc215bc6aedcad870ee739a34531612e4f9b5",
     "tools/roadmap/assignments.json": "59ced317a73e274f4989fa447e4c8f50ee297a5667c69687867468dfe782644f"
   },
   "baseline_watched_ignored": {
@@ -60,7 +68,44 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1788195763485.3335"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-07T08:03:28.412Z",
+      "added": [
+        ".beads/issues.jsonl"
+      ],
+      "reason": "Closeout staging scope for awkit-ttvb: the bead export is project-state owned and belongs in this tranche commit.",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    },
+    {
+      "timestamp": "2026-09-07T08:03:57.879Z",
+      "added": [
+        ".beads/interactions.jsonl"
+      ],
+      "reason": "Closeout staging scope for awkit-ttvb: the bead interactions log is project-state owned and belongs in this tranche commit.",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    },
+    {
+      "timestamp": "2026-09-07T08:04:09.038Z",
+      "added": [
+        "docs/ai/DECISIONS.md"
+      ],
+      "reason": "Closeout staging scope for awkit-ttvb: the recorded view-level exemption decision is project-state owned and belongs in this tranche commit.",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    },
+    {
+      "timestamp": "2026-09-07T08:04:20.103Z",
+      "added": [
+        "docs/ai/contracts/awkit-syaa.json"
+      ],
+      "reason": "Closeout staging scope for awkit-ttvb: the inherited awkit-syaa release-history append is the residue this tranche absorbs and must be staged with it.",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }

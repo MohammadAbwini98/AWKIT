@@ -1,5 +1,43 @@
 # DECISIONS
 
+### 2026-09-07 - The view-level dry-run exemption is deliberate and is pinned by a control, not gated
+
+- **Decision:** `execution:validate` and the `dryRun`-not-`false` path of `execution:runWorkflow` stay
+  ungated at view level. This is remedy **(a)** from `awkit-ttvb` - document the exemption and add a
+  control pinning it - chosen over remedy **(b)**, gating the paths. `docs/ai/KNOWN_ISSUES.md` framed
+  the remedy as a decision and said "do not silently pick one"; this record is that choice, made
+  explicitly.
+- **Reason (b) was rejected:** gating is a **behavior change that breaks a documented product
+  behavior**. `app/main/ipc/execution.ipc.ts` states in code that validation/dry-run stays open at
+  view level precisely so a Viewer's pre-run preview works, and that **no browser is launched on that
+  path**. Adding an `assertSender*` call there would deny a Viewer the preview the product promises,
+  in exchange for guarding a path that reaches no browser, no session and no filesystem write.
+- **Why it is safe, and what actually makes it safe:** the IPC authorization block runs when
+  `request.dryRun === false`, and `ExecutionApplicationService.runWorkflow` returns
+  `{ status: "validated" }` when `request.dryRun !== false`. Those two literal predicates live in two
+  different modules and are **exact complements** - that complement, plus the short-circuit returning
+  *before* `applyRunGateEnforcement` and `executionEngine.startRun`, is the entire reason the ungated
+  path launches nothing. Nothing in the repository asserted that relationship, so narrowing the
+  service predicate to `=== true` would have been a genuine privilege escalation with every existing
+  control still green.
+- **The control that pins it:** **R2.6c** in `scripts/verify-r0-characterization.mts`. It asserts both
+  literal predicates in their own scopes, the short-circuit's position ahead of
+  `applyRunGateEnforcement` and `executionEngine.startRun`, and that `execution:validate` contains
+  **exactly zero** `assertSender*` calls - so granting *or* removing authorization on these paths now
+  turns the suite red. Cardinality is asserted before every ordering expression.
+- **Commits:** `dfcbdc5` (comment-only, both halves of the invariant: the `execution:runWorkflow`
+  dry-run guard in `app/main/ipc/execution.ipc.ts` and the `runWorkflow` dry-run short-circuit in
+  `app/main/execution/ExecutionApplicationService.ts`) and `f44b4b2` (R2.6c, +204 lines / 0 deletions
+  in `scripts/verify-r0-characterization.mts`). No predicate, control flow, handler registration or
+  exported signature changed. `verify:r0-characterization` moved 169 PASS / 0 FAIL to **175 PASS / 0
+  FAIL**; `verify:security` stayed at **61 passed / 0 failed**; `build` PASS.
+- **Disclosed limit of the control:** the escalation mutation (service predicate narrowed to
+  `=== true`) is rejected by the structural **operator** assertion, not by the explicit complement
+  assertion. The complement assertion is logically entailed by the two predicate assertions as
+  written, so no mutation currently fails on it alone. It is recorded as **defense-in-depth against a
+  future relaxation of those two assertions, not as an independently proven control** - and no
+  mutation was manufactured by weakening them to claim otherwise.
+
 ### 2026-08-22 - Condition expressions remain literal-only; structured sources are inert legacy metadata
 
 - **Decision:** a condition branches only on its literal `step.value`. `step.valueSource` is never an

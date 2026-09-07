@@ -1,6 +1,87 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-07, latest) — awkit-syaa CLOSED: installed-Chrome repeat now requires Super User
+## HANDOFF (2026-09-07, latest) — awkit-ttvb CLOSED: the view-level dry-run exemption is decided, recorded and pinned
+
+- **Bead closed:** `awkit-ttvb` (P2, "R2 follow-up C: `execution:validate` reaches the application
+  service with no authorization and no control"). `bd show` before closing reported status **OPEN**,
+  P2, type task, owner `MohammadAbwini98`, created and last updated 2026-09-05, and printed **no
+  Dependencies section — no `blocks` edges in either direction**.
+- **What was unpinned:** `execution:runWorkflow` authorizes only when `request.dryRun === false`;
+  `ExecutionApplicationService.runWorkflow` short-circuits to `{ status: "validated" }` when
+  `request.dryRun !== false`. Two literal predicates, two modules, **exact complements** — and that
+  complement, plus the short-circuit returning before `applyRunGateEnforcement` and
+  `executionEngine.startRun`, is the entire reason the ungated path launches no browser. Nothing
+  asserted it, so narrowing the service predicate to `=== true` would have been a real privilege
+  escalation with every control still green.
+- **Decision recorded, not silently taken:** remedy **(a)** — document the view-level exemption and pin
+  it — over **(b)** gating the paths. Written into `docs/ai/DECISIONS.md` (2026-09-07). (b) was
+  rejected as a **behavior change that breaks a documented product behavior**: `execution.ipc.ts`
+  states in code that validation/dry-run stays open at view level so a Viewer's pre-run preview works,
+  and no browser is launched there.
+- **Runtime commit `dfcbdc5`** — comment-only at BOTH halves (9 lines in
+  `app/main/ipc/execution.ipc.ts` at the dry-run guard, 8 lines in
+  `app/main/execution/ExecutionApplicationService.ts` at the dry-run short-circuit). No predicate,
+  control flow, handler registration or exported signature changed.
+- **Control commit `f44b4b2`** — `scripts/verify-r0-characterization.mts` only, **R2.6c**, +204
+  insertions / **0 deletions**, so no existing assertion was weakened, reordered or deleted. Asserts
+  both literal predicates in their own scopes, the short-circuit's position ahead of
+  `applyRunGateEnforcement` and `executionEngine.startRun`, and that `execution:validate` has
+  **exactly zero** `assertSender*` calls. Cardinality precedes every ordering expression.
+- **Measured evidence:** `verify:r0-characterization` **175 PASS / 0 FAIL** from a fresh pre-control
+  baseline of **169 PASS / 0 FAIL** (delta +6 = 1 `check()` + 5 `mutationRejected()`), executed twice
+  with identical totals; `build` **PASS** (only the pre-existing, unrelated `securityKernel.ts`
+  dynamic/static import warning); `verify:security` **61 passed / 0 failed**, matching the recorded
+  baseline. Five mutations each rejected by the control's own `invariant`. **All readings are from
+  printed stdout; exit codes were NOT read** — the lease guard rejects command chaining, so `$?`
+  cannot be captured in this environment.
+- **Disclose, do not overstate:** mutation A (the escalation — service predicate narrowed to
+  `=== true`) is rejected by the structural **operator** assertion, not by the explicit complement
+  assertion. The complement assertion is logically entailed by the two predicate assertions as
+  written, so **no mutation currently fails on it alone**, and none was manufactured by weakening the
+  others. It is defense-in-depth against a future relaxation, **not** an independently proven control.
+- **Mock-site NOT APPLICABLE** — determination executed against `mock-site/README.md`, not assumed.
+  Every scenario is a live offline page driven by an already-authorized sender; the pinned property is
+  a main-process cross-module source relationship enforced before any page opens, and the regression it
+  guards cannot be originated by a browser page. No scenario added or changed.
+- **Restated for the two-narrative consistency check:** validation ledger **unchanged at 65 PASS / 2
+  NOT RUN / 0 BLOCKED across its 67 cases** — no ledger case was added, removed or re-run. Beads
+  measured directly after `bd close` and `bd export -o .beads/issues.jsonl`: **275 total / 268 closed /
+  5 open / 2 status-blocked** (`bd list --status blocked` → `awkit-7bu`, `awkit-cm8`), i.e. **7
+  outstanding / 268 closed**. `bd stats` printed Blocked **0**, which counts **dependency**-blocked
+  issues, not status-blocked ones — **do not cite it for that number, and do not let it erase the two
+  status-blocked issues.**
+- **One stale pin — measured here before any alteration, then moved by QA. Both readings matter.**
+  **Pre-alteration:** `npm run verify:roadmap-dashboard` finished **176/177 roadmap dashboard checks
+  passed** with exactly one FAIL, solely a stale non-vacuity pin: `FAIL 8 outstanding / 267 closed -
+  outstanding 7, closed 268`. That reading is the evidence the **pin** was stale rather than the
+  export (`275 issues parse` passed in the same run). The verifier is QA-owned and outside the
+  project-state lease, so it was not touched here; nothing under `tools/roadmap/` was hand-edited
+  either — it is derived. **QA has since moved the pin under its own lease and mutation-tested it**,
+  from `8 outstanding / 267 closed` to **7 outstanding / 268 closed** with the total held at 275, and
+  the re-run finished **177/177 roadmap dashboard checks passed** with the Overview banner reading
+  `Sources agree`. The pin now lives at `scripts/verify-roadmap-dashboard.mjs:459-460` (label string
+  at `:459`, predicate at `:460`, moved together, kept as an exact integer equality). Everything else
+  in the pre-alteration run already passed, including
+  `OK the Overview banner reads "Sources agree"` and
+  `OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED`.
+- **Expectation corrected, so it is not carried forward as fact:** R2.6c raising
+  `verify:r0-characterization` 169 → 175 was expected to move a second hardcoded baseline. **It does
+  not — no such pin exists.** A search of `scripts/**` for `169` returns only historical *Beads-total*
+  comments inside `verify-roadmap-dashboard.mjs`, and neither `verify:roadmap-dashboard` nor
+  `verify:verifier-classification` reported an r0-characterization total mismatch. Exactly one
+  baseline moved.
+- **Ledger history — appended for this move, still missing for the previous one.** The QA-owned prose
+  comment ledger in `scripts/verify-roadmap-dashboard.mjs` (lines ~135-458) records WHY each pin move
+  happened. QA **has** appended the 8/267 → 7/268 sentence for `awkit-ttvb` (verifier lines 455-458),
+  so this move is documented. **Residue, deliberately left unclosed:** the earlier 9/266 → 8/267 move
+  still has **no** discrete ledger line. It was not backfilled because reconstructing that entry would
+  mean guessing history nobody verified. Documentation drift in a QA-owned file, not a check defect —
+  every assertion there is correct and non-vacuous.
+- **Unrelated and untouched by this task:** `awkit-9a1l`, `awkit-wknd`, `awkit-s410`, `awkit-dhw6`, the
+  unfiled `WORKFLOW_STOP`-on-resume/retry QC observation, and the two status-blocked Oracle beads.
+  Completed `awkit-syaa` was **not** reopened or re-verified.
+
+## HANDOFF (2026-09-07) — awkit-syaa CLOSED: installed-Chrome repeat now requires Super User
 
 - **Bead closed:** `awkit-syaa` ("execution:repeatInstance can relaunch an installed-Chrome run without
   the Super User branch"), P1 authorization defect. `execution:repeatInstance` had asserted only
@@ -56,7 +137,7 @@
 - **QC observations, non-blocking:** (1) an unknown instance id under a blocked licensing gate now
   reports "not found" before the licensing message — both are `{success:false}`, by design, not a
   defect; (2) **new finding, no bead filed** (out of this task's scope) — `execution:resumeInstance`/
-  `retryHandoff` gate on `Permission.WORKFLOW_STOP` (`execution.ipc.ts:81`,`:89`) though unexploitable
+  `retryHandoff` gate on `Permission.WORKFLOW_STOP` (`execution.ipc.ts:90`,`:98`) though unexploitable
   under built-in roles; (3) `mutationRejected` accepts any thrown error (pre-existing, not introduced
   here; mitigated by each mutation's own distinguishing message).
 - **Prior task absorbed, not re-executed:** `awkit-roadmap-docs-0906` completed and pushed

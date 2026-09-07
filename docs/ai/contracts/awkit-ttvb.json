@@ -1,0 +1,500 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-ttvb",
+    "title": "execution:validate and the dry-run execution path have an unpinned cross-module authorization complement",
+    "objective": "execution:runWorkflow authorizes only when request.dryRun === false, and ExecutionApplicationService.runWorkflow short-circuits to { status: \"validated\" } when request.dryRun !== false. Those two literal predicates in two different modules are exact complements, which is the only reason the ungated path launches no browser - and nothing in the repository asserts that relationship. Flipping the service predicate to === true would create a genuine privilege escalation with every current control still green. KNOWN_ISSUES records the remedy as a decision, not a patch: either document the view-level exemption and add a control pinning it, or gate the paths. Take the documented option, record it as a decision, and pin the complement with a non-vacuous characterization control.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "bb2494aa483a5c81e5aa075396c32843cbac62f2",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      }
+    ]
+  },
+  "classification": {
+    "electron_main_change": true,
+    "ipc_change": true,
+    "authorization_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/main/ipc/execution.ipc.ts",
+      "app/main/execution/ExecutionApplicationService.ts",
+      "scripts/verify-r0-characterization.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-syaa.json",
+      "docs/ai/contracts/awkit-ttvb.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "architect",
+      "integration",
+      "security"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/ARCHITECTURE.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "This task pins an existing invariant; it does not change one. The runtime edit is comment-only at both sites. No predicate, no control flow, no handler registration, and no exported signature may change.",
+      "The invariant has two halves in two modules and must be documented at BOTH sites. Commenting only app/main/ipc/execution.ipc.ts would leave the half that actually enforces the no-browser property - ExecutionApplicationService.runWorkflow's dryRun !== false short-circuit - unmarked, which is the exact failure mode this task exists to close.",
+      "The pinning control belongs in scripts/verify-r0-characterization.mts, which already source()s both files inside runPreparationCharacterization(). Do not create a new verifier script; that would add a scripts/lib/verifier-classification.ts registry entry and a new npm script for no gain.",
+      "Do not edit src/runner/ExecutionEngine.ts, applyRunGateEnforcement, or any sibling IPC handler."
+    ],
+    "security": [
+      "Remedy (a) - document the view-level exemption and add a control pinning it - is chosen over remedy (b) - gate the paths - because (b) is a behavior change that breaks a documented product behavior: execution.ipc.ts states that validation/dry-run stays open at view level so a Viewer's pre-run preview works, and no browser is launched on that path. The choice is recorded in docs/ai/DECISIONS.md rather than made silently.",
+      "The security property being pinned is a COMPLEMENT relationship, not the presence of a token: the IPC guard runs when request.dryRun === false and the service returns early when request.dryRun !== false. The control must assert both literal predicates, in their own scopes, so that changing either one alone turns the suite red.",
+      "The control must additionally assert that the service short-circuit precedes applyRunGateEnforcement and executionEngine.startRun, since the no-browser property depends on that ordering and not only on the predicate.",
+      "The control must assert that execution:validate contains exactly zero assertSender* calls. That is the current, deliberate state; asserting it makes any future silent gating or ungating visible.",
+      "Cardinality before ordering: every ordering assertion must be preceded by a count assertion on the same collection, so no assertion can pass over an empty set.",
+      "Do not weaken, reorder or delete any existing assertion in execution.ipc.ts, ExecutionApplicationService.ts or scripts/verify-r0-characterization.mts."
+    ],
+    "compatibility": [
+      "No runtime behavior change of any kind. No IPC signature change, no persisted shape change, no migration. execution:runWorkflow, execution:validate and ExecutionApplicationService.runWorkflow keep their exact parameters, results and semantics.",
+      "A Viewer's dry-run pre-run preview must keep working exactly as before; that is precisely the behavior remedy (b) would have broken."
+    ],
+    "offline": [
+      "No network access, no new dependency, no packaging change, no new npm script."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "TTVB-DECISION-RECORDED",
+      "description": "docs/ai/DECISIONS.md records the view-level dry-run exemption as a deliberate decision with its reasoning - that gating would break the documented Viewer pre-run preview and that no browser is launched on the ungated path - and names the control that pins it. The docs/ai/KNOWN_ISSUES.md awkit-ttvb entry moves from open finding with an undecided remedy to resolved, citing the recorded decision. The KNOWN_ISSUES instruction 'do not silently pick one' is satisfied by an explicit written record, not by an unstated preference.",
+      "evidence_required": [
+        "staged-path-audit",
+        "verify-roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "TTVB-EXEMPTION-PINNED",
+      "description": "Comments at BOTH halves of the invariant name it and name the control: app/main/ipc/execution.ipc.ts at the execution:runWorkflow dryRun guard, and app/main/execution/ExecutionApplicationService.ts at the runWorkflow dryRun short-circuit. Each states that the two predicates are complements and that changing one alone is a security change. Both edits are comment-only.",
+      "evidence_required": [
+        "build",
+        "verify-r0-characterization"
+      ]
+    },
+    {
+      "id": "TTVB-GUARD-PREDICATE-PINNED",
+      "description": "A control in scripts/verify-r0-characterization.mts asserts, scoped by ipcHandlerSpan, that the execution:runWorkflow authorization guard is conditioned on exactly the predicate request.dryRun === false, and that the execution:validate handler contains exactly zero assertSender* calls. Both assertions state a cardinality before any ordering or identity expression.",
+      "evidence_required": [
+        "verify-r0-characterization",
+        "mutation-dryrun-complement"
+      ]
+    },
+    {
+      "id": "TTVB-COMPLEMENT-INVARIANT",
+      "description": "The same control asserts, scoped by methodBodySpan to ExecutionApplicationService.runWorkflow, that the short-circuit predicate is exactly request.dryRun !== false, and that the short-circuit return precedes both applyRunGateEnforcement and executionEngine.startRun. Together with the guard assertion this pins the complement relationship across the two modules, which is the property nothing previously asserted.",
+      "evidence_required": [
+        "verify-r0-characterization",
+        "mutation-dryrun-complement"
+      ]
+    },
+    {
+      "id": "TTVB-CONTROL-NON-VACUOUS",
+      "description": "Every assertion block that is INDEPENDENTLY LOAD-BEARING is proven to REJECT a broken source shape through the file's own mutateOnce/mutationRejected mechanism, and each mutant trips a distinct assertion first, verified against the observed failure line rather than predicted. The single exception is stated rather than papered over: assertion block (5), the complement relation itself, is logically ENTAILED by blocks (2)+(3), so no mutant can fail on (5) alone - the escalation mutant A is rejected by (3)'s structural operator check before (5) is reached. Block (5) is therefore defense-in-depth against a future refactor that relaxes (2) or (3), and is NOT independently proven. No assertion was weakened to manufacture a mutant for it, which would have been the dishonest way to make this criterion read cleanly. At minimum: flipping the service predicate to === true (the escalation this task exists to prevent), flipping the IPC guard to !== false, adding an assertSender call to execution:validate, and moving the short-circuit after applyRunGateEnforcement. A TypeScript compile error is never accepted as mutation evidence - only the control's own rejection is. Source is restored exactly after each mutation.",
+      "evidence_required": [
+        "mutation-dryrun-complement"
+      ]
+    },
+    {
+      "id": "TTVB-NO-BEHAVIOR-CHANGE",
+      "description": "The runtime diff is comment-only and provably changes no behavior: npm run build typechecks clean, and npm run verify:security still reports 61 passed / 0 failed, matching the historical pin, so the authorization surface is byte-equivalent in effect.",
+      "evidence_required": [
+        "build",
+        "verify-security"
+      ]
+    },
+    {
+      "id": "TTVB-NO-SCOPE-CREEP",
+      "description": "The implementation diff touches app/main/ipc/execution.ipc.ts, app/main/execution/ExecutionApplicationService.ts and scripts/verify-r0-characterization.mts only. src/runner/ExecutionEngine.ts is unmodified, no sibling IPC handler is altered, no new verifier script is created, and the separately tracked awkit-9a1l, awkit-utbf, awkit-s410, awkit-wknd and awkit-dhw6 are left alone. Completed awkit-syaa is not reopened.",
+      "evidence_required": [
+        "staged-path-audit",
+        "build"
+      ]
+    },
+    {
+      "id": "TTVB-MOCK-SITE-APPLICABILITY",
+      "description": "The mock-site applicability rule is answered from mock-site/README.md rather than assumed, and the answer is recorded with its reason. The evidence item is defined as an applicability DETERMINATION: PASS attests that the determination was executed and returned a definitive answer, and does not assert that mock-site coverage of this boundary exists.",
+      "evidence_required": [
+        "mock-site-applicability"
+      ]
+    },
+    {
+      "id": "TTVB-STATE-CONSISTENT",
+      "description": "Project state reflects reality: awkit-ttvb closed in Beads with .beads/issues.jsonl re-exported, KNOWN_ISSUES and DECISIONS updated, CURRENT_STATE and HANDOFF appended without disturbing the 65 PASS / 2 NOT RUN / 0 BLOCKED ledger tally if it is unchanged, dependency-blocked kept distinct from status = blocked, and the roadmap dashboard Overview still reading Sources agree from its own executed output. Any roadmap non-vacuity baseline movement is measured first, routed to QA, and mutation-tested.",
+      "evidence_required": [
+        "verify-verifier-classification",
+        "verify-roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "TTVB-BOOKKEEPING-ABSORBED",
+      "description": "The inherited awkit-syaa release bookkeeping is committed on main unchanged in meaning: docs/ai/contracts/active-lease.json is the truthful released record the lease tool wrote, docs/ai/contracts/awkit-syaa.json's diff is its own release append with completion, evidence, acceptance and push evidence untouched, and tools/roadmap/assignments.json's diff is claim-withdrawal-only with the owner $comment block and the AWKIT-SEC-005 claim intact. No protected owner path is staged, no bookkeeping-only lease was created, and no recursive lease chases this task's own release residue.",
+      "evidence_required": [
+        "bookkeeping-absorption-audit",
+        "staged-path-audit",
+        "push-origin-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "baseline-r0-characterization",
+      "type": "verifier",
+      "command": "npm run verify:r0-characterization",
+      "required": true,
+      "result": "PASS",
+      "artifact": "R0 characterization: 169 PASS / 0 FAIL. Executed by the runtime lease holder at dfcbdc5, on the comment-only runtime diff and BEFORE any change to scripts/verify-r0-characterization.mts, so it is a genuine fresh pre-change baseline for the R2.6c control rather than substituted awkit-syaa history. Read from the printed summary line; exit code NOT read (the lease guard rejects command chaining, so $? cannot be captured in this environment)."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "PASS",
+      "artifact": "PASS, executed by the qa lease holder after R2.6c was added. tsc --noEmit clean; the only warning printed is the pre-existing, unrelated securityKernel.ts dynamic/static import notice, which is present on the baseline as well. Exit code NOT read."
+    },
+    {
+      "id": "verify-r0-characterization",
+      "type": "verifier",
+      "command": "npm run verify:r0-characterization",
+      "required": true,
+      "result": "PASS",
+      "artifact": "R0 characterization: 175 PASS / 0 FAIL, from a 169 PASS / 0 FAIL baseline; delta +6 = 1 check() + 5 mutationRejected() cases, exactly the count R2.6c adds. Executed TWICE independently by the qa lease holder with identical totals and identical assertion outcomes; incidental data (temp-folder suffixes, run ids, R1B timing figures, concurrency event interleaving) differed between runs, which is expected and does not touch any assertion. Both readings taken from the printed summary line; exit codes NOT read."
+    },
+    {
+      "id": "mutation-dryrun-complement",
+      "type": "verifier",
+      "command": "npm run verify:r0-characterization",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Five mutations, each applied to ONE side while the other source stays real, each rejected by the control's own invariant with the message quoted below, and each message OBSERVED identically across both executions. (A) service predicate narrowed to request.dryRun === true - the escalation this task exists to prevent - rejected by `runWorkflow dry-run short-circuit operator: ===`. (B) IPC gate rewritten to request.dryRun !== true, rejected by `execution:runWorkflow dry-run gate operator: !==`. (C) execution:validate given an assertSenderPermission call, rejected by `execution:validate is no longer ungated, so the documented Viewer pre-run preview is broken: assertSenderPermission`. (D) short-circuit keeps predicate and result object but loses its early return, rejected by `runWorkflow `return { status: \"validated\" }` short-circuits: 0`. (E) whole short-circuit block relocated below applyRunGateEnforcement(\"run-request\") with nothing deleted, rejected by `the dry-run short-circuit no longer returns before the first applyRunGateEnforcement call`. No TypeScript compile error was accepted as mutation evidence; every rejection is the control's own invariant. mutateOnce operates on an in-memory string and each mutated text is built at top level, so its exactly-one-occurrence invariant fails loudly on anchor drift and the file on disk is never modified - source restoration is inherent, not asserted. DISCLOSED LIMITATION: mutation A is rejected by assertion (3)'s structural operator check rather than by assertion (5), and assertion (5) - the explicit complement relation - is logically entailed by (2)+(3) as written, so no mutation currently fails on (5) alone. No mutation was constructed by weakening (2) or (3) to manufacture one. Assertion (5) is therefore recorded as defense-in-depth against a future relaxation of (2) or (3), NOT as an independently proven control."
+    },
+    {
+      "id": "verify-security",
+      "type": "security",
+      "command": "npm run verify:security",
+      "required": true,
+      "result": "PASS",
+      "artifact": "61 passed, 0 failed - exactly matching the recorded baseline, confirming the comment-only runtime diff changed nothing on the authorization surface. Executed by the qa lease holder; includes the SEC-005 mutant surgery block (mutants A, B and C each with their own non-vacuity precondition), all green. Read from the printed summary line; exit code NOT read."
+    },
+    {
+      "id": "mock-site-applicability",
+      "type": "inspection",
+      "command": "read mock-site/README.md and record whether any scenario can exercise the dry-run authorization complement",
+      "required": true,
+      "result": "PASS",
+      "artifact": "DETERMINATION EXECUTED, ANSWER: NOT APPLICABLE - no mock-site scenario can exercise this boundary, and none was added or changed. mock-site/README.md was read and its full scenario inventory reviewed. Every scenario is a live offline HTTP page driven through the Recorder or Runner by an already-authorized sender; the closest run-path surfaces are /runner-lab, /form and /designer-lab, and all of them exercise execution AFTER authorization has already been granted. The property pinned here is a cross-module SOURCE relationship - the complement between execution:runWorkflow's `request.dryRun === false` IPC authorization gate and ExecutionApplicationService.runWorkflow's `request.dryRun !== false` short-circuit - enforced in the Electron main process before any page is opened. The regression it guards is an unauthorized IPC sender reaching dispatch, which no browser page can originate, since the mock site sits on the far side of the boundary being tested. The runtime diff is comment-only, so no scenario's observable behavior changed either. Per this contract's TTVB-MOCK-SITE-APPLICABILITY, this PASS attests that the determination ran and returned a definitive answer; it does NOT assert that mock-site coverage of this boundary exists."
+    },
+    {
+      "id": "verify-verifier-classification",
+      "type": "verifier",
+      "command": "npm run verify:verifier-classification",
+      "required": true,
+      "result": "PASS",
+      "artifact": "OBSERVED from printed stdout; exit code NOT read. Printed \"classification reconciled\" with all five checks OK. Breakdown: 1 documentation-consistency, 11 static-source-validation, 63 unit, 37 integration, 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance, sum 200. This task registered NO new verify:* or validate:* script - R2.6c is a new control INSIDE the existing scripts/verify-r0-characterization.mts, and the roadmap pin move edited the existing scripts/verify-roadmap-dashboard.mjs - so the registry in scripts/lib/verifier-classification.ts required no entry and the reconciliation total is unchanged at 200. PROVENANCE, established by reading tools/agents/lease-guard.mjs and by an observed BLOCK, NOT produced by this command: executed by the project-state lease holder because the Manager cannot run any npm run verify:* command in any lease state, because lease-guard.mjs isAllowedActiveShellCommand rejects a non-holder actor before reaching isCommonWriterCommand, and the no-lease read-only allowlist admits only agent:lease commands."
+    },
+    {
+      "id": "verify-roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "PASS",
+      "artifact": "OBSERVED from printed stdout; exit code NOT read. Final: \"177/177 roadmap dashboard checks passed\" with \"OK the Overview banner reads Sources agree\", \"OK 275 issues parse\", \"OK 7 outstanding / 268 closed\", \"OK 106 edges are present to classify\", \"OK no narrative copy of the ledger tally disagrees with the measured one\", \"OK no stale ledger claim is live in the tracker\". BASELINE MOVEMENT, per the required order: the verifier was run BEFORE any baseline was altered and printed 176/177 with exactly one FAIL, \"FAIL 8 outstanding / 267 closed - outstanding 7, closed 268\". That FAIL was a stale non-vacuity pin, not a regression - closing bead awkit-ttvb genuinely moved the measured tally. The new real count was then measured from four independent sources before the pin was touched: bd stats (Total 275, Open 5, In Progress 0, Blocked 0, Closed 268), bd list --status blocked (awkit-7bu, awkit-cm8, Total 2), bd show awkit-ttvb (CLOSED), and a direct recount of the .beads/issues.jsonl export TEXT (275 issue records, 268 status closed, 5 open, 2 blocked). Outstanding = 5 open + 2 status-blocked = 7. The edit was routed to the QA writer under its own lease and changed ONLY the necessary assertion at what are now lines 459-460: label \"8 outstanding / 267 closed\" to \"7 outstanding / 268 closed\" and predicate outstanding === 8 && closed === 267 to === 7 && === 268. The total pin 275 and the edge pin 106 were untouched, no === was relaxed to >=, and no assertion was weakened, reordered or deleted. MUTATION-TESTED non-vacuously: the predicate alone was reverted to the pre-move 8/267 while the corrected label stayed, and the verifier printed \"FAIL 7 outstanding / 268 closed - outstanding 7, closed 268\" at 176/177. The rejection is the intended one - it is the outstanding/closed pin itself naming the measured pair against the mutated pin, not a parse or syntax error, and exactly one check moved, which is the correct blast radius for a one-value mutation. The file was then restored exactly and re-verified at 177/177. A comment-only follow-up corrected a stale recount paragraph that the move had left contradicting the adjacent ledger line, and the count held at 177/177 with zero FAIL lines across that edit, which is the expected signature of an edit touching no executable text. Executed by the QA lease holder, not the Manager, for the holder-gate reason recorded on verify-verifier-classification. LEASE PROVENANCE, recorded here because it is not yet visible in write_lease.history: this edit ran under a FOURTH lease, awkit-ttvb:qa acquired 2026-09-07T07:30:11.342Z at commit f44b4b2 with the single allowed path scripts/verify-roadmap-dashboard.mjs, which is the lease still ACTIVE as this contract is committed. The lease tool appends a history entry only on RELEASE, and the final writer lease must not be released before staging, commit and push, so at commit time write_lease.history necessarily shows three released entries and not this fourth one. That is a structural ordering residue, not a missing record: the fourth entry appends when the lease is released after the push, in the same release event that withdraws the bead:awkit-ttvb claim from tools/roadmap/assignments.json and rewrites docs/ai/contracts/active-lease.json. Granting it also re-ran verifyPreservedPaths against all 24 owner fingerprints, which throws on drift and did not throw. This gap was surfaced by the GLM N4 acceptance audit and is disclosed rather than closed, because closing it would require either releasing the lease before the push or hand-writing a history entry the tool did not produce."
+    },
+    {
+      "id": "bookkeeping-absorption-audit",
+      "type": "inspection",
+      "command": "git diff -- docs/ai/contracts/active-lease.json docs/ai/contracts/awkit-syaa.json tools/roadmap/assignments.json",
+      "required": true,
+      "result": "PASS",
+      "artifact": "OBSERVED from executed git diff output, audited by reading the diffs rather than assuming their content. git diff --stat: active-lease.json 40 changed, awkit-syaa.json 22 changed, assignments.json 8 changed, 44 insertions / 26 deletions across 3 files. (1) docs/ai/contracts/awkit-syaa.json is +22 / -0, a PURE APPEND: the single new write_lease.history entry awkit-syaa:project-state:2026-09-06T23:42:37.009Z with status released and released_reason \"awkit-syaa closeout complete and pushed to origin main\". No evidence, acceptance, completion or push-evidence field is touched, and no deletion exists anywhere in the file, so completed awkit-syaa is NOT reopened and none of its recorded evidence is altered. (2) tools/roadmap/assignments.json is claim-withdrawal-plus-live-claim: the bead:awkit-syaa claim is withdrawn and this tranche's own live bead:awkit-ttvb claim occupies the same array slot. The owner $comment block at lines 2-19 is entirely outside the diff hunk and is byte-identical, and the defect:AWKIT-SEC-005 claim appears only as an unchanged context line. No owner content is overwritten. (3) docs/ai/contracts/active-lease.json is the truthful record the lease tool itself wrote, transitioning from the awkit-syaa released record to this task's active qa lease; it is a pure control-plane file with no owner content. CONCLUSION: the three inherited files are exactly the prior release lifecycle - release event only, append-only history, claim withdrawal only - with no altered awkit-syaa evidence, no altered runtime or test acceptance, no changed push evidence and no owner content overwritten. They are absorbed into this legitimate tranche's commit rather than being committed by a bookkeeping-only task, and no recursive lease was created to chase this task's own future release residue."
+    },
+    {
+      "id": "verify-security-provenance",
+      "type": "inspection",
+      "command": "git status --porcelain -- scripts/verify-security.mts",
+      "required": false,
+      "result": "PASS",
+      "artifact": "Raised by the routed qc reviewer as an open question it could not settle, and answered here by Manager-executed git. The reviewer observed scripts/verify-security.mts as modified-uncommitted and correctly noted that a 61 passed / 0 failed reading is only meaningful if the verifier body that produced it is the same one recorded in the baseline. The observation came from the SESSION-START git status snapshot, which predates several commits in this session and is stale. Live git status --porcelain -- scripts/verify-security.mts prints NOTHING, so the working tree is identical to HEAD for that file: it was committed by the earlier awkit-sec005 tranche and is not dirty. The 61/0 reading was therefore taken against the committed body, and the provenance question is closed rather than carried. The same command confirms the only dirty verifier scripts are this task's own two, scripts/verify-r0-characterization.mts and scripts/verify-roadmap-dashboard.mjs, both of which are staged in this commit. Read from printed stdout; exit code NOT read."
+    },
+    {
+      "id": "staged-path-audit",
+      "type": "inspection",
+      "command": "git diff --cached --name-only",
+      "required": true,
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "push-origin-main",
+      "type": "inspection",
+      "command": "git push origin main",
+      "required": true,
+      "result": "pending",
+      "artifact": ""
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-ttvb:runtime:2026-09-07T00:42:04.494Z",
+        "task": "awkit-ttvb",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/execution/ExecutionApplicationService.ts",
+          "app/main/ipc/execution.ipc.ts"
+        ],
+        "acquired_at": "2026-09-07T00:42:04.494Z",
+        "acquired_at_commit": "bb2494aa483a5c81e5aa075396c32843cbac62f2",
+        "released_at": "2026-09-07T00:47:35.399Z",
+        "released_reason": "awkit-ttvb runtime phase complete and committed as dfcbdc5 documenting the dry-run authorization complement at both halves, comment-only, r0-characterization unchanged at 169 PASS 0 FAIL. QA control routes next.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ttvb:qa:2026-09-07T00:51:18.625Z",
+        "task": "awkit-ttvb",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts"
+        ],
+        "acquired_at": "2026-09-07T00:51:18.625Z",
+        "acquired_at_commit": "dfcbdc520ac4e6980177a4d5920bd19f7f9c9142",
+        "released_at": "2026-09-07T07:12:08.674Z",
+        "released_reason": "awkit-ttvb QA phase complete and committed as f44b4b2 adding R2.6c to scripts verify-r0-characterization with 175 PASS 0 FAIL from a 169 baseline, verify security 61 passed 0 failed, build PASS. Project-state control routes next.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ttvb:project-state:2026-09-07T07:14:47.114Z",
+        "task": "awkit-ttvb",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-07T07:14:47.114Z",
+        "acquired_at_commit": "f44b4b21e5ae5bed59b124fe38ad078b20f31086",
+        "released_at": "2026-09-07T07:28:41.548Z",
+        "released_reason": "awkit-ttvb project-state closeout complete with bead closed, export refreshed to 275 issues, DECISIONS KNOWN_ISSUES CURRENT_STATE HANDOFF TASK_LOG updated, verify verifier-classification reconciled and verify roadmap-dashboard measured at 176 of 177 with the single stale outstanding-closed pin identified. QA control routes next for the baseline move.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ttvb:qa:2026-09-07T07:30:11.342Z",
+        "task": "awkit-ttvb",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-07T07:30:11.342Z",
+        "acquired_at_commit": "f44b4b21e5ae5bed59b124fe38ad078b20f31086",
+        "released_at": "2026-09-07T07:50:17.254Z",
+        "released_reason": "QA phase complete, roadmap pin moved to 7 outstanding 268 closed at 177 of 177 and the R2.6c block 5 comment now discloses the entailment with r0 characterization held at 175 PASS 0 FAIL, handing off to project state for the QC documentation findings",
+        "amendments": [
+          {
+            "timestamp": "2026-09-07T07:46:24.911Z",
+            "added": [
+              "scripts/verify-r0-characterization.mts"
+            ],
+            "reason": "QC finding 4 the in-file comment at assertion block 5 overstates its independence and must disclose the entailment already recorded in every other artifact",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "PASS",
+    "qa_status_artifact": "Routed to the qa lease holder, which executed every verifier reading in this task because the lease guard's holder gate (tools/agents/lease-guard.mjs, actor !== lease.holder returns false above isCommonWriterCommand) means the Manager can never run npm run verify:* in any lease state. QA produced: verify:r0-characterization 169 -> 175 PASS / 0 FAIL, five mutants each rejected by the intended assertion with the observed failure line read rather than predicted, npm run build PASS, verify:security 61 passed / 0 failed, and verify:roadmap-dashboard 176/177 BEFORE the baseline was altered and 177/177 after. DISCLOSED, so this sign-off is not mistaken for independent review: qa was also the WRITER for scripts/verify-r0-characterization.mts and scripts/verify-roadmap-dashboard.mjs, so its approval of those files is self-review. Independence for this task comes from qc, recorded below.",
+    "qc_status": "PASS",
+    "qc_status_artifact": "APPROVED WITH OBSERVATIONS, from the routed awkit-qc-reviewer, read-only, by file reading only. Git and npm run verify:* were both structurally blocked for that actor by the same holder gate, which the reviewer reported rather than worked around; its verifier-result corroboration is therefore a static trace, not an execution, and it said so. Verdict: no security defect, R2.6c is genuinely non-vacuous against every failure mode checked (zero-count with no positive anchor, .every() over an empty set, over-restrictive collection filter, short-circuit-to-true, ordering without preceding cardinality), the five mutants each fail for the intended reason, and the disclosed block-(5) entailment limitation is accurately stated and was not laundered. Eight findings, all documentation-truthfulness, none security. ADOPTED AND FIXED: (1) ARCHITECTURE.md recorded the exemption as an open bead; (2) five stale pin citations that would have shipped as a self-contradiction in this same commit, plus the now-false routed-to-QA framing at three sites; (4) the in-file comment at assertion block (5) was the one place the entailment was not disclosed; (5) HANDOFF.md presented completed ledger work as still open; (7) KNOWN_ISSUES.md preserved-verbatim finding needed a pre-dfcbdc5 line-number note. ADJUDICATED, NOT A DEFECT: (3) push evidence pending is the remaining closeout sequence, not a contradiction; (6) the 9/266 -> 8/267 ledger gap predates this task and was deliberately not backfilled because reconstructing it would require guessing unverified history; (8) R2.6c not asserting the handler-to-service delegation is covered by R2.1 in the same file, which the reviewer confirmed. RESOLVED SINCE THE REVIEW: its one UNKNOWN, the zero-deletion diffstat, was settled by Manager-executed git show --numstat: f44b4b2 is 204 insertions / 0 deletions and dfcbdc5 is 8 + 9 insertions / 0 deletions, both pure additions, so no pre-existing assertion could have been modified or weakened. Its open provenance question on verify:security is answered in the verify-security-provenance evidence item."
+  }
+}

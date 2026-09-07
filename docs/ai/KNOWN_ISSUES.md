@@ -171,25 +171,57 @@ a later phase does not mistake it for one.
   finding adjudicated a false positive).
 - **Open finding, no bead filed (QC observation, 2026-09-07) — `execution:resumeInstance` and
   `execution:retryHandoff` gate on `Permission.WORKFLOW_STOP` although they resume execution.**
-  `app/main/ipc/execution.ipc.ts:81` and `:89`. Unexploitable under built-in roles today — no built-in
+  `app/main/ipc/execution.ipc.ts:90` and `:98`. Unexploitable under built-in roles today — no built-in
   role holds `WORKFLOW_STOP` without `WORKFLOW_EXECUTE` (`src/security/authz/Permissions.ts:131-144`)
   — but reachable via a custom role or a direct grant. No browser launch is involved, so it is not the
   `awkit-syaa` defect class. No bead has been filed for this yet — the `awkit-syaa` task's scope
   deliberately forbade expanding into sibling findings; needs its own bead and disposition.
-- **Open finding, not fixed (`awkit-ttvb`, P2) — `execution:validate` reaches the application service
-  with no authorization, and no control covers it.** `app/main/ipc/execution.ipc.ts:58` invokes
-  `applicationService.validateWorkflow` with no sender/RBAC check at all, and the authorization block
-  at `:59-73` is entered only when `request.dryRun` is exactly `false`, so any request with `dryRun`
-  omitted or `true` reaches `applicationService.runWorkflow` before any authorization. The in-code
-  rationale at `:60-62` states this is view-level because no browser is launched, so a Viewer's
-  pre-run preview still works. Pre-existing and apparently intentional. What R2 changed is the
-  *framing*: under the new layering these paths are literally "application-service invocation without
-  authorization", and **no characterization control covers them** — the R2.1 control
-  `assertAuthorizationPrecedesRunPreparation`
-  (`scripts/verify-r0-characterization.mts:1379-1385`) scopes itself to the `execution:runWorkflow`
-  handler's real-run path and asserts exactly two `assertSender*` calls there. Remedy is a
-  **decision, not a patch**: either document the view-level exemption and add a control pinning it,
-  or gate the paths. Do not silently pick one.
+- **RESOLVED (`awkit-ttvb`, P2, 2026-09-07) — `execution:validate` reached the application service
+  with no authorization, and no control covered it.** **The original finding, preserved:** *(its
+  `execution.ipc.ts` line numbers are as of the original finding, before commit `dfcbdc5` added 9
+  comment lines to that file; deliberately not renumbered. Current locations: `execution:validate` is
+  still `:58` and the in-code rationale is still `:60-62`, now extended by the `dfcbdc5` comment at
+  `:64-71`, but the authorization block cited below as `:59-73` now sits at `:72-81`.)*
+  `app/main/ipc/execution.ipc.ts:58` invokes `applicationService.validateWorkflow` with no sender/RBAC
+  check at all, and the authorization block at `:59-73` is entered only when `request.dryRun` is
+  exactly `false`, so any request with `dryRun` omitted or `true` reaches
+  `applicationService.runWorkflow` before any authorization. The in-code rationale at `:60-62` states
+  this is view-level because no browser is launched, so a Viewer's pre-run preview still works.
+  Pre-existing and apparently intentional. What R2 changed is the *framing*: under the new layering
+  these paths are literally "application-service invocation without authorization", and **no
+  characterization control covered them** — the R2.1 control
+  `assertAuthorizationPrecedesRunPreparation` (`scripts/verify-r0-characterization.mts:1379-1385`)
+  scopes itself to the `execution:runWorkflow` handler's real-run path and asserts exactly two
+  `assertSender*` calls there. The remedy was a **decision, not a patch**: either document the
+  view-level exemption and add a control pinning it, or gate the paths — "do not silently pick one".
+  **The decision taken, and where it is recorded:** remedy **(a)** — document the exemption and pin
+  it — is now recorded in `docs/ai/DECISIONS.md` (2026-09-07, "The view-level dry-run exemption is
+  deliberate and is pinned by a control, not gated"). Remedy (b) was rejected because gating is a
+  behavior change that breaks a documented product behavior: `execution.ipc.ts` states in code that
+  validation/dry-run stays open at view level so a Viewer's pre-run preview works, and no browser is
+  launched on that path. **What makes it safe is a complement, and that complement is now pinned:**
+  the IPC guard runs when `request.dryRun === false` and
+  `ExecutionApplicationService.runWorkflow` returns `{ status: "validated" }` when
+  `request.dryRun !== false` — two literal predicates in two modules that are exact complements, with
+  the short-circuit returning before `applyRunGateEnforcement` and `executionEngine.startRun`.
+  **Pinned by R2.6c** in `scripts/verify-r0-characterization.mts` (commit `f44b4b2`, +204 insertions /
+  0 deletions, so no existing assertion was weakened, reordered or deleted), which asserts both
+  predicates in their own scopes, the short-circuit's position, and that `execution:validate` contains
+  exactly zero `assertSender*` calls. Both halves of the invariant are also commented in place
+  (commit `dfcbdc5`, comment-only: 9 lines in `app/main/ipc/execution.ipc.ts`, 8 lines in
+  `app/main/execution/ExecutionApplicationService.ts`; no predicate, control flow, handler
+  registration or signature changed). Evidence: `verify:r0-characterization` **175 PASS / 0 FAIL**
+  from a **169 PASS / 0 FAIL** pre-control baseline (delta +6 = 1 `check()` + 5 `mutationRejected()`),
+  executed twice with identical totals; `build` PASS; `verify:security` **61 passed / 0 failed**,
+  matching the recorded baseline, so the comment-only runtime diff changed nothing on the
+  authorization surface. **Disclosed limit — do not overstate this control:** the escalation mutation
+  (service predicate narrowed to `=== true`) is rejected by the structural *operator* assertion, not
+  by the explicit complement assertion; the complement assertion is logically entailed by the two
+  predicate assertions as written, so no mutation currently fails on it alone. It is
+  defense-in-depth against a future relaxation of those two assertions, **not** an independently
+  proven control. Mock-site: **NOT APPLICABLE** (determination executed against `mock-site/README.md`)
+  — every scenario is a live offline page driven by an already-authorized sender, and the regression
+  guarded here is an unauthorized IPC sender reaching dispatch, which no browser page can originate.
 - **Open finding, not fixed (`awkit-wknd`, P3) — `settings.superUser.chrome.mode` now has two
   readers in two files.** `app/main/ipc/execution.ipc.ts:64-65` reads it via `getUiSettings()` to
   choose the authorization branch; `app/main/execution/ExecutionApplicationService.ts:247` and

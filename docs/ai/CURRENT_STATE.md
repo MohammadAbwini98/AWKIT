@@ -1,5 +1,99 @@
 # CURRENT_STATE
 
+## awkit-ttvb CLOSED: the view-level dry-run exemption is a recorded decision, pinned by control R2.6c (2026-09-07)
+
+**Finding.** `execution:runWorkflow` authorizes only when `request.dryRun === false`, and
+`ExecutionApplicationService.runWorkflow` short-circuits to `{ status: "validated" }` when
+`request.dryRun !== false`. Those two literal predicates sit in two different modules and are **exact
+complements** — that complement, plus the short-circuit returning *before* `applyRunGateEnforcement`
+and `executionEngine.startRun`, is the only reason the ungated path launches no browser. **Nothing in
+the repository asserted that relationship**, so narrowing the service predicate to `=== true` would
+have been a genuine privilege escalation with every existing control still green. `execution:validate`
+is likewise ungated. Pre-existing and intentional; not a regression.
+
+**Decision, not a patch — recorded, not silently taken.** `KNOWN_ISSUES.md` framed the remedy as a
+choice and said "do not silently pick one". Remedy **(a)** — document the view-level exemption and add
+a control pinning it — was chosen over **(b)** gating the paths, and is written into
+`docs/ai/DECISIONS.md` (2026-09-07). (b) was rejected because it is a **behavior change that breaks a
+documented product behavior**: `execution.ipc.ts` states in code that validation/dry-run stays open at
+view level so a Viewer's pre-run preview works, and no browser is launched on that path.
+
+**Runtime — comment-only, commit `dfcbdc5`.** 9 lines in `app/main/ipc/execution.ipc.ts` at the
+`execution:runWorkflow` dry-run guard, 8 lines in `app/main/execution/ExecutionApplicationService.ts`
+at the `runWorkflow` dry-run short-circuit. Both halves of the invariant are now named in place, each
+stating that the two predicates are complements and that changing one alone is a security change. **No
+predicate, control flow, handler registration or exported signature changed.**
+
+**Control — `scripts/verify-r0-characterization.mts` only, commit `f44b4b2`, R2.6c (+204 insertions /
+0 deletions, so no existing assertion was weakened, reordered or deleted).** Asserts the complement
+relation between the two literal predicates in their own scopes, that the short-circuit returns before
+`applyRunGateEnforcement` and `executionEngine.startRun`, and that `execution:validate` contains
+**exactly zero** `assertSender*` calls. Cardinality is asserted before every ordering expression.
+
+**Measured evidence (all read from printed stdout; exit codes NOT read — the lease guard rejects
+command chaining, so `$?` cannot be captured in this environment).**
+`npm run verify:r0-characterization` — **175 PASS / 0 FAIL**, from a fresh pre-control baseline of
+**169 PASS / 0 FAIL** taken at `dfcbdc5` before any change to the verifier; delta **+6** = 1 `check()`
++ 5 `mutationRejected()`, exactly what R2.6c adds. Executed **twice** independently with identical
+totals. `npm run build` — **PASS** (`tsc --noEmit` clean; the only warning is the pre-existing,
+unrelated `securityKernel.ts` dynamic/static import notice, present on the baseline too).
+`npm run verify:security` — **61 passed / 0 failed**, exactly matching the recorded baseline,
+confirming the comment-only runtime diff changed nothing on the authorization surface.
+
+**Five mutations, each rejected by the control's own `invariant`**, each applied to one side while the
+other source stays real: (A) service predicate narrowed to `=== true`; (B) IPC gate rewritten to
+`!== true`; (C) an `assertSenderPermission` call added to `execution:validate`; (D) the short-circuit
+keeps its predicate and result object but loses its early return; (E) the whole short-circuit block
+relocated below `applyRunGateEnforcement("run-request")` with nothing deleted. No TypeScript compile
+error was accepted as mutation evidence.
+
+**Disclosed limit — stated deliberately, not softened.** Mutation A, the escalation this task exists
+to prevent, is rejected by the structural **operator** assertion, not by the explicit complement
+assertion. The complement assertion is logically entailed by the two predicate assertions as written,
+so **no mutation currently fails on it alone**, and none was manufactured by weakening the others to
+claim one did. That assertion is **defense-in-depth against a future relaxation, not an independently
+proven control.**
+
+**Mock-site: NOT APPLICABLE** — determination executed against `mock-site/README.md`, not assumed.
+Every scenario is a live offline HTTP page driven by an already-authorized sender; the property pinned
+here is a main-process cross-module source relationship enforced before any page opens, and the
+regression it guards (an unauthorized IPC sender reaching dispatch) cannot be originated by a browser
+page. No scenario was added or changed. This records that the determination ran and returned a
+definitive answer; it does **not** assert that mock-site coverage of this boundary exists.
+
+**Project-state tally, restated deliberately:** the Recorder/Reports/Settings validation ledger is
+**unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across its 67 cases** — no ledger case was added,
+removed or re-run by this task. Beads, measured directly after `bd close awkit-ttvb` and
+`bd export -o .beads/issues.jsonl` (`bd stats` + `bd list --status blocked`, because `bd stats`' own
+"Blocked" column counts **dependency**-blocked issues, not status-blocked ones — the trap documented at
+`scripts/verify-roadmap-dashboard.mjs:451-454`): **275 total / 268 closed / 5 open / 2 status-blocked**
+(`awkit-7bu`, `awkit-cm8`, both untouched here), i.e. **7 outstanding / 268 closed**. `bd stats` itself
+reported Open 5 / In Progress 0 / Blocked(dependency) 0 / Closed 268 (5+0+0+268 = 273, not 275 — the
+2-issue gap is exactly the status-blocked pair, consistent with the trap). **Dependency-blocked 0 does
+not erase the 2 status-blocked issues.**
+
+**Roadmap baseline moved by this task — measured here before any alteration, then moved by QA.**
+**Pre-alteration reading, preserved as the evidence that the verifier ran against the untouched
+baseline:** `npm run verify:roadmap-dashboard` was executed and finished **176/177 roadmap dashboard
+checks passed** with **exactly one** FAIL, and that FAIL was solely a stale non-vacuity pin:
+`FAIL 8 outstanding / 267 closed - outstanding 7, closed 268`. That reading is what proves the **pin**
+was stale rather than the export — the `275 issues parse` check passed in the same run, so
+`.beads/issues.jsonl` was current. Closing `awkit-ttvb` moved the tracker pin from
+`8 outstanding / 267 closed` to **7 outstanding / 268 closed**, total held at **275**. The verifier is
+QA-owned and outside this project-state lease, so it was **not** edited here; **QA has since moved the
+pin under its own lease and mutation-tested it**, and the re-run finished **177/177 roadmap dashboard
+checks passed** with the Overview banner reading `Sources agree`. The pin now lives at
+`scripts/verify-roadmap-dashboard.mjs:459-460` (label string at `:459`, predicate at `:460`, moved
+together and kept as an exact integer equality). Nothing under `tools/roadmap/` was hand-edited; it is
+derived. **Every other check in the pre-alteration run already passed**, including
+`OK the Overview banner reads "Sources agree"`, `OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED`, and both
+narrative-agreement checks. **Correcting an expectation, so it is not carried forward as fact:** R2.6c
+raising `verify:r0-characterization` from 169 to 175 was expected to move a second pin, but **no such
+pin exists** — a search of `scripts/**` for `169` returns only historical *Beads-total* comments in
+`verify-roadmap-dashboard.mjs`, and neither `verify:roadmap-dashboard` nor
+`verify:verifier-classification` reported an r0-characterization total mismatch. Only one baseline
+moved.
+
 ## awkit-syaa CLOSED: installed-Chrome repeat now requires Super User, matching `runWorkflow` (2026-09-07)
 
 **Defect.** `execution:repeatInstance` (`app/main/ipc/execution.ipc.ts`) asserted only
