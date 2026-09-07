@@ -307,7 +307,9 @@ mistake it for one.
   never been mutation-tested. Remedy for a later tranche: one mutation against
   `folderWriteCoordinator.ts` itself, or an assertion that samples the active keys from **inside** a
   queued task and requires the key to still be present.
-- **Open finding, not fixed (QC finding B) — a latent self-deadlock has no guard and no diagnostic.**
+- **RESOLVED (`awkit-utbf`, P2, 2026-09-07) — the latent same-key self-deadlock now rejects with a
+  diagnostic instead of hanging (QC finding B).** **The original finding, preserved verbatim:**
+  *a latent self-deadlock has no guard and no diagnostic.*
   `src/storage/ProfileStore.ts:190-196` correctly documents that re-entering `serialize()` from
   inside a lane task self-deadlocks, and both composite operations correctly call
   `writeProfileUnlocked` / `deleteUnlocked`. QC traced every current call site and found **no**
@@ -321,6 +323,49 @@ mistake it for one.
   source-level guard asserting that no call to `this.writeProfile(`, `this.create(`, `this.update(`,
   `this.delete(` or `this.import(` appears lexically inside a `this.serialize(` argument, or a
   runtime same-key re-entrancy throw in `runExclusive`.
+  **Remedy taken — the runtime option, commit `2b7f1a8`, `src/storage/folderWriteCoordinator.ts` only
+  (+62 / -3).** The source-level lexical guard was not taken: it only catches violations that are
+  lexically visible, whereas the runtime guard rejects at the moment the re-entrancy occurs.
+  `runExclusive` now imports `AsyncLocalStorage` from `node:async_hooks` (Node core — **no new
+  dependency and no manifest change**; the first `AsyncLocalStorage` use in `src/`), tracks task-local
+  held coordination keys, derives the folder key first, reads the async-context store, and if the
+  current task already holds that same key returns `Promise.reject(new Error(...))` naming both the
+  marker `re-entrant folder write coordination` and the exact coordination key. **The rejection
+  precedes all lane mutation** — no `lanes.get`, no `lanes.set`, no `pending` increment and no `tail`
+  reassignment sits above it (guard `:116-125`, condition `if (held?.has(key))` at `:117`) — so a
+  rejected call cannot strand the lane it exists to protect. Admitted tasks run under a **copied**
+  held-key set, with `als.run(...)` wrapping the **task invocation only** and the same `runTask`
+  closure passed to both branches of `owned.tail.then(runTask, runTask)`; FIFO accounting and lane
+  eviction are unchanged. It returns a rejected promise rather than throwing synchronously, so the
+  promise-returning contract is identical for every caller.
+  **Correction to the original finding's characterisation, so it is not carried forward wrong:** this
+  was a **permanent process-wide lane deadlock / leak**, never a partial-write or data-corruption
+  defect. The inner task **never starts**, so no bytes are written and no file is left in an
+  indeterminate state. Do not restate it as disk corruption.
+  **Evidence:** `verify:write-queue` **47/47** baseline → **51/55** red against the unguarded
+  implementation (commit `cd1d4fe`; four named failures, and the verifier **terminated and printed
+  totals rather than hanging**) → **55/55** green. Mutants: guard removed **51/55**, guard condition
+  can never match **51/55**, reject-ANY-nested-call **54/55** — where only the different-folder
+  nesting assertion flips, which proves the guard cannot simply ban all nesting. `build` **PASS**;
+  `verify:profile-store` **74/74**; `verify:r0-characterization` **175 PASS / 0 FAIL**. No mutation
+  remains on disk.
+  **Limitations of this fix — these are limits, NOT secretly fixed behavior.** (1) A fire-and-forget
+  same-key call (`void runExclusive(sameKey, inner)`) would not have deadlocked if truly never
+  awaited — it would simply queue — but the guard **rejects it anyway**, because at call time nothing
+  can know whether the caller will later await the returned promise. That is an accepted conservative
+  over-rejection inherent to detecting at the call, and its consequence is a possible **unhandled
+  rejection** in such a caller. No live caller does this: every call site of the sole production
+  caller `ProfileStore.serialize()` (`src/storage/ProfileStore.ts:44`) is awaited or returned, there
+  is no `void serialize(...)` anywhere, and no coordinator task schedules a detached continuation that
+  re-enters the same key — so this is **latent, not a live defect**. (2) `AsyncLocalStorage` is
+  **best-effort** async-context tracking: a boundary that fails to preserve async-hook context defeats
+  the detector, so this is detection, **not a proof that re-entrancy cannot occur**. (3) **Cross-key
+  cycles are explicitly out of scope** — A holding key1 while awaiting key2 as B holds key2 awaiting
+  key1 is undetected, and no global lock-order analysis was implemented. The guard is **same-key
+  only**.
+  **Left open deliberately and NOT touched by this fix:** the `then(task, task)` comment-attribution
+  defect and QC finding A (`awkit-s410`, vacuous eviction assertions) both above, and QC finding C
+  (path aliasing) below.
 - **Open finding, not fixed (QC finding C) — path aliasing silently splits a lane.**
   `src/storage/folderWriteCoordinator.ts:45-60` keys the lane textually (`resolve()` plus separator
   normalisation, lowercased on win32) and deliberately rejects `realpath` because the folder is

@@ -27,10 +27,10 @@
     },
     {
       "itemId": "bead:awkit-utbf",
-      "agent": "Quality Assurance Engineer",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-07T09:53:30.268Z",
-      "note": "write lease: scripts/verify-write-queue.mts"
+      "claimedAt": "2026-09-07T11:42:56.700Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-ttvb.json, docs/ai/contracts/awkit-utbf.json, tools/roadmap/assignments.json"
     }
   ]
 }

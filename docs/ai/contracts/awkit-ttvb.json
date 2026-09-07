@@ -560,6 +560,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ttvb:project-state:2026-09-07T08:50:37.049Z",
+        "task": "awkit-ttvb",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/contracts/awkit-ttvb.json"
+        ],
+        "acquired_at": "2026-09-07T08:50:37.049Z",
+        "acquired_at_commit": "03df2eb1c11981b277d1ab53913f4c02c8fb33d4",
+        "released_at": "2026-09-07T09:02:44.588Z",
+        "released_reason": "awkit-ttvb closeout complete: verifier battery PASS, contract reconciled, gate ok, pushed to origin main at f3470d4",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

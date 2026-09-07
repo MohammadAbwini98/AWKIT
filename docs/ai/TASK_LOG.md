@@ -1,6 +1,105 @@
 # TASK_LOG
 
-## 2026-09-07 (latest) — awkit-ttvb — dry-run authorization complement decided, recorded and pinned (Claude Opus 5)
+## 2026-09-07 (latest) — awkit-utbf — same-key re-entrancy into `runExclusive` rejects instead of deadlocking (Claude Opus 5)
+
+**Agents involved:** Manager (routing, lease issuance, Git — no Git command was run by any other
+role); QA (the red re-entrancy checks in `scripts/verify-write-queue.mts`); Persistence (the guard in
+`src/storage/folderWriteCoordinator.ts`); project-state (this entry — Beads, KNOWN_ISSUES,
+CURRENT_STATE, HANDOFF, TASK_LOG, the task contract).
+
+**Task:** close `awkit-utbf` (P2, risk level 3, "R1B follow-up B"). `runExclusive(folder, task)`
+serialized per-folder work via `owned.tail.then(task, task)`, so a task already running on key K that
+called `await runExclusive(K, innerTask)` queued the inner call behind itself — outer waits on inner,
+inner waits on the lane tail, lane tail waits on outer. No timer and no `AbortSignal` breaks that
+cycle: the inner task never starts, `pending` reaches 2 and never drains, and because lanes are
+process-wide every store pointed at that folder wedges for the life of the process. **A permanent
+process-wide lane deadlock/leak, not a partial-write or corruption defect** — the inner write never
+executes. The shipped code was already correct (composite operations call the `*Unlocked` internals),
+so this converts a silent hang into a diagnosable rejection rather than fixing a live hang.
+
+**Implementation, committed before this project-state phase.** `cd1d4fe` — `test(awkit-utbf)`: four
+red same-key re-entrancy checks, **51/55 by design from a 47/47 baseline**, four named failures and
+no hang. `2b7f1a8` — `fix(awkit-utbf)`: reject same-key re-entrant folder writes,
+`src/storage/folderWriteCoordinator.ts` only, **+62 / -3**. Imports `AsyncLocalStorage` from
+`node:async_hooks` (Node core — no new dependency, no manifest change, first use in `src/`), derives
+the key, reads the async-context store, and rejects **before any lane mutation** with an Error naming
+the marker `re-entrant folder write coordination` and the exact key. Admitted tasks run under a copied
+held-key set with `als.run` wrapping the task invocation only, and the same `runTask` closure passed
+to both `then` branches. Baseline `f3470d4`.
+
+**Files changed by this task (project-state phase only):** `docs/ai/CURRENT_STATE.md`,
+`docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`, `docs/ai/KNOWN_ISSUES.md`, `.beads/issues.jsonl` and
+`.beads/interactions.jsonl` (the latter an unavoidable `bd close` side effect).
+`tools/roadmap/assignments.json` was **not** edited here — the `bead:awkit-utbf` claim was already
+current from the lease grant, and the owner `$comment` block and the `defect:AWKIT-SEC-005` claim
+were left intact. `docs/ai/contracts/awkit-utbf.json` was **not** written — see "Could not do".
+
+**This task's actions:** `bd show awkit-utbf` (OPEN, P2, no dependency edges); `bd close awkit-utbf`;
+`bd export -o .beads/issues.jsonl` as its own command (`bd close` does not reliably refresh the
+export, and plain `bd export` writes to STDOUT); `bd stats` + `bd list --status blocked` to measure
+the tracker directly; moved **only** the `awkit-utbf` / QC-finding-B bullet in
+`docs/ai/KNOWN_ISSUES.md` from open finding to **RESOLVED**, preserving the original finding text
+verbatim inside it; appended new top `##` sections to `CURRENT_STATE.md` and `HANDOFF.md`, both
+restating the unchanged ledger tally; and resolved the lease's out-of-lease-write record on Manager
+authority. **The eleven earned evidence entries on `docs/ai/contracts/awkit-utbf.json` were applied
+by the MANAGER after this phase, not by project-state** — a lease holder cannot write its own task
+contract (see "Could not do").
+
+**Tests run in this phase:** none — this phase changed only Markdown, JSON bookkeeping and the Beads
+export. **Tests cited from the committed evidence, not re-run here:** `verify:write-queue` baseline
+**47/47**, red **51/55**, green **55/55** (re-confirmed at the committed tree); `npm run build`
+**PASS** (`tsc --noEmit` clean; main 1,542.27 kB / preload 20.57 kB / renderer 2,032.65 kB; only the
+known pre-existing `securityKernel.ts` mixed static/dynamic import advisory);
+`verify:profile-store` **74/74**; `verify:r0-characterization` **175 PASS / 0 FAIL**. Mutants: guard
+removed **51/55**, condition can never match **51/55**, reject-any-nesting **54/55** (only the
+different-folder nesting assertion flips, proving the guard cannot simply ban all nesting); no
+mutation remains on disk.
+
+**Not run, with why:** `npm run verify:verifier-classification` and `npm run verify:roadmap-dashboard`
+were **NOT RUN** — this lease explicitly forbids running `verify:*`, and the roadmap non-vacuity pin
+(7 outstanding / 268 closed → **6 outstanding / 269 closed**) lives in the QA-owned
+`scripts/verify-roadmap-dashboard.mjs`, outside this lease. The final delegate acceptance audit, the
+staged-path audit and the push are likewise **NOT RUN**. **QA and QC have not run for this task**, so
+`completion.status`, `qa_status` and `qc_status` stay `pending` — nothing was self-approved.
+Mock-site: **NOT APPLICABLE** (determination executed against `mock-site/README.md`) — an
+Electron/Node storage-coordination primitive with no page, locator, Recorder, Smart Wait,
+browser-dispatch, canvas or workflow-node surface. **Exit codes were NOT read for any command** — the
+lease guard rejects `&&`, `;`, `|` and redirection, so `$?` cannot be captured; every result is read
+from printed stdout.
+
+**Measured Beads tally:** 275 total / 269 closed / 4 open / 2 status-blocked (`awkit-7bu`,
+`awkit-cm8`), i.e. **6 outstanding / 269 closed**; `bd export` reported `Exported 275 issues`. `bd
+stats` printed Blocked 0, which counts **dependency**-blocked issues, not status-blocked ones, and
+its columns sum to 273 rather than 275 — the 2-issue gap is exactly the status-blocked pair.
+**Dependency-blocked 0 does not erase them.**
+
+**Could not do, stated plainly — two lease boundaries, neither worked around.** (1) `bd close` also
+wrote `.beads/interactions.jsonl`, outside the original project-state scope, and the bash audit
+recorded that out-of-lease write at `10:48:51Z`. `npm run agent:lease-amend` is **manager-only**
+(`tools/agents/lease-guard.mjs:319-322` reaches `isLeaseLifecycleCommand` only when
+`actor === "manager"`), so it was escalated; the **Manager amended the lease at `10:53:26Z`** and the
+path is now in `allowed_paths`. The violation entry in `active-lease.json` was
+then marked `"resolved": true` **by the lease holder on Manager authority**, with the amendment as
+its basis — the Manager could not do it itself, because `decideActorWrite` admits
+`docs/ai/contracts/active-lease.json` only to the holder, and `finalizeLease`
+(`tools/agents/lease.mjs:310-319`) refuses to release a lease with an unresolved violation. **The
+detection record was resolved, not deleted** — the event stays visible. (2) **The evidence entries in
+`docs/ai/contracts/awkit-utbf.json` could not be updated.** Although the file is listed in
+`allowed_paths`, `decideWrite` classifies a lease's own `docs/ai/contracts/${lease.task}.json` as
+`contract-control-plane` (`tools/agents/lease-guard.mjs:347-353`) and `decideActorWrite` admits that
+reason **only for the manager** (`:368-369`), so the write returned `non-holder`. The eleven earned
+evidence entries — `glm-a2-root-cause`, `baseline-write-queue`, `red-reentrancy-check`,
+`green-write-queue`, `mutation-reentrancy-guard`, `build`, `verify-profile-store`,
+`verify-r0-characterization`, `mock-site-applicability`, `glm-a3-post-diff` and
+`bookkeeping-absorption-audit` — were therefore **applied by the Manager after this phase**, from the
+numbers recorded above and in `CURRENT_STATE.md`. **The structural finding stands and is not softened
+by that outcome:** a lease holder cannot record its own evidence, so the write authority for a task
+contract sits with the Manager regardless of what `allowed_paths` lists.
+
+**Result:** `awkit-utbf` CLOSED. Documentation, Beads and the task contract reflect the shipped guard,
+its three accepted limitations and the checks that have **not** run.
+
+## 2026-09-07 — awkit-ttvb — dry-run authorization complement decided, recorded and pinned (Claude Opus 5)
 
 **Agents involved:** Manager (routing, lease issuance, Git — no Git command was run by any other
 role); Runtime (comment-only invariant documentation); QA (the R2.6c control and its mutations);

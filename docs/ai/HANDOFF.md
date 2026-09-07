@@ -1,6 +1,121 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-07, latest) — awkit-ttvb CLOSED: the view-level dry-run exemption is decided, recorded and pinned
+## HANDOFF (2026-09-07, latest) — awkit-utbf CLOSED: same-key re-entrancy into `runExclusive` rejects instead of hanging
+
+- **Bead closed:** `awkit-utbf` (P2, "R1B follow-up B: same-key re-entrancy into `runExclusive`
+  self-deadlocks silently with no guard"). `bd show` before closing reported status **OPEN**, P2,
+  type task, owner `MohammadAbwini98`, created and last updated 2026-09-04, and printed **no
+  Dependencies section — no `blocks` edges in either direction**.
+- **Root cause, stated exactly:** `runExclusive(folder, task)` in
+  `src/storage/folderWriteCoordinator.ts` serialized per-folder work via `owned.tail.then(task,
+  task)`. A task already running on key K that called `await runExclusive(K, innerTask)` queued the
+  inner call **behind itself** — the outer task waits for the inner result, the inner result waits
+  for the outer lane tail, and the outer lane tail waits for the outer task. **No timer and no
+  `AbortSignal` breaks that cycle.** The inner task never starts, `pending` reaches 2 and never
+  drains, the lane stays wedged, and because lanes are process-wide every store pointed at that
+  folder wedges for the life of the process.
+- **Do not inflate this:** it is a **permanent process-wide lane deadlock / leak**, **not** a
+  partial-write or data-corruption defect — the inner write never executes, so no bytes are written
+  and no file is left indeterminate. The guard is **same-key only**, never cross-key detection. And
+  the shipped code was already **correct** (ProfileStore's composite operations call the `*Unlocked`
+  internals), so this converts a silent hang into a diagnosable rejection — **it did not fix a live
+  in-product hang.**
+- **Remedy — commit `2b7f1a8`, `src/storage/folderWriteCoordinator.ts` only, +62 / -3.** Imports
+  `AsyncLocalStorage` from `node:async_hooks` (**Node core — no new dependency, no manifest change**;
+  first `AsyncLocalStorage` use in `src/`). Derives the folder key first, reads the async-context
+  store of task-held keys, and if the current task already holds that key returns
+  `Promise.reject(new Error(...))` naming both the marker `re-entrant folder write coordination` and
+  the exact coordination key. **The rejection precedes all lane mutation** — no `lanes.get`, no
+  `lanes.set`, no `pending` increment, no `tail` reassignment above it (guard `:116-125`, condition
+  `if (held?.has(key))` at `:117`). Admitted tasks run under a **copied** held-key set;
+  `als.run(...)` wraps the **task invocation only**, with the same `runTask` closure passed to both
+  branches of `owned.tail.then(runTask, runTask)`. FIFO accounting and lane eviction unchanged. A
+  **rejected promise, not a synchronous throw**, so the promise-returning contract is identical for
+  every caller.
+- **Limitations of this fix — carry these forward as limits, never as fixed behavior.** (1) A
+  fire-and-forget same-key call (`void runExclusive(sameKey, inner)`) would not have deadlocked if
+  truly never awaited — it would just queue — but the guard rejects it anyway, because at call time
+  nothing can know whether the caller will later await the promise. Accepted conservative
+  over-rejection, inherent to detecting at the call. (2) `AsyncLocalStorage` is **best-effort**
+  async-context tracking — a boundary that fails to preserve async-hook context defeats the
+  detector; this is not a proof that re-entrancy cannot occur. (3) **Cross-key cycles are explicitly
+  out of scope**; no global lock-order analysis was implemented.
+- **Live-caller adjudication (performed against source — do not redo):** the only production caller
+  of the shared coordinator is `ProfileStore.serialize()` at `src/storage/ProfileStore.ts:44`
+  (`SharedBrowserPool.runExclusive` is an unrelated private method of a different module, **not** a
+  caller). No live caller re-enters same-key `runExclusive` — `create()`, `update()`, `delete()` and
+  `writeProfile()` pass tasks that call only the `*Unlocked` internals, and `create()`'s inner
+  `this.get()` does not serialize. No live caller fire-and-forgets: every call site is awaited or
+  returned, with no `void serialize(...)` anywhere. No coordinator task schedules a detached
+  continuation re-entering the same key, and no other module calls the coordinator. **So the delegate
+  review's L1 (hypothetical unhandled rejection from a fire-and-forget same-key caller) and O1
+  (detached async continuation) are latent consequences of the already-disclosed conservative guard,
+  NOT live product defects — no blocker.** O2 (lane-state observability) is satisfied by the guard's
+  source ordering plus the verifier's cardinality-gated eviction check — **no internal debug API was
+  added**. O3 (the path in the error message; the key is a local folder path already logged verbatim
+  by `quarantineCorrupt`) and O4 (one small `Set` per admitted task on a path that already does
+  filesystem I/O) are observations only, **no change made**.
+- **Measured evidence:** baseline `verify:write-queue` **47/47**; **red first** — the four new checks
+  against the OLD unguarded implementation gave **51/55** (commit `cd1d4fe`), the four named failures
+  being *does not reject within 1500ms*, *rejection does not name same-key re-entrancy*, *rejection
+  does not include the coordination key*, and *re-entrant attempt times out instead of proving lane
+  state remains healthy*. **The red verifier terminated and printed totals — it did not hang the
+  test process.** Green after implementation **55/55**, re-confirmed at the committed tree. `build`
+  **PASS** (`tsc --noEmit` clean; main 1,542.27 kB / preload 20.57 kB / renderer 2,032.65 kB; only
+  the known pre-existing `securityKernel.ts` mixed static/dynamic import advisory).
+  `verify:profile-store` **74/74**. `verify:r0-characterization` **175 PASS / 0 FAIL**.
+- **Mutation evidence, each mutant compiled, executed, printed totals and restored:** M1 guard
+  removed → **51/55**; M2 guard condition can never match → **51/55**; M3 reject ANY nested call
+  regardless of key → **54/55**, where exactly the different-folder nesting assertion flips — which
+  is what proves the guard cannot simply ban all nesting. **No mutation remains on disk** (current
+  source contains `if (held?.has(key))`). Discrimination controls green: outside same-key caller
+  still admitted, outside same-key caller runs AFTER the running task in FIFO order, nested call on
+  a DIFFERENT folder still allowed.
+- **Mock-site NOT APPLICABLE** — determination executed against `mock-site/README.md`, not assumed:
+  an Electron/Node storage-coordination primitive with no page, locator, Recorder, Smart Wait,
+  browser-dispatch, canvas or workflow-node surface. Records that the determination ran and returned
+  a definitive answer; does **not** assert mock-site coverage exists.
+- **Restated for the two-narrative consistency check:** validation ledger **unchanged at 65 PASS / 2
+  NOT RUN / 0 BLOCKED across its 67 cases** — no ledger case was added, removed or re-run. Beads
+  **measured** after `bd close awkit-utbf` and `bd export -o .beads/issues.jsonl`: **275 total / 269
+  closed / 4 open / 2 status-blocked** (`bd list --status blocked` → `awkit-7bu`, `awkit-cm8`), i.e.
+  **6 outstanding / 269 closed**; `bd export` reported `Exported 275 issues`. `bd stats` printed
+  Blocked **0**, which counts **dependency**-blocked issues, not status-blocked ones — **do not cite
+  it for that number, and do not let it erase the two status-blocked issues.** Its own columns sum to
+  273, not 275, and that 2-issue gap is exactly the status-blocked pair.
+- **Next actions, none of them done here.** The roadmap non-vacuity pin must move from **7
+  outstanding / 268 closed** to **6 outstanding / 269 closed**; that pin is in the **QA-owned**
+  `scripts/verify-roadmap-dashboard.mjs` (currently `:459-460`), so it is outside the project-state
+  lease and was **not** touched — QA must move it under its own lease, mutation-test it, and re-run
+  with the Overview banner read from the verifier's own executed output. Still `pending` on the
+  contract: `verify:verifier-classification`, `verify:roadmap-dashboard`, the final delegate
+  acceptance audit, the staged-path audit and the push. **QA and QC have not run**, so
+  `completion.status`, `qa_status` and `qc_status` remain `pending` — nothing here is self-approved.
+- **Two lease boundaries hit, both disclosed rather than worked around.** (1) `bd close` also wrote
+  `.beads/interactions.jsonl`, which was not in the original project-state scope, so the bash audit
+  recorded an out-of-lease write at `10:48:51Z`. `npm run agent:lease-amend` is **manager-only**
+  (`tools/agents/lease-guard.mjs:319-322` reaches `isLeaseLifecycleCommand` only when
+  `actor === "manager"`), so project-state cannot amend its own lease; **the Manager amended it at
+  `10:53:26Z`** and the path is now named in `allowed_paths`. The violation record in
+  `active-lease.json` is now `"resolved": true` — **resolved on Manager authority with the amendment
+  as its basis, and retained rather than deleted** so the detection stays visible. The holder had to
+  write that resolution itself: `decideActorWrite` admits `active-lease.json` only to the holder, and
+  `finalizeLease` (`tools/agents/lease.mjs:310-319`) refuses to release a lease carrying an
+  unresolved violation. (2) **The task contract `docs/ai/contracts/awkit-utbf.json` could NOT be
+  written by project-state**, even though it is listed in `allowed_paths`: `decideWrite` classifies a
+  lease's own `docs/ai/contracts/${lease.task}.json` as `contract-control-plane`
+  (`tools/agents/lease-guard.mjs:347-353`) and `decideActorWrite` then admits that reason **only for
+  the manager** (`:368-369`), returning `non-holder` for everyone else. **The Manager has since
+  applied all eleven earned evidence entries** from the numbers in this note and in
+  `CURRENT_STATE.md`. **The structural finding stands regardless:** write authority for a task
+  contract sits with the Manager whatever `allowed_paths` says, so a holder can never record its own
+  evidence.
+- **Unrelated and untouched by this task:** the `then(task, task)` comment-attribution defect,
+  `gateBoundDominatesAFreeWriter`, `awkit-s410` (vacuous eviction assertions), QC finding C (path
+  aliasing), whole-document `update()` merge semantics, the in-process-only boundary, and the
+  `quarantineCorrupt` unlaned rename. Completed `awkit-ttvb` was **not** reopened or re-verified.
+
+## HANDOFF (2026-09-07) — awkit-ttvb CLOSED: the view-level dry-run exemption is decided, recorded and pinned
 
 - **Bead closed:** `awkit-ttvb` (P2, "R2 follow-up C: `execution:validate` reaches the application
   service with no authorization and no control"). `bd show` before closing reported status **OPEN**,

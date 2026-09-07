@@ -164,7 +164,9 @@
       "docs/ai/contracts/awkit-ttvb.json",
       "docs/ai/contracts/active-lease.json",
       "tools/roadmap/assignments.json",
-      ".beads/issues.jsonl"
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "scripts/verify-roadmap-dashboard.mjs"
     ],
     "consultants": [
       "architect",
@@ -172,9 +174,18 @@
       "performance"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-write-queue.mts"
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-ttvb.json",
+        "docs/ai/contracts/awkit-utbf.json",
+        "tools/roadmap/assignments.json"
       ]
     },
     "reviewers": [
@@ -307,120 +318,120 @@
       "type": "inspection",
       "command": "mcp__glm-delegate__glm_delegate - bounded root-cause analysis of the same-key re-entrancy deadlock",
       "required": false,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "GLM A2 returned COMPLETE at in=2844 out=11505 and identified the cycle correctly: the outer task awaits the inner result, the inner call chains behind owned.tail, and owned.tail settles only when the outer task returns. It also stated correctly that the inner task never executes, so this is a lane deadlock and leak rather than a partial-write or corruption defect. Claude adjudicated this independently against source; GLM did not authorize any decision."
     },
     {
       "id": "baseline-write-queue",
       "type": "verifier",
       "command": "npm run verify:write-queue",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Executed at baseline f3470d4 BEFORE the new checks existed: 47/47 checks passed. Establishes that the four later failures are the new checks and not pre-existing breakage."
     },
     {
       "id": "red-reentrancy-check",
       "type": "verifier",
       "command": "npm run verify:write-queue",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "RED FIRST, executed against the OLD unguarded implementation and committed as cd1d4fe: 51/55 checks passed, i.e. exactly the four new checks failed and nothing else regressed from the 47/47 baseline. The four named failures were: same-key re-entrant call does not reject within 1500ms; rejection does not name same-key re-entrancy; rejection does not include the coordination key; re-entrant attempt times out instead of proving lane state remains healthy. The verifier TERMINATED and printed totals - it did not hang the test process - because the re-entrant call is raced against a bounded deadline rather than awaited unconditionally."
     },
     {
       "id": "green-write-queue",
       "type": "verifier",
       "command": "npm run verify:write-queue",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "GREEN after the guard: 55/55 checks passed, run by the lease-holding persistence role and re-confirmed at the committed tree 2b7f1a8. Discrimination controls green in the same run: an outside same-key caller is still admitted, an outside same-key caller still runs AFTER the running task in FIFO order, and a nested call on a DIFFERENT folder is still allowed."
     },
     {
       "id": "mutation-reentrancy-guard",
       "type": "inspection",
       "command": "npm run verify:write-queue - executed once per mutant applied to src/storage/folderWriteCoordinator.ts, source restored after each",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Three mutants, each compiled, executed, printed totals and restored. M1 guard block deleted entirely: 51/55 - the same four deadlock checks fail. M2 guard condition rewritten so it can never match: 51/55 - proves the checks bind to the condition, not merely to the presence of the code. M3 reject ANY nested call regardless of key: 54/55, where exactly the different-folder nesting assertion flips - this is what proves the guard cannot pass by simply banning all nesting, and it is the mutation that a same-key-only suite would have missed. NO MUTATION REMAINS ON DISK: the current source contains the original condition if (held?.has(key)). The suite is therefore non-vacuous in both directions."
     },
     {
       "id": "build",
       "type": "build",
       "command": "npm run build",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "PASS at the committed tree 2b7f1a8. tsc --noEmit clean; all three electron-vite bundles emitted - main 1,542.27 kB, preload 20.57 kB, renderer 2,032.65 kB. The only warning is the known pre-existing securityKernel.ts mixed static/dynamic import advisory, which predates this task. AsyncLocalStorage comes from node:async_hooks - Node core - so there is no new dependency and no manifest change."
     },
     {
       "id": "verify-profile-store",
       "type": "verifier",
       "command": "npm run verify:profile-store",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "74/74 checks passed. ProfileStore.serialize is the only production caller of the shared coordinator, so this is the regression check that the guard did not change behaviour for the real consumer."
     },
     {
       "id": "verify-r0-characterization",
       "type": "verifier",
       "command": "npm run verify:r0-characterization",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "175 PASS / 0 FAIL. The R0 characterization suite measures the original concurrent same-folder replacement behaviour, so an unchanged result here is the evidence that the guard did not alter the coordination semantics it was built on top of."
     },
     {
       "id": "mock-site-applicability",
       "type": "inspection",
       "command": "read mock-site/README.md and record the applicability determination with its reason",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "DETERMINATION: NOT APPLICABLE. PASS here means the applicability determination was EXECUTED and returned a definitive answer - it does NOT mean mock-site coverage exists for this change, and none was created. Determination executed against mock-site/README.md rather than assumed. awkit-utbf changes an Electron/Node storage-coordination primitive with no page, locator, Recorder, Smart Wait, browser-dispatch, canvas or workflow-node surface, so no mock-site scenario can exercise it. This records that the applicability question was asked and answered definitively; it does NOT assert that mock-site coverage exists, and no mock-site scenario was fabricated."
     },
     {
       "id": "glm-a3-post-diff",
       "type": "inspection",
       "command": "mcp__glm-delegate__glm_review - bounded post-diff review of the guard and its check",
       "required": false,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "GLM A3 returned COMPLETE at in=4047 out=11866. It confirmed the guard precedes all lane mutation and raised one finding L1 plus four observations O1-O4. Claude ADJUDICATED each independently against live source and did not defer to the delegate. L1 (unhandled rejection from a fire-and-forget same-key caller) and O1 (a detached continuation re-entering the same key) are NOT live product defects: ProfileStore.serialize is the coordinator's only production caller; create, update, delete and writeProfile all pass tasks that call only the *Unlocked internals; create's inner this.get does not serialize; every call site is awaited or returned with no void serialize anywhere; and no coordinator task schedules a detached continuation. Both are latent consequences of the already-disclosed conservative over-rejection. O2 (lane-state observability) is satisfied by the guard's source ordering plus the verifier's cardinality-gated eviction check, so no internal debug API was added. O3 (the coordination key appears in the error message) is not a leak - the key is a local folder path already logged verbatim by quarantineCorrupt. O4 (one small Set per admitted task) is negligible on a path that already performs filesystem I/O. No change was made for any of the four."
     },
     {
       "id": "verify-verifier-classification",
       "type": "verifier",
       "command": "npm run verify:verifier-classification",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Executed by the qa lease holder on 2026-09-07: \"classification reconciled\" and \"all 200 verify:/validate: scripts are classified\" - 1 documentation-consistency, 11 static-source-validation, 63 unit, 37 integration, 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance; the seven buckets sum to 200. No new verifier script was added by awkit-utbf, so the registry was reconciled rather than extended."
     },
     {
       "id": "verify-roadmap-dashboard",
       "type": "verifier",
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Executed by the qa lease holder on 2026-09-07: \"177/177 roadmap dashboard checks passed\", exit 0, including \"OK 275 issues parse\", \"OK 6 outstanding / 269 closed\", \"OK 106 edges are present to classify\" and \"OK the Overview banner reads \\\"Sources agree\\\"\" - the banner was read from the run, not assumed, and both narratives are still counted, so the consistency check remains at 2 sources rather than silently dropping to 1. The pre-move baseline was \"176/177\", exit 1, with the single failure \"FAIL 7 outstanding / 268 closed - outstanding 6, closed 269\": a stale non-vacuity pin, not a product failure, and the denominator was read from the run rather than assumed. The moved pin was mutation-tested four ways against the current file, each turning it red: both fields wrong (5/270), closed-only wrong (6/270), outstanding-only wrong (5/269), and the pre-move pair (7/268). The two single-field mutations are what prove each conjunct is independently load-bearing; mutating both at once cannot distinguish a live pair from a live half with a dead partner. Restored to \"=== 6 && === 269\" and re-run green at 177/177. The assertion stayed an exact pair - never relaxed to a range or an inequality."
     },
     {
       "id": "glm-a4-acceptance",
       "type": "inspection",
       "command": "mcp__glm-delegate__glm_review - bounded final acceptance audit, summary packet only",
       "required": false,
-      "result": "pending",
-      "artifact": null
+      "result": "BLOCKED",
+      "artifact": "Delegation attempted TWICE and BLOCKED both times by network unreachability, not by EMPTY or TRUNCATED output. Attempt 1 (7 questions, read scope src/storage/folderWriteCoordinator.ts + docs/ai/contracts/awkit-utbf.json) and the one permitted narrower retry (5 questions, read scope src/storage/folderWriteCoordinator.ts only) each failed with WinError 10060: a TCP connect timeout reaching https://api.z.ai/api/anthropic. mcp__glm-delegate__glm_status confirms the credential is present (49 characters), so this is endpoint reachability and NOT a misconfiguration or a missing key. No A4 report was received, so no A4 finding was adopted or rejected. The acceptance questions were instead answered by the Manager directly against source, and those answers are Manager verification rather than independent review: the guard precedes all lane mutation (folderWriteCoordinator.ts:116-125, condition at :117, with no lanes.get, lanes.set, pending increment or tail reassignment above it), AsyncLocalStorage wraps the task invocation only (:139) and never the lane chain, the discriminator is same-key only (held?.has(key) at :117, so different-folder nesting is unaffected), and the rejection path returns before owned.pending is incremented so it cannot strand a lane. This item is required:false and therefore does not gate completion; it is recorded BLOCKED rather than NOT RUN because two real calls were made and both failed."
     },
     {
       "id": "bookkeeping-absorption-audit",
       "type": "inspection",
       "command": "git diff -- docs/ai/contracts/awkit-ttvb.json tools/roadmap/assignments.json docs/ai/contracts/active-lease.json",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "Inherited release bookkeeping audited and absorbed truthfully, not re-litigated. docs/ai/contracts/awkit-ttvb.json: the working-tree diff is a PURE APPEND of one released write_lease.history record, id awkit-ttvb:project-state:2026-09-07T08:50:37.049Z, whose released_reason records that the awkit-ttvb verifier battery passed, the contract was reconciled, the gate was ok and the work was pushed to origin main at f3470d4. That task's completion, qa_status, qc_status, acceptance results and push evidence are BYTE-FOR-BYTE UNCHANGED - awkit-ttvb was not reopened, re-verified or re-adjudicated. tools/roadmap/assignments.json: claim rotation only, moving the active claim to bead:awkit-utbf; the owner $comment block and the defect:AWKIT-SEC-005 claim are intact. docs/ai/contracts/active-lease.json: this task's own lease control plane. No protected owner path is involved in any of the three."
     },
     {
       "id": "staged-path-audit",
       "type": "inspection",
       "command": "git diff --cached --name-only",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "OBSERVED stdout, exactly 10 paths and nothing else: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-ttvb.json, docs/ai/contracts/awkit-utbf.json, tools/roadmap/assignments.json. Every one of the 10 is a member of the active project-state lease allowed_paths, so each satisfies boundedStagePath via leaseAllows (tools/agents/lease-guard.mjs). NO protected owner path is staged: AWTKIT.rar, Building priorities and integration-handoff/, docs/ai/contracts/awkit-glm-delegation-tooling.json, docs/ai/contracts/awkit-r1b-coordination.json, docs/ai/contracts/awkit-r2.json and docs/ai/contracts/awkit-ui1.json are all absent from the staged set and remain dirty in the working tree, untouched. This staged set absorbs all three inherited awkit-ttvb release-residue files - docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-ttvb.json and tools/roadmap/assignments.json - into this legitimate development tranche rather than into a bookkeeping-only commit."
     },
     {
       "id": "push-origin-main",
@@ -441,11 +452,104 @@
   },
   "completion": {
     "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
   },
   "write_lease": {
-    "history": [],
+    "history": [
+      {
+        "id": "awkit-utbf:qa:2026-09-07T09:53:30.268Z",
+        "task": "awkit-utbf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-07T09:53:30.268Z",
+        "acquired_at_commit": "f3470d40580c22aec954defa3a26cd6e355a8d24",
+        "released_at": "2026-09-07T10:04:17.118Z",
+        "released_reason": "awkit-utbf qa lease complete: section 6f red re-entrancy checks committed as cd1d4fe, write queue 51 of 55 by design from a 47 of 47 baseline with four named failures and no hang. Persistence control routes next to implement the guard.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-utbf:persistence:2026-09-07T10:08:57.076Z",
+        "task": "awkit-utbf",
+        "holder": "persistence",
+        "status": "released",
+        "allowed_paths": [
+          "src/storage/folderWriteCoordinator.ts"
+        ],
+        "acquired_at": "2026-09-07T10:08:57.076Z",
+        "acquired_at_commit": "cd1d4feed8828928209bb7078a80d679b8671666",
+        "released_at": "2026-09-07T10:44:54.593Z",
+        "released_reason": "persistence implementation committed as 2b7f1a8 with verify write-queue 55 of 55 and build PASS at the committed tree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-utbf:project-state:2026-09-07T10:46:06.628Z",
+        "task": "awkit-utbf",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-ttvb.json",
+          "docs/ai/contracts/awkit-utbf.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-07T10:46:06.628Z",
+        "acquired_at_commit": "2b7f1a88363f92e926df53b225acc97609db0c0e",
+        "released_at": "2026-09-07T11:09:55.277Z",
+        "released_reason": "project-state phase complete, routing the stale roadmap dashboard pin to qa",
+        "amendments": [
+          {
+            "timestamp": "2026-09-07T10:53:26.636Z",
+            "added": [
+              ".beads/interactions.jsonl"
+            ],
+            "reason": "bd close and bd export write the beads interactions log as a side effect so the project-state scope must name it honestly",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": [
+          {
+            "path": ".beads/interactions.jsonl",
+            "detectedAt": "2026-09-07T10:48:51.339Z",
+            "via": "bash",
+            "resolved": true,
+            "resolved_by": "manager",
+            "resolution": "REAL out-of-lease write, not a false positive. At 2026-09-07T10:48:51.339Z the mandated bd close awkit-utbf wrote .beads/interactions.jsonl as an unavoidable side effect of the beads tracker, at a moment when the project-state scope did not yet name that path. The holder did NOT revert it - interactions.jsonl is a log bd legitimately maintains, and deleting it to make a guard quiet would have been the workaround the guard exists to prevent - and did NOT attempt to write around the guard. The holder escalated instead, having first established that npm run agent:lease-amend is manager-only (tools/agents/lease-guard.mjs:319-322 reaches isLeaseLifecycleCommand only when actor === manager), so project-state cannot amend its own lease. The manager then amended the lease at 2026-09-07T10:53:26.636Z to add .beads/interactions.jsonl and name the scope honestly. Resolved because the path now appears in allowed_paths and the write itself is legitimate tracker bookkeeping produced by a command this task was required to run - the scope was wrong, the write was not. The detection record is retained rather than deleted so the event stays visible: resolving a violation must never erase it. Recorded by the lease holder on manager authority, because decideActorWrite admits docs/ai/contracts/active-lease.json only to the holder and finalizeLease (tools/agents/lease.mjs:310-319) refuses to release a lease with an unresolved violation."
+          }
+        ]
+      },
+      {
+        "id": "awkit-utbf:qa:2026-09-07T11:10:31.463Z",
+        "task": "awkit-utbf",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-07T11:10:31.463Z",
+        "acquired_at_commit": "2b7f1a88363f92e926df53b225acc97609db0c0e",
+        "released_at": "2026-09-07T11:42:14.443Z",
+        "released_reason": "awkit-utbf qa lease complete: the roadmap non-vacuity pin moved to 6 outstanding / 269 closed and committed as 2dbba0b, mutation-tested four ways with both conjuncts independently load-bearing, provenance ledger corrected to match. QC returned APPROVE-WITH-FINDINGS with nothing blocking. Routing next to project-state for documentation reconciliation and closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
     "overrides": []
   }
 }

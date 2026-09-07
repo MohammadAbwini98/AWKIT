@@ -1,16 +1,31 @@
 {
   "task": "awkit-utbf",
   "contract_path": "docs/ai/contracts/awkit-utbf.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-write-queue.mts"
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-ttvb.json",
+    "docs/ai/contracts/awkit-utbf.json",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-07T09:53:30.268Z",
-  "acquired_at_commit": "f3470d40580c22aec954defa3a26cd6e355a8d24",
+  "acquired_at": "2026-09-07T11:42:56.700Z",
+  "acquired_at_commit": "2dbba0bd88ba7c8434c48e93dc070dc87e492f26",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "AWTKIT.rar",
     "Building priorities and integration-handoff/",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-glm-delegation-tooling.json",
     "docs/ai/contracts/awkit-r1b-coordination.json",
@@ -21,15 +36,21 @@
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/interactions.jsonl": "926c8ff96f8ec3bfc7e87a620c67e9f54aa7f8d56e7ea03905f64ed76586fb16",
+    ".beads/issues.jsonl": "f977f087ba8dec76998fc9d678d68140560a275aafd11610f3d43c0d01ca5d06",
     "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
     "Building priorities and integration-handoff/": "absent",
-    "docs/ai/contracts/active-lease.json": "947d01e343fab96e8ffb1382f858358c8eb7e8292ad034ae4147fcf46c0310fd",
+    "docs/ai/CURRENT_STATE.md": "c0a268c2a206f3e010f0d537852a5607f3a7981c836baf4714b5c71c92666781",
+    "docs/ai/HANDOFF.md": "59c5f7e557b2517d5e75aaf5deeed61861b0f350b6e849c0c6dd85d58a57e8df",
+    "docs/ai/KNOWN_ISSUES.md": "b9fe0031890d8dfb721bccf5a9516bf23957568a2cd10767940674332c05a77b",
+    "docs/ai/TASK_LOG.md": "aa6c81c09ad528d8b200d7e8199da39b365f944531ca022cf2332f8ebad77b28",
+    "docs/ai/contracts/active-lease.json": "cdabdac2335d6afaabd8972491d938b31b144519322e1c97ac8a6f4f9305a9ec",
     "docs/ai/contracts/awkit-glm-delegation-tooling.json": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71",
     "docs/ai/contracts/awkit-r1b-coordination.json": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174",
     "docs/ai/contracts/awkit-r2.json": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228",
     "docs/ai/contracts/awkit-ttvb.json": "df802734e71c7af62dc32a9465b1ee78a542d7f2381c113cb64566a41424b457",
     "docs/ai/contracts/awkit-ui1.json": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552",
-    "docs/ai/contracts/awkit-utbf.json": "be06c11df3180a536a026229cc8421fc1a6307c7cc10abb099c712f925d25078",
+    "docs/ai/contracts/awkit-utbf.json": "6bfd1c73749ddb2ec7c2a858bc4a3859a8066520f82e96c1781c97e102e60bb8",
     "tools/roadmap/assignments.json": "59ced317a73e274f4989fa447e4c8f50ee297a5667c69687867468dfe782644f"
   },
   "baseline_watched_ignored": {
@@ -44,5 +65,12 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [
+    {
+      "path": "AWTKIT.rar",
+      "detectedAt": "2026-09-07T13:42:31.661Z",
+      "via": "bash",
+      "resolved": false
+    }
+  ]
 }
