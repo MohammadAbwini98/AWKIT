@@ -29,8 +29,8 @@
       "itemId": "bead:awkit-ttvb",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-07T07:50:47.050Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/ARCHITECTURE.md, docs/ai/CURRENT_STATE.md, docs/ai/DECISIONS.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-syaa.json"
+      "claimedAt": "2026-09-07T08:50:37.049Z",
+      "note": "write lease: docs/ai/contracts/awkit-ttvb.json"
     }
   ]
 }

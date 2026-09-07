@@ -180,11 +180,7 @@
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        "docs/ai/ARCHITECTURE.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md"
+        "docs/ai/contracts/awkit-ttvb.json"
       ]
     },
     "reviewers": [
@@ -311,7 +307,7 @@
       "command": "npm run build",
       "required": true,
       "result": "PASS",
-      "artifact": "PASS, executed by the qa lease holder after R2.6c was added. tsc --noEmit clean; the only warning printed is the pre-existing, unrelated securityKernel.ts dynamic/static import notice, which is present on the baseline as well. Exit code NOT read."
+      "artifact": "PASS, executed by the qa lease holder after R2.6c was added. tsc --noEmit clean; the only warning printed is the pre-existing, unrelated securityKernel.ts dynamic/static import notice, which is present on the baseline as well. Exit code NOT read. RESUMED FINAL READING, re-executed by the qa lease holder at cf066a8 after a session rate limit terminated the first closing battery: PASS, all three bundles emitted (out/main/main.js 1,541.79 kB built in 4.02s; out/preload/preload.mjs 20.57 kB built in 46ms; out/renderer/assets/renderer-DHTPf3g5.js 2,032.65 kB built in 7.99s), plus \"Embedded roadmap snapshot: 443 records from 14 sources.\" No FAIL or ERROR line. The same securityKernel.ts Rollup chunking advisory printed, unchanged. Exit code NOT read."
     },
     {
       "id": "verify-r0-characterization",
@@ -319,7 +315,7 @@
       "command": "npm run verify:r0-characterization",
       "required": true,
       "result": "PASS",
-      "artifact": "R0 characterization: 175 PASS / 0 FAIL, from a 169 PASS / 0 FAIL baseline; delta +6 = 1 check() + 5 mutationRejected() cases, exactly the count R2.6c adds. Executed TWICE independently by the qa lease holder with identical totals and identical assertion outcomes; incidental data (temp-folder suffixes, run ids, R1B timing figures, concurrency event interleaving) differed between runs, which is expected and does not touch any assertion. Both readings taken from the printed summary line; exit codes NOT read."
+      "artifact": "R0 characterization: 175 PASS / 0 FAIL, from a 169 PASS / 0 FAIL baseline; delta +6 = 1 check() + 5 mutationRejected() cases, exactly the count R2.6c adds. Executed TWICE independently by the qa lease holder with identical totals and identical assertion outcomes; incidental data (temp-folder suffixes, run ids, R1B timing figures, concurrency event interleaving) differed between runs, which is expected and does not touch any assertion. Both readings taken from the printed summary line; exit codes NOT read. RESUMED FINAL READING, a THIRD independent execution by the qa lease holder at cf066a8 after the rate-limited battery, and taken against the comment-only block-(5) disclosure edit that is committed as 03df2eb: \"R0 characterization: 175 PASS / 0 FAIL\", identical to both earlier readings. The only uppercase FAIL token in the whole run is that summary line's own zero count; every other fail/failure substring sits inside a [PASS]-prefixed negative-control label. Exit code NOT read."
     },
     {
       "id": "mutation-dryrun-complement",
@@ -351,7 +347,7 @@
       "command": "npm run verify:verifier-classification",
       "required": true,
       "result": "PASS",
-      "artifact": "OBSERVED from printed stdout; exit code NOT read. Printed \"classification reconciled\" with all five checks OK. Breakdown: 1 documentation-consistency, 11 static-source-validation, 63 unit, 37 integration, 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance, sum 200. This task registered NO new verify:* or validate:* script - R2.6c is a new control INSIDE the existing scripts/verify-r0-characterization.mts, and the roadmap pin move edited the existing scripts/verify-roadmap-dashboard.mjs - so the registry in scripts/lib/verifier-classification.ts required no entry and the reconciliation total is unchanged at 200. PROVENANCE, established by reading tools/agents/lease-guard.mjs and by an observed BLOCK, NOT produced by this command: executed by the project-state lease holder because the Manager cannot run any npm run verify:* command in any lease state, because lease-guard.mjs isAllowedActiveShellCommand rejects a non-holder actor before reaching isCommonWriterCommand, and the no-lease read-only allowlist admits only agent:lease commands."
+      "artifact": "OBSERVED from printed stdout; exit code NOT read. Printed \"classification reconciled\" with all five checks OK. Breakdown: 1 documentation-consistency, 11 static-source-validation, 63 unit, 37 integration, 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance, sum 200. This task registered NO new verify:* or validate:* script - R2.6c is a new control INSIDE the existing scripts/verify-r0-characterization.mts, and the roadmap pin move edited the existing scripts/verify-roadmap-dashboard.mjs - so the registry in scripts/lib/verifier-classification.ts required no entry and the reconciliation total is unchanged at 200. PROVENANCE, established by reading tools/agents/lease-guard.mjs and by an observed BLOCK, NOT produced by this command: executed by the project-state lease holder because the Manager cannot run any npm run verify:* command in any lease state, because lease-guard.mjs isAllowedActiveShellCommand rejects a non-holder actor before reaching isCommonWriterCommand, and the no-lease read-only allowlist admits only agent:lease commands. RESUMED FINAL READING, re-executed by the qa lease holder at cf066a8: \"classification reconciled\" again, with all five checks OK - all 200 verify:/validate: scripts are classified, no stale classification entries, every entry uses a taxonomy class, all 202 scripts/verify-* files are referenced by an npm script or justified, and the non-command-helper allowlist is justified and current. The per-class breakdown is unchanged (1 documentation-consistency, 11 static-source-validation, 63 unit, 37 integration, 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance, sum 200), which is the expected signature of a task that registered no new verifier script. No FAIL or ERROR line. Exit code NOT read."
     },
     {
       "id": "verify-roadmap-dashboard",
@@ -359,7 +355,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
       "result": "PASS",
-      "artifact": "OBSERVED from printed stdout; exit code NOT read. Final: \"177/177 roadmap dashboard checks passed\" with \"OK the Overview banner reads Sources agree\", \"OK 275 issues parse\", \"OK 7 outstanding / 268 closed\", \"OK 106 edges are present to classify\", \"OK no narrative copy of the ledger tally disagrees with the measured one\", \"OK no stale ledger claim is live in the tracker\". BASELINE MOVEMENT, per the required order: the verifier was run BEFORE any baseline was altered and printed 176/177 with exactly one FAIL, \"FAIL 8 outstanding / 267 closed - outstanding 7, closed 268\". That FAIL was a stale non-vacuity pin, not a regression - closing bead awkit-ttvb genuinely moved the measured tally. The new real count was then measured from four independent sources before the pin was touched: bd stats (Total 275, Open 5, In Progress 0, Blocked 0, Closed 268), bd list --status blocked (awkit-7bu, awkit-cm8, Total 2), bd show awkit-ttvb (CLOSED), and a direct recount of the .beads/issues.jsonl export TEXT (275 issue records, 268 status closed, 5 open, 2 blocked). Outstanding = 5 open + 2 status-blocked = 7. The edit was routed to the QA writer under its own lease and changed ONLY the necessary assertion at what are now lines 459-460: label \"8 outstanding / 267 closed\" to \"7 outstanding / 268 closed\" and predicate outstanding === 8 && closed === 267 to === 7 && === 268. The total pin 275 and the edge pin 106 were untouched, no === was relaxed to >=, and no assertion was weakened, reordered or deleted. MUTATION-TESTED non-vacuously: the predicate alone was reverted to the pre-move 8/267 while the corrected label stayed, and the verifier printed \"FAIL 7 outstanding / 268 closed - outstanding 7, closed 268\" at 176/177. The rejection is the intended one - it is the outstanding/closed pin itself naming the measured pair against the mutated pin, not a parse or syntax error, and exactly one check moved, which is the correct blast radius for a one-value mutation. The file was then restored exactly and re-verified at 177/177. A comment-only follow-up corrected a stale recount paragraph that the move had left contradicting the adjacent ledger line, and the count held at 177/177 with zero FAIL lines across that edit, which is the expected signature of an edit touching no executable text. Executed by the QA lease holder, not the Manager, for the holder-gate reason recorded on verify-verifier-classification. LEASE PROVENANCE, recorded here because it is not yet visible in write_lease.history: this edit ran under a FOURTH lease, awkit-ttvb:qa acquired 2026-09-07T07:30:11.342Z at commit f44b4b2 with the single allowed path scripts/verify-roadmap-dashboard.mjs, which is the lease still ACTIVE as this contract is committed. The lease tool appends a history entry only on RELEASE, and the final writer lease must not be released before staging, commit and push, so at commit time write_lease.history necessarily shows three released entries and not this fourth one. That is a structural ordering residue, not a missing record: the fourth entry appends when the lease is released after the push, in the same release event that withdraws the bead:awkit-ttvb claim from tools/roadmap/assignments.json and rewrites docs/ai/contracts/active-lease.json. Granting it also re-ran verifyPreservedPaths against all 24 owner fingerprints, which throws on drift and did not throw. This gap was surfaced by the GLM N4 acceptance audit and is disclosed rather than closed, because closing it would require either releasing the lease before the push or hand-writing a history entry the tool did not produce."
+      "artifact": "OBSERVED from printed stdout; exit code NOT read. Final: \"177/177 roadmap dashboard checks passed\" with \"OK the Overview banner reads Sources agree\", \"OK 275 issues parse\", \"OK 7 outstanding / 268 closed\", \"OK 106 edges are present to classify\", \"OK no narrative copy of the ledger tally disagrees with the measured one\", \"OK no stale ledger claim is live in the tracker\". BASELINE MOVEMENT, per the required order: the verifier was run BEFORE any baseline was altered and printed 176/177 with exactly one FAIL, \"FAIL 8 outstanding / 267 closed - outstanding 7, closed 268\". That FAIL was a stale non-vacuity pin, not a regression - closing bead awkit-ttvb genuinely moved the measured tally. The new real count was then measured from four independent sources before the pin was touched: bd stats (Total 275, Open 5, In Progress 0, Blocked 0, Closed 268), bd list --status blocked (awkit-7bu, awkit-cm8, Total 2), bd show awkit-ttvb (CLOSED), and a direct recount of the .beads/issues.jsonl export TEXT (275 issue records, 268 status closed, 5 open, 2 blocked). Outstanding = 5 open + 2 status-blocked = 7. The edit was routed to the QA writer under its own lease and changed ONLY the necessary assertion at what are now lines 459-460: label \"8 outstanding / 267 closed\" to \"7 outstanding / 268 closed\" and predicate outstanding === 8 && closed === 267 to === 7 && === 268. The total pin 275 and the edge pin 106 were untouched, no === was relaxed to >=, and no assertion was weakened, reordered or deleted. MUTATION-TESTED non-vacuously: the predicate alone was reverted to the pre-move 8/267 while the corrected label stayed, and the verifier printed \"FAIL 7 outstanding / 268 closed - outstanding 7, closed 268\" at 176/177. The rejection is the intended one - it is the outstanding/closed pin itself naming the measured pair against the mutated pin, not a parse or syntax error, and exactly one check moved, which is the correct blast radius for a one-value mutation. The file was then restored exactly and re-verified at 177/177. A comment-only follow-up corrected a stale recount paragraph that the move had left contradicting the adjacent ledger line, and the count held at 177/177 with zero FAIL lines across that edit, which is the expected signature of an edit touching no executable text. Executed by the QA lease holder, not the Manager, for the holder-gate reason recorded on verify-verifier-classification. LEASE PROVENANCE, recorded here because it is not yet visible in write_lease.history: this edit ran under a FOURTH lease, awkit-ttvb:qa acquired 2026-09-07T07:30:11.342Z at commit f44b4b2 with the single allowed path scripts/verify-roadmap-dashboard.mjs, which is the lease still ACTIVE as this contract is committed. The lease tool appends a history entry only on RELEASE, and the final writer lease must not be released before staging, commit and push, so at commit time write_lease.history necessarily shows three released entries and not this fourth one. That is a structural ordering residue, not a missing record: the fourth entry appends when the lease is released after the push, in the same release event that withdraws the bead:awkit-ttvb claim from tools/roadmap/assignments.json and rewrites docs/ai/contracts/active-lease.json. Granting it also re-ran verifyPreservedPaths against all 24 owner fingerprints, which throws on drift and did not throw. This gap was surfaced by the GLM N4 acceptance audit and is disclosed rather than closed, because closing it would require either releasing the lease before the push or hand-writing a history entry the tool did not produce. RESUMED FINAL READING, re-executed by the qa lease holder at cf066a8 against the committed 7/268 pin: \"177/177 roadmap dashboard checks passed\" with zero FAIL lines. Verbatim supporting lines: \"OK the Overview banner reads Sources agree\", \"OK tally is 65 PASS / 2 NOT RUN / 0 BLOCKED\", \"OK 67 cases\", \"OK the ledger parse is not degraded\", \"OK both narrative documents assert a tally\", \"OK docs/ai/CURRENT_STATE.md agrees with the measured tally\", \"OK docs/ai/HANDOFF.md agrees with the measured tally\", \"OK no narrative copy of the ledger tally disagrees with the measured one\", \"OK 275 issues parse\", \"OK 7 outstanding / 268 closed\", \"OK every issue record in the export was parsed, none silently dropped\". This reading is what makes the baseline move self-consistent: the pin that FAILED at 176/177 before it was corrected now passes with the total and edge pins untouched. Exit code NOT read. LEASE PROVENANCE UPDATE: the fourth lease described above was released after its two verifier scripts were committed as 03df2eb, so its history entry does append; the residue now moves to the FIFTH lease, awkit-ttvb:project-state, which is the one active as this contract is committed and which therefore cannot record its own release here."
     },
     {
       "id": "bookkeeping-absorption-audit",
@@ -378,12 +374,20 @@
       "artifact": "Raised by the routed qc reviewer as an open question it could not settle, and answered here by Manager-executed git. The reviewer observed scripts/verify-security.mts as modified-uncommitted and correctly noted that a 61 passed / 0 failed reading is only meaningful if the verifier body that produced it is the same one recorded in the baseline. The observation came from the SESSION-START git status snapshot, which predates several commits in this session and is stale. Live git status --porcelain -- scripts/verify-security.mts prints NOTHING, so the working tree is identical to HEAD for that file: it was committed by the earlier awkit-sec005 tranche and is not dirty. The 61/0 reading was therefore taken against the committed body, and the provenance question is closed rather than carried. The same command confirms the only dirty verifier scripts are this task's own two, scripts/verify-r0-characterization.mts and scripts/verify-roadmap-dashboard.mjs, both of which are staged in this commit. Read from printed stdout; exit code NOT read."
     },
     {
+      "id": "glm-n4-acceptance-audit",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_review - bounded final acceptance audit, summary packet only",
+      "required": false,
+      "result": "PASS",
+      "artifact": "ADVISORY ONLY. GLM is read-only, is not a substitute reviewer, and does not authorize completion; Claude adjudicated every answer independently against executed evidence. EXECUTED after the four resumed final verifier readings, with a deliberately small packet (objective and chosen remedy, the two complement predicates, the R2.6c assertion-block summary, the five mutation outcomes with the block-(5) entailment disclosed, the comment-only runtime diff shape, the two QA diff shapes, the four final verifier readings, tracker and ledger counts, QA/QC dispositions, planned staged paths and the protected owner list). Full source was NOT sent, because the two prior GLM calls truncated at their caps on large inputs. Response COMPLETE at in=3634 out=4645, in the mandated one-line-per-question format: 1. PASS, 2. PASS, 3. PASS, 4. PASS, 5. PASS, 6. PASS, 7. PASS. CLAUDE'S ADJUDICATION, which is the binding one: Q1, Q2, Q4, Q5 and Q7 ADOPTED, each independently backed by evidence Claude executed or read in source. Q3 ADOPTED WITH A REFINEMENT rather than as written - the five mutants are non-vacuous for assertion blocks (1) through (4), but they do NOT establish block (5), which remains recorded as defense-in-depth per the disclosed limitation on mutation-dryrun-complement; a blanket PASS on Q3 must not be read as retiring that disclosure. Q6 TREATED AS ADVISORY ONLY and NOT adopted on GLM's word, because GLM audited a stated plan and not an index; the binding check is the executed git diff --cached --name-only recorded on staged-path-audit. HONEST ATTEMPT HISTORY, recorded because failed delegations must not be hidden: N1 task triage COMPLETE; N2 root-cause analysis TRUNCATED, returning no text content at its exact cap (in=28164, out=14000 of 14000); N3 post-diff review TRUNCATED at in=8981, out=6000 of 6000; the one permitted narrower N3 retry also returned EMPTY. Those three produced no usable finding and none was converted into a PASS. Their failure does not weaken this task's evidence, which was produced by Claude and the routed AWKIT agents executing real commands."
+    },
+    {
       "id": "staged-path-audit",
       "type": "inspection",
       "command": "git diff --cached --name-only",
       "required": true,
-      "result": "pending",
-      "artifact": ""
+      "result": "PASS",
+      "artifact": "READ FROM THE ACTUAL INDEX, not predicted, for each of the three commits this tranche makes after the runtime and test commits. COMMIT cf066a8 (project-state, 12 paths): .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/ARCHITECTURE.md, docs/ai/CURRENT_STATE.md, docs/ai/DECISIONS.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-syaa.json, docs/ai/contracts/awkit-ttvb.json, tools/roadmap/assignments.json - 936 insertions / 41 deletions. COMMIT 03df2eb (qa, exactly 2 paths): scripts/verify-r0-characterization.mts and scripts/verify-roadmap-dashboard.mjs, 16 insertions / 7 deletions, with no docs, no contracts and no bookkeeping mixed in. THIS COMMIT (project-state, exactly 3 paths): docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-ttvb.json, tools/roadmap/assignments.json - 100 insertions / 83 deletions. The two bookkeeping diffs were read in full rather than assumed: active-lease.json is the lease tool's own rewrite from the fourth (qa) lease to the fifth (project-state) lease, narrowing allowed_paths to the single contract path and clearing the four spent amendments; assignments.json is the same bead:awkit-ttvb claim slot re-stamped with the new lease scope and timestamp. The owner $comment block at assignments.json lines 2-19 and the defect:AWKIT-SEC-005 claim are entirely outside the diff hunk, which begins at line 29, so neither is touched. PROTECTED OWNER PATHS VERIFIED ABSENT FROM THE INDEX in all three commits: AWTKIT.rar, Building priorities and integration-handoff/, docs/ai/contracts/awkit-glm-delegation-tooling.json, docs/ai/contracts/awkit-r1b-coordination.json, docs/ai/contracts/awkit-r2.json and docs/ai/contracts/awkit-ui1.json all remain dirty-or-untracked in the working tree and appear in no git diff --cached --name-only listing. The lease guard enforces this structurally as well: boundedStagePath admits only the active lease's allowed_paths, the two SYSTEM_BOOKKEEPING_PATHS and this task's own contract, which is why the closeout is split across leases in the first place."
     },
     {
       "id": "push-origin-main",
@@ -478,6 +482,84 @@
         ],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ttvb:project-state:2026-09-07T07:50:47.050Z",
+        "task": "awkit-ttvb",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/ARCHITECTURE.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-syaa.json"
+        ],
+        "acquired_at": "2026-09-07T07:50:47.050Z",
+        "acquired_at_commit": "f44b4b21e5ae5bed59b124fe38ad078b20f31086",
+        "released_at": "2026-09-07T08:05:37.863Z",
+        "released_reason": "project-state closeout committed as cf066a8 rotating the final writer lease to qa for the two verifier scripts and the closing verifier runs",
+        "amendments": [
+          {
+            "timestamp": "2026-09-07T08:03:28.412Z",
+            "added": [
+              ".beads/issues.jsonl"
+            ],
+            "reason": "Closeout staging scope for awkit-ttvb: the bead export is project-state owned and belongs in this tranche commit.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-09-07T08:03:57.879Z",
+            "added": [
+              ".beads/interactions.jsonl"
+            ],
+            "reason": "Closeout staging scope for awkit-ttvb: the bead interactions log is project-state owned and belongs in this tranche commit.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-09-07T08:04:09.038Z",
+            "added": [
+              "docs/ai/DECISIONS.md"
+            ],
+            "reason": "Closeout staging scope for awkit-ttvb: the recorded view-level exemption decision is project-state owned and belongs in this tranche commit.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-09-07T08:04:20.103Z",
+            "added": [
+              "docs/ai/contracts/awkit-syaa.json"
+            ],
+            "reason": "Closeout staging scope for awkit-ttvb: the inherited awkit-syaa release-history append is the residue this tranche absorbs and must be staged with it.",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ttvb:qa:2026-09-07T08:06:18.609Z",
+        "task": "awkit-ttvb",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-07T08:06:18.609Z",
+        "acquired_at_commit": "cf066a8f9ceed9c66a3cc99bb4527fad0b312d9f",
+        "released_at": "2026-09-07T08:49:46.836Z",
+        "released_reason": "qa verifier closeout committed as 03df2eb after the four final verifier readings passed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
@@ -494,7 +576,7 @@
     "status": "pending",
     "qa_status": "PASS",
     "qa_status_artifact": "Routed to the qa lease holder, which executed every verifier reading in this task because the lease guard's holder gate (tools/agents/lease-guard.mjs, actor !== lease.holder returns false above isCommonWriterCommand) means the Manager can never run npm run verify:* in any lease state. QA produced: verify:r0-characterization 169 -> 175 PASS / 0 FAIL, five mutants each rejected by the intended assertion with the observed failure line read rather than predicted, npm run build PASS, verify:security 61 passed / 0 failed, and verify:roadmap-dashboard 176/177 BEFORE the baseline was altered and 177/177 after. DISCLOSED, so this sign-off is not mistaken for independent review: qa was also the WRITER for scripts/verify-r0-characterization.mts and scripts/verify-roadmap-dashboard.mjs, so its approval of those files is self-review. Independence for this task comes from qc, recorded below.",
-    "qc_status": "PASS",
+    "qc_status": "APPROVED",
     "qc_status_artifact": "APPROVED WITH OBSERVATIONS, from the routed awkit-qc-reviewer, read-only, by file reading only. Git and npm run verify:* were both structurally blocked for that actor by the same holder gate, which the reviewer reported rather than worked around; its verifier-result corroboration is therefore a static trace, not an execution, and it said so. Verdict: no security defect, R2.6c is genuinely non-vacuous against every failure mode checked (zero-count with no positive anchor, .every() over an empty set, over-restrictive collection filter, short-circuit-to-true, ordering without preceding cardinality), the five mutants each fail for the intended reason, and the disclosed block-(5) entailment limitation is accurately stated and was not laundered. Eight findings, all documentation-truthfulness, none security. ADOPTED AND FIXED: (1) ARCHITECTURE.md recorded the exemption as an open bead; (2) five stale pin citations that would have shipped as a self-contradiction in this same commit, plus the now-false routed-to-QA framing at three sites; (4) the in-file comment at assertion block (5) was the one place the entailment was not disclosed; (5) HANDOFF.md presented completed ledger work as still open; (7) KNOWN_ISSUES.md preserved-verbatim finding needed a pre-dfcbdc5 line-number note. ADJUDICATED, NOT A DEFECT: (3) push evidence pending is the remaining closeout sequence, not a contradiction; (6) the 9/266 -> 8/267 ledger gap predates this task and was deliberately not backfilled because reconstructing it would require guessing unverified history; (8) R2.6c not asserting the handler-to-service delegation is covered by R2.1 in the same file, which the reviewer confirmed. RESOLVED SINCE THE REVIEW: its one UNKNOWN, the zero-deletion diffstat, was settled by Manager-executed git show --numstat: f44b4b2 is 204 insertions / 0 deletions and dfcbdc5 is 8 + 9 insertions / 0 deletions, both pure additions, so no pre-existing assertion could have been modified or weakened. Its open provenance question on verify:security is answered in the verify-security-provenance evidence item."
   }
 }
