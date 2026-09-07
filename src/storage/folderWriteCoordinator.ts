@@ -31,6 +31,7 @@
  * different key rather than having to invalidate anything.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { resolve } from "node:path";
 
 interface FolderLane {
@@ -41,6 +42,21 @@ interface FolderLane {
 }
 
 const lanes = new Map<string, FolderLane>();
+
+/**
+ * Coordination keys held by the task that owns the current async context.
+ *
+ * A plain boolean or a per-lane "busy" flag cannot express this. While a task runs, the lane is
+ * busy for *everyone*, and rejecting every arrival during that window would reject the legitimate
+ * external callers this module exists to queue. The only thing that separates "queued from outside
+ * the running task" from "called from inside it" is async context, so `AsyncLocalStorage` is the
+ * mechanism rather than a convenience. `node:async_hooks` is Node core: no package dependency, no
+ * manifest change, and nothing that touches the offline-first constraints.
+ *
+ * The store is entered around the TASK INVOCATION only (see `runExclusive`) — never around the lane
+ * chain — so a caller that merely queues while a task happens to be running inherits nothing.
+ */
+const heldCoordinationKeys = new AsyncLocalStorage<ReadonlySet<string>>();
 
 /**
  * Canonical key for a storage folder.
@@ -68,9 +84,46 @@ export function folderCoordinationKey(folder: string): string {
  * A rejecting task rejects only for its own caller: both branches of the chain settle the lane
  * tail, so a full disk (`ENOSPC`), a permissions failure or an exhausted rename retry cannot
  * poison the folder for the writes queued behind it or for any later write.
+ *
+ * ── Same-key re-entrancy rejects instead of hanging ───────────────────────────────────────────
+ *
+ * A task already running on a lane that calls back in for the SAME key would chain behind a tail
+ * that only settles once that task returns — while that task is waiting on the inner call. There is
+ * no timeout and no `AbortSignal` that can break that cycle: `pending` never reaches zero, the lane
+ * is never evicted, and because lanes are process-wide every store pointed at that folder wedges
+ * for the life of the process. The observable symptom is a job timeout with no failing assertion
+ * name, which is strictly worse than a red. So such a call is rejected at the moment it happens,
+ * with the coordination key in the message.
+ *
+ * Deliberate limits, none of which are worth trying to solve here:
+ *
+ *  - A fire-and-forget same-key enqueue from inside a task (`void runExclusive(sameFolder, t2)`,
+ *    never awaited) does NOT deadlock — it simply queues behind the outer task. It is rejected
+ *    anyway, because at call time nothing can know whether the caller will go on to await the
+ *    returned promise. That over-rejection is inherent to detecting at the call, not a gap.
+ *  - Async context can be lost across a boundary that creates no async-hook-tracked resource, so
+ *    this is best-effort DETECTION, never a proof that re-entrancy cannot occur.
+ *  - Cross-key cycles — A holds key1 and awaits key2 while B holds key2 and awaits key1 — are a
+ *    different hazard and are explicitly OUT OF SCOPE. This guard is same-key only; a general
+ *    cycle detector is not something this module should grow.
  */
 export function runExclusive<T>(folder: string, task: () => Promise<T>): Promise<T> {
   const key = folderCoordinationKey(folder);
+
+  // Detect BEFORE touching any lane state — no `lanes.get`, no `lanes.set`, no `pending` increment
+  // and no `tail` reassignment above this point. A rejected re-entrant call must leave the lane
+  // exactly as it found it, or the guard would strand the very lane it exists to protect.
+  const held = heldCoordinationKeys.getStore();
+  if (held?.has(key)) {
+    // A returned rejected promise, not a synchronous `throw`: `runExclusive`'s promise-returning
+    // contract has to stay identical for every caller.
+    return Promise.reject(
+      new Error(
+        `re-entrant folder write coordination on key "${key}" — a task already holding this lane cannot await it again`
+      )
+    );
+  }
+
   let lane = lanes.get(key);
   if (!lane) {
     lane = { tail: Promise.resolve(), pending: 0 };
@@ -79,9 +132,15 @@ export function runExclusive<T>(folder: string, task: () => Promise<T>): Promise
   const owned = lane;
   owned.pending += 1;
 
-  // `then(task, task)` — the failure branch runs the next task too, which is what keeps one bad
-  // write from stranding the lane.
-  const result = owned.tail.then(task, task);
+  // The store is entered around the task INVOCATION and nothing else. Wrapping the lane chain, the
+  // `.then()` call or this function's body instead would leak the store to callers that merely
+  // queued while the task was running, and they would be rejected as if they were re-entrant.
+  const heldByTask: ReadonlySet<string> = new Set(held ?? []).add(key);
+  const runTask = (): Promise<T> => heldCoordinationKeys.run(heldByTask, task);
+
+  // `then(runTask, runTask)` — the failure branch runs the next task too, which is what keeps one
+  // bad write from stranding the lane.
+  const result = owned.tail.then(runTask, runTask);
   const settled = result.then(
     () => undefined,
     () => undefined
