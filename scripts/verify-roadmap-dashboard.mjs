@@ -456,8 +456,19 @@ try {
   // closed once its view-level dry-run exemption was recorded as a deliberate decision and pinned by
   // control R2.6c, so one bead crossed from outstanding to closed and the pin moves 8/267 → 7/268
   // while the total holds at 275 and the edge pin stays at 106.
-    "7 outstanding / 268 closed",
-    beads.stats.outstanding === 7 && beads.stats.closed === 268,
+  // Then 6/269 of 275 on 2026-09-07: `awkit-utbf` (the R1B closeout finding that a same-key
+  // re-entrant `runExclusive` call self-deadlocks silently with no guard) closed once the
+  // coordinator grew an `AsyncLocalStorage` re-entrancy guard that rejects such a call before it
+  // touches any lane state. One bead crossed from outstanding to closed, so the pin moves
+  // 7/268 → 6/269 while the total holds at 275. The edge pin stays at 106 - checked in the same
+  // run rather than assumed, since `awkit-utbf` closing cannot add or remove a `blocks` edge.
+  // Counted from the export TEXT this session, not from `bd stats`: 275 issue records, 269
+  // `"status":"closed"`, and 6 not closed - 4 `open` (`awkit-s410`, `awkit-dhw6`, `awkit-9a1l`,
+  // `awkit-wknd`) plus the 2 `blocked` (`awkit-7bu`, `awkit-cm8`). Note that `awkit-syaa` is no
+  // longer among the open set: it closed in an earlier move that this ledger never narrated, which
+  // is also why the paragraph above jumps from 9/266 straight to an unexplained 8/267.
+    "6 outstanding / 269 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 269,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
