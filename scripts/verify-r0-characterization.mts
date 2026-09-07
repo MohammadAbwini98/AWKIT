@@ -1775,6 +1775,210 @@ async function runPreparationCharacterization(): Promise<void> {
     assertRepeatInstanceInstalledChromeRule(repeatDecidedFromCurrentSettings);
   });
 
+  // --- R2.6c the dryRun authorization complement, ACROSS the IPC facade and the application service -
+  // `execution:runWorkflow` authorizes only inside `if (request.dryRun === false)`, and `execution:validate`
+  // is deliberately ungated so a Viewer's pre-run preview keeps working. That exemption is safe for exactly
+  // one reason, and the reason is invisible in either module alone: `ExecutionApplicationService.runWorkflow`
+  // short-circuits with `if (request.dryRun !== false) return { status: "validated", ... }` BEFORE
+  // `applyRunGateEnforcement` and `executionEngine.startRun`, so every request that skipped the IPC guard
+  // launches no browser. The two predicates are exact COMPLEMENTS -- and nothing else in this repository
+  // says so. R2.6 pins the IPC half's condition text; R2.2/R2.5 pin the service half's dispatch ordering.
+  // Narrowing the service predicate alone to `request.dryRun === true` is a real privilege escalation -- an
+  // unauthenticated `dryRun: undefined` request would stop short-circuiting and fall through to dispatch --
+  // and it leaves every one of those existing controls green. This control therefore asserts the RELATION
+  // between the two conditions, so changing EITHER side alone turns the suite red, while a deliberate
+  // consistent change of both stays possible.
+  //
+  // Both sources are parameters so each mutation below can be applied to ONE side while the other stays
+  // real: a complement claim proven only against two simultaneously-mutated sources would prove nothing.
+  const assertDryRunAuthorizationComplement = (ipcSource: string, serviceSource: string): void => {
+    // (1) `execution:validate` is ungated. A zero-count is vacuous on its own -- a renamed channel, a
+    // deleted handler or a mis-spelled predicate all satisfy it -- so the POSITIVE delegation count is
+    // asserted first, which proves the span really is the preview handler before anything is counted at 0.
+    const validateHandler = ipcHandlerSpan(ipcPath, ipcSource, "execution:validate");
+    const previews = callsWithin(
+      ipcPath,
+      ipcSource,
+      validateHandler,
+      (call, sf) => callText(call, sf) === "applicationService.validateWorkflow"
+    );
+    invariant(previews.length === 1, `execution:validate applicationService.validateWorkflow calls: ${previews.length}`);
+    const previewAuthorizations = callsWithin(ipcPath, ipcSource, validateHandler, (call, sf) =>
+      /^assertSender[A-Za-z]*$/.test(callText(call, sf))
+    );
+    invariant(
+      previewAuthorizations.length === 0,
+      `execution:validate is no longer ungated, so the documented Viewer pre-run preview is broken: ${previewAuthorizations
+        .map((call) => call.expression.getText())
+        .join(", ")}`
+    );
+
+    // (2) The IPC guard, captured structurally and only then validated strictly. Cardinality BEFORE
+    // structure: the containment filter below is vacuously satisfied by every `if` in the handler when the
+    // authorization set is empty, which is itself the regression this control exists to reject.
+    const runHandler = ipcHandlerSpan(ipcPath, ipcSource, "execution:runWorkflow");
+    const authorizations = callsWithin(ipcPath, ipcSource, runHandler, (call, sf) =>
+      /^assertSender[A-Za-z]*$/.test(callText(call, sf))
+    );
+    invariant(authorizations.length === 2, `execution:runWorkflow authorization calls: ${authorizations.length}`);
+    // Capture permissively (the `if`s that contain EVERY authorization call), validate strictly. Collecting
+    // the gate by its literal condition text would let a weakened predicate fall OUT of the collection, and
+    // the control would then pass over an empty set -- passing precisely when the gate was weakened. There
+    // are exactly two such branches: the outer dry-run gate and the inner installed-Chrome branch, whose
+    // then/else arms hold one authorization each.
+    const gatingBranches = nodesWithin(ipcPath, ipcSource, runHandler, ts.isIfStatement)
+      .filter((node) => authorizations.every((call) => node.getStart() <= call.getStart() && node.end >= call.end))
+      .sort((a, b) => a.getStart() - b.getStart());
+    invariant(
+      gatingBranches.length === 2,
+      `if-statements containing every execution:runWorkflow authorization: ${gatingBranches.length}`
+    );
+    const dryRunGate = gatingBranches[0];
+    const chromeBranch = gatingBranches[1];
+    // Proper nesting, not merely source order: "outer" has to mean enclosing, or the wrong condition below
+    // would be validated as the dry-run gate.
+    invariant(
+      dryRunGate.getStart() < chromeBranch.getStart() && dryRunGate.end > chromeBranch.end,
+      "the execution:runWorkflow dry-run gate no longer encloses the installed-Chrome authorization branch"
+    );
+    const ipcCondition = dryRunGate.expression;
+    invariant(ts.isBinaryExpression(ipcCondition), `the execution:runWorkflow dry-run gate is not a comparison: ${ipcCondition.getText()}`);
+    invariant(
+      ipcCondition.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken,
+      `execution:runWorkflow dry-run gate operator: ${ipcCondition.operatorToken.getText()}`
+    );
+    invariant(ipcCondition.left.getText() === "request.dryRun", `execution:runWorkflow dry-run gate subject: ${ipcCondition.left.getText()}`);
+    invariant(
+      ipcCondition.right.kind === ts.SyntaxKind.FalseKeyword,
+      `execution:runWorkflow dry-run gate comparison value: ${ipcCondition.right.getText()}`
+    );
+
+    // (3) The service short-circuit, same discipline. The positive anchors come first so that both the
+    // structural capture and the ordering assertions in (4) range over collections already pinned to a
+    // known cardinality rather than over an empty set.
+    const body = methodBodySpan(servicePath, serviceSource, "runWorkflow");
+    const licensingGates = callsWithin(servicePath, serviceSource, body, (call, sf) => callText(call, sf) === "applyRunGateEnforcement");
+    invariant(licensingGates.length === 2, `runWorkflow applyRunGateEnforcement calls: ${licensingGates.length}`);
+    const dispatches = callsWithin(servicePath, serviceSource, body, (call, sf) => callText(call, sf) === "executionEngine.startRun");
+    invariant(dispatches.length === 1, `runWorkflow executionEngine.startRun calls: ${dispatches.length}`);
+    // Captured by what the then-arm DOES (returns, and yields the validated result), never by its condition
+    // text -- for the same reason as (2). A short-circuit that stopped returning would drop out of this
+    // collection, so the cardinality invariant is what rejects that regression.
+    const shortCircuits = nodesWithin(servicePath, serviceSource, body, ts.isIfStatement).filter(
+      (node) => /\breturn\b/.test(node.thenStatement.getText()) && /status:\s*"validated"/.test(node.thenStatement.getText())
+    );
+    invariant(shortCircuits.length === 1, `runWorkflow \`return { status: "validated" }\` short-circuits: ${shortCircuits.length}`);
+    const serviceCondition = shortCircuits[0].expression;
+    invariant(ts.isBinaryExpression(serviceCondition), `the runWorkflow dry-run short-circuit is not a comparison: ${serviceCondition.getText()}`);
+    invariant(
+      serviceCondition.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken,
+      `runWorkflow dry-run short-circuit operator: ${serviceCondition.operatorToken.getText()}`
+    );
+    invariant(serviceCondition.left.getText() === "request.dryRun", `runWorkflow dry-run short-circuit subject: ${serviceCondition.left.getText()}`);
+    invariant(
+      serviceCondition.right.kind === ts.SyntaxKind.FalseKeyword,
+      `runWorkflow dry-run short-circuit comparison value: ${serviceCondition.right.getText()}`
+    );
+
+    // (4) Ordering. The no-browser property depends on WHERE the short-circuit sits, not only on its
+    // predicate: the same predicate evaluated after the licensing gate or after dispatch would still read
+    // correctly and would still launch a browser for an unauthorized request.
+    invariant(
+      shortCircuits[0].end < licensingGates[0].getStart(),
+      "the dry-run short-circuit no longer returns before the first applyRunGateEnforcement call"
+    );
+    invariant(
+      shortCircuits[0].end < dispatches[0].getStart(),
+      "the dry-run short-circuit no longer returns before executionEngine.startRun"
+    );
+
+    // (5) The complement RELATION itself, stated between the two captured conditions rather than as two
+    // independent literal checks. This is the assertion the control exists for: it is what makes a
+    // one-sided edit fail even if a later refactor relaxes (2) or (3), and it is deliberately expressed so
+    // that a consistent change of BOTH sides -- a deliberate security decision -- still passes.
+    invariant(
+      ipcCondition.left.getText() === serviceCondition.left.getText(),
+      `the IPC gate and the service short-circuit no longer test the same subject: ${ipcCondition.left.getText()} vs ${serviceCondition.left.getText()}`
+    );
+    invariant(
+      ipcCondition.right.getText() === serviceCondition.right.getText(),
+      `the IPC gate and the service short-circuit no longer compare against the same value: ${ipcCondition.right.getText()} vs ${serviceCondition.right.getText()}`
+    );
+    invariant(
+      ipcCondition.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken &&
+        serviceCondition.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken,
+      `the IPC gate and the service short-circuit are no longer exact complements: IPC \`${ipcCondition.getText()}\` vs service \`${serviceCondition.getText()}\``
+    );
+  };
+  assertDryRunAuthorizationComplement(ipcText, serviceText);
+  check(
+    "the ungated dry-run path launches no browser by construction: the execution:runWorkflow authorization gate and the ExecutionApplicationService.runWorkflow short-circuit are exact complements, and the short-circuit returns before licensing and dispatch",
+    true,
+    'execution:validate ungated -> IPC authorizes iff `request.dryRun === false` -> service returns { status: "validated" } iff `request.dryRun !== false`, before applyRunGateEnforcement and executionEngine.startRun'
+  );
+  // Mutation A -- THE escalation this control exists for. Applied to the SERVICE only, with the IPC source
+  // left real: the predicate is narrowed so a request with no `dryRun` field stops short-circuiting and
+  // reaches licensing and dispatch, while the IPC handler still authorizes nothing for it. Every existing
+  // control (R2.1, R2.2, R2.5, R2.6) passes on this source.
+  const serviceShortCircuitNarrowed = mutateOnce(serviceText, "    if (request.dryRun !== false) {", "    if (request.dryRun === true) {");
+  mutationRejected(
+    "the service dry-run short-circuit being narrowed to `request.dryRun === true`, so an unauthorized request with no dryRun flag falls through to licensing and dispatch",
+    () => {
+      assertDryRunAuthorizationComplement(ipcText, serviceShortCircuitNarrowed);
+    }
+  );
+  // Mutation B -- the other side alone. The IPC gate still gates on `request.dryRun`, still compares
+  // strictly, and still wraps both authorizations, so it reads like a harmless rewrite; it is simply no
+  // longer the exact complement of the service predicate, which reopens the same hole from the facade side.
+  const ipcGateNotComplement = mutateOnce(ipcText, "    if (request.dryRun === false) {", "    if (request.dryRun !== true) {");
+  mutationRejected("the IPC dry-run gate being rewritten to a predicate that is not the exact complement of the service short-circuit", () => {
+    assertDryRunAuthorizationComplement(ipcGateNotComplement, serviceText);
+  });
+  // Mutation C -- the opposite regression: `execution:validate` silently acquires a permission check,
+  // which breaks the documented Viewer pre-run preview. Nothing else in this file would notice.
+  const validatePreviewGated = mutateOnce(
+    ipcText,
+    '  ipcMain.handle("execution:validate", async (_, workflowId: string) => applicationService.validateWorkflow(workflowId));',
+    '  ipcMain.handle("execution:validate", async (event, workflowId: string) => {\n' +
+      "    await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);\n" +
+      "    return applicationService.validateWorkflow(workflowId);\n" +
+      "  });"
+  );
+  mutationRejected("execution:validate acquiring a sender authorization check, which breaks the documented ungated Viewer pre-run preview", () => {
+    assertDryRunAuthorizationComplement(validatePreviewGated, serviceText);
+  });
+  // Mutation D -- the predicate survives verbatim, and so does the whole result object; only the early
+  // RETURN is lost, so execution falls through to licensing and dispatch for every dry run. A control that
+  // matched the short-circuit by its condition text would still find it and still pass.
+  const shortCircuitFallsThrough = mutateOnce(
+    serviceText,
+    "    if (request.dryRun !== false) {\n      return {\n        status: \"validated\",",
+    "    if (request.dryRun !== false) {\n      void {\n        status: \"validated\","
+  );
+  mutationRejected("the dry-run short-circuit losing its early return, so a dry run falls through to licensing and ExecutionEngine.startRun", () => {
+    assertDryRunAuthorizationComplement(ipcText, shortCircuitFallsThrough);
+  });
+  // Mutation E -- nothing is deleted or reworded at all: the entire short-circuit is relocated below the
+  // request-time licensing gate. Predicate, complement and cardinality all still hold; only the ordering
+  // asserted in (4) changes, and with it the no-browser property.
+  const serviceShortCircuitBlock =
+    "    if (request.dryRun !== false) {\n" +
+    "      return {\n" +
+    '        status: "validated",\n' +
+    "        executionId: randomUUID(),\n" +
+    "        validation,\n" +
+    '        message: "Workflow validation passed. Browser execution is available when dryRun=false."\n' +
+    "      };\n" +
+    "    }\n";
+  const shortCircuitAfterLicensingGate = mutateOnce(
+    mutateOnce(serviceText, serviceShortCircuitBlock, ""),
+    '    const gate = applyRunGateEnforcement("run-request").decision;',
+    '    const gate = applyRunGateEnforcement("run-request").decision;\n' + serviceShortCircuitBlock.trimEnd()
+  );
+  mutationRejected("the dry-run short-circuit being relocated below the request-time licensing gate, so a dry run is admitted before it returns", () => {
+    assertDryRunAuthorizationComplement(ipcText, shortCircuitAfterLicensingGate);
+  });
+
   // --- R2.7 Legacy Compatibility attribution reaches the run profile -------------------------------
   const assertLegacyCompatibilityAttribution = (text: string): void => {
     const body = methodBodySpan(servicePath, text, "runWorkflow");
