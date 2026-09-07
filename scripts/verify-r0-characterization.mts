@@ -1893,9 +1893,14 @@ async function runPreparationCharacterization(): Promise<void> {
     );
 
     // (5) The complement RELATION itself, stated between the two captured conditions rather than as two
-    // independent literal checks. This is the assertion the control exists for: it is what makes a
-    // one-sided edit fail even if a later refactor relaxes (2) or (3), and it is deliberately expressed so
-    // that a consistent change of BOTH sides -- a deliberate security decision -- still passes.
+    // independent literal checks, and deliberately expressed so that a consistent change of BOTH sides -- a
+    // deliberate security decision -- still passes. As the code stands today this block is ENTAILED by
+    // (2)+(3): (2) already pins the IPC side's operator and value, (3) already pins the service side's, so NO
+    // mutation currently fails on (5) alone -- escalation mutants A and B are each rejected earlier, by (3)'s
+    // and (2)'s operator checks respectively. (5) is therefore defense-in-depth against a future refactor
+    // that relaxes (2) or (3), and it is deliberately NOT proven non-vacuous: the only way to manufacture a
+    // mutant for it would have been to weaken (2) or (3), which would have been the dishonest way to make
+    // this control read cleanly.
     invariant(
       ipcCondition.left.getText() === serviceCondition.left.getText(),
       `the IPC gate and the service short-circuit no longer test the same subject: ${ipcCondition.left.getText()} vs ${serviceCondition.left.getText()}`

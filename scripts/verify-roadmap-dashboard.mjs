@@ -448,12 +448,16 @@ try {
   // `awkit-wknd` (`settings.superUser.chrome.mode` is now read in two modules by two separate
   // `getUiSettings` calls). Nothing closed, so closed held at 266 while the total rose 271 → 275 and
   // outstanding 5 → 9; all four ship `dependency_count: 0`, so the edge pin below stays at 106.
-  // Counted from the export TEXT this session: 275 issue records, 266 `"status":"closed"`, and 9 not
-  // closed - 7 `open` plus the 2 `blocked` (`awkit-7bu`, `awkit-cm8`). `bd stats` again printed
+  // Counted from the export TEXT this session: 275 issue records, 268 `"status":"closed"`, and 7 not
+  // closed - 5 `open` plus the 2 `blocked` (`awkit-7bu`, `awkit-cm8`). `bd stats` again printed
   // "Blocked: 0" for the same tracker because that field counts dependency-blocked issues, not the
   // `blocked` STATUS; `bd list --status blocked` shows the two. Do not pin against `bd stats`.
-    "8 outstanding / 267 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 267,
+  // Then 7/268 of 275 on 2026-09-07: `awkit-ttvb` (the R2 `execution:validate` authorization finding)
+  // closed once its view-level dry-run exemption was recorded as a deliberate decision and pinned by
+  // control R2.6c, so one bead crossed from outstanding to closed and the pin moves 8/267 → 7/268
+  // while the total holds at 275 and the edge pin stays at 106.
+    "7 outstanding / 268 closed",
+    beads.stats.outstanding === 7 && beads.stats.closed === 268,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
