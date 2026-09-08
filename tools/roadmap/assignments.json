@@ -19,11 +19,18 @@
   ],
   "claims": [
     {
-      "itemId": "bead:awkit-s410",
+      "itemId": "bead:awkit-glm-ctx",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-08T10:09:05.580Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-utbf.json, tools/roadmap/assignments.json"
+      "claimedAt": "2026-09-08T14:15:39.401Z",
+      "note": "write lease: docs/ai/CURRENT_STATE.md, docs/ai/TASK_LOG.md, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
+    },
+    {
+      "itemId": "bead:awkit-rkd8",
+      "agent": "Quality Assurance Engineer",
+      "state": "claimed",
+      "claimedAt": "2026-09-08T14:15:39.401Z",
+      "note": "P2 verifier-quality: R1B follow-up A tranche 2 - block 6g cannot exclude evict-then-recreate and proves non-overlap only by proxy; expected change scripts/verify-write-queue.mts"
     }
   ]
 }

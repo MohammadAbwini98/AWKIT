@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-glm-ctx",
+    "title": "Separate the GLM delegate's response budget, provider output ceiling and repository read budget",
+    "objective": "The glm-delegate MCP server conflates three different limits behind one name and hard-codes a 64000-token response ceiling, so GLM 5.3's large input context is unusable: at most 240,000 bytes of repository source can be assembled per delegation and no caller can ever request more than 64000 output tokens. Split the concepts into a default response budget (16384), a configurable provider output ceiling (131072) and a substantially larger repository read budget (200,000 bytes per file, 1,500,000 bytes total, 120 files), all environment-configurable and sanity-validated, then prove the change with executed local tests and a real GLM delegation. The architecture target is LARGE INPUT, COMPACT OUTPUT: a big repository slice in, a normally 8K-24K report out. No security, containment, secret-filtering, governance or read-only guarantee may be weakened.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "14466b3eb43132c355928e256cbf80c0731f7d98",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      }
+    ]
+  },
+  "classification": {
+    "electron_main_change": false,
+    "ipc_change": false,
+    "runner_change": false,
+    "execution_change": false,
+    "concurrency_change": false,
+    "persisted_shape_change": false,
+    "filesystem_write_change": false,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": true,
+    "protected_login_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "broad_investigation": false,
+    "project_state_change": true,
+    "agent_infrastructure_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "security",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".claude/mcp/glm_delegate_server.py",
+      ".claude/mcp/verify_glm_delegate.py",
+      ".claude/mcp/verify_glm_delegate_live.py",
+      ".claude/settings.local.json",
+      "package.json",
+      "scripts/lib/verifier-classification.ts",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/TASK_LOG.md",
+      "tools/roadmap/assignments.json",
+      "docs/ai/contracts/awkit-glm-ctx.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "security"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "scripts/lib/verifier-classification.ts",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/TASK_LOG.md",
+        "tools/roadmap/assignments.json"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "Three limits must stay separate concepts with separate names and separate environment variables: GLM_MCP_MAX_TOKENS is the default response budget, GLM_MCP_MAX_OUTPUT_TOKENS is the provider/model output ceiling, and GLM_MCP_MAX_FILE_BYTES / GLM_MCP_MAX_TOTAL_BYTES / GLM_MCP_MAX_FILES are the repository input budget. Never label two of them 'Max tokens'.",
+      "The hard-coded 64000 response ceiling is removed and no arbitrary 64K clamp may be reintroduced anywhere. The effective budget is max(512, min(requested, provider ceiling)).",
+      "Configuration is resolved once per delegation and passed into _expand_scope() and read_scope_text(); environment values must not be re-parsed inside inner file-processing loops.",
+      "Python standard library only. No new dependency of any kind.",
+      "The larger output ceiling exists for exceptional investigation only. The default response budget stays conservative at 16384 so ordinary delegations stay compact for the Manager's context."
+    ],
+    "security": [
+      "SECRET_NAME_HINTS must not be weakened, and secret-bearing path rejection must keep matching every segment of the repository-relative path, not just the basename.",
+      "Repository-root containment must not be broadened. Paths outside the root stay refused.",
+      "The Z.AI credential is read from GLM_API_KEY only and is never hardcoded, printed, logged, returned or committed. glm_status keeps reporting presence only. The real credential must not be invalidated by any test.",
+      "The delegate stays read-only: no shell execution, no filesystem writes, no Git writes, no test execution, no Beads ownership, no write-lease ownership, no orchestration, no recursive delegation.",
+      "Raising the read budget increases how much repository source leaves the machine per delegation. Skipped build/output directories, readable-suffix filtering, truncation notices, omission notices and scope-too-wide notices must all survive."
+    ],
+    "compatibility": [
+      "No product behavior, IPC contract, preload API, persisted shape or public contract changes. This is developer-agent tooling outside the packaged runtime.",
+      "MCP protocol compatibility is preserved: initialize, tools/list and tools/call still work and glm_delegate, glm_review and glm_status all stay exposed."
+    ],
+    "offline": [
+      "AWKIT's offline-first production guarantee is unchanged. The delegation server and its verifiers are developer tooling only; nothing under app/, src/ or the packaged runtime may reference them. The live verifier requires the public internet and is registered as such, following the verify:wdu-live precedent."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "GLM-CTX-BUDGETS-SEPARATE",
+      "description": "The default response budget, the provider output ceiling and the repository read budget are three independently configurable settings; the 64000 hard cap is gone; max_tokens=100000 resolves to an effective budget of 100000 against the default 131072 ceiling; max_tokens=200000 clamps to 131072; a configured ceiling of 32768 clamps a requested 64000 down to 32768; malformed and out-of-range environment values fall back safely.",
+      "evidence_required": [
+        "py-compile",
+        "verify-glm-delegate"
+      ]
+    },
+    {
+      "id": "GLM-CTX-LARGE-INPUT",
+      "description": "A single delegation can assemble and send more than the old 240,000-byte total, bounded by the configured per-file, total-byte and file-count limits, with truncation and omission notices intact and secret-bearing and out-of-root paths still refused.",
+      "evidence_required": [
+        "verify-glm-delegate",
+        "glm-live-delegation"
+      ]
+    },
+    {
+      "id": "GLM-CTX-COMPACT-OUTPUT",
+      "description": "A real glm_delegate call over that large scope, run through the MCP stdio path against a freshly started server, returns a coherent bounded report within a requested 16384-token budget, with provider-reported input and output token counts and stop reason recorded verbatim.",
+      "evidence_required": [
+        "glm-live-delegation"
+      ]
+    },
+    {
+      "id": "GLM-CTX-NO-REGRESSION",
+      "description": "glm_status reports every setting under a distinct name, glm_review still returns its CRITICAL/HIGH/MEDIUM/LOW/OBSERVATION structure with the larger read capacity, at least one failure path clamps or fails predictably with a useful diagnostic instead of crashing, and no repository write capability was introduced.",
+      "evidence_required": [
+        "verify-glm-delegate",
+        "glm-live-review"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "py-compile",
+      "type": "build",
+      "required": true,
+      "command": "npm run verify:glm-delegate (check PC-1)",
+      "result": "PASS",
+      "artifact": "The bare `python -m py_compile .claude/mcp/glm_delegate_server.py` invocation is refused by the write-lease guard, which blocks bare `python`/`node` script execution. The identical assertion is executed inside verify:glm-delegate as check PC-1, 'glm_delegate_server.py byte-compiles (py_compile, doraise)', which passed. The recorded command is the one that actually ran, not the one originally planned."
+    },
+    {
+      "id": "verify-glm-delegate",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:glm-delegate",
+      "result": "PASS",
+      "artifact": "91 PASS / 0 FAIL / 0 BLOCKED. Offline: the two HTTP-boundary checks stub urllib, so no credential and no network are used."
+    },
+    {
+      "id": "glm-live-delegation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:glm-delegate-live",
+      "result": "FAIL",
+      "artifact": "40 PASS / 5 FAIL / 0 BLOCKED (45 checks), exit 1. Delegation failures: LD-7 and LD2-7 (stop_reason=max_tokens, not end_turn) and LD-8 (report structure found 4 of 6: Summary, Files inspected, Implementation details, Assumptions). Measured root cause, shared with the review failures: GLM 5.3 bills unrendered `thinking` blocks against the output budget (59100 and 49143 characters of thinking on the two delegations), so the shipped default 16384 budget is consumed before the report is finished. The large-input half of the change is proven — LD-2 sent 432572 bytes and LD2-2 sent 287972 bytes, both far past the old 240000-byte ceiling, with the server's own accounting matching the local survey exactly. NOT relabelled as PASS."
+    },
+    {
+      "id": "glm-live-review",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:glm-delegate-live",
+      "result": "FAIL",
+      "artifact": "Same run. Review failures: RV-L3 (the CRITICAL/HIGH/MEDIUM/LOW/OBSERVATION structure is missing MEDIUM, LOW and OBSERVATION) and RV-L5b (stop_reason=max_tokens). 73667 characters of unrendered thinking against a 16384 budget left only 2561 characters of visible report. This is the GLM-CTX-NO-REGRESSION acceptance criterion and it is NOT met."
+    },
+    {
+      "id": "verifier-registry",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "artifact": "verify:glm-delegate and verify:glm-delegate-live registered in scripts/lib/verifier-classification.ts as class \"integration\", written by the project-state actor under this lease (the manager actor may not write a lease-scoped path). Rationale is evidence-backed, not asserted: verify_glm_delegate.py really spawns the server with subprocess.Popen and drives the MCP initialize/tools-list/tools-call handshake over stdio against tempfile.mkdtemp fixture trees it actually writes, stubbing urllib only at the HTTP boundary - so it is neither static-source-validation (never executed) nor unit (in-process fakes, no subprocess). Precedents cited and confirmed present in the same file: verify:oracle-live (integration, credential-gated against a REAL database) and verify:wdu-live (external-dependency wording; real-browser only because it launches a browser, which these do not). Verifier green: all 5 checks passed, 202 of 202 verify:/validate: scripts classified, no stale entries. Per-class counts 1 documentation-consistency / 11 static-source-validation / 63 unit / 39 integration / 77 real-browser / 11 packaged-application / 0 clean-machine-acceptance."
+    },
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": ""
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-glm-ctx:manager:2026-09-08T11:32:41.147Z",
+        "task": "awkit-glm-ctx",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/mcp/glm_delegate_server.py",
+          ".claude/mcp/verify_glm_delegate.py",
+          ".claude/mcp/verify_glm_delegate_live.py",
+          ".claude/settings.local.json"
+        ],
+        "acquired_at": "2026-09-08T11:32:41.147Z",
+        "acquired_at_commit": "14466b3eb43132c355928e256cbf80c0731f7d98",
+        "released_at": "2026-09-08T14:08:17.878Z",
+        "released_reason": "Phase 1 complete: .claude/mcp tooling written and locally verified. Rotating to project-state for the Phase 2 verifier-registry reconciliation the manager actor may not write.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-glm-ctx:project-state:2026-09-08T14:10:00.038Z",
+        "task": "awkit-glm-ctx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/TASK_LOG.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-08T14:10:00.038Z",
+        "acquired_at_commit": "14466b3eb43132c355928e256cbf80c0731f7d98",
+        "released_at": "2026-09-08T14:13:26.733Z",
+        "released_reason": "Rotating back to the tooling writer: the live GLM delegation evidence (legs narrow and review) is still unrun, and only the lease holder role may run npm run verify:glm-delegate-live",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending",
+    "notes": "PHASE 2 ACTIVE. Phase 1 (manager, .claude/mcp tooling + the package.json npm-script relaxation through SHARED_WRITE_PATHS) is written and released; its offline evidence passed. The writer is now project-state for scripts/lib/verifier-classification.ts and the docs/roadmap reconciliation, which the manager actor may not write. THIS TASK IS NOT COMPLETE AND MUST NOT BE CLOSED: glm-live-delegation and glm-live-review are recorded FAIL, so acceptance GLM-CTX-COMPACT-OUTPUT and GLM-CTX-NO-REGRESSION are unproven. The measured cause is a real product gap, not a test defect — GLM 5.3 bills unrendered `thinking` against the output budget, so the shipped 16384 default cannot both reason and finish a structured report. Remedy for a later tranche, deliberately NOT attempted here because it is outside the awkit-rkd8 mandate that reopened this lease: either raise the shipped default, or exclude reasoning from the budget the contract advertises. Phase 2's own scope is limited to registering the two new verifiers so verify:verifier-classification stops failing repo-wide, which is a required closeout gate for every task and currently blocks awkit-rkd8."
+  }
+}
