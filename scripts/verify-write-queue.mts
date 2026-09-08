@@ -593,8 +593,25 @@ const GATE_DRAIN_TURNS = 200;
     await Promise.all([t1, t2]);
 
     // Cardinality/presence FIRST — an empty sample would let the eviction assertion below pass vacuously.
+    //
+    // DISCLOSED BLIND SPOT — this is a single-instant presence sample, not a continuity proof. It
+    // reads the lane map exactly once, at T2's first instruction, so it cannot distinguish a lane
+    // that was never evicted from one that was evicted and re-added before the sample was taken.
+    // That is the DUAL of the blind spot disclosed in this block's header. The mutant that fits
+    // through it is ARGUED from the coordinator's structure and was NOT executed — unlike the
+    // pending-at-start mutant this block was measured against above, nothing below has been run
+    // red: a coordinator that deleted the key when T1 settled but created lanes lazily at TASK
+    // START (get-or-create) instead of at admission should pass this check green, because T2
+    // captured its lane reference at admission so it would still run, and its own first
+    // instruction would re-insert the key that the sample then sees. Stated without overstatement,
+    // and equally argued: under that mutant T2 itself is still chained behind T1 and stays
+    // serialized; what would run un-serialized is a THIRD same-key arrival admitted in the window
+    // between T1's settle and T2's start, which finds no lane and builds a fresh one. Excluding
+    // that mutant therefore requires exactly that third same-key caller admitted inside that
+    // window — this block admits no third caller, and that work, with the measurement that would
+    // move this paragraph from argued to measured, is deferred to its own tranche.
     check(
-      "the lane is still live, and is exactly this one key, while the QUEUED task runs",
+      "the QUEUED task sampled exactly one live lane at its first instruction, and it is this key",
       insideT2.length === 1 && insideT2[0].length === 1 && insideT2[0][0] === key,
       `insideT2=[${insideT2.map((s) => `[${s.join(",")}]`).join(" ")}], expected=[[${key}]]`
     );
@@ -605,7 +622,7 @@ const GATE_DRAIN_TURNS = 200;
     // mutant, this check still passed and only the presence sample above went red. The ordering is
     // established by the PAIR; this half alone catches evict-never, not evict-too-early.
     check(
-      "no lane survives once the running and queued tasks have both drained",
+      "this key's lane does not survive once the running and queued tasks have both drained",
       !activeFolderCoordinationKeys().includes(key),
       `active=${activeFolderCoordinationKeys().join(",") || "none"}, expected: without ${key}`
     );

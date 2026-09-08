@@ -1,0 +1,518 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-s410",
+    "title": "R1B follow-up A: lane eviction has no non-vacuous mutation evidence",
+    "objective": "src/storage/folderWriteCoordinator.ts advertises, in its own header, that each lane is reference-counted by its pending tasks and removed the moment that count reaches zero - at which point nothing is in flight or queued for that key. Every assertion that currently claims the lane is released correctly compares activeFolderCoordinationKeys() against length === 0 (scripts/verify-r0-characterization.mts:823, :910 and around :944, and scripts/verify-profile-store.mts:727). The 21-red mutation control that those suites rely on was applied to JsonProfileStore.serialize in src/storage/ProfileStore.ts, so under it the coordinator is never called at all and the function returns [] - all four assertions pass VACUOUSLY, and would pass equally against a coordinator that evicts too eagerly. The only non-vacuous eviction evidence anywhere is the single positive control at scripts/verify-write-queue.mts:344-347, which samples the active keys from inside a task that is ALONE on its lane and has never been mutation-tested; folderWriteCoordinator.ts itself has never been mutation-tested and verify:write-queue was not part of the mutation run. The advertised invariant that actually matters - a lane cannot be evicted while work remains QUEUED BEHIND the running task - is therefore not proven by any assertion in the repository. This is a verifier-quality defect, not a product defect: the shipped coordinator is correct. The remedy is the smallest architecture-correct verifier change - one assertion that samples the active keys from INSIDE a task that was admitted while an earlier task was still running, asserting expected lane cardinality and identity BEFORE any absence assertion - proven load-bearing by a real mutation applied to folderWriteCoordinator.ts itself and restored byte-exactly afterwards. Production code must not be changed.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "bd2be785da4f3eaf1ad97e66a2d032964dfdf029",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/verify-write-queue.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-s410.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-utbf.json",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-write-queue.mts"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "This is a VERIFIER-QUALITY tranche. src/storage/folderWriteCoordinator.ts is NOT to be changed. It may be mutated transiently to produce mutation evidence and must then be restored byte-exactly, proven by git status reporting it clean.",
+      "The sole implementation edit is scripts/verify-write-queue.mts. Do not create a new verifier script, do not add an npm script, and do not add a debug or introspection API to the coordinator - activeFolderCoordinationKeys() is already the sanctioned observation seam and its signature and semantics must not change.",
+      "The new check must sample activeFolderCoordinationKeys() from INSIDE a task that was admitted while an earlier task on the SAME key was still running. Block 6d's existing positive control samples from a task that is alone on its lane, which is why it cannot see an eviction that is one task too early.",
+      "The queued task MUST be admitted from OUTSIDE the running task's async context. Admitting it from inside the running task's body is rejected by the same-key re-entrancy guard shipped by awkit-utbf (folderWriteCoordinator.ts:116-125) and would prove nothing about eviction. Gate the first task on a deferred promise that is resolved only after the second has been admitted.",
+      "Cardinality before emptiness, in that order: first prove the expected lane cardinality and identity while work is queued, only then prove absence after the drain. This is the idiom awkit-utbf already established at scripts/verify-write-queue.mts:457-462 and it is what stops the assertion passing over an empty key set.",
+      "Reuse the existing harness helpers - deferred(), drainEventLoop(turns), GATE_DRAIN_TURNS and the bounded settleWithin/Outcome shape - rather than introducing wall-clock delay(ms) waits. Results must not depend on how loaded the host is, and both arms of any gate must terminate."
+    ],
+    "security": [
+      "No authorization, licensing, secret-handling, protected-login or signing surface is touched. No IPC channel, permission or sender check changes. No network access."
+    ],
+    "compatibility": [
+      "No production behaviour changes at all. folderCoordinationKey, runExclusive and activeFolderCoordinationKeys keep their exact signatures and semantics, and no currently legitimate caller is affected.",
+      "No persisted shape change, no migration, no manifest change, no new dependency. verify:write-queue and verify:roadmap-dashboard are already registered in scripts/lib/verifier-classification.ts, so the registry is reconciled rather than extended.",
+      "Every pre-existing assertion in verify:write-queue must keep passing. No assertion may be weakened, relaxed into a range, or deleted to produce green."
+    ],
+    "offline": [
+      "No network access, no new package dependency, no packaging change."
+    ],
+    "exclusions": [
+      "Do NOT repair the fingerprint-harness defect discovered during awkit-utbf. It is separate, remains NOT FIXED, and belongs to its own later task.",
+      "Do NOT reopen awkit-utbf in any respect: its completion, QA/QC, acceptance and push evidence are final and must remain byte-for-byte unchanged except for the append-only write_lease.history release record that is inherited residue.",
+      "Do NOT change the four vacuous length === 0 sites at scripts/verify-r0-characterization.mts:823, :910 and around :944, or scripts/verify-profile-store.mts:727. They are knowingly left as-is for this tranche, which stages its single non-vacuous control in verify:write-queue.",
+      "Do NOT fix gateBoundDominatesAFreeWriter (docs/ai/KNOWN_ISSUES.md:283-287), the coordinator comment-attribution defect (KNOWN_ISSUES.md:288-291), QC finding C (path aliasing splitting a lane), or awkit-9a1l.",
+      "Do NOT reopen the folderWriteCoordinator same-key guard, the write-queue same-key tests, mutants M1/M2/M3, the roadmap 6/269 pin, or the AWTKIT.rar false-positive adjudication.",
+      "Do NOT create a bookkeeping-only tranche or a bookkeeping-only lease for the inherited residue, and do not reset or discard it."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "S410-QUEUED-LANE-PRESENCE",
+      "description": "verify:write-queue contains an assertion that samples activeFolderCoordinationKeys() from inside a task which was admitted while an earlier task on the same key was still running, and requires the lane to be present with exactly the expected cardinality and identity at that moment. This is the assertion the advertised invariant 'a lane cannot be evicted with work queued behind it' was missing.",
+      "evidence_required": [
+        "green-write-queue",
+        "build"
+      ]
+    },
+    {
+      "id": "S410-CARDINALITY-BEFORE-EMPTINESS",
+      "description": "The new block proves expected lane cardinality and presence FIRST and eviction timing and absence only afterwards, so no eviction assertion can pass over an empty key set. The queued task is additionally proven to have been genuinely queued - it had not started before the gate was released - so the queued-behind window is actually exercised rather than measured after the first task settled.",
+      "evidence_required": [
+        "green-write-queue",
+        "mutation-pending-increment"
+      ]
+    },
+    {
+      "id": "S410-RED-BEFORE-GREEN",
+      "description": "The new check was executed and observed FAIL against a coordinator shape that evicts one task too early, before being observed PASS against the shipped coordinator, with the failing assertion name read from the verifier's own output rather than predicted. The baseline total was measured on the live tree first, so the delta is attributed to the added checks and not to pre-existing breakage. No existing assertion was weakened to produce green.",
+      "evidence_required": [
+        "baseline-write-queue",
+        "mutation-pending-increment",
+        "green-write-queue"
+      ]
+    },
+    {
+      "id": "S410-MUTATION-NON-VACUOUS",
+      "description": "The load-bearing mutation is applied to src/storage/folderWriteCoordinator.ts ITSELF, not to a caller: owned.pending is incremented at task start instead of at admission, so a lane with work queued behind it reaches zero and is evicted early. The mutant compiles, the coordinator actually executes, the verifier terminates normally and prints totals, and the named new assertion turns red while the four pre-existing 6d assertions still pass - which is the direct demonstration that those four were not sufficient. A TypeScript compile error, a timeout with no assertion name, an empty active-key set, a mutation that bypasses the coordinator, and any ProfileStore mutation are all explicitly NOT accepted as evidence.",
+      "evidence_required": [
+        "mutation-pending-increment",
+        "green-write-queue",
+        "build"
+      ]
+    },
+    {
+      "id": "S410-NO-PRODUCTION-CHANGE",
+      "description": "src/storage/folderWriteCoordinator.ts is restored byte-exactly after the mutation and no mutation remains on disk, confirmed by git status reporting the file clean and by the restored source being re-read. This tranche makes no production change: the characterization proved a verifier defect, not a product defect, so the coordinator is correct as shipped and was deliberately not edited.",
+      "evidence_required": [
+        "source-restoration-audit",
+        "staged-path-audit"
+      ]
+    },
+    {
+      "id": "S410-NO-BEHAVIOR-CHANGE",
+      "description": "npm run build typechecks clean and both neighbouring suites keep every pre-existing assertion passing at or above their measured counts: verify:profile-store, whose ProfileStore.serialize is the coordinator's only production caller, and verify:r0-characterization, which holds the R1B coordination characterizations. Any delta is attributed to a specific check rather than asserted as unchanged when it moved.",
+      "evidence_required": [
+        "build",
+        "verify-profile-store",
+        "verify-r0-characterization"
+      ]
+    },
+    {
+      "id": "S410-NO-SCOPE-CREEP",
+      "description": "The implementation diff touches scripts/verify-write-queue.mts only, staged with an explicit pathspec. No production module is staged, no new verifier or npm script is created, every exclusion in constraints.exclusions is left alone, and no protected owner path enters the index.",
+      "evidence_required": [
+        "staged-path-audit",
+        "build"
+      ]
+    },
+    {
+      "id": "S410-MOCK-SITE-APPLICABILITY",
+      "description": "The mock-site applicability rule is answered from mock-site/README.md rather than assumed, and the answer is recorded with its exact reason. This evidence item is an applicability DETERMINATION: PASS attests that the determination was executed and returned a definitive answer, and does not assert that mock-site coverage of this boundary exists. No mock-site page is manufactured.",
+      "evidence_required": [
+        "mock-site-applicability"
+      ]
+    },
+    {
+      "id": "S410-STATE-CONSISTENT",
+      "description": "Project state reflects measured reality: awkit-s410 closed in Beads with .beads/issues.jsonl re-exported via bd export -o, KNOWN_ISSUES' QC finding A entry moved from open finding to resolved with LIVE line numbers rather than the stale :80/:95 the bead and the finding both cite, CURRENT_STATE and HANDOFF appended while the newest section continues to state the unchanged 65 PASS / 2 NOT RUN / 0 BLOCKED tally across 67 cases, and TASK_LOG appended. Tracker counts are measured, never assumed, and dependency-blocked is kept strictly distinct from status = blocked. verify:roadmap-dashboard is run BEFORE its non-vacuity pin is touched; any pin movement is routed to QA because the verifier is QA-owned, changed only in the stale exact baseline, mutation-tested, re-run, and kept an exact equality rather than relaxed into a range - with the Overview banner read from the verifier's own executed output.",
+      "evidence_required": [
+        "verify-verifier-classification",
+        "verify-roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "S410-BOOKKEEPING-ABSORBED",
+      "description": "The three inherited awkit-utbf release-residue files are absorbed into this tranche's legitimate project-state commit rather than reset, discarded, or given a bookkeeping-only task of their own: docs/ai/contracts/awkit-utbf.json's diff is its own append-only write_lease.history release record with completion, QA/QC, acceptance and push evidence untouched and the task not reopened; tools/roadmap/assignments.json's diff is claim rotation only with the owner $comment block intact; and docs/ai/contracts/active-lease.json carries lifecycle metadata only. No protected owner path is involved, and no recursive lease chases this task's own release residue.",
+      "evidence_required": [
+        "bookkeeping-absorption-audit",
+        "staged-path-audit",
+        "push-origin-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "glm-s1-gap-characterization",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_delegate - bounded characterization of the lane-eviction non-vacuity gap",
+      "required": false,
+      "result": "PASS",
+      "artifact": "GLM S1 characterized the gap and proposed the mutation family. Recorded with its limits stated: the first attempt returned [GLM returned no text content] TRUNCATED at in=11349 out=16384 because reasoning consumed the whole output budget; the one permitted narrower retry - one file instead of two, block 6d pre-digested into the prompt, an explicit output-length discipline, and seven closed questions instead of open ones - returned COMPLETE at in=3194 out=3783. Its answer 6 was WRONG and was corrected by Claude against live source: it proposed admitting the queued task by calling runExclusive from inside the first task's body, which awkit-utbf's shipped same-key re-entrancy guard rejects outright. Its answer 7 (the queued task must not be admitted only after the first settled, or the queued-behind window is never exercised) was adopted. GLM is read-only and authorized nothing.",
+      "result_note": null
+    },
+    {
+      "id": "glm-s2-red-design",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_delegate - bounded review of the proposed red control and its mutation",
+      "required": false,
+      "result": "PASS",
+      "artifact": "Attempt 1 TRUNCATED: in=4887 out=6000, hit max_tokens, '[GLM returned no text content]' - reasoning consumed the whole budget. Exactly one narrowed retry was taken per the delegation failure discipline: read_scope emptied, the coordinator excerpt inlined, seven questions cut to three, explicit brevity contract, max_tokens raised to 16000. Retry COMPLETE at in=1038 out=4851. Findings: (1) under Mutation A the queued task observes an empty key set DETERMINISTICALLY, not by timing - the pending decrement and the queued runTask are both reactions on the same settled promise and fire in registration order, decrement first, so the lane is deleted before the queued task increments a detached lane object; this independently reproduces the manager's own microtask trace. (2) Decisive catch: under Mutation A the FINAL absence assertion still PASSES, because the premature eviction itself guarantees the key is gone; the presence-and-cardinality sample taken from inside the queued task is therefore the ONLY load-bearing witness. This confirms rather than changes the frozen assertion order - cardinality and presence must precede emptiness. (3) No cheaper or stronger single assertion exists; the inside-the-queued-task sample is the minimal witness. GLM was read-only throughout and wrote nothing; this report is design review, not evidence."
+    },
+    {
+      "id": "glm-s3-post-red-review",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_review - bounded post-red review of the implementation and mutation output",
+      "required": false,
+      "result": "PASS",
+      "artifact": "Attempt 1 TRUNCATED, recorded as truncation and NOT as a pass: read_scope carried both files whole, in=12260 out=16384, hit max_tokens, '[GLM returned no text content]' - the entire output budget went to reasoning and no report was emitted. Exactly one narrowed retry was taken per the delegation failure discipline, using the same remedy that worked for S2: read_scope emptied, the 60-line block inlined verbatim instead of shipping two whole files, eight review criteria collapsed to three direct questions, an explicit brevity contract with a 400-word cap, max_tokens raised to 24000. Retry COMPLETE at in=1579 out=2784. Verdict: no CRITICAL, no HIGH, no MEDIUM; one LOW and three OBSERVATIONs. LOW (ACCEPTED, fixed): check 1's name claimed 'a task ADMITTED behind a running task ... stays queued' while its predicate insideT2.length === 0 decides only that T2's body has not run - a rejected or never-admitted T2 satisfies it identically. This is the same name-overclaims-predicate defect already corrected on check 3, and the corrected name matches the frozen design's own words for this step ('first prove T2 has not started'); renamed to 'a second same-key task has not started while the first still holds the lane', predicate untouched. OBSERVATION 1 was the productive one: GLM flagged the header's characterization of blocks 6b/6d/6f-a as UNVERIFIABLE from the slice it was given rather than asserting it true. Verified in source by the manager, it proved FALSE for 6b - lines 291-293 admit first/failing/later on one folder with no await between them, so that lane carries three concurrently admitted tasks plus a fourth at line 299 before the eviction sample at 302, which is not 'a lane whose task is ALONE on it'. Header corrected to state the measured fact instead of a structural reason that does not hold. Two GLM items were adjudicated and declined: 'no lane survives' being unqualified while its predicate checks only this key (GLM rated it trivial wording; the name is already scoped by its own clause 'the running and queued tasks', and re-renaming would churn contract text that already documents check 3's rename - this decline was LATER REVERSED: GLM raised the same point independently at S4 as LOW 1, the manager accepted it there, and the check was renamed in round 6 to 'this key's lane does not survive once the running and queued tasks have both drained'. The S3 reasoning is left standing as it was made; churn-avoidance was not a good enough reason to leave a name broader than its predicate), and the standalone vacuity of checks 1 and 3 (already disclosed in-block and in this contract's mutation artifact - it is the documented reason the pair exists, not a new finding). GLM confirmed check 2 cannot pass vacuously: it requires exactly [[key]], so an empty sample, an empty inner array or a wrong key all fail, which matches the measured red. GLM was read-only throughout, was sent no write scope and wrote nothing; this report is review, not evidence."
+    },
+    {
+      "id": "glm-s4-acceptance-review",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_review - bounded review of the committed verifier diff",
+      "required": false,
+      "result": "PASS",
+      "artifact": "Run against the block as committed at 6cd58f2, after the qa lease had been released. Single attempt, no retry needed: COMPLETE at in=1533 out=6425, using the same bounded shape that recovered S2 and S3 - read_scope emptied, the block inlined verbatim, three questions, an explicit 400-word brevity contract, max_tokens 24000. Verdict: no CRITICAL, no HIGH; one MEDIUM, two LOW, one OBSERVATION. MEDIUM (ACCEPTED, and it reversed a manager adjudication - see below): check 2 pushes to insideT2 exactly once, at T2's first instruction, so its predicate decides a single instant and cannot distinguish a lane that was never evicted from one evicted and re-added before the sample. GLM named the escaping mutant class concretely: a coordinator that deletes the key when the RUNNING task settles - violating the invariant, with T2 still queued - but registers lanes lazily at TASK START by get-or-create instead of at admission. T2 chained onto the lane at admission so it still runs, and its own first instruction re-inserts the key that the sample then reads, so all three checks pass green while the invariant is violated. LOW 1 (ACCEPTED): check 3's name 'no lane survives once the running and queued tasks have both drained' reads as a claim about every lane while its predicate is key-scoped to !activeFolderCoordinationKeys().includes(key). LOW 2 (DECLINED): GLM read check 1's clause 'while the first still holds the lane' as unverified by its predicate. Declined on measured source - lanes.set and owned.pending += 1 both happen at ADMISSION (src/storage/folderWriteCoordinator.ts lines 127-133), so T1 holds the lane from admission onward and does not need its body to have executed for the clause to be true; the clause describes T1's state, not T2's predicate. OBSERVATION 1 (already discharged): the header's claims about 6b/6d/6f-a are not checkable from the inlined slice. This is the same limitation GLM raised at S3, where the manager verified those blocks in source and corrected the header; no further action. ADJUDICATION OF THE MEDIUM, recorded against the manager's own interest: this is a REVERSAL. In round 5 the qa lease holder raised exactly this concern as 'residual B' and the manager argued it away on the grounds that re-registration requires a fresh arrival and this block admits exactly two callers; QA withdrew it on that argument. The argument is sound about the SHIPPED coordinator, where lanes.set runs at admission, and unsound as a claim about MUTANT COVERAGE, which is what a check's name is answerable to - under GLM's mutant T2 re-registers the key itself and no third arrival is needed. QA independently re-asserted the same point when the finding was put back to them, in the same terms. The naming and disclosure half was reopened under a fresh qa lease as round 6; the coverage gap itself is not closable inside a two-caller block and routes to the deferred third-same-key-caller tranche. GLM was read-only throughout, was sent no write scope and wrote nothing; this report is review, not evidence."
+    },
+    {
+      "id": "glm-s5-project-state-audit",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_review - bounded roadmap and project-state consistency audit",
+      "required": false,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "glm-s6-final-acceptance",
+      "type": "inspection",
+      "command": "mcp__glm-delegate__glm_review - bounded final acceptance audit, summary packet only",
+      "required": false,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "baseline-write-queue",
+      "type": "verifier",
+      "command": "npm run verify:write-queue",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Pre-change baseline measured live by the routed qa lease holder at HEAD bd2be785da4f3eaf1ad97e66a2d032964dfdf029, before any edit to scripts/verify-write-queue.mts. Final line verbatim: 'Write queue: 55/55 checks passed'. Zero failure markers in the output. Matches the historical expectation of 55/55, recorded here as the measured value rather than the expected one. The root manager session could not run this command itself: lease-guard.mjs isAllowedActiveShellCommand requires actor === lease.holder, and the manager actor is not qa."
+    },
+    {
+      "id": "mutation-pending-increment",
+      "type": "inspection",
+      "command": "npm run verify:write-queue - executed against a mutant of src/storage/folderWriteCoordinator.ts that increments owned.pending at task start instead of at admission, source restored byte-exactly afterwards",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Mutation A executed live inside a bounded transient persistence lease scoped to src/storage/folderWriteCoordinator.ts alone. The mutant deleted 'owned.pending += 1;' from the admission path and moved it inside runTask, so pending counts RUNNING tasks rather than ADMITTED ones. Measured, not predicted: the holder ran the verifier on the clean tree immediately before mutating and got 'Write queue: 58/58 checks passed'; under the mutant it printed 'Write queue: 57/58 checks passed' and exited 1. Exactly one check went red, verbatim: 'the lane is still live, and is exactly this one key, while the QUEUED task runs - insideT2=[[]], expected=[[c:/users/moham/appdata/local/temp/awkit-coord-queued-ao7iaq]]'. The measured detail IS the defect signature: the sample taken from inside the queued task contained ZERO keys, proving the lane had already been deleted while an admitted task was still to run on it. The run terminated normally and printed its totals - not a hang, not a timeout, and no tsx/TypeScript compile error - so this is a named red, which is strictly stronger evidence than an aborted run. Non-vacuity of the tranche's premise is now measured rather than argued: all four pre-existing 6d lane-lifetime assertions PASSED under this mutation ('no lane exists for a folder nothing has written to', 'the lane is live while its task is running', 'the lane is evicted once it has nothing left to coordinate', 'a folder written again after eviction is coordinated again'), as did every assertion in sections 1-5 and 6a-6f. Recorded against the tranche's own interest: of the three assertions added by block 6g, only ONE is load-bearing against Mutation A. Both sibling assertions passed, and BOTH were subsequently renamed under the QA lease because each name claimed more than its predicate decides; the measured run above therefore used the pre-rename names, quoted here as they stood at measurement time. 'a task admitted behind a running task on the same key stays queued' passed because it samples before release - its predicate insideT2.length === 0 decides only that T2's body has not run, which a rejected or never-admitted T2 would satisfy identically, so it is now 'a second same-key task has not started while the first still holds the lane'. 'the lane is evicted only once the queued task has also drained' passed because premature eviction satisfies a final-state absence check exactly as correct eviction does, so it became 'no lane survives once the running and queued tasks have both drained', and in round 6 was scoped to its own predicate as 'this key's lane does not survive once the running and queued tasks have both drained'. NAME CURRENCY: this artifact quotes names as they stood WHEN THE MUTATION WAS RUN, which is the only honest way to report a measured red, and every one of the three has since moved. The red check quoted verbatim above is today 'the QUEUED task sampled exactly one live lane at its first instruction, and it is this key' - renamed in round 6 under glm-s4-acceptance-review's MEDIUM because 'still live' asserted a continuity across the T1-settle-to-T2-start window that a one-instant sample cannot establish. No rename in any round touched a predicate, a detail string or the check count, so the measured 57/58 and its red detail string remain exact for the current block. The pair is deliberate - each member catches a different failure mode (evict-too-early vs evict-never) - and neither rename altered a predicate, a detail string or the check count. The mutation was never staged and never committed."
+    },
+    {
+      "id": "green-write-queue",
+      "type": "verifier",
+      "command": "npm run verify:write-queue",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Measured by the routed qa lease holder against the restored coordinator: 'Write queue: 58/58 checks passed', every line a tick, zero failure markers. Delta from the 55/55 pre-change baseline is exactly the three checks block 6g adds, so the movement is attributed to the added checks and not to pre-existing breakage. The three 6g checks printed live sample data rather than short-circuiting - insideT2=[] before the gate released, insideT2=[[<temp key>]] after, active=none after the drain - which shows the block actually executed. Re-run and still 58/58 after EVERY comment/name correction, each one measured rather than assumed: the three corrections of rounds 3-5, and both round-6 passes - first the two renames plus the blind-spot disclosure, then the argued-not-measured relabelling of that disclosure. Six independent green runs in total, the last of them against the tree committed for this task. The count never moved because no round ever touched a predicate, a detail string or GATE_DRAIN_TURNS; that invariance is the evidence that the renames were truthfulness work and not assertion weakening."
+    },
+    {
+      "id": "source-restoration-audit",
+      "type": "inspection",
+      "command": "git status --short -- src/storage/folderWriteCoordinator.ts",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Restoration proven by the lease holder immediately after the mutation run, by the exact reverse edit rather than a rewrite: 'git diff -- src/storage/folderWriteCoordinator.ts' produced EMPTY output, and 'git status --short' listed docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-glm-delegation-tooling.json, docs/ai/contracts/awkit-r1b-coordination.json, docs/ai/contracts/awkit-ui1.json, docs/ai/contracts/awkit-utbf.json, scripts/verify-write-queue.mts, tools/roadmap/assignments.json as modified plus the four untracked owner/contract entries - with src/storage/folderWriteCoordinator.ts absent from the list entirely. The shipped coordinator therefore ends this tranche byte-for-byte unchanged, which is what makes this a verifier-quality change and not a product change. No git add, commit, stash, reset, checkout or clean was run inside the mutation window."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "command": "npm run build",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Exited 0 with no TypeScript error. Measured TWICE: once after edit round 3, then RE-MEASURED against the final tree after rounds 4 and 5 had edited scripts/verify-write-queue.mts, because the first artifact described a tree that no longer existed on disk. The re-run is the one recorded here; the round-3 figures are superseded and are not carried forward as if they described the shipped file. The chain is 'node scripts/generate-embedded-roadmap-snapshot.mjs && tsc --noEmit && electron-vite build', so tsc --noEmit is gated ahead of electron-vite and the bundles completing is itself proof the typecheck passed - a non-zero tsc would have short-circuited before them. tsc produced no output. All three bundles emitted: out/main/main.js 1,647.37 kB, out/preload/preload.mjs 20.57 kB, out/renderer/assets/renderer-DHTPf3g5.js 2,032.65 kB, at 278 / 2 / 2142 modules transformed. Final two lines verbatim: '../../out/renderer/assets/renderer-DHTPf3g5.js       2,032.65 kB' and 'built in 6.63s' (the round-3 run reported 'built in 15.58s'; wall time differs, the emitted renderer chunk hash and byte count do not, which is expected because a .mts verifier script under scripts/ participates in no app bundle). The only diagnostic emitted was the pre-existing securityKernel.ts static/dynamic import advisory from [plugin:vite:reporter], unchanged in kind and in the eight importer modules it names, present in both runs and before this tranche."
+    },
+    {
+      "id": "verify-profile-store",
+      "type": "verifier",
+      "command": "npm run verify:profile-store",
+      "required": true,
+      "result": "PASS",
+      "artifact": "'Profile store: 74/74 checks passed', zero failures. This suite matters because JsonProfileStore.serialize is the coordinator's only production caller, so it is where a coordinator regression would surface. No count moved against the write-queue change, which is the expected result for a tranche that changed no production code. Freshness: measured after edit round 3 and NOT re-run after rounds 4 and 5. That is sound rather than stale, and the reason was measured, not assumed - a repository-wide search for the string 'verify-write-queue' under scripts/ returns exactly one hit, the run-comment on line 4 of the file itself. Nothing imports scripts/verify-write-queue.mts, so no edit to it can reach this suite. The typecheck over the edited file is separately covered by the re-measured build evidence."
+    },
+    {
+      "id": "verify-r0-characterization",
+      "type": "verifier",
+      "command": "npm run verify:r0-characterization",
+      "required": true,
+      "result": "PASS",
+      "artifact": "'R0 characterization: 175 PASS / 0 FAIL'. This suite holds the R1B coordination characterizations, including three of the four vacuous length === 0 eviction sites this tranche deliberately did NOT change. They remain exactly as they were: still passing, still vacuous with respect to premature eviction, and knowingly left for a later tranche now that verify:write-queue carries the non-vacuous control. Freshness: same standing as verify-profile-store - measured after round 3, not re-run after rounds 4 and 5, and sound because nothing imports scripts/verify-write-queue.mts (one repository search, one hit, the file's own run-comment)."
+    },
+    {
+      "id": "mock-site-applicability",
+      "type": "inspection",
+      "command": "read mock-site/README.md and record the applicability determination with its reason",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Determination EXECUTED against mock-site/README.md's own text and returned a definitive NOT APPLICABLE. Three grounds, each cited from the README rather than assumed: (1) the lab's stated scope covers Recorder, Runner, Smart Wait, Flow Designer, Workflow Builder, Instance Monitor, locator, node, wait and execution features - folder-write coordination is none of these; (2) the extension rules require every scenario to have a stable local URL, title, description, expected behavior, related AWKIT feature and stable role/name, label, placeholder or data-testid selectors, and a Node-process mutual-exclusion invariant over a filesystem folder has no URL, no DOM and no selectors, so no page a browser could load would exercise runExclusive at all; (3) the coverage rule is satisfied by verify:mock-site OR another focused verifier, and verify:write-queue is that verifier. This PASS attests the determination ran and answered definitively; it does NOT assert that mock-site coverage of this boundary exists. Nothing under mock-site was created, modified or proposed."
+    },
+    {
+      "id": "qa-signoff",
+      "type": "inspection",
+      "command": "writer-phase sign-off by the routed qa lease holder that no assertion name or prose in block 6g claims anything the block does not support - NOT the task-level reviewer verdict, which is deliberately still outstanding",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Given by the awkit-qa-engineer lease holder after five edit rounds, and recorded verbatim. Sign-off: 'Yes. As the assertion owner for block 6g, and with all four edit rounds complete, I sign off that no assertion name and no prose in block 6g claims anything the block does not support.' Three qualifications carried into this contract verbatim at QA's request. (1) 'The block measures lane-map presence, not overlap. It admits no third same-key caller, so the un-serialization consequence is argued from the implementation, not observed. This is already stated in-block at lines 564-569 and is not a hidden limitation.' (2) 'Of the two coordinator defects named on line 557, only one was executed. The late increment (pending counted at task start rather than at admission) was run and measured - 6b, 6d, 6f-a and 6g checks 1 and 3 all passed under it, with only 6g check 2 red at insideT2=[[]]. The second form, deleting the key without consulting the queue behind it, is argued rather than measured; it follows from the same final-state-sampling property the header establishes, but no mutation was run for it.' (3) 'Check 2 still live is sound for a two-caller block, and its soundness depends on that construction. If a third same-key caller is ever added to this block - as the deferred tranche for direct overlap measurement would require - that name must be re-examined before the new caller lands, because a third arrival is exactly what makes evict-then-re-register reachable.' QA also raised and then WITHDREW an objection to check 2's name after manager adjudication: a string key cannot by itself distinguish never-evicted from evicted-then-re-registered, but re-registration requires a fresh arrival, this block admits exactly two callers, T2 arrived before T1 settled, and the executed mutant returned insideT2=[[]] rather than [[key]] - which is precisely what an evict-then-re-register would have had to produce for the name to be false. QA's withdrawal, verbatim: 'Withdrawn.' No dissent remains on the record. QA reported zero lease-guard rejections across rounds 4 and 5; every command was a single bounded invocation. SCOPE OF THIS ENTRY: it closes the QA WRITER phase over scripts/verify-write-queue.mts, which is this task's entire permanent production scope. It is deliberately NOT the task-level QA reviewer verdict and completion.qa_status is therefore held at pending here, because the project-state closeout - docs/ai narrative, Beads, roadmap pins, the awkit-utbf residue absorption - had not been performed when this sign-off was given, and a PASS recorded now would assert QA approval of work QA has not seen. The reviewer verdict is taken after closeout, against the whole task. SUPERSEDED IN PART BY ROUND 6 - the verbatim quotations above are left exactly as given, because they are the record of what was said when it was said and editing them would falsify it, but two of them no longer describe the block. (a) Qualification (3) anticipated that check 2's 'still live' name would need re-examining only IF a third same-key caller were ever added. That proved wrong in the safe direction: the name needed re-examining immediately, with no third caller, because a mutant can make T2 re-register the key itself. The re-examination happened in round 6 and the name is now 'the QUEUED task sampled exactly one live lane at its first instruction, and it is this key'. (b) The WITHDRAWN objection was REINSTATED and is now sustained. The manager's counter-argument recorded above - that re-registration requires a fresh arrival, that this block admits exactly two callers, and that the executed mutant returned insideT2=[[]] rather than [[key]] - is sound about the SHIPPED coordinator, whose lanes.set runs at admission, and unsound as a claim about MUTANT COVERAGE, which is the standard a check's name is answerable to. It also leaned on the executed mutant's output to defend the name against a DIFFERENT, unexecuted mutant, which that output cannot speak to. GLM raised the same defect independently at S4 as its MEDIUM, the manager accepted it and recorded the reversal, and QA re-asserted the objection in its own terms when it was put back to them. The dissent that this entry recorded as resolved was therefore correct, and the block was reopened under a fresh qa lease rather than left standing on a bad adjudication. Round 6 changed two assertion names and added one disclosure paragraph, all comment-and-name only; no predicate, detail string, drain-turn count or check count was touched, and the suite stayed at 58/58. What round 6 did NOT do is close the coverage gap - that is not closable inside a two-caller block and is deferred, disclosed in-block, to the third-same-key-caller tranche."
+    },
+    {
+      "id": "verify-verifier-classification",
+      "type": "verifier",
+      "command": "npm run verify:verifier-classification",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "verify-roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "bookkeeping-absorption-audit",
+      "type": "inspection",
+      "command": "git diff -- docs/ai/contracts/awkit-utbf.json tools/roadmap/assignments.json docs/ai/contracts/active-lease.json",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "staged-path-audit",
+      "type": "inspection",
+      "command": "git diff --cached --name-only",
+      "required": true,
+      "result": "PASS",
+      "artifact": "Implementation commit 6cd58f2 on main. Staged by explicit path only - 'git add -- scripts/verify-write-queue.mts'; no git add dot, no -A, no -u, no stash, no reset, no clean, and no branch change. 'git diff --cached --name-only' returned exactly one line: scripts/verify-write-queue.mts. 'git diff --cached --stat' returned '1 file changed, 66 insertions(+)' - zero deletions, so no committed line anywhere in the file was altered and the change is purely additive. The full 'git diff --cached' was read before committing and is entirely the new 6g block. NO PROTECTED OWNER PATH ENTERED THE COMMIT: AWTKIT.rar, 'Building priorities and integration-handoff/', awkit-glm-delegation-tooling.json, awkit-r1b-coordination.json, awkit-r2.json and awkit-ui1.json all remain unstaged and untouched in the working tree, as does this contract. Independently corroborated by the pre-stage 'git status --short', which listed src/storage/folderWriteCoordinator.ts NOWHERE - the Mutation A edit was restored byte-exactly and no mutation reached the index or the commit. COMMIT MESSAGE TRAILER, disclosed rather than worked around: the session attribution convention asks for a 'Co-Authored-By: Claude Opus 5' trailer carrying an angle-bracketed address, and a trailer is conventionally a second line. Neither can pass this repository's own control plane. tools/agents/lease-guard.mjs line 150 tests the RAW command string with /[;&|><backtick CR LF]/ and does not respect quoting, and isManagerGitCommand admits 'git commit -m' only at exactly four tokens, so any angle bracket or newline in the message is refused outright. The message is therefore single-line and carries no trailer. That is a guard constraint, not an oversight, and routing around the guard to satisfy the convention would itself violate the staging discipline this task is operating under."
+    },
+    {
+      "id": "push-origin-main",
+      "type": "inspection",
+      "command": "git push origin main",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false,
+    "push_evidence_id": "push-origin-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-s410:qa:2026-09-07T18:15:32.771Z",
+        "task": "awkit-s410",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-07T18:15:32.771Z",
+        "acquired_at_commit": "bd2be785da4f3eaf1ad97e66a2d032964dfdf029",
+        "released_at": "2026-09-07T18:45:10.212Z",
+        "released_reason": "handing the serialized writer slot to persistence for the bounded Mutation A evidence window on folderWriteCoordinator.ts",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-s410:persistence:2026-09-07T18:45:27.217Z",
+        "task": "awkit-s410",
+        "holder": "persistence",
+        "status": "released",
+        "allowed_paths": [
+          "src/storage/folderWriteCoordinator.ts"
+        ],
+        "acquired_at": "2026-09-07T18:45:27.217Z",
+        "acquired_at_commit": "bd2be785da4f3eaf1ad97e66a2d032964dfdf029",
+        "released_at": "2026-09-07T18:54:30.552Z",
+        "released_reason": "Mutation A evidence window complete, coordinator restored byte-exactly with an empty diff, returning the serialized writer slot to qa",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-s410:qa:2026-09-07T18:55:13.956Z",
+        "task": "awkit-s410",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-write-queue.mts"
+        ],
+        "acquired_at": "2026-09-07T18:55:13.956Z",
+        "acquired_at_commit": "bd2be785da4f3eaf1ad97e66a2d032964dfdf029",
+        "released_at": "2026-09-07T19:30:57.721Z",
+        "released_reason": "QA writer phase complete - block 6g committed at 6cd58f2, verify write-queue green at 58 of 58, build re-measured against the final tree, formal sign-off recorded in the contract",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
