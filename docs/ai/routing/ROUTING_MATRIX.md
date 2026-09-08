@@ -11,7 +11,7 @@ and what risk it carries. An earlier draft stated these rules in three places th
 
 | Agent | Role | Default mode | Owns | Folder authority |
 | --- | --- | --- | --- | --- |
-| `manager` | Manager / Orchestrator | writer | `tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**`<br>`.agents/**`<br>`.cursor/**`<br>`.cbmignore`<br>`.graphifyignore`<br>`scripts/AGENTS.md`<br>`src/AGENTS.md`<br>`AGENTS.md`<br>`CLAUDE.md`<br>`GEMINI.md` | — |
+| `manager` | Manager / Orchestrator | writer | `tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**`<br>`.agents/**`<br>`.cursor/**`<br>`.cbmignore`<br>`.graphifyignore`<br>`.mcp.json`<br>`scripts/AGENTS.md`<br>`src/AGENTS.md`<br>`AGENTS.md`<br>`CLAUDE.md`<br>`GEMINI.md` | — |
 | `architect` | Software Architect | read-only | — | — |
 | `uiux` | UI/UX & Accessibility Specialist | read-only | — | — |
 | `frontend` | React / Renderer Engineer | writer | `app/renderer/**`<br>`logos/**`<br>`UI Samples/**`<br>`ui-mock.html`<br>`capture-dribbble.mjs`<br>`get-videos.mjs` | `app/renderer/AGENTS.md` |
@@ -183,6 +183,7 @@ change was visual. First match wins, so narrower paths come first.
 | `.graphifyignore` | `manager` | `agent_infrastructure_change` | Cross-agent discovery and local instruction boundaries. |
 | `scripts/AGENTS.md` | `manager` | `agent_infrastructure_change` | Cross-agent discovery and local instruction boundaries. |
 | `src/AGENTS.md` | `manager` | `agent_infrastructure_change` | Cross-agent discovery and local instruction boundaries. |
+| `.mcp.json` | `manager` | `agent_infrastructure_change` | Project-scoped MCP server registration for development agents. Never read by the app. |
 | `.codex/**` | `manager` | `agent_infrastructure_change` | Codex configuration and skills. |
 | `.gemini/**` | `manager` | `agent_infrastructure_change` | Gemini / Antigravity configuration and skills. |
 | `.agents/**` | `manager` | `agent_infrastructure_change` | Cross-platform agent rules and skills. |
