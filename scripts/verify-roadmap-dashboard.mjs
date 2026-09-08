@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("275 issues parse", beads.stats.total === 275, `got ${beads.stats.total}`);
+  check("276 issues parse", beads.stats.total === 276, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -467,8 +467,16 @@ try {
   // `awkit-wknd`) plus the 2 `blocked` (`awkit-7bu`, `awkit-cm8`). Note that `awkit-syaa` is no
   // longer among the open set: it closed in an earlier move that this ledger never narrated, which
   // is also why the paragraph above jumps from 9/266 straight to an unexplained 8/267.
-    "6 outstanding / 269 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 269,
+  // Then 6/270 of 276 on 2026-09-08: `awkit-s410` (the lane-eviction non-vacuity mutation-testing
+  // tranche this pin itself protects) closed, and the closeout review filed one OPEN follow-up,
+  // `awkit-rkd8` (`discovered-from: awkit-s410`, P2). One bead crossed from outstanding to closed and
+  // one new bead entered outstanding, so `closed` rises 269 → 270 while `outstanding` holds at 6 -
+  // net zero on that side, not an unmoved pin. `awkit-rkd8` DOES ship one dependency edge, its
+  // `discovered-from: awkit-s410` link - `discovered-from` is a `KNOWN_EDGE_TYPES` member
+  // (parse-beads.mjs), so `beads.stats.edges` counts it: the edge pin below moves 106 → 107 in the
+  // same move as this one, not independently.
+    "6 outstanding / 270 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 270,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -522,9 +530,14 @@ try {
   );
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
+  // Then 107 on 2026-09-08: the `awkit-s410` closeout review filed `awkit-rkd8` with a
+  // `discovered-from: awkit-s410` dependency - one edge added, none removed or changed - so this pin
+  // moves 106 → 107 in step with the outstanding/closed move above. Move this pin deliberately when
+  // an edge is added or removed; never relax it to a range or a `>=`, or it stops noticing a filed
+  // dependency that the export never picked up.
   check(
-    "106 edges are present to classify",
-    beads.stats.edges === 106,
+    "107 edges are present to classify",
+    beads.stats.edges === 107,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
