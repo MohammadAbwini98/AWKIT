@@ -5,14 +5,82 @@
 Shared rules live in `AGENTS.md` (imported above) and `docs/ai/`. This file adds
 Claude Code-specific behavior.
 
+## Subagent policy
+
+**Default behavior: DO NOT spawn subagents.** One capable agent completes one normal task end to
+end. Add another model only when independent reasoning provides measurable value.
+
+- **Normal task: 0 subagents.** Bug fixes, UI adjustments, small and medium features, refactoring,
+  test fixes, documentation, configuration, routine persistence edits, routine validation, git
+  inspection and project-state updates are done by the primary agent, in place.
+- **Default maximum for a single task: 1.** Even a high-risk task normally wants one independent
+  reader, not a committee — parallel reviewers of one diff mostly re-derive each other at full price.
+- **Never spawn a subagent merely because one is available.** Availability is not a reason, and a
+  routed role is not an instruction to delegate: deterministic routing (`tools/agents/routing-matrix.mjs`)
+  names who is *accountable* for a concern, and by default you discharge that role yourself. Routing,
+  risk levels, path ownership and the write lease are all unchanged by this.
+- **Delegate only on a named trigger:** major phase completion; release candidate;
+  security-sensitive change; concurrency or runtime change; persistence migration; architectural
+  refactor; a stalled root-cause investigation; or an explicit request. Name the trigger when you do.
+- **Review starts from the diff** — `git diff`, the changed files, the objective, the acceptance
+  criteria, the validation already run. Widen into the repository only to prove or disprove a
+  concrete finding.
+- **No nested delegation.** A subagent completes its assigned scope itself and must not delegate to
+  further agents unless you explicitly authorize it.
+- **External models are opt-in.** Never invoke `glm-delegate` automatically. It is permitted only
+  when you are explicitly asked, when an isolated task is large enough that offloading is
+  economically advantageous, or when a genuinely independent second analysis has measurable value —
+  never for file searching, summarizing, formatting, test execution, simple edits or state updates.
+- **Optimize in this order:** avoid the unnecessary call → minimize context sent → minimize output
+  requested → target the validation → *only then* choose a cheaper model. A wasteful call moved to a
+  cheaper model is still a wasteful call.
+
+Machine-readable form: `CONCURRENCY_POLICY`, `DELEGATION_TRIGGERS`, `NESTED_DELEGATION` and
+`delegationDecisionFor()` in `tools/agents/context-policy.mjs`.
+
 ## Before editing
 
-- Read `AGENTS.md` first, then the required-reading order it lists — at minimum
-  `docs/ai/CURRENT_STATE.md`, `docs/ai/RULES.md`, `docs/ai/ARCHITECTURE.md`, and
-  `docs/ai/COMMANDS.md`.
-- Read any local `AGENTS.md` in folders you will modify.
+**Always** — three sources, on every task:
+
+- `AGENTS.md` (imported by this file, so one read) and `docs/ai/CURRENT_STATE.md`.
+- The active task contract, when the task has one.
+
+**Conditional** — open one *only* when its trigger actually fires:
+
+| When | Read |
+|---|---|
+| Architecture or cross-layer change (`cross_layer_count >= 2`, `public_contract_change`, `new_dependency`, a module boundary moves) | `docs/ai/ARCHITECTURE.md`, `DECISIONS.md` |
+| You are about to choose, run, add or change a verification command | `docs/ai/COMMANDS.md`, `TESTING.md` |
+| Security-sensitive work (licensing, auth, authorization, secrets, protected login, signing) | `docs/ai/SECURITY.md` |
+| Persistence or schema work (`persisted_shape_change`, `migration_required`, `filesystem_write_change`) | `docs/ai/RULES.md` data rules + the local `AGENTS.md` of the folder |
+| Packaging or release work (`packaging_change`, `offline_boundary_change`, `signing_change`, `new_dependency`) | `docs/ai/RULES.md` offline rules, `docs/OFFLINE_STANDALONE_PACKAGING.md` |
+| Renderer or UI work (`renderer_visual_change`, `interaction_change`, `accessibility_change`) | `docs/ai/RULES.md` UI rules + the local `AGENTS.md` of the folder |
+| Resuming paused or handed-off work | `docs/ai/HANDOFF.md` |
+| The area is known-fragile, or a failure looks familiar | `docs/ai/KNOWN_ISSUES.md` |
+| Using the code graph, or questioning who owns a path | `docs/ai/GRAPHIFY.md`, `docs/ai/routing/ROUTING_MATRIX.md` |
+
+A small single-layer change fires none of these, and that is the point: for a tiny UI bug the
+always-set plus the UI row is the whole budget — no persistence, release, architecture or
+historical validation context at all.
+
+- Treat as **historical**: `docs/ai/TASK_LOG.md`, `docs/ai/contracts/`,
+  `playwright_flow_studio_updated_phases/`, `change_requests/`, `docs/IMPLEMENTATION_AUDIT.md`, and
+  prior phase reports and audits. These stay authoritative for the record, but do not auto-load them
+  for routine work — open one to answer a specific question, and read the section, not the file.
+- Do not read the entire repository, every planning file, all phase reports, all historical audits
+  or unrelated architecture docs to make a scoped change.
 - Inspect the actual files (Read/Grep/Glob) before changing them — don't rely on memory of
   prior sessions; the code changes between tasks.
+
+### Default process
+
+1. Read the task and the always-set above; add a conditional source only if its trigger fires.
+2. Inspect only the files the change implicates.
+3. Implement.
+4. Typecheck, then run the relevant verifier, then build when the change can affect a bundle.
+5. Report concisely: what changed, what ran, what did not, what remains at risk.
+6. Update the state sources the task actually moved.
+7. Escalate to a reviewer only on a named trigger.
 
 ## While working
 
@@ -35,6 +103,15 @@ Claude Code-specific behavior.
 - For runner/connector/node changes, run `npm run verify:runner` (live checks via `tsx`).
 - For mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - For offline/packaging changes, run `npm run validate:offline`.
+- **Prefer targeted validation, and run it once.** Run the checks the change actually implicates;
+  reserve broad sweeps for phase completion, a release candidate, a major refactor, a
+  shared-infrastructure change, or an explicit request. If you delegate a review, it re-runs only
+  what a specific finding requires — it does not repeat validation you already performed.
+- **Targeting is about duplication, not coverage.** The protections below are not optional and are
+  never skipped to save tokens when the change implicates them: TypeScript correctness; production
+  build; runtime safety; Electron security; offline behavior; Playwright automation integrity;
+  Oracle fail-closed behavior; SQLite/data integrity; concurrency and admission controls; packaging
+  requirements; regression-sensitive workflows.
 - Report what you ran and what you could not (e.g. the clean-machine GUI walkthrough).
 
 ## After finishing

@@ -31,6 +31,7 @@ import {
   resolveContractPath,
   toRepoRelative
 } from "./lease.mjs";
+import { CONCURRENCY_POLICY } from "./context-policy.mjs";
 import { AGENTS, agent } from "./routing-matrix.mjs";
 import { evaluateTaskGate } from "./task-gate.mjs";
 
@@ -114,6 +115,47 @@ export function canonicalActorId(agentType, agentId) {
   }
   const value = String(agentType);
   return AGENTS.find((entry) => entry.claudeName === value)?.id ?? null;
+}
+
+/**
+ * True only for the ROOT primary agent.
+ *
+ * Deliberately stricter than "canonicalizes to manager": a real spawned Manager subagent carries
+ * `agent_type: "awkit-manager"` and also canonicalizes to "manager", but it is a subagent and must
+ * never be treated as the root. An `agent_id` with no usable type stays degraded identity evidence
+ * and is not a root call either.
+ */
+export function isRootPrimaryIdentity(agentType, agentId) {
+  return (agentType === undefined || agentType === null || agentType === "") && !agentId;
+}
+
+/**
+ * Which routing identity may exercise `lease` for this call.
+ *
+ * Single-agent mode (`CONCURRENCY_POLICY.defaultMode`) is the operating model: one primary agent
+ * does the whole task, and a routed role names who is accountable rather than instructing a spawn.
+ * Without this the model is unusable — the root call always canonicalizes to "manager", every lease
+ * decision demands `actor === lease.holder`, and the contract validator refuses to name manager as
+ * writer for a path manager does not own. The intersection is empty, so the primary agent could
+ * write only manager-owned paths.
+ *
+ * The relaxation is EXACTLY ONE THING: which process identity may exercise an already-granted
+ * routed lease. It grants no paths and widens no ownership. `decideWrite`/`leaseAllows` still bound
+ * every write to that lease's own allowed_paths, deterministic routing and the contract validator
+ * still decide who may hold a lease over which paths at all, and the shell allowlist still returns
+ * only the command set of the role whose lease is held. Outside single-agent mode, and for every
+ * real subagent, the actor is returned unchanged.
+ */
+export function effectiveActorFor(lease, agentType, agentId, policy = CONCURRENCY_POLICY) {
+  const actor = canonicalActorId(agentType, agentId);
+  // Unknown/degraded identity stays null and fails closed; a real subagent stays itself.
+  if (actor !== "manager") return actor;
+  if (!isRootPrimaryIdentity(agentType, agentId)) return actor;
+  if (policy?.defaultMode !== "single-agent") return actor;
+  const holder = lease?.holder;
+  // An injected or unknown holder must never become an identity — `agent()` throws on unknown ids.
+  if (!holder || !AGENTS.some((entry) => entry.id === holder)) return actor;
+  return holder;
 }
 
 /** Resolve existing targets (or their nearest existing parent) so NTFS junctions cannot escape. */
@@ -309,7 +351,14 @@ function isManagerWriterCommand(command) {
 export function isAllowedActiveShellCommand(
   command,
   lease,
-  { agentType, agentId, stagedPaths = [], pushAuthorized = false, runInBackground = false } = {}
+  {
+    agentType,
+    agentId,
+    stagedPaths = [],
+    pushAuthorized = false,
+    runInBackground = false,
+    policy = CONCURRENCY_POLICY
+  } = {}
 ) {
   if (!lease || runInBackground || hasUnsafeShellSyntax(command)) return false;
   if (isReadOnlyShellCommand(command)) return true;
@@ -320,7 +369,10 @@ export function isAllowedActiveShellCommand(
     if (isLeaseLifecycleCommand(command)) return true;
     if (isManagerGitCommand(command, lease, { stagedPaths, pushAuthorized })) return true;
   }
-  if (actor !== lease.holder) return false;
+  // Same relaxation as the write path, so shell and write decisions cannot disagree. The role
+  // command sets below stay keyed on `lease.holder`, so the relaxed actor gets only the commands
+  // already permitted to this lease's holder — no new command becomes runnable.
+  if (effectiveActorFor(lease, agentType, agentId, policy) !== lease.holder) return false;
 
   // Validates the holder id and keeps an injected/unknown lease fail-closed.
   const holder = agent(lease.holder);
@@ -359,8 +411,14 @@ export function decideWrite(lease, relativePath) {
     : { allow: false, reason: "out-of-scope" };
 }
 
-/** Add actor identity to the pure write decision. Unknown/non-holder subagents never borrow a lease. */
-export function decideActorWrite(lease, relativePath, agentType, agentId) {
+/**
+ * Add actor identity to the pure write decision. Unknown/non-holder subagents never borrow a lease.
+ *
+ * `decideWrite` runs FIRST and is untouched, so lease path scope is decided before identity is even
+ * consulted: an out-of-scope path is refused for the root primary exactly as for anyone else, and
+ * the single-agent relaxation can only ever change WHO exercises the lease, never WHAT it covers.
+ */
+export function decideActorWrite(lease, relativePath, agentType, agentId, policy = CONCURRENCY_POLICY) {
   const actor = canonicalActorId(agentType, agentId);
   if (!actor) return { allow: false, reason: "unknown-actor" };
   const base = decideWrite(lease, relativePath);
@@ -368,7 +426,9 @@ export function decideActorWrite(lease, relativePath, agentType, agentId) {
   if (base.reason === "contract-control-plane") {
     return actor === "manager" ? base : { allow: false, reason: "non-holder" };
   }
-  if (actor !== lease?.holder) return { allow: false, reason: "non-holder" };
+  if (effectiveActorFor(lease, agentType, agentId, policy) !== lease?.holder) {
+    return { allow: false, reason: "non-holder" };
+  }
   return base;
 }
 

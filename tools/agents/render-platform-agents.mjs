@@ -38,9 +38,16 @@ import {
   toolsFor
 } from "./routing-matrix.mjs";
 import {
+  CONCURRENCY_POLICY,
+  CONTEXT_LOADING,
   DELEGATION_FIELDS,
   DELEGATION_PACKET_FIELDS,
-  REPORT_SECTIONS
+  DELEGATION_TRIGGERS,
+  EXTERNAL_DELEGATION_POLICY,
+  NESTED_DELEGATION,
+  OPTIMIZATION_PRIORITY,
+  REPORT_SECTIONS,
+  REVIEW_REPORT_FORMAT
 } from "./context-policy.mjs";
 
 /** tools/agents -> tools -> repo root */
@@ -67,6 +74,25 @@ function triggersFor(agentId) {
   }
   if (agentId === "manager") out.push("always — every task has exactly one orchestrator");
   return out;
+}
+
+/**
+ * The context every task pays for, as a sentence fragment.
+ * @returns {string}
+ */
+function alwaysContextSources() {
+  return CONTEXT_LOADING.always.map((e) => e.source).join(", ");
+}
+
+/**
+ * The conditional context as list items, trigger first so the reader decides before opening
+ * anything. A nested list rather than one long sentence: this is a lookup, not prose.
+ *
+ * @param {string} indent
+ * @returns {string[]}
+ */
+function conditionalContextLines(indent) {
+  return CONTEXT_LOADING.conditional.map((e) => `${indent}- ${e.when} → ${e.source}`);
 }
 
 /**
@@ -147,6 +173,31 @@ function roleBody(a) {
     lines.push("");
   }
 
+  lines.push("## How this role is performed");
+  lines.push("");
+  lines.push(
+    `The orchestration default is \`${CONCURRENCY_POLICY.defaultMode}\`. Routing decides which role ` +
+      "OWNS a concern; it does not decide that a separate model must perform it. When this role is " +
+      "activated, the primary agent discharges it in place — reading the relevant code, making the " +
+      "change, and running the validation this role is accountable for."
+  );
+  lines.push("");
+  lines.push(
+    "Activation is unchanged by this. Every routed role still applies, every risk level still " +
+      "computes the same, and no check is skipped: the work is done, not delegated. A separate " +
+      "context is spawned only when it buys independent judgement or real context relief, which " +
+      "means one of these is true and named:"
+  );
+  lines.push("");
+  for (const trigger of DELEGATION_TRIGGERS) lines.push(`- \`${trigger.id}\` — ${trigger.why}`);
+  lines.push("");
+  lines.push(
+    `Otherwise the subagent count for the task is ${CONCURRENCY_POLICY.routineSubagents}; with a ` +
+      `trigger the default is ${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask}. **Never spawn a ` +
+      "subagent merely because one is available.**"
+  );
+  lines.push("");
+
   if (a.id === "manager") {
     lines.push("## Deterministic orchestration");
     lines.push("");
@@ -156,9 +207,20 @@ function roleBody(a) {
         "from free-form prose."
     );
     lines.push(
-      "- Use project subagents for bounded discovery, review, and specialist implementation. Agent " +
-        "Teams remain disabled unless the task contract documents genuine peer-to-peer coordination " +
-        "that isolated result-returning subagents cannot handle."
+      "- Perform the activated roles yourself by default. Reach for a project subagent only on a " +
+        "named trigger above, and prefer one independent reader over several — parallel reviewers " +
+        "of one diff mostly re-derive each other at full price. Agent Teams remain disabled unless " +
+        "the task contract documents genuine peer-to-peer coordination that isolated " +
+        "result-returning subagents cannot handle."
+    );
+    lines.push(
+      `- Optimize in this order: ${OPTIMIZATION_PRIORITY.join(" -> ")}. A wasteful call moved to a ` +
+        "cheaper model is still a wasteful call, so the model choice is last."
+    );
+    lines.push(
+      "- Never invoke external model delegation (`glm-delegate`) automatically. It is permitted only " +
+        `when ${EXTERNAL_DELEGATION_POLICY.allowedWhen.join("; or ")} — and never for ` +
+        `${EXTERNAL_DELEGATION_POLICY.neverFor.join(", ")}.`
     );
     lines.push(
       "- Address specialists by their exact `awkit-*` identity. Preserve each generated agent's " +
@@ -199,7 +261,41 @@ function roleBody(a) {
     "- **Protect context.** Do not return giant logs, full files, raw search dumps, repeated project " +
       "instructions, chain-of-thought, or irrelevant failed hypotheses."
   );
+  lines.push(`- **No nested delegation.** ${NESTED_DELEGATION.rule}`);
+  lines.push(
+    `- **Read what the task needs.** Always: ${alwaysContextSources()}. ${CONTEXT_LOADING.rule} ` +
+      "The conditional sources and the triggers that open them:"
+  );
+  lines.push(...conditionalContextLines("  "));
+  lines.push(
+    "- **Validate once, at the right size.** Run the checks the change actually implicates — " +
+      "typecheck, then the relevant verifier, then a build when the change can affect one. Reserve " +
+      "full suites for phase completion, a release candidate, a major refactor, a shared-" +
+      "infrastructure change, or an explicit request. Re-run a check only when a finding requires it."
+  );
   lines.push("");
+
+  if (["read-only", "advisory", "review"].includes(a.defaultMode)) {
+    lines.push("## Review output");
+    lines.push("");
+    lines.push(
+      "Start from the diff: `git diff`, the changed files, the objective, the acceptance criteria " +
+        "and the validation already run. Widen into the wider repository only to prove or disprove a " +
+        "concrete finding — not to build familiarity."
+    );
+    lines.push("");
+    lines.push(`Answer in about ${REVIEW_REPORT_FORMAT.softLineLimit} lines:`);
+    lines.push("");
+    lines.push("```text");
+    lines.push(`STATUS: ${REVIEW_REPORT_FORMAT.status.join(" | ")}`);
+    lines.push(`Findings:    ${REVIEW_REPORT_FORMAT.findingShape}`);
+    lines.push(`Validation:  ${REVIEW_REPORT_FORMAT.validationShape}`);
+    lines.push("Residual risk: what remains unproven, or `none`");
+    lines.push("```");
+    lines.push("");
+    lines.push(`Leave out ${REVIEW_REPORT_FORMAT.excluded.join(", ")}.`);
+    lines.push("");
+  }
   lines.push("## Delegation and report contract");
   lines.push("");
   lines.push("The manager sends only this bounded packet:");
@@ -300,6 +396,19 @@ export function renderAdapter(platform) {
   );
   lines.push("4. **Declare evidence before implementing**, and never weaken an assertion to get green.");
   lines.push("5. **No worktrees, no new branches.** See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.");
+  lines.push(
+    `6. **One agent, one task.** The default is \`${CONCURRENCY_POLICY.defaultMode}\`: a routed role ` +
+      "names who is accountable, not who must be spawned. Routine work uses " +
+      `${CONCURRENCY_POLICY.routineSubagents} subagents and the primary agent runs its own targeted ` +
+      `validation. Delegate only on a named trigger — ${DELEGATION_TRIGGERS.map((t) => `\`${t.id}\``).join(", ")} — ` +
+      `and then normally just ${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask}. Availability is not a ` +
+      `reason. ${NESTED_DELEGATION.rule}`
+  );
+  lines.push(
+    `7. **Load what the task needs.** Always: ${alwaysContextSources()}. ${CONTEXT_LOADING.rule} ` +
+      "The conditional sources and the triggers that open them:"
+  );
+  lines.push(...conditionalContextLines("   "));
   lines.push("");
   lines.push("Process: `docs/ai/routing/ROUTING_RULES.md`. Data: `docs/ai/routing/ROUTING_MATRIX.md`.");
 
