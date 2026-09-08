@@ -102,12 +102,14 @@ import {
   canonicalActorId,
   decideActorWrite,
   decideWrite,
+  effectiveActorFor,
   isAllowedActiveShellCommand,
   isContractControlPath,
   isLeaseGrantCommand,
   isManagerGitCommand,
   isPhysicallyWithinRepo,
   isReadOnlyShellCommand,
+  isRootPrimaryIdentity,
   pushAuthorizedForLease,
   targetPathOf
 } from "../tools/agents/lease-guard.mjs";
@@ -152,7 +154,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1036;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1064;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -746,6 +748,127 @@ try {
       swarmPolicy === "prohibited" ||
       concurrencyPolicy.allRoleSwarmProhibited === true,
     JSON.stringify(concurrencyPolicy)
+  );
+
+  /*
+   * The single-agent default is PINNED, not merely documented.
+   *
+   * WHY: `defaultMode` is the whole point of the awkit-wfsimp refactor — routine work is done by the
+   * primary agent in place, and a routed role is not an instruction to delegate. That default lives
+   * in one frozen object, so reverting it is a one-word edit that no other check in this file would
+   * notice. Three separate assertions rather than one conjunction, so a mutation names the field it
+   * broke instead of failing a single opaque "policy" check.
+   *
+   * These are ceilings-and-defaults, not the same fact three times: `defaultMode` says WHO performs
+   * routine work, `routineSubagents` says how many a routine task should normally use (zero), and
+   * `defaultMaxSubagentsPerTask` says how many even a triggered, high-risk task may use (one
+   * independent reader, never a committee).
+   */
+  check(
+    "CONCURRENCY_POLICY.defaultMode is pinned to single-agent",
+    concurrencyPolicy.defaultMode === "single-agent",
+    JSON.stringify(concurrencyPolicy.defaultMode)
+  );
+  check(
+    "CONCURRENCY_POLICY.routineSubagents is pinned to 0",
+    concurrencyPolicy.routineSubagents === 0,
+    JSON.stringify(concurrencyPolicy.routineSubagents)
+  );
+  check(
+    "CONCURRENCY_POLICY.defaultMaxSubagentsPerTask is pinned to 1",
+    concurrencyPolicy.defaultMaxSubagentsPerTask === 1,
+    JSON.stringify(concurrencyPolicy.defaultMaxSubagentsPerTask)
+  );
+
+  /*
+   * CONTEXT_LOADING is task-aware, and the shape is what makes it so.
+   *
+   * WHY: the previous policy was a flat seven-source routine list, which meant a one-line UI fix paid
+   * for persistence, release, architecture and historical validation context. The fix is structural —
+   * a small always-set plus a conditional set where every entry names the trigger that fires it — so
+   * the assertions are structural too. A `conditional` entry with no `trigger` is the regression that
+   * matters: it silently becomes always-read again, because nobody can tell when to skip it.
+   */
+  const contextLoading = contextPolicy?.CONTEXT_LOADING ?? {};
+  const alwaysSources = Array.isArray(contextLoading.always) ? contextLoading.always : null;
+  const conditionalSources = Array.isArray(contextLoading.conditional)
+    ? contextLoading.conditional
+    : null;
+  check(
+    "CONTEXT_LOADING declares an always-set and a conditional set",
+    alwaysSources !== null && conditionalSources !== null,
+    JSON.stringify(Object.keys(contextLoading))
+  );
+  check(
+    "CONTEXT_LOADING has no flat routine list left",
+    contextLoading.routine === undefined,
+    JSON.stringify(contextLoading.routine)
+  );
+  check(
+    "the always-set stays minimal (at most 3 sources)",
+    (alwaysSources?.length ?? Infinity) <= 3 && (alwaysSources?.length ?? 0) >= 1,
+    `${alwaysSources?.length}`
+  );
+  check(
+    "every always-set entry names a source and why it is paid for on every task",
+    (alwaysSources?.length ?? 0) > 0 &&
+      alwaysSources.every(
+        (entry) =>
+          typeof entry?.source === "string" &&
+          entry.source.trim().length > 0 &&
+          typeof entry?.why === "string" &&
+          entry.why.trim().length > 0
+      ),
+    JSON.stringify(alwaysSources)
+  );
+  check(
+    "the always-set carries the task contract, CURRENT_STATE and the operating rules",
+    (alwaysSources ?? []).some((entry) => /task contract/i.test(entry?.source ?? "")) &&
+      (alwaysSources ?? []).some((entry) => /CURRENT_STATE\.md/.test(entry?.source ?? "")) &&
+      (alwaysSources ?? []).some((entry) => /AGENTS\.md/.test(entry?.source ?? "")),
+    JSON.stringify((alwaysSources ?? []).map((entry) => entry?.source))
+  );
+  check(
+    "every conditional source carries an explicit trigger",
+    (conditionalSources?.length ?? 0) > 0 &&
+      conditionalSources.every(
+        (entry) =>
+          typeof entry?.source === "string" &&
+          entry.source.trim().length > 0 &&
+          typeof entry?.when === "string" &&
+          entry.when.trim().length > 0 &&
+          typeof entry?.trigger === "string" &&
+          entry.trigger.trim().length > 0
+      ),
+    JSON.stringify(conditionalSources)
+  );
+  /*
+   * The demoted subjects are named individually. A conditional set that dropped SECURITY.md would
+   * still satisfy "every entry has a trigger" — the point is that these five moved OUT of the routine
+   * budget and remain reachable, not that they disappeared.
+   */
+  const conditionalTriggerText = (conditionalSources ?? [])
+    .map((entry) => `${entry?.source ?? ""} ${entry?.when ?? ""} ${entry?.trigger ?? ""}`)
+    .join("\n");
+  for (const [label, pattern] of [
+    ["architecture", /ARCHITECTURE\.md/],
+    ["validation commands", /COMMANDS\.md/],
+    ["security", /SECURITY\.md/],
+    ["persistence", /persisted_shape_change/],
+    ["packaging", /packaging_change/]
+  ]) {
+    check(
+      `${label} context is conditional, not routine`,
+      pattern.test(conditionalTriggerText),
+      conditionalTriggerText
+    );
+  }
+  check(
+    "the historical tier is retained rather than deleted",
+    Array.isArray(contextLoading.historical) &&
+      contextLoading.historical.length > 0 &&
+      contextLoading.historical.some((entry) => /TASK_LOG\.md/.test(String(entry))),
+    JSON.stringify(contextLoading.historical)
   );
 
   const delegationFields = Array.isArray(contextPolicy?.DELEGATION_FIELDS)
@@ -2284,6 +2407,278 @@ try {
       spawnedNonholderActor,
       spawnedBackgroundActor
     ].map((probe) => `${probe.status}:${probe.stdout || probe.stderr}`).join(" | ")
+  );
+
+  /* ----------------------------------------------------------------------
+     Single-agent lease actor model — the five properties, each proven separately.
+
+     WHY THIS EXISTS: the single-agent default and the lease actor model were structurally
+     incompatible. The root call always canonicalizes to "manager", every lease decision demanded
+     `actor === lease.holder`, and the contract validator refuses to name manager as writer for a
+     path manager does not own. The intersection is empty, so the primary agent could write only
+     manager-owned paths and ordinary product work was impossible without spawning the owning
+     specialist — the exact cost the single-agent default exists to remove.
+
+     The relaxation is EXACTLY ONE THING: which process identity may exercise an already-granted
+     routed lease. It is emphatically NOT "the manager may write anything". Each property below is
+     an assertion rather than an argument, and each is mutation-tested: removing the single-agent
+     gate, allowing a real subagent to borrow a lease, or dropping the path-scope check each turns
+     one of these RED and names the property it broke.
+
+     Every proof passes an EXPLICIT policy object, so none of them depends on the ambient
+     CONCURRENCY_POLICY. The ambient value is pinned separately in section 2a — these prove the
+     mechanism, that pin proves the setting.
+     ---------------------------------------------------------------------- */
+  const singleAgentPolicy = Object.freeze({ defaultMode: "single-agent" });
+  const multiAgentPolicy = Object.freeze({ defaultMode: "subagent" });
+  const managerAgentType = agent("manager").claudeName;
+  const projectStateAgentType = agent("project-state").claudeName;
+  const singleAgentProjectStateLease = {
+    task: "awkit-actor-fixture",
+    contract_path: "docs/ai/contracts/awkit-actor-fixture.json",
+    holder: "project-state",
+    status: "active",
+    allowed_paths: ["docs/ai/routing/ROUTING_MATRIX.md"]
+  };
+
+  check(
+    "isRootPrimaryIdentity is stricter than canonicalizing to manager",
+    isRootPrimaryIdentity(undefined, undefined) === true &&
+      isRootPrimaryIdentity(null, null) === true &&
+      isRootPrimaryIdentity(managerAgentType, "instance-manager") === false &&
+      isRootPrimaryIdentity(undefined, "qa") === false &&
+      isRootPrimaryIdentity("", "qa") === false
+  );
+  check(
+    "effectiveActorFor resolves the root primary to the lease holder only in single-agent mode",
+    effectiveActorFor(actorLease, undefined, undefined, singleAgentPolicy) === "qa" &&
+      effectiveActorFor(actorLease, undefined, undefined, multiAgentPolicy) === "manager" &&
+      effectiveActorFor(actorLease, qaAgentType, "instance-qa", singleAgentPolicy) === "qa" &&
+      effectiveActorFor(actorLease, frontendAgentType, "instance-frontend", singleAgentPolicy) === "frontend" &&
+      effectiveActorFor(actorLease, undefined, "qa", singleAgentPolicy) === null
+  );
+
+  /* PROPERTY A — the root manager may write a routed path held by another role. */
+  check(
+    "A. single-agent root manager may write inside a lease held by another role",
+    decideActorWrite(
+      actorLease,
+      "scripts/verify-agent-routing.mjs",
+      undefined,
+      undefined,
+      singleAgentPolicy
+    ).allow === true &&
+      decideActorWrite(
+        singleAgentProjectStateLease,
+        "docs/ai/routing/ROUTING_MATRIX.md",
+        undefined,
+        undefined,
+        singleAgentPolicy
+      ).allow === true
+  );
+
+  /*
+   * PROPERTY B — path scope survives. The sharpest case is the SECOND one: `tools/agents/**` is
+   * manager-owned and the root call canonicalizes to manager, yet the write is refused because the
+   * active lease is qa's and does not cover it. If the relaxation had meant "manager may write
+   * anything", that line would allow.
+   */
+  check(
+    "B. single-agent root manager is still blocked outside the lease's allowed_paths",
+    decideActorWrite(actorLease, "app/renderer/App.tsx", undefined, undefined, singleAgentPolicy)
+      .allow === false &&
+      decideActorWrite(
+        actorLease,
+        "tools/agents/lease-guard.mjs",
+        undefined,
+        undefined,
+        singleAgentPolicy
+      ).allow === false &&
+      decideActorWrite(actorLease, "app/renderer/App.tsx", undefined, undefined, singleAgentPolicy)
+        .reason === "out-of-scope"
+  );
+
+  /*
+   * PROPERTY C — subagent isolation is unchanged. A real spawned Manager subagent also canonicalizes
+   * to "manager", so it is the case that separates "is the root" from "is called manager"; it must
+   * NOT get the relaxation.
+   */
+  check(
+    "C. a real subagent still cannot borrow another role's lease in single-agent mode",
+    decideActorWrite(
+      actorLease,
+      "scripts/verify-agent-routing.mjs",
+      frontendAgentType,
+      "instance-frontend",
+      singleAgentPolicy
+    ).allow === false &&
+      decideActorWrite(
+        actorLease,
+        "scripts/verify-agent-routing.mjs",
+        managerAgentType,
+        "instance-manager",
+        singleAgentPolicy
+      ).allow === false &&
+      decideActorWrite(
+        singleAgentProjectStateLease,
+        "docs/ai/routing/ROUTING_MATRIX.md",
+        qaAgentType,
+        "instance-qa",
+        singleAgentPolicy
+      ).allow === false &&
+      decideActorWrite(
+        actorLease,
+        "scripts/verify-agent-routing.mjs",
+        qaAgentType,
+        "instance-qa",
+        singleAgentPolicy
+      ).allow === true
+  );
+
+  /* PROPERTY D — outside single-agent mode the previous behavior is restored exactly. */
+  check(
+    "D. outside single-agent mode the root manager gets no relaxation at all",
+    decideActorWrite(
+      actorLease,
+      "scripts/verify-agent-routing.mjs",
+      undefined,
+      undefined,
+      multiAgentPolicy
+    ).allow === false &&
+      decideActorWrite(
+        actorLease,
+        "scripts/verify-agent-routing.mjs",
+        undefined,
+        undefined,
+        multiAgentPolicy
+      ).reason === "non-holder" &&
+      decideActorWrite(
+        singleAgentProjectStateLease,
+        "docs/ai/routing/ROUTING_MATRIX.md",
+        undefined,
+        undefined,
+        multiAgentPolicy
+      ).allow === false &&
+      !isAllowedActiveShellCommand(
+        "node tools/agents/render-docs.mjs --write",
+        singleAgentProjectStateLease,
+        { policy: multiAgentPolicy }
+      )
+  );
+
+  /*
+   * PROPERTY E — unknown, malformed, degraded and injected identity all still fail closed, so mode
+   * switching never becomes an ownership bypass. The injected-holder case matters most: a lease file
+   * naming a holder that is not in the registry must not turn that string into an identity.
+   */
+  const injectedHolderLease = {
+    task: "awkit-actor-fixture",
+    contract_path: "docs/ai/contracts/awkit-actor-fixture.json",
+    holder: "not-a-real-agent",
+    status: "active",
+    allowed_paths: ["scripts/verify-agent-routing.mjs"]
+  };
+  check(
+    "E. unknown, degraded and injected identity still fail closed in single-agent mode",
+    decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", undefined, "qa", singleAgentPolicy)
+      .allow === false &&
+      decideActorWrite(
+        actorLease,
+        "scripts/verify-agent-routing.mjs",
+        undefined,
+        "qa",
+        singleAgentPolicy
+      ).reason === "unknown-actor" &&
+      decideActorWrite(
+        actorLease,
+        "scripts/verify-agent-routing.mjs",
+        "awkit-not-a-real-agent",
+        "instance-x",
+        singleAgentPolicy
+      ).allow === false &&
+      decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", "qa", "instance-qa", singleAgentPolicy)
+        .allow === false &&
+      effectiveActorFor(injectedHolderLease, undefined, undefined, singleAgentPolicy) === "manager" &&
+      decideActorWrite(
+        injectedHolderLease,
+        "scripts/verify-agent-routing.mjs",
+        undefined,
+        undefined,
+        singleAgentPolicy
+      ).allow === false &&
+      decideActorWrite(actorLease, "scripts/verify-agent-routing.mjs", undefined, undefined, {}).allow ===
+        false
+  );
+
+  /*
+   * §6 — the shell decision moves with the write decision, and no further.
+   *
+   * The role command sets stay keyed on `lease.holder`, so the relaxed actor receives exactly the
+   * commands the lease holder already had: holding a project-state lease makes `render-docs --write`
+   * runnable, and holding a qa lease does not. No new command becomes runnable to anyone, and the
+   * closed allowlist is untouched.
+   */
+  check(
+    "the relaxed actor receives only the lease holder's own role commands",
+    isAllowedActiveShellCommand(
+      "node tools/agents/render-docs.mjs --write",
+      singleAgentProjectStateLease,
+      { policy: singleAgentPolicy }
+    ) === true &&
+      isAllowedActiveShellCommand("npm run verify:agent-routing", actorLease, {
+        policy: singleAgentPolicy
+      }) === true &&
+      isAllowedActiveShellCommand("node tools/agents/render-docs.mjs --write", actorLease, {
+        policy: singleAgentPolicy
+      }) === false &&
+      isAllowedActiveShellCommand("npm run package:portable", singleAgentProjectStateLease, {
+        policy: singleAgentPolicy
+      }) === false
+  );
+  check(
+    "the shell relaxation is gated exactly like the write relaxation",
+    isAllowedActiveShellCommand(
+      "node tools/agents/render-docs.mjs --write",
+      singleAgentProjectStateLease,
+      { agentType: frontendAgentType, agentId: "instance-frontend", policy: singleAgentPolicy }
+    ) === false &&
+      isAllowedActiveShellCommand(
+        "node tools/agents/render-docs.mjs --write",
+        singleAgentProjectStateLease,
+        { agentType: managerAgentType, agentId: "instance-manager", policy: singleAgentPolicy }
+      ) === false &&
+      isAllowedActiveShellCommand(
+        "node tools/agents/render-docs.mjs --write",
+        singleAgentProjectStateLease,
+        { agentType: projectStateAgentType, agentId: "instance-project-state", policy: singleAgentPolicy }
+      ) === true &&
+      isAllowedActiveShellCommand(
+        "node tools/agents/render-docs.mjs --write",
+        singleAgentProjectStateLease,
+        { agentId: "project-state", policy: singleAgentPolicy }
+      ) === false &&
+      isAllowedActiveShellCommand(
+        "node tools/agents/render-docs.mjs --write",
+        singleAgentProjectStateLease,
+        { runInBackground: true, policy: singleAgentPolicy }
+      ) === false
+  );
+  check(
+    "the relaxation adds no new shell grammar and no command with unsafe syntax",
+    isAllowedActiveShellCommand(
+      "node tools/agents/render-docs.mjs --write && npm run build",
+      singleAgentProjectStateLease,
+      { policy: singleAgentPolicy }
+    ) === false &&
+      isAllowedActiveShellCommand("npm run verify:agent-routing | tail -n 5", actorLease, {
+        policy: singleAgentPolicy
+      }) === false &&
+      isAllowedActiveShellCommand("rm -rf docs", singleAgentProjectStateLease, {
+        policy: singleAgentPolicy
+      }) === false &&
+      isAllowedActiveShellCommand("npm run verify:agent-routing", null, {
+        policy: singleAgentPolicy
+      }) === false
   );
 
   const confinementRoot = mkdtempSync(join(tmpdir(), "awkit-guard-root-"));
