@@ -13,8 +13,13 @@ not a product defect. `src/storage/folderWriteCoordinator.ts` **was and remains 
 **byte-identical to its committed state** — this task changed no production code and repaired no
 product behavior.
 
-**The defect in the evidence.** Every existing lane-release check compared
-`activeFolderCoordinationKeys().length === 0`. The mutation offered as their non-vacuity proof was
+**The defect in the evidence.** Not one existing eviction check ever sampled the lane map while work
+was still queued behind the runner — they all read only the **final** state, after everything
+admitted had drained. **Four** compared `activeFolderCoordinationKeys().length === 0`
+(`verify-r0-characterization.mts:823`, `:910`, `:958`; `verify-profile-store.mts:727`); the two in
+`verify-write-queue.mts` (`:302`, `:349`) use `!includes(key)` and are no weaker in form, but they
+hold one task at a time, so they could not witness an early eviction either. The mutation offered as
+the four's non-vacuity proof was
 applied to `JsonProfileStore.serialize()` in `src/storage/ProfileStore.ts`, where the coordinator is
 **never called at all**, so the function returned `[]` and all of those checks passed **vacuously** —
 they would have passed just as green against a coordinator that **evicts too eagerly**.

@@ -329,6 +329,12 @@ mistake it for one.
   never been mutation-tested. Remedy for a later tranche: one mutation against
   `folderWriteCoordinator.ts` itself, or an assertion that samples the active keys from **inside** a
   queued task and requires the key to still be present.
+  **Live locations as of 2026-09-08** (the verbatim block above is preserved with its original,
+  now-stale citations; each was re-read in source, not carried forward): the four `length === 0`
+  assertions are `verify-r0-characterization.mts:823` (was `:817`), `:910` (was `:904`), `:958` (was
+  `:952`) and `verify-profile-store.mts:727` (unchanged); `owned.pending += 1` is
+  `folderWriteCoordinator.ts:133` (was `:80`) and the `lanes.get(key) === owned` generation guard is
+  `:154` (was `:95`); the positive control is still `verify-write-queue.mts:344-347`.
 - **RESOLVED (`awkit-utbf`, P2, 2026-09-07) — the latent same-key self-deadlock now rejects with a
   diagnostic instead of hanging (QC finding B).** **The original finding, preserved verbatim:**
   *a latent self-deadlock has no guard and no diagnostic.*

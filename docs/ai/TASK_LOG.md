@@ -10,8 +10,12 @@ HANDOFF, TASK_LOG, `assignments.json`, the lease control plane).
 **Task:** close `awkit-s410` (P2, "R1B follow-up A: lane eviction has no non-vacuous mutation
 evidence"). **A verifier-quality fix, not a product fix.**
 `src/storage/folderWriteCoordinator.ts` was and remains correct and is **byte-identical to its
-committed state**. The existing lane-release checks compared
-`activeFolderCoordinationKeys().length === 0`, but the mutation offered as their non-vacuity proof ran
+committed state**. No existing eviction check sampled the lane map while work was still queued behind
+the runner; all of them read only the **final**, fully drained state. **Four** compared
+`activeFolderCoordinationKeys().length === 0` (`verify-r0-characterization.mts:823`, `:910`, `:958`;
+`verify-profile-store.mts:727`); the two in `verify-write-queue.mts` (`:302`, `:349`) use
+`!includes(key)` — no weaker in form — but hold one task at a time and were blind for that reason.
+The mutation offered as the four's non-vacuity proof ran
 through `JsonProfileStore.serialize()`, where the coordinator is never called at all — so those checks
 passed **vacuously** and would have passed against a coordinator that evicts too eagerly.
 

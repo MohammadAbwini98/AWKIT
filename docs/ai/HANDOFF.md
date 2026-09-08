@@ -13,11 +13,15 @@
 - **Do not inflate this.** It was a **verifier-quality** fix. `src/storage/folderWriteCoordinator.ts`
   **was and remains correct** and is **byte-identical to its committed state** — no production code
   changed and no product defect was repaired.
-- **The defect was in the evidence, not the code.** The existing lane-release checks compared
-  `activeFolderCoordinationKeys().length === 0`, and the mutation offered as their non-vacuity proof
-  ran through `JsonProfileStore.serialize()`, where the coordinator is **never called at all**. Those
-  checks therefore passed **vacuously** and would have passed against a coordinator that **evicts too
-  eagerly**.
+- **The defect was in the evidence, not the code.** No existing eviction check sampled the lane map
+  while work was still queued behind the runner — every one read only the **final**, fully drained
+  state. **Four** compared `activeFolderCoordinationKeys().length === 0`
+  (`verify-r0-characterization.mts:823`, `:910`, `:958`; `verify-profile-store.mts:727`); the two in
+  `verify-write-queue.mts` (`:302`, `:349`) use `!includes(key)`, which is no weaker in form, but they
+  hold one task at a time and so were equally blind. The mutation offered as the four's non-vacuity
+  proof ran through `JsonProfileStore.serialize()`, where the coordinator is **never called at all**.
+  Those checks therefore passed **vacuously** and would have passed against a coordinator that
+  **evicts too eagerly**.
 - **Remedy — `scripts/verify-write-queue.mts` only.** Block **6g** admits a second same-key task while
   the first still holds the lane, samples the lane map from **inside** the queued task, and asserts
   **cardinality and lane identity before any absence assertion**. Commits `6cd58f2` (the block) and
