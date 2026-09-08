@@ -289,7 +289,29 @@ mistake it for one.
   non-poisoning guarantee to the rejected arm of `then(task, task)`. That arm is unreachable, because
   `owned.tail` is assigned the never-rejecting `settled` promise; the real guarantee comes from that
   `settled` assignment. The behavior is correct, the explanation is not.
-- **Open finding, not fixed (QC finding A) — lane eviction is not covered by non-vacuous evidence.**
+- **RESOLVED (`awkit-s410`, P2, 2026-09-08) — lane eviction now has non-vacuous evidence, with a
+  disclosed residual limit tracked as `awkit-rkd8` (QC finding A).** This was a **verifier-quality**
+  fix, not a product fix: `src/storage/folderWriteCoordinator.ts` was and remains **correct** and is
+  **byte-identical to its committed state** — no product defect existed and none was repaired.
+  **Remedy:** block 6g in `scripts/verify-write-queue.mts` (commits `6cd58f2`, then `db7ace9` for a
+  truthfulness correction). It admits a **second same-key task while the first still holds the lane**,
+  samples the lane map from **inside** the queued task, and asserts **cardinality and lane identity
+  before any absence assertion**, so the check can no longer pass over an empty set.
+  **Proven load-bearing by measurement, not by argument:** a real mutation applied to the coordinator
+  itself — `pending` incremented at task start instead of at admission — took the suite from **58/58
+  to 57/58 with exactly one named red**; the coordinator was then restored byte-exactly.
+  `verify:write-queue` is green at **58/58**, up from a **55/55** baseline.
+  **Residual limitation — deferred, not fixed, tracked as `awkit-rkd8`:** block 6g samples lane
+  presence at a **single instant**, which cannot distinguish a lane that was never evicted from one
+  that was **evicted and recreated under the same key**. Excluding that mutant class needs a **third
+  same-key caller** admitted between the first task's settle and the queued task's start, so the lane
+  identity it observes can be compared with the one the queued task inherited. Two further gaps ride
+  with it: non-overlap is still inferred from the **lane-map-presence proxy** rather than measured
+  directly, and **no assertion covers a lane that stays in the map while its tail stops chaining**.
+  All three are disclosed in the block's own comments; `awkit-rkd8` is the evidentiary debt, not a new
+  discovery.
+  **The original finding, preserved verbatim:**
+  *lane eviction is not covered by non-vacuous evidence.*
   All four assertions that claim the coordination lane is released correctly compare the result of
   `activeFolderCoordinationKeys()` against `length === 0`:
   `scripts/verify-r0-characterization.mts:817`, `:904` and `:952`, and

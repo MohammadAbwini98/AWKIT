@@ -19,18 +19,11 @@
   ],
   "claims": [
     {
-      "itemId": "defect:AWKIT-SEC-005",
+      "itemId": "bead:awkit-s410",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-06T16:18:59.483Z",
-      "note": "awkit-sec005 project-state reconciliation. The sibling claim below uses itemId 'bead:awkit-sec005', which matches no dashboard item because no bead owns AWKIT-SEC-005 - this entry is the one that binds to the real defect item. verify:security repaired to 61 passed / 0 failed (52/1 before the repair, 58/0 at an intermediate reading before the validated-binding clause and mutant C existed); verifier-only change (scripts/verify-security.mts), committed as bb99dfb, no production code changed."
-    },
-    {
-      "itemId": "bead:awkit-utbf",
-      "agent": "Documentation / Project-State Specialist",
-      "state": "in-progress",
-      "claimedAt": "2026-09-07T11:42:56.700Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-ttvb.json, docs/ai/contracts/awkit-utbf.json, tools/roadmap/assignments.json"
+      "claimedAt": "2026-09-08T10:09:05.580Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-utbf.json, tools/roadmap/assignments.json"
     }
   ]
 }

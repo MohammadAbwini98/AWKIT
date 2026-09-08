@@ -1,6 +1,94 @@
 # TASK_LOG
 
-## 2026-09-07 (latest) — awkit-utbf — same-key re-entrancy into `runExclusive` rejects instead of deadlocking (Claude Opus 5)
+## 2026-09-08 (latest) — awkit-s410 — lane eviction proven non-vacuously in `verify:write-queue` (Claude Opus 5)
+
+**Agents involved:** Manager (routing, lease issuance, and the only Git executor — no Git command was
+run by any other role, and none by project-state); QA (block 6g in `scripts/verify-write-queue.mts`
+and the coordinator mutation run); project-state (this entry — Beads, KNOWN_ISSUES, CURRENT_STATE,
+HANDOFF, TASK_LOG, `assignments.json`, the lease control plane).
+
+**Task:** close `awkit-s410` (P2, "R1B follow-up A: lane eviction has no non-vacuous mutation
+evidence"). **A verifier-quality fix, not a product fix.**
+`src/storage/folderWriteCoordinator.ts` was and remains correct and is **byte-identical to its
+committed state**. The existing lane-release checks compared
+`activeFolderCoordinationKeys().length === 0`, but the mutation offered as their non-vacuity proof ran
+through `JsonProfileStore.serialize()`, where the coordinator is never called at all — so those checks
+passed **vacuously** and would have passed against a coordinator that evicts too eagerly.
+
+**Implementation, committed before this project-state phase.** `6cd58f2` — `test(awkit-s410)`: block
+6g admits a second same-key task while the first still holds the lane, samples the lane map from
+**inside** the queued task, and asserts **cardinality and identity before any absence assertion**.
+`db7ace9` — `test(awkit-s410)`: round-6 truthfulness correction, scoping two assertion names to what
+their predicates decide and labelling an unexecuted mutant as **argued, not measured**. Proven
+load-bearing by a real mutation on the coordinator itself (`pending` incremented at task start instead
+of at admission): **58/58 → 57/58, exactly one named red**, coordinator then restored byte-exactly.
+
+**Files changed by this task (project-state phase only):** `docs/ai/CURRENT_STATE.md`,
+`docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`, `docs/ai/KNOWN_ISSUES.md`, `.beads/issues.jsonl`,
+`.beads/interactions.jsonl` (an unavoidable `bd create`/`bd close` side effect),
+`tools/roadmap/assignments.json` and `docs/ai/contracts/awkit-utbf.json` +
+`docs/ai/contracts/active-lease.json` as inherited `awkit-utbf` release bookkeeping.
+`docs/ai/contracts/awkit-s410.json` was **not** written by project-state — the Manager owns it.
+
+**This task's actions:** `bd show awkit-s410`; `bd create` for the follow-up (see below);
+`bd close awkit-s410` with its closing evidence; `bd export -o .beads/issues.jsonl` as its own bounded
+command (plain `bd export` writes to STDOUT and silently leaves the file the roadmap verifier parses
+stale); `bd stats`, `bd list --status blocked` and `bd blocked` to **measure** the tracker rather than
+compute it; then the four narrative documents and the roadmap sources.
+
+**Follow-up filed:** `awkit-rkd8` (P2, OPEN, `discovered-from: awkit-s410`) — the deferred tranche.
+Block 6g samples lane presence at a single instant, so it cannot exclude an **evict-then-recreate**
+lane under the same key; that needs a **third same-key caller** admitted between the first task's
+settle and the queued task's start. It also still infers non-overlap from the **lane-map-presence
+proxy** instead of measuring it, and has **no coverage of a lane that stays in the map while its tail
+stops chaining**. All three are disclosed in the block's own comments, so `awkit-rkd8` is the
+evidentiary debt, not a new discovery.
+
+**Tracker, measured:** **276 total / 270 closed / 6 outstanding**, of which **4 open** and **2
+status = blocked** (`awkit-7bu`, `awkit-cm8`), **0 dependency-blocked**. One closed and one filed, so
+total and closed each rose by one and outstanding held at 6.
+
+**Validation ledger unchanged: 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** — `awkit-s410` adds
+no case and moves no status. Restated in the newest section of **both** `CURRENT_STATE.md` and
+`HANDOFF.md`, because if only one carries it the dashboard's two-narrative consistency check drops
+from 2 sources to 1 and still reports agreement.
+
+**Roadmap sources:** `tools/roadmap/assignments.json` carries exactly **one** claim at commit time,
+`bead:awkit-s410` held by project-state — and that claim is **machine-maintained, not hand-written**.
+`tools/agents/lease-cli.mjs` writes the holder's claim on every grant and withdraws it on every
+release, so this task's own closeout grant created it. It is withdrawn by the final lease release,
+which necessarily happens **after** the last commit, so a one-line claim withdrawal is left as
+bookkeeping residue for the next task — exactly the residue the `bead:awkit-utbf` withdrawal absorbed
+here. Two claims were withdrawn. `bead:awkit-utbf` is the owner-scoped release residue. The
+`defect:AWKIT-SEC-005` claim (claimed 2026-09-06T16:18:59.483Z with no `expiresAt`, which the file's
+own `$comment` defines as claimedAt + 24h, so it expired on 2026-09-07) was **already expired before
+`awkit-s410` began**, and its own note records the work it covered as committed at `bb99dfb`. That
+withdrawal was **outside this task's brief** and is disclosed rather than counted as credit:
+`awkit-s410` did not cause the condition it cleared.
+
+**Tests run:** `verify:write-queue` **58/58**; `npm run build` **exit 0**; `verify:profile-store`
+**74/74**; `verify:r0-characterization` **175 PASS / 0 FAIL**; `verify:roadmap-dashboard` **177/177,
+exit 0** after the pin move (**174/177, exit 1** before it, with exactly the three stale pins red).
+**Not run:** the clean-machine GUI walkthrough (needs the VM lab).
+**Not applicable:** mock-site coverage — determination made against `mock-site/README.md`'s rule:
+this task touches no Recorder, Runner, Smart Wait, locator, node, wait or execution surface, so no
+scenario can exercise it. No mock-site coverage was fabricated.
+
+**Routed, not skipped — `scripts/verify-roadmap-dashboard.mjs`.** Its hardcoded non-vacuity pins move
+whenever a bead is filed or closed, so closing `awkit-s410` and filing `awkit-rkd8` made three of them
+stale. That file is outside the project-state lease and the project-state grant for it was refused
+fail-closed with `writer.scope_exceeds_ownership` — the two-gate design working, not an obstacle to
+route around. The pin move was therefore taken as a **separate third writer hop under a `qa` lease**
+and committed at `f7568a7`: **275 → 276 total**, **269 → 270 closed**, **106 → 107 edges**, with
+`outstanding` held at **6** because one bead left outstanding as another entered. Each of the four
+conjuncts was **mutation-tested singly and confirmed red**, then restored and reconfirmed green. This
+task's writer sequence was therefore **qa → project-state → qa → project-state**, two hops more than
+the contract's original plan, and that deviation was forced by path ownership rather than chosen. The
+standing rule is unchanged: **route a stale pin to its owning role under its own lease and
+mutation-test it** — never edit it from the closing agent's lease to obtain green, and never relax it
+to a range or a `>=`.
+
+## 2026-09-07 — awkit-utbf — same-key re-entrancy into `runExclusive` rejects instead of deadlocking (Claude Opus 5)
 
 **Agents involved:** Manager (routing, lease issuance, Git — no Git command was run by any other
 role); QA (the red re-entrancy checks in `scripts/verify-write-queue.mts`); Persistence (the guard in

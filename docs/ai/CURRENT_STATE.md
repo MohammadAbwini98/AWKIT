@@ -1,5 +1,57 @@
 # CURRENT_STATE
 
+## awkit-s410 CLOSED: lane eviction now has non-vacuous mutation evidence — a verifier-quality fix, no product change (2026-09-08)
+
+**Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is
+**unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across its 67 cases**. `awkit-s410` adds no validation
+case and moves no case status, so the tally is restated here verbatim rather than recomputed. This is
+the **validation ledger** tally: it is a different measurement from the Beads tracker counts and from
+the `verify:write-queue` check count below, and the three must never be reconciled to each other.
+
+**What this was, stated so it cannot be inflated.** `awkit-s410` was a **verifier-quality** finding,
+not a product defect. `src/storage/folderWriteCoordinator.ts` **was and remains correct** and is
+**byte-identical to its committed state** — this task changed no production code and repaired no
+product behavior.
+
+**The defect in the evidence.** Every existing lane-release check compared
+`activeFolderCoordinationKeys().length === 0`. The mutation offered as their non-vacuity proof was
+applied to `JsonProfileStore.serialize()` in `src/storage/ProfileStore.ts`, where the coordinator is
+**never called at all**, so the function returned `[]` and all of those checks passed **vacuously** —
+they would have passed just as green against a coordinator that **evicts too eagerly**.
+
+**Remedy — `scripts/verify-write-queue.mts` only.** New **block 6g** admits a **second same-key task
+while the first still holds the lane**, samples the lane map from **inside** the queued task, and
+asserts **cardinality and lane identity before any absence assertion**, so the check cannot pass over
+an empty set. Two commits: `6cd58f2` (the block) and `db7ace9` (a round-6 truthfulness correction
+that scoped two assertion names to what their predicates actually decide, and relabelled an
+unexecuted mutant as **argued, not measured**).
+
+**Measured, not predicted.** A real mutation applied to the **coordinator itself** — `pending`
+incremented at task start instead of at admission — took the suite from **58/58 to 57/58 with exactly
+one named red**. The coordinator was then restored **byte-exactly**. `verify:write-queue` is green at
+**58/58**, up from a **55/55** baseline.
+
+**Disclosed residual limit — deferred, not fixed, tracked as `awkit-rkd8`.** Block 6g samples lane
+presence at a **single instant**, which cannot distinguish a lane that was never evicted from one
+**evicted and recreated under the same key**. Excluding that mutant class needs a **third same-key
+caller** admitted between the first task's settle and the queued task's start. Two further gaps ride
+with it: non-overlap is still inferred from the **lane-map-presence proxy** rather than measured
+directly, and **no assertion covers a lane that stays in the map while its tail stops chaining**. All
+three are disclosed in the block's own comments — `awkit-rkd8` is the evidentiary debt, not a new
+discovery.
+
+**Verification run for this task:** `verify:write-queue` **58/58**; `npm run build` **exit 0**;
+`verify:profile-store` **74/74**; `verify:r0-characterization` **175 PASS / 0 FAIL**.
+**NOT run:** the clean-machine GUI walkthrough. **NOT APPLICABLE:** mock-site coverage — this task
+touches no Recorder, Runner, locator, Smart Wait or execution surface, so no scenario can exercise
+it, and none was fabricated to look complete.
+
+**Tracker, measured directly rather than derived by arithmetic:** Beads is at **276 total / 270
+closed / 6 outstanding**, of which **4 open** and **2 status = blocked** (`awkit-7bu`, `awkit-cm8`),
+with **0 dependency-blocked** (`bd blocked` reports none). `awkit-s410` closed and `awkit-rkd8` was
+filed as its `discovered-from` follow-up, so total and closed each rose by one while outstanding held
+at 6. Keep **status = blocked** strictly distinct from **dependency-blocked**.
+
 ## awkit-utbf CLOSED: same-key re-entrancy into `runExclusive` now rejects with a diagnosable error instead of hanging forever (2026-09-07)
 
 **Root cause.** `runExclusive(folder, task)` in `src/storage/folderWriteCoordinator.ts` serialized

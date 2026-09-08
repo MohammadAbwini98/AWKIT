@@ -1,6 +1,59 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-07, latest) — awkit-utbf CLOSED: same-key re-entrancy into `runExclusive` rejects instead of hanging
+## HANDOFF (2026-09-08, latest) — awkit-s410 CLOSED: lane eviction proven non-vacuously, verifier-only, no product change
+
+- **Restated for the two-narrative consistency check:** the validation ledger is **unchanged at 65
+  PASS / 2 NOT RUN / 0 BLOCKED** across its **67 cases**. `awkit-s410` adds no validation case and
+  moves no case status. This is the **validation ledger** tally — it is not the Beads tracker count
+  and not the `verify:write-queue` check count, and the three must never be reconciled to each other.
+  Both narratives must keep restating it: if only one does, the dashboard's two-narrative consistency
+  check silently drops from 2 sources to 1 and still reports agreement.
+- **Bead closed:** `awkit-s410` (P2, "R1B follow-up A: lane eviction has no non-vacuous mutation
+  evidence"). **Follow-up filed:** `awkit-rkd8` (P2, OPEN), linked `discovered-from: awkit-s410`.
+- **Do not inflate this.** It was a **verifier-quality** fix. `src/storage/folderWriteCoordinator.ts`
+  **was and remains correct** and is **byte-identical to its committed state** — no production code
+  changed and no product defect was repaired.
+- **The defect was in the evidence, not the code.** The existing lane-release checks compared
+  `activeFolderCoordinationKeys().length === 0`, and the mutation offered as their non-vacuity proof
+  ran through `JsonProfileStore.serialize()`, where the coordinator is **never called at all**. Those
+  checks therefore passed **vacuously** and would have passed against a coordinator that **evicts too
+  eagerly**.
+- **Remedy — `scripts/verify-write-queue.mts` only.** Block **6g** admits a second same-key task while
+  the first still holds the lane, samples the lane map from **inside** the queued task, and asserts
+  **cardinality and lane identity before any absence assertion**. Commits `6cd58f2` (the block) and
+  `db7ace9` (a round-6 truthfulness correction scoping two assertion names to what their predicates
+  decide, and relabelling an unexecuted mutant as **argued, not measured**).
+- **Measured, not predicted:** a real mutation on the **coordinator itself** — `pending` incremented
+  at task start instead of at admission — moved the suite **58/58 → 57/58 with exactly one named
+  red**, then the coordinator was restored **byte-exactly**. Green at **58/58**, up from **55/55**.
+- **Carry forward as a limit, never as fixed behavior — `awkit-rkd8`.** Block 6g samples lane presence
+  at a **single instant**, so it cannot exclude an **evict-then-recreate** lane under the same key;
+  that needs a **third same-key caller** admitted between the first task's settle and the queued
+  task's start. Also still open there: non-overlap is inferred from the **lane-map-presence proxy**
+  rather than measured, and **no assertion covers a lane that stays in the map while its tail stops
+  chaining**. All three are disclosed in the block's own comments.
+- **Run this task:** `verify:write-queue` **58/58**, `npm run build` **exit 0**, `verify:profile-store`
+  **74/74**, `verify:r0-characterization` **175 PASS / 0 FAIL**. **NOT run:** the clean-machine GUI
+  walkthrough. **NOT APPLICABLE:** mock-site coverage — no Recorder/Runner/locator/wait/execution
+  surface is touched, and none was fabricated.
+- **Tracker, measured with `bd stats` / `bd list --status blocked` / `bd blocked`, not derived:**
+  **276 total / 270 closed / 6 outstanding**, of which **4 open** and **2 status = blocked**
+  (`awkit-7bu`, `awkit-cm8`), **0 dependency-blocked**. Keep **status = blocked** distinct from
+  **dependency-blocked**.
+- **Roadmap pins — DONE for this task, and a standing rule for the next one.** The hardcoded
+  non-vacuity pins in `scripts/verify-roadmap-dashboard.mjs` move whenever a bead is filed or closed,
+  so closing `awkit-s410` and filing `awkit-rkd8` made three of them stale. That file is **not** owned
+  by project-state, so the fix was **routed to `qa` as a separate third writer hop under its own
+  lease** — the first project-state grant for it was refused fail-closed with
+  `writer.scope_exceeds_ownership`, which is the two-gate design working, not an obstacle to route
+  around. Moved at `f7568a7`: **275 → 276 total**, **269 → 270 closed**, **106 → 107 edges**, with
+  `outstanding` held at **6** because one bead left outstanding as another entered. Each of the four
+  conjuncts was **mutation-tested singly and confirmed red**, then restored and reconfirmed green;
+  `verify:roadmap-dashboard` is **177/177, exit 0**. The rule for next time: **route a stale pin to
+  its owning role under its own lease and mutation-test it** — never edit it from the closing agent's
+  lease to obtain green, and never relax it to a range or a `>=`.
+
+## HANDOFF (2026-09-07) — awkit-utbf CLOSED: same-key re-entrancy into `runExclusive` rejects instead of hanging
 
 - **Bead closed:** `awkit-utbf` (P2, "R1B follow-up B: same-key re-entrancy into `runExclusive`
   self-deadlocks silently with no guard"). `bd show` before closing reported status **OPEN**, P2,
