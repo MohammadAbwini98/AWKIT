@@ -1294,6 +1294,19 @@ function methodBodySpan(path: string, text: string, name: string): SourceSpan {
   return spans[0];
 }
 
+/** Top-level statements of the single `<name>(...)` method declaration in `path`. */
+function methodBodyStatements(path: string, text: string, name: string): readonly ts.Statement[] {
+  const sf = parse(path, text);
+  const bodies: ts.Block[] = [];
+  walk(sf, (node) => {
+    if (ts.isMethodDeclaration(node) && node.name.getText(sf) === name && node.body) {
+      bodies.push(node.body);
+    }
+  });
+  invariant(bodies.length === 1, `expected exactly one \`${name}(...)\` method in ${path}, found ${bodies.length}`);
+  return bodies[0].statements;
+}
+
 /** Body span of the inline handler passed to the single `ipcMain.handle("<channel>", ...)` registration. */
 function ipcHandlerSpan(path: string, text: string, channel: string): SourceSpan {
   const registrations = calls(path, (call, sf) => callText(call, sf) === "ipcMain.handle" && stringArg(call, 0) === channel, text);
@@ -1462,12 +1475,30 @@ async function runPreparationCharacterization(): Promise<void> {
         `the ${triggers[index]} guard no longer short-circuits with a license-blocked result`
       );
     }
+
+    // The final licensing check is a last-moment admission gate, so its checkpoint, denial guard,
+    // and dispatch must be consecutive top-level statements. Merely checking source order would let
+    // unrelated awaited work widen the time-of-check/time-of-use window after admission.
+    const statements = methodBodyStatements(servicePath, text, "runWorkflow");
+    const statementIndexContaining = (node: ts.Node): number =>
+      statements.findIndex((statement) => statement.getStart() <= node.getStart() && statement.end >= node.end);
+    const preRunCheckpointIndex = statementIndexContaining(gates[1]);
+    const preRunGuardIndex = statementIndexContaining(guards[1]);
+    const dispatchIndex = statementIndexContaining(dispatch);
+    invariant(
+      preRunCheckpointIndex >= 0 && preRunGuardIndex >= 0 && dispatchIndex >= 0,
+      `pre-run checkpoint/guard/dispatch top-level statement indexes: ${preRunCheckpointIndex}/${preRunGuardIndex}/${dispatchIndex}`
+    );
+    invariant(
+      preRunGuardIndex === preRunCheckpointIndex + 1 && dispatchIndex === preRunGuardIndex + 1,
+      `pre-run checkpoint/guard/dispatch are no longer adjacent top-level statements: ${preRunCheckpointIndex}/${preRunGuardIndex}/${dispatchIndex}`
+    );
   };
   assertLicensingGatesEnforcedBeforeDispatch(serviceText);
   check(
-    "run preparation consults and enforces both the run-request and pre-run licensing checkpoints before dispatch",
+    "run preparation consults and enforces both licensing checkpoints, with the pre-run checkpoint and guard immediately adjacent to dispatch",
     true,
-    'applyRunGateEnforcement("run-request") -> !gate.allowed -> applyRunGateEnforcement("pre-run") -> !preRunGate.allowed -> executionEngine.startRun'
+    'applyRunGateEnforcement("run-request") -> !gate.allowed -> [applyRunGateEnforcement("pre-run"); !preRunGate.allowed; executionEngine.startRun] as consecutive top-level statements'
   );
   const requestTimeLicensingRemoved = mutateOnce(
     serviceText,
@@ -1486,6 +1517,17 @@ async function runPreparationCharacterization(): Promise<void> {
   );
   mutationRejected("the pre-run licensing decision being obtained and then ignored before dispatch", () => {
     assertLicensingGatesEnforcedBeforeDispatch(preRunLicensingIgnored);
+  });
+  // Deliberately valid awaited work, inserted after the denial guard. All checkpoint/guard/dispatch
+  // cardinality and ordinary source-order assertions remain true; only the adjacency invariant can
+  // reject this widened post-admission window.
+  const awaitedWorkBetweenPreRunGuardAndDispatch = mutateOnce(
+    serviceText,
+    "    if (!preRunGate.allowed) return licenseBlockedResult(preRunGate, validation);\n    await executionEngine.startRun(",
+    "    if (!preRunGate.allowed) return licenseBlockedResult(preRunGate, validation);\n    await Promise.resolve();\n    await executionEngine.startRun("
+  );
+  mutationRejected("awaited work being inserted between the pre-run licensing guard and dispatch", () => {
+    assertLicensingGatesEnforcedBeforeDispatch(awaitedWorkBetweenPreRunGuardAndDispatch);
   });
 
   // --- R2.5 workflow validation runs and gates the run --------------------------------------------
