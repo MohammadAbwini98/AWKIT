@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("276 issues parse", beads.stats.total === 276, `got ${beads.stats.total}`);
+  check("277 issues parse", beads.stats.total === 277, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -493,8 +493,18 @@ try {
   // 271 → 272, outstanding falls 5 → 4, and the 107 dependency edges stay unchanged. Measured state:
   // `bd stats` reports Open 2 / In Progress 0 / Closed 272 / dependency-Blocked 0, while
   // `bd list --status blocked` separately reports the two status-blocked Oracle items.
-    "4 outstanding / 272 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 272,
+  // Then 2/275 of 277 on 2026-09-09: `awkit-9a1l` (R2 pre-run adjacency) and `awkit-wknd`
+  // (Chrome launch snapshot) closed with no new bead, and `awkit-tsq1` (write-queue script
+  // typecheck) was filed AND closed the same day with a `discovered-from: awkit-rkd8` edge. Two
+  // beads crossed from outstanding to closed and one entered already closed, so `total` rises
+  // 276 → 277, `closed` rises 272 → 275 and `outstanding` falls 4 → 2, while the edge pin below
+  // moves 107 → 108 for the single new `discovered-from` edge. Measured, not derived: `bd stats`
+  // reports Total 277, Open 0, In Progress 0, Closed 275, dependency-Blocked 0, while
+  // `bd list --status blocked` separately reports the two status-blocked Oracle items
+  // (`awkit-7bu`, `awkit-cm8`) - so outstanding is 0 open plus 2 blocked. `bd blocked` reports
+  // no dependency-blocked issues, which stays distinct from `status = blocked`.
+    "2 outstanding / 275 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 275,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -553,9 +563,12 @@ try {
   // moves 106 → 107 in step with the outstanding/closed move above. Move this pin deliberately when
   // an edge is added or removed; never relax it to a range or a `>=`, or it stops noticing a filed
   // dependency that the export never picked up.
+  // Then 108 on 2026-09-09: `awkit-tsq1` was filed with a `discovered-from: awkit-rkd8`
+  // dependency and closed the same day - one edge added, none removed - so this pin moves
+  // 107 → 108 in step with the total/outstanding/closed move above.
   check(
-    "107 edges are present to classify",
-    beads.stats.edges === 107,
+    "108 edges are present to classify",
+    beads.stats.edges === 108,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
