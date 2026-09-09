@@ -299,7 +299,28 @@
   ],
   "write_lease": {
     "status": "unassigned",
-    "history": [],
+    "history": [
+      {
+        "id": "awkit-7bu:project-state:2026-09-09T20:35:28.414Z",
+        "task": "awkit-7bu",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-7bu.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-09T20:35:28.414Z",
+        "acquired_at_commit": "128b91b483c7288d5b2f94c9a70c4fa9038c6006",
+        "released_at": "2026-09-09T20:36:49.836Z",
+        "released_reason": "awkit-7bu external acceptance remeasured and recorded; task remains blocked on absent authorized live configuration, ephemeral credential, real run, and teardown; handoff to awkit-cm8",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
     "overrides": []
   },
   "scope_escapes": [],

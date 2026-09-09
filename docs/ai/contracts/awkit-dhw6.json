@@ -485,6 +485,27 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-dhw6:project-state:2026-09-09T17:53:46.760Z",
+        "task": "awkit-dhw6",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-09T17:53:46.760Z",
+        "acquired_at_commit": "8ad65627bb5cb1abad5c016ae89ebdecc5e8357f",
+        "released_at": "2026-09-09T18:07:41.819Z",
+        "released_reason": "awkit-dhw6 fully documented, verified, QA/QC approved, Bead closed/exported, task gate green, four coherent commits pushed to origin/main at 31bf65d with 0/0 divergence; release final project-state lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

@@ -793,6 +793,29 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-rkd8:project-state:2026-09-09T13:04:37.133Z",
+        "task": "awkit-rkd8",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-wfharden.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-09T13:04:37.133Z",
+        "acquired_at_commit": "6cf1238c4b39504da1574ef8be3c7ba82658a29a",
+        "released_at": "2026-09-09T13:14:18.761Z",
+        "released_reason": "awkit-rkd8 is fully closed - the four block 6 vacuity gaps are shut with measured evidence, three ownership-split commits 6cf1238, 2889083 and cca4f72 plus the contract closure 17cf1de are pushed to origin main as ordinary fast-forwards, the task gate reports ok true with zero blockers and zero scope escapes, the final measurements are 78 of 78 write-queue checks and 177 of 177 roadmap-dashboard checks taken against the pushed bytes, and the coordinator is byte-identical at its baseline digest with no mutant ever staged or committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": [

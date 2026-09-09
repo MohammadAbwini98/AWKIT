@@ -494,6 +494,26 @@
         ],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ui1:project-state:2026-09-06T14:55:59.119Z",
+        "task": "awkit-ui1",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-06T14:55:59.119Z",
+        "acquired_at_commit": "80a7e00264f0e27a050fbb89f678570c795fa944",
+        "released_at": "2026-09-06T15:12:32.726Z",
+        "released_reason": "awkit-ui1-scope-escape-arithmetic-corrected-and-pushed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

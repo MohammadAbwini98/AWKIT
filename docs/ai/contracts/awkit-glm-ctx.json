@@ -231,6 +231,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-glm-ctx:project-state:2026-09-08T14:15:39.401Z",
+        "task": "awkit-glm-ctx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/TASK_LOG.md",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-08T14:15:39.401Z",
+        "acquired_at_commit": "14466b3eb43132c355928e256cbf80c0731f7d98",
+        "released_at": "2026-09-08T15:01:51.720Z",
+        "released_reason": "awkit-glm-ctx phase 2 checkpoint committed at c58ec7d and PAUSED not complete - glm-live-delegation and glm-live-review remain FAIL - releasing the serialized writer slot so the routed qa writer can take awkit-rkd8",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

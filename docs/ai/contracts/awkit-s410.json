@@ -576,6 +576,30 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-s410:project-state:2026-09-08T10:09:05.580Z",
+        "task": "awkit-s410",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-utbf.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-08T10:09:05.580Z",
+        "acquired_at_commit": "f7568a72e9bb24b44f0693f2231af449eeaeb3cd",
+        "released_at": "2026-09-08T11:18:04.054Z",
+        "released_reason": "stale awkit-s410 project-state lease released so the manager can take a writer lease for the GLM delegate context budget work",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

@@ -494,6 +494,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-r1b-coordination:project-state:2026-09-04T17:29:08.856Z",
+        "task": "awkit-r1b-coordination",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-04T17:29:08.856Z",
+        "acquired_at_commit": "8175b6a602e84263576dc953885785679a3a5b4d",
+        "released_at": "2026-09-04T17:29:58.312Z",
+        "released_reason": "R1B release-archive bookkeeping residue reconciled and pushed at d856cc4 before any R2 work begins",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []

@@ -211,6 +211,55 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-glm-delegation-tooling:manager:2026-09-04T18:27:07.543Z",
+        "task": "awkit-glm-delegation-tooling",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/awkit-manager.md",
+          ".claude/mcp/",
+          ".claude/mcp/glm_delegate_server.py",
+          ".claude/settings.local.json",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          ".mcp.json",
+          "tools/agents/routing-matrix.mjs"
+        ],
+        "acquired_at": "2026-09-04T18:27:07.543Z",
+        "acquired_at_commit": "d856cc47d69fbdd73ea94bb805fc85fb028cb459",
+        "released_at": "2026-09-04T19:02:28.865Z",
+        "released_reason": "glm delegation tooling registered, evidenced, committed and pushed, stopping before R2 because glm-delegate reports Pending approval rather than Connected",
+        "amendments": [
+          {
+            "timestamp": "2026-09-04T18:48:05.177Z",
+            "added": [
+              ".claude/mcp/",
+              ".claude/settings.local.json"
+            ],
+            "reason": "git status collapses the new untracked directory to .claude/mcp/ so the audit never sees the leased file glm_delegate_server.py inside it, and Claude Code rewrites its own .claude/settings.local.json permission cache during the session, both sit inside the manager-owned .claude tree so the honest scope statement is to name them",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": [
+          {
+            "path": ".claude/mcp/",
+            "detectedAt": "2026-09-04T18:37:34.193Z",
+            "via": "bash",
+            "resolved": false
+          },
+          {
+            "path": ".claude/settings.local.json",
+            "detectedAt": "2026-09-04T18:45:24.131Z",
+            "via": "bash",
+            "resolved": false
+          }
+        ]
       }
     ],
     "overrides": [

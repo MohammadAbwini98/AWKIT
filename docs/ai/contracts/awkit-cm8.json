@@ -326,7 +326,30 @@
   ],
   "write_lease": {
     "status": "unassigned",
-    "history": [],
+    "history": [
+      {
+        "id": "awkit-cm8:project-state:2026-09-09T20:42:05.542Z",
+        "task": "awkit-cm8",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/ORACLE_JDBC_VALIDATION_GATES.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-cm8.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-09T20:42:05.542Z",
+        "acquired_at_commit": "22d33d4e15ad5170a7a888a0f28e8dcbb4315068",
+        "released_at": "2026-09-09T20:44:55.821Z",
+        "released_reason": "awkit-cm8 stale framing corrected and local Oracle prerequisites revalidated; task remains blocked on fresh exact-provenance artifacts, qualifying packaged real-Oracle execution, owner-defined multi-day duration, and the sustained soak",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
     "overrides": []
   },
   "scope_escapes": [],
