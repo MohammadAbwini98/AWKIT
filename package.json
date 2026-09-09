@@ -20,6 +20,8 @@
     "verify:roadmap-dashboard": "node scripts/verify-roadmap-dashboard.mjs",
     "verify:roadmap-license-issuer": "tsx scripts/verify-roadmap-license-issuer.mts",
     "verify:agent-routing": "node scripts/verify-agent-routing.mjs",
+    "verify:glm-delegate": "python .claude/mcp/verify_glm_delegate.py",
+    "verify:glm-delegate-live": "python .claude/mcp/verify_glm_delegate_live.py",
     "agent:lease": "node tools/agents/lease-cli.mjs status",
     "agent:lease-grant": "node tools/agents/lease-cli.mjs grant",
     "agent:lease-amend": "node tools/agents/lease-cli.mjs amend",

@@ -39,13 +39,54 @@ CREDENTIALS
     Read from the environment only - GLM_API_KEY. No key is stored in this file, in .mcp.json, or
     anywhere else in the repository, and no code path here prints, logs or returns the key value.
 
+BUDGETS - THREE SEPARATE CONCEPTS, DELIBERATELY NOT ONE NUMBER
+    The shape of a delegation is LARGE INPUT -> COMPACT OUTPUT. GLM-5.3 has a very large input
+    context, so a delegation may send a substantial repository slice; what comes back has to stay
+    small, because it is spent out of the AWKIT Manager's context. Three limits therefore exist and
+    must never be collapsed into one:
+
+    1.  The DEFAULT RESPONSE BUDGET (GLM_MCP_MAX_TOKENS, 16384) - the output budget a delegation gets
+        when the caller does not ask for one. It is deliberately conservative. Ordinary reports
+        belong in the 8K-24K range.
+    2.  The MAXIMUM RESPONSE CEILING (GLM_MCP_MAX_OUTPUT_TOKENS, 131072) - the largest output budget
+        this server will ever ask the provider for. It exists for exceptional investigation, not for
+        routine use. A caller's max_tokens is clamped to it, never silently to some other number.
+    3.  The REPOSITORY READ BUDGET (GLM_MCP_MAX_FILE_BYTES / GLM_MCP_MAX_TOTAL_BYTES /
+        GLM_MCP_MAX_FILES) - how much repository source may be assembled INTO one request. This is
+        input, measured in bytes and files. It is not an output limit and shares no units with one.
+
 ENVIRONMENT
-    GLM_API_KEY               required at call time; absent is a clear error, not a crash
-    GLM_MODEL                 default glm-5.3
-    GLM_BASE_URL              default https://api.z.ai/api/anthropic
-    GLM_MCP_TIMEOUT_SECONDS   default 900
-    GLM_MCP_MAX_TOKENS        default 16384
-    GLM_MCP_REPO_ROOT         default: nearest ancestor of this file holding AGENTS.md + package.json
+    GLM_API_KEY                 required at call time; absent is a clear error, not a crash
+    GLM_MODEL                   default glm-5.3
+    GLM_BASE_URL                default https://api.z.ai/api/anthropic
+    GLM_MCP_TIMEOUT_SECONDS     default 900
+    GLM_MCP_MAX_TOKENS          default 16384    default response budget (output tokens)
+    GLM_MCP_MAX_OUTPUT_TOKENS   default 131072   maximum response ceiling (output tokens)
+    GLM_MCP_MAX_FILE_BYTES      default 200000   per-file read budget (input bytes)
+    GLM_MCP_MAX_TOTAL_BYTES     default 1500000  total read budget for one delegation (input bytes)
+    GLM_MCP_MAX_FILES           default 120      file-count read budget (input files)
+    GLM_MCP_REPO_ROOT           default: nearest ancestor of this file holding AGENTS.md + package.json
+
+    Every numeric setting is validated on read: a malformed, non-numeric, empty, unexpanded-
+    placeholder or out-of-range value falls back to the documented default rather than producing an
+    invalid request.
+
+RESPONSE BUDGET AND THIS MODEL'S REASONING
+    GLM-5.3 answers with `thinking` blocks beside the text one. Those tokens are charged to
+    max_tokens, and this server deliberately does not render them - a compact report is the whole
+    point. The consequence is that the response budget is shared between reasoning and report, and
+    on a wide packet the reasoning can take most of it. The footer names the discarded blocks so
+    this is visible rather than mysterious.
+
+    What was actually measured, over four live delegations of 287,972-432,572 bytes at 16384
+    tokens: every one of them stopped on max_tokens, the discarded reasoning ran 43,692-75,697
+    characters, and the visible report ranged from 1,576 to 29,414 characters with no relation to
+    packet size. The 287,972-byte packet was produced by narrowing the 432,572-byte one, and it
+    returned the SHORTEST report of the four while spending the MOST budget on reasoning. So
+    narrowing the read scope is NOT a known remedy for truncation here, and neither is raising the
+    budget: one 432,572-byte packet at 32768 exceeded a 900s timeout and returned nothing at all.
+    These are measurements, not a recipe. Treat a truncated report as an incomplete result to be
+    re-run and compared, and read the footer for where the budget went.
 """
 
 import json
@@ -57,7 +98,7 @@ import urllib.request
 from pathlib import Path
 
 SERVER_NAME = "glm-delegate"
-SERVER_VERSION = "1.0.0"
+SERVER_VERSION = "1.1.0"
 
 # Echoed back to the client when it asks for one of these; otherwise we answer with our newest.
 SUPPORTED_PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
@@ -66,14 +107,39 @@ DEFAULT_PROTOCOL_VERSION = "2025-06-18"
 DEFAULT_MODEL = "glm-5.3"
 DEFAULT_BASE_URL = "https://api.z.ai/api/anthropic"
 DEFAULT_TIMEOUT_SECONDS = 900
-DEFAULT_MAX_TOKENS = 16384
 
-# Context budget for files the server reads on the Manager's behalf. Delegation is supposed to
-# *save* context, so these caps are deliberately modest - a packet that needs more than this is a
-# packet that was not bounded tightly enough.
-MAX_FILE_BYTES = 80_000
-MAX_TOTAL_BYTES = 240_000
-MAX_FILES = 60
+# ---- output budget: what GLM may write back ------------------------------------------------
+#
+# DEFAULT_MAX_TOKENS is the response budget a delegation gets when the caller names none. It stays
+# small on purpose: the report is paid for out of the AWKIT Manager's context, so a routine packet
+# should come back at 8K-24K tokens, not at the ceiling.
+#
+# DEFAULT_MAX_OUTPUT_TOKENS is a different thing - the largest budget this server will ever request
+# from the provider. It is the model's practical output ceiling, not a target. Raising the default
+# budget to meet it would defeat the point of delegating.
+#
+# MIN_OUTPUT_TOKENS is the floor beneath which a request stops being useful and starts being an
+# invalid one; a caller asking for less, or a configured value below it, is raised to it.
+DEFAULT_MAX_TOKENS = 16384
+DEFAULT_MAX_OUTPUT_TOKENS = 131072
+MIN_OUTPUT_TOKENS = 512
+
+# ---- input budget: what the server may read INTO a request -----------------------------------
+#
+# Separate units, separate concept: bytes and files of repository source, not tokens of response.
+# The old caps here (80,000 / 240,000 / 60) were sized for a small-context delegate and made
+# GLM-5.3's large input window unreachable - a single subsystem review did not fit. The budget is
+# now sized for a genuine subsystem slice, which is the whole reason to delegate: send a lot of
+# source, get a short report.
+#
+# It is still a bound, not an invitation. Every byte here leaves the machine, so the scope-too-wide,
+# truncation and omission notices below stay load-bearing: a packet that saturates this budget was
+# not scoped tightly enough, and the notes say so in-band where the delegate must read them.
+DEFAULT_MAX_FILE_BYTES = 200_000
+DEFAULT_MAX_TOTAL_BYTES = 1_500_000
+DEFAULT_MAX_FILES = 120
+MIN_READ_BYTES = 1
+MIN_READ_FILES = 1
 
 READABLE_SUFFIXES = {
     ".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs", ".jsx",
@@ -103,6 +169,86 @@ SECRET_NAME_HINTS = (
     "storage-state", "auth-state", "session-profiles", "issuer-keys",
     "settings.local.json",
 )
+
+
+# ------------------------------------------------------------------------------- configuration
+
+def _setting(name, default, cast=str):
+    """One environment setting, or the default for anything unset, empty or unparseable."""
+    raw = os.environ.get(name, "").strip()
+    # A literal "${...}" means the launcher never expanded the variable. That is unset, not a value.
+    if not raw or raw.startswith("${"):
+        return default
+    try:
+        return cast(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _int_setting(name, default, minimum):
+    """A numeric setting validated against a floor.
+
+    Anything that is not a whole number at or above `minimum` - a negative, a zero, a float, a word,
+    an unexpanded placeholder - falls back to the documented default. A misconfigured environment
+    therefore degrades to the shipped behaviour instead of building an invalid API request or an
+    unbounded read.
+    """
+    value = _setting(name, None, int)
+    if value is None:
+        return default
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return value if value >= minimum else default
+
+
+class ReadBudget:
+    """The repository INPUT budget for one delegation, resolved once and passed down.
+
+    Resolved once per tool call rather than read inside the file loop: environment lookups in an
+    inner loop are both wasteful and a correctness hazard, since a budget that can change midway
+    through assembling a packet makes the truncation and omission notes describe a request that was
+    never actually built.
+    """
+
+    __slots__ = ("max_file_bytes", "max_total_bytes", "max_files")
+
+    def __init__(self, max_file_bytes, max_total_bytes, max_files):
+        self.max_file_bytes = max_file_bytes
+        self.max_total_bytes = max_total_bytes
+        self.max_files = max_files
+
+
+def resolve_read_budget() -> ReadBudget:
+    """The repository input budget in force for this delegation."""
+    return ReadBudget(
+        _int_setting("GLM_MCP_MAX_FILE_BYTES", DEFAULT_MAX_FILE_BYTES, MIN_READ_BYTES),
+        _int_setting("GLM_MCP_MAX_TOTAL_BYTES", DEFAULT_MAX_TOTAL_BYTES, MIN_READ_BYTES),
+        _int_setting("GLM_MCP_MAX_FILES", DEFAULT_MAX_FILES, MIN_READ_FILES),
+    )
+
+
+def resolve_output_budget(requested=None):
+    """Resolve the response budget for one call.
+
+    Returns (requested, ceiling, effective). `requested` is what the caller asked for, or the
+    configured default response budget when the caller asked for nothing; `ceiling` is the
+    configured maximum this server will request from the provider; `effective` is what is actually
+    sent. There is no third number: the ceiling is the only upper bound, so raising
+    GLM_MCP_MAX_OUTPUT_TOKENS genuinely raises what a caller can ask for.
+    """
+    default_budget = _int_setting("GLM_MCP_MAX_TOKENS", DEFAULT_MAX_TOKENS, MIN_OUTPUT_TOKENS)
+    ceiling = _int_setting("GLM_MCP_MAX_OUTPUT_TOKENS", DEFAULT_MAX_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS)
+
+    try:
+        # `or` on purpose: 0, None and "" all mean "no budget named", not "a budget of zero".
+        asked = int(requested) if requested else default_budget
+    except (TypeError, ValueError):
+        asked = default_budget
+
+    effective = max(MIN_OUTPUT_TOKENS, min(asked, ceiling))
+    return asked, ceiling, effective
 
 
 # --------------------------------------------------------------------------- worker constraints
@@ -272,7 +418,7 @@ def _is_skipped(path: Path, root: Path) -> bool:
     return any("/" in skip and joined.startswith(skip + "/") for skip in SKIP_DIRECTORIES)
 
 
-def _expand_scope(root: Path, entries):
+def _expand_scope(root: Path, entries, budget: ReadBudget):
     """Resolve packet scope entries to files, refusing anything outside the repository root."""
     files, notes = [], []
 
@@ -307,19 +453,27 @@ def _expand_scope(root: Path, entries):
             seen.add(path)
             unique.append(path)
 
-    if len(unique) > MAX_FILES:
+    if len(unique) > budget.max_files:
         notes.append(
             "SCOPE TOO WIDE: {0} files matched; the first {1} were included. Narrow the read "
-            "scope - a packet this wide is not a bounded delegation.".format(len(unique), MAX_FILES))
-        unique = unique[:MAX_FILES]
+            "scope - a packet this wide is not a bounded delegation.".format(
+                len(unique), budget.max_files))
+        unique = unique[:budget.max_files]
 
     return unique, notes
 
 
-def read_scope_text(root: Path, entries):
-    """Read the named scope into a prompt section, with the caps and omissions stated in-band."""
-    files, notes = _expand_scope(root, entries)
-    blocks, total = [], 0
+def read_scope_text(root: Path, entries, budget: ReadBudget):
+    """Read the named scope into a prompt section, with the caps and omissions stated in-band.
+
+    Returns (scope_text, included, notes, total_bytes) where `included` lists only the files whose
+    content actually reached the prompt - not everything the scope matched - and `total_bytes` is
+    the assembled UTF-8 size of those blocks. That size is a locally measured input fact. It is not
+    a token count and must never be reported as one; provider token usage comes from the API
+    response and from nowhere else.
+    """
+    files, notes = _expand_scope(root, entries, budget)
+    blocks, included, total = [], [], 0
 
     for path in files:
         relative = path.relative_to(root).as_posix()
@@ -330,21 +484,23 @@ def read_scope_text(root: Path, entries):
             continue
 
         encoded = data.encode("utf-8")
-        if len(encoded) > MAX_FILE_BYTES:
-            data = encoded[:MAX_FILE_BYTES].decode("utf-8", errors="ignore")
-            data += "\n\n[TRUNCATED at {0} bytes - this file is incomplete]".format(MAX_FILE_BYTES)
+        if len(encoded) > budget.max_file_bytes:
+            data = encoded[:budget.max_file_bytes].decode("utf-8", errors="ignore")
+            data += "\n\n[TRUNCATED at {0} bytes - this file is incomplete]".format(
+                budget.max_file_bytes)
             notes.append("TRUNCATED: " + relative)
 
-        if total + len(data.encode("utf-8")) > MAX_TOTAL_BYTES:
+        size = len(data.encode("utf-8"))
+        if total + size > budget.max_total_bytes:
             notes.append("OMITTED (total read budget of {0} bytes reached): {1}".format(
-                MAX_TOTAL_BYTES, relative))
+                budget.max_total_bytes, relative))
             continue
 
-        total += len(data.encode("utf-8"))
+        total += size
+        included.append(relative)
         blocks.append("----- FILE: {0} -----\n{1}\n----- END: {0} -----".format(relative, data))
 
-    included = [path.relative_to(root).as_posix() for path in files]
-    return "\n\n".join(blocks), included, notes
+    return "\n\n".join(blocks), included, notes, total
 
 
 # ------------------------------------------------------------------------------------ z.ai call
@@ -356,16 +512,6 @@ def _configured_key():
     if not key or key.startswith("${"):
         return None
     return key
-
-
-def _setting(name, default, cast=str):
-    raw = os.environ.get(name, "").strip()
-    if not raw or raw.startswith("${"):
-        return default
-    try:
-        return cast(raw)
-    except (TypeError, ValueError):
-        return default
 
 
 def call_glm(system_prompt: str, user_prompt: str, max_tokens: int):
@@ -380,7 +526,9 @@ def call_glm(system_prompt: str, user_prompt: str, max_tokens: int):
 
     base = _setting("GLM_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
     model = _setting("GLM_MODEL", DEFAULT_MODEL)
-    timeout = _setting("GLM_MCP_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS, int)
+    # Validated the same way as every other numeric setting: a zero or negative timeout is not a
+    # faster call, it is an immediately failing one, so it falls back to the default.
+    timeout = _int_setting("GLM_MCP_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS, 1)
 
     payload = json.dumps({
         "model": model,
@@ -421,29 +569,75 @@ def call_glm(system_prompt: str, user_prompt: str, max_tokens: int):
     except TimeoutError:
         raise RuntimeError(
             "GLM call exceeded the {0}s timeout. Nothing was written here - no repository state "
-            "changed. Re-scope the packet smaller, or raise GLM_MCP_TIMEOUT_SECONDS.".format(
-                timeout)) from None
+            "changed, and no partial output is recoverable. Latency here is not a function of "
+            "packet size in anything measured so far: a 432KB packet completed twice at 16384 "
+            "while a 288KB one timed out at 1500s, and the same 432KB packet at 32768 timed out "
+            "at 900s. So a smaller packet is not a reliable fix; raising GLM_MCP_TIMEOUT_SECONDS "
+            "only buys more waiting. Re-run before re-scoping.".format(timeout)) from None
 
-    text = "".join(
-        block.get("text", "")
-        for block in body.get("content", [])
-        if isinstance(block, dict) and block.get("type") == "text"
-    ).strip()
+    blocks = [block for block in body.get("content", []) if isinstance(block, dict)]
+    text = "".join(block.get("text", "") for block in blocks
+                   if block.get("type") == "text").strip()
+
+    # GLM-5.3 returns `thinking` blocks alongside the answer, and those tokens are billed against
+    # max_tokens even though nothing renders them. Rendering that reasoning would defeat the whole
+    # point of a compact report, so it stays dropped - but dropping it SILENTLY is what makes a
+    # truncated delegation inexplicable: the caller sees a full output_tokens count and a short
+    # report and cannot tell where the budget went. Count what was discarded and say so.
+    discarded = {}
+    for block in blocks:
+        kind = block.get("type")
+        if kind == "text":
+            continue
+        rendered = block.get(kind) if isinstance(block.get(kind), str) else block.get("thinking")
+        discarded[kind] = discarded.get(kind, 0) + len(rendered or "")
 
     usage = body.get("usage") or {}
     stop_reason = body.get("stop_reason")
 
+    # Provider-reported figures only. Nothing here is derived from the assembled byte count: bytes
+    # of source and tokens of usage are different measurements, and presenting an estimate of one as
+    # the other would be inventing evidence. "?" where the provider said nothing.
     footer = [
         "",
         "---",
         "Delegate: {0} via {1}".format(body.get("model", model), base),
         "Tokens: in={0} out={1}".format(
             usage.get("input_tokens", "?"), usage.get("output_tokens", "?")),
+        "Input tokens reported by provider: {0}".format(usage.get("input_tokens", "?")),
+        "Output tokens reported by provider: {0}".format(usage.get("output_tokens", "?")),
     ]
+
+    # Z.AI caches prompt prefixes, and a cache hit moves the bulk of the input OUT of input_tokens.
+    # Re-running an identical packet reported 22 input tokens for a 432,572-byte scope that had
+    # reported 100,694 an hour earlier - which reads as "nothing was sent" unless the cache fields
+    # are shown next to it. These are keys the provider returned; they are not computed here.
+    for label, field in (("Cached input tokens read", "cache_read_input_tokens"),
+                         ("Cached input tokens written", "cache_creation_input_tokens")):
+        if field in usage:
+            footer.append("{0} (provider): {1}".format(label, usage[field]))
+
+    footer.append("Stop reason: {0}".format(stop_reason if stop_reason is not None else "?"))
+
+    if discarded:
+        footer.append(
+            "Non-rendered response blocks: {0}. These are the delegate's own reasoning; they are "
+            "billed against the output budget but deliberately not shown, so the visible report is "
+            "shorter than the output token count suggests.".format(
+                ", ".join("{0} ({1} characters)".format(kind, count)
+                          for kind, count in sorted(discarded.items()))))
+
     if stop_reason == "max_tokens":
         footer.append(
             "WARNING: the response hit max_tokens and is TRUNCATED. It is incomplete output, not a "
-            "finished report - do not treat it as a full result.")
+            "finished report - do not treat it as a full result. Note that this model's reasoning "
+            "is charged to the same budget and is not rendered here, so part of the budget was "
+            "spent before the report was written; the non-rendered-blocks line above says how "
+            "much. No remedy for this is established by measurement: over four delegations of "
+            "288KB-432KB at 16384 every one stopped here, and a packet narrowed from 432KB to "
+            "288KB produced a SHORTER report (1,576 characters) than the wide one it came from "
+            "(29,414), while one 432KB packet at 32768 exceeded a 900s timeout and returned "
+            "nothing. Re-run and compare rather than assuming narrowing or raising will help.")
 
     return (text or "[GLM returned no text content]") + "\n".join(footer)
 
@@ -458,10 +652,10 @@ def _bullets(title, values):
     return "\n{0}:\n{1}\n".format(title, body)
 
 
-def build_delegation_prompt(root: Path, args: dict):
+def build_delegation_prompt(root: Path, args: dict, budget: ReadBudget):
     mode = str(args.get("mode", "implementation")).strip() or "implementation"
 
-    scope_text, included, notes = read_scope_text(root, args.get("read_scope"))
+    scope_text, included, notes, total_bytes = read_scope_text(root, args.get("read_scope"), budget)
 
     parts = [
         "### GLM Delegation Packet",
@@ -517,11 +711,11 @@ def build_delegation_prompt(root: Path, args: dict):
 
     parts.append("\n" + IMPLEMENTATION_INSTRUCTIONS.format(mode=mode))
 
-    return "\n".join(part for part in parts if part), included, notes
+    return "\n".join(part for part in parts if part), included, notes, total_bytes
 
 
-def build_review_prompt(root: Path, args: dict):
-    scope_text, included, notes = read_scope_text(root, args.get("read_scope"))
+def build_review_prompt(root: Path, args: dict, budget: ReadBudget):
+    scope_text, included, notes, total_bytes = read_scope_text(root, args.get("read_scope"), budget)
 
     parts = [
         "### GLM Independent Review",
@@ -562,7 +756,7 @@ def build_review_prompt(root: Path, args: dict):
     parts.append("\n### Material under review\n\n" + (scope_text or "(none provided)") + "\n")
     parts.append("\n" + REVIEW_INSTRUCTIONS)
 
-    return "\n".join(part for part in parts if part), included, notes
+    return "\n".join(part for part in parts if part), included, notes, total_bytes
 
 
 # --------------------------------------------------------------------------------------- tools
@@ -605,7 +799,22 @@ TOOLS = [
                 "validation": {"type": "array", "items": {"type": "string"},
                                "description": "Commands you will run to validate the returned work."},
                 "context": {"type": "string", "description": "Any further curated context."},
-                "max_tokens": {"type": "integer", "description": "Response budget. Default 16384."},
+                "max_tokens": {
+                    "type": "integer",
+                    "description": (
+                        "Response budget for this call, in OUTPUT tokens. Defaults to "
+                        "GLM_MCP_MAX_TOKENS (16384) and is clamped to GLM_MCP_MAX_OUTPUT_TOKENS "
+                        "(131072). It does not affect how much repository source is read - that is "
+                        "the separate input budget reported by glm_status. Keep it small: a report "
+                        "is spent out of your context, and 8K-24K is the normal range. Budget for "
+                        "the delegate's reasoning as well as its report: this model's thinking is "
+                        "charged here but never rendered, and on a wide packet it can consume most "
+                        "of 16384 on its own. A report that comes back short with stop_reason "
+                        "max_tokens has no measured remedy: narrowing a 432KB packet to 288KB made "
+                        "the report shorter, not longer, and raising the same packet to 32768 "
+                        "timed out instead of answering. Re-run and compare."
+                    ),
+                },
             },
         },
     },
@@ -630,20 +839,61 @@ TOOLS = [
                 "focus": {"type": "array", "items": {"type": "string"},
                           "description": "Override the default evaluation list."},
                 "context": {"type": "string"},
-                "max_tokens": {"type": "integer", "description": "Response budget. Default 16384."},
+                "max_tokens": {
+                    "type": "integer",
+                    "description": (
+                        "Response budget for this call, in OUTPUT tokens. Defaults to "
+                        "GLM_MCP_MAX_TOKENS (16384) and is clamped to GLM_MCP_MAX_OUTPUT_TOKENS "
+                        "(131072). It does not affect how much repository source is read - that is "
+                        "the separate input budget reported by glm_status. Keep it small: a report "
+                        "is spent out of your context, and 8K-24K is the normal range. Budget for "
+                        "the delegate's reasoning as well as its report: this model's thinking is "
+                        "charged here but never rendered, and on a wide packet it can consume most "
+                        "of 16384 on its own. A report that comes back short with stop_reason "
+                        "max_tokens has no measured remedy: narrowing a 432KB packet to 288KB made "
+                        "the report shorter, not longer, and raising the same packet to 32768 "
+                        "timed out instead of answering. Re-run and compare."
+                    ),
+                },
             },
         },
     },
     {
         "name": "glm_status",
         "description": (
-            "Report how this delegate is configured - model, endpoint, timeout, repository root, "
-            "and whether a credential is present. Never reveals the key. Use it to confirm setup "
-            "without spending a call."
+            "Report how this delegate is configured - model, endpoint, timeout, the default and "
+            "maximum response budgets, the repository read budget, repository root, and whether a "
+            "credential is present. Never reveals the key. Use it to confirm setup without "
+            "spending a call."
         ),
         "inputSchema": {"type": "object", "properties": {}},
     },
 ]
+
+
+def _delegation_header(title, included, total_bytes, requested_tokens, ceiling_tokens,
+                       effective_tokens, caveat):
+    """The locally known accounting for one delegation, stated before the delegate's own text.
+
+    Every figure here is measured on this side of the call: how many files were actually included,
+    how many bytes of source they came to, and what output budget was asked for versus sent. The
+    provider's own token usage is appended by call_glm from the API response, and the two are kept
+    visibly separate - bytes assembled and tokens billed are not the same measurement.
+    """
+    lines = [
+        title,
+        "Files sent: {0}.".format(len(included)),
+        "Source bytes sent: {0}.".format(total_bytes),
+        "Requested output budget: {0} tokens.".format(requested_tokens),
+        "Effective output budget: {0} tokens (configured maximum {1}).".format(
+            effective_tokens, ceiling_tokens),
+    ]
+    if effective_tokens < requested_tokens:
+        lines.append(
+            "NOTE: the requested budget exceeded the configured maximum and was clamped. Raise "
+            "GLM_MCP_MAX_OUTPUT_TOKENS if a larger response is genuinely required.")
+    lines.append(caveat)
+    return "\n".join(lines) + "\n\n"
 
 
 def handle_tool_call(name: str, args: dict):
@@ -654,18 +904,35 @@ def handle_tool_call(name: str, args: dict):
         # Length only. The value is never rendered, logged or returned by any path in this file.
         credential = ("present in environment ({0} characters)".format(len(key))
                       if key else "NOT SET")
+        budget = resolve_read_budget()
+        default_tokens, ceiling_tokens, _ = resolve_output_budget()
         lines = [
-            "Server:      {0} {1} (stdio, standard library only)".format(SERVER_NAME, SERVER_VERSION),
-            "Model:       " + _setting("GLM_MODEL", DEFAULT_MODEL),
-            "Endpoint:    " + _setting("GLM_BASE_URL", DEFAULT_BASE_URL),
-            "Timeout:     {0}s".format(_setting("GLM_MCP_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS, int)),
-            "Max tokens:  {0}".format(_setting("GLM_MCP_MAX_TOKENS", DEFAULT_MAX_TOKENS, int)),
-            "Repo root:   {0}".format(root),
-            "Credential:  " + credential,
+            "Server:                    {0} {1} (stdio, standard library only)".format(
+                SERVER_NAME, SERVER_VERSION),
+            "Model:                     " + _setting("GLM_MODEL", DEFAULT_MODEL),
+            "Endpoint:                  " + _setting("GLM_BASE_URL", DEFAULT_BASE_URL),
+            "Timeout:                   {0}s".format(
+                _int_setting("GLM_MCP_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS, 1)),
+            "",
+            "Response budget (output tokens - what GLM writes back):",
+            "  Default output tokens:   {0}      (GLM_MCP_MAX_TOKENS)".format(default_tokens),
+            "  Maximum output tokens:   {0}      (GLM_MCP_MAX_OUTPUT_TOKENS)".format(ceiling_tokens),
+            "",
+            "Repository read budget (input bytes and files - what is sent TO GLM):",
+            "  Maximum file bytes:      {0}      (GLM_MCP_MAX_FILE_BYTES)".format(
+                budget.max_file_bytes),
+            "  Maximum total read bytes:{0}      (GLM_MCP_MAX_TOTAL_BYTES)".format(
+                budget.max_total_bytes),
+            "  Maximum files:           {0}      (GLM_MCP_MAX_FILES)".format(budget.max_files),
+            "",
+            "Repo root:                 {0}".format(root),
+            "Credential:                " + credential,
             "",
             "Role:        delegated worker / reviewer. No write access to the repository.",
             "Scope:       development-agent tooling only. Not part of the AWKIT product and never packaged.",
             "Governance:  AGENTS.md, docs/ai/RULES.md, tools/agents/ routing and write lease.",
+            "Shape:       large repository input, compact report out. The maximum output budget is",
+            "             for exceptional investigation; ordinary reports belong at the default.",
         ]
         if key is None:
             lines += [
@@ -676,26 +943,29 @@ def handle_tool_call(name: str, args: dict):
             ]
         return "\n".join(lines)
 
-    max_tokens = args.get("max_tokens") or _setting("GLM_MCP_MAX_TOKENS", DEFAULT_MAX_TOKENS, int)
-    max_tokens = max(512, min(int(max_tokens), 64000))
+    # Both budgets are resolved ONCE here and then passed down, so a single delegation is assembled
+    # against one consistent configuration and the reported numbers describe the request that was
+    # actually built. The only ceiling on output is the configured one - there is no second, hidden
+    # cap anywhere below this line.
+    budget = resolve_read_budget()
+    requested_tokens, ceiling_tokens, max_tokens = resolve_output_budget(args.get("max_tokens"))
 
     if name == "glm_delegate":
-        prompt, included, _ = build_delegation_prompt(root, args)
-        header = (
-            "GLM delegation - task {0}, mode {1}.\nFiles sent: {2}.\n"
+        prompt, included, _, total_bytes = build_delegation_prompt(root, args, budget)
+        header = _delegation_header(
+            "GLM delegation - task {0}, mode {1}.".format(
+                args.get("task_id", "(unassigned)"), args.get("mode", "implementation")),
+            included, total_bytes, requested_tokens, ceiling_tokens, max_tokens,
             "This is a delegate's report. It is NOT completion evidence - validate independently "
-            "before acting on it, and before any task or contract state changes.\n\n".format(
-                args.get("task_id", "(unassigned)"),
-                args.get("mode", "implementation"),
-                len(included)))
+            "before acting on it, and before any task or contract state changes.")
         return header + call_glm(WORKER_CONSTRAINTS, prompt, max_tokens)
 
     if name == "glm_review":
-        prompt, included, _ = build_review_prompt(root, args)
-        header = (
-            "GLM independent review - target {0}.\nFiles sent: {1}.\n"
-            "Findings are claims to adjudicate against the evidence hierarchy, not defects.\n\n"
-            .format(args.get("target", "(unspecified)"), len(included)))
+        prompt, included, _, total_bytes = build_review_prompt(root, args, budget)
+        header = _delegation_header(
+            "GLM independent review - target {0}.".format(args.get("target", "(unspecified)")),
+            included, total_bytes, requested_tokens, ceiling_tokens, max_tokens,
+            "Findings are claims to adjudicate against the evidence hierarchy, not defects.")
         return header + call_glm(WORKER_CONSTRAINTS, prompt, max_tokens)
 
     raise RuntimeError("Unknown tool: " + str(name))
