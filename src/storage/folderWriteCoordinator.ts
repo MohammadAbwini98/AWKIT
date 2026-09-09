@@ -59,15 +59,23 @@ const lanes = new Map<string, FolderLane>();
 const heldCoordinationKeys = new AsyncLocalStorage<ReadonlySet<string>>();
 
 /**
- * Canonical key for a storage folder.
+ * Textual coordination key for a storage folder.
  *
- * Deliberately NOT `realpath`: `JsonProfileStore` creates its folder lazily on first use, so the
- * directory frequently does not exist yet at the moment coordination is required, and a resolver
- * that throws (or silently falls back) there would hand the two writers different keys — exactly
- * the split this module exists to prevent. `resolve` is total, so equal configured paths always
- * produce equal keys.
+ * The key applies `resolve`, normalizes path separators, removes trailing separators, then
+ * lowercases on win32. It deliberately does NOT call `realpath` or otherwise probe physical
+ * filesystem identity because `JsonProfileStore` creates its folder lazily, so it frequently does
+ * not exist when coordination is first required, and a resolver failure plus fallback could itself
+ * assign inconsistent identities.
  *
- * Windows paths are compared case-insensitively because NTFS is; on other platforms case is
+ * The total textual rule guarantees that equal configured spellings produce equal keys.
+ *
+ * Consequence: different aliases for one physical directory can retain different textual keys and
+ * therefore use different write lanes, degrading same-folder serialization for that alias pair.
+ * This is fail-degraded lane splitting, not a known merge of distinct physical folders. Callers
+ * should configure and reuse one stable path spelling for each storage folder. Detailed
+ * representative alias classes and the residual scope are recorded in `docs/ai/KNOWN_ISSUES.md`.
+ *
+ * Windows textual paths are compared case-insensitively because NTFS is; on other platforms case is
  * significant and must be preserved or two genuinely different folders would collapse into one.
  */
 export function folderCoordinationKey(folder: string): string {
