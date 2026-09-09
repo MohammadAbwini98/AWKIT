@@ -413,8 +413,8 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main",
-      "result": "pending",
-      "artifact": "Owner-authorized direct push to main. Stays pending until the push actually succeeds; it is never marked PASS in advance, and a non-fast-forward remote stops the task rather than being forced."
+      "result": "PASS",
+      "artifact": "Push executed 2026-09-09 and it actually succeeded: `git push origin main` reported `bd2be78..1224668  main -> main` against https://github.com/MohammadAbwini98/AWKIT.git. A `git fetch origin` immediately beforehand showed `## main...origin/main [ahead 10]` with nothing behind, so this was an ordinary fast-forward: no reset, rebase, force push, stash, branch or worktree was used at any point. pushAuthorizedForLease() was not weakened or bypassed - it evaluated a prospective contract copy with only this item satisfied, and every other evidence, preserved-path, scope-escape, QA and lease-history blocker was already clean. Original note: Owner-authorized direct push to main. Stays pending until the push actually succeeds; it is never marked PASS in advance, and a non-fast-forward remote stops the task rather than being forced."
     }
   ],
   "write_lease": {
@@ -582,10 +582,10 @@
     "push_evidence_id": "push-main"
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED",
-    "closed_at": null,
-    "closed_note": "Implementation and verification are complete and measured: agent:check-agents current, verify:agent-routing green in both lease states (1068/1068 under the qa lease, 1065/1065 under the manager lease), npm run build clean, six mutations red one at a time and green again after every restore, the guard diff confined to actor identity, the verifier diff additive apart from the deliberate cardinality re-pin, and the registry byte-identical to baseline. Status stays implemented rather than complete because the required push-main evidence is still pending: it flips to PASS only when git push origin main actually succeeds, never in advance."
+    "closed_at": "2026-09-09T00:00:00.000Z",
+    "closed_note": "Implementation and verification are complete and measured: agent:check-agents current, verify:agent-routing green in both lease states (1068/1068 under the qa lease, 1065/1065 under the manager lease), npm run build clean, six mutations red one at a time and green again after every restore, the guard diff confined to actor identity, the verifier diff additive apart from the deliberate cardinality re-pin, and the registry byte-identical to baseline. The push then actually succeeded (bd2be78..1224668, a plain fast-forward after git fetch origin showed ahead 10 and behind 0), so push-main was flipped from pending to PASS after the fact rather than in advance, and the contract moved to complete. Known deviation, reported rather than worked around: the harness asks every commit message to end with a Co-Authored-By trailer, but isManagerGitCommand accepts `git commit -m <msg>` as exactly four tokens and hasUnsafeShellSyntax rejects newline, < and >, so the trailer is unrepresentable without weakening the guard. The owner forbade weakening it, so commits 5e4415d, 2784894, 255e3a5, 1224668 and the closing evidence commit carry no trailer."
   }
 }
