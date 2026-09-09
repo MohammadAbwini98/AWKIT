@@ -14,7 +14,7 @@ import { createDataSourceProfileStore, createFlowProfileStore, createWorkflowPro
 import { getResourcesRoot, getRuntimeDataRoot, getRuntimePaths } from "../appPaths";
 import { isReadableDataSourceFile } from "@src/utils/pathSafety";
 import { getConfiguredPaths } from "../storagePaths";
-import { getUiSettings } from "../uiSettings";
+import { getUiSettings, type UiSettings } from "../uiSettings";
 import { executionEngine } from "@src/runner/ExecutionEngine";
 import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
@@ -60,6 +60,12 @@ export interface ExecutionRunRequest {
 }
 
 /**
+ * Trusted per-run browser launch choice resolved by the IPC authorization boundary.
+ * It is intentionally separate from the renderer-owned request.
+ */
+export type RunBrowserLaunchSnapshot = Readonly<UiSettings["superUser"]["chrome"]>;
+
+/**
  * Collaborators that live in the IPC layer and are handed to this service by
  * `registerExecutionIpc`. Injected rather than imported so `app/main/execution` never points back
  * at `app/main/ipc`.
@@ -103,7 +109,7 @@ export class ExecutionApplicationService {
     return validateWorkflow(workflowId);
   }
 
-  public async runWorkflow(request: ExecutionRunRequest) {
+  public async runWorkflow(request: ExecutionRunRequest, browserLaunchSnapshot?: RunBrowserLaunchSnapshot) {
     const validation = await validateWorkflow(request.workflowId);
     if (!validation.workflow || !validation.scenario || !validation.plan) {
       return { status: "failed", validation, error: `Workflow not found: ${request.workflowId}` };
@@ -128,6 +134,13 @@ export class ExecutionApplicationService {
         validation,
         message: "Workflow validation passed. Browser execution is available when dryRun=false."
       };
+    }
+
+    // Real runs must use the exact Chrome choice that the IPC boundary authorized. Never re-read
+    // `superUser.chrome` here: Settings can change between awaits, which could otherwise authorize
+    // bundled Chromium and later launch installed Chrome (or the reverse).
+    if (!browserLaunchSnapshot) {
+      throw new Error("A real run requires an authorized browser launch snapshot.");
     }
 
     // Trusted per-machine license gate for a REAL run (validation/dry-run above stay available so diagnostics
@@ -198,7 +211,7 @@ export class ExecutionApplicationService {
         sampleRow: workflowDataSource.rows[0]
       } : { id: "", name: "", type: "jsonArray", file: "", path: "$", rowCount: 0, sampleRow: {} },
       ...(legacyCompatibility ? { legacyCompatibility } : {}),
-      instanceTemplate: await this.resolveInstanceTemplate(request, headless, validation.workflow),
+      instanceTemplate: await this.resolveInstanceTemplate(request, headless, validation.workflow, browserLaunchSnapshot),
       resourceControls: {
         maxBrowserContextsPerProcess: 5,
         delayBetweenInstanceStartsMs: 250
@@ -247,13 +260,13 @@ export class ExecutionApplicationService {
   private async resolveInstanceTemplate(
     request: ExecutionRunRequest,
     headless: boolean,
-    workflow: WorkflowProfile
+    workflow: WorkflowProfile,
+    browserLaunchSnapshot: RunBrowserLaunchSnapshot
   ): Promise<ConcurrentRunProfile["instanceTemplate"]> {
     // Certificate trust is resolved ONCE here, at the top of the run, and stamped onto the instance
     // template. Precedence: run override → workflow security → application setting → false. Every context
     // the run creates (initial, retry, restart, parallel isolated) inherits this single value.
-    const settings = await getUiSettings();
-    const { recorder } = settings;
+    const { recorder } = await getUiSettings();
     const certificateTrustSources = {
       run: request.ignoreHttpsErrors,
       workflow: workflow.security,
@@ -274,8 +287,8 @@ export class ExecutionApplicationService {
       screenshotOnFailure: typeof request.screenshotOnFailure === "boolean" ? request.screenshotOnFailure : undefined
     };
 
-    if (settings.superUser.chrome.mode === "installedChrome") {
-      const resolution = await new InstalledChromeResolver().resolve(settings.superUser.chrome.executablePath);
+    if (browserLaunchSnapshot.mode === "installedChrome") {
+      const resolution = await new InstalledChromeResolver().resolve(browserLaunchSnapshot.executablePath);
       if (!resolution.available) throw new Error(`${resolution.code}: ${resolution.message}`);
       base.browserDistribution = "installedChrome";
       base.executablePath = resolution.executablePath;

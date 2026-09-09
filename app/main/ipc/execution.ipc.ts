@@ -12,7 +12,7 @@ import { getOracleNodeRunner } from "../oracleService";
 import { indexCompletedRun } from "../semantic/semanticService";
 import { applyRunGateEnforcement, licenseDispatchGate, parkedResumeBlocker } from "../licensing/licenseEnforcementService";
 import { ExecutionApplicationService } from "../execution/ExecutionApplicationService";
-import type { ExecutionRunRequest } from "../execution/ExecutionApplicationService";
+import type { ExecutionRunRequest, RunBrowserLaunchSnapshot } from "../execution/ExecutionApplicationService";
 
 /**
  * The `execution:runWorkflow` wire contract, as imported by `preload.ts`. It is exactly the
@@ -69,9 +69,14 @@ export function registerExecutionIpc(): void {
     // `ExecutionEngine.startRun`. So every request that skips this guard launches no browser. The two
     // predicates must stay exact complements: changing EITHER one alone is a security change, not a
     // refactor. Both halves and that ordering are pinned by scripts/verify-r0-characterization.mts.
+    let browserLaunchSnapshot: RunBrowserLaunchSnapshot | undefined;
     if (request.dryRun === false) {
       const settings = await getUiSettings();
-      if (settings.superUser.chrome.mode === "installedChrome") {
+      // Snapshot both authorization-relevant mode and launch-relevant executable path from the same
+      // Settings observation. The service receives this exact frozen value, so a concurrent Settings
+      // save cannot authorize one browser distribution and launch another.
+      browserLaunchSnapshot = Object.freeze({ ...settings.superUser.chrome });
+      if (browserLaunchSnapshot.mode === "installedChrome") {
         await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {
           audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:runWorkflow" }
         });
@@ -79,7 +84,7 @@ export function registerExecutionIpc(): void {
         await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
       }
     }
-    return applicationService.runWorkflow(request);
+    return applicationService.runWorkflow(request, browserLaunchSnapshot);
   });
   ipcMain.handle("execution:pauseInstance", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_STOP);
