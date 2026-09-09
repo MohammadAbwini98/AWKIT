@@ -1403,29 +1403,29 @@ async function runPreparationCharacterization(): Promise<void> {
     );
     invariant(
       privileged.length === 1,
-      `execution:runWorkflow privileged applicationService.runWorkflow(request) calls: ${privileged.length}`
+      `execution:runWorkflow privileged applicationService.runWorkflow calls: ${privileged.length}`
     );
     const privilegedStart = privileged[0].getStart();
     // Positional, not merely both-present: "both are present" passes trivially when the order is inverted.
     const late = authorizations.filter((call) => call.getStart() >= privilegedStart).map((call) => call.expression.getText());
     invariant(
       late.length === 0,
-      `applicationService.runWorkflow(request) is reached before authorization completes: ${late.join(", ")}`
+      `applicationService.runWorkflow is reached before authorization completes: ${late.join(", ")}`
     );
   };
   assertAuthorizationPrecedesRunPreparation(ipcText);
   check(
     "every sender/RBAC authorization in execution:runWorkflow completes before the call into ExecutionApplicationService",
     true,
-    "assertSenderSuperUser + assertSenderPermission both precede applicationService.runWorkflow(request)"
+    "assertSenderSuperUser + assertSenderPermission both precede applicationService.runWorkflow(request, browserLaunchSnapshot)"
   );
   const hoistedPrivilegedCall = mutateOnce(
     mutateOnce(
       ipcText,
-      "    if (request.dryRun === false) {",
-      "    const hoisted = applicationService.runWorkflow(request);\n    if (request.dryRun === false) {"
+      "    let browserLaunchSnapshot: RunBrowserLaunchSnapshot | undefined;",
+      "    const hoisted = applicationService.runWorkflow(request, undefined);\n    let browserLaunchSnapshot: RunBrowserLaunchSnapshot | undefined;"
     ),
-    "    return applicationService.runWorkflow(request);",
+    "    return applicationService.runWorkflow(request, browserLaunchSnapshot);",
     "    return hoisted;"
   );
   mutationRejected("the call into ExecutionApplicationService being hoisted above the sender/RBAC authorization block", () => {
@@ -1582,7 +1582,7 @@ async function runPreparationCharacterization(): Promise<void> {
     invariant(branches.length === 2, `execution:runWorkflow authorization branches: ${branches.length}`);
     invariant(branches[0].expression.getText() === "request.dryRun === false", `real-run branch condition: ${branches[0].expression.getText()}`);
     invariant(
-      branches[1].expression.getText() === 'settings.superUser.chrome.mode === "installedChrome"',
+      branches[1].expression.getText() === 'browserLaunchSnapshot.mode === "installedChrome"',
       `installed-Chrome branch condition: ${branches[1].expression.getText()}`
     );
     const thenArm = branches[1].thenStatement;
@@ -1616,8 +1616,8 @@ async function runPreparationCharacterization(): Promise<void> {
   });
   const installedChromeConditionInverted = mutateOnce(
     ipcText,
-    '      if (settings.superUser.chrome.mode === "installedChrome") {',
-    '      if (settings.superUser.chrome.mode !== "installedChrome") {'
+    '      if (browserLaunchSnapshot.mode === "installedChrome") {',
+    '      if (browserLaunchSnapshot.mode !== "installedChrome") {'
   );
   mutationRejected("the installed-Chrome mode test being inverted so installed Chrome takes the weaker arm", () => {
     assertInstalledChromeSuperUserRule(installedChromeConditionInverted);
@@ -1634,6 +1634,119 @@ async function runPreparationCharacterization(): Promise<void> {
   );
   mutationRejected("the installed-Chrome denial losing its distinct audit event type", () => {
     assertInstalledChromeSuperUserRule(installedChromeAuditDropped);
+  });
+
+  // --- R2.6d one trusted browser-launch snapshot crosses the IPC/service boundary -----------------
+  const assertSingleRunBrowserLaunchSnapshot = (ipcSource: string, serviceSource: string): void => {
+    const handler = ipcHandlerSpan(ipcPath, ipcSource, "execution:runWorkflow");
+    const settingsReads = callsWithin(ipcPath, ipcSource, handler, (call, sf) => callText(call, sf) === "getUiSettings");
+    invariant(settingsReads.length === 1, `execution:runWorkflow getUiSettings calls: ${settingsReads.length}`);
+
+    const snapshotAssignments = nodesWithin(ipcPath, ipcSource, handler, ts.isBinaryExpression).filter(
+      (node) => node.operatorToken.kind === ts.SyntaxKind.EqualsToken && node.left.getText() === "browserLaunchSnapshot"
+    );
+    invariant(snapshotAssignments.length === 1, `browserLaunchSnapshot assignments: ${snapshotAssignments.length}`);
+    invariant(
+      snapshotAssignments[0].right.getText() === "Object.freeze({ ...settings.superUser.chrome })",
+      `browserLaunchSnapshot source: ${snapshotAssignments[0].right.getText()}`
+    );
+
+    const chromeBranches = nodesWithin(ipcPath, ipcSource, handler, ts.isIfStatement).filter((node) =>
+      /\.mode\s*===\s*"installedChrome"$/.test(node.expression.getText())
+    );
+    invariant(chromeBranches.length === 1, `execution:runWorkflow installed-Chrome mode branches: ${chromeBranches.length}`);
+    invariant(
+      chromeBranches[0].expression.getText() === 'browserLaunchSnapshot.mode === "installedChrome"',
+      `authorization mode source: ${chromeBranches[0].expression.getText()}`
+    );
+
+    const serviceCalls = callsWithin(
+      ipcPath,
+      ipcSource,
+      handler,
+      (call, sf) => callText(call, sf) === "applicationService.runWorkflow"
+    );
+    invariant(serviceCalls.length === 1, `execution:runWorkflow applicationService.runWorkflow calls: ${serviceCalls.length}`);
+    invariant(
+      serviceCalls[0].arguments.length === 2 && serviceCalls[0].arguments[1]?.getText() === "browserLaunchSnapshot",
+      `applicationService.runWorkflow snapshot argument: ${serviceCalls[0].arguments[1]?.getText() ?? "none"}`
+    );
+
+    const runBody = methodBodySpan(servicePath, serviceSource, "runWorkflow");
+    const snapshotGuards = nodesWithin(servicePath, serviceSource, runBody, ts.isIfStatement).filter(
+      (node) => node.expression.getText() === "!browserLaunchSnapshot"
+    );
+    invariant(snapshotGuards.length === 1, `runWorkflow missing-snapshot guards: ${snapshotGuards.length}`);
+    invariant(/throw new Error\(/.test(snapshotGuards[0].thenStatement.getText()), "a real run no longer fails closed without the authorized snapshot");
+    const templateCalls = callsWithin(
+      servicePath,
+      serviceSource,
+      runBody,
+      (call, sf) => callText(call, sf) === "this.resolveInstanceTemplate"
+    );
+    invariant(templateCalls.length === 1, `runWorkflow resolveInstanceTemplate calls: ${templateCalls.length}`);
+    invariant(
+      templateCalls[0].arguments[3]?.getText() === "browserLaunchSnapshot",
+      `resolveInstanceTemplate snapshot argument: ${templateCalls[0].arguments[3]?.getText() ?? "none"}`
+    );
+
+    const templateBody = methodBodySpan(servicePath, serviceSource, "resolveInstanceTemplate");
+    const templateSettingsReads = callsWithin(
+      servicePath,
+      serviceSource,
+      templateBody,
+      (call, sf) => callText(call, sf) === "getUiSettings"
+    );
+    invariant(templateSettingsReads.length === 1, `resolveInstanceTemplate certificate-settings reads: ${templateSettingsReads.length}`);
+    const templateProperties = nodesWithin(servicePath, serviceSource, templateBody, ts.isPropertyAccessExpression).map((node) => node.getText());
+    invariant(
+      templateProperties.filter((value) => value === "browserLaunchSnapshot.mode").length === 1,
+      `resolveInstanceTemplate snapshot mode reads: ${templateProperties.filter((value) => value === "browserLaunchSnapshot.mode").length}`
+    );
+    invariant(
+      templateProperties.filter((value) => value === "browserLaunchSnapshot.executablePath").length === 1,
+      `resolveInstanceTemplate snapshot executablePath reads: ${templateProperties.filter((value) => value === "browserLaunchSnapshot.executablePath").length}`
+    );
+    const rereadChrome = templateProperties.filter((value) => /\.superUser\.chrome(?:\.|$)/.test(value));
+    invariant(rereadChrome.length === 0, `resolveInstanceTemplate re-reads superUser.chrome: ${rereadChrome.join(", ")}`);
+  };
+  assertSingleRunBrowserLaunchSnapshot(ipcText, serviceText);
+  check(
+    "a real run authorizes and launches from one frozen Chrome mode/executablePath snapshot resolved at the IPC boundary",
+    true,
+    "one getUiSettings -> Object.freeze({...superUser.chrome}) -> authorization + applicationService.runWorkflow -> snapshot-only launch; certificate Settings remain independent"
+  );
+  const authorizationRereadsChromeMode = mutateOnce(
+    ipcText,
+    '      if (browserLaunchSnapshot.mode === "installedChrome") {',
+    '      if ((await getUiSettings()).superUser.chrome.mode === "installedChrome") {'
+  );
+  mutationRejected("authorization re-reading Chrome mode instead of using the run snapshot", () => {
+    assertSingleRunBrowserLaunchSnapshot(authorizationRereadsChromeMode, serviceText);
+  });
+  const serviceRereadsChromeMode = mutateOnce(
+    serviceText,
+    '    if (browserLaunchSnapshot.mode === "installedChrome") {',
+    '    if ((await getUiSettings()).superUser.chrome.mode === "installedChrome") {'
+  );
+  mutationRejected("browser launch re-reading Chrome mode instead of using the authorized snapshot", () => {
+    assertSingleRunBrowserLaunchSnapshot(ipcText, serviceRereadsChromeMode);
+  });
+  const serviceRereadsChromeExecutable = mutateOnce(
+    serviceText,
+    "      const resolution = await new InstalledChromeResolver().resolve(browserLaunchSnapshot.executablePath);",
+    "      const resolution = await new InstalledChromeResolver().resolve((await getUiSettings()).superUser.chrome.executablePath);"
+  );
+  mutationRejected("browser launch re-reading the Chrome executable path instead of using the authorized snapshot", () => {
+    assertSingleRunBrowserLaunchSnapshot(ipcText, serviceRereadsChromeExecutable);
+  });
+  const snapshotDisconnectedFromService = mutateOnce(
+    ipcText,
+    "    return applicationService.runWorkflow(request, browserLaunchSnapshot);",
+    "    return applicationService.runWorkflow(request, undefined);"
+  );
+  mutationRejected("the authorized Chrome snapshot being disconnected from the application service", () => {
+    assertSingleRunBrowserLaunchSnapshot(snapshotDisconnectedFromService, serviceText);
   });
 
   // --- R2.6b Repeat carries the same installed-Chrome rule, decided from the STORED launch config ---
