@@ -1,68 +1,20 @@
 {
-  "task": "awkit-9a1l",
-  "contract_path": "docs/ai/contracts/awkit-9a1l.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-fresh-artifact-0910",
+  "contract_path": "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-9a1l.json",
-    "tools/roadmap/assignments.json"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-09T20:48:15.910Z",
-  "acquired_at_commit": "63d0631b3233d6fa506607de7dd9c1636aea8fcb",
+  "acquired_at": "2026-09-09T23:05:44.146Z",
+  "acquired_at_commit": "97784377035c7a32717c6c265a3d6cfabfb2f77d",
   "baseline_dirty": [
-    ".claude/mcp/glm_delegate_server.py",
-    ".claude/mcp/verify_glm_delegate.py",
-    ".claude/mcp/verify_glm_delegate_live.py",
-    "AWTKIT.rar",
-    "Building priorities and integration-handoff/",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-7bu.json",
-    "docs/ai/contracts/awkit-9a1l.json",
-    "docs/ai/contracts/awkit-cm8.json",
-    "docs/ai/contracts/awkit-dhw6.json",
-    "docs/ai/contracts/awkit-glm-ctx.json",
-    "docs/ai/contracts/awkit-glm-delegation-tooling.json",
-    "docs/ai/contracts/awkit-r1b-coordination.json",
-    "docs/ai/contracts/awkit-r2.json",
-    "docs/ai/contracts/awkit-rkd8.json",
-    "docs/ai/contracts/awkit-s410.json",
-    "docs/ai/contracts/awkit-tsq1.json",
-    "docs/ai/contracts/awkit-ui1.json",
-    "docs/ai/contracts/awkit-wfsimp.json",
-    "docs/ai/contracts/awkit-wknd.json",
-    "package.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-fresh-artifact-0910.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".claude/mcp/glm_delegate_server.py": "f0a8b7cc4d406bec106af14de6533fe780ea395662b6924aad6f2bbb923f684a",
-    ".claude/mcp/verify_glm_delegate.py": "63a1da02652f8b4da1cd3127ff0f1ad943de96575cd15e181b7571a84acada60",
-    ".claude/mcp/verify_glm_delegate_live.py": "c4aa1747972f852460b0e668243d6e6105d71387c494cdce00f13d71589d23cd",
-    "AWTKIT.rar": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a",
-    "Building priorities and integration-handoff/": "absent",
-    "docs/ai/contracts/active-lease.json": "879edff98cfff549558017e6fa46d64e6494d0c393b5be4d0fa91a7b1a894484",
-    "docs/ai/contracts/awkit-7bu.json": "e4de300228abf14921230f890dc9a7b3db5c4b2bd68b456e42063b53fb3c6cd4",
-    "docs/ai/contracts/awkit-9a1l.json": "862edee202cfd3267df93be3c23502a372fbfce932169d09483bd62e6660901b",
-    "docs/ai/contracts/awkit-cm8.json": "7dec63ec757ef460d3f8f306fa4e723f6496ad8af8ea087b5417d3e01f53d02c",
-    "docs/ai/contracts/awkit-dhw6.json": "4b29570af72af3ef561c788cd595a55c4d22aaf0786677b464ed7a8784a8f420",
-    "docs/ai/contracts/awkit-glm-ctx.json": "1f2fa3de8977435d779905459d30bcf0474c06014cc639eb11c58a337e653829",
-    "docs/ai/contracts/awkit-glm-delegation-tooling.json": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71",
-    "docs/ai/contracts/awkit-r1b-coordination.json": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174",
-    "docs/ai/contracts/awkit-r2.json": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228",
-    "docs/ai/contracts/awkit-rkd8.json": "b9dd8a510e512cf73fc679cd81ce89b475aa68ff6d47d30089964ea7abcc7b50",
-    "docs/ai/contracts/awkit-s410.json": "c51b6e13cfc44bb10c4b91a7f19984f0572ee9cbc0aafe05d52e7d79baa22b35",
-    "docs/ai/contracts/awkit-tsq1.json": "cef1e669490821232ef2e69806000f604beadabb5299e83a6d6ca840fac9ec1d",
-    "docs/ai/contracts/awkit-ui1.json": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552",
-    "docs/ai/contracts/awkit-wfsimp.json": "0a897859791665eb15a1a4719632149a42a0e301a956f8ef5faea5adca9385bd",
-    "docs/ai/contracts/awkit-wknd.json": "d39e2ea393a1eec22b91b46050cf08c8273cd15f323fbf3c2a4cc03a13e6674e",
-    "package.json": "ca5892824b997f007817657e4c6c72f91f38ce8f62b40e2b64d2708497051a5c",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-fresh-artifact-0910.json": "86d2177dc53b0a750266a782d3294f1b8ae114f025d673d6c50a2730d4c9c679"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -72,12 +24,29 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1788195763485.3335"
+    "build": "dir(1):native-hosts:1788992396111.904"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-09T23:18:31.018Z",
+      "added": [
+        "build"
+      ],
+      "reason": "packaging stage 4 stages the gitignored Zvec native host under build/native-hosts",
+      "triggered_escalation": [
+        "qa",
+        "qc"
+      ],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-09T22:04:19.761Z",
-  "released_reason": "work complete",
-  "archived_at": "2026-09-09T22:04:19.762Z"
+  "violations": [
+    {
+      "path": "build",
+      "detectedAt": "2026-09-09T23:18:10.798Z",
+      "via": "bash",
+      "resolved": false
+    }
+  ]
 }
