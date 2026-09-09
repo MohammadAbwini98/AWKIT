@@ -1,0 +1,506 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-dhw6",
+    "title": "Document that filesystem path aliases can split one physical storage folder across coordination lanes",
+    "objective": "Resolve the R1B QC follow-up as documentation only. Add a concise authoritative comment beside folderCoordinationKey() explaining that its total textual normalization deliberately does not probe physical filesystem identity, so different alias spellings of one physical folder can produce different keys and independent write lanes. Align the existing KNOWN_ISSUES residual-scope entry with that fail-degraded lane-splitting direction, representative alias classes, bounded scope, and the operational mitigation of one stable configured spelling. Do not add realpath or filesystem identity probing; do not change executable coordinator logic, lane lifetime, pending accounting, tail chaining, re-entrancy, persisted data, public contracts, runtime semantics, or existing R1B/R0 verifier strength. Close and export awkit-dhw6, reconcile current project-state sources, maintain any exact roadmap tracker pin only if the executed verifier proves it stale, verify, commit coherently on main, push normally, and release the final lease while preserving every unrelated dirty or untracked path.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "17cf1debc1fc84820d15b7316161554038e15030",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": ".claude/mcp/glm_delegate_server.py",
+        "git_status": " M",
+        "sha256": "f0a8b7cc4d406bec106af14de6533fe780ea395662b6924aad6f2bbb923f684a"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-ctx.json",
+        "git_status": " M",
+        "sha256": "1f2fa3de8977435d779905459d30bcf0474c06014cc639eb11c58a337e653829"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-rkd8.json",
+        "git_status": " M",
+        "sha256": "b9dd8a510e512cf73fc679cd81ce89b475aa68ff6d47d30089964ea7abcc7b50"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-s410.json",
+        "git_status": " M",
+        "sha256": "c51b6e13cfc44bb10c4b91a7f19984f0572ee9cbc0aafe05d52e7d79baa22b35"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      },
+      {
+        "path": "package.json",
+        "git_status": " M",
+        "sha256": "ca5892824b997f007817657e4c6c72f91f38ce8f62b40e2b64d2708497051a5c"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate.py",
+        "git_status": "??",
+        "sha256": "63a1da02652f8b4da1cd3127ff0f1ad943de96575cd15e181b7571a84acada60"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate_live.py",
+        "git_status": "??",
+        "sha256": "c4aa1747972f852460b0e668243d6e6105d71387c494cdce00f13d71589d23cd"
+      },
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-wfsimp.json",
+        "git_status": "??",
+        "sha256": "0a897859791665eb15a1a4719632149a42a0e301a956f8ef5faea5adca9385bd"
+      }
+    ]
+  },
+  "classification": {
+    "filesystem_write_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "qa",
+      "qc",
+      "persistence",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/storage/folderWriteCoordinator.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-dhw6.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "architect"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl"
+      ],
+      "forbidden_paths": [
+        "src/storage/**",
+        "scripts/**"
+      ],
+      "sequence_note": "Lease 1 is persistence for the source comment only. Lease 2 is project-state for the aligned residual documentation. Verification then measures the final documentation against existing behavior. After closing and exporting the Bead, project-state reconciles the narratives and tracker sources; if and only if verify:roadmap-dashboard proves the strict tracker pin stale, a separate qa lease changes only that exact pin and mutation-tests each changed conjunct. The final project-state lease records evidence, commits/pushes its owned closeout paths, and is released last. The task contract and CLI-owned active-lease/assignment files are control-plane bookkeeping and never authorize one owner to borrow another owner's path. The pre-existing awkit-rkd8 release residue in active-lease.json and assignments.json is distinguished from this task; the necessary lease CLI evolution may absorb that structural residue, but no unrelated contract or work product is cleaned or appropriated."
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "Executable lines in src/storage/folderWriteCoordinator.ts remain token-identical to baseline; only comments or comment-adjacent whitespace may change.",
+      "Do not change folderCoordinationKey(), runExclusive(), activeFolderCoordinationKeys(), lane identity, pending counts, tail chaining, lane lifetime, or re-entrancy.",
+      "Do not add realpath, filesystem identity probing, alias canonicalization, a registry, a debug API, or any runtime I/O."
+    ],
+    "compatibility": [
+      "No runtime behavior, filesystem behavior, persisted shape, public contract, JSON/profile compatibility, configured-path switching, offline boundary, or security behavior changes.",
+      "The documented direction is one physical directory splitting across textual keys and lanes, with serialization potentially lost for that alias pair; do not claim distinct physical directories are merged."
+    ],
+    "offline": [
+      "No dependency, network, packaging, bundled-runtime, or resource-path change."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "DOC-SOURCE-ALIAS-CONTRACT",
+      "description": "The authoritative comment beside folderCoordinationKey states its resolve plus separator-normalization plus win32-lowercase derivation, deliberate lack of physical-identity resolution, same-folder alias lane splitting, fail-degraded direction, and consistent-spelling mitigation without changing executable TypeScript.",
+      "evidence_required": [
+        "source-comment-inspection",
+        "no-behavior-change"
+      ]
+    },
+    {
+      "id": "DOC-RESIDUAL-SCOPE",
+      "description": "KNOWN_ISSUES refines the existing R1B residual entry without duplication and documents representative aliases, bounded affected configurations, lost-serialization direction, no evidenced wrong merge, deliberate no-realpath decision, and one stable configured spelling as mitigation.",
+      "evidence_required": [
+        "residual-doc-inspection",
+        "qa-qc"
+      ]
+    },
+    {
+      "id": "VERIFY-NO-REGRESSION",
+      "description": "Build and the focused write-queue, profile-store, R0-characterization, verifier-classification, roadmap, AI-memory, graphify-update, and whitespace gates all complete truthfully; mock-site is explicitly not applicable.",
+      "evidence_required": [
+        "build",
+        "write-queue",
+        "profile-store",
+        "r0-characterization",
+        "verifier-classification",
+        "roadmap-dashboard",
+        "ai-memory",
+        "graphify-update",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "STATE-AND-GIT-CLOSEOUT",
+      "description": "awkit-dhw6 is closed and exported, authoritative narratives and any measured exact roadmap pin are reconciled under their owners, only exact task paths are staged, coherent main commits are pushed normally, remote parity is re-measured, and the final lease is released with unrelated work preserved.",
+      "evidence_required": [
+        "beads-close-export",
+        "staged-path-audit",
+        "push-main",
+        "preserved-path-audit"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "source-comment-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff -- src/storage/folderWriteCoordinator.ts",
+      "result": "PASS",
+      "artifact": "Baseline-to-4335ece diff contains only the expanded documentation comment beside folderCoordinationKey(); no executable TypeScript or import/export line changed."
+    },
+    {
+      "id": "no-behavior-change",
+      "type": "inspection",
+      "required": true,
+      "command": "compare TypeScript scanner token streams for baseline and working-tree src/storage/folderWriteCoordinator.ts, excluding trivia/comments",
+      "result": "PASS",
+      "artifact": "TypeScript scanner token streams are identical: 395 tokens before and after, both SHA-256 07a91dd3113b7b33ff0b9445f23ed83a2acda270d6e5560ce983e7967b9c6cb2. No executable line, import, expression, API, normalization, I/O, lane lifecycle, pending accounting, tail chaining or re-entrancy changed; no realpath was introduced."
+    },
+    {
+      "id": "residual-doc-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "inspect the aligned folder coordination limitation in src/storage/folderWriteCoordinator.ts and docs/ai/KNOWN_ISSUES.md",
+      "result": "PASS",
+      "artifact": "The concise source comment and refined single residual-scope entry agree on textual-not-physical identity, deliberate no-probe rationale, representative aliases, lane splitting and lost serialization, no evidenced distinct-folder merge, bounded affected configurations and stable-spelling mitigation. A stale nearby sentence that still called finding C open was corrected during QC."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "Exit 0 after the final documentation edits: embedded roadmap snapshot generated from 444 records / 14 sources, tsc --noEmit clean, and main/preload/renderer bundles emitted. The existing securityKernel mixed static/dynamic import advisory remained non-fatal."
+    },
+    {
+      "id": "write-queue",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:write-queue",
+      "result": "PASS",
+      "artifact": "78/78 checks passed after the final documentation edits."
+    },
+    {
+      "id": "profile-store",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:profile-store",
+      "result": "PASS",
+      "artifact": "74/74 checks passed after the final documentation edits."
+    },
+    {
+      "id": "r0-characterization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:r0-characterization",
+      "result": "PASS",
+      "artifact": "175 PASS / 0 FAIL after the final documentation edits."
+    },
+    {
+      "id": "verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "PASS",
+      "artifact": "All 202 verify:/validate: scripts classified; no stale entries; taxonomy breakdown 1 documentation-consistency, 11 static-source-validation, 63 unit, 39 integration, 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance."
+    },
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "Final 177/177 at 276 total / 272 closed / 4 outstanding and the Overview banner explicitly reads Sources agree. The first post-close run truthfully failed 176/177 on only the stale 5/271 exact tracker pin. Under the separate QA lease, reverting the outstanding conjunct alone and the closed conjunct alone each produced exit 1 at 176/177 with the one named tracker red; restored 4/272 passes exactly."
+    },
+    {
+      "id": "ai-memory",
+      "type": "inspection",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "Exit 0 after CURRENT_STATE, HANDOFF and TASK_LOG reconciliation: AI memory files passed all required checks."
+    },
+    {
+      "id": "graphify-update",
+      "type": "inspection",
+      "required": true,
+      "command": "graphify update .",
+      "result": "PASS",
+      "artifact": "Exit 0: graph refreshed from 933 files to 14,219 nodes, 29,793 edges and 704 communities. Seventy zero-node retryable/configuration files and changed community labels were reported as non-fatal update warnings; no product or verifier failure."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "Exit 0 after final documentation edits. Git emitted only working-copy LF-to-CRLF warnings, including unrelated preserved paths; no whitespace error."
+    },
+    {
+      "id": "mock-site",
+      "type": "inspection",
+      "required": false,
+      "command": null,
+      "result": "NOT APPLICABLE",
+      "artifact": "This is an in-process Node storage-coordination documentation task with no page, browser, Recorder, locator, Smart Wait, execution, workflow-node, or mock-site behavior. No fixture is applicable and none will be invented."
+    },
+    {
+      "id": "qa-qc",
+      "type": "inspection",
+      "required": true,
+      "command": "task-level QA plus independent methodological QC against the ten requested questions",
+      "result": "PASS",
+      "artifact": "QA PASS. QC APPROVED methodologically, not organizationally, after all ten requested challenges. One material finding was corrected before approval: a stale preceding KNOWN_ISSUES cross-reference still called finding C open. Final wording accurately matches current implementation, distinguishes textual from physical identity, states lane splitting and lost serialization without promising data safety, treats aliases as representative, explains rather than condemns the no-realpath choice, confirms comments-only source diff, aligns the two documentation surfaces, recommends stable spelling only, and reports measured verification truthfully."
+    },
+    {
+      "id": "beads-close-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd close awkit-dhw6; bd export -o .beads/issues.jsonl; bd stats",
+      "result": "PASS",
+      "artifact": "awkit-dhw6 is CLOSED and 276 issues were exported. Live totals: 276 total / 272 closed / 4 outstanding, comprising 2 open and 2 status=blocked; bd blocked reports 0 dependency-blocked. The validation ledger remains independently 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases."
+    },
+    {
+      "id": "staged-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --cached --name-only; git diff --cached",
+      "result": "PASS",
+      "artifact": "Before the project-state commit the cache contained exactly .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-dhw6.json and tools/roadmap/assignments.json. The source-comment and strict-pin changes were already isolated in 4335ece and 8ad6562. The full cached diff was inspected; no unrelated path was staged."
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "preserved-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "task gate preserved-path fingerprints plus final git status",
+      "result": "PASS",
+      "artifact": "The pre-push task gate reported zero derived scope escapes and recognized all 31 declared unrelated dirty/untracked files as preserved with their recorded fingerprints. Exact-path staging excluded them. Final status and parity are re-measured after push and final lease release; release-only control-plane residue is not unfinished task work."
+    }
+  ],
+  "write_lease": {
+    "status": "unassigned",
+    "history": [
+      {
+        "id": "awkit-dhw6:persistence:2026-09-09T17:21:12.466Z",
+        "task": "awkit-dhw6",
+        "holder": "persistence",
+        "status": "released",
+        "allowed_paths": [
+          "src/storage/folderWriteCoordinator.ts"
+        ],
+        "acquired_at": "2026-09-09T17:21:12.466Z",
+        "acquired_at_commit": "17cf1debc1fc84820d15b7316161554038e15030",
+        "released_at": "2026-09-09T17:24:13.636Z",
+        "released_reason": "awkit-dhw6 source comment committed as 4335ece with baseline and working TypeScript token streams identical; handoff to project-state for aligned residual documentation and closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-dhw6:project-state:2026-09-09T17:24:51.354Z",
+        "task": "awkit-dhw6",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-09T17:24:51.354Z",
+        "acquired_at_commit": "4335ecee1e55a59beaeea3d9a25fd0ba2628d2d1",
+        "released_at": "2026-09-09T17:32:58.362Z",
+        "released_reason": "awkit-dhw6 documentation and Beads closure complete; post-close roadmap measured 176/177 on the sole stale exact 5-outstanding/271-closed tracker pin, handoff to qa for the ownership-correct exact pin update",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-dhw6:qa:2026-09-09T17:33:32.613Z",
+        "task": "awkit-dhw6",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-09T17:33:32.613Z",
+        "acquired_at_commit": "4335ecee1e55a59beaeea3d9a25fd0ba2628d2d1",
+        "released_at": "2026-09-09T17:53:09.260Z",
+        "released_reason": "awkit-dhw6 tracker pin committed as 8ad6562; 4-outstanding and 272-closed conjuncts each failed independently when reverted, final roadmap 177/177 with Sources agree and verifier classification 202/202",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
+  }
+}

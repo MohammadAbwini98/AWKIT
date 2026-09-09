@@ -1,5 +1,43 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-09, latest) — awkit-dhw6 CLOSED: physical-folder aliases can split textual coordination lanes; documentation only
+
+- **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN
+  / 0 BLOCKED across 67 cases**. `awkit-dhw6` moves no validation case. This is not the Beads count,
+  verifier total or traceability total.
+- **Bead closed:** `awkit-dhw6` (P3, R1B follow-up C). The requested remedy was documentation, not
+  filesystem-alias equivalence, so no implementation follow-up was manufactured.
+- **Authoritative contract:** `folderCoordinationKey()` derives a total textual key with `resolve()`,
+  normalized separators, trailing-separator removal and Win32 lowercasing. It intentionally does not
+  probe physical identity or call `realpath()`, because folders can be lazily created and a failed
+  resolution/fallback path can otherwise make one spelling change identity over time.
+- **Residual limitation:** representative host-dependent aliases include junction/symlink versus
+  target, `subst` versus underlying path, mapped drive versus UNC, 8.3 versus long name, and
+  extended-length versus ordinary path. Two such spellings for one physical folder may receive
+  different keys and independent lanes, losing same-folder serialization for that pair. This is
+  **fail-degraded lane splitting**; it is not evidence that unrelated physical folders merge, nor a
+  data-safety guarantee when aliases are mixed. Use one stable configured spelling per storage folder.
+- **No runtime change:** `src/storage/folderWriteCoordinator.ts` changed comments only. A
+  TypeScript-scanner comparison excluding comments/trivia returned identical 395-token streams and
+  SHA-256 `07a91dd3113b7b33ff0b9445f23ed83a2acda270d6e5560ce983e7967b9c6cb2` before/after. No import,
+  expression, export, API, I/O, `realpath`, normalization, lane lifecycle or re-entrancy change landed.
+- **Measured verification:** build passed; write queue **78/78**; profile store **74/74**; R0
+  characterization **175 PASS / 0 FAIL**; verifier classification **202 scripts**; roadmap **177/177**
+  with **"Sources agree"**; `git diff --check` passed; `graphify update .` refreshed the graph.
+  Mock-site is **NOT APPLICABLE** and the clean-machine GUI walkthrough was **NOT RUN**.
+- **QA/QC:** QA passed. Methodologically independent QC approved after all ten requested challenges.
+  It found and corrected one stale nearby `KNOWN_ISSUES.md` sentence that still described finding C
+  as open; the final source and residual docs now agree and do not overstate `realpath()` or alias behavior.
+- **Tracker, measured live:** **276 total / 272 closed / 4 outstanding** = **2 open + 2 status =
+  blocked**, with **0 dependency-blocked**. The exact roadmap pin now asserts **4/272**. Each changed
+  conjunct was reverted independently and produced the one expected red at **176/177**; the restored
+  verifier is **177/177**. The validation ledger remains the separate **65/2/0 across 67** tally.
+- **Ownership and residue:** the source comment was committed under a persistence lease and the exact
+  tracker pin under a separate QA lease; project-state owns these narratives and Beads export. All
+  unrelated modified/untracked material was preserved. The final lease is released only after commit
+  and push; its normal `active-lease.json` / `assignments.json` release residue is bookkeeping, not
+  unfinished `awkit-dhw6` work.
+
 ## HANDOFF (2026-09-09, latest) — awkit-rkd8 CLOSED: the four block-6 vacuity gaps closed with measured evidence, verifier-only, no product change
 
 - **Restated for the two-narrative consistency check:** the validation ledger is **unchanged at 65

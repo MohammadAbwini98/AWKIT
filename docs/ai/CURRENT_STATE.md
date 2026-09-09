@@ -1,5 +1,57 @@
 # CURRENT_STATE
 
+## awkit-dhw6 CLOSED: path aliases are documented as a fail-degraded coordination-lane split, with no runtime change (2026-09-09)
+
+**Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is
+**unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across its 67 cases**. `awkit-dhw6` adds no validation
+case and moves no case status. This is independent from Beads counts, verifier checks and traceability
+totals; those measurements are not reconciled to each other.
+
+**Documentation remedy only.** The comment beside `folderCoordinationKey()` and the existing R1B
+entry in `KNOWN_ISSUES.md` now agree that coordination identity is the normalized **textual path**,
+not physical filesystem identity. The key uses `resolve()`, separator normalization, trailing-separator
+removal and Win32 lowercasing. It deliberately does not call `realpath()` or probe filesystem identity:
+storage folders can be created lazily, and a resolution failure followed by a textual fallback could
+give one configured spelling inconsistent identities over its lifetime.
+
+**The bounded limitation and mitigation.** Two spellings that reach one physical folder through a
+junction/symlink, `subst` drive, mapped-drive/UNC pair, 8.3/long-name pair or extended-length/plain
+path may retain different keys. Different keys select independent lanes, so same-folder serialization
+can be lost for that alias pair and the accesses behave like independently coordinated stores. This
+is **fail-degraded lane splitting**, not evidence that distinct physical folders merge into one lane,
+and it is not a guarantee against write races or data loss when aliases are mixed. The supported
+operational mitigation is to configure and use one stable spelling for each storage folder; AWKIT
+does not automatically canonicalize filesystem aliases.
+
+**No-behavior-change proof.** The coordinator diff changes comments only: no executable TypeScript,
+imports, expressions, exports, API, key normalization, Win32 casing, filesystem I/O, lane lifetime,
+pending accounting, tail chaining or re-entrancy changed. A TypeScript-scanner comparison that removes
+trivia/comments produced identical **395-token** streams for baseline `17cf1de` and the edited file,
+with the same SHA-256 `07a91dd3113b7b33ff0b9445f23ed83a2acda270d6e5560ce983e7967b9c6cb2`.
+No `realpath()` or other filesystem-identity resolution was introduced.
+
+**Verification and review.** `npm run build` passed; `verify:write-queue` passed **78/78**;
+`verify:profile-store` passed **74/74**; `verify:r0-characterization` passed **175 PASS / 0 FAIL**;
+`verify:verifier-classification` classified all **202** scripts; and the final
+`verify:roadmap-dashboard` passed **177/177** with **"Sources agree"**. `graphify update .` completed
+with the graph refreshed; `git diff --check` passed. The stale exact tracker pin was changed under a
+separate QA lease from **5 outstanding / 271 closed** to **4 outstanding / 272 closed**. Reverting
+either conjunct alone made the named check fail at **176/177**, proving that both exact predicates
+remain live. Mock-site coverage is **NOT APPLICABLE** and the clean-machine GUI walkthrough was
+**NOT RUN** because this task changes no browser or GUI behavior.
+
+**QA/QC disposition.** Task-level QA passed. QC is methodological rather than organizational in this
+single-agent task and approved after challenging all ten requested points. Its one material finding
+was a stale preceding `KNOWN_ISSUES.md` cross-reference that still called finding C open; that wording
+was corrected before approval. The final source and residual documentation state the same direction,
+rationale, representative examples, bounded risk and stable-spelling mitigation without claiming
+automatic alias equivalence or a distinct-folder merge.
+
+**Tracker, measured directly.** `awkit-dhw6` is closed. Beads is at **276 total / 272 closed / 4
+outstanding**: **2 open** and **2 status = blocked**, with **0 dependency-blocked**. No follow-up bead
+was filed because the requested documentation remedy is complete. These counts remain distinct from
+the unchanged 67-case validation ledger above.
+
 ## awkit-rkd8 CLOSED: the four block-6 vacuity gaps are closed with measured evidence — a verifier-quality fix, no product change (2026-09-09)
 
 **Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is

@@ -412,21 +412,31 @@ mistake it for one.
   cycles are explicitly out of scope** — A holding key1 while awaiting key2 as B holds key2 awaiting
   key1 is undetected, and no global lock-order analysis was implemented. The guard is **same-key
   only**.
-  **Left open deliberately and NOT touched by this fix:** the `then(task, task)` comment-attribution
-  defect and QC finding A (`awkit-s410`, vacuous eviction assertions) both above, and QC finding C
-  (path aliasing) below.
-- **Open finding, not fixed (QC finding C) — path aliasing silently splits a lane.**
-  `src/storage/folderWriteCoordinator.ts:45-60` keys the lane textually (`resolve()` plus separator
-  normalisation, lowercased on win32) and deliberately rejects `realpath` because the folder is
-  created lazily. That decision is sound and is **not** in question; what is missing is its stated
-  consequence. Two spellings that name the same physical directory by a different route get different
-  keys and therefore different lanes, silently reverting to pre-R1B behavior for that pair. Verified
-  splitting cases: an NTFS junction or symlink vs. its target; a `subst` drive vs. the real path; a
-  mapped drive `Z:\flows` vs. the UNC `\\nas\share\flows`; an 8.3 short name vs. the long name; an
-  extended-length `\\?\C:\...` prefix vs. plain `C:\...`. QC checked the opposite direction and could
-  construct no pair of genuinely distinct folders that collapse to one key, so the direction of this
-  failure is **fail-degraded (lost serialization), never fail-dangerous (a wrong merge)**. Record that
-  direction explicitly; do not restate this as a correctness hazard.
+  **Left open deliberately by this fix and handled separately:** the `then(task, task)`
+  comment-attribution defect; QC finding A (`awkit-s410`, vacuous eviction assertions, now resolved
+  above); and QC finding C (`awkit-dhw6`, the documented path-alias limitation below).
+- **DOCUMENTED ARCHITECTURE LIMITATION (`awkit-dhw6` CLOSED 2026-09-09; QC finding C) — path
+  aliasing can split one physical folder across coordination lanes.** `folderCoordinationKey()` uses
+  **textual normalized path identity**, not physical filesystem identity: `resolve()`, separator and
+  trailing-separator normalization, plus lowercase on win32. This is deliberate because store folders
+  may be created lazily; filesystem resolution can therefore fail before the folder exists, and mixing
+  resolved identities with fallback identities could itself hand writers inconsistent keys. This
+  documentation follow-up does not introduce `realpath()` or any other identity probe.
+
+  Different spellings that reach the same physical directory through different filesystem aliases can
+  therefore retain different keys and use independent write lanes. R1B serialization may be lost for
+  that alias pair, which can make those callers behave like independently coordinated stores. This is
+  **fail-degraded lane splitting**, not evidence that genuinely distinct physical folders are merged
+  into one lane. "Fail-degraded" does not guarantee that concurrent writes remain safe; it states the
+  measured failure direction — loss of coordination rather than unrelated-folder coupling.
+
+  Representative alias classes include an NTFS junction or symlink vs. its target; a `subst` drive vs.
+  its underlying path; a mapped drive such as `Z:\flows` vs. its UNC form `\\nas\share\flows`; an 8.3
+  short name vs. the long path; and an extended-length `\\?\C:\...` path vs. ordinary `C:\...`.
+  Availability and exact behavior depend on the host filesystem and configuration. The limitation is
+  bounded to processes or configurations that address one physical storage folder through inconsistent
+  aliases. The supported operational mitigation is to configure and reuse one stable canonical spelling
+  for that folder; AWKIT does not automatically resolve alias equivalence.
 
 ## Same-folder profile-store instances have independent write queues (RESOLVED by R1B 2026-09-04; confirmed 2026-09-03)
 

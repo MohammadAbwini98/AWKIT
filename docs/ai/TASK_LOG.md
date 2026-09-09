@@ -1,5 +1,65 @@
 # TASK_LOG
 
+## 2026-09-09 (latest) — awkit-dhw6 — document filesystem-alias lane splitting (Codex GPT-5)
+
+**Agents involved:** single-agent mode. The root primary acted as Manager and Git executor while
+honoring the live routing matrix: persistence owned the coordinator comment, QA owned the roadmap
+verifier pin, project-state owned Beads and documentation, architect was consulted through the task
+contract, and QC was an explicit methodological review rather than an organizationally independent
+second reviewer. Separate leases were used for each writable ownership domain.
+
+**Task and resolution:** close P3 R1B follow-up C as a narrow documentation correction. The comment
+beside `folderCoordinationKey()` now states that its total coordination identity is textual
+(`resolve()`, separator normalization, trailing-separator removal, Win32 lowercase), deliberately
+not physical-filesystem identity. `KNOWN_ISSUES.md` refines its existing entry instead of duplicating
+it: junction/symlink, `subst`, mapped-drive/UNC, 8.3/long and extended-length/plain spellings can be
+representative aliases for one physical folder, retain different keys, select independent lanes and
+lose same-folder serialization. The direction is fail-degraded lane **splitting**, not an unsupported
+claim that distinct physical folders merge. The bounded operational mitigation is one stable
+configured spelling per store folder.
+
+**Why no runtime fix:** stores can be lazily created, so physical resolution can fail before the
+folder exists and a resolution/fallback sequence could give one spelling inconsistent identities.
+This task therefore did not add `realpath()`, filesystem probing or automatic alias canonicalization,
+and did not change persisted data or public/runtime contracts.
+
+**No-behavior proof:** `git diff -- src/storage/folderWriteCoordinator.ts` is comments only. A
+TypeScript scanner excluding trivia/comments found identical **395-token** streams at baseline
+`17cf1de` and after the edit; both hash to
+`07a91dd3113b7b33ff0b9445f23ed83a2acda270d6e5560ce983e7967b9c6cb2`. No executable line, import,
+expression, API, Win32 casing, filesystem I/O, lane lifetime, pending count, tail chain or re-entrancy
+changed. Source-comment commit: `4335ece` (`docs(awkit-dhw6): document folder alias lane splitting`).
+
+**Beads and roadmap:** `awkit-dhw6` was closed and exported. Live Beads is **276 total / 272 closed
+/ 4 outstanding**, comprising **2 open + 2 status = blocked**, with **0 dependency-blocked**. The
+validation ledger is independently unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+Closing the Bead made the exact roadmap pin stale, so QA changed only **5 outstanding / 271 closed**
+to **4 outstanding / 272 closed** under its own lease. Each conjunct was reverted alone and made the
+single expected tracker assertion fail at **176/177**; the restored verifier passed **177/177** with
+**"Sources agree"**. Pin commit: `8ad6562` (`test(awkit-dhw6): repin closed tracker state`).
+
+**Verification:** `npm run build` **PASS**; `npm run verify:write-queue` **PASS 78/78**;
+`npm run verify:profile-store` **PASS 74/74**; `npm run verify:r0-characterization` **PASS 175/0**;
+`npm run verify:verifier-classification` **PASS, all 202 scripts classified**;
+`npm run verify:roadmap-dashboard` **PASS 177/177, "Sources agree"**; `graphify update .` **PASS**;
+`git diff --check` **PASS**. Mock-site is **NOT APPLICABLE**, and the clean-machine GUI walkthrough
+was **NOT RUN** because there is no UI/browser behavior in scope.
+
+**QA/QC:** QA passed. QC challenged all ten requested questions and approved after one material
+finding was fixed: a stale preceding `KNOWN_ISSUES.md` cross-reference still said finding C was open.
+The final text now consistently distinguishes textual from physical identity, explains the deliberate
+no-`realpath()` decision without calling `realpath()` inherently wrong, frames examples as
+representative rather than universal, states the lost-serialization risk without promising safety,
+and recommends only stable path spelling.
+
+**Permanent task paths:** `src/storage/folderWriteCoordinator.ts` (source comment),
+`docs/ai/KNOWN_ISSUES.md` (residual scope), `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md` and this
+file (project state), `.beads/issues.jsonl` and `.beads/interactions.jsonl` (Beads closure/export),
+`scripts/verify-roadmap-dashboard.mjs` (exact QA pin), and `docs/ai/contracts/awkit-dhw6.json` (task
+contract). `active-lease.json` and `tools/roadmap/assignments.json` are lease bookkeeping and may be
+dirty after final release. All unrelated modified/untracked user material was preserved and never
+staged, reset, stashed, cleaned, restored or appropriated.
+
 ## 2026-09-09 (latest) — awkit-rkd8 — the four block-6 vacuity gaps closed in `verify:write-queue` (Claude Opus 5)
 
 **Agents involved:** single-agent mode per `CONCURRENCY_POLICY` — the root primary discharged each
