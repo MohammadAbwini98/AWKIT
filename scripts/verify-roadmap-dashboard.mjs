@@ -488,8 +488,13 @@ try {
   // a `blocks` or `discovered-from` edge, and `beads.stats.edges` was re-measured at 107 in the same
   // run rather than assumed. Both conjuncts below were mutation-tested independently before this
   // pin was accepted - each was flipped alone to its prior value and each went red alone.
-    "5 outstanding / 271 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 271,
+  // Then 4/272 of 276 later on 2026-09-09: the documentation-only `awkit-dhw6` follow-up closed and
+  // no issue was filed, so one bead crossed from outstanding to closed. Total stays 276, closed rises
+  // 271 → 272, outstanding falls 5 → 4, and the 107 dependency edges stay unchanged. Measured state:
+  // `bd stats` reports Open 2 / In Progress 0 / Closed 272 / dependency-Blocked 0, while
+  // `bd list --status blocked` separately reports the two status-blocked Oracle items.
+    "4 outstanding / 272 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 272,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
