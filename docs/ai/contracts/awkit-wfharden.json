@@ -1,0 +1,591 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-wfharden",
+    "title": "Harden the single-agent default: pin it, make routine context task-aware, and return verify:agent-routing to green",
+    "objective": "A small hardening pass over the awkit-wfsimp single-agent refactor. Six items, no restructuring. (1) Return npm run verify:agent-routing to a green gate, because a known-red verification gate lets future regressions hide behind the same failure. (2) Pin CONCURRENCY_POLICY.defaultMode = \"single-agent\" in the verification suite, together with routineSubagents and defaultMaxSubagentsPerTask, so the orchestration default cannot be changed back to subagent mode without a deliberate, visible re-pin; mutation-test the pin. (3) Make routine context task-aware: replace the flat seven-source routine list in CONTEXT_LOADING with an always-set and a conditional set carrying explicit triggers, so a small UI bug does not load persistence, release, architecture or historical validation context. (4) Re-pin EXPECTED_UNCONDITIONAL_CHECKS to the number of assertions actually run, in the same commit as the assertions that move it. (5) Regenerate docs/ai/routing/ROUTING_MATRIX.md so the rendered matrix is byte-identical to the registry it derives from. (6) Keep all sixteen specialists dormant but present: no agent, activation rule, path ownership or skill binding is removed. No activation rule is weakened, no check is deleted, no security control is relaxed, and no protected validation is skipped. AMENDED 2026-09-08: a seventh item was added ahead of items 1, 4 and 5, which are blocked without it. Attempting item 1 proved that the single-agent default and the lease actor model are structurally incompatible - the root agent resolves to canonical \"manager\" while every lease decision demands actor === lease.holder, so the primary agent can write only manager-owned paths and ordinary product work is impossible without spawning the owning specialist. On explicit owner instruction the guard is taught single-agent mode: when defaultMode is \"single-agent\" and there is no real subagent identity, the root manager may exercise the routed lease. Path ownership, lease scope, write restrictions and subagent isolation are all kept; only which process identity may exercise the lease is relaxed, and only for the root agent in single-agent mode.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": ".claude/mcp/glm_delegate_server.py",
+        "git_status": " M",
+        "sha256": "f0a8b7cc4d406bec106af14de6533fe780ea395662b6924aad6f2bbb923f684a"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate.py",
+        "git_status": "??",
+        "sha256": "63a1da02652f8b4da1cd3127ff0f1ad943de96575cd15e181b7571a84acada60"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate_live.py",
+        "git_status": "??",
+        "sha256": "c4aa1747972f852460b0e668243d6e6105d71387c494cdce00f13d71589d23cd"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-ctx.json",
+        "git_status": " M",
+        "sha256": "1f2fa3de8977435d779905459d30bcf0474c06014cc639eb11c58a337e653829"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-s410.json",
+        "git_status": " M",
+        "sha256": "c51b6e13cfc44bb10c4b91a7f19984f0572ee9cbc0aafe05d52e7d79baa22b35"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-wfsimp.json",
+        "git_status": "??",
+        "sha256": "0a897859791665eb15a1a4719632149a42a0e301a956f8ef5faea5adca9385bd"
+      },
+      {
+        "path": "package.json",
+        "git_status": " M",
+        "sha256": "ca5892824b997f007817657e4c6c72f91f38ce8f62b40e2b64d2708497051a5c"
+      },
+      {
+        "path": "tools/roadmap/assignments.json",
+        "git_status": " M",
+        "sha256": "1c9d805835a7c567bf72cbffc69eb69fec9cf91bbf49908037e02c98abc63202"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      }
+    ]
+  },
+  "classification": {
+    "agent_infrastructure_change": true,
+    "project_state_change": true,
+    "general_engineering_change": false,
+    "renderer_visual_change": false,
+    "interaction_change": false,
+    "accessibility_change": false,
+    "electron_main_change": false,
+    "ipc_change": false,
+    "runner_change": false,
+    "execution_change": false,
+    "concurrency_change": false,
+    "performance_change": false,
+    "persisted_shape_change": false,
+    "migration_required": false,
+    "filesystem_write_change": false,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": false,
+    "protected_login_change": false,
+    "signing_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "broad_investigation": false,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "tools/agents/context-policy.mjs",
+      "tools/agents/render-platform-agents.mjs",
+      "CLAUDE.md",
+      ".claude/agents/**",
+      ".codex/skills/agent-routing/SKILL.md",
+      ".gemini/skills/agent-routing/SKILL.md",
+      "tools/agents/lease-guard.mjs",
+      "scripts/verify-agent-routing.mjs",
+      "docs/ai/routing/ROUTING_MATRIX.md",
+      "docs/ai/contracts/awkit-wfharden.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "manager",
+      "allowed_paths": [
+        ".claude/agents/**",
+        ".codex/skills/agent-routing/SKILL.md",
+        ".gemini/skills/agent-routing/SKILL.md",
+        "CLAUDE.md",
+        "tools/agents/context-policy.mjs",
+        "tools/agents/lease-guard.mjs",
+        "tools/agents/render-platform-agents.mjs"
+      ],
+      "forbidden_paths": [
+        "tools/agents/routing-matrix.mjs",
+        "app/**",
+        "src/**",
+        "mock-site/**",
+        "tools/roadmap/**",
+        "package.json"
+      ],
+      "sequence_note": "Manager mutation-and-commit lease, the last of five, REVISED 2026-09-09. PHASE A IS COMPLETE and released (archived in write_lease.history): task-aware CONTEXT_LOADING with a minimal always-set and explicitly triggered conditional sources, both renderer call sites, CLAUDE.md, and all 18 regenerated platform files are on disk and agent:check-agents was green. So is the first phase-B qa lease, which was released unexercised because the guard binds writes to hook actor identity. The earlier plan of collapsing every remaining phase into one manager lease is DEAD: the contract validator rejects it with writer.scope_exceeds_ownership, because manager does not own scripts/** or docs/ai/routing/**. So the sequence is: phase B, manager on tools/agents/lease-guard.mjs, teaching the guard single-agent mode; phase C, qa on scripts/verify-agent-routing.mjs (THIS lease), adding the pins and the five actor proofs and re-pinning cardinality; phase D, project-state on docs/ai/routing/ROUTING_MATRIX.md, regenerating the rendered matrix. PHASE B IS ALSO COMPLETE and released: lease-guard.mjs now resolves an effective actor through effectiveActorFor, used identically by decideActorWrite and isAllowedActiveShellCommand, so in single-agent mode the root primary may exercise the granted routed lease over that lease's own allowed_paths and nothing wider. Phase B was self-bootstrapping because tools/agents/lease-guard.mjs is inside manager's own ownsPaths (tools/agents/**), so no ownership rule was bent. Phases C and D are exercisable only because phase B landed: before it, the root agent could not write a qa- or project-state-held lease at all. The phase C lease was the first proof of the new behavior in production - qa owns scripts/**, the root primary is not a qa subagent, and the write was nevertheless allowed because the lease was qa's and the path was inside it. PHASE C IS ALSO COMPLETE and released: the three CONCURRENCY_POLICY pins, the task-aware CONTEXT_LOADING structure assertions and the five lease-actor proofs A-E all landed, cardinality was re-pinned from the measured 1064 unconditional checks, and the suite is down to the single phase D rendered-matrix failure. PHASE D IS ALSO COMPLETE and released: docs/ai/routing/ROUTING_MATRIX.md was regenerated with node tools/agents/render-docs.mjs --write, run by the root primary under a project-state lease - the live proof that the shell relaxation gives the relaxed actor exactly the lease holder's own role commands and nothing wider - and committed as 5e4415d, taking verify:agent-routing to a fully green 1065 of 1065. Phase D was deliberately taken before the mutation battery so that every restore step returns the suite to GREEN rather than to a known matrix failure, which is what makes each mutation proof unambiguous. THE FIFTH LEASE, manager again over the phase A and B sources, IS ALSO COMPLETE and released: the six-mutation battery ran under it, mutating tools/agents/context-policy.mjs and tools/agents/lease-guard.mjs one field at a time and restoring each - the three CONCURRENCY_POLICY pins each went 1046 of 1065, dropping the single-agent gate went 1062, dropping the root-primary gate went 1063, and short-circuiting decideWrite to allow went 1062, with a full 1065 of 1065 confirmed after every restore - and the 22 manager-owned phase A and B files then committed under it as 2784894. Commit boundaries follow the leases, since the guard bounds git add and git commit by leaseAllows: the manager-owned phase A and B files committed under that manager lease, scripts/verify-agent-routing.mjs commits under THIS sixth qa lease, and the rendered matrix already committed under a project-state lease. Manager committed first because verify-agent-routing.mjs imports effectiveActorFor and isRootPrimaryIdentity from lease-guard.mjs, so the reverse order would leave a broken import on main. Ordering otherwise follows WRITER_PRECEDENCE (qa before project-state) and remains one writer at a time. A known and reported limitation: the Co-Authored-By trailer the harness normally appends cannot be represented under isManagerGitCommand, which accepts git commit -m only as exactly four tokens while hasUnsafeShellSyntax rejects newlines, so these commits carry no trailer and the guard was deliberately not weakened to add one."
+    },
+    "reviewers": [
+      "qa"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Hardening only. Do not restructure the routing registry, do not consolidate or remove agents, and do not change any ACTIVATION_RULES entry, ownsPaths glob, PATH_DOMAINS glob or WRITER_PRECEDENCE ordering.",
+      "tools/agents/routing-matrix.mjs is not edited by this task. Only its rendered output (docs/ai/routing/ROUTING_MATRIX.md) is regenerated so the two agree again.",
+      "The platform agent definitions under .claude/agents/, .codex/ and .gemini/ stay GENERATED. They are re-rendered by tools/agents/render-platform-agents.mjs and never hand-edited, per the 2026-08-16 decision that they may not become a second source of truth.",
+      "CONTEXT_LOADING keeps a historical tier. Archival documents are demoted from auto-loading, never deleted or devalued.",
+      "Do not create a new .ai/project-state.md or any other parallel state file; docs/ai/ remains the single project-state source."
+    ],
+    "security": [
+      "No security control is relaxed. docs/ai/SECURITY.md stays reachable through an explicit conditional trigger for security-sensitive work rather than being dropped from the policy.",
+      "AMENDED 2026-09-08 by explicit owner decision. The original constraint read: \"The write-lease system, its PreToolUse guard and its closed shell allowlist are not modified, loosened or bypassed.\" It was amended because the awkit-wfsimp single-agent default and the lease actor model were found to be structurally incompatible: the root agent always resolves to canonical \"manager\", decideActorWrite and isAllowedActiveShellCommand both require actor === lease.holder, and the contract validator refuses to name manager as writer for a path manager does not own. The intersection is empty, so under defaultMode \"single-agent\" the primary agent could write ONLY manager-owned paths, making ordinary product work (app/renderer -> frontend, src/runner -> backend, scripts -> qa, docs -> project-state) impossible without spawning the owning specialist. That is the exact cost the single-agent default exists to remove.",
+      "The amended constraint. tools/agents/lease-guard.mjs is modified to relax EXACTLY ONE thing: which process identity may exercise a granted lease. When CONCURRENCY_POLICY.defaultMode === \"single-agent\" AND the call carries no subagent identity (agent_type absent, which is how Claude Code marks the root agent), the root manager may act as the holder of the routed lease. Nothing else is bypassed: the shell allowlist is unchanged and stays closed, no new command grammar is added, and the relaxed actor still gets only the command set of the role whose lease is held.",
+      "Five properties are preserved and must be proven by added assertions, not argued: (1) the root manager can write a routed path in single-agent mode; (2) lease path scope is still enforced, so the root manager is still blocked outside allowed_paths; (3) a real subagent still cannot borrow another role's lease; (4) with defaultMode set to anything other than \"single-agent\" the previous actor behavior is restored exactly; (5) switching modes cannot bypass path ownership, because deterministic routing and the contract validator still decide who may hold a lease over which paths at all.",
+      "Deterministic routing, path ownership, WRITER_PRECEDENCE, one-writer-at-a-time serialization, the contract validator's writer.scope_exceeds_ownership rule, and the fail-closed handling of unknown or degraded actor identity are all unchanged.",
+      "No secrets are read, written, logged or embedded in any generated file."
+    ],
+    "compatibility": [
+      "Every assertion currently in scripts/verify-agent-routing.mjs is preserved. Assertions are ADDED; none is removed, relaxed, renamed to a weaker predicate, or made conditional to avoid a failure.",
+      "A cardinality RISE is re-pinned deliberately in the same commit as the assertions that caused it, per the guard's own instruction.",
+      "All sixteen agents remain present in the registry, in the schema agentId enum, and as generated platform files. Dormant is not deleted."
+    ],
+    "offline": [
+      "No runtime network access, no new dependency, no CDN or remote asset, no write under resources/ or app.asar. This task touches governance tooling and documentation only, and cannot alter application runtime behavior."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "routing-suite-green",
+      "description": "npm run verify:agent-routing exits 0. Both pre-existing failures are resolved: the rendered matrix is byte-identical to the registry, and the suite cardinality matches the assertions actually run. No assertion was weakened or removed to achieve this.",
+      "evidence_required": [
+        "agent-routing",
+        "no-weakened-assertions"
+      ]
+    },
+    {
+      "id": "default-mode-pinned",
+      "description": "The verification suite fails if CONCURRENCY_POLICY.defaultMode is changed away from \"single-agent\", and also pins routineSubagents = 0 and defaultMaxSubagentsPerTask = 1. Proven by mutating each pinned value and observing a RED suite, then restoring it.",
+      "evidence_required": [
+        "agent-routing",
+        "mutation-default-mode"
+      ]
+    },
+    {
+      "id": "guard-single-agent-actor",
+      "description": "The lease guard understands single-agent mode. decideActorWrite and isAllowedActiveShellCommand are updated CONSISTENTLY: in single-agent mode a root call with no subagent identity may exercise the active lease as its holder, for writes and for that holder's role commands alike. Five properties are each proven by their own assertion, not argued: (1) the root manager can write a path inside a lease held by another role; (2) that same root manager is still BLOCKED for a path outside the lease's allowed_paths, so path scope survives; (3) a real subagent whose agent_type resolves to some other role still cannot borrow the lease; (4) with defaultMode set to anything but \"single-agent\" every one of these decisions reverts to the pre-change behavior exactly; (5) an unknown or degraded actor identity still fails closed, so mode switching never becomes an ownership bypass. Each proof calls the exported guard functions directly with an explicit policy object, so no assertion depends on ambient process state.",
+      "evidence_required": [
+        "agent-routing",
+        "mutation-guard-actor",
+        "guard-diff-scoped"
+      ]
+    },
+    {
+      "id": "task-aware-context",
+      "description": "CONTEXT_LOADING no longer declares a flat seven-source routine list. It declares a minimal always-set plus a conditional set in which each source carries an explicit trigger, so architecture, validation-command, security, persistence and release context load only when the task touches that subject. The generated platform files state the same rule.",
+      "evidence_required": [
+        "agent-routing",
+        "agent-render-check"
+      ]
+    },
+    {
+      "id": "cardinality-repinned",
+      "description": "EXPECTED_UNCONDITIONAL_CHECKS equals the number of unconditional assertions the suite actually runs, so the cardinality guard is live again and a future DROP would be detected.",
+      "evidence_required": [
+        "agent-routing"
+      ]
+    },
+    {
+      "id": "matrix-regenerated",
+      "description": "docs/ai/routing/ROUTING_MATRIX.md is regenerated from tools/agents/routing-matrix.mjs and is byte-identical to it, restoring the single-source-of-truth assertion.",
+      "evidence_required": [
+        "agent-routing"
+      ]
+    },
+    {
+      "id": "specialists-dormant",
+      "description": "All sixteen specialists remain defined and routable. No agent, ACTIVATION_RULES entry, ownsPaths glob or generated platform file is removed; the registry is unchanged apart from nothing at all.",
+      "evidence_required": [
+        "agent-render-check",
+        "registry-unchanged"
+      ]
+    },
+    {
+      "id": "generated-files-consistent",
+      "description": "All 18 generated platform files match the registry byte-for-byte after regeneration, so no second source of truth is introduced.",
+      "evidence_required": [
+        "agent-render-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "agent-routing",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:agent-routing",
+      "result": "PASS",
+      "artifact": "1068/1068 under the phase C qa lease, with the banner reading 'live-lease hook probes RAN (3); junction confinement probe RAN (1)'. Re-run 2026-09-09 under the phase E manager lease: 1065/1065, banner 'live-lease hook probes SKIPPED - the active lease does not grant scripts/verify-agent-routing.mjs; junction confinement probe RAN (1)'. Both totals are the cardinality guard reconciling itself: EXPECTED_UNCONDITIONAL_CHECKS 1064 + EXPECTED_JUNCTION_CHECKS 1, plus EXPECTED_LIVE_LEASE_CHECKS 3 only when the active lease actually grants the verifier's own path. The suite is green in both lease states, and the guard proves the difference is the declared conditional block rather than silently missing assertions."
+    },
+    {
+      "id": "agent-render-check",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run agent:check-agents",
+      "result": "PASS",
+      "artifact": "Re-run 2026-09-09 under the phase E manager lease: 'All generated agent definitions are current.' All 18 generated platform definitions (16 .claude/agents/*.md plus the Codex and Gemini agent-routing skills) are byte-identical to what tools/agents/render-platform-agents.mjs renders from the registry, so they remain generated artifacts and not a second source of truth. All 16 specialists are still present and dormant."
+    },
+    {
+      "id": "mutation-default-mode",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:agent-routing",
+      "result": "PASS",
+      "artifact": "Three mutations of tools/agents/context-policy.mjs, one field at a time, each restored before the next. defaultMode \"single-agent\" -> \"subagent\": RED at 1046/1065. routineSubagents 0 -> 1: RED at 1046/1065. defaultMaxSubagentsPerTask 1 -> 3: RED at 1046/1065. Each mutation was named by its own assertion rather than an opaque conjunction, and the suite returned to a full 1065/1065 after every restore. No mutation remains in the worktree; tools/agents/context-policy.mjs is committed clean at 2784894."
+    },
+    {
+      "id": "mutation-guard-actor",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:agent-routing",
+      "result": "PASS",
+      "artifact": "Three mutations of effectiveActorFor / decideActorWrite in tools/agents/lease-guard.mjs, one at a time, each restored before the next. Dropping the single-agent gate (policy?.defaultMode !== \"single-agent\") so the relaxation applies in every mode: RED at 1062/1065, failing proof D. Dropping the root-primary gate (isRootPrimaryIdentity) so a real spawned subagent can borrow the lease: RED at 1063/1065, failing proof C. Short-circuiting decideWrite to allow so path scope no longer bounds the relaxed actor: RED at 1062/1065, failing proof B. Every RED named the property it broke, and the suite returned to a full 1065/1065 after each restore. No mutation remains in the worktree; tools/agents/lease-guard.mjs is committed clean at 2784894."
+    },
+    {
+      "id": "guard-diff-scoped",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff -- tools/agents/lease-guard.mjs",
+      "result": "PASS",
+      "artifact": "Inspected as `git show 2784894 -- tools/agents/lease-guard.mjs` (70 changed lines, overwhelmingly additive). The diff contains exactly five things: the CONCURRENCY_POLICY import; the new isRootPrimaryIdentity predicate; the new effectiveActorFor resolver; an optional `policy` parameter threaded into isAllowedActiveShellCommand and decideActorWrite; and the two one-line call-site substitutions of `actor !== lease.holder` for `effectiveActorFor(...) !== lease.holder`. hasUnsafeShellSyntax, isReadOnlyShellCommand, isLeaseGrantCommand, isLeaseLifecycleCommand, isManagerGitCommand, pushAuthorizedForLease and every role command set are untouched, and the role sets stay keyed on lease.holder, so the relaxed actor receives exactly the lease holder's own commands and no new command becomes runnable to anyone. decideWrite is called BEFORE identity is consulted in decideActorWrite, so lease path scope is decided first and the relaxation can only change WHO exercises a lease, never WHAT it covers."
+    },
+    {
+      "id": "no-weakened-assertions",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff -- scripts/verify-agent-routing.mjs",
+      "result": "PASS",
+      "artifact": "`git show --numstat 255e3a5 -- scripts/verify-agent-routing.mjs` reports 396 insertions and exactly 1 deletion. The single deleted line is `const EXPECTED_UNCONDITIONAL_CHECKS = 1036;`, replaced by `= 1064` - the deliberate cardinality re-pin, measured from the actual suite rather than predicted. Everything else is purely additive: two named imports, the three CONCURRENCY_POLICY pins, the CONTEXT_LOADING structure assertions, and the five lease-actor proofs plus three shell-scope proofs. No existing assertion was removed, renamed, weakened or made conditional."
+    },
+    {
+      "id": "registry-unchanged",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --stat -- tools/agents/routing-matrix.mjs",
+      "result": "PASS",
+      "artifact": "`git diff --stat -- tools/agents/routing-matrix.mjs` returns no output, and the path does not appear anywhere in `git status --short`. The registry is byte-identical to baseline c58ec7df: no ownsPaths glob widened, no PATH_DOMAINS entry changed, no WRITER_PRECEDENCE reordering, no agent added or removed. Only its rendered output docs/ai/routing/ROUTING_MATRIX.md was regenerated, by node tools/agents/render-docs.mjs --write."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "Run 2026-09-09. Embedded roadmap snapshot 444 records from 14 sources, tsc --noEmit clean, then all three electron-vite bundles built: out/main/main.js 1,542.27 kB, out/preload/preload.mjs 20.57 kB, out/renderer 2,032.65 kB JS + 335.74 kB CSS. The only warning is the pre-existing securityKernel static/dynamic import notice, unrelated to this task."
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending",
+      "artifact": "Owner-authorized direct push to main. Stays pending until the push actually succeeds; it is never marked PASS in advance, and a non-fast-forward remote stops the task rather than being forced."
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-wfharden:manager:2026-09-08T20:19:47.988Z",
+        "task": "awkit-wfharden",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "CLAUDE.md",
+          "tools/agents/context-policy.mjs",
+          "tools/agents/render-platform-agents.mjs"
+        ],
+        "acquired_at": "2026-09-08T20:19:47.988Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T20:27:58.912Z",
+        "released_reason": "awkit-wfharden phase A complete: CONTEXT_LOADING is now always/conditional with explicit triggers, both renderer call sites updated, CLAUDE.md matches, 18 platform files regenerated and agent:check-agents green",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:qa:2026-09-08T20:28:42.779Z",
+        "task": "awkit-wfharden",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-09-08T20:28:42.779Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T20:34:23.827Z",
+        "released_reason": "qa lease unusable because the guard binds writes to hook actor identity and the root primary agent is always canonical manager, re-granting to manager with qa retained as routed owner and reviewer",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:manager:2026-09-08T21:06:35.380Z",
+        "task": "awkit-wfharden",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "CLAUDE.md",
+          "tools/agents/context-policy.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/render-platform-agents.mjs"
+        ],
+        "acquired_at": "2026-09-08T21:06:35.380Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T21:09:49.739Z",
+        "released_reason": "awkit-wfharden phase B complete - lease-guard.mjs now resolves an effective actor so that in single-agent mode the root primary may exercise the granted routed lease, agent:check-agents is green, and verify:agent-routing is down to the two known phase C and D failures",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:qa:2026-09-08T21:13:09.153Z",
+        "task": "awkit-wfharden",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-09-08T21:13:09.153Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T21:18:07.720Z",
+        "released_reason": "awkit-wfharden phase C complete - the three CONCURRENCY_POLICY pins, the task-aware CONTEXT_LOADING structure assertions and the five lease-actor proofs are in, cardinality re-pinned from the measured 1064 unconditional checks, suite down to the single phase D rendered-matrix failure",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:manager:2026-09-08T21:21:42.992Z",
+        "task": "awkit-wfharden",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "CLAUDE.md",
+          "tools/agents/context-policy.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/render-platform-agents.mjs"
+        ],
+        "acquired_at": "2026-09-08T21:21:42.992Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T21:22:46.209Z",
+        "released_reason": "reordering - phase D must land before the mutation battery so that each restore returns the suite to fully green rather than to a known matrix failure, so the manager lease is handed back unexercised and will be re-granted for the mutations and the manager commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:project-state:2026-09-08T21:23:15.770Z",
+        "task": "awkit-wfharden",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/routing/ROUTING_MATRIX.md"
+        ],
+        "acquired_at": "2026-09-08T21:23:15.770Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T21:25:59.009Z",
+        "released_reason": "awkit-wfharden phase D complete - ROUTING_MATRIX.md regenerated with node tools/agents/render-docs.mjs --write and committed as 5e4415d, verify:agent-routing is now fully green at 1065 of 1065, and the manager lease follows for the mutation battery and the manager-owned commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:manager:2026-09-08T21:26:43.453Z",
+        "task": "awkit-wfharden",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "CLAUDE.md",
+          "tools/agents/context-policy.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/render-platform-agents.mjs"
+        ],
+        "acquired_at": "2026-09-08T21:26:43.453Z",
+        "acquired_at_commit": "5e4415d186747d3ed5850b136a5d2731cbb710a0",
+        "released_at": "2026-09-08T21:39:55.143Z",
+        "released_reason": "Manager phase complete and committed as 2784894 - the 16 generated agent files, both platform skills, CLAUDE.md, context-policy.mjs, lease-guard.mjs and render-platform-agents.mjs are now on main, so the writer slot moves to qa for the verifier commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfharden:qa:2026-09-08T21:40:40.176Z",
+        "task": "awkit-wfharden",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-09-08T21:40:40.176Z",
+        "acquired_at_commit": "27848943691be1ca55b8c8779625b6e7524592ea",
+        "released_at": "2026-09-08T21:59:49.149Z",
+        "released_reason": "Phase C complete - verify-agent-routing is 1068 of 1068 green with the live-lease and junction probes RAN, and the suite is committed as 255e3a5",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED",
+    "closed_at": null,
+    "closed_note": "Implementation and verification are complete and measured: agent:check-agents current, verify:agent-routing green in both lease states (1068/1068 under the qa lease, 1065/1065 under the manager lease), npm run build clean, six mutations red one at a time and green again after every restore, the guard diff confined to actor identity, the verifier diff additive apart from the deliberate cardinality re-pin, and the registry byte-identical to baseline. Status stays implemented rather than complete because the required push-main evidence is still pending: it flips to PASS only when git push origin main actually succeeds, never in advance."
+  }
+}
