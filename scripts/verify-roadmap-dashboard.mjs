@@ -475,8 +475,21 @@ try {
   // `discovered-from: awkit-s410` link - `discovered-from` is a `KNOWN_EDGE_TYPES` member
   // (parse-beads.mjs), so `beads.stats.edges` counts it: the edge pin below moves 106 → 107 in the
   // same move as this one, not independently.
-    "6 outstanding / 270 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 270,
+  // Then 5/271 of 276 on 2026-09-09: `awkit-rkd8` closed - the follow-up the paragraph above records
+  // as entering outstanding one day earlier, which closed the four block-6 vacuity gaps in
+  // `scripts/verify-write-queue.mts` it was filed for. One bead crossed from outstanding to closed
+  // and NO new bead was filed, so this is a one-sided move: `closed` rises 270 → 271 and
+  // `outstanding` falls 6 → 5, while `total` holds at 276. Measured, not derived by arithmetic:
+  // `bd stats` reports Total 276, Open 3, In Progress 0, Closed 271, and `bd list --status blocked`
+  // reports 2 (`awkit-7bu`, `awkit-cm8`) - so outstanding is 3 open plus 2 blocked, and the 3 open
+  // are `awkit-dhw6`, `awkit-9a1l` and `awkit-wknd`. `bd blocked` separately reports no
+  // dependency-blocked issues, which is a different question from `status = blocked` and is why the
+  // two are counted apart. The edge pin below does NOT move: closing a bead neither adds nor removes
+  // a `blocks` or `discovered-from` edge, and `beads.stats.edges` was re-measured at 107 in the same
+  // run rather than assumed. Both conjuncts below were mutation-tested independently before this
+  // pin was accepted - each was flipped alone to its prior value and each went red alone.
+    "5 outstanding / 271 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 271,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

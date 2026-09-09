@@ -45,6 +45,54 @@ function drainEventLoop(turns: number): Promise<void> {
  *  arrive however long this is, so both arms of the gate terminate. */
 const GATE_DRAIN_TURNS = 200;
 
+/** The single exit path: totals are printed here and nowhere else, so every way this file can end —
+ *  normal completion, a wedge, an escaped rejection — produces the same `Write queue: N/M` line. */
+function finish(): never {
+  clearTimeout(runDeadline);
+  const passed = results.filter((r) => r.pass).length;
+  console.log(`\nWrite queue: ${passed}/${results.length} checks passed`);
+  process.exit(passed === results.length ? 0 : 1);
+}
+
+// Whole-run backstop — awkit-rkd8 GAP 4.
+//
+// A coordinator that wedges leaves this file awaiting a promise that will never settle. Without a
+// deadline that ends one of two ways, and both are unreadable: CI kills the job after its own
+// timeout, or — worse — the event loop simply empties, because a never-settling promise holds
+// nothing open, and Node exits on an unsettled top-level await with no totals and no failing
+// assertion name. This timer is deliberately NOT unref'd: holding the loop open is the whole point,
+// so the wedge is reported as a NAMED red with the normal totals instead of vanishing. Nothing
+// awaits it, no check synchronizes on it, and `finish()` clears it on the normal path, so it costs a
+// green run nothing.
+const RUN_DEADLINE_MS = 60_000;
+const runDeadline = setTimeout(() => {
+  check(
+    "the verifier reached its totals without wedging on an unsettled coordination promise",
+    false,
+    `still running after ${RUN_DEADLINE_MS}ms with ${results.length} checks recorded — the last check printed above is where it wedged`
+  );
+  finish();
+}, RUN_DEADLINE_MS);
+
+// Same requirement from the other direction: a rejection that escapes to the top level would end the
+// process with no totals line. Report it as a named red and exit through the one exit path.
+process.on("unhandledRejection", (reason: unknown) => {
+  check(
+    "no promise rejection escaped to the top level of the verifier",
+    false,
+    reason instanceof Error ? `${reason.message}` : String(reason)
+  );
+  finish();
+});
+process.on("uncaughtException", (error: unknown) => {
+  check(
+    "no exception escaped to the top level of the verifier",
+    false,
+    error instanceof Error ? `${error.message}` : String(error)
+  );
+  finish();
+});
+
 // 1. FIFO order preserved even with varying task durations.
 {
   const q = createSerialQueue();
@@ -247,6 +295,143 @@ const GATE_DRAIN_TURNS = 200;
 // Timing here is event-loop turns, never wall-clock sleeps, so nothing depends on host speed.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 {
+  // Bounded settlement, shared by every block in this section. 6f owned these originally; 6g, 6h and
+  // 6i need the identical guarantee, so they are hoisted to the smallest scope all of them can see.
+  //
+  // A verifier that awaits a wedged coordinator prints no totals and names no failing assertion — a
+  // CI timeout instead of a red — which is strictly worse than a failure.
+  //
+  // Exactly which blocks are LOCALLY bounded, stated precisely because a maintainer extending block 6
+  // will rely on it: 6f, 6g, 6h and 6i route every coordinator await through `settleWithin` /
+  // `settleAllWithin` and so settle with a NAMED outcome. 6a, 6c, 6d and 6e do NOT — they still
+  // `await Promise.all(...)` over `runExclusive` promises directly, and their only protection is the
+  // global `runDeadline` backstop at the top of this file, which prints totals and exits rather than
+  // hanging. That backstop is a whole-file safety net, not a per-assertion named outcome: a wedge in
+  // 6a is reported as "the verifier is still running after N ms", not as the specific check that hung.
+  // Extending one of those blocks with a new coordinator await inherits that weaker guarantee, so
+  // prefer `settleWithin` in anything added below.
+  type Outcome<T> = { kind: "resolved"; value: T } | { kind: "rejected"; error: unknown } | { kind: "timeout" };
+
+  /** Settles with a NAMED outcome even when `promise` never settles, so a deadlock is reported as a
+   *  failed check instead of hanging the verifier before it can print its totals. */
+  const settleWithin = async <T>(promise: Promise<T>, ms: number): Promise<Outcome<T>> => {
+    promise.catch(() => undefined); // the promise may be abandoned on the timeout path
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expiry = new Promise<Outcome<T>>((settle) => {
+      timer = setTimeout(() => settle({ kind: "timeout" }), ms);
+    });
+    const outcome = await Promise.race([
+      promise.then<Outcome<T>>(
+        (value) => ({ kind: "resolved", value }),
+        (error: unknown) => ({ kind: "rejected", error })
+      ),
+      expiry
+    ]);
+    if (timer) clearTimeout(timer); // cleared on BOTH outcomes so a live timer cannot hold the loop open
+    return outcome;
+  };
+
+  /** Every outcome, in submission order, always the same length as the input. Never rejects and never
+   *  outlives `ms`, so one wedged or rejecting member cannot strand the others or the totals line. */
+  const settleAllWithin = <T>(promises: readonly Promise<T>[], ms: number): Promise<Outcome<T>[]> =>
+    Promise.all(promises.map((promise) => settleWithin(promise, ms)));
+
+  /** Deadline for the coordination blocks. Generous relative to the event-loop-turn work they do, so
+   *  it can only expire on a genuine wedge, never on a slow host. */
+  const COORDINATION_DEADLINE_MS = 5000;
+
+  /** Renders an outcome for a check detail, so a red says what actually happened. */
+  const describe = <T>(outcome: Outcome<T>): string =>
+    outcome.kind === "resolved"
+      ? `resolved(${String(outcome.value)})`
+      : outcome.kind === "rejected"
+        ? `rejected(${outcome.error instanceof Error ? outcome.error.message : String(outcome.error)})`
+        : "TIMEOUT";
+
+  // Direct occupancy instrumentation — awkit-rkd8 GAP 2.
+  //
+  // Everything below 6f decided mutual exclusion from `activeFolderCoordinationKeys()`: a lane-map
+  // SAMPLE. Presence in that map is a proxy — it says a lane object exists, not that exactly one task
+  // was inside it. These record when each task actually entered and left, so non-overlap is decided
+  // from execution INTERVALS, which is the property the module exists to provide.
+  type LifetimeEvent = { id: string; key: string; kind: "enter" | "exit"; at: number };
+  /** A task's observed occupancy. `enter`/`exit` are ticks of a logical clock that advances once per
+   *  observed event, so two spans intersect exactly when the tasks were genuinely inside together. */
+  type Span = { id: string; key: string; enter: number; exit: number };
+
+  /** Capture is deliberately permissive — every event is kept, including duplicates and orphans — so
+   *  the strict predicates below can SEE a malformed observation rather than silently validating a
+   *  well-formed subset of it. */
+  const lifetimeRecorder = () => {
+    const events: LifetimeEvent[] = [];
+    let clock = 0;
+    const mark = (id: string, key: string, kind: "enter" | "exit"): void => {
+      clock += 1;
+      events.push({ id, key, kind, at: clock });
+    };
+    return {
+      events,
+      /** Wraps a task body so its entry and exit are both timestamped even if the body throws. */
+      observe:
+        <T>(id: string, key: string, body: () => Promise<T>) =>
+          async (): Promise<T> => {
+            mark(id, key, "enter");
+            try {
+              return await body();
+            } finally {
+              mark(id, key, "exit");
+            }
+          },
+      render: (): string => events.map((e) => `${e.id}:${e.kind}`).join(" ")
+    };
+  };
+
+  /** Pairs events into spans, or returns `null` when ANY requested id is missing an enter, missing an
+   *  exit, duplicated, or exits no later than it entered. Returning `null` rather than a shorter array
+   *  is the whole point: a missing observation must not read as an empty — and therefore trivially
+   *  non-overlapping, trivially in-order — interval set. */
+  const spansOf = (events: readonly LifetimeEvent[], ids: readonly string[]): Span[] | null => {
+    const spans: Span[] = [];
+    for (const id of ids) {
+      const enters = events.filter((e) => e.id === id && e.kind === "enter");
+      const exits = events.filter((e) => e.id === id && e.kind === "exit");
+      if (enters.length !== 1 || exits.length !== 1) return null;
+      if (enters[0].key !== exits[0].key) return null;
+      if (exits[0].at <= enters[0].at) return null;
+      spans.push({ id, key: enters[0].key, enter: enters[0].at, exit: exits[0].at });
+    }
+    return spans;
+  };
+
+  /** Every pair of same-key spans whose occupancy intervals intersect. Direct evidence of a mutual
+   *  exclusion failure; no lane-map sample can produce it. */
+  const overlappingSameKeyPairs = (spans: readonly Span[]): string[] => {
+    const clashes: string[] = [];
+    for (let i = 0; i < spans.length; i += 1) {
+      for (let j = i + 1; j < spans.length; j += 1) {
+        if (spans[i].key !== spans[j].key) continue;
+        if (spans[i].enter < spans[j].exit && spans[j].enter < spans[i].exit) {
+          clashes.push(`${spans[i].id}[${spans[i].enter},${spans[i].exit}] x ${spans[j].id}[${spans[j].enter},${spans[j].exit}]`);
+        }
+      }
+    }
+    return clashes;
+  };
+
+  /** Peak simultaneous occupancy of one key, walked over the event stream in clock order. */
+  const maxConcurrentOnKey = (events: readonly LifetimeEvent[], key: string): number => {
+    let active = 0;
+    let max = 0;
+    for (const event of events.filter((e) => e.key === key).sort((a, b) => a.at - b.at)) {
+      active += event.kind === "enter" ? 1 : -1;
+      max = Math.max(max, active);
+    }
+    return max;
+  };
+
+  const renderSpans = (spans: readonly Span[] | null): string =>
+    spans === null ? "unpairable" : `[${spans.map((s) => `${s.id}(${s.enter}-${s.exit})`).join(" ")}]`;
+
   // 6a. One key: FIFO admission and mutual exclusion, with tasks of deliberately different lengths.
   {
     const folder = await mkdtemp(join(tmpdir(), "awkit-coord-fifo-"));
@@ -403,27 +588,8 @@ const GATE_DRAIN_TURNS = 200;
   // call on a DIFFERENT folder is untouched (6f-c). Those two are what stop a guard from satisfying
   // 6f-a by simply rejecting everything that arrives while a lane is occupied.
   {
-    type Outcome<T> = { kind: "resolved"; value: T } | { kind: "rejected"; error: unknown } | { kind: "timeout" };
-
-    /** Settles with a NAMED outcome even when `promise` never settles, so a deadlock is reported as a
-     *  failed check instead of hanging the verifier before it can print its totals. */
-    const settleWithin = async <T>(promise: Promise<T>, ms: number): Promise<Outcome<T>> => {
-      promise.catch(() => undefined); // the promise may be abandoned on the timeout path
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const expiry = new Promise<Outcome<T>>((settle) => {
-        timer = setTimeout(() => settle({ kind: "timeout" }), ms);
-      });
-      const outcome = await Promise.race([
-        promise.then<Outcome<T>>(
-          (value) => ({ kind: "resolved", value }),
-          (error: unknown) => ({ kind: "rejected", error })
-        ),
-        expiry
-      ]);
-      if (timer) clearTimeout(timer); // cleared on BOTH outcomes so a live timer cannot hold the loop open
-      return outcome;
-    };
-
+    // `settleWithin` / `Outcome<T>` are the block-6 helpers hoisted at the top of this section; this
+    // block's semantics are unchanged by the move — it still bounds every await it performs.
     const REENTRANT_DEADLINE_MS = 1500;
     /** The guard's message must contain this substring, and the coordination key, verbatim. */
     const REENTRANCY_MARKER = "re-entrant folder write coordination";
@@ -481,7 +647,10 @@ const GATE_DRAIN_TURNS = 200;
       await drainEventLoop(8);
       const leftBehind = activeFolderCoordinationKeys();
       check(
-        "a rejected re-entrant call leaves lane state untouched (the lane is still evicted normally)",
+        // Named for the END STATE it samples, not for the interim it does not: this reads the active
+        // keys once, after the drain, so it decides that the lane evicted normally — not that lane
+        // state was never mutated along the way.
+        "a rejected re-entrant call still lets the lane evict normally — no lane survives the drain",
         outcome.kind === "rejected" && leftBehind.length === 0,
         `outcome=${outcome.kind}, active=${leftBehind.join(",") || "none"}`
       );
@@ -565,8 +734,10 @@ const GATE_DRAIN_TURNS = 200;
   // un-serialization above is a consequence argued from the implementation (an evicted key means the
   // next arrival builds a fresh lane whose tail is already resolved), not a concurrency this block
   // observed. That proxy is sound for the eviction mutant it was built for and is blind to a lane
-  // that stays in the map while its tail stops chaining — measuring that directly needs a third
-  // same-key caller and belongs to its own tranche.
+  // that stays in the map while its tail stops chaining. Both of those blind spots are now MEASURED
+  // rather than argued, in 6h (a third same-key caller, continuity and FIFO) and 6i (occupancy
+  // intervals) — awkit-rkd8. This block is kept as-is: it is the regression guard for the
+  // pending-at-start mutant it was measured against, and 6h/6i are additions, not replacements.
   {
     const folder = await mkdtemp(join(tmpdir(), "awkit-coord-queued-"));
     const key = folderCoordinationKey(folder);
@@ -590,7 +761,16 @@ const GATE_DRAIN_TURNS = 200;
     );
 
     release.resolve();
-    await Promise.all([t1, t2]);
+    // BOUNDED — awkit-rkd8 GAP 4. This was `await Promise.all([t1, t2])`, which under a coordinator
+    // that wedges a queued task never returns: no totals, no failing assertion name. Both outcomes are
+    // now NAMED, and the settlement fact is asserted BEFORE anything reads `insideT2`, so a wedged or
+    // rejected pair reds here instead of quietly shaping the samples the checks below quantify over.
+    const [outcomeT1, outcomeT2] = await settleAllWithin([t1, t2], COORDINATION_DEADLINE_MS);
+    check(
+      "the running and queued same-key tasks both settled within the bounded deadline",
+      outcomeT1.kind === "resolved" && outcomeT1.value === "t1" && outcomeT2.kind === "resolved" && outcomeT2.value === "t2",
+      `t1=${describe(outcomeT1)}, t2=${describe(outcomeT2)}, deadline=${COORDINATION_DEADLINE_MS}ms`
+    );
 
     // Cardinality/presence FIRST — an empty sample would let the eviction assertion below pass vacuously.
     //
@@ -605,11 +785,18 @@ const GATE_DRAIN_TURNS = 200;
     // captured its lane reference at admission so it would still run, and its own first
     // instruction would re-insert the key that the sample then sees. Stated without overstatement,
     // and equally argued: under that mutant T2 itself is still chained behind T1 and stays
-    // serialized; what would run un-serialized is a THIRD same-key arrival admitted in the window
-    // between T1's settle and T2's start, which finds no lane and builds a fresh one. Excluding
-    // that mutant therefore requires exactly that third same-key caller admitted inside that
-    // window — this block admits no third caller, and that work, with the measurement that would
-    // move this paragraph from argued to measured, is deferred to its own tranche.
+    // serialized; what would run un-serialized is a THIRD same-key arrival that finds no lane and
+    // builds a fresh one.
+    //
+    // awkit-rkd8 CORRECTION, adjudicated against the coordinator source: the paragraph above located
+    // that third arrival "in the window between T1's settle and T2's start". No external caller can
+    // be admitted there. `runExclusive` captures its lane reference and installs
+    // `tail.then(runTask, runTask)` SYNCHRONOUSLY at admission, so T1's settle and T2's start are
+    // adjacent links in one already-registered reaction chain; those reactions drain ahead of any
+    // later macrotask, and a top-level caller can only arrive on a later turn. That window is not
+    // observable, and a test asserting anything inside it would be asserting a fiction. The
+    // reachable invariant is CONTINUITY — a third caller arriving LATER, while T2 runs, must land on
+    // the same chain — and that is what 6h admits and measures.
     check(
       "the QUEUED task sampled exactly one live lane at its first instruction, and it is this key",
       insideT2.length === 1 && insideT2[0].length === 1 && insideT2[0][0] === key,
@@ -627,6 +814,246 @@ const GATE_DRAIN_TURNS = 200;
       `active=${activeFolderCoordinationKeys().join(",") || "none"}, expected: without ${key}`
     );
     await rm(folder, { recursive: true, force: true });
+  }
+
+  // 6h. A THIRD same-key caller: one continuous serialization chain — awkit-rkd8 GAP 1 and GAP 3.
+  //
+  // 6g admits two callers and decides everything from a single-instant lane-map sample. Two defect
+  // shapes walk straight through that. One: a lane evicted a task too early and REBUILT by the next
+  // arrival — the map is populated at every instant anyone looks, just never by the same lane object,
+  // so the chain silently restarts. Two: a lane that stays in the map while `tail` stops advancing —
+  // present, but no longer chaining new work behind the running task. Neither is a lane-map fact, so
+  // no lane-map sample can exclude them.
+  //
+  // The third caller is admitted at the one moment that makes both observable: AFTER the lane has
+  // already retired T1 and while T2 is running. Under correct code the lane survives that handover
+  // (T2's admission kept `pending` above zero) and T3 chains behind T2 on the same generation. Under
+  // premature eviction T3 finds no lane, builds a fresh one whose tail is already resolved, and runs
+  // BESIDE T2 — measured below as an interval intersection, not inferred from the map.
+  //
+  // On why the third caller lands here and not earlier: see the awkit-rkd8 correction in 6g. The
+  // window "between T1's settle and T2's start" that awkit-s410 named is not enterable by an external
+  // caller, so this block asserts the invariant that is actually reachable — continuity — rather than
+  // a timing fiction.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-continuity-"));
+    const key = folderCoordinationKey(folder);
+    const recorder = lifetimeRecorder();
+    const releaseT1 = deferred();
+    const releaseT2 = deferred();
+    const ids = ["T1", "T2", "T3"];
+
+    const t1 = runExclusive(folder, recorder.observe("T1", key, async () => { await releaseT1.promise; return "T1"; }));
+    await drainEventLoop(4);
+    const t2 = runExclusive(folder, recorder.observe("T2", key, async () => { await releaseT2.promise; return "T2"; }));
+    await drainEventLoop(4);
+
+    // Hand the lane from T1 to T2 and let the chain settle. Asserted, not assumed: the third caller's
+    // whole purpose depends on arriving after a completed handover, so a run that never reached that
+    // state must say so by name rather than quietly measuring something else.
+    releaseT1.resolve();
+    await drainEventLoop(GATE_DRAIN_TURNS);
+    check(
+      "the lane completed one handover before the third same-key caller arrived",
+      recorder.render() === "T1:enter T1:exit T2:enter",
+      `events=[${recorder.render()}], expected=[T1:enter T1:exit T2:enter]`
+    );
+
+    // Admitted HERE: top level, later than T2, while T2 is still inside the lane.
+    const t3 = runExclusive(folder, recorder.observe("T3", key, async () => "T3"));
+    await drainEventLoop(GATE_DRAIN_TURNS);   // every chance for T3 to overtake or run beside T2
+    // This predicate decides ONE thing: T3 has recorded no lifetime event yet. It does not decide that
+    // T3 was admitted — a T3 rejected outright at admission would also record no event and would pass
+    // here. That is why the name does not say "admitted": admission is decided by the settlement check
+    // immediately below, which requires T3 to resolve with its own value and reds on a rejection.
+    check(
+      "the third same-key caller has not started beside the running task",
+      !recorder.events.some((e) => e.id === "T3"),
+      `events=[${recorder.render()}], expected no T3 event while T2 still holds the lane`
+    );
+
+    releaseT2.resolve();
+    const outcomes = await settleAllWithin([t1, t2, t3], COORDINATION_DEADLINE_MS);
+    const values = outcomes.map((o) => (o.kind === "resolved" ? o.value : `<${o.kind}>`));
+    check(
+      "all three same-key callers settled within the bounded deadline, each with its own value",
+      outcomes.length === ids.length && ids.every((id, i) => values[i] === id),
+      `outcomes=[${outcomes.map(describe).join(", ")}], expected=[${ids.join(", ")}], deadline=${COORDINATION_DEADLINE_MS}ms`
+    );
+
+    // Cardinality BEFORE ordering and overlap: all three predicates below quantify over the observed
+    // events, and every one of them is trivially satisfiable by an empty or partial observation set.
+    const enters = recorder.events.filter((e) => e.kind === "enter");
+    const exits = recorder.events.filter((e) => e.kind === "exit");
+    check(
+      "each of the three same-key callers entered the lane exactly once",
+      enters.length === ids.length && ids.every((id) => enters.filter((e) => e.id === id).length === 1),
+      `enters=[${enters.map((e) => e.id).join(",") || "none"}], expected exactly one each of ${ids.join(",")}`
+    );
+    check(
+      "each of the three same-key callers exited the lane exactly once",
+      exits.length === ids.length && ids.every((id) => exits.filter((e) => e.id === id).length === 1),
+      `exits=[${exits.map((e) => e.id).join(",") || "none"}], expected exactly one each of ${ids.join(",")}`
+    );
+    check(
+      "the three same-key callers produced exactly six lifetime events and nothing else",
+      recorder.events.length === ids.length * 2,
+      `events=${recorder.events.length} ([${recorder.render()}]), expected=${ids.length * 2}`
+    );
+
+    const spans = spansOf(recorder.events, ids);
+    check(
+      "each of the three same-key callers has a well-formed occupancy interval",
+      spans !== null && spans.length === ids.length,
+      spans === null
+        ? `unpairable events: [${recorder.events.map((e) => `${e.id}:${e.kind}@${e.at}`).join(" ")}]`
+        : renderSpans(spans)
+    );
+    const clashes = spans === null ? [] : overlappingSameKeyPairs(spans);
+    check(
+      "the third same-key caller did not overlap the task it was admitted behind",
+      spans !== null && spans.length === ids.length && clashes.length === 0,
+      spans === null
+        ? "unpairable spans — overlap is undecidable here, not absent"
+        : `overlaps=[${clashes.join("; ") || "none"}], spans=${renderSpans(spans)}`
+    );
+    // NAMED FOR WHAT IT DECIDES, deliberately. The predicate compares occupancy intervals: three
+    // well-formed spans, each starting only after the previous one ended, in admission order. It does
+    // NOT decide that one lane OBJECT survived all three callers — that is lane-generation identity,
+    // which this verifier is forbidden to observe and does not observe. A coordinator that rebuilt the
+    // lane between callers yet still serialized them strictly would pass here, and would be correct:
+    // serialization is the contract, lane identity is an implementation detail. What makes this the
+    // right GAP 1 assertion anyway is mutant M1: premature eviction does not merely rebuild the lane,
+    // it lets the rebuilt lane run T3 BESIDE T2, which shows up here as an interleaving and goes red.
+    check(
+      "the three same-key callers occupied the lane strictly one after another, in FIFO admission order",
+      spans !== null && spans.length === ids.length && spans.every((span, i) => i === 0 || spans[i - 1].exit < span.enter),
+      `spans=${renderSpans(spans)}, expected ${ids.join(" then ")} with no interleaving`
+    );
+
+    await drainEventLoop(8);
+    check(
+      "this key's lane does not survive once all three same-key callers have drained",
+      !activeFolderCoordinationKeys().includes(key),
+      `active=${activeFolderCoordinationKeys().join(",") || "none"}, expected: without ${key}`
+    );
+    await rm(folder, { recursive: true, force: true });
+  }
+
+  // 6i. Mutual exclusion measured DIRECTLY, from occupancy intervals — awkit-rkd8 GAP 2.
+  //
+  // 6d and 6g decide exclusion from `activeFolderCoordinationKeys()`. Presence in that map says a
+  // lane OBJECT exists; it does not say exactly one task was inside it, and no sequence of samples
+  // can, because the map is not where overlap lives. This block records when each task actually
+  // entered and left and decides six separate facts from those intervals — every caller entered,
+  // every caller exited, the event count is exact, peak occupancy is exactly 1, no two intervals
+  // intersect, and the order is FIFO. Cardinality comes first every time: `.every()` over a dropped
+  // observation is precisely how a check like this passes while the defect it exists for is present.
+  //
+  // The control at the end runs the SAME recorder and the SAME overlap predicate over deliberately
+  // un-serialized work. Without it, "no intervals intersected" would be equally true of an instrument
+  // that cannot detect an intersection at all.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awkit-coord-overlap-"));
+    const key = folderCoordinationKey(folder);
+    const recorder = lifetimeRecorder();
+    const ids = ["W0", "W1", "W2", "W3"];
+    const lengths = [12, 3, 9, 1];   // deliberately not descending: a shortest-first result is overlap
+
+    const outcomes = await settleAllWithin(
+      ids.map((id, i) => runExclusive(folder, recorder.observe(id, key, async () => {
+        await drainEventLoop(lengths[i]);
+        return id;
+      }))),
+      COORDINATION_DEADLINE_MS
+    );
+    const values = outcomes.map((o) => (o.kind === "resolved" ? o.value : `<${o.kind}>`));
+    check(
+      "every same-key writer settled within the bounded deadline, each with its own value",
+      outcomes.length === ids.length && ids.every((id, i) => values[i] === id),
+      `outcomes=[${outcomes.map(describe).join(", ")}], expected=[${ids.join(", ")}], deadline=${COORDINATION_DEADLINE_MS}ms`
+    );
+
+    const enters = recorder.events.filter((e) => e.kind === "enter");
+    const exits = recorder.events.filter((e) => e.kind === "exit");
+    check(
+      "every same-key writer entered the lane exactly once",
+      enters.length === ids.length && ids.every((id) => enters.filter((e) => e.id === id).length === 1),
+      `enters=[${enters.map((e) => e.id).join(",") || "none"}], expected exactly one each of ${ids.join(",")}`
+    );
+    check(
+      "every same-key writer exited the lane exactly once",
+      exits.length === ids.length && ids.every((id) => exits.filter((e) => e.id === id).length === 1),
+      `exits=[${exits.map((e) => e.id).join(",") || "none"}], expected exactly one each of ${ids.join(",")}`
+    );
+    check(
+      "the same-key writers produced exactly one enter and one exit each and nothing else",
+      recorder.events.length === ids.length * 2,
+      `events=${recorder.events.length} ([${recorder.render()}]), expected=${ids.length * 2}`
+    );
+
+    const spans = spansOf(recorder.events, ids);
+    check(
+      "every same-key writer has a well-formed occupancy interval",
+      spans !== null && spans.length === ids.length,
+      spans === null
+        ? `unpairable events: [${recorder.events.map((e) => `${e.id}:${e.kind}@${e.at}`).join(" ")}]`
+        : renderSpans(spans)
+    );
+    const clashes = spans === null ? [] : overlappingSameKeyPairs(spans);
+    check(
+      "no two same-key occupancy intervals intersect",
+      spans !== null && spans.length === ids.length && clashes.length === 0,
+      spans === null
+        ? "unpairable spans — overlap is undecidable here, not absent"
+        : `overlaps=[${clashes.join("; ") || "none"}], spans=${renderSpans(spans)}`
+    );
+    check(
+      "at most one same-key writer occupied the lane at any instant",
+      spans !== null && spans.length === ids.length && maxConcurrentOnKey(recorder.events, key) === 1,
+      `maxConcurrent=${maxConcurrentOnKey(recorder.events, key)} over ${spans?.length ?? 0}/${ids.length} spans, expected exactly 1`
+    );
+    check(
+      "the same-key writers occupied the lane in FIFO admission order",
+      spans !== null && spans.length === ids.length && spans.every((span, i) => i === 0 || spans[i - 1].exit < span.enter),
+      `spans=${renderSpans(spans)}, expected ${ids.join(" then ")} with no interleaving`
+    );
+    await rm(folder, { recursive: true, force: true });
+
+    // CONTROL — the same recorder, the same span pairing, the same overlap predicate, over four tasks
+    // the coordinator does NOT serialize with each other (four distinct folders). They share one
+    // recorder label so the same-key predicate compares them: if this does not find intersections,
+    // the six assertions above are measuring nothing.
+    const controlIds = ["C0", "C1", "C2", "C3"];
+    const controlFolders: string[] = [];
+    for (let i = 0; i < controlIds.length; i += 1) {
+      controlFolders.push(await mkdtemp(join(tmpdir(), "awkit-coord-overlap-control-")));
+    }
+    const controlRecorder = lifetimeRecorder();
+    const allArrived = deferred();
+    let arrivedCount = 0;
+    const controlOutcomes = await settleAllWithin(
+      controlFolders.map((controlFolder, i) => runExclusive(controlFolder, controlRecorder.observe(controlIds[i], "control", async () => {
+        arrivedCount += 1;
+        if (arrivedCount >= controlIds.length) allArrived.resolve();
+        await Promise.race([allArrived.promise, drainEventLoop(GATE_DRAIN_TURNS)]);
+        return controlIds[i];
+      }))),
+      COORDINATION_DEADLINE_MS
+    );
+    const controlSpans = spansOf(controlRecorder.events, controlIds);
+    const controlClashes = controlSpans === null ? [] : overlappingSameKeyPairs(controlSpans);
+    check(
+      "control: the same instrument DOES detect intersecting intervals when work is not coordinated",
+      controlOutcomes.length === controlIds.length &&
+        controlOutcomes.every((outcome) => outcome.kind === "resolved") &&
+        controlSpans !== null &&
+        controlSpans.length === controlIds.length &&
+        controlClashes.length > 0 &&
+        maxConcurrentOnKey(controlRecorder.events, "control") === controlIds.length,
+      `maxConcurrent=${maxConcurrentOnKey(controlRecorder.events, "control")}, overlaps=${controlClashes.length}, spans=${renderSpans(controlSpans)}`
+    );
+    for (const controlFolder of controlFolders) await rm(controlFolder, { recursive: true, force: true });
   }
 }
 
@@ -648,6 +1075,4 @@ async function measureSameFolderExclusion(folder: string): Promise<{ max: number
   return { max, completed };
 }
 
-const passed = results.filter((r) => r.pass).length;
-console.log(`\nWrite queue: ${passed}/${results.length} checks passed`);
-process.exit(passed === results.length ? 0 : 1);
+finish();
