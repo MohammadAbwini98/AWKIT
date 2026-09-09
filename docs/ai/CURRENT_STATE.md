@@ -1,5 +1,74 @@
 # CURRENT_STATE
 
+## Licensing/execution/verification reconciliation: awkit-f3l goals audited ALREADY RESOLVED, tracker repinned 277/275/2 (2026-09-09)
+
+**Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is
+**unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across its 67 cases**. This task adds no validation
+case and moves no case status. This is independent from Beads counts, verifier checks and traceability
+totals; those measurements are not reconciled to each other.
+
+**Historical blocker audit — all three `awkit-f3l` goals are ALREADY RESOLVED, no code changed.**
+`awkit-f3l` closed 2026-08-01; this task re-audited each goal against current source plus live
+verifier evidence and found no regression, so no historical fix was duplicated and no production
+file changed for any of them:
+- **Goal A (`cancel-pending` on revalidation):** `applyRunGateEnforcement()` still sweeps via
+  `executionEngine.cancelPendingInstances()` on EVERY blocking pass (`interval`, `window-focus`,
+  `revalidate-ipc`, `license-changed`, `run-request`, `pre-run`); `nextEnforcementState` sweeps
+  repeats idempotently while auditing only transitions. `ExecutionEngine` still gates queue
+  promotion AND the final pending→running transition (releasing slot/claims) AND `repeatInstance`,
+  fails closed on a throwing/unregistered gate, and `cancelPendingInstances` touches only
+  pending/queued (terminal `cancelled` is never re-promoted). Integrity set still covers
+  `MISMATCH`, `CORRUPTED`, revoked/invalid states. Evidence: `verify:licensing` **192/192**,
+  `verify:license-dispatch-gate` **34/34**, `verify:r0-characterization` **181 PASS / 0 FAIL**
+  (incl. the repeat-sweep and sweep-suppression negative controls).
+- **Goal B (`verify:test-lab-cli-only` fail-closed):** the verifier still exits nonzero on any
+  `BLOCKED` (`if (failed > 0 || blocked > 0) process.exitCode = 1`). Proven live this task:
+  missing bundle → **BLOCKED, exit 1**; empty bundle → **BLOCKED, exit 1**; stale bundle →
+  **BLOCKED, exit 1**; contaminated bundle → **FAIL, exit 1**; current valid bundle →
+  **24 PASS / 0 FAIL, exit 0**. Honest scope limit, recorded not hidden: a garbage bundle that
+  contains no harness symbol still passes, because this verifier is a symbol-presence boundary,
+  not a JS validator. Test Lab stays CLI-only: no `app/**` harness import, no route surface,
+  no harness symbol in any production bundle.
+- **Goal C (packaged issuer argv-only):** `scripts/helpers/packaged-license.mts` still spawns
+  via `execFileAsync(process.execPath, [tsx cli.mjs, issuerScript, ...issuerArgs], ...)` with no
+  `shell` option (defaults false) — the superior direct local invocation the task allows instead
+  of `npx.cmd`, pinned by the dispatch-gate verifier. Key path travels as exactly one argv
+  element after `--key`; relative configured paths refused; failures propagate; only
+  `redactKeyPath` output is ever displayed; no trust key, no committed private key (only the
+  public `resources/trust/offline-manifest-public.pem`), no bypass; missing key reports
+  `BLOCKED`. Evidence: `verify:issuer-key-resolution` **83/83**, incl. the hostile
+  `Program Files (x86) & Co` path arriving as ONE argument with no shell interpretation.
+
+**Phase 3 cleanup — nothing else stale.** `awkit-1cc` is described as complete everywhere current;
+no file claims licensing enforcement is still opt-in (`licenseRuntime.ts` still reads ON by
+default, opt-in gone) or that the Test Lab ships in production (`DECISIONS.md` still records
+CLI-only). `git diff --check` is clean; `scripts/lib/gui-verify-harness.mjs` carries no trailing
+whitespace. The only stale state was the roadmap pins and the project-state narratives below,
+both fixed here.
+
+**Tracker, measured directly.** Beads is at **277 total / 275 closed / 2 outstanding**: **0 open**
+and **2 status = blocked** (`awkit-7bu`, `awkit-cm8`), with **0 dependency-blocked**. Since the
+4/272 pin: `awkit-9a1l` and `awkit-wknd` closed with no new bead, and `awkit-tsq1` was filed AND
+closed the same day carrying a `discovered-from: awkit-rkd8` edge — so total 276 → 277, closed
+272 → 275, outstanding 4 → 2, edges 107 → 108. The pin move plus ledger comments are the only
+source change in `scripts/verify-roadmap-dashboard.mjs` (18 insertions / 5 deletions, exact
+equalities kept). Each of the four conjuncts was reverted alone and went red alone at
+**176/177**; restored, the verifier is **177/177** with **"Sources agree"**. The stale
+`bead:awkit-9a1l` assignment claim is cleared (claims now empty) and the closed task's lease is
+released; unrelated dirty/untracked user work (GLM delegation tooling, Oracle contracts,
+`AWTKIT.rar`, `Building priorities/`) was preserved untouched.
+
+**Verification run for this task:** `npm run build` **PASS**; `typecheck:scripts` **PASS**;
+`verify:licensing` **192/192**; `verify:license-dispatch-gate` **34/34**;
+`verify:test-lab-cli-only` **24/24** (plus the five live fail-closed proofs above);
+`verify:issuer-key-resolution` **83/83**; `verify:write-queue` **78/78**;
+`verify:r0-characterization` **181/0**; `verify:source-hygiene` **11/11**;
+`verify:verifier-classification` **202 scripts**; `validate:offline` **PASS** (dev mode);
+`verify:roadmap-dashboard` **177/177 "Sources agree"**; `git diff --check` clean.
+**NOT run:** packaged walkthrough/packaged-licensing (artifacts stale at 0.1.0–0.1.13 vs 0.1.28
+AND no authorized issuer key — would be BLOCKED, not PASS) and the clean-machine GUI
+walkthrough (**NOT RUN**). Mock-site is **NOT APPLICABLE** — no browser/execution surface changed.
+
 ## awkit-dhw6 CLOSED: path aliases are documented as a fail-degraded coordination-lane split, with no runtime change (2026-09-09)
 
 **Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is

@@ -1,6 +1,39 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-09, latest) — awkit-dhw6 CLOSED: physical-folder aliases can split textual coordination lanes; documentation only
+## HANDOFF (2026-09-09, latest) — licensing/execution/verification reconciliation: f3l goals verified resolved, tracker repinned 277/275/2
+
+- **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN
+  / 0 BLOCKED across 67 cases**. This task moves no validation case. This is not the Beads count,
+  verifier total or traceability total.
+- **No bead opened, none reopened.** `awkit-f3l` (closed 2026-08-01) was re-audited goal by goal
+  against current source and live verifier output: Goal A (`cancel-pending` sweep on every blocking
+  revalidation + dual dispatch gates + fail-closed repeat), Goal B (CLI-only verifier exits nonzero
+  on BLOCKED — proven live for missing/empty/stale/contaminated vs valid), Goal C (packaged issuer
+  via `process.execPath` argv with no shell — 83/83 incl. hostile paths). All three are
+  **ALREADY RESOLVED**; no production file changed for any of them and `awkit-dhw6` was not
+  duplicated. The one honest scope limit: a garbage bundle with no harness symbol still passes the
+  CLI-only verifier, which is a symbol-presence boundary, not a JS validator.
+- **Source change, one file:** `scripts/verify-roadmap-dashboard.mjs` — total pin 276 → 277,
+  tracker pin 4/272 → **2/275**, edge pin 107 → 108, plus ledger comments naming `awkit-9a1l` /
+  `awkit-wknd` closed and `awkit-tsq1` filed-and-closed with its `discovered-from: awkit-rkd8`
+  edge. Exact equalities kept; each of the four conjuncts was reverted alone (176/177 red alone)
+  and restored to **177/177** with **"Sources agree"**.
+- **Measured verification:** build PASS; typecheck:scripts PASS; licensing **192/192**;
+  license-dispatch-gate **34/34**; test-lab-cli-only **24/24** + five live fail-closed proofs;
+  issuer-key-resolution **83/83**; write-queue **78/78**; r0-characterization **181/0**;
+  source-hygiene **11/11**; verifier-classification **202**; validate:offline PASS (dev mode);
+  roadmap-dashboard **177/177**; `git diff --check` clean. Packaged walkthrough/licensing
+  **NOT RUN** (stale 0.1.x artifacts + no authorized issuer key → BLOCKED, never PASS);
+  clean-machine GUI walkthrough **NOT RUN**; mock-site **NOT APPLICABLE**.
+- **Tracker, measured live:** **277 total / 275 closed / 2 outstanding** = **0 open + 2 status =
+  blocked** (`awkit-7bu`, `awkit-cm8`), **0 dependency-blocked**. The stale `bead:awkit-9a1l`
+  assignment claim is cleared and the closed lease released. All unrelated dirty/untracked work
+  (GLM tooling, Oracle contracts, `AWTKIT.rar`, `Building priorities/`) preserved untouched.
+- **Next:** commit the pin + reconciliation docs to `main` and push. No code-level blocker remains
+  in this workstream; only external gates (authorized issuer key, fresh packaged artifact, clean
+  VM) stand between here and packaged/clean-machine evidence.
+
+## HANDOFF (2026-09-09) — awkit-dhw6 CLOSED: physical-folder aliases can split textual coordination lanes; documentation only
 
 - **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN
   / 0 BLOCKED across 67 cases**. `awkit-dhw6` moves no validation case. This is not the Beads count,

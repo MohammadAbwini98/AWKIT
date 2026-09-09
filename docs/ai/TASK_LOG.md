@@ -1,6 +1,53 @@
 # TASK_LOG
 
-## 2026-09-09 (latest) — awkit-dhw6 — document filesystem-alias lane splitting (Codex GPT-5)
+## 2026-09-09 (latest) — licensing/execution/verification reconciliation (Muse Spark)
+
+**Task:** audit the historical `awkit-f3l` licensing/execution/Test-Lab/packaged-license blockers
+against current source, prove each with live evidence, fix whatever is genuinely open, reconcile
+project state, commit to `main`, push.
+
+**Assessment (all three ALREADY RESOLVED, none duplicated, no production change):**
+- Goal A — `cancel-pending` enforced on trusted/periodic/focus revalidation without another
+  `runWorkflow()`: `applyRunGateEnforcement` sweeps `cancelPendingInstances` on every blocking
+  pass; `ExecutionEngine` gates queue promotion, the final pending→running transition (slot/claims
+  released), and `repeatInstance`; fail-closed on throwing/unregistered gates; cancelled work is
+  terminal and never re-promoted; repeats idempotent; audit only on transition; recovery admits
+  new work. Integrity set covers MISMATCH/CORRUPTED/revoked states.
+- Goal B — `verify:test-lab-cli-only` fails closed: exit nonzero on BLOCKED; proven live —
+  missing → BLOCKED exit 1, empty → BLOCKED exit 1, stale → BLOCKED exit 1, contaminated → FAIL
+  exit 1, valid → 24/24 exit 0. Scope limit recorded: garbage without harness symbols passes
+  (symbol-presence boundary, not a JS validator). Test Lab remains CLI-only.
+- Goal C — packaged issuer argv-only: `execFileAsync(process.execPath, [tsx cli.mjs,
+  issuerScript, ...issuerArgs])`, no shell, key path one argv element, relative paths refused,
+  failures propagate, key material never logged, no second trust key, no committed private key,
+  missing key → BLOCKED. The direct-`execPath` form is the superior offline invocation the goal
+  allows instead of `npx.cmd`, and the dispatch-gate verifier pins it — so it was kept, not
+  rewritten.
+- Phase 3 cleanup: no open/in-progress misdescription of `awkit-1cc`, no opt-in-enforcement or
+  ship-the-Test-Lab claims, no whitespace failures (`git diff --check` clean,
+  `gui-verify-harness.mjs` clean). Only the roadmap pins/narratives were stale — fixed below.
+
+**Fix (only source change):** `scripts/verify-roadmap-dashboard.mjs` — total 276 → 277, tracker
+4/272 → 2/275, edges 107 → 108, with ledger comments (`awkit-9a1l` + `awkit-wknd` closed,
+`awkit-tsq1` filed-and-closed with `discovered-from: awkit-rkd8`). Each conjunct reverted alone →
+176/177 red alone; restored → 177/177 "Sources agree". Stale `bead:awkit-9a1l` claim cleared;
+closed lease released. Unrelated dirty/untracked work preserved.
+
+**Verification (all executed, read from output):** build PASS; typecheck:scripts PASS;
+verify:licensing 192/192; verify:license-dispatch-gate 34/34; verify:test-lab-cli-only 24/24 +
+five live fail-closed proofs; verify:issuer-key-resolution 83/83; verify:write-queue 78/78;
+verify:r0-characterization 181/0; verify:source-hygiene 11/11; verify:verifier-classification 202
+scripts; validate:offline PASS (dev mode); verify:roadmap-dashboard 177/177; git diff --check
+clean. NOT RUN: packaged walkthrough/licensing (stale 0.1.x artifacts + `AWKIT_PACKAGED_LICENSE_-
+ISSUER_KEY` unset → BLOCKED, never PASS), clean-machine GUI walkthrough. Mock-site NOT
+APPLICABLE (no browser surface changed). Ledger unchanged 65/2/0 across 67; Beads 277/275/2
+(0 open + 2 status-blocked, 0 dependency-blocked).
+
+**Files:** `scripts/verify-roadmap-dashboard.mjs` (pin), `docs/ai/CURRENT_STATE.md`,
+`docs/ai/HANDOFF.md`, this file, `tools/roadmap/assignments.json` (claim cleared),
+`docs/ai/contracts/active-lease.json` (release residue).
+
+## 2026-09-09 — awkit-dhw6 — document filesystem-alias lane splitting (Codex GPT-5)
 
 **Agents involved:** single-agent mode. The root primary acted as Manager and Git executor while
 honoring the live routing matrix: persistence owned the coordinator comment, QA owned the roadmap
