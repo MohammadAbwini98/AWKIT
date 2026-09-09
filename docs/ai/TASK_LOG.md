@@ -1,6 +1,22 @@
 # TASK_LOG
 
-## 2026-09-09 (latest) — licensing/execution/verification reconciliation (Muse Spark)
+## 2026-09-09 (latest) — worktree cleanup ahead of portable build (Muse Spark)
+
+**Task:** produce a clean worktree so a new portable exe can be built from a known committed state.
+Preserved everything; discarded nothing.
+
+**Commits:** `wip(glm-delegate)` (uncommitted server work + 2 verifier scripts + package.json
+scripts, belongs to OPEN awkit-glm-ctx, unverified here); `chore(contracts)` lease-history
+appends on 9 contracts; `chore(contracts)` preserving 5 untracked task contracts (9a1l, r2, tsq1,
+wfsimp, wknd). Deliberately NOT committed: `AWTKIT.rar` (~981MB) and
+`Building priorities and integration-handoff/` (19 owner-input files) — covered by a local-only
+`.git/info/exclude` entry instead, so they stay on disk, stay out of `git status`, and can never
+be swept up by a future `git add -A`. The task-gate `preserved_paths` fingerprints still apply.
+
+**Verification:** `git diff --check` clean; `verify:verifier-classification` reconciled;
+`npm run build` PASS (run after the commits, before the build request).
+
+## 2026-09-09 — licensing/execution/verification reconciliation (Muse Spark)
 
 **Task:** audit the historical `awkit-f3l` licensing/execution/Test-Lab/packaged-license blockers
 against current source, prove each with live evidence, fix whatever is genuinely open, reconcile
