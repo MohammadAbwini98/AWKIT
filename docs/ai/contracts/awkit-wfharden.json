@@ -569,6 +569,28 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-wfharden:manager:2026-09-09T07:30:58.090Z",
+        "task": "awkit-wfharden",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "CLAUDE.md",
+          "tools/agents/context-policy.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/render-platform-agents.mjs"
+        ],
+        "acquired_at": "2026-09-09T07:30:58.090Z",
+        "acquired_at_commit": "255e3a5c98a2652728e87cbcff96da5a4e152a56",
+        "released_at": "2026-09-09T07:48:05.262Z",
+        "released_reason": "awkit-wfharden complete and pushed to origin main",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   },

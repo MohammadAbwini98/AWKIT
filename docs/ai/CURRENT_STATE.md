@@ -1,5 +1,81 @@
 # CURRENT_STATE
 
+## awkit-rkd8 CLOSED: the four block-6 vacuity gaps are closed with measured evidence — a verifier-quality fix, no product change (2026-09-09)
+
+**Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is
+**unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across its 67 cases**. `awkit-rkd8` adds no validation
+case and moves no case status, so the tally is restated here verbatim rather than recomputed. This is
+the **validation ledger** tally: it is a different measurement from the Beads tracker counts and from
+the `verify:write-queue` check count below, and the three must never be reconciled to each other.
+
+**What this was, stated so it cannot be inflated.** `awkit-rkd8` was the deferred evidentiary debt
+filed by `awkit-s410`, and it is again a **verifier-quality** fix.
+`src/storage/folderWriteCoordinator.ts` **was and remains correct** and ends this task
+**byte-identical to its committed state** — SHA-256
+`0f8f7c74c698145a5cb0a0490c0230d4a2a6e70fcd80fa3abffed1acfebd3f6b` measured before the first mutation
+and again after the fifth and last restore. No production code changed and no product defect was
+repaired. The coordinator's public surface did **not** grow: `runExclusive`,
+`folderCoordinationKey` and `activeFolderCoordinationKeys` are untouched, and **no lane identity,
+generation counter, event hook or debug API was added for a test's benefit**.
+
+**The four gaps, and what now decides them.** *GAP 1* — same-key continuity was observed at a
+**single instant**, so an evicted-and-recreated lane was indistinguishable from one continuous FIFO
+generation, and a **third** same-key caller was never exercised. New **block 6h** admits T1, T2 and a
+later-arriving T3 on one key and asserts the exact handover string, entry/exit cardinality for all
+three **before** any ordering claim, and one continuous FIFO chain. *GAP 2* — mutual exclusion was
+**inferred from lane-map presence**. New **block 6i** records per-caller enter/exit events and
+asserts six separate facts: every writer entered once, every writer exited once, exact event count,
+well-formed spans, no intersecting intervals, and maximum same-key concurrency **exactly 1**.
+*GAP 3* — nothing caught a lane that stays present while its tail stops advancing; the direct
+serialization assertions now decide that independently of map presence. *GAP 4* — block 6g awaited an
+unbounded `Promise.all`, so a wedged or rejecting task could hang the verifier or kill the process
+**before totals printed**. The `Outcome<T>` type and the bounded `settleWithin` helper were hoisted
+out of 6f-local scope (6f's semantics unchanged by the move), a non-unref'd 60s run-deadline
+backstop and top-level `unhandledRejection` / `uncaughtException` handlers were added, and the file
+now has a **single exit path** `finish()` that always prints the totals line.
+
+**Measured, not predicted — every mutation was executed against the real coordinator.**
+`verify:write-queue` is green at **78/78**, up from a **58/58** baseline measured live this task, so
+the change adds **20 net new checks and regresses none**. *M1* (premature lane eviction, line 154):
+exit 1, **74/78**, four named reds of which three are the new three-caller invariant — and decisively,
+**every 6h cardinality check, every lane-presence check and the entire 6i block stayed GREEN**, so it
+is the ordering and overlap predicates that actually decide. *M2* (`owned.tail = settled;` deleted)
+and *M3*: exit 1, **64/78** each, with the 6i measurements red **by measured value** —
+`maxConcurrent=4 over 4/4 spans, expected exactly 1` and six named intersecting interval pairs. The
+`4/4` denominator is printed by the assertion itself, so it cannot have decided over an empty set.
+M3 is recorded honestly as **observationally identical to M2**, not as extra coverage. *M4a* (wedge)
+and *M4b* (rejection): each exit 1, **29/30**, one named red, **totals printed and normal
+termination** in both. The coordinator was restored and re-verified byte-identical after every one.
+
+**A non-vacuity positive control ships with the suite.** Block 6i also runs four writers on four
+**distinct** folders under one recorder label and requires the overlap detector to actually fire:
+`maxConcurrent=4, overlaps=6`. The instrument is therefore proven able to detect intersecting
+intervals rather than being green by construction.
+
+**One source-backed correction, recorded rather than faked.** The Bead asked for an external caller
+executing strictly *between* T1 settling and T2 starting. That window **is not reachable**:
+`runExclusive` captures `const owned = lane;` and installs `owned.tail.then(runTask, runTask)`
+**synchronously at admission**, so T2's reaction is registered on T1's promise before T1 settles, and
+earlier-registered reactions drain as microtasks ahead of any later macrotask. A test claiming to
+occupy that window would be timing fiction. The decidable invariant — continuity across a *later*
+arrival — is what 6h asserts, and M1 confirms the reading empirically: the defect appears at T3,
+never at the already-admitted T2.
+
+**Verification run for this task:** `verify:write-queue` **78/78**; `npm run build` **exit 0**
+(`tsc --noEmit` clean, all three bundles emitted); `verify:profile-store` **74/74**;
+`verify:r0-characterization` **175 PASS / 0 FAIL**; `verify:verifier-classification` **exit 0, 202
+scripts classified**; `verify:roadmap-dashboard` **177/177** with the Overview banner reading
+**"Sources agree"**. **NOT run:** the clean-machine GUI walkthrough. **NOT APPLICABLE:** mock-site
+coverage — folder write coordination is a Node filesystem-serialization property with no browser
+surface, so no scenario can exercise it and none was fabricated to look complete.
+
+**Tracker, measured directly rather than derived by arithmetic:** Beads is at **276 total / 271
+closed / 5 outstanding**, of which **3 open** (`awkit-dhw6`, `awkit-9a1l`, `awkit-wknd`) and **2
+status = blocked** (`awkit-7bu`, `awkit-cm8`), with **0 dependency-blocked** (`bd blocked` reports
+none). `awkit-rkd8` closed and **no new bead was filed**, so this is a one-sided move: closed rose by
+one, outstanding fell by one, and total held at 276. Keep **status = blocked** strictly distinct from
+**dependency-blocked**.
+
 ## awkit-s410 CLOSED: lane eviction now has non-vacuous mutation evidence — a verifier-quality fix, no product change (2026-09-08)
 
 **Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is

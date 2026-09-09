@@ -1,6 +1,81 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-08, latest) — awkit-s410 CLOSED: lane eviction proven non-vacuously, verifier-only, no product change
+## HANDOFF (2026-09-09, latest) — awkit-rkd8 CLOSED: the four block-6 vacuity gaps closed with measured evidence, verifier-only, no product change
+
+- **Restated for the two-narrative consistency check:** the validation ledger is **unchanged at 65
+  PASS / 2 NOT RUN / 0 BLOCKED** across its **67 cases**. `awkit-rkd8` adds no validation case and
+  moves no case status. This is the **validation ledger** tally — it is not the Beads tracker count
+  and not the `verify:write-queue` check count, and the three must never be reconciled to each other.
+  Both narratives must keep restating it: if only one does, the dashboard's two-narrative consistency
+  check silently drops from 2 sources to 1 and still reports agreement.
+- **Bead closed:** `awkit-rkd8` (P2, the deferred evidentiary tranche filed by `awkit-s410` as its
+  `discovered-from` follow-up). **No follow-up bead was filed** — the gaps it was opened for are all
+  closed, so nothing was invented to keep a successor alive.
+- **Do not inflate this.** It was a **verifier-quality** fix.
+  `src/storage/folderWriteCoordinator.ts` **was and remains correct** and ends the task
+  **byte-identical** at SHA-256 `0f8f7c74…3f6b`, measured before the first mutation and again after
+  the fifth and last restore. No production code changed, no product defect was repaired, and the
+  coordinator's public surface did not grow — **no lane identity, generation counter, event hook or
+  debug API was added for a test's benefit**.
+- **What changed, and it is one file:** `scripts/verify-write-queue.mts`, **+458 / -33**. GAP 4 first
+  (it is the one that could hide the other three): `Outcome<T>` and the bounded `settleWithin` helper
+  hoisted out of 6f-local scope with 6f's semantics unchanged by the move, a **non-unref'd** 60s
+  run-deadline backstop, top-level `unhandledRejection` and `uncaughtException` handlers, and a
+  **single exit path** `finish()` so the totals line always prints. Then GAP 1 as new block **6h**
+  (T1/T2/T3 on one key, exact handover, cardinality before any ordering claim), GAP 2 as new block
+  **6i** (per-caller enter/exit spans; six separate facts including `maxConcurrent === 1`), and GAP 3
+  decided by the direct serialization assertions rather than by map presence. No arbitrary sleeps —
+  `deferred()` gates and `drainEventLoop()` throughout.
+- **Measured, not predicted.** Green at **78/78**, up from a **58/58** baseline measured live this
+  task: **+20 net new checks, none regressed**. *M1* premature lane eviction → exit 1, **74/78**,
+  four named reds, while **every 6h cardinality check, every lane-presence check and the whole 6i
+  block stayed GREEN** — that contrast is the non-vacuity proof. *M2* (`owned.tail = settled;`
+  deleted) and *M3* → exit 1, **64/78** each, red by measured value (`maxConcurrent=4 over 4/4 spans,
+  expected exactly 1`; six named intersecting pairs); **M3 is recorded as observationally identical
+  to M2, not as extra coverage**. *M4a* wedge and *M4b* rejection → each exit 1, **29/30**, one named
+  red, **totals printed and normal termination both times**. Coordinator restored byte-exactly after
+  every mutant; **no mutant was ever staged or committed**.
+- **The suite now carries its own positive control.** Block 6i runs four writers on four **distinct**
+  folders under one recorder label and *requires* the overlap detector to fire — `maxConcurrent=4,
+  overlaps=6`. Without it, "no overlap" would be unfalsifiable.
+- **A correction you should not re-litigate.** The Bead's literal wording — an external caller
+  running strictly between T1's settle and T2's start — describes an **unreachable** window:
+  `runExclusive` installs `owned.tail.then(runTask, runTask)` **synchronously at admission**, so T2's
+  reaction is registered before T1 settles and drains as a microtask ahead of any later macrotask. A
+  test occupying that window would be timing fiction. The decidable invariant is **continuity across
+  a later arrival**, which is what 6h asserts; M1 confirms it empirically — the defect surfaces at
+  **T3**, never at the already-admitted T2.
+- **Run this task:** `verify:write-queue` **78/78**, `npm run build` **exit 0**,
+  `verify:profile-store` **74/74**, `verify:r0-characterization` **175 PASS / 0 FAIL**,
+  `verify:verifier-classification` **exit 0 / 202 scripts**, `verify:roadmap-dashboard` **177/177**
+  with the Overview banner reading **"Sources agree"**. **NOT run:** the clean-machine GUI
+  walkthrough. **NOT APPLICABLE:** mock-site coverage — folder write coordination has no browser
+  surface, and none was fabricated.
+- **Tracker, measured with `bd stats` / `bd list --status blocked` / `bd blocked`, not derived:**
+  **276 total / 271 closed / 5 outstanding**, of which **3 open** (`awkit-dhw6`, `awkit-9a1l`,
+  `awkit-wknd`) and **2 status = blocked** (`awkit-7bu`, `awkit-cm8`), **0 dependency-blocked**. Keep
+  **status = blocked** distinct from **dependency-blocked**.
+- **Roadmap pin — moved under its own QA lease, as the standing rule requires.** Closing `awkit-rkd8`
+  with no new bead made the tracker pin in `scripts/verify-roadmap-dashboard.mjs` stale one-sidedly:
+  **270 → 271 closed**, **6 → 5 outstanding**, `total` held at **276**, and the **edge pin did not
+  move** — re-measured at **107**, because closing a bead adds and removes no edge. That file is
+  QA-owned, so it was routed to `qa` as its **own separate lease** rather than edited from the
+  closing agent's project-state lease. **Each conjunct was mutation-tested independently and each
+  went red alone** — `=== 6` → exit 1 at **176/177**; `=== 270` → exit 1 at **176/177**; both with
+  the same single named red `FAIL 5 outstanding / 271 closed - outstanding 5, closed 271` and every
+  other check green. Restored and reconfirmed at **177/177**. The rule stands: **route a stale pin to
+  its owning role under its own lease and mutation-test it** — never edit it from the closing agent's
+  lease to obtain green, and never relax an exact equality to a range or a `>=`.
+- **One lease irregularity, disclosed rather than buried.** `bd close` appends to
+  `.beads/interactions.jsonl` as an unavoidable side effect, and that path was not in the
+  project-state lease's `allowed_paths`, so it was recorded as an out-of-lease write. No production
+  code path anywhere in this repository sets `resolved: true` on a violation — only test fixtures
+  construct that value — so the **QC-approved override** in the contract's `write_lease.overrides[0]`
+  is the only mechanism the design provides, with direct precedent in
+  `docs/ai/contracts/awkit-syaa.json`. The path is now declared in `routing.expected_paths`. **The
+  guard was not weakened to get past this.**
+
+## HANDOFF (2026-09-08) — awkit-s410 CLOSED: lane eviction proven non-vacuously, verifier-only, no product change
 
 - **Restated for the two-narrative consistency check:** the validation ledger is **unchanged at 65
   PASS / 2 NOT RUN / 0 BLOCKED** across its **67 cases**. `awkit-s410` adds no validation case and

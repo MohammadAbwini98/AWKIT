@@ -1,6 +1,117 @@
 # TASK_LOG
 
-## 2026-09-08 (latest) — awkit-s410 — lane eviction proven non-vacuously in `verify:write-queue` (Claude Opus 5)
+## 2026-09-09 (latest) — awkit-rkd8 — the four block-6 vacuity gaps closed in `verify:write-queue` (Claude Opus 5)
+
+**Agents involved:** single-agent mode per `CONCURRENCY_POLICY` — the root primary discharged each
+routed role under a correctly granted lease rather than borrowing another role's authority. Manager
+(routing, lease issuance, and the only Git executor — no Git command was run by any other role, and
+none by project-state); QA (the whole of `scripts/verify-write-queue.mts`, the five coordinator
+mutation runs, and — under a **separate** lease — the tracker pin in
+`scripts/verify-roadmap-dashboard.mjs`); QC (an independent review pass over the final diff, with the
+independence claim stated precisely below); project-state (this entry — Beads, KNOWN_ISSUES,
+CURRENT_STATE, HANDOFF, TASK_LOG, `assignments.json`).
+
+**Task:** close `awkit-rkd8` (P2, `discovered-from: awkit-s410`) — the deferred evidentiary tranche.
+**A verifier-quality fix, not a product fix.** `src/storage/folderWriteCoordinator.ts` was and remains
+correct and ends the task **byte-identical** at SHA-256
+`0f8f7c74c698145a5cb0a0490c0230d4a2a6e70fcd80fa3abffed1acfebd3f6b`, measured before the first mutation
+and again after the fifth and last restore. **No mutant was staged or committed at any point.**
+
+**The four gaps.** GAP 1: same-key continuity was sampled at a **single instant**, so an
+evicted-and-recreated lane was indistinguishable from one continuous FIFO generation, and a **third**
+same-key caller was never exercised. GAP 2: mutual exclusion was **inferred from lane-map presence**,
+not measured. GAP 3: nothing caught a lane that stays present while its tail stops advancing. GAP 4:
+6g awaited an unbounded `Promise.all`, so a wedged or rejecting task could hang the verifier or kill
+the process **before the totals line printed**, and the bounded `settleWithin` helper was trapped in
+6f-local scope.
+
+**Implementation — `scripts/verify-write-queue.mts` only, +458 / -33.** GAP 4 was done **first**,
+because a verifier that can die before printing its totals can hide every other result: `Outcome<T>`
+and `settleWithin` hoisted to block-6 scope (6f's semantics unchanged by the move, and its three
+existing 6g check names survive verbatim), a **non-unref'd** 60s run-deadline backstop, top-level
+`unhandledRejection` and `uncaughtException` handlers, and a **single exit path** `finish()` that
+always prints the totals. Then block **6h** for GAP 1 (T1/T2/T3 on one key; exact handover string;
+entry and exit cardinality asserted **before** any ordering claim), block **6i** for GAP 2 (per-caller
+enter/exit spans and six separate facts, including `maxConcurrent === 1` over a printed `4/4` span
+denominator), and GAP 3 decided by the direct serialization assertions rather than by map presence.
+**No arbitrary sleeps** — `deferred()` gates and `drainEventLoop()` only.
+
+**Mutation evidence, all executed against the real coordinator.** Green at **78/78**, up from a
+**58/58** baseline measured live this task — **+20 net new checks, none regressed**.
+`M1` premature lane eviction (line 154) → exit 1, **74/78**, four named reds, while **every 6h
+cardinality check, every lane-presence check and the entire 6i block stayed GREEN**.
+`M2` (`owned.tail = settled;` deleted) and `M3` → exit 1, **64/78** each, red by measured value;
+`M3` is recorded as **observationally identical to M2**, not as extra coverage.
+`M4a` wedge and `M4b` rejection → each exit 1, **29/30**, one named red, **totals printed and normal
+termination both times**; the rejection was caught by `uncaughtException`, not `unhandledRejection`,
+and that is recorded as measured rather than as predicted. Restored byte-exactly after every one.
+A **non-vacuity positive control** now ships inside 6i: four writers on four **distinct** folders
+under one recorder label, requiring the detector to actually fire — `maxConcurrent=4, overlaps=6`.
+
+**One adjudication, recorded instead of faked.** The Bead asked for a caller executing strictly
+between T1's settle and T2's start. That window is **unreachable**: `runExclusive` captures
+`const owned = lane;` and installs `owned.tail.then(runTask, runTask)` **synchronously at admission**,
+so T2's reaction is registered before T1 settles and drains as a microtask ahead of any later
+macrotask. The decidable invariant is continuity across a **later** arrival; M1 confirms it — the
+defect surfaces at **T3**, never at the already-admitted T2.
+
+**Files changed by this task:** `scripts/verify-write-queue.mts` (the only permanent implementation
+path), `scripts/verify-roadmap-dashboard.mjs` (the tracker pin, under its own QA lease),
+`docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`, `docs/ai/KNOWN_ISSUES.md`,
+`.beads/issues.jsonl`, `.beads/interactions.jsonl` (an unavoidable `bd close` side effect),
+`tools/roadmap/assignments.json`, `docs/ai/contracts/awkit-rkd8.json` (Manager-owned, contract
+control plane), `docs/ai/contracts/active-lease.json`, and `docs/ai/contracts/awkit-wfharden.json` as
+inherited release bookkeeping from the previous task. About thirty-four unrelated dirty and untracked
+paths — including `AWTKIT.rar`, the `Building priorities and integration-handoff/` tree, the GLM
+tooling, the unrelated contracts and `package.json` — were **declared as preserved user work and
+never reset, stashed, cleaned, restored, discarded or staged**.
+
+**Roadmap pin, routed rather than absorbed.** Closing `awkit-rkd8` with **no new bead filed** moved
+the tracker pin one-sidedly: **270 → 271 closed**, **6 → 5 outstanding**, total held at **276**, and
+the **edge pin did not move** (re-measured at **107** in the same run, not assumed). The file is
+QA-owned, so it took its **own separate lease** instead of being edited from the closing agent's
+project-state lease. **Each conjunct was mutation-tested independently:** `=== 6` alone → exit 1,
+**176/177**; `=== 270` alone → exit 1, **176/177**; each with the same single named red and every
+other check green. Restored and reconfirmed **177/177**.
+
+**Tests run:** `verify:write-queue` **78/78**; `npm run build` **exit 0**; `verify:profile-store`
+**74/74**; `verify:r0-characterization` **175 PASS / 0 FAIL**; `verify:verifier-classification`
+**exit 0, 202 scripts**; `verify:roadmap-dashboard` **177/177** with the Overview banner reading
+**"Sources agree"**. **NOT run:** the clean-machine GUI walkthrough. **NOT APPLICABLE:** mock-site —
+folder write coordination is a Node filesystem-serialization property with no browser surface, and
+none was fabricated to look complete.
+
+**Reviewer independence, stated precisely.** This ran in single-agent mode, so QC's independence is
+**methodological, not organizational**: the review was conducted from the final diff against the
+contract's acceptance criteria and constraints, and organizational independence is **explicitly not
+claimed**. Same disclosure pattern as `docs/ai/contracts/awkit-glm-delegation-tooling.json`.
+
+**Lease irregularity, disclosed.** `bd close` appends to `.beads/interactions.jsonl`, which was not in
+the project-state lease's `allowed_paths`, so the write was recorded as a violation. `amendLease`
+never touches `lease.violations`, `recordViolations` only ever writes `resolved: false`, and **no
+production code path in this repository sets `resolved: true`** — only test fixtures construct that
+value — so the **QC-approved override** recorded in the contract's `write_lease.overrides[0]` is the
+only mechanism the design provides, with direct precedent in `docs/ai/contracts/awkit-syaa.json`. The
+path is now declared in `routing.expected_paths`, and **no guard, grammar or validation control was
+weakened** to get past it.
+
+**Commits — and a correction worth carrying forward.** The implementation, the pin move and this
+project-state phase land directly on `main` by **exact-path staging only** (`git add -- <paths>`;
+never `git add .` / `-A` / `-u`). They are **split along path ownership into separate commits under
+separate leases**, and that split is forced by the guard rather than chosen for tidiness: **Git
+requires an ACTIVE lease.** `isManagerGitCommand` in `tools/agents/lease-guard.mjs` returns `false`
+when no lease is held, and the no-lease branch of `main()` admits only the read-only shell grammar
+plus the Manager-only `agent:lease-grant` command — so `git add`, `git commit` and `git push` each
+run **with a lease held**, and `boundedStagePath` bounds every staged path to that lease's
+`allowed_paths` plus `SYSTEM_BOOKKEEPING_PATHS` plus the task's own contract. The two QA-owned
+verifier files therefore commit under a **qa** lease and this project-state material under a
+**project-state** lease. **project-state still ran no Git command:** the guard gates Git on the
+**actor** being manager, while the lease **holder** only bounds what may be staged — the two are
+different axes, and an earlier draft of this entry got that wrong by claiming the commits happen
+after the lease is released. The exact commit SHAs and the push result are recorded in the contract's
+`push-main` evidence, written after the push actually succeeds rather than predicted here.
+
+## 2026-09-08 — awkit-s410 — lane eviction proven non-vacuously in `verify:write-queue` (Claude Opus 5)
 
 **Agents involved:** Manager (routing, lease issuance, and the only Git executor — no Git command was
 run by any other role, and none by project-state); QA (block 6g in `scripts/verify-write-queue.mts`

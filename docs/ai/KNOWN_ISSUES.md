@@ -301,15 +301,36 @@ mistake it for one.
   itself — `pending` incremented at task start instead of at admission — took the suite from **58/58
   to 57/58 with exactly one named red**; the coordinator was then restored byte-exactly.
   `verify:write-queue` is green at **58/58**, up from a **55/55** baseline.
-  **Residual limitation — deferred, not fixed, tracked as `awkit-rkd8`:** block 6g samples lane
-  presence at a **single instant**, which cannot distinguish a lane that was never evicted from one
-  that was **evicted and recreated under the same key**. Excluding that mutant class needs a **third
-  same-key caller** admitted between the first task's settle and the queued task's start, so the lane
-  identity it observes can be compared with the one the queued task inherited. Two further gaps ride
-  with it: non-overlap is still inferred from the **lane-map-presence proxy** rather than measured
-  directly, and **no assertion covers a lane that stays in the map while its tail stops chaining**.
-  All three are disclosed in the block's own comments; `awkit-rkd8` is the evidentiary debt, not a new
-  discovery.
+  **Residual limitation — CLOSED 2026-09-09 by `awkit-rkd8`, superseding the deferral recorded here.**
+  What was deferred: block 6g sampled lane presence at a **single instant**, which could not
+  distinguish a lane that was never evicted from one **evicted and recreated under the same key**; a
+  **third** same-key caller was never exercised; non-overlap was still inferred from the
+  **lane-map-presence proxy** rather than measured; and **no assertion covered a lane that stays in
+  the map while its tail stops chaining**. A fourth gap was found while closing the first three: 6g
+  awaited an unbounded `Promise.all`, so a wedged or rejecting task could hang the verifier or kill
+  the process **before the totals line printed**.
+  **All four are now closed in `scripts/verify-write-queue.mts` (+458 / -33), and the coordinator was
+  not touched** — it ends byte-identical at SHA-256 `0f8f7c74…3f6b`, and **no lane identity,
+  generation counter, event hook or debug API was added for a test's benefit**. New block **6h**
+  admits T1, T2 and a later-arriving **T3** on one key and asserts the exact handover plus entry and
+  exit cardinality **before** any ordering claim; new block **6i** records per-caller enter/exit spans
+  and asserts six separate facts, including `maxConcurrent === 1` over a **printed span denominator**
+  so the predicate cannot decide over an empty observation set; the tail-advancement gap is now
+  decided by the direct serialization assertions rather than by map presence; and the termination gap
+  is closed by a hoisted bounded `settleWithin`, a **non-unref'd** run-deadline backstop, top-level
+  `unhandledRejection`/`uncaughtException` handlers, and a **single exit path** that always prints the
+  totals.
+  **Proven load-bearing by measurement:** `78/78` green from a `58/58` baseline; `M1` premature
+  eviction → **74/78** with the lane-presence family and the whole of 6i still **GREEN**, which is the
+  contrast that proves map presence is not the deciding signal; `M2` (`owned.tail = settled;` deleted)
+  and `M3` → **64/78** each; `M4a` wedge and `M4b` rejection → **29/30** each with totals printed and
+  normal termination. The suite also ships its own **positive control** — four writers on four
+  *distinct* folders, requiring the overlap detector to fire at `maxConcurrent=4, overlaps=6` — so
+  "no overlap" is falsifiable rather than green by construction.
+  **One correction worth keeping:** the Bead's literal ask — a caller executing strictly between T1's
+  settle and T2's start — describes an **unreachable** window, because `runExclusive` installs
+  `owned.tail.then(runTask, runTask)` **synchronously at admission**. Do not write a test that claims
+  to occupy it; assert **continuity across a later arrival** instead.
   **The original finding, preserved verbatim:**
   *lane eviction is not covered by non-vacuous evidence.*
   All four assertions that claim the coordination lane is released correctly compare the result of
