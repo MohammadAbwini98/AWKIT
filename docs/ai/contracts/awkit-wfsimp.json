@@ -1,0 +1,396 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-wfsimp",
+    "title": "Simplify the AWKIT Claude Code workflow to a single-agent default",
+    "objective": "Make one capable primary agent complete one normal task end to end. Change the orchestration DEFAULT from delegation to single-agent execution, make every subagent invocation explicit and conditional on a named trigger, prohibit recursive delegation and automatic external-model delegation, and separate routine context from historical context. Remove duplicate reasoning, not engineering validation: no check is deleted, no activation rule is weakened, no security control is relaxed.",
+    "requested_by": "repository owner",
+    "risk_level": 2,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "c58ec7d",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": ".claude/mcp/glm_delegate_server.py",
+        "git_status": " M",
+        "sha256": "f0a8b7cc4d406bec106af14de6533fe780ea395662b6924aad6f2bbb923f684a"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate.py",
+        "git_status": "??",
+        "sha256": "63a1da02652f8b4da1cd3127ff0f1ad943de96575cd15e181b7571a84acada60"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate_live.py",
+        "git_status": "??",
+        "sha256": "c4aa1747972f852460b0e668243d6e6105d71387c494cdce00f13d71589d23cd"
+      }
+    ]
+  },
+  "classification": {
+    "renderer_visual_change": false,
+    "interaction_change": false,
+    "accessibility_change": false,
+    "electron_main_change": false,
+    "ipc_change": false,
+    "runner_change": false,
+    "execution_change": false,
+    "concurrency_change": false,
+    "persisted_shape_change": false,
+    "migration_required": false,
+    "filesystem_write_change": false,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": false,
+    "protected_login_change": false,
+    "signing_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "general_engineering_change": false,
+    "performance_change": false,
+    "broad_investigation": false,
+    "project_state_change": false,
+    "agent_infrastructure_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "tools/agents/**",
+      ".claude/**",
+      ".codex/**",
+      ".gemini/**",
+      "CLAUDE.md",
+      "AGENTS.md"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "manager",
+      "allowed_paths": [
+        "tools/agents/**",
+        ".claude/**",
+        ".codex/**",
+        ".gemini/**",
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**"
+      ]
+    },
+    "reviewers": [
+      "qa"
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "single-agent-default",
+      "description": "The orchestration default is single-agent execution. CONCURRENCY_POLICY.defaultMode is no longer \"subagents\", and the generated agent definitions state that a routed role is performed by the primary agent unless a named escalation trigger fires.",
+      "evidence_required": [
+        "agent-routing",
+        "agent-render-check"
+      ]
+    },
+    {
+      "id": "conditional-delegation",
+      "description": "Every subagent invocation is gated on an explicit trigger list. Routine work (Risk 0-1, single layer, no risk flag) delegates to nobody; review delegation requires a major-phase, security, concurrency, persistence-migration, architectural or explicitly-requested trigger.",
+      "evidence_required": [
+        "agent-routing",
+        "routing-scenarios"
+      ]
+    },
+    {
+      "id": "no-weakened-checks",
+      "description": "No activation rule, risk level, path ownership, evidence vocabulary or verifier assertion is removed or relaxed. verify:agent-routing passes with its unconditional-check count unchanged at 1036, proving no assertion stopped running.",
+      "evidence_required": [
+        "agent-routing"
+      ]
+    },
+    {
+      "id": "no-recursive-delegation",
+      "description": "Subagents complete their own scope and cannot spawn further agents; this remains enforced in code and is now stated in the written policy.",
+      "evidence_required": [
+        "agent-routing"
+      ]
+    },
+    {
+      "id": "external-delegation-opt-in",
+      "description": "glm-delegate is never invoked automatically; the policy names the only three conditions under which it may be used and forbids routine search, summary, formatting, test execution and state updates.",
+      "evidence_required": [
+        "routing-scenarios"
+      ]
+    },
+    {
+      "id": "context-separation",
+      "description": "Routine task context is an explicitly named short list; historical and archival documents are on-demand only and do not auto-load.",
+      "evidence_required": [
+        "routing-scenarios"
+      ]
+    },
+    {
+      "id": "generated-files-consistent",
+      "description": "All 18 generated platform files match the registry byte-for-byte after regeneration, so no second source of truth is introduced.",
+      "evidence_required": [
+        "agent-render-check",
+        "agent-routing"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "agent-routing",
+      "type": "verifier",
+      "command": "npm run verify:agent-routing",
+      "artifact": null,
+      "required": true,
+      "result": "FAIL",
+      "notes": "Ran; exits 1 with 1039/1040 passed, 1040 run. RED ON ARRIVAL: the identical two failures and the identical cardinality were measured BEFORE any edit in this task, under a temporarily released lease. (1) 'the rendered matrix is byte-identical to the registry it derives from' - docs/ai/routing/ROUTING_MATRIX.md is UNMODIFIED in the working tree, so the committed file already disagreed with the registry, and its renderer tools/agents/render-docs.mjs does not import context-policy.mjs at all, which is the only module this task changed. (2) 'suite cardinality - expected 1037 assertions, ran 1040' is a RISE, not a DROP: three assertions were added by an earlier commit without the deliberate re-pin the guard's own message demands. A RISE means nothing stopped running. Not re-pinned here: re-pinning would erase the signal, and scripts/** is qa-owned and outside the manager lease. The acceptance clause this evidence serves - that no assertion stopped running - is PROVEN by the before/after equality, not by a green exit code."
+    },
+    {
+      "id": "agent-render-check",
+      "type": "verifier",
+      "command": "npm run agent:check-agents",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "Ran after regeneration: 'All generated agent definitions are current.' All 18 generated files (16 .claude/agents/*.md plus the Codex and Gemini agent-routing skills) are byte-identical to what the registry renders, so no second source of truth was introduced. Regenerated with the allowlisted exact form 'node tools/agents/render-platform-agents.mjs --write'; the npm alias agent:render-agents is not in the lease-guard shell allowlist."
+    },
+    {
+      "id": "routing-scenarios",
+      "type": "inspection",
+      "command": null,
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "Derived by inspection from the two authorities, read at their current state: ACTIVATION_RULES in tools/agents/routing-matrix.mjs (lines 1318-1434, UNCHANGED by this task) decides which roles are accountable; delegationDecisionFor() and specialistLimitFor() in tools/agents/context-policy.mjs decide how many of them are performed by a spawned subagent rather than by the primary agent. Executed as an inspection because the contract declared command: null, and because lease-guard.mjs refuses arbitrary 'node -e' by design - its shell allowlist is a closed explicit set, which is correct behavior and not a workaround target. The discriminator to read: routed role count is UNCHANGED in every scenario; only the subagent count moves. Scenarios 1-3 name no trigger and spawn nobody. Scenario 3b is the same persistence area with migration_required, and it crosses into delegation - which is the evidence that the gate is the named trigger, not the subject area.",
+      "scenarios": [
+        {
+          "class": "simple UI bug",
+          "example": "a button label misaligns in the renderer",
+          "flags": [
+            "renderer_visual_change"
+          ],
+          "risk_level": 1,
+          "cross_layer_count": 1,
+          "routed_roles": [
+            "manager",
+            "uiux",
+            "frontend",
+            "qa"
+          ],
+          "named_triggers": [],
+          "max_subagents": 0,
+          "ceiling": 2,
+          "expected": "The primary agent makes the design judgment (uiux), edits app/renderer/** (frontend) and runs the targeted check itself (qa). Four accountable roles, zero model requests beyond the primary."
+        },
+        {
+          "class": "normal feature",
+          "example": "a scoped TypeScript product module with no narrower owner",
+          "flags": [
+            "general_engineering_change"
+          ],
+          "risk_level": 1,
+          "cross_layer_count": 1,
+          "routed_roles": [
+            "manager",
+            "software",
+            "qa"
+          ],
+          "named_triggers": [],
+          "max_subagents": 0,
+          "ceiling": 2,
+          "expected": "Primary implements and validates end to end. This is the case the executive prompt names as the target topology."
+        },
+        {
+          "class": "persistence change (routine)",
+          "example": "add an optional field to a persisted JSON shape, no migration",
+          "flags": [
+            "persisted_shape_change"
+          ],
+          "risk_level": 1,
+          "cross_layer_count": 1,
+          "routed_roles": [
+            "manager",
+            "persistence",
+            "qa"
+          ],
+          "named_triggers": [],
+          "max_subagents": 0,
+          "ceiling": 2,
+          "expected": "persistence remains accountable for unknown-field preservation and old-data compatibility; the primary discharges that role rather than spawning it. No check is skipped."
+        },
+        {
+          "class": "persistence change (migrating)",
+          "example": "the same area, but the shape change requires a migration",
+          "flags": [
+            "persisted_shape_change",
+            "migration_required"
+          ],
+          "risk_level": 2,
+          "cross_layer_count": 1,
+          "routed_roles": [
+            "manager",
+            "persistence",
+            "architect",
+            "qa",
+            "qc"
+          ],
+          "named_triggers": [
+            "persistence-migration"
+          ],
+          "max_subagents": 1,
+          "ceiling": 2,
+          "expected": "One independent reviewer, diff-first. Included deliberately as the control for scenario 3: same files, same owner, different answer - proving the gate is the named trigger and not the subject area."
+        },
+        {
+          "class": "major architecture change",
+          "example": "an IPC contract plus a concurrency change spanning renderer, main and runner",
+          "flags": [
+            "public_contract_change",
+            "ipc_change",
+            "concurrency_change"
+          ],
+          "risk_level": 3,
+          "cross_layer_count": 3,
+          "routed_roles": [
+            "manager",
+            "runtime",
+            "integration",
+            "performance",
+            "architect",
+            "qa",
+            "qc"
+          ],
+          "named_triggers": [
+            "architectural-refactor",
+            "concurrency-or-runtime-change"
+          ],
+          "max_subagents": 2,
+          "ceiling": 3,
+          "expected": "Two triggers named, so two independent readers are authorized, under a ceiling of 3 from specialistLimitFor(crossLayerCount >= 2). Still below the ceiling: parallel reviewers of one diff mostly re-derive each other."
+        },
+        {
+          "class": "release / milestone review",
+          "example": "packaging and offline-boundary changes at a release candidate",
+          "flags": [
+            "packaging_change",
+            "offline_boundary_change"
+          ],
+          "risk_level": 2,
+          "cross_layer_count": 1,
+          "routed_roles": [
+            "manager",
+            "release",
+            "qa",
+            "qc"
+          ],
+          "named_triggers": [
+            "release-candidate",
+            "major-phase-completion"
+          ],
+          "max_subagents": 2,
+          "ceiling": 2,
+          "expected": "The one class where the ceiling itself binds: two triggers request two readers and routineSpecialists allows exactly two. Offline and packaging validation is unchanged and still runs."
+        }
+      ],
+      "policy_assertions_checked": [
+        "external-delegation-opt-in: EXTERNAL_DELEGATION_POLICY.automatic === false in every scenario above; no scenario reaches glm-delegate, and neverFor explicitly excludes file searching, summaries, formatting, test execution, simple edits and project-state updates.",
+        "context-separation: CONTEXT_LOADING.routine is a named 7-item list; CONTEXT_LOADING.historical (phase reports, historical audits, archived change requests) is on-demand only and does not auto-load.",
+        "no-recursive-delegation: NESTED_DELEGATION.allowedByDefault === false, so any subagent in scenarios 3b, 4 and 5 completes its own scope and cannot spawn further agents."
+      ]
+    },
+    {
+      "id": "typecheck-build",
+      "type": "build",
+      "command": "npm run build",
+      "artifact": null,
+      "required": false,
+      "result": "PASS",
+      "notes": "Ran rather than assumed, which was the point of declaring it optional instead of NOT APPLICABLE: 'tsc --noEmit' clean and all three bundles built (main 1,542.27 kB, preload 20.57 kB, renderer 2,032.65 kB). Separately, 'npm run typecheck:scripts' FAILS on scripts/verify-write-queue.mts (TS7060, TS2345) - that file is UNMODIFIED in the working tree, and tsconfig.scripts.json includes only 'scripts/**/*.mts', so it does not cover the tools/agents/*.mjs files this task edited. Pre-existing and out of scope, recorded here rather than omitted."
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-wfsimp:manager:2026-09-08T19:35:38.826Z",
+        "task": "awkit-wfsimp",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/**",
+          ".gemini/**",
+          "AGENTS.md",
+          "CLAUDE.md",
+          "tools/agents/**"
+        ],
+        "acquired_at": "2026-09-08T19:35:38.826Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T19:37:28.920Z",
+        "released_reason": "temporary release to measure the pre-existing verifier cardinality baseline without an active lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wfsimp:manager:2026-09-08T19:38:13.985Z",
+        "task": "awkit-wfsimp",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/**",
+          ".gemini/**",
+          "AGENTS.md",
+          "CLAUDE.md",
+          "tools/agents/**"
+        ],
+        "acquired_at": "2026-09-08T19:38:13.985Z",
+        "acquired_at_commit": "c58ec7df1eb09c1d7f7f81c607dc229cc809779e",
+        "released_at": "2026-09-08T20:02:35.214Z",
+        "released_reason": "awkit-wfsimp complete: single-agent default implemented, all four evidence items resolved, contract closed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  },
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "not required",
+    "acceptance_verdicts": {
+      "single-agent-default": "MET. CONCURRENCY_POLICY.defaultMode is 'single-agent'; all 18 generated definitions carry a 'How this role is performed' section and agent-render-check is PASS.",
+      "conditional-delegation": "MET. delegationDecisionFor() returns delegate:false with maxSubagents:0 unless a trigger from DELEGATION_TRIGGERS is NAMED; scenarios 1-3 spawn nobody and 3b/4/5 are gated on named triggers.",
+      "no-weakened-checks": "MET IN SUBSTANCE, NOT AS LITERALLY WORDED. The clause 'verify:agent-routing passes' is NOT satisfied - the gate exits 1. It also exited 1, with the identical failure set and identical cardinality (1039/1040 passed, 1040 run), BEFORE any edit in this task. The operative claim - that no activation rule, risk level, path ownership, evidence vocabulary or verifier assertion was removed or relaxed, and that no assertion stopped running - is proven by that before/after equality. The wording assumed a green gate on arrival; it was red. Recorded as a shortfall in the criterion I wrote, not as a pass.",
+      "no-recursive-delegation": "MET. NESTED_DELEGATION.allowedByDefault === false and requiresExplicitPrimaryAuthorization === true, now stated in CLAUDE.md and in every generated definition.",
+      "external-delegation-opt-in": "MET. EXTERNAL_DELEGATION_POLICY.automatic === false, with three allowedWhen conditions and six neverFor exclusions.",
+      "context-separation": "MET WITH A DECLARED DEVIATION. Implemented as CONTEXT_LOADING routine/onDemand/historical tiers over the existing docs/ai/ tree, NOT as the new .ai/project-state.md the executive prompt named. Creating a parallel .ai/ tree would have produced exactly the second source of truth that docs/ai/DECISIONS.md binds against, and verify:roadmap-dashboard already parses 13 of the existing files.",
+      "generated-files-consistent": "MET. agent:check-agents PASS across all 18 files."
+    },
+    "notes": "Closed. Evidence was declared before implementation, per the manager rule that evidence chosen afterwards tends to be evidence that passes - and that rule earned its keep here: the pre-declared agent-routing criterion caught that the governing gate was already red, which a criterion written afterwards would have quietly reworded. Three pre-existing failures were found and NOT fixed, all outside the manager lease and outside this task's scope: the ROUTING_MATRIX.md byte-identity drift (committed; remediation is one allowlisted command, 'node tools/agents/render-docs.mjs --write', deliberately not run because the manager does not own that file and regenerating could discard someone's intentional edit), the +3 suite cardinality rise, and the scripts/verify-write-queue.mts typecheck errors."
+  }
+}

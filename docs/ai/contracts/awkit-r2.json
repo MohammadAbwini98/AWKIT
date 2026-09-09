@@ -1,0 +1,481 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-r2",
+    "title": "R2: one Electron-main execution application service",
+    "objective": "Execute R2 only by extracting the application-level run preparation and orchestration currently concentrated in app/main/ipc/execution.ipc.ts into exactly one narrowly scoped Electron-main application service (app/main/execution/ExecutionApplicationService.ts), so the architecture reads IPC transport plus sender, session and RBAC authorization, then ExecutionApplicationService, then ExecutionEngine. Sender identity, session context, RBAC and Super User authorization, installed-Chrome authorization, trusted/open handler classification, sender-bound audit context and IPC schema validation stay in execution.ipc.ts and must complete before any privileged application-service execution. Preserve every independent authority unchanged: request-time and pre-run license enforcement, the engine dispatch gate, parked/resume and repeat-instance license checks, RunGatePolicy, ExecutionEngine, ScenarioOrchestrator, ConcurrentExecutionCoordinator, InstanceManager/Pool, cancellation, session reuse, report persistence, certificate and trust behavior, Legacy Compatibility attribution and Settings-derived capacity. Exactly one canonical production path may call ExecutionEngine.startRun. Introduce no generic service framework, no additional orchestrator, queue or policy layer, no repository abstraction, no new persistence, no additional browser owner and no additional locator or runtime system.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "a6211d5ab1082cd11e2c5f4baa1413c28a67a25a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      }
+    ]
+  },
+  "classification": {
+    "electron_main_change": true,
+    "ipc_change": true,
+    "runner_change": false,
+    "execution_change": true,
+    "concurrency_change": false,
+    "persisted_shape_change": false,
+    "filesystem_write_change": false,
+    "playwright_change": false,
+    "recorder_change": false,
+    "browser_behavior_change": false,
+    "mock_site_required": false,
+    "licensing_change": false,
+    "auth_change": false,
+    "authorization_change": false,
+    "secret_handling_change": false,
+    "protected_login_change": false,
+    "packaging_change": false,
+    "offline_boundary_change": false,
+    "new_dependency": false,
+    "public_contract_change": false,
+    "broad_investigation": false,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/main/execution/**",
+      "app/main/ipc/execution.ipc.ts",
+      "scripts/verify-r0-characterization.mts",
+      "scripts/verify-run-report-compatibility.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/contracts/awkit-r2.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+      "docs/ai/contracts/awkit-r1b-coordination.json",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [
+      "architect",
+      "integration"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "runtime",
+      "allowed_paths": [
+        "app/main/execution/**",
+        "app/main/ipc/execution.ipc.ts"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "R2 only: do not begin R3 or any later refactoring phase.",
+      "Extract into exactly one new Electron-main application service at app/main/execution/ExecutionApplicationService.ts; do not create a directory of collaborating services or a generic service framework.",
+      "Target layering is IPC transport plus sender/session/RBAC authorization, then ExecutionApplicationService, then ExecutionEngine. The service is a preparation and orchestration seam, not a new authority.",
+      "Introduce no additional orchestrator, queue or policy layer, no repository abstraction, no new persistence, no additional browser owner and no additional locator or runtime system.",
+      "Keep in execution.ipc.ts: ipcMain.handle registration, sender and window identity, session context, RBAC and permission authorization, Super User enforcement, installed-Chrome authorization, trusted versus open handler classification, sender-bound audit context, IPC transport and IPC-specific schema validation.",
+      "Move to the service: workflow and profile loading, workflow-to-runtime projection, application-level validation sequencing, Legacy Compatibility attribution, runtime-input resolution, data-source resolution and materialization, Oracle and JSON source preparation, Settings-derived capacity, instance-template assembly, application-level pre-run licensing sequencing, and the final preparation for and the single canonical call to ExecutionEngine.startRun.",
+      "applyRuntimeConcurrencyFromSettings must remain exported from app/main/ipc/execution.ipc.ts because app/main/ipc/settings.ipc.ts imports it; the service may consume Settings-derived capacity for instance-template assembly without relocating that exported function or editing settings.ipc.ts.",
+      "There must remain exactly one canonical production path that calls ExecutionEngine.startRun; introducing a second production caller is a regression."
+    ],
+    "security": [
+      "Authorization must complete before privileged application-service execution: sender identity, session context, RBAC and permission checks, Super User enforcement and installed-Chrome authorization run in execution.ipc.ts and gate the call into ExecutionApplicationService.",
+      "Do not consolidate, weaken or bypass the installed-Chrome Super User authorization rule, the trusted versus open handler classification, or the sender-bound audit context.",
+      "Preserve request-time license enforcement, pre-run license enforcement, the engine dispatch gate, parked/resume license checks and repeat-instance checks as independent authorities; relocating a call site must not merge or remove any of them."
+    ],
+    "compatibility": [
+      "Preserve ExecutionEngine, ScenarioOrchestrator, ConcurrentExecutionCoordinator, InstanceManager and the instance Pool, cancellation, session reuse, report persistence, certificate and trust behavior, Legacy Compatibility attribution and Settings-derived capacity behavior.",
+      "Runtime inputs and resolved data sources must reach ExecutionEngine.startRun exactly as before; the run report, RBAC, licensing, dispatch-gate, cancellation, concurrency, settings-runner and IPC-contract behaviors are unchanged.",
+      "The IPC contract surface exposed to the renderer is unchanged; no channel name, permission requirement or payload shape changes."
+    ],
+    "offline": [
+      "No runtime network dependency, new dependency, resource-path change, global runtime dependency, or mutable write under resources/ or app.asar; non-admin operation preserved."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "R2-EXTRACTION",
+      "description": "Application-level run preparation and orchestration is extracted into exactly one ExecutionApplicationService, the KEEP-in-IPC and MOVE-to-service split matches the constraints, and exactly one canonical production path calls ExecutionEngine.startRun.",
+      "evidence_required": [
+        "r0-characterization",
+        "build"
+      ]
+    },
+    {
+      "id": "R2-AUTHORIZATION-ORDER",
+      "description": "Sender, session, RBAC and Super User authorization, installed-Chrome authorization and handler classification complete in execution.ipc.ts before any privileged ExecutionApplicationService execution, and the installed-Chrome Super User rule is not weakened; negative controls fail if the service is invoked before authorization or the Super User rule is relaxed.",
+      "evidence_required": [
+        "e2e-rbac",
+        "r0-characterization"
+      ]
+    },
+    {
+      "id": "R2-LICENSING-GATES",
+      "description": "Request-time and pre-run license enforcement, the engine dispatch gate, parked/resume license checks and repeat-instance checks remain independent authorities in their original ordering; negative controls fail if any licensing checkpoint or the dispatch gate is removed or bypassed.",
+      "evidence_required": [
+        "e2e-licensing",
+        "license-dispatch-gate",
+        "r0-characterization"
+      ]
+    },
+    {
+      "id": "R2-RUNTIME-FIDELITY",
+      "description": "Application-level validation sequencing, runtime-input resolution, data-source resolution and materialization, Legacy Compatibility attribution, Settings-derived capacity, instance-template assembly, cancellation, concurrency, session reuse, report persistence and the IPC contract are preserved through the relocation.",
+      "evidence_required": [
+        "runner",
+        "cancellation",
+        "concurrency",
+        "run-report-compatibility",
+        "settings-runner-behaviour",
+        "ipc-contract"
+      ]
+    },
+    {
+      "id": "R2-MUTATION",
+      "description": "The R0 characterization gate detects at least eleven distinct regressions covering service-before-authorization, request licensing removed, pre-run licensing removed, dispatch gate bypassed, validation omitted, installed-Chrome Super User rule weakened, Legacy Compatibility attribution dropped, runtime inputs dropped, data sources dropped, Settings-derived capacity skipped, and a second production ExecutionEngine.startRun caller; no assertion is weakened.",
+      "evidence_required": [
+        "r0-characterization",
+        "build"
+      ]
+    },
+    {
+      "id": "R2-HYGIENE",
+      "description": "Source hygiene and strict offline validation are green, no new verify or validate script is unregistered, and the extraction introduces no new dependency, resource-path change or mutable write under resources/ or app.asar.",
+      "evidence_required": [
+        "source-hygiene",
+        "offline",
+        "verifier-classification"
+      ]
+    },
+    {
+      "id": "R2-CLOSEOUT",
+      "description": "Beads, validation ledger, assignments and AI state record current evidence, the roadmap Overview reads Sources agree, git diff --check is clean, and coherent commits are pushed to main with AWTKIT.rar preserved and the control-plane residue folded, not discarded.",
+      "evidence_required": [
+        "roadmap-dashboard",
+        "git-diff-check",
+        "push-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build; npm run typecheck:scripts",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "r0-characterization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:r0-characterization",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "ipc-contract",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ipc-contract",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "e2e-rbac",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:e2e-rbac",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "e2e-licensing",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:e2e-licensing",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "license-dispatch-gate",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:license-dispatch-gate",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "settings-runner-behaviour",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:settings-runner-behaviour",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "cancellation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:cancellation",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "concurrency",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:concurrency",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "run-report-compatibility",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:run-report-compatibility",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "source-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline -- -Strict",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "pending",
+      "artifact": ""
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending",
+      "artifact": ""
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-r2:qa:2026-09-04T22:19:03.979Z",
+        "task": "awkit-r2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts"
+        ],
+        "acquired_at": "2026-09-04T22:19:03.979Z",
+        "acquired_at_commit": "a6211d5ab1082cd11e2c5f4baa1413c28a67a25a",
+        "released_at": "2026-09-04T23:02:19.560Z",
+        "released_reason": "R2 characterization baseline committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r2:runtime:2026-09-04T23:02:46.341Z",
+        "task": "awkit-r2",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/execution/**",
+          "app/main/ipc/execution.ipc.ts"
+        ],
+        "acquired_at": "2026-09-04T23:02:46.341Z",
+        "acquired_at_commit": "5cdee63bf0ce784f9669d706f41ca43863a46027",
+        "released_at": "2026-09-04T23:17:56.015Z",
+        "released_reason": "R2 extraction committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r2:qa:2026-09-04T23:18:12.373Z",
+        "task": "awkit-r2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts"
+        ],
+        "acquired_at": "2026-09-04T23:18:12.373Z",
+        "acquired_at_commit": "2ed01118e9163f54024a2f44ab3b6d40efb7e218",
+        "released_at": "2026-09-04T23:58:27.728Z",
+        "released_reason": "R2 characterization controls re-pointed and committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r2:qa:2026-09-04T23:59:47.501Z",
+        "task": "awkit-r2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts",
+          "scripts/verify-run-report-compatibility.mts"
+        ],
+        "acquired_at": "2026-09-04T23:59:47.501Z",
+        "acquired_at_commit": "5ce007420bb908af2def30e2d8c7b8d77aa90206",
+        "released_at": "2026-09-05T00:20:47.075Z",
+        "released_reason": "QA characterization and guard re-pointing complete and committed",
+        "amendments": [
+          {
+            "timestamp": "2026-09-05T00:10:38.803Z",
+            "added": [
+              "scripts/verify-run-report-compatibility.mts"
+            ],
+            "reason": "R2 moved Legacy Compatibility attribution into the service so the source guard must follow it",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r2:project-state:2026-09-05T00:26:50.765Z",
+        "task": "awkit-r2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/ARCHITECTURE.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-05T00:26:50.765Z",
+        "acquired_at_commit": "aeac35d3060d1c1427eb3472b61ad26e7c0f85fa",
+        "released_at": "2026-09-05T00:37:26.084Z",
+        "released_reason": "project-state reconciliation complete and committed, rerouting to qa for the roadmap dashboard bead pins",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r2:qa:2026-09-05T00:37:45.991Z",
+        "task": "awkit-r2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-05T00:37:45.991Z",
+        "acquired_at_commit": "a3aee7ad243e88971862bb69084c837819d761a2",
+        "released_at": "2026-09-05T00:41:53.457Z",
+        "released_reason": "roadmap dashboard bead pins moved to 275 and 9 and the gate reaches 177 of 177",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-r2:runtime:2026-09-05T00:45:44.855Z",
+        "task": "awkit-r2",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/execution/**",
+          "app/main/ipc/execution.ipc.ts"
+        ],
+        "acquired_at": "2026-09-05T00:45:44.855Z",
+        "acquired_at_commit": "149726beaafe775a8b574a723ee0c9974645a47a",
+        "released_at": "2026-09-05T10:43:01.503Z",
+        "released_reason": "R2 parked after owner resolved the handoff-bundle false positive, handing the writer slot to the approved renderer-wide UI migration",
+        "amendments": [],
+        "overrides": [],
+        "violations": [
+          {
+            "path": "Building priorities and integration-handoff/",
+            "detectedAt": "2026-09-05T01:12:20.764Z",
+            "via": "bash",
+            "resolved": true,
+            "resolution": "False positive. Owner-supplied Claude Design handoff bundle placed in the repo root after this lease was granted; not a write by the runtime lease holder. No app/main/execution file was modified under this lease."
+          }
+        ]
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending",
+    "closed_at": null,
+    "closed_note": ""
+  }
+}

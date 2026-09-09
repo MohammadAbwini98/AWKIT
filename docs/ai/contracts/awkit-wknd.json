@@ -1,0 +1,459 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-wknd",
+    "title": "Use one trusted Chrome launch snapshot per real run",
+    "objective": "Resolve the pre-existing Settings TOCTOU coupling by reading the configured Chrome mode and executable path once at the execution:runWorkflow IPC boundary for a real run, using that same immutable run-level snapshot for authorization and application-service browser launch preparation, while leaving certificate-trust Settings resolution, dry-run behavior, repeat behavior, licensing, persistence, and the public renderer IPC request unchanged. Add non-vacuous structural verification with mutation controls, close/export the Bead, reconcile project state and exact roadmap pins under their owners, verify, commit coherently on main, push normally, and release the final lease without touching unrelated work.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "caa88ae75acabf6049c85f5a760de55c94247655",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": ".claude/mcp/glm_delegate_server.py",
+        "git_status": " M",
+        "sha256": "f0a8b7cc4d406bec106af14de6533fe780ea395662b6924aad6f2bbb923f684a"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-dhw6.json",
+        "git_status": " M",
+        "sha256": "4b29570af72af3ef561c788cd595a55c4d22aaf0786677b464ed7a8784a8f420"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-ctx.json",
+        "git_status": " M",
+        "sha256": "1f2fa3de8977435d779905459d30bcf0474c06014cc639eb11c58a337e653829"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-glm-delegation-tooling.json",
+        "git_status": " M",
+        "sha256": "cb64a6a2ed3a6c8d3b7761786ef2d8a54abf25372d7a27860a4c515f4efacf71"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r1b-coordination.json",
+        "git_status": " M",
+        "sha256": "adac2783c372592ce103d5ad3e82c40858dbe9986bd79ecd1b80ed9b23e1b174"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-rkd8.json",
+        "git_status": " M",
+        "sha256": "b9dd8a510e512cf73fc679cd81ce89b475aa68ff6d47d30089964ea7abcc7b50"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-s410.json",
+        "git_status": " M",
+        "sha256": "c51b6e13cfc44bb10c4b91a7f19984f0572ee9cbc0aafe05d52e7d79baa22b35"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-ui1.json",
+        "git_status": " M",
+        "sha256": "dd3a8a78b951ed87f3f8603c9103cc09939be9f2b24fb3213eff2bcf5f7b9552"
+      },
+      {
+        "path": "package.json",
+        "git_status": " M",
+        "sha256": "ca5892824b997f007817657e4c6c72f91f38ce8f62b40e2b64d2708497051a5c"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate.py",
+        "git_status": "??",
+        "sha256": "63a1da02652f8b4da1cd3127ff0f1ad943de96575cd15e181b7571a84acada60"
+      },
+      {
+        "path": ".claude/mcp/verify_glm_delegate_live.py",
+        "git_status": "??",
+        "sha256": "c4aa1747972f852460b0e668243d6e6105d71387c494cdce00f13d71589d23cd"
+      },
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "??",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "??",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "??",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "??",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "??",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "??",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "??",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "??",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "??",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "??",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "??",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "??",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "??",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "??",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "??",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "??",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "??",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "??",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-9a1l.json",
+        "git_status": "??",
+        "sha256": "8942932df35e3f2ad26e9d54c36b16fea42af4d2a1855c017cf5e7c53d472f45"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-r2.json",
+        "git_status": "??",
+        "sha256": "907ac7a78fe7d82a2f251c160bafb4a3d52ed5545263cb0ed62fba3489527228"
+      },
+      {
+        "path": "docs/ai/contracts/awkit-wfsimp.json",
+        "git_status": "??",
+        "sha256": "0a897859791665eb15a1a4719632149a42a0e301a956f8ef5faea5adca9385bd"
+      }
+    ]
+  },
+  "classification": {
+    "general_engineering_change": true,
+    "electron_main_change": true,
+    "ipc_change": true,
+    "execution_change": true,
+    "authorization_change": true,
+    "browser_behavior_change": true,
+    "project_state_change": true,
+    "public_contract_change": false,
+    "persisted_shape_change": false,
+    "mock_site_required": false,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "software",
+      "runtime",
+      "integration",
+      "recorder",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/main/ipc/execution.ipc.ts",
+      "app/main/execution/ExecutionApplicationService.ts",
+      "scripts/verify-r0-characterization.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/contracts/awkit-wknd.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "architect",
+      "software",
+      "integration",
+      "recorder",
+      "security"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "scripts/**"
+      ]
+    }
+  },
+  "constraints": {
+    "architecture": [
+      "IPC remains the authorization boundary; ExecutionApplicationService remains the single production ExecutionEngine.startRun caller.",
+      "The renderer-facing RunWorkflowRequest remains unchanged; the snapshot is an internal IPC-to-service argument."
+    ],
+    "security": [
+      "Installed Chrome still requires Super User; bundled Chromium still requires WORKFLOW_EXECUTE; both decisions and launch configuration must use one snapshot.",
+      "Certificate-trust Settings resolution remains independent and must not be silently folded into this fix."
+    ],
+    "compatibility": [
+      "Dry-run, repeat, licensing, capacity, persisted data, and existing public contracts remain unchanged."
+    ],
+    "offline": [
+      "No dependency, network, or bundled-browser policy change; mock-site is not applicable."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "ONE-SNAPSHOT",
+      "description": "A real run reads UiSettings once at the IPC boundary, copies mode plus executablePath into one run-level snapshot, authorizes from that snapshot, and passes that same binding to the service.",
+      "evidence_required": [
+        "source-inspection",
+        "r0-characterization"
+      ]
+    },
+    {
+      "id": "LAUNCH-CONSISTENCY",
+      "description": "The service launches installed Chrome or bundled Chromium and resolves executablePath only from the trusted snapshot; it does not reread superUser.chrome, while the separate certificate-trust Settings read remains.",
+      "evidence_required": [
+        "source-inspection",
+        "r0-characterization",
+        "security"
+      ]
+    },
+    {
+      "id": "COMPATIBILITY",
+      "description": "No renderer IPC request, persisted shape, licensing, dry-run, repeat, or unrelated Settings semantics change; build and focused/full verifiers pass truthfully.",
+      "evidence_required": [
+        "build",
+        "licensing",
+        "runner",
+        "offline"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "The Bead is closed/exported, project state and any exact roadmap pin are reconciled under their owners, coherent main commits are pushed normally, remote parity is remeasured, and unrelated work is preserved.",
+      "evidence_required": [
+        "beads-roadmap",
+        "push-main",
+        "preserved-path-audit"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "source-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "inspect IPC-to-service snapshot data flow and exact diffs",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "r0-characterization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:r0-characterization",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "security",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:security",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "licensing",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:licensing && npm run verify:license-dispatch-gate",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "beads-roadmap",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-wknd; bd stats; npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure parity",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "preserved-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "task gate preserved-path fingerprints plus final git status",
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "write_lease": {
+    "status": "unassigned",
+    "history": [
+      {
+        "id": "awkit-wknd:runtime:2026-09-09T20:01:35.616Z",
+        "task": "awkit-wknd",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "app/main/execution/ExecutionApplicationService.ts",
+          "app/main/ipc/execution.ipc.ts"
+        ],
+        "acquired_at": "2026-09-09T20:01:35.616Z",
+        "acquired_at_commit": "caa88ae75acabf6049c85f5a760de55c94247655",
+        "released_at": "2026-09-09T20:04:19.314Z",
+        "released_reason": "awkit-wknd runtime fix committed as f3c6fab; build, security 61/0, and super-user-controls 61/0 pass; R0 now truthfully stops on its stale applicationService call mutation anchor pending QA-owned control update",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wknd:qa:2026-09-09T20:04:55.994Z",
+        "task": "awkit-wknd",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-r0-characterization.mts"
+        ],
+        "acquired_at": "2026-09-09T20:04:55.994Z",
+        "acquired_at_commit": "f3c6fab3c637c117aa610a65576cae4c40b4c55c",
+        "released_at": "2026-09-09T20:10:30.118Z",
+        "released_reason": "awkit-wknd QA control committed as 0b2a34b; R0 181/0, licensing 192/0, dispatch 34/0, runner 138/0, security 61/0, super-user-controls 61/0, and build pass; four valid snapshot regressions are rejected by name",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-wknd:project-state:2026-09-09T20:10:56.352Z",
+        "task": "awkit-wknd",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-09T20:10:56.352Z",
+        "acquired_at_commit": "0b2a34b09f391abb4aa7d4fffe39c892503d151e",
+        "released_at": "2026-09-09T20:11:51.681Z",
+        "released_reason": "awkit-wknd closed and exported in dbc6858 after runtime and QA acceptance; campaign-wide narratives, contracts, Oracle blockers, roadmap pin, full verification, push, and final parity remain to reconcile",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
