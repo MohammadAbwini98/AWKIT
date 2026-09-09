@@ -314,14 +314,14 @@ process.on("uncaughtException", (error: unknown) => {
 
   /** Settles with a NAMED outcome even when `promise` never settles, so a deadlock is reported as a
    *  failed check instead of hanging the verifier before it can print its totals. */
-  const settleWithin = async <T>(promise: Promise<T>, ms: number): Promise<Outcome<T>> => {
+  const settleWithin = async <T,>(promise: Promise<T>, ms: number): Promise<Outcome<T>> => {
     promise.catch(() => undefined); // the promise may be abandoned on the timeout path
     let timer: ReturnType<typeof setTimeout> | undefined;
     const expiry = new Promise<Outcome<T>>((settle) => {
       timer = setTimeout(() => settle({ kind: "timeout" }), ms);
     });
     const outcome = await Promise.race([
-      promise.then<Outcome<T>>(
+      promise.then<Outcome<T>, Outcome<T>>(
         (value) => ({ kind: "resolved", value }),
         (error: unknown) => ({ kind: "rejected", error })
       ),
@@ -333,7 +333,7 @@ process.on("uncaughtException", (error: unknown) => {
 
   /** Every outcome, in submission order, always the same length as the input. Never rejects and never
    *  outlives `ms`, so one wedged or rejecting member cannot strand the others or the totals line. */
-  const settleAllWithin = <T>(promises: readonly Promise<T>[], ms: number): Promise<Outcome<T>[]> =>
+  const settleAllWithin = <T,>(promises: readonly Promise<T>[], ms: number): Promise<Outcome<T>[]> =>
     Promise.all(promises.map((promise) => settleWithin(promise, ms)));
 
   /** Deadline for the coordination blocks. Generous relative to the event-loop-turn work they do, so
@@ -341,7 +341,7 @@ process.on("uncaughtException", (error: unknown) => {
   const COORDINATION_DEADLINE_MS = 5000;
 
   /** Renders an outcome for a check detail, so a red says what actually happened. */
-  const describe = <T>(outcome: Outcome<T>): string =>
+  const describe = <T,>(outcome: Outcome<T>): string =>
     outcome.kind === "resolved"
       ? `resolved(${String(outcome.value)})`
       : outcome.kind === "rejected"
@@ -373,7 +373,7 @@ process.on("uncaughtException", (error: unknown) => {
       events,
       /** Wraps a task body so its entry and exit are both timestamped even if the body throws. */
       observe:
-        <T>(id: string, key: string, body: () => Promise<T>) =>
+        <T,>(id: string, key: string, body: () => Promise<T>) =>
           async (): Promise<T> => {
             mark(id, key, "enter");
             try {
