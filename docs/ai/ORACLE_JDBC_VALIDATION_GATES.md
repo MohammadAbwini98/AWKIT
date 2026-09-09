@@ -4,9 +4,12 @@
 JDBC driver in **Settings → Database Drivers**; Oracle runs through the isolated bridge via **direct JDBC**
 (one connection per query, no pool). This document tracks the validation gates for that model.
 
-**Release status: PRODUCTION-CANDIDATE.** All locally-runnable gates pass. The only remaining gates are the
-packaged-EXE build + clean-machine walkthrough (the dev host OOMs on `electron-builder`) and sustained
-real-world soak beyond the 30-minute harness — both **external**, documented below, not run here.
+**Release status: PRODUCTION-CANDIDATE.** All locally-runnable gates pass. Generic portable/NSIS packaging,
+packaged-runtime checks, and a qualifying clean offline Windows walkthrough were cleared at source commit
+`9768d6fa`. The only remaining gates are a fresh **packaged real-Oracle** workflow on qualifying clean
+Windows and a sustained days-long real-Oracle soak beyond the 30-minute harness. Both are external and have
+not run against the current final runtime. Neither this runbook nor `awkit-cm8` currently defines a numeric
+duration for “days-long”, so an owner-approved duration is required before that gate can be executed.
 
 ## Gate status
 
@@ -18,12 +21,13 @@ real-world soak beyond the 30-minute harness — both **external**, documented b
 | **Authorized real Oracle functional matrix** | connect, prepared binds, truncation, type conversion, read-only policy block, permission error, **cancellation** — all via the Settings Java+driver path | ✅ **Cleared** — `verify:oracle-live` **7/7** real mode vs local Oracle 19c |
 | **Mock-UI fixture (data-driven form)** | `SPECTER_MOCKUI.MOCK_FORM_CASES` ↔ database-free twin stay in parity; every fixture value is a real `/form` control/option; read-only policy + `maxRows` hold on the fixture path | ✅ **Cleared** — `verify:oracle-mock-ui` **36/36**, no database required |
 | **Persisted mock-UI workflow** | Real bridge protocol + OracleQueryService/DataSourceResolver single-flight; persisted Data Source/flow/workflow; all row values in live DOM; two-instance bound; production ExecutionEngine; success and native-validation block terminals; screenshots/logs/reports | ✅ **Database-free cleared** — `verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED**; explicit real mode is implemented and fail-closed, while the same-workflow live-19c execution remains operator-blocked |
-| **Settings GUI walkthrough** | both Database Drivers cards render; metadata; validate; **real bridge launch + real ojdbc load**; deletion guard; no secrets; reduced-motion; 0 console errors | ✅ **Cleared** — `verify:oracle-drivers-gui` **30/30** (real Electron) |
+| **Settings GUI walkthrough** | both Database Drivers cards render; metadata; validate; **real bridge launch + real ojdbc load**; deletion guard; no secrets; reduced-motion; 0 console errors | ✅ **Cleared** — `verify:oracle-drivers-gui` **46/46** (real Electron, reconfirmed 2026-09-09) |
 | **Packaging (offline, selection model)** | only the bridge jar is bundled; JRE/driver rejected if present; checksums enforced; app starts without Java | ✅ **Cleared** — `verify:oracle-packaging` **23/23**, `verify:oracle-offline-bundle` **11/11**, `verify:oracle-runtime-prep` **14/14**, `validate:offline` clean |
 | **Regression (cross-cutting)** | IPC surface, settings schema, profile store, secrets, data sources, concurrency, cancellation unaffected | ✅ **Cleared** — ipc-contract 4/4, settings-persistence 3/3, profile-store 13/13, secrets 16/16, data-editor 27/27, concurrency 78/78, cancellation 12/12 |
 | **Performance / soak (≥30 min)** | sustained bounded-concurrency load; query P50/P95; cancellation latency; bridge+Node RSS flat (no leak); teardown invariants; **no pool metrics** | ✅ **Cleared** — `benchmark:oracle-jdbc` 30-min live run; artifact `reports/oracle-validation/oracle-soak.json` (see the epic report) |
-| **Packaged EXE + clean-machine walkthrough** | portable/NSIS build; app starts without Java; user configures Java+driver → real query; migration/restart persistence | ⛔ **External** — `electron-builder` OOMs on this 16 GB dev host |
-| **Sustained real-world soak** | days-long production-style load | ⛔ **External** — beyond the 30-min harness |
+| **Generic packaged EXE + clean offline Windows** | portable/NSIS build and hash match; standard-user launch/install/uninstall; no source tree, global Node, network, or pre-existing profile | ✅ **Cleared** — portable + NSIS from clean commit `9768d6fa`; qualifying offline Windows 11 guest **21 PASS / 0 FAIL / 3 NOT EXECUTED** |
+| **Packaged real-Oracle clean-machine workflow** | fresh final-runtime artifact; starts without Java/driver; fail-closed unconfigured state; user selects Java + real ojdbc; real JDBC/query/row-driven browser workflow; restart persistence; zero leaked requests/processes | ⛔ **External** — the cleared clean-machine run did not execute Oracle, and no qualifying environment plus authorized credential lifecycle is currently available |
+| **Sustained real-world soak** | days-long production-style real-Oracle load with direct-JDBC concurrency, latency, cancellation, memory, cleanup, and redaction evidence | ⛔ **External** — beyond the 30-min harness; exact acceptance duration is not yet specified |
 
 ## Live functional matrix — how to reproduce
 
@@ -85,7 +89,17 @@ load=8 drivers; tunable via `AWKIT_ORACLE_SOAK_MINUTES` / `_CONCURRENCY` / `_DRI
 it falls back to the database-free mock bridge (still proves the Specter-side lifecycle/leak invariants).
 Redacted artifact: `reports/oracle-validation/oracle-soak.json`.
 
-## Packaged EXE + clean-machine walkthrough (external gate)
+The 30-minute harness is a cleared engineering gate, not the outstanding `awkit-cm8` acceptance run.
+`awkit-cm8` requires a days-long production-style real-Oracle soak and explicitly rejects 30 minutes, a
+few hours, mock bridge execution, or synthetic data as substitutes. Because no authoritative numeric
+duration is currently recorded, obtain an owner-approved exact duration before starting the multi-day run;
+do not infer one from the tunable `AWKIT_ORACLE_SOAK_MINUTES` variable.
+
+## Packaged real-Oracle clean-machine workflow (external gate)
+
+Generic packaging and the non-Oracle clean-machine walkthrough are already cleared by
+[`CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md`](../testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-08-29_RELEASE.md).
+That run explicitly did not execute packaged Oracle and is prerequisite context, not evidence for this gate.
 
 On a clean Windows x64 box (no system Java, no dev deps, no dev env vars): build portable + NSIS after
 `prepare:oracle-runtime`, then verify:

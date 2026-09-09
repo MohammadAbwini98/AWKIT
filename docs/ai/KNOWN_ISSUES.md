@@ -2159,19 +2159,21 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Risky assumptions / to verify
 
-- **Oracle: the real UCP path has never linked against real jars or opened a real connection.** This is the
-  Oracle feature's highest residual risk. `OracleUcpQueryExecutor` lives in the gated
-  `oracle-jdbc-bridge/src/main/java-oracle/` source set, which compiles only when ojdbc/ucp are vendored —
-  and they cannot be vendored here (build-time network is blocked). It IS stub-compiled against the real
-  JDK `java.sql` on every `verify:oracle-bridge-real-build`, so its JDBC usage and internal signatures are
-  validated; the **UCP API shape is not**. Specifically unverified: whether real UCP method signatures match
-  (e.g. `setConnectionWaitTimeout(int)` vs. newer Duration-based setters), real pool lifecycle/teardown
-  semantics, and real ORA-code → error-category mappings. Do not assume the executor works because it
-  "compiles" — the compile is against stubs. Clear via `ORACLE_JDBC_VALIDATION_GATES.md`.
-- **Oracle: everything green is green against a MOCK executor.** 218 checks pass with no database. They
-  prove the protocol, SQL gate, cancellation, timeout, limits, lazy resolution, and fail-closed policy —
-  they prove nothing about real driver connectivity, real pooling under load, or real latency. Treat
-  `INTEGRATION-CANDIDATE` literally.
+- **Oracle: two external acceptance gates remain; obsolete UCP/mock-only framing must not be reused.** UCP
+  was removed, Oracle now uses direct JDBC with one connection per query, and the Settings-managed Java +
+  real ojdbc path has already passed the separate authorized real-Oracle functional matrix. Generic
+  portable/NSIS packaging and a qualifying clean offline Windows walkthrough also passed at clean commit
+  `9768d6fa`. What has **not** passed is (1) `ORA-LIVE-001`, the persisted row-driven mock-UI workflow against
+  an authorized real Oracle 19c fixture, including credential retirement and process teardown, and (2) a
+  fresh packaged real-Oracle workflow on qualifying clean Windows. Both require an authorized operator and
+  an out-of-band ephemeral credential; the database-free 7 PASS / 0 FAIL / 1 BLOCKED campaign and the
+  non-Oracle clean-machine run are controls, not substitutes.
+- **Oracle: the required “days-long” real-world soak has no numeric acceptance duration.** The existing
+  30-minute direct-JDBC soak is a cleared engineering baseline, but `awkit-cm8` explicitly requires a
+  sustained production-style real-Oracle run beyond it. No current Bead or runbook specifies the exact
+  number of days. Do not invent a threshold or call 30 minutes/a few hours sufficient; obtain an explicit
+  owner-approved duration, then record offered/admitted concurrency, successes/failures, cancellation
+  latency, query P50/P95, Node and Java memory, active requests, connection/process cleanup, and redaction.
 - **Oracle: `MockQueryExecutor` must never become reachable in a packaged build.** Three layers enforce
   this (resolver env, manager handshake, Java `Main`). If you touch `OracleRuntimeResolver`,
   `OracleJdbcBridgeManager.start()`, or `Main.selectExecutor()`, re-run `verify:oracle-runtime` +
