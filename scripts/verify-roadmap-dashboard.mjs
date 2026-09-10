@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("277 issues parse", beads.stats.total === 277, `got ${beads.stats.total}`);
+  check("279 issues parse", beads.stats.total === 279, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -503,8 +503,16 @@ try {
   // `bd list --status blocked` separately reports the two status-blocked Oracle items
   // (`awkit-7bu`, `awkit-cm8`) - so outstanding is 0 open plus 2 blocked. `bd blocked` reports
   // no dependency-blocked issues, which stays distinct from `status = blocked`.
-    "2 outstanding / 275 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 275,
+  // Then 4/275 of 279 on 2026-09-10: fresh-artifact project-state filed two OPEN verifier-debt
+  // follow-ups, `awkit-vpje` (the stale e2e-RBAC issuer-readiness label) and `awkit-befd` (three
+  // inert async predicates in the preserved pre-capsule Flow Designer walkthrough). Nothing closed,
+  // so total rises 277 -> 279 and outstanding rises 2 -> 4 while closed stays 275. Both new issues
+  // have dependency_count 0, so the edge pin below stays 108. Measured after the required
+  // `bd export -o .beads/issues.jsonl`: `bd stats` reports Total 279, Open 2, In Progress 0,
+  // Closed 275 and dependency-Blocked 0; `bd list --status blocked` separately reports the same two
+  // status-blocked Oracle items (`awkit-7bu`, `awkit-cm8`).
+    "4 outstanding / 275 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 275,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

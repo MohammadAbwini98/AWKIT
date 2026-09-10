@@ -50,25 +50,23 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "qa",
       "allowed_paths": [
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        ".beads/issues.jsonl",
-        ".beads/interactions.jsonl",
-        "tools/roadmap/assignments.json"
+        "scripts/verify-roadmap-dashboard.mjs"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
-        "scripts/**",
         "resources/**",
         "package.json",
-        "tools/roadmap/*.ts"
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        ".beads/**",
+        "tools/roadmap/"
       ],
-      "note": "Final project-state stage after QA verifier commit 9a5c3c0 and bounded release checkpoint commit 0d7390d. This writer records Outcome A, preserves the measured GUI evidence and two truthful FAIL results, supersedes the stale strict-offline and RBAC narratives, files exactly two QA-debt Beads follow-ups, exports Beads, and leaves the 67-case validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED. Product, release-resource and verifier code remain out of scope. The expected post-Beads roadmap-pin correction is routed back to qa under a separate later lease rather than widened into this one."
+      "note": "Bounded QA follow-up after project-state filed awkit-vpje and awkit-befd and exported 279 issues. The first post-export roadmap run was 175/177, failing only the exact stale tracker pins: 277 versus measured 279 and 2 outstanding / 275 closed versus measured 4 / 275. This writer changes only those exact predicates and their provenance comment, mutation-proves each changed predicate, and must not alter application, release, Beads or project-state files. The writer returns to project-state after the pin commit for final evidence reconciliation."
     },
     "writer_sequence": [
       "release",
@@ -314,6 +312,28 @@
         "acquired_at_commit": "9a5c3c0037021b230ecf9a2380ddc3d78a9b5a96",
         "released_at": "2026-09-10T07:25:21.319Z",
         "released_reason": "fresh 0.1.29 dependency manifest and signature committed at 0d7390d; handoff to project-state",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-fresh-artifact-0910:project-state:2026-09-10T07:26:21.698Z",
+        "task": "awkit-fresh-artifact-0910",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-10T07:26:21.698Z",
+        "acquired_at_commit": "0d7390d53e90c2e73c13c3bc1b84d708bc910fca",
+        "released_at": "2026-09-10T07:32:31.695Z",
+        "released_reason": "Outcome A docs and QA follow-up Beads committed at 6b2cef1; handoff exact roadmap pin to qa",
         "amendments": [],
         "overrides": [],
         "violations": []
