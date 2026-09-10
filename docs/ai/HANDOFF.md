@@ -41,8 +41,9 @@
   Final whitespace, task-gate, clean-tree and remote-parity evidence is recorded after the
   evidence-only commit and normal push. The first normal push was accepted through `db1c711`
   (`8ab6563..db1c711`, `main -> main`); both task contracts are terminal after their clean-tree and
-  preserved-path audits. Both task gates are **PASS** with no blockers or scope escapes; only the
-  contract-release commit and final parity push remain.
+  preserved-path audits. Both task gates are **PASS** with no blockers or scope escapes. The terminal
+  sequence releases the project-state lease before committing and pushes this documentation state
+  normally; no task-owned change, active lease or assignment remains at handoff.
 
 ## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; project state reconciled
 

@@ -291,6 +291,28 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-befd:project-state:2026-09-10T17:46:46.132Z",
+        "task": "awkit-befd",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-befd.json",
+          "docs/ai/contracts/awkit-vpje.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-10T17:46:46.132Z",
+        "acquired_at_commit": "b95a9a0f6bb9441acb33e07d5d0d9b0042ea5a55",
+        "released_at": "2026-09-10T17:47:09.801Z",
+        "released_reason": "Reconciled final narrative to completed clean-tree, released-lease and convergence state",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

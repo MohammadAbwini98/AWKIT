@@ -61,7 +61,9 @@ mode); and `npm run ai:memory` **PASS**. Final whitespace, task-gate, clean-tree
 convergence evidence follows the evidence-only commit and normal push. The first normal push was
 accepted through `db1c711` (`8ab6563..db1c711`, `main -> main`); the two task contracts are terminal
 after their clean-tree/preserved-path audits. Both task gates are **PASS** with no blockers, scope
-escapes or preserved-path drift; only the final contract-release commit and convergence push remain.
+escapes or preserved-path drift. The terminal closeout sequence releases the project-state lease
+before committing and pushes this final documentation state normally; no task-owned change, active
+lease or assignment remains at handoff.
 
 ## Fresh 0.1.29 artifact: Outcome A — the observed old UI came from stale artifacts (2026-09-10)
 

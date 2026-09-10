@@ -12,8 +12,8 @@
     "docs/ai/contracts/awkit-vpje.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-10T17:16:31.408Z",
-  "acquired_at_commit": "db1c711ebc924646f75d7cc7061dbf82695a16ba",
+  "acquired_at": "2026-09-10T17:46:46.132Z",
+  "acquired_at_commit": "b95a9a0f6bb9441acb33e07d5d0d9b0042ea5a55",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -29,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-10T17:18:45.995Z",
-  "released_reason": "Both awkit-vpje and awkit-befd task gates pass with no blockers or scope escapes; terminal push and preserved-path evidence recorded",
-  "archived_at": "2026-09-10T17:18:45.996Z"
+  "released_at": "2026-09-10T17:47:09.801Z",
+  "released_reason": "Reconciled final narrative to completed clean-tree, released-lease and convergence state",
+  "archived_at": "2026-09-10T17:47:09.803Z"
 }
