@@ -44,19 +44,29 @@
       "docs/ai/TASK_LOG.md",
       "docs/ai/KNOWN_ISSUES.md",
       "tools/roadmap/assignments.json",
-      ".beads/issues.jsonl"
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "scripts/verify-roadmap-dashboard.mjs"
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/verify-packaged-validation.mts"
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ],
       "forbidden_paths": [
-        "app/renderer/styles/global.css",
+        "app/**",
+        "src/**",
+        "scripts/**",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        ".beads/**",
         "tools/roadmap/"
       ],
-      "note": "Phase 2 of writer_sequence. The release phase is complete and its lease was released at 2026-09-10T06:16:41.690Z; the dependency-manifest pair it regenerated stays dirty in the working tree and is recorded as baseline_dirty on the qa lease rather than re-claimed. qa extends the already-registered scripts/verify-packaged-validation.mts with packaged-UI-provenance assertions that bind the asar's renderer bytes to the built renderer bytes, and closes the fail-open assertion at line 268. Extending this registered verifier is deliberate: a NEW verifier file would additionally require the release lease for package.json and the project-state lease for scripts/lib/verifier-classification.ts. This field names the CURRENT phase writer and is re-pointed by the manager at each writer_sequence transition."
+      "note": "Bounded release-owned checkpoint reconciliation after the QA verifier commit 9a5c3c0. The completed release build regenerated and signed the dependency-manifest pair at source commit 13eb9eb, but the pair was deliberately carried as baseline_dirty through the QA lease and has not yet been committed. This temporary writer slot owns only those two generated release records; it may not widen into product, verifier, tracker or project-state files. After the pair is committed, the manager re-points the writer to the final project-state stage."
     },
     "writer_sequence": [
       "release",
@@ -272,6 +282,22 @@
             "resolved": false
           }
         ]
+      },
+      {
+        "id": "awkit-fresh-artifact-0910:qa:2026-09-10T06:22:09.570Z",
+        "task": "awkit-fresh-artifact-0910",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-packaged-validation.mts"
+        ],
+        "acquired_at": "2026-09-10T06:22:09.570Z",
+        "acquired_at_commit": "13eb9ebf13a14cff12854eb3586ca64617da0a58",
+        "released_at": "2026-09-10T07:18:21.960Z",
+        "released_reason": "qa verifier committed at 9a5c3c0; EV-ui-provenance PASS 119/119",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": [
