@@ -17,7 +17,13 @@ import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
-import { DEFAULT_CREDS, isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
+import {
+  DEFAULT_CREDS,
+  isolatedLaunchEnv,
+  resolveMainWindow,
+  signInFirstRun,
+  waitForPersistedState
+} from "./lib/gui-verify-harness.mjs";
 import { navClick } from "./lib/e2e-qa-lib.mjs";
 import { readLoopCapsuleVisual } from "./lib/loop-capsule-visual-oracle.mjs";
 
@@ -2167,7 +2173,14 @@ try {
   check("Confirmation removes the real draft blocker before Close properties", await resolutionSummary.locator("[data-validation-code]").count() === 0 && (await win.getByTestId("interaction-prerequisite-state").textContent()).includes("Ready"));
   check("Resolution remains an unknown recorded prerequisite with explicit runtime checks", (await win.getByTestId("interaction-prerequisite-state").textContent()).includes("actionability checked at runtime"));
   await win.getByRole("button", { name: "Save", exact: true }).click();
-  await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "prerequisite")?.locator?.executionDecision?.status === "user-confirmed", resolutionId);
+  await waitForPersistedState(
+    win,
+    async (id) =>
+      (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "prerequisite")?.locator
+        ?.executionDecision?.status === "user-confirmed",
+    resolutionId,
+    { label: "persisted user-confirmed interaction prerequisite decision" }
+  );
   const storedResolution = await win.evaluate((id) => window.playwrightFlowStudio.flows.get(id), resolutionId);
   const originalTarget = originalResolution.nodes.find((node) => node.id === "prerequisite");
   const storedTarget = storedResolution.nodes.find((node) => node.id === "prerequisite");
@@ -2184,7 +2197,14 @@ try {
   await resolutionSummary.locator('[data-validation-code="locatorNeedsReview"]').waitFor({ state: "detached" });
   check("Eligible approval removes the blocker and retains lower-resilience warning", (await win.getByTestId("locator-review-state").textContent()).includes("User-approved fallback") && await resolutionSummary.locator('[data-validation-code="locatorQuality"]').count() === 1);
   await win.getByRole("button", { name: "Save", exact: true }).click();
-  await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "unresolved")?.locator?.resolution === "user-approved-fallback", resolutionId);
+  await waitForPersistedState(
+    win,
+    async (id) =>
+      (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "unresolved")?.locator
+        ?.resolution === "user-approved-fallback",
+    resolutionId,
+    { label: "persisted user-approved locator fallback resolution" }
+  );
   check("Saving both corrections clears the stale load-only blocker banner", await win.getByTestId("flow-validation-banner").count() === 0);
   const resolvedValidation = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-resolution", dryRun: true }));
   check("Both saved corrections pass fresh production run validation", resolvedValidation.status === "validated", JSON.stringify({ status: resolvedValidation.status, issues: resolvedValidation.validation?.issues }));
@@ -2213,7 +2233,14 @@ try {
   await resolutionSummary.locator('[data-validation-code="interactionPrerequisiteBlocked"]').waitFor({ state: "visible" });
   check("Changing a confirmation immediately restores its blocker", !(await win.getByTestId("interaction-prerequisite-state").textContent()).includes("Ready"));
   await win.getByRole("button", { name: "Save", exact: true }).click();
-  await win.waitForFunction(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "prerequisite")?.locator?.executionDecision?.status === "blocked", resolutionId);
+  await waitForPersistedState(
+    win,
+    async (id) =>
+      (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.id === "prerequisite")?.locator
+        ?.executionDecision?.status === "blocked",
+    resolutionId,
+    { label: "persisted blocked interaction prerequisite decision" }
+  );
   const revokedValidation = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-resolution", dryRun: true }));
   check("Revoked confirmation is blocked by persisted production validation", revokedValidation.status === "validationFailed" && (revokedValidation.validation?.issues ?? []).some((issue) => issue.code === "interactionPrerequisiteBlocked"));
 
