@@ -18,15 +18,119 @@
  * developer paths. It is NOT the clean offline Windows VM walkthrough, which remains a separate
  * human gate (docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md).
  */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, statSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 
 import { portableExePath as resolvePortableExePath } from "./helpers/packaged-artifacts.mjs";
+
+const requireFromHere = createRequire(import.meta.url);
+// @electron/asar is CJS (ships with electron-builder's dependency tree). Same access pattern as
+// scripts/verify-packaged-runtime.mts.
+const asar = requireFromHere("@electron/asar") as {
+  listPackage(archive: string, options?: unknown): string[];
+  extractFile(archive: string, filename: string, followLinks?: boolean): Buffer;
+};
+
+type RendererEntryReference = {
+  kind: "script" | "stylesheet";
+  reference: string;
+};
+
+type ReleaseProvenance = {
+  source?: {
+    commit?: string;
+    treeDirty?: boolean;
+  };
+  application?: {
+    version?: string;
+  };
+  artifacts?: {
+    portable?: {
+      file?: string;
+      size?: number;
+      sha256?: string;
+    };
+  };
+};
+
+function sha256Bytes(value: Buffer | string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function asarListingPath(memberPath: string): string {
+  return `/${memberPath.replace(/\\/g, "/").replace(/^\/+/, "")}`;
+}
+
+function extractAsarMember(archivePath: string, segments: string[]): Buffer {
+  // @electron/asar splits member names with path.sep, so Windows callers must use join().
+  return asar.extractFile(archivePath, join(...segments));
+}
+
+function readTagAttribute(tag: string, attribute: string): string | undefined {
+  const match = tag.match(new RegExp(`\\b${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i"));
+  return match?.[1] ?? match?.[2] ?? match?.[3];
+}
+
+function rendererEntryReferences(html: string): RendererEntryReference[] {
+  const references: RendererEntryReference[] = [];
+  for (const match of html.matchAll(/<(script|link)\b[^>]*>/gis)) {
+    const tagName = match[1].toLowerCase();
+    const tag = match[0];
+    if (tagName === "script") {
+      const reference = readTagAttribute(tag, "src");
+      if (reference !== undefined) references.push({ kind: "script", reference });
+      continue;
+    }
+
+    const rel = readTagAttribute(tag, "rel") ?? "";
+    if (!rel.split(/\s+/).some((value) => value.toLowerCase() === "stylesheet")) continue;
+    const reference = readTagAttribute(tag, "href");
+    if (reference !== undefined) references.push({ kind: "stylesheet", reference });
+  }
+  return references;
+}
+
+function strictRendererAssetPath(reference: RendererEntryReference): string | undefined {
+  const pathOnly = reference.reference.split(/[?#]/, 1)[0];
+  if (!pathOnly.startsWith("./")) return undefined;
+  const segments = pathOnly.slice(2).split("/");
+  if (segments.length < 2 || segments[0] !== "assets") return undefined;
+  if (segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment.includes("\\"))) return undefined;
+  const expectedExtension = reference.kind === "script" ? /\.m?js$/i : /\.css$/i;
+  if (!expectedExtension.test(segments.at(-1) ?? "")) return undefined;
+  return segments.join("/");
+}
+
+async function listRelativeFiles(folder: string, prefix = ""): Promise<string[]> {
+  const entries = await readdir(folder, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) files.push(...(await listRelativeFiles(join(folder, entry.name), relativePath)));
+    else if (entry.isFile()) files.push(relativePath);
+  }
+  return files.sort();
+}
+
+function hologramDefinitions(css: string): string[] {
+  return Array.from(css.matchAll(/(--awkit-[A-Za-z0-9_-]+)\s*:/g), (match) => match[1]);
+}
+
+function gitOutput(args: string[]): string {
+  const safeDirectory = root.replace(/\\/g, "/");
+  return execFileSync("git", ["-c", `safe.directory=${safeDirectory}`, ...args], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  }).trim();
+}
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
@@ -255,17 +359,239 @@ try {
   const exeStat = statSync(portableExePath);
   const ageMinutes = (Date.now() - exeStat.mtimeMs) / 60_000;
   check(`the portable EXE is freshly built (${ageMinutes.toFixed(0)} min old, < 180)`, ageMinutes < 180, `mtime=${exeStat.mtime.toISOString()}`);
-  const sha256 = createHash("sha256").update(await readFile(portableExePath)).digest("hex");
+  const portableBytes = await readFile(portableExePath);
+  const sha256 = sha256Bytes(portableBytes);
   console.log(`    ↳ portable EXE: ${portableExePath}`);
   console.log(`    ↳ size: ${exeStat.size} bytes (${(exeStat.size / 1024 / 1024).toFixed(1)} MiB)`);
   console.log(`    ↳ mtime: ${exeStat.mtime.toISOString()}`);
   console.log(`    ↳ sha256: ${sha256}`);
 
-  // The packaged payload must carry the validation subsystem, and no dev server reference.
-  const mainBundle = await readFile(join(unpackedDir, "resources", "app.asar"), "utf8").catch(() => "");
-  const asarExists = existsSync(join(unpackedDir, "resources", "app.asar"));
+  const asarPath = join(unpackedDir, "resources", "app.asar");
+  const asarExists = existsSync(asarPath);
   check("the payload ships as app.asar", asarExists);
-  check("the packaged bundle contains the validation IPC channels", mainBundle.includes("validation:statusAll") || asarExists, "asar is binary; channel presence is asserted live below");
+  if (!asarExists) throw new Error("Packaged app.asar is missing — run `npm run package:portable` first.");
+
+  const asarEntries = asar.listPackage(asarPath).map(asarListingPath);
+  const asarEntrySet = new Set(asarEntries);
+
+  console.log("\nPackaged main and renderer provenance");
+  const mainMemberSegments = ["out", "main", "main.js"];
+  const mainMemberPath = asarListingPath(join(...mainMemberSegments));
+  const mainMemberExists = asarEntrySet.has(mainMemberPath);
+  check("app.asar contains out/main/main.js", mainMemberExists, mainMemberPath);
+  const mainBundle = mainMemberExists ? extractAsarMember(asarPath, mainMemberSegments).toString("utf8") : "";
+  check("the real packaged main bundle contains validation:statusAll", mainBundle.includes("validation:statusAll"));
+
+  const builtIndexPath = join(root, "out", "renderer", "index.html");
+  const rendererIndexSegments = ["out", "renderer", "index.html"];
+  const rendererIndexMemberPath = asarListingPath(join(...rendererIndexSegments));
+  const builtIndexExists = existsSync(builtIndexPath);
+  const packagedIndexExists = asarEntrySet.has(rendererIndexMemberPath);
+  check("the current built renderer index exists", builtIndexExists, builtIndexPath);
+  check("app.asar contains out/renderer/index.html", packagedIndexExists, rendererIndexMemberPath);
+  const builtIndexBytes = builtIndexExists ? await readFile(builtIndexPath) : Buffer.alloc(0);
+  const packagedIndexBytes = packagedIndexExists ? extractAsarMember(asarPath, rendererIndexSegments) : Buffer.alloc(0);
+  const builtIndexSha256 = sha256Bytes(builtIndexBytes);
+  const packagedIndexSha256 = sha256Bytes(packagedIndexBytes);
+  console.log(`    ↳ built renderer index sha256:    ${builtIndexSha256}`);
+  console.log(`    ↳ packaged renderer index sha256: ${packagedIndexSha256}`);
+  check(
+    "packaged out/renderer/index.html is byte-identical to the current build",
+    builtIndexBytes.length > 0 && packagedIndexBytes.length > 0 && packagedIndexSha256 === builtIndexSha256
+  );
+
+  const packagedIndexHtml = packagedIndexBytes.toString("utf8");
+  const entryReferences = rendererEntryReferences(packagedIndexHtml);
+  const javaScriptReferences = entryReferences.filter(
+    (reference) => reference.kind === "script" && /\.m?js(?:[?#]|$)/i.test(reference.reference)
+  );
+  const cssReferences = entryReferences.filter(
+    (reference) => reference.kind === "stylesheet" && /\.css(?:[?#]|$)/i.test(reference.reference)
+  );
+  check("packaged renderer index references at least one JavaScript asset", javaScriptReferences.length > 0, `${javaScriptReferences.length} found`);
+  check("packaged renderer index references at least one CSS asset", cssReferences.length > 0, `${cssReferences.length} found`);
+
+  const remoteEntryReferences = entryReferences.filter((reference) => /^https?:\/\//i.test(reference.reference));
+  check(
+    "packaged renderer entry has no remote HTTP(S) script or stylesheet",
+    remoteEntryReferences.length === 0,
+    remoteEntryReferences.map((reference) => reference.reference).join(", ")
+  );
+  check("packaged renderer entry has no /@vite/ dev renderer reference", !packagedIndexHtml.includes("/@vite/"));
+
+  const rendererAssetReferences = [...javaScriptReferences, ...cssReferences];
+  const resolvedAssetReferences = rendererAssetReferences.map((reference) => ({
+    ...reference,
+    relativePath: strictRendererAssetPath(reference)
+  }));
+  const invalidAssetReferences = resolvedAssetReferences.filter((reference) => reference.relativePath === undefined);
+  check(
+    "every renderer entry asset uses a strict packaged-relative ./assets path",
+    rendererAssetReferences.length > 0 && invalidAssetReferences.length === 0,
+    invalidAssetReferences.map((reference) => reference.reference).join(", ")
+  );
+
+  const builtAssetsRoot = join(root, "out", "renderer", "assets");
+  const builtAssetFiles = existsSync(builtAssetsRoot) ? await listRelativeFiles(builtAssetsRoot) : [];
+  const builtAssetPaths = builtAssetFiles.map((relativePath) => `assets/${relativePath}`);
+  const builtAssetSet = new Set(builtAssetPaths);
+
+  const packagedAssetsPrefix = "/out/renderer/assets/";
+  const packagedAssetEntries = asarEntries.filter((entry) => entry.startsWith(packagedAssetsPrefix));
+  const packagedAssetLeafEntries = packagedAssetEntries.filter(
+    (candidate) => !packagedAssetEntries.some((other) => other !== candidate && other.startsWith(`${candidate}/`))
+  );
+  const packagedAssetPaths = packagedAssetLeafEntries.map((entry) => entry.slice("/out/renderer/".length)).sort();
+  const packagedAssetSet = new Set(packagedAssetPaths);
+  check("the current build has a non-empty renderer asset set", builtAssetPaths.length > 0, `${builtAssetPaths.length} assets`);
+  check("app.asar has a non-empty renderer asset set", packagedAssetPaths.length > 0, `${packagedAssetPaths.length} assets`);
+
+  const builtOnlyAssets = builtAssetPaths.filter((assetPath) => !packagedAssetSet.has(assetPath));
+  const packagedOnlyAssets = packagedAssetPaths.filter((assetPath) => !builtAssetSet.has(assetPath));
+  check(
+    "packaged and built renderer asset sets have identical cardinality and paths",
+    builtAssetPaths.length > 0 &&
+      packagedAssetPaths.length > 0 &&
+      builtAssetPaths.length === packagedAssetPaths.length &&
+      builtOnlyAssets.length === 0 &&
+      packagedOnlyAssets.length === 0,
+    `built-only=${builtOnlyAssets.join(", ") || "none"}; packaged-only=${packagedOnlyAssets.join(", ") || "none"}`
+  );
+
+  const builtAssetBytes = new Map<string, Buffer>();
+  for (const assetPath of builtAssetPaths) builtAssetBytes.set(assetPath, await readFile(join(root, "out", "renderer", ...assetPath.split("/"))));
+  const packagedAssetBytes = new Map<string, Buffer>();
+  const packagedAssetExtractionFailures: string[] = [];
+  for (const assetPath of packagedAssetPaths) {
+    try {
+      packagedAssetBytes.set(assetPath, extractAsarMember(asarPath, ["out", "renderer", ...assetPath.split("/")]));
+    } catch (error) {
+      packagedAssetExtractionFailures.push(`${assetPath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  check(
+    "every packaged renderer asset is extractable from app.asar",
+    packagedAssetPaths.length > 0 && packagedAssetExtractionFailures.length === 0,
+    packagedAssetExtractionFailures.join(" | ")
+  );
+
+  for (const reference of resolvedAssetReferences) {
+    const assetPath = reference.relativePath ?? reference.reference;
+    const builtBytes = reference.relativePath === undefined ? undefined : builtAssetBytes.get(reference.relativePath);
+    const packagedBytes = reference.relativePath === undefined ? undefined : packagedAssetBytes.get(reference.relativePath);
+    check(`referenced ${reference.kind} asset exists in the current build: ${assetPath}`, builtBytes !== undefined);
+    check(`referenced ${reference.kind} asset exists in app.asar: ${assetPath}`, packagedBytes !== undefined);
+    check(
+      `referenced ${reference.kind} asset is byte-identical to the current build: ${assetPath}`,
+      builtBytes !== undefined && packagedBytes !== undefined && sha256Bytes(builtBytes) === sha256Bytes(packagedBytes)
+    );
+  }
+
+  const mismatchedRendererAssets: string[] = [];
+  for (const assetPath of builtAssetPaths) {
+    const builtBytes = builtAssetBytes.get(assetPath);
+    const packagedBytes = packagedAssetBytes.get(assetPath);
+    if (builtBytes === undefined || packagedBytes === undefined || sha256Bytes(builtBytes) !== sha256Bytes(packagedBytes)) {
+      mismatchedRendererAssets.push(assetPath);
+    }
+  }
+  check(
+    "every packaged renderer asset is byte-identical to the current built asset set",
+    builtAssetPaths.length > 0 && mismatchedRendererAssets.length === 0,
+    mismatchedRendererAssets.join(", ")
+  );
+
+  const sourceCssPath = join(root, "app", "renderer", "styles", "global.css");
+  const sourceCss = existsSync(sourceCssPath) ? await readFile(sourceCssPath, "utf8") : "";
+  const sourceDefinitions = hologramDefinitions(sourceCss);
+  const sourceTokenSet = new Set(sourceDefinitions);
+  const referencedCssPaths = resolvedAssetReferences
+    .filter((reference) => reference.kind === "stylesheet" && reference.relativePath !== undefined)
+    .map((reference) => reference.relativePath as string);
+  const builtCss = referencedCssPaths.map((assetPath) => builtAssetBytes.get(assetPath)?.toString("utf8") ?? "").join("\n");
+  const packagedCss = referencedCssPaths.map((assetPath) => packagedAssetBytes.get(assetPath)?.toString("utf8") ?? "").join("\n");
+  const builtCssTokenSet = new Set(hologramDefinitions(builtCss));
+  const packagedCssTokenSet = new Set(hologramDefinitions(packagedCss));
+  const missingBuiltTokens = Array.from(sourceTokenSet).filter((token) => !builtCssTokenSet.has(token));
+  const missingPackagedTokens = Array.from(sourceTokenSet).filter((token) => !packagedCssTokenSet.has(token));
+  console.log(`    ↳ Hologram token definitions: source=${sourceDefinitions.length}, unique=${sourceTokenSet.size}`);
+  check("source global.css carries at least 100 Hologram custom-property definitions", sourceDefinitions.length >= 100, `${sourceDefinitions.length} found`);
+  check(
+    "referenced built CSS contains the source Hologram token set",
+    sourceDefinitions.length >= 100 && sourceTokenSet.size > 0 && missingBuiltTokens.length === 0,
+    missingBuiltTokens.join(", ")
+  );
+  check(
+    "referenced packaged CSS contains the source Hologram token set",
+    sourceDefinitions.length >= 100 && sourceTokenSet.size > 0 && missingPackagedTokens.length === 0,
+    missingPackagedTokens.join(", ")
+  );
+
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { version?: string };
+  const releaseProvenancePath = join(root, "dist", "release-provenance.json");
+  const releaseProvenanceExists = existsSync(releaseProvenancePath);
+  check("dist/release-provenance.json exists", releaseProvenanceExists, releaseProvenancePath);
+  let releaseProvenance: ReleaseProvenance | undefined;
+  let releaseProvenanceParseError = "";
+  if (releaseProvenanceExists) {
+    try {
+      releaseProvenance = JSON.parse(await readFile(releaseProvenancePath, "utf8")) as ReleaseProvenance;
+    } catch (error) {
+      releaseProvenanceParseError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  check("release provenance is valid JSON", releaseProvenance !== undefined, releaseProvenanceParseError);
+  check(
+    "release provenance application version equals package.json",
+    typeof packageJson.version === "string" && releaseProvenance?.application?.version === packageJson.version,
+    `package=${packageJson.version ?? "missing"}; provenance=${releaseProvenance?.application?.version ?? "missing"}`
+  );
+  const expectedPortableRelativePath = portableExePath.slice(root.length + 1).replace(/\\/g, "/");
+  check(
+    "release provenance names the actual portable artifact",
+    releaseProvenance?.artifacts?.portable?.file?.replace(/\\/g, "/") === expectedPortableRelativePath,
+    `expected=${expectedPortableRelativePath}; actual=${releaseProvenance?.artifacts?.portable?.file ?? "missing"}`
+  );
+  check(
+    "release provenance portable size equals the actual artifact",
+    releaseProvenance?.artifacts?.portable?.size === exeStat.size,
+    `expected=${exeStat.size}; actual=${releaseProvenance?.artifacts?.portable?.size ?? "missing"}`
+  );
+  check(
+    "release provenance portable SHA-256 equals the actual artifact",
+    releaseProvenance?.artifacts?.portable?.sha256?.toLowerCase() === sha256,
+    `expected=${sha256}; actual=${releaseProvenance?.artifacts?.portable?.sha256 ?? "missing"}`
+  );
+  check("release provenance records treeDirty === false", releaseProvenance?.source?.treeDirty === false);
+
+  const currentHead = gitOutput(["rev-parse", "HEAD"]);
+  const recordedSourceCommit = releaseProvenance?.source?.commit ?? "";
+  let resolvedSourceCommit = "";
+  if (/^[0-9a-f]{40}$/i.test(recordedSourceCommit)) {
+    try {
+      resolvedSourceCommit = gitOutput(["rev-parse", "--verify", `${recordedSourceCommit}^{commit}`]);
+    } catch {
+      resolvedSourceCommit = "";
+    }
+  }
+  const sourceCommitExists = resolvedSourceCommit.toLowerCase() === recordedSourceCommit.toLowerCase();
+  check("release provenance source commit exists in this repository", sourceCommitExists, recordedSourceCommit || "missing");
+  let sourceCommitIsAncestor = false;
+  if (sourceCommitExists) {
+    try {
+      execFileSync(
+        "git",
+        ["-c", `safe.directory=${root.replace(/\\/g, "/")}`, "merge-base", "--is-ancestor", recordedSourceCommit, currentHead],
+        { cwd: root, stdio: "ignore" }
+      );
+      sourceCommitIsAncestor = true;
+    } catch {
+      sourceCommitIsAncestor = false;
+    }
+  }
+  console.log(`    ↳ provenance source commit: ${recordedSourceCommit || "missing"}`);
+  console.log(`    ↳ current HEAD:             ${currentHead}`);
+  check("release provenance source commit is an ancestor of current HEAD", sourceCommitExists && sourceCommitIsAncestor);
 
   /* ---------------------------------------------------------------- *
    * PROFILE A — clean/empty
