@@ -1,5 +1,24 @@
 # KNOWN_ISSUES
 
+## Fresh 0.1.29 validation residuals — verifier debt and an authorized-key gate, not UI defects (2026-09-10)
+
+- **OPEN `awkit-vpje`: `verify:e2e-rbac` is FAIL 69/70 because one assertion is stale.**
+  `scripts/verify-e2e-rbac-gui.mjs` expects the obsolete text `Key unavailable`, while the current
+  `LicenseIssuerPage` intentionally distinguishes `Ready`, `Key missing`, `Key unreadable`, `Key
+  unusable`, and `Configuration error`. This is QA/verifier debt, not an environmental failure and
+  not evidence of a current UI migration regression.
+- **OPEN `awkit-befd`: `verify:async-wait-hygiene` is FAIL 21/22.** The preserved pre-capsule Flow
+  Designer walkthrough still has three inert `waitForFunction(async ...)` predicates. This is
+  pre-existing verifier debt and does not establish a product or current-design defect.
+- **BLOCKED licensed packaged sections:** `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set. The affected
+  packaged walkthrough sections and two packaged-licensing cases remain BLOCKED; they are not PASS.
+  No production signing key or bypass may be manufactured for validation.
+- **Superseded strict-offline snapshot:** the old R2-era manifest mismatch below is historical. The
+  fresh 0.1.29 release campaign regenerated and signed the manifest at source `13eb9eb` and
+  `npm run validate:offline -- -Strict` reported **Strict mode: passed**. This is the current release
+  result; ordinary validation after later QA/docs commits uses source ancestry and does not pretend
+  those documentation-only commits were inside the already-built executable.
+
 ## RESOLVED (2026-09-06) — `verify:security` 52/53: the SEC-005 assertion went stale when its target file moved
 
 **Status: RESOLVED 2026-09-06.** `verify:security` is now **61 passed, 0 failed** (52 passed / 1 failed
@@ -237,17 +256,18 @@ a later phase does not mistake it for one.
   controls were rewritten in `5ce0074`, *after* the extraction landed in `2ed0111`, which inverts the
   characterize-first discipline. The mitigation actually applied was diffing the real pre-image rather
   than trusting the controls. Treat any R2 control as corroborating rather than independent evidence.
-- **Pre-existing, unrelated to R2: `validate:offline -Strict` FAILS.**
+- **SUPERSEDED 2026-09-10, unrelated to R2: `validate:offline -Strict` failed at the old snapshot.**
   `resources/dependency-manifest.json:12` pins `"sourceCommit":
   "b5d4ba5957f488bcfbdc9db840153c01b65227df"`, **50 commits behind** the R2 baseline
   (`git log --oneline b5d4ba5..a6211d5`). It was already failing before R2 began. Regenerating a
-  packaged manifest is a build-release operation. Do not record this as an R2 regression, and do not
-  record it as a pass.
-- **Environmental, not a defect: `verify:e2e-rbac` is 69/70 on this workstation.**
-  `scripts/verify-e2e-rbac-gui.mjs:96` asserts the text "Key unavailable" appears when **no** external
-  issuer signing key is provisioned; this machine has one provisioned, so the negative case cannot be
-  exercised here. R2's blast radius was exactly two files (`git show --stat 2ed0111`), neither related
-  to issuer signing.
+  packaged manifest is a build-release operation. The fresh 0.1.29 campaign performed that operation
+  and strict mode passed at source `13eb9eb`; do not carry this historical failure forward.
+- **CORRECTED 2026-09-10, unrelated to R2: `verify:e2e-rbac` is FAIL 69/70 because its assertion is
+  stale, not because of the workstation environment.** `scripts/verify-e2e-rbac-gui.mjs:96` expects
+  the removed label `Key unavailable`; `LicenseIssuerPage` now intentionally uses `Ready`, `Key
+  missing`, `Key unreadable`, `Key unusable`, and `Configuration error`. Follow-up `awkit-vpje` owns
+  the verifier repair. R2's blast radius was exactly two files (`git show --stat 2ed0111`), neither
+  related to issuer signing.
 
 ## R1B write coordination — residual scope limits (2026-09-04)
 

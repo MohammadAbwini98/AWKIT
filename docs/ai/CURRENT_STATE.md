@@ -1,5 +1,66 @@
 # CURRENT_STATE
 
+## Fresh 0.1.29 artifact: Outcome A — the observed old UI came from stale artifacts (2026-09-10)
+
+**Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This release-validation campaign changes no
+ledger case. Beads, verifier check counts and the traceability matrix are separate measurements.
+
+**Source and artifact identity.** The validated portable was built from clean source commit
+`13eb9ebf13a14cff12854eb3586ca64617da0a58` on `main`. The four required migration commits are all
+ancestors of that source: workflow editing `4c3c250`, Reports/Admin/Settings `60ff872`, live
+execution/Run Monitor `43cfcab`, and renderer design consistency `96139c5`. The resulting
+`dist/SpecterStudio 0.1.29.exe` has mtime `2026-09-10T05:55:26.711Z`, size **236,681,017 bytes** and
+SHA-256 `c891b1b5171202b914153dd7d35ed60b50ba6fea93ab5f5c2132a84a8bd224dd`.
+`dist/release-provenance.json`, generated `2026-09-10T05:58:53.674Z`, records version `0.1.29`, the
+same source SHA, `treeDirty: false`, and the same portable size/hash. The same release run produced
+`dist/SpecterStudio Setup 0.1.29.exe`, size **263,893,567 bytes**, SHA-256
+`1247cbf5f8a316f466533a5dba4d356851875824da07f353106f8cdf932b8909`.
+
+**Packaged renderer provenance — PASS 119/119.** `verify:packaged-validation` now opens the actual
+`app.asar`, extracts `out/main/main.js`, and proves that it contains `validation:statusAll` instead
+of accepting archive existence. It hashes packaged and built `out/renderer/index.html` to the same
+SHA-256 `2d3e59e3a20c563964a54ead4491ca971ae7e0c9ff4b8dd0cf87bee7e376e196`, requires positive JS/CSS
+reference cardinality, and proves exact path and byte parity for all three renderer assets
+(`renderer-DHTPf3g5.js`, `renderer-C710MO4w.css`, `specter-logo-CZ9s2PgP.svg`). The entry HTML uses
+only packaged-relative resources, with no remote HTTP(S) entry and no `/@vite/`. Source
+`global.css` contains **175 `--awkit-*` definitions / 109 unique token names** and every token name
+is present in both built and packaged CSS. Provenance also re-hashes the actual portable, requires
+`treeDirty === false`, and requires the recorded source commit to exist and be an ancestor of the
+later QA/project-state HEAD.
+
+**UI disposition — no current design defect found.** The fresh packaged app launched in packaged
+mode and rendered content (`verify:packaged-runtime` **25/25**; packaged validation **119/119**).
+Workflow editing is **NEW DESIGN CONFIRMED** (Workflow Builder **68/68 + 17/17 capsule**; Flow
+Designer **138/138 + 16/16 capsule**). Reports/Admin/Settings is **NEW DESIGN CONFIRMED**
+(`reports-settings-a11y` **17/17**, Admin **36/36**, populated Reports **168 PASS / 0 FAIL / 3 NOT
+RUN**, with those three proven elsewhere). Live execution/Run Monitor is **NEW DESIGN CONFIRMED**
+(Instance Monitor **27/27**, runtime analytics **36/36**). Renderer consistency is **NEW DESIGN
+CONFIRMED** (`e2e-sweep` **13/13 across 29 routes**, semantic UI **19/19**, branding **30/30**,
+accent **33/33**, capacity Settings **12/12**). Recorder is **NEW DESIGN CONFIRMED** (**192/192**).
+Licensed packaged walkthrough sections remain **BLOCKED** because
+`AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set; no key or bypass was manufactured.
+
+**Superseded artifacts.** Every SpecterStudio executable through `0.1.28`, plus the earlier
+same-name `0.1.29` builds identified in provenance, is **STALE — DO NOT USE FOR VALIDATION**. The
+fresh source/artifact/ASAR binding establishes **Outcome A: stale artifact was the original cause**.
+
+**Truthful non-UI residuals.** `verify:e2e-rbac` remains **FAIL 69/70** because its QA assertion
+still expects obsolete text `Key unavailable`; the application intentionally uses `Ready`, `Key
+missing`, `Key unreadable`, `Key unusable`, and `Configuration error`. Follow-up `awkit-vpje` owns
+that verifier debt. `verify:async-wait-hygiene` remains **FAIL 21/22** because the preserved
+pre-capsule Flow Designer walkthrough has three inert `waitForFunction(async ...)` predicates;
+follow-up `awkit-befd` owns that debt. Neither is a UI migration defect. The fresh release campaign's
+strict offline gate **PASS** result supersedes the old R2-era failing-manifest snapshot:
+`npm run validate:offline -- -Strict` reported `Strict mode: passed` at release source `13eb9eb`.
+
+**Tracker and finalization.** After filing those two QA follow-ups and exporting Beads, the measured
+tracker is **279 total / 275 closed / 4 outstanding**: **2 open**, **0 in progress**, and **2 status
+= blocked** (`awkit-7bu`, `awkit-cm8`), with **0 dependency-blocked**. The first post-export roadmap
+run was intentionally red at **175/177** only on the stale exact pins (`277` versus `279`, and
+`2/275` versus `4/275`); QA owns the required exact-pin update and mutation proof before final
+project-state closeout.
+
 ## Licensing/execution/verification reconciliation: awkit-f3l goals audited ALREADY RESOLVED, tracker repinned 277/275/2 (2026-09-09)
 
 **Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger is

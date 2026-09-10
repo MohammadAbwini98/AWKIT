@@ -1,5 +1,40 @@
 # TASK_LOG
 
+## 2026-09-10 (latest) — fresh 0.1.29 artifact UI provenance and Outcome A (Codex GPT-5)
+
+**Task:** resume `awkit-fresh-artifact-0910` from the completed release/Claude checkpoint, make
+`EV-ui-provenance` non-vacuous, preserve the already-measured GUI campaign, reconcile authoritative
+project state, and finish on `main` without discarding user work.
+
+**QA implementation:** extended `scripts/verify-packaged-validation.mts` under its exact QA lease.
+The verifier now uses `createRequire(import.meta.url)` plus `@electron/asar` `listPackage` /
+`extractFile`, constructs Windows member paths with `join`, extracts and checks the real packaged main
+bundle, binds packaged/built renderer entry and every renderer asset by SHA-256, rejects remote/dev
+entry resources, proves positive JS/CSS and asset-set cardinalities, and proves the source Hologram
+token set reaches packaged CSS. It also verifies version, portable size/hash, clean-tree provenance,
+and source-commit ancestry. Result: **PASS 119/119**; committed as `9a5c3c0` (`test: bind packaged
+renderer to fresh build provenance`). The inherited signed dependency-manifest pair from the release
+checkpoint was committed under a bounded release lease as `0d7390d` (`build(release): record fresh
+0.1.29 dependency manifest`). No product or renderer source changed.
+
+**Outcome and evidence:** **Outcome A — stale artifact was the cause.** Validated source is
+`13eb9ebf13a14cff12854eb3586ca64617da0a58`; migration commits `4c3c250`, `60ff872`, `43cfcab` and
+`96139c5` are ancestors. Fresh portable: `dist/SpecterStudio 0.1.29.exe`, mtime
+`2026-09-10T05:55:26.711Z`, 236,681,017 bytes, SHA-256
+`c891b1b5171202b914153dd7d35ed60b50ba6fea93ab5f5c2132a84a8bd224dd`; provenance generated
+`2026-09-10T05:58:53.674Z`, source `13eb9eb...`, `treeDirty: false`. The packaged app launched and
+rendered; focused GUI evidence found no current design defect. Every executable through `0.1.28` and
+the earlier same-name `0.1.29` records is **STALE — DO NOT USE FOR VALIDATION**.
+
+**Truthful residuals and tracker:** retained `verify:e2e-rbac` **FAIL 69/70** (stale QA text, not
+environment/UI) and `verify:async-wait-hygiene` **FAIL 21/22** (three inert legacy predicates), and
+retained the licensed packaged sections as **BLOCKED** with the authorized issuer key unset. Filed
+P2 QA follow-ups `awkit-vpje` and `awkit-befd`; exported Beads to **279 total / 275 closed / 4
+outstanding** (2 open + 2 status-blocked, 0 dependency-blocked). The validation ledger is unchanged
+at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. The first post-export roadmap run was the
+expected **175/177**, red only on its two now-stale exact tracker pins; a separate QA lease owns that
+pin correction before final gates.
+
 ## 2026-09-09 (latest) — worktree cleanup ahead of portable build (Muse Spark)
 
 **Task:** produce a clean worktree so a new portable exe can be built from a known committed state.

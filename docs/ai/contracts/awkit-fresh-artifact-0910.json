@@ -50,23 +50,25 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
         "scripts/**",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        ".beads/**",
-        "tools/roadmap/"
+        "resources/**",
+        "package.json",
+        "tools/roadmap/*.ts"
       ],
-      "note": "Bounded release-owned checkpoint reconciliation after the QA verifier commit 9a5c3c0. The completed release build regenerated and signed the dependency-manifest pair at source commit 13eb9eb, but the pair was deliberately carried as baseline_dirty through the QA lease and has not yet been committed. This temporary writer slot owns only those two generated release records; it may not widen into product, verifier, tracker or project-state files. After the pair is committed, the manager re-points the writer to the final project-state stage."
+      "note": "Final project-state stage after QA verifier commit 9a5c3c0 and bounded release checkpoint commit 0d7390d. This writer records Outcome A, preserves the measured GUI evidence and two truthful FAIL results, supersedes the stale strict-offline and RBAC narratives, files exactly two QA-debt Beads follow-ups, exports Beads, and leaves the 67-case validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED. Product, release-resource and verifier code remain out of scope. The expected post-Beads roadmap-pin correction is routed back to qa under a separate later lease rather than widened into this one."
     },
     "writer_sequence": [
       "release",
@@ -295,6 +297,23 @@
         "acquired_at_commit": "13eb9ebf13a14cff12854eb3586ca64617da0a58",
         "released_at": "2026-09-10T07:18:21.960Z",
         "released_reason": "qa verifier committed at 9a5c3c0; EV-ui-provenance PASS 119/119",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-fresh-artifact-0910:release:2026-09-10T07:24:29.066Z",
+        "task": "awkit-fresh-artifact-0910",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-10T07:24:29.066Z",
+        "acquired_at_commit": "9a5c3c0037021b230ecf9a2380ddc3d78a9b5a96",
+        "released_at": "2026-09-10T07:25:21.319Z",
+        "released_reason": "fresh 0.1.29 dependency manifest and signature committed at 0d7390d; handoff to project-state",
         "amendments": [],
         "overrides": [],
         "violations": []

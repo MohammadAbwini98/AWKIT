@@ -1,5 +1,43 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; final roadmap repin pending
+
+- **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN
+  / 0 BLOCKED across 67 cases**. No ledger case moved; this tally is not the Beads or verifier count.
+- **Disposition:** **Outcome A — stale artifact was the original cause.** All four required migration
+  commits (`4c3c250`, `60ff872`, `43cfcab`, `96139c5`) are ancestors of validated source
+  `13eb9ebf13a14cff12854eb3586ca64617da0a58`. Every executable through `0.1.28` and the two earlier
+  same-name `0.1.29` provenance records are **STALE — DO NOT USE FOR VALIDATION**.
+- **Fresh artifact:** `dist/SpecterStudio 0.1.29.exe`, mtime `2026-09-10T05:55:26.711Z`,
+  **236,681,017 bytes**, SHA-256 `c891b1b5171202b914153dd7d35ed60b50ba6fea93ab5f5c2132a84a8bd224dd`.
+  Provenance generated `2026-09-10T05:58:53.674Z` records version `0.1.29`, source `13eb9eb...`,
+  `treeDirty: false`, and the identical artifact measurements. Installer: **263,893,567 bytes**,
+  SHA-256 `1247cbf5f8a316f466533a5dba4d356851875824da07f353106f8cdf932b8909`.
+- **ASAR/source binding:** extended `verify:packaged-validation` passes **119/119**. It extracts the
+  real packaged main bundle and proves `validation:statusAll`; binds packaged/built renderer entry
+  SHA `2d3e59e3...e196`; requires JS/CSS references; proves exact path and byte parity across the
+  three packaged/built renderer assets; rejects remote or dev-renderer entry resources; and proves
+  all **109 unique Hologram token names** from **175 source definitions** reach built/packaged CSS.
+  It also binds version, portable size/hash, clean-tree provenance, and source ancestry.
+- **Fresh UI evidence:** packaged runtime **25/25** and packaged validation **119/119** launched and
+  rendered the fresh app. **NEW DESIGN CONFIRMED** for Workflow Builder (**68/68 + 17/17**), Flow
+  Designer (**138/138 + 16/16**), Reports/Admin/Settings (**17/17**, **36/36**, populated Reports
+  **168/0/3 NOT RUN proven elsewhere**), Run Monitor/Instance Monitor (**27/27**) and runtime
+  analytics (**36/36**), renderer consistency (**13/13 across 29 routes**, semantic **19/19**,
+  branding **30/30**, accent **33/33**, capacity Settings **12/12**), and Recorder (**192/192**).
+  No genuine current UI design defect was found.
+- **Do not relabel residuals:** `verify:e2e-rbac` is **FAIL 69/70**, caused by stale verifier text
+  `Key unavailable`, not environment or UI (`awkit-vpje`). `verify:async-wait-hygiene` is **FAIL
+  21/22**, caused by three pre-existing inert async wait predicates (`awkit-befd`). Licensed packaged
+  sections are **BLOCKED** while `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is unset. No issuer key/bypass
+  was used. The release-source `validate:offline -- -Strict` result is **PASS** and supersedes the
+  historical R2 manifest failure.
+- **Tracker:** Beads exported at **279 total / 275 closed / 4 outstanding** = **2 open + 2
+  status-blocked**, with **0 dependency-blocked**. The expected first run after the two new beads was
+  **175/177** solely because the exact roadmap pins still say 277 and 2/275. Route only that verifier
+  to QA, repin it to measured 279 and 4/275 with mutation proof, then return to project-state for the
+  final gate record, contract completion and push. Do not widen the QA debts into this campaign.
+
 ## HANDOFF (2026-09-09, latest) — licensing/execution/verification reconciliation: f3l goals verified resolved, tracker repinned 277/275/2
 
 - **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN
