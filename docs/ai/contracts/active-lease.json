@@ -1,20 +1,38 @@
 {
-  "task": "awkit-fresh-artifact-0910",
-  "contract_path": "docs/ai/contracts/awkit-fresh-artifact-0910.json",
-  "holder": "release",
-  "status": "active",
+  "task": "awkit-befd",
+  "contract_path": "docs/ai/contracts/awkit-befd.json",
+  "holder": "project-state",
+  "status": "released",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-befd.json",
+    "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+    "docs/ai/contracts/awkit-vpje.json",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-09T23:05:44.146Z",
-  "acquired_at_commit": "97784377035c7a32717c6c265a3d6cfabfb2f77d",
+  "acquired_at": "2026-09-10T13:11:50.753Z",
+  "acquired_at_commit": "5ed2f5a71d08aa89d456f318c6e1f399d5f3629f",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-fresh-artifact-0910.json"
+    ".beads/issues.jsonl",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-befd.json",
+    "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+    "docs/ai/contracts/awkit-vpje.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-fresh-artifact-0910.json": "86d2177dc53b0a750266a782d3294f1b8ae114f025d673d6c50a2730d4c9c679"
+    ".beads/issues.jsonl": "fc12eeb8fb4ca0d424ae953b1097945e6523e3f71b23d70dfcf8bc3f5766b9c0",
+    "docs/ai/contracts/active-lease.json": "1410aa961da3e67d249af6bc9f339c3597ce97b1030fc2d74509da6d3f8574f2",
+    "docs/ai/contracts/awkit-befd.json": "1f41ad40e820af981b0aad7ab2f4d82c491ed4aa6ddf1f727d26a990fd45ceec",
+    "docs/ai/contracts/awkit-fresh-artifact-0910.json": "74aff134d79f5da516b5453a43ce4633ed6d6e20cb01a0d7957d9f12a0809b95",
+    "docs/ai/contracts/awkit-vpje.json": "dc1babdc00291973cc17b3b1e5f5f7f112d48834fb01fd0e174dddca8098db86",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,29 +42,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1788992396111.904"
+    "build": "dir(1):native-hosts:1789019778868.2053"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-09-09T23:18:31.018Z",
-      "added": [
-        "build"
-      ],
-      "reason": "packaging stage 4 stages the gitignored Zvec native host under build/native-hosts",
-      "triggered_escalation": [
-        "qa",
-        "qc"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
-  "violations": [
-    {
-      "path": "build",
-      "detectedAt": "2026-09-09T23:18:10.798Z",
-      "via": "bash",
-      "resolved": false
-    }
-  ]
+  "violations": [],
+  "released_at": "2026-09-10T13:20:02.798Z",
+  "released_reason": "Project-state reconciliation recorded both verifier closures, exported 280/277/3 Beads state, filed awkit-wy82, and documented Graphify/licensing/clean-machine evidence; roadmap baseline is 175/177 only on exact tracker pins",
+  "archived_at": "2026-09-10T13:20:02.800Z"
 }

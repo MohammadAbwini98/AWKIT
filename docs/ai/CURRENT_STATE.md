@@ -1,5 +1,53 @@
 # CURRENT_STATE
 
+## Remaining QA closure: issuer readiness and Flow waits fixed; external/tooling gates preserved (2026-09-10)
+
+**Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Neither verifier repair changes an authoritative
+ledger case; Beads, verifier checks and the traceability matrix remain separate measurements.
+
+**Actionable verifier debt is closed.** `awkit-vpje` is CLOSED by commit `534a694`: the RBAC GUI
+verifier now scopes the accessible **Signing readiness** region, reads the canonical **Readiness**
+field, requires the `MISSING` state plus its status role, and preserves all role/route/direct-IPC
+checks. `verify:e2e-rbac` passes **70/70**. A bounded obsolete-`Key unavailable` mutation fails only
+the named readiness check at **69/70** while reporting `state=MISSING`, proving the assertion is not
+decorative. `awkit-befd` is CLOSED by commit `5ed2f5a`: all three inert
+`waitForFunction(async ...)` persistence waits now use `waitForPersistedState`, polling the exact
+stored confirmation/fallback/block state from Node while failing fast on application error toasts.
+`verify:async-wait-hygiene` passes **22/22** (including its real-file negative control), and the
+authoritative Flow Designer wrapper passes **138 preserved broad checks + 16/16 capsule checks**, with
+**0 retired-route failures / 0 unexpected failures**. No product, renderer, package or mock-site source
+changed, so the completed fresh-artifact/UI migration evidence remains valid and was not repeated.
+
+**Graphify — INCONCLUSIVE, root-caused and bounded as `awkit-wy82`.** Graphify `0.9.31` again proposes
+**14,142 nodes** against the accepted **14,221-node** graph built at `0b2a34b...` and refuses to
+overwrite it. Controlled source accounting finds **94 old IDs absent and 15 new IDs**. Of the absent
+IDs, **93** belong to three still-present, untracked owner design-input files under
+`Building priorities and integration-handoff/`; they entered the accepted graph before that directory
+was intentionally added to `.git/info/exclude`. The other one-node removal belongs to the legitimately
+edited `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md` and is accounted by the current corpus. Thus the size
+reduction is legitimate local-exclusion drift, not missing product source, but the tool deliberately
+requires an override to purge excluded-but-alive inputs. No `--force`, graph deletion, purge, ignore
+weakening or owner-file change was used. The accepted graph remains untouched; `awkit-wy82` records the
+safe follow-up.
+
+**External gates remain truthful.** With `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` absent,
+`verify:packaged-licensing` is **24 PASS / 0 FAIL / 2 BLOCKED**; the two signed-license cases require
+an authorized validation machine or CI runner with controlled offline-key access. No key or bypass was
+manufactured. A current clean-machine attempt restored the documented `AWKIT-CleanMachine`
+`clean-before-validation` checkpoint, mounted the current clean-tree 0.1.29 artifacts on a fresh
+read-only DVD, booted the guest offline with zero vNICs, and reached the standard-user desktop. The
+documented `awkitadmin` credential was rejected in every documented local-account form, so the driver
+is **BLOCKED before collection (0 current checks credited)**. No password was reset; the VM returned to
+Off. The historical 0.1.21 **21 PASS / 0 FAIL / 3 NOT EXECUTED** result remains historical evidence,
+not current acceptance.
+
+**Tracker.** Beads was exported after closing `awkit-vpje` and `awkit-befd` and filing `awkit-wy82`:
+**280 total / 277 closed / 3 outstanding** = **1 open** (`awkit-wy82`) + **2 status-blocked**
+(`awkit-7bu`, `awkit-cm8`), with **0 in progress** and **0 dependency-blocked**. The roadmap exact
+tracker pins must move to this measured state; final classification/build/offline/memory/roadmap and
+push evidence is recorded by the closeout that follows this project-state update.
+
 ## Fresh 0.1.29 artifact: Outcome A — the observed old UI came from stale artifacts (2026-09-10)
 
 **Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger remains

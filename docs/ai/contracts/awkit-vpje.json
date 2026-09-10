@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vpje",
+    "title": "Align E2E RBAC issuer readiness verification with the canonical UI contract",
+    "objective": "Replace the obsolete issuer-readiness text assertion in verify:e2e-rbac with a resilient observable derived from the production readiness rendering while preserving the complete role, route-guard and direct-IPC authorization coverage; prove the assertion fails when readiness rendering is broken; close and export the Bead; reconcile project state; commit coherently to main; push normally; and preserve all unrelated work.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8ab65633bbe8adc21335e1665a5dcb53ca7e4b16",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+        "git_status": " M",
+        "sha256": "74aff134d79f5da516b5453a43ce4633ed6d6e20cb01a0d7957d9f12a0809b95"
+      }
+    ]
+  },
+  "classification": {
+    "authorization_change": true,
+    "playwright_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "recorder",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/verify-e2e-rbac-gui.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/contracts/awkit-vpje.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md"
+    ],
+    "consultants": [
+      "recorder",
+      "security"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-e2e-rbac-gui.mjs"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**"
+      ]
+    },
+    "writer_sequence": [
+      "qa",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "security": [
+      "Do not change issuer key resolution, key custody, signing, authorization or readiness behavior; this is a verifier-only correction.",
+      "Never expose key material or manufacture an issuer key."
+    ],
+    "compatibility": [
+      "Retain every existing route-guard and direct-IPC RBAC assertion.",
+      "Do not replace the obsolete text with another single fragile display string."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "CURRENT-CONTRACT",
+      "description": "The Issuer role check observes the production readiness rendering through a stable semantic or accessibility contract and still proves the no-key state is safely unavailable.",
+      "evidence_required": [
+        "source-inspection",
+        "e2e-rbac"
+      ]
+    },
+    {
+      "id": "NEGATIVE-CONTROL",
+      "description": "A deliberate stale-label or broken-readiness mutation makes the named readiness assertion fail while the restored source passes.",
+      "evidence_required": [
+        "readiness-mutation"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "awkit-vpje is closed and exported, project state and exact roadmap pins are reconciled, the implementation is committed to main and pushed normally, and preserved baseline work is not overwritten.",
+      "evidence_required": [
+        "beads-roadmap",
+        "push-main",
+        "preserved-path-audit"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "baseline-e2e-rbac",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:e2e-rbac",
+      "result": "FAIL",
+      "artifact": null,
+      "note": "Baseline reproduced 69/70: all route-guard and direct-IPC RBAC checks passed; only 'Issuer: signing readiness fails safely when no external key is provisioned' failed."
+    },
+    {
+      "id": "source-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "inspect LicenseIssuerPage readiness rendering and verify-e2e-rbac assertion",
+      "result": "PASS",
+      "artifact": null,
+      "note": "Production renders the canonical readiness enum value in the Readiness field within the accessible Signing readiness region; the MISSING state is the no-key contract."
+    },
+    {
+      "id": "readiness-mutation",
+      "type": "verifier",
+      "required": true,
+      "command": "run a bounded temporary mutation that restores the obsolete expectation or breaks the current readiness rendering, then restore the task-owned verifier",
+      "result": "PASS",
+      "artifact": null,
+      "note": "Temporary expectation Key unavailable produced 69/70 with only the named readiness assertion failing and state=MISSING reported; restored expectation MISSING passed."
+    },
+    {
+      "id": "e2e-rbac",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:e2e-rbac",
+      "result": "PASS",
+      "artifact": null,
+      "note": "70/70 checks passed with the full role, route-guard and direct-IPC matrix intact."
+    },
+    {
+      "id": "beads-roadmap",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-vpje; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure local/origin parity",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "preserved-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "task gate preserved-path fingerprints plus final git status",
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vpje:qa:2026-09-10T12:15:07.344Z",
+        "task": "awkit-vpje",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-e2e-rbac-gui.mjs"
+        ],
+        "acquired_at": "2026-09-10T12:15:07.344Z",
+        "acquired_at_commit": "8ab65633bbe8adc21335e1665a5dcb53ca7e4b16",
+        "released_at": "2026-09-10T12:20:22.129Z",
+        "released_reason": "awkit-vpje QA implementation committed at 534a694; verify:e2e-rbac 70/70 and obsolete-expectation mutation 69/70",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

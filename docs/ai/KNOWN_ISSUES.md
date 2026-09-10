@@ -1,22 +1,27 @@
 # KNOWN_ISSUES
 
-## Fresh 0.1.29 validation residuals — verifier debt and an authorized-key gate, not UI defects (2026-09-10)
+## Remaining 0.1.29 external/tooling residuals — QA defects resolved (2026-09-10)
 
-- **OPEN `awkit-vpje`: `verify:e2e-rbac` is FAIL 69/70 because one assertion is stale.**
-  `scripts/verify-e2e-rbac-gui.mjs` expects the obsolete text `Key unavailable`, while the current
-  `LicenseIssuerPage` intentionally distinguishes `Ready`, `Key missing`, `Key unreadable`, `Key
-  unusable`, and `Configuration error`. This is QA/verifier debt, not an environmental failure and
-  not evidence of a current UI migration regression.
-- **OPEN `awkit-befd`: `verify:async-wait-hygiene` is FAIL 21/22.** The preserved pre-capsule Flow
-  Designer walkthrough still has three inert `waitForFunction(async ...)` predicates. This is
-  pre-existing verifier debt and does not establish a product or current-design defect.
+- **RESOLVED `awkit-vpje` (`534a694`):** the stale `Key unavailable` assertion now observes the
+  current scoped readiness contract and `verify:e2e-rbac` passes **70/70**. Its obsolete-expectation
+  negative control fails **69/70** at the intended check, so this was verifier debt, never a UI or
+  environment failure.
+- **RESOLVED `awkit-befd` (`5ed2f5a`):** the three async `waitForFunction` predicates now use the
+  fail-fast persisted-state helper. `verify:async-wait-hygiene` passes **22/22** and Flow Designer
+  passes **138 broad + 16/16 capsule**, with no weakened assertions or sleeps.
 - **BLOCKED licensed packaged sections:** `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set. The affected
-  packaged walkthrough sections and two packaged-licensing cases remain BLOCKED; they are not PASS.
-  No production signing key or bypass may be manufactured for validation.
-- **INCONCLUSIVE graph refresh:** two bounded `graphify update .` attempts extracted 14,142 nodes
-  while the existing graph contains 14,221, so Graphify refused to overwrite `graph.json`. It also
-  reported 76 zero-node source files and preserved 93 nodes from three on-disk files that left the
-  scan corpus. No `--force` or full purge was used because the missing-node cause is not established.
+  packaged-licensing cases remain **24 PASS / 0 FAIL / 2 BLOCKED**; they are not PASS. No production
+  signing key or bypass may be manufactured for validation.
+- **BLOCKED current clean-machine driver:** the qualifying offline VM, pristine checkpoint and
+  current 0.1.29 read-only artifact DVD are available, but the documented admin credential is no
+  longer valid for PowerShell Direct. The 2026-09-10 attempt collected **0 current checks**, reset no
+  password, and returned the VM to Off. Historical 0.1.21 evidence does not clear the current run.
+- **INCONCLUSIVE graph refresh (`awkit-wy82`):** `graphify update .` extracts 14,142 nodes versus the
+  accepted 14,221 and refuses overwrite. Exact accounting proves 93 old IDs are the three
+  still-present owner design-input files added to `.git/info/exclude` after the accepted graph was
+  built; one further removed ID is an accounted tracked-doc edit, while 15 new IDs offset the net
+  difference. This is legitimate ignore/corpus drift, but Graphify 0.9.31 cannot safely reconcile it
+  automatically. No `--force`, deletion, purge, ignore weakening or owner-file mutation was used.
 - **Superseded strict-offline snapshot:** the old R2-era manifest mismatch below is historical. The
   fresh 0.1.29 release campaign regenerated and signed the manifest at source `13eb9eb` and
   `npm run validate:offline -- -Strict` reported **Strict mode: passed**. This is the current release

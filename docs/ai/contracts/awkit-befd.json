@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-befd",
+    "title": "Replace inert Flow Designer async wait predicates",
+    "objective": "Replace the three waitForFunction async predicates in the preserved pre-capsule Flow Designer GUI verifier with observable synchronous Playwright synchronization that preserves each original intent; prove the static hygiene suite and authoritative Flow Designer GUI verifier pass; close and export the Bead; reconcile project state; commit coherently to main; push normally; and preserve unrelated work.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "534a694",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+        "git_status": " M",
+        "sha256": "74aff134d79f5da516b5453a43ce4633ed6d6e20cb01a0d7957d9f12a0809b95"
+      }
+    ]
+  },
+  "classification": {
+    "playwright_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "recorder",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/verify-flow-designer-gui.pre-capsule.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/contracts/awkit-befd.json",
+      "docs/ai/contracts/awkit-vpje.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md"
+    ],
+    "consultants": [
+      "recorder"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/contracts/awkit-befd.json",
+        "docs/ai/contracts/awkit-vpje.json",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "mock-site/**",
+        "scripts/**"
+      ]
+    },
+    "writer_sequence": [
+      "qa",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "compatibility": [
+      "Preserve the original three synchronization intents and all later assertions.",
+      "Do not use waitForTimeout, broad sleeps, force true, swallowed exceptions, weaker assertions, or test-only product behavior."
+    ],
+    "offline": [
+      "Do not add any external service or runtime dependency; the GUI verifier remains isolated and local."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "SYNCHRONIZATION",
+      "description": "All three async waitForFunction predicates are replaced by synchronous observable conditions or responsible Playwright locators that preserve the original awaited states.",
+      "evidence_required": [
+        "source-inspection",
+        "async-wait-hygiene"
+      ]
+    },
+    {
+      "id": "GUI-BEHAVIOR",
+      "description": "The authoritative Flow Designer GUI verifier and any directly documented focused capsule command still pass after the synchronization changes.",
+      "evidence_required": [
+        "flow-designer"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "awkit-befd is closed and exported, project state and exact roadmap pins are reconciled, the implementation is committed to main and pushed normally, and preserved unrelated work is unchanged.",
+      "evidence_required": [
+        "beads-roadmap",
+        "push-main",
+        "preserved-path-audit"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "baseline-async-wait-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:async-wait-hygiene",
+      "result": "FAIL",
+      "artifact": null,
+      "note": "Baseline reproduced 21/22 and identified exactly lines 2170, 2187 and 2216 in scripts/verify-flow-designer-gui.pre-capsule.mjs."
+    },
+    {
+      "id": "source-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "inspect each violating predicate and its surrounding Flow Designer assertion intent",
+      "result": "PASS",
+      "artifact": null,
+      "note": "The three waits guard persistence of user-confirmed prerequisite, user-approved locator fallback and re-blocked prerequisite decisions; each now uses waitForPersistedState with an intent-specific label."
+    },
+    {
+      "id": "async-wait-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:async-wait-hygiene",
+      "result": "PASS",
+      "artifact": null,
+      "note": "22/22 checks passed, including the detector's real-file negative control and helper fail-fast/timeout behavior."
+    },
+    {
+      "id": "flow-designer",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:flow-designer",
+      "result": "PASS",
+      "artifact": null,
+      "note": "The canonical wrapper passed 138 preserved broad checks plus 16/16 capsule checks, with 0 retired-route failures and 0 unexpected failures; no separate npm command is documented."
+    },
+    {
+      "id": "beads-roadmap",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-befd; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure local/origin parity",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "preserved-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "task gate preserved-path fingerprints plus final git status",
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-befd:qa:2026-09-10T12:22:51.236Z",
+        "task": "awkit-befd",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-flow-designer-gui.pre-capsule.mjs"
+        ],
+        "acquired_at": "2026-09-10T12:22:51.236Z",
+        "acquired_at_commit": "534a69448e8dde83f3fb64fa11f72cd4c46dcd7e",
+        "released_at": "2026-09-10T12:30:06.064Z",
+        "released_reason": "awkit-befd QA implementation committed at 5ed2f5a; verify:async-wait-hygiene 22/22 and verify:flow-designer broad 138 plus capsule 16/16",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-befd:project-state:2026-09-10T13:11:50.753Z",
+        "task": "awkit-befd",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-befd.json",
+          "docs/ai/contracts/awkit-fresh-artifact-0910.json",
+          "docs/ai/contracts/awkit-vpje.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-10T13:11:50.753Z",
+        "acquired_at_commit": "5ed2f5a71d08aa89d456f318c6e1f399d5f3629f",
+        "released_at": "2026-09-10T13:20:02.798Z",
+        "released_reason": "Project-state reconciliation recorded both verifier closures, exported 280/277/3 Beads state, filed awkit-wy82, and documented Graphify/licensing/clean-machine evidence; roadmap baseline is 175/177 only on exact tracker pins",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

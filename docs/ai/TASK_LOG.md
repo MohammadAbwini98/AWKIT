@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-09-10 (latest) — remaining verifier closure and bounded external/tooling reconciliation (Codex GPT-5)
+
+**Task:** close `awkit-vpje` and `awkit-befd` without reopening the completed fresh-artifact/UI
+campaign; root-cause Graphify shrinkage; preserve authorized-key and clean-machine gates; reconcile
+Beads/contracts/assignments; verify, commit and push `main`.
+
+**Issuer-readiness verifier:** baseline `verify:e2e-rbac` was **69/70 FAIL** solely because
+`scripts/verify-e2e-rbac-gui.mjs` expected obsolete copy. Commit `534a694` scopes the accessible
+Signing readiness region, reads the canonical Readiness value, and requires `MISSING` plus a status
+role. Restored source passes **70/70**; a temporary `Key unavailable` mutation fails **69/70** only at
+that check and reports `state=MISSING`. No product source changed. `awkit-vpje` is CLOSED.
+
+**Flow synchronization:** baseline `verify:async-wait-hygiene` was **21/22 FAIL** and identified
+exactly three async `waitForFunction` predicates in the pre-capsule Flow Designer verifier. Commit
+`5ed2f5a` replaces each with `waitForPersistedState` for the exact intended stored decision, retaining
+the helper's app-error-toast fail-fast behavior. Hygiene passes **22/22**, including its on-disk
+negative control; the authoritative GUI wrapper passes **138 broad + 16/16 capsule** with 0
+unexpected failures. `awkit-befd` is CLOSED.
+
+**Graphify:** `graphify update .` on version 0.9.31 again proposed **14,142** nodes versus accepted
+**14,221** and refused overwrite. A controlled no-write accounting run found **94 lost IDs / 15 new**:
+93 lost IDs are exactly three still-present, untracked owner design-input files newly excluded through
+`.git/info/exclude`; one is an accounted edit in `ORACLE_JDBC_VALIDATION_GATES.md`. The shrink is
+legitimate corpus drift but cannot be accepted by the normal safe updater. No force/purge/deletion or
+ignore change was used. Filed OPEN follow-up `awkit-wy82`; final Graphify status is **INCONCLUSIVE**.
+
+**External gates:** the issuer-key environment check is false and packaged licensing executes as
+**24 PASS / 0 FAIL / 2 BLOCKED**. A current clean-machine attempt restored the qualifying documented
+checkpoint, mounted current 0.1.29 artifacts from source `13eb9eb...` through read-only media, and
+booted offline to the standard-user desktop, but the documented admin credential was invalid for all
+documented account forms. The run is **BLOCKED before collection, 0 checks credited**; no credential
+was reset and the VM returned to Off.
+
+**Project state at export:** **280 total / 277 closed / 3 outstanding** = 1 open Graphify follow-up +
+2 status-blocked Oracle gates, 0 in progress and 0 dependency-blocked. Validation ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Final full gate, roadmap, lease, commit and push
+evidence is appended after closeout.
+
 ## 2026-09-10 (latest) — fresh 0.1.29 artifact UI provenance and Outcome A (Codex GPT-5)
 
 **Task:** resume `awkit-fresh-artifact-0910` from the completed release/Claude checkpoint, make

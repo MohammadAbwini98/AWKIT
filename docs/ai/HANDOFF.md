@@ -1,5 +1,38 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-10, latest) — remaining QA debts closed; Graphify and external gates retained truthfully
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This is not the
+  Beads or verifier tally.
+- **Closed `awkit-vpje`:** commit `534a694` replaces the obsolete issuer-readiness copy assertion
+  with a scoped accessible **Signing readiness** / **Readiness** semantic-state assertion requiring
+  `MISSING` and a status role. `verify:e2e-rbac` is **70/70 PASS**; restoring `Key unavailable`
+  produces the expected **69/70 FAIL** only at the named readiness check and reports
+  `state=MISSING`. All RBAC route/direct-IPC checks remain intact.
+- **Closed `awkit-befd`:** commit `5ed2f5a` replaces the three inert async
+  `waitForFunction` predicates with `waitForPersistedState` checks for the exact stored
+  user-confirmed prerequisite, user-approved locator fallback and re-blocked prerequisite states.
+  The helper polls from Node and surfaces application error toasts. `verify:async-wait-hygiene` is
+  **22/22 PASS**; Flow Designer is **138 broad + 16/16 capsule PASS**, with 0 unexpected failures.
+- **Fresh-artifact evidence remains authoritative:** no product/renderer/package/mock-site source
+  changed, so do not reopen the completed UI migration campaign. Validated package source remains
+  `13eb9ebf13a14cff12854eb3586ca64617da0a58`; packaged validation remains **119/119 PASS**.
+- **Graphify INCONCLUSIVE / `awkit-wy82` OPEN:** Graphify 0.9.31 again refused **14,142** candidate
+  nodes versus **14,221** accepted. Accounting proves 94 old IDs absent and 15 new: 93 absent IDs
+  are exactly the three local owner design-input files intentionally excluded by `.git/info/exclude`
+  after the accepted graph was built; one tracked-doc removal is legitimate and accounted. The
+  shrink is legitimate corpus drift, but normal update cannot reconcile it without an override.
+  No force, purge, graph deletion, ignore weakening or owner-file change occurred.
+- **External gates:** packaged licensing is **24 PASS / 0 FAIL / 2 BLOCKED** because
+  `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is absent. The current clean-machine run is **BLOCKED before
+  collection (0 checks credited)**: the pristine documented VM checkpoint and current 0.1.29 DVD
+  were used, the offline standard-user desktop rendered, but every documented `awkitadmin`
+  credential form was rejected by PowerShell Direct. No password was reset; VM state is Off.
+- **Tracker/export:** **280 total / 277 closed / 3 outstanding** = 1 open (`awkit-wy82`) + 2
+  status-blocked (`awkit-7bu`, `awkit-cm8`), 0 in progress and 0 dependency-blocked. No active
+  assignment may remain after release. Final exact roadmap/build/offline/memory/Git evidence follows
+  this project-state checkpoint.
+
 ## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; project state reconciled
 
 - **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN

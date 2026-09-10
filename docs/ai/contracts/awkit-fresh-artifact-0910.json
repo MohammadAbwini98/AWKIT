@@ -354,6 +354,26 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-fresh-artifact-0910:project-state:2026-09-10T07:36:55.018Z",
+        "task": "awkit-fresh-artifact-0910",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-10T07:36:55.018Z",
+        "acquired_at_commit": "2678addaa99625c0c135f548b1261953bec81498",
+        "released_at": "2026-09-10T07:53:43.147Z",
+        "released_reason": "fresh artifact task complete and pushed through 8ab6563; final gate PASS with no scope escapes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": [
