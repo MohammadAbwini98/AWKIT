@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("279 issues parse", beads.stats.total === 279, `got ${beads.stats.total}`);
+  check("280 issues parse", beads.stats.total === 280, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -511,8 +511,14 @@ try {
   // `bd export -o .beads/issues.jsonl`: `bd stats` reports Total 279, Open 2, In Progress 0,
   // Closed 275 and dependency-Blocked 0; `bd list --status blocked` separately reports the same two
   // status-blocked Oracle items (`awkit-7bu`, `awkit-cm8`).
-    "4 outstanding / 275 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 275,
+  // Then 3/277 of 280 later on 2026-09-10: `awkit-vpje` and `awkit-befd` closed after their
+  // mutation-backed verifier repairs, while `awkit-wy82` entered OPEN for the root-caused but
+  // safely unreconciled Graphify exclusion shrink. Total therefore rises 279 -> 280, closed rises
+  // 275 -> 277 and outstanding falls 4 -> 3. The new follow-up has dependency_count 0, so the edge
+  // pin stays 108. Measured after the required export: 1 open (`awkit-wy82`) plus the two existing
+  // status-blocked Oracle items (`awkit-7bu`, `awkit-cm8`), 0 in progress and 0 dependency-blocked.
+    "3 outstanding / 277 closed",
+    beads.stats.outstanding === 3 && beads.stats.closed === 277,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

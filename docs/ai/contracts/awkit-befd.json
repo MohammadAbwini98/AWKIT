@@ -11,14 +11,8 @@
   "repository": {
     "branch": "main",
     "baseline_commit": "534a694",
-    "working_tree_expected": "preserved_changes",
-    "preserved_paths": [
-      {
-        "path": "docs/ai/contracts/awkit-fresh-artifact-0910.json",
-        "git_status": " M",
-        "sha256": "74aff134d79f5da516b5453a43ce4633ed6d6e20cb01a0d7957d9f12a0809b95"
-      }
-    ]
+    "working_tree_expected": "clean",
+    "preserved_paths": []
   },
   "classification": {
     "playwright_change": true,
@@ -53,25 +47,16 @@
       "recorder"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "qa",
       "allowed_paths": [
-        "docs/ai/contracts/awkit-befd.json",
-        "docs/ai/contracts/awkit-vpje.json",
-        "docs/ai/contracts/active-lease.json",
-        "docs/ai/contracts/awkit-fresh-artifact-0910.json",
-        ".beads/issues.jsonl",
-        ".beads/interactions.jsonl",
-        "tools/roadmap/assignments.json",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md"
+        "scripts/verify-roadmap-dashboard.mjs"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
         "mock-site/**",
-        "scripts/**"
+        "docs/**",
+        ".beads/**"
       ]
     },
     "writer_sequence": [
@@ -234,6 +219,22 @@
         "acquired_at_commit": "5ed2f5a71d08aa89d456f318c6e1f399d5f3629f",
         "released_at": "2026-09-10T13:20:02.798Z",
         "released_reason": "Project-state reconciliation recorded both verifier closures, exported 280/277/3 Beads state, filed awkit-wy82, and documented Graphify/licensing/clean-machine evidence; roadmap baseline is 175/177 only on exact tracker pins",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-befd:qa:2026-09-10T13:22:21.948Z",
+        "task": "awkit-befd",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-10T13:22:21.948Z",
+        "acquired_at_commit": "9e3de42e5049cc60033eb0cf1ac14e756e49e9b3",
+        "released_at": "2026-09-10T13:24:54.124Z",
+        "released_reason": "Roadmap pins updated to measured 280 total and 3 outstanding / 277 closed; restored verifier PASS 177/177 Sources agree; each changed predicate reverted alone yielded exactly 176/177",
         "amendments": [],
         "overrides": [],
         "violations": []

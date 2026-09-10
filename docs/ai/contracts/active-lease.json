@@ -1,38 +1,18 @@
 {
   "task": "awkit-befd",
   "contract_path": "docs/ai/contracts/awkit-befd.json",
-  "holder": "project-state",
+  "holder": "qa",
   "status": "released",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-befd.json",
-    "docs/ai/contracts/awkit-fresh-artifact-0910.json",
-    "docs/ai/contracts/awkit-vpje.json",
-    "tools/roadmap/assignments.json"
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
-  "acquired_at": "2026-09-10T13:11:50.753Z",
-  "acquired_at_commit": "5ed2f5a71d08aa89d456f318c6e1f399d5f3629f",
+  "acquired_at": "2026-09-10T13:22:21.948Z",
+  "acquired_at_commit": "9e3de42e5049cc60033eb0cf1ac14e756e49e9b3",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-befd.json",
-    "docs/ai/contracts/awkit-fresh-artifact-0910.json",
-    "docs/ai/contracts/awkit-vpje.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-befd.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "fc12eeb8fb4ca0d424ae953b1097945e6523e3f71b23d70dfcf8bc3f5766b9c0",
-    "docs/ai/contracts/active-lease.json": "1410aa961da3e67d249af6bc9f339c3597ce97b1030fc2d74509da6d3f8574f2",
-    "docs/ai/contracts/awkit-befd.json": "1f41ad40e820af981b0aad7ab2f4d82c491ed4aa6ddf1f727d26a990fd45ceec",
-    "docs/ai/contracts/awkit-fresh-artifact-0910.json": "74aff134d79f5da516b5453a43ce4633ed6d6e20cb01a0d7957d9f12a0809b95",
-    "docs/ai/contracts/awkit-vpje.json": "dc1babdc00291973cc17b3b1e5f5f7f112d48834fb01fd0e174dddca8098db86",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-befd.json": "6bf746db63817ec1b43b957ac2505c11730cd6248701def2da9e3a1abf497d15"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -47,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-10T13:20:02.798Z",
-  "released_reason": "Project-state reconciliation recorded both verifier closures, exported 280/277/3 Beads state, filed awkit-wy82, and documented Graphify/licensing/clean-machine evidence; roadmap baseline is 175/177 only on exact tracker pins",
-  "archived_at": "2026-09-10T13:20:02.800Z"
+  "released_at": "2026-09-10T13:24:54.124Z",
+  "released_reason": "Roadmap pins updated to measured 280 total and 3 outstanding / 277 closed; restored verifier PASS 177/177 Sources agree; each changed predicate reverted alone yielded exactly 176/177",
+  "archived_at": "2026-09-10T13:24:54.125Z"
 }
