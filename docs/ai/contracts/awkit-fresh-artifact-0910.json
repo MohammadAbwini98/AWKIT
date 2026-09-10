@@ -224,9 +224,9 @@
       "type": "inspection",
       "command": "git push origin main",
       "required": true,
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "The push is the only evidence that cannot be PASS before it happens; tools/agents/lease-guard.mjs:462-475 evaluates a prospective copy with this one item satisfied while every other blocker stays live. It is deliberately not cited by any acceptance criterion. The previous value of git.push_evidence_id was EV-build, whose command 'npm run build' can never satisfy the git push origin main pattern at lease-guard.mjs:467, so push authorization was unreachable."
+      "note": "PASS measured 2026-09-10: git push origin main exited 0 and advanced origin/main from feb9327 to project-state commit 778fee0. This was not pre-credited: EV-push remained pending through every implementation, QA and project-state commit and was changed to PASS only after the remote accepted the push. A second ordinary push carries this evidence-only contract commit so final local HEAD and origin/main can be measured at parity."
     }
   ],
   "scope_escapes": [],
@@ -239,10 +239,10 @@
     "push_evidence_id": "EV-push"
   },
   "completion": {
-    "status": "pending",
+    "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "note": "Opened 2026-09-10 to settle whether observed old renderer UI is a stale-artifact effect or a genuine defect in a fresh artifact. Settled as Outcome A, the stale-artifact effect, with source-to-artifact evidence rather than inference. QA PASS includes EV-ui-provenance at 119/119: every required evidence item above except EV-push was executed and measured, and a 24-verifier GUI battery of roughly 1300 individual checks produced zero renderer defects. Two verifier failures remain FAIL and are not waived, but neither is a renderer defect: verify:e2e-rbac 69/70 is stale QA text owned by open follow-up awkit-vpje, and verify:async-wait-hygiene 21/22 is three inert legacy walkthrough predicates owned by awkit-befd. Licensed packaged sections stay BLOCKED because AWKIT_PACKAGED_LICENSE_ISSUER_KEY is not set and this task cannot provide it. Project state is reconciled: Beads exported at 279 total / 275 closed / 4 outstanding, the validation ledger remains 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases, and the final roadmap gate is 177/177 Sources agree after both changed pins were mutation-proven. Final build, script typecheck, packaged validation, verifier classification, roadmap and development-mode offline validation all pass. QC APPROVED covers the release and verifier methodology. completion.status stays pending only until EV-push actually passes."
+    "note": "COMPLETE 2026-09-10. Outcome A is established: stale artifacts caused the observed old UI. QA PASS includes EV-ui-provenance at 119/119, and the 24-verifier GUI battery of roughly 1300 checks found zero current renderer defects. The fresh 0.1.29 portable is bound to clean source 13eb9eb, the packaged renderer entry and every referenced/packaged renderer asset are byte-bound to the fresh build, all Hologram token names propagate, and the real packaged app launched and rendered. Two unrelated verifier results remain truthful FAIL and have open QA follow-ups: e2e-rbac 69/70 is stale text owned by awkit-vpje, and async-wait-hygiene 21/22 is three inert legacy predicates owned by awkit-befd. Licensed packaged sections remain BLOCKED because the authorized issuer key is absent. Project state is reconciled: Beads 279 total / 275 closed / 4 outstanding, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED across 67, roadmap 177/177 Sources agree with both changed pins mutation-proven, all final required gates pass, and EV-push was measured PASS only after origin accepted main through 778fee0. QC APPROVED covers release and verifier methodology."
   },
   "write_lease": {
     "history": [
