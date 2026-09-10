@@ -91,9 +91,17 @@ try {
 
     // 2 — route-mount guard: the unpermitted restored route renders NotAuthorized, not the page.
     if (r.role === "Issuer") {
-      await win.getByRole("heading", { name: "Signing readiness" }).waitFor({ timeout: 10000 });
+      const readinessHeading = win.getByRole("heading", { name: "Signing readiness" });
+      await readinessHeading.waitFor({ timeout: 10000 });
+      const readinessCard = win.locator("section").filter({ has: readinessHeading });
+      const readinessField = readinessCard.locator(".awkit-license-field").filter({ hasText: "Readiness" });
+      const readinessState = (await readinessField.locator("span").last().textContent())?.trim();
       check("Issuer: shared unpermitted default redirects to its exclusive operational page", (await win.locator(".awkit-not-authorized").count()) === 0);
-      check("Issuer: signing readiness fails safely when no external key is provisioned", (await win.getByText("Key unavailable").count()) >= 1);
+      check(
+        "Issuer: signing readiness fails safely when no external key is provisioned",
+        (await readinessCard.count()) === 1 && readinessState === "MISSING" && (await readinessCard.getByRole("status").count()) === 1,
+        `state=${readinessState ?? "missing"}`
+      );
     } else {
       check(
         `${r.role}: restored unpermitted route mounts NotAuthorized (route guard)`,
