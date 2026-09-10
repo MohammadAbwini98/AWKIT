@@ -46,7 +46,11 @@ verifier classification **PASS for all 202 scripts** (1 documentation-consistenc
 static-source-validation, 63 unit, 39 integration, 77 real-browser, 11 packaged-application, 0
 clean-machine-acceptance); roadmap **177/177, Sources agree**; offline validation **PASS** (Oracle
 bridge expected, Zvec **17/17**, development mode); and AI memory **PASS**. Final whitespace,
-task-gate, clean-tree and push evidence is recorded after the evidence-only commit.
+task-gate, clean-tree and push evidence is recorded after the evidence-only commit. The first normal
+push was accepted through `db1c711` (`8ab6563..db1c711`, `main -> main`). Both task contracts are
+terminal after their clean-tree and preserved-path audits. Both task gates are **PASS** with no
+blockers or scope escapes; the contract-release commit and final remote-parity push complete the Git
+closeout.
 
 ## 2026-09-10 (latest) — fresh 0.1.29 artifact UI provenance and Outcome A (Codex GPT-5)
 

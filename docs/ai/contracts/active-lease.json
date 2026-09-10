@@ -12,16 +12,10 @@
     "docs/ai/contracts/awkit-vpje.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-10T13:31:36.596Z",
-  "acquired_at_commit": "b77f45d03fff0de9936e75529946b1dd956d155f",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-befd.json",
-    "docs/ai/contracts/awkit-vpje.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-befd.json": "82b81eb04b6758e9ce34a7310917abfec7a821ce6bcbb3c92d59329b21a2ba38",
-    "docs/ai/contracts/awkit-vpje.json": "7f9dab0c20ac1923d6317cfa65b83fb684b1bf9f70ba5c66289ad4477c07faac"
-  },
+  "acquired_at": "2026-09-10T17:16:31.408Z",
+  "acquired_at_commit": "db1c711ebc924646f75d7cc7061dbf82695a16ba",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -35,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-10T13:37:00.947Z",
-  "released_reason": "Recorded final pre-push gate evidence and roadmap negative controls; task contracts await only task-gate and normal push evidence",
-  "archived_at": "2026-09-10T13:37:00.948Z"
+  "released_at": "2026-09-10T17:18:45.995Z",
+  "released_reason": "Both awkit-vpje and awkit-befd task gates pass with no blockers or scope escapes; terminal push and preserved-path evidence recorded",
+  "archived_at": "2026-09-10T17:18:45.996Z"
 }

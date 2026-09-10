@@ -58,7 +58,10 @@ records / 14 sources**, **268 main / 2 preload / 2,142 renderer modules**; only 
 77 real-browser, 11 packaged-application, 0 clean-machine-acceptance); roadmap **177/177 PASS —
 Sources agree**; `validate:offline` **PASS** (Oracle bridge expected, Zvec **17/17**, development
 mode); and `npm run ai:memory` **PASS**. Final whitespace, task-gate, clean-tree and local/origin
-convergence evidence follows the evidence-only commit and normal push.
+convergence evidence follows the evidence-only commit and normal push. The first normal push was
+accepted through `db1c711` (`8ab6563..db1c711`, `main -> main`); the two task contracts are terminal
+after their clean-tree/preserved-path audits. Both task gates are **PASS** with no blockers, scope
+escapes or preserved-path drift; only the final contract-release commit and convergence push remain.
 
 ## Fresh 0.1.29 artifact: Outcome A — the observed old UI came from stale artifacts (2026-09-10)
 

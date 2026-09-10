@@ -39,7 +39,10 @@
   all 202 scripts** (1/11/63/39/77/11/0 by documented category order); roadmap **177/177, Sources
   agree**; offline validation **PASS**, Zvec **17/17** in development mode; AI memory **PASS**.
   Final whitespace, task-gate, clean-tree and remote-parity evidence is recorded after the
-  evidence-only commit and normal push.
+  evidence-only commit and normal push. The first normal push was accepted through `db1c711`
+  (`8ab6563..db1c711`, `main -> main`); both task contracts are terminal after their clean-tree and
+  preserved-path audits. Both task gates are **PASS** with no blockers or scope escapes; only the
+  contract-release commit and final parity push remain.
 
 ## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; project state reconciled
 
