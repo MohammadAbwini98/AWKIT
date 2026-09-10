@@ -32,8 +32,21 @@ retained the licensed packaged sections as **BLOCKED** with the authorized issue
 P2 QA follow-ups `awkit-vpje` and `awkit-befd`; exported Beads to **279 total / 275 closed / 4
 outstanding** (2 open + 2 status-blocked, 0 dependency-blocked). The validation ledger is unchanged
 at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. The first post-export roadmap run was the
-expected **175/177**, red only on its two now-stale exact tracker pins; a separate QA lease owns that
-pin correction before final gates.
+expected **175/177**, red only on its two now-stale exact tracker pins. Under a separate QA lease,
+the pins moved to 279 total and 4 outstanding / 275 closed. Each changed predicate was mutated alone
+and produced **176/177**; restored, the verifier passed **177/177** with **"Sources agree"**.
+
+**Final checkpoint verification:** `npm run build` **PASS** (268 main / 2,142 renderer modules,
+embedded roadmap snapshot 447 records / 14 sources; known chunking advisory only);
+`typecheck:scripts` **PASS**; `verify:packaged-validation` **119/119**;
+`verify:verifier-classification` **PASS for all 202 scripts** (1 documentation-consistency, 11
+static-source-validation, 63 unit, 39 integration, 77 real-browser, 11 packaged-application, 0
+clean-machine-acceptance); `verify:roadmap-dashboard` **177/177, Sources agree**;
+`validate:offline` **PASS** (Zvec 17/17, development mode). `npm run ai:memory` **PASS**. Two bounded
+`graphify update .` attempts were **INCONCLUSIVE**: both extracted 14,142 nodes versus 14,221 in the
+existing graph and refused to overwrite it; no `--force` or purge was used. This is
+graph-maintenance/tooling residue, not product or packaged-UI evidence. `git diff --check`, the
+contract gate and push are recorded after the final project-state edit/commit.
 
 ## 2026-09-09 (latest) — worktree cleanup ahead of portable build (Muse Spark)
 

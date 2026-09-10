@@ -13,6 +13,10 @@
 - **BLOCKED licensed packaged sections:** `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set. The affected
   packaged walkthrough sections and two packaged-licensing cases remain BLOCKED; they are not PASS.
   No production signing key or bypass may be manufactured for validation.
+- **INCONCLUSIVE graph refresh:** two bounded `graphify update .` attempts extracted 14,142 nodes
+  while the existing graph contains 14,221, so Graphify refused to overwrite `graph.json`. It also
+  reported 76 zero-node source files and preserved 93 nodes from three on-disk files that left the
+  scan corpus. No `--force` or full purge was used because the missing-node cause is not established.
 - **Superseded strict-offline snapshot:** the old R2-era manifest mismatch below is historical. The
   fresh 0.1.29 release campaign regenerated and signed the manifest at source `13eb9eb` and
   `npm run validate:offline -- -Strict` reported **Strict mode: passed**. This is the current release

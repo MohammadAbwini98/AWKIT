@@ -50,23 +50,24 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-roadmap-dashboard.mjs"
-      ],
-      "forbidden_paths": [
-        "app/**",
-        "src/**",
-        "resources/**",
-        "package.json",
         "docs/ai/CURRENT_STATE.md",
         "docs/ai/HANDOFF.md",
         "docs/ai/TASK_LOG.md",
         "docs/ai/KNOWN_ISSUES.md",
-        ".beads/**",
-        "tools/roadmap/"
+        "tools/roadmap/assignments.json"
       ],
-      "note": "Bounded QA follow-up after project-state filed awkit-vpje and awkit-befd and exported 279 issues. The first post-export roadmap run was 175/177, failing only the exact stale tracker pins: 277 versus measured 279 and 2 outstanding / 275 closed versus measured 4 / 275. This writer changes only those exact predicates and their provenance comment, mutation-proves each changed predicate, and must not alter application, release, Beads or project-state files. The writer returns to project-state after the pin commit for final evidence reconciliation."
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "scripts/**",
+        "resources/**",
+        "package.json",
+        ".beads/**",
+        "tools/roadmap/*.ts"
+      ],
+      "note": "Final project-state reconciliation after the exact roadmap pin commit 2678add. This writer records the final gate outputs and Sources agree result in the newest CURRENT_STATE, HANDOFF and TASK_LOG sections, updates the task contract's measured evidence, and prepares completion without changing product, release, verifier or Beads content. EV-push remains pending until git push origin main actually succeeds."
     },
     "writer_sequence": [
       "release",
@@ -144,7 +145,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "Ran three times under the release lease, clean on every run: tsc --noEmit passed, 2142 modules transformed, the sole warning is the pre-existing securityKernel.ts chunking advisory, and each run reported 'Embedded roadmap snapshot: 445 records from 14 sources.' Every run re-emitted the identical content-hashed bundles renderer-DHTPf3g5.js and renderer-C710MO4w.css, which under Vite content hashing proves the out/ tree was already current for this source rather than proving it was skipped."
+      "note": "Ran three times under the release lease, clean on every run: tsc --noEmit passed, 2142 modules transformed, the sole warning is the pre-existing securityKernel.ts chunking advisory, and each run reported 'Embedded roadmap snapshot: 445 records from 14 sources.' Every run re-emitted the identical content-hashed bundles renderer-DHTPf3g5.js and renderer-C710MO4w.css, which under Vite content hashing proves the out/ tree was already current for this source rather than proving it was skipped. Final project-state rerun after the two follow-up Beads also passed with 268 main and 2142 renderer modules and an updated embedded snapshot of 447 records from 14 sources; the same advisory and renderer content hashes remained."
     },
     {
       "id": "EV-portable",
@@ -207,7 +208,7 @@
       "required": true,
       "result": "PASS",
       "artifact": null,
-      "note": "177/177 with the Overview banner reading 'Sources agree'. Must be re-run after the project-state phase, since adding or closing any bead moves the hardcoded non-vacuity baselines and the newest sections of both CURRENT_STATE.md and HANDOFF.md must restate the validation-ledger tally or the two-narrative consistency check silently drops from two sources to one."
+      "note": "Final post-project-state result PASS 177/177 with the Overview banner reading 'Sources agree'. Filing awkit-vpje and awkit-befd first produced the expected 175/177 failure only at the old exact pins (277 versus measured 279, and 2 outstanding / 275 closed versus measured 4 / 275). QA repinned only those predicates and added their provenance comment. Mutating total alone to 277 produced 176/177 with only '279 issues parse' red; restoring total and mutating outstanding alone to 2 produced 176/177 with only '4 outstanding / 275 closed' red; restoring both returned 177/177. The validator also measured the unchanged ledger at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases in both newest narratives."
     },
     {
       "id": "EV-verifier-classification",
@@ -241,7 +242,7 @@
     "status": "pending",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "note": "Opened 2026-09-10 to settle whether observed old renderer UI is a stale-artifact effect or a genuine defect in a fresh artifact. Settled as the stale-artifact effect, with source-to-artifact evidence rather than inference. QA PASS now includes EV-ui-provenance at 119/119: every required evidence item above except EV-push was executed and measured, and a 24-verifier GUI battery of roughly 1300 individual checks produced zero renderer defects. Two verifier failures are reported FAIL and are NOT waived, but both pre-date the baseline commit and neither is a renderer defect: verify:e2e-rbac 69/70 is a stale assertion at scripts/verify-e2e-rbac-gui.mjs:96 still expecting the superseded label 'Key unavailable' that LicenseIssuerPage.tsx:65-78 replaced with five distinct labels, and verify:async-wait-hygiene 21/22 flags three inert waitForFunction(async) predicates in the deliberately preserved legacy walkthrough scripts/verify-flow-designer-gui.pre-capsule.mjs. Both are qa-owned, both must be filed rather than fixed here, and both are outside this contract's packaging objective. Two environmental blocks stay BLOCKED and are never counted as PASS: verify:packaged-walkthrough Parts D-G and two verify:packaged-licensing cases require AWKIT_PACKAGED_LICENSE_ISSUER_KEY, which this contract's signing-key-custody constraint forbids providing. QC APPROVED covers the build override and release-phase manifest change set; the final verifier diff receives the same contract-based methodological review before project-state closeout. completion.status stays pending until the project-state phase finishes and EV-push lands."
+    "note": "Opened 2026-09-10 to settle whether observed old renderer UI is a stale-artifact effect or a genuine defect in a fresh artifact. Settled as Outcome A, the stale-artifact effect, with source-to-artifact evidence rather than inference. QA PASS includes EV-ui-provenance at 119/119: every required evidence item above except EV-push was executed and measured, and a 24-verifier GUI battery of roughly 1300 individual checks produced zero renderer defects. Two verifier failures remain FAIL and are not waived, but neither is a renderer defect: verify:e2e-rbac 69/70 is stale QA text owned by open follow-up awkit-vpje, and verify:async-wait-hygiene 21/22 is three inert legacy walkthrough predicates owned by awkit-befd. Licensed packaged sections stay BLOCKED because AWKIT_PACKAGED_LICENSE_ISSUER_KEY is not set and this task cannot provide it. Project state is reconciled: Beads exported at 279 total / 275 closed / 4 outstanding, the validation ledger remains 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases, and the final roadmap gate is 177/177 Sources agree after both changed pins were mutation-proven. Final build, script typecheck, packaged validation, verifier classification, roadmap and development-mode offline validation all pass. QC APPROVED covers the release and verifier methodology. completion.status stays pending only until EV-push actually passes."
   },
   "write_lease": {
     "history": [
@@ -334,6 +335,22 @@
         "acquired_at_commit": "0d7390d53e90c2e73c13c3bc1b84d708bc910fca",
         "released_at": "2026-09-10T07:32:31.695Z",
         "released_reason": "Outcome A docs and QA follow-up Beads committed at 6b2cef1; handoff exact roadmap pin to qa",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-fresh-artifact-0910:qa:2026-09-10T07:33:07.163Z",
+        "task": "awkit-fresh-artifact-0910",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-10T07:33:07.163Z",
+        "acquired_at_commit": "6b2cef155494f26dc8909bb6627bcb5f9a7025d8",
+        "released_at": "2026-09-10T07:36:15.582Z",
+        "released_reason": "roadmap exact pins updated and both changed predicates mutation-proven at 176/177, restored 177/177; committed at 2678add",
         "amendments": [],
         "overrides": [],
         "violations": []

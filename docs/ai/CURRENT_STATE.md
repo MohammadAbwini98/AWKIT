@@ -54,12 +54,26 @@ follow-up `awkit-befd` owns that debt. Neither is a UI migration defect. The fre
 strict offline gate **PASS** result supersedes the old R2-era failing-manifest snapshot:
 `npm run validate:offline -- -Strict` reported `Strict mode: passed` at release source `13eb9eb`.
 
-**Tracker and finalization.** After filing those two QA follow-ups and exporting Beads, the measured
+**Tracker and roadmap.** After filing those two QA follow-ups and exporting Beads, the measured
 tracker is **279 total / 275 closed / 4 outstanding**: **2 open**, **0 in progress**, and **2 status
 = blocked** (`awkit-7bu`, `awkit-cm8`), with **0 dependency-blocked**. The first post-export roadmap
 run was intentionally red at **175/177** only on the stale exact pins (`277` versus `279`, and
-`2/275` versus `4/275`); QA owns the required exact-pin update and mutation proof before final
-project-state closeout.
+`2/275` versus `4/275`). QA repinned those exact predicates; mutating the total alone and the
+outstanding count alone each produced the expected single failure at **176/177**, and the restored
+verifier passes **177/177** with the Overview banner **"Sources agree"**.
+
+**Final required gates, executed after the roadmap commit.** `npm run build` **PASS** (268 main and
+2,142 renderer modules, embedded roadmap snapshot **447 records / 14 sources**; only the pre-existing
+`securityKernel.ts` chunking advisory); `npm run typecheck:scripts` **PASS**;
+`npm run verify:packaged-validation` **PASS 119/119** against provenance source `13eb9eb` as an
+ancestor of QA HEAD `2678add`; `npm run verify:verifier-classification` **PASS**, all **202** scripts
+classified (1 documentation-consistency, 11 static-source-validation, 63 unit, 39 integration, 77
+real-browser, 11 packaged-application, 0 clean-machine-acceptance); `npm run
+verify:roadmap-dashboard` **PASS 177/177, Sources agree**; and `npm run validate:offline` **PASS**
+(Oracle bridge expected, Zvec **17/17**, development-mode validation). `npm run ai:memory` **PASS**.
+`graphify update .` is **INCONCLUSIVE** after two bounded attempts: incremental extraction found
+14,142 nodes versus the existing 14,221 and correctly refused to overwrite `graph.json`; `--force`
+was not used. Final whitespace and Git/push checks remain manager closeout work.
 
 ## Licensing/execution/verification reconciliation: awkit-f3l goals audited ALREADY RESOLVED, tracker repinned 277/275/2 (2026-09-09)
 

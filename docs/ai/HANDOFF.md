@@ -1,6 +1,6 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; final roadmap repin pending
+## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; project state reconciled
 
 - **Validation ledger, restated for two-narrative consistency:** unchanged at **65 PASS / 2 NOT RUN
   / 0 BLOCKED across 67 cases**. No ledger case moved; this tally is not the Beads or verifier count.
@@ -34,9 +34,18 @@
   historical R2 manifest failure.
 - **Tracker:** Beads exported at **279 total / 275 closed / 4 outstanding** = **2 open + 2
   status-blocked**, with **0 dependency-blocked**. The expected first run after the two new beads was
-  **175/177** solely because the exact roadmap pins still say 277 and 2/275. Route only that verifier
-  to QA, repin it to measured 279 and 4/275 with mutation proof, then return to project-state for the
-  final gate record, contract completion and push. Do not widen the QA debts into this campaign.
+  **175/177** solely on the two old exact pins. QA repinned to 279 and 4/275; mutating either changed
+  predicate alone produced **176/177**, then the restored verifier passed **177/177** and the Overview
+  banner read **"Sources agree"**.
+- **Final executed gates:** build **PASS** (268 main / 2,142 renderer modules; embedded snapshot
+  **447 records / 14 sources**, only the known chunking advisory); typecheck:scripts **PASS**;
+  packaged validation **119/119**; verifier classification **PASS for all 202 scripts** with the
+  required per-class breakdown; roadmap **177/177, Sources agree**; validate:offline **PASS** (Zvec
+  **17/17**); AI memory **PASS**. `graphify update .` is **INCONCLUSIVE** after two attempts because
+  its 14,142-node incremental result was smaller than the existing 14,221-node graph, so it correctly
+  refused replacement; no `--force` override was used. The remaining work is the manager-owned
+  scoped docs/contract commit, push, truthful `EV-push` update, final parity check and lease release.
+  Do not widen the two QA follow-ups.
 
 ## HANDOFF (2026-09-09, latest) — licensing/execution/verification reconciliation: f3l goals verified resolved, tracker repinned 277/275/2
 
