@@ -1,5 +1,41 @@
 # TASK_LOG
 
+## 2026-09-10 (latest) — `awkit-wy82` Graphify exclusion reconciliation (Codex GPT-5)
+
+**Task:** resolve the only repository-actionable Graphify issue without force, graph deletion,
+ignore weakening or owner-input changes; preserve unexplained-shrink protection; reconcile Beads,
+roadmap and project state; verify, commit and push `main`.
+
+**Root cause and responsible layer:** local Graphify 0.9.31 source proves detection loads
+`.git/info/exclude` and therefore intentionally omits the owner design-input directory. During full
+`update`, `_reconcile_existing_graph` drops root-scoped AST nodes that left discovery; `_check_shrink`
+then rejects their loss because excluded-live sources are not in `rebuilt_sources` and were not
+explicit deletions. The CLI has no public reconcile/prune command even though its extraction path
+contains `_stale_graph_sources` and the protected, atomic `_prune_graph_json_sources`. AWKIT had no
+wrapper or configuration defect. A rehearsed full `extract --code-only` was rejected because it lost
+51 additional unrelated nodes; it was not used on the accepted graph.
+
+**Safe migration:** the live run required Graphify's stale-source derivation to equal exactly the
+three owner sources and asserted accepted-node provenance of **5 README + 23 design-system + 65
+support.js = 93**. Graphify backed up its curated artifacts and pruned exactly those 93, moving
+**14,221 nodes / 29,801 edges** to **14,128 / 29,632**. Ordinary `graphify update .` then exited 0 at
+**14,142 / 29,649 / 694 communities**. The old/new ID comparison is exactly **94 absent / 15 new**:
+93 owner-source IDs plus one tracked Oracle validation-gate documentation edit; the accepted
+identity equation is `14,221 - 94 + 15 = 14,142`.
+
+**Safety evidence:** a direct `_check_shrink` negative control removed an `untouched.ts` node while
+only `changed.ts` was rebuilt; Graphify emitted the shrink warning, returned `false`, and refused the
+candidate. All 19 owner-package SHA-256 hashes and `AWTKIT.rar` match baseline, the directory remains
+Git-excluded, and `.git/info/exclude` remains SHA-256 `7b76a418...c82717`. No owner file was touched or
+staged. The version-pinned recovery and fail-closed stop conditions are documented in `GRAPHIFY.md`.
+
+**Project state:** `awkit-wy82` is CLOSED and exported. Beads now measures **280 total / 278 closed /
+2 outstanding**: only status-blocked `awkit-7bu` and `awkit-cm8`, no open, in-progress or
+dependency-blocked items. The validation ledger remains **65 PASS / 2 NOT RUN / 0 BLOCKED across 67
+cases**. Exact roadmap mutation proof, required repository gates, contract/task-gate evidence,
+lease/assignment reconciliation, commits, push and remote parity are recorded before terminal
+closeout.
+
 ## 2026-09-10 (latest) — remaining verifier closure and bounded external/tooling reconciliation (Codex GPT-5)
 
 **Task:** close `awkit-vpje` and `awkit-befd` without reopening the completed fresh-artifact/UI

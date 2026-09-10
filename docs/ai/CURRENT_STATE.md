@@ -1,5 +1,43 @@
 # CURRENT_STATE
 
+## Graphify exclusion reconciliation complete; only external acceptance gates remain (2026-09-10)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-wy82` moves no ledger case; Graphify,
+Beads and verifier counts are separate measurements.
+
+**`awkit-wy82` — CLOSED by safe provenance reconciliation.** Graphify 0.9.31 honors the local
+`.git/info/exclude`, so the three still-present owner design-input sources were no longer candidates.
+Its full-update reconcile path drops root-scoped AST nodes that leave discovery, while its
+source-aware shrink guard does not treat excluded-live sources as rebuilt or explicitly deleted.
+That integration gap made the legitimate 93-node corpus transition look unexplained and correctly
+blocked the normal update. The public CLI exposes no reconcile command, but the installed tool's
+own `_stale_graph_sources` and atomic/backup-producing `_prune_graph_json_sources` path can perform a
+narrow provenance migration. The live run asserted exactly `README.md` **5**,
+`project/design-system.md` **23**, and `project/support.js` **65**, then pruned exactly **93** nodes.
+No `--force`, graph deletion/purge, ignore change, manufactured node or owner-source change was used.
+
+**Accepted graph is current.** The accepted graph moved from **14,221 nodes / 29,801 edges** to the
+exact-prune intermediate **14,128 / 29,632**, after which ordinary `graphify update .` exited 0 at
+**14,142 nodes / 29,649 edges / 694 communities**. Old/new ID accounting remains **94 absent / 15
+new**: 93 absent IDs are the asserted owner sources and one is the tracked
+`docs/ai/ORACLE_JDBC_VALIDATION_GATES.md` edit; `14,221 - 94 + 15 = 14,142`. Multigraph diagnosis
+reports zero missing endpoints, dangling endpoints, self loops, exact duplicates or endpoint
+collapses in the post-build graph. A separate negative control losing an untouched-source node while
+only another source was rebuilt still emits the shrink warning and returns `false`, so unexplained
+loss remains fail-closed.
+
+**Owner material is preserved.** The excluded directory remains 19 files and every SHA-256 matches
+the protected task-contract baseline; `AWTKIT.rar` is also byte-identical. The local exclusion file
+remains SHA-256 `7b76a418fc04d148f422cfc4a84c3766859d1ec771ef08b939b99e6bd3c82717`.
+Nothing under the owner directory was modified, renamed, copied into tracked source or staged.
+
+**Tracker after close/export.** Beads is **280 total / 278 closed / 2 outstanding**: no open or
+in-progress items, two status-blocked external Oracle items (`awkit-7bu`, `awkit-cm8`), and zero
+dependency-blocked items. The exact roadmap tracker predicate is being repinned under QA ownership;
+final mutation proof, repository gates, task-gate, commit/push and parity evidence follow before
+handoff. External packaged-licensing authorization and clean-machine credentials remain untouched.
+
 ## Remaining QA closure: issuer readiness and Flow waits fixed; external/tooling gates preserved (2026-09-10)
 
 **Validation ledger — restated, not moved.** The Recorder/Reports/Settings validation ledger remains

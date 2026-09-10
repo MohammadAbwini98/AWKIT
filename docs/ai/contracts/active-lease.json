@@ -1,21 +1,29 @@
 {
-  "task": "awkit-befd",
-  "contract_path": "docs/ai/contracts/awkit-befd.json",
+  "task": "awkit-wy82",
+  "contract_path": "docs/ai/contracts/awkit-wy82.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
+    "docs/ai/GRAPHIFY.md",
     "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-befd.json",
-    "docs/ai/contracts/awkit-vpje.json",
+    "docs/ai/contracts/awkit-wy82.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-10T17:46:46.132Z",
-  "acquired_at_commit": "b95a9a0f6bb9441acb33e07d5d0d9b0042ea5a55",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-10T19:24:37.733Z",
+  "acquired_at_commit": "4c14f887777bebd483d092f5273cb7d4ae32f8d4",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-wy82.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-wy82.json": "e62e1fa719ed9b23de17f9fc3ef2b949d0453509c9a773fee1f54d280345ba58"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -28,8 +36,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-10T17:47:09.801Z",
-  "released_reason": "Reconciled final narrative to completed clean-tree, released-lease and convergence state",
-  "archived_at": "2026-09-10T17:47:09.803Z"
+  "violations": []
 }

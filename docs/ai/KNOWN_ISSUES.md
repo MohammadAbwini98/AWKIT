@@ -16,12 +16,14 @@
   current 0.1.29 read-only artifact DVD are available, but the documented admin credential is no
   longer valid for PowerShell Direct. The 2026-09-10 attempt collected **0 current checks**, reset no
   password, and returned the VM to Off. Historical 0.1.21 evidence does not clear the current run.
-- **INCONCLUSIVE graph refresh (`awkit-wy82`):** `graphify update .` extracts 14,142 nodes versus the
-  accepted 14,221 and refuses overwrite. Exact accounting proves 93 old IDs are the three
-  still-present owner design-input files added to `.git/info/exclude` after the accepted graph was
-  built; one further removed ID is an accounted tracked-doc edit, while 15 new IDs offset the net
-  difference. This is legitimate ignore/corpus drift, but Graphify 0.9.31 cannot safely reconcile it
-  automatically. No `--force`, deletion, purge, ignore weakening or owner-file mutation was used.
+- **RESOLVED `awkit-wy82` — Graphify live-exclusion CLI gap remains documented:** Graphify 0.9.31
+  honors `.git/info/exclude`, but `update` cannot publicly reconcile accepted AST provenance from a
+  still-present source that becomes excluded: full rebuild drops it while shrink accounting does not
+  classify it as rebuilt/deleted. The bounded recovery asserted the tool-derived stale set and
+  5/23/65 node counts, pruned exactly those 93 nodes through Graphify's own atomic backup routine,
+  then normal `graphify update .` passed at **14,142 nodes / 29,649 edges** without `--force`.
+  Unexpected shrink still rejects. Treat any version/source/count drift as INCONCLUSIVE and follow
+  `GRAPHIFY.md` §5; do not generalize this into a global shrink bypass.
 - **Superseded strict-offline snapshot:** the old R2-era manifest mismatch below is historical. The
   fresh 0.1.29 release campaign regenerated and signed the manifest at source `13eb9eb` and
   `npm run validate:offline -- -Strict` reported **Strict mode: passed**. This is the current release

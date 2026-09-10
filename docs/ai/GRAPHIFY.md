@@ -54,19 +54,20 @@ coverage from the tracked `.graphifyignore`.
 
 ## 2. Current graph
 
-Built 2026-07-30 from `main` with `graphify update .`.
+Reconciled and rebuilt 2026-09-10 from `main` with Graphify 0.9.31. The reconciliation procedure
+is recorded in §5; the accepted graph was then refreshed by the normal `graphify update .` command.
 
 | Metric | Value |
 |---|---|
-| Nodes | **11264** |
-| Edges | **22960** |
-| Communities | **605** |
-| Distinct source files represented | **985** — 983 of the 1141 tracked files, plus 2 added this task |
-| Edge provenance | **22747 `EXTRACTED` / 213 `INFERRED`** (99% / 1%), 0 `AMBIGUOUS` |
+| Nodes | **14142** |
+| Edges | **29649** |
+| Communities | **694** |
+| Distinct source files represented | **1159** |
+| Edge provenance | **29353 `EXTRACTED` / 296 `INFERRED`**, 0 `AMBIGUOUS` |
 | Token cost | 0 in / 0 out |
 
 Outputs: `graphify-out/graph.json` (queryable graph), `graphify-out/GRAPH_REPORT.md` (audit report,
-god nodes, suggested questions), `graphify-out/graph.html` (interactive; aggregated to 605 community
+god nodes, suggested questions), `graphify-out/graph.html` (interactive; aggregated to 694 community
 nodes because the graph exceeds the 5000-node viz limit).
 
 **Community labels are hub-derived by graphify itself** — each community is named after its most
@@ -83,21 +84,19 @@ files and ~3400 extra nodes come from. Use `graphify update .`.
 
 ### Graph health (reported, not hidden)
 
-`graphify diagnose multigraph` flagged, on the AST-only build of the same corpus:
-
-- **1290 dangling-endpoint edges** — imports whose target was never indexed (`node_modules`,
-  Node/Electron/Playwright built-ins). Expected for a repo-scoped graph; not corruption.
-- **306 directed / 317 undirected collapsed edges** — several relations between the same pair of
-  files (e.g. `imports_from` *and* `re_exports` between `app/main/secretStore.ts` and
-  `src/secrets/SecretStore.ts`) collapse into one edge in a simple graph.
-- 0 missing-endpoint edges, 0 self-loops.
-
-Consequence: **edge multiplicity and direction are lossy.** Use the graph to find *where* to look,
-then read the file to learn *what* it does.
+`graphify diagnose multigraph` on the accepted post-build graph reports **14142 nodes / 29649
+edges**, with **0** missing-endpoint, dangling-endpoint, self-loop, exact-duplicate or same-endpoint
+collapsed edges. It also explicitly warns that ordinary `graph.json` is post-build, so raw producer
+loss must be measured earlier. Graph paths remain undirected connectivity, not call direction; use
+the graph to find *where* to look, then read source to learn *what* it does.
 
 ---
 
 ## 3. What is indexed, and what is not
+
+The detailed extension table below is the verified 2026-07-30 installation accounting. The live
+accepted-graph totals are the 2026-09-10 metrics in §2; repository growth since installation means
+the historical tracked-file counts below must not be substituted for current graph totals.
 
 Full accounting against `git ls-files` (**1141 tracked files**). **983 are represented in the graph;
 all 158 that are not are accounted for below — 158 of 158, nothing unexplained.**
@@ -227,15 +226,41 @@ graphify update .
 Incremental, offline, no API key, no token cost; re-extracts only files whose hash changed
 (`graphify-out/manifest.json` tracks them). Equivalent to `/graphify . --update` from the skill.
 
-**After deleting or moving a lot of code**, the shrink guard refuses to overwrite a larger graph with
-a smaller one. That refusal is correct — override it only when the shrink is intended:
+**After deleting, moving or newly excluding source**, the shrink guard may refuse to overwrite a
+larger accepted graph. Treat that as a fail-closed stop, not as permission to use `--force`.
 
-```bash
-graphify update . --force
-```
+### Safe reconciliation for intentionally excluded live files
 
-**After changing `.graphifyignore`**, run `graphify update . --force` — coverage changes are not
-picked up by the hash gate alone.
+Graphify 0.9.31 honors both tracked ignore rules and `.git/info/exclude`. Its `update` full-rebuild
+path drops root-scoped AST nodes that leave the discovered corpus, but its shrink accounting does
+not classify a still-present excluded source as rebuilt or explicitly deleted. The resulting loss
+is therefore rejected even when the exclusion is intentional. The public CLI has no separate
+`reconcile` or provenance-prune command.
+
+For `awkit-wy82`, the bounded recovery used Graphify's own version-local provenance functions:
+
+1. Preserve the accepted graph through Graphify's protected backup behavior and record its counts
+   and hash.
+2. Derive the stale set with `graphify.cli._stale_graph_sources` from the same 0.9.31 detection
+   result. Require that every live source is provably ignored; do not accept path-existence drift.
+3. Assert the exact expected sources and accepted-node provenance counts before mutation. This task
+   required only `README.md` **5**, `project/design-system.md` **23**, and `project/support.js`
+   **65** beneath the excluded owner directory: **93 total**.
+4. Prune only that asserted set with Graphify's atomic, backup-producing
+   `graphify.cli._prune_graph_json_sources` implementation.
+5. Run the ordinary `graphify update .` with no `--force`, compare old/new IDs, and separately prove
+   `graphify.watch._check_shrink` still rejects an unexplained loss from an untouched source.
+
+The 2026-09-10 run pruned exactly 93 proven stale nodes, then normal update accepted **14142 nodes /
+29649 edges**. Relative to the previous **14221 / 29801** graph, **94** IDs are absent and **15**
+are new: the 93 proven owner-source IDs plus one tracked edit in
+`docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`; `14221 - 94 + 15 = 14142`.
+
+This is a version-pinned recovery for a measured corpus transition, not a general public Graphify
+command. If the tool version, derived stale set, provenance counts or source behavior differs, stop
+as **INCONCLUSIVE**, preserve the accepted graph and open an upstream/tooling dependency. Never
+weaken ignore policy, edit/copy owner input, manufacture nodes, delete the graph, or globally bypass
+the shrink guard merely to obtain a green refresh.
 
 **When to refresh:** before relying on the graph in a new session if `main` has moved; after any task
 that adds, deletes or renames files. **Do not** wire this to a git hook or a file watcher without

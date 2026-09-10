@@ -680,6 +680,11 @@ graphify path "FlowProfile" "JsonProfileStore"   # shortest connectivity path (u
 > Output lives in the gitignored `graphify-out/`; `.graphifyignore` is tracked index config.
 > **NOT indexed:** all `.css` (incl. `global.css`), all `mock-site/*.html`, `.json` fixtures, and
 > `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`. Markdown is structural only. Use `Grep` for those.
+> A shrink refusal is fail-closed. Do not answer it with `--force`, graph deletion or ignore
+> weakening. For an intentional live-file exclusion, follow the version-pinned provenance procedure
+> in `docs/ai/GRAPHIFY.md` §5: derive and assert the exact stale sources/counts with Graphify's own
+> stale-source logic, prune only that provenance through its backup-producing routine, then require
+> the ordinary `graphify update .` and the unexplained-shrink negative control to pass.
 > Contract, coverage accounting, exclusions, hooks and limits: `docs/ai/GRAPHIFY.md`.
 
 ## Deterministic agent routing (developer/AI tool — never part of the app or its build)

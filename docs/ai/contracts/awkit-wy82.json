@@ -1,0 +1,316 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-wy82",
+    "title": "Reconcile intentionally excluded Graphify inputs",
+    "objective": "Safely reconcile the accepted Graphify graph after 93 nodes from still-present owner inputs became intentionally Git-excluded; preserve ordinary fail-closed shrink protection and owner material; make a normal graphify update complete without force; close and export the Bead only on measured acceptance; reconcile project state and roadmap; commit coherently to main; and push normally.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "4c14f887777bebd483d092f5273cb7d4ae32f8d4",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "AWTKIT.rar",
+        "git_status": "!!",
+        "sha256": "d8a134ec978d23a843cfccab480a1f5227db8c12c04c9e889a9d5226e8afd06a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/README.md",
+        "git_status": "!!",
+        "sha256": "8e2edacc50cc381bdb65a59af33d4f063847a729c01126d4e9ebaec90056957f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/.thumbnail",
+        "git_status": "!!",
+        "sha256": "72bf2ffb7da3365ff421223e9ba5cdda5999041f1c7bd684ab88b70a4fe5dc6e"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Component Reference.dc.html",
+        "git_status": "!!",
+        "sha256": "2126026cb0d62fe00d0ba7497f29886d615ef2b4ae5a0cf0777af33af070e306"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Live Run Monitor.dc.html",
+        "git_status": "!!",
+        "sha256": "a3728a471ccd1e348d526e2a25f2a44ab66e75213fed81abec112f6c77a55bc0"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login-standalone-src.dc.html",
+        "git_status": "!!",
+        "sha256": "c26522113d9e7ccd0df1d0721fe005ec8802b901471ac41340b34402fed0420d"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Login.dc.html",
+        "git_status": "!!",
+        "sha256": "a20a3c78cf2f4ee68b813217d00313ebb892bda9a988ad6a88fa0b69b1757a48"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Reports.dc.html",
+        "git_status": "!!",
+        "sha256": "f9231da6e1e3e88e0a13f87861a6d29472c5b54de866d3658bde4aff5053598f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Builder Login.html",
+        "git_status": "!!",
+        "sha256": "938c7bb13f979ac99e67d652658b8f8291bac55e85d9a8d0de3a159045bfcca6"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace copy.html",
+        "git_status": "!!",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.dc.html",
+        "git_status": "!!",
+        "sha256": "544e595d55694798621e1a2960fe079a860f0926dd5e3b282f916ffa2adc97dd"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workflow Workspace.html",
+        "git_status": "!!",
+        "sha256": "b184bec76e7f2c101cfd7154eda4f30f6cd7db5b93e9e745664baec8d32b8e2f"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/Workspace-standalone-src.dc.html",
+        "git_status": "!!",
+        "sha256": "5280b1b776244584a30e5f37cdde6e1ced91580dc3e2194b011f660dc57f1dab"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/design-system.md",
+        "git_status": "!!",
+        "sha256": "46a0a82ac3119730a4e235f1e535b3dd6a938b3ef2cb14199bb87e604ef5e4ee"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/support.js",
+        "git_status": "!!",
+        "sha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788204385061-0.png",
+        "git_status": "!!",
+        "sha256": "7be5778eefe22574c924179665847c7a0bff18c57b270294a10bca2bdceaa436"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788278310800-0.png",
+        "git_status": "!!",
+        "sha256": "1bff854ec7541e490385b73d4f49d0938bb58574e9f80ae5e73630d995aed2f7"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284636916-0.png",
+        "git_status": "!!",
+        "sha256": "5afea2f2d7622c3dc47dfd4f201c582f6e572eb0545f054058a9948e7a1ea95b"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788284913207-0.png",
+        "git_status": "!!",
+        "sha256": "5a09b986d96dbe111fd6513343e177140dd9759398de4ce2e393313669d7e00a"
+      },
+      {
+        "path": "Building priorities and integration-handoff/building-priorities-and-integration/project/uploads/pasted-1788286526859-0.png",
+        "git_status": "!!",
+        "sha256": "264cac01edc61b8ca30c047f86a377fdbb0790d1b1764a27eb1a0c32423b924d"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/GRAPHIFY.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-wy82.json",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/GRAPHIFY.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-wy82.json",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "mock-site/**",
+        "scripts/**"
+      ]
+    },
+    "writer_sequence": [
+      "qa",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "compatibility": [
+      "Preserve Graphify's fail-closed shrink protection for unexplained node loss.",
+      "Do not use --force, purge or delete the accepted graph, weaken ignore policy, manufacture nodes, or replace the graph through a broader extraction with unrelated losses.",
+      "Do not alter validation-ledger status or touch packaged licensing, clean-machine credentials, awkit-7bu, or awkit-cm8."
+    ],
+    "offline": [
+      "Use only local Graphify 0.9.31 behavior and repository tooling; do not add a runtime dependency or network requirement."
+    ],
+    "owner_inputs": [
+      "The 19-file Building priorities and integration-handoff package and AWTKIT.rar remain local-only, Git-excluded, byte-identical, unstaged, and unmodified."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "RESPONSIBLE-LAYER",
+      "description": "Graphify 0.9.31 discovery, stale-source, update-reconcile and shrink-guard behavior is proven from local source, including the exact reason the 93 owner nodes are unaccounted during full rebuild.",
+      "evidence_required": [
+        "source-behavior"
+      ]
+    },
+    {
+      "id": "INTENTIONAL-EXCLUSION",
+      "description": "Exactly the 93 nodes proven to originate from the three intentionally excluded live owner files are removed through Graphify's provenance-aware stale-source mechanism, then a normal graphify update . succeeds and accepts the current corpus without force.",
+      "evidence_required": [
+        "provenance-reconciliation",
+        "graph-update"
+      ]
+    },
+    {
+      "id": "FAIL-CLOSED",
+      "description": "A synthetic unexplained loss from an untouched source remains rejected by Graphify's ordinary shrink guard after reconciliation.",
+      "evidence_required": [
+        "unexpected-shrink-negative-control"
+      ]
+    },
+    {
+      "id": "OWNER-PRESERVATION",
+      "description": "The excluded 19-file owner package, AWTKIT.rar, and the local exclusion rule remain unchanged and nothing from the owner package is staged.",
+      "evidence_required": [
+        "preserved-path-audit"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "awkit-wy82 is closed and exported only after acceptance, documentation and exact roadmap pins are current, all required repository gates pass, main is pushed normally, and Sources agree.",
+      "evidence_required": [
+        "repository-verification",
+        "beads-roadmap",
+        "push-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "source-behavior",
+      "type": "inspection",
+      "required": true,
+      "command": "inspect installed Graphify 0.9.31 detect.py, watch.py, cli.py and build.py",
+      "result": "PASS",
+      "artifact": null,
+      "note": "Local source proves .git/info/exclude is honored; full update drops root-scoped AST nodes during rebuild but does not count excluded live sources as rebuilt, so the source-aware shrink guard rejects the resulting unaccounted loss. The CLI exposes no public reconcile command even though its extract path contains provenance-aware stale-source pruning."
+    },
+    {
+      "id": "provenance-reconciliation",
+      "type": "migration",
+      "required": true,
+      "command": "derive exact stale sources with graphify.cli._stale_graph_sources, assert 5/23/65 nodes, then prune with graphify.cli._prune_graph_json_sources",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "graph-update",
+      "type": "verifier",
+      "required": true,
+      "command": "graphify update .; graphify diagnose multigraph",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "unexpected-shrink-negative-control",
+      "type": "verifier",
+      "required": true,
+      "command": "call graphify.watch._check_shrink with one rebuilt source and one unexplained lost untouched source; require rejection",
+      "result": "PASS",
+      "artifact": null,
+      "note": "Graphify 0.9.31 emitted the shrink warning and returned false for a candidate that lost untouched.ts while only changed.ts was rebuilt."
+    },
+    {
+      "id": "preserved-path-audit",
+      "type": "inspection",
+      "required": true,
+      "command": "task-gate preserved-path fingerprints, .git/info/exclude hash, owner-file count and final git status",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "repository-verification",
+      "type": "build",
+      "required": true,
+      "command": "npm run build; npm run typecheck:scripts; npm run verify:verifier-classification; npm run verify:roadmap-dashboard; npm run ai:memory; git diff --check",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "beads-roadmap",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-wy82; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure HEAD/origin/main/divergence",
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "write_lease": {
+    "status": "unassigned",
+    "history": [],
+    "overrides": []
+  },
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

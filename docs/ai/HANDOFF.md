@@ -1,5 +1,36 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-10, latest) — `awkit-wy82` safely reconciled; Graphify current and fail-closed
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **Root cause:** Graphify 0.9.31 honors `.git/info/exclude`. Its full-update rebuild drops AST nodes
+  from live sources that leave discovery, but the update shrink accounting does not classify those
+  excluded-live sources as rebuilt or deleted. The public CLI has no reconcile command, so 93
+  intentional owner-source losses were indistinguishable from unexplained loss to the normal guard.
+- **Resolution:** the live accepted graph was protected and the tool's own stale-source derivation
+  was required to return exactly the three excluded owner sources with **5/23/65 = 93** nodes. Its
+  atomic, backup-producing provenance pruner removed only those 93. Normal `graphify update .` then
+  passed without `--force`, graph deletion, purge, ignore weakening, manufactured nodes or owner
+  edits. The exact version-pinned procedure and its stop conditions are in `docs/ai/GRAPHIFY.md` §5.
+- **Graph evidence:** accepted **14,221 nodes / 29,801 edges** → exact-prune **14,128 / 29,632** →
+  refreshed **14,142 / 29,649**, with **694 communities**. Old/new IDs remain **94 absent / 15 new**:
+  the 93 asserted owner nodes plus one tracked Oracle-gate-doc edit; `14,221 - 94 + 15 = 14,142`.
+  Multigraph diagnosis is clean for the post-build graph.
+- **Fail-closed proof:** a synthetic candidate that lost an untouched-source node while rebuilding
+  only a different source still produced Graphify's shrink warning and returned
+  `unexpected_shrink_accepted=False`. Global shrink protection was not disabled.
+- **Owner preservation:** all 19 excluded owner files and `AWTKIT.rar` match their contract SHA-256
+  baselines; the exclusion file hash remains `7b76a418...c82717`. No owner file was modified,
+  renamed, staged or copied into tracked source.
+- **Tracker:** `awkit-wy82` is CLOSED and exported. Beads is **280 total / 278 closed / 2
+  outstanding**, both status-blocked (`awkit-7bu`, `awkit-cm8`), with 0 open, 0 in progress and 0
+  dependency-blocked. QA owns the remaining exact roadmap repin/mutation proof; final gates,
+  contract disposition, lease/assignment release, commits, push and parity are completed before
+  reporting this handoff as terminal.
+- **Remaining external gates only:** packaged licensing authorization, clean-machine credentials,
+  `awkit-7bu`, and `awkit-cm8`. No default `key2`, authorization, credential change or external-gate
+  rerun belongs to this task.
+
 ## HANDOFF (2026-09-10, latest) — remaining QA debts closed; Graphify and external gates retained truthfully
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This is not the
