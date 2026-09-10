@@ -35,8 +35,18 @@ was reset and the VM returned to Off.
 
 **Project state at export:** **280 total / 277 closed / 3 outstanding** = 1 open Graphify follow-up +
 2 status-blocked Oracle gates, 0 in progress and 0 dependency-blocked. Validation ledger remains
-**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Final full gate, roadmap, lease, commit and push
-evidence is appended after closeout.
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Commit `b77f45d` moves the exact roadmap pins to
+the measured tracker state. Reverting either changed pin alone produces **176/177**; restored,
+roadmap verification is **177/177 PASS — Sources agree**.
+
+**Final pre-push verification:** build **PASS** (embedded roadmap **448 records / 14 sources**; 268
+main / 2 preload / 2,142 renderer modules; known chunking advisory only); `typecheck:scripts`
+**PASS**; RBAC **70/70**; async-wait hygiene **22/22**; Flow Designer **138 broad + 16/16 capsule**;
+verifier classification **PASS for all 202 scripts** (1 documentation-consistency, 11
+static-source-validation, 63 unit, 39 integration, 77 real-browser, 11 packaged-application, 0
+clean-machine-acceptance); roadmap **177/177, Sources agree**; offline validation **PASS** (Oracle
+bridge expected, Zvec **17/17**, development mode); and AI memory **PASS**. Final whitespace,
+task-gate, clean-tree and push evidence is recorded after the evidence-only commit.
 
 ## 2026-09-10 (latest) — fresh 0.1.29 artifact UI provenance and Outcome A (Codex GPT-5)
 

@@ -30,8 +30,16 @@
   credential form was rejected by PowerShell Direct. No password was reset; VM state is Off.
 - **Tracker/export:** **280 total / 277 closed / 3 outstanding** = 1 open (`awkit-wy82`) + 2
   status-blocked (`awkit-7bu`, `awkit-cm8`), 0 in progress and 0 dependency-blocked. No active
-  assignment may remain after release. Final exact roadmap/build/offline/memory/Git evidence follows
-  this project-state checkpoint.
+  assignment may remain after release. Commit `b77f45d` repins the measured tracker state; each
+  changed pin fails alone at **176/177**, while restored roadmap verification is **177/177 PASS —
+  Sources agree**.
+- **Final pre-push gate:** build **PASS** (448 roadmap records / 14 sources; 268 main / 2 preload /
+  2,142 renderer modules; known chunking advisory only); script typecheck **PASS**; RBAC **70/70**;
+  async-wait hygiene **22/22**; Flow Designer **138 broad + 16/16 capsule**; classification **PASS,
+  all 202 scripts** (1/11/63/39/77/11/0 by documented category order); roadmap **177/177, Sources
+  agree**; offline validation **PASS**, Zvec **17/17** in development mode; AI memory **PASS**.
+  Final whitespace, task-gate, clean-tree and remote-parity evidence is recorded after the
+  evidence-only commit and normal push.
 
 ## HANDOFF (2026-09-10, latest) — fresh 0.1.29 proves Outcome A; project state reconciled
 

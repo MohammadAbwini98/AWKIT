@@ -47,15 +47,21 @@
       "recorder"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-roadmap-dashboard.mjs"
+        "docs/ai/contracts/awkit-befd.json",
+        "docs/ai/contracts/awkit-vpje.json",
+        "docs/ai/contracts/active-lease.json",
+        "tools/roadmap/assignments.json",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
         "mock-site/**",
-        "docs/**",
+        "scripts/**",
         ".beads/**"
       ]
     },
@@ -145,8 +151,9 @@
       "type": "inspection",
       "required": true,
       "command": "bd show awkit-befd; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "awkit-befd is CLOSED and the 280-item Beads export records 277 closed / 3 outstanding. Roadmap verification passes 177/177 with Sources agree; reverting either changed exact pin alone produces 176/177."
     },
     {
       "id": "push-main",
@@ -235,6 +242,28 @@
         "acquired_at_commit": "9e3de42e5049cc60033eb0cf1ac14e756e49e9b3",
         "released_at": "2026-09-10T13:24:54.124Z",
         "released_reason": "Roadmap pins updated to measured 280 total and 3 outstanding / 277 closed; restored verifier PASS 177/177 Sources agree; each changed predicate reverted alone yielded exactly 176/177",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-befd:project-state:2026-09-10T13:31:36.596Z",
+        "task": "awkit-befd",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-befd.json",
+          "docs/ai/contracts/awkit-vpje.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-10T13:31:36.596Z",
+        "acquired_at_commit": "b77f45d03fff0de9936e75529946b1dd956d155f",
+        "released_at": "2026-09-10T13:37:00.947Z",
+        "released_reason": "Recorded final pre-push gate evidence and roadmap negative controls; task contracts await only task-gate and normal push evidence",
         "amendments": [],
         "overrides": [],
         "violations": []

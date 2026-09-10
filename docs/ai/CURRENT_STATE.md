@@ -45,8 +45,20 @@ not current acceptance.
 **Tracker.** Beads was exported after closing `awkit-vpje` and `awkit-befd` and filing `awkit-wy82`:
 **280 total / 277 closed / 3 outstanding** = **1 open** (`awkit-wy82`) + **2 status-blocked**
 (`awkit-7bu`, `awkit-cm8`), with **0 in progress** and **0 dependency-blocked**. The roadmap exact
-tracker pins must move to this measured state; final classification/build/offline/memory/roadmap and
-push evidence is recorded by the closeout that follows this project-state update.
+tracker pins moved to this measured state in commit `b77f45d`. Reverting the total pin alone or the
+outstanding/closed pin alone produced exactly **176/177**; restored, the roadmap is **177/177 PASS —
+Sources agree**.
+
+**Final verification before push.** `npm run build` is **PASS** (embedded roadmap snapshot **448
+records / 14 sources**, **268 main / 2 preload / 2,142 renderer modules**; only the known
+`securityKernel.ts` chunking advisory). `npm run typecheck:scripts` is **PASS**;
+`verify:e2e-rbac` **70/70 PASS**; `verify:async-wait-hygiene` **22/22 PASS**;
+`verify:flow-designer` **138 broad + 16/16 capsule PASS**; verifier classification **PASS for all
+202 scripts** (1 documentation-consistency, 11 static-source-validation, 63 unit, 39 integration,
+77 real-browser, 11 packaged-application, 0 clean-machine-acceptance); roadmap **177/177 PASS —
+Sources agree**; `validate:offline` **PASS** (Oracle bridge expected, Zvec **17/17**, development
+mode); and `npm run ai:memory` **PASS**. Final whitespace, task-gate, clean-tree and local/origin
+convergence evidence follows the evidence-only commit and normal push.
 
 ## Fresh 0.1.29 artifact: Outcome A — the observed old UI came from stale artifacts (2026-09-10)
 

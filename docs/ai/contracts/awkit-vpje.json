@@ -11,14 +11,8 @@
   "repository": {
     "branch": "main",
     "baseline_commit": "8ab65633bbe8adc21335e1665a5dcb53ca7e4b16",
-    "working_tree_expected": "preserved_changes",
-    "preserved_paths": [
-      {
-        "path": "docs/ai/contracts/awkit-fresh-artifact-0910.json",
-        "git_status": " M",
-        "sha256": "74aff134d79f5da516b5453a43ce4633ed6d6e20cb01a0d7957d9f12a0809b95"
-      }
-    ]
+    "working_tree_expected": "clean",
+    "preserved_paths": []
   },
   "classification": {
     "authorization_change": true,
@@ -151,8 +145,9 @@
       "type": "inspection",
       "required": true,
       "command": "bd show awkit-vpje; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "awkit-vpje is CLOSED and the 280-item Beads export records 277 closed / 3 outstanding. Roadmap verification passes 177/177 with Sources agree; reverting either changed exact pin alone produces 176/177."
     },
     {
       "id": "push-main",
