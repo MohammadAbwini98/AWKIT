@@ -6,7 +6,7 @@
     "objective": "Safely reconcile the accepted Graphify graph after 93 nodes from still-present owner inputs became intentionally Git-excluded; preserve ordinary fail-closed shrink protection and owner material; make a normal graphify update complete without force; close and export the Bead only on measured acceptance; reconcile project state and roadmap; commit coherently to main; and push normally.",
     "requested_by": "owner",
     "mode": "change",
-    "risk_level": 1
+    "risk_level": 2
   },
   "repository": {
     "branch": "main",
@@ -117,6 +117,7 @@
   },
   "classification": {
     "project_state_change": true,
+    "packaging_change": true,
     "cross_layer_count": 2
   },
   "routing": {
@@ -125,6 +126,7 @@
       "manager",
       "qa",
       "qc",
+      "release",
       "project-state"
     ],
     "expected_paths": [
@@ -138,34 +140,30 @@
       "docs/ai/TASK_LOG.md",
       "docs/ai/contracts/active-lease.json",
       "docs/ai/contracts/awkit-wy82.json",
+      "package.json",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-graphify-shrink-guard.mjs",
       "scripts/verify-roadmap-dashboard.mjs",
       "tools/roadmap/assignments.json"
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "qa",
       "allowed_paths": [
-        ".beads/interactions.jsonl",
-        ".beads/issues.jsonl",
-        "docs/ai/COMMANDS.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/GRAPHIFY.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/ai/contracts/active-lease.json",
-        "docs/ai/contracts/awkit-wy82.json",
-        "tools/roadmap/assignments.json"
+        "scripts/verify-graphify-shrink-guard.mjs",
+        "scripts/verify-roadmap-dashboard.mjs"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
         "mock-site/**",
-        "scripts/**"
-      ]
+        "docs/**"
+      ],
+      "note": "package.json stays release-owned; the QA holder may register the new npm command under the shared-write scripts field only (deriveGuardedFieldChanges rejects any other package.json field)."
     },
     "writer_sequence": [
       "qa",
+      "release",
       "project-state"
     ],
     "reviewers": [
@@ -180,7 +178,8 @@
       "Do not alter validation-ledger status or touch packaged licensing, clean-machine credentials, awkit-7bu, or awkit-cm8."
     ],
     "offline": [
-      "Use only local Graphify 0.9.31 behavior and repository tooling; do not add a runtime dependency or network requirement."
+      "Use only the locally installed Graphify behavior and repository tooling; do not add a runtime dependency or network requirement.",
+      "The installed uv tool graphifyy is package 0.9.31, confirmed three ways: the dist-info METADATA Version field, `graphify --version`, and `uv tool list`. No version-mismatch warning is printed by any invocation (an earlier draft of this note recorded 0.9.30 with a warning; that was a misreading, corrected after direct measurement). All source citations in this contract are against the installed 0.9.31 package tree."
     ],
     "owner_inputs": [
       "The 19-file Building priorities and integration-handoff package and AWTKIT.rar remain local-only, Git-excluded, byte-identical, unstaged, and unmodified."
@@ -189,7 +188,7 @@
   "acceptance": [
     {
       "id": "RESPONSIBLE-LAYER",
-      "description": "Graphify 0.9.31 discovery, stale-source, update-reconcile and shrink-guard behavior is proven from local source, including the exact reason the 93 owner nodes are unaccounted during full rebuild.",
+      "description": "Graphify discovery, stale-source, update-reconcile and shrink-guard behavior is proven from the locally installed source (uv tool graphifyy; package 0.9.31, confirmed from dist-info METADATA, `graphify --version` and `uv tool list`), including the exact reason the 93 owner nodes are unaccounted during full rebuild.",
       "evidence_required": [
         "source-behavior"
       ]
@@ -204,9 +203,10 @@
     },
     {
       "id": "FAIL-CLOSED",
-      "description": "A synthetic unexplained loss from an untouched source remains rejected by Graphify's ordinary shrink guard after reconciliation.",
+      "description": "A synthetic unexplained loss from an untouched source remains rejected by Graphify's ordinary shrink guard after reconciliation, and a committed repository verifier reproduces both that rejection and the accepted intentional-exclusion case so the protection cannot be silently disabled later.",
       "evidence_required": [
-        "unexpected-shrink-negative-control"
+        "unexpected-shrink-negative-control",
+        "shrink-guard-regression"
       ]
     },
     {
@@ -241,16 +241,18 @@
       "type": "migration",
       "required": true,
       "command": "derive exact stale sources with graphify.cli._stale_graph_sources, assert 5/23/65 nodes, then prune with graphify.cli._prune_graph_json_sources",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "Executed by the prior agent (Codex GPT-5) and recorded in docs/ai/TASK_LOG.md at commit af1c853: derived stale sources equal to exactly the three excluded owner files, asserted 5 README + 23 design-system.md + 65 support.js = 93, backed up the curated artifacts, and pruned exactly those 93 (14,221/29,801 -> 14,128/29,632). NOT re-executed in this session because the prune is a one-time, non-idempotent state transition. Independently corroborated here by two of my own measurements: graphify diagnose multigraph reported the recorded post-update 14,142 nodes / 29,649 edges, and an ordinary graphify update . now completes without --force, which is only possible once no lost node originates from an excluded owner source."
     },
     {
       "id": "graph-update",
       "type": "verifier",
       "required": true,
       "command": "graphify update .; graphify diagnose multigraph",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "Executed in this session. graphify update . exited 0 with no --force: AST extraction 1238/1238 uncached files, curated graph backed up to graphify-out/2026-09-11/, rebuilt 14,012 nodes / 29,342 edges / 696 communities. A second immediate run reported 'No code-graph topology changes detected; outputs left untouched', proving 14,012/29,342/696 is the converged fixed point of AST-only update on the current corpus. This supersedes the 14,142/29,649/694 recorded at af1c853. The additional 130-node reduction beyond the 93 owner nodes was machine-checked and accepted by _check_shrink because every lost node either belonged to a re-extracted source file or carried no source_file; the cold AST cache forced a full re-extraction, which cannot regenerate non-AST semantic and documentation nodes (watch.py:1083-1095 warns of exactly this). Per-ID enumeration of those 130 was NOT performed and is not asserted. The pre-update 14,142 graph is retained in graphify-out/2026-09-11/."
     },
     {
       "id": "unexpected-shrink-negative-control",
@@ -259,7 +261,16 @@
       "command": "call graphify.watch._check_shrink with one rebuilt source and one unexplained lost untouched source; require rejection",
       "result": "PASS",
       "artifact": null,
-      "note": "Graphify 0.9.31 emitted the shrink warning and returned false for a candidate that lost untouched.ts while only changed.ts was rebuilt."
+      "note": "The installed Graphify emitted the shrink warning and returned false for a candidate that lost untouched.ts while only changed.ts was rebuilt. This was a one-off interactive probe and is not by itself repeatable protection; shrink-guard-regression commits the same proof as a repository verifier."
+    },
+    {
+      "id": "shrink-guard-regression",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:graphify-shrink-guard",
+      "result": "pending",
+      "artifact": null,
+      "note": "Committed regression coverage for the two-sided invariant: an unexplained loss from an untouched source must be rejected, an accounted loss from a rebuilt source must be accepted, and provenance-aware stale-source pruning must select exactly the intentionally excluded sources. Must fail if shrink protection is globally disabled, and must report a non-zero BLOCKED rather than a vacuous PASS when the Graphify runtime is unavailable."
     },
     {
       "id": "preserved-path-audit",
