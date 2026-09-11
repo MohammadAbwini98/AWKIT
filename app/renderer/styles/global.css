@@ -61,6 +61,9 @@ body {
      call sites are not migrated yet. Pair each --text-* with its matching --leading-* / --tracking-*. */
   --font-sans:
     Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Monospace spine for paths, checksums, code and locator values. Platform UI mono families
+     only — no webfont, so this stays offline-safe. */
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, Menlo, monospace;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -141,10 +144,9 @@ body {
   --awkit-accent-muted: #c4b5fd;   /* brand-300 */
   --awkit-lavender-soft: #f5f3ff;  /* brand-50 */
 
-  /* legacy accent aliases (older rules reference these names) */
-  --awkit-purple: var(--awkit-accent);
-  --awkit-purple-deep: var(--awkit-accent-hover);
-  --awkit-purple-soft: var(--awkit-accent-muted);
+  /* data-viz blue family — the chart/series blue (sparklines, bars, report series) and the
+     link-blue text step. Distinct from --awkit-info (UI status chips) so chart series never
+     fight semantic status color. Not an accent alias; violet lives only in the accent family. */
   --awkit-blue: #3b82f6;
   --awkit-blue-deep: #2563eb;
 
@@ -185,8 +187,35 @@ body {
   --awkit-edge: #c9b8f5;
   --awkit-edge-strong: var(--awkit-accent);
 
+  /* Categorical chart series (Reports donut/bar/sparkline palettes). Charts need more
+     distinguishable steps than the functional status families provide, so the palette is its
+     own token family — muted, hue-diverse series derived from the system's allowed hues
+     (violet/blue/emerald/amber/rose/teal/neutral), tuned per theme. Series tokens are
+     assigned by DATA (failure categories etc.), never by state: state still uses the
+     status tokens above. Order = the failure-category assignment order in
+     pages/ReportsFailures.tsx CATEGORY_COLORS. */
+  --awkit-chart-1: #3563f8;   /* navigation — blue */
+  --awkit-chart-2: #5b3e91;   /* selector — violet */
+  --awkit-chart-3: #b97a1a;   /* timeout — amber-brown */
+  --awkit-chart-4: #0b1ee6;   /* assertion — deep blue */
+  --awkit-chart-5: #c03434;   /* browser-crash — red */
+  --awkit-chart-6: #c85a54;   /* context-closed — soft red */
+  --awkit-chart-7: #69587e;   /* profile-lock — muted violet */
+  --awkit-chart-8: #8a6d3b;   /* session-expired — brown */
+  --awkit-chart-9: #1f8a4c;   /* auth-handoff-required — green */
+  --awkit-chart-10: #2a9d8f;  /* network — teal */
+  --awkit-chart-11: #457b9d;  /* download-upload — steel blue */
+  --awkit-chart-12: #7048a8;  /* data-binding — violet */
+  --awkit-chart-13: #8a8a8a;  /* cancelled — neutral gray */
+  --awkit-chart-14: #b0b0b0;  /* unknown / fallback — light gray */
+
   /* rgb triplets for translucent glows/shadows built inline with rgba() */
   --awkit-accent-rgb: 124, 58, 237;
+  /* Status triplets mirror the accent triplet: translucent status washes (hover tints, pulses,
+     focus scrims) must derive from the same token as their solid fill so they track theme and
+     any future status-token retune together. */
+  --awkit-success-rgb: 20, 164, 108;
+  --awkit-danger-rgb: 220, 59, 59;
   /* Shadow ink is the design system's neutral rgb(16,24,40), not the old violet-tinted 32,23,47. */
   --awkit-shadow-rgb: 16, 24, 40;
   /* Material: genuinely translucent glass for floating-over-canvas chrome only (§6.6), paired with a
@@ -216,6 +245,9 @@ body {
   --awkit-shadow-node: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.08);
   --awkit-shadow-node-hover: 0 4px 8px rgba(16, 24, 40, 0.08), 0 12px 28px rgba(16, 24, 40, 0.14);
   --awkit-shadow-panel: -8px 0 30px rgba(16, 24, 40, 0.08);
+  /* Fifth step for large floating overlays (account menu, admin modals) that need more depth
+     than shadow-float. Neutral ink, same family as every other elevation step. */
+  --awkit-shadow-lg: 0 20px 60px rgba(16, 24, 40, 0.35);
   /* Focus ring — 2px accent ring at 70% over a one-step surface-coloured offset. It MUST resolve
      through --awkit-accent-rgb: that token is runtime-overridden per user accent, so a literal
      rgba(124, 58, 237, …) here (what this token used to be) freezes the ring at violet and silently
@@ -312,8 +344,27 @@ body {
   --awkit-edge: #4c3a80;
   --awkit-edge-strong: #a78bfa;
 
+  /* Chart series (dark) — same hue identity as light, lifted in lightness so each series
+     reads against the dark raised surfaces. Assignment order mirrors the light block. */
+  --awkit-chart-1: #7d9bff;
+  --awkit-chart-2: #a88ce0;
+  --awkit-chart-3: #e0a548;
+  --awkit-chart-4: #6f8cff;
+  --awkit-chart-5: #ef8080;
+  --awkit-chart-6: #f0a09a;
+  --awkit-chart-7: #a998c4;
+  --awkit-chart-8: #cfa86e;
+  --awkit-chart-9: #57c78d;
+  --awkit-chart-10: #5fc4b4;
+  --awkit-chart-11: #7fa9c9;
+  --awkit-chart-12: #a07fe0;
+  --awkit-chart-13: #9a9aa0;
+  --awkit-chart-14: #b8b8bd;
+
   /* rgb triplets + glass/overlay */
   --awkit-accent-rgb: 139, 92, 246;
+  --awkit-success-rgb: 52, 211, 153;
+  --awkit-danger-rgb: 248, 113, 113;
   --awkit-shadow-rgb: 0, 0, 0;
   --awkit-glass: rgba(22, 21, 28, 0.62);
   --awkit-overlay: rgba(0, 0, 0, 0.6);
@@ -331,6 +382,7 @@ body {
   --awkit-shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.45);
   --awkit-shadow-node-hover: 0 4px 8px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.55);
   --awkit-shadow-panel: -8px 0 30px rgba(0, 0, 0, 0.45);
+  --awkit-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.55);
   /* Focus ring (dark) — same accent-driven formula; --awkit-accent-rgb is re-declared above, so this
      inherits the dark accent AND any runtime accent override. No literal color here either. */
   --awkit-focus-ring: 0 0 0 2px var(--awkit-surface), 0 0 0 4px rgba(var(--awkit-accent-rgb), 0.7);
@@ -487,7 +539,7 @@ button:not(:disabled):not([role="switch"]):active,
 
   .win-control-close:hover {
     background: var(--awkit-danger);
-    color: #ffffff;
+    color: var(--awkit-accent-contrast);
   }
 }
 
@@ -500,9 +552,9 @@ button:not(:disabled):not([role="switch"]):active,
 }
 
 .win-control-close:active {
-  background: #b52d2d; /* fallback: darkened danger */
+  background: var(--awkit-danger); /* fallback for engines without color-mix */
   background: color-mix(in srgb, var(--awkit-danger) 85%, black);
-  color: #ffffff;
+  color: var(--awkit-accent-contrast);
 }
 
 .win-control:focus-visible {
@@ -565,8 +617,6 @@ button:not(:disabled):not([role="switch"]):active,
 .check-row small,
 .brand-block small,
 .header-context span,
-.workflow-stage small,
-.flow-node small,
 .form-section-title span,
 .runtime-summary span {
   color: var(--awkit-text-secondary);
@@ -1217,136 +1267,6 @@ textarea {
   z-index: 4;
 }
 
-.workflow-stage,
-.flow-node {
-  align-items: center;
-  background: var(--awkit-surface);
-  border: 1px solid var(--awkit-accent-muted);
-  border-left: 5px solid var(--awkit-accent);
-  border-radius: var(--radius-md);
-  box-shadow: 0 6px 18px rgba(var(--awkit-shadow-rgb), 0.12);
-  display: grid;
-  font-weight: var(--weight-semibold);
-  gap: 10px;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  min-height: 76px;
-  padding: 12px;
-  position: absolute;
-  width: 244px;
-}
-
-.workflow-stage.start {
-  left: 72px;
-  top: 138px;
-}
-
-.workflow-stage.middle {
-  left: 358px;
-  top: 238px;
-}
-
-.workflow-stage.review {
-  border-left-color: var(--awkit-warning);
-  left: 644px;
-  top: 138px;
-}
-
-.workflow-stage.end {
-  border-left-color: var(--awkit-success);
-  left: 930px;
-  top: 238px;
-}
-
-.workflow-board {
-  height: 620px;
-  min-width: 1180px;
-  position: relative;
-}
-
-.workflow-stage div,
-.flow-node div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.workflow-stage strong,
-.flow-node strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workflow-stage em,
-.flow-node em {
-  background: var(--awkit-accent-soft);
-  border-radius: var(--radius-pill);
-  color: var(--awkit-accent-hover);
-  font-size: var(--text-2xs);
-  font-style: normal;
-  padding: 4px 8px;
-}
-
-.stage-badge {
-  align-items: center;
-  background: var(--awkit-accent);
-  border-radius: var(--radius-pill);
-  color: var(--awkit-accent-contrast);
-  display: inline-flex;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
-}
-
-.workflow-connector {
-  border-color: var(--awkit-accent-muted);
-  border-radius: var(--radius-pill);
-  border-style: solid;
-  border-width: 2px 2px 0 0;
-  height: 96px;
-  position: absolute;
-  width: 140px;
-}
-
-.connector-one {
-  left: 290px;
-  top: 172px;
-  transform: rotate(26deg);
-}
-
-.connector-two {
-  left: 576px;
-  top: 172px;
-  transform: rotate(-26deg);
-}
-
-.connector-three {
-  left: 862px;
-  top: 172px;
-  transform: rotate(26deg);
-}
-
-.mini-map {
-  background: var(--awkit-glass);
-  border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-lg);
-  bottom: 18px;
-  box-shadow: 0 8px 20px rgba(var(--awkit-shadow-rgb), 0.10);
-  display: grid;
-  gap: 5px;
-  grid-template-columns: repeat(2, 1fr);
-  height: 86px;
-  padding: 10px;
-  position: absolute;
-  right: 18px;
-  width: 128px;
-}
-
-.mini-map span {
-  background: var(--awkit-accent-muted);
-  border-radius: var(--radius-2xs);
-}
-
 .node-palette {
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
@@ -1360,51 +1280,6 @@ textarea {
   top: 70px;
   width: 198px;
   z-index: 3;
-}
-
-.flow-canvas {
-  display: grid;
-  gap: 18px;
-  margin-left: 260px;
-  margin-top: 28px;
-  max-width: 520px;
-  position: relative;
-}
-
-.flow-node {
-  grid-template-columns: 16px minmax(0, 1fr) auto 16px;
-  margin: 0;
-  position: relative;
-  width: 420px;
-}
-
-.start-node {
-  border-left-color: var(--awkit-success);
-}
-
-.end-node {
-  border-left-color: var(--awkit-danger);
-}
-
-.node-handle {
-  background: var(--awkit-surface);
-  border: 2px solid var(--awkit-accent-muted);
-  border-radius: var(--radius-pill);
-  height: 12px;
-  width: 12px;
-}
-
-.flow-edge {
-  background: var(--awkit-accent-muted);
-  bottom: -20px;
-  height: 20px;
-  left: 210px;
-  position: absolute;
-  width: 2px;
-}
-
-.flow-mini-map {
-  grid-template-columns: 1fr;
 }
 
 .react-flow-shell {
@@ -1896,7 +1771,7 @@ div.validation-issue-row {
 }
 
 .node-options-item.danger:hover {
-  background: rgba(var(--awkit-danger-rgb, 220, 38, 38), 0.12);
+  background: rgba(var(--awkit-danger-rgb), 0.12);
 }
 
 .self-loop-edge-label {
@@ -2282,20 +2157,6 @@ div.validation-issue-row {
   color: var(--awkit-text-secondary);
   justify-items: center;
   min-height: 92px;
-}
-
-.scenario-chain {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
-}
-
-.scenario-chain article {
-  border: 1px solid var(--awkit-accent-muted);
-  border-radius: var(--radius-md);
-  color: var(--awkit-accent-hover);
-  font-weight: var(--weight-semibold);
-  padding: 18px;
 }
 
 .scenario-builder-page {
@@ -3463,8 +3324,7 @@ table {
 .report-summary-grid,
 .contract-overview,
 .offline-summary-grid,
-.runtime-preview-grid,
-.scenario-chain {
+.runtime-preview-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
@@ -3594,11 +3454,6 @@ table {
 .scenario-toolbar,
 .choice-row {
   flex-wrap: wrap;
-}
-
-/* The mock board keeps a workspace width but no longer forces window width. */
-.workflow-board {
-  min-width: 0;
 }
 
 /* Collapsible "Advanced" grouping inside properties panels. */
@@ -5123,7 +4978,7 @@ table {
 }
 
 .oracle-driver-path {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7800,7 +7655,7 @@ table {
 .recorder-button-danger:hover:not(:disabled) {
   background: var(--awkit-danger);
   border-color: var(--awkit-danger);
-  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.18);
+  box-shadow: 0 8px 18px rgba(var(--awkit-danger-rgb), 0.18);
 }
 
 .recorder-button-success {
@@ -7812,7 +7667,7 @@ table {
 .recorder-button-success:hover:not(:disabled) {
   background: var(--awkit-success);
   border-color: var(--awkit-success);
-  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.16);
+  box-shadow: 0 8px 18px rgba(var(--awkit-success-rgb), 0.16);
 }
 
 .recorder-button-subtle {
@@ -8307,13 +8162,13 @@ table {
 
 @keyframes recorder-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+    box-shadow: 0 0 0 0 rgba(var(--awkit-danger-rgb), 0.55);
   }
   70% {
-    box-shadow: 0 0 0 7px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 7px rgba(var(--awkit-danger-rgb), 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 0 rgba(var(--awkit-danger-rgb), 0);
   }
 }
 
@@ -8594,7 +8449,7 @@ table {
   align-items: center;
   background: var(--awkit-surface-inset);
   border-radius: var(--radius-md);
-  color: var(--awkit-purple);
+  color: var(--awkit-accent);
   display: inline-flex;
   height: 36px;
   justify-content: center;
@@ -8808,8 +8663,8 @@ table {
 }
 .awkit-range-selector button.is-active {
   background: var(--awkit-surface);
-  color: var(--awkit-purple);
-  box-shadow: 0 1px 2px rgba(18, 18, 18, 0.1);
+  color: var(--awkit-accent);
+  box-shadow: var(--awkit-shadow-soft);
 }
 
 .awkit-icon-button {
@@ -8832,7 +8687,7 @@ table {
 }
 
 .awkit-primary-button {
-  background: var(--awkit-purple);
+  background: var(--awkit-accent);
   border: none;
   border-radius: var(--radius-md);
   color: var(--awkit-accent-contrast);
@@ -8840,7 +8695,7 @@ table {
   padding: 8px 16px;
 }
 .awkit-primary-button:hover {
-  background: var(--awkit-purple-deep);
+  background: var(--awkit-accent-hover);
 }
 
 .awkit-muted {
@@ -8976,9 +8831,9 @@ table {
   color: var(--awkit-text);
 }
 .awkit-filter-toggle.is-active {
-  background: var(--awkit-purple-soft);
-  border-color: var(--awkit-purple);
-  color: var(--awkit-purple);
+  background: var(--awkit-accent-soft);
+  border-color: var(--awkit-accent);
+  color: var(--awkit-accent);
 }
 
 /* Trend + delta chips */
@@ -9005,8 +8860,8 @@ table {
 .awkit-trend-badge.is-new {
   background: var(--awkit-blue);
   border-radius: var(--radius-pill);
-  color: #fff;
-  font-size: 10px;
+  color: var(--awkit-accent-contrast);
+  font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.03em;
   padding: 1px 6px;
@@ -9263,7 +9118,7 @@ table {
 
 /* Run-detail drawer */
 .awkit-drawer-scrim {
-  background: rgba(18, 18, 18, 0.28);
+  background: rgba(var(--awkit-shadow-rgb), 0.28);
   inset: 0;
   position: fixed;
   z-index: var(--awkit-z-drawer);
@@ -10905,7 +10760,7 @@ table {
   border: 1px solid var(--awkit-accent-muted);
   background: var(--awkit-surface);
   color: var(--awkit-accent);
-  box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
+  box-shadow: var(--awkit-shadow-soft);
   cursor: pointer;
   transition:
     transform var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
@@ -11103,7 +10958,7 @@ table {
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
+  box-shadow: var(--awkit-shadow-soft);
 }
 .awkit-step-node-append {
   position: absolute;
@@ -11119,7 +10974,7 @@ table {
   border: 1px solid var(--awkit-accent-muted);
   background: var(--awkit-surface);
   color: var(--awkit-accent);
-  box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
+  box-shadow: var(--awkit-shadow-soft);
   cursor: pointer;
   transition:
     background var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
@@ -11476,7 +11331,7 @@ table {
   overflow-wrap: anywhere;
   text-align: center;
   color: var(--awkit-text);
-  font-family: var(--awkit-font-mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-xs);
@@ -11533,7 +11388,12 @@ table {
   -webkit-user-drag: none;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
-/* Deterministic, theme-aware avatar palette (avatarPaletteIndex → tone-0…5). Not colour-coded meaning. */
+/* Deterministic, theme-aware avatar palette (avatarPaletteIndex → tone-0…5). Not colour-coded meaning.
+   BOUNDED IDENTITY-ART EXCEPTION: the design system allows gradient decoration only for the AI
+   affordances and the existing profile avatar (design-system.md "Don't"), so these six fixed
+   tone gradients and the white ink/ring above are deliberately NOT tokens — they are identity
+   artwork, identical in both themes, like the brand mark. Do not extend this pattern to any
+   other surface. */
 .awkit-avatar.tone-0 { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
 .awkit-avatar.tone-1 { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
 .awkit-avatar.tone-2 { background: linear-gradient(135deg, #0891b2, #0e7490); }
@@ -11584,7 +11444,7 @@ table {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border-strong);
   border-radius: var(--radius-md);
-  box-shadow: var(--awkit-shadow-lg, 0 20px 60px rgba(0, 0, 0, 0.35));
+  box-shadow: var(--awkit-shadow-lg);
   /* Anchored to the trigger (top-right) and materialises from there; respects reduced-motion below. */
   transform-origin: top right;
   animation: awkit-account-pop var(--awkit-dur-fast, 140ms) var(--awkit-ease-out);
@@ -11854,7 +11714,7 @@ table {
 .awkit-license-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .awkit-license-field > span:first-child { font-size: var(--text-xs); }
 .awkit-license-field > span:last-child { font-size: var(--text-sm); color: var(--awkit-text); overflow-wrap: anywhere; }
-.awkit-license-mono { font-family: var(--awkit-font-mono, ui-monospace, monospace); font-size: var(--text-xs) !important; }
+.awkit-license-mono { font-family: var(--font-mono); font-size: var(--text-xs) !important; }
 .awkit-license-entitlements { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
 .awkit-license-machine { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-2); }
 .awkit-license-code { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -11982,12 +11842,13 @@ table {
 .awkit-admin-event-time span { color: var(--awkit-text-muted); font-size: var(--text-2xs); }
 .awkit-admin-modal-backdrop {
   position: fixed; inset: 0; z-index: var(--awkit-z-drawer, 40); display: grid; place-items: center;
-  background: rgba(10, 8, 20, 0.55); padding: var(--space-4);
+  /* Same scrim spine as .modal-overlay so admin dialogs dim identically to every other modal. */
+  background: var(--awkit-overlay); padding: var(--space-4);
 }
 .awkit-admin-modal {
   width: min(440px, 100%); background: var(--awkit-surface); border: 1px solid var(--awkit-border-strong);
   border-radius: var(--radius-lg); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);
-  box-shadow: var(--awkit-shadow-lg, 0 20px 60px rgba(0,0,0,0.35));
+  box-shadow: var(--awkit-shadow-lg);
 }
 .awkit-admin-modal-head { display: flex; align-items: center; gap: var(--space-2); }
 .awkit-admin-modal-head h2 { margin: 0; font-size: var(--text-md); }
@@ -11996,7 +11857,7 @@ table {
 .awkit-admin-modal-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
 .form-message.success { color: var(--awkit-success-text); }
 [data-theme="dark"] .form-message.success { color: var(--awkit-success-text); }
-.awkit-not-authorized { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-4); }
+.awkit-not-authorized { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4); }
 .awkit-not-authorized .awkit-admin-modal-icon { color: var(--awkit-warning); }
 
 @media (max-width: 68rem) {
