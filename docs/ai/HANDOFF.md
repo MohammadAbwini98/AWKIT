@@ -1,5 +1,7 @@
 # Agent Handoff
 
+- **Terminal state:** task-gate ok=true (no blockers, no scope escapes, qc APPROVED from re-runnable measurements); normal push accepted 012d6df..68bffa6; contract completion COMPLETE.
+
 ## HANDOFF (2026-09-11, latest) — `awkit-44eu`: UI design-system completion landed; token spine fail-closed
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.

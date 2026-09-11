@@ -18,7 +18,8 @@
     "renderer_visual_change": true,
     "general_engineering_change": true,
     "project_state_change": true,
-    "cross_layer_count": 4
+    "cross_layer_count": 4,
+    "packaging_change": true
   },
   "routing": {
     "manager": "manager",
@@ -62,14 +63,9 @@
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/lib/verifier-classification.ts",
+        "docs/ai/contracts/awkit-44eu.json",
         "docs/ai/CURRENT_STATE.md",
         "docs/ai/HANDOFF.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/ai/DECISIONS.md",
-        "docs/ai/contracts/awkit-44eu.json",
-        ".beads/issues.jsonl",
-        ".beads/interactions.jsonl",
         "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
@@ -194,16 +190,16 @@
       "command": "bd close awkit-44eu; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
       "result": "PASS",
       "artifact": null,
-      "note": "To be recorded at closeout: bead closed, export 281 total, roadmap tracker pin repinned to the measured counts and verification passing with Sources agree."
+      "note": "awkit-44eu CLOSED and exported: 281 total / 279 closed / 2 outstanding (the two status-blocked Oracle items). Roadmap pins repinned (commit 68bffa6) and verify:roadmap-dashboard passes 177/177 with Sources agree."
     },
     {
       "id": "push-main",
       "type": "inspection",
       "required": true,
       "command": "git push origin main and remeasure local/origin parity",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: normal push after closeout evidence is committed."
+      "note": "Normal non-force push accepted 012d6df..68bffa6 on main; local and origin/main at 68bffa6 after the terminal evidence commit."
     }
   ],
   "scope_escapes": [],
@@ -216,9 +212,10 @@
     "push_evidence_id": "push-main"
   },
   "completion": {
-    "status": "implemented",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "qc_note": "Independent re-derivation from recorded, re-runnable measurements rather than author assertion: verify:design-tokens 29/29 with the undefined-var and rule-body-literal mutations each failing exactly their named check; the 14 affected GUI suites' published tallies; build/typecheck/source-hygiene/classification/offline/diff-check outputs; the roadmap 177/177 after the measured 281/279/2 repin; and the clean git diff --check on the pushed tree together prove every acceptance criterion. No overrides, no protected-path writes, no dependency changes."
   },
   "write_lease": {
     "history": [
@@ -271,6 +268,46 @@
         "acquired_at_commit": "03a590fa613f3517b33c48d458d99985bfeb7d50",
         "released_at": "2026-09-11T13:28:30.855Z",
         "released_reason": "verify:design-tokens committed with package.json scripts registration; 29/29 PASS with both mutation directions proven red",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-44eu:project-state:2026-09-11T13:29:07.986Z",
+        "task": "awkit-44eu",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-44eu.json",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-11T13:29:07.986Z",
+        "acquired_at_commit": "75b418c37cc2090c33a964e2686a1a7a827cd867",
+        "released_at": "2026-09-11T13:31:41.469Z",
+        "released_reason": "Project state recorded: docs, DECISIONS entry, bead closed+exported (281/279/2), classification registered; roadmap repin follows under QA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-44eu:qa:2026-09-11T13:32:02.661Z",
+        "task": "awkit-44eu",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-11T13:32:02.661Z",
+        "acquired_at_commit": "c52a75caf699d946b7cc761ca67dc5d005cf1e47",
+        "released_at": "2026-09-11T13:32:37.320Z",
+        "released_reason": "Roadmap pins repinned to 281 total / 2 outstanding / 279 closed; verifier 177/177 Sources agree",
         "amendments": [],
         "overrides": [],
         "violations": []
