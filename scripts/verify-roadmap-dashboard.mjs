@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("281 issues parse", beads.stats.total === 281, `got ${beads.stats.total}`);
+  check("282 issues parse", beads.stats.total === 282, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -530,8 +530,13 @@ try {
   // the bead never remained open across an export. No new edge, so the edge pin stays 108.
   // Measured after the required export: 0 open, 0 in progress, the two status-blocked Oracle items
   // (`awkit-7bu`, `awkit-cm8`) and 0 dependency-blocked.
-    "2 outstanding / 279 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 279,
+  // Then 2/280 of 282 on 2026-09-11: `awkit-ampd` (fresh 0.1.29 package from clean 3341435
+  // containing the awkit-44eu UI: portable caee4db6 + installer 914ec122, packaged-validation
+  // 119/119 in-window, packaged-runtime 25/25, packaged UI 84/84 light+dark) was created and closed
+  // in the same session. Total rises 281 -> 282 and closed rises 279 -> 280; outstanding stays 2.
+  // No new edge, so the edge pin stays 108.
+    "2 outstanding / 280 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 280,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
