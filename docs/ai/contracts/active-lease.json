@@ -1,32 +1,24 @@
 {
-  "task": "awkit-wy82",
-  "contract_path": "docs/ai/contracts/awkit-wy82.json",
+  "task": "awkit-44eu",
+  "contract_path": "docs/ai/contracts/awkit-44eu.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
-    "docs/ai/GRAPHIFY.md",
     "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-wy82.json",
-    "scripts/lib/verifier-classification.ts",
+    "docs/ai/contracts/awkit-44eu.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-11T00:43:55.147Z",
-  "acquired_at_commit": "36fb5303bab8cbbedfcea2827ac7de78190b75af",
+  "acquired_at": "2026-09-11T13:33:32.758Z",
+  "acquired_at_commit": "68bffa6062c0b7f7900246d587d30e9fc1684c5b",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-wy82.json",
+    "docs/ai/contracts/awkit-44eu.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "d4f397bc9ad93ba9f8a704e84aa2bc575bebe2a83f6bf90cc6506e72dcd9a1ce",
-    "docs/ai/contracts/awkit-wy82.json": "054da35b69e5a65b1f87a2daacef9d8d2ada8cf93ece4500429f315323154112",
+    "docs/ai/contracts/active-lease.json": "3a10f89b1f6953a1519254e200e7fbb8c7df23a36cf48bf7e939e160953cb680",
+    "docs/ai/contracts/awkit-44eu.json": "e8c989015207b31d2ff2779826264442b154adaadb36e5f8c93cd4273fdccc38",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -42,7 +34,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-11T00:50:29.435Z",
-  "released_reason": "awkit-wy82 terminal: all required evidence PASS, task-gate open, push accepted at dcd48e9; no further task-owned writes",
-  "archived_at": "2026-09-11T00:50:29.452Z"
+  "released_at": "2026-09-11T13:34:09.895Z",
+  "released_reason": "awkit-44eu terminal: task-gate ok=true, push accepted, evidence recorded; no further task-owned writes",
+  "archived_at": "2026-09-11T13:34:09.897Z"
 }

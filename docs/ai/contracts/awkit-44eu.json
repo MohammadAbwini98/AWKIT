@@ -311,6 +311,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-44eu:project-state:2026-09-11T13:33:32.758Z",
+        "task": "awkit-44eu",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/contracts/awkit-44eu.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-11T13:33:32.758Z",
+        "acquired_at_commit": "68bffa6062c0b7f7900246d587d30e9fc1684c5b",
+        "released_at": "2026-09-11T13:34:09.895Z",
+        "released_reason": "awkit-44eu terminal: task-gate ok=true, push accepted, evidence recorded; no further task-owned writes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
