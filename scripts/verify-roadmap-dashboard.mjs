@@ -517,8 +517,14 @@ try {
   // 275 -> 277 and outstanding falls 4 -> 3. The new follow-up has dependency_count 0, so the edge
   // pin stays 108. Measured after the required export: 1 open (`awkit-wy82`) plus the two existing
   // status-blocked Oracle items (`awkit-7bu`, `awkit-cm8`), 0 in progress and 0 dependency-blocked.
-    "3 outstanding / 277 closed",
-    beads.stats.outstanding === 3 && beads.stats.closed === 277,
+  // Then 2/278 of 280 on 2026-09-11: `awkit-wy82` closed after the committed shrink-guard regression
+  // (`npm run verify:graphify-shrink-guard`, 26/26 both-sides controls plus live mutation proof)
+  // demonstrated the intentional-exclusion reconciliation preserves fail-closed shrink protection.
+  // Total stays 280, closed rises 277 -> 278 and outstanding falls 3 -> 2; no new issue or edge, so
+  // the edge pin stays 108. Measured after the required export: 0 open, 0 in progress, the two
+  // status-blocked Oracle items (`awkit-7bu`, `awkit-cm8`) and 0 dependency-blocked.
+    "2 outstanding / 278 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 278,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
