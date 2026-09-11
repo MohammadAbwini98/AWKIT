@@ -38,11 +38,10 @@
       "docs/ai/HANDOFF.md",
       "docs/ai/TASK_LOG.md",
       "resources/dependency-manifest.json",
-      "resources/dependency-manifest.sig"
+      "resources/dependency-manifest.sig",
+      "build"
     ],
-    "consultants": [
-      "release"
-    ],
+    "consultants": [],
     "writer": {
       "agent_id": "release",
       "allowed_paths": [

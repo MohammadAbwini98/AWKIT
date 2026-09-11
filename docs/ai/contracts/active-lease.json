@@ -1,27 +1,24 @@
 {
   "task": "awkit-ampd",
   "contract_path": "docs/ai/contracts/awkit-ampd.json",
-  "holder": "project-state",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-ampd.json",
-    "tools/roadmap/assignments.json"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-11T13:50:43.380Z",
-  "acquired_at_commit": "665fa089665e3929d63d497f189685bb187adb7d",
+  "acquired_at": "2026-09-11T13:56:01.945Z",
+  "acquired_at_commit": "cbf6aa91a08cca8a2c52d0191cc16b0c26a06e89",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
-    "docs/ai/contracts/awkit-ampd.json"
+    "docs/ai/contracts/awkit-ampd.json",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "be0a5b20989f4069483017bafc9c880f3074f0b356d30d4d1721dc6e81941353",
-    "docs/ai/contracts/awkit-ampd.json": "84674a5d88f24d3c92c1942f541eaa76d63c29631f93492a72c1c457fd0e9173"
+    "docs/ai/contracts/awkit-ampd.json": "4d34dee3dfff41096ae13964970c3ea3d1fe74d1773d3018f32af4248bbcd58b",
+    "resources/dependency-manifest.json": "b589432e6fcfbc2bffb630b94dffc6a3c2952363e3ae1b19d683ccc86fe22ce4",
+    "resources/dependency-manifest.sig": "35a7800e0658ee4b4e1f1d22f24e65acf1b4e4054de9cc9f399136233328dc2a"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,12 +28,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789019778868.2053"
+    "build": "dir(1):native-hosts:1789134744901.3257"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-11T13:55:36.858Z",
-  "released_reason": "Re-routing: packaging requires the release writer over the regenerated dependency manifest; project-state closeout follows after validation",
-  "archived_at": "2026-09-11T13:55:36.859Z"
+  "violations": []
 }
