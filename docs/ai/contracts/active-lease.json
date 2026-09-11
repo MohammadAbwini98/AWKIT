@@ -1,25 +1,27 @@
 {
-  "task": "awkit-44eu",
-  "contract_path": "docs/ai/contracts/awkit-44eu.json",
+  "task": "awkit-ampd",
+  "contract_path": "docs/ai/contracts/awkit-ampd.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
-    "docs/ai/contracts/awkit-44eu.json",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-ampd.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-11T13:33:32.758Z",
-  "acquired_at_commit": "68bffa6062c0b7f7900246d587d30e9fc1684c5b",
+  "acquired_at": "2026-09-11T13:50:43.380Z",
+  "acquired_at_commit": "665fa089665e3929d63d497f189685bb187adb7d",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-44eu.json",
-    "tools/roadmap/assignments.json"
+    ".beads/issues.jsonl",
+    "docs/ai/contracts/awkit-ampd.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "3a10f89b1f6953a1519254e200e7fbb8c7df23a36cf48bf7e939e160953cb680",
-    "docs/ai/contracts/awkit-44eu.json": "e8c989015207b31d2ff2779826264442b154adaadb36e5f8c93cd4273fdccc38",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    ".beads/issues.jsonl": "be0a5b20989f4069483017bafc9c880f3074f0b356d30d4d1721dc6e81941353",
+    "docs/ai/contracts/awkit-ampd.json": "84674a5d88f24d3c92c1942f541eaa76d63c29631f93492a72c1c457fd0e9173"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -34,7 +36,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-11T13:34:09.895Z",
-  "released_reason": "awkit-44eu terminal: task-gate ok=true, push accepted, evidence recorded; no further task-owned writes",
-  "archived_at": "2026-09-11T13:34:09.897Z"
+  "released_at": "2026-09-11T13:55:36.858Z",
+  "released_reason": "Re-routing: packaging requires the release writer over the regenerated dependency manifest; project-state closeout follows after validation",
+  "archived_at": "2026-09-11T13:55:36.859Z"
 }
