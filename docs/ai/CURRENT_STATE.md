@@ -1,5 +1,49 @@
 # CURRENT_STATE
 
+## Graphify shrink-guard regression committed; awkit-wy82 terminal; only external gates remain (2026-09-11)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. The shrink-guard verifier moves no ledger
+case; Graphify, Beads and verifier counts are separate measurements.
+
+**`awkit-wy82` — FAIL-CLOSED acceptance is now pinned by a committed verifier.**
+`npm run verify:graphify-shrink-guard` (`scripts/verify-graphify-shrink-guard.mjs`, integration
+class, registered in `scripts/lib/verifier-classification.ts` — 203 scripts classified) drives the
+real installed graphifyy 0.9.31 through a Python subprocess at two layers and measured **26/26
+PASS**: `_check_shrink` refuses an unexplained loss from an untouched source (with and without
+rebuilt-source accounting) while accepting accounted rebuilt-source losses; `_stale_graph_sources`
+selects exactly the three provably excluded sources and keeps an alive-but-unignored one
+(fail-closed liveness); `_prune_graph_json_sources` removes exactly the 93 owner nodes on a
+synthetic fixture mirroring the real 5/23/65 event and is a byte-identical no-op when re-run; and
+an end-to-end CLI replica proves ordinary update REFUSES the intentional-exclusion shrink (exit 1,
+no `--force`), the provenance prune reconciles it, and the ordinary update then completes (exit 0)
+with the excluded files still on disk. Mutation resistance was proven live: an always-accept guard
+mutant drops the verifier to 19/26 (exit 1), an always-refuse mutant to 13/19 (exit 1), and a
+missing runtime reports BLOCKED (exit 2), never a vacuous PASS.
+
+**Accepted graph is current at its converged fixed point.** The ordinary `graphify update .` on the
+repository exited 0 with no `--force` and rebuilt **14,148 nodes / 29,655 edges / 736 communities**
+(1,160 distinct source files; 29,359 `EXTRACTED` / 296 `INFERRED` edges). An immediate second run
+reported "No code-graph topology changes detected; outputs left untouched", and
+`graphify diagnose multigraph` reports zero missing-endpoint, dangling-endpoint, self-loop,
+exact-duplicate or same-endpoint-collapsed edges. The growth over the prior 14,012/29,342 snapshot
+is the ordinary AST refresh of a corpus that gained the verifier and documentation files; no
+reconciliation was needed or performed this run.
+
+**Tracker repinned and Sources agree.** `awkit-wy82` remains CLOSED with Beads at **280 total /
+278 closed / 2 outstanding** (0 open, 0 in progress, the two status-blocked Oracle items
+`awkit-7bu` / `awkit-cm8`, 0 dependency-blocked). The roadmap tracker pin moved from
+3 outstanding / 277 closed to **2 outstanding / 278 closed** with its measured history entry;
+mutating `total`, `outstanding` or `closed` alone each fails at 176/177, and the restored canonical
+verifier passes **177/177 — Sources agree**.
+
+**Owner material remains preserved.** The 19-file owner package and `AWTKIT.rar` stay byte-identical
+to the task-contract baselines, local-only and Git-excluded; `.git/info/exclude` still hashes to
+`7b76a418fc04d148f422cfc4a84c3766859d1ec771ef08b939b99e6bd3c82717`. Remaining external gates are
+unchanged: packaged licensing authorization (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`), clean-machine
+credentials, `awkit-7bu`, `awkit-cm8`. No default `key2`, manufactured authorization or
+packaged-artifact rerun belongs to this task.
+
 ## Graphify exclusion reconciliation complete; only external acceptance gates remain (2026-09-10)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

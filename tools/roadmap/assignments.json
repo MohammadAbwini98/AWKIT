@@ -22,8 +22,8 @@
       "itemId": "bead:awkit-wy82",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-10T19:24:37.733Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/GRAPHIFY.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-wy82.json, tools/roadmap/assignments.json"
+      "claimedAt": "2026-09-11T00:43:55.147Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/GRAPHIFY.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-wy82.json, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
     }
   ]
 }

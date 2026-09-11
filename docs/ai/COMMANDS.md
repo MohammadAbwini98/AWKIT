@@ -686,6 +686,11 @@ graphify path "FlowProfile" "JsonProfileStore"   # shortest connectivity path (u
 > stale-source logic, prune only that provenance through its backup-producing routine, then require
 > the ordinary `graphify update .` and the unexplained-shrink negative control to pass.
 > Contract, coverage accounting, exclusions, hooks and limits: `docs/ai/GRAPHIFY.md`.
+```bash
+npm run verify:graphify-shrink-guard  # shrink-guard regression: refusal of unexplained shrink +
+                                      # acceptance of accounted/provenance-pruned transitions, from
+                                      # the real installed graphifyy (BLOCKED exit 2 if absent)
+```
 
 ## Deterministic agent routing (developer/AI tool — never part of the app or its build)
 ```bash

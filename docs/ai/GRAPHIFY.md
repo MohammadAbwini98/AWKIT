@@ -54,16 +54,20 @@ coverage from the tracked `.graphifyignore`.
 
 ## 2. Current graph
 
-Reconciled and rebuilt 2026-09-10 from `main` with Graphify 0.9.31. The reconciliation procedure
-is recorded in §5; the accepted graph was then refreshed by the normal `graphify update .` command.
+Reconciled and rebuilt from `main` with Graphify 0.9.31. The 2026-09-10 reconciliation procedure is
+recorded in §5; the accepted graph has since been refreshed by the ordinary `graphify update .`
+command (2026-09-11: 14,148 nodes / 29,655 edges / 736 communities — the converged fixed point of
+AST-only update on the current corpus, confirmed by a second run reporting no topology changes).
+The two-sided shrink-guard protection is now pinned by the committed regression
+`npm run verify:graphify-shrink-guard` (§5).
 
 | Metric | Value |
 |---|---|
-| Nodes | **14142** |
-| Edges | **29649** |
-| Communities | **694** |
-| Distinct source files represented | **1159** |
-| Edge provenance | **29353 `EXTRACTED` / 296 `INFERRED`**, 0 `AMBIGUOUS` |
+| Nodes | **14148** |
+| Edges | **29655** |
+| Communities | **736** |
+| Distinct source files represented | **1160** |
+| Edge provenance | **29359 `EXTRACTED` / 296 `INFERRED`**, 0 `AMBIGUOUS` |
 | Token cost | 0 in / 0 out |
 
 Outputs: `graphify-out/graph.json` (queryable graph), `graphify-out/GRAPH_REPORT.md` (audit report,
@@ -84,7 +88,7 @@ files and ~3400 extra nodes come from. Use `graphify update .`.
 
 ### Graph health (reported, not hidden)
 
-`graphify diagnose multigraph` on the accepted post-build graph reports **14142 nodes / 29649
+`graphify diagnose multigraph` on the accepted post-build graph reports **14148 nodes / 29655
 edges**, with **0** missing-endpoint, dangling-endpoint, self-loop, exact-duplicate or same-endpoint
 collapsed edges. It also explicitly warns that ordinary `graph.json` is post-build, so raw producer
 loss must be measured earlier. Graph paths remain undirected connectivity, not call direction; use
@@ -255,6 +259,30 @@ The 2026-09-10 run pruned exactly 93 proven stale nodes, then normal update acce
 29649 edges**. Relative to the previous **14221 / 29801** graph, **94** IDs are absent and **15**
 are new: the 93 proven owner-source IDs plus one tracked edit in
 `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`; `14221 - 94 + 15 = 14142`.
+
+### Shrink-guard regression — `npm run verify:graphify-shrink-guard` (2026-09-11)
+
+The fail-closed behavior this procedure depends on is now pinned by a committed verifier
+(`scripts/verify-graphify-shrink-guard.mjs`, class **integration** in
+`scripts/lib/verifier-classification.ts`). It drives the REAL installed graphifyy package through a
+Python subprocess and must stay green whenever Graphify or this procedure changes:
+
+- **Negative controls** — `_check_shrink` must REFUSE an unexplained loss from an untouched source
+  (with and without rebuilt-source accounting) and print the fail-closed warning.
+- **Positive controls** — accounted losses from rebuilt sources, non-shrinking candidates and
+  sourceless-node losses are accepted, so legitimate corpus transitions never need `--force`.
+- **Provenance controls** — `_stale_graph_sources` selects EXACTLY the provably excluded sources and
+  KEEPS an alive-but-unignored one (fail-closed liveness); `_prune_graph_json_sources` removes
+  exactly the owner nodes, drops only their edges, and is a byte-identical no-op when re-run.
+- **End-to-end replica** — build a miniature corpus, intentionally exclude live files, prove an
+  ordinary update REFUSES, reconcile through the provenance prune, then prove the ordinary update
+  completes with exit 0 and the excluded files still exist on disk.
+- **Mutation resistance** — an always-accept guard mutant drops the verifier to 19/26 (exit 1) and
+  an always-refuse mutant to 13/19 (exit 1), both proven live via a `sitecustomize` monkeypatch; a
+  missing Graphify runtime reports BLOCKED (exit 2), never a vacuous PASS.
+
+Measured **26/26 PASS** on graphifyy 0.9.31; the accepted repository graph is the converged
+**14148 / 29655 / 736** fixed point above.
 
 This is a version-pinned recovery for a measured corpus transition, not a general public Graphify
 command. If the tool version, derived stale set, provenance counts or source behavior differs, stop

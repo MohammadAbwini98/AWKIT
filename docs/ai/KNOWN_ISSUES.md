@@ -21,9 +21,12 @@
   still-present source that becomes excluded: full rebuild drops it while shrink accounting does not
   classify it as rebuilt/deleted. The bounded recovery asserted the tool-derived stale set and
   5/23/65 node counts, pruned exactly those 93 nodes through Graphify's own atomic backup routine,
-  then normal `graphify update .` passed at **14,142 nodes / 29,649 edges** without `--force`.
-  Unexpected shrink still rejects. Treat any version/source/count drift as INCONCLUSIVE and follow
-  `GRAPHIFY.md` §5; do not generalize this into a global shrink bypass.
+  then normal `graphify update .` passed without `--force` (currently converged at **14,148 nodes /
+  29,655 edges**). Unexpected shrink still rejects, and since 2026-09-11 that protection is pinned by
+  the committed regression `npm run verify:graphify-shrink-guard` (**26/26**, with always-accept and
+  always-refuse guard mutants both proven red and a missing runtime reported BLOCKED) — see
+  `GRAPHIFY.md` §5. Treat any version/source/count drift as INCONCLUSIVE and do not generalize this
+  into a global shrink bypass.
 - **Superseded strict-offline snapshot:** the old R2-era manifest mismatch below is historical. The
   fresh 0.1.29 release campaign regenerated and signed the manifest at source `13eb9eb` and
   `npm run validate:offline -- -Strict` reported **Strict mode: passed**. This is the current release

@@ -1,5 +1,52 @@
 # TASK_LOG
 
+## 2026-09-11 (latest) — `awkit-wy82` shrink-guard regression, roadmap repin and terminal closeout (ZCode GLM)
+
+**Task:** finish the in-flight `awkit-wy82` state — implement the planned `verify:graphify-shrink-guard`
+regression under the correctly routed QA lease, run the focused Graphify proof, repin the stale roadmap
+tracker predicate, reconcile project state, commit coherently to `main` and push normally, without
+restarting the established reconciliation or touching owner material and external gates.
+
+**Lease routing:** the resumed project-state lease first committed the pending contract amendments
+(`1d1b505`: executed-evidence notes, canonical writer sequence `qa → release → project-state`, corrected
+the installed-version note to the measured 0.9.31) and released. QA then held the lease for the verifier
+and the roadmap repin; project-state re-acquired it for classification registration, memory docs, Beads
+export and closeout. `package.json` took only the shared-write `scripts`-field registration. Both lease
+releases archived into the contract's write-lease history; no violation was recorded.
+
+**Shrink-guard regression:** `scripts/verify-graphify-shrink-guard.mjs` (npm
+`verify:graphify-shrink-guard`, integration class) drives the real installed graphifyy 0.9.31 package
+through a Python subprocess: `_check_shrink` negative controls (unexplained untouched-source loss
+refused with and without rebuilt-source accounting, warning printed), positive controls (accounted
+rebuilt-source loss, non-shrink, sourceless-node loss accepted), a mutant self-test, provenance controls
+on a synthetic 104-node 5/23/65=93 fixture (`_stale_graph_sources` selects exactly the three provably
+excluded sources and keeps an alive unignored one; `_prune_graph_json_sources` removes exactly 93 nodes,
+drops only their edges, byte-identical no-op re-run), and an end-to-end CLI replica (build → exclude →
+refusal exit 1 without `--force` → provenance prune → update exit 0, owner files intact). Measured
+**26/26 PASS**. Live mutation proof: always-accept guard **19/26 exit 1**; always-refuse guard
+**13/19 exit 1** (driver abort recorded as an explicit FAIL); missing runtime is BLOCKED exit 2.
+
+**Graph state:** repository `graphify update .` exited 0 with no `--force` and converged at
+**14,148 nodes / 29,655 edges / 736 communities** (1,160 distinct sources; 29,359 EXTRACTED /
+296 INFERRED); second run reported no topology changes; `graphify diagnose multigraph` clean
+(zero missing/dangling/self-loop/duplicate/collapsed edges). Ordinary corpus growth over the prior
+14,012/29,342 snapshot — no reconciliation needed this run.
+
+**Roadmap:** tracker pin moved to **2 outstanding / 278 closed** with a measured history entry
+(`36fb530`). Mutation proof: total 280→281, outstanding 2→3 and closed 278→277 each fail alone at
+176/177; restored canonical passes **177/177 — Sources agree**.
+
+**Project state:** Beads re-exported at **280 total / 278 closed / 2 outstanding** (status-blocked
+`awkit-7bu`, `awkit-cm8` only). Validation ledger unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across
+67 cases**. Owner preservation re-audited: 19 owner files + `AWTKIT.rar` byte-identical,
+`.git/info/exclude` hash `7b76a418...c82717`, nothing staged. Contract evidence finalized; task-gate
+opened; commits `1d1b505`, `c928e89`, `36fb530` plus the closeout docs commit pushed normally to
+`origin/main`.
+
+**Not run:** `validate:offline` and the packaged/UI campaign — no offline-boundary, packaging or product
+path changed beyond the shared-write npm script registration; the packaged-validation age failure is
+unrelated time decay and was not reopened.
+
 ## 2026-09-10 (latest) — `awkit-wy82` Graphify exclusion reconciliation (Codex GPT-5)
 
 **Task:** resolve the only repository-actionable Graphify issue without force, graph deletion,

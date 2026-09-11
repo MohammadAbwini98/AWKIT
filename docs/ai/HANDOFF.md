@@ -1,5 +1,39 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-11, latest) — `awkit-wy82` terminal: shrink-guard regression committed, roadmap 177/177
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **Shrink-guard regression (the pending FAIL-CLOSED evidence) is committed:**
+  `npm run verify:graphify-shrink-guard` drives the real installed graphifyy **0.9.31** package and
+  measured **26/26 PASS** — `_check_shrink` refuses unexplained loss from an untouched source (with
+  and without rebuilt-source accounting) and accepts accounted rebuilt-source losses;
+  `_stale_graph_sources` selects exactly the three provably excluded sources and keeps an
+  alive-but-unignored one; `_prune_graph_json_sources` removes exactly the 93 owner nodes on a
+  synthetic 5/23/65 fixture and is a byte-identical no-op re-run; an end-to-end CLI replica proves
+  ordinary update REFUSES the exclusion shrink (exit 1, no `--force`), the provenance prune
+  reconciles it, and update then completes (exit 0) with owner files intact on disk. Live mutation
+  proof: always-accept guard → 19/26 red; always-refuse guard → 13/19 red; missing runtime →
+  BLOCKED exit 2. Registered as integration class in `verifier-classification.ts` (203 scripts).
+- **Graph state:** repository `graphify update .` exited 0 with no `--force` and converged at
+  **14,148 nodes / 29,655 edges / 736 communities** (second run: no topology changes; multigraph
+  diagnosis clean — zero dangling/duplicate/self-loop edges). Prior accepted trajectory:
+  14,221/29,801 → exact-prune 14,128/29,632 → 14,142/29,649 → 14,012/29,342 → current. The 93-node
+  intentional exclusion and the one tracked Oracle-doc edit remain the fully accounted deltas.
+- **Roadmap:** tracker pin repinned to **2 outstanding / 278 closed** (Beads 280 total; 0 open,
+  0 in progress, status-blocked `awkit-7bu` + `awkit-cm8`, 0 dependency-blocked) with its measured
+  history entry. Mutation proof: total→281, outstanding→3 and closed→277 each fail alone at
+  176/177; restored canonical passes **177/177 — Sources agree**.
+- **Owner preservation:** the 19-file `Building priorities and integration-handoff` package and
+  `AWTKIT.rar` are byte-identical to the contract SHA-256 baselines, unstaged and local-only;
+  `.git/info/exclude` hash `7b76a418...c82717` unchanged. Owner files were never edited, staged
+  or deleted; the exclusion rule was never weakened.
+- **Leases/assignments:** the QA lease (verifier + roadmap repin) and the final project-state lease
+  (classification registration, memory docs, Beads export, contract closeout, push) were granted and
+  released serially per the writer sequence; no active lease or assignment remains.
+- **Remaining external gates only:** packaged licensing authorization
+  (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY` absent), clean-machine credentials, `awkit-7bu`,
+  `awkit-cm8`. No default `key2`, manufactured issuer authorization or Oracle work belongs here.
+
 ## HANDOFF (2026-09-10, latest) — `awkit-wy82` safely reconciled; Graphify current and fail-closed
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
