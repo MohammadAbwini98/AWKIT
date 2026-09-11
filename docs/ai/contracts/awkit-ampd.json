@@ -290,6 +290,29 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ampd:project-state:2026-09-11T14:18:16.816Z",
+        "task": "awkit-ampd",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-ampd.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-11T14:18:16.816Z",
+        "acquired_at_commit": "f34d1a20b6cf012637dd3efefbbe324485f5ee89",
+        "released_at": "2026-09-11T14:20:34.353Z",
+        "released_reason": "awkit-ampd terminal: task-gate ok=true, push accepted, all packaged evidence recorded; no further task-owned writes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

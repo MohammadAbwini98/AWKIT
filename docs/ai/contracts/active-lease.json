@@ -2,7 +2,7 @@
   "task": "awkit-ampd",
   "contract_path": "docs/ai/contracts/awkit-ampd.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -41,5 +41,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-11T14:20:34.353Z",
+  "released_reason": "awkit-ampd terminal: task-gate ok=true, push accepted, all packaged evidence recorded; no further task-owned writes",
+  "archived_at": "2026-09-11T14:20:34.354Z"
 }
