@@ -8,8 +8,8 @@
 //
 // Design note: the app's entire accent is already centralized behind a handful of CSS custom
 // properties in app/renderer/styles/global.css (each with a [data-theme="dark"] override). Choosing
-// a custom accent = overriding that small set inline on :root. Everything else (the --awkit-purple*
-// aliases, --awkit-node-selected-bg, and every rgba(var(--awkit-accent-rgb), …) focus ring) resolves
+// a custom accent = overriding that small set inline on :root. Everything else
+// (--awkit-node-selected-bg and every rgba(var(--awkit-accent-rgb), …) focus ring) resolves
 // through them, so status colors (success/warning/error) are never affected.
 
 /**
@@ -29,9 +29,8 @@ export interface Rgb {
 
 /**
  * The accent CSS custom properties this feature overrides. Every other accent surface in the
- * stylesheet resolves through these (or the `--awkit-purple*` / `--awkit-node-selected-bg` aliases
- * that point at them), so overriding this set recolors the whole app. Status tokens are excluded on
- * purpose.
+ * stylesheet resolves through these (directly, or via --awkit-node-selected-bg which points at
+ * them), so overriding this set recolors the whole app. Status tokens are excluded on purpose.
  */
 export const ACCENT_TOKEN_NAMES = [
   "--awkit-accent",
