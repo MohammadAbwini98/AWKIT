@@ -1,0 +1,280 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-44eu",
+    "title": "Complete the new UI design-system implementation across the renderer",
+    "objective": "Finish the Hologram design-system migration started by the earlier campaign: harden the shared token spine (status rgb triplets, --awkit-shadow-lg, --font-mono, a theme-adaptive categorical chart-series family), retire the legacy --awkit-purple aliases, remove provably dead legacy CSS families, fix the SessionsManager invalid var()+alpha status-pill bug and migrate its px literals onto tokens, move the ReportsFailures categorical palette onto --awkit-chart-* tokens, bound the documented exceptions (avatar identity art, connector user-content presets), and add a fail-closed verify:design-tokens verifier with static CSS contract checks plus a real-Electron light/dark proof; verify affected GUI verifiers and repository gates; reconcile project state; commit coherently to main; push normally.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "012d6df",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "general_engineering_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 4
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/styles/global.css",
+      "app/renderer/pages/SessionsManager.tsx",
+      "app/renderer/pages/ReportsFailures.tsx",
+      "app/renderer/pages/ReportsRuntime.tsx",
+      "app/renderer/pages/ReportsServer.tsx",
+      "app/renderer/components/shared/connectorStyle.ts",
+      "src/theme/accentColor.ts",
+      "scripts/verify-design-tokens.mjs",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "docs/ai/contracts/awkit-44eu.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "scripts/verify-roadmap-dashboard.mjs"
+    ],
+    "consultants": [
+      "architect",
+      "uiux"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "scripts/lib/verifier-classification.ts",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/DECISIONS.md",
+        "docs/ai/contracts/awkit-44eu.json",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "mock-site/**",
+        "scripts/**"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "compatibility": [
+      "Pure presentation migration: no IPC, persistence, workflow, runner, recorder or licensing behavior changes.",
+      "Preserve persisted connector color presets as user content (hex is part of the saved-data contract).",
+      "Do not disable, hide or remove any working control."
+    ],
+    "offline": [
+      "No new dependency; the verifier reuses the existing Playwright Electron harness."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "TOKEN-SPINE",
+      "description": "Every painted color in global.css resolves through a token (avatar identity art explicitly bounded), no referenced custom property is undefined, and the categorical chart palette is defined, distinct and theme-adaptive in both themes.",
+      "evidence_required": [
+        "design-tokens"
+      ]
+    },
+    {
+      "id": "SURFACE-MIGRATION",
+      "description": "SessionsManager status pills paint the soft status fill in both themes (the invalid var()+alpha concatenation is gone), its px literals resolve through spacing/type/radius tokens, and the Reports categorical palettes reference --awkit-chart-*/accent tokens instead of hex literals.",
+      "evidence_required": [
+        "design-tokens",
+        "affected-gui"
+      ]
+    },
+    {
+      "id": "LEGACY-CLEANUP",
+      "description": "The dead workflow-stage/flow-node/scenario-chain/stage-badge/mini-map/node-handle/workflow-board families and the --awkit-purple aliases are removed with zero live references.",
+      "evidence_required": [
+        "source-inspection"
+      ]
+    },
+    {
+      "id": "FAIL-CLOSED-COVERAGE",
+      "description": "verify:design-tokens fails on an undefined-var mutation and on a rule-body color-literal mutation, and passes 29/29 on the real implementation.",
+      "evidence_required": [
+        "mutation-proof"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "awkit-44eu is closed and exported, project state and the roadmap tracker pin are reconciled, the implementation is committed to main and pushed normally, and the worktree ends clean.",
+      "evidence_required": [
+        "gates",
+        "beads-roadmap",
+        "push-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "design-tokens",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "test-artifacts/design-tokens/results.json",
+      "note": "29/29: static contract (undefined-var, rule-body literal, chart palette parity/distinctness/theme-adaptivity, spine tokens in both themes) plus real-Electron light/dark proof of the token spine and the Sessions status pill in both themes."
+    },
+    {
+      "id": "affected-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:accent-theme && npm run verify:accent-gui && npm run verify:branding && npm run verify:reports && npm run verify:reports-settings-a11y && npm run verify:e2e-sweep && npm run verify:admin-gui && npm run verify:auth-gui && npm run verify:settings-e2e && npm run verify:instance-monitor-gui && npm run verify:recorder-gui && npm run verify:runtime-analytics-gui && npm run verify:workflow-builder && npm run verify:flow-designer",
+      "result": "PASS",
+      "artifact": null,
+      "note": "accent-theme 71/71; accent-gui 33/33; branding 49/49; reports 31/31; reports-settings-a11y 17 PASS/0 FAIL; e2e-sweep 13/13; admin-gui 36/36; auth-gui 25/25; settings-e2e 179 PASS/0 FAIL/1 NOT RUN (owner-gated shell launch); instance-monitor-gui 27/27; recorder-gui 192/192 on re-run (first run had 4 timing flakes, re-run clean); runtime-analytics-gui 36/36; workflow-builder 68 broad + 17/17 capsule; flow-designer 138 broad + 16/16 capsule; all with 0 unexpected failures."
+    },
+    {
+      "id": "source-inspection",
+      "type": "inspection",
+      "required": true,
+      "command": "grep for live references to removed families and aliases across app/, scripts/, src/",
+      "result": "PASS",
+      "artifact": null,
+      "note": "workflow-stage, plain .flow-node, scenario-chain, stage-badge, workflow-connector, connector-one/two/three, .mini-map, .node-palette is KEPT (FormDesigner is live), .flow-canvas, start-node, end-node, node-handle, flow-mini-map, workflow-board and --awkit-purple* have zero live references; the design-tokens static undefined-var check pins it."
+    },
+    {
+      "id": "mutation-proof",
+      "type": "verifier",
+      "required": true,
+      "command": "inject an undefined var reference, then a rule-body hex literal, into global.css and re-run verify:design-tokens",
+      "result": "PASS",
+      "artifact": null,
+      "note": "Undefined-var mutation failed exactly the defined-check (28/29, --space-9 named); rule-body literal mutation failed exactly the literal check (28/29, line named); both restored and the clean run is 29/29."
+    },
+    {
+      "id": "gates",
+      "type": "build",
+      "required": true,
+      "command": "npm run build && npm run typecheck:scripts && npm run verify:source-hygiene && npm run verify:verifier-classification && npm run validate:offline && git diff --check",
+      "result": "PASS",
+      "artifact": null,
+      "note": "Build PASS (2,141 renderer modules; CSS bundle shrank with the legacy removal); scripts typecheck PASS; source-hygiene 11/11; classification reconciled with verify:design-tokens registered (204 scripts); offline validation PASS (Zvec 17/17 development mode); diff --check clean."
+    },
+    {
+      "id": "beads-roadmap",
+      "type": "inspection",
+      "required": true,
+      "command": "bd close awkit-44eu; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": null,
+      "note": "To be recorded at closeout: bead closed, export 281 total, roadmap tracker pin repinned to the measured counts and verification passing with Sources agree."
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure local/origin parity",
+      "result": "NOT RUN",
+      "artifact": null,
+      "note": "Pending: normal push after closeout evidence is committed."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-44eu:frontend:2026-09-11T13:26:45.000Z",
+        "task": "awkit-44eu",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/shared/connectorStyle.ts",
+          "app/renderer/pages/ReportsFailures.tsx",
+          "app/renderer/pages/ReportsRuntime.tsx",
+          "app/renderer/pages/ReportsServer.tsx",
+          "app/renderer/pages/SessionsManager.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-11T13:26:45.000Z",
+        "acquired_at_commit": "012d6df414fb2304ece17e07db25c69a7515d50a",
+        "released_at": "2026-09-11T13:27:22.181Z",
+        "released_reason": "Renderer design-system tranches committed at de8772c and e816373; verify:design-tokens 29/29, all affected GUI verifiers and build gates PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-44eu:software:2026-09-11T13:27:55.036Z",
+        "task": "awkit-44eu",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/theme/accentColor.ts"
+        ],
+        "acquired_at": "2026-09-11T13:27:55.036Z",
+        "acquired_at_commit": "e816373d68391c2bf129c01cd831f2b1ed12fce2",
+        "released_at": "2026-09-11T13:27:57.731Z",
+        "released_reason": "accentColor.ts comment accuracy committed; no functional change",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-44eu:qa:2026-09-11T13:28:24.432Z",
+        "task": "awkit-44eu",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-design-tokens.mjs"
+        ],
+        "acquired_at": "2026-09-11T13:28:24.432Z",
+        "acquired_at_commit": "03a590fa613f3517b33c48d458d99985bfeb7d50",
+        "released_at": "2026-09-11T13:28:30.855Z",
+        "released_reason": "verify:design-tokens committed with package.json scripts registration; 29/29 PASS with both mutation directions proven red",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,5 +1,39 @@
 # DECISIONS
 
+### 2026-09-11 - Chart series become a categorical token family; last chrome literals and legacy aliases retired (awkit-44eu)
+
+- **Decision:** categorical data-visualization colors are now first-class design tokens —
+  `--awkit-chart-1..14`, defined in BOTH theme blocks with distinct values per theme — and
+  `pages/ReportsFailures.tsx` maps failure categories to `var(--awkit-chart-N)` instead of a
+  14-hex literal map. The legacy `--awkit-purple*` accent aliases are deleted (all consumers
+  migrated to the `--awkit-accent*` family), `--awkit-blue/-deep` is re-documented as the
+  **data-viz blue family** (not a legacy alias), and the remaining rule-body color literals in
+  `global.css` resolve through tokens (status rgb triplets `--awkit-success/danger-rgb`,
+  `--awkit-shadow-lg`, `--font-mono`, `--awkit-overlay` scrim for the admin modal backdrop).
+- **Why tokens for charts:** a donut/bar chart needs more distinguishable series than the four
+  functional status families provide, so the palette is its own family — but series tokens are
+  assigned by DATA category, never by run state; state keeps the status tokens. Light values are
+  the previous hand-tuned hexes (light rendering unchanged); dark values are lifted counterparts,
+  fixing a real gap: charts previously painted light-tuned hexes on dark surfaces with no theme
+  adaptation at all.
+- **Bounded exceptions, written down at the site:** the avatar tone gradients are identity art
+  (design-system.md permits gradient decoration only for AI affordances and the existing profile
+  avatar), and the Connector Style presets in `components/shared/connectorStyle.ts` are persisted
+  USER CONTENT — `normalizeEdgeStyle` validates stored colors as hex, so preset values are part of
+  the saved-data contract, not themeable chrome (defaults resolve through `--awkit-connector-*`).
+- **Dead legacy CSS removed:** `workflow-stage`, plain `flow-node`, `scenario-chain`,
+  `stage-badge`, `workflow-connector`/connector-one/two/three, `mini-map`, `flow-canvas`,
+  `start-node`, `end-node`, `node-handle`, `flow-mini-map`, `workflow-board` — every family
+  proven to have zero live references before deletion (`node-palette` was checked and KEPT:
+  FormDesigner is routed). Net −139 CSS lines.
+- **The control that pins it:** `npm run verify:design-tokens` (fail-closed, mutation-proven both
+  directions) fails on any undefined var() reference, any rule-body color literal outside the
+  bounded exceptions, any missing/duplicate/non-theme-adaptive chart step, and proves the token
+  spine plus the Sessions status pill paint in the real app in light AND dark.
+- **Commits:** de8772c (token spine + legacy CSS removal), e816373 (surface migrations),
+  03a590f (accentColor comment accuracy), verifier commit, project-state commit.
+
+
 ### 2026-09-07 - The view-level dry-run exemption is deliberate and is pinned by a control, not gated
 
 - **Decision:** `execution:validate` and the `dryRun`-not-`false` path of `execution:runWorkflow` stay

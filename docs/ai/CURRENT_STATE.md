@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## New UI design-system completion: token spine hardened, legacy visuals removed, chart palette theme-adaptive (2026-09-11)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-44eu` moves no ledger case.
+
+**The design system is now single-sourced through tokens, fail-closed.** `awkit-44eu` finished the
+migration the earlier campaign left 95% done: `--awkit-success/danger-rgb` triplets,
+`--awkit-shadow-lg` and `--font-mono` are defined in both themes (they were referenced-but-undefined,
+so their declarations silently dropped); the admin modal backdrop now uses the shared
+`--awkit-overlay` scrim like every other modal; the categorical chart palette is a new
+`--awkit-chart-1..14` token family with light AND dark values (charts were light-tuned hexes with no
+dark adaptation); the legacy `--awkit-purple*` aliases are gone; thirteen provably dead legacy CSS
+families (workflow-stage, flow-node, scenario-chain, stage-badge, mini-map, connectors, handles,
+workflow-board …) are removed (−139 CSS lines); SessionsManager's invalid `var(--x)1a` status-pill
+styling — which silently dropped the pill background and border — now uses the shared status
+-soft/-muted trio, and its arbitrary px literals migrated onto the type/radius/space tokens;
+ReportsFailures' 15-hex category map maps to `var(--awkit-chart-N)`. Bounded, documented
+exceptions: avatar identity-art gradients and the persisted connector color presets (user content,
+hex is the saved-data contract).
+
+**New fail-closed verifier.** `npm run verify:design-tokens` (real-browser class, 204 registered
+scripts) pins the system statically (undefined vars, rule-body literals, chart-palette
+completeness/distinctness/theme-adaptivity) and live in the real app (token spine resolves in both
+themes; the Sessions status pill paints in both). **29/29 PASS**, and mutation-proven: an injected
+undefined var and an injected rule-body hex each fail exactly their named check.
+
+**Verification.** Build PASS; typecheck:scripts PASS; source-hygiene 11/11; classification PASS;
+offline validation PASS; diff --check clean; roadmap 177/177 pre-bead (repinned at closeout).
+Affected GUI verifiers all green: accent-theme 71/71, accent-gui 33/33, branding 49/49, reports
+31/31, reports-settings-a11y 17 PASS/0 FAIL, e2e-sweep 13/13, admin-gui 36/36, auth-gui 25/25,
+settings-e2e 179 PASS/0 FAIL/1 NOT RUN (owner-gated), instance-monitor-gui 27/27, recorder-gui
+192/192 (re-run; first run had 4 timing flakes), runtime-analytics-gui 36/36, workflow-builder
+68 broad + 17/17 capsule, flow-designer 138 broad + 16/16 capsule — 0 unexpected failures.
+Light/dark evidence screenshots under `test-artifacts/design-tokens/screenshots/`.
+
+
 ## Graphify shrink-guard regression committed; awkit-wy82 terminal; only external gates remain (2026-09-11)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

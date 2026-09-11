@@ -1,5 +1,29 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-11, latest) — `awkit-44eu`: UI design-system completion landed; token spine fail-closed
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **What changed:** the Hologram token system is now the single visual source — undefined tokens
+  fixed (`--space-6`, status rgb triplets, `--awkit-shadow-lg`, `--font-mono`), rule-body color
+  literals replaced, `--awkit-purple*` aliases retired, 13 dead legacy CSS families removed,
+  SessionsManager's silently-dropped status-pill styling fixed, ReportsFailures on a
+  theme-adaptive `--awkit-chart-1..14` family, admin modal on the shared overlay scrim. Bounded
+  exceptions documented in place (avatar identity art; connector presets are persisted user
+  content).
+- **New gate:** `npm run verify:design-tokens` — 29/29 PASS, mutation-proven fail-closed both
+  directions (undefined var / rule-body literal). Registered (204 scripts). Run it after any
+  `global.css` or palette change.
+- **Evidence:** all affected GUI verifiers green (see CURRENT_STATE 2026-09-11 section for the
+  exact tallies); build/typecheck/source-hygiene/classification/offline/diff-check PASS;
+  light+dark screenshots in `test-artifacts/design-tokens/screenshots/`.
+- **Contracts/lease:** `awkit-44eu` ran the full writer sequence (frontend → software → qa →
+  project-state; package.json scripts key added under the shared-field relaxation). Roadmap
+  tracker repinned for the 281-item export at closeout; **Sources agree**.
+- **Remaining external gates only:** packaged licensing authorization
+  (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY` absent), clean-machine credentials, `awkit-7bu`,
+  `awkit-cm8`. Untouched by this task.
+
+
 ## HANDOFF (2026-09-11, latest) — `awkit-wy82` terminal: shrink-guard regression committed, roadmap 177/177
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.

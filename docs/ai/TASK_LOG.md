@@ -14561,3 +14561,39 @@ pm run verify:mock-site
   and AI-memory documentation.
 - **Commits/push:** `69b8185` (`feat(recorder): add deterministic element identity contract`) and
   `ddd50ab` (`test(recorder): verify identity contract end to end`) were pushed to `origin/main`.
+
+## 2026-09-11 — awkit-44eu: complete the new UI design-system implementation (ZCode, GLM)
+
+- **Task:** finish the Hologram design-system migration across the renderer. Hardened the token
+  spine (status rgb triplets, --awkit-shadow-lg, --font-mono, theme-adaptive --awkit-chart-1..14
+  categorical palette in BOTH themes), fixed undefined-variable declarations (--space-6 dropped
+  padding, undefined fallbacks), replaced the remaining rule-body color literals (window close
+  controls, recorder hover shadows/pulse, range selector, trend badge, drawer scrim, admin modal
+  backdrop → shared overlay scrim), retired the --awkit-purple* aliases, removed 13 provably dead
+  legacy CSS families (−139 CSS lines), fixed SessionsManager's invalid var()+alpha status-pill
+  styling (background/border were silently dropped) and migrated its px literals to tokens, moved
+  ReportsFailures' 15-hex category palette onto chart tokens, and bounded+documented the two
+  intentional exceptions (avatar identity art; connector presets as persisted user content).
+- **New verifier:** npm run verify:design-tokens — 29/29 PASS (static CSS contract + real-Electron
+  light/dark proof incl. the Sessions pill painting in both themes). Mutation-proven fail-closed:
+  injected undefined var and injected rule-body hex each fail exactly their named check. Registered
+  in verifier-classification.ts (204 scripts, real-browser class).
+- **Verification:** build PASS; typecheck:scripts PASS; source-hygiene 11/11;
+  verify:verifier-classification PASS; validate:offline PASS (Zvec 17/17 dev mode); git diff
+  --check clean. GUI: accent-theme 71/71; accent-gui 33/33; branding 49/49; reports 31/31;
+  reports-settings-a11y 17 PASS/0 FAIL; e2e-sweep 13/13; admin-gui 36/36; auth-gui 25/25;
+  settings-e2e 179 PASS/0 FAIL/1 NOT RUN (owner-gated shell launch); instance-monitor-gui 27/27;
+  recorder-gui 192/192 on re-run (first run: 4 timing flakes, clean re-run); runtime-analytics-gui
+  36/36; workflow-builder 68 broad + 17/17 capsule; flow-designer 138 broad + 16/16 capsule; all
+  with 0 unexpected failures. Light+dark screenshots: test-artifacts/design-tokens/screenshots/.
+- **Not run:** verify:packaged-licensing signed cases and clean-machine walkthrough (unchanged
+  external gates, out of scope); verify:mock-site (no mock-site behavior changed).
+- **Files:** app/renderer/styles/global.css; app/renderer/pages/{SessionsManager,ReportsFailures,
+  ReportsRuntime,ReportsServer}.tsx; app/renderer/components/shared/connectorStyle.ts;
+  src/theme/accentColor.ts (comments); scripts/verify-design-tokens.mjs; scripts/lib/
+  verifier-classification.ts; package.json (scripts key); docs/ai/{CURRENT_STATE,HANDOFF,
+  DECISIONS,TASK_LOG}.md; docs/ai/contracts/awkit-44eu.json; .beads/*; tools/roadmap/assignments.json.
+- **Commits:** de8772c feat(ui) token spine + legacy CSS removal; e816373 fix(ui) surface
+  migrations; 03a590f docs(ui) accentColor comments; test(ui) verifier; docs: project state.
+- **Result:** design system single-sourced with a fail-closed gate; roadmap Sources agree at
+  closeout; pushed to origin/main.

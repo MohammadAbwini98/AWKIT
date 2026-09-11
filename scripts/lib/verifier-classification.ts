@@ -122,6 +122,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:oracle-drivers-gui": { class: "real-browser", why: "Real-Electron walkthrough of Settings › Database Drivers." },
   "verify:durable-accuracy": { class: "real-browser", why: "Launches the real ExecutionEngine benchmarks (real Chromium) for durable-store accuracy." },
   "verify:accent-gui": { class: "real-browser", why: "Real-Electron walkthrough of Appearance › Accent Color (solid/gradient/preset/reset + login pre-mount bootstrap)." },
+  "verify:design-tokens": { class: "real-browser", why: "Static global.css token contract (undefined-var + rule-body literal + chart-palette parity) plus a real-Electron light/dark proof that the token spine and the Sessions status pill paint in both themes." },
   "verify:https-certificates": { class: "real-browser", why: "Cert-policy precedence unit part PLUS live Chromium navigation against real self-signed / expired / wrong-host HTTPS servers." },
   "verify:https-certificates-gui": { class: "real-browser", why: "Real-Electron walkthrough of Settings › Recorder Security (Ignore invalid HTTPS certificates)." },
   "verify:branding-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Workspace Logo card + sidebar/login custom-logo rendering." },
