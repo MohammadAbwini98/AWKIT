@@ -1,24 +1,33 @@
 {
   "task": "awkit-ampd",
   "contract_path": "docs/ai/contracts/awkit-ampd.json",
-  "holder": "release",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
-  ],
-  "acquired_at": "2026-09-11T13:56:01.945Z",
-  "acquired_at_commit": "cbf6aa91a08cca8a2c52d0191cc16b0c26a06e89",
-  "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-ampd.json",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "tools/roadmap/assignments.json"
+  ],
+  "acquired_at": "2026-09-11T14:18:16.816Z",
+  "acquired_at_commit": "f34d1a20b6cf012637dd3efefbbe324485f5ee89",
+  "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-ampd.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-ampd.json": "4d34dee3dfff41096ae13964970c3ea3d1fe74d1773d3018f32af4248bbcd58b",
-    "resources/dependency-manifest.json": "b589432e6fcfbc2bffb630b94dffc6a3c2952363e3ae1b19d683ccc86fe22ce4",
-    "resources/dependency-manifest.sig": "35a7800e0658ee4b4e1f1d22f24e65acf1b4e4054de9cc9f399136233328dc2a"
+    ".beads/interactions.jsonl": "6acecbf2111d24ad47fc347483f1f921dd6bae4bce1f65f45791eba5f13dee10",
+    ".beads/issues.jsonl": "1f0d6868b956f90fb83f450caba99bf90f89a0b719c2e78c1e059e6b9e2841a2",
+    "docs/ai/contracts/active-lease.json": "6127c7721fd48e098843bbc4e315f7790e1f846f764863822a3c5a655cebbeac",
+    "docs/ai/contracts/awkit-ampd.json": "0c0de62f606209e2990626e9965f15899b927aae2056f6c482a101283cb30573",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -28,7 +37,7 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789134744901.3257"
+    "build": "dir(1):native-hosts:1789135294403.5005"
   },
   "amendments": [],
   "overrides": [],

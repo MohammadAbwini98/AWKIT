@@ -1,5 +1,50 @@
 # CURRENT_STATE
 
+## Fresh packaged 0.1.29 artifact contains the awkit-44eu UI design (2026-09-11)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-ampd` moves no ledger case.
+
+**A genuinely fresh package now proves the new UI at release level.** `awkit-ampd` repackaged
+0.1.29 from clean source `3341435` (all four awkit-44eu UI commits proven ancestors via
+`git merge-base --is-ancestor`): portable `dist/SpecterStudio 0.1.29.exe` (236,680,525 bytes,
+SHA-256 `caee4db60baf9b99d83e500156807f1658e06faaf2471473206da79113c41443`, mtime 2026-09-11T17:00)
+and installer `dist/SpecterStudio Setup 0.1.29.exe` (263,895,205 bytes, SHA-256
+`914ec1221d47f377a2afd7455bfedb052ee5514c2865e26d3b39857f7717f84a`, mtime 2026-09-11T17:03).
+Provenance records `treeDirty: false` and both hashes verified against disk independently. **All
+prior artifacts are STALE — DO NOT VALIDATE** (the previous same-name 0.1.29 pair was built from
+`13eb9eb`, which predates the UI commits; portable `c891b1b5…`, installer `1247cbf5…`).
+
+**Packaged evidence.** `verify:packaged-validation` **119/119 PASS** inside the freshness window
+(4 min old): ASAR renderer index + assets byte-identical to the current build
+(`renderer-D5i7_0Jf.js` / `renderer-Dih5Wpgl.css`), **123 unique Hologram token names** (from
+206 source definitions — grown by the awkit-44eu chart/status/shadow/mono tokens) reach the
+packaged CSS, no dev/remote entry, provenance source is an ancestor of HEAD. `verify:packaged-runtime`
+**25/25** (appMode=packaged, durable store in-ASAR, writable %LOCALAPPDATA% root, clean shutdown).
+`verify:packaged-walkthrough` **35 PASS / 0 FAIL / 1 BLOCKED** — licensed packaged execution needs
+`AWKIT_PACKAGED_LICENSE_ISSUER_KEY` on an authorized machine (unchanged external gate; no default
+key2). `verify:packaged-licensing` **24 PASS / 0 FAIL / 2 BLOCKED** (same external gate).
+`validate:offline -- -Strict` **passed inside both packaging runs** at the release source; the
+committed manifest pins `sourceCommit 3341435`, so re-running -Strict at a later HEAD fails the
+HEAD-equality clause by design (identical to the accepted 2026-09-10 release lineage).
+
+**Packaged UI — NEW DESIGN CONFIRMED in light AND dark.** A sweep of the exact packaged EXE drove
+all **30 nav surfaces** in both themes with **zero renderer console errors**, plus the awkit-44eu
+specifics: the token spine resolves per theme (`--awkit-danger-rgb` 220,59,59 / 248,113,113;
+chart series `#3563f8` / `#7d9bff`; `--awkit-shadow-lg`; `--font-mono`), the Sessions status
+pill paints (`rgb(231,247,239)` light / `rgba(52,211,153,0.13)` dark), the admin modal backdrop
+uses the shared overlay scrim token in both themes, window controls render, Failure Analytics and
+Recorder render their migrated styling. Evidence: `dist/phase5-evidence/packaged-ui-awkit-44eu/`
+(84/84 checks + 16 light/dark screenshots).
+
+**Gates.** build PASS; typecheck:scripts PASS; verify:design-tokens 29/29; source-hygiene 11/11;
+classification PASS; roadmap 177/177 — Sources agree (tracker repinned to 282 total / 280 closed /
+2 outstanding at `awkit-ampd` close); git diff --check clean. Residual design exceptions unchanged
+and verified: Program Status keeps the roadmap-mirror `rm-*` stylesheet (documented architectural
+exception), the admin kit remains bounded debt, no packaged defect surfaced from the token-step
+deltas, and no recorder flake occurred in any packaged run.
+
+
 ## New UI design-system completion: token spine hardened, legacy visuals removed, chart palette theme-adaptive (2026-09-11)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

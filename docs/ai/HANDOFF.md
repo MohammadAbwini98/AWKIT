@@ -1,5 +1,27 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-11, latest) — `awkit-ampd`: fresh packaged 0.1.29 proves the new UI at release level
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **Fresh artifacts (validate ONLY these):** portable `dist/SpecterStudio 0.1.29.exe` —
+  236,680,525 B, SHA-256 `caee4db6…4443`, mtime 2026-09-11T17:00; installer `dist/SpecterStudio
+  Setup 0.1.29.exe` — 263,895,205 B, SHA-256 `914ec122…7f84a`, mtime 2026-09-11T17:03. Provenance:
+  clean source `3341435`, `treeDirty: false`, hashes match disk. **Every earlier artifact is
+  STALE**, including the same-name Sep-10 pair from `13eb9eb` (`c891b1b5…` / `1247cbf5…`).
+- **Packaged gates:** packaged-validation **119/119** in-window (ASAR byte-parity, 123 Hologram
+  token names in packaged CSS); packaged-runtime **25/25**; packaged-walkthrough **35/0/1 BLOCKED**
+  (issuer key); packaged-licensing **24/0/2 BLOCKED** (issuer key); packaged UI sweep **84/84**
+  across 30 surfaces in light+dark, zero console errors (`dist/phase5-evidence/packaged-ui-awkit-44eu/`).
+- **Manifest policy note:** `validate:offline -- -Strict` passes at the release source (it ran
+  inside both packaging runs); at any later HEAD the committed manifest's `sourceCommit` pin fails
+  the HEAD-equality clause by design — same as the accepted 2026-09-10 lineage.
+- **Contracts/lease:** `awkit-ampd` ran release → qa → project-state leases; the release lease was
+  held over the regenerated dependency manifest (committed at `7d6396e`); roadmap repinned to
+  **282 total / 280 closed / 2 outstanding** — **Sources agree**.
+- **Remaining external gates only:** packaged licensing authorization
+  (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`), clean-machine credentials, `awkit-7bu`, `awkit-cm8`.
+
+
 - **Terminal state:** task-gate ok=true (no blockers, no scope escapes, qc APPROVED from re-runnable measurements); normal push accepted 012d6df..68bffa6; contract completion COMPLETE.
 
 ## HANDOFF (2026-09-11, latest) — `awkit-44eu`: UI design-system completion landed; token spine fail-closed

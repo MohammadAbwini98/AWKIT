@@ -39,26 +39,32 @@
       "docs/ai/TASK_LOG.md",
       "resources/dependency-manifest.json",
       "resources/dependency-manifest.sig",
-      "build"
+      "build",
+      "scripts/verify-roadmap-dashboard.mjs"
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "docs/ai/contracts/awkit-ampd.json",
+        "docs/ai/contracts/active-lease.json",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
         "mock-site/**",
-        ".beads/**",
-        "docs/**"
+        "scripts/**"
       ]
     },
     "writer_sequence": [
       "release",
+      "qa",
       "project-state"
     ],
     "reviewers": [
@@ -133,72 +139,72 @@
       "type": "build",
       "required": true,
       "command": "npm run build && npm run typecheck:scripts",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: pre-package build gates."
+      "note": "Build PASS (renderer-D5i7_0Jf.js 2,033.28 kB / renderer-Dih5Wpgl.css 335.49 kB contain the chart tokens, zero purple aliases, zero dead workflow-stage); typecheck:scripts PASS."
     },
     {
       "id": "provenance",
       "type": "packaged",
       "required": true,
       "command": "npm run package:portable && npm run package:installer; inspect dist/release-provenance.json",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": "dist/release-provenance.json",
-      "note": "Pending: fresh artifact generation and provenance capture."
+      "note": "Portable 236,680,525 B / caee4db6...; installer 263,895,205 B / 914ec122...; provenance source 3341435 treeDirty false; both SHA-256 and sizes re-measured independently and match disk; manifest+sig committed at 7d6396e."
     },
     {
       "id": "packaged-validation",
       "type": "packaged",
       "required": true,
       "command": "npm run verify:packaged-validation",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: must run inside the freshness window of the new artifact."
+      "note": "119/119 inside the freshness window (artifact 4 min old): ASAR renderer byte-parity with the new bundles, 123 unique Hologram token names from 206 source definitions reach packaged CSS, no dev/remote entry, provenance ancestry + executable binding."
     },
     {
       "id": "packaged-runtime",
       "type": "packaged",
       "required": true,
       "command": "npm run verify:packaged-runtime && npm run verify:packaged-walkthrough",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: launches the exact new executable."
+      "note": "packaged-runtime 25/25 (appMode=packaged, durable store from inside app.asar, writable %LOCALAPPDATA% root, full clean shutdown); packaged-walkthrough 35 PASS / 0 FAIL / 1 BLOCKED — licensed packaged execution requires AWKIT_PACKAGED_LICENSE_ISSUER_KEY on an authorized machine (external gate, reported BLOCKED)."
     },
     {
       "id": "packaged-ui",
       "type": "gui",
       "required": true,
       "command": "launch the exact new artifact path; drive light+dark across representative surfaces",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: packaged visual validation of the new design."
+      "note": "84/84 on the exact packaged EXE: all 30 nav surfaces render in light AND dark with zero renderer console errors; per-theme token spine (danger-rgb 220,59,59/248,113,113; chart-1 #3563f8/#7d9bff; shadow-lg; font-mono), Sessions pill rgb(231,247,239)/rgba(52,211,153,0.13), admin modal backdrop equals the overlay token in both themes, window controls render, Failure Analytics + Recorder render migrated styling. Evidence: dist/phase5-evidence/packaged-ui-awkit-44eu/."
     },
     {
       "id": "gates",
       "type": "build",
       "required": true,
       "command": "npm run build && npm run typecheck:scripts && npm run verify:design-tokens && npm run verify:source-hygiene && npm run verify:verifier-classification && npm run verify:roadmap-dashboard && npm run validate:offline && npm run validate:offline -- -Strict && git diff --check",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: final gate run after the accepted artifact exists."
+      "note": "build PASS; typecheck:scripts PASS; verify:design-tokens 29/29; source-hygiene 11/11; classification PASS; roadmap 177/177 after repin (Sources agree); validate:offline PASS (development); validate:offline -- -Strict PASS at the release source inside both packaging runs (committed manifest pins sourceCommit 3341435; HEAD-equality at later HEADs is the documented design, identical to the 2026-09-10 lineage); git diff --check clean."
     },
     {
       "id": "packaged-licensing",
       "type": "packaged",
       "required": false,
       "command": "npm run verify:packaged-licensing",
-      "result": "NOT RUN",
+      "result": "BLOCKED",
       "artifact": null,
-      "note": "Signed-license cases are expected BLOCKED while AWKIT_PACKAGED_LICENSE_ISSUER_KEY is absent; unsigned cases must pass; no default key2."
+      "note": "24 PASS / 0 FAIL / 2 BLOCKED — the two signed-license cases need AWKIT_PACKAGED_LICENSE_ISSUER_KEY on an authorized validation machine. No default key2 manufactured."
     },
     {
       "id": "beads-roadmap",
       "type": "inspection",
       "required": true,
       "command": "bd close awkit-ampd; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
-      "result": "NOT RUN",
+      "result": "PASS",
       "artifact": null,
-      "note": "Pending: closeout with measured tracker counts."
+      "note": "awkit-ampd CLOSED and exported: 282 total / 280 closed / 2 outstanding (the two status-blocked Oracle items). Pins repinned at f34d1a2; verify:roadmap-dashboard 177/177 with Sources agree."
     },
     {
       "id": "push-main",
@@ -245,6 +251,40 @@
         "acquired_at_commit": "665fa089665e3929d63d497f189685bb187adb7d",
         "released_at": "2026-09-11T13:55:36.858Z",
         "released_reason": "Re-routing: packaging requires the release writer over the regenerated dependency manifest; project-state closeout follows after validation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ampd:release:2026-09-11T13:56:01.945Z",
+        "task": "awkit-ampd",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-11T13:56:01.945Z",
+        "acquired_at_commit": "cbf6aa91a08cca8a2c52d0191cc16b0c26a06e89",
+        "released_at": "2026-09-11T14:17:20.683Z",
+        "released_reason": "Release phase complete: portable caee4db6 (236,680,525 B) and installer 914ec122 (263,895,205 B) regenerated from clean 3341435, strict validation passed in-run, fresh manifest committed at 7d6396e, packaged-validation 119/119 in freshness window, packaged-runtime 25/25, walkthrough 35/0/1 BLOCKED (external issuer key), packaged UI 84/84 light+dark",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ampd:qa:2026-09-11T14:17:40.617Z",
+        "task": "awkit-ampd",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-11T14:17:40.617Z",
+        "acquired_at_commit": "7d6396e508f1602a21189811333fb7e2d4710b3e",
+        "released_at": "2026-09-11T14:18:07.287Z",
+        "released_reason": "Roadmap pins repinned to 282 total / 2 outstanding / 280 closed; 177/177 Sources agree",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -14597,3 +14597,35 @@ pm run verify:mock-site
   migrations; 03a590f docs(ui) accentColor comments; test(ui) verifier; docs: project state.
 - **Result:** design system single-sourced with a fail-closed gate; roadmap Sources agree at
   closeout; pushed to origin/main.
+
+## 2026-09-11 — awkit-ampd: package and validate the fresh 0.1.29 artifact with the awkit-44eu UI (ZCode, GLM)
+
+- **Task:** produce and validate a genuinely fresh packaged release containing the completed UI
+  design system. Packaged from clean source 3341435 (de8772c/e816373/03a590f/75b418c proven
+  ancestors) via the documented same-version retry path (package:portable + package:installer,
+  strict offline validation passed in-run both times).
+- **Artifacts:** portable 236,680,525 B / caee4db6…4443 / 17:00; installer 263,895,205 B /
+  914ec122…7f84a / 17:03. Provenance treeDirty false; hashes independently re-measured against
+  disk. All prior artifacts marked STALE (previous same-name pair from 13eb9eb).
+- **Packaged verification:** packaged-validation 119/119 inside the freshness window (packaged
+  renderer byte-identical to the new build; 123 unique Hologram token names reach packaged CSS);
+  packaged-runtime 25/25; packaged-walkthrough 35 PASS / 1 BLOCKED (AWKIT_PACKAGED_LICENSE_ISSUER_KEY
+  external gate; reported BLOCKED, not skipped); packaged-licensing 24 PASS / 2 BLOCKED (same gate).
+- **Packaged UI validation:** exact packaged EXE driven across all 30 nav surfaces in light AND
+  dark — 84/84 checks, zero renderer console errors; awkit-44eu specifics proven per theme
+  (token spine values, chart series switch, Sessions pill fills, admin modal overlay scrim, window
+  controls, Failure Analytics/Recorder styling). Screenshots under dist/phase5-evidence/
+  packaged-ui-awkit-44eu/.
+- **Gates:** build PASS; typecheck:scripts PASS; verify:design-tokens 29/29; source-hygiene 11/11;
+  classification PASS; roadmap 177/177 after the 282/280/2 repin — Sources agree; validate:offline
+  PASS (development mode; -Strict passes at the release source inside the packaging runs and pins
+  the packaging HEAD by design); git diff --check clean.
+- **Files:** dist/* (fresh artifacts + provenance + phase5 evidence, local-only);
+  resources/dependency-manifest.json + .sig (regenerated, committed at 7d6396e);
+  scripts/verify-roadmap-dashboard.mjs (repin); docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md;
+  docs/ai/contracts/awkit-ampd.json; .beads/*; tools/roadmap/assignments.json.
+- **Commits:** 3341435 (lease from clean tree), 7d6396e (build(release): record fresh 0.1.29
+  dependency manifest), f34d1a2 (test: repin roadmap), docs closeout commits.
+- **Result:** the new UI design is release-proven from a fresh package; no packaged defect found;
+  only the documented external gates remain (issuer key, clean-machine credentials, awkit-7bu,
+  awkit-cm8).
