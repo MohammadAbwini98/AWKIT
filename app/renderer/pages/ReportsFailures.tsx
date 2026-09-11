@@ -16,21 +16,25 @@ interface FailuresData {
   workflows: WorkflowReportRow[];
 }
 
+/* Failure-category → chart-series assignment. Colors resolve through the categorical
+ * --awkit-chart-* token family (global.css, light + dark variants) so the donut/bars
+ * follow the theme instead of painting light-tuned hexes on dark surfaces. Series tokens
+ * are assigned by data category, never by run state. */
 const CATEGORY_COLORS: Partial<Record<ReportCategory, string>> = {
-  navigation: "#3563f8",
-  selector: "#5b3e91",
-  timeout: "#b97a1a",
-  assertion: "#0b1ee6",
-  "browser-crash": "#c03434",
-  "context-closed": "#c85a54",
-  "profile-lock": "#69587e",
-  "session-expired": "#8a6d3b",
-  "auth-handoff-required": "#1f8a4c",
-  network: "#2a9d8f",
-  "download-upload": "#457b9d",
-  "data-binding": "#7048a8",
-  cancelled: "#8a8a8a",
-  unknown: "#b0b0b0"
+  navigation: "var(--awkit-chart-1)",
+  selector: "var(--awkit-chart-2)",
+  timeout: "var(--awkit-chart-3)",
+  assertion: "var(--awkit-chart-4)",
+  "browser-crash": "var(--awkit-chart-5)",
+  "context-closed": "var(--awkit-chart-6)",
+  "profile-lock": "var(--awkit-chart-7)",
+  "session-expired": "var(--awkit-chart-8)",
+  "auth-handoff-required": "var(--awkit-chart-9)",
+  network: "var(--awkit-chart-10)",
+  "download-upload": "var(--awkit-chart-11)",
+  "data-binding": "var(--awkit-chart-12)",
+  cancelled: "var(--awkit-chart-13)",
+  unknown: "var(--awkit-chart-14)"
 };
 
 const MIN_RUNS_FOR_FLAKINESS = 5;
@@ -83,7 +87,7 @@ export function ReportsFailures() {
       (data?.failures.categories ?? []).map((entry) => ({
         label: reportCategoryLabel(entry.category),
         value: entry.count,
-        color: CATEGORY_COLORS[entry.category] ?? "#b0b0b0"
+        color: CATEGORY_COLORS[entry.category] ?? "var(--awkit-chart-14)"
       })),
     [data]
   );

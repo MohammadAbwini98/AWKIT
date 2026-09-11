@@ -96,7 +96,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
   const peakProcesses = maxBy(processes, (p) => p.chromiumProcessCount);
 
   const concurrency: TimelineSeries[] = [
-    seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.activeBrowsers, "Active browsers", "var(--awkit-purple)"),
+    seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.activeBrowsers, "Active browsers", "var(--awkit-accent)"),
     seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.activeFlows, "Active flows", "var(--awkit-blue)"),
     seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.queueDepth, "Queue depth", "var(--awkit-warning)")
   ];
@@ -105,10 +105,10 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
     seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.cpuPercent, "CPU", "var(--awkit-danger)")
   ];
   const procCount: TimelineSeries[] = [
-    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.chromiumProcessCount, "Chromium processes", "var(--awkit-purple)")
+    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.chromiumProcessCount, "Chromium processes", "var(--awkit-accent)")
   ];
   const procMem: TimelineSeries[] = [
-    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.chromiumMemoryMb, "Chromium memory", "var(--awkit-purple)"),
+    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.chromiumMemoryMb, "Chromium memory", "var(--awkit-accent)"),
     seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.electronMainMemoryMb, "Electron main", "var(--awkit-blue)")
   ];
 

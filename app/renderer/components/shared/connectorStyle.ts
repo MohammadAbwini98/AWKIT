@@ -27,7 +27,13 @@ export const connectorTypeColor: Record<string, string> = {
   parallel: "var(--awkit-connector-parallel)"
 };
 
-/** Preset colors offered in the Connector Style picker. Empty value = default by type. */
+/** Preset colors offered in the Connector Style picker. Empty value = default by type.
+ *
+ * BOUNDED USER-CONTENT DATA, not UI chrome: a chosen preset is persisted in the workflow
+ * profile as a literal hex (`normalizeEdgeStyle` only accepts hex), so these values are part
+ * of the saved-data contract, not themeable design tokens. The app's own default connector
+ * colors resolve through `--awkit-connector-*` tokens (see connectorTypeColor above); only
+ * an explicit user override paints a fixed hex. */
 export const connectorColorPresets: { value: string; label: string }[] = [
   { value: "", label: "Default (by type)" },
   { value: "#8b5cf6", label: "Purple" },

@@ -44,10 +44,10 @@ export function ReportsServer() {
 function ServerContent({ data }: { data: ServerReport }) {
   const storageBars: BarDatum[] = [
     { label: "Reports", value: data.storage.reportsMb, color: "var(--awkit-blue)" },
-    { label: "Screenshots", value: data.storage.screenshotsMb, color: "var(--awkit-purple)" },
+    { label: "Screenshots", value: data.storage.screenshotsMb, color: "var(--awkit-accent)" },
     { label: "Logs", value: data.storage.logsMb, color: "var(--awkit-warning)" },
     { label: "Downloads", value: data.storage.downloadsMb, color: "var(--awkit-success)" },
-    { label: "Runtime DB", value: data.storage.runtimeDbMb, color: "var(--awkit-purple-deep)" }
+    { label: "Runtime DB", value: data.storage.runtimeDbMb, color: "var(--awkit-accent-hover)" }
   ];
 
   return (
