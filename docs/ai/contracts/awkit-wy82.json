@@ -315,8 +315,9 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main and remeasure HEAD/origin/main/divergence",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "Normal push accepted: 4c14f88..dcd48e9 main -> main (exit 0), carrying af1c853 plus 1d1b505 (contract routing), c928e89 (shrink-guard verifier), 36fb530 (roadmap repin) and dcd48e9 (closeout evidence). Remeasured after the push: HEAD = origin/main = dcd48e9c9407a24c1935287ef52e37e1b34a99a4, ahead 0 / behind 0. No force was used or needed."
     }
   ],
   "write_lease": {
@@ -364,6 +365,33 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-wy82:project-state:2026-09-11T00:43:55.147Z",
+        "task": "awkit-wy82",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/GRAPHIFY.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-wy82.json",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-11T00:43:55.147Z",
+        "acquired_at_commit": "36fb5303bab8cbbedfcea2827ac7de78190b75af",
+        "released_at": "2026-09-11T00:50:29.435Z",
+        "released_reason": "awkit-wy82 terminal: all required evidence PASS, task-gate open, push accepted at dcd48e9; no further task-owned writes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
@@ -378,7 +406,7 @@
     "push_evidence_id": "push-main"
   },
   "completion": {
-    "status": "pending",
+    "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
     "qc_note": "Independent re-derivation from the recorded measurements: the 26/26 verifier output, both live guard-mutation directions going red, the 93-exact synthetic and end-to-end prune counts, the refused-then-accepted CLI replica, preserved-path fingerprints matching the contract baselines, roadmap 177/177 after individual-pin mutation proof, and the re-run build/typecheck/classification/ai-memory gates together prove every acceptance criterion without relying on any unexecuted check. Owner material and external gates untouched."

@@ -2,7 +2,7 @@
   "task": "awkit-wy82",
   "contract_path": "docs/ai/contracts/awkit-wy82.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -41,5 +41,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-11T00:50:29.435Z",
+  "released_reason": "awkit-wy82 terminal: all required evidence PASS, task-gate open, push accepted at dcd48e9; no further task-owned writes",
+  "archived_at": "2026-09-11T00:50:29.452Z"
 }
