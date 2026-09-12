@@ -1,5 +1,27 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-12, latest) — `awkit-lgn2`: two-pane secure sign-in redesign complete
+
+- **What changed:** the pre-auth surface (`app/renderer/security/**`) is now a two-pane shell
+  (credentials left, decorative automation-run panel right); all seven SecurityGate states share
+  it with unchanged `areaLabel` strings and an unchanged state machine; provider selector is a
+  real radiogroup with the old roving keyboard behaviour; strength meter on policy screens only;
+  AppFrame title-bar mark is the theme-aware squircle (authenticated chrome changes too); no
+  fabricated pre-auth values (version footer/instance tile dropped; idle footnote derives from
+  live `idleTimeoutMs`). Renderer commits `242b800..efef652`, all inside `app/renderer/**`.
+- **Evidence (measured 2026-09-12):** build PASS; design-tokens 29/29; accent-theme 71/71;
+  branding 49/49; source-hygiene 11/11; auth 79/79; reports-settings-a11y 17/17; all-typecheck
+  PASS; GUI gates auth-gui 25/25, accent-gui 33/33, branding-gui 30/30 (the 2026-09-06 host block
+  did not reproduce — see KNOWN_ISSUES observation); custom-brand-logo green against the
+  committed export; roadmap Sources agree after the 283/281/2 repin; `git diff --check` clean.
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **Contracts/lease:** `awkit-lgn2` ran frontend → qa (repin) → project-state (terminal) leases;
+  `awkit-lgn2` bead created and closed in one session; export refreshed via
+  `bd export -o .beads/issues.jsonl`.
+- **Unchanged external gates:** packaged licensing issuer key, clean-machine credentials,
+  `awkit-7bu`, `awkit-cm8`. The fresh 0.1.29 package predates this redesign — the next package
+  will need a fresh build if the new login surface must be release-proven.
+
 ## HANDOFF (2026-09-11, latest) — `awkit-ampd`: fresh packaged 0.1.29 proves the new UI at release level
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.

@@ -101,6 +101,12 @@ parse are left untouched.
 
 ## GUI verify harness leaks an orphaned Electron process and its temp profile when the bridged window never appears (2026-09-06)
 
+**Observation (2026-09-12, awkit-lgn2 closeout):** the block did NOT reproduce — at HEAD
+`efef652` (redesigned login surface), `verify:auth-gui` (25/25), `verify:accent-gui` (33/33) and
+`verify:branding-gui` (30/30) all resolved the bridged window and ran every assertion in one
+session. The failure remains host-state-dependent and intermittent, not permanent; the missing
+`try/finally` leak below is still unfixed and still applies whenever the block does occur.
+
 - Both `scripts/verify-accent-gui.mjs` and `scripts/verify-branding-gui.mjs` call `isolatedLaunchEnv()`
   then `electron.launch()` then `resolveMainWindow()` at TOP LEVEL with no `try/finally`. `app.close()`
   (verify-accent-gui.mjs:200, verify-branding-gui.mjs:235/245/260) and `cleanup()`

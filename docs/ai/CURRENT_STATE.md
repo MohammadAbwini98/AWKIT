@@ -1,5 +1,46 @@
 # CURRENT_STATE
 
+## Two-pane secure sign-in redesign landed on the pre-auth surface (2026-09-12)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-lgn2` moves no ledger case.
+
+**The pre-authentication surface is redesigned (`awkit-lgn2`, commits `242b800..efef652`).** The
+single centered `.awkit-login-card` layout is replaced by a two-pane shell: credentials on the
+left, a decorative automation-run panel on the right (aria-hidden scripted loop using the real
+bundled sample-workflow step names). All seven SecurityGate states — loading, unavailable,
+firstRun, recoveryCode, recovery, login, forcedChange — render inside the one shared shell and
+keep their existing `areaLabel` strings; SecurityGate's state machine, idle-lock, session
+validation, pre-auth `data-theme` handling and failure copy are behaviourally unchanged. The
+provider selector is now a real `role=radiogroup`/`role=radio` group preserving the roving
+arrow/Home/End behaviour and the password+error clear on provider change. A password strength
+meter appears on the policy screens only (never on login). The AppFrame title-bar identity mark
+swapped from the lucide `Workflow` glyph to the design's theme-aware squircle (`AwkitBrandMarks`)
+— this deliberately changes authenticated chrome as well. Non-provable pre-auth values were
+dropped, not hardcoded: no version footer, no instance-count tile; the surviving stat tile is the
+provable "Offline — bundled Chromium" and the idle-lock footnote derives from the live
+`idleTimeoutMs` threaded from SecurityGate.
+
+**Every load-bearing login DOM hook the verifier fleet depends on survived the rewrite**
+(`LOGIN-DOM-CONTRACT`): `.awkit-login-card`, `.awkit-login-form` wrapping real password inputs,
+`#awkit-login-username`, `#awkit-recovery-code`, the `<code>` inside `.awkit-recovery-code`,
+`.awkit-login-notice`, `.awkit-login-errors` items, `.awkit-login-tab` per provider,
+`.form-message.error`, submit-on-Enter from a real form, and the `.awkit-login-logo-custom`
+object-fit/max-bound rule in `global.css`.
+
+**Gates (all measured 2026-09-12 at HEAD `efef652`).** build PASS; `verify:design-tokens` 29/29;
+`verify:accent-theme` 71/71; `verify:branding` 49/49; `verify:source-hygiene` 11/11;
+`verify:auth` 79/79; `verify:reports-settings-a11y` 17/17; `verify:all-typecheck` PASS. All
+three optional GUI gates ran green against the real Electron app — `verify:auth-gui` **25/25**,
+`verify:accent-gui` **33/33**, `verify:branding-gui` **30/30** — the 2026-09-06 host block
+documented in KNOWN_ISSUES did **not** reproduce (see the dated note there). `verify:custom-brand-logo`
+re-ran green against the committed tracker export; roadmap tracker repinned to **283 total /
+281 closed / 2 outstanding** at `awkit-lgn2` close — **Sources agree**; `git diff --check` clean.
+
+**Task mechanics.** `awkit-lgn2` ran frontend → qa (roadmap repin) → project-state leases on one
+contract; renderer writes never left `app/renderer/**`; the tracker export was refreshed with
+`bd export -o .beads/issues.jsonl` after `awkit-lgn2` was created and closed.
+
 ## Fresh packaged 0.1.29 artifact contains the awkit-44eu UI design (2026-09-11)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

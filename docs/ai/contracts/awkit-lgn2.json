@@ -1,0 +1,314 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-lgn2",
+    "title": "Two-pane secure sign-in redesign for the pre-authentication surface",
+    "objective": "Implement the approved Login redesign across the entire pre-authentication surface (app/renderer/security/**), replacing the single centered .awkit-login-card with a two-pane shell: credentials on the left, a decorative automation-run panel on the right. All seven SecurityGate states (loading, unavailable, firstRun, recoveryCode, recovery, login, forcedChange) move into the one shared shell and keep their existing areaLabel strings. The provider selector becomes a real role=radiogroup/role=radio group while keeping today's roving arrow/Home/End behaviour and the password+error clear on provider change; a password strength meter is added to the policy screens only (never on login). Styling extends the existing secure sign-in section of global.css with .awkit-login-* classes using only existing Hologram tokens - no new tokens, no remote fonts, no CDN assets, no parallel class system. SCOPE DECISION 1: the AppFrame title-bar identity mark inside .app-frame-mark swaps from the lucide Workflow glyph to the design's squircle; AppFrame is shared with the authenticated app, so this deliberately changes authenticated chrome as well, while the frame row, drag region, double-click maximize and window controls are untouched. SCOPE DECISION 2: the design's 'SpecterStudio 0.1.29' footer text and the '0.1.29 / Studio build' and '1 / Instance running' stat tiles are DROPPED rather than hardcoded, because no app version and no instance count exist pre-auth - preload.ts exposes only getBootState (provisioned, secureStorageAvailable, idleTimeoutMs), getLoginOptions and branding.getState before a session exists, app.getVersion() is reachable only through post-auth main-process channels, and no build-time version define exists anywhere in scripts/. Hardcoding either value would violate the no-fake-data rule in docs/ai/RULES.md and app/renderer/AGENTS.md. What survives is only what is provably true pre-auth: the 'Offline - bundled Chromium' tile and an idle-lock footnote derived from the live idleTimeoutMs threaded from SecurityGate into the screens. The run timeline stays the design's explicitly sanctioned aria-hidden scripted loop using the real bundled sample-workflow step names, never presented as telemetry. HARD CONSTRAINT: the login markup is a load-bearing DOM contract for the GUI verifier fleet and the rewrite must preserve every hook listed in acceptance criterion LOGIN-DOM-CONTRACT.",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "04a60232947666556a0478488cb26c002419d156",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/**",
+      "docs/ai/contracts/awkit-lgn2.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "tools/roadmap/assignments.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "scripts/verify-roadmap-dashboard.mjs"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/contracts/awkit-lgn2.json",
+        "docs/ai/contracts/active-lease.json",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "mock-site/**",
+        "scripts/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "LOGIN-SHELL",
+      "description": "The two-pane pre-authentication shell replaces the single centered card and renders all seven SecurityGate states with their existing areaLabel strings, while SecurityGate's state machine, idle-lock machinery, session validation, pre-auth data-theme useLayoutEffect and messageForReason failure copy are behaviourally unchanged and the authentication domain still passes its own verifier.",
+      "evidence_required": [
+        "build",
+        "verify:auth",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "LOGIN-DOM-CONTRACT",
+      "description": "Every DOM hook the existing verifier fleet depends on survives the rewrite: .awkit-login-card, .awkit-login-form wrapping real password inputs, #awkit-login-username, #awkit-recovery-code, a <code> element inside .awkit-recovery-code, .awkit-login-notice, .awkit-login-errors list items, .awkit-login-tab on each provider option, .form-message.error, submit-on-Enter from inside a real form element, and the .awkit-login-logo-custom rule in global.css keeping object-fit contain plus a max-width or max-height bound. These are consumed by gui-verify-harness, verify-auth-gui, verify-e2e-auth-gui, verify-e2e-route-sweep, verify-admin-gui, verify-branding-gui, verify-accent-gui, verify-workflow-loop-capsule-gui, verify-reports-populated-gui, verify-settings-e2e, verify-recorder-authz, verify-packaged-validation, verify-packaged-walkthrough, verify-packaged-licensing, measure-inventory-scale and e2e-qa-lib.",
+      "evidence_required": [
+        "build",
+        "verify:custom-brand-logo",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "LOGIN-TOKENS",
+      "description": "All new and changed styling extends the existing secure sign-in section of global.css through existing Hologram tokens with no new tokens, no hardcoded hex or arbitrary pixel values outside a documented bounded exception, and no remote fonts, CDN assets or second styling framework. User accent customization still resolves on document.documentElement so focus rings follow it, and the prefers-reduced-motion neutralizer stays last in the cascade and covers every new keyframe as well as the appearance-switch transition.",
+      "evidence_required": [
+        "build",
+        "verify:design-tokens",
+        "verify:accent-theme",
+        "verify:branding",
+        "verify:source-hygiene"
+      ]
+    },
+    {
+      "id": "LOGIN-A11Y",
+      "description": "The provider selector is a real role=radiogroup with role=radio options that keeps the roving arrow/Home/End behaviour over enabled providers and clears password and error on change; every focusable element keeps the global :focus-visible accent ring with no outline:none left without an alternative; the caps-lock hint stays a role=status live region; failure copy keeps role=alert and stays non-account-enumerating; the loading row keeps role=status with aria-live=polite; and the decorative run panel is aria-hidden and contains nothing focusable.",
+      "evidence_required": [
+        "build",
+        "verify:design-tokens",
+        "verify:reports-settings-a11y"
+      ]
+    },
+    {
+      "id": "LOGIN-NO-FABRICATION",
+      "description": "No value displayed pre-authentication is fabricated. The app-version footer and the version and instance-count stat tiles are dropped rather than hardcoded because the pre-auth bridge cannot supply them; the idle-lock footnote is derived from the live idleTimeoutMs rather than a literal 30; the run timeline is an explicitly decorative aria-hidden scripted loop and is never presented as telemetry; and every enabled control performs real work rather than being a no-op.",
+      "evidence_required": [
+        "build",
+        "verify:auth",
+        "verify:source-hygiene",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The change is recorded in the sources the Program Status dashboard derives from - a bd work item, docs/ai/CURRENT_STATE.md, docs/ai/FEATURES.md, docs/ai/TASK_LOG.md, tools/roadmap/assignments.json and the refreshed .beads/issues.jsonl export - with no derived roadmap file hand-edited, and the Overview banner still reads \"Sources agree\".",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "measured_note": "2026-09-12: snapshot + tsc --noEmit + electron-vite build all exit 0."
+    },
+    {
+      "id": "verify:design-tokens",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 29/29 checks passed."
+    },
+    {
+      "id": "verify:accent-theme",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:accent-theme",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 71/71 checks passed."
+    },
+    {
+      "id": "verify:branding",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:branding",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 49/49 checks passed."
+    },
+    {
+      "id": "verify:custom-brand-logo",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:custom-brand-logo",
+      "result": "pending"
+    },
+    {
+      "id": "verify:source-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 11 passed, 0 failed."
+    },
+    {
+      "id": "verify:auth",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:auth",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 79 passed, 0 failed."
+    },
+    {
+      "id": "verify:reports-settings-a11y",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:reports-settings-a11y",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 17 PASS / 0 FAIL / 0 NOT RUN."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 177/177 checks passed after the 283/281/2 repin; Sources agree; verify:verifier-classification also reconciled (204 scripts)."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "verifier",
+      "required": true,
+      "command": "git diff --check",
+      "result": "pending"
+    },
+    {
+      "id": "verify:all-typecheck",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:all-typecheck",
+      "result": "PASS",
+      "measured_note": "2026-09-12: npm run build + typecheck:scripts both exit 0."
+    },
+    {
+      "id": "verify:auth-gui",
+      "type": "gui",
+      "required": false,
+      "command": "npm run verify:auth-gui",
+      "result": "PASS",
+      "artifact": "Real Electron sign-in walkthrough; the most directly implicated GUI gate for this surface. Requires npm run build first. Recorded as not required because awkit-ui1 documented a reproducible host-environment block in which resolveMainWindow throws \"main window with the SpecterStudio bridge did not appear within timeout\" (40s) at scripts/lib/gui-verify-harness.mjs:98 with zero assertions executed.",
+      "measured_note": "2026-09-12: 25/25 checks passed against the real Electron app at HEAD efef652. The awkit-ui1 host-environment block did NOT reproduce in this session; dated observation added to KNOWN_ISSUES.md."
+    },
+    {
+      "id": "verify:accent-gui",
+      "type": "gui",
+      "required": false,
+      "command": "npm run verify:accent-gui",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 33/33 checks passed; same session as auth-gui, block did not reproduce."
+    },
+    {
+      "id": "verify:branding-gui",
+      "type": "gui",
+      "required": false,
+      "command": "npm run verify:branding-gui",
+      "result": "PASS",
+      "measured_note": "2026-09-12: 30/30 checks passed; same session as auth-gui, block did not reproduce."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-lgn2:frontend:2026-09-11T23:36:53.952Z",
+        "task": "awkit-lgn2",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/**"
+        ],
+        "acquired_at": "2026-09-11T23:36:53.952Z",
+        "acquired_at_commit": "04a60232947666556a0478488cb26c002419d156",
+        "released_at": "2026-09-12T15:01:56.707Z",
+        "released_reason": "Renderer phase complete: 7 commits 242b800..efef652 touched only app/renderer/**; build, all seven required verifiers, all-typecheck and all three GUI gates (auth 25/25, accent 33/33, branding 30/30) measured green; project-state closeout follows",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-lgn2:project-state:2026-09-12T15:02:24.427Z",
+        "task": "awkit-lgn2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-lgn2.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-12T15:02:24.427Z",
+        "acquired_at_commit": "efef652cd97ea69304558a840294018978a16a19",
+        "released_at": "2026-09-12T15:05:24.288Z",
+        "released_reason": "Project-state reconciliation written: awkit-lgn2 bead created+closed, export refreshed to 283/281/2, CURRENT_STATE/FEATURES/HANDOFF/KNOWN_ISSUES/TASK_LOG updated; qa roadmap repin follows",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-lgn2:qa:2026-09-12T15:05:47.523Z",
+        "task": "awkit-lgn2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-12T15:05:47.523Z",
+        "acquired_at_commit": "efef652cd97ea69304558a840294018978a16a19",
+        "released_at": "2026-09-12T15:07:30.753Z",
+        "released_reason": "Roadmap pins repinned for awkit-lgn2 closeout: 283 total / 281 closed / 2 outstanding, edge pin stays 108; verify:roadmap-dashboard 177/177 Sources agree; verifier-classification reconciled (204 scripts)",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

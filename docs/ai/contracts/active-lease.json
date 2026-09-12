@@ -1,33 +1,40 @@
 {
-  "task": "awkit-ampd",
-  "contract_path": "docs/ai/contracts/awkit-ampd.json",
+  "task": "awkit-lgn2",
+  "contract_path": "docs/ai/contracts/awkit-lgn2.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-ampd.json",
+    "docs/ai/contracts/awkit-lgn2.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-11T14:18:16.816Z",
-  "acquired_at_commit": "f34d1a20b6cf012637dd3efefbbe324485f5ee89",
+  "acquired_at": "2026-09-12T15:07:47.638Z",
+  "acquired_at_commit": "efef652cd97ea69304558a840294018978a16a19",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-ampd.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-lgn2.json",
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "6acecbf2111d24ad47fc347483f1f921dd6bae4bce1f65f45791eba5f13dee10",
-    ".beads/issues.jsonl": "1f0d6868b956f90fb83f450caba99bf90f89a0b719c2e78c1e059e6b9e2841a2",
-    "docs/ai/contracts/active-lease.json": "6127c7721fd48e098843bbc4e315f7790e1f846f764863822a3c5a655cebbeac",
-    "docs/ai/contracts/awkit-ampd.json": "0c0de62f606209e2990626e9965f15899b927aae2056f6c482a101283cb30573",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    ".beads/interactions.jsonl": "3b08665356473cad9a1cc6809eea9dcaa31b1ddfbbfc201699f1c1bdc71c2004",
+    ".beads/issues.jsonl": "2f4afd63fff76db11d043e145a460701cac4bd37cc9db29f301a53ac638b0047",
+    "docs/ai/CURRENT_STATE.md": "11555d3cc60484d8a344ee16d049244a721a42c140344d49d961bede0dd43598",
+    "docs/ai/FEATURES.md": "86dae339837066b5bce3d2cd9889fb98fc85396a579e0d2e4ce723f28ab8e5e0",
+    "docs/ai/HANDOFF.md": "467017e9845befbd595b07cefee68e96826f3fb6605c5d7672b94b9dc88b5646",
+    "docs/ai/KNOWN_ISSUES.md": "ba90dfa002a81aaa4f8db8e41c2b5ef5cb2f60268d486122c9c2225fc57324d0",
+    "docs/ai/TASK_LOG.md": "17b17c5c91c123d496767df85dd785391f40da10826805c0b2ffedd393677cf1",
+    "docs/ai/contracts/active-lease.json": "45dd56638881edcb0f777b798a5fcce43a95a770f84b6c7db8d1475d8a7fc6d3",
+    "docs/ai/contracts/awkit-lgn2.json": "6beabe0df9218ff6654a51efdb5dad5da653d4d888ecddfd0884d258673463fa",
+    "scripts/verify-roadmap-dashboard.mjs": "717f766f75df6f74f5170409b21d769efd9b495aca1589a9bfe8d0b3ebfb2897"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -41,8 +48,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-11T14:20:34.353Z",
-  "released_reason": "awkit-ampd terminal: task-gate ok=true, push accepted, all packaged evidence recorded; no further task-owned writes",
-  "archived_at": "2026-09-11T14:20:34.354Z"
+  "violations": []
 }

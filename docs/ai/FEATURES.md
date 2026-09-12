@@ -1,5 +1,28 @@
 # FEATURES
 
+## Two-pane secure sign-in redesign for the pre-auth surface (2026-09-12)
+
+- Implemented: the pre-authentication surface (`app/renderer/security/**`) now uses a two-pane
+  shell — credentials left, decorative automation-run panel right (aria-hidden scripted loop over
+  the bundled sample-workflow step names, never presented as telemetry). All seven SecurityGate
+  states (loading, unavailable, firstRun, recoveryCode, recovery, login, forcedChange) render in
+  the one shell and keep their existing `areaLabel` strings; the gate's state machine, idle-lock,
+  session validation and failure copy are unchanged.
+- Implemented: the provider selector is a real `role=radiogroup` / `role=radio` group preserving
+  the roving arrow/Home/End behaviour over enabled providers and the password+error clear on
+  change; password strength meter appears on the policy screens only (first run, recovery reset,
+  forced change), never on login.
+- Implemented: the AppFrame title-bar identity mark uses the new theme-aware squircle marks
+  (`app/renderer/assets/brand/AwkitBrandMarks.tsx`) instead of the lucide `Workflow` glyph — a
+  deliberate change to authenticated chrome as well as pre-auth.
+- Anti-fabrication: no app-version footer and no instance-count tile pre-auth (the pre-auth
+  bridge cannot supply them); the surviving stat tile is the provable "Offline — bundled
+  Chromium" and the idle-lock footnote derives from the live `idleTimeoutMs`.
+- Styling extends the existing secure sign-in section of `global.css` with `.awkit-login-*`
+  classes using existing Hologram tokens only; the full login DOM contract consumed by the GUI
+  verifier fleet is preserved; `verify:auth-gui` 25/25, `verify:accent-gui` 33/33 and
+  `verify:branding-gui` 30/30 pass against the real Electron app.
+
 ## Literal-only condition expressions (2026-08-22)
 
 - Conditions branch only on the literal expression in `step.value`; a structured `valueSource` is

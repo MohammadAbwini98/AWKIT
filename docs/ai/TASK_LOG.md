@@ -14629,3 +14629,37 @@ pm run verify:mock-site
 - **Result:** the new UI design is release-proven from a fresh package; no packaged defect found;
   only the documented external gates remain (issuer key, clean-machine credentials, awkit-7bu,
   awkit-cm8).
+
+## 2026-09-12 — awkit-lgn2: two-pane secure sign-in redesign for the pre-authentication surface (ZCode, GLM)
+
+- **Task:** implement the approved Login redesign across `app/renderer/security/**` and close out
+  project state. Renderer commits `242b800..efef652` (7 commits, all inside `app/renderer/**`):
+  theme-aware brand marks, two-pane secure sign-in shell, SecurityGate wiring, redesigned
+  pre-auth screens, Hologram-token styling, AppFrame title-bar squircle mark, login branding fix
+  removing pre-auth claims.
+- **Redesign facts:** all seven SecurityGate states in one two-pane shell (credentials left,
+  decorative aria-hidden automation-run panel right) with unchanged areaLabel strings and state
+  machine; provider selector is a real radiogroup preserving roving arrow/Home/End and the
+  password+error clear; strength meter on policy screens only; no fabricated pre-auth values
+  (version footer and instance tile dropped, idle footnote derives from live idleTimeoutMs);
+  every fleet-consumed login DOM hook preserved.
+- **Verification (measured 2026-09-12 at efef652):** build PASS; verify:design-tokens 29/29;
+  verify:accent-theme 71/71; verify:branding 49/49; verify:source-hygiene 11/11; verify:auth
+  79/79; verify:reports-settings-a11y 17/17; verify:all-typecheck PASS; GUI gates
+  verify:auth-gui 25/25, verify:accent-gui 33/33, verify:branding-gui 30/30 — the 2026-09-06
+  host block documented in KNOWN_ISSUES did not reproduce (dated observation added);
+  verify:custom-brand-logo re-run green against the committed tracker export; roadmap
+  classification PASS and dashboard Sources agree after the 283/281/2 repin; git diff --check
+  clean.
+- **Files:** app/renderer/assets/brand/AwkitBrandMarks.tsx; app/renderer/layout/AppFrame.tsx;
+  app/renderer/security/{LockedShell,SecurityGate}.tsx;
+  app/renderer/security/components/PasswordField.tsx;
+  app/renderer/security/screens/{FirstRunSetup,ForcedPasswordChange,LoginScreen,RecoveryCodeNotice,RecoveryPasswordReset,SecurityUnavailable}.tsx;
+  app/renderer/styles/global.css; docs/ai/{CURRENT_STATE,FEATURES,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md;
+  docs/ai/contracts/{awkit-lgn2,active-lease}.json; .beads/{issues,interactions}.jsonl;
+  scripts/verify-roadmap-dashboard.mjs (repin); tools/roadmap/assignments.json.
+- **Task mechanics:** awkit-lgn2 bead created and closed in one session; export refreshed via
+  `bd export -o .beads/issues.jsonl`; frontend → qa (repin) → project-state (terminal) leases.
+- **Result:** the pre-auth surface is redesigned with the full verifier fleet green; task-gate
+  ok=true; no new defect; remaining external gates unchanged (issuer key, clean-machine
+  credentials, awkit-7bu, awkit-cm8).
