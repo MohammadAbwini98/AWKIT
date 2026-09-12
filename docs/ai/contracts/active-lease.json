@@ -2,7 +2,7 @@
   "task": "awkit-lgn2",
   "contract_path": "docs/ai/contracts/awkit-lgn2.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -48,5 +48,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-12T15:09:34.291Z",
+  "released_reason": "awkit-lgn2 terminal: task-gate ok=true with zero blockers and zero scope escapes; all 14 evidence rows measured PASS; tracker 283/281/2 with Sources agree; no further task-owned writes; push to origin/main follows per the manager step-8 instruction",
+  "archived_at": "2026-09-12T15:09:34.293Z"
 }

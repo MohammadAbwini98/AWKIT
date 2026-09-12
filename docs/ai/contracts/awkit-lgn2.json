@@ -162,7 +162,8 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:custom-brand-logo",
-      "result": "pending"
+      "result": "PASS",
+      "measured_note": "2026-09-12: 31/31 checks passed, re-run AFTER the bd export was committed (fb836ca..) so section 15 verified .beads/issues.jsonl cleanliness against the committed tree."
     },
     {
       "id": "verify:source-hygiene",
@@ -201,7 +202,8 @@
       "type": "verifier",
       "required": true,
       "command": "git diff --check",
-      "result": "pending"
+      "result": "PASS",
+      "measured_note": "2026-09-12: empty output on a clean working tree after the reconciliation commits."
     },
     {
       "id": "verify:all-typecheck",
@@ -243,12 +245,14 @@
     "commit_policy": "coherent",
     "force_push": false,
     "destructive_reset": false,
-    "push_authorized": false
+    "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED",
+    "qa_note": "All QA evidence executed and measured 2026-09-12 at HEAD efef652 + reconciliation commits: build PASS; design-tokens 29/29; accent-theme 71/71; branding 49/49; source-hygiene 11/11; auth 79/79; reports-settings-a11y 17/17; all-typecheck PASS; auth-gui 25/25; accent-gui 33/33; branding-gui 30/30 (documented host block did not reproduce); custom-brand-logo 31/31 incl. section 15 against the committed export; roadmap-dashboard 177/177 Sources agree; git diff --check clean. No override, no protected-path write, no out-of-lease write.",
+    "qc_note": "qc is not in the routed reviewers for this classification (reviewers: qa only); risk_level 1, no emergency overrides, no protected paths touched."
   },
   "write_lease": {
     "history": [
@@ -305,6 +309,26 @@
         "acquired_at_commit": "efef652cd97ea69304558a840294018978a16a19",
         "released_at": "2026-09-12T15:07:30.753Z",
         "released_reason": "Roadmap pins repinned for awkit-lgn2 closeout: 283 total / 281 closed / 2 outstanding, edge pin stays 108; verify:roadmap-dashboard 177/177 Sources agree; verifier-classification reconciled (204 scripts)",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-lgn2:project-state:2026-09-12T15:07:47.638Z",
+        "task": "awkit-lgn2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-lgn2.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-12T15:07:47.638Z",
+        "acquired_at_commit": "efef652cd97ea69304558a840294018978a16a19",
+        "released_at": "2026-09-12T15:09:34.291Z",
+        "released_reason": "awkit-lgn2 terminal: task-gate ok=true with zero blockers and zero scope escapes; all 14 evidence rows measured PASS; tracker 283/281/2 with Sources agree; no further task-owned writes; push to origin/main follows per the manager step-8 instruction",
         "amendments": [],
         "overrides": [],
         "violations": []
