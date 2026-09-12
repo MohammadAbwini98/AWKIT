@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-v130",
+    "title": "Package and validate the new 0.1.30 portable executable containing the awkit-lgn2 login redesign",
+    "objective": "Produce the next semantic version (0.1.30) portable executable via the documented next-release wrapper (scripts/release-portable.ps1 -BumpType patch) from clean source a1ceef9, which contains the awkit-lgn2 pre-auth redesign commits 242b800..efef652; capture binding provenance (treeDirty false, exact source SHA, artifact size/SHA-256); pass verify:packaged-validation inside its freshness window; launch the exact new executable via packaged-runtime and packaged-walkthrough; report packaged-licensing truthfully where the external issuer key gates it; reconcile project state; commit and push normally.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "a1ceef93b7093259875919ed2969b74403e3c3f5",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2,
+    "offline_boundary_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/contracts/awkit-v130.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "tools/roadmap/assignments.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "package.json",
+      "package-lock.json",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "build",
+      "scripts/verify-roadmap-dashboard.mjs"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/contracts/awkit-v130.json",
+        "docs/ai/contracts/active-lease.json",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "mock-site/**",
+        "scripts/**"
+      ]
+    },
+    "writer_sequence": [
+      "release",
+      "qa",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "compatibility": [
+      "Do not modify renderer/product source unless the packaged artifact exposes a genuine defect.",
+      "The version moves 0.1.29 -> 0.1.30 only through the documented next-release wrapper (scripts/release-portable.ps1 -BumpType patch), which synchronizes package.json + package-lock.json and commits the signed manifest pair itself.",
+      "Portable target only this run; no installer build requested.",
+      "The prior 0.1.29 artifacts (portable caee4db6, installer 914ec122) predate the login redesign and remain STALE for proving the new pre-auth surface."
+    ],
+    "offline": [
+      "Packaging stays offline; no dependency changes; signing key handling follows verify:release-key-custody."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "FRESH-ARTIFACT",
+      "description": "A new-version portable executable (SpecterStudio 0.1.30.exe) is generated during this task from clean source containing the awkit-lgn2 redesign, with provenance recording treeDirty false, the exact source SHA, and artifact filename/size/SHA-256 matching disk.",
+      "evidence_required": [
+        "provenance"
+      ]
+    },
+    {
+      "id": "PACKAGED-GATES",
+      "description": "verify:packaged-validation fully passes inside its freshness window on the 0.1.30 artifact; the exact new executable launches with appMode=packaged (packaged-runtime, packaged-walkthrough) with only the documented external-gate BLOCKEDs (issuer key).",
+      "evidence_required": [
+        "packaged-validation",
+        "packaged-runtime"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "awkit-v130 closed and exported, project state reconciled (ledger unchanged unless a real ledger case moved), roadmap Sources agree, work committed to main and pushed normally, worktree clean.",
+      "evidence_required": [
+        "gates",
+        "beads-roadmap",
+        "push-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ancestry",
+      "type": "inspection",
+      "required": true,
+      "command": "git merge-base --is-ancestor efef652 HEAD && git merge-base --is-ancestor 242b800 HEAD",
+      "result": "pending",
+      "artifact": null,
+      "note": "Prove the awkit-lgn2 renderer commits are ancestors of the 0.1.30 package source before packaging."
+    },
+    {
+      "id": "provenance",
+      "type": "packaged",
+      "required": true,
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/release-portable.ps1 -BumpType patch -Force; inspect dist/release-provenance.json",
+      "result": "pending",
+      "artifact": "dist/release-provenance.json",
+      "note": "PENDING"
+    },
+    {
+      "id": "packaged-validation",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run verify:packaged-validation",
+      "result": "pending",
+      "artifact": null,
+      "note": "PENDING"
+    },
+    {
+      "id": "packaged-runtime",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run verify:packaged-runtime && npm run verify:packaged-walkthrough",
+      "result": "pending",
+      "artifact": null,
+      "note": "PENDING"
+    },
+    {
+      "id": "packaged-licensing",
+      "type": "packaged",
+      "required": false,
+      "command": "npm run verify:packaged-licensing",
+      "result": "pending",
+      "artifact": null,
+      "note": "PENDING"
+    },
+    {
+      "id": "gates",
+      "type": "build",
+      "required": true,
+      "command": "npm run build && npm run typecheck:scripts && npm run verify:verifier-classification && npm run verify:roadmap-dashboard && npm run validate:offline && git diff --check",
+      "result": "pending",
+      "artifact": null,
+      "note": "PENDING"
+    },
+    {
+      "id": "beads-roadmap",
+      "type": "inspection",
+      "required": true,
+      "command": "bd close awkit-v130; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null,
+      "note": "PENDING"
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure parity",
+      "result": "pending",
+      "artifact": null,
+      "note": "PENDING"
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending",
+    "qc_note": null
+  },
+  "write_lease": {
+    "history": []
+  }
+}
