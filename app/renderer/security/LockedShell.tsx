@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Check, ShieldCheck } from "lucide-react";
-import packageMetadata from "../../../package.json";
 import { AppFrame } from "../layout/AppFrame";
 import { resolveAppearance, type AppearanceMode } from "../state/theme";
 
@@ -32,8 +31,6 @@ const DEMO_STEPS: DemoStep[] = [
   { label: "Logout", elapsed: "0.8s", state: "pending" }
 ];
 
-const APPLICATION_VERSION = packageMetadata.version;
-
 function readAppearance(): AppearanceMode {
   const saved = window.localStorage.getItem("awkit-appearance");
   return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
@@ -56,22 +53,6 @@ function idleDuration(idleTimeoutMs: number | null): string | null {
 export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellProps) {
   const [appearance, setAppearance] = useState<AppearanceMode>(readAppearance);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => resolveAppearance(readAppearance()));
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    window.playwrightFlowStudio.branding
-      .getState()
-      .then((state) => {
-        if (!cancelled) setCustomLogo(state.active && state.dataUrl ? state.dataUrl : null);
-      })
-      .catch(() => {
-        if (!cancelled) setCustomLogo(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const apply = () => {
@@ -101,15 +82,6 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
       <div className="awkit-login-stage">
         <section className="awkit-login-form-pane" aria-label={areaLabel}>
           <div className="awkit-login-brand-row">
-            {customLogo ? (
-              <img
-                className="awkit-login-logo-custom awkit-login-shell-logo"
-                src={customLogo}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-              />
-            ) : null}
             <span className="awkit-login-brand-row-spacer" />
             <span className="awkit-login-appearance-label">Dark</span>
             <button
@@ -137,10 +109,6 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
                 </span>
               </div>
 
-              <footer className="awkit-login-footer">
-                <span>SpecterStudio {APPLICATION_VERSION}</span>
-                <span>Offline · bundled Chromium</span>
-              </footer>
             </div>
           </div>
         </section>
@@ -153,13 +121,13 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
           <div className="awkit-login-run-content">
             <div className="awkit-login-run-kicker">
               <span className="awkit-login-run-live-dot" />
-              <span>Local run in progress</span>
+              <span>Sample workflow preview</span>
               <span className="awkit-login-run-demo-label">Demo</span>
             </div>
 
             <div className="awkit-login-run-lead">
               <h2>Authorized UI automation, designed visually.</h2>
-              <p>Customer Onboarding Workflow — every step timed, traced and replayable offline.</p>
+              <p>Customer Onboarding Workflow — a scripted preview of the bundled sample flow.</p>
             </div>
 
             <ol className="awkit-login-run-timeline">
@@ -187,14 +155,6 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
             </ol>
 
             <div className="awkit-login-run-stats">
-              <span className="awkit-login-run-stat">
-                <strong>{APPLICATION_VERSION}</strong>
-                <small>Studio build</small>
-              </span>
-              <span className="awkit-login-run-stat">
-                <strong>Local</strong>
-                <small>Workspace data</small>
-              </span>
               <span className="awkit-login-run-stat">
                 <strong>Offline</strong>
                 <small>Bundled Chromium</small>

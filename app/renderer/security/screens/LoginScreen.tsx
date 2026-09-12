@@ -29,7 +29,21 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
   const [selectedProvider, setSelectedProvider] = useState<ProviderId>("local");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customLogo, setCustomLogo] = useState<string | null>(null);
   const tabRefs = useRef<Partial<Record<ProviderId, HTMLButtonElement>>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    window.playwrightFlowStudio.branding
+      .getState()
+      .then((state) => {
+        if (!cancelled) setCustomLogo(state.active && state.dataUrl ? state.dataUrl : null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!options.some((option) => option.id === selectedProvider && option.enabled)) {
@@ -79,6 +93,9 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
   return (
     <form className="awkit-login-form" onSubmit={handleSubmit} aria-labelledby="awkit-login-title">
       <header className="awkit-login-brand">
+        {customLogo ? (
+          <img className="awkit-login-logo-custom" src={customLogo} alt="" aria-hidden="true" draggable={false} />
+        ) : null}
         <h1 className="awkit-login-wordmark" id="awkit-login-title">
           <span className="sr-only">S</span>
           <AwkitWordmarkGlyph className="awkit-login-wordmark-glyph" />
