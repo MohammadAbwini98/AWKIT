@@ -11007,6 +11007,10 @@ table {
    keeps its handoff-approved dark/white presentation colors as local, bounded custom properties;
    it is never runtime telemetry. Motion is neutralized by the reduced-motion block below. */
 .awkit-login-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
   background: var(--awkit-bg);
   color: var(--awkit-text);
 }
@@ -11032,8 +11036,7 @@ table {
   flex: 0 0 auto;
   align-items: center;
   gap: var(--space-3);
-  min-height: 66px;
-  padding: var(--space-4h) var(--space-5) var(--space-2);
+  padding: 22px calc(var(--space-4) * 2) 6px;
 }
 
 .awkit-login-brand-row-spacer {
@@ -11041,9 +11044,12 @@ table {
 }
 
 .awkit-login-brand-row .awkit-login-logo-custom {
+  width: auto;
+  height: 38px;
   max-width: 180px;
   max-height: 38px;
   margin: 0;
+  object-fit: contain;
 }
 
 .awkit-login-appearance-label {
@@ -11053,7 +11059,10 @@ table {
 }
 
 .awkit-login-appearance-switch {
+  --awkit-login-toggle-thumb: #ffffff;
+  --awkit-login-toggle-shadow: 0 1px 3px rgba(16, 24, 40, 0.3);
   display: inline-flex;
+  flex: 0 0 38px;
   align-items: center;
   width: 38px;
   height: 21px;
@@ -11069,18 +11078,13 @@ table {
   background: linear-gradient(135deg, var(--awkit-accent-hover), var(--awkit-accent));
 }
 
-.awkit-login-appearance-switch:focus-visible {
-  outline: none;
-  box-shadow: var(--awkit-focus-ring);
-}
-
 .awkit-login-appearance-thumb {
   display: block;
   width: 17px;
   height: 17px;
   border-radius: var(--radius-pill);
-  background: var(--awkit-surface);
-  box-shadow: var(--awkit-shadow-soft);
+  background: var(--awkit-login-toggle-thumb);
+  box-shadow: var(--awkit-login-toggle-shadow);
   transform: translateX(0);
   transition: transform var(--awkit-dur-med) var(--awkit-ease-spring);
 }
@@ -11114,10 +11118,13 @@ table {
 }
 
 .awkit-login-screen {
-  animation: awkit-login-fade-up var(--awkit-dur-panel) var(--awkit-ease-out) both;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  animation: awkit-fade-up 0.32s var(--awkit-ease-out) both;
 }
 
-@keyframes awkit-login-fade-up {
+@keyframes awkit-fade-up {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
@@ -11156,19 +11163,24 @@ table {
 .awkit-login-run-panel {
   --awkit-login-panel-base: #0a0c12;
   --awkit-login-panel-ink: #ffffff;
+  --awkit-login-panel-ink-80: rgba(255, 255, 255, 0.8);
   --awkit-login-panel-ink-78: rgba(255, 255, 255, 0.78);
   --awkit-login-panel-ink-72: rgba(255, 255, 255, 0.72);
   --awkit-login-panel-ink-62: rgba(255, 255, 255, 0.62);
+  --awkit-login-panel-ink-60: rgba(255, 255, 255, 0.6);
+  --awkit-login-panel-ink-50: rgba(255, 255, 255, 0.5);
+  --awkit-login-panel-ink-45: rgba(255, 255, 255, 0.45);
   --awkit-login-panel-ink-34: rgba(255, 255, 255, 0.34);
   --awkit-login-panel-ink-24: rgba(255, 255, 255, 0.24);
   --awkit-login-panel-ink-22: rgba(255, 255, 255, 0.22);
+  --awkit-login-panel-ink-20: rgba(255, 255, 255, 0.2);
   --awkit-login-panel-ink-16: rgba(255, 255, 255, 0.16);
   --awkit-login-panel-ink-14: rgba(255, 255, 255, 0.14);
   --awkit-login-panel-ink-11: rgba(255, 255, 255, 0.11);
   --awkit-login-panel-ink-10: rgba(255, 255, 255, 0.1);
   --awkit-login-panel-ink-07: rgba(255, 255, 255, 0.07);
   --awkit-login-panel-ink-06: rgba(255, 255, 255, 0.06);
-  --awkit-login-panel-ink-05: rgba(255, 255, 255, 0.05);
+  --awkit-login-panel-ink-055: rgba(255, 255, 255, 0.055);
   --awkit-login-panel-ink-00: rgba(255, 255, 255, 0);
   position: relative;
   flex: 1 1 520px;
@@ -11194,8 +11206,8 @@ table {
 .awkit-login-run-grid {
   inset: 0;
   background-image:
-    linear-gradient(var(--awkit-login-panel-ink-05) 1px, transparent 1px),
-    linear-gradient(90deg, var(--awkit-login-panel-ink-05) 1px, transparent 1px);
+    linear-gradient(var(--awkit-login-panel-ink-055) 1px, transparent 1px),
+    linear-gradient(90deg, var(--awkit-login-panel-ink-055) 1px, transparent 1px);
   background-size: 52px 52px;
 }
 
@@ -11206,7 +11218,7 @@ table {
   padding-bottom: 78%;
   border-radius: var(--radius-pill);
   background: radial-gradient(circle at 40% 40%, var(--awkit-login-panel-ink-24), transparent 66%);
-  animation: awkit-login-drift 17s ease-in-out infinite;
+  animation: awkit-drift 17s ease-in-out infinite;
 }
 
 .awkit-login-run-scanline {
@@ -11214,16 +11226,16 @@ table {
   left: 0;
   width: 100%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--awkit-login-panel-ink-34), transparent);
-  animation: awkit-login-scan 5.5s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, var(--awkit-login-panel-ink-72), transparent);
+  animation: awkit-scan 5.5s ease-in-out infinite;
 }
 
-@keyframes awkit-login-drift {
+@keyframes awkit-drift {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(26px, -30px) scale(1.08); }
 }
 
-@keyframes awkit-login-scan {
+@keyframes awkit-scan {
   0% { transform: translateY(0); opacity: 0; }
   12%, 88% { opacity: 0.9; }
   100% { transform: translateY(calc(100vh - var(--titlebar-height))); opacity: 0; }
@@ -11244,7 +11256,7 @@ table {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: var(--space-2);
+  gap: 10px;
   color: var(--awkit-login-panel-ink-62);
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
@@ -11269,28 +11281,30 @@ table {
 }
 
 .awkit-login-run-lead {
-  display: grid;
+  display: flex;
   flex: 0 0 auto;
-  gap: var(--space-2);
-  padding: var(--space-4h) 0 var(--space-2);
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 380px;
+  margin-top: var(--space-5);
 }
 
 .awkit-login-run-lead h2 {
-  max-width: 480px;
   margin: 0;
   color: var(--awkit-login-panel-ink);
-  font-size: var(--text-2xl);
+  font-size: 30px;
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-2xl);
-  line-height: 1.18;
+  line-height: 1.2;
+  text-wrap: pretty;
 }
 
 .awkit-login-run-lead p {
-  max-width: 520px;
   margin: 0;
   color: var(--awkit-login-panel-ink-72);
   font-size: var(--text-base);
-  line-height: var(--leading-base);
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 
 .awkit-login-run-timeline {
@@ -11300,15 +11314,15 @@ table {
   justify-content: center;
   min-height: 0;
   margin: 0;
-  padding: var(--space-2) 0;
+  padding: var(--space-4h) 0;
   list-style: none;
 }
 
 .awkit-login-run-step {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
-  gap: var(--space-3);
-  min-height: 58px;
+  align-items: stretch;
+  gap: 15px;
 }
 
 .awkit-login-run-step-rail {
@@ -11328,52 +11342,75 @@ table {
   border-radius: var(--radius-pill);
   background: var(--awkit-login-panel-ink-14);
   color: var(--awkit-login-panel-ink);
+  font-size: 11px;
+  font-weight: 700;
+  transition: background var(--awkit-dur-slow) var(--awkit-ease-out);
 }
 
 .awkit-login-run-step.is-complete .awkit-login-run-step-dot {
   background: var(--awkit-login-panel-ink-78);
   color: var(--awkit-login-panel-base);
+  animation: awkit-node-pop 0.3s var(--awkit-ease-spring) both;
 }
 
 .awkit-login-run-step.is-active .awkit-login-run-step-dot {
   background: var(--awkit-login-panel-ink);
   border-color: var(--awkit-login-panel-ink);
-  animation: awkit-login-live-pulse 1.6s ease-out infinite;
+  color: var(--awkit-login-panel-base);
+  animation: awkit-live-pulse 1.6s ease-out infinite;
 }
 
-@keyframes awkit-login-live-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--awkit-login-panel-ink-00); }
-  35% { box-shadow: 0 0 0 4px var(--awkit-login-panel-ink-22); }
-  70% { box-shadow: 0 0 0 10px var(--awkit-login-panel-ink-00); }
+@keyframes awkit-live-pulse {
+  0% { box-shadow: 0 0 0 0 var(--awkit-login-panel-ink-50); }
+  70%, 100% { box-shadow: 0 0 0 10px var(--awkit-login-panel-ink-00); }
+}
+
+@keyframes awkit-node-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .awkit-login-run-step-line {
+  position: relative;
   flex: 1;
   width: 2px;
-  min-height: var(--space-2);
+  min-height: 18px;
+  margin: 3px 0;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
   background: var(--awkit-login-panel-ink-16);
+  transition: background var(--awkit-dur-slow) var(--awkit-ease-out);
 }
 
 .awkit-login-run-step.is-complete .awkit-login-run-step-line {
-  background: var(--awkit-login-panel-ink-62);
+  background: var(--awkit-login-panel-ink-80);
+}
+
+.awkit-login-run-step.is-active .awkit-login-run-step-line {
+  background: linear-gradient(
+    to bottom,
+    var(--awkit-login-panel-ink-80) 0 62%,
+    var(--awkit-login-panel-ink-14) 62% 100%
+  );
 }
 
 .awkit-login-run-step-card {
   display: grid;
   align-self: start;
-  gap: var(--space-2);
+  gap: 7px;
   width: 100%;
   min-width: 0;
-  padding: 9px var(--space-3);
+  margin-bottom: 10px;
+  padding: 9px 14px;
   border: 1px solid var(--awkit-login-panel-ink-10);
   border-radius: var(--radius-md);
   background: var(--awkit-login-panel-ink-06);
   backdrop-filter: blur(6px);
   transition:
-    background var(--awkit-dur-med) var(--awkit-ease-out),
-    border-color var(--awkit-dur-med) var(--awkit-ease-out),
-    opacity var(--awkit-dur-med) var(--awkit-ease-out),
-    transform var(--awkit-dur-med) var(--awkit-ease-out);
+    background var(--awkit-dur-slow) var(--awkit-ease-out),
+    border-color var(--awkit-dur-slow) var(--awkit-ease-out),
+    opacity var(--awkit-dur-slow) var(--awkit-ease-out),
+    transform var(--awkit-dur-slow) var(--awkit-ease-out);
 }
 
 .awkit-login-run-step.is-active .awkit-login-run-step-card {
@@ -11384,6 +11421,10 @@ table {
 
 .awkit-login-run-step.is-pending .awkit-login-run-step-card {
   opacity: 0.58;
+}
+
+.awkit-login-run-step:last-child .awkit-login-run-step-card {
+  margin-bottom: 0;
 }
 
 .awkit-login-run-step-row {
@@ -11397,8 +11438,9 @@ table {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: var(--text-sm);
+  font-size: 13.5px;
   font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11408,15 +11450,16 @@ table {
 }
 
 .awkit-login-run-step-time {
-  color: var(--awkit-login-panel-ink-62);
-  font-size: var(--text-2xs);
+  color: var(--awkit-login-panel-ink-60);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
 .awkit-login-run-progress {
   height: 3px;
   border-radius: var(--radius-pill);
-  background: var(--awkit-login-panel-ink-14);
+  background: var(--awkit-login-panel-ink-20);
   overflow: hidden;
 }
 
@@ -11425,14 +11468,15 @@ table {
   width: 62%;
   height: 100%;
   border-radius: inherit;
-  background: var(--awkit-login-panel-ink-78);
+  background: var(--awkit-login-panel-ink);
+  transition: width 0.12s linear;
 }
 
 .awkit-login-run-stats {
   display: flex;
   flex: 0 0 auto;
   align-items: stretch;
-  gap: var(--space-2);
+  gap: 10px;
   margin-top: auto;
 }
 
@@ -11442,7 +11486,7 @@ table {
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  padding: var(--space-3);
+  padding: 13px 14px;
   border: 1px solid var(--awkit-login-panel-ink-11);
   border-radius: var(--radius-md);
   background: var(--awkit-login-panel-ink-07);
@@ -11467,34 +11511,55 @@ table {
   white-space: nowrap;
 }
 
-@media (max-height: 700px) {
+@media (max-height: 596px) {
+  .awkit-login-brand-row {
+    padding-top: var(--space-3);
+  }
+
+  .awkit-login-scroll-body {
+    padding-bottom: var(--space-4);
+  }
+
   .awkit-login-run-content {
-    padding: var(--space-4) var(--space-5);
+    padding: var(--space-5) calc(var(--space-4) * 2) var(--space-4h);
   }
 
   .awkit-login-run-lead {
-    padding: var(--space-2) 0 0;
+    gap: 7px;
+    margin-top: var(--space-3);
   }
 
   .awkit-login-run-lead h2 {
-    max-width: 400px;
-    font-size: var(--text-xl);
-    line-height: var(--leading-xl);
+    font-size: var(--space-5);
   }
 
   .awkit-login-run-step {
     grid-template-columns: 20px minmax(0, 1fr);
-    min-height: 45px;
+    gap: var(--space-3);
   }
 
   .awkit-login-run-step-dot {
     width: 18px;
     height: 18px;
+    font-size: var(--text-2xs);
+  }
+
+  .awkit-login-run-step-line {
+    min-height: var(--space-2);
   }
 
   .awkit-login-run-step-card {
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-1);
+    padding: 6px 14px;
+  }
+
+  .awkit-login-run-step-title {
+    font-size: 12.5px;
+  }
+
+  .awkit-login-run-step-time {
+    font-size: var(--text-2xs);
   }
 
   .awkit-login-run-stat {
@@ -11502,7 +11567,7 @@ table {
   }
 }
 
-@media (max-height: 520px) {
+@media (max-height: 466px) {
   .awkit-login-brand-row {
     min-height: 52px;
     padding-top: var(--space-3);
@@ -11512,8 +11577,7 @@ table {
     padding-bottom: var(--space-4);
   }
 
-  .awkit-login-run-lead p,
-  .awkit-login-run-stats {
+  .awkit-login-run-lead p {
     display: none;
   }
 }
@@ -11528,28 +11592,48 @@ table {
   }
 }
 
+@media (max-width: 520px) {
+  .awkit-login-brand-row {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+  }
+
+  .awkit-login-scroll-body {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+  }
+
+  .awkit-login-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .awkit-login-actions .toolbar-button {
+    flex: 1 1 auto;
+  }
+}
+
 .awkit-login-form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
 }
 
+.awkit-login-form.awkit-login-title {
+  gap: 18px;
+}
+
 .awkit-login-brand {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-2);
-  text-align: center;
-  margin-bottom: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin-bottom: 6px;
+  text-align: left;
 }
 
 .awkit-login-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: var(--awkit-accent-soft);
-  color: var(--awkit-accent);
+  display: none;
 }
 
 /*
@@ -11574,39 +11658,47 @@ table {
 
 .awkit-login-brand h1 {
   margin: 0;
-  font-size: var(--text-xl);
-  line-height: var(--leading-xl);
-  letter-spacing: var(--tracking-xl);
-  font-weight: var(--weight-semibold);
   color: var(--awkit-text);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-2xl);
+  line-height: var(--leading-2xl);
 }
 
 .awkit-login-brand .awkit-login-wordmark {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  justify-content: center;
   font-size: var(--text-2xl);
 }
 
 .awkit-login-wordmark-glyph {
+  display: inline-block;
   flex: 0 0 auto;
+  width: 0.706em;
+  height: 0.8em;
+  margin-right: 0.035em;
+  vertical-align: -0.075em;
 }
 
 .awkit-login-subtitle {
   margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
   color: var(--awkit-text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  text-wrap: pretty;
 }
 
 /* Status note above the form (e.g. after a proactive inactivity lock). Info-toned, theme-aware. */
 .awkit-login-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) 13px;
   border: 1px solid var(--awkit-info-muted);
   border-left-width: 3px;
   border-left-color: var(--awkit-info);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-md);
   background: var(--awkit-info-soft);
   /* Was --awkit-text-primary, which is declared NOWHERE in this file and carried no fallback, so the
      declaration was invalid-at-computed-value and the copy silently fell back to inherited colour. */
@@ -11621,12 +11713,15 @@ table {
    ~3.9:1, under the 4.5:1 floor for 13px text, and the tinted field + left rule already carry the
    severity (the element also ships role="alert"). */
 .awkit-login-form .form-message.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) 13px;
   border: 1px solid var(--awkit-danger-muted);
   border-left-width: 3px;
   border-left-color: var(--awkit-danger);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-md);
   background: var(--awkit-danger-soft);
   color: var(--awkit-text);
   font-size: var(--text-sm);
@@ -11636,25 +11731,50 @@ table {
 
 .awkit-login-tabs {
   display: flex;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: 9px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--awkit-divider);
+}
+
+.awkit-login-tabs::before {
+  color: var(--awkit-text-muted);
+  content: "Sign-in method";
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 .awkit-login-tab {
-  flex: 1;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  height: 40px;
-  padding: 0 var(--space-3);
+  gap: var(--space-3);
+  width: 100%;
+  height: 48px;
+  padding: 0 15px;
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-xs);
-  background: var(--awkit-surface-soft);
-  color: var(--awkit-text-secondary);
-  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+  background: var(--awkit-surface);
+  color: var(--awkit-text);
+  font-size: var(--text-base);
   font-weight: var(--weight-medium);
+  text-align: left;
   cursor: pointer;
   transition: border-color var(--awkit-dur-fast) var(--awkit-ease-out), background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-login-tab > svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  color: var(--awkit-text-muted);
+}
+
+.awkit-login-tab > span:not(.awkit-login-soon) {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Hover is excluded on the active tab (it already carries the accent surface) and on disabled tabs —
@@ -11668,17 +11788,19 @@ table {
   border-color: var(--awkit-accent);
   background: var(--awkit-accent-soft);
   color: var(--awkit-accent);
+  box-shadow: 0 0 0 3px rgba(var(--awkit-accent-rgb), 0.12);
+}
+
+.awkit-login-tab.is-active > svg {
+  color: var(--awkit-accent);
 }
 
 .awkit-login-tab:disabled {
+  border-style: dashed;
+  background: var(--awkit-hover-surface);
+  color: var(--awkit-text-muted);
   cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.awkit-login-tab:focus-visible {
-  outline: none;
-  border-color: var(--awkit-accent);
-  box-shadow: var(--awkit-focus-ring);
+  opacity: 1;
 }
 
 .awkit-login-soon {
@@ -11689,19 +11811,22 @@ table {
   text-transform: uppercase;
   color: var(--awkit-text-muted);
   background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
   border-radius: var(--radius-pill);
-  padding: 2px 6px;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 
 .awkit-login-field {
-  display: grid;
-  gap: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 
 .awkit-login-field-label {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
   color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
 }
 
 .awkit-login-field input,
@@ -11710,7 +11835,11 @@ table {
 }
 
 .awkit-login-field input {
-  height: 40px;
+  height: 46px;
+  padding-right: 14px;
+  padding-left: 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
 }
 
 .awkit-login-input,
@@ -11722,54 +11851,50 @@ table {
 
 .awkit-login-password input {
   width: 100%;
-  padding-right: 40px;
+  padding-right: 46px;
 }
 
 .awkit-login-input.has-leading-icon input,
 .awkit-login-password.has-leading-icon input {
-  padding-left: calc(var(--space-5) + var(--space-3));
+  padding-left: 40px;
 }
 
 .awkit-login-leading-icon {
   position: absolute;
-  left: var(--space-3);
+  top: 50%;
+  left: 13px;
   z-index: 1;
   flex: 0 0 auto;
   color: var(--awkit-text-muted);
   pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .awkit-login-field input[aria-invalid="true"] {
   border-color: var(--awkit-danger);
+  box-shadow: 0 0 0 3px rgba(var(--awkit-danger-rgb), 0.12);
 }
 
-/* 30px is an inner inset of the 40px field (5px of breathing room each side) and has no equivalent on
-   the 4px space scale, so it stays literal; `right` does map exactly onto --space-1 (4px). */
 .awkit-login-reveal {
   position: absolute;
-  right: var(--space-1);
+  right: 7px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: calc(var(--space-4) * 2);
+  height: calc(var(--space-4) * 2);
   border: none;
   background: transparent;
   color: var(--awkit-text-muted);
-  border-radius: var(--radius-2xs);
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 
 .awkit-login-reveal:hover:not(:disabled) {
   background: var(--awkit-hover-surface);
   color: var(--awkit-text-secondary);
-}
-
-.awkit-login-reveal:focus-visible {
-  outline: none;
-  box-shadow: var(--awkit-focus-ring);
 }
 
 .awkit-login-caps {
@@ -11787,29 +11912,31 @@ table {
 }
 
 .awkit-password-strength {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .awkit-password-strength-bars {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-1);
+  display: flex;
+  flex: 1;
+  gap: 6px;
 }
 
 .awkit-password-strength-bars > span {
-  height: var(--space-1);
+  flex: 1;
+  height: 3px;
   border-radius: var(--radius-pill);
   background: var(--awkit-surface-inset);
+  transition: background var(--awkit-dur-med) var(--awkit-ease-out);
 }
 
 .awkit-password-strength-label {
   min-width: calc(var(--space-5) * 3);
   color: var(--awkit-text-muted);
   font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   text-align: right;
 }
 
@@ -11842,63 +11969,111 @@ table {
 }
 
 .awkit-password-strength.is-level-4 .awkit-password-strength-label {
-  color: var(--awkit-success-text);
+  color: var(--awkit-success);
 }
 
 .awkit-login-errors {
-  margin: 0;
-  padding-left: var(--space-4);
   display: grid;
   gap: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--awkit-danger);
+  margin: 0;
+  padding: var(--space-3) 13px var(--space-3) calc(13px + var(--space-4));
+  border: 1px solid var(--awkit-danger-muted);
+  border-left-width: 3px;
+  border-left-color: var(--awkit-danger);
+  border-radius: var(--radius-md);
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
-/* Primary CTA tier: deliberately taller than the 40px tab/input controls. */
-.awkit-login-submit {
+.toolbar-button.primary.awkit-login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
-  height: 44px;
+  height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    135deg,
+    var(--awkit-accent-hover) 0%,
+    var(--awkit-accent) 52%,
+    color-mix(in oklch, var(--awkit-accent) 72%, var(--awkit-accent-contrast)) 100%
+  );
+  color: var(--awkit-accent-contrast);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--awkit-accent-contrast) 22%, transparent),
+    0 1px 2px rgba(var(--awkit-accent-rgb), 0.3),
+    0 8px 20px rgba(var(--awkit-accent-rgb), 0.22);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  transition: opacity var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+.toolbar-button.primary.awkit-login-submit:hover:not(:disabled) {
+  border-color: transparent;
+  background: linear-gradient(
+    135deg,
+    var(--awkit-accent-hover) 0%,
+    var(--awkit-accent) 52%,
+    color-mix(in oklch, var(--awkit-accent) 72%, var(--awkit-accent-contrast)) 100%
+  );
+}
+
+.toolbar-button.primary.awkit-login-submit:disabled {
+  border-color: transparent;
+  background: linear-gradient(
+    135deg,
+    var(--awkit-accent-hover) 0%,
+    var(--awkit-accent) 52%,
+    color-mix(in oklch, var(--awkit-accent) 72%, var(--awkit-accent-contrast)) 100%
+  );
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .awkit-login-actions {
   display: flex;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
 }
 
-/* The secondary button in an auth action row is a bare .toolbar-button (36px). It sets an explicit
-   height, so flex `stretch` cannot equalise it and it would sit 8px shorter than the CTA. Matched
-   here, scoped to the auth row only — the global .toolbar-button tier is untouched. The :not() keeps
-   the CTA governed by .awkit-login-submit above rather than by this higher-specificity selector. */
 .awkit-login-actions .toolbar-button:not(.awkit-login-submit) {
-  height: 44px;
+  height: 46px;
+  padding: 0 var(--space-4h);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--awkit-surface);
+  color: var(--awkit-text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
 }
 
 .awkit-login-actions .awkit-login-submit {
-  width: auto;
   flex: 1;
+  width: auto;
+  height: 46px;
 }
 
 .awkit-login-link {
-  justify-self: center;
+  align-self: center;
   border: 0;
-  padding: var(--space-1) var(--space-2);
+  padding: 0;
   background: transparent;
   color: var(--awkit-accent);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
-  border-radius: var(--radius-2xs);
 }
 
 .awkit-login-link:hover:not(:disabled) {
   background: var(--awkit-hover-surface);
   text-decoration: underline;
-}
-
-.awkit-login-link:focus-visible {
-  outline: none;
-  box-shadow: var(--awkit-focus-ring);
 }
 
 .awkit-login-link:disabled {
@@ -11909,7 +12084,7 @@ table {
 .awkit-recovery-code {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4);
+  padding: 18px;
   border: 1px solid var(--awkit-border-strong);
   border-radius: var(--radius-md);
   background: var(--awkit-surface-inset);
@@ -11940,6 +12115,10 @@ table {
 
 .awkit-recovery-code .toolbar-button {
   justify-self: center;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-base);
 }
 
 .awkit-recovery-confirm {
@@ -11954,20 +12133,23 @@ table {
 
 .awkit-recovery-confirm input {
   flex: 0 0 auto;
-  margin-top: var(--space-1);
+  width: var(--space-4);
+  height: var(--space-4);
+  margin-top: 2px;
+  accent-color: var(--awkit-accent);
 }
 
 .awkit-login-loading {
-  display: grid;
-  justify-items: center;
+  display: flex;
+  align-items: center;
   gap: var(--space-3);
-  padding: var(--space-5) 0;
+  padding: var(--space-2) 0 var(--space-1);
   color: var(--awkit-text-secondary);
   font-size: var(--text-sm);
 }
 
 .awkit-login-spin {
-  animation: awkit-login-spin 0.9s linear infinite;
+  animation: awkit-login-spin 0.7s linear infinite;
 }
 
 @keyframes awkit-login-spin {
@@ -12080,13 +12262,20 @@ table {
   .awkit-login-spin,
   .awkit-login-run-spot,
   .awkit-login-run-scanline,
-  .awkit-login-run-step.is-active .awkit-login-run-step-dot {
+  .awkit-login-run-step.is-active .awkit-login-run-step-dot,
+  .awkit-login-run-step.is-complete .awkit-login-run-step-dot {
     animation: none;
   }
 
   .awkit-login-appearance-switch,
   .awkit-login-appearance-thumb,
-  .awkit-login-run-step-card {
+  .awkit-login-tab,
+  .toolbar-button.primary.awkit-login-submit,
+  .awkit-password-strength-bars > span,
+  .awkit-login-run-step-dot,
+  .awkit-login-run-step-line,
+  .awkit-login-run-step-card,
+  .awkit-login-run-progress span {
     transition: none;
   }
 
