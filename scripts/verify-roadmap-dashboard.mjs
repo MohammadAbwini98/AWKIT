@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("282 issues parse", beads.stats.total === 282, `got ${beads.stats.total}`);
+  check("283 issues parse", beads.stats.total === 283, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -535,8 +535,14 @@ try {
   // 119/119 in-window, packaged-runtime 25/25, packaged UI 84/84 light+dark) was created and closed
   // in the same session. Total rises 281 -> 282 and closed rises 279 -> 280; outstanding stays 2.
   // No new edge, so the edge pin stays 108.
-    "2 outstanding / 280 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 280,
+  // Then 2/281 of 283 on 2026-09-12: `awkit-lgn2` (two-pane secure sign-in redesign for the
+  // pre-auth surface; renderer commits 242b800..efef652; build + design-tokens 29/29, accent-theme
+  // 71/71, branding 49/49, source-hygiene 11/11, auth 79/79, reports-settings-a11y 17/17,
+  // GUI auth 25/25 / accent 33/33 / branding 30/30) was created and closed in the same session.
+  // Total rises 282 -> 283 and closed rises 280 -> 281; outstanding stays 2 because the bead
+  // never remained open across an export. No new edge, so the edge pin stays 108.
+    "2 outstanding / 281 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 281,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
