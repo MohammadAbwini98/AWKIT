@@ -11003,35 +11003,529 @@ table {
 }
 
 /* ── Secure sign-in (SecurityGate / LockedShell) ────────────────────────────────
-   Pre-authentication surfaces. Token-only; themes itself via the shared palette. The
-   card entrance + spinner honor prefers-reduced-motion (block at the end of this file). */
+   Pre-authentication surfaces. The form pane uses the shared palette. The decorative run panel
+   keeps its handoff-approved dark/white presentation colors as local, bounded custom properties;
+   it is never runtime telemetry. Motion is neutralized by the reduced-motion block below. */
+.awkit-login-shell {
+  background: var(--awkit-bg);
+  color: var(--awkit-text);
+}
+
 .awkit-login-stage {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-5);
+  min-height: 0;
   background: var(--awkit-bg);
-  overflow: auto;
+  overflow: hidden;
+}
+
+.awkit-login-form-pane {
+  display: flex;
+  flex: 1 1 560px;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--awkit-surface);
+}
+
+.awkit-login-brand-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 66px;
+  padding: var(--space-4h) var(--space-5) var(--space-2);
+}
+
+.awkit-login-brand-row-spacer {
+  flex: 1;
+}
+
+.awkit-login-brand-row .awkit-login-logo-custom {
+  max-width: 180px;
+  max-height: 38px;
+  margin: 0;
+}
+
+.awkit-login-appearance-label {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.awkit-login-appearance-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 38px;
+  height: 21px;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--awkit-border-strong);
+  cursor: pointer;
+  transition: background var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+.awkit-login-appearance-switch[aria-checked="true"] {
+  background: linear-gradient(135deg, var(--awkit-accent-hover), var(--awkit-accent));
+}
+
+.awkit-login-appearance-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--awkit-focus-ring);
+}
+
+.awkit-login-appearance-thumb {
+  display: block;
+  width: 17px;
+  height: 17px;
+  border-radius: var(--radius-pill);
+  background: var(--awkit-surface);
+  box-shadow: var(--awkit-shadow-soft);
+  transform: translateX(0);
+  transition: transform var(--awkit-dur-med) var(--awkit-ease-spring);
+}
+
+.awkit-login-appearance-switch[aria-checked="true"] .awkit-login-appearance-thumb {
+  transform: translateX(17px);
+}
+
+.awkit-login-scroll-body {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-2) clamp(var(--space-4), 3.5vw, var(--space-5)) 36px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.awkit-login-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 412px;
+  margin: auto 0;
 }
 
 .awkit-login-card {
   width: 100%;
-  max-width: 400px;
-  background: var(--awkit-surface);
-  border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-lg);
-  /* --awkit-shadow-float, not --awkit-shadow-panel: the latter is the right-hand config panel's
-     DIRECTIONAL shadow (-8px 0 30px), which casts sideways on a centred card instead of lifting it.
-     The literal fallback it carried was violet-tinted ink predating the neutral-surface rule. */
-  box-shadow: var(--awkit-shadow-float);
-  padding: var(--space-5);
-  animation: awkit-login-rise var(--awkit-dur-panel) var(--awkit-ease-out);
+  min-width: 0;
 }
 
-@keyframes awkit-login-rise {
-  from { opacity: 0; transform: translateY(8px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+.awkit-login-screen {
+  animation: awkit-login-fade-up var(--awkit-dur-panel) var(--awkit-ease-out) both;
+}
+
+@keyframes awkit-login-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.awkit-login-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--awkit-divider);
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  text-wrap: pretty;
+}
+
+.awkit-login-footnote svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.awkit-login-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* aria-hidden scripted sample. Local color constants are the design's single decorative exception. */
+.awkit-login-run-panel {
+  --awkit-login-panel-base: #0a0c12;
+  --awkit-login-panel-ink: #ffffff;
+  --awkit-login-panel-ink-78: rgba(255, 255, 255, 0.78);
+  --awkit-login-panel-ink-72: rgba(255, 255, 255, 0.72);
+  --awkit-login-panel-ink-62: rgba(255, 255, 255, 0.62);
+  --awkit-login-panel-ink-34: rgba(255, 255, 255, 0.34);
+  --awkit-login-panel-ink-24: rgba(255, 255, 255, 0.24);
+  --awkit-login-panel-ink-22: rgba(255, 255, 255, 0.22);
+  --awkit-login-panel-ink-16: rgba(255, 255, 255, 0.16);
+  --awkit-login-panel-ink-14: rgba(255, 255, 255, 0.14);
+  --awkit-login-panel-ink-11: rgba(255, 255, 255, 0.11);
+  --awkit-login-panel-ink-10: rgba(255, 255, 255, 0.1);
+  --awkit-login-panel-ink-07: rgba(255, 255, 255, 0.07);
+  --awkit-login-panel-ink-06: rgba(255, 255, 255, 0.06);
+  --awkit-login-panel-ink-05: rgba(255, 255, 255, 0.05);
+  --awkit-login-panel-ink-00: rgba(255, 255, 255, 0);
+  position: relative;
+  flex: 1 1 520px;
+  min-width: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    158deg,
+    var(--awkit-login-panel-base) 0%,
+    color-mix(in oklch, var(--awkit-accent) 30%, var(--awkit-login-panel-base)) 34%,
+    color-mix(in oklch, var(--awkit-accent) 78%, var(--awkit-login-panel-base)) 72%,
+    color-mix(in oklch, var(--awkit-accent) 84%, var(--awkit-login-panel-ink)) 100%
+  );
+  color: var(--awkit-login-panel-ink);
+}
+
+.awkit-login-run-grid,
+.awkit-login-run-spot,
+.awkit-login-run-scanline {
+  position: absolute;
+  pointer-events: none;
+}
+
+.awkit-login-run-grid {
+  inset: 0;
+  background-image:
+    linear-gradient(var(--awkit-login-panel-ink-05) 1px, transparent 1px),
+    linear-gradient(90deg, var(--awkit-login-panel-ink-05) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+
+.awkit-login-run-spot {
+  top: 8%;
+  left: -18%;
+  width: 78%;
+  padding-bottom: 78%;
+  border-radius: var(--radius-pill);
+  background: radial-gradient(circle at 40% 40%, var(--awkit-login-panel-ink-24), transparent 66%);
+  animation: awkit-login-drift 17s ease-in-out infinite;
+}
+
+.awkit-login-run-scanline {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--awkit-login-panel-ink-34), transparent);
+  animation: awkit-login-scan 5.5s ease-in-out infinite;
+}
+
+@keyframes awkit-login-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(26px, -30px) scale(1.08); }
+}
+
+@keyframes awkit-login-scan {
+  0% { transform: translateY(0); opacity: 0; }
+  12%, 88% { opacity: 0.9; }
+  100% { transform: translateY(calc(100vh - var(--titlebar-height))); opacity: 0; }
+}
+
+.awkit-login-run-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+  min-height: 0;
+  padding: 38px 42px 34px;
+  overflow: hidden;
+}
+
+.awkit-login-run-kicker {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--awkit-login-panel-ink-62);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.awkit-login-run-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--awkit-login-panel-ink);
+  box-shadow: 0 0 0 4px var(--awkit-login-panel-ink-22);
+}
+
+.awkit-login-run-demo-label {
+  margin-left: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--awkit-login-panel-ink-22);
+  border-radius: var(--radius-pill);
+  letter-spacing: var(--tracking-2xs);
+}
+
+.awkit-login-run-lead {
+  display: grid;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  padding: var(--space-4h) 0 var(--space-2);
+}
+
+.awkit-login-run-lead h2 {
+  max-width: 480px;
+  margin: 0;
+  color: var(--awkit-login-panel-ink);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-2xl);
+  line-height: 1.18;
+}
+
+.awkit-login-run-lead p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--awkit-login-panel-ink-72);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+}
+
+.awkit-login-run-timeline {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+}
+
+.awkit-login-run-step {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-3);
+  min-height: 58px;
+}
+
+.awkit-login-run-step-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.awkit-login-run-step-dot {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--awkit-login-panel-ink-24);
+  border-radius: var(--radius-pill);
+  background: var(--awkit-login-panel-ink-14);
+  color: var(--awkit-login-panel-ink);
+}
+
+.awkit-login-run-step.is-complete .awkit-login-run-step-dot {
+  background: var(--awkit-login-panel-ink-78);
+  color: var(--awkit-login-panel-base);
+}
+
+.awkit-login-run-step.is-active .awkit-login-run-step-dot {
+  background: var(--awkit-login-panel-ink);
+  border-color: var(--awkit-login-panel-ink);
+  animation: awkit-login-live-pulse 1.6s ease-out infinite;
+}
+
+@keyframes awkit-login-live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--awkit-login-panel-ink-00); }
+  35% { box-shadow: 0 0 0 4px var(--awkit-login-panel-ink-22); }
+  70% { box-shadow: 0 0 0 10px var(--awkit-login-panel-ink-00); }
+}
+
+.awkit-login-run-step-line {
+  flex: 1;
+  width: 2px;
+  min-height: var(--space-2);
+  background: var(--awkit-login-panel-ink-16);
+}
+
+.awkit-login-run-step.is-complete .awkit-login-run-step-line {
+  background: var(--awkit-login-panel-ink-62);
+}
+
+.awkit-login-run-step-card {
+  display: grid;
+  align-self: start;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: 9px var(--space-3);
+  border: 1px solid var(--awkit-login-panel-ink-10);
+  border-radius: var(--radius-md);
+  background: var(--awkit-login-panel-ink-06);
+  backdrop-filter: blur(6px);
+  transition:
+    background var(--awkit-dur-med) var(--awkit-ease-out),
+    border-color var(--awkit-dur-med) var(--awkit-ease-out),
+    opacity var(--awkit-dur-med) var(--awkit-ease-out),
+    transform var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+.awkit-login-run-step.is-active .awkit-login-run-step-card {
+  border-color: var(--awkit-login-panel-ink-34);
+  background: var(--awkit-login-panel-ink-16);
+  transform: translateX(var(--space-1));
+}
+
+.awkit-login-run-step.is-pending .awkit-login-run-step-card {
+  opacity: 0.58;
+}
+
+.awkit-login-run-step-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.awkit-login-run-step-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awkit-login-run-step.is-active .awkit-login-run-step-title {
+  font-weight: var(--weight-semibold);
+}
+
+.awkit-login-run-step-time {
+  color: var(--awkit-login-panel-ink-62);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.awkit-login-run-progress {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--awkit-login-panel-ink-14);
+  overflow: hidden;
+}
+
+.awkit-login-run-progress span {
+  display: block;
+  width: 62%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--awkit-login-panel-ink-78);
+}
+
+.awkit-login-run-stats {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.awkit-login-run-stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--awkit-login-panel-ink-11);
+  border-radius: var(--radius-md);
+  background: var(--awkit-login-panel-ink-07);
+}
+
+.awkit-login-run-stat strong {
+  overflow: hidden;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-lg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awkit-login-run-stat small {
+  overflow: hidden;
+  color: var(--awkit-login-panel-ink-62);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-height: 700px) {
+  .awkit-login-run-content {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .awkit-login-run-lead {
+    padding: var(--space-2) 0 0;
+  }
+
+  .awkit-login-run-lead h2 {
+    max-width: 400px;
+    font-size: var(--text-xl);
+    line-height: var(--leading-xl);
+  }
+
+  .awkit-login-run-step {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 45px;
+  }
+
+  .awkit-login-run-step-dot {
+    width: 18px;
+    height: 18px;
+  }
+
+  .awkit-login-run-step-card {
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .awkit-login-run-stat {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (max-height: 520px) {
+  .awkit-login-brand-row {
+    min-height: 52px;
+    padding-top: var(--space-3);
+  }
+
+  .awkit-login-scroll-body {
+    padding-bottom: var(--space-4);
+  }
+
+  .awkit-login-run-lead p,
+  .awkit-login-run-stats {
+    display: none;
+  }
+}
+
+@media (max-width: 960px), (max-height: 440px) {
+  .awkit-login-run-panel {
+    display: none;
+  }
+
+  .awkit-login-form-pane {
+    flex-basis: auto;
+  }
 }
 
 .awkit-login-form {
@@ -11475,8 +11969,20 @@ table {
 .awkit-account-menu-item:focus-visible { outline: none; box-shadow: var(--awkit-focus-ring); }
 
 @media (prefers-reduced-motion: reduce) {
-  .awkit-login-card { animation: none; }
-  .awkit-login-spin { animation: none; }
+  .awkit-login-screen,
+  .awkit-login-spin,
+  .awkit-login-run-spot,
+  .awkit-login-run-scanline,
+  .awkit-login-run-step.is-active .awkit-login-run-step-dot {
+    animation: none;
+  }
+
+  .awkit-login-appearance-switch,
+  .awkit-login-appearance-thumb,
+  .awkit-login-run-step-card {
+    transition: none;
+  }
+
   .awkit-account-menu { animation: none; }
 }
 

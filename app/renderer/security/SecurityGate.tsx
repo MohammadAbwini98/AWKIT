@@ -255,7 +255,7 @@ export function SecurityGate() {
 
   if (state === "loading") {
     return (
-      <LockedShell areaLabel="Starting…">
+      <LockedShell areaLabel="Starting…" idleTimeoutMs={idleTimeoutMs}>
         <div className="awkit-login-loading" role="status" aria-live="polite">
           <Loader2 size={22} className="awkit-login-spin" aria-hidden="true" />
           <span>Preparing secure sign-in…</span>
@@ -266,7 +266,7 @@ export function SecurityGate() {
 
   if (state === "unavailable") {
     return (
-      <LockedShell areaLabel="Unavailable">
+      <LockedShell areaLabel="Unavailable" idleTimeoutMs={idleTimeoutMs}>
         <SecurityUnavailable onRetry={() => void init()} />
       </LockedShell>
     );
@@ -274,7 +274,7 @@ export function SecurityGate() {
 
   if (state === "firstRun") {
     return (
-      <LockedShell areaLabel="First-run setup">
+      <LockedShell areaLabel="First-run setup" idleTimeoutMs={idleTimeoutMs}>
         <FirstRunSetup onSubmit={handleBootstrap} />
       </LockedShell>
     );
@@ -282,7 +282,7 @@ export function SecurityGate() {
 
   if (state === "recoveryCode") {
     return (
-      <LockedShell areaLabel="Save recovery code">
+      <LockedShell areaLabel="Save recovery code" idleTimeoutMs={idleTimeoutMs}>
         <RecoveryCodeNotice recoveryCode={recoveryCode} onContinue={() => void acknowledgeRecoveryCode()} />
       </LockedShell>
     );
@@ -290,7 +290,7 @@ export function SecurityGate() {
 
   if (state === "recovery") {
     return (
-      <LockedShell areaLabel="Recover Super User">
+      <LockedShell areaLabel="Recover Super User" idleTimeoutMs={idleTimeoutMs}>
         <RecoveryPasswordReset onSubmit={handleRecovery} onCancel={() => setState("login")} />
       </LockedShell>
     );
@@ -298,14 +298,14 @@ export function SecurityGate() {
 
   if (state === "forcedChange" && principal) {
     return (
-      <LockedShell areaLabel="Update password">
+      <LockedShell areaLabel="Update password" idleTimeoutMs={idleTimeoutMs}>
         <ForcedPasswordChange displayName={principal.displayName} onSubmit={handleChangePassword} onCancel={logout} />
       </LockedShell>
     );
   }
 
   return (
-    <LockedShell areaLabel="Secure sign-in">
+    <LockedShell areaLabel="Secure sign-in" idleTimeoutMs={idleTimeoutMs}>
       <LoginScreen options={options} onSubmit={doLogin} onRecovery={() => setState("recovery")} notice={lockNotice} />
     </LockedShell>
   );
