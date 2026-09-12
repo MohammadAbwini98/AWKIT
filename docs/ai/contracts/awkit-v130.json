@@ -18,12 +18,14 @@
     "packaging_change": true,
     "project_state_change": true,
     "cross_layer_count": 2,
-    "offline_boundary_change": true
+    "offline_boundary_change": true,
+    "new_dependency": true
   },
   "routing": {
     "manager": "manager",
     "activated_agents": [
       "manager",
+      "architect",
       "qa",
       "qc",
       "release",
@@ -45,7 +47,9 @@
       "build",
       "scripts/verify-roadmap-dashboard.mjs"
     ],
-    "consultants": [],
+    "consultants": [
+      "architect"
+    ],
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
@@ -181,9 +185,9 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main and remeasure parity",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "PENDING"
+      "note": "Normal non-force push accepted a1ceef9..b8fe71a on main; origin/main parity re-measured (git status -sb shows main...origin/main with no ahead/behind) before the terminal lease release."
     }
   ],
   "scope_escapes": [],
@@ -199,7 +203,7 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "qc_note": "Independent re-derivation from recorded, re-runnable measurements: the in-run strict passes of both packaging runs, provenance hashes re-measured against disk (portable aea0427e / 236,682,744 B from clean 71fd140; installer 91b5e911 / 263,898,946 B from clean 685a003), packaged-validation 119/119 in the freshness window, packaged-runtime 25/25, walkthrough 35/0/1 and licensing 24/0/2 with BLOCKED-not-skipped external-gate records, and the 177/177 roadmap verification after the measured 284/282/2 repin together prove every acceptance criterion. The only scope adjustment (companion installer build) is recorded in constraints with its gate-driven reason. No overrides, no protected-path writes, no dependency changes."
+    "qc_note": "Independent re-derivation from recorded, re-runnable measurements: the in-run strict passes of both packaging runs, provenance hashes re-measured against disk (portable aea0427e / 236,682,744 B from clean 71fd140; installer 91b5e911 / 263,898,946 B from clean 685a003), packaged-validation 119/119 in the freshness window, packaged-runtime 25/25, walkthrough 35/0/1 and licensing 24/0/2 with BLOCKED-not-skipped external-gate records, and the 177/177 roadmap verification after the measured 284/282/2 repin together prove every acceptance criterion. The only scope adjustment (companion installer build) is recorded in constraints with its gate-driven reason. No overrides, no protected-path writes, no dependency changes. Classification declares new_dependency:true as deliberate over-routing: the path-based classifier derives the flag from any package-lock.json movement, and npm version rewrote the lock; the entire 71fd140 package.json+package-lock.json diff is exactly three \"version\": 0.1.29->0.1.30 field lines (proven by git diff), so no dependency graph change actually occurred."
   },
   "write_lease": {
     "history": [
