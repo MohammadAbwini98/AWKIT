@@ -14,7 +14,10 @@ import { SecurityUnavailable } from "./screens/SecurityUnavailable";
 
 type GateState = "loading" | "unavailable" | "firstRun" | "recoveryCode" | "recovery" | "login" | "forcedChange" | "authed";
 
-/** Fallback idle window if the boot state doesn't report one (mirrors DEFAULT_SESSION_POLICY.idleMs). */
+/**
+ * Idle-timer fallback if the boot state doesn't report a window (mirrors DEFAULT_SESSION_POLICY.idleMs).
+ * Timer-only: it is never displayed, so the pre-auth copy can't claim a duration nobody reported.
+ */
 const DEFAULT_IDLE_MS = 30 * 60 * 1000;
 
 function readAppearance(): AppearanceMode {
@@ -42,7 +45,8 @@ export function SecurityGate() {
   const [principal, setPrincipal] = useState<PrincipalSnapshot | null>(null);
   const [lockNotice, setLockNotice] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
-  const [idleTimeoutMs, setIdleTimeoutMs] = useState(DEFAULT_IDLE_MS);
+  // Trusted idle window from the boot state / policy-change event; null until one is reported.
+  const [idleTimeoutMs, setIdleTimeoutMs] = useState<number | null>(null);
   const sessionRef = useRef<string>("");
   const pendingBootstrapRef = useRef<{ username: string; password: string } | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
@@ -188,6 +192,9 @@ export function SecurityGate() {
 
   const logout = useCallback(() => lock(null), [lock]);
 
+  // Same value sequence the timer has always seen (default until reported), so the lock semantics are unchanged.
+  const effectiveIdleMs = idleTimeoutMs ?? DEFAULT_IDLE_MS;
+
   // Re-validate when the user returns to the window; catches idle/absolute expiry and deactivation.
   useEffect(() => {
     if (state !== "authed") return;
@@ -220,7 +227,7 @@ export function SecurityGate() {
     const activityEvents = ["pointerdown", "keydown", "mousemove", "wheel", "touchstart", "scroll"];
     for (const ev of activityEvents) window.addEventListener(ev, markActivity, { passive: true });
 
-    const idleMs = idleTimeoutMs;
+    const idleMs = effectiveIdleMs;
     const tickMs = Math.min(15000, Math.max(1000, Math.floor(idleMs / 6)));
     const validateMinIntervalMs = Math.min(60000, Math.max(1000, Math.floor(idleMs / 3)));
     const interval = window.setInterval(async () => {
@@ -243,7 +250,7 @@ export function SecurityGate() {
       for (const ev of activityEvents) window.removeEventListener(ev, markActivity);
       window.clearInterval(interval);
     };
-  }, [state, lock, idleTimeoutMs]);
+  }, [state, lock, effectiveIdleMs]);
 
   if (state === "authed" && principal) {
     return (

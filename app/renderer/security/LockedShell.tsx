@@ -7,8 +7,8 @@ import { resolveAppearance, type AppearanceMode } from "../state/theme";
 interface LockedShellProps {
   /** Context label shown in the custom title bar (e.g., "Secure sign-in"). */
   areaLabel: string;
-  /** Live session policy supplied by SecurityGate when that screen is wired. */
-  idleTimeoutMs: number;
+  /** Trusted idle-lock window from SecurityGate; null until reported, which renders generic copy. */
+  idleTimeoutMs: number | null;
   children: ReactNode;
 }
 
@@ -39,7 +39,7 @@ function readAppearance(): AppearanceMode {
   return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
 }
 
-function idleDuration(idleTimeoutMs: number | undefined): string | null {
+function idleDuration(idleTimeoutMs: number | null): string | null {
   if (typeof idleTimeoutMs !== "number" || !Number.isFinite(idleTimeoutMs) || idleTimeoutMs <= 0) return null;
   const minutes = Math.max(1, Math.round(idleTimeoutMs / 60_000));
   if (minutes % 60 === 0) {
