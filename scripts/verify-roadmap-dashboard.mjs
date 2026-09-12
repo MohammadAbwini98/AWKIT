@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("283 issues parse", beads.stats.total === 283, `got ${beads.stats.total}`);
+  check("284 issues parse", beads.stats.total === 284, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -541,8 +541,15 @@ try {
   // GUI auth 25/25 / accent 33/33 / branding 30/30) was created and closed in the same session.
   // Total rises 282 -> 283 and closed rises 280 -> 281; outstanding stays 2 because the bead
   // never remained open across an export. No new edge, so the edge pin stays 108.
-    "2 outstanding / 281 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 281,
+  // Then 2/282 of 284 on 2026-09-12: `awkit-v130` (0.1.30 portable release containing the
+  // awkit-lgn2 login redesign; portable aea0427e 236,682,744 B from clean 71fd140, installer
+  // 91b5e911 263,898,946 B from clean 685a003; packaged-validation 119/119, packaged-runtime
+  // 25/25, walkthrough 35/0/1 BLOCKED, packaged-licensing 24/0/2 BLOCKED on the external issuer
+  // key) was created and closed in the same session. Total rises 283 -> 284 and closed rises
+  // 281 -> 282; outstanding stays 2 because the bead never remained open across an export.
+  // No new edge, so the edge pin stays 108.
+    "2 outstanding / 282 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 282,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
