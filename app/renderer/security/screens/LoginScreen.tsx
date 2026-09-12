@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { Workflow, Loader2, Building2 } from "lucide-react";
+import { AtSign, Building2, Loader2, UserRound } from "lucide-react";
 import type { LoginOption, ProviderId } from "@src/security/auth/AuthTypes";
+import { AwkitWordmarkGlyph } from "../../assets/brand/AwkitBrandMarks";
 import { PasswordField } from "../components/PasswordField";
 import { messageForReason } from "../reasonMessages";
-import specterLogoUrl from "../../assets/brand/specter-logo.svg";
 
 export interface LoginSubmitResult {
   ok: boolean;
@@ -30,25 +30,6 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tabRefs = useRef<Partial<Record<ProviderId, HTMLButtonElement>>>({});
-  // Fall back to the built-in glyph if the packaged logo asset ever fails to load (offline-safe, no broken image).
-  const [logoFailed, setLogoFailed] = useState(false);
-  // The active custom workspace logo (a self-contained data: URL), resolved from the SAME open
-  // `branding.getState()` read the sidebar uses — so the login screen and the app chrome always show
-  // the same logo. Absent/false/error → keep the built-in default (a plain presence check, never an
-  // <img onError>, so a mid-swap or corrupt asset never yields a broken image on the login screen).
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    window.playwrightFlowStudio.branding
-      ?.getState()
-      .then((state) => {
-        if (!cancelled && state?.active && state.dataUrl) setCustomLogo(state.dataUrl);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!options.some((option) => option.id === selectedProvider && option.enabled)) {
@@ -98,26 +79,11 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
   return (
     <form className="awkit-login-form" onSubmit={handleSubmit} aria-labelledby="awkit-login-title">
       <header className="awkit-login-brand">
-        {customLogo ? (
-          // Custom workspace logo overrides the default mark — aspect-preserved, overflow-bounded by CSS.
-          <img className="awkit-login-logo-custom" src={customLogo} alt="" aria-hidden="true" draggable={false} />
-        ) : logoFailed ? (
-          <span className="awkit-login-mark" aria-hidden="true">
-            <Workflow size={22} strokeWidth={2.4} />
-          </span>
-        ) : (
-          <img
-            className="awkit-login-logo"
-            src={specterLogoUrl}
-            alt=""
-            aria-hidden="true"
-            width={64}
-            height={64}
-            draggable={false}
-            onError={() => setLogoFailed(true)}
-          />
-        )}
-        <h1 id="awkit-login-title">SpecterStudio</h1>
+        <h1 className="awkit-login-wordmark" id="awkit-login-title">
+          <span className="sr-only">S</span>
+          <AwkitWordmarkGlyph className="awkit-login-wordmark-glyph" />
+          <span>pecterStudio</span>
+        </h1>
         <p className="awkit-login-subtitle">Sign in to continue</p>
       </header>
 
@@ -127,23 +93,23 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
         </p>
       ) : null}
 
-      <div className="awkit-login-tabs" role="tablist" aria-label="Sign-in method">
+      <div className="awkit-login-tabs" role="radiogroup" aria-label="Sign-in method">
         {options.map((option) => {
           const isSelected = option.id === selectedProvider;
           return (
             <button
               key={option.id}
               type="button"
-              role="tab"
+              role="radio"
               ref={(element) => {
                 tabRefs.current[option.id] = element ?? undefined;
               }}
-              aria-selected={isSelected}
+              aria-checked={isSelected}
               aria-disabled={!option.enabled}
               disabled={!option.enabled}
-              tabIndex={isSelected ? 0 : -1}
+              tabIndex={isSelected && option.enabled ? 0 : -1}
               className={`awkit-login-tab${isSelected ? " is-active" : ""}`}
-              title={option.enabled ? option.displayName : `${option.displayName} — not configured`}
+              title={option.enabled ? option.displayName : `${option.displayName} — Not configured`}
               onClick={() => {
                 if (option.enabled) {
                   setSelectedProvider(option.id);
@@ -153,7 +119,7 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
               }}
               onKeyDown={handleTabKeyDown}
             >
-              {option.id === "activeDirectory" ? <Building2 size={15} /> : <Workflow size={15} />}
+              {option.id === "activeDirectory" ? <Building2 size={15} aria-hidden="true" /> : <UserRound size={15} aria-hidden="true" />}
               <span>{option.displayName}</span>
               {!option.enabled ? <em className="awkit-login-soon">Not configured</em> : null}
             </button>
@@ -163,19 +129,29 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
 
       <label className="awkit-login-field" htmlFor="awkit-login-username">
         <span className="awkit-login-field-label">Username</span>
-        <input
-          id="awkit-login-username"
-          type="text"
-          value={username}
-          autoComplete="username"
-          autoFocus
-          spellCheck={false}
-          disabled={submitting}
-          onChange={(event) => setUsername(event.target.value)}
-        />
+        <div className="awkit-login-input has-leading-icon">
+          <AtSign className="awkit-login-leading-icon" size={16} aria-hidden="true" />
+          <input
+            id="awkit-login-username"
+            type="text"
+            value={username}
+            autoComplete="username"
+            autoFocus
+            spellCheck={false}
+            disabled={submitting}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+        </div>
       </label>
 
-      <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" disabled={submitting} />
+      <PasswordField
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="current-password"
+        disabled={submitting}
+        leadingIcon
+      />
 
       {error ? (
         <p className="form-message error" role="alert">

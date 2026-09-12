@@ -61,9 +61,34 @@ export function ForcedPasswordChange({ displayName, onSubmit, onCancel }: Forced
         <p className="awkit-login-subtitle">{displayName}, you must set a new password before continuing.</p>
       </header>
 
-      <PasswordField label="Current password" value={current} onChange={setCurrent} autoComplete="current-password" autoFocus disabled={submitting} />
-      <PasswordField label="New password" value={next} onChange={setNext} autoComplete="new-password" disabled={submitting} hint={PASSWORD_HINT} />
-      <PasswordField label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={submitting} />
+      <PasswordField
+        label="Current password"
+        value={current}
+        onChange={setCurrent}
+        autoComplete="current-password"
+        autoFocus
+        disabled={submitting}
+        leadingIcon
+      />
+      <PasswordField
+        label="New password"
+        value={next}
+        onChange={setNext}
+        autoComplete="new-password"
+        disabled={submitting}
+        hint={PASSWORD_HINT}
+        leadingIcon
+        showStrength
+      />
+      <PasswordField
+        label="Confirm new password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+        disabled={submitting}
+        invalid={mismatch}
+        leadingIcon
+      />
 
       {mismatch ? (
         <p className="form-message error" role="alert">

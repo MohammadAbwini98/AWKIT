@@ -36,7 +36,10 @@ export function RecoveryCodeNotice({ recoveryCode, onContinue }: RecoveryCodeNot
       </header>
 
       <div className="awkit-recovery-code" aria-label="Super User recovery code">
-        <code>{recoveryCode}</code>
+        <div className="awkit-recovery-code-value">
+          <span>Recovery code</span>
+          <code>{recoveryCode}</code>
+        </div>
         <button className="toolbar-button" type="button" onClick={() => void copyCode()} aria-label="Copy recovery code">
           {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           {copied ? "Copied" : "Copy"}

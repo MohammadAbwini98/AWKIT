@@ -1,4 +1,4 @@
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, LogOut, RotateCcw } from "lucide-react";
 import { GENERIC_MESSAGE } from "../reasonMessages";
 
 interface SecurityUnavailableProps {
@@ -23,6 +23,7 @@ export function SecurityUnavailable({ onRetry }: SecurityUnavailableProps) {
 
       <div className="awkit-login-actions">
         <button className="toolbar-button" type="button" onClick={() => window.playwrightFlowStudio.appWindow.close()}>
+          <LogOut size={16} aria-hidden="true" />
           Exit
         </button>
         <button className="toolbar-button primary awkit-login-submit" type="button" onClick={onRetry}>

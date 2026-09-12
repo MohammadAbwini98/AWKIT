@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { AtSign, IdCard, Loader2, ShieldCheck } from "lucide-react";
 import { PasswordField } from "../components/PasswordField";
 import { messageForReason } from "../reasonMessages";
 
@@ -64,32 +64,55 @@ export function FirstRunSetup({ onSubmit }: FirstRunSetupProps) {
 
       <label className="awkit-login-field" htmlFor="awkit-setup-display">
         <span className="awkit-login-field-label">Display name (optional)</span>
-        <input
-          id="awkit-setup-display"
-          type="text"
-          value={displayName}
-          autoComplete="name"
-          disabled={submitting}
-          onChange={(event) => setDisplayName(event.target.value)}
-        />
+        <div className="awkit-login-input has-leading-icon">
+          <IdCard className="awkit-login-leading-icon" size={16} aria-hidden="true" />
+          <input
+            id="awkit-setup-display"
+            type="text"
+            value={displayName}
+            autoComplete="name"
+            disabled={submitting}
+            onChange={(event) => setDisplayName(event.target.value)}
+          />
+        </div>
       </label>
 
       <label className="awkit-login-field" htmlFor="awkit-setup-username">
         <span className="awkit-login-field-label">Username</span>
-        <input
-          id="awkit-setup-username"
-          type="text"
-          value={username}
-          autoComplete="username"
-          autoFocus
-          spellCheck={false}
-          disabled={submitting}
-          onChange={(event) => setUsername(event.target.value)}
-        />
+        <div className="awkit-login-input has-leading-icon">
+          <AtSign className="awkit-login-leading-icon" size={16} aria-hidden="true" />
+          <input
+            id="awkit-setup-username"
+            type="text"
+            value={username}
+            autoComplete="username"
+            autoFocus
+            spellCheck={false}
+            disabled={submitting}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+        </div>
       </label>
 
-      <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="new-password" disabled={submitting} hint={PASSWORD_HINT} />
-      <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={submitting} />
+      <PasswordField
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        disabled={submitting}
+        hint={PASSWORD_HINT}
+        leadingIcon
+        showStrength
+      />
+      <PasswordField
+        label="Confirm password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+        disabled={submitting}
+        invalid={mismatch}
+        leadingIcon
+      />
 
       {mismatch ? (
         <p className="form-message error" role="alert">

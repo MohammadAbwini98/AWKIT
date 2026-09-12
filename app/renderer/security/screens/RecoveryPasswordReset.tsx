@@ -60,21 +60,41 @@ export function RecoveryPasswordReset({ onSubmit, onCancel }: RecoveryPasswordRe
 
       <label className="awkit-login-field" htmlFor="awkit-recovery-code">
         <span className="awkit-login-field-label">Recovery code</span>
-        <input
-          id="awkit-recovery-code"
-          type="text"
-          value={recoveryCode}
-          autoComplete="off"
-          autoCapitalize="characters"
-          autoFocus
-          spellCheck={false}
-          disabled={submitting}
-          onChange={(event) => setRecoveryCode(event.target.value)}
-        />
+        <div className="awkit-login-input has-leading-icon">
+          <KeyRound className="awkit-login-leading-icon" size={16} aria-hidden="true" />
+          <input
+            id="awkit-recovery-code"
+            type="text"
+            value={recoveryCode}
+            autoComplete="off"
+            autoCapitalize="characters"
+            autoFocus
+            spellCheck={false}
+            disabled={submitting}
+            onChange={(event) => setRecoveryCode(event.target.value)}
+          />
+        </div>
       </label>
 
-      <PasswordField label="New password" value={password} onChange={setPassword} autoComplete="new-password" disabled={submitting} hint={PASSWORD_HINT} />
-      <PasswordField label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={submitting} />
+      <PasswordField
+        label="New password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        disabled={submitting}
+        hint={PASSWORD_HINT}
+        leadingIcon
+        showStrength
+      />
+      <PasswordField
+        label="Confirm new password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+        disabled={submitting}
+        invalid={mismatch}
+        leadingIcon
+      />
 
       {mismatch ? <p className="form-message error" role="alert">Passwords do not match.</p> : null}
       {error ? <p className="form-message error" role="alert">{error}</p> : null}
