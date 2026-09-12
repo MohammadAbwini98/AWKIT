@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## 0.1.30 portable + installer released with the redesigned login surface (2026-09-12)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-v130` moves no ledger case.
+
+**Version 0.1.30 is packaged and release-proven (`awkit-v130`).** `scripts/release-portable.ps1
+-BumpType patch` moved 0.1.29 → 0.1.30 through the documented next-release wrapper (version
+commit `71fd140`, manifest pair `685a003`). Fresh artifacts: portable `dist/SpecterStudio
+0.1.30.exe` — 236,682,744 B, SHA-256 `aea0427e…c0a76`, provenance source `71fd140`
+(treeDirty false); companion installer `dist/SpecterStudio Setup 0.1.30.exe` — 263,898,946 B,
+SHA-256 `91b5e911…c337`, provenance source `685a003` (manifest pair `fdf9624`). The installer
+was built because `verify:packaged-walkthrough` Part A hard-fails without the version-matched
+NSIS artifact. Both hashes/sizes were independently re-measured against disk. **Every 0.1.29
+and older artifact is STALE**; the 0.1.29 pair predates the login redesign.
+
+**Measured packaged evidence (2026-09-12).** Strict offline validation passed in-run inside both
+packaging chains; `verify:packaged-validation` **119/119** in the freshness window;
+`verify:packaged-runtime` **25/25** (appMode=packaged, durable store from app.asar, writable
+%LOCALAPPDATA% root); `verify:packaged-walkthrough` **35 PASS / 0 FAIL / 1 BLOCKED** and
+`verify:packaged-licensing` **24 PASS / 0 FAIL / 2 BLOCKED** — the BLOCKEDs are the documented
+external issuer-key gate (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`), reported BLOCKED, never skipped.
+build / typecheck:scripts / verifier-classification / validate:offline / `git diff --check` all
+PASS; `graphify update .` refreshed (14,200 nodes / 29,744 edges). Roadmap tracker repinned to
+**284 total / 282 closed / 2 outstanding** at `awkit-v130` close — **Sources agree** (177/177).
+
+**Task mechanics.** `awkit-v130` ran release → qa (repin `1353f3e`) → project-state terminal
+leases; the bead was created and closed in one session; export refreshed via
+`bd export -o .beads/issues.jsonl`.
+
 ## Two-pane secure sign-in redesign landed on the pre-auth surface (2026-09-12)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

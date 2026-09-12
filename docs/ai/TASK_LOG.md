@@ -14663,3 +14663,34 @@ pm run verify:mock-site
 - **Result:** the pre-auth surface is redesigned with the full verifier fleet green; task-gate
   ok=true; no new defect; remaining external gates unchanged (issuer key, clean-machine
   credentials, awkit-7bu, awkit-cm8).
+
+## 2026-09-12 — awkit-v130: package and validate the 0.1.30 portable release with the awkit-lgn2 login redesign (ZCode, GLM)
+
+- **Task:** generate the next portable exe version (owner request). 0.1.29 → 0.1.30 through
+  `scripts/release-portable.ps1 -BumpType patch` from clean source; the fresh artifacts contain
+  the awkit-lgn2 pre-auth redesign (ancestry 242b800/efef652 proven via merge-base).
+- **Artifacts:** portable `dist/SpecterStudio 0.1.30.exe` — 236,682,744 B, SHA-256
+  `aea0427e6e345793ff9d840aec039c3c216d86d4659631559a7bd5956ecc0a76`, provenance source
+  `71fd140` (treeDirty false); companion installer `dist/SpecterStudio Setup 0.1.30.exe` —
+  263,898,946 B, SHA-256 `91b5e9116167f6b11207be9d6c40893af7c12a888e4f2c3054a3d69f5fa4c337`,
+  provenance source `685a003` (treeDirty false). Hashes/sizes independently re-measured
+  against disk. Installer scope reason: verify:packaged-walkthrough Part A requires the
+  version-matched NSIS artifact (first walkthrough run failed exactly that precondition,
+  34/1/1; after the installer build it returned 35/0/1). All 0.1.29-and-older artifacts STALE.
+- **Packaged verification:** strict offline validation passed in-run inside both packaging
+  chains; packaged-validation 119/119 (freshness window); packaged-runtime 25/25;
+  packaged-walkthrough 35 PASS / 0 FAIL / 1 BLOCKED; packaged-licensing 24 PASS / 0 FAIL /
+  2 BLOCKED — BLOCKEDs are the AWKIT_PACKAGED_LICENSE_ISSUER_KEY external gate, reported
+  BLOCKED, not skipped.
+- **Gates:** build PASS; typecheck:scripts PASS; verifier-classification PASS;
+  validate:offline PASS (development mode); git diff --check clean; graphify updated
+  (14,200 nodes / 29,744 edges); roadmap 177/177 after the 284/282/2 repin — Sources agree.
+- **Files:** package.json + package-lock.json (version 0.1.30, committed 71fd140);
+  resources/dependency-manifest.json + .sig (regenerated twice, committed 685a003 and
+  fdf9624); dist/* (fresh artifacts + provenance + phase5 evidence, local-only);
+  scripts/verify-roadmap-dashboard.mjs (repin 1353f3e);
+  docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md; docs/ai/contracts/{awkit-v130,active-lease}.json;
+  .beads/*; tools/roadmap/assignments.json.
+- **Result:** the redesigned login surface is release-proven from a fresh 0.1.30 package;
+  no packaged defect found; remaining external gates unchanged (issuer key, clean-machine
+  credentials, awkit-7bu, awkit-cm8, clean/offline VM walkthrough).

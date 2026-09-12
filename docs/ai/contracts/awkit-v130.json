@@ -47,18 +47,22 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "package.json",
-        "package-lock.json",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig",
-        "build"
+        "docs/ai/contracts/awkit-v130.json",
+        "docs/ai/contracts/active-lease.json",
+        ".beads/issues.jsonl",
+        ".beads/interactions.jsonl",
+        "tools/roadmap/assignments.json",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
-        "mock-site/**"
+        "mock-site/**",
+        "resources/**"
       ]
     },
     "writer_sequence": [
@@ -75,7 +79,7 @@
     "compatibility": [
       "Do not modify renderer/product source unless the packaged artifact exposes a genuine defect.",
       "The version moves 0.1.29 -> 0.1.30 only through the documented next-release wrapper (scripts/release-portable.ps1 -BumpType patch), which synchronizes package.json + package-lock.json and commits the signed manifest pair itself.",
-      "Portable target only this run; no installer build requested.",
+      "Portable was the requested target; the version-matched companion installer (npm run package:installer) was additionally built because verify:packaged-walkthrough Part A hard-fails without dist/SpecterStudio Setup 0.1.30.exe, so the release gate set could not close otherwise.",
       "The prior 0.1.29 artifacts (portable caee4db6, installer 914ec122) predate the login redesign and remain STALE for proving the new pre-auth surface."
     ],
     "offline": [
@@ -114,63 +118,63 @@
       "type": "inspection",
       "required": true,
       "command": "git merge-base --is-ancestor efef652 HEAD && git merge-base --is-ancestor 242b800 HEAD",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "Prove the awkit-lgn2 renderer commits are ancestors of the 0.1.30 package source before packaging."
+      "note": "242b800 and efef652 proven ancestors of both package sources (portable 71fd140, installer 685a003) via git merge-base --is-ancestor; tree clean; diff --check clean."
     },
     {
       "id": "provenance",
       "type": "packaged",
       "required": true,
       "command": "powershell -ExecutionPolicy Bypass -File scripts/release-portable.ps1 -BumpType patch -Force; inspect dist/release-provenance.json",
-      "result": "pending",
+      "result": "PASS",
       "artifact": "dist/release-provenance.json",
-      "note": "PENDING"
+      "note": "release-portable.ps1 -BumpType patch: portable dist/SpecterStudio 0.1.30.exe 236,682,744 B / SHA-256 aea0427e6e345793ff9d840aec039c3c216d86d4659631559a7bd5956ecc0a76 from clean 71fd140 (treeDirty false); companion installer dist/SpecterStudio Setup 0.1.30.exe 263,898,946 B / 91b5e9116167f6b11207be9d6c40893af7c12a888e4f2c3054a3d69f5fa4c337 from clean 685a003 (treeDirty false); both hashes and sizes independently re-measured against disk and match; manifest pairs committed at 685a003 and fdf9624; strict offline validation passed in-run both times."
     },
     {
       "id": "packaged-validation",
       "type": "packaged",
       "required": true,
       "command": "npm run verify:packaged-validation",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "PENDING"
+      "note": "119/119 inside the freshness window on the 0.1.30 win-unpacked payload."
     },
     {
       "id": "packaged-runtime",
       "type": "packaged",
       "required": true,
       "command": "npm run verify:packaged-runtime && npm run verify:packaged-walkthrough",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "PENDING"
+      "note": "packaged-runtime 25/25 (appMode=packaged, durable store, writable %LOCALAPPDATA% root, clean shutdown); packaged-walkthrough 35 PASS / 0 FAIL / 1 BLOCKED — licensed packaged execution requires AWKIT_PACKAGED_LICENSE_ISSUER_KEY on an authorized machine (external gate, reported BLOCKED, not skipped). First walkthrough run failed only the Part A version-matched-installer precondition (34/1/1), resolved by building the companion installer and re-running."
     },
     {
       "id": "packaged-licensing",
       "type": "packaged",
       "required": false,
       "command": "npm run verify:packaged-licensing",
-      "result": "pending",
+      "result": "BLOCKED",
       "artifact": null,
-      "note": "PENDING"
+      "note": "24 PASS / 0 FAIL / 2 BLOCKED — the two signed-license cases need AWKIT_PACKAGED_LICENSE_ISSUER_KEY on an authorized validation machine. No default key manufactured."
     },
     {
       "id": "gates",
       "type": "build",
       "required": true,
       "command": "npm run build && npm run typecheck:scripts && npm run verify:verifier-classification && npm run verify:roadmap-dashboard && npm run validate:offline && git diff --check",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "PENDING"
+      "note": "build PASS; typecheck:scripts PASS; verify:verifier-classification PASS; validate:offline PASS (development mode); git diff --check clean; verify:roadmap-dashboard 177/177 after the 284/282/2 repin (Sources agree)."
     },
     {
       "id": "beads-roadmap",
       "type": "inspection",
       "required": true,
       "command": "bd close awkit-v130; bd export -o .beads/issues.jsonl; npm run verify:roadmap-dashboard",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "PENDING"
+      "note": "awkit-v130 CLOSED and exported via bd export -o .beads/issues.jsonl: 284 total / 282 closed / 2 outstanding; pins repinned at 1353f3e; verify:roadmap-dashboard 177/177 with Sources agree."
     },
     {
       "id": "push-main",
@@ -192,10 +196,10 @@
     "push_evidence_id": "push-main"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending",
-    "qc_note": null
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "qc_note": "Independent re-derivation from recorded, re-runnable measurements: the in-run strict passes of both packaging runs, provenance hashes re-measured against disk (portable aea0427e / 236,682,744 B from clean 71fd140; installer 91b5e911 / 263,898,946 B from clean 685a003), packaged-validation 119/119 in the freshness window, packaged-runtime 25/25, walkthrough 35/0/1 and licensing 24/0/2 with BLOCKED-not-skipped external-gate records, and the 177/177 roadmap verification after the measured 284/282/2 repin together prove every acceptance criterion. The only scope adjustment (companion installer build) is recorded in constraints with its gate-driven reason. No overrides, no protected-path writes, no dependency changes."
   },
   "write_lease": {
     "history": [
@@ -238,6 +242,42 @@
         "acquired_at_commit": "b42e2f97aa56144bdefced6e55ddb4a7fb6e174f",
         "released_at": "2026-09-12T15:38:37.998Z",
         "released_reason": "Re-routing: the release-phase writer update and lease state must be committed before the clean-tree packaging run",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-v130:release:2026-09-12T15:38:52.947Z",
+        "task": "awkit-v130",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "package-lock.json",
+          "package.json",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-12T15:38:52.947Z",
+        "acquired_at_commit": "6bd516cfa2eebc6d03ead38828f54444bcc0b2d0",
+        "released_at": "2026-09-12T15:58:28.166Z",
+        "released_reason": "Release phase complete: portable aea0427e (236,682,744 B) from clean 71fd140 and installer 91b5e911 (263,898,946 B) from clean 685a003, strict validation passed in-run both times, packaged-validation 119/119 in freshness window, packaged-runtime 25/25, walkthrough 35/0/1 BLOCKED (external issuer key), packaged-licensing 24/0/2 BLOCKED (same gate), build/typecheck:scripts/classification/validate:offline PASS, graphify refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-v130:qa:2026-09-12T15:58:56.574Z",
+        "task": "awkit-v130",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-12T15:58:56.574Z",
+        "acquired_at_commit": "fdf9624cb41475f5d9a4acc73aab922aff879bb4",
+        "released_at": "2026-09-12T15:59:24.004Z",
+        "released_reason": "Roadmap pins repinned to 284 total / 2 outstanding / 282 closed; 177/177 Sources agree",
         "amendments": [],
         "overrides": [],
         "violations": []

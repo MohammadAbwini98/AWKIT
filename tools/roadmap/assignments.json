@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-v130",
-      "agent": "Packaging / Offline / Release Engineer",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-12T15:38:52.947Z",
-      "note": "write lease: build, package-lock.json, package.json, resources/dependency-manifest.json, resources/dependency-manifest.sig"
+      "claimedAt": "2026-09-12T15:59:49.510Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-v130.json, tools/roadmap/assignments.json"
     }
   ]
 }

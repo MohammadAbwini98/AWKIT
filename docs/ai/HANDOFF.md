@@ -1,5 +1,30 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-12, latest) — `awkit-v130`: fresh 0.1.30 portable + installer prove the redesigned login at release level
+
+- **What changed:** version 0.1.29 → 0.1.30 via the documented next-release wrapper; no product
+  source changed. The fresh artifacts contain the `awkit-lgn2` two-pane login redesign
+  (ancestry `242b800..efef652` proven against both package sources).
+- **Fresh artifacts (validate ONLY these):** portable `dist/SpecterStudio 0.1.30.exe` —
+  236,682,744 B, SHA-256 `aea0427e…c0a76`, provenance source
+  `71fd140` treeDirty false; installer `dist/SpecterStudio Setup 0.1.30.exe` — 263,898,946 B,
+  SHA-256 `91b5e911…c337`, provenance source `685a003` treeDirty false. Sizes/hashes
+  re-measured against disk. **Every earlier artifact is STALE**, including the entire 0.1.29
+  pair (portable `caee4db6…`, installer `914ec122…`) which predates the redesign.
+- **Packaged gates:** packaged-validation **119/119** in the freshness window; packaged-runtime
+  **25/25**; packaged-walkthrough **35 PASS / 0 FAIL / 1 BLOCKED** (issuer key);
+  packaged-licensing **24 PASS / 0 FAIL / 2 BLOCKED** (issuer key). BLOCKED = documented
+  external gate, never skipped. Manifest policy note unchanged: the committed manifest pins
+  `sourceCommit 685a003`; at later HEADs the `-Strict` HEAD-equality clause fails by design.
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **Contracts/lease:** `awkit-v130` ran release → qa (repin `1353f3e`) → project-state
+  (terminal) leases; bead created and closed in one session; export refreshed
+  (`bd export -o .beads/issues.jsonl`); roadmap **284 total / 282 closed / 2 outstanding** —
+  **Sources agree** (177/177).
+- **Unchanged external gates:** packaged licensing issuer key (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`),
+  clean-machine credentials, `awkit-7bu`, `awkit-cm8`, and the clean/offline VM walkthrough
+  (separate human gate).
+
 ## HANDOFF (2026-09-12, latest) — `awkit-lgn2`: two-pane secure sign-in redesign complete
 
 - **What changed:** the pre-auth surface (`app/renderer/security/**`) is now a two-pane shell
