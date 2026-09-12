@@ -47,22 +47,18 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "release",
       "allowed_paths": [
-        "docs/ai/contracts/awkit-v130.json",
-        "docs/ai/contracts/active-lease.json",
-        ".beads/issues.jsonl",
-        ".beads/interactions.jsonl",
-        "tools/roadmap/assignments.json",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/TASK_LOG.md"
+        "package.json",
+        "package-lock.json",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig",
+        "build"
       ],
       "forbidden_paths": [
         "app/**",
         "src/**",
-        "mock-site/**",
-        "scripts/**"
+        "mock-site/**"
       ]
     },
     "writer_sequence": [
@@ -202,6 +198,50 @@
     "qc_note": null
   },
   "write_lease": {
-    "history": []
+    "history": [
+      {
+        "id": "awkit-v130:project-state:2026-09-12T15:36:08.153Z",
+        "task": "awkit-v130",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-v130.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-12T15:36:08.153Z",
+        "acquired_at_commit": "a1ceef93b7093259875919ed2969b74403e3c3f5",
+        "released_at": "2026-09-12T15:37:23.667Z",
+        "released_reason": "Re-routing: version bump and packaging require the release writer over package.json/package-lock.json and the regenerated dependency manifest",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-v130:release:2026-09-12T15:38:14.782Z",
+        "task": "awkit-v130",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "package-lock.json",
+          "package.json",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-12T15:38:14.782Z",
+        "acquired_at_commit": "b42e2f97aa56144bdefced6e55ddb4a7fb6e174f",
+        "released_at": "2026-09-12T15:38:37.998Z",
+        "released_reason": "Re-routing: the release-phase writer update and lease state must be committed before the clean-tree packaging run",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

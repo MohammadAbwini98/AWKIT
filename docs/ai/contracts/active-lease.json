@@ -1,25 +1,26 @@
 {
   "task": "awkit-v130",
   "contract_path": "docs/ai/contracts/awkit-v130.json",
-  "holder": "project-state",
-  "status": "active",
+  "holder": "release",
+  "status": "released",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
+    "build",
+    "package-lock.json",
+    "package.json",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
+  ],
+  "acquired_at": "2026-09-12T15:38:14.782Z",
+  "acquired_at_commit": "b42e2f97aa56144bdefced6e55ddb4a7fb6e174f",
+  "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-v130.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-12T15:36:08.153Z",
-  "acquired_at_commit": "a1ceef93b7093259875919ed2969b74403e3c3f5",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-v130.json"
-  ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-v130.json": "7dcddc3a7505394aa6d220a7227323d7cdb54acac267dbf677605955d36594d8"
+    "docs/ai/contracts/active-lease.json": "583e41594779681163b3b298172fc6f431e29d296499233e9ad25bf931a13ee9",
+    "docs/ai/contracts/awkit-v130.json": "5ad0c3a5c79c1dd0d0086ebc8295e633f5010ac296467fe2426019f90f174537",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -33,5 +34,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-12T15:38:37.998Z",
+  "released_reason": "Re-routing: the release-phase writer update and lease state must be committed before the clean-tree packaging run",
+  "archived_at": "2026-09-12T15:38:38.000Z"
 }
