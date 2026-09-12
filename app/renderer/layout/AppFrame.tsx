@@ -1,7 +1,9 @@
-import { Workflow } from "lucide-react";
+import { useContext } from "react";
 import { WindowControls } from "./WindowControls";
 import { useSession } from "../security/SessionContext";
 import { AccountMenu } from "../components/shared/AccountMenu";
+import { AwkitDarkBrandMark, AwkitLightBrandMark } from "../assets/brand/AwkitBrandMarks";
+import { ThemeContext } from "../state/theme";
 
 import type { PrincipalSnapshot } from "@src/security/auth/AuthTypes";
 
@@ -25,12 +27,14 @@ export function AppFrame({ areaLabel }: AppFrameProps) {
   const toggleMaximize = () => void window.playwrightFlowStudio.appWindow.toggleMaximize().catch(() => undefined);
   // Present only inside the authenticated app (SessionContext provider); the pre-auth LockedShell has none.
   const session = useSession();
+  const theme = useContext(ThemeContext);
+  const resolvedTheme = theme?.resolvedTheme ?? (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 
   return (
     <header className="app-frame" onDoubleClick={toggleMaximize}>
       <div className="app-frame-identity">
         <span className="app-frame-mark" aria-hidden="true">
-          <Workflow size={14} strokeWidth={2.4} />
+          {resolvedTheme === "dark" ? <AwkitDarkBrandMark size={16} /> : <AwkitLightBrandMark size={16} />}
         </span>
         <span className="app-frame-wordmark">SpecterStudio</span>
       </div>
