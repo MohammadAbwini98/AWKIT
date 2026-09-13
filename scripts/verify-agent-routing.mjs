@@ -2042,7 +2042,7 @@ try {
       !violationResult.ok && /task gate|unresolved/i.test(String(violationResult.error?.message)),
       violationResult.error?.message
     );
-    const finalCommand = `npm run agent:lease-finalize -- --task ${happy.task} --lease-id ${leaseIdOf(happy.lease)} --reason terminal closeout`;
+    const finalCommand = `node tools/agents/lease-cli.mjs finalize --task ${happy.task} --lease-id ${leaseIdOf(happy.lease)} --reason terminal closeout`;
     const handoffCommand = "node tools/agents/lease-cli.mjs handoff --holder qa --paths scripts/verify-agent-routing.mjs --reason QA verification";
     check(
       "the final-release command is exact while ordinary no-lease add, commit and push remain blocked",
