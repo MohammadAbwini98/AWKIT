@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-design-extract",
+    "title": "Extract all system pages and UI components for the new design system",
+    "objective": "Produce a complete, structured extraction of every renderer page (route/screen), every exported UI component, the current Hologram design-token vocabulary and the non-negotiable constraints, so an external design pass (Claude Design) can map a new UI design system onto the existing class hooks and tokens without guessing at the surface area. Documentation only: no renderer, CSS, main-process or runtime code is modified.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/design-system-extraction/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-design-extract.json",
+      "docs/ai/contracts/active-lease.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "expected_paths_note": "The last two are SYSTEM_BOOKKEEPING_PATHS (tools/agents/lease.mjs): grantLease writes the lease file and mirrors the holder into assignments.json. They are tool-written byproducts of taking the lease, not hand-edited progress numbers, and they stay out of writer.allowed_paths so the writer still cannot touch them directly.",
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/design-system-extraction/**",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/TASK_LOG.md"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "tools/roadmap/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "constraints": {
+    "architecture": [
+      "Documentation only. No renderer, main-process, preload, runner or CSS source file is edited by this task.",
+      "The extraction records the CURRENT surface; it does not propose or apply a redesign."
+    ],
+    "security": [
+      "No secrets, credentials, tokens, machine identifiers or license material are copied into the extraction.",
+      "Protected-login handoff behaviour is described only as an existing UI contract, never as an automation recipe."
+    ],
+    "compatibility": [
+      "Class hooks, token names and the window.playwrightFlowStudio preload identifier are recorded verbatim so a redesign can target them without renaming."
+    ],
+    "offline": [
+      "The extraction documents the offline-first constraints (no CDN fonts, no remote assets, no runtime network) that any new design system must respect."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "acc-pages",
+      "description": "Every renderer route in app/renderer/routes.tsx is present in the extraction with its id, label, description, icon, navigation group, permission gate, layout family and root CSS class; non-route surfaces (login/security screens, modals, Settings sub-panels) are recorded separately.",
+      "evidence_required": [
+        "ev-inspection"
+      ]
+    },
+    {
+      "id": "acc-components",
+      "description": "Every exported UI component under app/renderer/components/**, app/renderer/layout/**, app/renderer/security/**, app/renderer/semantic/** and app/renderer/pages/admin/components/** is present with its source path, exported name, props and CSS class hooks.",
+      "evidence_required": [
+        "ev-inspection"
+      ]
+    },
+    {
+      "id": "acc-tokens",
+      "description": "The design-token contract is recorded: primitives, light theme, dark theme, connector and gradient-accent tokens from app/renderer/styles/global.css, plus the runtime accent override contract in src/theme/accentColor.ts.",
+      "evidence_required": [
+        "ev-inspection"
+      ]
+    },
+    {
+      "id": "acc-constraints",
+      "description": "The hard constraints a redesign must respect (token-only styling, no parallel class systems, offline asset rules, preload identifier, shell grid permission rule, accessibility and reduced-motion requirements) are stated explicitly in the extraction index.",
+      "evidence_required": [
+        "ev-inspection"
+      ]
+    },
+    {
+      "id": "acc-no-source-change",
+      "description": "git status shows no modification to any file outside the writer's allowed paths; no application source or stylesheet is touched.",
+      "evidence_required": [
+        "ev-inspection"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-inspection",
+      "type": "inspection",
+      "command": null,
+      "required": true,
+      "result": "PASS",
+      "artifact": "docs/design-system-extraction/README.md",
+      "notes": "Six documents written and cross-checked against source at 28fb9fb: README.md (index, 12 hard constraints, source map), 01-app-shell.md (shell DOM, height budget, AppFrame/WindowControls/LeftNavigation/TopHeader/StatusBar/DesignerCanvasLayout/AppShell, theming pipeline), 02-design-tokens.md (~226 --awkit-* tokens, light/dark/connector/gradient-accent, accentColor.ts override contract, stylesheet region map), 03-pages.md (all 33 routes across seven layout families plus non-route surfaces), 04-components.md (98 exported components across 14 directories with paths, props and class hooks), 05-patterns.md (seven state patterns, motion spine, accessibility contracts, icon system, density constants, redesign checklist). Every fact was read from source; no application source or stylesheet was modified."
+    },
+    {
+      "id": "ev-build",
+      "type": "build",
+      "command": "npm run build",
+      "required": false,
+      "result": "NOT APPLICABLE",
+      "artifact": null
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED",
+    "qa_note": "risk_level 0 routed no qa reviewer and no qc reviewer, so no separate QA agent ran. The PASS records the verification that was actually performed: ev-inspection, a source-verified read of all six documents against app/renderer at 28fb9fb. There is no build, runner or GUI evidence for this task because it changes no executable code."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-design-extract:project-state:2026-09-12T23:07:32.301Z",
+        "task": "awkit-design-extract",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/design-system-extraction/**"
+        ],
+        "acquired_at": "2026-09-12T23:07:32.301Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-13T03:43:34.411Z",
+        "released_reason": "awkit-design-extract complete: six-document renderer extraction written, contract task-gate green, CURRENT_STATE and TASK_LOG updated, committed as d6ee17b. Push to claude/peaceful-mendel-tyduoj blocked by the lease guard, which whitelists only git push origin main.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
