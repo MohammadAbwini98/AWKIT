@@ -191,7 +191,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED"
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "6de2d916e8424252e080f56fa526fcd8be10f7da"
   },
   "write_lease": {
     "history": [
@@ -636,6 +637,35 @@
         "acquired_at_commit": "11661902e68f530600e28194f7355e08d2c5e9fc",
         "released_at": "2026-09-13T22:39:17.790Z",
         "released_reason": "handoff to project-state: Project State corrects finalizer documentation and uses the terminal closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:project-state:2026-09-13T22:39:17.854Z",
+        "task": "awkit-yl33",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/README.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "docs/ai/contracts/awkit-yl33.json",
+          "docs/ai/routing/ROUTING_RULES.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T22:39:17.854Z",
+        "acquired_at_commit": "202c38bf156c50584fb0cce03877283dfc9b2765",
+        "released_at": "2026-09-13T22:40:33.109Z",
+        "released_reason": "atomic terminal closeout and awkit-icon2 residue absorption",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -2,7 +2,7 @@
   "task": "awkit-yl33",
   "contract_path": "docs/ai/contracts/awkit-yl33.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -43,5 +43,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-13T22:40:33.109Z",
+  "released_reason": "atomic terminal closeout and awkit-icon2 residue absorption",
+  "archived_at": "2026-09-13T22:40:33.112Z"
 }
