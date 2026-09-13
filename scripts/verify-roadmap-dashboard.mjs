@@ -554,8 +554,12 @@ try {
   // agent role run `npm run icon:generate`, so regenerating resources/icon.* waits on the owner.
   // Total rises 284 -> 285 and outstanding 2 -> 3 while closed stays 282. No new edge, so the edge
   // pin stays 108; the declared-blocked pin below moves 2 -> 3 in step.
-    "3 outstanding / 282 closed",
-    beads.stats.outstanding === 3 && beads.stats.closed === 282,
+  // Then 2/283 of 285 on 2026-09-13: `awkit-icon2` closed once the owner ran `npm run icon:generate`
+  // after e52e851, verify:app-icon read 29/29 on the committed icons (ed90b56), the independent QC
+  // review approved it and 28fb9fb..78f6feb was pushed. Total stays 285, closed rises 282 -> 283 and
+  // outstanding falls 3 -> 2; the declared-blocked pin below moves 3 -> 2 in step.
+    "2 outstanding / 283 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 283,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -813,10 +817,12 @@ try {
   // Then 3 on 2026-09-13: `awkit-icon2` joined them - regenerating resources/icon.* needs the owner,
   // because the lease guard lets no agent role run `npm run icon:generate`. No `blocks` edge can
   // express an owner-run command, so it is declared, like `awkit-hgol` was.
+  // Then 2 later on 2026-09-13: the owner ran it, `awkit-icon2` closed on verify:app-icon 29/29, and
+  // the real Oracle items `awkit-7bu` and `awkit-cm8` are again the only declared-blocked issues.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 3 &&
-      order.externallyBlocked.length === 3 &&
+    order.stats.declaredBlocked === 2 &&
+      order.externallyBlocked.length === 2 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

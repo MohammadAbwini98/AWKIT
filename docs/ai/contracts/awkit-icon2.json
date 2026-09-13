@@ -60,19 +60,9 @@
       "uiux"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "qa",
       "allowed_paths": [
-        ".beads/interactions.jsonl",
-        ".beads/issues.jsonl",
-        "docs/ai/COMMANDS.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/ai/contracts/active-lease.json",
-        "docs/ai/contracts/awkit-icon2.json",
-        "scripts/lib/verifier-classification.ts",
-        "tools/roadmap/assignments.json"
+        "scripts/verify-roadmap-dashboard.mjs"
       ],
       "forbidden_paths": [
         "src/**",
@@ -516,6 +506,32 @@
         "acquired_at_commit": "411a4e6ee462b10023e03e02755c5b9a247a5388",
         "released_at": "2026-09-13T17:43:51.833Z",
         "released_reason": "Owner-regenerated icons committed ed90b56 under the release lease, verify:app-icon 29 of 29, project-state records evidence and closes the bead next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-13T17:46:12.834Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T17:46:12.834Z",
+        "acquired_at_commit": "ed90b569ab0e013ee80da1dee51bcaca940aa056",
+        "released_at": "2026-09-13T18:46:41.221Z",
+        "released_reason": "awkit-icon2 bead closed and exported, push-main PASS recorded, committed bba5af5, qa repins the roadmap tracker to 285 total with 283 closed next",
         "amendments": [],
         "overrides": [],
         "violations": []
