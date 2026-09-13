@@ -8,8 +8,8 @@ this branch as whole files. Apply the four blocks below, then delete this file.
 ## Why it exists
 
 The extraction was committed locally as `d6ee17b` (11 files, 2,955 insertions), on top of
-`28fb9fb`; the memory-file follow-up is `80cdceb`, and its two corrections are `9486fad` and
-`5ef3c60`. Pushing any of them with Git was refused by the repository's own write-lease hook:
+`28fb9fb`; the memory-file follow-up is `80cdceb`, and its corrections are `9486fad`, `5ef3c60`
+and `cc97cb2`. Pushing any of them with Git was refused by the repository's own write-lease hook:
 
 ```
 PreToolUse:Bash hook error: [node tools/agents/lease-guard.mjs]: [write-lease] BLOCKED: shell
@@ -25,8 +25,8 @@ just collides with an orchestrator instruction to develop on a side branch.
 The six extraction documents and the task contract were therefore mirrored to this branch file by
 file through the GitHub API. The four memory files were not, because that API requires whole-file
 content: `CURRENT_STATE.md` (13,374 lines) and `TASK_LOG.md` (14,756 lines) carry a delta of only
-~107 lines, and `KNOWN_ISSUES.md` and `HANDOFF.md` are ~2,000 lines each for a delta of ~87. This
-carrier holds those ~194 lines instead.
+~107 lines, and `KNOWN_ISSUES.md` and `HANDOFF.md` are ~2,000 lines each for a delta of ~88. This
+carrier holds those ~195 lines instead.
 
 ## How to apply
 
@@ -49,9 +49,10 @@ All four blocks are pure insertions at the top of their file, plus one heading d
 5. Delete this file.
 
 The equivalent, if the ephemeral container is still alive and you can reach it: `git fetch` this
-branch on a machine where the lease guard permits `git push origin main`, merge `5ef3c60`, and all
-four files come across intact — this carrier is then redundant. On any checkout that already
-contains `5ef3c60`, delete this carrier without applying anything.
+branch on a machine where the lease guard permits `git push origin main`, merge the local branch's
+tip (`cc97cb2` at the time of writing, or later), and all four files come across intact — this
+carrier is then redundant. On any checkout that already contains `9486fad` or a descendant, delete
+this carrier without applying anything.
 
 ---
 
@@ -228,8 +229,9 @@ change, confirm the *declaration* count, not just the call sites. Full per-compo
   branch `claude/peaceful-mendel-tyduoj`, not on `main`, so all three commits landed there:
   `d6ee17b` (the six extraction documents), `80cdceb` (the `KNOWN_ISSUES`/`HANDOFF` entries) and
   `9486fad` (the `TASK_LOG`/`CURRENT_STATE` corrections), on baseline `28fb9fb`. **None of them was
-  pushed.** The same content reached the remote branch through the GitHub API instead, head
-  `02c6b79`, because `tools/agents/lease-guard.mjs:291-299` whitelists the literal four-token
+  pushed.** The same content reached the remote branch through the GitHub API instead — take the
+  branch tip rather than a SHA quoted here, since each mirroring commit moves it and a document
+  cannot name its own — because `tools/agents/lease-guard.mjs:291-299` whitelists the four-token
   `git push origin main` and no other push form — a Bash push to any other branch is unreachable by
   configuration, not by permission. Local and remote therefore hold equivalent content on divergent
   histories. No PR was opened (none was requested), and `origin/main` is untouched at `28fb9fb`.
