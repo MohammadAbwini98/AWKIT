@@ -1,35 +1,24 @@
 {
-  "task": "awkit-yl33",
-  "contract_path": "docs/ai/contracts/awkit-yl33.json",
+  "task": "awkit-xphx",
+  "contract_path": "docs/ai/contracts/awkit-xphx.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/DECISIONS.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/README.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-icon2.json",
-    "docs/ai/contracts/awkit-yl33.json",
-    "docs/ai/routing/ROUTING_RULES.md",
+    "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-13T22:39:17.854Z",
-  "acquired_at_commit": "202c38bf156c50584fb0cce03877283dfc9b2765",
+  "acquired_at": "2026-09-13T23:55:57.426Z",
+  "acquired_at_commit": "be8da8b65435458a921142e7ce72ec3ed5deb88c",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-yl33.json",
-    "tools/roadmap/assignments.json"
+    ".beads/issues.jsonl",
+    "docs/ai/contracts/awkit-xphx.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "27814b01041bcfcdcef9e1ccefcbf14d06da231c60d11a6de2afdd54b34c218f",
-    "docs/ai/contracts/awkit-yl33.json": "a75cfda3b2cd59e8dc56657e55c3e4f93787fc3147b93a0e22f703b2043a84f7",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    ".beads/issues.jsonl": "79f1009a3393b0f0548130f3744ea61046b422280f8d764c0ab148aa39325781",
+    "docs/ai/contracts/awkit-xphx.json": "fca7bacb1b75be6b696f3ba3b5736c9835a2979689ba43a493e8c534c368a20f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -39,12 +28,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789228204265.35"
+    "build": "dir(1):native-hosts:1789341648414.5344"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-13T22:40:33.109Z",
-  "released_reason": "atomic terminal closeout and awkit-icon2 residue absorption",
-  "archived_at": "2026-09-13T22:40:33.112Z"
+  "violations": []
 }

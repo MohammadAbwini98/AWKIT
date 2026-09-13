@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-xphx",
+    "title": "Align login motion, blue application accent, dark-mode text, and shared app icon",
+    "objective": "Restore the approved Login reference's decorative workflow-preview cycle without changing authentication behavior; make #1D4ED8 the default application accent; keep dark-mode labels and static text white for clarity; and regenerate the shipped app icon from the same blue-accent source. The existing no-lease boundary remains fail-closed: only the release holder may invoke the already-present icon generator, and only through an exact command grammar.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "be8da8b65435458a921142e7ce72ec3ed5deb88c",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "general_engineering_change": true,
+    "packaging_change": true,
+    "offline_boundary_change": true,
+    "project_state_change": true,
+    "agent_infrastructure_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "app/renderer/assets/brand/awkit-app-icon.svg",
+      "app/renderer/security/LockedShell.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-xphx.json",
+      "resources/icon-source.png",
+      "resources/icon.ico",
+      "resources/icon.png",
+      "scripts/verify-accent-gui.mjs",
+      "scripts/verify-accent-theme.mts",
+      "scripts/verify-agent-routing.mjs",
+      "scripts/verify-app-icon.mjs",
+      "scripts/verify-auth-gui.mjs",
+      "src/theme/accentColor.ts",
+      "tools/agents/lease-guard.mjs",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "architect",
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-xphx.json",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "resources/**",
+        "scripts/**",
+        "src/**",
+        "tools/agents/**"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "software",
+      "qa",
+      "release",
+      "project-state",
+      "manager"
+    ]
+  },
+  "constraints": {
+    "authentication": [
+      "The SecurityGate state machine, authentication calls, provider behavior, DOM hooks, and pre-auth isolation remain unchanged.",
+      "The workflow preview remains aria-hidden decorative sample data and is never presented as telemetry."
+    ],
+    "accessibility": [
+      "The preview is motionless when prefers-reduced-motion is enabled.",
+      "Dark-mode labels and static text resolve to white neutral text tokens without using color as the only state cue."
+    ],
+    "offline": [
+      "Icon generation uses the existing local sharp pipeline, adds no dependency, font, network request, or runtime write target."
+    ],
+    "security": [
+      "The icon generator command remains rejected for every non-release holder and every non-exact command; it is not a general no-lease or Git bypass."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "LOGIN-PREVIEW-MOTION",
+      "description": "The pre-auth decorative workflow preview advances through its fixed sample steps and returns to the beginning under normal motion, while prefers-reduced-motion leaves the preview stable. Authentication behavior and the existing login DOM contract are unchanged.",
+      "evidence_required": [
+        "build",
+        "verify:auth",
+        "verify:auth-gui"
+      ]
+    },
+    {
+      "id": "BLUE-BRAND-PARITY",
+      "description": "#1D4ED8 is the canonical default accent in both renderer themes and the baked app-icon source and all generated icon assets carry that same blue accent; user-selected accent overrides remain functional.",
+      "evidence_required": [
+        "verify:accent-theme",
+        "verify:accent-gui",
+        "verify:app-icon",
+        "validate:offline"
+      ]
+    },
+    {
+      "id": "DARK-TEXT-LEGIBILITY",
+      "description": "Dark-mode neutral label and static-text tokens resolve to white, retaining clear text visibility without weakening focus, disabled, status, or error semantics.",
+      "evidence_required": [
+        "verify:design-tokens",
+        "verify:auth-gui"
+      ]
+    },
+    {
+      "id": "ICON-GENERATION-BOUNDARY",
+      "description": "Only an active release lease can invoke the exact npm run icon:generate command; malformed variants and every other role remain denied, and the guard regression proves that no generic shell or Git permission is introduced.",
+      "evidence_required": [
+        "verify:agent-routing",
+        "verify:app-icon"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The Bead, contract, AI memory, assignments, and derived roadmap sources agree; required verification is recorded before the exact terminal closeout commits and pushes only the permitted terminal bookkeeping.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "ai-memory-check",
+        "git-diff-check",
+        "push-main"
+      ]
+    }
+  ],
+  "evidence": [
+    { "id": "build", "type": "build", "required": true, "command": "npm run build", "result": "pending" },
+    { "id": "verify:auth", "type": "verifier", "required": true, "command": "npm run verify:auth", "result": "pending" },
+    { "id": "verify:auth-gui", "type": "gui", "required": true, "command": "npm run verify:auth-gui", "result": "pending" },
+    { "id": "verify:accent-theme", "type": "verifier", "required": true, "command": "npm run verify:accent-theme", "result": "pending" },
+    { "id": "verify:accent-gui", "type": "gui", "required": true, "command": "npm run verify:accent-gui", "result": "pending" },
+    { "id": "verify:app-icon", "type": "verifier", "required": true, "command": "npm run verify:app-icon", "result": "pending" },
+    { "id": "verify:design-tokens", "type": "verifier", "required": true, "command": "npm run verify:design-tokens", "result": "pending" },
+    { "id": "verify:source-hygiene", "type": "verifier", "required": true, "command": "npm run verify:source-hygiene", "result": "pending" },
+    { "id": "verify:agent-routing", "type": "verifier", "required": true, "command": "npm run verify:agent-routing", "result": "pending" },
+    { "id": "typecheck:scripts", "type": "verifier", "required": true, "command": "npm run typecheck:scripts", "result": "pending" },
+    { "id": "validate:offline", "type": "verifier", "required": true, "command": "npm run validate:offline -- -Strict", "result": "pending" },
+    { "id": "verify:verifier-classification", "type": "verifier", "required": true, "command": "npm run verify:verifier-classification", "result": "pending" },
+    { "id": "verify:roadmap-dashboard", "type": "verifier", "required": true, "command": "npm run verify:roadmap-dashboard", "result": "pending" },
+    { "id": "ai-memory-check", "type": "verifier", "required": true, "command": "node scripts/ai-memory/check-memory.mjs", "result": "pending" },
+    { "id": "git-diff-check", "type": "verifier", "required": true, "command": "git diff --check", "result": "pending" },
+    { "id": "push-main", "type": "verifier", "required": true, "command": "git push origin main", "result": "pending" }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main",
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [],
+    "overrides": []
+  }
+}
