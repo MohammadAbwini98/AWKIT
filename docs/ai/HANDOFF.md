@@ -7,6 +7,8 @@
   (`verify:app-icon`) and the project-state bookkeeping commits. The lease guard refuses
   `git push origin main` while the task gate is open on `icon-render` (BLOCKED), `OS-ICON`, QA
   (BLOCKED) and QC (pending); `origin/main` stays at `28fb9fb`.
+- **Contract is Risk 3:** the generator and `resources/**` imply `offline_boundary_change`, so the
+  contract now declares it with `risk_level` 3; the task gate reports no scope escape.
 - **Why the earlier owner-run generation changed nothing:** `icon:generate` defaulted to the
   committed `resources/icon-source.png` and rebuilt the old 1c icons byte for byte with exit 0.
   `e52e851` makes it render `app/renderer/assets/brand/awkit-app-icon.svg` and rewrite

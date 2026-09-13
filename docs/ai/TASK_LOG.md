@@ -14756,8 +14756,16 @@ pm run verify:mock-site
 - **Files:** scripts/{generate-app-icon.mjs,verify-app-icon.mjs}; scripts/lib/verifier-classification.ts;
   package.json; docs/ai/{COMMANDS,CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md;
   docs/ai/contracts/{awkit-icon2,active-lease}.json; .beads/*; tools/roadmap/assignments.json.
+- **Contract correction:** the task gate also reported an unresolved derived scope escape —
+  `scripts/generate-app-icon.mjs` and `resources/**` imply `offline_boundary_change`, which the
+  contract omitted. The contract now declares it, and `task.risk_level` moves 2 → 3 (a Risk-3 flag;
+  validate-contract forbids understating risk). Routing is unchanged (release already activated);
+  the gate's scope escapes are now empty.
+- **Re-attempts (project-state lease):** `npm run icon:generate`, `git push origin main` and
+  `git rev-list --left-right --count origin/main...main` were each refused with
+  `[write-lease] BLOCKED: shell command is outside the active project-state lease or the actor's role.`
 - **Git:** committed on local `main`; the push is refused by the task gate (`icon-render` BLOCKED,
-  `OS-ICON`, QA, QC open), `origin/main` stays at `28fb9fb`. The 4-token commit form cannot carry a
-  Co-Authored-By trailer.
+  `OS-ICON`, `CLOSEOUT`, QA, QC open), `origin/main` stays at `28fb9fb`. The 4-token commit form
+  cannot carry a Co-Authored-By trailer.
 - **Result:** root cause fixed and a gate now proves or disproves regeneration; OS icon still 1c
   until the owner runs `npm run icon:generate`; not pushed; self-QC only; no ledger case moved.
