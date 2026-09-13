@@ -27,6 +27,8 @@
       "docs/design-system-extraction/**",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/HANDOFF.md",
       "docs/ai/contracts/awkit-design-extract.json",
       "docs/ai/contracts/active-lease.json",
       "tools/roadmap/assignments.json"
@@ -38,7 +40,9 @@
       "allowed_paths": [
         "docs/design-system-extraction/**",
         "docs/ai/CURRENT_STATE.md",
-        "docs/ai/TASK_LOG.md"
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/HANDOFF.md"
       ],
       "forbidden_paths": [
         "app/**",
@@ -149,6 +153,37 @@
         "released_at": "2026-09-13T03:43:34.411Z",
         "released_reason": "awkit-design-extract complete: six-document renderer extraction written, contract task-gate green, CURRENT_STATE and TASK_LOG updated, committed as d6ee17b. Push to claude/peaceful-mendel-tyduoj blocked by the lease guard, which whitelists only git push origin main.",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-design-extract:project-state:2026-09-13T07:12:26.015Z",
+        "task": "awkit-design-extract",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/design-system-extraction/**"
+        ],
+        "acquired_at": "2026-09-13T07:12:26.015Z",
+        "acquired_at_commit": "d6ee17bb10f69177233fd45dcd40ca838e5c0eed",
+        "released_at": "2026-09-13T07:33:05.630Z",
+        "released_reason": "awkit-design-extract memory pass complete: KNOWN_ISSUES and HANDOFF written, TASK_LOG and CURRENT_STATE corrected, contract writer scope amended to match the granted lease, task gate green at aa168a5",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T07:12:37.316Z",
+            "added": [
+              "docs/ai/KNOWN_ISSUES.md",
+              "docs/ai/HANDOFF.md"
+            ],
+            "reason": "record the two extraction divergences and the design-pass handoff",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }
