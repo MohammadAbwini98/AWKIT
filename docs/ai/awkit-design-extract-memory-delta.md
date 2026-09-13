@@ -8,8 +8,8 @@ this branch as whole files. Apply the four blocks below, then delete this file.
 ## Why it exists
 
 The extraction was committed locally as `d6ee17b` (11 files, 2,955 insertions), on top of
-`28fb9fb`; the memory-file follow-up is `80cdceb`. Pushing either commit with Git was refused by
-the repository's own write-lease hook:
+`28fb9fb`; the memory-file follow-up is `80cdceb`, and its two corrections are `9486fad` and
+`5ef3c60`. Pushing any of them with Git was refused by the repository's own write-lease hook:
 
 ```
 PreToolUse:Bash hook error: [node tools/agents/lease-guard.mjs]: [write-lease] BLOCKED: shell
@@ -25,8 +25,8 @@ just collides with an orchestrator instruction to develop on a side branch.
 The six extraction documents and the task contract were therefore mirrored to this branch file by
 file through the GitHub API. The four memory files were not, because that API requires whole-file
 content: `CURRENT_STATE.md` (13,374 lines) and `TASK_LOG.md` (14,756 lines) carry a delta of only
-~107 lines, and `KNOWN_ISSUES.md` and `HANDOFF.md` are ~2,000 lines each for a delta of 82. This
-carrier holds those ~190 lines instead.
+~107 lines, and `KNOWN_ISSUES.md` and `HANDOFF.md` are ~2,000 lines each for a delta of ~87. This
+carrier holds those ~194 lines instead.
 
 ## How to apply
 
@@ -49,9 +49,9 @@ All four blocks are pure insertions at the top of their file, plus one heading d
 5. Delete this file.
 
 The equivalent, if the ephemeral container is still alive and you can reach it: `git fetch` this
-branch on a machine where the lease guard permits `git push origin main`, merge `80cdceb`, and all
+branch on a machine where the lease guard permits `git push origin main`, merge `5ef3c60`, and all
 four files come across intact — this carrier is then redundant. On any checkout that already
-contains `80cdceb`, delete this carrier without applying anything.
+contains `5ef3c60`, delete this carrier without applying anything.
 
 ---
 
@@ -224,18 +224,23 @@ change, confirm the *declaration* count, not just the call sites. Full per-compo
 - **The redesign itself is NOT done and is not this task.** The request was to extract the surface
   *so that* Claude Design can apply the new design system to it. The next agent should not read these
   six documents as a plan — they are the input to one.
-- **Where the work lives — read this before pushing.** Committed locally to `main` as `d6ee17b`
-  (baseline `28fb9fb`). The orchestrator's branch `claude/peaceful-mendel-tyduoj` carries the same
-  content, mirrored through the GitHub API at `8ddf07d`, because `tools/agents/lease-guard.mjs:291`
-  whitelists the literal four-token `git push origin main` and no other push form — a Bash push to
-  any other branch is unreachable by configuration, not by permission. No PR was opened (none was
-  requested), and `main` on the remote is untouched.
+- **Where the work lives — read this before pushing.** The local checkout is on the orchestrator's
+  branch `claude/peaceful-mendel-tyduoj`, not on `main`, so all three commits landed there:
+  `d6ee17b` (the six extraction documents), `80cdceb` (the `KNOWN_ISSUES`/`HANDOFF` entries) and
+  `9486fad` (the `TASK_LOG`/`CURRENT_STATE` corrections), on baseline `28fb9fb`. **None of them was
+  pushed.** The same content reached the remote branch through the GitHub API instead, head
+  `02c6b79`, because `tools/agents/lease-guard.mjs:291-299` whitelists the literal four-token
+  `git push origin main` and no other push form — a Bash push to any other branch is unreachable by
+  configuration, not by permission. Local and remote therefore hold equivalent content on divergent
+  histories. No PR was opened (none was requested), and `origin/main` is untouched at `28fb9fb`.
 - **Pending action for whoever takes the remote branch:** `docs/ai/awkit-design-extract-memory-delta.md`
-  exists **only** on `claude/peaceful-mendel-tyduoj`. It is a carrier, not a memory file: it holds the
-  `CURRENT_STATE.md` (+45 lines) and `TASK_LOG.md` (+62 lines) insertions verbatim, with instructions
-  to prepend each, demote the previous TASK_LOG `(latest)` heading, and then **delete the carrier**.
-  Those same insertions are already applied in the local `d6ee17b`, so on a checkout that has `d6ee17b`
-  the carrier is redundant and should simply be deleted.
+  exists **only** on `claude/peaceful-mendel-tyduoj`. It is a carrier, not a memory file: it holds four
+  blocks — the `CURRENT_STATE.md`, `TASK_LOG.md`, `KNOWN_ISSUES.md` and `HANDOFF.md` insertions
+  verbatim, ~190 lines in total — with instructions to prepend each, demote the previous TASK_LOG
+  `(latest)` heading, and then **delete the carrier**. It exists because the GitHub API needs
+  whole-file content and those four files total ~32,000 lines. All four insertions are already applied
+  in the local history, so on any checkout containing `9486fad` the carrier is redundant and should
+  simply be deleted without applying anything.
 - **`bd` work items still need filing.** The Beads CLI is not installed in this container
   (`bd: command not found`), so no work item was created, claimed or closed and `.beads/issues.jsonl`
   is untouched. File the extraction item, and one item per divergence recorded in `KNOWN_ISSUES.md`
