@@ -2,7 +2,10 @@
 // master PNG (resources/icon.png) from a source image.
 //
 // Usage:  node scripts/generate-app-icon.mjs [sourcePath] [left,top,width,height]
-// Default source: resources/icon-source.png
+// Default source: app/renderer/assets/brand/awkit-app-icon.svg. The default run
+// also rewrites resources/icon-source.png from that render, so the committed
+// PNG intermediate can never lag the SVG (it used to be the default source and
+// silently rebuilt the old mark after the SVG changed).
 //
 // Without a crop argument the source is center-cropped to a square. Pass an
 // explicit "left,top,width,height" rectangle (source pixels) to crop tightly to
@@ -15,7 +18,9 @@ import { dirname, join, resolve } from "node:path";
 import sharp from "sharp";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const source = resolve(process.argv[2] ?? join(repoRoot, "resources", "icon-source.png"));
+const brandSvg = join(repoRoot, "app", "renderer", "assets", "brand", "awkit-app-icon.svg");
+const sourcePngOut = join(repoRoot, "resources", "icon-source.png");
+const source = resolve(process.argv[2] ?? brandSvg);
 const icoOut = join(repoRoot, "resources", "icon.ico");
 const pngOut = join(repoRoot, "resources", "icon.png");
 
@@ -58,6 +63,10 @@ const icoBuffer = packPngFramesIntoIco(
 );
 validateIco(icoBuffer, sizes);
 
+if (source === brandSvg) {
+  await writeFile(sourcePngOut, square);
+  console.log(`Wrote ${sourcePngOut} (rendered from ${brandSvg})`);
+}
 await writeFile(icoOut, icoBuffer);
 await sharp(square).resize(1024, 1024, { fit: "cover" }).png().toFile(pngOut);
 
