@@ -563,6 +563,32 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-13T18:50:21.305Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T18:50:21.305Z",
+        "acquired_at_commit": "c7b6f4ee43dbbc902f03397aac08f784a2f99f6b",
+        "released_at": "2026-09-13T18:55:36.686Z",
+        "released_reason": "awkit-icon2 complete, closeout docs committed a8a6b60 and pushed 78f6feb..a8a6b60 with parity 0 and 0, roadmap 177 of 177 Sources agree, task gate ok",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

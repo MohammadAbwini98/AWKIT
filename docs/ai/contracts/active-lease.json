@@ -16,16 +16,16 @@
     "scripts/lib/verifier-classification.ts",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-13T18:50:21.305Z",
-  "acquired_at_commit": "c7b6f4ee43dbbc902f03397aac08f784a2f99f6b",
+  "acquired_at": "2026-09-13T19:39:01.503Z",
+  "acquired_at_commit": "a8a6b60cbf6a3a6d6ae0068280a430ee72f3ba59",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-icon2.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "3df862c1bc39bedc6e53cb7f09eedaa63442d2753f13fc35dac490c4e1fcdd82",
-    "docs/ai/contracts/awkit-icon2.json": "28b5bdead48e2d989e912e7a4f7692084b990556f4f6c617dd132a86fb7865bf",
+    "docs/ai/contracts/active-lease.json": "6bf08507e0b6c8f62dbf76fdcd72e4dbbead463138f02dc83f74eb6c15ce8cfd",
+    "docs/ai/contracts/awkit-icon2.json": "148b9a839b154e310a4a7ffc0618144d9f41ba285f8a03c5fb1e89f151496e05",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
