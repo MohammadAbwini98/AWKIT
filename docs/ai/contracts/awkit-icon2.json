@@ -1,0 +1,356 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-icon2",
+    "title": "Replace the concept-1c application icon with the squircle brick-S mark the redesigned app already renders",
+    "objective": "Regenerate resources/icon-source.png, resources/icon.png and resources/icon.ico from the AwkitDarkBrandMark geometry that the awkit-lgn2 title bar and login wordmark already use (dark squircle, brick S, accent brick), point the sidebar brand tile at the same shared component so the sidebar and the OS icon stay identical, prove build + branding/token/offline verifiers, and reconcile project state. The Login page review against the proposed Login.dc.html design is an inspect-only report delivered in chat; no login markup changes.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/contracts/awkit-icon2.json",
+      "docs/ai/contracts/active-lease.json",
+      "tools/roadmap/assignments.json",
+      "resources/icon-source.png",
+      "resources/icon.ico",
+      "resources/icon.png",
+      "app/renderer/layout/LeftNavigation.tsx",
+      "app/renderer/assets/brand/AwkitBrandMarks.tsx",
+      "app/renderer/assets/brand/awkit-app-icon.svg",
+      "app/renderer/styles/global.css",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-icon2.json",
+        "tools/roadmap/assignments.json"
+      ],
+      "forbidden_paths": [
+        "src/**",
+        "mock-site/**",
+        "package.json",
+        "package-lock.json",
+        "app/renderer/security/**",
+        "resources/**"
+      ]
+    },
+    "writer_sequence": [
+      "release",
+      "frontend",
+      "qa",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "compatibility": [
+      "The OS icon is a baked raster: the accent brick is fixed at the design-system primary accent #7c3aed (brand-600, the default --awkit-accent), while in-app marks keep following var(--awkit-accent).",
+      "The sidebar brand tile stays on the dark finish in both themes, preserving the existing sidebar-equals-OS-icon rule; the title bar keeps its theme-following light/dark marks.",
+      "The dev-only Program Status dashboard (tools/roadmap/public/index.html) keeps its inline concept-1c SVG; it is derived tooling, never bundled, and outside this task's paths."
+    ],
+    "offline": [
+      "Icon generation runs locally through the already-installed sharp dependency; no new dependency, font or network access."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "OS-ICON",
+      "description": "resources/icon.ico (7 PNG frames 16-256, 32-bit RGBA) and resources/icon.png (1024 master) are regenerated from the AwkitDarkBrandMark squircle brick-S geometry and no longer show the concept-1c spectrum mark.",
+      "evidence_required": [
+        "icon-render"
+      ]
+    },
+    {
+      "id": "SIDEBAR-PARITY",
+      "description": "The sidebar brand tile renders the shared AwkitDarkBrandMark (the private concept-1c SpecterAppIcon copy is removed), the build passes and the branding, design-token and offline verifiers pass.",
+      "evidence_required": [
+        "build",
+        "verifiers"
+      ]
+    },
+    {
+      "id": "CLOSEOUT",
+      "description": "Project state reconciled, the awkit-icon2 bead closed and exported, roadmap reads Sources agree, and no commit or push is made without owner authority.",
+      "evidence_required": [
+        "roadmap",
+        "push-main"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "icon-render",
+      "type": "inspection",
+      "required": true,
+      "command": "Owner-run, because the lease guard lets no agent role run icon generation: node -e \"require('sharp')('app/renderer/assets/brand/awkit-app-icon.svg').png().toFile('resources/icon-source.png')\" then npm run icon:generate, then inspect resources/icon.png and every ICO frame",
+      "result": "BLOCKED",
+      "artifact": "resources/icon.png"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": null
+    },
+    {
+      "id": "verifiers",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:branding && npm run verify:design-tokens && npm run validate:offline",
+      "result": "PASS",
+      "artifact": null
+    },
+    {
+      "id": "roadmap",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": null
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main and remeasure parity",
+      "result": "pending",
+      "artifact": null,
+      "note": "Owner requested commit and push on 2026-09-13. Commits d9d91dc (frontend) and 0ccfca8 (qa repin) plus the project-state docs commit landed on local main. The one push attempt that day was refused by the lease guard ([write-lease] BLOCKED) because the task gate is still open on icon-render, OS-ICON, qa_status and qc_status; origin/main stays at 28fb9fb. Result stays pending so the guard can admit the push once those close."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "blocked",
+    "qa_status": "BLOCKED",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-icon2:release:2026-09-12T22:56:36.490Z",
+        "task": "awkit-icon2",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/icon-source.png",
+          "resources/icon.ico",
+          "resources/icon.png"
+        ],
+        "acquired_at": "2026-09-12T22:56:36.490Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-12T23:09:27.468Z",
+        "released_reason": "Release role cannot run icon:generate under the lease guard, icon binaries are handed to the owner, frontend takes the sidebar and SVG source",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:frontend:2026-09-12T23:09:59.185Z",
+        "task": "awkit-icon2",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/assets/brand/AwkitBrandMarks.tsx",
+          "app/renderer/assets/brand/awkit-app-icon.svg",
+          "app/renderer/layout/LeftNavigation.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-12T23:09:59.185Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-12T23:24:50.968Z",
+        "released_reason": "Sidebar renders the shared AwkitDarkBrandMark, SVG icon source added and visually checked, build, branding 49, branding-gui 30, design-tokens 29, source-hygiene 11 and validate:offline pass",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-12T23:28:13.865Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-12T23:28:13.865Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-12T23:30:03.820Z",
+        "released_reason": "awkit-icon2 bead created and declared blocked on owner-run icon generation, export refreshed to 285, qa repins the three moved roadmap count pins before the state docs are written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:qa:2026-09-12T23:30:14.463Z",
+        "task": "awkit-icon2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-12T23:30:14.463Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-12T23:32:52.262Z",
+        "released_reason": "Three roadmap pins moved by the awkit-icon2 bead repinned, total 285, 3 outstanding with 282 closed, 3 declared-blocked, roadmap 177 of 177 and Sources agree, project-state writes the state docs next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-12T23:33:07.990Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-12T23:33:07.990Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-12T23:37:38.821Z",
+        "released_reason": "CURRENT_STATE, HANDOFF and TASK_LOG record awkit-icon2 with the owner-run icon commands, roadmap 177 of 177 and Sources agree, contract evidence recorded next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:frontend:2026-09-13T08:12:40.714Z",
+        "task": "awkit-icon2",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/assets/brand/awkit-app-icon.svg"
+        ],
+        "acquired_at": "2026-09-13T08:12:40.714Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-13T08:13:01.063Z",
+        "released_reason": "OS icon accent brick set to design-system primary accent brand-600 7c3aed with its comment, SVG is unpackaged and read by no verifier so no gate rerun, project-state updates docs and bead next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-13T08:13:23.575Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T08:13:23.575Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-13T08:15:52.337Z",
+        "released_reason": "CURRENT_STATE, HANDOFF, TASK_LOG, contract and awkit-icon2 bead record the brand-600 7c3aed accent brick, export 285, roadmap 177 of 177 and Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:frontend:2026-09-13T08:58:22.572Z",
+        "task": "awkit-icon2",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/assets/brand/AwkitBrandMarks.tsx",
+          "app/renderer/assets/brand/awkit-app-icon.svg",
+          "app/renderer/layout/LeftNavigation.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-13T08:58:22.572Z",
+        "acquired_at_commit": "28fb9fbb04924a3eb0d70dbc5b1b21626bf22f24",
+        "released_at": "2026-09-13T08:58:38.068Z",
+        "released_reason": "Frontend slice committed d9d91dc on owner commit-and-push request, sidebar brand mark and brand-600 OS-icon SVG source, qa commits the roadmap repin next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:qa:2026-09-13T08:58:49.315Z",
+        "task": "awkit-icon2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-13T08:58:49.315Z",
+        "acquired_at_commit": "d9d91dca6704ae92b7af51fe58163422164f53cf",
+        "released_at": "2026-09-13T08:59:04.489Z",
+        "released_reason": "QA roadmap repin committed 0ccfca8 on owner commit-and-push request, project-state commits docs, beads and contract next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

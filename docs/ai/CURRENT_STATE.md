@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## Sidebar brand tile moved to the squircle brick-S mark; OS icon regeneration owner-gated (2026-09-13)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-icon2` moves no ledger case.
+
+**The sidebar now renders the same mark as the title bar and login wordmark (`awkit-icon2`,
+committed on local `main` as `d9d91dc`, not pushed).** `app/renderer/layout/LeftNavigation.tsx` drops its private concept-1c
+`SpecterAppIcon` copy and renders the shared `AwkitDarkBrandMark` (32 px, dark finish in both
+themes, accent brick follows `--awkit-accent`) from `app/renderer/assets/brand/AwkitBrandMarks.tsx`.
+New `app/renderer/assets/brand/awkit-app-icon.svg` bakes that dark mark at 1024 px (accent brick fixed
+at the design-system primary accent `#7c3aed`, brand-600, per the owner's follow-up; transparent
+squircle corners) as the OS-icon source; it is not packaged,
+and both files carry a keep-the-geometry-in-sync comment. `global.css` changed a comment only.
+
+**OS icon NOT regenerated — owner-gated.** `resources/icon.ico`, `icon.png` and `icon-source.png`
+still carry the concept-1c mark: the lease guard lets no agent role run `npm run icon:generate` or
+`node -e`. Until the owner runs the two commands in `HANDOFF.md`, the window, taskbar, EXE and
+installer icons show 1c while the in-app sidebar shows the brick-S, and every packaged artifact
+(0.1.30 included) keeps the 1c icon until the next package build. The bead `awkit-icon2` is declared
+`blocked` (no `blocks` edge can express an owner-run command).
+
+**Measured evidence.** build PASS; design-tokens 29/29; branding 49/49; branding-gui 30/30;
+source-hygiene 11/11; validate:offline PASS; the SVG and the sidebar tile were inspected visually;
+`git diff --check` clean; `graphify update .` refreshed. Roadmap tracker repinned to
+**285 total / 282 closed / 3 outstanding** with 3 declared-blocked (`awkit-7bu`, `awkit-cm8`,
+`awkit-icon2`) — **Sources agree** (177/177). The same request's review of the `awkit-lgn2` login
+against the proposed `Login.dc.html` design was inspect-only and changed no markup.
+
+**Task mechanics.** release (released without writing) → frontend → project-state (bead + export)
+→ qa (repin) → project-state (docs) leases; QC review not run.
+
+**Git — committed, NOT pushed.** On the owner's commit-and-push request the work landed on local
+`main` as `d9d91dc` (frontend), `0ccfca8` (qa repin) and the project-state docs commit. The lease
+guard refused `git push origin main`: `pushAuthorizedForLease` admits a push only when the task gate
+passes with `push-main` counted, and `icon-render` (BLOCKED), `OS-ICON`, `qa_status` (BLOCKED) and
+`qc_status` (pending) are still open. `origin/main` stays at `28fb9fb` until those close.
+
 ## 0.1.30 portable + installer released with the redesigned login surface (2026-09-12)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

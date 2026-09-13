@@ -14694,3 +14694,39 @@ pm run verify:mock-site
 - **Result:** the redesigned login surface is release-proven from a fresh 0.1.30 package;
   no packaged defect found; remaining external gates unchanged (issuer key, clean-machine
   credentials, awkit-7bu, awkit-cm8, clean/offline VM walkthrough).
+
+## 2026-09-13 — awkit-icon2: sidebar brand tile moved to the squircle brick-S mark, OS icon regeneration owner-gated (Claude)
+
+- **Task:** owner request — review the implemented login against the proposed `Login.dc.html`
+  design and its blue accent (inspect-only, reported in chat), and change the main app icon to
+  the mark the current implementation uses.
+- **Change:** `LeftNavigation.tsx` renders the shared `AwkitDarkBrandMark` instead of its private
+  concept-1c `SpecterAppIcon`; new `app/renderer/assets/brand/awkit-app-icon.svg` bakes the dark
+  mark at 1024 px (accent brick `#7c3aed`) as the OS-icon source, with sync comments in it and in
+  `AwkitBrandMarks.tsx`; `global.css` comment only.
+- **Follow-up:** the owner asked for the third (accent) brick to match the design-system accent, so
+  the SVG now bakes brand-600 `#7c3aed` (primary actions, the default `--awkit-accent`) instead of
+  the dark-surface brand-500 `#8b5cf6`. No verifier or bundle reads the SVG, so no gate re-ran.
+- **Blocked:** `resources/icon.{ico,png}` and `icon-source.png` were not regenerated — the lease
+  guard lets no agent role run `npm run icon:generate` or `node -e`. Bead `awkit-icon2` declared
+  `blocked`; owner commands in `HANDOFF.md`.
+- **Login review:** layout, switch, grid/scanline, inputs, pill button, error alert and reduced
+  motion match the design; divergences are the violet `--awkit-accent` instead of the fixed blue
+  `#1358EC` (one brand colour per design-system.md; the Specter Blue preset approximates it), the
+  SpecterStudio wordmark, provider radio tabs instead of SSO, and no keep-signed-in/OTP/reset steps.
+- **Gates:** build PASS; design-tokens 29/29; branding 49/49; branding-gui 30/30; source-hygiene
+  11/11; validate:offline PASS; visual check of SVG and sidebar; `git diff --check` clean; graphify
+  updated; roadmap 177/177 after the 285/282/3 repin with 3 declared-blocked — Sources agree.
+- **Files:** app/renderer/layout/LeftNavigation.tsx; app/renderer/assets/brand/{AwkitBrandMarks.tsx,
+  awkit-app-icon.svg}; app/renderer/styles/global.css; scripts/verify-roadmap-dashboard.mjs;
+  docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md; docs/ai/contracts/{awkit-icon2,active-lease}.json;
+  .beads/*; tools/roadmap/assignments.json.
+- **Task mechanics:** release (no write) → frontend → project-state → qa (repin) → project-state
+  leases; QC review not run.
+- **Git:** the owner then asked to commit and push. Commits `d9d91dc` (frontend), `0ccfca8` (qa
+  repin) and the project-state docs commit landed on local `main`. `git push origin main` was
+  refused by the lease guard (`[write-lease] BLOCKED`): the task gate is still open on
+  `icon-render`, `OS-ICON`, QA and QC, so `origin/main` stays at `28fb9fb`. The guard's 4-token
+  commit form cannot carry a Co-Authored-By trailer.
+- **Result:** sidebar and in-app marks unified and committed locally; OS icon waits on the
+  owner-run generation; not pushed; no ledger case moved.

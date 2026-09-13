@@ -1,6 +1,39 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-12, latest) — `awkit-v130`: fresh 0.1.30 portable + installer prove the redesigned login at release level
+## HANDOFF (2026-09-13, latest) — `awkit-icon2`: sidebar mark swapped, OS icon regeneration waits on the owner
+
+- **Git — committed on local `main`, NOT pushed:** `d9d91dc` (sidebar + SVG source), `0ccfca8`
+  (roadmap repin) and the project-state docs commit. The lease guard refused `git push origin main`
+  because the task gate is still open on `icon-render`, `OS-ICON`, QA (BLOCKED) and QC (pending);
+  `origin/main` stays at `28fb9fb`. The push goes through after the owner steps below, QA PASS and
+  QC APPROVED.
+- **What changed:** the sidebar brand tile renders the shared `AwkitDarkBrandMark`
+  (the private concept-1c `SpecterAppIcon` copy is gone); new OS-icon source
+  `app/renderer/assets/brand/awkit-app-icon.svg` bakes the dark mark at 1024 px with the accent
+  brick at the design-system primary `#7c3aed` (brand-600). Files: `app/renderer/layout/LeftNavigation.tsx`,
+  `app/renderer/assets/brand/{AwkitBrandMarks.tsx,awkit-app-icon.svg}`,
+  `app/renderer/styles/global.css` (comment), `scripts/verify-roadmap-dashboard.mjs` (repin),
+  `docs/ai/*`, `docs/ai/contracts/{awkit-icon2,active-lease}.json`, `.beads/*`,
+  `tools/roadmap/assignments.json`.
+- **Owner action — the lease guard blocks every agent role from these.** From the repo root:
+  1. `node -e "require('sharp')('app/renderer/assets/brand/awkit-app-icon.svg').png().toFile('resources/icon-source.png').then(()=>console.log('rendered'))"`
+  2. `npm run icon:generate`
+  3. Inspect `resources/icon.png` and the 16/24/32 ICO frames (brick-S legible, corners transparent).
+  Then `npm run build` and `npm run verify:branding`, `bd close awkit-icon2`,
+  `bd export -o .beads/issues.jsonl`, and repin `verify:roadmap-dashboard` (285 total / 283 closed /
+  2 outstanding, declared-blocked back to 2).
+- **Expect:** Windows may keep showing the cached 1c icon on existing shortcuts and taskbar pins
+  until they are re-pinned; packaged artifacts pick up the new icon only on the next package build.
+- **Evidence:** build PASS; design-tokens 29/29; branding 49/49; branding-gui 30/30;
+  source-hygiene 11/11; validate:offline PASS; visual check of the SVG and sidebar; roadmap
+  **Sources agree** (177/177).
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
+- **Deliberately unchanged:** the dev-only roadmap dashboard (`tools/roadmap/public/index.html`)
+  keeps its inline 1c SVG; the login markup (the design review was inspect-only).
+- **Not run:** icon regeneration and ICO inspection, packaged EXE/installer icon, clean machine, QC
+  review, the push (guard-refused).
+
+## HANDOFF (2026-09-12) — `awkit-v130`: fresh 0.1.30 portable + installer prove the redesigned login at release level
 
 - **What changed:** version 0.1.29 → 0.1.30 via the documented next-release wrapper; no product
   source changed. The fresh artifacts contain the `awkit-lgn2` two-pane login redesign
