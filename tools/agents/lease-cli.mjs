@@ -18,7 +18,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { REPO_ROOT, amendLease, finalizeLeaseCloseout, grantLease, readLease, releaseLease } from "./lease.mjs";
+import { REPO_ROOT, amendLease, finalizeLeaseCloseout, grantLease, leaseIdOf, readLease, readLeaseRecord, releaseLease } from "./lease.mjs";
 import { validateBaseline } from "./classify.mjs";
 import { agent } from "./routing-matrix.mjs";
 import { evaluateTaskGate, verifyPreservedPaths } from "./task-gate.mjs";
@@ -109,7 +109,16 @@ function main() {
           );
         }
         const residue = contract.repository?.final_release_residue;
-        if (residue) {
+        const firstTaskLease = !Array.isArray(contract.write_lease?.history) || contract.write_lease.history.length === 0;
+        if (residue && firstTaskLease) {
+          const existing = readLeaseRecord();
+          if (
+            existing?.task !== residue.task ||
+            existing?.status !== "released" ||
+            leaseIdOf(existing) !== residue.lease_id
+          ) {
+            throw new Error("cannot grant because the declared final-release residue is not the current released lease");
+          }
           const residueCheck = verifyPreservedPaths(residue.paths, { cwd: REPO_ROOT });
           if (residueCheck.escapes.length > 0) {
             throw new Error(
