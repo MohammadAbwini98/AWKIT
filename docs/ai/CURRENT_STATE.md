@@ -1,5 +1,28 @@
 # CURRENT_STATE
 
+## `awkit-icon2` complete: independent QC APPROVED, pushed, bead closed (2026-09-13)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-icon2` moves no ledger case.
+
+**QC APPROVED, independently (`78f6feb`).** On the owner's request the `awkit-qc-reviewer` subagent
+reviewed `28fb9fb..a5c2944` (22 files, all inside the contract's expected paths; packaging references
+and `package-lock.json` unchanged) and returned APPROVED with no blocker or major finding. It did not
+re-run the build or verifiers; those results rest on the implementer and owner runs on `ed90b56`.
+
+**Pushed.** `git push origin main` succeeded: `28fb9fb..78f6feb`, carrying `d9d91dc` through `78f6feb`.
+After `git fetch origin` both `origin/main..main` and `main..origin/main` were empty. The bead
+`awkit-icon2` is closed and exported and the contract records `push-main` PASS (`bba5af5`); the
+roadmap verifier is repinned (`c7b6f4e`) to **285 total / 283 closed / 2 outstanding**, declared-blocked
+back to `awkit-7bu` and `awkit-cm8` only — **Sources agree** (177/177). These closeout commits and this
+docs commit are pushed next; a commit cannot record its own push.
+
+**Residual risk (non-blocking, from QC).** ICO 16/24/32 frames were never inspected visually, so small-size
+legibility rests on the per-frame pixel match; SVG-to-TSX geometry parity is held only by a comment;
+the `verify:app-icon` positive control is a lossless round-trip; ICO directory fields are unchecked.
+Packaged EXE/installer icon and the Windows icon cache are unverified until the next package build.
+Details in `KNOWN_ISSUES.md`.
+
 ## OS icons regenerated, `verify:app-icon` 29/29; push waits on independent QC (2026-09-13)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

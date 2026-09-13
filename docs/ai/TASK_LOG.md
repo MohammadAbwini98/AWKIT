@@ -14794,3 +14794,21 @@ pm run verify:mock-site
   .beads/issues.jsonl; tools/roadmap/assignments.json.
 - **Result:** OS icon regenerated and proven against the brand SVG; not pushed; self-QC only; next
   step is an independent QC review or owner approval, then push and close. No ledger case moved.
+
+## 2026-09-13 — awkit-icon2: independent QC APPROVED, pushed 28fb9fb..78f6feb, bead closed and roadmap repinned (Claude)
+- **Task:** owner requested "run awkit-qc-reviewer then push".
+- **QC:** the `awkit-qc-reviewer` subagent (independent, owner-requested; resumed once after its turn
+  limit) reviewed `28fb9fb..a5c2944` and returned APPROVED, no blocker or major finding; recorded in
+  `78f6feb`. Its minor/nit findings are in `KNOWN_ISSUES.md`. QC did not re-run build or verifiers.
+- **Push:** `git push origin main` → `28fb9fb..78f6feb main -> main`; after `git fetch origin`,
+  `origin/main..main` and `main..origin/main` empty, tree clean.
+- **Closeout:** `bd close awkit-icon2` + `bd export -o .beads/issues.jsonl`, contract `push-main` PASS
+  (`bba5af5`); `scripts/verify-roadmap-dashboard.mjs` pins moved to 285 total / 283 closed / 2 outstanding,
+  declared-blocked 3 → 2 (`c7b6f4e`); `verify:roadmap-dashboard` 177/177, Sources agree. Contract completion
+  set to `complete`; this docs commit is pushed after it is written.
+- **Not run:** ICO frame visual inspection; packaged EXE/installer icon; clean machine.
+- **Files:** docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md; docs/ai/contracts/{awkit-icon2,active-lease}.json;
+  .beads/issues.jsonl; scripts/verify-roadmap-dashboard.mjs; tools/roadmap/assignments.json.
+- **Result:** `awkit-icon2` complete. The 4-token commit form cannot carry a Co-Authored-By trailer, and the
+  final lease release is written after the last commit, so its three bookkeeping files are left for the owner
+  to commit. No ledger case moved.

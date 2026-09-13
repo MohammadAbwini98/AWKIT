@@ -1,21 +1,31 @@
 {
   "task": "awkit-icon2",
   "contract_path": "docs/ai/contracts/awkit-icon2.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-roadmap-dashboard.mjs"
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/COMMANDS.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-icon2.json",
+    "scripts/lib/verifier-classification.ts",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-13T18:48:58.308Z",
-  "acquired_at_commit": "bba5af52a0462f75a09351affe892b0a0504f712",
+  "acquired_at": "2026-09-13T18:50:21.305Z",
+  "acquired_at_commit": "c7b6f4ee43dbbc902f03397aac08f784a2f99f6b",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-icon2.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "d933e528c26d6a30a4d6a1cffc8ade2a0371b90ec1951a465f3b78196b3225af",
-    "docs/ai/contracts/awkit-icon2.json": "50bf53302437b409c8a4fbce9d132846f7a3b4b3449fb0403ff6211d3da1b869",
+    "docs/ai/contracts/active-lease.json": "3df862c1bc39bedc6e53cb7f09eedaa63442d2753f13fc35dac490c4e1fcdd82",
+    "docs/ai/contracts/awkit-icon2.json": "28b5bdead48e2d989e912e7a4f7692084b990556f4f6c617dd132a86fb7865bf",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

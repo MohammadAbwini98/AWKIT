@@ -1808,6 +1808,13 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   regeneration is owner-run (or needs an owner-authorized grammar change with a
   `verify:agent-routing` case). Do not route around it with a disguised `verify:*` script or another
   shell.
+- **OS-icon residual risks — open, non-blocking (bd `awkit-icon2` QC, 2026-09-13).** `verify:app-icon`
+  proves the icons match `awkit-app-icon.svg`, not that the SVG matches `AwkitBrandMarks.tsx`: that
+  parity is held only by a comment (`awkit-app-icon.svg:2`, `AwkitBrandMarks.tsx:6`), so edit both
+  together. Its positive control is a lossless round-trip, not a re-render tolerance control, and ICO
+  directory planes / colorCount / reserved / minimum frame offset are unchecked. ICO 16/24/32 frames were
+  never inspected visually (QC expects a sub-pixel hairline at 16 px). `SUPERSEDED_ACCENT` `#8b5cf6` is
+  also the live dark-theme accent, so that negative control is not a "retired colour" check.
 - **Soak-benchmark accounting bugs — FIXED (2026-07-16), not observability defects.** In
   `scripts/benchmark-engine-soak.mts`: (1) the run-summary invariant compared `runObsSummaries` (all terminal
   runs) against `durableTerminalRuns = completed + failed` read **pre-teardown** — omitting the `cancelled`

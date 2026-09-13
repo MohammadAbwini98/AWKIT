@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-13, latest) — `awkit-icon2`: OS icons regenerated and verified 29/29, push waits on independent QC
+## HANDOFF (2026-09-13, latest) — `awkit-icon2` complete: independent QC APPROVED, pushed, bead closed
+
+- **Done:** independent `awkit-qc-reviewer` QC APPROVED (`78f6feb`); `git push origin main`
+  `28fb9fb..78f6feb` with parity 0/0 after fetch; bead closed and exported, `push-main` PASS
+  (`bba5af5`); roadmap repinned to 285 total / 283 closed / 2 outstanding, Sources agree 177/177
+  (`c7b6f4e`); contract completion `complete`.
+- **Git:** `bba5af5`, `c7b6f4e` and the closeout docs commit are pushed after this note is written.
+- **Guard-imposed leftover:** the final `agent:lease-release` writes `docs/ai/contracts/active-lease.json`,
+  `docs/ai/contracts/awkit-icon2.json` and `tools/roadmap/assignments.json` after the last commit, and no
+  agent can commit without a lease. Owner: commit and push those three files.
+- **Not run:** ICO frame visual inspection (16/24/32 legibility); packaged EXE/installer icon; clean
+  machine; QC re-runs of build and verifiers.
+- **Expect:** Windows may keep showing the cached 1c icon on existing shortcuts and taskbar pins until
+  re-pinned; packaged artifacts pick up the new icon only on the next package build.
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+
+## HANDOFF (2026-09-13) — `awkit-icon2`: OS icons regenerated and verified 29/29, push waits on independent QC
 
 - **Done:** the owner ran `npm run icon:generate`; the regenerated `resources/icon-source.png`,
   `icon.png` and `icon.ico` are committed as `ed90b56`. `npm run verify:app-icon` reads **29/29**

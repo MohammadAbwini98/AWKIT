@@ -60,9 +60,19 @@
       "uiux"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-roadmap-dashboard.mjs"
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-icon2.json",
+        "scripts/lib/verifier-classification.ts",
+        "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
         "src/**",
@@ -153,7 +163,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "result": "PASS",
       "artifact": null,
-      "note": "Re-run 2026-09-13: 177/177, 285 total / 282 closed / 3 outstanding, Overview reads Sources agree."
+      "note": "Re-run 2026-09-13 after the awkit-icon2 close: 177/177, 285 total / 283 closed / 2 outstanding, 2 declared-blocked (awkit-7bu, awkit-cm8), Overview reads Sources agree."
     },
     {
       "id": "push-main",
@@ -175,9 +185,11 @@
     "push_evidence_id": "push-main"
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
+    "closed_at": "2026-09-13",
+    "closed_note": "Independent awkit-qc-reviewer QC APPROVED (78f6feb); pushed 28fb9fb..78f6feb with parity 0/0; bead closed and exported with push-main PASS (bba5af5); roadmap repinned to 285 total / 283 closed / 2 outstanding, Sources agree 177/177 (c7b6f4e). Residual non-blocking risks: ICO 16/24/32 frames not inspected visually, SVG-to-TSX parity held by a comment, round-trip positive control, unchecked ICO directory fields, packaged EXE icon unverified.",
     "qc_note": "Independent QC by the awkit-qc-reviewer subagent on the owner's explicit request (2026-09-13), not self-review: it reviewed 28fb9fb..a5c2944, 22 files all inside routing.expected_paths, with electron-builder.json, app/main/windowManager.ts and package-lock.json unchanged. awkit-app-icon.svg carries the AwkitDarkBrandMark shapes with only the accent brick baked as #7c3aed; the sidebar renders the shared decorative AwkitDarkBrandMark with SpecterAppIcon removed; global.css changed only a comment; package.json gained one script and no dependency; generate-app-icon.mjs defaults to the SVG, validates a 7-frame 32-bit RGBA PNG ICO before writing and writes only under resources/; verify-app-icon.mjs is read-only, exits 1 on failure, and its 29 checks and the 18/29 red run agree with its code; resources/icon.png visual PASS; ed90b56 holds only the three icon binaries. Verdict APPROVED, STATUS PASS, no blocker or major finding. Non-blocking findings: minor - SVG-to-TSX geometry parity is held only by a comment, since verify:app-icon proves the icons match the SVG but not that the SVG matches AwkitBrandMarks.tsx; minor - the verify-app-icon positive control is a lossless round-trip rather than a re-render tolerance control; nits - ICO directory planes, colorCount, reserved and minimum frame offset are unchecked, REPO_ROOT comes from process.cwd, SUPERSEDED_ACCENT #8b5cf6 is also the live dark-theme accent, the LeftNavigation comment overstates brick parity, the generate-app-icon missing-source message still says PNG, and verify-roadmap-dashboard comments still say blocked on the owner icon:generate run. NOT RUN by QC: build and verifier re-runs, node --check (refused by the lease guard), ICO byte and per-frame inspection, so 16/24/32 legibility stays unconfirmed."
   },
   "write_lease": {
@@ -532,6 +544,22 @@
         "acquired_at_commit": "ed90b569ab0e013ee80da1dee51bcaca940aa056",
         "released_at": "2026-09-13T18:46:41.221Z",
         "released_reason": "awkit-icon2 bead closed and exported, push-main PASS recorded, committed bba5af5, qa repins the roadmap tracker to 285 total with 283 closed next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:qa:2026-09-13T18:48:58.308Z",
+        "task": "awkit-icon2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-13T18:48:58.308Z",
+        "acquired_at_commit": "bba5af52a0462f75a09351affe892b0a0504f712",
+        "released_at": "2026-09-13T18:50:03.067Z",
+        "released_reason": "Roadmap tracker repinned for the closed awkit-icon2 bead, 285 total with 283 closed and 2 outstanding, 2 declared-blocked, 177 of 177 and Sources agree, committed c7b6f4e, project-state writes the closeout docs next",
         "amendments": [],
         "overrides": [],
         "violations": []
