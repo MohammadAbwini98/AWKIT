@@ -186,6 +186,66 @@
         ],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-design-extract:project-state:2026-09-13T08:51:54.770Z",
+        "task": "awkit-design-extract",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/design-system-extraction/**"
+        ],
+        "acquired_at": "2026-09-13T08:51:54.770Z",
+        "acquired_at_commit": "aa168a5b0eac9b61c27c316b794c8e71aafdd542",
+        "released_at": "2026-09-13T08:53:17.592Z",
+        "released_reason": "recorded the Claude Design transport blocker in HANDOFF, committed as 5e18d8a",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-design-extract:project-state:2026-09-13T08:58:12.648Z",
+        "task": "awkit-design-extract",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/design-system-extraction/**"
+        ],
+        "acquired_at": "2026-09-13T08:58:12.648Z",
+        "acquired_at_commit": "5e18d8ac5fe166acea326a6eff2dc7fc16b83172",
+        "released_at": "2026-09-13T09:00:26.156Z",
+        "released_reason": "Claude Design transport handoff written, committed and mirrored",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-design-extract:project-state:2026-09-13T09:02:29.845Z",
+        "task": "awkit-design-extract",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/design-system-extraction/**"
+        ],
+        "acquired_at": "2026-09-13T09:02:29.845Z",
+        "acquired_at_commit": "1a6c6f5c5558608d017a12c6d995af4bd0865161",
+        "released_at": "2026-09-13T09:02:51.002Z",
+        "released_reason": "bookkeeping committed and design-extract task closed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
