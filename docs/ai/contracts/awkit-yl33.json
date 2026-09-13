@@ -51,6 +51,7 @@
       ".beads/interactions.jsonl",
       ".beads/issues.jsonl",
       ".claude/agents/awkit-manager.md",
+      ".claude/settings.json",
       "docs/ai/COMMANDS.md",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/DECISIONS.md",
@@ -198,6 +199,67 @@
         "released_at": "2026-09-13T21:58:59.345Z",
         "released_reason": "terminal closeout control implemented; QA adds focused regression proof",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:qa:2026-09-13T21:59:17.509Z",
+        "task": "awkit-yl33",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-09-13T21:59:17.509Z",
+        "acquired_at_commit": "42b17aadc14ceacddcbe17d864df25111c449f30",
+        "released_at": "2026-09-13T22:03:31.167Z",
+        "released_reason": "focused closeout regression cases added; Manager completes exact hook allowlist",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:manager:2026-09-13T22:03:50.215Z",
+        "task": "awkit-yl33",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/settings.json",
+          "tools/agents/lease-cli.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/lease.mjs",
+          "tools/agents/routing-matrix.mjs",
+          "tools/agents/task-gate.mjs",
+          "tools/agents/validate-contract.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:03:50.215Z",
+        "acquired_at_commit": "48f8b535f018c07b581c283070ae12de335c5cde",
+        "released_at": "2026-09-13T22:04:27.923Z",
+        "released_reason": "amendment added paths outside manager's ownership (scripts/verify-agent-routing.mjs) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T22:04:00.476Z",
+            "added": [
+              ".claude/settings.json"
+            ],
+            "reason": "the terminal command needs the same exact project hook allowlist as the routing registry",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-09-13T22:04:27.923Z",
+            "added": [
+              "scripts/verify-agent-routing.mjs"
+            ],
+            "reason": "the focused verifier must pin the deliberate exact hook allowlist entry",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }

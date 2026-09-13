@@ -22,7 +22,7 @@
       "itemId": "bead:awkit-yl33",
       "agent": "Quality Assurance Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-13T21:59:17.509Z",
+      "claimedAt": "2026-09-13T22:04:43.473Z",
       "note": "write lease: scripts/verify-agent-routing.mjs"
     }
   ]

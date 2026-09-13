@@ -157,7 +157,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1073;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1075;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -1626,6 +1626,27 @@ try {
     "completion cannot bypass pending routed QC by omitting qc from the contract",
     omittedQcBlockers.some((blocker) => /\bqc\b/i.test(blocker) && /pending|review/i.test(blocker)),
     JSON.stringify(omittedQcBlockers)
+  );
+  check(
+    "a final-release authorization cannot bypass explicit push authorization",
+    rejects("git.final_release_push", (contract) => {
+      contract.git.final_release_authorized = true;
+      contract.git.push_authorized = false;
+    })
+  );
+  check(
+    "captured final-release residue must bind its source task lease identity",
+    rejects("repository.final_release_residue_lease", (contract) => {
+      contract.repository.final_release_residue = {
+        task: "awkit-residue",
+        lease_id: "other-task:project-state:now",
+        paths: [{
+          path: "docs/ai/contracts/awkit-residue.json",
+          git_status: " M",
+          sha256: "a".repeat(64)
+        }]
+      };
+    })
   );
 
   /* ======================================================================
@@ -3535,9 +3556,9 @@ try {
   const projectPermissionAllows = claudeSettings.permissions?.allow ?? [];
   const projectPermissionDenies = claudeSettings.permissions?.deny ?? [];
   check(
-    "project settings have the byte/order-exact 63-entry MCP plus Bash allowlist",
-    expectedProjectPermissionAllows.length === 63 &&
-      projectPermissionAllows.length === 63 &&
+    "project settings have the byte/order-exact 64-entry MCP plus Bash allowlist",
+    expectedProjectPermissionAllows.length === 64 &&
+      projectPermissionAllows.length === 64 &&
       sameArray(projectPermissionAllows, expectedProjectPermissionAllows),
     JSON.stringify(projectPermissionAllows)
   );

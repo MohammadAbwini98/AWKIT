@@ -6,22 +6,30 @@
   "allowed_paths": [
     "scripts/verify-agent-routing.mjs"
   ],
-  "acquired_at": "2026-09-13T21:59:17.509Z",
-  "acquired_at_commit": "42b17aadc14ceacddcbe17d864df25111c449f30",
+  "acquired_at": "2026-09-13T22:04:43.473Z",
+  "acquired_at_commit": "48f8b535f018c07b581c283070ae12de335c5cde",
   "baseline_dirty": [
     ".beads/issues.jsonl",
+    ".claude/settings.json",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-icon2.json",
     "docs/ai/contracts/awkit-yl33.json",
     "docs/ai/routing/TASK_CONTRACT.schema.json",
+    "scripts/verify-agent-routing.mjs",
+    "tools/agents/lease-cli.mjs",
+    "tools/agents/lease-guard.mjs",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
     ".beads/issues.jsonl": "007fc67646920ad3113658b047d0296e03c3bac9c383215acb37cca8bd081796",
-    "docs/ai/contracts/active-lease.json": "fcdaec1aa6b20b09bd793ba8e5a1858d377eb0ced06d5fb18e64b33cb7f25308",
+    ".claude/settings.json": "10078663107d0c1385aa1d6dbc17d9f8625274d3dbcd5f5f3cb97be388325db2",
+    "docs/ai/contracts/active-lease.json": "6fa0b559cba0d6116264996c05e32106e6bdf92409e0e073dd98e3a43946acff",
     "docs/ai/contracts/awkit-icon2.json": "4c73124aa9ea70a06b8611c672cef6934f29c039181f1a4fb445abd17bc91d51",
-    "docs/ai/contracts/awkit-yl33.json": "8c867178046b085914de47a300db9fced403141143e39739c4a90e798bf56ce5",
+    "docs/ai/contracts/awkit-yl33.json": "5a148a006cfd7cc6c568a61cae9ce108733f76436a8c84c76b88060758d9a285",
     "docs/ai/routing/TASK_CONTRACT.schema.json": "1d14d54fcd04fb4ba132b7a0fc7612e58a37d75f5f7cf9c9fc42783d66e9aeb9",
+    "scripts/verify-agent-routing.mjs": "6b01f94f500f430bb9defd94cb1af6eeaf32023ae2c7f8bf511ccf0a40729390",
+    "tools/agents/lease-cli.mjs": "9bb3cb025bffbd09765e6d69d22460a5dc0b97541b6cde3b35ed186426160c51",
+    "tools/agents/lease-guard.mjs": "9fac706771f3a96fb7a05265811b9f1d9d8c88e7fc400cc175aa5dc1e88a52da",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
