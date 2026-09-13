@@ -1,5 +1,21 @@
 # DECISIONS
 
+### 2026-09-14 — Final lease release is an exact terminal control-plane commit (`awkit-yl33`)
+
+- **Decision:** a completed task's final active lease is closed through
+  `agent:lease-finalize`, not through ordinary `agent:lease-release` followed by an impossible
+  bookkeeping commit. The operation permits exactly three terminal paths — the released active
+  lease record, the current task contract with one archived lease entry, and the cleared roadmap
+  assignment — and performs the normal `git push origin main` only after their exact state validates.
+- **Reason:** ordinary release necessarily dirtied those tracked files after the last permitted
+  commit, while the no-active-lease guard correctly denied any later generic Git command. A broad
+  exemption would undermine the boundary. The terminal control plane instead fails closed on task or
+  lease mismatch, altered bookkeeping, scope violations, extra staged files, unresolved gate/QC
+  state or unauthorized push.
+- **Impact:** normal grants, amendments, releases and no-lease guards are unchanged. Repeated
+  finalization is limited to the same verified terminal state, and an inherited residue may be
+  absorbed only when its task, released lease ID and file fingerprints are recorded in the contract.
+
 ### 2026-09-11 - Chart series become a categorical token family; last chrome literals and legacy aliases retired (awkit-44eu)
 
 - **Decision:** categorical data-visualization colors are now first-class design tokens —

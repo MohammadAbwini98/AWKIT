@@ -76,10 +76,9 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "manager",
       "allowed_paths": [
-        "scripts/verify-agent-routing.mjs",
-        "scripts/verify-roadmap-dashboard.mjs"
+        "tools/agents/task-gate.mjs"
       ]
     },
     "reviewers": [
@@ -123,32 +122,32 @@
       "type": "security",
       "required": true,
       "command": "npm run verify:agent-routing",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "1076/1076 agent routing checks passed; real temporary-Git finalization and negative closeout controls covered"
     },
     {
       "id": "build",
       "type": "build",
       "required": true,
       "command": "npm run build",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "tsc --noEmit and electron-vite production bundles completed"
     },
     {
       "id": "verifier-classification",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:verifier-classification",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "205/205 verify:/validate: commands classified"
     },
     {
       "id": "roadmap",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "177/177 passed; 286 issues, 284 closed, 2 outstanding; Sources agree"
     },
     {
       "id": "task-gates",
@@ -163,8 +162,8 @@
       "type": "inspection",
       "required": true,
       "command": "git diff --check",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "no whitespace errors before terminal finalization"
     }
   ],
   "scope_escapes": [],
@@ -177,8 +176,8 @@
     "final_release_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "complete",
+    "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED"
   },
   "write_lease": {
@@ -348,6 +347,65 @@
               "scripts/verify-roadmap-dashboard.mjs"
             ],
             "reason": "closing awkit-yl33 changed the authoritative Beads count, so QA must repin the roadmap consistency verifier",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:qa:2026-09-13T22:09:13.732Z",
+        "task": "awkit-yl33",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:09:13.732Z",
+        "acquired_at_commit": "6881005063ea1d4dc3fee48431e46698423153c0",
+        "released_at": "2026-09-13T22:10:12.636Z",
+        "released_reason": "roadmap verifier repinned for closed awkit-yl33; Project State records evidence and finalizes closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:project-state:2026-09-13T22:10:35.619Z",
+        "task": "awkit-yl33",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/README.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "docs/ai/contracts/awkit-yl33.json",
+          "docs/ai/routing/ROUTING_RULES.md",
+          "docs/ai/routing/TASK_CONTRACT.schema.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T22:10:35.619Z",
+        "acquired_at_commit": "f71fc2859c023325f4e8602c9fcac2c9a0d13216",
+        "released_at": "2026-09-13T22:19:18.928Z",
+        "released_reason": "amendment added paths outside project-state's ownership (tools/agents/task-gate.mjs) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T22:19:18.927Z",
+            "added": [
+              "tools/agents/task-gate.mjs"
+            ],
+            "reason": "a closed historical task gate must evaluate its own completed repository boundary rather than later unrelated tasks",
             "triggered_escalation": [
               "qa"
             ],

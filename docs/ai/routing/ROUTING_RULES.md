@@ -190,6 +190,22 @@ Then finish the normal `AGENTS.md` end-of-task checklist. The contract is execut
 remains the work, status and dependency source, and the Program Status dashboard remains derived
 from the sources it already reads.
 
+### Terminal closeout
+
+Commit all ordinary implementation, QA and project-state evidence while the final writer lease is
+still active. Once the gate is green, close that lease with the exact command below — do not use
+`agent:lease-release` and then try to acquire a bookkeeping-only lease:
+
+```bash
+npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
+```
+
+The control-plane operation validates the exact current task and derived lease identity, completed
+contract/gate, one final release-history entry, cleared assignment, absence of violations and the
+three permitted terminal files. It stages and commits only those files, then runs the authorized
+normal `git push origin main`. A retry is limited to that same terminal state; arbitrary repository
+changes and ordinary no-lease Git remain blocked.
+
 ---
 
 ## Changing the rules

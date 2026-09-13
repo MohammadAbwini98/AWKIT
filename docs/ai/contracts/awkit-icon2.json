@@ -589,6 +589,32 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-13T19:39:01.503Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T19:39:01.503Z",
+        "acquired_at_commit": "a8a6b60cbf6a3a6d6ae0068280a430ee72f3ba59",
+        "released_at": "2026-09-13T19:44:37.468Z",
+        "released_reason": "awkit-icon2 closeout bookkeeping committed in 25dac57 and pushed with parity 0 0 and roadmap 177 of 177 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

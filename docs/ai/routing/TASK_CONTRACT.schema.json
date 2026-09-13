@@ -37,6 +37,26 @@
         "branch": { "const": "main" },
         "baseline_commit": { "type": "string" },
         "working_tree_expected": { "enum": ["clean", "preserved_changes"] },
+        "final_release_residue": {
+          "type": "object",
+          "description": "Optional fingerprinted terminal bookkeeping inherited from an already-released task. The grant CLI verifies it before a new lease can replace the active record; finalization proves it was incorporated into committed scope.",
+          "properties": {
+            "task": { "type": "string" },
+            "lease_id": { "type": "string" },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["path", "git_status", "sha256"],
+                "properties": {
+                  "path": { "type": "string" },
+                  "git_status": { "type": "string" },
+                  "sha256": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
         "preserved_paths": {
           "type": "array",
           "description": "Pre-existing user changes excluded from this task's derived completion scope. Each entry is a FINGERPRINT, not a bare path: tools/agents/task-gate.mjs re-reads the file and blocks completion unless git_status and sha256 still match, so a plain string could not detect a preserved file being edited under cover of the exclusion.",
@@ -263,7 +283,9 @@
         "commit_policy": { "const": "coherent" },
         "direct_main": { "const": true },
         "force_push": { "const": false },
-        "destructive_reset": { "type": "boolean" }
+        "destructive_reset": { "type": "boolean" },
+        "push_authorized": { "type": "boolean" },
+        "final_release_authorized": { "const": true }
       }
     },
 

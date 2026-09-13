@@ -1,5 +1,22 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-14, latest) — atomic final lease closeout replaces release residue
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This governance
+  closeout moves no validation-ledger case.
+- **Lifecycle fix:** `awkit-yl33` adds `npm run agent:lease-finalize`, a constrained terminal
+  control-plane operation. After ordinary evidence is committed under the final Project State
+  lease, it validates the completed task/gate, exact derived lease ID, release history, assignment,
+  scope/violation state and allowed terminal files; it alone writes and commits the released lease
+  record, task history and cleared assignment, then pushes `main`. It cannot stage or push arbitrary
+  changes, and normal no-lease `git add`, `git commit` and `git push` remain denied.
+- **Existing `awkit-icon2` residue:** the former three-file terminal state is fingerprinted in the
+  `awkit-yl33` contract and is included in this closeout without reopening the icon task. Its QA
+  remains PASS, independent QC remains APPROVED and its archived release history remains intact.
+- **Supersedes the old owner workaround:** terminal release bookkeeping is no longer handed to the
+  next task as expected residue. The finalizer is exercised only after the pre-final task evidence
+  is committed; it must be the last mutating action and leaves no active lease or assignment.
+
 ## HANDOFF (2026-09-13, latest) — `awkit-icon2` complete: independent QC APPROVED, pushed, bead closed
 
 - **Done:** independent `awkit-qc-reviewer` QC APPROVED (`78f6feb`); `git push origin main`
@@ -7,9 +24,10 @@
   (`bba5af5`); roadmap repinned to 285 total / 283 closed / 2 outstanding, Sources agree 177/177
   (`c7b6f4e`); contract completion `complete`.
 - **Git:** `bba5af5`, `c7b6f4e` and the closeout docs commit are pushed after this note is written.
-- **Guard-imposed leftover:** the final `agent:lease-release` writes `docs/ai/contracts/active-lease.json`,
-  `docs/ai/contracts/awkit-icon2.json` and `tools/roadmap/assignments.json` after the last commit, and no
-  agent can commit without a lease. Owner: commit and push those three files.
+- **Historical closeout residue (resolved by `awkit-yl33`):** the old `agent:lease-release` wrote
+  `docs/ai/contracts/active-lease.json`, `docs/ai/contracts/awkit-icon2.json` and
+  `tools/roadmap/assignments.json` after the last commit. That exact state is preserved and absorbed
+  by the new terminal finalizer; it is no longer an owner or next-task obligation.
 - **Not run:** ICO frame visual inspection (16/24/32 legibility); packaged EXE/installer icon; clean
   machine; QC re-runs of build and verifiers.
 - **Expect:** Windows may keep showing the cached 1c icon on existing shortcuts and taskbar pins until

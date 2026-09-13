@@ -29,6 +29,21 @@ npm run agent:lease
 npm run agent:lease-amend -- --add "src/storage/**" --reason "Persistence impact discovered"
 ```
 
+For a completed task whose final Project State lease must write the released lease record, clear
+its assignment and archive its history, use the separate exact terminal operation rather than an
+ordinary release followed by a new lease:
+
+```bash
+npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
+```
+
+It is deliberately **not** a general no-lease Git escape. It accepts only the current task and its
+derived most-recent lease ID; re-checks the contract, completed task gate, lease history,
+assignment, scope violations and (when declared) inherited release-residue fingerprints; then
+stages, commits and pushes exactly `active-lease.json`, that task contract and
+`tools/roadmap/assignments.json`. An extra modified or staged path, a mismatched terminal record,
+or a failed push fails closed. A retry can only finish the same verified terminal commit.
+
 An amendment **re-runs routing**. If the added paths are owned by another specialist, the lease is
 released rather than widened and the work moves to whoever owns them — permissions never creep
 outward from one agent's original grant.
@@ -44,6 +59,8 @@ directory does not repeat that.
 - `active-lease.json` is never deleted; releasing sets its `status` away from `active`, which the
   guard treats as no lease. It persists because the dashboard registers it as a source and asserts
   every source is readable. A released lease is not history worth keeping, so it is overwritten by
-  the next grant rather than archived.
+  the next grant rather than archived. For the **last** lease of a normal task, its released record
+  is committed atomically by `agent:lease-finalize`; terminal bookkeeping is not left as residue
+  for an unrelated next task to absorb.
 
 Contracts are execution mechanics. Beads remains the work, status and dependency source.

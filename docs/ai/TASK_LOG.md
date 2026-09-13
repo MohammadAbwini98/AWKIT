@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-14 — `awkit-yl33`: exact final lease closeout and `awkit-icon2` residue absorption (Codex)
+
+- **Task:** remove the lifecycle contradiction in which a normal final release dirtied tracked
+  bookkeeping after the last lease-authorized commit, while preserving the already-approved
+  `awkit-icon2` terminal state without reopening it.
+- **Implementation:** added the tightly validated `agent:lease-finalize` control-plane operation,
+  exact hook/routing permission, terminal-residue contract validation and user-facing lifecycle
+  documentation. It validates task and latest lease identity, completed gate/evidence, history,
+  assignment, residue fingerprints, violations and an exact three-path staging set before committing
+  and pushing; ordinary no-lease Git commands remain blocked.
+- **Regression coverage:** `verify:agent-routing` now exercises a real temporary Git remote for a
+  clean terminal closeout, one history entry, released active record, cleared claim and next-task
+  grant, plus wrong identity, staged-extra-file, tampered bookkeeping, unresolved-violation and
+  no-lease Git negative cases.
+- **State:** `awkit-icon2` stays closed with QA PASS and independent QC APPROVED; its existing
+  release history and exactly fingerprinted three-file residue are absorbed by this task's final
+  control-plane closeout. The finalizer is invoked after this evidence checkpoint is committed.
+
 ## 2026-09-11 (latest) — `awkit-wy82` shrink-guard regression, roadmap repin and terminal closeout (ZCode GLM)
 
 **Task:** finish the in-flight `awkit-wy82` state — implement the planned `verify:graphify-shrink-guard`

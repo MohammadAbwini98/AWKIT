@@ -707,6 +707,13 @@ npm run agent:lease-amend -- --add "src/storage/**" --reason "Persistence impact
 npm run agent:lease-release -- --reason "handing off to qa"
 ```
 ```bash
+npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
+```
+> `agent:lease-finalize` is the only terminal closeout command. It is valid only for the active,
+> completed task's exact most-recent lease and commits/pushes only the released lease record, task
+> contract and cleared roadmap assignment after revalidating the task gate. It is neither a broad
+> no-lease `git` exemption nor a substitute for the normal lease lifecycle.
+```bash
 npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 11 .claude/agents/*.md subagent
                             # definitions, and the Codex + Gemini adapter skills
 ```
