@@ -170,9 +170,9 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main and remeasure parity",
-      "result": "pending",
+      "result": "PASS",
       "artifact": null,
-      "note": "Owner requested commit and push on 2026-09-13 and again after regenerating the icons. On local main, not pushed: d9d91dc (frontend), 0ccfca8 (qa repin), 9bfe134 (project-state docs), e52e851 (release generator fix), 79f3892 (qa verify:app-icon), 948b698 and 411a4e6 (project-state bookkeeping), ed90b56 (owner-regenerated icons) and the project-state commit recording icon-render PASS. Every push attempt was refused by the lease guard ([write-lease] BLOCKED: shell command is outside the active project-state lease or the actor's role), including the attempt after icon-render and qa_status moved to PASS, when the task gate's only blockers were this pending evidence, CLOSEOUT and qc_status pending. QC cannot be self-approved: it needs an independent awkit-qc-reviewer pass or owner review. origin/main stays at 28fb9fb. Result stays pending so the guard can admit the push once qc_status is APPROVED."
+      "note": "Owner requested commit and push on 2026-09-13, again after regenerating the icons, and again with the independent QC run. Every earlier push attempt was refused by the lease guard ([write-lease] BLOCKED: shell command is outside the active project-state lease or the actor's role) while qc_status was pending, since QC cannot be self-approved. After the awkit-qc-reviewer subagent returned APPROVED and 78f6feb recorded it, git push origin main succeeded 2026-09-13: 28fb9fb..78f6feb main -> main, carrying d9d91dc, 0ccfca8, 9bfe134, e52e851, 79f3892, 948b698, 411a4e6, ed90b56, a5c2944 and 78f6feb. Parity remeasured after git fetch origin: git log origin/main..main and main..origin/main both empty, git status --short --branch read ## main...origin/main with a clean tree. This record covers the push through 78f6feb; the closeout bookkeeping commits after it are outside it."
     }
   ],
   "scope_escapes": [],
