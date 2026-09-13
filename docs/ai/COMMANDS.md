@@ -713,9 +713,9 @@ node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-agen
 > validates the different target holder and every path against deterministic routing and ownership,
 > archives the current lease, advances `routing.writer`, and grants/mirrors the next active lease.
 ```bash
-npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
+node tools/agents/lease-cli.mjs finalize --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
 ```
-> `agent:lease-finalize` is the only terminal closeout command. It is valid only for the active,
+> `lease-cli.mjs finalize` is the only terminal closeout command. It is valid only for the active,
 > completed task's exact most-recent lease and commits/pushes only the released lease record, task
 > contract and cleared roadmap assignment after revalidating the task gate. It is neither a broad
 > no-lease `git` exemption nor a substitute for the normal lease lifecycle.

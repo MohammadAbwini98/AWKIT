@@ -34,7 +34,7 @@ its assignment and archive its history, use the separate exact terminal operatio
 ordinary release followed by a new lease:
 
 ```bash
-npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
+node tools/agents/lease-cli.mjs finalize --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
 ```
 
 It is deliberately **not** a general no-lease Git escape. It accepts only the current task and its

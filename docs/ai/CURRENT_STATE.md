@@ -6,7 +6,7 @@
 **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This lease-governance task moves no ledger case.
 
 The serialized lease lifecycle now has an exact terminal closeout operation:
-`npm run agent:lease-finalize -- --task <task> --lease-id <derived-id> --reason <text>`. It is
+`node tools/agents/lease-cli.mjs finalize --task <task> --lease-id <derived-id> --reason <text>`. It is
 not a generic Git bypass. It validates the active task/lease identity, completed contract and task
 gate, exact release history, cleared assignment, clean scope/violations, terminal path allow-list
 and push authority; it may commit and push only `active-lease.json`, the active task contract and

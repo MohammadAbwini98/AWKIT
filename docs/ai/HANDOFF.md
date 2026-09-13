@@ -4,7 +4,7 @@
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This governance
   closeout moves no validation-ledger case.
-- **Lifecycle fix:** `awkit-yl33` adds `npm run agent:lease-finalize`, a constrained terminal
+- **Lifecycle fix:** `awkit-yl33` adds `node tools/agents/lease-cli.mjs finalize`, a constrained terminal
   control-plane operation. After ordinary evidence is committed under the final Project State
   lease, it validates the completed task/gate, exact derived lease ID, release history, assignment,
   scope/violation state and allowed terminal files; it alone writes and commits the released lease

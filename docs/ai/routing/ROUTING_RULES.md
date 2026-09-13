@@ -207,7 +207,7 @@ still active. Once the gate is green, close that lease with the exact command be
 `agent:lease-release` and then try to acquire a bookkeeping-only lease:
 
 ```bash
-npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
+node tools/agents/lease-cli.mjs finalize --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
 ```
 
 The control-plane operation validates the exact current task and derived lease identity, completed

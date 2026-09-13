@@ -91,7 +91,6 @@
         "docs/ai/contracts/awkit-icon2.json",
         "docs/ai/contracts/awkit-yl33.json",
         "docs/ai/routing/ROUTING_RULES.md",
-        "docs/ai/routing/TASK_CONTRACT.schema.json",
         "tools/roadmap/assignments.json"
       ]
     },
@@ -574,6 +573,69 @@
         "acquired_at_commit": "ee5d976b3bbd055b2a535410cb8879b352af9de3",
         "released_at": "2026-09-13T22:32:54.814Z",
         "released_reason": "handoff to project-state: Project State commits authoritative closure documentation and final evidence",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:project-state:2026-09-13T22:32:54.878Z",
+        "task": "awkit-yl33",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/README.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "docs/ai/contracts/awkit-yl33.json",
+          "docs/ai/routing/ROUTING_RULES.md",
+          "docs/ai/routing/TASK_CONTRACT.schema.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T22:32:54.878Z",
+        "acquired_at_commit": "2ddcc7114cc7deca005894a7a436011b8349c55d",
+        "released_at": "2026-09-13T22:38:21.538Z",
+        "released_reason": "handoff to manager: allow the exact direct finalizer command without adding an unrelated package-script ownership expansion",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:manager:2026-09-13T22:38:21.599Z",
+        "task": "awkit-yl33",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          "tools/agents/lease-guard.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:38:21.599Z",
+        "acquired_at_commit": "2d80d680ed0eb3bb1a9f0ce3980b9750a1b1d6b5",
+        "released_at": "2026-09-13T22:38:46.669Z",
+        "released_reason": "handoff to qa: QA verifies the exact direct finalizer command remains fail closed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:qa:2026-09-13T22:38:46.732Z",
+        "task": "awkit-yl33",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:38:46.732Z",
+        "acquired_at_commit": "11661902e68f530600e28194f7355e08d2c5e9fc",
+        "released_at": "2026-09-13T22:39:17.790Z",
+        "released_reason": "handoff to project-state: Project State corrects finalizer documentation and uses the terminal closeout",
         "amendments": [],
         "overrides": [],
         "violations": []
