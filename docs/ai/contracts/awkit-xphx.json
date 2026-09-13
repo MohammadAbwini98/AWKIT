@@ -39,6 +39,9 @@
       "project-state"
     ],
     "expected_paths": [
+      ".claude/**",
+      ".codex/skills/agent-routing/SKILL.md",
+      ".gemini/skills/agent-routing/SKILL.md",
       ".beads/interactions.jsonl",
       ".beads/issues.jsonl",
       "app/renderer/assets/brand/awkit-app-icon.svg",
@@ -61,6 +64,7 @@
       "scripts/verify-auth-gui.mjs",
       "src/theme/accentColor.ts",
       "tools/agents/lease-guard.mjs",
+      "tools/agents/routing-matrix.mjs",
       "tools/roadmap/assignments.json"
     ],
     "consultants": [
@@ -72,20 +76,13 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "manager",
       "allowed_paths": [
-        ".beads/interactions.jsonl",
-        ".beads/issues.jsonl",
-        "docs/ai/contracts/active-lease.json",
-        "docs/ai/contracts/awkit-xphx.json",
-        "tools/roadmap/assignments.json"
-      ],
-      "forbidden_paths": [
-        "app/**",
-        "resources/**",
-        "scripts/**",
-        "src/**",
-        "tools/agents/**"
+        ".claude/**",
+        ".codex/skills/agent-routing/SKILL.md",
+        ".gemini/skills/agent-routing/SKILL.md",
+        "tools/agents/lease-guard.mjs",
+        "tools/agents/routing-matrix.mjs"
       ]
     },
     "writer_sequence": [
@@ -162,22 +159,118 @@
     }
   ],
   "evidence": [
-    { "id": "build", "type": "build", "required": true, "command": "npm run build", "result": "pending" },
-    { "id": "verify:auth", "type": "verifier", "required": true, "command": "npm run verify:auth", "result": "pending" },
-    { "id": "verify:auth-gui", "type": "gui", "required": true, "command": "npm run verify:auth-gui", "result": "pending" },
-    { "id": "verify:accent-theme", "type": "verifier", "required": true, "command": "npm run verify:accent-theme", "result": "pending" },
-    { "id": "verify:accent-gui", "type": "gui", "required": true, "command": "npm run verify:accent-gui", "result": "pending" },
-    { "id": "verify:app-icon", "type": "verifier", "required": true, "command": "npm run verify:app-icon", "result": "pending" },
-    { "id": "verify:design-tokens", "type": "verifier", "required": true, "command": "npm run verify:design-tokens", "result": "pending" },
-    { "id": "verify:source-hygiene", "type": "verifier", "required": true, "command": "npm run verify:source-hygiene", "result": "pending" },
-    { "id": "verify:agent-routing", "type": "verifier", "required": true, "command": "npm run verify:agent-routing", "result": "pending" },
-    { "id": "typecheck:scripts", "type": "verifier", "required": true, "command": "npm run typecheck:scripts", "result": "pending" },
-    { "id": "validate:offline", "type": "verifier", "required": true, "command": "npm run validate:offline -- -Strict", "result": "pending" },
-    { "id": "verify:verifier-classification", "type": "verifier", "required": true, "command": "npm run verify:verifier-classification", "result": "pending" },
-    { "id": "verify:roadmap-dashboard", "type": "verifier", "required": true, "command": "npm run verify:roadmap-dashboard", "result": "pending" },
-    { "id": "ai-memory-check", "type": "verifier", "required": true, "command": "node scripts/ai-memory/check-memory.mjs", "result": "pending" },
-    { "id": "git-diff-check", "type": "verifier", "required": true, "command": "git diff --check", "result": "pending" },
-    { "id": "push-main", "type": "verifier", "required": true, "command": "git push origin main", "result": "pending" }
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "pending"
+    },
+    {
+      "id": "verify:auth",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:auth",
+      "result": "pending"
+    },
+    {
+      "id": "verify:auth-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:auth-gui",
+      "result": "pending"
+    },
+    {
+      "id": "verify:accent-theme",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:accent-theme",
+      "result": "pending"
+    },
+    {
+      "id": "verify:accent-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:accent-gui",
+      "result": "pending"
+    },
+    {
+      "id": "verify:app-icon",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:app-icon",
+      "result": "pending"
+    },
+    {
+      "id": "verify:design-tokens",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "pending"
+    },
+    {
+      "id": "verify:source-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene",
+      "result": "pending"
+    },
+    {
+      "id": "verify:agent-routing",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:agent-routing",
+      "result": "pending"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "result": "pending"
+    },
+    {
+      "id": "validate:offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline -- -Strict",
+      "result": "pending"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "pending"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pending"
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "node scripts/ai-memory/check-memory.mjs",
+      "result": "pending"
+    },
+    {
+      "id": "git-diff-check",
+      "type": "verifier",
+      "required": true,
+      "command": "git diff --check",
+      "result": "pending"
+    },
+    {
+      "id": "push-main",
+      "type": "verifier",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending"
+    }
   ],
   "scope_escapes": [],
   "git": {
@@ -195,7 +288,28 @@
     "qc_status": "pending"
   },
   "write_lease": {
-    "history": [],
+    "history": [
+      {
+        "id": "awkit-xphx:project-state:2026-09-13T23:55:57.426Z",
+        "task": "awkit-xphx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-xphx.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T23:55:57.426Z",
+        "acquired_at_commit": "be8da8b65435458a921142e7ce72ec3ed5deb88c",
+        "released_at": "2026-09-13T23:56:31.217Z",
+        "released_reason": "handoff to manager: allow only the exact release icon-generator command required to regenerate the requested blue shipped icon",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
     "overrides": []
   }
 }

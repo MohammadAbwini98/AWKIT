@@ -1,24 +1,26 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "project-state",
+  "holder": "manager",
   "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
+    ".claude/**",
+    ".codex/skills/agent-routing/SKILL.md",
+    ".gemini/skills/agent-routing/SKILL.md",
+    "tools/agents/lease-guard.mjs",
+    "tools/agents/routing-matrix.mjs"
+  ],
+  "acquired_at": "2026-09-13T23:56:31.277Z",
+  "acquired_at_commit": "179573512e2b424ded40290841739e2912b25b18",
+  "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-13T23:55:57.426Z",
-  "acquired_at_commit": "be8da8b65435458a921142e7ce72ec3ed5deb88c",
-  "baseline_dirty": [
-    ".beads/issues.jsonl",
-    "docs/ai/contracts/awkit-xphx.json"
-  ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "79f1009a3393b0f0548130f3744ea61046b422280f8d764c0ab148aa39325781",
-    "docs/ai/contracts/awkit-xphx.json": "fca7bacb1b75be6b696f3ba3b5736c9835a2979689ba43a493e8c534c368a20f"
+    "docs/ai/contracts/active-lease.json": "3ecfe53f8ddeed1cd1a494f2b63c6bc6b29a6b7e1e7073a9672c4c33f2481605",
+    "docs/ai/contracts/awkit-xphx.json": "6c2370fe94dbd60b0807ae199cfc9891d2cf8f9d08b97f6d9425045492dcffe6",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -30,7 +32,32 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789341648414.5344"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-13T23:56:43.937Z",
+      "added": [
+        "tools/agents/routing-matrix.mjs"
+      ],
+      "reason": "The generated release permission inventory must mirror the exact icon-generator command gate",
+      "triggered_escalation": [
+        "qa"
+      ],
+      "approved_by": "manager"
+    },
+    {
+      "timestamp": "2026-09-13T23:57:09.346Z",
+      "added": [
+        ".claude/**",
+        ".codex/skills/agent-routing/SKILL.md",
+        ".gemini/skills/agent-routing/SKILL.md"
+      ],
+      "reason": "Regenerated platform agent permissions must carry the exact release icon-generator allowance",
+      "triggered_escalation": [
+        "qa"
+      ],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }

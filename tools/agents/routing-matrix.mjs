@@ -529,7 +529,10 @@ export const WRITER_SHELL_TOOLS = Object.freeze([
   "Bash(graphify update .)"
 ]);
 
-export const RELEASE_SHELL_TOOLS = Object.freeze(["Bash(npm run package:*)"]);
+export const RELEASE_SHELL_TOOLS = Object.freeze([
+  "Bash(npm run package:*)",
+  "Bash(npm run icon:generate)"
+]);
 
 export const PROJECT_STATE_SHELL_TOOLS = Object.freeze([
   ...BEADS_WRITE_TOOLS,

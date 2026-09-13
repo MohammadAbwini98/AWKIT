@@ -349,7 +349,11 @@ function isCommonWriterCommand(command) {
 
 function isReleaseCommand(command) {
   if (hasUnsafeShellSyntax(command)) return false;
-  return /^npm\s+run\s+package:[a-z0-9:_-]+\s*$/i.test(command.trim());
+  const value = command.trim();
+  return (
+    /^npm\s+run\s+package:[a-z0-9:_-]+\s*$/i.test(value) ||
+    value === "npm run icon:generate"
+  );
 }
 
 function isProjectStateCommand(command) {
