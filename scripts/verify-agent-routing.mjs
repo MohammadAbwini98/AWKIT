@@ -108,6 +108,7 @@ import {
   isAllowedActiveShellCommand,
   isContractControlPath,
   isLeaseFinalizeCommand,
+  isLeaseHandoffCommand,
   isLeaseGrantCommand,
   isManagerGitCommand,
   isPhysicallyWithinRepo,
@@ -157,7 +158,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1075;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1076;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -1961,6 +1962,10 @@ try {
       "final release records truthful released lease state, one history entry and no stale claim",
       finishedLease.status === "released" && finishedLease.task === happy.task &&
         finishedContract.write_lease?.history?.filter((entry) => entry.id === leaseIdOf(happy.lease)).length === 1 &&
+        finishedContract.completion?.closed_at_commit === execFileSync("git", ["rev-parse", "HEAD^"], {
+          cwd: happy.cwd,
+          encoding: "utf8"
+        }).trim() &&
         finishedAssignments.claims?.filter((claim) => claim.itemId === `bead:${happy.task}`).length === 0 &&
         terminalGate.ok && terminalGate.value?.ok === true,
       JSON.stringify({ finishedLease, history: finishedContract.write_lease?.history, claims: finishedAssignments.claims, gate: terminalGate.value })
@@ -2038,6 +2043,7 @@ try {
       violationResult.error?.message
     );
     const finalCommand = `npm run agent:lease-finalize -- --task ${happy.task} --lease-id ${leaseIdOf(happy.lease)} --reason terminal closeout`;
+    const handoffCommand = "node tools/agents/lease-cli.mjs handoff --holder qa --paths scripts/verify-agent-routing.mjs --reason QA verification";
     check(
       "the final-release command is exact while ordinary no-lease add, commit and push remain blocked",
       isLeaseFinalizeCommand(finalCommand) &&
@@ -2045,6 +2051,13 @@ try {
         ["git add -- docs/ai/contracts/active-lease.json", "git commit -m unsafe", "git push origin main"].every((command) =>
           !isReadOnlyShellCommand(command) && !isAllowedActiveShellCommand(command, null)
         )
+    );
+    check(
+      "the direct handoff command has exact grammar and cannot become a no-lease bypass",
+      isLeaseHandoffCommand(handoffCommand) &&
+        !isLeaseHandoffCommand(`${handoffCommand} --extra`) &&
+        !isAllowedActiveShellCommand(handoffCommand, null),
+      handoffCommand
     );
   }
 
