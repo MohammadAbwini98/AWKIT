@@ -206,8 +206,20 @@ export function isLeaseLifecycleCommand(command) {
   const value = command.trim();
   if (/^npm\s+run\s+agent:lease-release\s+--\s+--reason\s+.+$/i.test(value)) return true;
   if (/^npm\s+run\s+agent:lease-amend\s+--\s+--add\s+[^\s]+\s+--reason\s+.+$/i.test(value)) return true;
+  if (isLeaseHandoffCommand(value)) return true;
   if (isLeaseFinalizeCommand(value)) return true;
   return false;
+}
+
+/** Exact direct CLI handoff; it advances one routed lease and has no no-lease mode. */
+export function isLeaseHandoffCommand(command) {
+  if (hasUnsafeShellSyntax(command)) return false;
+  const tokens = shellTokens(command.trim());
+  if (!tokens || tokens.length < 9) return false;
+  if (tokens[0] !== "node" || tokens[1] !== "tools/agents/lease-cli.mjs" || tokens[2] !== "handoff") return false;
+  if (tokens[3] !== "--holder" || !/^[a-z0-9-]+$/i.test(tokens[4] ?? "")) return false;
+  if (tokens[5] !== "--paths" || !/^[^\s,]+(?:,[^\s,]+)*$/.test(tokens[6] ?? "")) return false;
+  return tokens[7] === "--reason" && tokens.slice(8).every((token) => token.length > 0 && !token.startsWith("--"));
 }
 
 /** Exact terminal control-plane command; final state validation lives in lease.mjs. */

@@ -448,6 +448,12 @@ export function validateContract(contract) {
   if (!["pending", "APPROVED", "REJECTED", "NOT_REQUIRED"].includes(contract.completion?.qc_status)) {
     fail("completion.qc_status", `invalid completion.qc_status ${JSON.stringify(contract.completion?.qc_status)}`);
   }
+  if (
+    contract.completion?.closed_at_commit !== undefined &&
+    (contract.completion?.status !== "complete" || !/^[0-9a-f]{40}$/i.test(contract.completion.closed_at_commit))
+  ) {
+    fail("completion.closed_at_commit", "closed_at_commit must be a full commit id on a complete task");
+  }
 
   // ── Overrides ───────────────────────────────────────────────────────────────────────────────
   for (const violation of validateOverrides(contract)) violations.push(violation);

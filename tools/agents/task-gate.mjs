@@ -88,7 +88,8 @@ export function verifyPreservedPaths(entries, { cwd = REPO_ROOT, states } = {}) 
  */
 export function evaluateTaskGate(contract, options = {}) {
   const cwd = options.cwd ?? REPO_ROOT;
-  const baseline = contract?.repository?.baseline_commit ?? "HEAD";
+  const declaredBaseline = contract?.repository?.baseline_commit ?? "HEAD";
+  let baseline = declaredBaseline;
   const preserved = Array.isArray(contract?.repository?.preserved_paths)
     ? contract.repository.preserved_paths
     : [];
@@ -97,7 +98,18 @@ export function evaluateTaskGate(contract, options = {}) {
     : [];
   const blockers = [...(options.infrastructureBlockers ?? [])];
   try {
-    validateBaseline(baseline, cwd);
+    validateBaseline(declaredBaseline, cwd);
+    const closedAtCommit = contract?.completion?.closed_at_commit;
+    const activeTaskLease = options.lease?.task === contract?.task?.id && options.lease?.status === "active";
+    if (contract?.completion?.status === "complete" && !activeTaskLease && closedAtCommit !== undefined) {
+      if (!/^[0-9a-f]{40}$/i.test(closedAtCommit)) throw new Error("completion boundary is not a full commit id");
+      validateBaseline(closedAtCommit, cwd);
+      execFileSync("git", ["merge-base", "--is-ancestor", declaredBaseline, closedAtCommit], {
+        cwd,
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+      baseline = closedAtCommit;
+    }
   } catch (error) {
     blockers.push(
       `repository baseline is invalid or unavailable: ${error instanceof Error ? error.message : String(error)}`

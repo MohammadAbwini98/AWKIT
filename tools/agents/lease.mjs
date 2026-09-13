@@ -543,6 +543,63 @@ export function releaseLease(
   });
 }
 
+/**
+ * Advance one active writer slot directly to a later deterministically routed holder.
+ * It archives the outgoing lease, changes the contract writer and grants/mirrors the incoming
+ * lease in one control-plane transition, avoiding a no-lease bookkeeping interval.
+ */
+export function handoffLease({ holder, allowedPaths, reason, path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH, contractPath }) {
+  if (!reason || !reason.trim()) throw new Error("lease handoff requires a non-empty reason");
+  const current = readLease(path);
+  if (!current) throw new Error("no active lease to hand off");
+  if (holder === current.holder) throw new Error("lease handoff requires a different next holder");
+  const resolvedContractPath = contractPath ?? current.contract_path ?? contractPathFor(current.task);
+  const contract = readTaskContract(resolvedContractPath, current.task);
+  const validation = validateContract(contract);
+  if (!validation.ok || !validation.routing) {
+    throw new Error(`cannot hand off from invalid task contract: ${validation.violations.map((v) => v.rule).join(", ")}`);
+  }
+  const currentIndex = validation.routing.writerSequence.indexOf(current.holder);
+  const nextIndex = validation.routing.writerSequence.indexOf(holder);
+  if (currentIndex < 0 || nextIndex <= currentIndex) {
+    throw new Error("lease handoff must advance to a later deterministic routed writer");
+  }
+  if (!Array.isArray(allowedPaths) || allowedPaths.length === 0) {
+    throw new Error("lease handoff requires non-empty next allowed paths");
+  }
+  const expectedPaths = contract.routing?.expected_paths ?? [];
+  const owned = agent(holder).ownsPaths;
+  const probe = (pattern) => pattern.replace(/\*\*/g, "__lease__").replace(/\*/g, "__lease__");
+  for (const allowedPath of allowedPaths) {
+    if (
+      typeof allowedPath !== "string" || !allowedPath.trim() || isAbsolute(allowedPath) ||
+      toRepoRelative(allowedPath) === null || ["*", "**", ".", "./"].includes(allowedPath.trim()) ||
+      (!owned.includes(allowedPath) && !pathInScope(probe(allowedPath), owned)) ||
+      (!expectedPaths.includes(allowedPath) && !pathInScope(probe(allowedPath), expectedPaths))
+    ) {
+      throw new Error(`unsafe or unrouted handoff path ${JSON.stringify(allowedPath)}`);
+    }
+  }
+  finalizeLease(current, {
+    reason: `handoff to ${holder}: ${reason}`,
+    path,
+    assignmentsPath,
+    contractPath: resolvedContractPath
+  });
+  const archived = readTaskContract(resolvedContractPath, current.task);
+  archived.routing.writer = { agent_id: holder, allowed_paths: [...new Set(allowedPaths)].sort() };
+  writeFileSync(resolveContractPath(resolvedContractPath, current.task), `${JSON.stringify(archived, null, 2)}\n`, "utf8");
+  return grantLease({
+    task: current.task,
+    holder,
+    allowedPaths,
+    routing: validation.routing,
+    path,
+    assignmentsPath,
+    contractPath: resolvedContractPath
+  });
+}
+
 function readJson(path, label) {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -638,6 +695,9 @@ function assertReleasedTerminal(lease, contract, assignments, expectedLeaseId) {
   }
   if (claimFor(lease, assignments).length !== 0) {
     throw new Error("final release did not clear its roadmap assignment claim");
+  }
+  if (!/^[0-9a-f]{40}$/i.test(contract.completion?.closed_at_commit ?? "")) {
+    throw new Error("final release must record its immutable completion boundary commit");
   }
 }
 
@@ -741,6 +801,12 @@ export function finalizeLeaseCloseout({
     assertActiveClaim(record, readJson(assignmentsPath, "assignments"));
     const gate = evaluateTaskGate(contract, { lease: record, cwd });
     if (!gate?.ok) throw new Error(`final release task gate is blocked: ${(gate?.blockers ?? []).join("; ")}`);
+    contract.completion.closed_at_commit = execFileSync("git", ["rev-parse", "--verify", "HEAD^{commit}"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    }).trim();
+    writeFileSync(resolveContractPath(contractPath, task), `${JSON.stringify(contract, null, 2)}\n`, "utf8");
     finalizeLease(record, { reason, path, assignmentsPath, contractPath });
   } else if (record.status !== "released") {
     throw new Error(`final release requires an active or retryable released lease, found ${record.status}`);

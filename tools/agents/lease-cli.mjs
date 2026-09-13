@@ -12,13 +12,14 @@
  *   npm run agent:lease-grant   -- --task awkit-xyz --holder frontend --paths "app/renderer/**"
  *   npm run agent:lease-amend   -- --add "src/storage/**" --reason "Persistence impact discovered"
  *   npm run agent:lease-release -- --reason "handing off to qa"
+ *   node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-*.mjs" --reason "QA verification"
  *   npm run agent:lease-finalize -- --task awkit-xyz --lease-id awkit-xyz:project-state:<timestamp> --reason "terminal closeout"
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { REPO_ROOT, amendLease, finalizeLeaseCloseout, grantLease, leaseIdOf, readLease, readLeaseRecord, releaseLease } from "./lease.mjs";
+import { REPO_ROOT, amendLease, finalizeLeaseCloseout, grantLease, handoffLease, leaseIdOf, readLease, readLeaseRecord, releaseLease } from "./lease.mjs";
 import { validateBaseline } from "./classify.mjs";
 import { agent } from "./routing-matrix.mjs";
 import { evaluateTaskGate, verifyPreservedPaths } from "./task-gate.mjs";
@@ -194,6 +195,21 @@ function main() {
         break;
       }
 
+      case "handoff": {
+        if (Object.keys(args).some((name) => !["holder", "paths", "reason"].includes(name))) {
+          throw new Error("handoff accepts only --holder, --paths and --reason");
+        }
+        const holder = one(args, "holder");
+        const allowedPaths = many(args, "paths");
+        const reason = one(args, "reason");
+        if (!holder || allowedPaths.length === 0 || !reason) {
+          throw new Error("handoff requires --holder, --paths and --reason");
+        }
+        const lease = handoffLease({ holder, allowedPaths, reason });
+        console.log(`Handed off ${lease.task} to ${lease.holder}.`);
+        break;
+      }
+
       case "finalize": {
         if (Object.keys(args).some((name) => !["task", "lease-id", "reason"].includes(name))) {
           throw new Error("finalize accepts only --task, --lease-id and --reason");
@@ -210,7 +226,7 @@ function main() {
       }
 
       default:
-        console.error(`Unknown command "${command}". Use: status | grant | amend | release | finalize`);
+        console.error(`Unknown command "${command}". Use: status | grant | amend | release | handoff | finalize`);
         process.exitCode = 1;
     }
   } catch (err) {
