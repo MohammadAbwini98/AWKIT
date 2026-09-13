@@ -10,12 +10,21 @@
   scope/violation state and allowed terminal files; it alone writes and commits the released lease
   record, task history and cleared assignment, then pushes `main`. It cannot stage or push arbitrary
   changes, and normal no-lease `git add`, `git commit` and `git push` remain denied.
+- **Writer transitions:** `node tools/agents/lease-cli.mjs handoff` advances only to another
+  activated routed holder with exact owned paths, archives the outgoing lease and establishes the
+  next active lease/claim in one control-plane transaction. `completion.closed_at_commit` freezes a
+  closed task's gate at its own terminal boundary instead of later unrelated repository changes.
 - **Existing `awkit-icon2` residue:** the former three-file terminal state is fingerprinted in the
   `awkit-yl33` contract and is included in this closeout without reopening the icon task. Its QA
-  remains PASS, independent QC remains APPROVED and its archived release history remains intact.
+  remains PASS, independent QC remains APPROVED and its archived release history remains intact;
+  the added immutable completion boundary is `25dac57`, the closeout commit before its terminal
+  released record.
 - **Supersedes the old owner workaround:** terminal release bookkeeping is no longer handed to the
   next task as expected residue. The finalizer is exercised only after the pre-final task evidence
   is committed; it must be the last mutating action and leaves no active lease or assignment.
+- **Current evidence:** build and script typecheck PASS; source hygiene 11/11 PASS; AI-memory PASS;
+  agent routing **1081/1081**; verifier classification **205/205**; roadmap **177/177**, Sources
+  agree; both task gates green (the `awkit-icon2` boundary is `25dac57`).
 
 ## HANDOFF (2026-09-13, latest) — `awkit-icon2` complete: independent QC APPROVED, pushed, bead closed
 

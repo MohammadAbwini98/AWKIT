@@ -45,6 +45,16 @@ QA is a *sequential* lease holder, not a concurrent one. The implementation writ
 releases; QA then acquires a lease over `tests/**`, `mock-site/**` and `scripts/verify-*`. The
 reviewed proposal granted QA write paths while also declaring one lease — those cannot both be true.
 
+If the contract must advance its explicit current writer, do it inside the lease control plane:
+
+```bash
+node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-agent-routing.mjs" --reason "QA verification"
+```
+
+The command permits only another activated routed holder and exact owned/routed paths; it archives
+the outgoing lease and establishes the incoming lease/claim atomically. Never edit
+`routing.writer` from an unleased transition.
+
 ## 3. Hold the lease
 
 ```bash

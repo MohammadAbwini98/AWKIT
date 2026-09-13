@@ -25,7 +25,7 @@
         {
           "path": "docs/ai/contracts/awkit-icon2.json",
           "git_status": " M",
-          "sha256": "4c73124aa9ea70a06b8611c672cef6934f29c039181f1a4fb445abd17bc91d51"
+          "sha256": "e8d2b9d1ea41b3bb444eac0bb8089aa5666814eac8cbe9b4b66b05b2b57456d3"
         },
         {
           "path": "tools/roadmap/assignments.json",
@@ -76,9 +76,23 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "manager",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "tools/agents/task-gate.mjs"
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/DECISIONS.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/README.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-icon2.json",
+        "docs/ai/contracts/awkit-yl33.json",
+        "docs/ai/routing/ROUTING_RULES.md",
+        "docs/ai/routing/TASK_CONTRACT.schema.json",
+        "tools/roadmap/assignments.json"
       ]
     },
     "reviewers": [
@@ -123,7 +137,7 @@
       "required": true,
       "command": "npm run verify:agent-routing",
       "result": "PASS",
-      "artifact": "1076/1076 agent routing checks passed; real temporary-Git finalization and negative closeout controls covered"
+      "artifact": "1081/1081 agent routing checks passed; real temporary-Git finalization, completion-boundary, handoff grammar and negative closeout controls covered"
     },
     {
       "id": "build",
@@ -154,8 +168,8 @@
       "type": "verifier",
       "required": true,
       "command": "node tools/agents/task-gate.mjs docs/ai/contracts/awkit-yl33.json && node tools/agents/task-gate.mjs docs/ai/contracts/awkit-icon2.json",
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "awkit-icon2 gate passed through 25dac57; awkit-yl33 gate passed with no blockers or scope escapes"
     },
     {
       "id": "diff-check",
@@ -412,6 +426,155 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:project-state:2026-09-13T22:20:17.008Z",
+        "task": "awkit-yl33",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/README.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "docs/ai/contracts/awkit-yl33.json",
+          "docs/ai/routing/ROUTING_RULES.md",
+          "docs/ai/routing/TASK_CONTRACT.schema.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T22:20:17.008Z",
+        "acquired_at_commit": "f71fc2859c023325f4e8602c9fcac2c9a0d13216",
+        "released_at": "2026-09-13T22:20:51.445Z",
+        "released_reason": "handoff to Manager for the closed-task gate boundary correction",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:manager:2026-09-13T22:20:58.975Z",
+        "task": "awkit-yl33",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/settings.json",
+          "tools/agents/lease-cli.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/lease.mjs",
+          "tools/agents/routing-matrix.mjs",
+          "tools/agents/task-gate.mjs",
+          "tools/agents/validate-contract.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:20:58.975Z",
+        "acquired_at_commit": "d52b3d8ea74a7ef9716cbe1a88b1991a5a9f1dc8",
+        "released_at": "2026-09-13T22:27:07.982Z",
+        "released_reason": "handoff to qa: QA validates handoff, completion-boundary and terminal finalization regressions",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T22:23:04.014Z",
+            "added": [
+              "tools/agents/lease.mjs",
+              "tools/agents/lease-cli.mjs",
+              "tools/agents/lease-guard.mjs",
+              "tools/agents/routing-matrix.mjs",
+              "tools/agents/validate-contract.mjs",
+              ".claude/settings.json"
+            ],
+            "reason": "the closed-task completion boundary and audited writer handoff require Manager-owned lease control-plane changes",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:qa:2026-09-13T22:27:08.045Z",
+        "task": "awkit-yl33",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:27:08.045Z",
+        "acquired_at_commit": "d129dd037bc101d2efeb2508c4ef9c01fbb5feb7",
+        "released_at": "2026-09-13T22:28:45.758Z",
+        "released_reason": "handoff to project-state: Project State records closed-task boundary, documentation and final closeout evidence",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:project-state:2026-09-13T22:28:45.820Z",
+        "task": "awkit-yl33",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/README.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "docs/ai/contracts/awkit-yl33.json",
+          "docs/ai/routing/ROUTING_RULES.md",
+          "docs/ai/routing/TASK_CONTRACT.schema.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T22:28:45.820Z",
+        "acquired_at_commit": "3fe08c10f7e27c27b053b022a487298c1fd420d7",
+        "released_at": "2026-09-13T22:30:58.467Z",
+        "released_reason": "handoff to manager: correct closed-task range evaluation after the live awkit-icon2 gate exposed the direction error",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:manager:2026-09-13T22:30:58.527Z",
+        "task": "awkit-yl33",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          "tools/agents/task-gate.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:30:58.527Z",
+        "acquired_at_commit": "3fe08c10f7e27c27b053b022a487298c1fd420d7",
+        "released_at": "2026-09-13T22:31:23.975Z",
+        "released_reason": "handoff to qa: QA adds the closed-boundary range regression and verifies final lifecycle controls",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:qa:2026-09-13T22:31:24.037Z",
+        "task": "awkit-yl33",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs",
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:31:24.037Z",
+        "acquired_at_commit": "ee5d976b3bbd055b2a535410cb8879b352af9de3",
+        "released_at": "2026-09-13T22:32:54.814Z",
+        "released_reason": "handoff to project-state: Project State commits authoritative closure documentation and final evidence",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }

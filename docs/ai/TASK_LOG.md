@@ -12,11 +12,14 @@
   and pushing; ordinary no-lease Git commands remain blocked.
 - **Regression coverage:** `verify:agent-routing` now exercises a real temporary Git remote for a
   clean terminal closeout, one history entry, released active record, cleared claim and next-task
-  grant, plus wrong identity, staged-extra-file, tampered bookkeeping, unresolved-violation and
-  no-lease Git negative cases.
+  grant, immutable completion boundary and exact handoff grammar, plus wrong identity,
+  staged-extra-file, tampered bookkeeping, unresolved-violation and no-lease Git negative cases.
 - **State:** `awkit-icon2` stays closed with QA PASS and independent QC APPROVED; its existing
   release history and exactly fingerprinted three-file residue are absorbed by this task's final
-  control-plane closeout. The finalizer is invoked after this evidence checkpoint is committed.
+  control-plane closeout. Current evidence: build and script typecheck PASS; source hygiene 11/11;
+  AI-memory PASS; agent routing 1081/1081; verifier classification 205/205; roadmap 177/177,
+  Sources agree; both task gates PASS. The finalizer is invoked after this evidence checkpoint is
+  committed.
 
 ## 2026-09-11 (latest) — `awkit-wy82` shrink-guard regression, roadmap repin and terminal closeout (ZCode GLM)
 

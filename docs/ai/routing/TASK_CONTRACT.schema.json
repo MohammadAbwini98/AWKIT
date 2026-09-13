@@ -295,7 +295,8 @@
       "properties": {
         "status": { "enum": ["pending", "implemented", "rejected", "blocked", "complete"] },
         "qa_status": { "enum": ["pending", "PASS", "FAIL", "BLOCKED"] },
-        "qc_status": { "enum": ["pending", "APPROVED", "REJECTED", "NOT_REQUIRED"] }
+        "qc_status": { "enum": ["pending", "APPROVED", "REJECTED", "NOT_REQUIRED"] },
+        "closed_at_commit": { "type": "string", "description": "The immutable pre-terminal commit selected by the finalizer for a completed task. Historical task gates compare only through this boundary, never against later unrelated work." }
       }
     }
   },

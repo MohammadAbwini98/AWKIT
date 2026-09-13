@@ -707,6 +707,12 @@ npm run agent:lease-amend -- --add "src/storage/**" --reason "Persistence impact
 npm run agent:lease-release -- --reason "handing off to qa"
 ```
 ```bash
+node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-agent-routing.mjs" --reason "QA verification"
+```
+> `handoff` is an exact active-lease control-plane transition, not an unleased contract edit. It
+> validates the different target holder and every path against deterministic routing and ownership,
+> archives the current lease, advances `routing.writer`, and grants/mirrors the next active lease.
+```bash
 npm run agent:lease-finalize -- --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
 ```
 > `agent:lease-finalize` is the only terminal closeout command. It is valid only for the active,

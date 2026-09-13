@@ -12,11 +12,25 @@ gate, exact release history, cleared assignment, clean scope/violations, termina
 and push authority; it may commit and push only `active-lease.json`, the active task contract and
 `tools/roadmap/assignments.json`. Normal no-lease staging, commits and pushes remain blocked.
 
+Sequential writers now use the exact active command
+`node tools/agents/lease-cli.mjs handoff --holder <role> --paths <exact-paths> --reason <text>`.
+It validates the target against deterministic routing and ownership, archives the old lease,
+advances the contract writer and establishes the replacement active claim in one operation. A
+closed task records `completion.closed_at_commit`, so its later gate measures only through the
+immutable task boundary rather than attributing subsequent tasks' changes to it.
+
 The `awkit-icon2` three-file released-state residue is fingerprinted in the closeout task contract
 and is being incorporated without reopening the completed icon work: `awkit-icon2` remains closed,
-with QA PASS, independent QC APPROVED and its original release history intact. The final Project
+with QA PASS, independent QC APPROVED, its original release history intact, and immutable boundary
+`25dac57`. The final Project
 State pre-closeout commit records all evidence while its lease is still active; the finalizer then
 performs the only remaining state transition and must leave `main` clean and synchronized.
+
+**Closeout verification.** `verify:agent-routing` passes **1081/1081** (including real Git terminal
+closeout, exact handoff grammar and closed-boundary regression); verifier classification covers all
+**205** commands; roadmap passes **177/177** with **Sources agree**; build, script typecheck,
+source hygiene and AI-memory checks pass. Both task gates are green; `awkit-icon2` is evaluated
+through `25dac57`, while the active `awkit-yl33` gate has no blockers or scope escapes.
 
 ## `awkit-icon2` complete: independent QC APPROVED, pushed, bead closed (2026-09-13)
 

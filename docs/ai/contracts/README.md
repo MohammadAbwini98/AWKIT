@@ -48,6 +48,17 @@ An amendment **re-runs routing**. If the added paths are owned by another specia
 released rather than widened and the work moves to whoever owns them — permissions never creep
 outward from one agent's original grant.
 
+When a routed writer genuinely changes, use the exact active-lease handoff rather than editing a
+contract with no lease or creating a release residue:
+
+```bash
+node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-agent-routing.mjs" --reason "QA verification"
+```
+
+It accepts only a different activated holder and paths that are both routed and owned by that
+holder. It archives the outgoing lease, advances the contract writer and mirrors the incoming
+assignment in one active control-plane transition; it is unavailable when no lease is active.
+
 ## Retention
 
 `docs/ai/HANDOFF.md` is already over 5,000 lines because nothing ever told it to stop growing. This

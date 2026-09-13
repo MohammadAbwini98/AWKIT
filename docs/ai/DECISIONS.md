@@ -15,6 +15,9 @@
 - **Impact:** normal grants, amendments, releases and no-lease guards are unchanged. Repeated
   finalization is limited to the same verified terminal state, and an inherited residue may be
   absorbed only when its task, released lease ID and file fingerprints are recorded in the contract.
+  Sequential writer changes use the validated active `handoff` control plane; terminal finalization
+  records `completion.closed_at_commit` so later task gates do not reassign unrelated changes to a
+  closed contract.
 
 ### 2026-09-11 - Chart series become a categorical token family; last chrome literals and legacy aliases retired (awkit-44eu)
 
