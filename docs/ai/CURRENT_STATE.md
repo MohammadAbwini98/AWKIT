@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## OS icons regenerated, `verify:app-icon` 29/29; push waits on independent QC (2026-09-13)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-icon2` moves no ledger case.
+
+**The OS icon now carries the squircle brick-S mark (`ed90b56`).** The owner ran
+`npm run icon:generate` after the `e52e851` fix; `resources/icon-source.png`, `icon.png` and
+`icon.ico` were committed. `npm run verify:app-icon` went from **FAIL 18/29** to **PASS 29/29**
+(before the commit, and twice on `ed90b56`): each image matches the in-memory SVG render, the brick
+reads `#7c3aed`, and the ICO holds 7 in-bounds 32-bit PNG frames (16–256) that each match the render.
+The `#8b5cf6` and 512 px negative controls still fail as they must. `icon.png` was inspected
+visually (PASS). **ICO frames were not inspected visually** (Read cannot open `.ico`, the browser
+pane refused the `file://` URL), so 16/24/32 legibility rests on the per-frame pixel match.
+
+**Measured this run (on `ed90b56`).** `git diff --check` clean; build PASS; typecheck:scripts PASS;
+verifier-classification PASS (205); branding 49/49; branding-gui 30/30; design-tokens 29/29;
+source-hygiene 11/11; validate:offline PASS; verify:app-icon 29/29. Packaging references
+(`electron-builder.json`, `app/main/windowManager.ts`) unchanged. Roadmap unchanged at
+**285 total / 282 closed / 3 outstanding** (declared-blocked `awkit-7bu`, `awkit-cm8`,
+`awkit-icon2`) — **Sources agree** (177/177).
+
+**Git — committed, NOT pushed.** Local `main` carries `d9d91dc`, `0ccfca8`, `9bfe134`, `e52e851`,
+`79f3892`, `ed90b56` and the project-state commits; `origin/main` stays at `28fb9fb`. The
+contract now records `icon-render` and `qa_status` PASS; the task gate's remaining blockers are
+`push-main` (pending), `CLOSEOUT` and `qc_status` pending, and the lease guard refuses
+`git push origin main` until QC is APPROVED. QC is never self-approved: it needs an independent
+`awkit-qc-reviewer` pass or owner review. The bead `awkit-icon2` stays open (declared-blocked) until
+the push lands; self-QC only.
+
 ## `icon:generate` root cause fixed and `verify:app-icon` added; OS icon still stale, regeneration guard-blocked (2026-09-13)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

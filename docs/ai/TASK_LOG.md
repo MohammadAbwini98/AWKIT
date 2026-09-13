@@ -14769,3 +14769,28 @@ pm run verify:mock-site
   cannot carry a Co-Authored-By trailer.
 - **Result:** root cause fixed and a gate now proves or disproves regeneration; OS icon still 1c
   until the owner runs `npm run icon:generate`; not pushed; self-QC only; no ledger case moved.
+
+## 2026-09-13 — awkit-icon2: owner-regenerated OS icons verified 29/29 and committed; push waits on independent QC (Claude)
+- **Task:** owner reported "icons regenerated, continue QA and push".
+- **Verification:** `npm run verify:app-icon` went from FAIL 18/29 to PASS 29/29 before the commit,
+  then twice more on `ed90b56`: `icon-source.png`, `icon.png` and all 7 ICO frames match the SVG
+  render, the brick reads `#7c3aed`, every frame is an in-bounds 32-bit PNG with 8-bit RGBA IHDR, and
+  the `#8b5cf6` / 512 px negative controls fail. `icon.png` inspected visually (PASS). ICO frame visual
+  NOT RUN: Read cannot open `.ico` and the browser pane refused the `file://` URL.
+- **Commit:** `ed90b56` (release) — `resources/icon-source.png`, `icon.png`, `icon.ico`; no generator or
+  output patching.
+- **Gates (on `ed90b56`):** `git diff --check` clean; build PASS; typecheck:scripts PASS;
+  verifier-classification PASS (205); branding 49/49; branding-gui 30/30; design-tokens 29/29;
+  source-hygiene 11/11; validate:offline PASS; verify:app-icon 29/29; roadmap 177/177 at 285/282/3 —
+  Sources agree. Packaging references unchanged.
+- **Contract:** `icon-render` PASS, `completion` implemented with `qa_status` PASS; `qc_status` stays
+  pending (never self-approved). Bead `awkit-icon2` notes updated; it stays open and declared-blocked.
+- **Git:** `git push origin main` refused again with
+  `[write-lease] BLOCKED: shell command is outside the active project-state lease or the actor's role.`
+  The gate's remaining blockers are `push-main` pending, `CLOSEOUT` and `qc_status` pending;
+  `origin/main` stays at `28fb9fb`. The 4-token commit form cannot carry a Co-Authored-By trailer.
+- **Files:** resources/{icon-source.png,icon.png,icon.ico} (`ed90b56`);
+  docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md; docs/ai/contracts/{awkit-icon2,active-lease}.json;
+  .beads/issues.jsonl; tools/roadmap/assignments.json.
+- **Result:** OS icon regenerated and proven against the brand SVG; not pushed; self-QC only; next
+  step is an independent QC review or owner approval, then push and close. No ledger case moved.

@@ -1801,7 +1801,8 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   `app/renderer/assets/brand/awkit-app-icon.svg` changed it exited 0 and wrote the concept-1c icons
   byte for byte. It now renders the SVG by default and rewrites `icon-source.png` from that render.
   **Exit 0 is not evidence:** run `npm run verify:app-icon`, which pixel-compares `icon-source.png`,
-  `icon.png` and every ICO frame with the SVG render (29/29 when current).
+  `icon.png` and every ICO frame with the SVG render (29/29 when current). The owner-run regeneration
+  after the fix landed as `ed90b56` and reads 29/29 (was 18/29).
 - **No agent role may run `npm run icon:generate` (lease guard, `980c0b3`).** The deny-by-default
   command grammar admits no icon generation, `node scripts/…` or `node -e` for any role, so OS-icon
   regeneration is owner-run (or needs an owner-authorized grammar change with a

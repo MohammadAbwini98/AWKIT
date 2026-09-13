@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-13, latest) — `awkit-icon2`: generator fixed and icon gate added, OS icon regeneration still waits on the owner
+## HANDOFF (2026-09-13, latest) — `awkit-icon2`: OS icons regenerated and verified 29/29, push waits on independent QC
+
+- **Done:** the owner ran `npm run icon:generate`; the regenerated `resources/icon-source.png`,
+  `icon.png` and `icon.ico` are committed as `ed90b56`. `npm run verify:app-icon` reads **29/29**
+  (was 18/29), re-run twice on `ed90b56`; `icon.png` inspected visually. Contract `icon-render` and
+  `qa_status` are PASS.
+- **Git — committed on local `main`, NOT pushed:** `d9d91dc`, `0ccfca8`, `9bfe134`, `e52e851`,
+  `79f3892`, `ed90b56` plus project-state bookkeeping commits; `origin/main` stays at `28fb9fb`.
+- **Blocker — independent QC.** The task gate's remaining blockers are `push-main` (pending),
+  `CLOSEOUT` and `qc_status` pending; the lease guard refuses `git push origin main` until QC is
+  APPROVED, and QC is never self-approved. Owner choice: authorize an `awkit-qc-reviewer` pass, or
+  review the diff `28fb9fb..main` and approve QC.
+- **Then, in order:** record `qc_status` APPROVED in `docs/ai/contracts/awkit-icon2.json` →
+  `git push origin main` and remeasure parity → record `push-main` PASS → `bd close awkit-icon2` and
+  `bd export -o .beads/issues.jsonl` → qa repins `verify:roadmap-dashboard` (285 total / 283 closed /
+  2 outstanding, declared-blocked back to 2) → commit and push the bookkeeping → release the lease
+  and drop the `tools/roadmap/assignments.json` claim (expires 2026-09-14T17:46Z).
+- **Not run:** ICO frame visual inspection (Read cannot open `.ico`; the browser pane refused the
+  `file://` URL), so 16/24/32 legibility rests on the per-frame pixel match; packaged EXE/installer
+  icon; clean machine; independent QC.
+- **Expect:** Windows may keep showing the cached 1c icon on existing shortcuts and taskbar pins
+  until re-pinned; packaged artifacts pick up the new icon only on the next package build.
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+
+## HANDOFF (2026-09-13) — `awkit-icon2`: generator fixed and icon gate added, OS icon regeneration still waits on the owner
 
 - **Git — committed on local `main`, NOT pushed:** `d9d91dc` (sidebar + SVG source), `0ccfca8`
   (roadmap repin), `9bfe134` (docs), `e52e851` (generator root-cause fix), `79f3892`
