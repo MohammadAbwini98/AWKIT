@@ -74,14 +74,9 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "manager",
+      "agent_id": "qa",
       "allowed_paths": [
-        "tools/agents/lease-cli.mjs",
-        "tools/agents/lease-guard.mjs",
-        "tools/agents/lease.mjs",
-        "tools/agents/routing-matrix.mjs",
-        "tools/agents/task-gate.mjs",
-        "tools/agents/validate-contract.mjs"
+        "scripts/verify-agent-routing.mjs"
       ]
     },
     "reviewers": [
@@ -184,6 +179,28 @@
     "qc_status": "NOT_REQUIRED"
   },
   "write_lease": {
-    "history": []
+    "history": [
+      {
+        "id": "awkit-yl33:manager:2026-09-13T21:51:49.570Z",
+        "task": "awkit-yl33",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          "tools/agents/lease-cli.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/lease.mjs",
+          "tools/agents/routing-matrix.mjs",
+          "tools/agents/task-gate.mjs",
+          "tools/agents/validate-contract.mjs"
+        ],
+        "acquired_at": "2026-09-13T21:51:49.570Z",
+        "acquired_at_commit": "25dac57ec6c62c05fa32fbc5908b18c08fdd149d",
+        "released_at": "2026-09-13T21:58:59.345Z",
+        "released_reason": "terminal closeout control implemented; QA adds focused regression proof",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

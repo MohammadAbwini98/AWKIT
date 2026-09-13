@@ -1,30 +1,27 @@
 {
   "task": "awkit-yl33",
   "contract_path": "docs/ai/contracts/awkit-yl33.json",
-  "holder": "manager",
+  "holder": "qa",
   "status": "active",
   "allowed_paths": [
-    "tools/agents/lease-cli.mjs",
-    "tools/agents/lease-guard.mjs",
-    "tools/agents/lease.mjs",
-    "tools/agents/routing-matrix.mjs",
-    "tools/agents/task-gate.mjs",
-    "tools/agents/validate-contract.mjs"
+    "scripts/verify-agent-routing.mjs"
   ],
-  "acquired_at": "2026-09-13T21:51:49.570Z",
-  "acquired_at_commit": "25dac57ec6c62c05fa32fbc5908b18c08fdd149d",
+  "acquired_at": "2026-09-13T21:59:17.509Z",
+  "acquired_at_commit": "42b17aadc14ceacddcbe17d864df25111c449f30",
   "baseline_dirty": [
     ".beads/issues.jsonl",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-icon2.json",
     "docs/ai/contracts/awkit-yl33.json",
+    "docs/ai/routing/TASK_CONTRACT.schema.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
     ".beads/issues.jsonl": "007fc67646920ad3113658b047d0296e03c3bac9c383215acb37cca8bd081796",
-    "docs/ai/contracts/active-lease.json": "1ef5a438388c2e24d9c81670cda463ff0a6790e664b45e9e95abd422b879a475",
+    "docs/ai/contracts/active-lease.json": "fcdaec1aa6b20b09bd793ba8e5a1858d377eb0ced06d5fb18e64b33cb7f25308",
     "docs/ai/contracts/awkit-icon2.json": "4c73124aa9ea70a06b8611c672cef6934f29c039181f1a4fb445abd17bc91d51",
-    "docs/ai/contracts/awkit-yl33.json": "f68a204b10b7ca569f023e3cbcad4a15e5a09e5bbc20b8fd11f3d6cb632a3ac7",
+    "docs/ai/contracts/awkit-yl33.json": "8c867178046b085914de47a300db9fced403141143e39739c4a90e798bf56ce5",
+    "docs/ai/routing/TASK_CONTRACT.schema.json": "1d14d54fcd04fb4ba132b7a0fc7612e58a37d75f5f7cf9c9fc42783d66e9aeb9",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

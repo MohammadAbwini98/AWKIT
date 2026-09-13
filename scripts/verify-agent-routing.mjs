@@ -90,7 +90,9 @@ import {
   changedWatchedIgnored,
   fingerprintWatchedIgnored,
   dirtyPaths,
+  finalizeLeaseCloseout,
   grantLease,
+  leaseIdOf,
   leaseAllows,
   outOfLeaseWrites,
   readLease,
@@ -105,6 +107,7 @@ import {
   effectiveActorFor,
   isAllowedActiveShellCommand,
   isContractControlPath,
+  isLeaseFinalizeCommand,
   isLeaseGrantCommand,
   isManagerGitCommand,
   isPhysicallyWithinRepo,
@@ -154,7 +157,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1064;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1073;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -311,6 +314,99 @@ function tempFile(name, contents) {
   const path = join(dir, name);
   writeFileSync(path, contents, "utf8");
   return path;
+}
+
+function writeJson(path, value) {
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function finalReleaseFixture(label) {
+  const cwd = mkdtempSync(join(tmpdir(), `awkit-final-release-${label}-`));
+  tempDirs.push(cwd);
+  const remote = mkdtempSync(join(tmpdir(), `awkit-final-release-remote-${label}-`));
+  tempDirs.push(remote);
+  const docs = join(cwd, "docs", "ai", "contracts");
+  const roadmap = join(cwd, "tools", "roadmap");
+  mkdirSync(docs, { recursive: true });
+  mkdirSync(roadmap, { recursive: true });
+  writeFileSync(join(cwd, "package.json"), "{}\n", "utf8");
+  execFileSync("git", ["init", "--initial-branch=main"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["config", "user.name", "AWKIT Routing Verifier"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "routing-verifier@example.invalid"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["add", "package.json"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "baseline"], { cwd, stdio: "ignore" });
+  const baseline = execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
+  const task = `awkit-final-${label}`;
+  const contractPath = join(docs, `${task}.json`);
+  const leasePath = join(docs, "active-lease.json");
+  const assignmentsPath = join(roadmap, "assignments.json");
+  const allowedPaths = [
+    `docs/ai/contracts/${task}.json`,
+    "docs/ai/contracts/active-lease.json",
+    "tools/roadmap/assignments.json"
+  ].sort();
+  const routing = route(normalizeClassification({ project_state_change: true }).classification, {
+    expectedPaths: allowedPaths,
+    taskMode: "change"
+  });
+  const contract = validContract();
+  contract.task = {
+    id: task,
+    title: "Final release fixture",
+    objective: "Exercise exact final-release bookkeeping.",
+    risk_level: 1,
+    mode: "change"
+  };
+  contract.repository = { branch: "main", baseline_commit: baseline, working_tree_expected: "clean", preserved_paths: [] };
+  contract.classification = { project_state_change: true, cross_layer_count: 1 };
+  contract.routing = {
+    manager: "manager",
+    activated_agents: routing.activated,
+    expected_paths: allowedPaths,
+    consultants: routing.consultants,
+    writer: { agent_id: "project-state", allowed_paths: [...allowedPaths] },
+    reviewers: routing.reviewers
+  };
+  contract.acceptance = [{ id: "FINAL", description: "Terminal bookkeeping commits exactly once.", evidence_required: ["gate"] }];
+  contract.evidence = [{ id: "gate", type: "verifier", command: "fixture", required: true, result: "PASS" }];
+  contract.git = {
+    direct_main: true,
+    commit_policy: "coherent",
+    force_push: false,
+    destructive_reset: false,
+    push_authorized: true,
+    final_release_authorized: true
+  };
+  contract.completion = { status: "complete", qa_status: "PASS", qc_status: "NOT_REQUIRED" };
+  const lease = {
+    task,
+    contract_path: `docs/ai/contracts/${task}.json`,
+    holder: "project-state",
+    status: "active",
+    allowed_paths: [...allowedPaths],
+    acquired_at: "2026-09-14T00:00:00.000Z",
+    acquired_at_commit: baseline,
+    amendments: [],
+    overrides: [],
+    violations: []
+  };
+  writeJson(contractPath, contract);
+  writeJson(leasePath, lease);
+  writeJson(assignmentsPath, {
+    claims: [{
+      itemId: `bead:${task}`,
+      agent: agent("project-state").role,
+      state: "in-progress",
+      claimedAt: lease.acquired_at,
+      note: `write lease: ${lease.allowed_paths.join(", ")}`
+    }]
+  });
+  execFileSync("git", ["add", "docs", "tools"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "active lease"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["init", "--bare", remote], { stdio: "ignore" });
+  execFileSync("git", ["remote", "add", "origin", remote], { cwd, stdio: "ignore" });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd, stdio: "ignore" });
+  return { cwd, task, contractPath, leasePath, assignmentsPath, lease, contract, routing };
 }
 
 function spawnLeaseGuard(payload) {
@@ -1797,6 +1893,137 @@ try {
         entry.violations?.some((violation) => violation.path === "src/runner/outside.ts")
       ) && readLease(historyLeasePath)?.violations?.length === 0,
       JSON.stringify(historyAfterNextLease.write_lease?.history)
+    );
+  }
+
+  /* Final release is the narrow exception that closes the normal release-residue loop. It drives
+     disposable Git repositories with real commits and a bare origin so a passing unit assertion
+     cannot stand in for an actually clean terminal repository. */
+  {
+    const finalGate = (contract, options) =>
+      taskGateLoad.module?.evaluateTaskGate(contract, { ...options, guardedFieldChanges: [] });
+    const runFinal = (fixture, overrides = {}) =>
+      finalizeLeaseCloseout({
+        task: fixture.task,
+        leaseId: leaseIdOf(fixture.lease),
+        reason: "completed fixture closeout",
+        path: fixture.leasePath,
+        assignmentsPath: fixture.assignmentsPath,
+        contractPath: fixture.contractPath,
+        cwd: fixture.cwd,
+        evaluateTaskGate: finalGate,
+        ...overrides
+      });
+
+    const happy = finalReleaseFixture("happy");
+    const finished = invoke(runFinal, happy);
+    const finishedLease = JSON.parse(readFileSync(happy.leasePath, "utf8"));
+    const finishedContract = JSON.parse(readFileSync(happy.contractPath, "utf8"));
+    const finishedAssignments = JSON.parse(readFileSync(happy.assignmentsPath, "utf8"));
+    const finalPaths = [
+      "docs/ai/contracts/active-lease.json",
+      `docs/ai/contracts/${happy.task}.json`,
+      "tools/roadmap/assignments.json"
+    ].sort();
+    const terminalCommitPaths = execFileSync("git", ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"], {
+      cwd: happy.cwd,
+      encoding: "utf8"
+    }).trim().split("\n").filter(Boolean).sort();
+    const terminalGate = invoke(finalGate, finishedContract, { cwd: happy.cwd, lease: null });
+    check(
+      "final release commits and pushes exactly the three terminal bookkeeping paths",
+      finished.ok && sameArray(terminalCommitPaths, finalPaths) &&
+        execFileSync("git", ["status", "--porcelain"], { cwd: happy.cwd, encoding: "utf8" }).trim() === "",
+      `${finished.error?.message ?? ""} / ${terminalCommitPaths.join(",")}`
+    );
+    check(
+      "final release records truthful released lease state, one history entry and no stale claim",
+      finishedLease.status === "released" && finishedLease.task === happy.task &&
+        finishedContract.write_lease?.history?.filter((entry) => entry.id === leaseIdOf(happy.lease)).length === 1 &&
+        finishedAssignments.claims?.filter((claim) => claim.itemId === `bead:${happy.task}`).length === 0 &&
+        terminalGate.ok && terminalGate.value?.ok === true,
+      JSON.stringify({ finishedLease, history: finishedContract.write_lease?.history, claims: finishedAssignments.claims, gate: terminalGate.value })
+    );
+    const retry = invoke(runFinal, happy);
+    const retriedContract = JSON.parse(readFileSync(happy.contractPath, "utf8"));
+    check(
+      "repeating a committed final release is safe and does not duplicate history",
+      retry.ok && retriedContract.write_lease?.history?.filter((entry) => entry.id === leaseIdOf(happy.lease)).length === 1,
+      retry.error?.message ?? JSON.stringify(retriedContract.write_lease?.history)
+    );
+
+    const nextContractPath = join(happy.cwd, "docs", "ai", "contracts", "awkit-next.json");
+    const nextContract = validContract();
+    nextContract.task.id = "awkit-next";
+    writeJson(nextContractPath, nextContract);
+    const nextLease = invoke(grantLease, {
+      task: "awkit-next",
+      holder: "manager",
+      allowedPaths: ["tools/agents/lease.mjs"],
+      routing: {
+        ...route(normalizeClassification({ agent_infrastructure_change: true }).classification, {
+          expectedPaths: ["tools/agents/lease.mjs"],
+          taskMode: "change"
+        }),
+        expectedPaths: ["tools/agents/lease.mjs"]
+      },
+      path: happy.leasePath,
+      assignmentsPath: happy.assignmentsPath,
+      contractPath: nextContractPath
+    });
+    check("a normal next task can acquire a new lease after final closeout", nextLease.ok && nextLease.value?.status === "active");
+
+    const extra = finalReleaseFixture("extra");
+    writeFileSync(join(extra.cwd, "rogue.txt"), "not terminal bookkeeping\n", "utf8");
+    execFileSync("git", ["add", "rogue.txt"], { cwd: extra.cwd, stdio: "ignore" });
+    const extraResult = invoke(runFinal, extra);
+    check(
+      "final release refuses an arbitrary extra staged file before it changes lease state",
+      !extraResult.ok && /clean repository|extra|terminal/i.test(String(extraResult.error?.message)) &&
+        JSON.parse(readFileSync(extra.leasePath, "utf8")).status === "active",
+      extraResult.error?.message
+    );
+
+    const tampered = finalReleaseFixture("tampered");
+    releaseLease("prepared fixture release", tampered.leasePath, tampered.assignmentsPath, tampered.contractPath);
+    const tamperedContract = JSON.parse(readFileSync(tampered.contractPath, "utf8"));
+    tamperedContract.write_lease.history[0].released_reason = "tampered after release";
+    writeJson(tampered.contractPath, tamperedContract);
+    const tamperedResult = invoke(runFinal, tampered);
+    check(
+      "final release rejects tampered terminal bookkeeping",
+      !tamperedResult.ok && /history|terminal/i.test(String(tamperedResult.error?.message)),
+      tamperedResult.error?.message
+    );
+
+    const wrongIdentity = finalReleaseFixture("wrong");
+    const wrongResult = invoke(runFinal, wrongIdentity, { leaseId: `${wrongIdentity.task}:project-state:wrong` });
+    check(
+      "final release rejects a wrong task lease identity",
+      !wrongResult.ok && /identity/i.test(String(wrongResult.error?.message)),
+      wrongResult.error?.message
+    );
+
+    const violation = finalReleaseFixture("violation");
+    const violatedLease = JSON.parse(readFileSync(violation.leasePath, "utf8"));
+    violatedLease.violations = [{ path: "rogue.txt", resolved: false }];
+    writeJson(violation.leasePath, violatedLease);
+    execFileSync("git", ["add", "docs/ai/contracts/active-lease.json"], { cwd: violation.cwd, stdio: "ignore" });
+    execFileSync("git", ["commit", "-m", "record violation"], { cwd: violation.cwd, stdio: "ignore" });
+    const violationResult = invoke(runFinal, violation);
+    check(
+      "final release rejects an unresolved lease violation",
+      !violationResult.ok && /task gate|unresolved/i.test(String(violationResult.error?.message)),
+      violationResult.error?.message
+    );
+    const finalCommand = `npm run agent:lease-finalize -- --task ${happy.task} --lease-id ${leaseIdOf(happy.lease)} --reason terminal closeout`;
+    check(
+      "the final-release command is exact while ordinary no-lease add, commit and push remain blocked",
+      isLeaseFinalizeCommand(finalCommand) &&
+        !isLeaseFinalizeCommand(`${finalCommand} --extra`) &&
+        ["git add -- docs/ai/contracts/active-lease.json", "git commit -m unsafe", "git push origin main"].every((command) =>
+          !isReadOnlyShellCommand(command) && !isAllowedActiveShellCommand(command, null)
+        )
     );
   }
 
