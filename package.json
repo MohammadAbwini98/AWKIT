@@ -50,6 +50,7 @@
     "verify:https-certificates-gui": "node scripts/verify-https-certificates-gui.mjs",
     "verify:branding": "tsx scripts/verify-branding.mts",
     "verify:branding-gui": "node scripts/verify-branding-gui.mjs",
+    "verify:app-icon": "node scripts/verify-app-icon.mjs",
     "verify:custom-brand-logo": "tsx scripts/verify-custom-brand-logo.mts",
     "build:oracle-bridge": "node scripts/build-oracle-bridge.mjs",
     "build:test-roots": "electron-vite build --config electron.vite.test-roots.config.ts && node scripts/write-test-root-manifest.mjs",
