@@ -12,15 +12,16 @@
  *   npm run agent:lease-grant   -- --task awkit-xyz --holder frontend --paths "app/renderer/**"
  *   npm run agent:lease-amend   -- --add "src/storage/**" --reason "Persistence impact discovered"
  *   npm run agent:lease-release -- --reason "handing off to qa"
+ *   npm run agent:lease-finalize -- --task awkit-xyz --lease-id awkit-xyz:project-state:<timestamp> --reason "terminal closeout"
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { REPO_ROOT, amendLease, grantLease, readLease, releaseLease } from "./lease.mjs";
+import { REPO_ROOT, amendLease, finalizeLeaseCloseout, grantLease, readLease, releaseLease } from "./lease.mjs";
 import { validateBaseline } from "./classify.mjs";
 import { agent } from "./routing-matrix.mjs";
-import { verifyPreservedPaths } from "./task-gate.mjs";
+import { evaluateTaskGate, verifyPreservedPaths } from "./task-gate.mjs";
 import { validateContract } from "./validate-contract.mjs";
 
 /**
@@ -107,6 +108,16 @@ function main() {
               preserved.escapes.map((escape) => `${escape.subject}: ${escape.detail}`).join("; ")
           );
         }
+        const residue = contract.repository?.final_release_residue;
+        if (residue) {
+          const residueCheck = verifyPreservedPaths(residue.paths, { cwd: REPO_ROOT });
+          if (residueCheck.escapes.length > 0) {
+            throw new Error(
+              "cannot grant because declared final-release residue no longer matches its captured state: " +
+                residueCheck.escapes.map((escape) => `${escape.subject}: ${escape.detail}`).join("; ")
+            );
+          }
+        }
         if (contract.routing?.writer?.agent_id !== holder) {
           throw new Error(
             `contract names writer "${contract.routing?.writer?.agent_id ?? "none"}", not "${holder}"`
@@ -174,8 +185,20 @@ function main() {
         break;
       }
 
+      case "finalize": {
+        const task = one(args, "task");
+        const leaseId = one(args, "lease-id");
+        const reason = one(args, "reason");
+        if (!task || !leaseId || !reason) {
+          throw new Error("finalize requires --task, --lease-id and --reason");
+        }
+        const result = finalizeLeaseCloseout({ task, leaseId, reason, evaluateTaskGate });
+        console.log(`Finalized ${result.task} lease ${result.leaseId} and pushed exact terminal bookkeeping.`);
+        break;
+      }
+
       default:
-        console.error(`Unknown command "${command}". Use: status | grant | amend | release`);
+        console.error(`Unknown command "${command}". Use: status | grant | amend | release | finalize`);
         process.exitCode = 1;
     }
   } catch (err) {

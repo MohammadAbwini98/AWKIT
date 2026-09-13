@@ -36,6 +36,7 @@ import {
 } from "./routing-matrix.mjs";
 import { deriveClassification, normalizeClassification } from "./classify.mjs";
 import { route } from "./route.mjs";
+import { validateContract } from "./validate-contract.mjs";
 
 /** tools/agents -> tools -> repo root */
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -105,6 +106,14 @@ export function readLeaseRecord(path = LEASE_PATH) {
 export function readLease(path = LEASE_PATH) {
   const parsed = readLeaseRecord(path);
   return parsed?.status === "active" ? parsed : null;
+}
+
+/** The stable identity used by both the active record and its immutable history snapshot. */
+export function leaseIdOf(lease) {
+  if (!lease || typeof lease.task !== "string" || typeof lease.holder !== "string" || typeof lease.acquired_at !== "string") {
+    throw new Error("lease identity requires task, holder and acquired_at");
+  }
+  return `${lease.task}:${lease.holder}:${lease.acquired_at}`;
 }
 
 /**
@@ -279,7 +288,7 @@ export function archiveLease(lease, contractPath = lease.contract_path ?? contra
   if (!Array.isArray(contract.write_lease.history)) {
     throw new Error("contract.write_lease.history is not an array");
   }
-  const archiveId = `${lease.task}:${lease.holder}:${lease.acquired_at}`;
+  const archiveId = leaseIdOf(lease);
   if (!contract.write_lease.history.some((entry) => entry?.id === archiveId)) {
     contract.write_lease.history.push({
       id: archiveId,
@@ -532,6 +541,244 @@ export function releaseLease(
     assignmentsPath,
     contractPath: contractPath ?? lease.contract_path ?? contractPathFor(lease.task)
   });
+}
+
+function readJson(path, label) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new Error(`cannot read ${label} at ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function relativePathInside(cwd, path, label) {
+  const rel = relative(cwd, resolve(path)).replace(/\\/g, "/");
+  if (!rel || rel === ".." || rel.startsWith("../") || isAbsolute(rel)) {
+    throw new Error(`${label} is outside the repository`);
+  }
+  return rel;
+}
+
+function gitLines(args, cwd) {
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  })
+    .split("\n")
+    .map((line) => line.trim().replace(/\\/g, "/"))
+    .filter(Boolean)
+    .sort();
+}
+
+function samePaths(actual, expected) {
+  return JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
+}
+
+function terminalPaths({ task, path, assignmentsPath, contractPath, cwd }) {
+  const paths = [
+    relativePathInside(cwd, path, "active lease path"),
+    relativePathInside(cwd, contractPath, "task contract path"),
+    relativePathInside(cwd, assignmentsPath, "assignments path")
+  ].sort();
+  if (new Set(paths).size !== 3) throw new Error("terminal bookkeeping paths must be three distinct files");
+  if (!paths.includes("docs/ai/contracts/active-lease.json")) {
+    throw new Error("final release may only write docs/ai/contracts/active-lease.json as its active record");
+  }
+  if (!paths.includes(`docs/ai/contracts/${task}.json`)) {
+    throw new Error("final release may only archive history into its own task contract");
+  }
+  if (!paths.includes("tools/roadmap/assignments.json")) {
+    throw new Error("final release may only clear tools/roadmap/assignments.json");
+  }
+  return paths;
+}
+
+function claimFor(lease, assignments) {
+  const claims = Array.isArray(assignments?.claims) ? assignments.claims : [];
+  return claims.filter((claim) => claim?.itemId === `bead:${lease.task}`);
+}
+
+function assertActiveClaim(lease, assignments) {
+  const claims = claimFor(lease, assignments);
+  const expectedNote = `write lease: ${(lease.allowed_paths ?? []).join(", ")}`;
+  if (
+    claims.length !== 1 ||
+    claims[0]?.agent !== agent(lease.holder).role ||
+    claims[0]?.state !== "in-progress" ||
+    claims[0]?.claimedAt !== lease.acquired_at ||
+    claims[0]?.note !== expectedNote
+  ) {
+    throw new Error("final release requires the active lease's exact mirrored assignment claim");
+  }
+}
+
+function assertReleasedTerminal(lease, contract, assignments, expectedLeaseId) {
+  if (lease.status !== "released" || leaseIdOf(lease) !== expectedLeaseId || !lease.archived_at) {
+    throw new Error("final release record is not a complete released terminal lease");
+  }
+  const history = Array.isArray(contract.write_lease?.history) ? contract.write_lease.history : [];
+  const matching = history.filter((entry) => entry?.id === expectedLeaseId);
+  if (matching.length !== 1) {
+    throw new Error(`final release requires exactly one history entry for ${expectedLeaseId}`);
+  }
+  const entry = matching[0];
+  for (const field of ["task", "holder", "status", "acquired_at", "acquired_at_commit", "released_at", "released_reason"]) {
+    if (entry[field] !== lease[field]) {
+      throw new Error(`final release history does not match active record field ${field}`);
+    }
+  }
+  if (
+    JSON.stringify(entry.allowed_paths) !== JSON.stringify(lease.allowed_paths) ||
+    JSON.stringify(entry.amendments) !== JSON.stringify(lease.amendments) ||
+    JSON.stringify(entry.overrides) !== JSON.stringify(lease.overrides) ||
+    JSON.stringify(entry.violations) !== JSON.stringify(lease.violations)
+  ) {
+    throw new Error("final release history does not exactly match the terminal lease state");
+  }
+  if (claimFor(lease, assignments).length !== 0) {
+    throw new Error("final release did not clear its roadmap assignment claim");
+  }
+}
+
+function assertFinalReleaseAuthorization(contract, task) {
+  const validation = validateContract(contract);
+  if (!validation.ok) {
+    throw new Error(`final release requires a valid task contract: ${validation.violations.map((v) => v.rule).join(", ")}`);
+  }
+  if (
+    contract.task?.id !== task ||
+    contract.task?.mode !== "change" ||
+    contract.completion?.status !== "complete" ||
+    contract.git?.direct_main !== true ||
+    contract.git?.force_push !== false ||
+    contract.git?.destructive_reset !== false ||
+    contract.git?.push_authorized !== true ||
+    contract.git?.final_release_authorized !== true
+  ) {
+    throw new Error("final release is not explicitly authorized by a completed direct-main task contract");
+  }
+}
+
+function assertRecordedResidue(contract, cwd) {
+  const residue = contract.repository?.final_release_residue;
+  if (!residue) return;
+  const paths = Array.isArray(residue.paths) ? residue.paths.map((entry) => entry?.path).sort() : [];
+  if (paths.length === 0 || new Set(paths).size !== paths.length) {
+    throw new Error("final release residue has no distinct fingerprinted paths");
+  }
+  const changed = gitLines(["diff", "--name-only", `${contract.repository.baseline_commit}..HEAD`], cwd);
+  if (!paths.every((path) => changed.includes(path))) {
+    throw new Error("the declared pre-existing final-release residue was not incorporated into this task's committed scope");
+  }
+  const sourceContractPath = `docs/ai/contracts/${residue.task}.json`;
+  const expected = residue.paths.find((entry) => entry?.path === sourceContractPath);
+  if (!expected) throw new Error("final release residue must fingerprint its source task contract");
+  const archived = readJson(join(cwd, sourceContractPath), "residue task contract");
+  const bytes = readFileSync(join(cwd, sourceContractPath));
+  if (createHash("sha256").update(bytes).digest("hex") !== expected.sha256) {
+    throw new Error("the preserved residue task contract was modified before final release");
+  }
+  if (!Array.isArray(archived.write_lease?.history) || !archived.write_lease.history.some((entry) => entry?.id === residue.lease_id)) {
+    throw new Error("the declared residue lease history is missing from its source task contract");
+  }
+}
+
+function assertTerminalCommit(task, expectedPaths, cwd) {
+  const subject = execFileSync("git", ["log", "-1", "--format=%s"], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  }).trim();
+  if (subject !== `docs(leases): finalize ${task} closeout`) {
+    throw new Error("terminal release commit has an unexpected subject");
+  }
+  const changed = gitLines(["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"], cwd);
+  if (!samePaths(changed, expectedPaths)) {
+    throw new Error("terminal release commit contains paths outside exact bookkeeping");
+  }
+}
+
+/**
+ * Finish a completed task's last lease with one exact terminal commit and push.
+ *
+ * Ordinary release still only changes state. This narrow control-plane operation is for the one
+ * terminal transition where that state must itself be committed. It accepts either a clean active
+ * lease, or the exact released state it previously prepared after a Git failure; it receives no
+ * arbitrary paths or Git arguments.
+ */
+export function finalizeLeaseCloseout({
+  task,
+  leaseId,
+  reason,
+  path = LEASE_PATH,
+  assignmentsPath = ASSIGNMENTS_PATH,
+  contractPath = contractPathFor(task),
+  cwd = REPO_ROOT,
+  evaluateTaskGate
+}) {
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(task ?? "")) throw new Error("final release task identity is invalid");
+  if (typeof leaseId !== "string" || !leaseId.startsWith(`${task}:`)) throw new Error("final release lease identity is invalid");
+  if (!reason || !reason.trim()) throw new Error("final release requires a non-empty reason");
+  if (typeof evaluateTaskGate !== "function") throw new Error("final release requires the operational task gate");
+  if (execFileSync("git", ["branch", "--show-current"], { cwd, encoding: "utf8" }).trim() !== "main") {
+    throw new Error("final release is permitted only on main");
+  }
+
+  const terminal = terminalPaths({ task, path, assignmentsPath, contractPath, cwd });
+  const contract = readTaskContract(contractPath, task);
+  assertFinalReleaseAuthorization(contract, task);
+  assertRecordedResidue(contract, cwd);
+  const record = readLeaseRecord(path);
+  if (!record || record.task !== task || leaseIdOf(record) !== leaseId) {
+    throw new Error("final release task or most-recent lease identity does not match the active record");
+  }
+
+  if (record.status === "active") {
+    if (gitLines(["status", "--porcelain"], cwd).length !== 0) {
+      throw new Error("final release requires a clean repository before it prepares terminal bookkeeping");
+    }
+    assertActiveClaim(record, readJson(assignmentsPath, "assignments"));
+    const gate = evaluateTaskGate(contract, { lease: record, cwd });
+    if (!gate?.ok) throw new Error(`final release task gate is blocked: ${(gate?.blockers ?? []).join("; ")}`);
+    finalizeLease(record, { reason, path, assignmentsPath, contractPath });
+  } else if (record.status !== "released") {
+    throw new Error(`final release requires an active or retryable released lease, found ${record.status}`);
+  }
+
+  const terminalLease = readLeaseRecord(path);
+  const terminalContract = readTaskContract(contractPath, task);
+  assertReleasedTerminal(
+    terminalLease,
+    terminalContract,
+    readJson(assignmentsPath, "assignments"),
+    leaseId
+  );
+  const dirty = dirtyPaths(cwd);
+  if (dirty.length > 0 && !samePaths(dirty, terminal)) {
+    throw new Error("final release refuses modified, missing or extra terminal bookkeeping paths");
+  }
+
+  if (dirty.length > 0) {
+    execFileSync("git", ["diff", "--check"], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", ["add", "--", ...terminal], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const staged = gitLines(["diff", "--cached", "--name-only"], cwd);
+    if (!samePaths(staged, terminal)) {
+      throw new Error("final release refuses staged paths outside exact terminal bookkeeping");
+    }
+    execFileSync("git", ["diff", "--cached", "--check"], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", ["commit", "-m", `docs(leases): finalize ${task} closeout`], {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+  }
+
+  if (gitLines(["status", "--porcelain"], cwd).length !== 0) {
+    throw new Error("final release did not leave a clean working tree");
+  }
+  assertTerminalCommit(task, terminal, cwd);
+  execFileSync("git", ["push", "origin", "main"], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+  return { task, leaseId, terminalPaths: terminal };
 }
 
 /**

@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-yl33",
+    "title": "Make final write-lease closeout atomic and absorb awkit-icon2 residue",
+    "objective": "Add a tightly validated final-release control-plane operation so the final lease release can commit only its terminal bookkeeping, clear the roadmap assignment, retain lease history and push main without reopening a normal lease. Preserve and absorb the existing released awkit-icon2 bookkeeping state without reopening its approved implementation.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "25dac57",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [],
+    "final_release_residue": {
+      "task": "awkit-icon2",
+      "lease_id": "awkit-icon2:project-state:2026-09-13T19:39:01.503Z",
+      "paths": [
+        {
+          "path": "docs/ai/contracts/active-lease.json",
+          "git_status": " M",
+          "sha256": "1ef5a438388c2e24d9c81670cda463ff0a6790e664b45e9e95abd422b879a475"
+        },
+        {
+          "path": "docs/ai/contracts/awkit-icon2.json",
+          "git_status": " M",
+          "sha256": "4c73124aa9ea70a06b8611c672cef6934f29c039181f1a4fb445abd17bc91d51"
+        },
+        {
+          "path": "tools/roadmap/assignments.json",
+          "git_status": " M",
+          "sha256": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d51"
+        }
+      ]
+    }
+  },
+  "classification": {
+    "agent_infrastructure_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      ".claude/agents/awkit-manager.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/README.md",
+      "docs/ai/routing/TASK_CONTRACT.schema.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-icon2.json",
+      "docs/ai/contracts/awkit-yl33.json",
+      "docs/ai/routing/ROUTING_RULES.md",
+      "scripts/verify-agent-routing.mjs",
+      "tools/agents/lease-cli.mjs",
+      "tools/agents/lease-guard.mjs",
+      "tools/agents/lease.mjs",
+      "tools/agents/routing-matrix.mjs",
+      "tools/agents/task-gate.mjs",
+      "tools/agents/validate-contract.mjs",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "manager",
+      "allowed_paths": [
+        "tools/agents/lease-cli.mjs",
+        "tools/agents/lease-guard.mjs",
+        "tools/agents/lease.mjs",
+        "tools/agents/routing-matrix.mjs",
+        "tools/agents/task-gate.mjs",
+        "tools/agents/validate-contract.mjs"
+      ]
+    },
+    "reviewers": [
+      "qa"
+    ]
+  },
+  "constraints": {
+    "security": [
+      "No broad no-lease Git exemption, environment override or alternate unguarded command is permitted.",
+      "A final-release retry may act only on the exact three terminal bookkeeping paths after validating task identity, derived lease identity, completion evidence, release history, assignment removal and scope integrity.",
+      "An arbitrary file, staged path, wrong task or lease identity, changed terminal bookkeeping or unresolved violation must fail closed."
+    ],
+    "compatibility": [
+      "The normal lease grant, amendment, release and no-lease boundaries remain unchanged for non-final operations.",
+      "The awkit-icon2 contract remains closed with QA PASS and independent QC APPROVED."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "FINAL-RELEASE",
+      "description": "A completed active lease can atomically produce and commit only its released active-lease record, one matching history entry and cleared assignment, while ordinary no-lease Git remains blocked.",
+      "evidence_required": [
+        "lease-regression"
+      ]
+    },
+    {
+      "id": "CLOSEOUT-STATE",
+      "description": "The existing awkit-icon2 release residue is absorbed without reopening the task; both task gates, verifier classification, roadmap and build evidence are current before terminal finalization.",
+      "evidence_required": [
+        "build",
+        "verifier-classification",
+        "roadmap",
+        "task-gates",
+        "diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "lease-regression",
+      "type": "security",
+      "required": true,
+      "command": "npm run verify:agent-routing",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "roadmap",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "task-gates",
+      "type": "verifier",
+      "required": true,
+      "command": "node tools/agents/task-gate.mjs docs/ai/contracts/awkit-yl33.json && node tools/agents/task-gate.mjs docs/ai/contracts/awkit-icon2.json",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": []
+  }
+}

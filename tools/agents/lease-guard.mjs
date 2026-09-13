@@ -206,7 +206,16 @@ export function isLeaseLifecycleCommand(command) {
   const value = command.trim();
   if (/^npm\s+run\s+agent:lease-release\s+--\s+--reason\s+.+$/i.test(value)) return true;
   if (/^npm\s+run\s+agent:lease-amend\s+--\s+--add\s+[^\s]+\s+--reason\s+.+$/i.test(value)) return true;
+  if (isLeaseFinalizeCommand(value)) return true;
   return false;
+}
+
+/** Exact terminal control-plane command; final state validation lives in lease.mjs. */
+export function isLeaseFinalizeCommand(command) {
+  if (hasUnsafeShellSyntax(command)) return false;
+  return /^npm\s+run\s+agent:lease-finalize\s+--\s+--task\s+[a-z0-9][a-z0-9._-]*\s+--lease-id\s+[a-z0-9][a-z0-9._:-]*\s+--reason\s+.+$/i.test(
+    command.trim()
+  );
 }
 
 /** Minimal shell tokenization for exact Git lifecycle commands; uncertainty returns null. */
@@ -516,6 +525,9 @@ async function main() {
     if (!lease) {
       if (isReadOnlyShellCommand(command)) process.exit(ALLOW);
       if (canonicalActorId(payload?.agent_type, payload?.agent_id) === "manager" && isLeaseGrantCommand(command)) {
+        process.exit(ALLOW);
+      }
+      if (canonicalActorId(payload?.agent_type, payload?.agent_id) === "manager" && isLeaseFinalizeCommand(command)) {
         process.exit(ALLOW);
       }
       process.stderr.write(

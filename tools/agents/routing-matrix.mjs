@@ -544,6 +544,7 @@ export const MANAGER_SHELL_TOOLS = Object.freeze([
   "Bash(npm run agent:lease-grant:*)",
   "Bash(npm run agent:lease-amend:*)",
   "Bash(npm run agent:lease-release:*)",
+  "Bash(npm run agent:lease-finalize:*)",
   "Bash(node tools/agents/render-platform-agents.mjs --write)",
   "Bash(npm run agent:check-agents)",
   "Bash(node tools/agents/task-gate.mjs:*)",

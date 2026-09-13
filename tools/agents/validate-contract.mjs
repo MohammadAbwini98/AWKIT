@@ -145,6 +145,44 @@ export function validateContract(contract) {
       fail("repository.preserved_duplicate", "repository.preserved_paths contains duplicate files");
     }
   }
+  const finalReleaseResidue = contract.repository?.final_release_residue;
+  if (finalReleaseResidue !== undefined) {
+    if (!object(finalReleaseResidue)) {
+      fail("repository.final_release_residue", "final_release_residue must be an object");
+    } else {
+      if (!nonEmptyString(finalReleaseResidue.task)) {
+        fail("repository.final_release_residue_task", "final_release_residue needs the source task id");
+      }
+      if (
+        !nonEmptyString(finalReleaseResidue.lease_id) ||
+        !String(finalReleaseResidue.lease_id).startsWith(`${finalReleaseResidue.task ?? ""}:`)
+      ) {
+        fail("repository.final_release_residue_lease", "final_release_residue lease_id must belong to its source task");
+      }
+      const entries = finalReleaseResidue.paths;
+      const cardinality = requireCardinality(Array.isArray(entries) ? entries : [], 1, "final_release_residue paths");
+      if (cardinality) fail("repository.final_release_residue_paths", cardinality.message);
+      for (const entry of Array.isArray(entries) ? entries : []) {
+        if (!object(entry) || !isExactRepoRelativePath(entry.path)) {
+          fail("repository.final_release_residue_path", "each final_release_residue path must be one exact repository file");
+          continue;
+        }
+        if (typeof entry.git_status !== "string" || !/^(?:\?\?|!!|[ MADRCUTU][ MADRCUTU])$/.test(entry.git_status)) {
+          fail("repository.final_release_residue_status", `final_release_residue ${entry.path} needs its two-character git_status`);
+        }
+        if (typeof entry.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(entry.sha256)) {
+          fail("repository.final_release_residue_sha256", `final_release_residue ${entry.path} needs a SHA-256 fingerprint`);
+        }
+      }
+      const names = (Array.isArray(entries) ? entries : []).map((entry) => entry?.path).filter(Boolean);
+      if (new Set(names).size !== names.length) {
+        fail("repository.final_release_residue_duplicate", "final_release_residue paths contains duplicate files");
+      }
+      if (!names.includes(`docs/ai/contracts/${finalReleaseResidue.task}.json`)) {
+        fail("repository.final_release_residue_contract", "final_release_residue must fingerprint its source task contract");
+      }
+    }
+  }
 
   // ── Classification ──────────────────────────────────────────────────────────────────────────
   const { classification, errors } = normalizeClassification(contract.classification ?? {});
@@ -393,6 +431,12 @@ export function validateContract(contract) {
   if (contract.git?.force_push !== false) fail("git.force_push", "force_push must be explicitly false");
   if (contract.git?.destructive_reset !== false) {
     fail("git.destructive_reset", "destructive_reset must be explicitly false");
+  }
+  if (contract.git?.final_release_authorized !== undefined && contract.git.final_release_authorized !== true) {
+    fail("git.final_release_authorized", "final_release_authorized must be true when present");
+  }
+  if (contract.git?.final_release_authorized === true && contract.git?.push_authorized !== true) {
+    fail("git.final_release_push", "a final-release task must explicitly authorize push to origin/main");
   }
 
   if (!["pending", "implemented", "rejected", "blocked", "complete"].includes(contract.completion?.status)) {

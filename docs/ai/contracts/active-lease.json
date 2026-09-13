@@ -1,31 +1,30 @@
 {
-  "task": "awkit-icon2",
-  "contract_path": "docs/ai/contracts/awkit-icon2.json",
-  "holder": "project-state",
+  "task": "awkit-yl33",
+  "contract_path": "docs/ai/contracts/awkit-yl33.json",
+  "holder": "manager",
   "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-icon2.json",
-    "scripts/lib/verifier-classification.ts",
-    "tools/roadmap/assignments.json"
+    "tools/agents/lease-cli.mjs",
+    "tools/agents/lease-guard.mjs",
+    "tools/agents/lease.mjs",
+    "tools/agents/routing-matrix.mjs",
+    "tools/agents/task-gate.mjs",
+    "tools/agents/validate-contract.mjs"
   ],
-  "acquired_at": "2026-09-13T19:39:01.503Z",
-  "acquired_at_commit": "a8a6b60cbf6a3a6d6ae0068280a430ee72f3ba59",
+  "acquired_at": "2026-09-13T21:51:49.570Z",
+  "acquired_at_commit": "25dac57ec6c62c05fa32fbc5908b18c08fdd149d",
   "baseline_dirty": [
+    ".beads/issues.jsonl",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-icon2.json",
+    "docs/ai/contracts/awkit-yl33.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "6bf08507e0b6c8f62dbf76fdcd72e4dbbead463138f02dc83f74eb6c15ce8cfd",
-    "docs/ai/contracts/awkit-icon2.json": "148b9a839b154e310a4a7ffc0618144d9f41ba285f8a03c5fb1e89f151496e05",
+    ".beads/issues.jsonl": "007fc67646920ad3113658b047d0296e03c3bac9c383215acb37cca8bd081796",
+    "docs/ai/contracts/active-lease.json": "1ef5a438388c2e24d9c81670cda463ff0a6790e664b45e9e95abd422b879a475",
+    "docs/ai/contracts/awkit-icon2.json": "4c73124aa9ea70a06b8611c672cef6934f29c039181f1a4fb445abd17bc91d51",
+    "docs/ai/contracts/awkit-yl33.json": "f68a204b10b7ca569f023e3cbcad4a15e5a09e5bbc20b8fd11f3d6cb632a3ac7",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

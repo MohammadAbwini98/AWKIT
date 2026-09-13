@@ -19,11 +19,11 @@
   ],
   "claims": [
     {
-      "itemId": "bead:awkit-icon2",
-      "agent": "Documentation / Project-State Specialist",
+      "itemId": "bead:awkit-yl33",
+      "agent": "Manager / Orchestrator",
       "state": "in-progress",
-      "claimedAt": "2026-09-13T19:39:01.503Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-icon2.json, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
+      "claimedAt": "2026-09-13T21:51:49.570Z",
+      "note": "write lease: tools/agents/lease-cli.mjs, tools/agents/lease-guard.mjs, tools/agents/lease.mjs, tools/agents/routing-matrix.mjs, tools/agents/task-gate.mjs, tools/agents/validate-contract.mjs"
     }
   ]
 }
