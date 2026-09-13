@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("284 issues parse", beads.stats.total === 284, `got ${beads.stats.total}`);
+  check("285 issues parse", beads.stats.total === 285, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -548,8 +548,14 @@ try {
   // key) was created and closed in the same session. Total rises 283 -> 284 and closed rises
   // 281 -> 282; outstanding stays 2 because the bead never remained open across an export.
   // No new edge, so the edge pin stays 108.
-    "2 outstanding / 282 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 282,
+  // Then 3/282 of 285 on 2026-09-13: `awkit-icon2` (replace the concept-1c application icon with
+  // the squircle brick-S mark; sidebar and SVG source landed, build + branding 49/49, branding-gui
+  // 30/30, design-tokens 29/29) was created and left `blocked`, because the lease guard lets no
+  // agent role run `npm run icon:generate`, so regenerating resources/icon.* waits on the owner.
+  // Total rises 284 -> 285 and outstanding 2 -> 3 while closed stays 282. No new edge, so the edge
+  // pin stays 108; the declared-blocked pin below moves 2 -> 3 in step.
+    "3 outstanding / 282 closed",
+    beads.stats.outstanding === 3 && beads.stats.closed === 282,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -804,10 +810,13 @@ try {
   // Then 2 on 2026-08-29: `awkit-hgol` closed on canonical package + clean-machine evidence, and
   // stale Reports bookkeeping item `awkit-az7` closed after its current NOT RUN ownership was
   // re-derived. The real Oracle/operator/soak items remain declared blocked.
+  // Then 3 on 2026-09-13: `awkit-icon2` joined them - regenerating resources/icon.* needs the owner,
+  // because the lease guard lets no agent role run `npm run icon:generate`. No `blocks` edge can
+  // express an owner-run command, so it is declared, like `awkit-hgol` was.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 2 &&
-      order.externallyBlocked.length === 2 &&
+    order.stats.declaredBlocked === 3 &&
+      order.externallyBlocked.length === 3 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );
