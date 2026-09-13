@@ -158,7 +158,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1076;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1077;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -3810,6 +3810,31 @@ try {
     "a real temporary-repository baseline is accepted",
     validBaselineGate.ok && gateIsOpen(validBaselineGate.value),
     JSON.stringify(validBaselineGate.value ?? validBaselineGate.error?.message)
+  );
+  mkdirSync(join(baselineRepo, "app", "renderer", "components"), { recursive: true });
+  writeFileSync(join(baselineRepo, "app", "renderer", "components", "Thing.tsx"), "export {};\n", "utf8");
+  execFileSync("git", ["add", "."], { cwd: baselineRepo, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "completed task scope"], { cwd: baselineRepo, stdio: "ignore" });
+  const completionBoundary = execFileSync("git", ["rev-parse", "HEAD"], { cwd: baselineRepo, encoding: "utf8" }).trim();
+  mkdirSync(join(baselineRepo, "src", "storage"), { recursive: true });
+  writeFileSync(join(baselineRepo, "src", "storage", "later.ts"), "export {};\n", "utf8");
+  execFileSync("git", ["add", "."], { cwd: baselineRepo, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "unrelated later task"], { cwd: baselineRepo, stdio: "ignore" });
+  const closedBoundaryContract = validContract();
+  closedBoundaryContract.repository.baseline_commit = validBaseline;
+  closedBoundaryContract.completion.status = "complete";
+  closedBoundaryContract.completion.closed_at_commit = completionBoundary;
+  const closedBoundaryGate = await invokeAsync(taskGate?.evaluateTaskGate, closedBoundaryContract, {
+    cwd: baselineRepo,
+    lease: null,
+    guardedFieldChanges: []
+  });
+  check(
+    "a closed task gate stops at its immutable completion boundary, excluding later unrelated scope",
+    closedBoundaryGate.ok && gateIsOpen(closedBoundaryGate.value) &&
+      closedBoundaryGate.value?.completionBoundary === completionBoundary &&
+      !closedBoundaryGate.value?.changedFiles?.includes("src/storage/later.ts"),
+    JSON.stringify(closedBoundaryGate.value ?? closedBoundaryGate.error?.message)
   );
   const invalidBaselineContract = validContract();
   invalidBaselineContract.repository.baseline_commit = "definitely-not-a-commit";
