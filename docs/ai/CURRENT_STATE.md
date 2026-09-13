@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## `icon:generate` root cause fixed and `verify:app-icon` added; OS icon still stale, regeneration guard-blocked (2026-09-13)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-icon2` moves no ledger case.
+
+**Why the owner's "icons generated" changed nothing.** `scripts/generate-app-icon.mjs` defaulted to
+the committed `resources/icon-source.png`, so after the SVG changed it exited 0 and rebuilt the
+concept-1c icons byte for byte. Fixed in `e52e851`: the default source is
+`app/renderer/assets/brand/awkit-app-icon.svg`, and the default run also rewrites `icon-source.png`
+from that render, so the intermediate can no longer lag the SVG.
+
+**New read-only gate `npm run verify:app-icon` (`79f3892`).** Renders the SVG in memory through the
+generator's sharp pipeline and pixel-compares `icon-source.png`, `icon.png` and all seven ICO frames
+(plus the `#7c3aed` brick, frame format and sizes), with a generator-equivalent positive control and
+superseded-accent (`#8b5cf6`) / wrong-size negative controls. Registered as static-source-validation
+in `scripts/lib/verifier-classification.ts` (205 classified). On the committed icons it **FAILS
+18/29**: render, controls and ICO structure pass; all 11 committed-image checks fail (mean channel
+diff 18.18–22.25, 53–68% of pixels off by >16; the `icon.png` brick reads `183,142,255`). It must
+read 29/29 after regeneration.
+
+**OS icon still NOT regenerated — BLOCKED by the lease guard.** No agent role may run
+`npm run icon:generate` (deny-by-default command grammar, `980c0b3`). The owner step is now the
+single `npm run icon:generate` (the `node -e` pre-render is no longer needed), followed by
+`npm run verify:app-icon`. Until then `resources/icon.ico`, `icon.png` and `icon-source.png` keep
+the 1c mark, and the bead `awkit-icon2` stays open and declared-blocked.
+
+**Measured this run.** `git diff --check` clean; typecheck:scripts PASS; build PASS;
+verifier-classification PASS (205); branding 49/49; branding-gui 30/30; design-tokens 29/29;
+source-hygiene 11/11; validate:offline PASS; verify:app-icon FAIL 18/29 (expected until
+regeneration). Roadmap unchanged at **285 total / 282 closed / 3 outstanding** (declared-blocked
+`awkit-7bu`, `awkit-cm8`, `awkit-icon2`) — **Sources agree** (177/177).
+
+**Git — committed, NOT pushed.** Local `main` carries `d9d91dc`, `0ccfca8`, `9bfe134`, `e52e851`,
+`79f3892` and the project-state bookkeeping commits; `origin/main` stays at `28fb9fb`. The push is
+refused while the task gate is open on `icon-render` (BLOCKED), `OS-ICON`, `qa_status` and
+`qc_status`. Independent QC review not run (self-QC only).
+
 ## Sidebar brand tile moved to the squircle brick-S mark; OS icon regeneration owner-gated (2026-09-13)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

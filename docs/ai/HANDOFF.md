@@ -1,37 +1,46 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-13, latest) — `awkit-icon2`: sidebar mark swapped, OS icon regeneration waits on the owner
+## HANDOFF (2026-09-13, latest) — `awkit-icon2`: generator fixed and icon gate added, OS icon regeneration still waits on the owner
 
 - **Git — committed on local `main`, NOT pushed:** `d9d91dc` (sidebar + SVG source), `0ccfca8`
-  (roadmap repin) and the project-state docs commit. The lease guard refused `git push origin main`
-  because the task gate is still open on `icon-render`, `OS-ICON`, QA (BLOCKED) and QC (pending);
-  `origin/main` stays at `28fb9fb`. The push goes through after the owner steps below, QA PASS and
-  QC APPROVED.
-- **What changed:** the sidebar brand tile renders the shared `AwkitDarkBrandMark`
-  (the private concept-1c `SpecterAppIcon` copy is gone); new OS-icon source
-  `app/renderer/assets/brand/awkit-app-icon.svg` bakes the dark mark at 1024 px with the accent
-  brick at the design-system primary `#7c3aed` (brand-600). Files: `app/renderer/layout/LeftNavigation.tsx`,
+  (roadmap repin), `9bfe134` (docs), `e52e851` (generator root-cause fix), `79f3892`
+  (`verify:app-icon`) and the project-state bookkeeping commits. The lease guard refuses
+  `git push origin main` while the task gate is open on `icon-render` (BLOCKED), `OS-ICON`, QA
+  (BLOCKED) and QC (pending); `origin/main` stays at `28fb9fb`.
+- **Why the earlier owner-run generation changed nothing:** `icon:generate` defaulted to the
+  committed `resources/icon-source.png` and rebuilt the old 1c icons byte for byte with exit 0.
+  `e52e851` makes it render `app/renderer/assets/brand/awkit-app-icon.svg` and rewrite
+  `icon-source.png` from that render.
+- **What changed (whole task):** the sidebar brand tile renders the shared `AwkitDarkBrandMark`
+  (the private concept-1c `SpecterAppIcon` copy is gone); new OS-icon source `awkit-app-icon.svg`
+  (1024 px, accent brick at the design-system primary `#7c3aed`); the generator fix; read-only
+  `scripts/verify-app-icon.mjs`. Files: `app/renderer/layout/LeftNavigation.tsx`,
   `app/renderer/assets/brand/{AwkitBrandMarks.tsx,awkit-app-icon.svg}`,
-  `app/renderer/styles/global.css` (comment), `scripts/verify-roadmap-dashboard.mjs` (repin),
-  `docs/ai/*`, `docs/ai/contracts/{awkit-icon2,active-lease}.json`, `.beads/*`,
-  `tools/roadmap/assignments.json`.
-- **Owner action — the lease guard blocks every agent role from these.** From the repo root:
-  1. `node -e "require('sharp')('app/renderer/assets/brand/awkit-app-icon.svg').png().toFile('resources/icon-source.png').then(()=>console.log('rendered'))"`
-  2. `npm run icon:generate`
-  3. Inspect `resources/icon.png` and the 16/24/32 ICO frames (brick-S legible, corners transparent).
-  Then `npm run build` and `npm run verify:branding`, `bd close awkit-icon2`,
-  `bd export -o .beads/issues.jsonl`, and repin `verify:roadmap-dashboard` (285 total / 283 closed /
-  2 outstanding, declared-blocked back to 2).
+  `app/renderer/styles/global.css` (comment),
+  `scripts/{generate-app-icon.mjs,verify-app-icon.mjs,verify-roadmap-dashboard.mjs}`,
+  `scripts/lib/verifier-classification.ts`, `package.json`, `docs/ai/*`,
+  `docs/ai/contracts/{awkit-icon2,active-lease}.json`, `.beads/*`, `tools/roadmap/assignments.json`.
+- **Owner action — the lease guard blocks every agent role from it.** From the repo root run
+  `npm run icon:generate` (one command; the old `node -e` pre-render is no longer needed). An agent
+  then runs `npm run verify:app-icon` (must read **29/29**; exit 0 from the generator is not
+  evidence), inspects `icon.png` and the 16/24/32 frames, commits `resources/icon-source.png`,
+  `icon.ico` and `icon.png` under the release lease, runs `bd close awkit-icon2` and
+  `bd export -o .beads/issues.jsonl`, has qa repin `verify:roadmap-dashboard` (285 total / 283 closed
+  / 2 outstanding, declared-blocked back to 2), gets QC review, and pushes. Alternative: the owner
+  authorizes adding `npm run icon:generate` to the release role's command grammar in
+  `tools/agents/lease-guard.mjs` (with a `verify:agent-routing` case) and an agent runs it.
 - **Expect:** Windows may keep showing the cached 1c icon on existing shortcuts and taskbar pins
   until they are re-pinned; packaged artifacts pick up the new icon only on the next package build.
-- **Evidence:** build PASS; design-tokens 29/29; branding 49/49; branding-gui 30/30;
-  source-hygiene 11/11; validate:offline PASS; visual check of the SVG and sidebar; roadmap
+- **Evidence (this run):** `git diff --check` clean; typecheck:scripts PASS; build PASS;
+  verifier-classification PASS (205); branding 49/49; branding-gui 30/30; design-tokens 29/29;
+  source-hygiene 11/11; validate:offline PASS; **verify:app-icon FAIL 18/29** (render, controls and
+  ICO structure pass; all 11 committed-image checks fail because the icons are still 1c); roadmap
   **Sources agree** (177/177).
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No ledger case moved.
 - **Deliberately unchanged:** the dev-only roadmap dashboard (`tools/roadmap/public/index.html`)
   keeps its inline 1c SVG; the login markup (the design review was inspect-only).
-- **Not run:** icon regeneration and ICO inspection, packaged EXE/installer icon, clean machine, QC
-  review, the push (guard-refused).
+- **Not run:** icon regeneration (guard-blocked), packaged EXE/installer icon, clean machine,
+  independent QC review (self-QC only), the push (guard-refused).
 
 ## HANDOFF (2026-09-12) — `awkit-v130`: fresh 0.1.30 portable + installer prove the redesigned login at release level
 

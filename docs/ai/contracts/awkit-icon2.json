@@ -38,14 +38,20 @@
       "resources/icon-source.png",
       "resources/icon.ico",
       "resources/icon.png",
+      "scripts/generate-app-icon.mjs",
+      "docs/ai/COMMANDS.md",
       "app/renderer/layout/LeftNavigation.tsx",
       "app/renderer/assets/brand/AwkitBrandMarks.tsx",
       "app/renderer/assets/brand/awkit-app-icon.svg",
       "app/renderer/styles/global.css",
       "scripts/verify-roadmap-dashboard.mjs",
+      "scripts/verify-app-icon.mjs",
+      "package.json",
+      "scripts/lib/verifier-classification.ts",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/HANDOFF.md",
       "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
       ".beads/issues.jsonl",
       ".beads/interactions.jsonl"
     ],
@@ -57,17 +63,19 @@
       "allowed_paths": [
         ".beads/interactions.jsonl",
         ".beads/issues.jsonl",
+        "docs/ai/COMMANDS.md",
         "docs/ai/CURRENT_STATE.md",
         "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
         "docs/ai/TASK_LOG.md",
         "docs/ai/contracts/active-lease.json",
         "docs/ai/contracts/awkit-icon2.json",
+        "scripts/lib/verifier-classification.ts",
         "tools/roadmap/assignments.json"
       ],
       "forbidden_paths": [
         "src/**",
         "mock-site/**",
-        "package.json",
         "package-lock.json",
         "app/renderer/security/**",
         "resources/**"
@@ -124,9 +132,10 @@
       "id": "icon-render",
       "type": "inspection",
       "required": true,
-      "command": "Owner-run, because the lease guard lets no agent role run icon generation: node -e \"require('sharp')('app/renderer/assets/brand/awkit-app-icon.svg').png().toFile('resources/icon-source.png')\" then npm run icon:generate, then inspect resources/icon.png and every ICO frame",
+      "command": "Owner-run, because the lease guard lets no agent role run icon generation: npm run icon:generate (renders app/renderer/assets/brand/awkit-app-icon.svg since e52e851), then npm run verify:app-icon (must read 29/29) and a visual check of resources/icon.png and the 16/24/32 ICO frames",
       "result": "BLOCKED",
-      "artifact": "resources/icon.png"
+      "artifact": "resources/icon.png",
+      "note": "2026-09-13: the owner's first generation run changed nothing because icon:generate defaulted to the stale resources/icon-source.png (fixed in e52e851). npm run icon:generate under the release lease was refused: [write-lease] BLOCKED: shell command is outside the active release lease or the actor's role. verify:app-icon (79f3892) on the committed icons: FAIL 18/29 - SVG render (1024, transparent corner, #7c3aed brick, #f6f6f6 S block), 4 controls and ICO structure pass; icon-source.png, icon.png (+ brick 183,142,255) and all 7 frames (+ 256 brick) fail, mean channel diff 18.18-22.25, 53-68% of pixels off by >16. Stays BLOCKED until the owner runs the generator."
     },
     {
       "id": "build",
@@ -134,7 +143,8 @@
       "required": true,
       "command": "npm run build",
       "result": "PASS",
-      "artifact": null
+      "artifact": null,
+      "note": "Re-run 2026-09-13 after e52e851/79f3892: PASS (453 records from 14 sources, tsc clean, bundles built; one pre-existing vite dynamic-import warning only); typecheck:scripts PASS; no tracked file changed."
     },
     {
       "id": "verifiers",
@@ -142,7 +152,8 @@
       "required": true,
       "command": "npm run verify:branding && npm run verify:design-tokens && npm run validate:offline",
       "result": "PASS",
-      "artifact": null
+      "artifact": null,
+      "note": "Re-run 2026-09-13: branding 49/49, design-tokens 29/29, validate:offline PASS; also branding-gui 30/30, source-hygiene 11/11, verifier-classification PASS (205 classified, verify:app-icon registered static-source-validation), git diff --check clean."
     },
     {
       "id": "roadmap",
@@ -150,7 +161,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "result": "PASS",
-      "artifact": null
+      "artifact": null,
+      "note": "Re-run 2026-09-13: 177/177, 285 total / 282 closed / 3 outstanding, Overview reads Sources agree."
     },
     {
       "id": "push-main",
@@ -159,7 +171,7 @@
       "command": "git push origin main and remeasure parity",
       "result": "pending",
       "artifact": null,
-      "note": "Owner requested commit and push on 2026-09-13. Commits d9d91dc (frontend) and 0ccfca8 (qa repin) plus the project-state docs commit landed on local main. The one push attempt that day was refused by the lease guard ([write-lease] BLOCKED) because the task gate is still open on icon-render, OS-ICON, qa_status and qc_status; origin/main stays at 28fb9fb. Result stays pending so the guard can admit the push once those close."
+      "note": "Owner requested commit and push on 2026-09-13. On local main: d9d91dc (frontend), 0ccfca8 (qa repin), 9bfe134 (project-state docs), e52e851 (release generator fix), 79f3892 (qa verify:app-icon) plus the project-state bookkeeping commits. Every push attempt was refused by the lease guard ([write-lease] BLOCKED) because the task gate is still open on icon-render, OS-ICON, qa_status and qc_status; origin/main stays at 28fb9fb. Result stays pending so the guard can admit the push once those close."
     }
   ],
   "scope_escapes": [],
@@ -347,6 +359,64 @@
         "acquired_at_commit": "d9d91dca6704ae92b7af51fe58163422164f53cf",
         "released_at": "2026-09-13T08:59:04.489Z",
         "released_reason": "QA roadmap repin committed 0ccfca8 on owner commit-and-push request, project-state commits docs, beads and contract next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:project-state:2026-09-13T09:01:24.310Z",
+        "task": "awkit-icon2",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T09:01:24.310Z",
+        "acquired_at_commit": "0ccfca81855e8e0a9585e950fb6fb36bde13d012",
+        "released_at": "2026-09-13T09:03:33.535Z",
+        "released_reason": "awkit-icon2-project-state-committed-as-9bfe134-push-refused-by-task-gate",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:release:2026-09-13T13:03:25.372Z",
+        "task": "awkit-icon2",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/icon-source.png",
+          "resources/icon.ico",
+          "resources/icon.png",
+          "scripts/generate-app-icon.mjs"
+        ],
+        "acquired_at": "2026-09-13T13:03:25.372Z",
+        "acquired_at_commit": "9bfe134c7ae16780d691be3acf9d6e39d83a4f66",
+        "released_at": "2026-09-13T13:33:34.948Z",
+        "released_reason": "release-generator-fix-committed-e52e851-qa-adds-read-only-verify-app-icon",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-icon2:qa:2026-09-13T13:33:41.561Z",
+        "task": "awkit-icon2",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-app-icon.mjs"
+        ],
+        "acquired_at": "2026-09-13T13:33:41.561Z",
+        "acquired_at_commit": "e52e851766e8d3a3e3ed0a7fe2297ba79207d7f8",
+        "released_at": "2026-09-13T13:40:30.950Z",
+        "released_reason": "qa-verify-app-icon-committed-79f3892-red-on-stale-icons-18-of-29",
         "amendments": [],
         "overrides": [],
         "violations": []

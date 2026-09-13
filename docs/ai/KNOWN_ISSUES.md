@@ -1796,6 +1796,17 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   PNG directly in the ICO, calculates exact offsets, and validates frame signature/dimensions/bit depth
   before writing. The package may remain installed as an unused dev dependency, but do not reintroduce it
   into the icon path without a byte-level multi-frame validation.
+- **`icon:generate` rebuilt the old icon from a stale intermediate — FIXED `e52e851` (bd `awkit-icon2`, 2026-09-13).**
+  The generator defaulted to the committed `resources/icon-source.png`, so after
+  `app/renderer/assets/brand/awkit-app-icon.svg` changed it exited 0 and wrote the concept-1c icons
+  byte for byte. It now renders the SVG by default and rewrites `icon-source.png` from that render.
+  **Exit 0 is not evidence:** run `npm run verify:app-icon`, which pixel-compares `icon-source.png`,
+  `icon.png` and every ICO frame with the SVG render (29/29 when current).
+- **No agent role may run `npm run icon:generate` (lease guard, `980c0b3`).** The deny-by-default
+  command grammar admits no icon generation, `node scripts/…` or `node -e` for any role, so OS-icon
+  regeneration is owner-run (or needs an owner-authorized grammar change with a
+  `verify:agent-routing` case). Do not route around it with a disguised `verify:*` script or another
+  shell.
 - **Soak-benchmark accounting bugs — FIXED (2026-07-16), not observability defects.** In
   `scripts/benchmark-engine-soak.mts`: (1) the run-summary invariant compared `runObsSummaries` (all terminal
   runs) against `durableTerminalRuns = completed + failed` read **pre-teardown** — omitting the `cancelled`

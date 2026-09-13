@@ -14730,3 +14730,34 @@ pm run verify:mock-site
   commit form cannot carry a Co-Authored-By trailer.
 - **Result:** sidebar and in-app marks unified and committed locally; OS icon waits on the
   owner-run generation; not pushed; no ledger case moved.
+
+## 2026-09-13 — awkit-icon2: icon:generate rebuilt the stale icon, generator fixed and verify:app-icon added; regeneration still guard-blocked (Claude)
+- **Task:** owner reported "icons generated, continue QA and push", then asked to finish
+  `awkit-icon2` end to end (regenerate, validate programmatically and visually, gates, bead,
+  commit, push).
+- **Finding:** the "generated" icons were byte-identical to the committed 1c icons.
+  `scripts/generate-app-icon.mjs` defaulted to the committed `resources/icon-source.png`, so it
+  exited 0 and rebuilt the old mark; nothing compared the outputs with the SVG.
+- **Fix (`e52e851`, release):** the default source is `app/renderer/assets/brand/awkit-app-icon.svg`,
+  and the default run also rewrites `icon-source.png` from that render. No output file was patched.
+- **Verifier (`79f3892`, qa):** read-only `scripts/verify-app-icon.mjs` (`npm run verify:app-icon`)
+  renders the SVG through the generator's sharp pipeline in memory and pixel-compares
+  `icon-source.png`, `icon.png` and all 7 ICO frames, checks the `#7c3aed` brick and the frame
+  format, with a generator-equivalent positive control and `#8b5cf6`-brick / 512 px negative
+  controls. Registered as static-source-validation (205 classified); `COMMANDS.md` updated.
+- **Blocked:** icon regeneration. No agent role may run `npm run icon:generate`, `node scripts/…`
+  or `node -e` (deny-by-default grammar, `980c0b3`); the attempt under the release lease returned
+  `[write-lease] BLOCKED: shell command is outside the active release lease or the actor's role.`
+  The guard was not edited or bypassed. Bead stays open and declared-blocked.
+- **Gates:** `git diff --check` clean; typecheck:scripts PASS; build PASS; verifier-classification
+  PASS (205); branding 49/49; branding-gui 30/30; design-tokens 29/29; source-hygiene 11/11;
+  validate:offline PASS; **verify:app-icon FAIL 18/29** (all 11 committed-image checks fail — the
+  icons are still 1c); roadmap 177/177 at 285/282/3 — Sources agree.
+- **Files:** scripts/{generate-app-icon.mjs,verify-app-icon.mjs}; scripts/lib/verifier-classification.ts;
+  package.json; docs/ai/{COMMANDS,CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md;
+  docs/ai/contracts/{awkit-icon2,active-lease}.json; .beads/*; tools/roadmap/assignments.json.
+- **Git:** committed on local `main`; the push is refused by the task gate (`icon-render` BLOCKED,
+  `OS-ICON`, QA, QC open), `origin/main` stays at `28fb9fb`. The 4-token commit form cannot carry a
+  Co-Authored-By trailer.
+- **Result:** root cause fixed and a gate now proves or disproves regeneration; OS icon still 1c
+  until the owner runs `npm run icon:generate`; not pushed; self-QC only; no ledger case moved.
