@@ -226,13 +226,17 @@ export function isLeaseHandoffCommand(command) {
 export function isLeaseFinalizeCommand(command) {
   if (hasUnsafeShellSyntax(command)) return false;
   const tokens = shellTokens(command.trim());
-  if (!tokens || tokens.length < 10) return false;
-  if (tokens[0] !== "npm" || tokens[1] !== "run" || tokens[2] !== "agent:lease-finalize" || tokens[3] !== "--") {
-    return false;
-  }
-  if (tokens[4] !== "--task" || !/^[a-z0-9][a-z0-9._-]*$/i.test(tokens[5] ?? "")) return false;
-  if (tokens[6] !== "--lease-id" || !/^[a-z0-9][a-z0-9._:-]*$/i.test(tokens[7] ?? "")) return false;
-  return tokens[8] === "--reason" && tokens.slice(9).every((token) => token.length > 0 && !token.startsWith("--"));
+  if (!tokens) return false;
+  const start =
+    tokens[0] === "npm" && tokens[1] === "run" && tokens[2] === "agent:lease-finalize" && tokens[3] === "--"
+      ? 4
+      : tokens[0] === "node" && tokens[1] === "tools/agents/lease-cli.mjs" && tokens[2] === "finalize"
+        ? 3
+        : null;
+  if (start === null || tokens.length < start + 6) return false;
+  if (tokens[start] !== "--task" || !/^[a-z0-9][a-z0-9._-]*$/i.test(tokens[start + 1] ?? "")) return false;
+  if (tokens[start + 2] !== "--lease-id" || !/^[a-z0-9][a-z0-9._:-]*$/i.test(tokens[start + 3] ?? "")) return false;
+  return tokens[start + 4] === "--reason" && tokens.slice(start + 5).every((token) => token.length > 0 && !token.startsWith("--"));
 }
 
 /** Minimal shell tokenization for exact Git lifecycle commands; uncertainty returns null. */
