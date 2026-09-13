@@ -3,7 +3,8 @@ import { useId } from "react";
 const SQUIRCLE_PATH =
   "M512 0 C880 0 1024 144 1024 512 C1024 880 880 1024 512 1024 C144 1024 0 880 0 512 C0 144 144 0 512 0 Z";
 
-export type AwkitBrandMarkSize = 16 | 38;
+// awkit-app-icon.svg bakes the dark mark for the OS icon; keep its geometry in sync with this file.
+export type AwkitBrandMarkSize = 16 | 32 | 38;
 
 interface AwkitBrandMarkBaseProps {
   className?: string;

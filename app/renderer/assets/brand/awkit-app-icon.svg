@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- OS-icon source for scripts/generate-app-icon.mjs: AwkitDarkBrandMark (AwkitBrandMarks.tsx) baked with the design-system primary accent #7c3aed (brand-600). Keep the geometry in sync. -->
+  <defs>
+    <clipPath id="sq"><path d="M512 0 C880 0 1024 144 1024 512 C1024 880 880 1024 512 1024 C144 1024 0 880 0 512 C0 144 144 0 512 0 Z"/></clipPath>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2b2c2e"/><stop offset="100%" stop-color="#161618"/></linearGradient>
+  </defs>
+  <g clip-path="url(#sq)">
+    <rect width="1024" height="1024" fill="url(#g)"/>
+    <rect width="1024" height="420" fill="#ffffff" opacity="0.05"/>
+    <g fill="#f6f6f6" transform="translate(302,272) scale(1.4)">
+      <path d="M140 0 H75 Q0 0 0 75 Q0 150 75 150 H140 Z"/>
+      <rect x="170" y="0" width="130" height="150" rx="20"/>
+      <rect x="0" y="190" width="130" height="150" rx="20" fill="#7c3aed"/>
+      <path d="M160 190 H225 Q300 190 300 265 Q300 340 225 340 H160 Z"/>
+    </g>
+    <path d="M512 0 C880 0 1024 144 1024 512 C1024 880 880 1024 512 1024 C144 1024 0 880 0 512 C0 144 144 0 512 0 Z" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="28"/>
+  </g>
+</svg>

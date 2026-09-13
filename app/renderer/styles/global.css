@@ -819,7 +819,7 @@ button:not(:disabled):not([role="switch"]):active,
   width: 32px;
 }
 
-/* SpecterStudio app mark (concept 1c) used as the sidebar brand icon. The squircle shape
+/* SpecterStudio squircle brick-S mark (AwkitDarkBrandMark) used as the sidebar brand icon. The squircle shape
    is baked into the SVG (transparent corners); the radius here only rounds the drop shadow. */
 .brand-app-icon {
   border-radius: var(--radius-xs);
