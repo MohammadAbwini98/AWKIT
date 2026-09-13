@@ -544,7 +544,7 @@ export function releaseLease(
 }
 
 /**
- * Advance one active writer slot directly to a later deterministically routed holder.
+ * Advance one active writer slot directly to another deterministically routed holder.
  * It archives the outgoing lease, changes the contract writer and grants/mirrors the incoming
  * lease in one control-plane transition, avoiding a no-lease bookkeeping interval.
  */
@@ -559,10 +559,8 @@ export function handoffLease({ holder, allowedPaths, reason, path = LEASE_PATH, 
   if (!validation.ok || !validation.routing) {
     throw new Error(`cannot hand off from invalid task contract: ${validation.violations.map((v) => v.rule).join(", ")}`);
   }
-  const currentIndex = validation.routing.writerSequence.indexOf(current.holder);
-  const nextIndex = validation.routing.writerSequence.indexOf(holder);
-  if (currentIndex < 0 || nextIndex <= currentIndex) {
-    throw new Error("lease handoff must advance to a later deterministic routed writer");
+  if (!validation.routing.activated.includes(holder)) {
+    throw new Error("lease handoff target is not activated by deterministic routing");
   }
   if (!Array.isArray(allowedPaths) || allowedPaths.length === 0) {
     throw new Error("lease handoff requires non-empty next allowed paths");
