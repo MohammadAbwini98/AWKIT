@@ -195,6 +195,9 @@ function main() {
       }
 
       case "finalize": {
+        if (Object.keys(args).some((name) => !["task", "lease-id", "reason"].includes(name))) {
+          throw new Error("finalize accepts only --task, --lease-id and --reason");
+        }
         const task = one(args, "task");
         const leaseId = one(args, "lease-id");
         const reason = one(args, "reason");

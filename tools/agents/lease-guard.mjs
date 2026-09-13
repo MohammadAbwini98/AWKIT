@@ -213,9 +213,14 @@ export function isLeaseLifecycleCommand(command) {
 /** Exact terminal control-plane command; final state validation lives in lease.mjs. */
 export function isLeaseFinalizeCommand(command) {
   if (hasUnsafeShellSyntax(command)) return false;
-  return /^npm\s+run\s+agent:lease-finalize\s+--\s+--task\s+[a-z0-9][a-z0-9._-]*\s+--lease-id\s+[a-z0-9][a-z0-9._:-]*\s+--reason\s+.+$/i.test(
-    command.trim()
-  );
+  const tokens = shellTokens(command.trim());
+  if (!tokens || tokens.length < 10) return false;
+  if (tokens[0] !== "npm" || tokens[1] !== "run" || tokens[2] !== "agent:lease-finalize" || tokens[3] !== "--") {
+    return false;
+  }
+  if (tokens[4] !== "--task" || !/^[a-z0-9][a-z0-9._-]*$/i.test(tokens[5] ?? "")) return false;
+  if (tokens[6] !== "--lease-id" || !/^[a-z0-9][a-z0-9._:-]*$/i.test(tokens[7] ?? "")) return false;
+  return tokens[8] === "--reason" && tokens.slice(9).every((token) => token.length > 0 && !token.startsWith("--"));
 }
 
 /** Minimal shell tokenization for exact Git lifecycle commands; uncertainty returns null. */

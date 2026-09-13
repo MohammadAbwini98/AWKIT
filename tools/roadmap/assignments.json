@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-yl33",
-      "agent": "Quality Assurance Engineer",
+      "agent": "Manager / Orchestrator",
       "state": "in-progress",
-      "claimedAt": "2026-09-13T22:04:43.473Z",
-      "note": "write lease: scripts/verify-agent-routing.mjs"
+      "claimedAt": "2026-09-13T22:06:01.929Z",
+      "note": "write lease: .claude/settings.json, tools/agents/lease-cli.mjs, tools/agents/lease-guard.mjs, tools/agents/lease.mjs, tools/agents/routing-matrix.mjs, tools/agents/task-gate.mjs, tools/agents/validate-contract.mjs"
     }
   ]
 }

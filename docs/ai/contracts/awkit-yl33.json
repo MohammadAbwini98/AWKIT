@@ -75,9 +75,14 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "manager",
       "allowed_paths": [
-        "scripts/verify-agent-routing.mjs"
+        "tools/agents/lease-cli.mjs",
+        "tools/agents/lease-guard.mjs",
+        "tools/agents/lease.mjs",
+        "tools/agents/routing-matrix.mjs",
+        "tools/agents/task-gate.mjs",
+        "tools/agents/validate-contract.mjs"
       ]
     },
     "reviewers": [
@@ -260,6 +265,22 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:qa:2026-09-13T22:04:43.473Z",
+        "task": "awkit-yl33",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:04:43.473Z",
+        "acquired_at_commit": "48f8b535f018c07b581c283070ae12de335c5cde",
+        "released_at": "2026-09-13T22:05:46.763Z",
+        "released_reason": "final closeout regression and negative authorization coverage pass; Manager commits hook control-plane completion",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }
