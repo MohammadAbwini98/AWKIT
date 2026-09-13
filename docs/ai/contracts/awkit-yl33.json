@@ -65,6 +65,7 @@
       "docs/ai/contracts/awkit-yl33.json",
       "docs/ai/routing/ROUTING_RULES.md",
       "scripts/verify-agent-routing.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
       "tools/agents/lease-cli.mjs",
       "tools/agents/lease-guard.mjs",
       "tools/agents/lease.mjs",
@@ -75,14 +76,10 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "manager",
+      "agent_id": "qa",
       "allowed_paths": [
-        "tools/agents/lease-cli.mjs",
-        "tools/agents/lease-guard.mjs",
-        "tools/agents/lease.mjs",
-        "tools/agents/routing-matrix.mjs",
-        "tools/agents/task-gate.mjs",
-        "tools/agents/validate-contract.mjs"
+        "scripts/verify-agent-routing.mjs",
+        "scripts/verify-roadmap-dashboard.mjs"
       ]
     },
     "reviewers": [
@@ -281,6 +278,82 @@
         "released_at": "2026-09-13T22:05:46.763Z",
         "released_reason": "final closeout regression and negative authorization coverage pass; Manager commits hook control-plane completion",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:manager:2026-09-13T22:06:01.929Z",
+        "task": "awkit-yl33",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/settings.json",
+          "tools/agents/lease-cli.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/lease.mjs",
+          "tools/agents/routing-matrix.mjs",
+          "tools/agents/task-gate.mjs",
+          "tools/agents/validate-contract.mjs"
+        ],
+        "acquired_at": "2026-09-13T22:06:01.929Z",
+        "acquired_at_commit": "c6d171049531db9834a63ab31743ddbba0375ba2",
+        "released_at": "2026-09-13T22:06:38.383Z",
+        "released_reason": "Manager finalization command committed; Project State reconciles verified terminal evidence and uses it for closeout",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T22:06:03.738Z",
+            "added": [
+              ".claude/settings.json"
+            ],
+            "reason": "commit the final control-plane hook permission with its registry rule",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-yl33:project-state:2026-09-13T22:06:57.777Z",
+        "task": "awkit-yl33",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/DECISIONS.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/README.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-icon2.json",
+          "docs/ai/contracts/awkit-yl33.json",
+          "docs/ai/routing/ROUTING_RULES.md",
+          "docs/ai/routing/TASK_CONTRACT.schema.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-13T22:06:57.777Z",
+        "acquired_at_commit": "6881005063ea1d4dc3fee48431e46698423153c0",
+        "released_at": "2026-09-13T22:08:55.923Z",
+        "released_reason": "amendment added paths outside project-state's ownership (scripts/verify-roadmap-dashboard.mjs) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T22:08:55.923Z",
+            "added": [
+              "scripts/verify-roadmap-dashboard.mjs"
+            ],
+            "reason": "closing awkit-yl33 changed the authoritative Beads count, so QA must repin the roadmap consistency verifier",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }

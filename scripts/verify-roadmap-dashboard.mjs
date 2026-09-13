@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("285 issues parse", beads.stats.total === 285, `got ${beads.stats.total}`);
+  check("286 issues parse", beads.stats.total === 286, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -558,8 +558,11 @@ try {
   // after e52e851, verify:app-icon read 29/29 on the committed icons (ed90b56), the independent QC
   // review approved it and 28fb9fb..78f6feb was pushed. Total stays 285, closed rises 282 -> 283 and
   // outstanding falls 3 -> 2; the declared-blocked pin below moves 3 -> 2 in step.
-    "2 outstanding / 283 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 283,
+  // Then 2/284 of 286 on 2026-09-13: `awkit-yl33` made terminal write-lease closeout atomic and
+  // closed in the same session. Total and closed each rise by one while the two external Oracle
+  // items remain the only outstanding and declared-blocked work. No dependency edge was added.
+    "2 outstanding / 284 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 284,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

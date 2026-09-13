@@ -1,39 +1,30 @@
 {
   "task": "awkit-yl33",
   "contract_path": "docs/ai/contracts/awkit-yl33.json",
-  "holder": "manager",
+  "holder": "qa",
   "status": "active",
   "allowed_paths": [
-    ".claude/settings.json",
-    "tools/agents/lease-cli.mjs",
-    "tools/agents/lease-guard.mjs",
-    "tools/agents/lease.mjs",
-    "tools/agents/routing-matrix.mjs",
-    "tools/agents/task-gate.mjs",
-    "tools/agents/validate-contract.mjs"
+    "scripts/verify-agent-routing.mjs",
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
-  "acquired_at": "2026-09-13T22:06:01.929Z",
-  "acquired_at_commit": "c6d171049531db9834a63ab31743ddbba0375ba2",
+  "acquired_at": "2026-09-13T22:09:13.732Z",
+  "acquired_at_commit": "6881005063ea1d4dc3fee48431e46698423153c0",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
-    ".claude/settings.json",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-icon2.json",
     "docs/ai/contracts/awkit-yl33.json",
     "docs/ai/routing/TASK_CONTRACT.schema.json",
-    "tools/agents/lease-cli.mjs",
-    "tools/agents/lease-guard.mjs",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "007fc67646920ad3113658b047d0296e03c3bac9c383215acb37cca8bd081796",
-    ".claude/settings.json": "10078663107d0c1385aa1d6dbc17d9f8625274d3dbcd5f5f3cb97be388325db2",
-    "docs/ai/contracts/active-lease.json": "b9d436cfd34023cb99b0e166cff065e6805bb1440aaa9218a0a591ccb71078e4",
+    ".beads/interactions.jsonl": "62df0241bf7dd336244ae5c5c2c4e04c209bc285a7d3019a45c1d6382a70dfce",
+    ".beads/issues.jsonl": "a27869f79d8d8e399071ad2ffab335897ea0d02321fc2fcdc77875bd09ccc58e",
+    "docs/ai/contracts/active-lease.json": "a55b8496579b8029be90d8d6c7b3e73db1523c82afc98339e00eef682311425f",
     "docs/ai/contracts/awkit-icon2.json": "4c73124aa9ea70a06b8611c672cef6934f29c039181f1a4fb445abd17bc91d51",
-    "docs/ai/contracts/awkit-yl33.json": "c0cf9dacc78ed81c6c469d82bb655e663706411b9932faff4a68cacff3c5a667",
+    "docs/ai/contracts/awkit-yl33.json": "7cb251a008e0168542d8b9f7ced61bbb3979fc13c8d734e6c7cf17453d4a108f",
     "docs/ai/routing/TASK_CONTRACT.schema.json": "1d14d54fcd04fb4ba132b7a0fc7612e58a37d75f5f7cf9c9fc42783d66e9aeb9",
-    "tools/agents/lease-cli.mjs": "9bb3cb025bffbd09765e6d69d22460a5dc0b97541b6cde3b35ed186426160c51",
-    "tools/agents/lease-guard.mjs": "9fac706771f3a96fb7a05265811b9f1d9d8c88e7fc400cc175aa5dc1e88a52da",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -46,19 +37,7 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789228204265.35"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-09-13T22:06:03.738Z",
-      "added": [
-        ".claude/settings.json"
-      ],
-      "reason": "commit the final control-plane hook permission with its registry rule",
-      "triggered_escalation": [
-        "qa"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": []
 }
