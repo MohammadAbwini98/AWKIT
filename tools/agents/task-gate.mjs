@@ -89,7 +89,7 @@ export function verifyPreservedPaths(entries, { cwd = REPO_ROOT, states } = {}) 
 export function evaluateTaskGate(contract, options = {}) {
   const cwd = options.cwd ?? REPO_ROOT;
   const declaredBaseline = contract?.repository?.baseline_commit ?? "HEAD";
-  let baseline = declaredBaseline;
+  let completionBoundary = null;
   const preserved = Array.isArray(contract?.repository?.preserved_paths)
     ? contract.repository.preserved_paths
     : [];
@@ -108,7 +108,7 @@ export function evaluateTaskGate(contract, options = {}) {
         cwd,
         stdio: ["ignore", "pipe", "pipe"]
       });
-      baseline = closedAtCommit;
+      completionBoundary = closedAtCommit;
     }
   } catch (error) {
     blockers.push(
@@ -119,7 +119,13 @@ export function evaluateTaskGate(contract, options = {}) {
   try {
     observed = Array.isArray(options.changedFiles)
       ? options.changedFiles
-      : changedFilesSince({ baseline, cwd });
+      : completionBoundary
+        ? execFileSync("git", ["diff", "--name-only", `${declaredBaseline}..${completionBoundary}`], {
+            cwd,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"]
+          }).split("\n").map((path) => path.trim()).filter(Boolean)
+        : changedFilesSince({ baseline: declaredBaseline, cwd });
   } catch (error) {
     blockers.push(
       `changed-file derivation failed closed: ${error instanceof Error ? error.message : String(error)}`
@@ -149,7 +155,9 @@ export function evaluateTaskGate(contract, options = {}) {
 
   const guardedChanges = Array.isArray(options.guardedFieldChanges)
     ? options.guardedFieldChanges
-    : deriveGuardedFieldChanges({ baseline });
+    : completionBoundary
+      ? []
+      : deriveGuardedFieldChanges({ baseline: declaredBaseline });
   const guardedEscapes = findGuardedFieldEscapes(activated, { changes: guardedChanges });
   const recordedEscapes = (Array.isArray(contract?.scope_escapes) ? contract.scope_escapes : [])
     .filter((escape) => escape?.resolved !== true);
@@ -177,6 +185,7 @@ export function evaluateTaskGate(contract, options = {}) {
     blockers,
     scopeEscapes,
     changedFiles: relevant,
+    completionBoundary,
     preservedPaths: preservedCheck.unchanged
   };
 }
