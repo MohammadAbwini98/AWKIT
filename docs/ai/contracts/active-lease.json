@@ -1,25 +1,21 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-accent-gui.mjs",
-    "scripts/verify-accent-theme.mts",
-    "scripts/verify-agent-routing.mjs",
-    "scripts/verify-app-icon.mjs",
-    "scripts/verify-auth-gui.mjs"
+    "docs/ai/contracts/awkit-xphx.json"
   ],
-  "acquired_at": "2026-09-14T00:04:28.381Z",
-  "acquired_at_commit": "e976b4006950d4efb7a1046f3cd7ad8e616e45a6",
+  "acquired_at": "2026-09-14T00:07:29.180Z",
+  "acquired_at_commit": "81054f8687a5de1ead4adf3af1bb3ba01bcd331a",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "07f976f8cff9062f858e4c7c5b6bf78f124fe20c52a1f0af1ceadf34d1904c96",
-    "docs/ai/contracts/awkit-xphx.json": "6a3140086dcbb5b125885e7ef3aedf6e2dd1138d6826a31f8aa0dbe20f89ec7d",
+    "docs/ai/contracts/active-lease.json": "29538dbd94793adac417519db317ccde6d0f01081a38bcef1e5cca97a9e77c45",
+    "docs/ai/contracts/awkit-xphx.json": "b3be128086db5693cb13cba89106b2daaa2f9a7a6c3fc6b44b088f8ba390bb6e",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
