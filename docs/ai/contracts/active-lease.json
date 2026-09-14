@@ -1,21 +1,22 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "frontend",
+  "holder": "qa",
   "status": "active",
   "allowed_paths": [
-    "app/renderer/styles/global.css"
+    "scripts/verify-accent-gui.mjs",
+    "scripts/verify-auth-gui.mjs"
   ],
-  "acquired_at": "2026-09-14T00:18:41.905Z",
-  "acquired_at_commit": "6403cbacc47c8316d2ffd6b0dbbfa195d40601ef",
+  "acquired_at": "2026-09-14T00:19:33.082Z",
+  "acquired_at_commit": "c33e002939d08be0031f4d6ff4c4444e9c053f94",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "01c575871793118dfc1ba296fa6ce48bf27d4c3166f3b59238fdd6f006f1891f",
-    "docs/ai/contracts/awkit-xphx.json": "35bbb6c02925cd065a3823949cb026914bd5de20ad8b38d79726cea8b1e3fc95",
+    "docs/ai/contracts/active-lease.json": "e59092f685dcc314c09f52d00c02f00014bc8325f45fb55e72f068cffee37124",
+    "docs/ai/contracts/awkit-xphx.json": "4729eed73a5da5285ae9bb11bd5c90eb8418216daf661d29a99d771d6cf2e4b4",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -28,7 +29,17 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789341648414.5344"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-14T00:20:07.975Z",
+      "added": [
+        "scripts/verify-auth-gui.mjs"
+      ],
+      "reason": "Independent QC requires a dark-mode blue edge and connector regression alongside the light reset check",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }

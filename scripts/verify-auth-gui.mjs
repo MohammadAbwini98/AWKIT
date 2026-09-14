@@ -173,6 +173,23 @@ try {
     )
   );
   check("dark-mode neutral text tokens are white for labels and static copy", darkTextTokens.every((value) => value === "#ffffff"), darkTextTokens.join(", "));
+  const darkCanvasAccentTokens = await win.evaluate(() =>
+    Object.fromEntries(
+      ["--awkit-edge", "--awkit-edge-strong", "--awkit-connector-default", "--awkit-connector-selected", "--awkit-connector-loop"].map((name) => [
+        name,
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase()
+      ])
+    )
+  );
+  check(
+    "dark-mode canvas edge and connector tokens are blue-derived",
+    darkCanvasAccentTokens["--awkit-edge"] === "#1d4ed8" &&
+      darkCanvasAccentTokens["--awkit-edge-strong"] === "#3b82f6" &&
+      darkCanvasAccentTokens["--awkit-connector-default"] === "#3b82f6" &&
+      darkCanvasAccentTokens["--awkit-connector-selected"] === "#60a5fa" &&
+      darkCanvasAccentTokens["--awkit-connector-loop"] === "#3b82f6",
+    JSON.stringify(darkCanvasAccentTokens)
+  );
   const reducedPreviewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),
     progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""

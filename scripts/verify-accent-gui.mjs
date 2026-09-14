@@ -41,6 +41,21 @@ const readVar = (win, name) =>
   win.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name);
 const readMode = (win) => win.evaluate(() => document.documentElement.dataset.accentMode || "solid");
 const getAccent = (win) => win.evaluate(() => window.playwrightFlowStudio.settings.get().then((s) => s.accent));
+const readDefaultCanvasAccentTokens = (win) =>
+  win.evaluate(() =>
+    Object.fromEntries(
+      ["--awkit-edge", "--awkit-edge-strong", "--awkit-connector-default", "--awkit-connector-selected", "--awkit-connector-loop"].map((name) => [
+        name,
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase()
+      ])
+    )
+  );
+const isLightDefaultCanvasAccent = (tokens) =>
+  tokens["--awkit-edge"] === "#bfdbfe" &&
+  tokens["--awkit-edge-strong"] === "#1d4ed8" &&
+  tokens["--awkit-connector-default"] === "#1d4ed8" &&
+  tokens["--awkit-connector-selected"] === "#1e40af" &&
+  tokens["--awkit-connector-loop"] === "#1d4ed8";
 
 async function navTo(win, label) {
   await win.evaluate((lbl) => {
@@ -111,6 +126,8 @@ await win.waitForTimeout(300);
 // 1. Clean profile → default blue, solid.
 check("default accent is blue #1d4ed8", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
 check("default accent mode is solid", (await readMode(win)) === "solid");
+const defaultCanvasAccent = await readDefaultCanvasAccentTokens(win);
+check("default blue also reaches the light canvas edge and connector tokens", isLightDefaultCanvasAccent(defaultCanvasAccent), JSON.stringify(defaultCanvasAccent));
 
 // 2. Settings → Accent Color card renders.
 await navTo(win, "Settings");
@@ -192,6 +209,8 @@ await win.getByRole("button", { name: "Reset to Default Blue" }).click();
 await applyDraft(win);
 check("reset restores default blue (:root)", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
 check("reset restores solid mode", (await readMode(win)) === "solid");
+const resetCanvasAccent = await readDefaultCanvasAccentTokens(win);
+check("reset restores the light canvas edge and connector token map", isLightDefaultCanvasAccent(resetCanvasAccent), JSON.stringify(resetCanvasAccent));
 stored = await getAccent(win);
 check("reset persists solid default (primaryColor null)", stored.mode === "solid" && stored.primaryColor === null, JSON.stringify(stored));
 await shot(win, "07-settings-reset-default.png");

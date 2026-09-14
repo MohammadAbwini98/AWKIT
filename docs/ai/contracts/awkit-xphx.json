@@ -78,9 +78,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "qa",
       "allowed_paths": [
-        "app/renderer/styles/global.css"
+        "scripts/verify-accent-gui.mjs"
       ]
     },
     "writer_sequence": [
@@ -514,6 +514,22 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:frontend:2026-09-14T00:18:41.905Z",
+        "task": "awkit-xphx",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-14T00:18:41.905Z",
+        "acquired_at_commit": "6403cbacc47c8316d2ffd6b0dbbfa195d40601ef",
+        "released_at": "2026-09-14T00:19:33.022Z",
+        "released_reason": "handoff to qa: Add default and reset connector-token assertions for the blue accent parity correction",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }
