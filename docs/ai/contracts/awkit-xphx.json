@@ -77,9 +77,11 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/verify-agent-routing.mjs"
+        "resources/icon-source.png",
+        "resources/icon.ico",
+        "resources/icon.png"
       ]
     },
     "writer_sequence": [
@@ -451,6 +453,22 @@
         "acquired_at_commit": "5fb034a6cd41255f238a42afa61944e696fd6064",
         "released_at": "2026-09-14T00:08:55.777Z",
         "released_reason": "handoff to qa: Update the generated permission-cardinality regression after granting the exact release-only icon command",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:qa:2026-09-14T00:08:55.837Z",
+        "task": "awkit-xphx",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-09-14T00:08:55.837Z",
+        "acquired_at_commit": "3273f859a6034c87b946faaee162d9876c71e406",
+        "released_at": "2026-09-14T00:09:27.045Z",
+        "released_reason": "handoff to release: Regenerate the shipped Windows icon assets from the verified #1D4ED8 source through the exact release-only command",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-xphx",
-      "agent": "Quality Assurance Engineer",
+      "agent": "Packaging / Offline / Release Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-14T00:08:55.837Z",
-      "note": "write lease: scripts/verify-agent-routing.mjs"
+      "claimedAt": "2026-09-14T00:09:27.105Z",
+      "note": "write lease: resources/icon-source.png, resources/icon.ico, resources/icon.png"
     }
   ]
 }
