@@ -187,6 +187,26 @@ function FlowChartDesignerContent() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const pasteOffsetRef = useRef(0);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
+  // Keep insertion transactions based on the authoritative, most recent graph rather than a
+  // callback's render-time snapshot. The stable drag-to-connect callback below shares these refs.
+  const nodesLiveRef = useRef(nodes);
+  nodesLiveRef.current = nodes;
+  const edgesLiveRef = useRef(edges);
+  edgesLiveRef.current = edges;
+  const insertAndArrangeNodes = useCallback(
+    (insertedNodes: FlowDesignerNode[], nextEdges: FlowDesignerEdge[]) => {
+      const nextNodes = withAutoLayout([...nodesLiveRef.current, ...insertedNodes], nextEdges, {
+        direction: "TB",
+        force: true
+      });
+      nodesLiveRef.current = nextNodes;
+      edgesLiveRef.current = nextEdges;
+      if (nextNodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+    },
+    [armLayoutGlide, setEdges, setNodes]
+  );
 
   const historyState = useMemo(() => ({ nodes, edges, flowName }), [edges, flowName, nodes]);
   const applyHistoryState = useCallback((next: typeof historyState) => {
@@ -266,7 +286,7 @@ function FlowChartDesignerContent() {
         };
       }
       const pasted = styledNode({ id, type: "actionNode", position: step.position!, data: fromFlowStep(step) });
-      setNodes((current) => [...current, pasted]);
+      insertAndArrangeNodes([pasted], edgesLiveRef.current);
       setSelectedNodeId(id);
       setSelectedEdgeId(null);
       setSaveState("Unsaved changes");
@@ -274,7 +294,7 @@ function FlowChartDesignerContent() {
     };
     document.addEventListener("keydown", onClipboardKey);
     return () => document.removeEventListener("keydown", onClipboardKey);
-  }, [edges, selectedNode, setNodes]);
+  }, [edges, insertAndArrangeNodes, selectedNode]);
 
   useEffect(() => {
     if (!pendingLoopFitRef.current) return;
@@ -449,10 +469,6 @@ function FlowChartDesignerContent() {
   // accidental overlap doesn't silently rewire the flow. Skips already-linked pairs; orients top→bottom.
   // Reads live nodes/edges from refs so the callback stays STABLE (else it re-creates every edit and,
   // via the engine's drag-stop handler, re-renders every node wrapper — a perf regression).
-  const nodesLiveRef = useRef(nodes);
-  nodesLiveRef.current = nodes;
-  const edgesLiveRef = useRef(edges);
-  edgesLiveRef.current = edges;
   const handleNodeConnect = useCallback((aId: string, bId: string) => {
     const a = nodesLiveRef.current.find((node) => node.id === aId);
     const b = nodesLiveRef.current.find((node) => node.id === bId);
@@ -664,11 +680,11 @@ function FlowChartDesignerContent() {
         data: { ...defaultNodeData(stepType, catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
       });
 
-      setNodes((currentNodes) => [...currentNodes, node]);
+      insertAndArrangeNodes([node], edgesLiveRef.current);
       setSelectedNodeId(id);
       setSaveState("Unsaved changes");
     },
-    [setNodes]
+    [insertAndArrangeNodes]
   );
 
   const { can } = usePermissions();
@@ -881,11 +897,12 @@ function FlowChartDesignerContent() {
   // edit — nothing here is serialized until Save.
   const insertNodeOnEdge = useCallback(
     (edgeId: string, stepType: StepType) => {
-      const edge = edges.find((item) => item.id === edgeId);
+      const currentEdges = edgesLiveRef.current;
+      const edge = currentEdges.find((item) => item.id === edgeId);
       if (!edge || edge.source === edge.target) return;
 
-      const sourceNode = nodes.find((node) => node.id === edge.source);
-      const targetNode = nodes.find((node) => node.id === edge.target);
+      const sourceNode = nodesLiveRef.current.find((node) => node.id === edge.source);
+      const targetNode = nodesLiveRef.current.find((node) => node.id === edge.target);
       const catalogItem = getFlowNodeCatalogItem(stepType);
       const id = `${stepType}-${Date.now().toString(36)}`;
       const position = {
@@ -900,40 +917,36 @@ function FlowChartDesignerContent() {
         data: { ...defaultNodeData(stepType, catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
       });
 
-      setNodes((currentNodes) => [...currentNodes, node]);
-      setEdges((currentEdges) => {
-        const targetEdge = currentEdges.find((item) => item.id === edgeId);
-        if (!targetEdge) return currentEdges;
-        const remaining = currentEdges.filter((item) => item.id !== edgeId);
-        return reconcileFlowBranches([
-          ...remaining,
-          createEdge(
-            targetEdge.source,
-            id,
-            targetEdge.data?.linkType ?? "success",
-            targetEdge.data?.label,
-            targetEdge.data?.expression,
-            targetEdge.data?.style,
-            targetEdge.data?.maxLoopCount,
-            {
-              // Preserve legacy type-derived connector semantics. Writing an explicit "normal"
-              // kind here would override a loaded conditional/outcome type when the edge is split.
-              kind: targetEdge.data?.kind,
-              conditional: targetEdge.data?.conditional,
-              parallel: targetEdge.data?.parallel,
-              loop: targetEdge.data?.loop
-            }
-          ),
-          // RT-08 / AWKIT-MAP-05: no authored label on the lower half-edge — the type fallback is
-          // display-only, so the split must not fabricate an authored "success" label.
-          createEdge(id, targetEdge.target, "success")
-        ]);
-      });
+      const remaining = currentEdges.filter((item) => item.id !== edgeId);
+      const nextEdges = reconcileFlowBranches([
+        ...remaining,
+        createEdge(
+          edge.source,
+          id,
+          edge.data?.linkType ?? "success",
+          edge.data?.label,
+          edge.data?.expression,
+          edge.data?.style,
+          edge.data?.maxLoopCount,
+          {
+            // Preserve legacy type-derived connector semantics. Writing an explicit "normal"
+            // kind here would override a loaded conditional/outcome type when the edge is split.
+            kind: edge.data?.kind,
+            conditional: edge.data?.conditional,
+            parallel: edge.data?.parallel,
+            loop: edge.data?.loop
+          }
+        ),
+        // RT-08 / AWKIT-MAP-05: no authored label on the lower half-edge — the type fallback is
+        // display-only, so the split must not fabricate an authored "success" label.
+        createEdge(id, edge.target, "success")
+      ]);
+      insertAndArrangeNodes([node], nextEdges);
       setSelectedNodeId(id);
       setSelectedEdgeId(null);
       setSaveState("Unsaved changes");
     },
-    [edges, nodes, setEdges, setNodes]
+    [insertAndArrangeNodes]
   );
 
   const pickerCoordinates = useCallback((anchor: HTMLElement) => {
@@ -955,7 +968,7 @@ function FlowChartDesignerContent() {
   }, [pickerCoordinates]);
 
   const appendNode = useCallback((sourceId: string, stepType: StepType) => {
-    const source = nodes.find((node) => node.id === sourceId);
+    const source = nodesLiveRef.current.find((node) => node.id === sourceId);
     if (!source) return;
     const catalogItem = getFlowNodeCatalogItem(stepType);
     const id = `${stepType}-${Date.now().toString(36)}`;
@@ -965,21 +978,19 @@ function FlowChartDesignerContent() {
       position: { x: source.position.x, y: source.position.y + 180 },
       data: { ...defaultNodeData(stepType, catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
     });
-    setNodes((current) => [...current, node]);
-    setEdges((current) => {
-      const sourceHasLoop = current.some((edge) => edge.source === sourceId && edge.target === sourceId && flowEdgeKind(edge) === "loop");
-      const nextEdge = sourceHasLoop
-        ? createEdge(sourceId, id, "conditional", "Exit loop", undefined, undefined, undefined, {
-            kind: "conditional",
-            conditional: defaultLoopExitCondition()
-          })
-        : createEdge(sourceId, id, source.data.stepType === "start" ? "always" : "success");
-      return [...current, nextEdge];
-    });
+    const currentEdges = edgesLiveRef.current;
+    const sourceHasLoop = currentEdges.some((edge) => edge.source === sourceId && edge.target === sourceId && flowEdgeKind(edge) === "loop");
+    const nextEdge = sourceHasLoop
+      ? createEdge(sourceId, id, "conditional", "Exit loop", undefined, undefined, undefined, {
+          kind: "conditional",
+          conditional: defaultLoopExitCondition()
+        })
+      : createEdge(sourceId, id, source.data.stepType === "start" ? "always" : "success");
+    insertAndArrangeNodes([node], [...currentEdges, nextEdge]);
     setSelectedNodeId(id);
     setSelectedEdgeId(null);
     setSaveState("Unsaved changes");
-  }, [nodes, setEdges, setNodes]);
+  }, [insertAndArrangeNodes]);
 
   const openBlankPicker = useCallback((event: MouseEvent | React.MouseEvent) => {
     event.preventDefault();
@@ -1033,12 +1044,13 @@ function FlowChartDesignerContent() {
       const loop = (): Partial<FlowConnectionData> => ({ kind: "loop", loop: defaultLoopConnectorConfig() });
 
       // Resolve an anchor position + optional (source, target) the operation splices around.
-      const sourceId = state.mode === "append" ? state.sourceId : state.mode === "edge" ? edges.find((e) => e.id === state.edgeId)?.source : undefined;
-      const targetId = state.mode === "edge" ? edges.find((e) => e.id === state.edgeId)?.target : undefined;
-      const sourceNode = sourceId ? nodes.find((n) => n.id === sourceId) : undefined;
+      const currentEdges = edgesLiveRef.current;
+      const sourceId = state.mode === "append" ? state.sourceId : state.mode === "edge" ? currentEdges.find((e) => e.id === state.edgeId)?.source : undefined;
+      const targetId = state.mode === "edge" ? currentEdges.find((e) => e.id === state.edgeId)?.target : undefined;
+      const sourceNode = sourceId ? nodesLiveRef.current.find((n) => n.id === sourceId) : undefined;
       const anchor = sourceNode ? { x: sourceNode.position.x, y: sourceNode.position.y + ROW } : state.mode === "blank" ? state.position : { x: 360, y: 200 };
       const startEdgeType = sourceNode?.data.stepType === "start" ? "always" : "success";
-      const sourceHasLoop = Boolean(sourceId && edges.some((edge) => edge.source === sourceId && edge.target === sourceId && flowEdgeKind(edge) === "loop"));
+      const sourceHasLoop = Boolean(sourceId && currentEdges.some((edge) => edge.source === sourceId && edge.target === sourceId && flowEdgeKind(edge) === "loop"));
       const sourceEdge = (target: string): FlowDesignerEdge => sourceHasLoop
         ? createEdge(sourceId!, target, "conditional", "Exit loop", undefined, undefined, undefined, {
             kind: "conditional",
@@ -1102,8 +1114,8 @@ function FlowChartDesignerContent() {
         selectEdgeId = loopEdge.id;
       }
 
-      setNodes((current) => [...current, ...addNodes]);
-      setEdges((current) => reconcileFlowBranches([...current.filter((e) => e.id !== removeEdgeId), ...addEdges]));
+      const nextEdges = reconcileFlowBranches([...currentEdges.filter((edge) => edge.id !== removeEdgeId), ...addEdges]);
+      insertAndArrangeNodes(addNodes, nextEdges);
       if (selectEdgeId) {
         setSelectedNodeId(null);
         setSelectedEdgeId(selectEdgeId);
@@ -1114,7 +1126,7 @@ function FlowChartDesignerContent() {
       }
       setSaveState("Unsaved changes");
     },
-    [edges, nodes, setEdges, setNodes]
+    [insertAndArrangeNodes]
   );
 
   const handlePickerPick = useCallback((id: string) => {

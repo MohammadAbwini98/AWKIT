@@ -216,6 +216,25 @@ function ScenarioBuilderContent() {
   const engineRef = useRef<FlowCanvasHandle>(null);
   const pendingLoopFitRef = useRef(false);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
+  // Insertions read/write these live references as one graph transaction. This avoids laying out a
+  // stale render snapshot while retaining the stable drag-to-connect callbacks further below.
+  const nodesLiveRef = useRef(nodes);
+  nodesLiveRef.current = nodes;
+  const edgesLiveRef = useRef(edges);
+  edgesLiveRef.current = edges;
+  const insertAndArrangeFlows = useCallback(
+    (insertedNodes: ScenarioNode[], nextEdges: ScenarioEdge[]) => {
+      const nextNodes = normalizeOrders(
+        withAutoLayout([...nodesLiveRef.current, ...insertedNodes], nextEdges, { direction: "TB", force: true })
+      );
+      nodesLiveRef.current = nextNodes;
+      edgesLiveRef.current = nextEdges;
+      if (nextNodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+    },
+    [armLayoutGlide, setEdges, setNodes]
+  );
   const navigation = useNavigation();
   const { can } = usePermissions();
   const canSaveWorkflow = can(Permission.WORKFLOW_EDIT);
@@ -379,7 +398,7 @@ const workflowProfile = useMemo(
         id,
         originalNode
       );
-      setNodes((current) => normalizeOrders([...current, pasted]));
+       insertAndArrangeFlows([pasted], edgesLiveRef.current);
       setSelectedNodeId(id);
       setSelectedEdgeId(null);
       setSaveState("Unsaved changes");
@@ -387,7 +406,7 @@ const workflowProfile = useMemo(
     };
     document.addEventListener("keydown", onClipboardKey);
     return () => document.removeEventListener("keydown", onClipboardKey);
-  }, [flowLibrary, nodes, selectedNode, setNodes, workflowProfile]);
+   }, [flowLibrary, insertAndArrangeFlows, nodes, selectedNode, workflowProfile]);
 
   // Points 2–4: scenario connector-structure issues. Advisory since Stage 2b — save never blocks;
   // the run gate (PreRunValidator) is what stops an invalid workflow from executing.
@@ -628,15 +647,16 @@ const workflowProfile = useMemo(
   // canvas edit — nothing is serialized until Save. If every saved flow is already used, we toast.
   const insertFlowOnEdge = useCallback(
     (edgeId: string, flowId: string) => {
-      const edge = edges.find((item) => item.id === edgeId);
+      const currentEdges = edgesLiveRef.current;
+      const edge = currentEdges.find((item) => item.id === edgeId);
       if (!edge || edge.source === edge.target) return;
-      const flow = flowLibrary.find((item) => item.flowId === flowId && !nodes.some((node) => node.data.kind === "flowRef" && node.data.flowId === item.flowId));
+      const flow = flowLibrary.find((item) => item.flowId === flowId && !nodesLiveRef.current.some((node) => node.data.kind === "flowRef" && node.data.flowId === item.flowId));
       if (!flow) {
         setToast({ tone: "error", message: "All saved flows are already in this workflow. Create a new flow in the Flow Designer to insert one here." });
         return;
       }
-      const sourceNode = nodes.find((node) => node.id === edge.source);
-      const targetNode = nodes.find((node) => node.id === edge.target);
+      const sourceNode = nodesLiveRef.current.find((node) => node.id === edge.source);
+      const targetNode = nodesLiveRef.current.find((node) => node.id === edge.target);
       const position = {
         x: ((sourceNode?.position.x ?? 140) + (targetNode?.position.x ?? 460)) / 2,
         y: ((sourceNode?.position.y ?? 180) + (targetNode?.position.y ?? 180)) / 2
@@ -645,26 +665,22 @@ const workflowProfile = useMemo(
       const insertOrder = sourceNode?.data.kind === "flowRef" ? sourceNode.data.order + 0.5 : 1;
       const node = createScenarioNode(flow.flowId, insertOrder, position, true, undefined, flowLibrary);
 
-      setNodes((currentNodes) => normalizeOrders([...currentNodes, node]));
-      setEdges((currentEdges) => {
-        const targetEdge = currentEdges.find((item) => item.id === edgeId);
-        if (!targetEdge) return currentEdges;
-        const remaining = currentEdges.filter((item) => item.id !== edgeId);
-        return reconcileScenarioBranches([
-          ...remaining,
-          createScenarioEdge(targetEdge.source, flow.flowId, targetEdge.data?.linkType ?? "success", {
-            label: targetEdge.data?.label,
-            condition: targetEdge.data?.expression ? { expression: targetEdge.data.expression } : undefined,
-            style: targetEdge.data?.style
-          }),
-          createScenarioEdge(flow.flowId, targetEdge.target, "success")
-        ]);
-      });
+      const remaining = currentEdges.filter((item) => item.id !== edgeId);
+      const nextEdges = reconcileScenarioBranches([
+        ...remaining,
+        createScenarioEdge(edge.source, flow.flowId, edge.data?.linkType ?? "success", {
+          label: edge.data?.label,
+          condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
+          style: edge.data?.style
+        }),
+        createScenarioEdge(flow.flowId, edge.target, "success")
+      ]);
+      insertAndArrangeFlows([node], nextEdges);
       setSelectedEdgeId(null);
       setSaveState("Unsaved changes");
       setToast({ tone: "success", message: `Inserted "${flow.name}" into the workflow.` });
     },
-    [edges, nodes, flowLibrary, setEdges, setNodes]
+    [flowLibrary, insertAndArrangeFlows]
   );
 
   const pickerCoordinates = useCallback((anchor: HTMLElement) => {
@@ -686,22 +702,20 @@ const workflowProfile = useMemo(
   }, [pickerCoordinates]);
 
   const appendFlow = useCallback((sourceId: string, flowId: string) => {
-    const source = nodes.find((node) => node.id === sourceId);
+    const source = nodesLiveRef.current.find((node) => node.id === sourceId);
     const flow = flowLibrary.find((item) => item.flowId === flowId);
     if (!source || !flow) return;
     const node = createScenarioNode(flowId, source.data.kind === "flowRef" ? source.data.order + 1 : 1, { x: source.position.x, y: source.position.y + 190 }, true, undefined, flowLibrary);
-    setNodes((current) => normalizeOrders([...current, node]));
-    setEdges((current) => {
-      const sourceHasLoop = current.some((edge) => edge.source === sourceId && edge.target === sourceId && edge.data?.linkType === "loop");
-      const nextEdge = sourceHasLoop
-        ? createScenarioEdge(sourceId, flowId, "conditional", { label: "Exit loop", condition: { expression: "true" } })
-        : createScenarioEdge(sourceId, flowId, source.data.kind === "start" ? "always" : "success");
-      return [...current, nextEdge];
-    });
+    const currentEdges = edgesLiveRef.current;
+    const sourceHasLoop = currentEdges.some((edge) => edge.source === sourceId && edge.target === sourceId && edge.data?.linkType === "loop");
+    const nextEdge = sourceHasLoop
+      ? createScenarioEdge(sourceId, flowId, "conditional", { label: "Exit loop", condition: { expression: "true" } })
+      : createScenarioEdge(sourceId, flowId, source.data.kind === "start" ? "always" : "success");
+    insertAndArrangeFlows([node], [...currentEdges, nextEdge]);
     setSelectedNodeId(flowId);
     setSelectedEdgeId(null);
     setSaveState("Unsaved changes");
-  }, [flowLibrary, nodes, setEdges, setNodes]);
+  }, [flowLibrary, insertAndArrangeFlows]);
 
   const openBlankPicker = useCallback((event: MouseEvent | React.MouseEvent) => {
     event.preventDefault();
@@ -800,13 +814,13 @@ const workflowProfile = useMemo(
 
   const addFlow = useCallback(
     (flowId: string, position?: { x: number; y: number }) => {
-      const flowCount = nodes.filter((node) => node.data.kind === "flowRef").length;
+      const flowCount = nodesLiveRef.current.filter((node) => node.data.kind === "flowRef").length;
       const nextOrder = flowCount + 1;
       const node = createScenarioNode(flowId, nextOrder, position ?? { x: 280, y: 160 + flowCount * 190 }, true, undefined, flowLibrary);
-      setNodes((currentNodes) => [...currentNodes, node]);
+      insertAndArrangeFlows([node], edgesLiveRef.current);
       setSaveState("Unsaved changes");
     },
-    [nodes, setNodes, flowLibrary]
+    [flowLibrary, insertAndArrangeFlows]
   );
 
   // Flow Logic actions (Add menu › Flow Logic). These map onto AWKIT's existing connector kinds
@@ -820,9 +834,9 @@ const workflowProfile = useMemo(
         state?.mode === "append"
           ? state.sourceId
           : state?.mode === "edge"
-            ? edges.find((edge) => edge.id === state.edgeId)?.source ?? null
+            ? edgesLiveRef.current.find((edge) => edge.id === state.edgeId)?.source ?? null
             : selectedNodeId;
-      const source = sourceId ? nodes.find((node) => node.id === sourceId) : null;
+      const source = sourceId ? nodesLiveRef.current.find((node) => node.id === sourceId) : null;
       if (!source) {
         setToast({ tone: "error", message: "Select a flow node on the canvas first, then choose a Flow Logic action." });
         return;
@@ -864,8 +878,8 @@ const workflowProfile = useMemo(
         )
       );
       const newEdges = targets.map((flow, index) => createScenarioEdge(source.id, flow.flowId, linkType, { label: labels[index] }));
-      setNodes((current) => normalizeOrders([...current, ...newNodes]));
-      setEdges((current) => reconcileScenarioBranches([...current, ...newEdges]));
+      const nextEdges = reconcileScenarioBranches([...edgesLiveRef.current, ...newEdges]);
+      insertAndArrangeFlows(newNodes, nextEdges);
       setSelectedNodeId(null);
       setSelectedEdgeId(newEdges[0].id);
       if (rightPanelCollapsed) persistRightPanel(false);
@@ -875,7 +889,7 @@ const workflowProfile = useMemo(
         message: `${logic === "condition" ? "Conditional" : "Parallel"} branch added from "${source.data.name}" (${targets.length} path${targets.length === 1 ? "" : "s"}). Edit the connectors in the drawer.`
       });
     },
-    [edges, nodes, selectedNodeId, availableFlows, flowLibrary, toggleNodeLoop, setNodes, setEdges, rightPanelCollapsed, persistRightPanel, loopControlledSources]
+    [selectedNodeId, availableFlows, flowLibrary, toggleNodeLoop, insertAndArrangeFlows, rightPanelCollapsed, persistRightPanel, loopControlledSources]
   );
 
   const handlePickerPick = useCallback((id: string) => {
@@ -1180,10 +1194,6 @@ const workflowProfile = useMemo(
   // and orient the new connector top→bottom for a tidy downward flow. Reads live nodes/edges from
   // refs so the callback stays STABLE — otherwise it re-creates every edit and (via the engine's
   // drag-stop handler) re-renders every node wrapper (perf regression).
-  const nodesLiveRef = useRef(nodes);
-  nodesLiveRef.current = nodes;
-  const edgesLiveRef = useRef(edges);
-  edgesLiveRef.current = edges;
   const handleNodeConnect = useCallback((aId: string, bId: string) => {
     const a = nodesLiveRef.current.find((node) => node.id === aId);
     const b = nodesLiveRef.current.find((node) => node.id === bId);

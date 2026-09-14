@@ -4,29 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SpecterStudio</title>
-    <script>
+    <script type="module">
+      import {
+        DEFAULT_ACCENT_SETTINGS,
+        deriveAccentSettingsThemeTokens,
+        normalizeAccentSettings
+      } from "/src/theme/accentColor.ts";
+
       (() => {
         const saved = localStorage.getItem("awkit-appearance");
         const dark = saved === "dark" || (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.dataset.theme = dark ? "dark" : "light";
-        // Apply the saved custom accent (if any) before React mounts so there is no default-purple
-        // flash. The cache holds the fully-derived light+dark token maps; absent means "default".
+        const root = document.documentElement;
+        root.dataset.theme = dark ? "dark" : "light";
+        // Resolve cache and no-cache startup through the same model. This avoids both an accent flash
+        // and a static palette that could drift from the application and splash token source.
         try {
           const cache = JSON.parse(localStorage.getItem("awkit-accent-tokens") || "null");
-          if (cache) {
-            const root = document.documentElement;
-            const tokens = cache[dark ? "dark" : "light"];
-            if (tokens) for (const name in tokens) root.style.setProperty(name, tokens[name]);
-            root.dataset.accentMode = cache.mode === "gradient" ? "gradient" : "solid";
-          }
+          const accent = normalizeAccentSettings(cache?.accent ?? DEFAULT_ACCENT_SETTINGS);
+          const tokens = cache?.[dark ? "dark" : "light"] ?? deriveAccentSettingsThemeTokens(accent)[dark ? "dark" : "light"];
+          for (const name in tokens) root.style.setProperty(name, tokens[name]);
+          root.dataset.accentMode = accent.mode;
         } catch (e) {
-          /* malformed cache — ignore; the stylesheet default purple stands */
+          const tokens = deriveAccentSettingsThemeTokens(DEFAULT_ACCENT_SETTINGS)[dark ? "dark" : "light"];
+          for (const name in tokens) root.style.setProperty(name, tokens[name]);
+          root.dataset.accentMode = DEFAULT_ACCENT_SETTINGS.mode;
         }
       })();
+      import "/main.tsx";
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/main.tsx"></script>
   </body>
 </html>

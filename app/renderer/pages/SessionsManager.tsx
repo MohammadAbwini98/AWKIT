@@ -381,16 +381,16 @@ export function SessionsManager() {
         ) : (
           <>
             <div className="wl-table-wrapper">
-              <table className="wl-table sessions-table">
-                <colgroup>
-                  <col style={{ width: "6%" }} />
-                  <col style={{ width: "18%" }} />
-                  <col style={{ width: "24%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "10%" }} />
+                <table className="wl-table sessions-table">
+                  <colgroup>
+                    <col className="sessions-col-status" />
+                    <col className="sessions-col-name" />
+                    <col className="sessions-col-target" />
+                    <col className="sessions-col-source" />
+                    <col className="sessions-col-created" />
+                    <col className="sessions-col-last-used" />
+                    <col className="sessions-col-browser" />
+                    <col className="sessions-col-actions" />
                 </colgroup>
                 <thead>
                   <tr>
@@ -407,15 +407,16 @@ export function SessionsManager() {
                 <tbody>
                   {paged.map((profile) => (
                     <tr key={profile.id}>
-                      <td>
+                      <td className="sessions-status-cell">
                         <span
                           className="state-pill"
                           style={statusPillStyle(profile.status)}
+                          title={statusLabel(profile.status)}
                         >
                           {statusLabel(profile.status)}
                         </span>
                       </td>
-                      <td>
+                      <td className="sessions-name-cell" title={profile.name}>
                         {renamingId === profile.id ? (
                           <input
                             autoFocus
@@ -432,44 +433,44 @@ export function SessionsManager() {
                             }}
                           />
                         ) : (
-                          <strong style={{ fontSize: "var(--text-sm)", color: "var(--awkit-text)" }}>{profile.name}</strong>
+                          <strong className="sessions-name-value" style={{ fontSize: "var(--text-sm)", color: "var(--awkit-text)" }}>{profile.name}</strong>
                         )}
                       </td>
-                      <td title={profile.targetUrl}>
-                        <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)", fontFamily: "var(--font-mono)" }}>
+                      <td className="sessions-target-cell">
+                        <span className="sessions-target-value">
+                          <span className="sessions-target-url" title={profile.targetUrl || undefined}>
                             {profile.targetUrl || "—"}
                           </span>
                           {profile.origin && profile.origin !== profile.targetUrl ? (
-                            <span style={{ fontSize: "var(--text-2xs)", color: "var(--awkit-text-muted)" }}>origin: {profile.origin}</span>
+                            <span className="sessions-target-origin" title={`origin: ${profile.origin}`}>origin: {profile.origin}</span>
                           ) : null}
                         </span>
                       </td>
-                      <td>
+                      <td className="sessions-source-cell">
                         <span style={{ fontSize: "var(--text-2xs)", color: "var(--awkit-text-secondary)" }}>
                           {profile.source === "autoSecureLogin" ? "Auto login" : profile.source === "imported" ? "Imported" : "Manual"}
                         </span>
                       </td>
-                      <td title={new Date(profile.createdAt).toLocaleString()}>
+                      <td className="sessions-date-cell" title={new Date(profile.createdAt).toLocaleString()}>
                         <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
                           <Clock size={12} />
                           {new Date(profile.createdAt).toLocaleDateString()}
                         </span>
                       </td>
-                      <td>
+                      <td className="sessions-date-cell">
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
                           {profile.lastUsedAt
                             ? new Date(profile.lastUsedAt).toLocaleDateString()
                             : "Never"}
                         </span>
                       </td>
-                      <td>
+                      <td className="sessions-browser-cell">
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
                           {profile.browserPath?.includes("msedge") ? "Edge" : profile.browserPath?.includes("chrome") ? "Chrome" : "—"}
                         </span>
                       </td>
-                      <td>
-                        <div className="table-actions" style={{ display: "flex", gap: "var(--space-1)" }}>
+                      <td className="sessions-actions-cell">
+                        <div className="table-actions sessions-actions" style={{ display: "flex", gap: "var(--space-1)" }}>
                           <button
                             type="button"
                             title="Rename"

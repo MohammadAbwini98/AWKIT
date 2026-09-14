@@ -3804,6 +3804,73 @@ th {
   background: var(--awkit-surface-soft);
 }
 
+/* Sessions use a fixed, scrollable table contract. Status and actions own minimum-width columns;
+   user-entered URLs/origins are clipped inside the remaining target column and expose their complete
+   values through their native title tooltip. This keeps all cells aligned at narrow page widths. */
+.sessions-table {
+  min-width: 68rem;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.sessions-table th,
+.sessions-table td {
+  overflow: hidden;
+}
+
+.sessions-table .sessions-col-status { width: 8rem; }
+.sessions-table .sessions-col-name { width: 12rem; }
+.sessions-table .sessions-col-source { width: 7rem; }
+.sessions-table .sessions-col-created,
+.sessions-table .sessions-col-last-used { width: 7.5rem; }
+.sessions-table .sessions-col-browser { width: 5.5rem; }
+.sessions-table .sessions-col-actions { width: 7rem; }
+
+.sessions-table .sessions-status-cell,
+.sessions-table .sessions-source-cell,
+.sessions-table .sessions-date-cell,
+.sessions-table .sessions-browser-cell,
+.sessions-table .sessions-actions-cell {
+  white-space: nowrap;
+}
+
+.sessions-table .sessions-status-cell .state-pill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sessions-table .sessions-name-value,
+.sessions-table .sessions-target-value,
+.sessions-table .sessions-target-url,
+.sessions-table .sessions-target-origin {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessions-table .sessions-target-value {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sessions-table .sessions-target-url {
+  color: var(--awkit-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.sessions-table .sessions-target-origin {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.sessions-table .sessions-actions {
+  min-width: max-content;
+}
+
 .wl-name-cell {
   display: grid;
   gap: 2px;

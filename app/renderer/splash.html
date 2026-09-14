@@ -7,7 +7,7 @@
     <title>SpecterStudio</title>
     <style>
       /* Offline-first: no remote fonts/assets. System sans (Arial ≈ Helvetica Neue). */
-      :root { --bg: #0e1016; }
+      :root { --bg: #0e1016; --splash-accent: #1d4ed8; }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
       #stage { display: block; width: 100vw; height: 100vh; }
@@ -29,7 +29,7 @@
         height: 100%;
         border-radius: 50%;
         border: 2.5px solid rgba(247, 246, 251, 0.16);
-        border-top-color: #a78bfa;
+        border-top-color: var(--splash-accent);
         animation: splash-spin 0.8s linear infinite;
       }
       @keyframes splash-spin { to { transform: rotate(360deg); } }
@@ -38,7 +38,9 @@
   <body>
     <canvas id="stage"></canvas>
     <div id="spinner" aria-hidden="true"><div class="ring"></div></div>
-    <script>
+    <script type="module">
+      import { SPECTER_BLUE, buildAccentGradient } from "/src/theme/accentColor.ts";
+
       (() => {
         "use strict";
         // ---- Virtual design space (matches reference aspect 1600x1200, 4:3) ----
@@ -46,7 +48,9 @@
         const DURATION = 13.716667; // exact loop length of the reference clip
         const FONT = '"Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif';
 
-        // ---- Palette: strict high-contrast monochrome + whisper of project violet ----
+        // ---- Palette: strict high-contrast monochrome + the shared application accent ----
+        const ACCENT = buildAccentGradient(SPECTER_BLUE.primary, SPECTER_BLUE.secondary, "dark", 135);
+        document.documentElement.style.setProperty("--splash-accent", SPECTER_BLUE.primary);
         const COL = {
           bg: "#0e1016",
           line: "rgba(247,246,251,0.94)",    // crisp white grid strokes
@@ -54,8 +58,12 @@
           word: "#f8f7fc",                    // display wordmark (near pure white)
           body: "#c2bdcf",                    // paragraph body copy
           muted: "#8f8a9c",                   // credits
-          accent: "#a78bfa",                  // violet accent (counter)
-          glow: "rgba(124,58,237,0.08)"       // very subtle violet radial glow
+          accent: SPECTER_BLUE.primary,
+          deep: ACCENT.deep,
+          bright: ACCENT.bright,
+          glow: `rgba(${ACCENT.deepRgb}, 0.08)`,
+          glowMid: `rgba(${ACCENT.brightRgb}, 0.045)`,
+          glowEnd: `rgba(${ACCENT.brightRgb}, 0)`
         };
 
         const WORD1 = "SPECTER";
@@ -333,7 +341,11 @@
           if (alpha <= 0.001) return;
           ctx.globalAlpha = alpha;
           ctx.font = "700 26px " + FONT;
-          ctx.fillStyle = COL.accent; // violet accent tie-in
+          const accent = ctx.createLinearGradient(VW - M - 96, M, VW - M, M + 28);
+          accent.addColorStop(0, COL.deep);
+          accent.addColorStop(0.5, COL.accent);
+          accent.addColorStop(1, COL.bright);
+          ctx.fillStyle = accent;
           ctx.textAlign = "right";
           ctx.textBaseline = "top";
           ctx.fillText(COUNTER, VW - M, M);
@@ -359,12 +371,13 @@
           // background
           ctx.fillStyle = COL.bg;
           ctx.fillRect(0, 0, cw, ch);
-          // violet radial glow (top-left) — subtle project accent
+          // Shared indigo → brand → cyan radial glow (top-left), kept intentionally subtle.
           ctx.save();
           const gx = cw * 0.12, gy = ch * 0.08, gr = Math.max(cw, ch) * 0.7;
           const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
           grad.addColorStop(0, COL.glow);
-          grad.addColorStop(1, "rgba(124,58,237,0)");
+          grad.addColorStop(0.52, COL.glowMid);
+          grad.addColorStop(1, COL.glowEnd);
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, cw, ch);
           ctx.restore();

@@ -11,7 +11,6 @@ import {
   normalizeAccentColor,
   normalizeAccentSettings,
   type AccentMode,
-  type AccentPreset,
   type AccentSettings
 } from "@src/theme/accentColor";
 import { useTheme } from "../state/theme";
@@ -47,9 +46,10 @@ export function AccentColorSettings() {
   const secondaryValid = secondaryNorm !== null;
   const valid = mode === "solid" ? primaryValid : primaryValid && secondaryValid;
 
-  // The accent this draft represents. Solid + default blue collapses to the default (drops the override).
+  // The Component Reference pair is the one canonical default; a single-color blue remains an explicit
+  // solid customization rather than silently dropping the requested gradient.
   const candidate: AccentSettings = useMemo(() => {
-    if (mode === "solid" && primaryNorm === DEFAULT_ACCENT_COLOR) return DEFAULT_ACCENT_SETTINGS;
+    if (mode === "gradient" && primaryNorm === SPECTER_BLUE.primary && secondaryNorm === SPECTER_BLUE.secondary) return DEFAULT_ACCENT_SETTINGS;
     return normalizeAccentSettings({
       mode,
       primaryColor: primaryNorm ?? accent.primaryColor,
@@ -59,7 +59,7 @@ export function AccentColorSettings() {
   }, [mode, primaryNorm, secondaryNorm, accent.primaryColor, accent.secondaryColor]);
 
   const dirty = !accentsEqual(candidate, accent);
-  const activePreset: AccentPreset = candidate.preset;
+  const activePreset = candidate.preset;
 
   // Scope the preview: derive tokens for the current theme and set them (plus data-accent-mode) inline.
   const previewStyle = useMemo(
@@ -87,16 +87,10 @@ export function AccentColorSettings() {
     setSecondaryTouched(true);
   };
 
-  const applyPreset = (preset: AccentPreset) => {
-    if (preset === "default-purple") {
-      setMode("solid");
-      setPrimaryHex(DEFAULT_ACCENT_COLOR);
-      setSecondaryHex(lighten(DEFAULT_ACCENT_COLOR, 0.35));
-    } else if (preset === "specter-blue") {
-      setMode("gradient");
-      setPrimaryHex(SPECTER_BLUE.primary);
-      setSecondaryHex(SPECTER_BLUE.secondary);
-    }
+  const applyReferencePreset = () => {
+    setMode(SPECTER_BLUE_SETTINGS.mode);
+    setPrimaryHex(SPECTER_BLUE.primary);
+    setSecondaryHex(SPECTER_BLUE.secondary);
     setPrimaryTouched(true);
     setSecondaryTouched(true);
   };
@@ -105,8 +99,8 @@ export function AccentColorSettings() {
     if (!valid || !dirty) return;
     setAccent(candidate);
   };
-  const resetToDefault = () => applyPreset("default-purple");
-  const resetDisabled = candidate.mode === "solid" && candidate.primaryColor === null && !dirty;
+  const resetToDefault = () => applyReferencePreset();
+  const resetDisabled = accentsEqual(candidate, DEFAULT_ACCENT_SETTINGS) && !dirty;
 
   return (
     <section className="work-panel settings-card">
@@ -149,13 +143,9 @@ export function AccentColorSettings() {
           <div className="accent-field">
             <span>Preset</span>
             <div className="accent-preset-row" role="group" aria-label="Accent preset">
-              <button type="button" className={`accent-preset ${activePreset === "default-purple" ? "is-active" : ""}`} aria-pressed={activePreset === "default-purple"} onClick={() => applyPreset("default-purple")}>
-                <span className="accent-preset-swatch" style={{ background: DEFAULT_ACCENT_COLOR }} aria-hidden="true" />
-                Default Blue
-              </button>
-              <button type="button" className={`accent-preset ${activePreset === "specter-blue" ? "is-active" : ""}`} aria-pressed={activePreset === "specter-blue"} onClick={() => applyPreset("specter-blue")}>
+              <button type="button" className={`accent-preset ${activePreset === "specter-blue" ? "is-active" : ""}`} aria-pressed={activePreset === "specter-blue"} onClick={applyReferencePreset}>
                 <span className="accent-preset-swatch" style={{ background: `linear-gradient(135deg, ${SPECTER_BLUE.primary}, ${SPECTER_BLUE.secondary})` }} aria-hidden="true" />
-                Specter Blue
+                Reference Blue
               </button>
               <button type="button" className={`accent-preset ${activePreset === "custom" ? "is-active" : ""}`} aria-pressed={activePreset === "custom"} disabled={activePreset !== "custom"} title="Active when you pick your own colors">
                 <span className="accent-preset-swatch" style={{ background: "var(--awkit-surface-inset)" }} aria-hidden="true" />
@@ -190,7 +180,7 @@ export function AccentColorSettings() {
                   </button>
                 </div>
               </label>
-              <p className="form-message">The gradient flows deep → primary → bright highlight → secondary → deep.</p>
+              <p className="form-message">The reference gradient flows at 135° from indigo → brand blue → cyan.</p>
               {secondaryTouched && !secondaryValid ? <p className="form-message error-text" role="alert">Enter a valid hex color, e.g. #38BDF8.</p> : null}
               {valid && !readability.ok ? (
                 <p className="form-message warn" role="alert">
@@ -250,8 +240,7 @@ function accentsEqual(a: AccentSettings, b: AccentSettings): boolean {
 }
 
 function savedLabel(a: AccentSettings): string {
-  if (a.mode === "solid" && a.primaryColor === null) return `${DEFAULT_ACCENT_COLOR} · default blue`;
-  if (a.mode === "gradient") return `${a.primaryColor} → ${a.secondaryColor}${a.preset === "specter-blue" ? " · Specter Blue" : ""}`;
+  if (a.mode === "gradient") return `${a.primaryColor} → ${a.secondaryColor}${a.preset === "specter-blue" ? " · Reference Blue" : ""}`;
   return `${a.primaryColor} · solid`;
 }
 
