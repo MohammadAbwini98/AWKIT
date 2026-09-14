@@ -12,8 +12,9 @@
   reduced motion, proves default/reload advancement, confirms the accessible control is initially
   on, then proves both paused stability (`animation: none`) and resumed timeline/CSS pulse.
 - **Evidence:** build PASS; auth **79/79**; auth GUI **33/33**; script typecheck PASS; verifier
-  classification **205/205**; `git diff --check` clean. The Bead is closed and exported; AI-memory,
-  roadmap reconciliation and exact terminal closeout are recorded with the final task evidence.
+  classification **205/205**; AI-memory PASS; `git diff --check` clean; roadmap **177/177**,
+  **290 total / 288 closed / 2 outstanding**, **Sources agree**. The Bead is closed and exported;
+  the exact terminal closeout records the released lease and clears its assignment.
 
 ## 2026-09-14 — `awkit-8cb0`: selected navigation contrast and UI text containment (Codex)
 

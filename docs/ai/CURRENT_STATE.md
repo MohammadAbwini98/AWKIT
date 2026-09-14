@@ -19,8 +19,9 @@ ledger case.
   before asserting default timeline advancement, a reload that remains autoplaying, the always-visible
   pause control, stable paused JS/CSS state, and resume progression/pulse. `verify:auth` is **79/79**;
   build and script typecheck pass; verifier classification remains **205/205**.
-- **Tracker:** Bead `awkit-btcx` is closed and exported. The final roadmap reconciliation and exact
-  terminal lease closeout remain to be recorded by this task.
+- **Tracker:** Bead `awkit-btcx` is closed and exported. Roadmap is **177/177**, with **290 total /
+  288 closed / 2 outstanding**, and **Sources agree**; the two remaining items are the declared
+  external Oracle work. The exact terminal lease closeout is the only remaining operation.
 
 ## `awkit-mjhb`: Login workflow preview motion is owner-controllable (2026-09-14)
 
