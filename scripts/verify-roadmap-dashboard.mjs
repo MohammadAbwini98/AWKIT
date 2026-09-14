@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("288 issues parse", beads.stats.total === 288, `got ${beads.stats.total}`);
+  check("289 issues parse", beads.stats.total === 289, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -566,8 +566,11 @@ try {
   // dependency edge was added, so total and closed each rise by one while outstanding stays two.
   // Then 2/286 of 288 on 2026-09-14: `awkit-8cb0` fixed selected-navigation contrast and shared
   // long-value containment, then closed. It adds no dependency edge, so outstanding remains two.
-    "2 outstanding / 286 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 286,
+  // Then 2/287 of 289 on 2026-09-14: `awkit-mjhb` closed after the Login preview gained an
+  // explicit opt-in for owners whose system requests reduced motion. No dependency edge was added,
+  // so the two external Oracle items remain the only outstanding work.
+    "2 outstanding / 287 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 287,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
