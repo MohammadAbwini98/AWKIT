@@ -535,9 +535,9 @@ try {
     const valueStyle = getComputedStyle(value);
     return {
       tableDisplay: table ? getComputedStyle(table).display : "missing",
-      valueInsideCell: Boolean(cellBox) && valueBox.left >= cellBox.left - 1 && valueBox.right <= cellBox.right + 1,
+      valueInsideCell: cellBox ? valueBox.left >= cellBox.left - 1 && valueBox.right <= cellBox.right + 1 : false,
       valueIsTruncated: value.scrollWidth > value.clientWidth && valueStyle.overflowX === "hidden" && valueStyle.textOverflow === "ellipsis" && valueStyle.whiteSpace === "nowrap",
-      inputInsideShell: Boolean(inputBox && shellBox) && inputBox.left >= shellBox.left - 1 && inputBox.right <= shellBox.right + 1,
+      inputInsideShell: inputBox && shellBox ? inputBox.left >= shellBox.left - 1 && inputBox.right <= shellBox.right + 1 : false,
       inputFitsItsAvailableWidth: input ? getComputedStyle(input).maxWidth === "100%" && getComputedStyle(input).minWidth === "0px" : false
     };
   });
