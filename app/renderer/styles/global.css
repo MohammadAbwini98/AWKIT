@@ -889,18 +889,17 @@ button:not(:disabled):not([role="switch"]):active,
   width: 42px;
 }
 
-/* Active row: soft accent fill + accent text. BOTH sides must resolve through the accent tokens —
-   the accent is user-customisable at runtime (src/theme/accentColor.ts), so a --brand-* or hex
-   literal here would freeze the selected row at violet for every custom accent. */
+/* Active row: soft accent fill + contrast ink. Both values resolve through the user-customisable
+   accent tokens, so the selected label stays legible without freezing a custom accent to a literal. */
 .nav-item.active {
   background: var(--awkit-accent-soft);
-  color: var(--awkit-accent);
+  color: var(--awkit-accent-contrast);
   font-weight: var(--weight-semibold);
 }
 
 .nav-item.active:hover {
   background: var(--awkit-accent-soft);
-  color: var(--awkit-accent);
+  color: var(--awkit-accent-contrast);
 }
 
 /* Sidebar footer (Settings / Dark Mode / workspace) — pinned under the scrolling nav list. */
