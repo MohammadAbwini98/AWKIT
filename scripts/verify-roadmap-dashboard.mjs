@@ -569,8 +569,11 @@ try {
   // Then 2/287 of 289 on 2026-09-14: `awkit-mjhb` closed after the Login preview gained an
   // explicit opt-in for owners whose system requests reduced motion. No dependency edge was added,
   // so the two external Oracle items remain the only outstanding work.
-    "2 outstanding / 287 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 287,
+  // Then 2/288 of 290 on 2026-09-14: `awkit-btcx` superseded that reduced-motion default so the
+  // owner-requested decorative Login demo autoplays and exposes an always-visible pause control.
+  // No dependency edge was added, so the two external Oracle items remain the only outstanding work.
+    "2 outstanding / 288 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 288,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
