@@ -11,7 +11,9 @@
   URL and origin with native title access; the existing wrapper owns deliberate horizontal scrolling.
 - The system default/reset preset is **Reference Blue**, a 135° indigo → brand-blue → cyan gradient
   derived from `src/theme/accentColor.ts`. The renderer bootstrap and splash both consume that model,
-  while functional emerald, amber and rose status tokens remain semantic.
+  while functional emerald, amber and rose status tokens remain semantic. Splash CSP permits its
+  local Vite-bundled module and Vite development's inline module; its smoke test proves the
+  shared-blue canvas execution.
 
 ## Selected navigation contrast and long-value containment (2026-09-14)
 

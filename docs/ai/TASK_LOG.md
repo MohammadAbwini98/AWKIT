@@ -14927,12 +14927,20 @@ pm run verify:mock-site
   table has protected fixed columns, contained ellipsis/title URL/origin access and deliberate
   horizontal scrolling; `accentColor.ts` defines the 135° indigo → `#1D4ED8` → cyan Reference Blue
   gradient used by renderer bootstrap and splash. Semantic colors and persisted data are unchanged.
+- **QC repair:** the independent review found the Vite-emitted splash module would be blocked by the
+  former inline-only CSP. Splash now permits local bundled scripts plus Vite's inline development
+  module and derives its gradient angle from `SPECTER_BLUE_SETTINGS`; real-Electron accent coverage
+  proves the module draws a canvas, exposes the splash hold hook, applies `#1D4ED8`, and produces no
+  CSP error.
 - **Evidence:** build PASS; canvas 46/46; Flow Designer 138 + 16; Workflow Builder 68 + 17; design
-  tokens 35/35; accent theme 73/73; accent GUI 39/39; mock-site 177/177; profile store 74/74;
+  tokens 35/35; accent theme 73/73; accent GUI 40/40; mock-site 177/177; profile store 74/74;
   session context 11/11; source hygiene 11/11; verifier classification 205/205.
 - **Not run:** the older Settings E2E, persistence and accessibility launchers close Electron before
   attachment because they do not use the isolated `--user-data-dir` invocation. The task's focused
   real-Electron Settings/accent coverage passes through the corrected shared harness.
+- **QC:** independent review found and rejected two splash CSP regressions (first packaged external
+  module, then Vite's inline development module). The final combined local-plus-inline policy and
+  real Electron canvas/module/CSP smoke test were independently reviewed and **APPROVED**.
 - **Files:** `FlowChartDesigner.tsx`, `ScenarioBuilder.tsx`, `SessionsManager.tsx`, `global.css`,
   `accentColor.ts`, renderer/splash entries, accent theme/settings, focused verifiers, AI memory,
   Bead export and task contract. No validation-ledger case moved.

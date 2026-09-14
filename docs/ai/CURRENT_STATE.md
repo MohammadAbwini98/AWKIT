@@ -15,16 +15,21 @@ renderer/theme task moves no Recorder/Reports/Settings ledger case.
   URLs and statuses are visually contained in light and dark modes without changing stored values.
 - **Brand system:** the default/reset accent is the Component Reference blue ramp: a 135°
   indigo → brand blue (`#1D4ED8`) → cyan gradient. Renderer bootstrap and splash import the same
-  `accentColor` model; semantic success/warning/error colors remain independent.
+  `accentColor` model; semantic success/warning/error colors remain independent. The splash CSP now
+  permits its bundled local module and Vite development's inline module; the real-Electron smoke
+  check proves the module draws the canvas, exposes `__splashHold`, emits no CSP error and applies
+  the shared primary blue.
 - **Focused proof:** build PASS; canvas layout **46/46**; Flow Designer **138** broad + **16**
   capsule checks; Workflow Builder **68** broad + **17** capsule checks; design tokens **35/35**
-  (real Electron, light/dark screenshots); accent theme **73/73**; accent GUI **39/39**; mock-site
+  (real Electron, light/dark screenshots); accent theme **73/73**; accent GUI **40/40**; mock-site
   **177/177**; profile store **74/74**; session context **11/11**; source hygiene **11/11**;
   verifier classification **205/205**. The relevant old Settings Electron suites remain
   **NOT RUN**: their launchers close before attachment because they omit the canonical isolated
   `--user-data-dir`; passing focused Settings/accent GUI coverage uses that supported harness.
 - **Tracker:** Bead `awkit-uiaa` is closed and exported. The final roadmap reconciliation and
-  terminal main-branch closeout are pending this source update.
+  terminal main-branch closeout are pending this source update. Independent QC initially found the
+  packaged/dev splash CSP mismatch, then **APPROVED** the local-plus-inline CSP repair and its real
+  Electron canvas/module smoke coverage.
 
 ## `awkit-btcx`: Login workflow preview autoplays by owner request (2026-09-14)
 

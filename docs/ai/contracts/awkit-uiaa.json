@@ -184,7 +184,7 @@
       "required": true,
       "command": "npm run verify:accent-gui",
       "result": "PASS",
-      "artifact": "2026-09-14: real Electron passed 39/39 for Reference Blue settings, renderer tokens, splash linkage, reset, persistence, light/dark contrast and reduced motion."
+      "artifact": "2026-09-14: real Electron passed 40/40 for Reference Blue settings, renderer tokens, real bundled splash CSP/module/canvas execution, reset, persistence, light/dark contrast and reduced motion."
     },
     {
       "id": "verify:mock-site",
@@ -247,7 +247,7 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED"
+    "qc_status": "APPROVED"
   },
   "write_lease": {
     "history": [
@@ -384,6 +384,116 @@
         "acquired_at_commit": "9f78a4c5c6034b6e7f0ec4a9781f83ea7f24ddeb",
         "released_at": "2026-09-14T17:37:37.196Z",
         "released_reason": "handoff to project-state: Roadmap verifier is repinned and passing; record final evidence, close contract state, and commit project sources.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:project-state:2026-09-14T17:37:37.259Z",
+        "task": "awkit-uiaa",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-uiaa.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T17:37:37.259Z",
+        "acquired_at_commit": "3212e42aefbdf043610797e3c121f0976fcb187c",
+        "released_at": "2026-09-14T17:43:03.103Z",
+        "released_reason": "handoff to frontend: QC found that the Vite-emitted splash module is blocked by the current inline-only CSP; permit only local bundled modules and derive the gradient angle from shared settings without changing splash behavior.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:frontend:2026-09-14T17:43:03.167Z",
+        "task": "awkit-uiaa",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/splash.html"
+        ],
+        "acquired_at": "2026-09-14T17:43:03.167Z",
+        "acquired_at_commit": "8d2f7cb1fdb935d4538fad54cfb56375b6b0a277",
+        "released_at": "2026-09-14T17:44:07.795Z",
+        "released_reason": "handoff to qa: Add a real splash-window smoke assertion for the local bundled module, canvas rendering, no CSP errors, and shared Reference Blue accent after the CSP repair.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:qa:2026-09-14T17:44:07.858Z",
+        "task": "awkit-uiaa",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-accent-gui.mjs"
+        ],
+        "acquired_at": "2026-09-14T17:44:07.858Z",
+        "acquired_at_commit": "bf76444397b341b4116b48dd061072112d850a9e",
+        "released_at": "2026-09-14T17:45:42.055Z",
+        "released_reason": "handoff to project-state: Splash CSP repair and real bundled-module smoke coverage are committed; update evidence and request final QC approval.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:project-state:2026-09-14T17:45:42.119Z",
+        "task": "awkit-uiaa",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-uiaa.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T17:45:42.119Z",
+        "acquired_at_commit": "a467b648e4da560953ee2106fcdb95855fca7455",
+        "released_at": "2026-09-14T17:48:35.175Z",
+        "released_reason": "handoff to frontend: QC found the local-only splash CSP needs unsafe-inline as well as self so Vite development inline modules and packaged external modules both execute.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:frontend:2026-09-14T17:48:35.239Z",
+        "task": "awkit-uiaa",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/splash.html"
+        ],
+        "acquired_at": "2026-09-14T17:48:35.239Z",
+        "acquired_at_commit": "a467b648e4da560953ee2106fcdb95855fca7455",
+        "released_at": "2026-09-14T17:49:28.719Z",
+        "released_reason": "handoff to qa: Assert the corrected combined local-plus-inline splash CSP policy and rerun the real Electron splash smoke check.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:qa:2026-09-14T17:49:28.786Z",
+        "task": "awkit-uiaa",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-accent-gui.mjs"
+        ],
+        "acquired_at": "2026-09-14T17:49:28.786Z",
+        "acquired_at_commit": "efb97415679983097b977f7b44e7480708162a27",
+        "released_at": "2026-09-14T17:50:42.308Z",
+        "released_reason": "handoff to project-state: Independent QC approved the corrected splash module policy; record approval and final task completion evidence.",
         "amendments": [],
         "overrides": [],
         "violations": []

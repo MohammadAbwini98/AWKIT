@@ -10,15 +10,20 @@
   the main renderer bootstrap and splash.
 - **Evidence:** build PASS; canvas **46/46**; Flow Designer **138 + 16**; Workflow Builder
   **68 + 17**; design tokens **35/35** with light/dark Sessions screenshots; accent theme **73/73**;
-  accent GUI **39/39**; mock-site **177/177**; profile store **74/74**; session context **11/11**;
+  accent GUI **40/40** (including the real bundled-splash module/CSP/canvas smoke check); mock-site
+  **177/177**; profile store **74/74**; session context **11/11**;
   source hygiene **11/11**; verifier classification **205/205**.
 - **Known verification limitation:** `verify:settings-e2e`, `verify:settings-persistence`, and
   `verify:reports-settings-a11y` close Electron before attachment because their older launchers do
   not pass the now-canonical isolated `--user-data-dir`. They are NOT RUN rather than product
   failures; the passing accent/design-token GUI verifiers use the corrected harness. The launcher
   gap is outside this scoped change.
-- **Tracker:** Bead `awkit-uiaa` is closed and `.beads/issues.jsonl` exported. Run AI-memory and
-  roadmap reconciliation, commit this Project State update, then use the constrained terminal
+- **QC:** independent review initially rejected the inline-only splash CSP after Vite converted its
+  production entry to a local module. The corrected `script-src 'self' 'unsafe-inline'` preserves
+  both package and Vite-dev execution; QC re-review **APPROVED** the code and 40/40 real-Electron
+  smoke evidence.
+- **Tracker:** Bead `awkit-uiaa` is closed and `.beads/issues.jsonl` exported. Run final AI-memory
+  and roadmap reconciliation, commit this Project State update, then use the constrained terminal
   finalizer to release and push `main`.
 
 ## HANDOFF (2026-09-14, latest) — `awkit-xphx` ready for atomic terminal closeout
