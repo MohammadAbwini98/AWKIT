@@ -4,29 +4,23 @@
   "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ACCENT_COLOR.md",
-    "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
     "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/awkit-xphx.json",
-    "scripts/lib/verifier-classification.ts",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-14T00:22:14.179Z",
-  "acquired_at_commit": "9e2db9ea3b440c5e8aab7f3c85ee5bfeebdc911b",
+  "acquired_at": "2026-09-14T00:28:04.101Z",
+  "acquired_at_commit": "91890a7d490aa0721d6771a9910936a9c63d0818",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "d029c6bab23cb7b9593a4d3736c04327a4110819f96a5529d88145d25f376093",
-    "docs/ai/contracts/awkit-xphx.json": "4a8c0c589442b321f21011cced8804b14045ff09e83cf5c2daf2ef609d1c3da1",
+    "docs/ai/contracts/active-lease.json": "986b5dceab00af7426bf562cb694fe8abe8f5d5336bc68439e218bb6bbe09c8b",
+    "docs/ai/contracts/awkit-xphx.json": "d197793d20c6f891c030288d71b127c34d1650eeff246a3802207d05d7dfd358",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -39,35 +33,7 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789341648414.5344"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-09-14T00:22:45.069Z",
-      "added": [
-        "docs/ai/COMMANDS.md",
-        "scripts/lib/verifier-classification.ts"
-      ],
-      "reason": "Correct the release-only icon command and blue verifier descriptions identified by independent QC",
-      "triggered_escalation": [],
-      "approved_by": "manager"
-    },
-    {
-      "timestamp": "2026-09-14T00:23:46.076Z",
-      "added": [
-        ".beads/interactions.jsonl",
-        ".beads/issues.jsonl",
-        "docs/ACCENT_COLOR.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/FEATURES.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
-        "tools/roadmap/assignments.json"
-      ],
-      "reason": "Reconcile the completed task state, Bead export, authoritative AI memory, and terminal evidence after independent QC",
-      "triggered_escalation": [],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": []
 }

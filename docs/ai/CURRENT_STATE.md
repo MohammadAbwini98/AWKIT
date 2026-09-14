@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## `awkit-xphx`: Login motion, default blue branding, dark text, and app icon complete (2026-09-14)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This focused UI/branding task moves no ledger case.
+
+- **Login motion:** the decorative, aria-hidden workflow preview now advances through its fixed
+  sample steps under normal motion and returns to the first step; a `prefers-reduced-motion` match
+  keeps the preview on its initial frame. The SecurityGate state machine, providers, auth calls and
+  pre-auth DOM contract are unchanged.
+- **Blue parity and legibility:** the default application accent is now `#1D4ED8` in the theme
+  model, renderer base tokens, light and dark canvas edge/connector defaults, visible reset label,
+  source SVG and regenerated PNG/ICO assets. Dark neutral label and static-copy tokens are white.
+  The persisted `default-purple` preset key remains solely as backwards-compatible stored data;
+  no UI calls the blue default purple.
+- **Guarded generation:** only an active `release` holder may issue the exact
+  `npm run icon:generate` command. Arguments, chaining, non-release roles, no-lease invocations and
+  ordinary Git commands remain denied; the routing verifier has explicit negative coverage.
+- **Quality:** independent QC is **APPROVED** after it identified and the implementation corrected
+  the remaining dark edge/connector blue parity and stale command/classification descriptions.
+  Fresh evidence: build PASS; auth **79/79**; auth GUI **29/29**; accent theme **71/71**; accent GUI
+  **35/35**; app icon **29/29**; design tokens **29/29**; source hygiene **11/11**; agent routing
+  **1079/1079** under the Project State lease; script typecheck PASS; verifier classification
+  **205/205**; roadmap **177/177**, **287 total / 285 closed / 2 outstanding**, **Sources agree**.
+  Ordinary `validate:offline` PASS. Strict package provenance is correctly **FAIL** because the
+  existing release manifest pins an older `application.sourceCommit`; this source-only task did not
+  create or claim a fresh package.
+
+The task Bead is closed and exported. Its completed Project State lease is ready for the exact
+terminal finalizer, which is the only remaining operation and must commit the released bookkeeping,
+clear the assignment, and push `main` without creating another release-residue cycle.
+
 ## `awkit-yl33`: atomic final lease closeout replaces terminal release residue (2026-09-14)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

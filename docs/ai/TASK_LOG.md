@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-09-14 — `awkit-xphx`: Login motion, default blue, white dark text, and app icon (Codex)
+
+- **Task:** repair the inactive decorative Login preview, align the app default accent with the
+  approved `#1D4ED8` design reference, improve dark text visibility, and regenerate the Windows
+  application assets from the same source color without weakening the write-lease boundary.
+- **Implementation:** `LockedShell` now drives a timed fixed-step preview and honours reduced
+  motion; renderer/theme/default-reset labels, light/dark canvas tokens and the source SVG use the
+  blue default; dark neutral tokens are white; `resources/icon-source.png`, `icon.png` and
+  `icon.ico` were regenerated. The old persisted `default-purple` key is retained only for
+  backwards-compatible settings data. Exact release-only icon generation is mirrored in the guard,
+  routing registry and generated permission definition.
+- **Regression protection:** auth GUI proves normal motion advances and reduced motion is stable,
+  dark text is white and dark canvas tokens are blue-derived; accent GUI covers default/reset light
+  canvas parity; accent theme covers the default/fallback; app-icon pixel-checks all generated
+  frames; agent routing rejects every non-exact/non-release/no-lease generator call and ordinary
+  no-lease Git mutation. Independent QC returned **APPROVED** after its blue-token and docs findings
+  were corrected.
+- **Evidence:** build PASS; auth 79/79; auth GUI 29/29; accent theme 71/71; accent GUI 35/35;
+  app icon 29/29; design tokens 29/29; source hygiene 11/11; agent routing 1079/1079; script
+  typecheck PASS; verifier classification 205/205; roadmap 177/177, Sources agree (287 total /
+  285 closed / 2 outstanding); ordinary offline validation PASS. Strict package provenance FAILS
+  against the pre-existing stale manifest source commit; this task did not build or claim a package.
+  Ledger unchanged: **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **State:** Bead `awkit-xphx` is closed and exported. The evidence checkpoint is committed before
+  the exact terminal finalizer, which must be the last mutation and leave `main` clean, pushed and
+  unassigned.
+
 ## 2026-09-14 — `awkit-yl33`: exact final lease closeout and `awkit-icon2` residue absorption (Codex)
 
 - **Task:** remove the lifecycle contradiction in which a normal final release dirtied tracked

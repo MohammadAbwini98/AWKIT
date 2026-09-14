@@ -1,5 +1,25 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-14, latest) — `awkit-xphx` ready for atomic terminal closeout
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** the Login workflow preview now advances under normal motion and is stable under
+  reduced motion; `#1D4ED8` is the default/reset app accent across theme, canvas and generated
+  icons; dark neutral label/static text tokens are white. Auth behavior and its existing DOM
+  contract are unchanged.
+- **Security:** `npm run icon:generate` is permitted only for an active `release` lease and only
+  with that exact command grammar. The agent-routing regression rejects argument/chaining variants,
+  non-release and no-lease calls, plus ordinary no-lease Git mutations.
+- **Review and evidence:** independent QC **APPROVED**. Build PASS; auth 79/79; auth GUI 29/29;
+  accent theme 71/71; accent GUI 35/35; app icon 29/29; design tokens 29/29; source hygiene 11/11;
+  agent routing 1079/1079 under the final Project State lease; script typecheck PASS; verifier
+  classification 205/205; roadmap 177/177 — **Sources agree** at 287 total / 285 closed / 2
+  outstanding. Ordinary offline validation PASS. Strict package provenance FAILS as designed on the
+  older manifest `application.sourceCommit`; no package was produced or claimed by this source task.
+- **Tracker:** Bead `awkit-xphx` is closed and exported. The final Project State lease must now run
+  the tightly validated finalizer to make the released task record, clear the assignment and push
+  the exact three terminal bookkeeping paths. Do not use ordinary Git after that terminal release.
+
 ## HANDOFF (2026-09-14, latest) — atomic final lease closeout replaces release residue
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This governance

@@ -22,8 +22,8 @@
       "itemId": "bead:awkit-xphx",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-14T00:22:14.179Z",
-      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ACCENT_COLOR.md, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/FEATURES.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-xphx.json, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
+      "claimedAt": "2026-09-14T00:28:04.101Z",
+      "note": "write lease: docs/ai/CURRENT_STATE.md, docs/ai/FEATURES.md, docs/ai/HANDOFF.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-xphx.json, tools/roadmap/assignments.json"
     }
   ]
 }

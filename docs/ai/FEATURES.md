@@ -1,5 +1,18 @@
 # FEATURES
 
+## Login motion and default-blue accessibility polish (2026-09-14)
+
+- The decorative, aria-hidden login workflow preview is a real fixed-step timeline: normal motion
+  advances progress and cycles back to its first sample step, while `prefers-reduced-motion` pins a
+  stable initial frame. It remains sample content, never telemetry, and does not alter SecurityGate
+  states, providers or authentication behavior.
+- The default/reset application accent is `#1D4ED8` in the renderer theme model, static light and
+  dark tokens, canvas edge/connector defaults and the regenerated SVG/PNG/ICO application icon.
+  The legacy persisted preset identifier `default-purple` remains accepted for existing settings,
+  but user-facing controls correctly call the default **Default Blue**.
+- Dark neutral text tokens used for labels and static copy are white for stronger pre-auth and
+  application readability. Semantic focus, disabled, status and error colors remain independent.
+
 ## Two-pane secure sign-in redesign for the pre-auth surface (2026-09-12)
 
 - Implemented: the pre-authentication surface (`app/renderer/security/**`) now uses a two-pane

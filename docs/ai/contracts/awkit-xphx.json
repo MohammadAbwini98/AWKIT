@@ -83,17 +83,11 @@
     "writer": {
       "agent_id": "project-state",
       "allowed_paths": [
-        ".beads/interactions.jsonl",
-        ".beads/issues.jsonl",
-        "docs/ACCENT_COLOR.md",
-        "docs/ai/COMMANDS.md",
         "docs/ai/CURRENT_STATE.md",
         "docs/ai/FEATURES.md",
         "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
         "docs/ai/TASK_LOG.md",
         "docs/ai/contracts/awkit-xphx.json",
-        "scripts/lib/verifier-classification.ts",
         "tools/roadmap/assignments.json"
       ]
     },
@@ -174,70 +168,80 @@
       "type": "build",
       "required": true,
       "command": "npm run build",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: tsc --noEmit and all Electron-Vite production bundles completed; the existing Vite dynamic-import advisory remained non-failing."
     },
     {
       "id": "verify:auth",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:auth",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 79 passed, 0 failed."
     },
     {
       "id": "verify:auth-gui",
       "type": "gui",
       "required": true,
       "command": "npm run verify:auth-gui",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 29/29; normal preview advances, reduced motion is stable, dark neutral text is white, dark canvas tokens are blue-derived."
     },
     {
       "id": "verify:accent-theme",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:accent-theme",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 71/71; default and corrupted-value fallback are #1D4ED8."
     },
     {
       "id": "verify:accent-gui",
       "type": "gui",
       "required": true,
       "command": "npm run verify:accent-gui",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 35/35; default/reset blue reaches visible settings and light canvas tokens."
     },
     {
       "id": "verify:app-icon",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:app-icon",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 29/29; SVG, source PNG, app PNG and all seven ICO frames match #1d4ed8."
     },
     {
       "id": "verify:design-tokens",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:design-tokens",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 29/29 design-system token checks passed."
     },
     {
       "id": "verify:source-hygiene",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:source-hygiene",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 11 passed, 0 failed."
     },
     {
       "id": "verify:agent-routing",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:agent-routing",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 1079/1079 under the final Project State lease; exact release-only icon generation and no-lease Git negative controls remain enforced."
     },
     {
       "id": "typecheck:scripts",
       "type": "verifier",
       "required": true,
       "command": "npm run typecheck:scripts",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: tsc -p tsconfig.scripts.json completed with no diagnostics."
     },
     {
       "id": "validate:offline",
@@ -252,28 +256,32 @@
       "type": "verifier",
       "required": true,
       "command": "npm run verify:verifier-classification",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: all 205 verify:/validate: commands classified; no stale entries."
     },
     {
       "id": "verify:roadmap-dashboard",
       "type": "verifier",
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: 177/177; 287 total, 285 closed, 2 outstanding; Sources agree."
     },
     {
       "id": "ai-memory-check",
       "type": "verifier",
       "required": true,
       "command": "node scripts/ai-memory/check-memory.mjs",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: AI memory files passed required checks."
     },
     {
       "id": "git-diff-check",
       "type": "verifier",
       "required": true,
       "command": "git diff --check",
-      "result": "pending"
+      "result": "PASS",
+      "artifact": "2026-09-14: working-tree diff check completed without whitespace errors before the evidence checkpoint commit."
     }
   ],
   "scope_escapes": [],
@@ -286,9 +294,9 @@
     "final_release_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
   },
   "write_lease": {
     "history": [
@@ -562,6 +570,77 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:project-state:2026-09-14T00:22:14.179Z",
+        "task": "awkit-xphx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ACCENT_COLOR.md",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-xphx.json",
+          "scripts/lib/verifier-classification.ts",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T00:22:14.179Z",
+        "acquired_at_commit": "9e2db9ea3b440c5e8aab7f3c85ee5bfeebdc911b",
+        "released_at": "2026-09-14T00:27:01.153Z",
+        "released_reason": "handoff to qa: Update the roadmap verifier's expected Bead totals after closing awkit-xphx, then prove the derived dashboard reconciles.",
+        "amendments": [
+          {
+            "timestamp": "2026-09-14T00:22:45.069Z",
+            "added": [
+              "docs/ai/COMMANDS.md",
+              "scripts/lib/verifier-classification.ts"
+            ],
+            "reason": "Correct the release-only icon command and blue verifier descriptions identified by independent QC",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-09-14T00:23:46.076Z",
+            "added": [
+              ".beads/interactions.jsonl",
+              ".beads/issues.jsonl",
+              "docs/ACCENT_COLOR.md",
+              "docs/ai/CURRENT_STATE.md",
+              "docs/ai/FEATURES.md",
+              "docs/ai/HANDOFF.md",
+              "docs/ai/KNOWN_ISSUES.md",
+              "docs/ai/TASK_LOG.md",
+              "tools/roadmap/assignments.json"
+            ],
+            "reason": "Reconcile the completed task state, Bead export, authoritative AI memory, and terminal evidence after independent QC",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:qa:2026-09-14T00:27:01.213Z",
+        "task": "awkit-xphx",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-14T00:27:01.213Z",
+        "acquired_at_commit": "1ed3165c2907b65ae68d028432174591e14289a5",
+        "released_at": "2026-09-14T00:28:04.040Z",
+        "released_reason": "handoff to project-state: Record the completed blue-branding behavior, focused evidence, independent QC approval, and final task-gate state before atomic closeout.",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }
