@@ -22,7 +22,7 @@
       "itemId": "bead:awkit-btcx",
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-14T12:59:03.621Z",
+      "claimedAt": "2026-09-14T13:04:09.916Z",
       "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/FEATURES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-btcx.json, tools/roadmap/assignments.json"
     }
   ]
