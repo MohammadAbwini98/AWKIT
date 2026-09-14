@@ -1,5 +1,26 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-14, latest) — `awkit-uiaa` implemented and awaiting terminal closeout
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** both designers arrange the authoritative updated graph immediately after successful
+  node insertion using the established layout engine. Sessions has protected fixed table columns,
+  contained long URLs/statuses and full-value title access. The Component Reference 135°
+  indigo → brand-blue → cyan accent is canonical in `src/theme/accentColor.ts` and imported by both
+  the main renderer bootstrap and splash.
+- **Evidence:** build PASS; canvas **46/46**; Flow Designer **138 + 16**; Workflow Builder
+  **68 + 17**; design tokens **35/35** with light/dark Sessions screenshots; accent theme **73/73**;
+  accent GUI **39/39**; mock-site **177/177**; profile store **74/74**; session context **11/11**;
+  source hygiene **11/11**; verifier classification **205/205**.
+- **Known verification limitation:** `verify:settings-e2e`, `verify:settings-persistence`, and
+  `verify:reports-settings-a11y` close Electron before attachment because their older launchers do
+  not pass the now-canonical isolated `--user-data-dir`. They are NOT RUN rather than product
+  failures; the passing accent/design-token GUI verifiers use the corrected harness. The launcher
+  gap is outside this scoped change.
+- **Tracker:** Bead `awkit-uiaa` is closed and `.beads/issues.jsonl` exported. Run AI-memory and
+  roadmap reconciliation, commit this Project State update, then use the constrained terminal
+  finalizer to release and push `main`.
+
 ## HANDOFF (2026-09-14, latest) — `awkit-xphx` ready for atomic terminal closeout
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.

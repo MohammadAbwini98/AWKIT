@@ -14917,3 +14917,22 @@ pm run verify:mock-site
   `test(auth): cover login preview motion opt-in`; `6aeffab` `test(roadmap): repin login preview
   closeout`.
 - **Tracker:** Bead `awkit-mjhb` closed and exported. No validation-ledger case moved.
+
+## 2026-09-14 — awkit-uiaa: arrange new nodes, contain Sessions values, and unify reference blue (Codex)
+
+- **Root causes:** node insertion paths updated graph state without invoking the established layout
+  engine; Sessions let intrinsic text widths encroach on adjacent table columns; application and
+  splash accents could drift because they did not share one canonical source.
+- **Fix:** both designers now lay out only the authoritative post-insertion graph; the Sessions
+  table has protected fixed columns, contained ellipsis/title URL/origin access and deliberate
+  horizontal scrolling; `accentColor.ts` defines the 135° indigo → `#1D4ED8` → cyan Reference Blue
+  gradient used by renderer bootstrap and splash. Semantic colors and persisted data are unchanged.
+- **Evidence:** build PASS; canvas 46/46; Flow Designer 138 + 16; Workflow Builder 68 + 17; design
+  tokens 35/35; accent theme 73/73; accent GUI 39/39; mock-site 177/177; profile store 74/74;
+  session context 11/11; source hygiene 11/11; verifier classification 205/205.
+- **Not run:** the older Settings E2E, persistence and accessibility launchers close Electron before
+  attachment because they do not use the isolated `--user-data-dir` invocation. The task's focused
+  real-Electron Settings/accent coverage passes through the corrected shared harness.
+- **Files:** `FlowChartDesigner.tsx`, `ScenarioBuilder.tsx`, `SessionsManager.tsx`, `global.css`,
+  `accentColor.ts`, renderer/splash entries, accent theme/settings, focused verifiers, AI memory,
+  Bead export and task contract. No validation-ledger case moved.

@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## `awkit-uiaa`: authoritative insertion layout, Sessions containment, and reference-blue parity (2026-09-14)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This focused
+renderer/theme task moves no Recorder/Reports/Settings ledger case.
+
+- **New-node behavior:** Flow Designer and Workflow Builder now call their existing canonical
+  `withAutoLayout` engine only after a successful insertion has produced the authoritative next
+  nodes and edges. The operation retains node data, edges, Start/End nodes, loop/branch connectors,
+  locators, nested-flow metadata and persisted properties, without fitting the viewport. Loading,
+  property edits and dragging continue to avoid this insertion-only path.
+- **Sessions:** the native Sessions table now uses fixed protected columns, a scrollable minimum
+  width, non-shrinking status/actions, and ellipsis/title access for target URLs and origins. Long
+  URLs and statuses are visually contained in light and dark modes without changing stored values.
+- **Brand system:** the default/reset accent is the Component Reference blue ramp: a 135°
+  indigo → brand blue (`#1D4ED8`) → cyan gradient. Renderer bootstrap and splash import the same
+  `accentColor` model; semantic success/warning/error colors remain independent.
+- **Focused proof:** build PASS; canvas layout **46/46**; Flow Designer **138** broad + **16**
+  capsule checks; Workflow Builder **68** broad + **17** capsule checks; design tokens **35/35**
+  (real Electron, light/dark screenshots); accent theme **73/73**; accent GUI **39/39**; mock-site
+  **177/177**; profile store **74/74**; session context **11/11**; source hygiene **11/11**;
+  verifier classification **205/205**. The relevant old Settings Electron suites remain
+  **NOT RUN**: their launchers close before attachment because they omit the canonical isolated
+  `--user-data-dir`; passing focused Settings/accent GUI coverage uses that supported harness.
+- **Tracker:** Bead `awkit-uiaa` is closed and exported. The final roadmap reconciliation and
+  terminal main-branch closeout are pending this source update.
+
 ## `awkit-btcx`: Login workflow preview autoplays by owner request (2026-09-14)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

@@ -1,5 +1,18 @@
 # FEATURES
 
+## Updated graph arrangement, Sessions containment, and Component Reference accent (2026-09-14)
+
+- Flow Designer and Workflow Builder share their respective canonical auto-layout engines after a
+  successful node insertion. Each path derives layout from the authoritative updated node/edge
+  graph, preserves all persisted structures, leaves the viewport alone, and does not run for loads,
+  edits or node moves.
+- Sessions uses a fixed-layout table with protected Status, Name, Source, date, Browser and Actions
+  columns. Its flexible Target URL column ellipsizes long unbroken values and exposes the complete
+  URL and origin with native title access; the existing wrapper owns deliberate horizontal scrolling.
+- The system default/reset preset is **Reference Blue**, a 135° indigo → brand-blue → cyan gradient
+  derived from `src/theme/accentColor.ts`. The renderer bootstrap and splash both consume that model,
+  while functional emerald, amber and rose status tokens remain semantic.
+
 ## Selected navigation contrast and long-value containment (2026-09-14)
 
 - Selected sidebar entries preserve their accent background and selected semantics while resolving
