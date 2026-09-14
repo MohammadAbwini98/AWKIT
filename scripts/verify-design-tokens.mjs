@@ -268,7 +268,24 @@ try {
   const darkChart1 = await readVar("--awkit-chart-1");
   check("live: chart series switches with theme", darkChart1 === "#7d9bff" && darkChart1 !== lightChart1, `${lightChart1} → ${darkChart1}`);
 
-  // B4. The pill must still paint in dark mode (dark soft fill is translucent — alpha must be > 0).
+  // B4. The selected sidebar row keeps its blue fill but needs white contrast text/icon in dark mode.
+  // The Electron test window can leave CSS transitions at time zero while it is backgrounded. Disable
+  // only the verifier's fast transition token so this asserts the resolved selected state (and still
+  // fails against the prior blue-text rule) rather than a transient frame.
+  await win.evaluate(() => document.documentElement.style.setProperty("--awkit-dur-fast", "0ms"));
+  await navTo("Program Status");
+  await win.locator(".left-navigation .nav-item.active").evaluate((el) => el.getAnimations().forEach((animation) => animation.finish()));
+  const activeNavPaint = await win.locator(".left-navigation .nav-item.active").evaluate((el) => ({
+    color: getComputedStyle(el).color,
+    contrast: getComputedStyle(document.documentElement).getPropertyValue("--awkit-accent-contrast").trim()
+  }));
+  check(
+    "live: dark selected navigation text uses white accent contrast",
+    activeNavPaint.color === "rgb(255, 255, 255)" && activeNavPaint.contrast.toLowerCase() === "#ffffff",
+    JSON.stringify(activeNavPaint)
+  );
+
+  // B5. The pill must still paint in dark mode (dark soft fill is translucent — alpha must be > 0).
   await navTo("Sessions");
   await win.waitForSelector(".sessions-table .state-pill", { timeout: 15000 });
   const pillDark = await win.locator(".sessions-table .state-pill").first().evaluate((el) => getComputedStyle(el).backgroundColor);
