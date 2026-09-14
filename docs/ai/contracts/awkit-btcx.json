@@ -11,14 +11,8 @@
   "repository": {
     "branch": "main",
     "baseline_commit": "cf7fb1fe69dd4a739c744661c25fddae477f93a3",
-    "working_tree_expected": "preserved_changes",
-    "preserved_paths": [
-      {
-        "path": ".beads/issues.jsonl",
-        "git_status": " M",
-        "sha256": "0104aad1388239df2f57db33153251c4a70bb054455561b72f7e7ad409a5cb7d"
-      }
-    ]
+    "working_tree_expected": "clean",
+    "preserved_paths": []
   },
   "classification": {
     "renderer_visual_change": true,
@@ -160,8 +154,7 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED",
-    "closed_at_commit": "a381c361cfcc5b895950f0eb7a44d04119937821"
+    "qc_status": "NOT_REQUIRED"
   },
   "write_lease": {
     "history": [
