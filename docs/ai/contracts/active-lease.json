@@ -2,7 +2,7 @@
   "task": "awkit-uiaa",
   "contract_path": "docs/ai/contracts/awkit-uiaa.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -43,5 +43,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-14T17:53:57.533Z",
+  "released_reason": "All four requested UI behaviors, focused regression coverage, final build, roadmap reconciliation, and independent QC approval are complete.",
+  "archived_at": "2026-09-14T17:53:57.535Z"
 }

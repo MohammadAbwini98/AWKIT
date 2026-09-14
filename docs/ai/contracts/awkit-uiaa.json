@@ -247,7 +247,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "APPROVED"
+    "qc_status": "APPROVED",
+    "closed_at_commit": "c9c38f816474774a9967b4ea864451c61440832a"
   },
   "write_lease": {
     "history": [
@@ -494,6 +495,29 @@
         "acquired_at_commit": "efb97415679983097b977f7b44e7480708162a27",
         "released_at": "2026-09-14T17:50:42.308Z",
         "released_reason": "handoff to project-state: Independent QC approved the corrected splash module policy; record approval and final task completion evidence.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-uiaa:project-state:2026-09-14T17:50:42.372Z",
+        "task": "awkit-uiaa",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-uiaa.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T17:50:42.372Z",
+        "acquired_at_commit": "b4ddae77d2d0180b6d6cbc5de2ad81b522d944dd",
+        "released_at": "2026-09-14T17:53:57.533Z",
+        "released_reason": "All four requested UI behaviors, focused regression coverage, final build, roadmap reconciliation, and independent QC approval are complete.",
         "amendments": [],
         "overrides": [],
         "violations": []
