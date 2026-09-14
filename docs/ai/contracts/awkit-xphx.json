@@ -76,9 +76,13 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "software",
+      "agent_id": "qa",
       "allowed_paths": [
-        "src/theme/accentColor.ts"
+        "scripts/verify-accent-gui.mjs",
+        "scripts/verify-accent-theme.mts",
+        "scripts/verify-agent-routing.mjs",
+        "scripts/verify-app-icon.mjs",
+        "scripts/verify-auth-gui.mjs"
       ]
     },
     "writer_sequence": [
@@ -364,6 +368,22 @@
         "acquired_at_commit": "6598ac5a3696f1378c9dbe0d8de6e8e10c1f5a17",
         "released_at": "2026-09-14T00:03:41.154Z",
         "released_reason": "handoff to software: Align the persisted default accent model with the requested reference blue",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:software:2026-09-14T00:03:41.213Z",
+        "task": "awkit-xphx",
+        "holder": "software",
+        "status": "released",
+        "allowed_paths": [
+          "src/theme/accentColor.ts"
+        ],
+        "acquired_at": "2026-09-14T00:03:41.213Z",
+        "acquired_at_commit": "022f07510630a1e0f6fef23bc5248ec6061d3ff9",
+        "released_at": "2026-09-14T00:04:28.323Z",
+        "released_reason": "handoff to qa: Update focused regression coverage for blue defaults, workflow preview motion, icon pixels, and exact release-only generation",
         "amendments": [],
         "overrides": [],
         "violations": []

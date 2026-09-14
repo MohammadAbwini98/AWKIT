@@ -31,7 +31,7 @@ function check(name: string, pass: boolean, detail?: string) {
 }
 
 // ── 1. Validation & normalization ────────────────────────────────────────────
-check("default constant is #7C3AED", DEFAULT_ACCENT_COLOR === "#7C3AED", DEFAULT_ACCENT_COLOR);
+check("default constant is #1D4ED8", DEFAULT_ACCENT_COLOR === "#1D4ED8", DEFAULT_ACCENT_COLOR);
 check("accepts #RRGGBB", isValidAccentColor("#7C3AED"));
 check("accepts bare RRGGBB", isValidAccentColor("7c3aed"));
 check("accepts #RGB shorthand", isValidAccentColor("#abc"));
@@ -96,11 +96,11 @@ for (const theme of ["light", "dark"] as const) {
 check("foreground on a very light accent is near-black", pickAccentForeground("#FFEE88") !== "#FFFFFF");
 check("foreground on a very dark accent is white", pickAccentForeground("#101033") === "#FFFFFF");
 {
-  // Default purple must meet WCAG AA (>= 4.5) for its chosen foreground in both themes.
+  // Default blue must meet WCAG AA (>= 4.5) for its chosen foreground in both themes.
   for (const theme of ["light", "dark"] as const) {
     const t = deriveAccentTokens(DEFAULT_ACCENT_COLOR, theme);
     const ratio = contrastRatio(hexToRgb(t["--awkit-accent"]), hexToRgb(t["--awkit-accent-contrast"]));
-    check(`${theme}: default purple foreground meets AA (${ratio.toFixed(2)}:1)`, ratio >= 4.5);
+    check(`${theme}: default blue foreground meets AA (${ratio.toFixed(2)}:1)`, ratio >= 4.5);
   }
   // The picked foreground is always the higher-contrast of the two options (never unreadable).
   for (const c of ["#7C3AED", "#FF0000", "#00FF00", "#808080", "#123456", "#EEEEEE"]) {
@@ -126,7 +126,7 @@ check("foreground on a very dark accent is white", pickAccentForeground("#101033
 // ── 5. Invalid base falls back to default (never throws) ─────────────────────
 {
   const t = deriveAccentTokens("garbage", "light");
-  check("invalid base derives from default purple", t["--awkit-accent"] === "#7C3AED", t["--awkit-accent"]);
+  check("invalid base derives from default blue", t["--awkit-accent"] === "#1D4ED8", t["--awkit-accent"]);
 }
 
 // ── 6. Accent settings: migration, presets, validation ───────────────────────

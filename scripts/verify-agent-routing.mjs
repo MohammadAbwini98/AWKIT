@@ -158,7 +158,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1077;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1078;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -2611,6 +2611,44 @@ try {
         agentType: qaAgentType,
         agentId: "instance-qa"
       })
+  );
+
+  const releaseRoleLease = {
+    task: "awkit-release-fixture",
+    contract_path: "docs/ai/contracts/awkit-release-fixture.json",
+    holder: "release",
+    status: "active",
+    allowed_paths: ["resources/icon-source.png", "resources/icon.png", "resources/icon.ico"]
+  };
+  const releaseAgentType = agent("release").claudeName;
+  check(
+    "only the active release holder may run the exact icon generator; arguments, shell chaining, other roles, Git, and no lease stay blocked",
+    isAllowedActiveShellCommand("npm run icon:generate", releaseRoleLease, {
+      agentType: releaseAgentType,
+      agentId: "instance-release"
+    }) &&
+      [
+        "npm run icon:generate --",
+        "npm run icon:generate extra",
+        "npm run icon:generate && git push origin main",
+        "git add -- resources/icon.png",
+        "git commit -m unsafe",
+        "git push origin main"
+      ].every(
+        (command) => !isAllowedActiveShellCommand(command, releaseRoleLease, {
+          agentType: releaseAgentType,
+          agentId: "instance-release"
+        })
+      ) &&
+      !isAllowedActiveShellCommand("npm run icon:generate", releaseRoleLease, {
+        agentType: qaAgentType,
+        agentId: "instance-qa"
+      }) &&
+      !isAllowedActiveShellCommand("npm run icon:generate", actorLease, {
+        agentType: qaAgentType,
+        agentId: "instance-qa"
+      }) &&
+      !isAllowedActiveShellCommand("npm run icon:generate", null)
   );
 
   const spawnedHolderActor = spawnActorDecision({

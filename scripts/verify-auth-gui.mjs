@@ -69,6 +69,20 @@ try {
   check("theme applied before auth", await win.evaluate(() => !!document.documentElement.dataset.theme));
   check("no protected app shell before auth (no-flash)", (await win.locator(".app-shell").count()) === 0);
   check("first-run setup shown on a clean machine", (await win.getByRole("heading", { name: "Set up SpecterStudio" }).count()) >= 1);
+  const previewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    motion: panel.getAttribute("data-motion"),
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
+  }));
+  await win.waitForTimeout(240);
+  const previewAfterTick = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    motion: panel.getAttribute("data-motion"),
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
+  }));
+  check(
+    "decorative workflow preview advances while normal motion is enabled",
+    previewAtStart.motion === "running" && previewAfterTick.motion === "running" && previewAtStart.progress !== previewAfterTick.progress,
+    `${previewAtStart.motion}:${previewAtStart.progress} → ${previewAfterTick.motion}:${previewAfterTick.progress}`
+  );
 
   // ── Provision the Super User (auto sign-in on success) ───────────────────────
   await win.fill("#awkit-setup-display", CREDS.displayName);
@@ -145,6 +159,7 @@ try {
   // ── Dark-mode visual pass of the login screen (bd awkit-l6h) ─────────────────
   // Simulate a user who selected the dark appearance: persist the preference and reload the pre-auth
   // login screen (a reload is safe here — there is no authenticated session to drop).
+  await win.emulateMedia({ reducedMotion: "reduce" });
   await win.evaluate(() => window.localStorage.setItem("awkit-appearance", "dark"));
   await win.reload();
   await win.waitForLoadState("domcontentloaded");
@@ -152,8 +167,32 @@ try {
   const darkTheme = await win.evaluate(() => document.documentElement.dataset.theme);
   check("login screen applies the dark theme when dark appearance is selected", darkTheme === "dark", `theme=${darkTheme}`);
   check("login card still renders in dark mode", (await win.locator(".awkit-login-card").count()) >= 1);
+  const darkTextTokens = await win.evaluate(() =>
+    ["--awkit-text", "--awkit-text-secondary", "--awkit-text-muted"].map((name) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase()
+    )
+  );
+  check("dark-mode neutral text tokens are white for labels and static copy", darkTextTokens.every((value) => value === "#ffffff"), darkTextTokens.join(", "));
+  const reducedPreviewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    motion: panel.getAttribute("data-motion"),
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
+  }));
+  await win.waitForTimeout(240);
+  const reducedPreviewAfterWait = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    motion: panel.getAttribute("data-motion"),
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
+  }));
+  check(
+    "decorative workflow preview is stable when reduced motion is requested",
+    reducedPreviewAtStart.motion === "reduced" &&
+      reducedPreviewAfterWait.motion === "reduced" &&
+      reducedPreviewAtStart.progress === "width: 0%;" &&
+      reducedPreviewAtStart.progress === reducedPreviewAfterWait.progress,
+    `${reducedPreviewAtStart.motion}:${reducedPreviewAtStart.progress} → ${reducedPreviewAfterWait.motion}:${reducedPreviewAfterWait.progress}`
+  );
   await win.screenshot({ path: path.join(shotDir, "login-dark.png") }).catch(() => undefined);
   // Restore the default appearance for the remaining (light) steps.
+  await win.emulateMedia({ reducedMotion: "no-preference" });
   await win.evaluate(() => window.localStorage.removeItem("awkit-appearance"));
   await win.reload();
   await win.waitForLoadState("domcontentloaded");

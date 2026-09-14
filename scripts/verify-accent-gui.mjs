@@ -1,14 +1,14 @@
 // Real-Electron end-to-end check for the user-selectable accent (Appearance → Accent Color): solid AND
 // two-color gradient. Drives the actual app through the SecurityGate against an ISOLATED, empty
 // %LOCALAPPDATA%:
-//   • default accent is the Hologram purple (solid) on a clean profile;
+//   • default accent is the reference blue (solid) on a clean profile;
 //   • a solid custom accent recolors the whole app (+ a real primary button + canvas connector), status
 //     colors intact, and persists to the store AND ui-settings.json;
 //   • a two-color GRADIENT accent sets data-accent-mode="gradient", gradients the primary buttons, and
 //     keeps fine controls (--awkit-accent) solid; status colors intact;
 //   • the built-in Specter Blue preset applies its documented royal-blue → cyan pair;
 //   • Flow Designer + the login screen honor it; the canvas keeps its nodes;
-//   • a reload restores it before sign-in (no flash); Reset to Default Purple returns to solid purple.
+//   • a reload restores it before sign-in (no flash); Reset restores the solid reference blue.
 // Also writes the deliverable screenshots to the directory passed as argv[2] (default: a temp dir).
 //
 // Run: node scripts/verify-accent-gui.mjs [screenshotDir]   (after `npm run build`)
@@ -23,7 +23,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const shotDir = process.argv[2] || path.join(tmpdir(), "awkit-accent-shots");
 mkdirSync(shotDir, { recursive: true });
 
-const CUSTOM = "#0EA5E9"; // sky blue — unmistakably not the default purple (solid test)
+const CUSTOM = "#0EA5E9"; // sky blue — distinct from the default blue (solid test)
 const GRAD_PRIMARY = "#2563EB";
 const GRAD_SECONDARY = "#22D3EE";
 const SPECTER = { primary: "#1D4ED8", secondary: "#38BDF8" };
@@ -108,8 +108,8 @@ await win.waitForLoadState("domcontentloaded");
 await signInFirstRun(win);
 await win.waitForTimeout(300);
 
-// 1. Clean profile → default purple, solid.
-check("default accent is purple #7c3aed", norm(await readAccentVar(win)) === "#7c3aed", await readAccentVar(win));
+// 1. Clean profile → default blue, solid.
+check("default accent is blue #1d4ed8", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
 check("default accent mode is solid", (await readMode(win)) === "solid");
 
 // 2. Settings → Accent Color card renders.
@@ -118,7 +118,7 @@ await win.getByRole("heading", { name: "Appearance — Accent Color" }).first().
 check("Accent Color card renders", (await win.getByRole("heading", { name: "Appearance — Accent Color" }).count()) >= 1);
 check("style segmented control renders", (await win.locator(".accent-seg").count()) >= 1);
 check("preset row renders", (await win.locator(".accent-preset").count()) >= 3);
-await shot(win, "01-settings-default-purple.png");
+await shot(win, "01-settings-default-blue.png");
 
 // 3. Solid custom accent through the UI.
 await win.locator('input[aria-label="Primary color hex value"]').fill(CUSTOM);
@@ -176,7 +176,7 @@ await win.waitForSelector(".awkit-login-form", { timeout: 20000 });
 await win.waitForTimeout(300);
 check("gradient restored on fresh bootstrap (data-accent-mode)", (await readMode(win)) === "gradient");
 check("login bootstrap has the gradient token", (await readVar(win, "--awkit-accent-gradient")).startsWith("linear-gradient("));
-check("login uses the accent (blue, not purple)", norm(await readAccentVar(win)) !== "#7c3aed", await readAccentVar(win));
+check("login restores the selected gradient accent", norm(await readAccentVar(win)) === norm(SPECTER.primary), await readAccentVar(win));
 await shot(win, "06-login-gradient.png");
 
 // 8. Sign back in — store round-trip keeps the gradient.
@@ -185,12 +185,12 @@ await win.waitForTimeout(400);
 stored = await getAccent(win);
 check("gradient survives the reload via the store", stored.mode === "gradient" && stored.preset === "specter-blue", JSON.stringify(stored));
 
-// 9. Reset to Default Purple → solid default.
+// 9. Reset to the default → solid reference blue.
 await navTo(win, "Settings");
 await win.getByRole("heading", { name: "Appearance — Accent Color" }).first().waitFor({ timeout: 10000 }).catch(() => {});
-await win.getByRole("button", { name: "Reset to Default Purple" }).click();
+await win.getByRole("button", { name: "Reset to Default Blue" }).click();
 await applyDraft(win);
-check("reset restores default purple (:root)", norm(await readAccentVar(win)) === "#7c3aed", await readAccentVar(win));
+check("reset restores default blue (:root)", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
 check("reset restores solid mode", (await readMode(win)) === "solid");
 stored = await getAccent(win);
 check("reset persists solid default (primaryColor null)", stored.mode === "solid" && stored.primaryColor === null, JSON.stringify(stored));

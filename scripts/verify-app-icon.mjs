@@ -6,7 +6,7 @@
  *     app/renderer/assets/brand/awkit-app-icon.svg rendered through the same sharp pipeline as
  *     scripts/generate-app-icon.mjs;
  *   - the ICO loses a Windows size (256-16) or stops being 32-bit PNG/RGBA frames;
- *   - the accent brick is not the design-system primary accent #7c3aed.
+ *   - the accent brick is not the design-system primary accent #1d4ed8.
  *
  * Why: icon:generate once defaulted to the committed icon-source.png, so after the SVG changed it
  * exited 0 and rebuilt the old concept-1c spectrum mark byte for byte (awkit-icon2). Nothing compared
@@ -22,7 +22,7 @@ import sharp from "sharp";
 const REPO_ROOT = process.cwd();
 const BRAND_SVG = join(REPO_ROOT, "app", "renderer", "assets", "brand", "awkit-app-icon.svg");
 const SIZES = [256, 128, 64, 48, 32, 24, 16];
-const ACCENT = [0x7c, 0x3a, 0xed];
+const ACCENT = [0x1d, 0x4e, 0xd8];
 const SUPERSEDED_ACCENT = [0x8b, 0x5c, 0xf6];
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 // Centres in the 1024 master of the accent brick (rect x0 y190 130x150) and the top-right S block
@@ -133,7 +133,7 @@ const square = await sharp(BRAND_SVG)
 const render = await decode(sharp(square));
 check("renders 1024x1024", render.width === 1024 && render.height === 1024, `${render.width}x${render.height}`);
 check("corner is transparent (squircle clip)", pixel(render, 0, 0)[3] === 0, pixel(render, 0, 0).join(","));
-check("brick is the primary accent #7c3aed", isColor(render, BRICK.x, BRICK.y, ACCENT), pixel(render, BRICK.x, BRICK.y).join(","));
+check("brick is the primary accent #1d4ed8", isColor(render, BRICK.x, BRICK.y, ACCENT), pixel(render, BRICK.x, BRICK.y).join(","));
 check("S block is #f6f6f6", isColor(render, S_BLOCK.x, S_BLOCK.y, [0xf6, 0xf6, 0xf6]), pixel(render, S_BLOCK.x, S_BLOCK.y).join(","));
 
 console.log("Controls:");
@@ -162,7 +162,7 @@ console.log("resources/icon.png:");
 const master = await decode(sharp(join(REPO_ROOT, "resources", "icon.png")));
 const masterDiff = difference(await decode(sharp(square).resize(1024, 1024, { fit: "cover" })), master);
 check("matches the brand SVG render at 1024x1024", masterDiff.same, masterDiff.detail);
-check("brick is the primary accent #7c3aed", isColor(master, BRICK.x, BRICK.y, ACCENT), pixel(master, BRICK.x, BRICK.y).join(","));
+check("brick is the primary accent #1d4ed8", isColor(master, BRICK.x, BRICK.y, ACCENT), pixel(master, BRICK.x, BRICK.y).join(","));
 
 console.log("resources/icon.ico:");
 const ico = await readFile(join(REPO_ROOT, "resources", "icon.ico"));
@@ -180,7 +180,7 @@ for (const frame of frames) {
   check(`${label} matches the brand SVG render`, frameDiff.same, frameDiff.detail);
   if (frame.size === 256) {
     const [x, y] = [Math.round((BRICK.x * 256) / 1024), Math.round((BRICK.y * 256) / 1024)];
-    check(`${label} brick is the primary accent #7c3aed`, isColor(actual, x, y, ACCENT), pixel(actual, x, y).join(","));
+    check(`${label} brick is the primary accent #1d4ed8`, isColor(actual, x, y, ACCENT), pixel(actual, x, y).join(","));
   }
 }
 
