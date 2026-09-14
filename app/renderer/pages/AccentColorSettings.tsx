@@ -47,7 +47,7 @@ export function AccentColorSettings() {
   const secondaryValid = secondaryNorm !== null;
   const valid = mode === "solid" ? primaryValid : primaryValid && secondaryValid;
 
-  // The accent this draft represents. Solid + default purple collapses to the default (drops the override).
+  // The accent this draft represents. Solid + default blue collapses to the default (drops the override).
   const candidate: AccentSettings = useMemo(() => {
     if (mode === "solid" && primaryNorm === DEFAULT_ACCENT_COLOR) return DEFAULT_ACCENT_SETTINGS;
     return normalizeAccentSettings({
@@ -151,7 +151,7 @@ export function AccentColorSettings() {
             <div className="accent-preset-row" role="group" aria-label="Accent preset">
               <button type="button" className={`accent-preset ${activePreset === "default-purple" ? "is-active" : ""}`} aria-pressed={activePreset === "default-purple"} onClick={() => applyPreset("default-purple")}>
                 <span className="accent-preset-swatch" style={{ background: DEFAULT_ACCENT_COLOR }} aria-hidden="true" />
-                Default Purple
+                Default Blue
               </button>
               <button type="button" className={`accent-preset ${activePreset === "specter-blue" ? "is-active" : ""}`} aria-pressed={activePreset === "specter-blue"} onClick={() => applyPreset("specter-blue")}>
                 <span className="accent-preset-swatch" style={{ background: `linear-gradient(135deg, ${SPECTER_BLUE.primary}, ${SPECTER_BLUE.secondary})` }} aria-hidden="true" />
@@ -169,11 +169,11 @@ export function AccentColorSettings() {
             <span>{mode === "gradient" ? "Primary color" : "Accent color"}</span>
             <div className="accent-input-row">
               <input type="color" className="accent-color-input" aria-label="Primary color picker" value={(primaryNorm ?? DEFAULT_ACCENT_COLOR).toLowerCase()} onChange={(ev) => editPrimary(ev.target.value.toUpperCase())} />
-              <input type="text" className="accent-hex-input" aria-label="Primary color hex value" aria-invalid={primaryTouched && !primaryValid} spellCheck={false} autoComplete="off" placeholder="#7C3AED" maxLength={7} value={primaryHex} onChange={(ev) => editPrimary(ev.target.value)} />
+              <input type="text" className="accent-hex-input" aria-label="Primary color hex value" aria-invalid={primaryTouched && !primaryValid} spellCheck={false} autoComplete="off" placeholder="#1D4ED8" maxLength={7} value={primaryHex} onChange={(ev) => editPrimary(ev.target.value)} />
               <span className="accent-swatch" aria-hidden="true" style={{ background: primaryValid ? primaryNorm : "transparent" }} />
             </div>
           </label>
-          {primaryTouched && !primaryValid ? <p className="form-message error-text" role="alert">Enter a valid hex color, e.g. #7C3AED.</p> : null}
+          {primaryTouched && !primaryValid ? <p className="form-message error-text" role="alert">Enter a valid hex color, e.g. #1D4ED8.</p> : null}
 
           {/* Secondary color (gradient only) */}
           {mode === "gradient" ? (
@@ -212,9 +212,9 @@ export function AccentColorSettings() {
               <Check size={15} />
               Apply
             </button>
-            <button type="button" className="toolbar-button" onClick={resetToDefault} disabled={resetDisabled} title="Restore the original default purple">
+            <button type="button" className="toolbar-button" onClick={resetToDefault} disabled={resetDisabled} title="Restore the reference default blue">
               <RotateCcw size={15} />
-              Reset to Default Purple
+              Reset to Default Blue
             </button>
           </div>
         </div>
@@ -250,7 +250,7 @@ function accentsEqual(a: AccentSettings, b: AccentSettings): boolean {
 }
 
 function savedLabel(a: AccentSettings): string {
-  if (a.mode === "solid" && a.primaryColor === null) return `${DEFAULT_ACCENT_COLOR} · default purple`;
+  if (a.mode === "solid" && a.primaryColor === null) return `${DEFAULT_ACCENT_COLOR} · default blue`;
   if (a.mode === "gradient") return `${a.primaryColor} → ${a.secondaryColor}${a.preset === "specter-blue" ? " · Specter Blue" : ""}`;
   return `${a.primaryColor} · solid`;
 }

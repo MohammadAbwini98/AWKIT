@@ -77,9 +77,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "frontend",
       "allowed_paths": [
-        "docs/ai/contracts/awkit-xphx.json"
+        "app/renderer/pages/AccentColorSettings.tsx"
       ]
     },
     "writer_sequence": [
@@ -401,6 +401,22 @@
         "acquired_at_commit": "e976b4006950d4efb7a1046f3cd7ad8e616e45a6",
         "released_at": "2026-09-14T00:07:29.120Z",
         "released_reason": "handoff to project-state: Amend the tracked expected renderer scope so visible accent-setting labels accurately identify the new blue default",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:project-state:2026-09-14T00:07:29.180Z",
+        "task": "awkit-xphx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/contracts/awkit-xphx.json"
+        ],
+        "acquired_at": "2026-09-14T00:07:29.180Z",
+        "acquired_at_commit": "81054f8687a5de1ead4adf3af1bb3ba01bcd331a",
+        "released_at": "2026-09-14T00:07:47.411Z",
+        "released_reason": "handoff to frontend: Make the visible default-accent controls accurately name the new blue default without changing persisted preset compatibility",
         "amendments": [],
         "overrides": [],
         "violations": []

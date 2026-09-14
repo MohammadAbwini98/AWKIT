@@ -1,21 +1,21 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "project-state",
+  "holder": "frontend",
   "status": "active",
   "allowed_paths": [
-    "docs/ai/contracts/awkit-xphx.json"
+    "app/renderer/pages/AccentColorSettings.tsx"
   ],
-  "acquired_at": "2026-09-14T00:07:29.180Z",
-  "acquired_at_commit": "81054f8687a5de1ead4adf3af1bb3ba01bcd331a",
+  "acquired_at": "2026-09-14T00:07:47.470Z",
+  "acquired_at_commit": "68acb317d60ba8badb15842199377a1dd35a25fa",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "29538dbd94793adac417519db317ccde6d0f01081a38bcef1e5cca97a9e77c45",
-    "docs/ai/contracts/awkit-xphx.json": "b3be128086db5693cb13cba89106b2daaa2f9a7a6c3fc6b44b088f8ba390bb6e",
+    "docs/ai/contracts/active-lease.json": "e70ab0b5d243bc2e69f5e782b04aec863dd2dd670ce98ab5c943fd48e2e92fea",
+    "docs/ai/contracts/awkit-xphx.json": "0c9f0bc00b03bda273b6c8d7c378748b8a3c9f958c4a56b8bee48b279319978f",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
