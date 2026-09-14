@@ -1,28 +1,35 @@
 {
-  "task": "awkit-btcx",
-  "contract_path": "docs/ai/contracts/awkit-btcx.json",
+  "task": "awkit-uiaa",
+  "contract_path": "docs/ai/contracts/awkit-uiaa.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
+    "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-btcx.json",
+    "docs/ai/contracts/awkit-uiaa.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-14T13:04:09.916Z",
-  "acquired_at_commit": "aecf63e08490d28def3264dfebd2b1ecba435152",
+  "acquired_at": "2026-09-14T17:50:42.372Z",
+  "acquired_at_commit": "b4ddae77d2d0180b6d6cbc5de2ad81b522d944dd",
   "baseline_dirty": [
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-btcx.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-uiaa.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "34d6816b380b52014c637956446f22b2ce21d3940f42ccd6c727910c770aa717",
-    "docs/ai/contracts/awkit-btcx.json": "a86e3bd24dd91cd3d1254d764072e7d5acdd35861f7798d45eed56e2bc28a9ed",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/CURRENT_STATE.md": "f3b8cd1eabd7a4f1646f5c8281ef85079b69f469e31d80c05311fe41526388a2",
+    "docs/ai/FEATURES.md": "864b9ea6f39f4e3318a0ec2faa22014e0df30f3b48f04ddfea1ea4550b682f85",
+    "docs/ai/HANDOFF.md": "98caac2212e7b28724992094f05f4dd3fe5a13ad6ec8d6396d642ca95a08986c",
+    "docs/ai/TASK_LOG.md": "ae1414e0d8ebfc912ee9c769a54c8743036c0a2c962de213aef9de8a559c8663",
+    "docs/ai/contracts/active-lease.json": "ab0cafd422342410686aecbc89af62342e2bf64406fae84a6c136d10e3094c66",
+    "docs/ai/contracts/awkit-uiaa.json": "33bb6c33e06ff40810fcc470a97e6a986cf30a2f98fb1d45c7407f51b0a0834c"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,12 +39,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789389125579.2605"
+    "build": "dir(1):native-hosts:1789391737770.8518"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-14T13:07:40.082Z",
-  "released_reason": "Login workflow preview autoplay is verified in real Electron; record terminal bookkeeping, clear the claim, and push main cleanly.",
-  "archived_at": "2026-09-14T13:07:40.084Z"
+  "violations": []
 }
