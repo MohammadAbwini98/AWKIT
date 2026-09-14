@@ -68,7 +68,8 @@ try {
   check("theme applied before auth", await win.evaluate(() => !!document.documentElement.dataset.theme));
   check("no protected app shell before auth (no-flash)", (await win.locator(".app-shell").count()) === 0);
   check("first-run setup shown on a clean machine", (await win.getByRole("heading", { name: "Set up SpecterStudio" }).count()) >= 1);
-  await win.emulateMedia({ reducedMotion: "no-preference" });
+  // The owner-requested Login demo must autoplay even when the operating system requests less motion.
+  await win.emulateMedia({ reducedMotion: "reduce" });
   await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "running");
   const previewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),
@@ -81,7 +82,7 @@ try {
     progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
   }));
   check(
-    "decorative workflow preview advances while normal motion is enabled",
+    "decorative workflow preview autoplays when reduced motion is requested",
     previewAtStart.motion === "running" && previewAfterTick.motion === "running" && previewAtStart.progress !== previewAfterTick.progress,
     `${previewAtStart.motion}:${previewAtStart.progress} → ${previewAfterTick.motion}:${previewAfterTick.progress}`
   );
@@ -177,7 +178,7 @@ try {
   await win.reload();
   await win.waitForLoadState("domcontentloaded");
   await win.waitForSelector("#awkit-login-username", { timeout: 20000 });
-  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "reduced");
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "running");
   const darkTheme = await win.evaluate(() => document.documentElement.dataset.theme);
   check("login screen applies the dark theme when dark appearance is selected", darkTheme === "dark", `theme=${darkTheme}`);
   check("login card still renders in dark mode", (await win.locator(".awkit-login-card").count()) >= 1);
@@ -204,56 +205,68 @@ try {
       darkCanvasAccentTokens["--awkit-connector-loop"] === "#3b82f6",
     JSON.stringify(darkCanvasAccentTokens)
   );
-  const reducedPreviewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+  const defaultPreviewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),
     progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
   }));
   await win.waitForTimeout(240);
-  const reducedPreviewAfterWait = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+  const defaultPreviewAfterWait = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),
     progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
   }));
   check(
-    "decorative workflow preview is stable when reduced motion is requested",
-    reducedPreviewAtStart.motion === "reduced" &&
-      reducedPreviewAfterWait.motion === "reduced" &&
-      reducedPreviewAtStart.progress === "width: 0%;" &&
-      reducedPreviewAtStart.progress === reducedPreviewAfterWait.progress,
-    `${reducedPreviewAtStart.motion}:${reducedPreviewAtStart.progress} → ${reducedPreviewAfterWait.motion}:${reducedPreviewAfterWait.progress}`
+    "decorative workflow preview remains autoplaying after a reduced-motion reload",
+    defaultPreviewAtStart.motion === "running" &&
+      defaultPreviewAfterWait.motion === "running" &&
+      defaultPreviewAtStart.progress !== defaultPreviewAfterWait.progress,
+    `${defaultPreviewAtStart.motion}:${defaultPreviewAtStart.progress} → ${defaultPreviewAfterWait.motion}:${defaultPreviewAfterWait.progress}`
   );
   const previewMotionSwitch = win.getByRole("switch", { name: "Animate workflow preview" });
   check(
-    "reduced-motion login exposes an explicit preview-motion opt-in",
-    (await previewMotionSwitch.count()) === 1 && (await previewMotionSwitch.getAttribute("aria-checked")) === "false",
+    "Login exposes an always-available preview-motion pause control",
+    (await previewMotionSwitch.count()) === 1 && (await previewMotionSwitch.getAttribute("aria-checked")) === "true",
     `count=${await previewMotionSwitch.count()}, checked=${await previewMotionSwitch.getAttribute("aria-checked")}`
   );
   await previewMotionSwitch.click();
-  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "running");
-  const optedInPreviewStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "paused");
+  const pausedPreviewStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
     animation: getComputedStyle(panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-dot")).animationName
   }));
   await win.waitForTimeout(240);
-  const optedInPreviewAfterTick = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+  const pausedPreviewAfterWait = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),
     progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
     animation: getComputedStyle(panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-dot")).animationName
   }));
   check(
-    "preview-motion opt-in animates both the timeline and its CSS pulse",
-    (await previewMotionSwitch.getAttribute("aria-checked")) === "true" &&
-      optedInPreviewAfterTick.motion === "running" &&
-      optedInPreviewStart.progress !== optedInPreviewAfterTick.progress &&
-      optedInPreviewAfterTick.animation === "awkit-live-pulse",
-    `${optedInPreviewStart.progress}/${optedInPreviewStart.animation} → ${optedInPreviewAfterTick.progress}/${optedInPreviewAfterTick.animation}`
+    "preview-motion pause control stabilizes the timeline and CSS pulse",
+    (await previewMotionSwitch.getAttribute("aria-checked")) === "false" &&
+      pausedPreviewAfterWait.motion === "paused" &&
+      pausedPreviewStart.progress === "width: 0%;" &&
+      pausedPreviewStart.progress === pausedPreviewAfterWait.progress &&
+      pausedPreviewAfterWait.animation === "none",
+    `${pausedPreviewStart.progress}/${pausedPreviewStart.animation} → ${pausedPreviewAfterWait.progress}/${pausedPreviewAfterWait.animation}`
   );
   await previewMotionSwitch.click();
-  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "reduced");
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "running");
+  const resumedPreviewStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
+    animation: getComputedStyle(panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-dot")).animationName
+  }));
+  await win.waitForTimeout(240);
+  const resumedPreviewAfterTick = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    motion: panel.getAttribute("data-motion"),
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
+    animation: getComputedStyle(panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-dot")).animationName
+  }));
   check(
-    "preview-motion opt-in can return to the system-reduced state",
-    (await previewMotionSwitch.getAttribute("aria-checked")) === "false" &&
-      (await win.locator(".awkit-login-run-progress > span").getAttribute("style")) === "width: 0%;",
-    `checked=${await previewMotionSwitch.getAttribute("aria-checked")}, progress=${await win.locator(".awkit-login-run-progress > span").getAttribute("style")}`
+    "preview-motion pause control resumes the timeline and CSS pulse",
+    (await previewMotionSwitch.getAttribute("aria-checked")) === "true" &&
+      resumedPreviewAfterTick.motion === "running" &&
+      resumedPreviewStart.progress !== resumedPreviewAfterTick.progress &&
+      resumedPreviewAfterTick.animation === "awkit-live-pulse",
+    `${resumedPreviewStart.progress}/${resumedPreviewStart.animation} → ${resumedPreviewAfterTick.progress}/${resumedPreviewAfterTick.animation}`
   );
   await win.screenshot({ path: path.join(shotDir, "login-dark.png") }).catch(() => undefined);
   // Restore the default appearance for the remaining (light) steps.
