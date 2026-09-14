@@ -1,0 +1,332 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-8cb0",
+    "title": "Fix selected navigation contrast and UI text containment",
+    "objective": "Keep the selected sidebar navigation accent fill while making the selected label and icon use the existing contrast token, which resolves to white for the default blue accent in dark mode. Restore native table layout and contain long table values, form-control text, and inline labels within their available widths. Add focused real-Electron regressions without changing navigation structure, routes, permissions, or persisted settings.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f69f0ac",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-8cb0.json",
+      "scripts/verify-design-tokens.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "scripts/verify-recorder-gui.mts",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-8cb0.json",
+        "tools/roadmap/assignments.json"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "qa",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "ui": [
+      "Preserve the selected navigation accent fill, active semantics, hover behavior, route ids, and keyboard behavior.",
+      "Use existing design tokens only; do not introduce a literal color or a parallel selector system.",
+      "Long unbroken text must remain contained by the relevant table cell or form control; tables retain semantic table layout and their existing wrappers own horizontal scrolling."
+    ],
+    "accessibility": [
+      "The selected row's label and icon must remain plainly legible in dark mode without relying on color alone for selected state."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "SELECTED-NAV-CONTRAST",
+      "description": "A selected sidebar item keeps its accent background but uses the existing contrast token, resolving to white for the default blue accent in dark mode.",
+      "evidence_required": [
+        "verify:design-tokens",
+        "build"
+      ]
+    },
+    {
+      "id": "UI-TEXT-CONTAINMENT",
+      "description": "Long Recorder URLs, form values, selected values, and inline labels remain within their available layout bounds without breaking table columns or widening the application shell.",
+      "evidence_required": [
+        "verify:recorder-gui",
+        "build"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The closed Bead, task evidence, AI memory, assignment state, and derived roadmap sources agree before exact terminal closeout.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:design-tokens",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "2026-09-14: real Electron verification passed 30/30, including a dark selected sidebar item resolving to white accent contrast."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "2026-09-14: tsc --noEmit and all Electron-Vite production bundles completed; the pre-existing dynamic-import advisory remained non-failing."
+    },
+    {
+      "id": "verify:recorder-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:recorder-gui",
+      "result": "PASS",
+      "artifact": "2026-09-14: 194 PASS / 0 FAIL / 0 NOT RUN; the long URL cell, span ellipsis and Target URL input remained contained in the real app."
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "node scripts/ai-memory/check-memory.mjs",
+      "result": "PASS",
+      "artifact": "2026-09-14: AI memory files passed required checks."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "2026-09-14: 177/177; 288 total / 286 closed / 2 outstanding; Sources agree."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "verifier",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "2026-09-14: no whitespace errors in the pre-closeout working-tree diff."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-8cb0:frontend:2026-09-14T09:47:39.874Z",
+        "task": "awkit-8cb0",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-14T09:47:39.874Z",
+        "acquired_at_commit": "f69f0ac1ed6f7ddf5b7c6aab702ccf58a3c2f4e8",
+        "released_at": "2026-09-14T09:48:20.680Z",
+        "released_reason": "handoff to qa: Add and run a focused real-Electron assertion that the selected sidebar label resolves to white with the default blue accent in dark mode.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:qa:2026-09-14T09:48:20.741Z",
+        "task": "awkit-8cb0",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-design-tokens.mjs"
+        ],
+        "acquired_at": "2026-09-14T09:48:20.741Z",
+        "acquired_at_commit": "710b295c980825746b6b733635ce2c4e7d5317ab",
+        "released_at": "2026-09-14T10:01:15.889Z",
+        "released_reason": "handoff to frontend: Correct shared overflow containment for tables, inputs, selects, and span content after validating the selected-navigation regression.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:frontend:2026-09-14T10:01:15.950Z",
+        "task": "awkit-8cb0",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-14T10:01:15.950Z",
+        "acquired_at_commit": "fbc1718d507a5194842aa7dc5d9ffd0be98ef15e",
+        "released_at": "2026-09-14T10:26:26.895Z",
+        "released_reason": "handoff to project-state: Expand the approved UI task contract for the discovered shared table, control, and inline-label overflow defect before QA regression coverage.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:project-state:2026-09-14T10:26:26.959Z",
+        "task": "awkit-8cb0",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/contracts/awkit-8cb0.json"
+        ],
+        "acquired_at": "2026-09-14T10:26:26.959Z",
+        "acquired_at_commit": "e4b358ca305470512377e93e760beb808dd3b463",
+        "released_at": "2026-09-14T10:26:56.340Z",
+        "released_reason": "handoff to qa: Add and run a long-value Recorder regression that proves the shared containment change keeps URL cells and the target input within their visual bounds.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:qa:2026-09-14T10:26:56.402Z",
+        "task": "awkit-8cb0",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-recorder-gui.mts"
+        ],
+        "acquired_at": "2026-09-14T10:26:56.402Z",
+        "acquired_at_commit": "e4b358ca305470512377e93e760beb808dd3b463",
+        "released_at": "2026-09-14T10:38:18.533Z",
+        "released_reason": "handoff to project-state: Close the approved navigation-and-overflow task: reconcile the Bead, task contract evidence, AI memory, roadmap source records, and terminal task documentation.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:project-state:2026-09-14T10:38:18.600Z",
+        "task": "awkit-8cb0",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-8cb0.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T10:38:18.600Z",
+        "acquired_at_commit": "c559697075bf1cc76dcba2087bfa140eafaa5e9c",
+        "released_at": "2026-09-14T10:40:09.643Z",
+        "released_reason": "handoff to qa: Repin the roadmap verifier's exact Bead total and closed count after the newly closed tracked UI bug, then prove the dashboard remains source-consistent.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:qa:2026-09-14T10:40:09.713Z",
+        "task": "awkit-8cb0",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-09-14T10:40:09.713Z",
+        "acquired_at_commit": "c559697075bf1cc76dcba2087bfa140eafaa5e9c",
+        "released_at": "2026-09-14T10:40:51.970Z",
+        "released_reason": "handoff to project-state: Record the completed UI task's exact QA, build, Bead, memory and roadmap evidence, then prepare the authoritative direct-main terminal closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:project-state:2026-09-14T10:40:52.039Z",
+        "task": "awkit-8cb0",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-8cb0.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T10:40:52.039Z",
+        "acquired_at_commit": "95bee2a8906307f1510d3daaad5b102fbd5d5a26",
+        "released_at": "2026-09-14T10:44:43.550Z",
+        "released_reason": "handoff to qa: Correct strict TypeScript null narrowing in the new long-value geometry regression, then rerun script typechecking and the focused Recorder GUI proof.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:qa:2026-09-14T10:44:43.614Z",
+        "task": "awkit-8cb0",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-recorder-gui.mts"
+        ],
+        "acquired_at": "2026-09-14T10:44:43.614Z",
+        "acquired_at_commit": "95bee2a8906307f1510d3daaad5b102fbd5d5a26",
+        "released_at": "2026-09-14T10:48:10.049Z",
+        "released_reason": "handoff to project-state: Complete the documentation and evidence checkpoint after the type-safe Recorder regression rerun, then use the exact terminal closeout operation.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}

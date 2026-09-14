@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## `awkit-8cb0`: selected navigation contrast and shared text containment complete (2026-09-14)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This focused renderer task moves no ledger case.
+
+- **Selected navigation:** an active left-navigation item retains its accent fill and semantics but
+  now resolves label and icon ink through `--awkit-accent-contrast`, which is white for the default
+  blue accent in dark mode. The real-Electron design-token verifier proves the resolved final state;
+  it finishes the transition inside the isolated test window so backgrounded-test timing cannot
+  masquerade as a color regression.
+- **Long values:** tables once received a global `display: block`, which broke native fixed-column
+  layout. Tables now retain semantic table display while their existing wrappers own scrolling;
+  table cells, inputs, selects, textareas and spans receive shrink/wrap containment defaults. The
+  Recorder keeps its deliberate ellipsis and full-value tooltip for long URLs rather than allowing
+  them to cross the URL column boundary.
+- **Focused proof:** `verify:design-tokens` is **30/30** and `verify:recorder-gui` is **194 PASS /
+  0 FAIL / 0 NOT RUN**. The Recorder journey creates a long local URL and proves semantic table
+  display, cell truncation, and Target URL input containment. Its GUI harness now passes the
+  isolated Electron user-data argument, avoiding a false launch failure from the single-instance
+  lock.
+- **Tracker:** Bead `awkit-8cb0` is closed and exported. Roadmap is **177/177**, with **288 total /
+  286 closed / 2 outstanding**, and **Sources agree**. The two outstanding items remain the
+  declared-blocked external Oracle work.
+
 ## `awkit-xphx`: Login motion, default blue branding, dark text, and app icon complete (2026-09-14)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

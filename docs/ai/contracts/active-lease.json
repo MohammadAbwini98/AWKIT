@@ -1,27 +1,36 @@
 {
-  "task": "awkit-xphx",
-  "contract_path": "docs/ai/contracts/awkit-xphx.json",
+  "task": "awkit-8cb0",
+  "contract_path": "docs/ai/contracts/awkit-8cb0.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
-    "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-xphx.json",
+    "docs/ai/contracts/awkit-8cb0.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-14T00:28:04.101Z",
-  "acquired_at_commit": "91890a7d490aa0721d6771a9910936a9c63d0818",
+  "acquired_at": "2026-09-14T10:48:10.117Z",
+  "acquired_at_commit": "2d90caf2bc62fb8bae5b2fa5cbe8c20fbbb0e0fb",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-xphx.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-8cb0.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "986b5dceab00af7426bf562cb694fe8abe8f5d5336bc68439e218bb6bbe09c8b",
-    "docs/ai/contracts/awkit-xphx.json": "d197793d20c6f891c030288d71b127c34d1650eeff246a3802207d05d7dfd358",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    ".beads/interactions.jsonl": "7337d27e6918820d769a917d4a3a980a087252e993c03b61b0ae26b43d5683b6",
+    ".beads/issues.jsonl": "aac2424e27be36006cd9bc26b2828396772e8fac25f350143260ab4bdb367ebb",
+    "docs/ai/CURRENT_STATE.md": "f75631dab9652d1c673650527f329364d4967fee7db1e2688ec6218485551f96",
+    "docs/ai/FEATURES.md": "351efa0a4b64bc41f2a6614c47710e25f4c3489c0c3a8e87f20b83e039c255cd",
+    "docs/ai/TASK_LOG.md": "e4b4cdabe5973c7697ec6a7a8b11a5d84f630347586eef17f3b5e2f4a049b35a",
+    "docs/ai/contracts/active-lease.json": "773e97c1130a488a77c266bd105cf4a9c0914b6b2976d768a43182805e57a902",
+    "docs/ai/contracts/awkit-8cb0.json": "4e2148e547b2df9a28044ff203b6b8ca51afa27f90226e630df67ebe8d06e204"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,12 +40,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789341648414.5344"
+    "build": "dir(1):native-hosts:1789377057917.3838"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-14T00:35:07.921Z",
-  "released_reason": "Complete login motion, blue accent, dark text, and icon closeout",
-  "archived_at": "2026-09-14T00:35:07.922Z"
+  "violations": []
 }

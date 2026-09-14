@@ -1,5 +1,16 @@
 # FEATURES
 
+## Selected navigation contrast and long-value containment (2026-09-14)
+
+- Selected sidebar entries preserve their accent background and selected semantics while resolving
+  their visible label and icon through the contrast token, which is white for the default blue
+  accent in dark mode.
+- Native table layout is preserved globally; existing table wrappers remain responsible for scroll
+  containment. Table cells can shrink and wrap long unbroken text, while the Recorder URL history
+  keeps its intentional single-line ellipsis and title-based full-value access.
+- Inputs, selects, textareas and inline spans use a shared sizing/wrapping baseline so long values
+  cannot widen a flex/grid region or bleed through a column boundary.
+
 ## Login motion and default-blue accessibility polish (2026-09-14)
 
 - The decorative, aria-hidden login workflow preview is a real fixed-step timeline: normal motion

@@ -1,5 +1,25 @@
 # TASK_LOG
 
+## 2026-09-14 — `awkit-8cb0`: selected navigation contrast and UI text containment (Codex)
+
+- **Task:** make selected sidebar text plainly white against the default blue accent in dark mode,
+  and keep long values in tables, inputs, selects and inline labels inside their visual bounds.
+- **Implementation:** active navigation now uses `--awkit-accent-contrast`; the legacy global
+  `table { display: block }` behavior was removed so native/fixed table columns work again; shared
+  table-cell, control and span containment defaults prevent long unbroken content from widening the
+  shell. The Recorder preserves deliberate ellipsis and full-value titles for URLs.
+- **Regression protection:** `verify:design-tokens` drives the real dark-mode selected item and
+  checks its resolved white contrast ink. `verify:recorder-gui` creates a deliberately extreme local
+  URL and verifies semantic table display, truncated span geometry and Target URL input containment;
+  it also passes the harness’s isolated Electron user-data argument to avoid a second-instance
+  launch false negative. The existing URL-history selectors now identify the exact short details URL
+  instead of accidentally matching the new long-query fixture.
+- **Evidence:** build PASS (existing non-failing Vite dynamic-import advisory only); design tokens
+  **30/30**; Recorder GUI **194 PASS / 0 FAIL / 0 NOT RUN**; script typecheck PASS; source hygiene
+  **11/11**; verifier classification **205/205**; AI memory PASS; `git diff --check` clean; roadmap
+  **177/177**, **Sources agree** at **288 total / 286 closed / 2 outstanding**. The Bead is closed
+  and exported.
+
 ## 2026-09-14 — `awkit-xphx`: Login motion, default blue, white dark text, and app icon (Codex)
 
 - **Task:** repair the inactive decorative Login preview, align the app default accent with the
