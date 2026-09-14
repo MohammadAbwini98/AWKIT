@@ -32,10 +32,15 @@ const DEMO_STEPS: DemoStep[] = [
 ];
 
 const DEMO_TICK_MS = 80;
+const PREVIEW_MOTION_PREFERENCE_KEY = "awkit-login-preview-motion-enabled";
 
 function readAppearance(): AppearanceMode {
   const saved = window.localStorage.getItem("awkit-appearance");
   return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+}
+
+function readPreviewMotionOptIn(): boolean {
+  return window.localStorage.getItem(PREVIEW_MOTION_PREFERENCE_KEY) === "true";
 }
 
 function idleDuration(idleTimeoutMs: number | null): string | null {
@@ -57,6 +62,8 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => resolveAppearance(readAppearance()));
   const [demo, setDemo] = useState({ step: 0, progress: 0 });
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const [previewMotionOptIn, setPreviewMotionOptIn] = useState(readPreviewMotionOptIn);
+  const previewMotionEnabled = !reducedMotion || previewMotionOptIn;
 
   useEffect(() => {
     const apply = () => {
@@ -79,7 +86,7 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
   }, []);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (!previewMotionEnabled) {
       setDemo({ step: 0, progress: 0 });
       return;
     }
@@ -92,7 +99,7 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
       });
     }, DEMO_TICK_MS);
     return () => window.clearInterval(timer);
-  }, [reducedMotion]);
+  }, [previewMotionEnabled]);
 
   const toggleDarkAppearance = useCallback(() => {
     const nextAppearance: AppearanceMode = resolvedTheme === "dark" ? "light" : "dark";
@@ -100,6 +107,18 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
     window.localStorage.setItem("awkit-appearance", nextAppearance);
     window.playwrightFlowStudio.settings.update({ appearance: nextAppearance }).catch(() => undefined);
   }, [resolvedTheme]);
+
+  const togglePreviewMotion = useCallback(() => {
+    setPreviewMotionOptIn((current) => {
+      const next = !current;
+      if (next) {
+        window.localStorage.setItem(PREVIEW_MOTION_PREFERENCE_KEY, "true");
+      } else {
+        window.localStorage.removeItem(PREVIEW_MOTION_PREFERENCE_KEY);
+      }
+      return next;
+    });
+  }, []);
 
   const configuredIdleDuration = idleDuration(idleTimeoutMs);
 
@@ -110,6 +129,21 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
         <section className="awkit-login-form-pane" aria-label={areaLabel}>
           <div className="awkit-login-brand-row">
             <span className="awkit-login-brand-row-spacer" />
+            {reducedMotion ? (
+              <>
+                <span className="awkit-login-appearance-label">Preview motion</span>
+                <button
+                  type="button"
+                  className="awkit-login-appearance-switch"
+                  role="switch"
+                  aria-checked={previewMotionEnabled}
+                  aria-label="Animate workflow preview"
+                  onClick={togglePreviewMotion}
+                >
+                  <span className="awkit-login-appearance-thumb" />
+                </button>
+              </>
+            ) : null}
             <span className="awkit-login-appearance-label">Dark</span>
             <button
               type="button"
@@ -140,7 +174,7 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
           </div>
         </section>
 
-        <aside className="awkit-login-run-panel" aria-hidden="true" data-motion={reducedMotion ? "reduced" : "running"}>
+        <aside className="awkit-login-run-panel" aria-hidden="true" data-motion={previewMotionEnabled ? "running" : "reduced"}>
           <span className="awkit-login-run-grid" />
           <span className="awkit-login-run-spot" />
           <span className="awkit-login-run-scanline" />
