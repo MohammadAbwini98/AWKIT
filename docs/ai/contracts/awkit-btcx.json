@@ -160,7 +160,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED"
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "a381c361cfcc5b895950f0eb7a44d04119937821"
   },
   "write_lease": {
     "history": [
