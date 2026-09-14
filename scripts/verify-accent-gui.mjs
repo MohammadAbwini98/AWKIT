@@ -8,6 +8,7 @@
 //     keeps fine controls (--awkit-accent) solid; status colors intact;
 //   • the Reference Blue preset applies the same canonical application gradient;
 //   • Flow Designer + the login screen honor it; the canvas keeps its nodes;
+//   • splash runs its actual bundled module under the local-only CSP, draws its canvas, and uses the shared blue;
 //   • a reload restores it before sign-in (no flash); Reset restores the reference gradient in light and dark.
 // Also writes the deliverable screenshots to the directory passed as argv[2] (default: a temp dir).
 //
@@ -81,6 +82,20 @@ async function applyDraft(win) {
   await win.waitForTimeout(350);
 }
 
+async function resolveSplashWindow(app, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const page of app.windows()) {
+      const isSplash = await page
+        .evaluate(() => document.getElementById("stage") instanceof HTMLCanvasElement)
+        .catch(() => false);
+      if (isSplash) return page;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("splash window did not appear");
+}
+
 function findSettingsFile(dir) {
   for (const entry of readdirSync(dir)) {
     const full = path.join(dir, entry);
@@ -117,6 +132,36 @@ const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-accent-gui");
 const userDataDir = path.join(dataRoot, "electron-userdata");
 
 const app = await electron.launch({ args: [root, `--user-data-dir=${userDataDir}`], cwd: root, env });
+const splash = await resolveSplashWindow(app);
+const splashConsoleErrors = [];
+splash.on("console", (m) => m.type() === "error" && splashConsoleErrors.push(m.text()));
+await splash.waitForFunction(
+  () => {
+    const canvas = document.getElementById("stage");
+    if (!(canvas instanceof HTMLCanvasElement) || typeof window.__splashHold !== "function") return false;
+    const pixels = canvas.getContext("2d")?.getImageData(0, 0, Math.min(canvas.width, 64), Math.min(canvas.height, 64)).data;
+    return Boolean(pixels && [...pixels].some((value) => value !== 0));
+  },
+  { timeout: 10000 }
+);
+const splashRuntime = await splash.evaluate(() => {
+  const canvas = document.getElementById("stage");
+  return {
+    accent: getComputedStyle(document.documentElement).getPropertyValue("--splash-accent").trim(),
+    canvas: canvas instanceof HTMLCanvasElement ? { width: canvas.width, height: canvas.height } : null,
+    hold: typeof window.__splashHold === "function"
+  };
+});
+check(
+  "splash bundled module runs under local CSP, draws canvas, and applies Reference Blue",
+  splashRuntime.hold &&
+    splashRuntime.canvas?.width > 0 &&
+    splashRuntime.canvas?.height > 0 &&
+    norm(splashRuntime.accent) === norm(SPECTER.primary) &&
+    splashConsoleErrors.length === 0,
+  JSON.stringify({ ...splashRuntime, consoleErrors: splashConsoleErrors })
+);
+await shot(splash, "00-splash-reference-blue.png");
 const win = await resolveMainWindow(app);
 const consoleErrors = [];
 win.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
@@ -134,8 +179,11 @@ check(
   defaultVividGradient
 );
 check(
-  "splash imports the canonical accent model and contains no violet fallback",
-  splashSource.includes('import { SPECTER_BLUE, buildAccentGradient } from "@src/theme/accentColor.ts"') && !/a78bfa|124,58,237/i.test(splashSource),
+  "splash imports the canonical accent settings, permits only local modules, and contains no violet fallback",
+  splashSource.includes('import { SPECTER_BLUE, SPECTER_BLUE_SETTINGS, buildAccentGradient } from "@src/theme/accentColor.ts"') &&
+    splashSource.includes("script-src 'self'") &&
+    splashSource.includes("SPECTER_BLUE_SETTINGS.gradientAngle") &&
+    !/a78bfa|124,58,237/i.test(splashSource),
   "app/renderer/splash.html"
 );
 const defaultCanvasAccent = await readDefaultCanvasAccentTokens(win);
