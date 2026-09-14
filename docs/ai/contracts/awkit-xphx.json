@@ -77,11 +77,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "manager",
+      "agent_id": "qa",
       "allowed_paths": [
-        ".claude/**",
-        ".codex/skills/agent-routing/SKILL.md",
-        ".gemini/skills/agent-routing/SKILL.md"
+        "scripts/verify-agent-routing.mjs"
       ]
     },
     "writer_sequence": [
@@ -435,6 +433,24 @@
         "acquired_at_commit": "68acb317d60ba8badb15842199377a1dd35a25fa",
         "released_at": "2026-09-14T00:08:16.235Z",
         "released_reason": "handoff to manager: Regenerate the checked-in agent permission definitions after adding the exact release-only icon generation command",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:manager:2026-09-14T00:08:16.296Z",
+        "task": "awkit-xphx",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md"
+        ],
+        "acquired_at": "2026-09-14T00:08:16.296Z",
+        "acquired_at_commit": "5fb034a6cd41255f238a42afa61944e696fd6064",
+        "released_at": "2026-09-14T00:08:55.777Z",
+        "released_reason": "handoff to qa: Update the generated permission-cardinality regression after granting the exact release-only icon command",
         "amendments": [],
         "overrides": [],
         "violations": []

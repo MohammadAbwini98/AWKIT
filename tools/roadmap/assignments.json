@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-xphx",
-      "agent": "Manager / Orchestrator",
+      "agent": "Quality Assurance Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-14T00:08:16.296Z",
-      "note": "write lease: .claude/**, .codex/skills/agent-routing/SKILL.md, .gemini/skills/agent-routing/SKILL.md"
+      "claimedAt": "2026-09-14T00:08:55.837Z",
+      "note": "write lease: scripts/verify-agent-routing.mjs"
     }
   ]
 }

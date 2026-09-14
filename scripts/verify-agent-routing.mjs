@@ -3607,9 +3607,9 @@ try {
   const projectPermissionAllows = claudeSettings.permissions?.allow ?? [];
   const projectPermissionDenies = claudeSettings.permissions?.deny ?? [];
   check(
-    "project settings have the byte/order-exact 64-entry MCP plus Bash allowlist",
-    expectedProjectPermissionAllows.length === 64 &&
-      projectPermissionAllows.length === 64 &&
+    "project settings have the byte/order-exact 65-entry MCP plus Bash allowlist",
+    expectedProjectPermissionAllows.length === 65 &&
+      projectPermissionAllows.length === 65 &&
       sameArray(projectPermissionAllows, expectedProjectPermissionAllows),
     JSON.stringify(projectPermissionAllows)
   );
