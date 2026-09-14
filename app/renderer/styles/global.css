@@ -107,17 +107,17 @@ body {
  */
 :root,
 [data-theme="light"] {
-  --brand-50: #f5f3ff;
-  --brand-100: #ede9fe;
-  --brand-200: #ddd6fe;
-  --brand-300: #c4b5fd;
-  --brand-400: #a78bfa;
-  --brand-500: #8b5cf6;
-  --brand-600: #7c3aed;
-  --brand-700: #6d28d9;
-  --brand-800: #5b21b6;
-  --brand-900: #4c1d95;
-  /* surfaces — Claude design-system neutrals. Violet is ACCENT ONLY and must never come back as a
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #1d4ed8;
+  --brand-700: #1e40af;
+  --brand-800: #1e3a8a;
+  --brand-900: #172554;
+  /* surfaces — Claude design-system neutrals. Blue is ACCENT ONLY and must never come back as a
      canvas, surface or border color: the old values here were all violet-tinted (#f6f4f9, #faf9fc,
      #efedf3 and rgba(34,24,58,…) borders), which is what made the whole app read as a purple wash. */
   --awkit-bg: #f4f5f7;            /* app canvas */
@@ -130,19 +130,19 @@ body {
   --awkit-divider: #f3f4f6;       /* gray-100 — internal section divider */
   --awkit-hover-surface: #f9fafb; /* gray-50 — neutral control hover tint */
 
-  /* text — neutral gray for all normal reading; violet is never body copy */
+  /* text — neutral gray for all normal reading; blue is never body copy */
   --awkit-text: #111827;
   --awkit-text-secondary: #4b5563;
   --awkit-text-muted: #6b7280;
 
-  /* accent — Hologram violet. These are runtime-overridden by src/theme/accentColor.ts; the values
+  /* accent — reference blue. These are runtime-overridden by src/theme/accentColor.ts; the values
      below are only the defaults. Never hardcode a literal in a CONSUMER of one of these. */
-  --awkit-accent: #7c3aed;         /* brand-600 */
-  --awkit-accent-hover: #6d28d9;   /* brand-700 */
+  --awkit-accent: #1d4ed8;         /* brand-600 */
+  --awkit-accent-hover: #1e40af;   /* brand-700 */
   --awkit-accent-contrast: #ffffff;
-  --awkit-accent-soft: #f5f3ff;    /* brand-50 */
-  --awkit-accent-muted: #c4b5fd;   /* brand-300 */
-  --awkit-lavender-soft: #f5f3ff;  /* brand-50 */
+  --awkit-accent-soft: #eff6ff;    /* brand-50 */
+  --awkit-accent-muted: #93c5fd;   /* brand-300 */
+  --awkit-lavender-soft: #eff6ff;  /* legacy alias, brand-50 */
 
   /* data-viz blue family — the chart/series blue (sparklines, bars, report series) and the
      link-blue text step. Distinct from --awkit-info (UI status chips) so chart series never
@@ -184,7 +184,7 @@ body {
   --awkit-node-selected-bg: var(--awkit-lavender-soft);
   /* edge strokes — default (idle) vs strong (hover/selected). Ported from the
      Workflow/FlowForge reference (docs/plan-workflow-visual-parity.md, Phase 0). */
-  --awkit-edge: #c9b8f5;
+  --awkit-edge: #bfdbfe;
   --awkit-edge-strong: var(--awkit-accent);
 
   /* Categorical chart series (Reports donut/bar/sparkline palettes). Charts need more
@@ -210,7 +210,7 @@ body {
   --awkit-chart-14: #b0b0b0;  /* unknown / fallback — light gray */
 
   /* rgb triplets for translucent glows/shadows built inline with rgba() */
-  --awkit-accent-rgb: 124, 58, 237;
+  --awkit-accent-rgb: 29, 78, 216;
   /* Status triplets mirror the accent triplet: translucent status washes (hover tints, pulses,
      focus scrims) must derive from the same token as their solid fill so they track theme and
      any future status-token retune together. */
@@ -250,7 +250,7 @@ body {
   --awkit-shadow-lg: 0 20px 60px rgba(16, 24, 40, 0.35);
   /* Focus ring — 2px accent ring at 70% over a one-step surface-coloured offset. It MUST resolve
      through --awkit-accent-rgb: that token is runtime-overridden per user accent, so a literal
-     rgba(124, 58, 237, …) here (what this token used to be) freezes the ring at violet and silently
+     rgba(29, 78, 216, …) here (what this token used to be) freezes the ring at the default blue and silently
      breaks every custom accent. Never inline a hex in a consumer of an accent-owned token. */
   --awkit-focus-ring: 0 0 0 2px var(--awkit-surface), 0 0 0 4px rgba(var(--awkit-accent-rgb), 0.7);
 
@@ -299,18 +299,19 @@ body {
   --awkit-divider: rgba(255, 255, 255, 0.05);        /* subtle divider — white / 5% */
   --awkit-hover-surface: rgba(255, 255, 255, 0.05);  /* neutral control hover tint */
 
-  /* text — neutral gray, de-tinted from the old violet-leaning values */
-  --awkit-text: #f3f4f6;
-  --awkit-text-secondary: #d1d5db;
-  --awkit-text-muted: #9ca3af;
+  /* User-facing labels and static text remain white on dark surfaces for clear readability. */
+  --awkit-text: #ffffff;
+  --awkit-text-secondary: #ffffff;
+  --awkit-text-muted: #ffffff;
 
-  /* accent — brighter violet for dark surfaces */
-  --awkit-accent: #8b5cf6;
-  --awkit-accent-hover: #a78bfa;
+  /* accent — the same reference blue used by the light theme and app icon */
+  --awkit-accent: #1d4ed8;
+  --awkit-accent-hover: #3b82f6;
   --awkit-accent-contrast: #ffffff;
-  --awkit-accent-soft: rgba(139, 92, 246, 0.15);
-  --awkit-accent-muted: rgba(139, 92, 246, 0.4);
-  --awkit-lavender-soft: rgba(139, 92, 246, 0.15);
+  --awkit-accent-soft: rgba(29, 78, 216, 0.15);
+  --awkit-accent-muted: rgba(29, 78, 216, 0.4);
+  --awkit-lavender-soft: rgba(29, 78, 216, 0.15);
+  --awkit-accent-rgb: 29, 78, 216;
 
   --awkit-blue: #60a5fa;
   --awkit-blue-deep: #3b82f6;
@@ -362,7 +363,7 @@ body {
   --awkit-chart-14: #b8b8bd;
 
   /* rgb triplets + glass/overlay */
-  --awkit-accent-rgb: 139, 92, 246;
+  --awkit-accent-rgb: 29, 78, 216;
   --awkit-success-rgb: 52, 211, 153;
   --awkit-danger-rgb: 248, 113, 113;
   --awkit-shadow-rgb: 0, 0, 0;
@@ -11444,7 +11445,6 @@ table {
 
 .awkit-login-run-progress span {
   display: block;
-  width: 62%;
   height: 100%;
   border-radius: inherit;
   background: var(--awkit-login-panel-ink);

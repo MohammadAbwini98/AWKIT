@@ -16,7 +16,7 @@ type DemoStepState = "complete" | "active" | "pending";
 interface DemoStep {
   label: string;
   elapsed: string;
-  state: DemoStepState;
+  durationMs: number;
 }
 
 /**
@@ -24,12 +24,14 @@ interface DemoStep {
  * values are a fixed design demo, never runtime state or measured telemetry.
  */
 const DEMO_STEPS: DemoStep[] = [
-  { label: "Login", elapsed: "1.2s", state: "complete" },
-  { label: "Open Login Page", elapsed: "0.9s", state: "complete" },
-  { label: "Create customer", elapsed: "2.4s", state: "active" },
-  { label: "Validate result", elapsed: "1.6s", state: "pending" },
-  { label: "Logout", elapsed: "0.8s", state: "pending" }
+  { label: "Login", elapsed: "1.2s", durationMs: 1200 },
+  { label: "Open Login Page", elapsed: "0.9s", durationMs: 900 },
+  { label: "Create customer", elapsed: "2.4s", durationMs: 2400 },
+  { label: "Validate result", elapsed: "1.6s", durationMs: 1600 },
+  { label: "Logout", elapsed: "0.8s", durationMs: 800 }
 ];
+
+const DEMO_TICK_MS = 80;
 
 function readAppearance(): AppearanceMode {
   const saved = window.localStorage.getItem("awkit-appearance");
@@ -53,6 +55,8 @@ function idleDuration(idleTimeoutMs: number | null): string | null {
 export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellProps) {
   const [appearance, setAppearance] = useState<AppearanceMode>(readAppearance);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => resolveAppearance(readAppearance()));
+  const [demo, setDemo] = useState({ step: 0, progress: 0 });
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   useEffect(() => {
     const apply = () => {
@@ -66,6 +70,29 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [appearance]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setDemo({ step: 0, progress: 0 });
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setDemo((current) => {
+        const step = DEMO_STEPS[current.step];
+        const progress = current.progress + DEMO_TICK_MS / step.durationMs;
+        if (progress < 1) return { ...current, progress };
+        return { step: (current.step + 1) % DEMO_STEPS.length, progress: 0 };
+      });
+    }, DEMO_TICK_MS);
+    return () => window.clearInterval(timer);
+  }, [reducedMotion]);
 
   const toggleDarkAppearance = useCallback(() => {
     const nextAppearance: AppearanceMode = resolvedTheme === "dark" ? "light" : "dark";
@@ -113,7 +140,7 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
           </div>
         </section>
 
-        <aside className="awkit-login-run-panel" aria-hidden="true">
+        <aside className="awkit-login-run-panel" aria-hidden="true" data-motion={reducedMotion ? "reduced" : "running"}>
           <span className="awkit-login-run-grid" />
           <span className="awkit-login-run-spot" />
           <span className="awkit-login-run-scanline" />
@@ -131,27 +158,35 @@ export function LockedShell({ areaLabel, children, idleTimeoutMs }: LockedShellP
             </div>
 
             <ol className="awkit-login-run-timeline">
-              {DEMO_STEPS.map((step, index) => (
-                <li className={`awkit-login-run-step is-${step.state}`} key={step.label}>
-                  <span className="awkit-login-run-step-rail">
-                    <span className="awkit-login-run-step-dot">
-                      {step.state === "complete" ? <Check size={12} strokeWidth={2.8} /> : null}
-                    </span>
-                    {index < DEMO_STEPS.length - 1 ? <span className="awkit-login-run-step-line" /> : null}
-                  </span>
-                  <span className="awkit-login-run-step-card">
-                    <span className="awkit-login-run-step-row">
-                      <span className="awkit-login-run-step-title">{step.label}</span>
-                      <span className="awkit-login-run-step-time">{step.elapsed}</span>
-                    </span>
-                    {step.state === "active" ? (
-                      <span className="awkit-login-run-progress">
-                        <span />
+              {DEMO_STEPS.map((step, index) => {
+                const state: DemoStepState = index < demo.step ? "complete" : index === demo.step ? "active" : "pending";
+                const elapsed = state === "complete"
+                  ? step.elapsed
+                  : state === "active"
+                    ? `${((step.durationMs / 1000) * demo.progress).toFixed(1)}s`
+                    : "";
+                return (
+                  <li className={`awkit-login-run-step is-${state}`} key={step.label}>
+                    <span className="awkit-login-run-step-rail">
+                      <span className="awkit-login-run-step-dot">
+                        {state === "complete" ? <Check size={12} strokeWidth={2.8} /> : null}
                       </span>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
+                      {index < DEMO_STEPS.length - 1 ? <span className="awkit-login-run-step-line" /> : null}
+                    </span>
+                    <span className="awkit-login-run-step-card">
+                      <span className="awkit-login-run-step-row">
+                        <span className="awkit-login-run-step-title">{step.label}</span>
+                        <span className="awkit-login-run-step-time">{elapsed}</span>
+                      </span>
+                      {state === "active" ? (
+                        <span className="awkit-login-run-progress">
+                          <span style={{ width: `${demo.progress * 100}%` }} />
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
 
             <div className="awkit-login-run-stats">

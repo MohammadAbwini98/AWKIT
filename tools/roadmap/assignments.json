@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-xphx",
-      "agent": "Manager / Orchestrator",
+      "agent": "React / Renderer Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-13T23:56:31.277Z",
-      "note": "write lease: .claude/**, .codex/skills/agent-routing/SKILL.md, .gemini/skills/agent-routing/SKILL.md, tools/agents/lease-guard.mjs, tools/agents/routing-matrix.mjs"
+      "claimedAt": "2026-09-13T23:58:18.949Z",
+      "note": "write lease: app/renderer/assets/brand/awkit-app-icon.svg, app/renderer/security/LockedShell.tsx, app/renderer/styles/global.css"
     }
   ]
 }

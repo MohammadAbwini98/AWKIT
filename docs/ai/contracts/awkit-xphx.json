@@ -76,13 +76,11 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "manager",
+      "agent_id": "frontend",
       "allowed_paths": [
-        ".claude/**",
-        ".codex/skills/agent-routing/SKILL.md",
-        ".gemini/skills/agent-routing/SKILL.md",
-        "tools/agents/lease-guard.mjs",
-        "tools/agents/routing-matrix.mjs"
+        "app/renderer/assets/brand/awkit-app-icon.svg",
+        "app/renderer/security/LockedShell.tsx",
+        "app/renderer/styles/global.css"
       ]
     },
     "writer_sequence": [
@@ -306,6 +304,51 @@
         "released_at": "2026-09-13T23:56:31.217Z",
         "released_reason": "handoff to manager: allow only the exact release icon-generator command required to regenerate the requested blue shipped icon",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:manager:2026-09-13T23:56:31.277Z",
+        "task": "awkit-xphx",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/routing-matrix.mjs"
+        ],
+        "acquired_at": "2026-09-13T23:56:31.277Z",
+        "acquired_at_commit": "179573512e2b424ded40290841739e2912b25b18",
+        "released_at": "2026-09-13T23:58:18.890Z",
+        "released_reason": "handoff to frontend: Frontend restores the decorative preview cycle and aligns the visible default blue and dark-mode text tokens",
+        "amendments": [
+          {
+            "timestamp": "2026-09-13T23:56:43.937Z",
+            "added": [
+              "tools/agents/routing-matrix.mjs"
+            ],
+            "reason": "The generated release permission inventory must mirror the exact icon-generator command gate",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          },
+          {
+            "timestamp": "2026-09-13T23:57:09.346Z",
+            "added": [
+              ".claude/**",
+              ".codex/skills/agent-routing/SKILL.md",
+              ".gemini/skills/agent-routing/SKILL.md"
+            ],
+            "reason": "Regenerated platform agent permissions must carry the exact release icon-generator allowance",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }
