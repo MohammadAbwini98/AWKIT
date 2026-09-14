@@ -154,7 +154,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED"
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "c24196fcd4df424736adb24a0151f9930f21a11e"
   },
   "write_lease": {
     "history": [
