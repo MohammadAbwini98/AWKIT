@@ -166,7 +166,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED"
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "516db0da55300b345e6162b5db5b01b50843fbd8"
   },
   "write_lease": {
     "history": [
@@ -322,6 +323,28 @@
         "acquired_at_commit": "95bee2a8906307f1510d3daaad5b102fbd5d5a26",
         "released_at": "2026-09-14T10:48:10.049Z",
         "released_reason": "handoff to project-state: Complete the documentation and evidence checkpoint after the type-safe Recorder regression rerun, then use the exact terminal closeout operation.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-8cb0:project-state:2026-09-14T10:48:10.117Z",
+        "task": "awkit-8cb0",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-8cb0.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T10:48:10.117Z",
+        "acquired_at_commit": "2d90caf2bc62fb8bae5b2fa5cbe8c20fbbb0e0fb",
+        "released_at": "2026-09-14T10:49:53.594Z",
+        "released_reason": "Selected navigation contrast and long-value containment verified; archive terminal task state and clear the final claim.",
         "amendments": [],
         "overrides": [],
         "violations": []

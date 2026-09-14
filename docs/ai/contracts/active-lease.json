@@ -2,7 +2,7 @@
   "task": "awkit-8cb0",
   "contract_path": "docs/ai/contracts/awkit-8cb0.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -44,5 +44,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-14T10:49:53.594Z",
+  "released_reason": "Selected navigation contrast and long-value containment verified; archive terminal task state and clear the final claim.",
+  "archived_at": "2026-09-14T10:49:53.595Z"
 }
