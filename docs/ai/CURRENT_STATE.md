@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## `awkit-mjhb`: Login workflow preview motion is owner-controllable (2026-09-14)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This focused pre-auth renderer task moves no
+ledger case.
+
+- **Root cause and behavior:** the decorative Login preview correctly honored Windows'
+  `prefers-reduced-motion` signal, but it silently pinned the timeline and its CSS effects with no
+  per-app owner choice. Under normal motion it continues to progress through its fixed sample steps.
+  When the system requests reduced motion it begins on a stable initial frame and exposes the
+  accessible **Preview motion** switch beside the existing Login appearance control; opting in
+  animates the timeline, pulse, drift and scanline, while switching it off returns to the
+  system-reduced state. The opt-in is stored locally as a presentation preference only.
+- **Isolation:** the preview remains `aria-hidden` scripted sample content, never runtime telemetry.
+  SecurityGate state, authentication calls, provider behavior, and existing Login DOM hooks remain
+  unchanged.
+- **Focused proof:** `verify:auth` is **79/79**, and `verify:auth-gui` is **33/33** in real Electron:
+  it forces normal motion and observes progress plus the next sample row, proves reduced motion is
+  stable, enables the explicit switch and observes both the timeline and CSS pulse, then returns to
+  the reduced state. The verifier now uses the shared isolated user-data launch arguments so it can
+  run alongside a packaged SpecterStudio instance rather than colliding with its single-instance
+  lock. Build and script typecheck pass; verifier classification remains **205/205**.
+- **Tracker:** Bead `awkit-mjhb` is closed and exported. Roadmap is **177/177**, with **289 total /
+  287 closed / 2 outstanding**, and **Sources agree**; the two outstanding items remain the declared
+  external Oracle work.
+
 ## `awkit-8cb0`: selected navigation contrast and shared text containment complete (2026-09-14)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

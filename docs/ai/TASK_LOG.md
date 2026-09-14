@@ -14880,3 +14880,24 @@ pm run verify:mock-site
 - **Result:** `awkit-icon2` complete. The 4-token commit form cannot carry a Co-Authored-By trailer, and the
   final lease release is written after the last commit, so its three bookkeeping files are left for the owner
   to commit. No ledger case moved.
+
+## 2026-09-14 — awkit-mjhb: Login workflow preview reduced-motion opt-in (Codex)
+
+- **Root cause:** the existing preview deliberately honored `prefers-reduced-motion`, but this Windows
+  profile requests reduced motion and the Login surface offered no explanation or per-app opt-in. The
+  result was a truthful but indistinguishable static preview at `0.0s`, which appeared broken.
+- **Fix:** `LockedShell` now retains the system-reduced state by default and exposes an accessible
+  **Preview motion** switch only when that state applies. The owner can explicitly opt in; the local
+  preference makes the fixed-step timeline and panel CSS effects run, and turning it off restores
+  the motionless system-preferred state. The preview remains aria-hidden sample data; SecurityGate,
+  authentication and providers are untouched.
+- **Regression:** `verify:auth-gui` uses the canonical isolated Electron user-data arguments (so it
+  can coexist with a running packaged app), forces normal motion to prove progress plus a next-step
+  transition, proves the reduced state is stable, then proves the accessible opt-in starts the
+  timeline and CSS pulse and can restore the reduced state. It passes **33/33**. `verify:auth`
+  passes **79/79**; build, script typecheck, verifier classification (**205/205**), roadmap
+  (**177/177**, **289 total / 287 closed / 2 outstanding**, Sources agree), and diff check pass.
+- **Commits:** `ddfa337` `fix(login): allow explicit preview motion`; `371a3f8`
+  `test(auth): cover login preview motion opt-in`; `6aeffab` `test(roadmap): repin login preview
+  closeout`.
+- **Tracker:** Bead `awkit-mjhb` closed and exported. No validation-ledger case moved.

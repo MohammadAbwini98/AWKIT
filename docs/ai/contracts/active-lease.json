@@ -1,36 +1,30 @@
 {
-  "task": "awkit-8cb0",
-  "contract_path": "docs/ai/contracts/awkit-8cb0.json",
+  "task": "awkit-mjhb",
+  "contract_path": "docs/ai/contracts/awkit-mjhb.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-8cb0.json",
+    "docs/ai/contracts/awkit-mjhb.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-14T10:48:10.117Z",
-  "acquired_at_commit": "2d90caf2bc62fb8bae5b2fa5cbe8c20fbbb0e0fb",
+  "acquired_at": "2026-09-14T11:44:42.896Z",
+  "acquired_at_commit": "6aeffab920a4d16025326a698af03109b8b9576f",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-8cb0.json"
+    "docs/ai/contracts/awkit-mjhb.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "7337d27e6918820d769a917d4a3a980a087252e993c03b61b0ae26b43d5683b6",
-    ".beads/issues.jsonl": "aac2424e27be36006cd9bc26b2828396772e8fac25f350143260ab4bdb367ebb",
-    "docs/ai/CURRENT_STATE.md": "f75631dab9652d1c673650527f329364d4967fee7db1e2688ec6218485551f96",
-    "docs/ai/FEATURES.md": "351efa0a4b64bc41f2a6614c47710e25f4c3489c0c3a8e87f20b83e039c255cd",
-    "docs/ai/TASK_LOG.md": "e4b4cdabe5973c7697ec6a7a8b11a5d84f630347586eef17f3b5e2f4a049b35a",
-    "docs/ai/contracts/active-lease.json": "773e97c1130a488a77c266bd105cf4a9c0914b6b2976d768a43182805e57a902",
-    "docs/ai/contracts/awkit-8cb0.json": "4e2148e547b2df9a28044ff203b6b8ca51afa27f90226e630df67ebe8d06e204"
+    ".beads/interactions.jsonl": "e8e1f3db88cd3c32785df8f7868eb7a4b36cca9ca897f2622284b514c6808ddd",
+    ".beads/issues.jsonl": "26eaf573220b4454e68a0a12bd7d9529253fdbc62358a4c1e75a8c794141d9f9",
+    "docs/ai/contracts/active-lease.json": "3a6bcdca0aa35dbc26634273cad08c03093f60fc0d5353e594a1ef18f5f724fa",
+    "docs/ai/contracts/awkit-mjhb.json": "a3e022a46b1e4a45cc241275464fb7245818a4a5ce8460e36c671418fe4043b8"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -44,8 +38,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-14T10:49:53.594Z",
-  "released_reason": "Selected navigation contrast and long-value containment verified; archive terminal task state and clear the final claim.",
-  "archived_at": "2026-09-14T10:49:53.595Z"
+  "violations": []
 }
