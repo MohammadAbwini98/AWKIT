@@ -1,21 +1,23 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "frontend",
+  "holder": "manager",
   "status": "active",
   "allowed_paths": [
-    "app/renderer/pages/AccentColorSettings.tsx"
+    ".claude/**",
+    ".codex/skills/agent-routing/SKILL.md",
+    ".gemini/skills/agent-routing/SKILL.md"
   ],
-  "acquired_at": "2026-09-14T00:07:47.470Z",
-  "acquired_at_commit": "68acb317d60ba8badb15842199377a1dd35a25fa",
+  "acquired_at": "2026-09-14T00:08:16.296Z",
+  "acquired_at_commit": "5fb034a6cd41255f238a42afa61944e696fd6064",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "e70ab0b5d243bc2e69f5e782b04aec863dd2dd670ce98ab5c943fd48e2e92fea",
-    "docs/ai/contracts/awkit-xphx.json": "0c9f0bc00b03bda273b6c8d7c378748b8a3c9f958c4a56b8bee48b279319978f",
+    "docs/ai/contracts/active-lease.json": "f33c40a7617f3c7bfe80a7aa3659b0e4c4c260d1e419f45aacc74fc97893af14",
+    "docs/ai/contracts/awkit-xphx.json": "e2401930cc8e296eb2703a13893d84cd751ca0f1d9ce2872c699bb48076dcf94",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

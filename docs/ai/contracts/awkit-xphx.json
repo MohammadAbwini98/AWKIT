@@ -77,9 +77,11 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "manager",
       "allowed_paths": [
-        "app/renderer/pages/AccentColorSettings.tsx"
+        ".claude/**",
+        ".codex/skills/agent-routing/SKILL.md",
+        ".gemini/skills/agent-routing/SKILL.md"
       ]
     },
     "writer_sequence": [
@@ -417,6 +419,22 @@
         "acquired_at_commit": "81054f8687a5de1ead4adf3af1bb3ba01bcd331a",
         "released_at": "2026-09-14T00:07:47.411Z",
         "released_reason": "handoff to frontend: Make the visible default-accent controls accurately name the new blue default without changing persisted preset compatibility",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:frontend:2026-09-14T00:07:47.470Z",
+        "task": "awkit-xphx",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/AccentColorSettings.tsx"
+        ],
+        "acquired_at": "2026-09-14T00:07:47.470Z",
+        "acquired_at_commit": "68acb317d60ba8badb15842199377a1dd35a25fa",
+        "released_at": "2026-09-14T00:08:16.235Z",
+        "released_reason": "handoff to manager: Regenerate the checked-in agent permission definitions after adding the exact release-only icon generation command",
         "amendments": [],
         "overrides": [],
         "violations": []

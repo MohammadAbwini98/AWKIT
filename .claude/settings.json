@@ -50,6 +50,7 @@
       "Bash(node --check:*)",
       "Bash(graphify update .)",
       "Bash(npm run package:*)",
+      "Bash(npm run icon:generate)",
       "Bash(bd create:*)",
       "Bash(bd update:*)",
       "Bash(bd close:*)",
