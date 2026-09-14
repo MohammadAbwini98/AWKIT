@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src data:;" />
     <title>SpecterStudio</title>
     <style>
       /* Offline-first: no remote fonts/assets. System sans (Arial ≈ Helvetica Neue). */
@@ -39,7 +39,7 @@
     <canvas id="stage"></canvas>
     <div id="spinner" aria-hidden="true"><div class="ring"></div></div>
     <script type="module">
-      import { SPECTER_BLUE, buildAccentGradient } from "@src/theme/accentColor.ts";
+      import { SPECTER_BLUE, SPECTER_BLUE_SETTINGS, buildAccentGradient } from "@src/theme/accentColor.ts";
 
       (() => {
         "use strict";
@@ -49,7 +49,12 @@
         const FONT = '"Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif';
 
         // ---- Palette: strict high-contrast monochrome + the shared application accent ----
-        const ACCENT = buildAccentGradient(SPECTER_BLUE.primary, SPECTER_BLUE.secondary, "dark", 135);
+        const ACCENT = buildAccentGradient(
+          SPECTER_BLUE.primary,
+          SPECTER_BLUE.secondary,
+          "dark",
+          SPECTER_BLUE_SETTINGS.gradientAngle
+        );
         document.documentElement.style.setProperty("--splash-accent", SPECTER_BLUE.primary);
         const COL = {
           bg: "#0e1016",
