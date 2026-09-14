@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## `awkit-btcx`: Login workflow preview autoplays by owner request (2026-09-14)
+
+**Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains
+**65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. This focused pre-auth renderer task moves no
+ledger case.
+
+- **Root cause and resolution:** the prior `awkit-mjhb` change deliberately paused the decorative
+  Login preview when Windows reported `prefers-reduced-motion`, leaving the approved visual demo at
+  `0.0s` by default. That default did not match the owner's explicit request. The preview now starts
+  its fixed sample-step timeline regardless of the operating-system setting; **Preview motion** is
+  always visible beside Dark and persists an explicit local pause/resume choice. Pausing resets the
+  sample timeline and stops its pulse, drift, scanline and transition effects; resuming restarts
+  them. This preference is presentation-only.
+- **Isolation:** the preview remains `aria-hidden` scripted sample content, never runtime telemetry.
+  SecurityGate state, authentication calls, providers, and existing Login DOM hooks remain unchanged.
+- **Focused proof:** real-Electron `verify:auth-gui` is **33/33** and emulates system reduced motion
+  before asserting default timeline advancement, a reload that remains autoplaying, the always-visible
+  pause control, stable paused JS/CSS state, and resume progression/pulse. `verify:auth` is **79/79**;
+  build and script typecheck pass; verifier classification remains **205/205**.
+- **Tracker:** Bead `awkit-btcx` is closed and exported. The final roadmap reconciliation and exact
+  terminal lease closeout remain to be recorded by this task.
+
 ## `awkit-mjhb`: Login workflow preview motion is owner-controllable (2026-09-14)
 
 **Validation ledger — unchanged.** The authoritative Recorder/Reports/Settings ledger remains

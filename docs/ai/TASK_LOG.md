@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-09-14 — `awkit-btcx`: Login workflow preview autoplay (Codex)
+
+- **Task:** resolve the owner-reported Login animation defect after the prior reduced-motion opt-in
+  implementation left the decorative workflow preview frozen at `0.0s` by default.
+- **Implementation:** the fixed sample timeline now autoplays regardless of the operating-system
+  reduced-motion preference. **Preview motion** is always visible and locally persists an explicit
+  pause/resume choice; the paused state resets the timeline and disables its decorative pulse,
+  drift, scanline and transitions without touching SecurityGate or authentication behavior.
+- **Regression protection:** `verify:auth-gui` launches a clean real Electron window with emulated
+  reduced motion, proves default/reload advancement, confirms the accessible control is initially
+  on, then proves both paused stability (`animation: none`) and resumed timeline/CSS pulse.
+- **Evidence:** build PASS; auth **79/79**; auth GUI **33/33**; script typecheck PASS; verifier
+  classification **205/205**; `git diff --check` clean. The Bead is closed and exported; AI-memory,
+  roadmap reconciliation and exact terminal closeout are recorded with the final task evidence.
+
 ## 2026-09-14 — `awkit-8cb0`: selected navigation contrast and UI text containment (Codex)
 
 - **Task:** make selected sidebar text plainly white against the default blue accent in dark mode,

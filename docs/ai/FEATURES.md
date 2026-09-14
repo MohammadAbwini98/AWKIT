@@ -13,12 +13,12 @@
 
 ## Login motion and default-blue accessibility polish (2026-09-14)
 
-- The decorative, aria-hidden login workflow preview is a real fixed-step timeline: normal motion
-  advances progress and cycles back to its first sample step. When `prefers-reduced-motion` is set,
-  the stable initial frame remains the default, and the accessible Login **Preview motion** switch
-  gives the owner an explicit locally persisted opt-in for the timeline and decorative CSS effects.
-  It remains sample content, never telemetry, and does not alter SecurityGate states, providers or
-  authentication behavior.
+- The decorative, aria-hidden login workflow preview is a real fixed-step timeline that advances
+  progress and cycles back to its first sample step by default, including when the operating system
+  requests reduced motion. The owner explicitly requested that autoplay behavior. The accessible
+  Login **Preview motion** switch is always visible and persists an explicit local pause/resume
+  preference for the timeline and decorative CSS effects. It remains sample content, never telemetry,
+  and does not alter SecurityGate states, providers or authentication behavior.
 - The default/reset application accent is `#1D4ED8` in the renderer theme model, static light and
   dark tokens, canvas edge/connector defaults and the regenerated SVG/PNG/ICO application icon.
   The legacy persisted preset identifier `default-purple` remains accepted for existing settings,

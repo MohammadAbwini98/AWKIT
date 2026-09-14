@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-btcx",
+    "title": "Autoplay Login workflow preview by default",
+    "objective": "Make the Login workflow preview autoplay by default even when the system prefers reduced motion, while keeping an always-available accessible pause/resume control. Preserve the approved Login design, its decorative aria-hidden sample data, and all authentication behavior; add real-Electron regression coverage for the explicit owner-requested default.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "cf7fb1fe69dd4a739c744661c25fddae477f93a3",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": ".beads/issues.jsonl",
+        "git_status": " M",
+        "sha256": "0104aad1388239df2f57db33153251c4a70bb054455561b72f7e7ad409a5cb7d"
+      }
+    ]
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "app/renderer/security/LockedShell.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-btcx.json",
+      "scripts/verify-auth-gui.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-btcx.json",
+        "tools/roadmap/assignments.json"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "qa",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "authentication": [
+      "Do not change the SecurityGate state machine, authentication calls, provider behavior, or the existing Login DOM contract.",
+      "The workflow preview remains aria-hidden decorative sample data and must never be presented as live telemetry."
+    ],
+    "accessibility": [
+      "The owner explicitly requested autoplay, so the decorative preview starts running regardless of the system reduced-motion preference.",
+      "An always-visible keyboard-accessible switch has a clear name and state and lets the owner pause or resume the preview."
+    ],
+    "ui": [
+      "Use existing design tokens and the current Login layout; do not redesign the approved Login surface."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "LOGIN-PREVIEW-AUTOPLAY",
+      "description": "The decorative Login workflow preview advances through its fixed sample steps by default, including when the operating system requests reduced motion. Its visible owner control pauses and resumes that motion without changing authentication behavior.",
+      "evidence_required": [
+        "verify:auth-gui",
+        "build"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The Bead, task evidence, AI memory, assignments, and derived roadmap sources agree before exact terminal closeout.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:auth-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:auth-gui",
+      "result": "PASS",
+      "artifact": "2026-09-14: real Electron passed 33/33 while emulating system reduced motion; the decorative timeline advanced by default and after reload, and the always-visible accessible switch paused its timeline/CSS pulse then resumed both."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "2026-09-14: tsc --noEmit and all Electron-Vite production bundles completed; the existing dynamic-import advisory remained non-failing."
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "node scripts/ai-memory/check-memory.mjs",
+      "result": "PASS",
+      "artifact": "2026-09-14: required AI-memory checks passed after recording the superseding Login autoplay behavior and task log."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "git-diff-check",
+      "type": "verifier",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "2026-09-14: no whitespace errors in the checkpoint working-tree diff."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-btcx:frontend:2026-09-14T12:52:32.307Z",
+        "task": "awkit-btcx",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/security/LockedShell.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-14T12:52:32.307Z",
+        "acquired_at_commit": "cf7fb1fe69dd4a739c744661c25fddae477f93a3",
+        "released_at": "2026-09-14T12:54:19.197Z",
+        "released_reason": "handoff to qa: Add real-Electron regression coverage proving the Login workflow preview autoplays under a reduced-motion system preference and that the always-visible owner switch pauses and resumes it.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-btcx:qa:2026-09-14T12:54:19.260Z",
+        "task": "awkit-btcx",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-auth-gui.mjs"
+        ],
+        "acquired_at": "2026-09-14T12:54:19.260Z",
+        "acquired_at_commit": "5e7fb5fcf6dd14a7cca087a7d0ee7edbc928f08e",
+        "released_at": "2026-09-14T12:59:03.559Z",
+        "released_reason": "handoff to project-state: Close the autoplay-preview Bead, record the owner-requested default and verified real-Electron evidence, reconcile AI memory and roadmap sources, then prepare terminal task evidence.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}
