@@ -155,7 +155,7 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED",
-    "closed_at_commit": "c24196fcd4df424736adb24a0151f9930f21a11e"
+    "closed_at_commit": "cda12c3781b0ede203a9440062bbbf972f88eb4f"
   },
   "write_lease": {
     "history": [
@@ -226,6 +226,28 @@
         "acquired_at_commit": "70c56518055eda7a9933492de4feb84fa2159eab",
         "released_at": "2026-09-14T13:04:09.856Z",
         "released_reason": "handoff to project-state: Record the passing 290-total/288-closed roadmap evidence, complete the task contract, reconcile final AI memory, then prepare the terminal evidence checkpoint.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-btcx:project-state:2026-09-14T13:04:09.916Z",
+        "task": "awkit-btcx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-btcx.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T13:04:09.916Z",
+        "acquired_at_commit": "aecf63e08490d28def3264dfebd2b1ecba435152",
+        "released_at": "2026-09-14T13:07:40.082Z",
+        "released_reason": "Login workflow preview autoplay is verified in real Electron; record terminal bookkeeping, clear the claim, and push main cleanly.",
         "amendments": [],
         "overrides": [],
         "violations": []

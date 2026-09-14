@@ -2,7 +2,7 @@
   "task": "awkit-btcx",
   "contract_path": "docs/ai/contracts/awkit-btcx.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -36,5 +36,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-14T13:07:40.082Z",
+  "released_reason": "Login workflow preview autoplay is verified in real Electron; record terminal bookkeeping, clear the claim, and push main cleanly.",
+  "archived_at": "2026-09-14T13:07:40.084Z"
 }
