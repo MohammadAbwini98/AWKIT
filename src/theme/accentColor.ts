@@ -13,9 +13,9 @@
 // through them, so status colors (success/warning/error) are never affected.
 
 /**
- * Canonical default application accent — the reference blue used as `--awkit-accent` in the light
- * theme (app/renderer/styles/global.css). A stored `accent.color === null` means "use this default",
- * so a Reset removes the override rather than duplicating this value.
+ * Canonical brand blue used as `--awkit-accent` in the light theme. The reference application accent
+ * is its 135° derived indigo → brand → cyan gradient; this primary remains the solid control/focus
+ * color within that family.
  */
 export const DEFAULT_ACCENT_COLOR = "#1D4ED8";
 
@@ -44,8 +44,8 @@ export const ACCENT_TOKEN_NAMES = [
   "--awkit-accent-rgb",
   // Canvas connector colors that are the primary accent (idle/loop lines + the selected emphasis).
   // The semantic connector colors (failure=red, success=green, warning=amber, parallel=teal) are NOT
-  // here — they must stay semantically distinct. Only overridden for a CUSTOM accent; on reset the
-  // override is removed and the stylesheet's exact default blue returns.
+  // here — they must stay semantically distinct. The same canonical family is derived for the
+  // Component Reference default and any custom accent.
   "--awkit-connector-default",
   "--awkit-connector-loop",
   "--awkit-connector-selected"
@@ -58,7 +58,7 @@ export type AccentTokens = Record<AccentTokenName, string>;
  * Gradient CSS variables set only when a two-color gradient accent is active. They are additive to the
  * solid `ACCENT_TOKEN_NAMES` (which still drive fine controls, focus rings, ports), and are removed when
  * switching back to solid. `--awkit-accent-gradient` is text-safe (readable foreground across all stops);
- * `--awkit-accent-gradient-vivid` is the decorative deep→cyan→deep flow (no text on it).
+ * `--awkit-accent-gradient-vivid` is the decorative indigo→brand→cyan flow (no text on it).
  */
 export const GRADIENT_TOKEN_NAMES = [
   "--awkit-accent-gradient",
@@ -81,8 +81,8 @@ export type AccentMode = "solid" | "gradient";
 export type AccentPreset = "default-purple" | "specter-blue" | "custom";
 
 /**
- * Persisted accent appearance. `primaryColor === null` (solid) means "use the built-in default blue",
- * so a reset removes the override rather than storing a duplicate. In gradient mode both colors are set.
+ * Persisted accent appearance. Legacy solid entries may have `primaryColor === null`; normalization
+ * upgrades those to the built-in Component Reference gradient. In gradient mode both colors are set.
  */
 export interface AccentSettings {
   mode: AccentMode;
@@ -95,19 +95,11 @@ export interface AccentSettings {
 export const DEFAULT_GRADIENT_ANGLE = 135;
 
 /**
- * Built-in "Specter Blue" gradient preset. There is no blue logo asset in the repo to sample (the
- * shipped `specter-logo.svg` is the purple "5b" mark), so these are derived from the brand description:
- * a royal-blue primary flowing through a bright cyan-sky highlight. See docs/ai/DECISIONS.md.
+ * Canonical Component Reference brand endpoints. The indigo start is deterministically derived from
+ * the brand blue in `buildAccentGradient`, so application, preview, and splash never maintain their
+ * own hand-tuned third color.
  */
 export const SPECTER_BLUE = { primary: "#1D4ED8", secondary: "#38BDF8" } as const;
-
-export const DEFAULT_ACCENT_SETTINGS: AccentSettings = {
-  mode: "solid",
-  primaryColor: null,
-  secondaryColor: null,
-  preset: "default-purple",
-  gradientAngle: DEFAULT_GRADIENT_ANGLE
-};
 
 export const SPECTER_BLUE_SETTINGS: AccentSettings = {
   mode: "gradient",
@@ -116,6 +108,9 @@ export const SPECTER_BLUE_SETTINGS: AccentSettings = {
   preset: "specter-blue",
   gradientAngle: DEFAULT_GRADIENT_ANGLE
 };
+
+/** The Component Reference gradient is the persisted fallback for new, legacy, and corrupt settings. */
+export const DEFAULT_ACCENT_SETTINGS: AccentSettings = { ...SPECTER_BLUE_SETTINGS };
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
 const HEX3 = /^#[0-9a-fA-F]{3}$/;
@@ -322,7 +317,7 @@ export interface GradientTokens {
 
 /**
  * Build the gradient CSS values from a primary + secondary base for a theme. The vivid variant carries the
- * full deep→primary→bright-cyan→secondary→deep flow (decorative surfaces, no text). The text-safe
+ * canonical 135° indigo→brand→cyan flow (decorative surfaces, no text). The text-safe
  * `gradient` clamps every stop so `onGradient` (white or near-black, chosen on the worst stop) meets a
  * usable contrast — so button labels never become unreadable no matter which pair the user picks.
  */
@@ -332,11 +327,9 @@ export function buildAccentGradient(primary: string, secondary: string, theme: T
   const a = Number.isFinite(angle) ? (((angle % 360) + 360) % 360) : DEFAULT_GRADIENT_ANGLE;
 
   const deep = darken(p, 0.45);
-  const brightVivid = lighten(s, theme === "dark" ? 0.12 : 0.06);
-  const primaryDeep = darken(p, 0.15);
+  const brightVivid = s;
 
-  const vivid =
-    `linear-gradient(${a}deg, ${deep} 0%, ${p} 20%, ${brightVivid} 42%, ${s} 62%, ${primaryDeep} 82%, ${deep} 100%)`;
+  const vivid = `linear-gradient(${a}deg, ${deep} 0%, ${p} 50%, ${brightVivid} 100%)`;
 
   // Text-safe: the dominant (primary) color decides white vs near-black, then every stop is nudged until
   // it clears the threshold for that foreground — so a royal-blue→cyan pair stays a blue button with white
@@ -346,8 +339,7 @@ export function buildAccentGradient(primary: string, secondary: string, theme: T
   const t0 = makeReadable(deep, foreground, MIN);
   const t1 = makeReadable(p, foreground, MIN);
   const t2 = makeReadable(brightVivid, foreground, MIN);
-  const t3 = makeReadable(s, foreground, MIN);
-  const gradient = `linear-gradient(${a}deg, ${t0} 0%, ${t1} 26%, ${t2} 50%, ${t3} 74%, ${t0} 100%)`;
+  const gradient = `linear-gradient(${a}deg, ${t0} 0%, ${t1} 50%, ${t2} 100%)`;
 
   const soft = `linear-gradient(${a}deg, ${rgba(p, 0.16)} 0%, ${rgba(s, 0.16)} 100%)`;
   const glow = rgba(brightVivid, theme === "dark" ? 0.5 : 0.4);
@@ -384,7 +376,7 @@ function derivePreset(mode: AccentMode, primaryColor: string | null, secondaryCo
  * Sanitize/normalize any stored or partial accent value into a valid `AccentSettings`. Handles the
  * legacy single-color shape (`{ color }`) by migrating it to `{ mode:"solid", primaryColor: color }`.
  * Invalid colors → null, unknown mode/preset → defaults, angle clamped to [0,360). A null primary always
- * collapses to the legacy-named default-purple solid state (so a corrupt/missing value falls back safely).
+ * resolves to the Component Reference default gradient (so missing or legacy-reset values stay branded).
  */
 export function normalizeAccentSettings(input: unknown): AccentSettings {
   const src: Record<string, unknown> = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
@@ -398,7 +390,7 @@ export function normalizeAccentSettings(input: unknown): AccentSettings {
       : DEFAULT_GRADIENT_ANGLE;
 
   if (!primaryColor) {
-    return { ...DEFAULT_ACCENT_SETTINGS, gradientAngle };
+    return { ...DEFAULT_ACCENT_SETTINGS };
   }
   // Gradient needs a valid second color; otherwise fall back to a solid accent of the primary.
   let mode: AccentMode = src.mode === "gradient" && secondaryColor ? "gradient" : "solid";
@@ -406,16 +398,20 @@ export function normalizeAccentSettings(input: unknown): AccentSettings {
   return { mode, primaryColor, secondaryColor, preset, gradientAngle };
 }
 
-/** True when the accent is the built-in default (no override should be applied). */
+/** True when the accent is exactly the built-in Component Reference gradient. */
 export function isDefaultAccent(accent: AccentSettings): boolean {
-  return accent.mode === "solid" && !accent.primaryColor;
+  return (
+    accent.mode === DEFAULT_ACCENT_SETTINGS.mode &&
+    accent.primaryColor === DEFAULT_ACCENT_SETTINGS.primaryColor &&
+    accent.secondaryColor === DEFAULT_ACCENT_SETTINGS.secondaryColor &&
+    accent.gradientAngle === DEFAULT_ACCENT_SETTINGS.gradientAngle
+  );
 }
 
 /**
  * The complete set of accent CSS variables to apply for `accent` in a theme. Always includes the solid
  * tokens (from `primaryColor`, or the default blue) so fine controls stay solid; in gradient mode it
- * also includes the gradient tokens. For the default accent this returns the solid default tokens; the
- * DOM layer clears overrides entirely in that case (see `isDefaultAccent`).
+ * also includes the gradient tokens. The default uses the same model path as a saved custom accent.
  */
 export function deriveAccentTokensFor(accent: AccentSettings, theme: ThemeMode): Record<string, string> {
   const primaryBase = accent.primaryColor ?? DEFAULT_ACCENT_COLOR;
