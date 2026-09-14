@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-xphx",
-      "agent": "Quality Assurance Engineer",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-14T00:19:33.082Z",
-      "note": "write lease: scripts/verify-accent-gui.mjs, scripts/verify-auth-gui.mjs"
+      "claimedAt": "2026-09-14T00:22:14.179Z",
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ACCENT_COLOR.md, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/FEATURES.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-xphx.json, scripts/lib/verifier-classification.ts, tools/roadmap/assignments.json"
     }
   ]
 }

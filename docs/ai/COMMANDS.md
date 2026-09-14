@@ -655,8 +655,8 @@ npm run benchmark:oracle-jdbc            # direct-JDBC soak (≥30 min): latency
 
 ## Assets
 ```bash
-npm run icon:generate    # node scripts/generate-app-icon.mjs — renders app/renderer/assets/brand/awkit-app-icon.svg and rewrites resources/icon-source.png, icon.ico (7 PNG frames 256-16) and icon.png (1024); owner-run, no agent role may run it
-npm run verify:app-icon  # node scripts/verify-app-icon.mjs — read-only pixel comparison of icon-source.png, icon.png and every ICO frame with the SVG render (+ #7c3aed brick); 29/29 when the icons are current, exit 0 from icon:generate is not evidence
+npm run icon:generate    # node scripts/generate-app-icon.mjs — renders app/renderer/assets/brand/awkit-app-icon.svg and rewrites resources/icon-source.png, icon.ico (7 PNG frames 256-16) and icon.png (1024); only an active release lease may invoke this exact command. Every non-release, no-lease, or argument-bearing variant remains denied.
+npm run verify:app-icon  # node scripts/verify-app-icon.mjs — read-only pixel comparison of icon-source.png, icon.png and every ICO frame with the SVG render (+ #1d4ed8 brick); 29/29 when the icons are current, exit 0 from icon:generate is not evidence
 ```
 
 npm run verify:recorder-action-owner # tsx scripts/verify-recorder-action-owner.mts — real Chromium capture from nested custom-icon leaves to semantic action owners, conservative custom-element fallback, duplicate-owner review, flow JSON round-trip, and StepExecutor replay (11/11)

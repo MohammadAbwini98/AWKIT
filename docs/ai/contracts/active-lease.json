@@ -1,22 +1,32 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-accent-gui.mjs",
-    "scripts/verify-auth-gui.mjs"
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ACCENT_COLOR.md",
+    "docs/ai/COMMANDS.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/awkit-xphx.json",
+    "scripts/lib/verifier-classification.ts",
+    "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-14T00:19:33.082Z",
-  "acquired_at_commit": "c33e002939d08be0031f4d6ff4c4444e9c053f94",
+  "acquired_at": "2026-09-14T00:22:14.179Z",
+  "acquired_at_commit": "9e2db9ea3b440c5e8aab7f3c85ee5bfeebdc911b",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "e59092f685dcc314c09f52d00c02f00014bc8325f45fb55e72f068cffee37124",
-    "docs/ai/contracts/awkit-xphx.json": "4729eed73a5da5285ae9bb11bd5c90eb8418216daf661d29a99d771d6cf2e4b4",
+    "docs/ai/contracts/active-lease.json": "d029c6bab23cb7b9593a4d3736c04327a4110819f96a5529d88145d25f376093",
+    "docs/ai/contracts/awkit-xphx.json": "4a8c0c589442b321f21011cced8804b14045ff09e83cf5c2daf2ef609d1c3da1",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -31,11 +41,29 @@
   },
   "amendments": [
     {
-      "timestamp": "2026-09-14T00:20:07.975Z",
+      "timestamp": "2026-09-14T00:22:45.069Z",
       "added": [
-        "scripts/verify-auth-gui.mjs"
+        "docs/ai/COMMANDS.md",
+        "scripts/lib/verifier-classification.ts"
       ],
-      "reason": "Independent QC requires a dark-mode blue edge and connector regression alongside the light reset check",
+      "reason": "Correct the release-only icon command and blue verifier descriptions identified by independent QC",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    },
+    {
+      "timestamp": "2026-09-14T00:23:46.076Z",
+      "added": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ACCENT_COLOR.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "tools/roadmap/assignments.json"
+      ],
+      "reason": "Reconcile the completed task state, Bead export, authoritative AI memory, and terminal evidence after independent QC",
       "triggered_escalation": [],
       "approved_by": "manager"
     }
