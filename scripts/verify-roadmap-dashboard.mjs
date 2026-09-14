@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("290 issues parse", beads.stats.total === 290, `got ${beads.stats.total}`);
+  check("291 issues parse", beads.stats.total === 291, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -572,8 +572,11 @@ try {
   // Then 2/288 of 290 on 2026-09-14: `awkit-btcx` superseded that reduced-motion default so the
   // owner-requested decorative Login demo autoplays and exposes an always-visible pause control.
   // No dependency edge was added, so the two external Oracle items remain the only outstanding work.
-    "2 outstanding / 288 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 288,
+  // Then 2/289 of 291 on 2026-09-14: `awkit-uiaa` closed after canonical post-insertion canvas
+  // arrangement, Sessions table containment, and shared Reference Blue splash/application accents.
+  // No dependency edge was added, so the two external Oracle items remain the only outstanding work.
+    "2 outstanding / 289 closed",
+    beads.stats.outstanding === 2 && beads.stats.closed === 289,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
