@@ -1223,6 +1223,21 @@ textarea {
   padding: var(--space-2) var(--space-3);
 }
 
+/* Containment baseline: controls must be allowed to shrink in flex/grid layouts, and long
+   unbroken labels must wrap inside their available column instead of widening the app shell. */
+input,
+select,
+textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .inline-check {
   align-items: center;
   display: flex;
@@ -2435,6 +2450,8 @@ th,
 td {
   border-bottom: 1px solid var(--awkit-surface-inset);
   font-size: var(--text-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 12px;
   text-align: left;
 }
@@ -2465,12 +2482,6 @@ th {
 
 .instance-table {
   min-width: 1260px;
-}
-
-.instance-table,
-table {
-  display: block;
-  overflow-x: auto;
 }
 
 .instance-dashboard {
