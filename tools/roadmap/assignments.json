@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-xphx",
-      "agent": "React / Renderer Engineer",
+      "agent": "General Software Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-13T23:58:18.949Z",
-      "note": "write lease: app/renderer/assets/brand/awkit-app-icon.svg, app/renderer/security/LockedShell.tsx, app/renderer/styles/global.css"
+      "claimedAt": "2026-09-14T00:03:41.213Z",
+      "note": "write lease: src/theme/accentColor.ts"
     }
   ]
 }

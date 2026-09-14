@@ -13,11 +13,11 @@
 // through them, so status colors (success/warning/error) are never affected.
 
 /**
- * Canonical default application accent — the Hologram violet used as `--awkit-accent` in the light
+ * Canonical default application accent — the reference blue used as `--awkit-accent` in the light
  * theme (app/renderer/styles/global.css). A stored `accent.color === null` means "use this default",
  * so a Reset removes the override rather than duplicating this value.
  */
-export const DEFAULT_ACCENT_COLOR = "#7C3AED";
+export const DEFAULT_ACCENT_COLOR = "#1D4ED8";
 
 export type ThemeMode = "light" | "dark";
 
@@ -45,7 +45,7 @@ export const ACCENT_TOKEN_NAMES = [
   // Canvas connector colors that are the primary accent (idle/loop lines + the selected emphasis).
   // The semantic connector colors (failure=red, success=green, warning=amber, parallel=teal) are NOT
   // here — they must stay semantically distinct. Only overridden for a CUSTOM accent; on reset the
-  // override is removed and the stylesheet's exact default violet returns.
+  // override is removed and the stylesheet's exact default blue returns.
   "--awkit-connector-default",
   "--awkit-connector-loop",
   "--awkit-connector-selected"
@@ -81,7 +81,7 @@ export type AccentMode = "solid" | "gradient";
 export type AccentPreset = "default-purple" | "specter-blue" | "custom";
 
 /**
- * Persisted accent appearance. `primaryColor === null` (solid) means "use the built-in default purple",
+ * Persisted accent appearance. `primaryColor === null` (solid) means "use the built-in default blue",
  * so a reset removes the override rather than storing a duplicate. In gradient mode both colors are set.
  */
 export interface AccentSettings {
@@ -384,7 +384,7 @@ function derivePreset(mode: AccentMode, primaryColor: string | null, secondaryCo
  * Sanitize/normalize any stored or partial accent value into a valid `AccentSettings`. Handles the
  * legacy single-color shape (`{ color }`) by migrating it to `{ mode:"solid", primaryColor: color }`.
  * Invalid colors → null, unknown mode/preset → defaults, angle clamped to [0,360). A null primary always
- * collapses to the default-purple solid state (so a corrupt/missing value falls back safely).
+ * collapses to the legacy-named default-purple solid state (so a corrupt/missing value falls back safely).
  */
 export function normalizeAccentSettings(input: unknown): AccentSettings {
   const src: Record<string, unknown> = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
@@ -413,7 +413,7 @@ export function isDefaultAccent(accent: AccentSettings): boolean {
 
 /**
  * The complete set of accent CSS variables to apply for `accent` in a theme. Always includes the solid
- * tokens (from `primaryColor`, or the default purple) so fine controls stay solid; in gradient mode it
+ * tokens (from `primaryColor`, or the default blue) so fine controls stay solid; in gradient mode it
  * also includes the gradient tokens. For the default accent this returns the solid default tokens; the
  * DOM layer clears overrides entirely in that case (see `isDefaultAccent`).
  */

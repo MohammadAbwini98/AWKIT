@@ -76,11 +76,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "frontend",
+      "agent_id": "software",
       "allowed_paths": [
-        "app/renderer/assets/brand/awkit-app-icon.svg",
-        "app/renderer/security/LockedShell.tsx",
-        "app/renderer/styles/global.css"
+        "src/theme/accentColor.ts"
       ]
     },
     "writer_sequence": [
@@ -349,6 +347,24 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:frontend:2026-09-13T23:58:18.949Z",
+        "task": "awkit-xphx",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/assets/brand/awkit-app-icon.svg",
+          "app/renderer/security/LockedShell.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-13T23:58:18.949Z",
+        "acquired_at_commit": "6598ac5a3696f1378c9dbe0d8de6e8e10c1f5a17",
+        "released_at": "2026-09-14T00:03:41.154Z",
+        "released_reason": "handoff to software: Align the persisted default accent model with the requested reference blue",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }
