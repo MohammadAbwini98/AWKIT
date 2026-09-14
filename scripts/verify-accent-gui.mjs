@@ -1,14 +1,14 @@
 // Real-Electron end-to-end check for the user-selectable accent (Appearance → Accent Color): solid AND
 // two-color gradient. Drives the actual app through the SecurityGate against an ISOLATED, empty
 // %LOCALAPPDATA%:
-//   • default accent is the reference blue (solid) on a clean profile;
+//   • default accent is the Component Reference 135° indigo → blue → cyan gradient on a clean profile;
 //   • a solid custom accent recolors the whole app (+ a real primary button + canvas connector), status
 //     colors intact, and persists to the store AND ui-settings.json;
 //   • a two-color GRADIENT accent sets data-accent-mode="gradient", gradients the primary buttons, and
 //     keeps fine controls (--awkit-accent) solid; status colors intact;
-//   • the built-in Specter Blue preset applies its documented royal-blue → cyan pair;
+//   • the Reference Blue preset applies the same canonical application gradient;
 //   • Flow Designer + the login screen honor it; the canvas keeps its nodes;
-//   • a reload restores it before sign-in (no flash); Reset restores the solid reference blue.
+//   • a reload restores it before sign-in (no flash); Reset restores the reference gradient in light and dark.
 // Also writes the deliverable screenshots to the directory passed as argv[2] (default: a temp dir).
 //
 // Run: node scripts/verify-accent-gui.mjs [screenshotDir]   (after `npm run build`)
@@ -56,6 +56,7 @@ const isLightDefaultCanvasAccent = (tokens) =>
   tokens["--awkit-connector-default"] === "#1d4ed8" &&
   tokens["--awkit-connector-selected"] === "#1e40af" &&
   tokens["--awkit-connector-loop"] === "#1d4ed8";
+const splashSource = readFileSync(path.join(root, "app/renderer", "splash.html"), "utf8");
 
 async function navTo(win, label) {
   await win.evaluate((lbl) => {
@@ -123,9 +124,20 @@ await win.waitForLoadState("domcontentloaded");
 await signInFirstRun(win);
 await win.waitForTimeout(300);
 
-// 1. Clean profile → default blue, solid.
+// 1. Clean profile → Component Reference blue gradient.
 check("default accent is blue #1d4ed8", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
-check("default accent mode is solid", (await readMode(win)) === "solid");
+check("default accent mode is the reference gradient", (await readMode(win)) === "gradient");
+const defaultVividGradient = await readVar(win, "--awkit-accent-gradient-vivid");
+check(
+  "default vivid gradient is 135° indigo → brand → cyan",
+  defaultVividGradient.includes("135deg") && defaultVividGradient.includes("#1D4ED8") && defaultVividGradient.includes("#38BDF8"),
+  defaultVividGradient
+);
+check(
+  "splash imports the canonical accent model and contains no violet fallback",
+  splashSource.includes('import { SPECTER_BLUE, buildAccentGradient } from "/src/theme/accentColor.ts"') && !/a78bfa|124,58,237/i.test(splashSource),
+  "app/renderer/splash.html"
+);
 const defaultCanvasAccent = await readDefaultCanvasAccentTokens(win);
 check("default blue also reaches the light canvas edge and connector tokens", isLightDefaultCanvasAccent(defaultCanvasAccent), JSON.stringify(defaultCanvasAccent));
 
@@ -134,10 +146,11 @@ await navTo(win, "Settings");
 await win.getByRole("heading", { name: "Appearance — Accent Color" }).first().waitFor({ timeout: 10000 }).catch(() => {});
 check("Accent Color card renders", (await win.getByRole("heading", { name: "Appearance — Accent Color" }).count()) >= 1);
 check("style segmented control renders", (await win.locator(".accent-seg").count()) >= 1);
-check("preset row renders", (await win.locator(".accent-preset").count()) >= 3);
-await shot(win, "01-settings-default-blue.png");
+check("reference preset renders", (await win.getByRole("button", { name: "Reference Blue" }).count()) === 1);
+await shot(win, "01-settings-reference-blue.png");
 
 // 3. Solid custom accent through the UI.
+await win.locator(".accent-seg").getByRole("button", { name: "Solid" }).click();
 await win.locator('input[aria-label="Primary color hex value"]').fill(CUSTOM);
 await applyDraft(win);
 check("solid custom applied to :root", norm(await readAccentVar(win)) === norm(CUSTOM), await readAccentVar(win));
@@ -169,14 +182,14 @@ stored = await getAccent(win);
 check("store persisted the gradient pair", stored.mode === "gradient" && norm(stored.primaryColor) === norm(GRAD_PRIMARY) && norm(stored.secondaryColor) === norm(GRAD_SECONDARY), JSON.stringify(stored));
 await shot(win, "03-settings-gradient-custom.png");
 
-// 5. Specter Blue preset.
-await win.getByRole("button", { name: "Specter Blue" }).click();
+// 5. Component Reference Blue preset.
+await win.getByRole("button", { name: "Reference Blue" }).click();
 await win.waitForTimeout(150);
 await applyDraft(win);
 stored = await getAccent(win);
-check("Specter Blue preset persists documented royal→cyan pair", stored.mode === "gradient" && norm(stored.primaryColor) === norm(SPECTER.primary) && norm(stored.secondaryColor) === norm(SPECTER.secondary) && stored.preset === "specter-blue", JSON.stringify(stored));
-check("Specter Blue keeps data-accent-mode=gradient", (await readMode(win)) === "gradient");
-await shot(win, "04-settings-specter-blue.png");
+check("Reference Blue persists canonical brand→cyan pair", stored.mode === "gradient" && norm(stored.primaryColor) === norm(SPECTER.primary) && norm(stored.secondaryColor) === norm(SPECTER.secondary) && stored.preset === "specter-blue", JSON.stringify(stored));
+check("Reference Blue keeps data-accent-mode=gradient", (await readMode(win)) === "gradient");
+await shot(win, "04-settings-reference-blue.png");
 
 // 6. Flow Designer honors the gradient + keeps its nodes (no graph reset).
 await navTo(win, "Flow Designer");
@@ -202,25 +215,36 @@ await win.waitForTimeout(400);
 stored = await getAccent(win);
 check("gradient survives the reload via the store", stored.mode === "gradient" && stored.preset === "specter-blue", JSON.stringify(stored));
 
-// 9. Reset to the default → solid reference blue.
+// 9. Reset to the Component Reference gradient, then prove it in dark mode too.
 await navTo(win, "Settings");
 await win.getByRole("heading", { name: "Appearance — Accent Color" }).first().waitFor({ timeout: 10000 }).catch(() => {});
 await win.getByRole("button", { name: "Reset to Default Blue" }).click();
 await applyDraft(win);
 check("reset restores default blue (:root)", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
-check("reset restores solid mode", (await readMode(win)) === "solid");
+check("reset restores reference gradient mode", (await readMode(win)) === "gradient");
 const resetCanvasAccent = await readDefaultCanvasAccentTokens(win);
 check("reset restores the light canvas edge and connector token map", isLightDefaultCanvasAccent(resetCanvasAccent), JSON.stringify(resetCanvasAccent));
 stored = await getAccent(win);
-check("reset persists solid default (primaryColor null)", stored.mode === "solid" && stored.primaryColor === null, JSON.stringify(stored));
-await shot(win, "07-settings-reset-default.png");
+check("reset persists the reference gradient", stored.mode === "gradient" && norm(stored.primaryColor) === norm(SPECTER.primary) && norm(stored.secondaryColor) === norm(SPECTER.secondary), JSON.stringify(stored));
+await shot(win, "07-settings-reset-reference-blue.png");
+
+await win.locator(".settings-appearance-row select").selectOption("dark");
+await win.waitForTimeout(300);
+const darkReferenceButton = await win.locator(".settings-toolbar .toolbar-button.primary").first().evaluate((el) => ({
+  backgroundImage: getComputedStyle(el).backgroundImage,
+  contrast: getComputedStyle(document.documentElement).getPropertyValue("--awkit-accent-contrast").trim()
+})).catch(() => ({ backgroundImage: "", contrast: "" }));
+check("dark mode retains the reference gradient and visible contrast", (await readMode(win)) === "gradient" && darkReferenceButton.backgroundImage.includes("gradient") && norm(darkReferenceButton.contrast) === "#ffffff", JSON.stringify(darkReferenceButton));
+await shot(win, "08-settings-reference-blue-dark.png");
+await win.locator(".settings-appearance-row select").selectOption("light");
+await win.waitForTimeout(200);
 
 check("no renderer console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 await app.close();
 
 // 10. Reset persisted to disk.
 const disk = readOnDiskAccent(dataRoot);
-check("ui-settings.json reset to solid default on disk", disk && disk.mode === "solid" && disk.primaryColor === null, JSON.stringify(disk));
+check("ui-settings.json reset to reference gradient on disk", disk && disk.mode === "gradient" && norm(disk.primaryColor) === norm(SPECTER.primary) && norm(disk.secondaryColor) === norm(SPECTER.secondary), JSON.stringify(disk));
 
 cleanup();
 

@@ -27,6 +27,7 @@ import {
   withAutoLayout,
   type LayoutPosition
 } from "../app/renderer/components/shared/graphLayout";
+import { readFileSync } from "node:fs";
 
 let passed = 0;
 let failed = 0;
@@ -48,7 +49,7 @@ const H = 96;
 interface TestNode {
   id: string;
   position: LayoutPosition;
-  data?: { width?: number; height?: number };
+  data?: { width?: number; height?: number; [key: string]: unknown };
 }
 
 const node = (id: string, x = 0, y = 0, dims = true): TestNode => ({
@@ -84,6 +85,77 @@ function firstOverlap(pos: Map<string, LayoutPosition>): string | null {
 }
 
 const json = (v: unknown) => JSON.stringify(v);
+
+// ── New-node insertion contract ─────────────────────────────────────────────
+console.log("\nNew-node insertion uses the updated canonical graph:");
+{
+  const startData = { width: W, height: H, kind: "start", nestedWorkflow: { id: "nested-start" } };
+  const existingData = { width: W, height: H, kind: "action", locator: { role: "button", name: "Continue" } };
+  const endData = { width: W, height: H, kind: "end" };
+  const base = [
+    { id: "start", position: { x: 40, y: 40 }, data: startData },
+    { id: "existing", position: { x: 40, y: 220 }, data: existingData },
+    { id: "end", position: { x: 40, y: 400 }, data: endData }
+  ];
+  const originalEdges = [
+    { id: "start-existing", source: "start", target: "existing", data: { linkType: "always" } },
+    { id: "existing-end", source: "existing", target: "end", data: { linkType: "success", conditional: { priority: 0 } } },
+    { id: "existing-loop", source: "existing", target: "existing", data: { linkType: "loop", maxLoopCount: 3 } }
+  ];
+  const firstInserted = { id: "first-new", position: { x: 320, y: 220 }, data: { width: W, height: H, kind: "click", locator: { testId: "add" } } };
+  const firstEdges = [
+    ...originalEdges.filter((edge) => edge.id !== "existing-end"),
+    { id: "existing-first", source: "existing", target: "first-new", data: { linkType: "success", label: "next" } },
+    { id: "first-end", source: "first-new", target: "end", data: { linkType: "success" } }
+  ];
+  const first = withAutoLayout([...base, firstInserted], firstEdges, { direction: "TB", force: true });
+  const secondInserted = { id: "second-new", position: { x: 640, y: 220 }, data: { width: W, height: H, kind: "condition", nestedWorkflow: { id: "child" } } };
+  const secondEdges = [...firstEdges, { id: "first-second", source: "first-new", target: "second-new", data: { linkType: "conditional", label: "If true" } }];
+  const second = withAutoLayout([...first, secondInserted], secondEdges, { direction: "TB", force: true });
+  const secondRepeat = withAutoLayout([...first, secondInserted], secondEdges, { direction: "TB", force: true });
+  const byId = new Map(second.map((item) => [item.id, item]));
+
+  check("new-node layout receives every pre-existing and inserted node", second.length === 5 && byId.size === 5, json(second.map((item) => item.id)));
+  check(
+    "new-node layout preserves existing node metadata by identity",
+    byId.get("start")?.data === startData && byId.get("existing")?.data === existingData && byId.get("end")?.data === endData,
+    json([...byId.entries()].map(([id, item]) => [id, item.data]))
+  );
+  check(
+    "new-node layout preserves unaffected branch and loop edge records",
+    firstEdges.some((edge) => edge.id === "start-existing" && edge.data.linkType === "always") &&
+      firstEdges.some((edge) => edge.id === "existing-loop" && edge.data.linkType === "loop" && edge.data.maxLoopCount === 3),
+    json(firstEdges)
+  );
+  check("sequential inserted nodes receive a non-overlapping layout", firstOverlap(new Map(second.map((item) => [item.id, item.position]))) === null);
+  check("sequential insertion layout is deterministic", json(second.map((item) => item.position)) === json(secondRepeat.map((item) => item.position)));
+
+  const components = [
+    ["Flow Designer", "../app/renderer/pages/FlowChartDesigner.tsx", "insertAndArrangeNodes", "const loadProfile"],
+    ["Workflow Builder", "../app/renderer/pages/ScenarioBuilder.tsx", "insertAndArrangeFlows", "const loadWorkflowProfile"]
+  ] as const;
+  for (const [name, relativePath, insertionHelper, loadMarker] of components) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    const helperStart = source.indexOf(`const ${insertionHelper}`);
+    const helperEnd = source.indexOf("\n  );", helperStart) + "\n  );".length;
+    const helper = source.slice(helperStart, helperEnd);
+    const loadStart = source.indexOf(loadMarker);
+    const loadEnd = source.indexOf("\n  const ", loadStart + loadMarker.length);
+    const moveStart = source.indexOf("const handleNodePositionChange");
+    const moveEnd = source.indexOf("const handleMoveEnd", moveStart) > moveStart
+      ? source.indexOf("const handleMoveEnd", moveStart)
+      : source.indexOf("const handleNodeConnect", moveStart);
+    const move = source.slice(moveStart, moveEnd);
+
+    check(
+      `${name}: insertion helper invokes canonical layout with live updated nodes and edges`,
+      helper.includes("withAutoLayout([...nodesLiveRef.current, ...insertedNodes], nextEdges") && helper.includes("force: true"),
+      helper
+    );
+    check(`${name}: loading does not invoke the new-node insertion helper`, !source.slice(loadStart, loadEnd).includes(insertionHelper));
+    check(`${name}: moving an existing node does not invoke the new-node insertion helper`, !move.includes(insertionHelper));
+  }
+}
 
 // ── FR-3.1 / FR-3.5: when does layout run at all? ────────────────────────────
 console.log("\npositionsNeedLayout — the load-time gate:");

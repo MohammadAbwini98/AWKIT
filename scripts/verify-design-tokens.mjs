@@ -20,6 +20,8 @@ import path from "node:path";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const evidenceDir = path.join(root, "test-artifacts", "design-tokens");
+mkdirSync(evidenceDir, { recursive: true });
 const results = [];
 function check(name, pass, detail) {
   results.push({ name, pass: Boolean(pass), detail: detail ? String(detail) : "" });
@@ -176,11 +178,16 @@ for (const token of ["--awkit-danger-rgb", "--awkit-success-rgb", "--awkit-accen
 const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-design-tokens");
 const userDataDir = path.join(dataRoot, "Roaming", "SpecterStudio");
 
-// Seed one READY session profile so the Sessions page renders a real status pill. The profile
-// directory must exist or SessionCaptureService flips the status to "error" on list().
+// Seed READY and Capturing session profiles so this exercises the real table under the exact
+// regression conditions: an animated status pill and a deliberately long unbroken Google-style URL.
+// Profile directories must exist or SessionCaptureService flips the status to "error" on list().
 const profilesRoot = path.join(dataRoot, "SpecterStudio", "profiles");
 const profileDir = path.join(profilesRoot, "verify-seed-profile");
+const captureProfileDir = path.join(profilesRoot, "verify-capturing-profile");
 mkdirSync(path.join(profileDir, "Default"), { recursive: true });
+mkdirSync(path.join(captureProfileDir, "Default"), { recursive: true });
+const longTargetUrl = `https://www.google.com/search?q=${"specterstudio+session+layout+".repeat(20)}&source=awkit&safe=active`;
+const longOrigin = "https://accounts.google.com";
 writeFileSync(
   path.join(profilesRoot, "session-profiles.json"),
   JSON.stringify([
@@ -193,6 +200,17 @@ writeFileSync(
       source: "manual",
       createdAt: new Date().toISOString(),
       status: "ready"
+    },
+    {
+      id: "verify-capturing-profile",
+      name: "Capturing Google Workspace session with a deliberately long descriptive name",
+      profileDir: captureProfileDir,
+      targetUrl: longTargetUrl,
+      origin: longOrigin,
+      source: "autoSecureLogin",
+      createdAt: new Date(Date.now() + 1).toISOString(),
+      browserPath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      status: "capturing"
     }
   ], null, 2),
   "utf8"
@@ -251,6 +269,87 @@ try {
   check("live: session status pill background paints (soft status fill)", bgAlpha > 0, pillPaint.bg);
   check("live: session status pill border paints (muted status border)", !/rgba\(0, 0, 0, 0\)/.test(pillPaint.border), pillPaint.border);
 
+  const capturingRow = win.locator(".sessions-table tbody tr", { hasText: "Capturing…" }).first();
+  await capturingRow.waitFor({ timeout: 15000 });
+  const sessionContainment = await capturingRow.evaluate((row) => {
+    const cell = (selector) => row.querySelector(selector);
+    const statusCell = cell(".sessions-status-cell");
+    const statusPill = cell(".sessions-status-cell .state-pill");
+    const nameCell = cell(".sessions-name-cell");
+    const targetCell = cell(".sessions-target-cell");
+    const target = cell(".sessions-target-url");
+    const origin = cell(".sessions-target-origin");
+    const actions = cell(".sessions-actions-cell");
+    const rect = (element) => element?.getBoundingClientRect();
+    const statusRect = rect(statusPill);
+    const statusCellRect = rect(statusCell);
+    const nameRect = rect(nameCell);
+    const targetRect = rect(target);
+    const targetCellRect = rect(targetCell);
+    const originRect = rect(origin);
+    const actionsRect = rect(actions);
+    const tableRect = rect(row.closest("table"));
+    const statusStyle = statusPill ? getComputedStyle(statusPill) : null;
+    return {
+      statusText: statusPill?.textContent?.trim(),
+      statusTitle: statusPill?.getAttribute("title"),
+      statusContained: Boolean(statusRect && statusCellRect && statusRect.right <= statusCellRect.right + 1),
+      statusClearsName: Boolean(statusRect && nameRect && statusRect.right <= nameRect.left + 1),
+      statusStyle: statusStyle ? { maxWidth: statusStyle.maxWidth, overflow: statusStyle.overflow, textOverflow: statusStyle.textOverflow } : null,
+      targetTitle: target?.getAttribute("title"),
+      targetContained: Boolean(targetRect && targetCellRect && targetRect.right <= targetCellRect.right + 1),
+      targetTruncated: Boolean(target && target.scrollWidth > target.clientWidth),
+      originTitle: origin?.getAttribute("title"),
+      originContained: Boolean(originRect && targetCellRect && originRect.right <= targetCellRect.right + 1),
+      originTruncated: Boolean(origin && origin.scrollWidth > origin.clientWidth),
+      actionsContained: Boolean(actionsRect && tableRect && actionsRect.right <= tableRect.right + 1),
+      rowHeight: row.getBoundingClientRect().height
+    };
+  });
+  check(
+    "live: Capturing… stays inside Status and clears Name",
+    sessionContainment.statusText === "Capturing…" && sessionContainment.statusContained && sessionContainment.statusClearsName,
+    JSON.stringify(sessionContainment)
+  );
+  check(
+    "live: status pills constrain future longer labels instead of crossing a cell boundary",
+    sessionContainment.statusStyle?.maxWidth === "100%" && sessionContainment.statusStyle?.overflow === "hidden" && sessionContainment.statusStyle?.textOverflow === "ellipsis",
+    JSON.stringify(sessionContainment.statusStyle)
+  );
+  check(
+    "live: full long target URL and origin remain available through titles while their cells clip",
+    sessionContainment.targetTitle === longTargetUrl && sessionContainment.originTitle === `origin: ${longOrigin}` && sessionContainment.targetContained && sessionContainment.originContained && sessionContainment.targetTruncated && sessionContainment.originTruncated,
+    JSON.stringify(sessionContainment)
+  );
+  check(
+    "live: Actions stays inside the table and the long-URL row remains compact",
+    sessionContainment.actionsContained && sessionContainment.rowHeight < 90,
+    JSON.stringify(sessionContainment)
+  );
+
+  await win.setViewportSize({ width: 800, height: 760 });
+  await win.waitForTimeout(200);
+  const responsiveTable = await win.locator(".wl-table-wrapper").evaluate((wrapper) => {
+    const table = wrapper.querySelector(".sessions-table");
+    return {
+      scrolls: wrapper.scrollWidth > wrapper.clientWidth,
+      layout: table ? getComputedStyle(table).tableLayout : "",
+      statusWithinName: (() => {
+        const row = table?.querySelector("tbody tr");
+        const pill = row?.querySelector(".sessions-status-cell .state-pill");
+        const name = row?.querySelector(".sessions-name-cell");
+        return Boolean(pill && name && pill.getBoundingClientRect().right <= name.getBoundingClientRect().left + 1);
+      })()
+    };
+  });
+  check(
+    "live: narrow Sessions layout scrolls deliberately instead of allowing cell overlap",
+    responsiveTable.scrolls && responsiveTable.layout === "fixed" && responsiveTable.statusWithinName,
+    JSON.stringify(responsiveTable)
+  );
+  await win.screenshot({ path: path.join(evidenceDir, "sessions-overflow-light.png") });
+  await win.setViewportSize({ width: 1280, height: 800 });
+
   // B3. Switch appearance to dark via the real Settings control, then re-prove the same spine.
   await navTo("Settings");
   await win.waitForSelector(".settings-appearance-row select", { timeout: 15000 });
@@ -292,6 +391,7 @@ try {
   const darkAlphaMatch = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\)/.exec(pillDark);
   const darkAlpha = darkAlphaMatch ? (darkAlphaMatch[1] === undefined ? 1 : parseFloat(darkAlphaMatch[1])) : 0;
   check("live: session status pill background paints in dark theme", darkAlpha > 0, pillDark);
+  await win.screenshot({ path: path.join(evidenceDir, "sessions-overflow-dark.png") });
 
   check("live: no renderer console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 
@@ -311,7 +411,5 @@ try {
 const pass = results.filter((r) => r.pass).length;
 const fail = results.length - pass;
 console.log(`\nDesign-system tokens: ${pass}/${results.length} checks passed${fail ? ` — ${fail} FAILED` : ""}`);
-const evidenceDir = path.join(root, "test-artifacts", "design-tokens");
-mkdirSync(evidenceDir, { recursive: true });
 writeFileSync(path.join(evidenceDir, "results.json"), JSON.stringify({ pass, fail, results }, null, 2));
 if (fail) process.exit(1);

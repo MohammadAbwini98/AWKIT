@@ -32,6 +32,14 @@ function check(name: string, pass: boolean, detail?: string) {
 
 // ── 1. Validation & normalization ────────────────────────────────────────────
 check("default constant is #1D4ED8", DEFAULT_ACCENT_COLOR === "#1D4ED8", DEFAULT_ACCENT_COLOR);
+check(
+  "Component Reference default is the 135° Specter Blue gradient",
+  DEFAULT_ACCENT_SETTINGS.mode === "gradient" &&
+    DEFAULT_ACCENT_SETTINGS.primaryColor === SPECTER_BLUE.primary &&
+    DEFAULT_ACCENT_SETTINGS.secondaryColor === SPECTER_BLUE.secondary &&
+    DEFAULT_ACCENT_SETTINGS.gradientAngle === 135,
+  JSON.stringify(DEFAULT_ACCENT_SETTINGS)
+);
 check("accepts #RRGGBB", isValidAccentColor("#7C3AED"));
 check("accepts bare RRGGBB", isValidAccentColor("7c3aed"));
 check("accepts #RGB shorthand", isValidAccentColor("#abc"));
@@ -181,6 +189,11 @@ check("foreground on a very dark accent is white", pickAccentForeground("#101033
   const g = buildAccentGradient(SPECTER_BLUE.primary, SPECTER_BLUE.secondary, "light", 135);
   check("gradient (text-safe) differs from vivid", g.gradient !== g.vivid);
   check("vivid gradient contains the angle", g.vivid.includes("135deg"));
+  check(
+    "vivid gradient preserves indigo → brand → cyan roles without a return loop",
+    g.vivid === `linear-gradient(135deg, ${g.deep} 0%, ${SPECTER_BLUE.primary} 50%, ${SPECTER_BLUE.secondary} 100%)`,
+    g.vivid
+  );
   check("deep stop is darker than primary", relativeLuminance(hexToRgb(g.deep)) < relativeLuminance(hexToRgb(SPECTER_BLUE.primary)));
   check("Specter Blue on-gradient is white (blue primary)", g.onGradient === "#FFFFFF", g.onGradient);
   check("deep-rgb is a triplet", /^\d{1,3}, \d{1,3}, \d{1,3}$/.test(g.deepRgb));
