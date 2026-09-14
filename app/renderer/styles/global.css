@@ -12241,13 +12241,27 @@ th {
 .awkit-account-menu-item:hover { background: var(--awkit-surface-inset); }
 .awkit-account-menu-item:focus-visible { outline: none; box-shadow: var(--awkit-focus-ring); }
 
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-spot,
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-scanline,
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step.is-active .awkit-login-run-step-dot,
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step.is-complete .awkit-login-run-step-dot {
+  animation: none;
+}
+
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step-dot,
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step-line,
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step-card,
+.awkit-login-run-panel[data-motion="paused"] .awkit-login-run-progress span {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .awkit-login-screen,
   .awkit-login-spin,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-spot,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-scanline,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-step.is-active .awkit-login-run-step-dot,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-step.is-complete .awkit-login-run-step-dot {
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-spot,
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-scanline,
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step.is-active .awkit-login-run-step-dot,
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step.is-complete .awkit-login-run-step-dot {
     animation: none;
   }
 
@@ -12256,10 +12270,10 @@ th {
   .awkit-login-tab,
   .toolbar-button.primary.awkit-login-submit,
   .awkit-password-strength-bars > span,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-step-dot,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-step-line,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-step-card,
-  .awkit-login-run-panel[data-motion="reduced"] .awkit-login-run-progress span {
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step-dot,
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step-line,
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-step-card,
+  .awkit-login-run-panel[data-motion="paused"] .awkit-login-run-progress span {
     transition: none;
   }
 
