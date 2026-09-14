@@ -78,10 +78,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "frontend",
       "allowed_paths": [
-        "docs/ACCENT_COLOR.md",
-        "docs/ai/contracts/awkit-xphx.json"
+        "app/renderer/styles/global.css"
       ]
     },
     "writer_sequence": [
@@ -488,6 +487,33 @@
         "released_at": "2026-09-14T00:15:01.334Z",
         "released_reason": "handoff to project-state: Expand authoritative documentation scope before recording the completed blue-default behavior and verification evidence",
         "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:project-state:2026-09-14T00:15:01.394Z",
+        "task": "awkit-xphx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ACCENT_COLOR.md",
+          "docs/ai/contracts/awkit-xphx.json"
+        ],
+        "acquired_at": "2026-09-14T00:15:01.394Z",
+        "acquired_at_commit": "0649555ccf5d681e71d06f1b721eaecf8bb119ba",
+        "released_at": "2026-09-14T00:18:41.841Z",
+        "released_reason": "handoff to frontend: Correct the remaining dark default accent edge tokens identified by independent QC",
+        "amendments": [
+          {
+            "timestamp": "2026-09-14T00:15:15.568Z",
+            "added": [
+              "docs/ACCENT_COLOR.md"
+            ],
+            "reason": "Update the authoritative accent behavior guide for the new default blue",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
         "overrides": [],
         "violations": []
       }

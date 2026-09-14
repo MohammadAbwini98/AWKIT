@@ -341,9 +341,9 @@ body {
   --awkit-canvas-bg: var(--awkit-bg-canvas);
   --awkit-canvas-dot: #2c3140;
   --awkit-node-selected-bg: var(--awkit-lavender-soft);
-  /* edge strokes — dark values from the Workflow/FlowForge reference. */
-  --awkit-edge: #4c3a80;
-  --awkit-edge-strong: #a78bfa;
+  /* edge strokes — blue-derived values preserve the reference accent on dark canvases. */
+  --awkit-edge: #1d4ed8;
+  --awkit-edge-strong: #3b82f6;
 
   /* Chart series (dark) — same hue identity as light, lifted in lightness so each series
      reads against the dark raised surfaces. Assignment order mirrors the light block. */
@@ -9544,12 +9544,12 @@ table {
 /* --- Connector + motion tokens (theme-aware) ------------------------------ */
 :root,
 [data-theme="light"] {
-  --awkit-connector-default: #7c3aed;
-  --awkit-connector-selected: #6b21c8;
+  --awkit-connector-default: #1d4ed8;
+  --awkit-connector-selected: #1e40af;
   --awkit-connector-failure: #d93f45;
   --awkit-connector-success: #35b85f;
   --awkit-connector-warning: #d99017;
-  --awkit-connector-loop: #7c3aed;
+  --awkit-connector-loop: #1d4ed8;
   --awkit-connector-parallel: #0ea5a4;
   --awkit-loop-flow-duration: 1800ms;
   --awkit-loop-orbit-duration: 2000ms;
@@ -9562,12 +9562,12 @@ table {
 }
 
 [data-theme="dark"] {
-  --awkit-connector-default: #a78bfa;
-  --awkit-connector-selected: #c4b5fd;
+  --awkit-connector-default: #3b82f6;
+  --awkit-connector-selected: #60a5fa;
   --awkit-connector-failure: #f87171;
   --awkit-connector-success: #34d399;
   --awkit-connector-warning: #fbbf24;
-  --awkit-connector-loop: #a78bfa;
+  --awkit-connector-loop: #3b82f6;
   --awkit-connector-parallel: #2dd4bf;
 }
 
