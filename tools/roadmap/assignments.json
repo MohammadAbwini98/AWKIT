@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-xphx",
-      "agent": "Packaging / Offline / Release Engineer",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-14T00:09:27.105Z",
-      "note": "write lease: resources/icon-source.png, resources/icon.ico, resources/icon.png"
+      "claimedAt": "2026-09-14T00:15:01.394Z",
+      "note": "write lease: docs/ACCENT_COLOR.md, docs/ai/contracts/awkit-xphx.json"
     }
   ]
 }

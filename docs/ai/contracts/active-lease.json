@@ -1,23 +1,22 @@
 {
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
-  "holder": "release",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "resources/icon-source.png",
-    "resources/icon.ico",
-    "resources/icon.png"
+    "docs/ACCENT_COLOR.md",
+    "docs/ai/contracts/awkit-xphx.json"
   ],
-  "acquired_at": "2026-09-14T00:09:27.105Z",
-  "acquired_at_commit": "e65d13ea179151cb680fbb28663444b6128ab8a1",
+  "acquired_at": "2026-09-14T00:15:01.394Z",
+  "acquired_at_commit": "0649555ccf5d681e71d06f1b721eaecf8bb119ba",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-xphx.json",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "70c06f45eb6f1feb123ed00c128e08b621a2162467b7891aa63eda384dcf2faf",
-    "docs/ai/contracts/awkit-xphx.json": "8d59938c83c53894c48af420cd4e59b570a29c9242db545699ac2602d7712d48",
+    "docs/ai/contracts/active-lease.json": "3864243c6c8e6f317abe1ac34a79545ea2ccf0363fb62004e6d7720749520c94",
+    "docs/ai/contracts/awkit-xphx.json": "d1da6c5fff702565a3e4062d22f21687ecc024d61ab825cd333690906bbf855f",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -30,7 +29,17 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789341648414.5344"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-14T00:15:15.568Z",
+      "added": [
+        "docs/ACCENT_COLOR.md"
+      ],
+      "reason": "Update the authoritative accent behavior guide for the new default blue",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }

@@ -48,6 +48,7 @@
       "app/renderer/pages/AccentColorSettings.tsx",
       "app/renderer/security/LockedShell.tsx",
       "app/renderer/styles/global.css",
+      "docs/ACCENT_COLOR.md",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/FEATURES.md",
       "docs/ai/HANDOFF.md",
@@ -77,11 +78,10 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "resources/icon-source.png",
-        "resources/icon.ico",
-        "resources/icon.png"
+        "docs/ACCENT_COLOR.md",
+        "docs/ai/contracts/awkit-xphx.json"
       ]
     },
     "writer_sequence": [
@@ -469,6 +469,24 @@
         "acquired_at_commit": "3273f859a6034c87b946faaee162d9876c71e406",
         "released_at": "2026-09-14T00:09:27.045Z",
         "released_reason": "handoff to release: Regenerate the shipped Windows icon assets from the verified #1D4ED8 source through the exact release-only command",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:release:2026-09-14T00:09:27.105Z",
+        "task": "awkit-xphx",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/icon-source.png",
+          "resources/icon.ico",
+          "resources/icon.png"
+        ],
+        "acquired_at": "2026-09-14T00:09:27.105Z",
+        "acquired_at_commit": "e65d13ea179151cb680fbb28663444b6128ab8a1",
+        "released_at": "2026-09-14T00:15:01.334Z",
+        "released_reason": "handoff to project-state: Expand authoritative documentation scope before recording the completed blue-default behavior and verification evidence",
         "amendments": [],
         "overrides": [],
         "violations": []
