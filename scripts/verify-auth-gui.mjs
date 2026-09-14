@@ -14,16 +14,15 @@
 // Run: node scripts/verify-auth-gui.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { isolatedLaunchEnv } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// Isolated writable data root so the app provisions a clean, empty security store.
-const dataRoot = mkdtempSync(path.join(tmpdir(), "awkit-auth-gui-"));
-const env = { ...process.env, LOCALAPPDATA: dataRoot };
-delete env.ELECTRON_RUN_AS_NODE;
+// Isolated writable data root and Electron user-data directory so this verifier can safely run
+// alongside the user's packaged app without sharing the single-instance lock or security store.
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-auth-gui");
 
 const CREDS = { displayName: "Site Admin", username: "admin1", password: "Str0ng!Passw0rd" };
 const RECOVERED_PASSWORD = "Rec0vered!Pass42";
@@ -55,7 +54,7 @@ async function resolveMainWindow(app, timeoutMs = 40000) {
   throw new Error("main window with the security bridge did not appear within timeout");
 }
 
-const app = await electron.launch({ args: [root], cwd: root, env });
+const app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
 const consoleErrors = [];
 try {
   const win = await resolveMainWindow(app);
@@ -69,9 +68,12 @@ try {
   check("theme applied before auth", await win.evaluate(() => !!document.documentElement.dataset.theme));
   check("no protected app shell before auth (no-flash)", (await win.locator(".app-shell").count()) === 0);
   check("first-run setup shown on a clean machine", (await win.getByRole("heading", { name: "Set up SpecterStudio" }).count()) >= 1);
+  await win.emulateMedia({ reducedMotion: "no-preference" });
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "running");
   const previewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),
-    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? ""
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
+    activeStep: panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-title")?.textContent?.trim() ?? ""
   }));
   await win.waitForTimeout(240);
   const previewAfterTick = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
@@ -82,6 +84,17 @@ try {
     "decorative workflow preview advances while normal motion is enabled",
     previewAtStart.motion === "running" && previewAfterTick.motion === "running" && previewAtStart.progress !== previewAfterTick.progress,
     `${previewAtStart.motion}:${previewAtStart.progress} → ${previewAfterTick.motion}:${previewAfterTick.progress}`
+  );
+  await win.waitForFunction(
+    (initialStep) => document.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-title")?.textContent?.trim() !== initialStep,
+    previewAtStart.activeStep,
+    { timeout: 3000 }
+  );
+  const nextPreviewStep = await win.locator(".awkit-login-run-step.is-active .awkit-login-run-step-title").innerText();
+  check(
+    "decorative workflow preview moves to the next sample step",
+    previewAtStart.activeStep.length > 0 && nextPreviewStep.trim() !== previewAtStart.activeStep,
+    `${previewAtStart.activeStep} → ${nextPreviewStep.trim()}`
   );
 
   // ── Provision the Super User (auto sign-in on success) ───────────────────────
@@ -164,6 +177,7 @@ try {
   await win.reload();
   await win.waitForLoadState("domcontentloaded");
   await win.waitForSelector("#awkit-login-username", { timeout: 20000 });
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "reduced");
   const darkTheme = await win.evaluate(() => document.documentElement.dataset.theme);
   check("login screen applies the dark theme when dark appearance is selected", darkTheme === "dark", `theme=${darkTheme}`);
   check("login card still renders in dark mode", (await win.locator(".awkit-login-card").count()) >= 1);
@@ -207,10 +221,47 @@ try {
       reducedPreviewAtStart.progress === reducedPreviewAfterWait.progress,
     `${reducedPreviewAtStart.motion}:${reducedPreviewAtStart.progress} → ${reducedPreviewAfterWait.motion}:${reducedPreviewAfterWait.progress}`
   );
+  const previewMotionSwitch = win.getByRole("switch", { name: "Animate workflow preview" });
+  check(
+    "reduced-motion login exposes an explicit preview-motion opt-in",
+    (await previewMotionSwitch.count()) === 1 && (await previewMotionSwitch.getAttribute("aria-checked")) === "false",
+    `count=${await previewMotionSwitch.count()}, checked=${await previewMotionSwitch.getAttribute("aria-checked")}`
+  );
+  await previewMotionSwitch.click();
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "running");
+  const optedInPreviewStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
+    animation: getComputedStyle(panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-dot")).animationName
+  }));
+  await win.waitForTimeout(240);
+  const optedInPreviewAfterTick = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
+    motion: panel.getAttribute("data-motion"),
+    progress: panel.querySelector(".awkit-login-run-progress > span")?.getAttribute("style") ?? "",
+    animation: getComputedStyle(panel.querySelector(".awkit-login-run-step.is-active .awkit-login-run-step-dot")).animationName
+  }));
+  check(
+    "preview-motion opt-in animates both the timeline and its CSS pulse",
+    (await previewMotionSwitch.getAttribute("aria-checked")) === "true" &&
+      optedInPreviewAfterTick.motion === "running" &&
+      optedInPreviewStart.progress !== optedInPreviewAfterTick.progress &&
+      optedInPreviewAfterTick.animation === "awkit-live-pulse",
+    `${optedInPreviewStart.progress}/${optedInPreviewStart.animation} → ${optedInPreviewAfterTick.progress}/${optedInPreviewAfterTick.animation}`
+  );
+  await previewMotionSwitch.click();
+  await win.waitForFunction(() => document.querySelector(".awkit-login-run-panel")?.getAttribute("data-motion") === "reduced");
+  check(
+    "preview-motion opt-in can return to the system-reduced state",
+    (await previewMotionSwitch.getAttribute("aria-checked")) === "false" &&
+      (await win.locator(".awkit-login-run-progress > span").getAttribute("style")) === "width: 0%;",
+    `checked=${await previewMotionSwitch.getAttribute("aria-checked")}, progress=${await win.locator(".awkit-login-run-progress > span").getAttribute("style")}`
+  );
   await win.screenshot({ path: path.join(shotDir, "login-dark.png") }).catch(() => undefined);
   // Restore the default appearance for the remaining (light) steps.
   await win.emulateMedia({ reducedMotion: "no-preference" });
-  await win.evaluate(() => window.localStorage.removeItem("awkit-appearance"));
+  await win.evaluate(() => {
+    window.localStorage.removeItem("awkit-appearance");
+    window.localStorage.removeItem("awkit-login-preview-motion-enabled");
+  });
   await win.reload();
   await win.waitForLoadState("domcontentloaded");
   await win.waitForSelector("#awkit-login-username", { timeout: 20000 });
@@ -225,7 +276,7 @@ try {
   check("zero renderer console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 } finally {
   await app.close().catch(() => undefined);
-  rmSync(dataRoot, { recursive: true, force: true });
+  cleanup();
 }
 
 // ── Proactive inactivity lock (bd awkit-l6h) ───────────────────────────────────
@@ -233,10 +284,8 @@ try {
 // fires in seconds instead of 30 minutes. Provision + sign in, then stay idle (no pointer/keyboard) and
 // assert we are bounced back to the login screen with the inactivity notice — WITHOUT any focus/blur event.
 {
-  const idleRoot = mkdtempSync(path.join(tmpdir(), "awkit-auth-idle-"));
-  const idleEnv = { ...process.env, LOCALAPPDATA: idleRoot, AWKIT_SESSION_IDLE_MS: "4000" };
-  delete idleEnv.ELECTRON_RUN_AS_NODE;
-  const idleApp = await electron.launch({ args: [root], cwd: root, env: idleEnv });
+  const idleProfile = isolatedLaunchEnv("awkit-auth-idle", { AWKIT_SESSION_IDLE_MS: "4000" });
+  const idleApp = await electron.launch({ args: [root, ...idleProfile.electronArgs], cwd: root, env: idleProfile.env });
   try {
     const win = await resolveMainWindow(idleApp);
     await win.waitForLoadState("domcontentloaded");
@@ -261,7 +310,7 @@ try {
     await win.screenshot({ path: path.join(shotDir, "login-idle-locked.png") }).catch(() => undefined);
   } finally {
     await idleApp.close().catch(() => undefined);
-    rmSync(idleRoot, { recursive: true, force: true });
+    idleProfile.cleanup();
   }
 }
 
