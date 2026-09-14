@@ -40,7 +40,7 @@ const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const evidenceDir = join(root, "test-artifacts", "recorder-gui", runStamp);
 mkdirSync(evidenceDir, { recursive: true });
 
-const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-gui", {
+const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-gui", {
   PRODUCTION_OFFLINE: "true",
   AWKIT_MAX_BROWSERS: "1"
 });
@@ -321,7 +321,7 @@ try {
   });
   await poll("mock site", async () => ((await fetch(`${baseUrl}/`).catch(() => null))?.ok ? true : null), 30_000, 200);
 
-  app = await electron.launch({ args: [root], cwd: root, env });
+  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
   win = (await resolveMainWindow(app)) as Page;
   const page: Page = win;
   win.on("console", (m: ConsoleMessage) => {
@@ -512,15 +512,55 @@ try {
     await saveUrlButton(win).click();
     await win.waitForTimeout(150);
   }
+  // A very long query string reproduces the real-world URL-history overflow case without relying
+  // on a remote page. It must remain inside its fixed URL column; the full value remains available
+  // through the row/cell title and the Target URL control can still accept it.
+  const longHistoryUrl = `${baseUrl}/details?trace=${"bounded-value-".repeat(180)}`;
+  await urlField(win).fill(longHistoryUrl);
+  await saveUrlButton(win).click();
+  await win.waitForTimeout(150);
   const urls = await win.evaluate(() => window.playwrightFlowStudio.recorder.getUrls());
   const formEntries = urls.filter((entry) => entry.url === `${baseUrl}/form`);
   check("REC-019 a repeated URL is deduplicated, not appended twice", formEntries.length === 1, `${formEntries.length} entries`);
   const rows = win.locator(".recorded-urls-table tbody tr");
   check("REC-019 the history table renders the saved URLs", (await rows.count()) > 0, `${await rows.count()} rows`);
+  const longUrlContainment = await win.locator(".recorded-url-value").filter({ hasText: "bounded-value-" }).first().evaluate((value) => {
+    const cell = value.closest("td");
+    const table = value.closest("table");
+    const input = document.querySelector<HTMLInputElement>(".recorder-url-input-shell input");
+    const valueBox = value.getBoundingClientRect();
+    const cellBox = cell?.getBoundingClientRect();
+    const inputBox = input?.getBoundingClientRect();
+    const shellBox = input?.closest(".recorder-url-input-shell")?.getBoundingClientRect();
+    const valueStyle = getComputedStyle(value);
+    return {
+      tableDisplay: table ? getComputedStyle(table).display : "missing",
+      valueInsideCell: Boolean(cellBox) && valueBox.left >= cellBox.left - 1 && valueBox.right <= cellBox.right + 1,
+      valueIsTruncated: value.scrollWidth > value.clientWidth && valueStyle.overflowX === "hidden" && valueStyle.textOverflow === "ellipsis" && valueStyle.whiteSpace === "nowrap",
+      inputInsideShell: Boolean(inputBox && shellBox) && inputBox.left >= shellBox.left - 1 && inputBox.right <= shellBox.right + 1,
+      inputFitsItsAvailableWidth: input ? getComputedStyle(input).maxWidth === "100%" && getComputedStyle(input).minWidth === "0px" : false
+    };
+  });
+  check(
+    "REC-019 long URLs stay contained in semantic table cells and the Target URL input",
+    longUrlContainment.tableDisplay === "table" &&
+      longUrlContainment.valueInsideCell &&
+      longUrlContainment.valueIsTruncated &&
+      longUrlContainment.inputInsideShell &&
+      longUrlContainment.inputFitsItsAvailableWidth,
+    JSON.stringify(longUrlContainment)
+  );
+  const overflowBaseline = readFileSync(join(root, "app", "renderer", "styles", "global.css"), "utf8");
+  check(
+    "REC-019 shared controls and inline labels retain the containment baseline",
+    /input,\s*select,\s*textarea\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?min-width:\s*0;/.test(overflowBaseline) &&
+      /span\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?overflow-wrap:\s*anywhere;/.test(overflowBaseline),
+    "input/select/textarea sizing + inline-label wrapping"
+  );
   const firstRowText = (await rows.first().textContent()) ?? "";
   check(
     "REC-019 the most recently saved URL is listed first",
-    firstRowText.includes("/smart-waits") || firstRowText.includes("/form"),
+    firstRowText.includes("bounded-value-") || firstRowText.includes("/smart-waits") || firstRowText.includes("/form"),
     firstRowText.slice(0, 120)
   );
   const search = win.locator(".recorder-url-search input");
@@ -554,7 +594,7 @@ try {
 
   // Favorites use the real renderer controls and the existing durable recorder-urls store.
   const historyCount = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;
-  const detailsRow = rows.filter({ hasText: `${baseUrl}/details` }).first();
+  const detailsRow = rows.filter({ has: page.getByText(`${baseUrl}/details`, { exact: true }) }).first();
   const favoriteToggle = detailsRow.locator('.recorder-favorite-toggle');
   check("Favorites start with an unselected bookmark", await favoriteToggle.getAttribute("aria-pressed") === "false");
   await favoriteToggle.click();
