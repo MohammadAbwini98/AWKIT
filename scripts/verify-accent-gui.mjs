@@ -179,9 +179,9 @@ check(
   defaultVividGradient
 );
 check(
-  "splash imports the canonical accent settings, permits only local modules, and contains no violet fallback",
+  "splash imports canonical settings, permits local packaged and inline dev modules, and contains no violet fallback",
   splashSource.includes('import { SPECTER_BLUE, SPECTER_BLUE_SETTINGS, buildAccentGradient } from "@src/theme/accentColor.ts"') &&
-    splashSource.includes("script-src 'self'") &&
+    splashSource.includes("script-src 'self' 'unsafe-inline'") &&
     splashSource.includes("SPECTER_BLUE_SETTINGS.gradientAngle") &&
     !/a78bfa|124,58,237/i.test(splashSource),
   "app/renderer/splash.html"
