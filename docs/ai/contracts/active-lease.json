@@ -2,7 +2,7 @@
   "task": "awkit-xphx",
   "contract_path": "docs/ai/contracts/awkit-xphx.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
@@ -35,5 +35,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-14T00:35:07.921Z",
+  "released_reason": "Complete login motion, blue accent, dark text, and icon closeout",
+  "archived_at": "2026-09-14T00:35:07.922Z"
 }

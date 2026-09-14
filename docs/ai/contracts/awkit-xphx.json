@@ -296,7 +296,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "APPROVED"
+    "qc_status": "APPROVED",
+    "closed_at_commit": "3500ebea851a19e8e16a4a961b230b601895e2e5"
   },
   "write_lease": {
     "history": [
@@ -640,6 +641,27 @@
         "acquired_at_commit": "1ed3165c2907b65ae68d028432174591e14289a5",
         "released_at": "2026-09-14T00:28:04.040Z",
         "released_reason": "handoff to project-state: Record the completed blue-branding behavior, focused evidence, independent QC approval, and final task-gate state before atomic closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-xphx:project-state:2026-09-14T00:28:04.101Z",
+        "task": "awkit-xphx",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-xphx.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T00:28:04.101Z",
+        "acquired_at_commit": "91890a7d490aa0721d6771a9910936a9c63d0818",
+        "released_at": "2026-09-14T00:35:07.921Z",
+        "released_reason": "Complete login motion, blue accent, dark text, and icon closeout",
         "amendments": [],
         "overrides": [],
         "violations": []
