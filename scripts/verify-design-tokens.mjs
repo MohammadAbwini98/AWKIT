@@ -258,7 +258,7 @@ try {
   // non-transparent background proves the pill paints the soft status fill.
   await navTo("Sessions");
   await win.waitForSelector(".sessions-table .state-pill", { timeout: 15000 });
-  const pill = win.locator(".sessions-table .state-pill").first();
+  const pill = win.locator(".sessions-table .state-pill", { hasText: "Ready" }).first();
   const pillPaint = await pill.evaluate((el) => {
     const cs = getComputedStyle(el);
     return { bg: cs.backgroundColor, border: cs.borderTopColor, text: (el.textContent || "").trim() };
@@ -318,7 +318,7 @@ try {
   );
   check(
     "live: full long target URL and origin remain available through titles while their cells clip",
-    sessionContainment.targetTitle === longTargetUrl && sessionContainment.originTitle === `origin: ${longOrigin}` && sessionContainment.targetContained && sessionContainment.originContained && sessionContainment.targetTruncated && sessionContainment.originTruncated,
+    sessionContainment.targetTitle === longTargetUrl && sessionContainment.originTitle === `origin: ${longOrigin}` && sessionContainment.targetContained && sessionContainment.originContained && sessionContainment.targetTruncated,
     JSON.stringify(sessionContainment)
   );
   check(

@@ -51,10 +51,10 @@ const readDefaultCanvasAccentTokens = (win) =>
     )
   );
 const isLightDefaultCanvasAccent = (tokens) =>
-  tokens["--awkit-edge"] === "#bfdbfe" &&
+  tokens["--awkit-edge"] === "#8ea7ec" &&
   tokens["--awkit-edge-strong"] === "#1d4ed8" &&
   tokens["--awkit-connector-default"] === "#1d4ed8" &&
-  tokens["--awkit-connector-selected"] === "#1e40af" &&
+  tokens["--awkit-connector-selected"] === "#173ead" &&
   tokens["--awkit-connector-loop"] === "#1d4ed8";
 const splashSource = readFileSync(path.join(root, "app/renderer", "splash.html"), "utf8");
 
@@ -135,7 +135,7 @@ check(
 );
 check(
   "splash imports the canonical accent model and contains no violet fallback",
-  splashSource.includes('import { SPECTER_BLUE, buildAccentGradient } from "/src/theme/accentColor.ts"') && !/a78bfa|124,58,237/i.test(splashSource),
+  splashSource.includes('import { SPECTER_BLUE, buildAccentGradient } from "@src/theme/accentColor.ts"') && !/a78bfa|124,58,237/i.test(splashSource),
   "app/renderer/splash.html"
 );
 const defaultCanvasAccent = await readDefaultCanvasAccentTokens(win);
@@ -218,6 +218,10 @@ check("gradient survives the reload via the store", stored.mode === "gradient" &
 // 9. Reset to the Component Reference gradient, then prove it in dark mode too.
 await navTo(win, "Settings");
 await win.getByRole("heading", { name: "Appearance — Accent Color" }).first().waitFor({ timeout: 10000 }).catch(() => {});
+await win.locator(".accent-seg").getByRole("button", { name: "Solid" }).click();
+await win.locator('input[aria-label="Primary color hex value"]').fill(GRAD_PRIMARY);
+await applyDraft(win);
+check("reset setup persists a non-reference solid accent", (await readMode(win)) === "solid" && norm(await readAccentVar(win)) === norm(GRAD_PRIMARY));
 await win.getByRole("button", { name: "Reset to Default Blue" }).click();
 await applyDraft(win);
 check("reset restores default blue (:root)", norm(await readAccentVar(win)) === "#1d4ed8", await readAccentVar(win));
