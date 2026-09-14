@@ -155,7 +155,7 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED",
-    "closed_at_commit": "4c9679f497508adcb4c649d2b96c5e2af17036b1"
+    "closed_at_commit": "1ba6f748f692d19dc210ddece39613c3a26f267c"
   },
   "write_lease": {
     "history": [
@@ -226,6 +226,28 @@
         "acquired_at_commit": "371a3f8e898a99615da15fda4296a2b3efac6085",
         "released_at": "2026-09-14T11:44:42.834Z",
         "released_reason": "handoff to project-state: Record the final Login preview evidence, authoritative behavior notes, completed task contract, and closeout state after the passing roadmap reconciliation.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-mjhb:project-state:2026-09-14T11:44:42.896Z",
+        "task": "awkit-mjhb",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-mjhb.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-14T11:44:42.896Z",
+        "acquired_at_commit": "6aeffab920a4d16025326a698af03109b8b9576f",
+        "released_at": "2026-09-14T11:48:33.462Z",
+        "released_reason": "Login workflow preview motion fix verified; archive terminal lease state, clear the final claim, and push main cleanly.",
         "amendments": [],
         "overrides": [],
         "violations": []
