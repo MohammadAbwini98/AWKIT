@@ -14967,3 +14967,25 @@ pm run verify:mock-site
   no product source changed.
 - **Result:** all seven priorities implemented; P7 (compound shell grammar) deliberately left
   blocked per security-precedence guidance, documented as separate commands instead.
+
+## 2026-09-15 — live-monitor-redesign: Live Run Monitor replaced with the approved target design (ZCode)
+
+- **Task:** finish the Live Run Monitor design replacement (continuation of `43cfcab`'s first pass)
+  using the supplied `Live Run Monitor.dc.html` reference, while preserving every existing runtime
+  behavior, permission gate and data source.
+- **Files:** `app/renderer/components/instances/LiveExecutionReportModal.tsx` (full render rewrite:
+  64px header + status pill + run stats, dotted step-card canvas with status connectors, floating
+  Restart/Pause/Resume toolbar with real step progress + failed/manual markers, 344px execution-log
+  aside with alert/legend/statistics; log auto-follows while live), `app/renderer/styles/global.css`
+  (old `.run-monitor-*` block replaced ~1:1 with the new component styles, tokens only, own
+  `prefers-reduced-motion` guard, ≤900px/≤620px responsive tiers), `docs/ai/CURRENT_STATE.md`
+  (new top section + two stale sections corrected).
+- **Tests:** `npm run build` **PASS**; `verify:instance-monitor` **55/55**; `verify:design-tokens`
+  **35/35** (static + live halves); `verify:accent-theme` **73/73**; throwaway real-Electron GUI
+  walkthrough **15/15** (running/completed/failed × light/dark, 940×620 narrow, keyboard trap,
+  Escape close, control enable/disable, zero console errors) — script deleted after capture,
+  screenshots untracked under `test-artifacts/live-monitor-proof/`. Not run: `verify:runner`,
+  `validate:offline` — no runner/main-process/offline-packaging source changed.
+- **Result:** design replacement complete; behavior preserved (same polling, B4 baseline,
+  WORKFLOW_EXECUTE/WORKFLOW_STOP gating, masked error tooltip, focus contract); the no-fabricated-
+  data boundary holds (no scrubber/speed/ETA; markers are real failed/manual steps).

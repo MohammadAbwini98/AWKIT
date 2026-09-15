@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## `live-monitor-redesign`: Live Run Monitor replaced with the approved target design (2026-09-15)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This UI
+re-skin moves no ledger case; its gates are listed below.
+
+`LiveExecutionReportModal` now reproduces the approved **Live Run Monitor** design (the
+`Live Run Monitor.dc.html` reference): a near-fullscreen monitor with a **64px header** (back/close
+affordances, workflow title + status pill, run subtitle `Run #<id> · instance · started <time>`,
+right-aligned **Elapsed / Steps done / Retries / Skipped** stats), a **dotted step canvas** whose
+node cards (icon tile, meta/title, terminal mark, status chip + duration, message, masked-error
+tooltip) are joined by **status-coloured connectors** (accent-animated into active steps, green into
+succeeded, rose into failed, neutral elsewhere), a **floating bottom toolbar** (Restart, accent
+Pause/Resume, real step-progress bar with failed/manual-step markers, `elapsed · phase · history-avg`
+labels), and a **344px execution-log aside** (entry count + update time, failure/manual alert,
+auto-following log with level dots, Step-outcomes legend, compact Statistics list). Skipped/cancelled
+cards are dashed + dimmed; running cards pulse via `--awkit-accent-rgb`; waiting cards carry an amber
+ring; all of it is neutralised under `prefers-reduced-motion`.
+
+**Behavior and capability boundary unchanged.** Same report polling (`reports.get`, 3s while live +
+final retry), same B4 history baseline (machine-scoped avg/p95 + comparison chip, preserved in the
+Statistics list), same permission mapping (`Restart` = `WORKFLOW_EXECUTE`, `Pause`/`Resume` =
+`WORKFLOW_STOP`, predicates identical to the instance table), same masked technical-detail tooltip,
+same modal focus contract (`useModalFocusContract`, Escape/Tab trap). The deliberate omissions still
+hold — **no** time-scrubber, speed selector, ETA or invented percentages; the toolbar progress is the
+model's real step completion and its markers are real failed/manual steps at their step positions.
+The old `.run-monitor-controls` footer strip (and its `toolbar-strip` usage) is gone — controls live
+in the floating toolbar. Below 900px the aside stacks under the canvas; below 620px the header stats
+hide; the canvas has its own scroll region so long runs never grow the modal unbounded.
+
+Evidence — **19 PASS / 0 FAIL**: `npm run build` PASS; `verify:instance-monitor` 55/55;
+`verify:design-tokens` 35/35 (static no-literal rule covers the new CSS); `verify:accent-theme`
+73/73; a throwaway real-Electron GUI walkthrough **15/15** (running/completed/failed states, light +
+dark, 940×620 narrow with no horizontal overflow, keyboard trap + Escape close, control
+enable/disable states, zero renderer console errors) — screenshots in
+`test-artifacts/live-monitor-proof/` (untracked).
+
 ## `agent-controls`: anti-loop stopping semantics, evidence-preserving compaction, bounded lease denials (2026-09-15)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This
@@ -1512,8 +1548,9 @@ resume. `Restart` maps to `WORKFLOW_EXECUTE`/`canExecute` and `Pause`/`Resume` t
 `WORKFLOW_STOP`/`canStop`, so the execution IPC contract is unchanged. Controls that would require
 fabricated data are **deliberately absent**: no seek/timeline scrubber, no 1x/2x/4x execution speed,
 no ETA, no time remaining, no known total duration and no fake running-step percentage. Do not
-reintroduce them. The earlier `toolbar-strip` cascade issue is already resolved via
-`.run-monitor-controls { margin-bottom: 0; }` while retaining the `toolbar-strip` class.
+reintroduce them. (Superseded 2026-09-15: the monitor was re-skinned onto the approved Live Run
+Monitor design — see the `live-monitor-redesign` section at the top — and the
+`.run-monitor-controls` footer strip no longer exists; controls live in the floating toolbar.)
 
 Executed evidence — **17 PASS / 0 FAIL / 2 BLOCKED**:
 
@@ -13193,10 +13230,12 @@ green: build clean, `validate:offline` pass, `verify:packaged-runtime` 24, `veri
   column** (resolves `scenarioId` → name; deleted/unknown handled). Card `isolationMode`/`stopOnError` are
   passed through to the run; screenshot-on-failure is shown disabled (it's a per-step flow setting).
   The instance table's **Live Report** button (replacing the open-JSONL button) opens a human-readable
-  `LiveExecutionReportModal`: live banner + heartbeat, connected horizontal **per-step process flow** with
-  numbered status nodes, real progress bar, statistics cards, and a masked activity timeline. Failed steps
-  show a friendly end-user message in the node, with masked technical details available only via hover/focus
-  tooltip. Active/running/waiting/manual-action nodes animate; terminal runs show a stable final update time
+  `LiveExecutionReportModal` (re-skinned 2026-09-15 onto the approved Live Run Monitor design — see the
+  `live-monitor-redesign` section at the top): header with status pill + run stats, dotted vertical
+  **step-card canvas** with status-coloured connectors, floating run toolbar with real step progress and
+  failed/manual markers, and an execution-log aside with alert, legend and statistics. Failed steps
+  show a friendly end-user message in the card, with masked technical details available only via hover/focus
+  tooltip. Active/running/waiting/manual-action cards animate; terminal runs show a stable final update time
   instead of an endlessly advancing "Updated" counter. **Live progress is now real:** `StepExecutor` emits per-step events via a
   `RunnerProgressReporter`; `ExecutionEngine` folds them into a bounded `InstanceRuntimeState.liveProgress`
   snapshot (≤500 steps / ≤200 events), which the renderer's 1s poll renders live. Once finished, the stored

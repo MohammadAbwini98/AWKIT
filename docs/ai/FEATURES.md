@@ -506,10 +506,14 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ Instance manager/pool/coordinator for concurrent isolated instances; manual handoff.
 - ✅ Reports/logs/screenshots/downloads written under runtime data paths; Execution & Instance monitors.
 - ✅ **Live Execution Report** (`components/instances/LiveExecutionReportModal.tsx`): the instance table's
-  Live Report button opens a human-readable modal — summary banner with status pill + heartbeat, connected
-  horizontal **per-step process flow** with numbered status nodes, real progress bar, active/running/waiting
-  animation, statistics cards, and a masked activity timeline (no raw JSON). Failed nodes show a friendly
-  message in the main UI and expose masked technical details only on hover/focus. Active runs show relative
+  Live Report button opens the **Live Run Monitor** (2026-09-15 approved-design skin) — near-fullscreen
+  modal with a header (status pill, run subtitle, Elapsed/Steps/Retries/Skipped stats), a dotted
+  **step-card canvas** with status-coloured connectors (animated into active steps, rose into failed,
+  dashed/dimmed skipped cards), a **floating run toolbar** (Restart, Pause/Resume, real step-progress
+  bar with failed/manual-step markers, elapsed · phase · history-avg labels) and an **execution-log
+  aside** (entry count, failure/manual alert, auto-following log with level dots, step-outcomes legend,
+  compact statistics incl. the machine-scoped history baseline). Failed cards show a friendly message in
+  the main UI and expose masked technical details only on hover/focus. Active runs show relative
   "Updated" time; terminal runs show a stable final update timestamp. Real live progress: `StepExecutor`
   emits per-step events → `ExecutionEngine` writes a bounded `InstanceRuntimeState.liveProgress` snapshot →
   renderer 1s poll renders it; finished runs use the stored report. Built via `executionReportModel.ts` +
