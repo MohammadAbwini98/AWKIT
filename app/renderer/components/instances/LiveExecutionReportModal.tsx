@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useModalFocusContract } from "../shared/useModalFocusContract";
-import { Activity, AlertTriangle, Camera, CheckCircle2, Clock, Loader2, Pause, Play, RotateCcw, X, XCircle } from "lucide-react";
+import { AlertTriangle, Camera, Check, CheckCircle2, ChevronLeft, Loader2, Minus, Pause, Play, RotateCcw, X, XCircle } from "lucide-react";
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
@@ -28,7 +28,7 @@ interface LiveExecutionReportModalProps {
 }
 
 const STATUS_LABEL: Record<ExecutionStepStatus, string> = {
-  pending: "Pending",
+  pending: "Queued",
   running: "Running",
   waiting: "Waiting",
   waitingForManualAction: "Manual action",
@@ -89,6 +89,7 @@ export function LiveExecutionReportModal({ instance, workflow, canExecute, canSt
   const [loading, setLoading] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [baseline, setBaseline] = useState<WorkflowHistoryBaseline | undefined>(undefined);
+  const logRef = useRef<HTMLOListElement>(null);
   const shouldPollReport = isLiveExecutionStatus(instance.status);
 
   useEffect(() => {
@@ -165,6 +166,13 @@ export function LiveExecutionReportModal({ instance, workflow, canExecute, canSt
   const historyComparison = useMemo(() => compareElapsedToHistory(instance.durationMs, baseline, model.live), [instance.durationMs, baseline, model.live]);
   const historyScopeLabel = baseline ? (baseline.machineScoped ? "this machine" : "all machines") : "";
 
+  // The execution log sticks to the newest entry while the run is live (it stops following once the
+  // user is reading a finished run, so the final entries stay in view).
+  useEffect(() => {
+    const el = logRef.current;
+    if (el && model.live) el.scrollTop = el.scrollHeight;
+  }, [model.events.length, model.live]);
+
   // Control state mirrors the instance table's predicates exactly so the monitor cannot grant an
   // action the table would refuse. Pause/Resume are WORKFLOW_STOP; Restart is WORKFLOW_EXECUTE.
   const isPaused = instance.status === "paused" || instance.status === "waitingForManualAction";
@@ -184,118 +192,157 @@ export function LiveExecutionReportModal({ instance, workflow, canExecute, canSt
   const failedStep = model.steps.find((step) => step.status === "failed");
   const manualStep = model.steps.find((step) => step.status === "waitingForManualAction");
 
+  const percent = model.progress?.percent ?? 0;
+  // Toolbar markers sit on the step-progress axis: one tick per failed or manual-handoff step, at
+  // that step's fractional position. Real model data only — no invented timeline.
+  const markers = model.steps
+    .map((step, index) =>
+      step.status === "failed" || step.status === "waitingForManualAction"
+        ? { left: model.steps.length ? ((index + 0.5) / model.steps.length) * 100 : 0, tone: step.status === "failed" ? "failed" : "waiting", title: `${STATUS_LABEL[step.status]}: ${step.label}` }
+        : null
+    )
+    .filter((marker): marker is { left: number; tone: string; title: string } => marker !== null);
+  const phaseLabel = failedStep
+    ? `Halted at ${failedStep.label}`
+    : manualStep
+      ? `Waiting · ${manualStep.label}`
+      : model.live
+        ? (model.currentActivity ?? "Running")
+        : instance.status === "completed"
+          ? "Run finished"
+          : "Ready";
+  const toggleTitle = isRunning
+    ? canStop ? "Pause this instance" : "Requires the Stop Workflows permission"
+    : isPaused
+      ? canStop ? "Resume this instance" : "Requires the Stop Workflows permission"
+      : "Instance is not running";
+
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
       <div ref={dialogRef} tabIndex={-1} className="modal-dialog report-modal run-monitor" role="dialog" aria-modal="true" aria-label="Live run monitor" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="modal-header report-modal-header">
-          <h2>
-            <Activity size={18} /> Live Run Monitor
-          </h2>
-          <button className="icon-button" type="button" title="Close" onClick={onClose}>
-            <X size={18} />
+        <header className="run-monitor-header">
+          <button className="icon-button run-monitor-back" type="button" title="Back to instances" aria-label="Close live run monitor" onClick={onClose}>
+            <ChevronLeft size={18} />
           </button>
-        </div>
-
-        {/* Summary banner */}
-        <section className={`report-banner status-${statusClass(model.status)}`}>
-          <div className="report-banner-main">
-            <div className="report-banner-title">
-              <strong>{model.workflowName}</strong>
-              <span>{model.instanceName} · {model.instanceId.slice(-12)}</span>
-            </div>
-            <span className={`report-status-pill pill-${statusClass(model.status)}`}>
-              {model.live ? <Loader2 className="spin" size={13} /> : null}
-              {model.status}
-            </span>
-          </div>
-          <div className={`report-activity ${model.live ? "is-live" : ""}`}>
-            {model.live ? <span className="heartbeat" aria-hidden /> : null}
-            <span>{model.currentActivity}</span>
-          </div>
-          <div className="report-banner-meta">
-            <span><Clock size={12} /> Started {formatTime(model.startedAt)}</span>
-            <span>Elapsed {formatDuration(instance.durationMs)}</span>
-            {baseline?.avgMs != null ? (
-              <span className="report-history-vs">
-                vs history: avg {formatDuration(baseline.avgMs)}{baseline.p95Ms != null ? ` · p95 ${formatDuration(baseline.p95Ms)}` : ""}
-                {historyComparison ? <em className={`report-vs-chip tone-${historyComparison.tone}`}>{historyComparison.label}</em> : null}
-                <small>{historyScopeLabel} · {baseline.runs} run{baseline.runs === 1 ? "" : "s"}</small>
+          <div className="run-monitor-heading">
+            <div className="run-monitor-title-row">
+              <h2 title={model.workflowName}>{model.workflowName}</h2>
+              <span className={`report-status-pill pill-${statusClass(model.status)}`}>
+                {model.live ? <Loader2 className="spin" size={13} /> : null}
+                {model.status}
               </span>
-            ) : null}
-            <span>{updateLabel}</span>
+            </div>
+            <p className="run-monitor-subtitle">
+              Run #{instance.executionId.slice(-8)} · {model.instanceName}
+              {model.startedAt ? ` · started ${formatTime(model.startedAt)}` : ""}
+            </p>
           </div>
-          <div className="run-monitor-stats">
+          <div className="run-monitor-header-stats">
             <RunStat label="Elapsed" value={formatDuration(instance.durationMs)} />
-            <RunStat label="Steps done" value={`${model.stats.completedSteps} / ${model.stats.totalSteps}`} />
+            <RunStat label="Steps done" value={model.progress ? `${model.progress.completed} / ${model.stats.totalSteps}` : `${model.stats.completedSteps} / ${model.stats.totalSteps}`} />
             <RunStat label="Retries" value={String(totalRetries)} />
             <RunStat label="Skipped" value={String(skippedCount)} />
           </div>
-        </section>
+          <button className="icon-button" type="button" title="Close" aria-label="Close live run monitor" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </header>
 
-        <div className="report-body run-monitor-body">
-          <div className="run-monitor-main">
-          {/* Live node map */}
-          <section className="report-section">
-            <h3>Flows &amp; steps</h3>
-            {model.steps.length === 0 ? (
-              <p className="report-empty">{loading ? "Loading report…" : "No flow details available for this run yet."}</p>
-            ) : (
-              <div className="report-process">
-                {model.progress ? (
-                  <div className="report-process-summary">
-                    <div>
-                      <strong>{model.progress.label}</strong>
-                      <span>
-                        {model.progress.completed} completed / {model.progress.total} total
-                        {model.progress.failed ? ` / ${model.progress.failed} failed` : ""}
-                      </span>
-                    </div>
-                    <span className="report-progress-percent">{model.progress.percent}%</span>
-                    <div className="report-progress-track" aria-hidden>
-                      <div className="report-progress-fill" style={{ width: `${model.progress.percent}%` }} />
-                    </div>
-                  </div>
-                ) : null}
-                <div className="report-process-scroll">
-                  <div className="report-process-flow">
-                    {model.steps.map((step, index) => (
-                      <ReportNodeCard key={step.id} step={step} index={index} active={step.id === model.currentStepId || isActiveStepStatus(step.status)} />
-                    ))}
-                  </div>
+        <div className="run-monitor-body">
+          <div className="run-monitor-canvas" role="region" aria-label="Workflow steps">
+            <div className="run-monitor-flow-scroll">
+              {model.steps.length === 0 ? (
+                <div className="run-monitor-empty">
+                  <span className="run-monitor-empty-tile">
+                    <Loader2 className="spin" size={19} />
+                  </span>
+                  <strong>{loading ? "Loading report…" : "No flow details yet"}</strong>
+                  <span>{loading ? "Fetching the execution report for this run." : "Flow details appear here as the run progresses and completes."}</span>
+                </div>
+              ) : (
+                <div className="run-monitor-flow">
+                  {model.steps.map((step, index) => (
+                    <Fragment key={step.id}>
+                      {index > 0 ? <MonitorEdge into={step.status} /> : null}
+                      <MonitorNodeCard step={step} index={index} active={step.id === model.currentStepId || isActiveStepStatus(step.status)} />
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+              {model.live && !model.hasDetailedResults && model.steps.length > 0 ? (
+                <p className="run-monitor-canvas-hint">Detailed per-flow results appear here as the run progresses and completes.</p>
+              ) : null}
+            </div>
+
+            {/* Floating run controls — Restart (repeat), Pause/Resume, and live step progress. */}
+            <div className="run-monitor-toolbar">
+              <button
+                className="run-monitor-tool-icon"
+                disabled={!isDone || !canExecute}
+                title={!canExecute ? "Requires the Execute Workflows permission" : isDone ? "Repeat (re-run) this instance" : "Instance must finish before it can be repeated"}
+                aria-label="Restart instance"
+                type="button"
+                onClick={() => runControl(window.playwrightFlowStudio.executions.repeatInstance(instance.instanceId))}
+              >
+                <RotateCcw size={16} />
+              </button>
+              <button
+                className="run-monitor-tool-primary"
+                disabled={(!isRunning && !isPaused) || !canStop}
+                title={toggleTitle}
+                aria-label={isRunning ? "Pause instance" : "Resume instance"}
+                type="button"
+                onClick={() =>
+                  runControl(
+                    isRunning
+                      ? window.playwrightFlowStudio.executions.pauseInstance(instance.instanceId)
+                      : window.playwrightFlowStudio.executions.resumeInstance(instance.instanceId)
+                  )
+                }
+              >
+                {isRunning ? <Pause size={16} /> : <Play size={16} />}
+              </button>
+              <div className="run-monitor-progress">
+                <div
+                  className="run-monitor-progress-track"
+                  role="progressbar"
+                  aria-label="Step progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}
+                  aria-valuetext={`${model.progress?.completed ?? model.stats.completedSteps} of ${model.stats.totalSteps} steps`}
+                >
+                  <div className="run-monitor-progress-fill" style={{ width: `${percent}%` }} />
+                  {markers.map((marker) => (
+                    <span key={marker.title} className={`run-monitor-marker tone-${marker.tone}`} style={{ left: `${marker.left}%` }} title={marker.title} aria-hidden />
+                  ))}
+                </div>
+                <div className="run-monitor-progress-labels">
+                  <span>{formatDuration(instance.durationMs)}</span>
+                  <span className="run-monitor-progress-phase" title={phaseLabel}>{phaseLabel}</span>
+                  <span>{baseline?.avgMs != null ? `avg ${formatDuration(baseline.avgMs)}` : "no history"}</span>
                 </div>
               </div>
-            )}
-            {model.live && !model.hasDetailedResults ? (
-              <p className="report-hint">Detailed per-flow results appear here as the run progresses and completes.</p>
-            ) : null}
-          </section>
-
-          {/* Statistics */}
-          <section className="report-section">
-            <h3>Statistics</h3>
-            <div className="report-stats">
-              <StatCard label="Total steps" value={model.stats.totalSteps} />
-              <StatCard label="Completed" value={model.stats.completedSteps} tone="ok" />
-              <StatCard label="Failed" value={model.stats.failedSteps} tone={model.stats.failedSteps ? "bad" : undefined} />
-              <StatCard label="Pending" value={model.stats.pendingSteps} />
-              <StatCard label="Running / waiting" value={model.stats.runningSteps} />
-              <StatCard label="Success rate" value={model.stats.successRate != null ? `${model.stats.successRate}%` : undefined} />
-              <StatCard label="Elapsed" value={formatDuration(model.stats.elapsedMs)} hint={historyComparison?.label} />
-              <StatCard label={baseline ? `History avg · ${historyScopeLabel}` : "History avg"} value={baseline?.avgMs != null ? formatDuration(baseline.avgMs) : undefined} />
-              <StatCard label="History p95" value={baseline?.p95Ms != null ? formatDuration(baseline.p95Ms) : undefined} />
-              <StatCard label="Avg step" value={model.stats.averageStepDurationMs != null ? formatDuration(model.stats.averageStepDurationMs) : undefined} />
-              <StatCard label="Longest step" value={model.stats.longestStepDurationMs != null ? formatDuration(model.stats.longestStepDurationMs) : undefined} hint={model.stats.longestStepLabel} />
-              <StatCard label="Screenshots" value={model.stats.screenshotCount} />
-              <StatCard label="Errors" value={model.stats.errorCount} tone={model.stats.errorCount ? "bad" : undefined} />
             </div>
-          </section>
           </div>
-          <aside className="run-monitor-aside">
+
+          <aside className="run-monitor-aside" aria-label="Execution log">
+            <div className="run-monitor-aside-head">
+              <h3>Execution log</h3>
+              <span
+                className="run-monitor-log-count"
+                title={model.events.length >= 200 ? "Showing the most recent 200 entries" : `${model.events.length} entries`}
+              >
+                {model.events.length}
+              </span>
+              <span className="run-monitor-log-updated">{updateLabel}</span>
+            </div>
+
             {failedStep ? (
               <div className="run-monitor-alert" role="status">
                 <AlertTriangle size={14} />
                 <span>
-                  <strong>Run stopped at {failedStep.label}</strong>
+                  <strong>Run halted at {failedStep.label}</strong>
                   {failedStep.error ?? "This step failed before the workflow could continue."}
                 </span>
               </div>
@@ -309,80 +356,63 @@ export function LiveExecutionReportModal({ instance, workflow, canExecute, canSt
               </div>
             ) : null}
 
-          {/* Human-readable timeline */}
-          <section className="report-section">
-            <h3>
-              Execution log
-              <span
-                className="run-monitor-log-count"
-                title={model.events.length >= 200 ? "Showing the most recent 200 entries" : `${model.events.length} entries`}
-              >
-                {model.events.length}
-              </span>
-            </h3>
             {model.events.length === 0 ? (
-              <p className="report-empty">No activity recorded yet.</p>
+              <p className="report-empty run-monitor-log-empty">No activity recorded yet.</p>
             ) : (
-              <ol className="report-timeline">
+              <ol ref={logRef} className="run-monitor-log">
                 {model.events.map((event) => (
-                  <li key={event.id} className={`timeline-item level-${event.level}`}>
-                    <span className="timeline-time">{formatTime(event.timestamp)}</span>
-                    <span className="timeline-dot" aria-hidden />
-                    <span className="timeline-message">{event.message}</span>
+                  <li key={event.id} className={`level-${event.level}`}>
+                    <span className="run-monitor-log-time">{formatTime(event.timestamp)}</span>
+                    <span className="run-monitor-log-dot" aria-hidden />
+                    <span className="run-monitor-log-text">{event.message}</span>
                   </li>
                 ))}
               </ol>
             )}
-          </section>
-            {legend.length ? (
-              <section className="report-section">
-                <h3>Step outcomes</h3>
-                <ul className="run-monitor-legend">
-                  {legend.map((bucket) => (
-                    <li key={bucket.key}>
-                      <span className={`run-monitor-legend-swatch tone-${bucket.tone}`} aria-hidden />
-                      <span>{bucket.label}</span>
-                      <span className="run-monitor-legend-count">{bucket.count}</span>
-                    </li>
-                  ))}
+
+            <div className="run-monitor-aside-foot">
+              {legend.length ? (
+                <section className="run-monitor-legend-block">
+                  <h4>Step outcomes</h4>
+                  <ul className="run-monitor-legend">
+                    {legend.map((bucket) => (
+                      <li key={bucket.key}>
+                        <span className={`run-monitor-legend-swatch tone-${bucket.tone}`} aria-hidden />
+                        <span>{bucket.label}</span>
+                        <span className="run-monitor-legend-count">{bucket.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              <section className="run-monitor-legend-block">
+                <h4>Statistics</h4>
+                <ul className="run-monitor-stats-list">
+                  <StatRow label="Success rate" value={model.stats.successRate != null ? `${model.stats.successRate}%` : undefined} />
+                  <StatRow
+                    label="Elapsed"
+                    value={formatDuration(model.stats.elapsedMs)}
+                    hint={historyComparison?.label}
+                    hintTone={historyComparison?.tone}
+                  />
+                  <StatRow label={baseline ? `History avg · ${historyScopeLabel}` : "History avg"} value={baseline?.avgMs != null ? formatDuration(baseline.avgMs) : undefined} />
+                  <StatRow label="History p95" value={baseline?.p95Ms != null ? formatDuration(baseline.p95Ms) : undefined} />
+                  <StatRow label="Avg step" value={model.stats.averageStepDurationMs != null ? formatDuration(model.stats.averageStepDurationMs) : undefined} />
+                  <StatRow label="Longest step" value={model.stats.longestStepDurationMs != null ? formatDuration(model.stats.longestStepDurationMs) : undefined} hint={model.stats.longestStepLabel} />
+                  <StatRow label="Screenshots" value={model.stats.screenshotCount != null ? String(model.stats.screenshotCount) : undefined} />
+                  <StatRow label="Errors" value={model.stats.errorCount != null ? String(model.stats.errorCount) : undefined} tone={model.stats.errorCount ? "bad" : undefined} />
                 </ul>
               </section>
-            ) : null}
+            </div>
           </aside>
-        </div>
-        <div className="run-monitor-controls toolbar-strip">
-          <button
-            disabled={!isDone || !canExecute}
-            title={!canExecute ? "Requires the Execute Workflows permission" : isDone ? "Repeat (re-run) this instance" : "Instance must finish before it can be repeated"}
-            type="button"
-            onClick={() => runControl(window.playwrightFlowStudio.executions.repeatInstance(instance.instanceId))}
-          >
-            <RotateCcw size={14} /> Restart
-          </button>
-          <button
-            disabled={!isRunning || !canStop}
-            title={!canStop ? "Requires the Stop Workflows permission" : isRunning ? "Pause this instance" : "Instance is not running"}
-            type="button"
-            onClick={() => runControl(window.playwrightFlowStudio.executions.pauseInstance(instance.instanceId))}
-          >
-            <Pause size={14} /> Pause
-          </button>
-          <button
-            disabled={!isPaused || !canStop}
-            title={!canStop ? "Requires the Stop Workflows permission" : isPaused ? "Resume this instance" : "Instance is not paused"}
-            type="button"
-            onClick={() => runControl(window.playwrightFlowStudio.executions.resumeInstance(instance.instanceId))}
-          >
-            <Play size={14} /> Resume
-          </button>
-          <p className="run-monitor-controls-note">{updateLabel}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function ReportNodeCard({ step, index, active }: { step: ExecutionReportStep; index: number; active: boolean }) {
+function MonitorNodeCard({ step, index, active }: { step: ExecutionReportStep; index: number; active: boolean }) {
+  const className = statusClass(step.status);
   const Icon =
     step.status === "succeeded"
       ? CheckCircle2
@@ -392,23 +422,44 @@ function ReportNodeCard({ step, index, active }: { step: ExecutionReportStep; in
           ? AlertTriangle
           : isAnimated(step.status)
             ? Loader2
-            : Activity;
+            : CheckCircle2;
+  const animated = isAnimated(step.status);
   const technicalError = step.status === "failed" ? step.error : undefined;
-  const className = statusClass(step.status);
+  const chipLabel =
+    step.status === "failed" && step.retryCount
+      ? `Failed · ${step.retryCount} ${step.retryCount === 1 ? "retry" : "retries"}`
+      : STATUS_LABEL[step.status];
+  const Mark = step.status === "succeeded" ? Check : step.status === "failed" ? X : step.status === "skipped" || step.status === "cancelled" ? Minus : null;
   return (
-    <article className={`report-node status-${className} ${active ? "is-current" : ""} ${isAnimated(step.status) ? "is-active" : ""}`} tabIndex={technicalError ? 0 : undefined}>
-      <span className="report-node-number">{index + 1}</span>
-      <header>
-        <span className="report-node-icon">
-          <Icon className={isAnimated(step.status) ? "spin" : undefined} size={17} />
+    <article
+      className={`run-monitor-node st-${className} ${active ? "is-current" : ""} ${animated ? "is-active" : ""}`}
+      tabIndex={technicalError ? 0 : undefined}
+      aria-label={`Step ${index + 1}: ${step.label} — ${STATUS_LABEL[step.status]}`}
+    >
+      <div className="run-monitor-node-head">
+        <span className="run-monitor-node-tile">
+          <Icon className={animated ? "spin" : undefined} size={17} />
         </span>
-        <strong title={step.label}>{step.label}</strong>
-        <span className={`report-node-badge badge-${className}`}>{STATUS_LABEL[step.status]}</span>
-      </header>
-      {step.flowLabel ? <span className="report-node-flow">{step.flowLabel}{step.type ? ` · ${step.type}` : ""}</span> : null}
-      {step.message ? <p className="report-node-msg">{step.message}</p> : null}
+        <span className="run-monitor-node-id">
+          <span className="run-monitor-node-meta">{[step.flowLabel, step.type].filter(Boolean).join(" · ") || `Step ${index + 1}`}</span>
+          <span className="run-monitor-node-title" title={step.label}>{step.label}</span>
+        </span>
+        {Mark ? (
+          <span className={`run-monitor-node-mark tone-${className}`} aria-hidden>
+            <Mark size={13} />
+          </span>
+        ) : null}
+      </div>
+      {step.message ? <p className="run-monitor-node-msg">{step.message}</p> : null}
+      <div className="run-monitor-node-foot">
+        <span className={`run-monitor-node-chip tone-${className}`}>
+          <span className="run-monitor-node-chip-dot" aria-hidden />
+          {chipLabel}
+        </span>
+        <span className="run-monitor-node-time">{step.durationMs != null ? formatDuration(step.durationMs) : "—"}</span>
+      </div>
       {technicalError ? (
-        <div className="report-node-error-hint">
+        <div className="report-node-error-hint run-monitor-node-error">
           <AlertTriangle size={12} />
           <span>Hover to view technical details</span>
           <div className="report-node-tooltip" role="tooltip">
@@ -417,36 +468,52 @@ function ReportNodeCard({ step, index, active }: { step: ExecutionReportStep; in
           </div>
         </div>
       ) : null}
-      <footer>
-        {step.durationMs != null ? <span>{formatDuration(step.durationMs)}</span> : null}
-        {step.startedAt ? <span>{formatTime(step.startedAt)}</span> : null}
-        {step.screenshotCount ? (
-          <span className="report-node-shots">
-            <Camera size={11} /> {step.screenshotCount}
-          </span>
-        ) : null}
-        {step.retryCount ? <span>retries: {step.retryCount}</span> : null}
-      </footer>
+      {(step.startedAt && step.status !== "pending") || step.screenshotCount ? (
+        <div className="run-monitor-node-meta-row">
+          {step.startedAt && step.status !== "pending" ? <span>started {formatTime(step.startedAt)}</span> : null}
+          {step.screenshotCount ? (
+            <span className="run-monitor-node-shots">
+              <Camera size={11} /> {step.screenshotCount}
+            </span>
+          ) : null}
+          {step.retryCount ? <span>{step.retryCount} {step.retryCount === 1 ? "retry" : "retries"}</span> : null}
+        </div>
+      ) : null}
     </article>
   );
 }
 
-function StatCard({ label, value, tone, hint }: { label: string; value: number | string | undefined; tone?: "ok" | "bad"; hint?: string }) {
-  const display = value === undefined || value === "—" ? "Not available" : value;
-  const unavailable = display === "Not available";
+/** Connector between consecutive steps — its state follows the downstream step. */
+function MonitorEdge({ into }: { into: ExecutionStepStatus }) {
+  const tone =
+    into === "running" || into === "waiting" || into === "waitingForManualAction"
+      ? "active"
+      : into === "succeeded"
+        ? "done"
+        : into === "failed"
+          ? "failed"
+          : "idle";
+  return <span className={`run-monitor-edge tone-${tone}`} aria-hidden />;
+}
+
+function StatRow({ label, value, hint, hintTone, tone }: { label: string; value: string | undefined; hint?: string; hintTone?: string; tone?: "bad" }) {
+  const unavailable = value === undefined;
   return (
-    <div className={`report-stat ${tone ? `tone-${tone}` : ""} ${unavailable ? "unavailable" : ""}`}>
-      <span className="report-stat-value">{display}</span>
-      <span className="report-stat-label">{label}{hint && !unavailable ? ` · ${hint}` : ""}</span>
-    </div>
+    <li className={`run-monitor-stat-row ${tone === "bad" && !unavailable ? "tone-bad" : ""}`}>
+      <span className="run-monitor-stat-row-label">{label}</span>
+      <span className="run-monitor-stat-row-value">
+        {unavailable ? "—" : value}
+        {hint && !unavailable ? <em className={`report-vs-chip tone-${hintTone === "ahead" ? "ahead" : hintTone === "behind" ? "behind" : "neutral"}`}>{hint}</em> : null}
+      </span>
+    </li>
   );
 }
 
 function RunStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="run-monitor-stat">
-      <span className="run-monitor-stat-value">{value}</span>
       <span className="run-monitor-stat-label">{label}</span>
+      <span className="run-monitor-stat-value">{value}</span>
     </div>
   );
 }
