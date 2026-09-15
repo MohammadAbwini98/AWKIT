@@ -1,5 +1,23 @@
 # DECISIONS
 
+### 2026-09-15 — Agent-control gates get terminal states and bounded remediation (anti-loop repair)
+
+- **Decision:** every agent-facing gate now recognizes truthful terminal outcomes
+  (`PASS` / `FAIL` / `BLOCKED` / `NOT RUN` / `INCONCLUSIVE`), required closeout bookkeeping is an
+  exact 16-path `SYSTEM_BOOKKEEPING_PATHS` set writable under any active lease, the third
+  identical lease denial in a session is labelled TERMINAL instead of returning another
+  remediation suggestion, the Stop hook blocks only on confirmed secret exposure or broken
+  required files, verification reruns are change-triggered, roadmap reconciliation is capped at
+  two rounds, and compaction restores reuse recorded facts/command results instead of instructing
+  repository re-derivation.
+- **Reason:** the 2026-09 diagnostic measured one Claude Code session at 44 MB / 53 compactions,
+  158 write-lease denials, 45 lease grant/amend/handoff commands, and 12 roadmap re-verifications —
+  every blocked action returned an open-ended instruction and every compaction erased the facts
+  that would have stopped the repetition. The safeguards are unchanged in strength; only their
+  stopping semantics were refined so a blocked gate is a recorded outcome, not an infinite
+  obligation. Compound shell commands remain blocked (security precedence); agents must issue
+  separate bounded commands.
+
 ### 2026-09-14 — Final lease release is an exact terminal control-plane commit (`awkit-yl33`)
 
 - **Decision:** a completed task's final active lease is closed through

@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## `agent-controls`: anti-loop stopping semantics, evidence-preserving compaction, bounded lease denials (2026-09-15)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This
+agent-infrastructure task moves no product ledger case; its gate is `verify:agent-routing`
+at **1113/1113** (35 new focused checks; unconditional cardinality re-pinned 1078 → 1112).
+
+- **Compaction preserves evidence:** the PreCompact checkpoint now carries established facts and
+  executed-command results (new `record` CLI plus a per-task JSONL beneath
+  `%LOCALAPPDATA%/AWKIT/claude-context/facts/`), and the restore text says to reuse them and not
+  rerun unchanged reconnaissance/verification. The old "re-read the live task contract, verify
+  repository state" instruction is gone — it measured as 53 compaction → re-recon cycles in one
+  44 MB session.
+- **Closeout bookkeeping cannot churn the lease:** `SYSTEM_BOOKKEEPING_PATHS` is now 16 exact
+  files (AI-memory files, the validation-ledger trio, `.beads/issues.jsonl`, assignments) —
+  writable under any ACTIVE lease, never without one. Arbitrary source code keeps full lease
+  isolation. The guard classifies every denial, and the third identical denial in one session is
+  labelled TERMINAL ("report BLOCKED") via the new `tools/agents/guard-denials.mjs` ledger.
+- **Stop hook blocks only confirmed exposure:** `check-memory` now splits blocking failures
+  (credential-shaped secrets, missing/empty required files, broken AGENTS/CLAUDE/GEMINI wiring)
+  from advisories (structure drift, optional skills, HANDOFF > 64 KiB). Advisories exit 0 and can
+  no longer veto session completion; secret regexes require credential-shaped values.
+- **Stopping semantics are authoritative:** `AGENTS.md` now defines the terminal gate states
+  (PASS / FAIL / BLOCKED / NOT RUN / INCONCLUSIVE), bounded retries (1 per command, 2 per lease
+  denial, 2 roadmap reconciliation rounds), change-triggered verification, and a context-budget
+  checkpoint rule implemented in `docs/ai/DEVELOPMENT_WORKFLOW.md`.
+- **Startup reading is bounded:** `HANDOFF.md` shrank 592 KB → 41 KB (newest entry + template);
+  91 older sections moved verbatim to `docs/ai/HANDOFF_ARCHIVE.md`; startup instructions now
+  require reading only the newest sections of the living memory files.
+
 ## `awkit-uiaa`: authoritative insertion layout, Sessions containment, and reference-blue parity (2026-09-14)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This focused

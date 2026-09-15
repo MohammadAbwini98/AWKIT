@@ -14944,3 +14944,26 @@ pm run verify:mock-site
 - **Files:** `FlowChartDesigner.tsx`, `ScenarioBuilder.tsx`, `SessionsManager.tsx`, `global.css`,
   `accentColor.ts`, renderer/splash entries, accent theme/settings, focused verifiers, AI memory,
   Bead export and task contract. No validation-ledger case moved.
+
+## 2026-09-15 — agent-controls: anti-loop stopping semantics, evidence-preserving compaction, bounded lease denials (ZCode)
+
+- **Task:** implement the highest-impact fixes from the Claude Code context-exhaustion diagnostic
+  (44 MB / 53-compaction session): make compaction restore reuse recorded evidence instead of
+  re-deriving repository state; stop mandatory closeout bookkeeping from becoming out-of-scope
+  lease churn; bound lease-denial remediation (third identical denial is TERMINAL); restrict the
+  Stop hook to blocking failures; make verification change-triggered; bound mandatory startup
+  reading (HANDOFF archive split).
+- **Files:** `tools/agents/compaction-checkpoint.mjs` (facts/commands in checkpoint, `record`
+  CLI, continuation rules), `tools/agents/guard-denials.mjs` (new), `tools/agents/lease-guard.mjs`
+  (classification + bookkeeping decision), `tools/agents/lease.mjs` (16-path bookkeeping set),
+  `scripts/ai-memory/check-memory.mjs` (blocking vs advisory, tightened secrets, HANDOFF size),
+  `scripts/verify-agent-routing.mjs` (+35 checks, pin 1078→1112), `AGENTS.md`,
+  `docs/ai/DEVELOPMENT_WORKFLOW.md`, `docs/ai/HANDOFF.md` (592 KB→41 KB),
+  `docs/ai/HANDOFF_ARCHIVE.md` (new, 91 verbatim entries), `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/DECISIONS.md`.
+- **Tests:** `verify:agent-routing` **1113/1113 PASS**; `ai:memory:check` PASS (0 warnings after
+  split); `npm run build` PASS; `verify:verifier-classification` PASS (no new npm scripts);
+  `verify:roadmap-dashboard` round 1; `git diff --check` clean. Not run: product GUI verifiers —
+  no product source changed.
+- **Result:** all seven priorities implemented; P7 (compound shell grammar) deliberately left
+  blocked per security-precedence guidance, documented as separate commands instead.

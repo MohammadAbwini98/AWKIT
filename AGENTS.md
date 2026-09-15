@@ -18,6 +18,42 @@ AWKIT uses `main` as its single continuing development branch.
   `main`, then remove them after unique work is preserved.
 - Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` before any Git operation.
 
+## Stopping semantics — authoritative anti-loop policy
+
+A 2026-09 diagnostic measured one Claude Code session at 44 MB / 53 compactions of repeated
+reconnaissance, lease denials, and verifier reruns. These rules are binding; they refine (never
+weaken) the safeguards below.
+
+**Gate terminal states.** Every check ends in exactly one of: `PASS` · `FAIL` (actionable
+correction required) · `BLOCKED` (external prerequisite unavailable) · `NOT RUN` (prerequisite
+missing) · `INCONCLUSIVE` (specific recorded reason). `BLOCKED`/`NOT RUN`/`INCONCLUSIVE` are
+truthful terminal outcomes for that gate — record the exact prerequisite and continue
+independent work. Never retry a blocked gate, and never label a non-PASS state as passed.
+
+**"Continue safe work through failures" means:** diagnose once, classify (product / harness /
+environment / authorization), fix when actionable and in scope, otherwise record the terminal
+state and move on. It never means repeating the failing operation or producing command variants.
+**"Never freeze development" means:** continue independent safe work despite one blocked gate —
+not that a blocked gate can never end a task. A task IS complete when its environmental gates
+are truthfully reported as `BLOCKED`/`NOT RUN`.
+
+**Execution bounds.** One reconnaissance pass per task; reread only changed files. A verifier
+reruns only when (1) relevant source/config changed, (2) an artifact was regenerated, (3) the
+prior result was inconclusive for a now-corrected cause, or (4) it is a required final-state gate
+not yet run against the current state. Max 1 retry per failing command after diagnosis; max 2
+corrective actions per lease denial (the guard marks the third identical denial TERMINAL); max 2
+roadmap reconciliation rounds (then report the remaining drift as `INCONCLUSIVE` with its
+source); do not poll task gates or repeat `git status`/roadmap/lease checks at unchanged state.
+
+**Stop when:** implementation is complete or remaining work is externally BLOCKED; final-state
+verification has run once; sources are reconciled within the caps; work is committed; remaining
+gates are truthfully reported. Then STOP — do not search for additional work.
+
+**Context budget.** Reserve ~20% of the context window for the final report. At ~55–60% usage,
+record established facts and command results with
+`node tools/agents/compaction-checkpoint.mjs record --task <id> --command "<cmd>" --result <PASS|FAIL|BLOCKED|NOT RUN> [--fact "<fact>"]`
+so a compaction or continuation reuses them instead of re-deriving repository state.
+
 ## What this project is
 
 **SpecterStudio** is an offline-capable **Windows desktop app** (Electron + React + TypeScript)
@@ -29,8 +65,8 @@ Playwright, or admin rights required.
 
 1. This file (`AGENTS.md`)
 2. `docs/ai/PROJECT_BRIEF.md` — what/why/who
-3. `docs/ai/CURRENT_STATE.md` — what works / what's incomplete *(read every task)*
-4. `docs/ai/HANDOFF.md` — active handoff/takeoff notes *(read before implementation work)*
+3. `docs/ai/CURRENT_STATE.md` — what works / what's incomplete *(read every task — newest section first)*
+4. `docs/ai/HANDOFF.md` — active handoff/takeoff notes *(newest section only; history lives in `docs/ai/HANDOFF_ARCHIVE.md` and is never read at startup)*
 5. `docs/ai/ARCHITECTURE.md` — module map, data/runtime flow
 6. `docs/ai/RULES.md` — non-negotiable rules
 7. `docs/ai/COMMANDS.md` — verified commands
@@ -102,12 +138,16 @@ requires. Register any new `verify:*` / `validate:*` script in
 authoritative assignee, since the tracker has none and `TASK_LOG.md` records only completed work.
 
 Then run `npm run verify:roadmap-dashboard` and check the Overview banner still reads
-**"Sources agree"**. Full procedure and the known traps: `docs/ai/DEVELOPMENT_WORKFLOW.md` § 6;
-contract and isolation proof: `tools/roadmap/README.md`.
+**"Sources agree"**. Reconciliation is capped at **two rounds**: if the second run still shows
+disagreement, fix the one clearly-wrong source if it is in scope, otherwise record the drift as
+`INCONCLUSIVE` naming the disagreeing sources — do not enter a third loop. Expired
+time-based claims are expected drift, not a failure. Full procedure and the known traps:
+`docs/ai/DEVELOPMENT_WORKFLOW.md` § 6; contract and isolation proof: `tools/roadmap/README.md`.
 
 ## Testing rules
 
 - There is **no** `lint` and **no** `test` npm script. Verification = `npm run build` (typecheck + bundles) and `npm run verify:runner` (live runner checks against the mock site via `tsx`).
+- **Verification is change-triggered** (see Stopping semantics): rerun a verifier only when its relevant inputs changed, an artifact was regenerated, the prior result was inconclusive for a corrected cause, or it is a required final-state gate not yet run against the current state. Never rerun a green check at unchanged inputs.
 - For mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - After logic changes to the runner/orchestrator, run `npm run verify:runner` and report the pass count.
 - For offline/packaging changes, run `npm run validate:offline`.
@@ -140,6 +180,10 @@ contract and isolation proof: `tools/roadmap/README.md`.
    `npm run verify:roadmap-dashboard` and confirm the Overview still reads "Sources agree".
    **Never hand-edit `tools/roadmap/` to change a number — it is derived.**
 9. Note remaining risks or manual verification (e.g. the clean-machine GUI walkthrough).
+10. **Then stop.** Once the checklist holds — or the remaining gaps are truthfully recorded as
+    `BLOCKED` / `NOT RUN` / `INCONCLUSIVE` — the task is complete. Record established facts with
+    the compaction-checkpoint `record` CLI before ending a long session; do not keep searching
+    for additional work (see Stopping semantics).
 
 ## Git Full Cycle Skill
 
