@@ -31,6 +31,7 @@ import {
   resolveContractPath,
   toRepoRelative
 } from "./lease.mjs";
+import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "./guard-denials.mjs";
 import { CONCURRENCY_POLICY } from "./context-policy.mjs";
 import { AGENTS, agent } from "./routing-matrix.mjs";
 import { evaluateTaskGate } from "./task-gate.mjs";
@@ -426,9 +427,14 @@ export function isAllowedActiveShellCommand(
  * actual judgement is untested — mutation testing showed exactly that, since flipping the
  * protected-path branch changed no assertion.
  *
+ * Required closeout bookkeeping (`SYSTEM_BOOKKEEPING_PATHS`) is writable under ANY active lease:
+ * the end-of-task checklist obliges the holder to update those files, so blocking them by scope
+ * manufactured amendment loops (2026-09 diagnostic). An active lease is still required — only
+ * the scope check is waived, and only for this exact list.
+ *
  * @param {import("./lease.mjs").Lease|null} lease
  * @param {string} relativePath repo-relative, POSIX
- * @returns {{allow: boolean, reason: "contract-control-plane"|"lease-required"|"in-scope"|"out-of-scope"}}
+ * @returns {{allow: boolean, reason: "contract-control-plane"|"lease-required"|"system-bookkeeping"|"in-scope"|"out-of-scope"}}
  */
 export function decideWrite(lease, relativePath) {
   if (
@@ -439,6 +445,9 @@ export function decideWrite(lease, relativePath) {
   }
   if (!lease) {
     return { allow: false, reason: "lease-required" };
+  }
+  if (SYSTEM_BOOKKEEPING_PATHS.includes(relativePath)) {
+    return { allow: true, reason: "system-bookkeeping" };
   }
   return leaseAllows(lease, relativePath)
     ? { allow: true, reason: "in-scope" }
@@ -512,6 +521,47 @@ export function pushAuthorizedForLease(lease) {
   }
 }
 
+/**
+ * Classify a denial and, once the SAME operation has been denied DENIAL_TERMINAL_THRESHOLD
+ * times in one Claude session, mark it TERMINAL instead of returning another open-ended
+ * remediation instruction. The 2026-09 diagnostic measured 158 such denials in one session
+ * before this existed. Counting is best-effort: any ledger failure degrades to the plain
+ * correctable classification and never changes the allow/block decision.
+ *
+ * @param {string} intent stable identity of the denied operation (e.g. "write:src/x.ts")
+ * @param {Record<string, any>} payload the PreToolUse hook payload (session_id)
+ * @returns {string}
+ */
+function denialNotice(intent, payload) {
+  let recorded = { count: 1, terminal: false };
+  try {
+    recorded = recordDenial({
+      intent,
+      sessionId: payload?.session_id,
+      localAppData: payload?.localAppData
+    });
+  } catch {
+    // Fail open to the uncounted classification.
+  }
+  if (recorded.terminal) {
+    return (
+      `[write-lease] Classification: TERMINAL for this gate — identical denial #${recorded.count} this session.\n` +
+      "[write-lease] Do not attempt another variant. Report this gate as BLOCKED with the reason above\n" +
+      "[write-lease] and continue independent work (AGENTS.md > Stopping semantics).\n"
+    );
+  }
+  return (
+    `[write-lease] Classification: correctable — bounded remediation (denial ${recorded.count} of ` +
+    `${DENIAL_TERMINAL_THRESHOLD} for this operation this session).\n`
+  );
+}
+
+/** Stable intent identity for a shell denial: the first two command tokens. */
+function shellIntent(command) {
+  const tokens = String(command ?? "").trim().split(/\s+/).filter(Boolean);
+  return `shell:${tokens.slice(0, 2).join(" ")}`;
+}
+
 async function main() {
   let payload;
   try {
@@ -557,7 +607,9 @@ async function main() {
       }
       process.stderr.write(
         "[write-lease] BLOCKED: no active lease permits only bounded read-only shell discovery or\n" +
-          "[write-lease] the validated Manager-only agent:lease-grant command. Grant the routed writer lease first.\n"
+          "[write-lease] the validated Manager-only agent:lease-grant command. Grant the routed writer lease first\n" +
+          "[write-lease] (once; if the prerequisites are unavailable, report this gate as BLOCKED).\n" +
+          denialNotice(shellIntent(command), payload)
       );
       process.exit(BLOCK);
     }
@@ -585,8 +637,10 @@ async function main() {
       process.exit(ALLOW);
     }
     process.stderr.write(
-      `[write-lease] BLOCKED: shell command is outside the active ${lease.holder} lease or the actor's role.\n` +
-        "[write-lease] Use one bounded command, or amend/reroute the lease instead of borrowing another role.\n"
+      "[write-lease] BLOCKED: shell command is outside the active " + lease.holder + " lease or the actor's role.\n" +
+        "[write-lease] Use one bounded command per call (no chaining), or amend/reroute the lease once —\n" +
+        "[write-lease] a second denial for the same operation should be reported as BLOCKED, not retried.\n" +
+        denialNotice(shellIntent(command), payload)
     );
     process.exit(BLOCK);
   }
@@ -617,7 +671,8 @@ async function main() {
     process.stderr.write(
       `[write-lease] BLOCKED: ${relativePath}\n` +
         "[write-lease] No writer holds the repository lease. Create/validate the task contract,\n" +
-        "[write-lease] then grant its deterministically routed writer before changing repository files.\n"
+        "[write-lease] then grant its deterministically routed writer before changing repository files.\n" +
+        denialNotice(`write:${relativePath}`, payload)
     );
     process.exit(BLOCK);
   }
@@ -626,7 +681,9 @@ async function main() {
     process.stderr.write(
       `[write-lease] BLOCKED: ${relativePath}\n` +
         `[write-lease] hook actor ${JSON.stringify(payload?.agent_type ?? "awkit-manager")} does not hold ` +
-        `the active ${lease?.holder ?? "missing"} lease.\n`
+        `the active ${lease?.holder ?? "missing"} lease.\n` +
+        "[write-lease] Classification: authorization — terminal for this actor. Report it as BLOCKED; do not\n" +
+        "[write-lease] retry variants of the same write.\n"
     );
     process.exit(BLOCK);
   }
@@ -636,10 +693,11 @@ async function main() {
       `[write-lease] "${lease.holder}" holds the lease for ${lease.task}, scoped to:\n` +
       lease.allowed_paths.map((p) => `[write-lease]   - ${p}\n`).join("") +
       "[write-lease]\n" +
-      "[write-lease] This is scope expansion. Do not work around it — amend the lease, which\n" +
-      "[write-lease] re-runs routing and may hand the work to the specialist who owns this path:\n" +
+      "[write-lease] This is scope expansion. ONE amendment may fix it; repeated amendments for one task are a\n" +
+      "[write-lease] scope-planning defect to report, not to keep amending:\n" +
       "[write-lease]\n" +
-      `[write-lease]   npm run agent:lease-amend -- --add "${relativePath}" --reason "<why>"\n`
+      `[write-lease]   npm run agent:lease-amend -- --add "${relativePath}" --reason "<why>"\n` +
+      denialNotice(`write:${relativePath}`, payload)
   );
   process.exit(BLOCK);
 }

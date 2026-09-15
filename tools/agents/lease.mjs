@@ -846,17 +846,40 @@ export function finalizeLeaseCloseout({
 }
 
 /**
- * The routing system's own bookkeeping, which can never be a lease violation.
+ * The routing system's own bookkeeping plus the closeout record every completed task must
+ * update, which can never be a lease violation and never requires an amendment.
  *
  * `grantLease` writes the lease file and mirrors the holder into `assignments.json` AFTER it
  * snapshots the dirty set, so without this exclusion the very act of taking a lease reports itself
- * as an out-of-lease write on the next shell command. Found by running the audit for the first time
- * against a real lease.
+ * as an out-of-lease write on the next shell command. Found by running the audit for the first
+ * time against a real lease.
+ *
+ * The 2026-09 anti-loop diagnostic then measured the mirror-image failure: the end-of-task
+ * checklist obliges the lease holder to update the AI-memory and validation-ledger sources the
+ * Program Status dashboard reads, but those writes repeatedly landed as "unexpected" out-of-scope
+ * denials (45 agent:lease grant/amend/handoff cycles in one session). Required closeout
+ * bookkeeping is therefore an explicit exact list — not `docs/ai/**` — and still requires an
+ * ACTIVE lease; it merely cannot be a scope violation. Arbitrary source code keeps full
+ * lease isolation.
  * @type {readonly string[]}
  */
 export const SYSTEM_BOOKKEEPING_PATHS = Object.freeze([
   "docs/ai/contracts/active-lease.json",
-  "tools/roadmap/assignments.json"
+  "tools/roadmap/assignments.json",
+  "docs/ai/CURRENT_STATE.md",
+  "docs/ai/HANDOFF.md",
+  "docs/ai/HANDOFF_ARCHIVE.md",
+  "docs/ai/TASK_LOG.md",
+  "docs/ai/KNOWN_ISSUES.md",
+  "docs/ai/FEATURES.md",
+  "docs/ai/ARCHITECTURE.md",
+  "docs/ai/COMMANDS.md",
+  "docs/ai/DECISIONS.md",
+  "docs/ai/TESTING.md",
+  "docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md",
+  "docs/testing/comprehensive-validation/DEFECTS.md",
+  "docs/testing/comprehensive-validation/TRACEABILITY_MATRIX.csv",
+  ".beads/issues.jsonl"
 ]);
 
 /**
