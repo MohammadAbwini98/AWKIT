@@ -117,6 +117,7 @@ import {
   pushAuthorizedForLease,
   targetPathOf
 } from "../tools/agents/lease-guard.mjs";
+import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "../tools/agents/guard-denials.mjs";
 
 /**
  * Quiet by default, opt-in verbose.
@@ -158,7 +159,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1078;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1112;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -299,13 +300,14 @@ async function optionalImport(specifier) {
   }
 }
 
-const [contextPolicyLoad, contextStatusLoad, checkpointLoad, taskGateLoad, leaseExtrasLoad] =
+const [contextPolicyLoad, contextStatusLoad, checkpointLoad, taskGateLoad, leaseExtrasLoad, memoryLoad] =
   await Promise.all([
     optionalImport("../tools/agents/context-policy.mjs"),
     optionalImport("../tools/agents/context-status.mjs"),
     optionalImport("../tools/agents/compaction-checkpoint.mjs"),
     optionalImport("../tools/agents/task-gate.mjs"),
-    optionalImport("../tools/agents/lease.mjs")
+    optionalImport("../tools/agents/lease.mjs"),
+    optionalImport("../scripts/ai-memory/check-memory.mjs")
   ]);
 
 const tempDirs = [];
@@ -2149,8 +2151,8 @@ try {
       status: "active",
       allowed_paths: ["app/main/**"],
       acquired_at_commit: "baseline-sha",
-      baseline_dirty: ["docs/ai/TASK_LOG.md"],
-      baseline_dirty_fingerprints: { "docs/ai/TASK_LOG.md": "baseline" },
+      baseline_dirty: ["docs/ai/SECURITY.md"],
+      baseline_dirty_fingerprints: { "docs/ai/SECURITY.md": "baseline" },
       amendments: [],
       overrides: [],
       violations: []
@@ -2167,9 +2169,9 @@ try {
     );
     check(
       "a file already dirty when the lease was granted is not blamed on this lease",
-      outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"], {
+      outOfLeaseWrites(auditLease, ["docs/ai/SECURITY.md"], {
         committedPaths: [],
-        currentFingerprints: { "docs/ai/TASK_LOG.md": "baseline" }
+        currentFingerprints: { "docs/ai/SECURITY.md": "baseline" }
       }).length === 0
     );
     check(
@@ -2185,12 +2187,21 @@ try {
     check(
       "modifying a baseline-dirty file is detected rather than exempt by name",
       sameArray(
-        outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"], {
+        outOfLeaseWrites(auditLease, ["docs/ai/SECURITY.md"], {
           committedPaths: [],
-          currentFingerprints: { "docs/ai/TASK_LOG.md": "modified" }
+          currentFingerprints: { "docs/ai/SECURITY.md": "modified" }
         }),
-        ["docs/ai/TASK_LOG.md"]
+        ["docs/ai/SECURITY.md"]
       )
+    );
+    // 2026-09 anti-loop repair: required closeout bookkeeping must never be an out-of-lease
+    // violation, or every task's own checklist manufactures amendment loops.
+    check(
+      "modifying closeout bookkeeping (TASK_LOG) is not a violation under any lease",
+      outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"], {
+        committedPaths: [],
+        currentFingerprints: { "docs/ai/TASK_LOG.md": "modified" }
+      }).length === 0
     );
     check(
       "a shared write path is not a violation",
@@ -2212,13 +2223,13 @@ try {
         JSON.stringify(["src/data/fixture.json"])
     );
     check(
-      "the bookkeeping exclusion is exactly two known paths",
-      SYSTEM_BOOKKEEPING_PATHS.length === 2,
+      "the bookkeeping exclusion is exactly the sixteen known closeout paths",
+      SYSTEM_BOOKKEEPING_PATHS.length === 16,
       SYSTEM_BOOKKEEPING_PATHS.join(", ")
     );
     check(
       "a lease with no recorded baseline over-reports rather than staying silent",
-      outOfLeaseWrites({ ...auditLease, baseline_dirty: undefined }, ["docs/ai/TASK_LOG.md"]).length === 1
+      outOfLeaseWrites({ ...auditLease, baseline_dirty: undefined }, ["docs/ai/SECURITY.md"]).length === 1
     );
     check(
       "several out-of-lease writes are all reported, sorted",
@@ -2416,6 +2427,84 @@ try {
       "a lease covering a protected path permits it",
       decideWrite({ ...held, allowed_paths: ["src/licensing/**"] }, "src/licensing/x.ts").allow === true
     );
+    // 2026-09 anti-loop repair: mandatory closeout bookkeeping is writable under any ACTIVE
+    // lease without an amendment, but never without a lease at all.
+    check(
+      "an active lease may update closeout bookkeeping without an amendment",
+      decideWrite(held, "docs/ai/TASK_LOG.md").allow === true &&
+        decideWrite(held, "docs/ai/TASK_LOG.md").reason === "system-bookkeeping" &&
+        decideWrite(held, "docs/ai/CURRENT_STATE.md").allow === true &&
+        decideWrite(held, "docs/ai/HANDOFF.md").allow === true &&
+        decideWrite(held, "tools/roadmap/assignments.json").allow === true
+    );
+    check(
+      "closeout bookkeeping still requires an active lease",
+      decideWrite(null, "docs/ai/TASK_LOG.md").allow === false &&
+        decideWrite(null, "docs/ai/TASK_LOG.md").reason === "lease-required"
+    );
+
+    // Bounded denial ledger: identical denials escalate to TERMINAL instead of another
+    // open-ended remediation suggestion (2026-09 diagnostic: 158 denials in one session).
+    {
+      const denialRoot = mkdtempSync(join(tmpdir(), "awkit-denials-"));
+      tempDirs.push(denialRoot);
+      const first = recordDenial({ intent: "write:src/x.ts", sessionId: "s1", localAppData: denialRoot });
+      const second = recordDenial({ intent: "write:src/x.ts", sessionId: "s1", localAppData: denialRoot });
+      const third = recordDenial({ intent: "write:src/x.ts", sessionId: "s1", localAppData: denialRoot });
+      check(
+        "repeated identical denials escalate to terminal at the threshold",
+        first.count === 1 && first.terminal === false &&
+          second.count === 2 && second.terminal === false &&
+          third.count === DENIAL_TERMINAL_THRESHOLD && third.terminal === true
+      );
+      const otherSession = recordDenial({ intent: "write:src/x.ts", sessionId: "s2", localAppData: denialRoot });
+      check("denial counts are scoped per session", otherSession.count === 1 && otherSession.terminal === false);
+      writeFileSync(join(denialRoot, "blocker"), "not a directory");
+      const unwritable = recordDenial({
+        intent: "write:src/x.ts",
+        sessionId: "s3",
+        localAppData: join(denialRoot, "blocker")
+      });
+      check(
+        "denial counting fails open when the ledger cannot persist",
+        unwritable.count === 1 && unwritable.terminal === false && unwritable.persisted === false
+      );
+    }
+
+    // The live hook itself must bound the loop: the third identical no-lease write denial in
+    // one Claude session is labelled TERMINAL with an instruction to report BLOCKED.
+    {
+      const guardRoot = mkdtempSync(join(tmpdir(), "awkit-guard-"));
+      tempDirs.push(guardRoot);
+      const guardPayload = JSON.stringify({
+        session_id: "escalation-fixture",
+        tool_name: "Edit",
+        tool_input: { file_path: join(process.cwd(), "src", "runner", "exec.ts") }
+      });
+      const guardEnv = { ...process.env, LOCALAPPDATA: guardRoot };
+      let everyAttemptBlocked = true;
+      let firstStderr = "";
+      let thirdStderr = "";
+      for (let attempt = 1; attempt <= DENIAL_TERMINAL_THRESHOLD; attempt += 1) {
+        const run = spawnSync(process.execPath, ["tools/agents/lease-guard.mjs"], {
+          cwd: process.cwd(),
+          env: guardEnv,
+          input: guardPayload,
+          encoding: "utf8"
+        });
+        everyAttemptBlocked = everyAttemptBlocked && run.status === 2;
+        if (attempt === 1) firstStderr = run.stderr;
+        if (attempt === DENIAL_TERMINAL_THRESHOLD) thirdStderr = run.stderr;
+      }
+      check(
+        "the live hook marks the third identical denial TERMINAL, not another suggestion",
+        everyAttemptBlocked &&
+          /Classification: correctable/.test(firstStderr) &&
+          /Classification: TERMINAL/.test(thirdStderr) &&
+          /report this gate as BLOCKED/i.test(thirdStderr),
+        `first: ${firstStderr.slice(0, 200)} | third: ${thirdStderr.slice(0, 200)}`
+      );
+    }
   }
 
   /* ── Gitignored-but-consequential paths (awkit-6ab) ────────────────────────────────────────
@@ -3421,6 +3510,77 @@ try {
       /non[- ]authoritative/i.test(String(renderedCheckpoint.value)),
     renderedCheckpoint.error?.message ?? String(renderedCheckpoint.value)
   );
+  // 2026-09 anti-loop repair: after a compaction the restore text must PRESERVE evidence, not
+  // instruct re-derivation. The old text demanded unconditional repository re-verification,
+  // which measured as 53 compaction -> re-recon cycles in a single session.
+  const renderedCheckpointText = String(renderedCheckpoint.value ?? "").replace(/\s+/g, " ");
+  check(
+    "restore output carries evidence-preserving continuation rules",
+    renderedCheckpoint.ok &&
+      /Continuation rules:/.test(renderedCheckpointText) &&
+      /do not rerun unchanged reconnaissance/i.test(renderedCheckpointText) &&
+      /Do not rerun a verifier whose inputs have not changed/i.test(renderedCheckpointText)
+  );
+  check(
+    "restore output never asks for unconditional repository re-verification",
+    renderedCheckpoint.ok &&
+      !/re-read the live task contract/i.test(renderedCheckpointText) &&
+      !/verify (the )?(live )?repository state/i.test(renderedCheckpointText),
+    renderedCheckpointText
+  );
+  check(
+    "recorded facts and commands are bounded in the checkpoint",
+    invoke(checkpoint?.buildCheckpoint, {
+      taskId: "awkit-facts-fixture",
+      status: {
+        facts: Array.from({ length: 80 }, (_, index) => `fact-${index}`),
+        commandsRun: Array.from({ length: 80 }, (_, index) => ({ command: `cmd-${index}`, result: "PASS" }))
+      }
+    }).value?.status?.facts?.length <= 50 &&
+      invoke(checkpoint?.buildCheckpoint, {
+        taskId: "awkit-facts-fixture",
+        status: {
+          facts: Array.from({ length: 80 }, (_, index) => `fact-${index}`),
+          commandsRun: Array.from({ length: 80 }, (_, index) => ({ command: `cmd-${index}`, result: "PASS" }))
+        }
+      }).value?.status?.commands_run?.length <= 50
+  );
+  {
+    const factsRoot = mkdtempSync(join(tmpdir(), "awkit-facts-"));
+    tempDirs.push(factsRoot);
+    const appendedFact = invoke(checkpoint?.appendFactRecord, {
+      taskId: "awkit-facts-fixture",
+      localAppData: factsRoot,
+      command: "npm run build",
+      result: "PASS",
+      fact: "build is green at the fixture HEAD"
+    });
+    const hostileFact = invoke(checkpoint?.appendFactRecord, {
+      taskId: "awkit-facts-fixture",
+      localAppData: factsRoot,
+      fact: "token=HOSTILE_FACT_SENTINEL"
+    });
+    const readFacts = invoke(checkpoint?.readFactRecords, {
+      taskId: "awkit-facts-fixture",
+      localAppData: factsRoot
+    });
+    check(
+      "fact records round-trip beneath injected LOCALAPPDATA",
+      appendedFact.ok &&
+        readFacts.ok &&
+        readFacts.value.facts.includes("build is green at the fixture HEAD") &&
+        readFacts.value.commands_run.some(
+          (entry) => entry?.command === "npm run build" && entry?.result === "PASS"
+        )
+    );
+    check(
+      "fact records redact sensitive values",
+      hostileFact.ok &&
+        !readFileSync(String(appendedFact.value.path), "utf8")
+          .concat(readFileSync(String(hostileFact.value.path), "utf8"))
+          .includes("HOSTILE_FACT_SENTINEL")
+    );
+  }
 
   const capturedCheckpoint = checkpointPathIsLocal
     ? await invokeAsync(checkpoint?.captureCheckpoint, checkpointInput)
@@ -3531,6 +3691,52 @@ try {
     "PreCompact capture CLI is non-fatal for a spawned hook payload",
     checkpointCaptureCli.status === 0,
     `${checkpointCaptureCli.status}: ${checkpointCaptureCli.stderr}`
+  );
+  // The agent-facing evidence ledger: record a command result, then a capture in the same
+  // LOCALAPPDATA must merge it into the checkpoint a restore will render.
+  const factRecordCli = spawnSync(
+    process.execPath,
+    [
+      "tools/agents/compaction-checkpoint.mjs",
+      "record",
+      "--task",
+      "awkit-cli-fixture",
+      "--command",
+      "npm run verify:sample",
+      "--result",
+      "PASS"
+    ],
+    {
+      cwd: process.cwd(),
+      env: checkpointCliEnv,
+      encoding: "utf8"
+    }
+  );
+  check(
+    "fact-record CLI is non-fatal for a spawned hook payload",
+    factRecordCli.status === 0,
+    `${factRecordCli.status}: ${factRecordCli.stderr}`
+  );
+  const factMergeCaptureCli = spawnSync(
+    process.execPath,
+    ["tools/agents/compaction-checkpoint.mjs", "capture"],
+    {
+      cwd: process.cwd(),
+      env: checkpointCliEnv,
+      input: JSON.stringify({ taskId: "awkit-cli-fixture" }),
+      encoding: "utf8"
+    }
+  );
+  const factMergePath = invoke(checkpoint?.checkpointPathFor, {
+    taskId: "awkit-cli-fixture",
+    localAppData: checkpointRoot
+  });
+  check(
+    "capture merges the recorded evidence a continuation must reuse",
+    factMergeCaptureCli.status === 0 &&
+      factMergePath.ok &&
+      readFileSync(String(factMergePath.value), "utf8").includes("npm run verify:sample"),
+    `${factMergeCaptureCli.status}: ${factMergeCaptureCli.stderr || readFileSync(String(factMergePath.value), "utf8").slice(0, 200)}`
   );
   const checkpointRestoreCli = spawnSync(
     process.execPath,
@@ -4185,6 +4391,61 @@ try {
       `generated ${a.claudeName} carries every specialist report section`,
       requiredSections.every((section) => lowerContent.includes(section)),
       requiredSections.filter((section) => !lowerContent.includes(section)).join(", ")
+    );
+  }
+
+  /* ======================================================================
+     11. Stop-hook memory gate — blocking secrets stay blocking; prose and
+         structure drift must never veto session completion
+     ====================================================================== */
+  console.log("Stop-hook memory gate:");
+  {
+    const memory = memoryLoad.module;
+    check(
+      "check-memory.mjs exists and imports without executing its gate",
+      memory !== null,
+      memoryLoad.error?.message ?? "missing module"
+    );
+    check(
+      "findSecretHits and handoffSizeWarning are exported for tests",
+      typeof memory?.findSecretHits === "function" && typeof memory?.handoffSizeWarning === "function"
+    );
+    const hits = (text) =>
+      (memory?.findSecretHits ?? (() => []))(text).map((hit) => hit?.name ?? String(hit));
+    check(
+      "credential-shaped values still hit (secrets stay blocking)",
+      [
+        'api_key = "a1b2c3d4e5f6g7h8i9j0"',
+        "token: ghp_abcdefghijklmnopqrstuvwxyz012345",
+        'password: "hunter2secret"',
+        "password: hunter2hunter2",
+        'secret = "abcd1234efgh5678"',
+        "-----BEGIN RSA PRIVATE KEY-----"
+      ].every((sample) => hits(sample).length > 0)
+    );
+    check(
+      "ordinary documentation prose does not hit (Stop cannot be vetoed by prose)",
+      [
+        "password: use a strong unique passphrase",
+        "token: the session token value stays opaque",
+        "api_key: this field stores the user key",
+        "secret: keep secrets out of memory files",
+        "The password field is masked in logs"
+      ].every((sample) => hits(sample).length === 0)
+    );
+    check(
+      "HANDOFF size guard is advisory and threshold-bounded",
+      memory?.handoffSizeWarning?.(1000) == null &&
+        typeof memory?.handoffSizeWarning?.(memory.HANDOFF_SOFT_LIMIT_BYTES + 1) === "string"
+    );
+    const memoryCli = spawnSync(process.execPath, ["scripts/ai-memory/check-memory.mjs"], {
+      cwd: process.cwd(),
+      encoding: "utf8"
+    });
+    check(
+      "the live Stop hook exits 0 when only advisories fire",
+      memoryCli.status === 0 && /passed required checks/.test(memoryCli.stdout),
+      `${memoryCli.status}: ${memoryCli.stderr || memoryCli.stdout}`
     );
   }
 
