@@ -47,7 +47,12 @@ const STATUS_KEYS = Object.freeze([
   ["compatibility_constraints", "compatibility_constraints"],
   ["blockers", "blockers"],
   ["nextAction", "next_action"],
-  ["next_action", "next_action"]
+  ["next_action", "next_action"],
+  ["facts", "facts"],
+  ["establishedFacts", "facts"],
+  ["established_facts", "facts"],
+  ["commandsRun", "commands_run"],
+  ["commands_run", "commands_run"]
 ]);
 
 const SENSITIVE_KEY = /(?:pass(?:word|phrase)?|secret|token|cookie|credential|authorization|api[_-]?key|private[_-]?key|connection[_-]?string|session[_-]?(?:id|state|token)|compact.?summary|transcript|messages?|conversation)/i;
@@ -102,6 +107,100 @@ export function checkpointPathFor({ taskId = "unassigned", sessionId, localAppDa
     ? `session-${createHash("sha256").update(String(sessionId)).digest("hex").slice(0, 24)}.json`
     : `${safeTaskId(taskId)}.json`;
   return resolve(base, "AWKIT", "claude-context", filename);
+}
+
+/**
+ * Where the agent's own established facts and executed-command results accumulate between
+ * compactions. One bounded JSONL file per task beneath LOCALAPPDATA, outside the repository.
+ *
+ * The checkpoint renders these back after every compaction so a continuation reuses recorded
+ * evidence instead of re-deriving repository state.
+ *
+ * @param {{taskId?:string, localAppData?:string}} [input]
+ * @returns {string}
+ */
+export function factsFilePathFor({ taskId = "unassigned", localAppData } = {}) {
+  const base = resolve(localAppData || process.env.LOCALAPPDATA || join(tmpdir(), "AWKIT-local"));
+  return resolve(base, "AWKIT", "claude-context", "facts", `${safeTaskId(taskId)}.jsonl`);
+}
+
+const FACT_LINE_LIMIT = 200;
+const FACT_TEXT_LIMIT = 500;
+
+/**
+ * Append one established fact and/or one executed-command result to the task's fact ledger.
+ * Values pass the same sensitive-text redaction as checkpoint values; the file stays bounded.
+ *
+ * @param {{taskId?:string, localAppData?:string, command?:string, result?:string, fact?:string}} [input]
+ */
+export function appendFactRecord({ taskId = "unassigned", localAppData, command, result, fact } = {}) {
+  const entry = { at: new Date().toISOString() };
+  if (typeof command === "string" && command.trim()) entry.command = command.trim().slice(0, FACT_TEXT_LIMIT);
+  // `result` is a controlled vocabulary (PASS/FAIL/BLOCKED/NOT RUN/INCONCLUSIVE), never free
+  // text: the sensitive-text redactor matches the word "pass" itself, which would erase it.
+  if (typeof result === "string" && /^[A-Za-z0-9 _/-]{1,40}$/.test(result.trim())) {
+    entry.result = result.trim();
+  }
+  if (typeof fact === "string" && fact.trim()) entry.fact = fact.trim().slice(0, FACT_TEXT_LIMIT);
+  if (entry.command === undefined && entry.fact === undefined) {
+    throw new Error("a fact record requires a command or a fact");
+  }
+  for (const key of ["command", "fact"]) {
+    if (typeof entry[key] === "string" && SENSITIVE_TEXT.test(entry[key])) entry[key] = "[REDACTED SENSITIVE TEXT]";
+  }
+
+  const path = factsFilePathFor({ taskId, localAppData });
+  let lines = [];
+  try {
+    lines = readFileSync(path, "utf8").split("\n").filter(Boolean);
+  } catch {
+    lines = [];
+  }
+  lines.push(JSON.stringify(entry));
+  if (lines.length > FACT_LINE_LIMIT) lines = lines.slice(lines.length - FACT_LINE_LIMIT);
+
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${lines.join("\n")}\n`, "utf8");
+  renameSync(temporary, path);
+  return { path, entry };
+}
+
+/**
+ * Read the task's recorded facts and command results, most recent last, bounded to the 50
+ * newest of each so the restored checkpoint stays deliberately compact. Keys are the
+ * checkpoint's own (`facts`, `commands_run`) so `liveInput` can spread them straight into
+ * the status the checkpoint renders.
+ *
+ * @param {{taskId?:string, localAppData?:string}} [input]
+ * @returns {{facts:string[], commands_run:Array<{command:string, result:string, at?:string}>}}
+ */
+export function readFactRecords({ taskId = "unassigned", localAppData } = {}) {
+  let lines = [];
+  try {
+    lines = readFileSync(factsFilePathFor({ taskId, localAppData }), "utf8").split("\n").filter(Boolean);
+  } catch {
+    return { facts: [], commands_run: [] };
+  }
+  const facts = [];
+  const commandsRun = [];
+  for (const line of lines) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (typeof entry?.fact === "string") facts.push(entry.fact);
+    if (typeof entry?.command === "string") {
+      commandsRun.push({
+        command: entry.command,
+        result: typeof entry.result === "string" ? entry.result : "unknown",
+        at: typeof entry.at === "string" ? entry.at : undefined
+      });
+    }
+  }
+  return { facts: facts.slice(-50), commands_run: commandsRun.slice(-50) };
 }
 
 /**
@@ -179,7 +278,7 @@ export function renderCheckpoint(checkpoint) {
   const status = value.status ?? {};
   const lines = [
     "AWKIT EPHEMERAL, NON-AUTHORITATIVE COMPACTION CHECKPOINT",
-    "Durable truth remains in Beads and docs/ai; verify live repository state before acting.",
+    "Durable truth remains in Beads and docs/ai; this bridge covers one compact event only.",
     `Task: ${value.task_id ?? "unassigned"}`,
     `Repository: ${repo.branch ?? "unknown branch"} @ ${repo.head ?? "unknown head"}`
   ];
@@ -213,6 +312,14 @@ export function renderCheckpoint(checkpoint) {
   show("Compatibility constraints", status.compatibility_constraints);
   show("Blockers", status.blockers);
   show("Next action", status.next_action);
+  show("Commands already run (do not rerun unless their inputs changed)", status.commands_run);
+  show("Established facts (reuse; do not re-derive)", status.facts);
+  lines.push(
+    "Continuation rules: REUSE the facts and command results above. Do not rerun unchanged",
+    "reconnaissance. Do not rerun a verifier whose inputs have not changed since its recorded",
+    "result. Inspect only paths changed since captured_at, and continue from the next action",
+    "above instead of re-deriving repository state (AGENTS.md > Stopping semantics)."
+  );
   return lines.join("\n");
 }
 
@@ -283,11 +390,11 @@ function contractStatus(taskId, cwd, { changedPaths = [], lease = null } = {}) {
       compatibilityConstraints: contract.constraints?.compatibility ?? [],
       blockers: completionBlockers(contract, { lease }),
       nextAction: contract.completion?.status === "complete"
-        ? "No remaining task action. Verify live repository state before declaring closure."
-        : "Re-read the live task contract, verify repository state, and continue its next unresolved acceptance criterion."
+        ? "No remaining task action. Reuse the established facts and re-check only paths changed since captured_at before declaring closure."
+        : "Continue from the recorded next action and the established facts; do not rerun unchanged reconnaissance or verification (AGENTS.md > Stopping semantics)."
     };
   } catch {
-    return { nextAction: "Inspect live Git, Beads, CURRENT_STATE and HANDOFF before continuing." };
+    return { nextAction: "No task contract found. Read the newest HANDOFF.md section only, then continue; do not reconstruct unchanged history." };
   }
 }
 
@@ -338,6 +445,7 @@ function liveInput(payload) {
   const taskId = payload?.taskId ?? payload?.task_id ?? lease?.task ??
     storedTaskId({ sessionId, localAppData }) ?? pendingContractTask(cwd) ?? "unassigned";
   const changed = cwd === REPO_ROOT ? dirtyPaths(cwd) : [];
+  const recorded = readFactRecords({ taskId, localAppData });
   return {
     taskId,
     sessionId,
@@ -349,7 +457,7 @@ function liveInput(payload) {
       dirty: changed,
       activeLease: lease
     },
-    status: contractStatus(taskId, cwd, { changedPaths: changed, lease })
+    status: { ...contractStatus(taskId, cwd, { changedPaths: changed, lease }), ...recorded }
   };
 }
 
@@ -384,8 +492,33 @@ if (process.argv[1]?.endsWith("compaction-checkpoint.mjs")) {
         systemMessage: "AWKIT ephemeral non-authoritative checkpoint restored.",
         hookSpecificOutput: { hookEventName: "SessionStart", additionalContext }
       })}\n`);
+    } else if (mode === "record") {
+      // Agent-facing evidence ledger: node tools/agents/compaction-checkpoint.mjs record
+      //   --task <id> [--command "<cmd>" --result PASS|FAIL|BLOCKED|NOT RUN|INCONCLUSIVE] [--fact "<fact>"]
+      // taskId resolves from --task, else the stdin payload, else live lease/contract detection.
+      const args = process.argv.slice(3);
+      const flag = (name) => {
+        const index = args.indexOf(`--${name}`);
+        return index >= 0 && index + 1 < args.length ? args[index + 1] : undefined;
+      };
+      const payloadTaskId = typeof payload?.taskId === "string"
+        ? payload.taskId
+        : typeof payload?.task_id === "string"
+          ? payload.task_id
+          : undefined;
+      const resolvedTaskId = flag("task") ?? payloadTaskId ?? input.taskId;
+      const recorded = appendFactRecord({
+        taskId: resolvedTaskId,
+        localAppData: payload?.localAppData,
+        command: flag("command"),
+        result: flag("result"),
+        fact: flag("fact")
+      });
+      process.stdout.write(`${JSON.stringify({
+        systemMessage: `AWKIT fact recorded for ${resolvedTaskId}: ${recorded.path}`
+      })}\n`);
     } else {
-      process.stdout.write("AWKIT checkpoint mode must be capture or restore.\n");
+      process.stdout.write("AWKIT checkpoint mode must be capture, restore, or record.\n");
     }
   } catch (error) {
     // Compaction must never be blocked by checkpoint failure.
