@@ -12,7 +12,6 @@ import {
   Plus,
   RotateCcw,
   RefreshCw,
-  Save,
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
@@ -35,6 +34,7 @@ import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
 import { SemanticIndexSettings } from "./SemanticIndexSettings";
 import type { DebugLogEntry } from "../../main/debugLogService";
+import { usePageChrome } from "../state/pageChrome";
 import {
   MAX_SESSION_INACTIVITY_MINUTES,
   MIN_SESSION_INACTIVITY_MINUTES,
@@ -480,6 +480,22 @@ export function SettingsPage() {
     }
   }, []);
 
+  usePageChrome(
+    {
+      actions: [
+        {
+          id: "save-settings",
+          label: saving ? "Saving…" : "Save",
+          variant: "primary",
+          disabled: saving || !settings,
+          onClick: save
+        }
+      ],
+      dirty: false
+    },
+    [save, saving, settings]
+  );
+
   if (!settings) {
     return (
       <section className="page">
@@ -499,21 +515,6 @@ export function SettingsPage() {
   return (
     <section className="page">
       <div className="settings-stack">
-        <div className="settings-toolbar">
-          <div className="section-heading" style={{ border: 0, margin: 0, padding: 0, flex: 1 }}>
-            <h1>Settings</h1>
-            <span>Application options and runtime paths</span>
-          </div>
-          <button className="toolbar-button" type="button" onClick={resetDefaults} title="Reset all settings to defaults">
-            <RotateCcw size={15} />
-            Reset to Defaults
-          </button>
-          <button className="toolbar-button primary" type="button" onClick={() => void save()} disabled={saving}>
-            <Save size={15} />
-            {saving ? "Saving…" : "Save Changes"}
-          </button>
-        </div>
-
         {banner ? (
           <div
             className={`settings-banner ${banner.type}`}
@@ -535,6 +536,16 @@ export function SettingsPage() {
             </ul>
           </div>
         ) : null}
+
+        <section className="settings-section" aria-labelledby="settings-appearance-title">
+          <div className="settings-section-intro">
+            <span className="settings-section-icon" aria-hidden="true"><SlidersHorizontal size={17} /></span>
+            <div>
+              <h2 id="settings-appearance-title">Appearance</h2>
+              <p>Theme, accent, branding, and application identity. Visual changes apply immediately and stay local to this machine.</p>
+            </div>
+          </div>
+          <div className="settings-panel-grid">
 
         {/* Application */}
         <section className="work-panel settings-card">
@@ -571,14 +582,32 @@ export function SettingsPage() {
         </section>
 
         {/* Appearance — Accent Color (user-selectable brand accent) */}
-        <AccentColorSettings />
+        <div className="settings-panel-slot settings-panel-slot--wide">
+          <AccentColorSettings />
+        </div>
 
         {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
             The main process is the real boundary — SETTINGS_BRANDING_MANAGE gates the mutating IPC. */}
-        {can(Permission.SETTINGS_BRANDING_MANAGE) ? <BrandingSettings /> : null}
+        {can(Permission.SETTINGS_BRANDING_MANAGE) ? (
+          <div className="settings-panel-slot settings-panel-slot--wide">
+            <BrandingSettings />
+          </div>
+        ) : null}
+          </div>
+        </section>
+
+        <section className="settings-section" aria-labelledby="settings-security-title">
+          <div className="settings-section-intro">
+            <span className="settings-section-icon" aria-hidden="true"><ShieldCheck size={17} /></span>
+            <div>
+              <h2 id="settings-security-title">Automation and security</h2>
+              <p>Recorder safeguards, browser policy, privileged diagnostics, and session controls for authorized automation.</p>
+            </div>
+          </div>
+          <div className="settings-panel-grid">
 
         {can(Permission.DEBUG_MODE_MANAGE) && can(Permission.SESSION_POLICY_MANAGE) ? (
-          <section className="work-panel settings-card" data-testid="super-user-debug-settings">
+          <section className="work-panel settings-card settings-card--wide" data-testid="super-user-debug-settings">
             <div className="settings-card-head">
               <Bug size={16} />
               <h2>Super User Debug &amp; Session Policy</h2>
@@ -768,9 +797,21 @@ export function SettingsPage() {
             ) : null}
           </section>
         ) : null}
+          </div>
+        </section>
+
+        <section className="settings-section" aria-labelledby="settings-environment-title">
+          <div className="settings-section-intro">
+            <span className="settings-section-icon" aria-hidden="true"><Gauge size={17} /></span>
+            <div>
+              <h2 id="settings-environment-title">Environment and execution</h2>
+              <p>Runtime paths, designer defaults, run behavior, and machine-aware capacity. Saved values survive a restart.</p>
+            </div>
+          </div>
+          <div className="settings-panel-grid">
 
         {/* Paths & Directories */}
-        <section className="work-panel settings-card">
+        <section className="work-panel settings-card settings-card--wide">
           <div className="settings-card-head">
             <FolderOpen size={16} />
             <h2>Paths &amp; Directories</h2>
@@ -874,7 +915,7 @@ export function SettingsPage() {
         </section>
 
         {/* Runtime Concurrency — machine-aware capacity (Sequential / Auto / Manual) */}
-        <section className="work-panel settings-card">
+        <section className="work-panel settings-card settings-card--wide">
           <div className="settings-card-head">
             <Gauge size={16} />
             <h2>Runtime Concurrency</h2>
@@ -1001,6 +1042,18 @@ export function SettingsPage() {
             </details>
           ) : null}
         </section>
+          </div>
+        </section>
+
+        <section className="settings-section" aria-labelledby="settings-integrations-title">
+          <div className="settings-section-intro">
+            <span className="settings-section-icon" aria-hidden="true"><KeyRound size={17} /></span>
+            <div>
+              <h2 id="settings-integrations-title">Credentials and integrations</h2>
+              <p>Encrypted secrets and local runtime components. Sensitive values never appear in workflow files or reports.</p>
+            </div>
+          </div>
+          <div className="settings-panel-grid">
 
         {/* Secrets — encrypted operator credentials referenced from steps by name (audit §15) */}
         <section className="work-panel settings-card">
@@ -1079,8 +1132,26 @@ export function SettingsPage() {
         {/* Database Drivers — user-selected Java runtime + managed Oracle JDBC driver bundles.
             Java is selected first (it launches the isolated bridge that loads the driver). */}
         <JavaRuntimeSettings />
-        <OracleDriverSettings />
-        {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
+        <div className="settings-panel-slot settings-panel-slot--wide">
+          <OracleDriverSettings />
+        </div>
+        {can(Permission.SEMANTIC_SEARCH) ? (
+          <div className="settings-panel-slot settings-panel-slot--wide">
+            <SemanticIndexSettings />
+          </div>
+        ) : null}
+          </div>
+        </section>
+
+        <section className="settings-section" aria-labelledby="settings-maintenance-title">
+          <div className="settings-section-intro">
+            <span className="settings-section-icon" aria-hidden="true"><Database size={17} /></span>
+            <div>
+              <h2 id="settings-maintenance-title">Storage and maintenance</h2>
+              <p>Review local data usage, validate the offline runtime, and manage portable Settings backups.</p>
+            </div>
+          </div>
+          <div className="settings-panel-grid">
 
         {/* Data Storage */}
         <section className="work-panel settings-card">
@@ -1153,6 +1224,8 @@ export function SettingsPage() {
           <p className="form-message">
             <CheckCircle2 size={13} style={{ verticalAlign: "-2px" }} /> Clear UI State and Import never delete saved flows, workflows, data sources, or reports.
           </p>
+        </section>
+          </div>
         </section>
       </div>
 

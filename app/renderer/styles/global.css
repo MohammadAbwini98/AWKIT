@@ -5286,14 +5286,73 @@ th {
 /* ── Settings screen ────────────────────────────────────────────────────────── */
 .settings-stack {
   display: grid;
-  gap: 14px;
+  gap: var(--space-5);
 }
 
-.settings-toolbar {
-  align-items: center;
+.settings-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.settings-section + .settings-section {
+  padding-top: var(--space-2);
+}
+
+.settings-section-intro {
+  align-items: flex-start;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-3);
+}
+
+.settings-section-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border: 1px solid var(--awkit-accent-muted);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent-hover);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: calc(var(--space-5) + var(--space-2));
+  justify-content: center;
+  width: calc(var(--space-5) + var(--space-2));
+}
+
+.settings-section-intro h2 {
+  color: var(--awkit-text);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-lg);
+  line-height: var(--leading-lg);
+  margin: 0;
+}
+
+.settings-section-intro p {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-sm);
+  line-height: var(--leading-sm);
+  margin: var(--space-1) 0 0;
+  max-width: 72ch;
+}
+
+.settings-panel-grid {
+  align-items: start;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-card--wide,
+.settings-panel-slot--wide {
+  grid-column: 1 / -1;
+}
+
+.settings-panel-slot,
+.settings-panel-slot > .settings-card {
+  min-width: 0;
+}
+
+.settings-panel-slot > .settings-card {
+  height: 100%;
 }
 
 .settings-banner {
@@ -5317,7 +5376,7 @@ th {
 
 .settings-card {
   display: grid;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .settings-card-head {
@@ -5325,12 +5384,21 @@ th {
   border-bottom: 1px solid var(--awkit-surface-inset);
   color: var(--awkit-text);
   display: flex;
-  gap: 8px;
-  padding-bottom: 10px;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.settings-card-head > svg {
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-xs);
+  box-sizing: content-box;
+  color: var(--awkit-text-secondary);
+  flex: 0 0 auto;
+  padding: var(--space-2);
 }
 
 .settings-card-head h2 {
-  font-size: 15px;
+  font-size: var(--text-md);
   margin: 0;
 }
 
@@ -14454,6 +14522,15 @@ th {
 }
 
 @media (max-width: 900px) {
+  .settings-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card--wide,
+  .settings-panel-slot--wide {
+    grid-column: auto;
+  }
+
   .branding-setting-grid {
     grid-template-columns: 1fr;
   }
