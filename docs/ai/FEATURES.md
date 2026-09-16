@@ -1,5 +1,17 @@
 # FEATURES
 
+## Settings page redesigned to the approved system UI (2026-09-16)
+
+- Settings now uses the system reference's icon-led category introductions and responsive panel
+  grids while retaining every existing control. The categories are Appearance, Automation and
+  security, Environment and execution, Credentials and integrations, and Storage and maintenance.
+- The existing persisted Save action is published in the shared page header through `usePageChrome`;
+  the duplicate in-page title/toolbar is gone. Reset remains in Advanced, and immediate-save security
+  controls keep their existing confirmations and IPC paths.
+- Dense editors span the full grid; compact cards pair at wider widths and collapse to one column at
+  the established 900px breakpoint. New styling is token-only and inherits light/dark themes. The
+  app shell, route, Settings schema, preload API, permission gates, and offline behavior are unchanged.
+
 ## Dashboard page and main side menu redesigned to the approved reference (2026-09-16)
 
 - **Side menu** (`LeftNavigation.tsx` + sidebar CSS): the top block keeps the original

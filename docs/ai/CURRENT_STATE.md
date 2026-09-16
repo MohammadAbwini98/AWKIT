@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## `settings-system-ui`: Settings page replaced with the approved system design (2026-09-16)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This is a
+renderer-only Settings redesign; no validation-ledger case moved.
+
+The Settings route now follows the attached SpecterStudio system UI language while preserving the
+existing Settings feature set and persistence contracts. Save is published through the shared page
+header (`usePageChrome`), the duplicate in-page title/toolbar is removed, and the content is grouped
+under five icon-led introductions — Appearance, Automation and security, Environment and execution,
+Credentials and integrations, and Storage and maintenance. Each group uses a responsive two-column
+panel grid with full-width treatment for dense editors such as Accent Color, Branding, Paths, Runtime
+Concurrency, Oracle drivers, and Semantic Index; the grid collapses to one column at the established
+900px renderer breakpoint. Card icons, spacing, type, borders, and surfaces resolve exclusively through
+the existing Hologram tokens in `global.css`.
+
+Behavior is unchanged: all prior controls, permission gates, validation bindings, confirmation dialogs,
+immediate-save security toggles, Settings IPC calls, and the persisted batched Save handler remain in
+place. No demo values or mock actions from the reference artifact were copied, and no app-shell grid,
+route, main-process code, preload API, schema, dependency, or external asset changed.
+
+**Evidence:** `npm run build` PASS; `verify:design-tokens` **35/35** (light/dark live Electron checks,
+Settings appearance control, token resolution, and zero renderer console errors); source diff review
+confirmed the change is structural/styling plus relocation of the existing Save callback; `graphify
+update .` refreshed the code graph (14,785 nodes / 30,452 edges; Graphify reported its existing
+community-label refresh advisory).
+
 ## `dashboard-sidemenu-redesign` fix round: original sidebar branding + collapse repair + panel scrollers (2026-09-16)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** UI-only fix

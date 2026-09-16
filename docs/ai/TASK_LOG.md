@@ -15058,3 +15058,20 @@ pm run verify:mock-site
 - **Result:** the approved green animated loop connector is implemented and pinned by the verifier
   contract; authoring, persistence, runtime semantics, side selection, and accessibility surfaces are
   unchanged; the loop colour is a constant semantic green no longer derived from the user accent.
+
+## 2026-09-16 — settings-system-ui: Settings page replaced with approved system design (Codex)
+
+- **Task:** review the attached offline SpecterStudio system UI artifact and implement only its
+  Settings-page design, retaining the product's real Settings behavior and data.
+- **Files:** `app/renderer/pages/Settings.tsx` (existing Save callback published through page chrome;
+  existing cards regrouped under five icon-led responsive sections), `app/renderer/styles/global.css`
+  (token-only section introductions, two-column/full-width panel grid, compact card icon treatment,
+  established 900px single-column breakpoint), `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`, and
+  task-contract/roadmap assignment closeout files.
+- **Tests:** `npm run build` **PASS**; `verify:design-tokens` **35/35 PASS** with light/dark live Electron
+  coverage and zero renderer console errors; `graphify update .` completed (14,785 nodes / 30,452
+  edges, with the existing community-label refresh advisory). `verify:runner` and `validate:offline`
+  **NOT RUN** — no runner, main-process, offline boundary, packaging, schema, or dependency code changed.
+- **Result:** Settings alone now matches the new system layout; all prior controls, permission gates,
+  confirmation dialogs, validation bindings, immediate-save toggles, IPC calls, and persisted Save
+  behavior remain intact. No demo data or simulated action from the reference artifact was imported.
