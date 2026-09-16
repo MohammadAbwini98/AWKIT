@@ -1,5 +1,30 @@
 # CURRENT_STATE
 
+## `dashboard-sidemenu-redesign` fix round: original sidebar branding + collapse repair + panel scrollers (2026-09-16)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** UI-only fix
+round; gates listed below.
+
+Owner feedback on the redesign, all resolved:
+
+- **Sidebar branding back to the original layout**: the top block is the SpecterStudio **S mark +
+  "SpecterStudio" name** (original `.brand-block`/`.brand-tile` design); the **workspace logo
+  block is back at the bottom** of the sidebar footer (default mark + "SpecterStudio / Offline
+  workspace", custom branding logo replaces the whole block there as before).
+- **Collapse corruption fixed**: at the 62px collapsed rail the top block squeezes mark + name +
+  button horizontally, which corrupted the layout. Collapsed now renders **only the centered S
+  mark with the expand control stacked vertically beneath it** (`flex-direction: column`), the
+  name and workspace block hidden. Expanded is unchanged.
+- **Dashboard panel scrollers**: every dashboard panel body is wrapped in `.dash-panel-body`
+  (max-height 340px, `overflow-y: auto`), so long content — e.g. the 24-check readiness list
+  (1681px of content) — scrolls inside the card instead of growing it unbounded.
+
+**Evidence:** `npm run build` PASS; throwaway Electron walkthrough **15/15** (top name/mark,
+footer workspace block, collapsed 62px fit + vertical stack + hidden name/workspace, capped
+scrolling readiness body, zero console errors); regression `verify:design-tokens` **35/35**;
+`verify:branding-gui` **30/30** (custom logo in the restored footer position). Screenshots in
+`test-artifacts/dashboard-redesign-proof/` (untracked).
+
 ## `dashboard-sidemenu-redesign`: approved Dashboard + main side menu implemented (2026-09-16)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This UI

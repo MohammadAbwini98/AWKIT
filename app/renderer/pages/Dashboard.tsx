@@ -287,26 +287,29 @@ export function Dashboard() {
             title="Run readiness"
             meta="Pre-run checks"
           />
-          {offlineStatus ? (
-            <div className="dash-checklist">
-              {offlineStatus.checks.map((check) => (
-                <div className="dash-check-row" key={check.key}>
-                  <span className={check.ok ? "dash-check-mark dash-tone-success" : "dash-check-mark dash-tone-warning"}>
-                    {check.ok ? <CircleCheck size={13} strokeWidth={2.4} /> : <CircleAlert size={13} strokeWidth={2.4} />}
-                  </span>
-                  <span className="dash-check-text">
-                    <span className="dash-check-title">{check.label}</span>
-                    {check.detail ? <span className="dash-check-sub">{check.detail}</span> : null}
-                  </span>
-                  <span className={check.ok ? "dash-check-badge dash-ink-success" : "dash-check-badge dash-ink-warning"}>
-                    {check.ok ? "Ready" : "Action needed"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <PanelSkeleton rows={4} />
-          )}
+          {/* Panel bodies scroll internally past the card's base height instead of growing the card. */}
+          <div className="dash-panel-body">
+            {offlineStatus ? (
+              <div className="dash-checklist">
+                {offlineStatus.checks.map((check) => (
+                  <div className="dash-check-row" key={check.key}>
+                    <span className={check.ok ? "dash-check-mark dash-tone-success" : "dash-check-mark dash-tone-warning"}>
+                      {check.ok ? <CircleCheck size={13} strokeWidth={2.4} /> : <CircleAlert size={13} strokeWidth={2.4} />}
+                    </span>
+                    <span className="dash-check-text">
+                      <span className="dash-check-title">{check.label}</span>
+                      {check.detail ? <span className="dash-check-sub">{check.detail}</span> : null}
+                    </span>
+                    <span className={check.ok ? "dash-check-badge dash-ink-success" : "dash-check-badge dash-ink-warning"}>
+                      {check.ok ? "Ready" : "Action needed"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <PanelSkeleton rows={4} />
+            )}
+          </div>
         </section>
 
         <section className="dash-panel">
@@ -327,139 +330,145 @@ export function Dashboard() {
               </button>
             }
           />
-          {!telemetryLoaded ? (
-            <PanelSkeleton rows={5} />
-          ) : !mayReadReports ? (
-            <PanelEmpty
-              icon={<ShieldAlert size={18} strokeWidth={1.8} />}
-              title="Run reports unavailable"
-              hint="Your role does not include the Reports permission, so recent executions are not shown here."
-            />
-          ) : recentRuns.length === 0 ? (
-            <PanelEmpty
-              icon={<Activity size={18} strokeWidth={1.8} />}
-              title="No runs yet"
-              hint="Executed workflows will appear here with status and duration."
-            />
-          ) : (
-            <div className="dash-list">
-              {recentRuns.map((run) => {
-                const tone = statusToTone(run.status);
-                return (
-                  <div className="dash-list-row" key={`${run.executionId}-${run.instanceId}`}>
-                    <span className={`dash-list-tile dash-tone-${tone}`}>{run.scenarioName ? <LineChart size={14} strokeWidth={1.9} /> : <Play size={14} strokeWidth={1.9} />}</span>
-                    <span className="dash-list-text">
-                      <span className="dash-list-title">{run.scenarioName ?? "Workflow run"}</span>
-                      <span className="dash-list-sub">
-                        {run.executionId}
-                        {run.startedAt ? ` · ${timeAgo(run.startedAt, now)}` : ""}
+          <div className="dash-panel-body">
+            {!telemetryLoaded ? (
+              <PanelSkeleton rows={5} />
+            ) : !mayReadReports ? (
+              <PanelEmpty
+                icon={<ShieldAlert size={18} strokeWidth={1.8} />}
+                title="Run reports unavailable"
+                hint="Your role does not include the Reports permission, so recent executions are not shown here."
+              />
+            ) : recentRuns.length === 0 ? (
+              <PanelEmpty
+                icon={<Activity size={18} strokeWidth={1.8} />}
+                title="No runs yet"
+                hint="Executed workflows will appear here with status and duration."
+              />
+            ) : (
+              <div className="dash-list">
+                {recentRuns.map((run) => {
+                  const tone = statusToTone(run.status);
+                  return (
+                    <div className="dash-list-row" key={`${run.executionId}-${run.instanceId}`}>
+                      <span className={`dash-list-tile dash-tone-${tone}`}>{run.scenarioName ? <LineChart size={14} strokeWidth={1.9} /> : <Play size={14} strokeWidth={1.9} />}</span>
+                      <span className="dash-list-text">
+                        <span className="dash-list-title">{run.scenarioName ?? "Workflow run"}</span>
+                        <span className="dash-list-sub">
+                          {run.executionId}
+                          {run.startedAt ? ` · ${timeAgo(run.startedAt, now)}` : ""}
+                        </span>
                       </span>
-                    </span>
-                    <span className={`dash-badge dash-tone-${tone}`}>
-                      <StatusGlyph tone={tone} />
-                      {run.status}
-                    </span>
-                    <span className="dash-list-value">{formatDurationMs(run.durationMs)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                      <span className={`dash-badge dash-tone-${tone}`}>
+                        <StatusGlyph tone={tone} />
+                        {run.status}
+                      </span>
+                      <span className="dash-list-value">{formatDurationMs(run.durationMs)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </section>
       </div>
 
       <div className="dash-panels">
         <section className="dash-panel">
           <PanelHeader tileTone="info" icon={<Zap size={16} strokeWidth={1.9} />} title="Quick actions" />
-          <div className="dash-list">
-            {quickActions.map((route) => {
-              const Icon = route.icon;
-              return (
-                <div className="dash-list-row" key={route.id}>
-                  <span className="dash-list-tile dash-tone-info">
-                    <Icon size={14} strokeWidth={1.9} />
-                  </span>
-                  <span className="dash-list-text">
-                    <span className="dash-list-title">{route.label}</span>
-                    <span className="dash-list-sub">{route.description}</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="dash-icon-button"
-                    aria-label={`Open ${route.label}`}
-                    title={`Open ${route.label}`}
-                    onClick={() => navigateTo(route.id)}
-                  >
-                    <Play size={15} strokeWidth={1.9} />
-                  </button>
-                </div>
-              );
-            })}
+          <div className="dash-panel-body">
+            <div className="dash-list">
+              {quickActions.map((route) => {
+                const Icon = route.icon;
+                return (
+                  <div className="dash-list-row" key={route.id}>
+                    <span className="dash-list-tile dash-tone-info">
+                      <Icon size={14} strokeWidth={1.9} />
+                    </span>
+                    <span className="dash-list-text">
+                      <span className="dash-list-title">{route.label}</span>
+                      <span className="dash-list-sub">{route.description}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="dash-icon-button"
+                      aria-label={`Open ${route.label}`}
+                      title={`Open ${route.label}`}
+                      onClick={() => navigateTo(route.id)}
+                    >
+                      <Play size={15} strokeWidth={1.9} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 
         <section className="dash-panel">
           <PanelHeader tileTone="running" icon={<LineChart size={16} strokeWidth={1.9} />} title="Throughput" meta="Runs per hour · last 24 h" />
-          {!telemetryLoaded ? (
-            <PanelSkeleton rows={4} />
-          ) : !mayReadReports ? (
-            <PanelEmpty
-              icon={<LineChart size={18} strokeWidth={1.8} />}
-              title="Run reports unavailable"
-              hint="Your role does not include the Reports permission, so throughput is not shown here."
-            />
-          ) : runsSeries.length < 2 ? (
-            <PanelEmpty
-              icon={<LineChart size={18} strokeWidth={1.8} />}
-              title="No runs in the last 24 hours"
-              hint="The chart plots every run as it completes — run a workflow to see throughput here."
-            />
-          ) : (
-            <div className="dash-chart">
-              <div className="dash-chart-plot">
-                <svg viewBox="0 0 640 180" preserveAspectRatio="none" role="img" aria-label="Runs per hour, last 24 hours">
-                  {[0, 45, 90, 135, 180].map((y) => (
-                    <line key={y} x1="0" x2="640" y1={y} y2={y} stroke="var(--awkit-divider)" strokeWidth="1" />
+          <div className="dash-panel-body">
+            {!telemetryLoaded ? (
+              <PanelSkeleton rows={4} />
+            ) : !mayReadReports ? (
+              <PanelEmpty
+                icon={<LineChart size={18} strokeWidth={1.8} />}
+                title="Run reports unavailable"
+                hint="Your role does not include the Reports permission, so throughput is not shown here."
+              />
+            ) : runsSeries.length < 2 ? (
+              <PanelEmpty
+                icon={<LineChart size={18} strokeWidth={1.8} />}
+                title="No runs in the last 24 hours"
+                hint="The chart plots every run as it completes — run a workflow to see throughput here."
+              />
+            ) : (
+              <div className="dash-chart">
+                <div className="dash-chart-plot">
+                  <svg viewBox="0 0 640 180" preserveAspectRatio="none" role="img" aria-label="Runs per hour, last 24 hours">
+                    {[0, 45, 90, 135, 180].map((y) => (
+                      <line key={y} x1="0" x2="640" y1={y} y2={y} stroke="var(--awkit-divider)" strokeWidth="1" />
+                    ))}
+                    <polyline
+                      points={sparkPoints(completedPerBucket, 640, 180, 6)}
+                      fill="none"
+                      stroke="var(--awkit-blue)"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <polyline
+                      points={sparkPoints(failedPerBucket, 640, 180, 6)}
+                      fill="none"
+                      stroke="var(--awkit-danger)"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                </div>
+                <div className="dash-chart-axis" aria-hidden="true">
+                  {throughputAxis.map((label, index) => (
+                    <span key={`${label}-${index}`}>{label}</span>
                   ))}
-                  <polyline
-                    points={sparkPoints(completedPerBucket, 640, 180, 6)}
-                    fill="none"
-                    stroke="var(--awkit-blue)"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <polyline
-                    points={sparkPoints(failedPerBucket, 640, 180, 6)}
-                    fill="none"
-                    stroke="var(--awkit-danger)"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
+                </div>
+                <div className="dash-chart-legend">
+                  <span>
+                    <span className="dash-swatch" style={{ background: "var(--awkit-blue)" }} />
+                    Completed
+                    <em>{compactCount(completedPerBucket.reduce((sum, value) => sum + value, 0))}</em>
+                  </span>
+                  <span>
+                    <span className="dash-swatch" style={{ background: "var(--awkit-danger)" }} />
+                    Failed
+                    <em>{compactCount(failedPerBucket.reduce((sum, value) => sum + value, 0))}</em>
+                  </span>
+                </div>
               </div>
-              <div className="dash-chart-axis" aria-hidden="true">
-                {throughputAxis.map((label, index) => (
-                  <span key={`${label}-${index}`}>{label}</span>
-                ))}
-              </div>
-              <div className="dash-chart-legend">
-                <span>
-                  <span className="dash-swatch" style={{ background: "var(--awkit-blue)" }} />
-                  Completed
-                  <em>{compactCount(completedPerBucket.reduce((sum, value) => sum + value, 0))}</em>
-                </span>
-                <span>
-                  <span className="dash-swatch" style={{ background: "var(--awkit-danger)" }} />
-                  Failed
-                  <em>{compactCount(failedPerBucket.reduce((sum, value) => sum + value, 0))}</em>
-                </span>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
       </div>
     </section>

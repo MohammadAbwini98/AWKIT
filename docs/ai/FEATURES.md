@@ -2,16 +2,17 @@
 
 ## Dashboard page and main side menu redesigned to the approved reference (2026-09-16)
 
-- **Side menu** (`LeftNavigation.tsx` + sidebar CSS): the workspace identity moved to a header block
-  at the top of the sidebar — gradient accent mark, "Specter Automation / Offline workspace" stack,
-  and the collapse control (chevron, 26px, rotates when collapsed). Collapsed width is 62px
-  (expanded 240px) with icon-only centered rows and hidden group headers. Group headers keep the
+- **Side menu** (`LeftNavigation.tsx` + sidebar CSS): the top block keeps the original
+  SpecterStudio branding — S mark + name + collapse control. Collapsed width is 62px
+  (expanded 240px): only the centered S mark with the expand control stacked vertically beneath it
+  (name, group headers, and the footer workspace block hidden). Group headers keep the
   uppercase label + inset count chip + chevron accordion; nav rows are 13px/500 with 12px gap and
-  8px-radius hover/active fills. The footer keeps Settings + Help Center and now presents the
-  appearance control as a label + real `role="switch"` pill (38×21, accent gradient when on).
-  A custom workspace logo (Settings → Branding) replaces the identity inside the header block;
-  the default mark, `.nav-workspace-logo-full`, and `.has-custom-logo` DOM/CSS contracts the
-  branding GUI verifier pins are unchanged.
+  8px-radius hover/active fills. The footer keeps Settings + Help Center, presents the appearance
+  control as a label + real `role="switch"` pill (38×21, accent gradient when on), and ends with
+  the original workspace logo block (default mark + "SpecterStudio / Offline workspace"; a custom
+  logo from Settings → Branding replaces that block in place — the `.nav-workspace-mark`,
+  `.nav-workspace-logo-full`, and `.has-custom-logo` DOM/CSS contracts the branding GUI verifier
+  pins are unchanged).
 - **Active row contrast**: light theme resolves the active label/icon through the deep accent step
   (`--awkit-accent-hover`) on the accent-soft fill, per the approved design; dark theme keeps the
   white accent-contrast ink pinned by `verify:design-tokens` (B4) — the one deliberate deviation
@@ -23,9 +24,10 @@
   offline-runtime validator checks with Ready / Action needed badges), Recent activity (real
   telemetry run history with status badges, durations, relative times, refresh), Quick actions
   (permission-filtered deep links), and the Throughput 180px two-series line chart (Completed /
-  Failed from the 24h runs series). Header actions "New workflow" (primary) and "Record a flow"
-  publish through `usePageChrome`. Telemetry surfaces are gated by `PAGE_REPORTS` and degrade to
-  dashed empty states; no demo data is shown as real.
+  Failed from the 24h runs series). Every panel body scrolls internally past a 340px cap
+  (`.dash-panel-body`) instead of growing the card unbounded. Header actions "New workflow"
+  (primary) and "Record a flow" publish through `usePageChrome`. Telemetry surfaces are gated by
+  `PAGE_REPORTS` and degrade to dashed empty states; no demo data is shown as real.
 - Retired the roadmap-summary dashboard panels (the Implementation Roadmap page still owns that
   content); `.dashboard-panels`/`.dashboard-roadmap-*` CSS was replaced by the `dash-*` block.
 

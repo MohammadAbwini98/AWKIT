@@ -1,5 +1,6 @@
-import { ChevronDown, ChevronLeft, HelpCircle, Moon, Settings as SettingsIcon, Workflow } from "lucide-react";
+import { ChevronDown, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, Workflow } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AwkitDarkBrandMark } from "../assets/brand/AwkitBrandMarks";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
 import { useBranding } from "../state/branding";
@@ -67,27 +68,17 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
   );
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
-      {/* Workspace identity header (approved side-menu design): gradient mark + workspace name + collapse. */}
+      {/* Top brand block (original design): SpecterStudio S mark + name; the collapse control sits
+          beside it expanded, and stacks under the lone S mark when collapsed (62px rail). */}
       <div className="brand-block">
-        <div className={branding.active && branding.dataUrl ? "nav-workspace has-custom-logo" : "nav-workspace"} aria-hidden="true">
-          {branding.active && branding.dataUrl ? (
-            // A custom logo replaces the ENTIRE workspace identity (mark + name + subtitle). Presence check
-            // on already-validated context state (never <img onError>), so a corrupt/mid-swap asset
-            // degrades to active:false and the default block returns — never a broken image.
-            <img src={branding.dataUrl} alt="" className="nav-workspace-logo-full" />
-          ) : (
-            <>
-              <span className="nav-workspace-mark">
-                <Workflow size={15} strokeWidth={2} />
-              </span>
-              {!collapsed ? (
-                <span className="nav-workspace-name">
-                  <span>Specter Automation</span>
-                  <small>Offline workspace</small>
-                </span>
-              ) : null}
-            </>
-          )}
+        <div className="brand-tile">
+          {/* Dark finish in both themes: the sidebar mark matches the OS icon (resources/icon.*). */}
+          <AwkitDarkBrandMark size={32} className="brand-app-icon" />
+          {!collapsed ? (
+            <span className="brand-name">
+              <span>SpecterStudio</span>
+            </span>
+          ) : null}
         </div>
         <button
           className="nav-collapse-button"
@@ -96,7 +87,7 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
           title={collapsed ? "Expand navigation" : "Collapse navigation"}
           type="button"
         >
-          <ChevronLeft size={16} className={collapsed ? "nav-collapse-chevron rotated" : "nav-collapse-chevron"} />
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
       </div>
       <div className="navigation-list">
@@ -182,6 +173,24 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
             <span className="theme-switch-thumb" />
           </button>
         </div>
+        {!collapsed ? (
+          <div className={branding.active && branding.dataUrl ? "nav-workspace has-custom-logo" : "nav-workspace"} aria-hidden="true">
+            {branding.active && branding.dataUrl ? (
+              // A custom logo replaces the ENTIRE workspace block (icon + name + subtitle). Presence check
+              // on already-validated context state (never <img onError>), so a corrupt/mid-swap asset
+              // degrades to active:false and the default block returns — never a broken image.
+              <img src={branding.dataUrl} alt="" className="nav-workspace-logo-full" />
+            ) : (
+              <>
+                <span className="nav-workspace-mark"><Workflow size={15} /></span>
+                <span className="nav-workspace-name">
+                  <span>SpecterStudio</span>
+                  <small>Offline workspace</small>
+                </span>
+              </>
+            )}
+          </div>
+        ) : null}
       </div>
     </nav>
   );

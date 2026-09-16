@@ -1,5 +1,21 @@
 # TASK_LOG
 
+## 2026-09-16 — Dashboard/side-menu redesign fix round (ZCode)
+
+- **Task:** owner feedback on the redesign — restore the original sidebar branding layout, repair
+  the corrupted collapsed rail, add dashboard card scrollers.
+- **Files:** `app/renderer/layout/LeftNavigation.tsx`, `app/renderer/pages/Dashboard.tsx`,
+  `app/renderer/styles/global.css`, `docs/ai/CURRENT_STATE.md`.
+- **Implementation:** top block = SpecterStudio S mark + name (original design); workspace logo
+  block restored to the sidebar footer (custom logo replaces it there); collapsed 62px rail shows
+  only the centered S mark with the expand control stacked beneath (fixes the horizontal squeeze
+  that corrupted the block); dashboard panel bodies wrapped in `.dash-panel-body` (340px cap,
+  `overflow-y: auto`) so long checklists scroll inside the card.
+- **Tests run:** `npm run build` PASS; throwaway Electron walkthrough 15/15 (deleted; screenshots
+  kept); regression `verify:design-tokens` 35/35; `verify:branding-gui` 30/30. **Not run:**
+  `verify:runner` / `validate:offline` (no runner/packaging change).
+- **Result:** complete; ledger unchanged.
+
 ## 2026-09-16 — Dashboard + main side menu redesign to the approved reference (ZCode)
 
 - **Task:** implement the user-provided approved design for the Dashboard page and the application
