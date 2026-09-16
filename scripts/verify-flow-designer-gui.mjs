@@ -32,7 +32,7 @@ const broad = runLegacyGuiCoverage({
   expectedChecks: 138
 });
 
-console.log("\nFlow Designer: approved 7282178 Loop capsule contract");
+console.log("\nFlow Designer: approved green dash-orbit Loop connector contract");
 const capsule = await runFlowLoopCapsuleSuite(root);
 
 const focusedPassed = capsule.results?.filter((result) => result.pass).length ?? 0;

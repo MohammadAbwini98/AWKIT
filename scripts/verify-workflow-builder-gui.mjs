@@ -33,7 +33,7 @@ const broad = runLegacyGuiCoverage({
   expectedChecks: 68
 });
 
-console.log("\nWorkflow Builder: approved 7282178 Loop capsule contract");
+console.log("\nWorkflow Builder: approved green dash-orbit Loop connector contract");
 const capsule = await runWorkflowLoopCapsuleSuite(root);
 
 const focusedPassed = capsule.results?.filter((result) => result.pass).length ?? 0;

@@ -75,23 +75,28 @@
 - Routing stays synchronous. No expression-mode discriminator, second resolver, new dependency,
   network path, IPC contract, or schema migration is introduced.
 
-## Restored Loop capsule-and-ring visual contract (2026-08-15)
+## Green dash-orbit Loop connector (2026-09-16, replaces the 2026-08-15 capsule-and-ring)
 
-- Every structured Loop uses one compact 160x20/r10 horizontal capsule attached to one side of its real
-  source card. The shared canvas chooses the least-obstructed side and uses the complete lane/ring/hit/label
-  footprint for collision scoring and fit bounds.
-- One dominant concentric control is centered halfway along the capsule: 40-unit outer ring, 30-unit main
-  ring, and 44-unit interaction radius. It displays the existing
-  `LoopConnectorConfig.maxIterations` configuration value and has no fake node or UI-only persistence.
-- Exactly one circular sweep rotates around the main ring on a two-second linear transform-only cycle.
-  The capsule/path, rings, value, and external mode-aware label stay stationary; reduced motion freezes
-  only the visible sweep. The label is bounded to the 160-unit lane, ellipsizes long summaries, and keeps
-  its exact text in the title. Structured self-Loops have no full-card U-route, direction overlay, or arrow.
-- The ring reuses the existing Loop selection/configuration surface for pointer, double-click, Enter, and
-  Space. **Configure loop** and **Remove loop** remain distinct node-menu actions.
-- Real-Electron coverage verifies dense side selection and fit, configured-value/mode editing, two save/
-  reload cycles, physical owner/peer drag, 25/100/200% zoom, independent two-Loop ids/config/selection/
-  animation, canvas pan, reduced motion, decoded sweep pixels, exact Delete/Undo/Redo restoration,
+- Every structured Loop draws the approved Workflow Builder bracket attached to one side of its real
+  source card: 46-unit reach, 44-unit vertical span, 14-unit rounded corners. The shared canvas chooses
+  the least-obstructed side and uses the complete bracket/hit/label footprint for collision scoring and
+  fit bounds (`LOOP_CONTROL_*` constants in `canvas/geometry.ts`).
+- Two moving layers only: bright marching dashes (7/21 round-cap pattern, `--awkit-loop-flow-duration`)
+  travel the bracket over a faint stationary base stroke, and one 4-unit dot with a soft halo stroke
+  rides the bracket path via CSS `offset-path` (`--awkit-loop-orbit-duration`). The base bracket and
+  the mode-aware label stay stationary; reduced motion freezes the dashes and parks the dot mid-bracket.
+- The loop colour is the constant semantic green `--awkit-connector-loop` (#14a46c light / #34d399
+  dark) — deliberately NOT derived from the user accent (`accentColor.ts` no longer overrides it), so a
+  loop never reads as selected. Explicit per-connector colour overrides still win.
+- The iteration bound now lives only in the mode-aware design label ("Count × N"); the old in-ring
+  value, lane rect, backplate, and rings are gone. Structured self-Loops have no full-card U-route,
+  direction overlay, or arrow.
+- The hit target (22-unit circle at the bracket's lane centre) keeps the existing Loop selection/
+  configuration surface for pointer, double-click, Enter, and Space. **Configure loop** and
+  **Remove loop** remain distinct node-menu actions.
+- Real-Electron coverage verifies dense side selection and fit, style/mode editing, two save/reload
+  cycles, owner/peer drag, 25/100/200% zoom, independent two-Loop ids/config/selection/animation,
+  canvas pan, reduced motion, decoded dash/orbit pixels, exact Delete/Undo/Redo restoration,
   keyboard/pointer access, and unchanged ordinary edges.
 - Loop authoring, workflow-node identity, persistence/conversion, Conditional exits, validation, and Flow/
   workflow runtime semantics remain unchanged. Legacy cross-node `loopBack` remains a separate bounded

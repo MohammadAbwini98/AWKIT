@@ -14989,3 +14989,35 @@ pm run verify:mock-site
 - **Result:** design replacement complete; behavior preserved (same polling, B4 baseline,
   WORKFLOW_EXECUTE/WORKFLOW_STOP gating, masked error tooltip, focus contract); the no-fabricated-
   data boundary holds (no scrubber/speed/ETA; markers are real failed/manual steps).
+
+## 2026-09-16 — loop-connector-redesign: green dash-orbit Loop connector replaces the capsule-and-ring (ZCode)
+
+- **Task:** implement only the Workflow Builder reference's loop connector (green animated bracket) from
+  the approved `WorkFlow Builder.dc.html` design and replace the existing capsule-and-ring control in
+  both the Flow Designer and the Workflow Builder.
+- **Files:** `app/renderer/components/canvas/edges/LoopEdge.tsx` (self-loop render rewritten: 46×44/14-corner
+  bracket as a faint stationary base path + marching-dash overlay (7/21 round caps) + one halo-stroked dot
+  orbiting via CSS `offset-path`; lane/rings/sweep/in-ring value removed; hit target + focus ring + label
+  contract kept), `LoopEdge.css` (dash-march + orbit keyframes, reduced-motion freeze/park), 
+  `app/renderer/components/canvas/geometry.ts` (`LOOP_CONTROL_*` retuned to the bracket proportions,
+  footprint clearances recomputed), `app/renderer/styles/global.css` (`--awkit-connector-loop` → constant
+  green #14a46c/#34d399; indicator styles rewritten for dash/orbit; selection stays green),
+  `src/theme/accentColor.ts` (loop token removed from the accent-derived set, now 11 tokens),
+  `app/renderer/components/shared/loopConnectorAuthoring.ts` (new-loop default style solid 2px),
+  `scripts/lib/loop-capsule-visual-oracle.mjs` (contract rewritten for dash-orbit incl. zoom-normalised
+  geometry, green-token, orbit-on-path, removed-layer zero-guards; historical filename kept for the broad
+  imports), `scripts/lib/verify-flow-loop-capsule-gui.mjs` + `verify-workflow-loop-capsule-gui.mjs`
+  (assertions/check names retargeted, label-based sync helpers, console/pageerror/watchdog with bounded
+  abort), `scripts/verify-accent-gui.mjs` (loop token constant across accents), small header-message
+  updates in the two top-level GUI verifiers, docs (`CURRENT_STATE`, `FEATURES`, `KNOWN_ISSUES`).
+- **Tests:** `npm run build` **PASS**; `verify:accent-theme` **73/73**; `verify:design-tokens` **35/35**;
+  `verify:workflow-builder` **PASS** (broad 68/68 + focused Loop suite **17/17**); `verify:accent-gui`
+  **PASS** (40/40); Flow focused Loop suite **16/16** in a direct run; `verify:flow-designer` full gate
+  **INCONCLUSIVE** — 138/138 broad + 12/16 focused green, then an intermittent harness/transport stall
+  kills the suite process at the post-save reload/undo step (orphaned Electron holds the pipe; isolated
+  repro + same-path Workflow parity found no product defect; documented in KNOWN_ISSUES with a bounded
+  watchdog abort now installed); `verify:roadmap-dashboard` **177/177 (Sources agree)**. Not run:
+  `verify:runner`, `validate:offline` — no runner/main-process/offline-packaging source changed.
+- **Result:** the approved green animated loop connector is implemented and pinned by the verifier
+  contract; authoring, persistence, runtime semantics, side selection, and accessibility surfaces are
+  unchanged; the loop colour is a constant semantic green no longer derived from the user accent.

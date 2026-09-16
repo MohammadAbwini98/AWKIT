@@ -42,12 +42,12 @@ export const ACCENT_TOKEN_NAMES = [
   "--awkit-edge",
   "--awkit-edge-strong",
   "--awkit-accent-rgb",
-  // Canvas connector colors that are the primary accent (idle/loop lines + the selected emphasis).
-  // The semantic connector colors (failure=red, success=green, warning=amber, parallel=teal) are NOT
-  // here — they must stay semantically distinct. The same canonical family is derived for the
+  // Canvas connector colors that are the primary accent (idle lines + the selected emphasis).
+  // The semantic connector colors (failure=red, success=green, warning=amber, parallel=teal, and
+  // the constant green loop connector) are NOT here — they must stay semantically distinct and are
+  // owned by the stylesheet tokens. The same canonical family is derived for the
   // Component Reference default and any custom accent.
   "--awkit-connector-default",
-  "--awkit-connector-loop",
   "--awkit-connector-selected"
 ] as const;
 
@@ -260,9 +260,9 @@ export function deriveAccentTokens(base: string, theme: ThemeMode): AccentTokens
       "--awkit-edge": darken(normalized, 0.4),
       "--awkit-edge-strong": hover,
       "--awkit-accent-rgb": `${r}, ${g}, ${b}`,
-      // Dark surfaces: idle/loop connectors match the brighter hover step; selected reads brighter still.
+      // Dark surfaces: idle connectors match the brighter hover step; selected reads brighter still.
+      // The loop connector is deliberately absent — its green is a constant stylesheet token.
       "--awkit-connector-default": hover,
-      "--awkit-connector-loop": hover,
       "--awkit-connector-selected": lighten(accent, 0.3)
     };
   }
@@ -279,9 +279,9 @@ export function deriveAccentTokens(base: string, theme: ThemeMode): AccentTokens
     "--awkit-edge": lighten(accent, 0.5),
     "--awkit-edge-strong": accent,
     "--awkit-accent-rgb": `${r}, ${g}, ${b}`,
-    // Light surfaces: idle/loop connectors use the base accent; selected reads a touch deeper.
+    // Light surfaces: idle connectors use the base accent; selected reads a touch deeper.
+    // The loop connector is deliberately absent — its green is a constant stylesheet token.
     "--awkit-connector-default": accent,
-    "--awkit-connector-loop": accent,
     "--awkit-connector-selected": darken(accent, 0.2)
   };
 }

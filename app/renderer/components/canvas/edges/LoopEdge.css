@@ -1,29 +1,45 @@
 /*
- * Structured self-loop motion for the approved capsule-and-ring control.
- * Keep this animation on the circular sweep only: the capsule path, configured value, label,
- * and hit target remain stationary. This intentionally does not affect cross-node loopBack edges,
+ * Structured self-loop motion for the approved green dash-orbit bracket. Motion lives on exactly
+ * two elements: the marching dash overlay and the orbiting dot. The faint base bracket, label, and
+ * hit target remain stationary. This intentionally does not affect cross-node loopBack edges,
  * which continue to use the shared directional-path animation.
  */
-.awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-sweep {
-  animation: awkit-loop-control-orbit var(--awkit-loop-orbit-duration) linear infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform;
+.awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-dash {
+  animation: awkit-loop-dash var(--awkit-loop-flow-duration) linear infinite;
+  will-change: stroke-dashoffset;
 }
 
-@keyframes awkit-loop-control-orbit {
+@keyframes awkit-loop-dash {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+.awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-orbit {
+  animation: awkit-loop-orbit var(--awkit-loop-orbit-duration) linear infinite;
+  offset-rotate: 0deg;
+  will-change: offset-distance;
+}
+
+@keyframes awkit-loop-orbit {
   from {
-    transform: rotate(-90deg);
+    offset-distance: 0%;
   }
   to {
-    transform: rotate(270deg);
+    offset-distance: 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-sweep {
+  .awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-dash {
     animation: none !important;
-    transform: rotate(-32deg);
+    will-change: auto;
+  }
+
+  .awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-orbit {
+    animation: none !important;
+    /* Park mid-bracket so the dot still reads as part of the connector. */
+    offset-distance: 38%;
     will-change: auto;
   }
 }

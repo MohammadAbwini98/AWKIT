@@ -1,5 +1,9 @@
 import sharp from "sharp";
 
+// Visual oracle for the structured Loop self-connector. The file keeps its historical
+// "capsule" identifier (imported by the broad pre-capsule walkthroughs); the contract it pins is
+// the approved Workflow Builder green dash-orbit bracket: one faint stationary base bracket, one
+// bright marching dash overlay, and one orbiting dot with a soft halo riding the bracket path.
 const close = (left, right, tolerance = 2) => Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) <= tolerance;
 
 export async function readLoopCapsuleVisual(win, nodeId) {
@@ -11,13 +15,9 @@ export async function readLoopCapsuleVisual(win, nodeId) {
     const nodesLayer = node?.closest(".awkit-flow-nodes");
     const indicator = group?.querySelector(".awkit-loop-indicator");
     const path = indicator?.querySelector(".awkit-loop-indicator-path");
-    const lane = indicator?.querySelector(".awkit-loop-control-lane");
+    const dash = indicator?.querySelector(".awkit-loop-indicator-dash");
     const marker = indicator?.querySelector(".awkit-loop-indicator-marker");
-    const backplate = marker?.querySelector(".awkit-loop-control-backplate");
-    const outer = marker?.querySelector(".awkit-loop-indicator-outer-ring");
-    const main = marker?.querySelector(".awkit-loop-indicator-main-ring");
-    const sweep = marker?.querySelector(".awkit-loop-indicator-sweep");
-    const value = marker?.querySelector(".awkit-loop-indicator-value");
+    const orbit = marker?.querySelector(".awkit-loop-indicator-orbit");
     const focus = marker?.querySelector(".awkit-loop-indicator-focus-ring");
     const hit = marker?.querySelector(".awkit-loop-indicator-hit");
     const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
@@ -25,31 +25,24 @@ export async function readLoopCapsuleVisual(win, nodeId) {
 
     if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(canvas instanceof HTMLElement) ||
       !(edgesLayer instanceof SVGElement) || !(nodesLayer instanceof HTMLElement) || !(indicator instanceof SVGGElement) ||
-      !(path instanceof SVGPathElement) || !(lane instanceof SVGRectElement) || !(marker instanceof SVGGElement) ||
-      !(backplate instanceof SVGCircleElement) || !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) ||
-      !(sweep instanceof SVGCircleElement) || !(value instanceof SVGTextElement) || !(focus instanceof SVGCircleElement) ||
+      !(path instanceof SVGPathElement) || !(dash instanceof SVGPathElement) || !(marker instanceof SVGGElement) ||
+      !(orbit instanceof SVGCircleElement) || !(focus instanceof SVGCircleElement) ||
       !(hit instanceof SVGCircleElement) || !(label instanceof HTMLElement)) return null;
 
     const nodeRect = node.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
-    const laneRect = lane.getBoundingClientRect();
     const pathRect = path.getBoundingClientRect();
-    const outerRect = outer.getBoundingClientRect();
-    const mainRect = main.getBoundingClientRect();
-    const sweepRect = sweep.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
-    const valueRect = value.getBoundingClientRect();
+    const orbitRect = orbit.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
     const pathStyle = getComputedStyle(path);
-    const laneStyle = getComputedStyle(lane);
-    const outerStyle = getComputedStyle(outer);
-    const mainStyle = getComputedStyle(main);
-    const sweepStyle = getComputedStyle(sweep);
-    const sweepAnimation = sweep.getAnimations()[0];
-    const valueStyle = getComputedStyle(value);
+    const dashStyle = getComputedStyle(dash);
+    const orbitStyle = getComputedStyle(orbit);
     const labelStyle = getComputedStyle(label);
     const edgeLayerStyle = getComputedStyle(edgesLayer);
     const nodeLayerStyle = getComputedStyle(nodesLayer);
+    const dashAnimation = dash.getAnimations()[0];
+    const orbitAnimation = orbit.getAnimations()[0];
     const visibleLayer = (style, rect) => style.display !== "none" &&
       style.visibility !== "hidden" && style.visibility !== "collapse" &&
       Number.parseFloat(style.opacity) > 0 && rect.width > 0 && rect.height > 0;
@@ -66,51 +59,74 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       .flatMap((candidate) => [...candidate.querySelectorAll("[id]")].map((element) => element.id).filter(Boolean));
     const duplicateLoopDomIdCount = loopDomIds.length - new Set(loopDomIds).size;
 
-    const cx = Number(outer.getAttribute("cx"));
-    const cy = Number(outer.getAttribute("cy"));
-    const sharedCenter = [backplate, main, sweep, focus, hit].every((circle) =>
+    const cx = Number(hit.getAttribute("cx"));
+    const cy = Number(hit.getAttribute("cy"));
+    const sharedHitCenter = [focus, hit].every((circle) =>
       Math.abs(Number(circle.getAttribute("cx")) - cx) < 0.01 &&
       Math.abs(Number(circle.getAttribute("cy")) - cy) < 0.01
-    ) && Math.abs(Number(value.getAttribute("x")) - cx) < 0.01 &&
-      Math.abs(Number(value.getAttribute("y")) - cy) < 0.01;
+    );
 
     const nodeCenterX = nodeRect.left + nodeRect.width / 2;
     const nodeCenterY = nodeRect.top + nodeRect.height / 2;
-    const markerCenterX = outerRect.left + outerRect.width / 2;
-    const markerCenterY = outerRect.top + outerRect.height / 2;
+    const markerCenterX = hitRect.left + hitRect.width / 2;
+    const markerCenterY = hitRect.top + hitRect.height / 2;
     const side = indicator.getAttribute("data-loop-side");
-    const attachedLeft = side === "left" && Math.abs(laneRect.right - nodeRect.left) <= 3;
-    const attachedRight = side === "right" && Math.abs(laneRect.left - nodeRect.right) <= 3;
+    const attachedLeft = side === "left" && Math.abs(pathRect.right - nodeRect.left) <= 3;
+    const attachedRight = side === "right" && Math.abs(pathRect.left - nodeRect.right) <= 3;
     const laneAttachedToNode = attachedLeft || attachedRight;
-    const markerOutsideNode = !overlaps(nodeRect, outerRect);
+    const markerOutsideNode = !overlaps(nodeRect, hitRect);
     const pathLength = path.getTotalLength();
     const matrix = path.getScreenCTM();
     let startPoint = null;
     let endPoint = null;
+    let matrixNull = !matrix;
+    let orbitOnPathDistance = Number.POSITIVE_INFINITY;
     if (matrix && pathLength > 0) {
       const start = path.getPointAtLength(0);
       const end = path.getPointAtLength(pathLength);
       startPoint = new DOMPoint(start.x, start.y).matrixTransform(matrix);
       endPoint = new DOMPoint(end.x, end.y).matrixTransform(matrix);
+      // The dot rides the bracket: compare its live position against the path point at the
+      // animation's current offset-distance fraction.
+      const orbitFraction = Number.parseFloat(orbitStyle.offsetDistance) / 100;
+      if (Number.isFinite(orbitFraction)) {
+        const expected = path.getPointAtLength(Math.min(1, Math.max(0, orbitFraction)) * pathLength);
+        const expectedScreen = new DOMPoint(expected.x, expected.y).matrixTransform(matrix);
+        orbitOnPathDistance = Math.hypot(
+          orbitRect.left + orbitRect.width / 2 - expectedScreen.x,
+          orbitRect.top + orbitRect.height / 2 - expectedScreen.y
+        );
+      }
     }
+    const hitRadius = Number(hit.getAttribute("r"));
+    // Screen-space geometry must be normalised by the live canvas zoom before comparing against the
+    // design's user-unit constants — the hit circle's attribute radius gives the scale for free.
+    const viewScale = hitRadius > 0 && hitRect.width > 0 ? hitRect.width / (2 * hitRadius) : 1;
+    const bracketSpanUser = viewScale > 0 ? pathRect.height / viewScale : 0;
+    const endpointSpanUser = startPoint && endPoint && viewScale > 0 ? Math.abs(startPoint.y - endPoint.y) / viewScale : 0;
     const nearSameSideBoundary = Boolean(startPoint && endPoint && (
       (Math.abs(startPoint.x - nodeRect.left) <= 4 && Math.abs(endPoint.x - nodeRect.left) <= 4) ||
       (Math.abs(startPoint.x - nodeRect.right) <= 4 && Math.abs(endPoint.x - nodeRect.right) <= 4)
     ));
     const verticallyCenteredAttachment = Boolean(startPoint && endPoint &&
       Math.abs((startPoint.y + endPoint.y) / 2 - nodeCenterY) <= 4 &&
-      Math.abs(startPoint.y - endPoint.y) >= laneRect.height * 0.8 &&
-      Math.abs(startPoint.y - endPoint.y) <= laneRect.height * 1.2);
+      endpointSpanUser >= 44 * 0.8 &&
+      endpointSpanUser <= 44 * 1.2);
     const pathWrapsWholeNode = pathRect.top < nodeRect.top - 2 && pathRect.bottom > nodeRect.bottom + 2;
-    const capsulePathIsCompact = pathRect.height <= laneRect.height + 3 && !pathWrapsWholeNode;
-    const ringCenteredOnLane = Math.abs(markerCenterX - (laneRect.left + laneRect.width / 2)) <= 2 &&
-      Math.abs(markerCenterY - (laneRect.top + laneRect.height / 2)) <= 2;
+    const bracketPathIsCompact = bracketSpanUser <= 44 + 3 && !pathWrapsWholeNode;
     const markerNodeClearance = Math.max(
-      nodeRect.left - outerRect.right,
-      outerRect.left - nodeRect.right,
-      nodeRect.top - outerRect.bottom,
-      outerRect.top - nodeRect.bottom
+      nodeRect.left - hitRect.right,
+      hitRect.left - nodeRect.right,
+      nodeRect.top - hitRect.bottom,
+      hitRect.top - nodeRect.bottom
     );
+
+    // Resolve the constant loop token through a probe so colors compare as computed rgb() strings.
+    const probe = document.createElement("span");
+    probe.style.color = "var(--awkit-connector-loop)";
+    document.body.appendChild(probe);
+    const loopTokenColor = getComputedStyle(probe).color;
+    probe.remove();
 
     return {
       className: group.getAttribute("class") || "",
@@ -133,30 +149,37 @@ export async function readLoopCapsuleVisual(win, nodeId) {
         Number.parseFloat(edgeLayerStyle.zIndex) < Number.parseFloat(nodeLayerStyle.zIndex),
       baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
       pathCount: group.querySelectorAll(".awkit-loop-indicator-path").length,
-      laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
+      dashCount: group.querySelectorAll(".awkit-loop-indicator-dash").length,
       markerCount: group.querySelectorAll(".awkit-loop-indicator-marker").length,
+      orbitCount: group.querySelectorAll(".awkit-loop-indicator-orbit").length,
+      focusCount: group.querySelectorAll(".awkit-loop-indicator-focus-ring").length,
+      hitCount: group.querySelectorAll(".awkit-loop-indicator-hit").length,
+      // Superseded capsule vocabulary stays at zero — a regression to any removed layer fails fast.
+      laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
       backplateCount: group.querySelectorAll(".awkit-loop-control-backplate").length,
       outerCount: group.querySelectorAll(".awkit-loop-indicator-outer-ring").length,
       mainCount: group.querySelectorAll(".awkit-loop-indicator-main-ring").length,
       sweepCount: group.querySelectorAll(".awkit-loop-indicator-sweep").length,
       valueCount: group.querySelectorAll(".awkit-loop-indicator-value").length,
-      focusCount: group.querySelectorAll(".awkit-loop-indicator-focus-ring").length,
-      hitCount: group.querySelectorAll(".awkit-loop-indicator-hit").length,
       directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
       arrowCount: group.querySelectorAll(".awkit-loop-indicator-arrow").length,
-      laneWidth: Number(lane.getAttribute("width")),
-      laneHeight: Number(lane.getAttribute("height")),
-      laneRadius: Number(lane.getAttribute("rx")),
-      outerRadius: Number(outer.getAttribute("r")),
-      mainRadius: Number(main.getAttribute("r")),
       hitRadius: Number(hit.getAttribute("r")),
-      sharedCenter,
-      ringCenteredOnLane,
+      orbitRadius: Number(orbit.getAttribute("r")),
+      sharedHitCenter,
       laneAttachedToNode,
       markerOutsideNode,
       markerNodeClearance,
       sameSideAttachment: nearSameSideBoundary && verticallyCenteredAttachment,
-      capsulePathIsCompact,
+      endpointDiagnostics: {
+        matrixNull,
+        start: startPoint ? { x: startPoint.x, y: startPoint.y } : null,
+        end: endPoint ? { x: endPoint.x, y: endPoint.y } : null,
+        nodeLeft: nodeRect.left,
+        nodeRight: nodeRect.right,
+        nodeCenterY
+      },
+      bracketPathIsCompact,
+      capsulePathIsCompact: bracketPathIsCompact,
       pathWrapsWholeNode,
       pathData: path.getAttribute("d") || "",
       pathMoveCount: ((path.getAttribute("d") || "").match(/[Mm]/g) || []).length,
@@ -170,53 +193,46 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       pathVisibility: pathStyle.visibility,
       pathOpacity: pathStyle.opacity,
       pathStroke: pathStyle.stroke,
-      laneDisplay: laneStyle.display,
-      laneVisibility: laneStyle.visibility,
-      laneOpacity: laneStyle.opacity,
-      outerDisplay: outerStyle.display,
-      outerVisibility: outerStyle.visibility,
-      outerOpacity: outerStyle.opacity,
-      mainDisplay: mainStyle.display,
-      mainVisibility: mainStyle.visibility,
-      mainOpacity: mainStyle.opacity,
-      sweepDisplay: sweepStyle.display,
-      sweepVisibility: sweepStyle.visibility,
-      sweepOpacity: sweepStyle.opacity,
-      sweepPathLength: sweep.getAttribute("pathLength"),
-      sweepDash: sweep.style.strokeDasharray || sweepStyle.strokeDasharray,
-      sweepWidth: sweepStyle.strokeWidth,
-      sweepLinecap: sweepStyle.strokeLinecap,
-      laneLayerVisible: visibleLayer(laneStyle, laneRect),
-      outerLayerVisible: visibleLayer(outerStyle, outerRect),
-      mainLayerVisible: visibleLayer(mainStyle, mainRect),
-      sweepLayerVisible: visibleLayer(sweepStyle, sweepRect),
-      valueLayerVisible: visibleLayer(valueStyle, valueRect),
-      labelLayerVisible: visibleLayer(labelStyle, labelRect),
-      animationName: sweepStyle.animationName,
-      animationDuration: sweepStyle.animationDuration,
-      animationIterationCount: sweepStyle.animationIterationCount,
-      animationTimingFunction: sweepStyle.animationTimingFunction,
-      animationTransform: sweepStyle.transform,
-      sweepAnimationCount: sweep.getAnimations().length,
-      sweepAnimationCurrentTime: Number(sweepAnimation?.currentTime ?? Number.NaN),
-      sweepAnimationStartTime: Number(sweepAnimation?.startTime ?? Number.NaN),
+      dashDisplay: dashStyle.display,
+      dashVisibility: dashStyle.visibility,
+      dashOpacity: dashStyle.opacity,
+      dashStroke: dashStyle.stroke,
+      dashWidth: dashStyle.strokeWidth,
+      dashArray: dashStyle.strokeDasharray,
+      dashLinecap: dashStyle.strokeLinecap,
+      dashAnimationName: dashStyle.animationName,
+      dashAnimationDuration: dashStyle.animationDuration,
+      dashAnimationIterationCount: dashStyle.animationIterationCount,
+      dashAnimationTimingFunction: dashStyle.animationTimingFunction,
+      dashAnimationCount: dash.getAnimations().length,
+      dashAnimationCurrentTime: Number(dashAnimation?.currentTime ?? Number.NaN),
+      dashAnimationStartTime: Number(dashAnimation?.startTime ?? Number.NaN),
+      orbitDisplay: orbitStyle.display,
+      orbitVisibility: orbitStyle.visibility,
+      orbitOpacity: orbitStyle.opacity,
+      orbitFill: orbitStyle.fill,
+      orbitStroke: orbitStyle.stroke,
+      orbitStrokeOpacity: orbitStyle.strokeOpacity,
+      orbitStrokeWidth: orbitStyle.strokeWidth,
+      orbitOffsetPath: orbitStyle.offsetPath,
+      orbitOffsetDistance: orbitStyle.offsetDistance,
+      orbitAnimationName: orbitStyle.animationName,
+      orbitAnimationDuration: orbitStyle.animationDuration,
+      orbitAnimationIterationCount: orbitStyle.animationIterationCount,
+      orbitAnimationTimingFunction: orbitStyle.animationTimingFunction,
+      orbitAnimationCount: orbit.getAnimations().length,
+      orbitAnimationCurrentTime: Number(orbitAnimation?.currentTime ?? Number.NaN),
+      orbitOnPathDistance,
+      orbitOnPath: orbitOnPathDistance <= 6,
+      loopTokenColor,
       markerAnimationCount: marker.getAnimations().length,
       loopDomIdCount: loopDomIds.length,
       duplicateLoopDomIdCount,
-      valueText: (value.textContent || "").trim(),
-      valueDisplay: valueStyle.display,
-      valueOpacity: valueStyle.opacity,
-      valueAnimationName: valueStyle.animationName,
-      valueAnimationCount: value.getAnimations().length,
-      valueCenteredOnRing: Math.abs(valueRect.left + valueRect.width / 2 - markerCenterX) <= 2 &&
-        Math.abs(valueRect.top + valueRect.height / 2 - markerCenterY) <= Math.max(4, valueRect.height * 0.35),
       labelText: (label.textContent || "").trim(),
       labelTitle: label.getAttribute("title"),
       labelDisplay: labelStyle.display,
       labelOpacity: labelStyle.opacity,
       labelWidth: labelRect.width,
-      laneRenderedWidth: laneRect.width,
-      labelWidthWithinLane: labelRect.width <= laneRect.width + 1,
       labelAnimationName: labelStyle.animationName,
       labelAnimationCount: label.getAnimations().length,
       nodeLeft: nodeRect.left,
@@ -227,95 +243,105 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       nodeWidth: nodeRect.width,
       nodeCenterX,
       nodeCenterY,
-      markerLeft: outerRect.left,
-      markerRight: outerRect.right,
-      markerTop: outerRect.top,
-      markerBottom: outerRect.bottom,
+      markerLeft: hitRect.left,
+      markerRight: hitRect.right,
+      markerTop: hitRect.top,
+      markerBottom: hitRect.bottom,
       markerCenterX,
       markerCenterY,
-      outerDiameter: outerRect.width,
-      mainDiameter: mainRect.width,
       hitDiameter: hitRect.width,
-      markerToNodeHeightRatio: outerRect.height / nodeRect.height,
-      ringFullyVisible: outerRect.left >= canvasRect.left - 1 && outerRect.right <= canvasRect.right + 1 &&
-        outerRect.top >= canvasRect.top - 1 && outerRect.bottom <= canvasRect.bottom + 1 && labelRect.top >= canvasRect.top - 1,
-      controlFullyVisible: [laneRect, hitRect, labelRect].every((rect) =>
+      markerToNodeHeightRatio: hitRect.height / nodeRect.height,
+      controlFullyVisible: [pathRect, hitRect, labelRect].every((rect) =>
         rect.left >= canvasRect.left - 1 && rect.right <= canvasRect.right + 1 &&
         rect.top >= canvasRect.top - 1 && rect.bottom <= canvasRect.bottom + 1
       ),
       labelClearance: Math.max(
-        outerRect.left - labelRect.right,
-        labelRect.left - outerRect.right,
-        outerRect.top - labelRect.bottom,
-        labelRect.top - outerRect.bottom
+        hitRect.left - labelRect.right,
+        labelRect.left - hitRect.right,
+        hitRect.top - labelRect.bottom,
+        labelRect.top - hitRect.bottom
       ),
-      labelOverlapsMarker: overlaps(labelRect, outerRect),
+      labelOverlapsMarker: overlaps(labelRect, hitRect),
       labelOverlapsNode: overlaps(labelRect, nodeRect),
-      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, hitRect) || overlaps(rect, outerRect) || overlaps(rect, laneRect) || overlaps(rect, labelRect)),
-      overlapsInsertControl: insertControlRects.some((rect) => overlaps(rect, hitRect) || overlaps(rect, laneRect) || overlaps(rect, labelRect)),
+      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, hitRect) || overlaps(rect, pathRect) || overlaps(rect, labelRect)),
+      overlapsInsertControl: insertControlRects.some((rect) => overlaps(rect, hitRect) || overlaps(rect, pathRect) || overlaps(rect, labelRect)),
       selected: indicator.classList.contains("is-selected"),
       hitPointerEvents: getComputedStyle(hit).pointerEvents
     };
   }, nodeId);
 }
 
-export function matchesLoopCapsuleContract(visual, { owner, value } = {}) {
+const normalizeDash = (value) => String(value ?? "")
+  .replace(/px|,/g, " ")
+  .trim()
+  .replace(/\s+/g, " ");
+
+export function matchesLoopCapsuleContract(visual, { owner } = {}) {
   return Boolean(
     visual?.connectorKind === "loop" &&
-    visual.visualContract === "capsule-ring" &&
+    visual.visualContract === "dash-orbit" &&
     (!owner || visual.owner === owner) &&
-    visual.baseCount === 1 && visual.pathCount === 1 && visual.laneCount === 1 && visual.markerCount === 1 &&
-    visual.backplateCount === 1 && visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 &&
-    visual.valueCount === 1 && visual.focusCount === 1 && visual.hitCount === 1 &&
-    visual.directionCount === 0 && visual.arrowCount === 0 &&
-    visual.laneWidth === 160 && visual.laneHeight === 20 && visual.laneRadius === 10 &&
-    visual.outerRadius === 40 && visual.mainRadius === 30 && visual.hitRadius === 44 &&
-    visual.sharedCenter && visual.ringCenteredOnLane && visual.laneAttachedToNode && visual.sameSideAttachment &&
-    visual.markerOutsideNode && visual.capsulePathIsCompact && !visual.pathWrapsWholeNode &&
+    visual.baseCount === 1 && visual.pathCount === 1 && visual.dashCount === 1 && visual.markerCount === 1 &&
+    visual.orbitCount === 1 && visual.focusCount === 1 && visual.hitCount === 1 &&
+    visual.laneCount === 0 && visual.backplateCount === 0 && visual.outerCount === 0 && visual.mainCount === 0 &&
+    visual.sweepCount === 0 && visual.valueCount === 0 && visual.directionCount === 0 && visual.arrowCount === 0 &&
+    visual.hitRadius === 22 && visual.orbitRadius === 4 && visual.sharedHitCenter &&
+    visual.laneAttachedToNode && visual.sameSideAttachment && visual.markerOutsideNode &&
+    visual.bracketPathIsCompact && !visual.pathWrapsWholeNode &&
     visual.pathMoveCount === 1 && visual.pathHasRoundedSegments && visual.pathTotalLength > 0 &&
-    visual.valueCenteredOnRing && (value === undefined || visual.valueText === String(value)) &&
+    visual.pathDisplay !== "none" && visual.pathVisibility !== "hidden" && Number.parseFloat(visual.pathOpacity) > 0 &&
+    Number.parseFloat(visual.pathOpacity) <= 0.6 && Number.parseFloat(visual.pathStrokeWidth) > 0 &&
+    // The dash overlay is the bright moving layer: constant loop green, 2px, 7/21 marching round caps.
+    // Animation wiring is deliberately NOT part of this base contract — the focused suites assert
+    // running motion in normal mode and frozen motion under prefers-reduced-motion against the
+    // same visual object.
+    visual.dashStroke === visual.loopTokenColor && normalizeDash(visual.dashArray) === "7 21" &&
+    Number.parseFloat(visual.dashWidth) === 2 && visual.dashLinecap === "round" &&
+    // The orbit dot rides the bracket path with its soft halo stroke.
+    visual.orbitFill === visual.loopTokenColor && Number.parseFloat(visual.orbitStrokeWidth) === 8 &&
+    Number.parseFloat(visual.orbitStrokeOpacity) > 0 && Number.parseFloat(visual.orbitStrokeOpacity) <= 0.35 &&
+    String(visual.orbitOffsetPath || "").includes("path(") && visual.orbitOnPath &&
     visual.syntheticLoopNodeCount === 0 && visual.indicatorInEdgeLayer && !visual.indicatorInNodeLayer &&
     visual.edgeBelowNode &&
     visual.role === "button" && visual.tabIndex === "0" &&
     typeof visual.ariaLabel === "string" && visual.ariaLabel.startsWith("Configure loop connector: ") &&
     visual.hitPointerEvents === "all" && visual.hitDiameter > 0 &&
-    visual.pathDisplay !== "none" && visual.pathVisibility !== "hidden" && Number.parseFloat(visual.pathOpacity) > 0 &&
-    visual.pathStroke !== "none" && Number.parseFloat(visual.pathStrokeWidth) > 0 &&
-    visual.laneLayerVisible && visual.outerLayerVisible && visual.mainLayerVisible && visual.sweepLayerVisible &&
-    visual.valueLayerVisible && visual.labelLayerVisible && Number.parseFloat(visual.sweepWidth) > 0 &&
-    visual.labelTitle === visual.labelText && visual.labelWidthWithinLane && visual.labelWidth > 0 && visual.laneRenderedWidth > 0 &&
-    !visual.labelOverlapsMarker && !visual.labelOverlapsNode && !visual.overlapsOtherNode && !visual.overlapsInsertControl &&
+    visual.dashDisplay !== "none" && Number.parseFloat(visual.dashOpacity) > 0 &&
+    visual.orbitDisplay !== "none" && Number.parseFloat(visual.orbitOpacity) > 0 &&
+    Number.parseFloat(visual.labelOpacity) > 0 && visual.labelWidth > 0 &&
+    visual.labelTitle === visual.labelText && !visual.labelOverlapsMarker && !visual.labelOverlapsNode &&
+    !visual.overlapsOtherNode && !visual.overlapsInsertControl && visual.labelClearance >= 0 &&
     visual.duplicateLoopDomIdCount === 0 &&
-    visual.markerAnimationCount === 0 && visual.valueAnimationCount === 0 && visual.labelAnimationCount === 0
+    visual.markerAnimationCount === 0 && visual.labelAnimationCount === 0
   );
 }
 
 export function rejectsLoopURouteHybrid(visual) {
   if (!matchesLoopCapsuleContract(visual)) return false;
   const knownBadMutations = [
-    { ...visual, laneCount: 0 },
-    { ...visual, backplateCount: 0, sweepCount: 0, valueCount: 0 },
-    { ...visual, capsulePathIsCompact: false, pathWrapsWholeNode: true },
+    { ...visual, dashCount: 0 },
+    { ...visual, orbitCount: 0 },
+    { ...visual, markerCount: 0, focusCount: 0, hitCount: 0 },
+    { ...visual, sweepCount: 1, valueCount: 1 },
+    { ...visual, laneCount: 1, backplateCount: 1 },
     { ...visual, directionCount: 1, arrowCount: 1 },
+    { ...visual, bracketPathIsCompact: false, pathWrapsWholeNode: true },
+    { ...visual, sameSideAttachment: false },
     { ...visual, overlapsOtherNode: true },
     { ...visual, overlapsInsertControl: true },
-    { ...visual, laneLayerVisible: false },
-    { ...visual, outerLayerVisible: false },
-    { ...visual, mainLayerVisible: false },
-    { ...visual, sweepLayerVisible: false },
-    { ...visual, valueLayerVisible: false },
-    { ...visual, labelLayerVisible: false },
-    { ...visual, sweepWidth: "0px" },
-    { ...visual, edgeBelowNode: false },
+    { ...visual, dashStroke: "rgb(29, 78, 216)" },
+    { ...visual, orbitFill: "rgb(29, 78, 216)" },
+    { ...visual, orbitOnPath: false },
+    { ...visual, pathOpacity: "0.78" },
+    { ...visual, pathOpacity: "0" },
     { ...visual, hitPointerEvents: "none" },
     { ...visual, hitDiameter: 0 },
     { ...visual, role: null },
     { ...visual, tabIndex: null },
     { ...visual, ariaLabel: null },
     { ...visual, labelTitle: null },
-    { ...visual, labelWidthWithinLane: false },
     { ...visual, labelWidth: 0 },
-    { ...visual, laneRenderedWidth: 0 }
+    { ...visual, edgeBelowNode: false }
   ];
   return knownBadMutations.every((mutation) => !matchesLoopCapsuleContract(mutation));
 }
@@ -326,13 +352,13 @@ export async function waitForLoopCapsuleLayoutStable(win, nodeId, timeoutMs = 40
     const sample = () => {
       const group = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
       const node = document.querySelector(`.awkit-flow-node[data-id="${CSS.escape(id)}"]`);
-      const lane = group?.querySelector(".awkit-loop-control-lane");
+      const path = group?.querySelector(".awkit-loop-indicator-path");
       const hit = group?.querySelector(".awkit-loop-indicator-hit");
       const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
         .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
-      if (!(node instanceof HTMLElement) || !(lane instanceof SVGRectElement) ||
+      if (!(node instanceof HTMLElement) || !(path instanceof SVGPathElement) ||
         !(hit instanceof SVGCircleElement) || !(label instanceof HTMLElement)) return null;
-      return [node, lane, hit, label].flatMap((element) => {
+      return [node, path, hit, label].flatMap((element) => {
         const rect = element.getBoundingClientRect();
         return [rect.left, rect.top, rect.width, rect.height];
       });
@@ -360,48 +386,52 @@ export async function waitForLoopCapsuleLayoutStable(win, nodeId, timeoutMs = 40
 export async function readLoopCapsuleMotion(win, nodeId) {
   return win.evaluate(async (id) => {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
-    const sweep = group?.querySelector(".awkit-loop-indicator-sweep");
-    const value = group?.querySelector(".awkit-loop-indicator-value");
+    const dash = group?.querySelector(".awkit-loop-indicator-dash");
+    const orbit = group?.querySelector(".awkit-loop-indicator-orbit");
     const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
       .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
-    if (!(sweep instanceof SVGCircleElement) || !(value instanceof SVGTextElement) || !(label instanceof HTMLElement)) return null;
-    const animation = sweep.getAnimations()[0];
-    const beforeTime = Number(animation?.currentTime ?? Number.NaN);
-    const beforeStartTime = Number(animation?.startTime ?? Number.NaN);
-    const beforeTransform = getComputedStyle(sweep).transform;
-    const beforeValueRect = value.getBoundingClientRect();
+    if (!(dash instanceof SVGPathElement) || !(orbit instanceof SVGCircleElement) || !(label instanceof HTMLElement)) return null;
+    const dashAnimation = dash.getAnimations()[0];
+    const orbitAnimation = orbit.getAnimations()[0];
+    const beforeTime = Number(dashAnimation?.currentTime ?? Number.NaN);
+    const beforeDashOffset = getComputedStyle(dash).strokeDashoffset;
+    const beforeOffset = getComputedStyle(orbit).offsetDistance;
+    const beforeOrbitRect = orbit.getBoundingClientRect();
     const beforeLabelRect = label.getBoundingClientRect();
     await new Promise((resolve) => window.setTimeout(resolve, 180));
-    const afterTime = Number(animation?.currentTime ?? Number.NaN);
-    const afterStartTime = Number(animation?.startTime ?? Number.NaN);
-    const afterTransform = getComputedStyle(sweep).transform;
-    const afterValueRect = value.getBoundingClientRect();
+    const afterTime = Number(dashAnimation?.currentTime ?? Number.NaN);
+    const afterDashOffset = getComputedStyle(dash).strokeDashoffset;
+    const afterOffset = getComputedStyle(orbit).offsetDistance;
+    const afterOrbitRect = orbit.getBoundingClientRect();
     const afterLabelRect = label.getBoundingClientRect();
     const center = (rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-    const beforeValue = center(beforeValueRect);
-    const afterValue = center(afterValueRect);
+    const beforeOrbit = center(beforeOrbitRect);
+    const afterOrbit = center(afterOrbitRect);
     const beforeLabel = center(beforeLabelRect);
     const afterLabel = center(afterLabelRect);
     return {
       beforeTime,
       afterTime,
       delta: afterTime - beforeTime,
-      beforeStartTime,
-      afterStartTime,
-      beforeTransform,
-      afterTransform,
-      moved: beforeTransform !== afterTransform,
-      valueMoved: Math.hypot(afterValue.x - beforeValue.x, afterValue.y - beforeValue.y) > 0.5,
+      beforeStartTime: Number(dashAnimation?.startTime ?? Number.NaN),
+      afterStartTime: Number(dashAnimation?.startTime ?? Number.NaN),
+      orbitAnimationCount: orbit.getAnimations().length,
+      orbitAnimationCurrentTime: Number(orbitAnimation?.currentTime ?? Number.NaN),
+      beforeDashOffset,
+      afterDashOffset,
+      beforeOffset,
+      afterOffset,
+      dashMoved: beforeDashOffset !== afterDashOffset,
+      orbitMoved: Math.hypot(afterOrbit.x - beforeOrbit.x, afterOrbit.y - beforeOrbit.y) > 0.5 || beforeOffset !== afterOffset,
       labelMoved: Math.hypot(afterLabel.x - beforeLabel.x, afterLabel.y - beforeLabel.y) > 0.5,
-      valueAnimationCount: value.getAnimations().length,
       labelAnimationCount: label.getAnimations().length
     };
   }, nodeId);
 }
 
 export async function readLoopCapsulePixelMotion(win, nodeId) {
-  const sweep = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-sweep`);
-  const bounds = await sweep.boundingBox();
+  const path = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-path`);
+  const bounds = await path.boundingBox();
   if (!bounds) return null;
   const clip = {
     x: Math.max(0, Math.floor(bounds.x - 5)),
@@ -437,5 +467,5 @@ export function loopCapsuleMovedWithNode(before, after, tolerance = 2) {
   return close(after.markerLeft - before.markerLeft, nodeDx, tolerance) &&
     close(after.markerTop - before.markerTop, nodeDy, tolerance) &&
     close(after.markerNodeClearance, before.markerNodeClearance, tolerance) &&
-    after.laneAttachedToNode && after.sameSideAttachment && after.capsulePathIsCompact;
+    after.laneAttachedToNode && after.sameSideAttachment && after.bracketPathIsCompact;
 }

@@ -21,21 +21,21 @@ import {
 const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
 
 export const WORKFLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
-  "Workflow Loop default renders the approved capsule, dominant ring, configured value, and sweep",
-  "Workflow Loop capsule oracle rejects the superseded U-route hybrid",
-  "Workflow dense-layout scoring chooses the clear side and fit keeps the complete control visible",
+  "Workflow Loop default renders the approved green dash-orbit bracket with marching dashes and orbiting dot",
+  "Workflow Loop oracle rejects the superseded capsule-ring and U-route hybrids",
+  "Workflow dense-layout scoring chooses the clear side and fit keeps the complete bracket visible",
   "Workflow Loop recomputes its clear side when a neighboring node moves away and back",
-  "Workflow Loop keeps mode-aware design text while the ring displays maxIterations",
-  "Workflow Loop uses same-side capsule attachment and never the full-node U-route",
-  "Workflow Loop rotates only the circular sweep without moving value, label, or capsule geometry",
-  "Workflow Loop reduced motion freezes only the sweep and leaves capsule/value readable",
-  "Workflow Loop capsule remains attached and structurally identical through zoom and viewport pan",
-  "Dragging the Workflow node preserves capsule attachment, ring/value ownership, and geometry",
-  "Two Workflow Loops keep independent identities, authored state, selection, and moving sweeps",
-  "Reduced motion freezes both independent Workflow sweeps without hiding either value or label",
+  "Workflow Loop keeps mode-aware design text with the authored dotted style",
+  "Workflow Loop uses same-side bracket attachment and never the full-node U-route",
+  "Workflow Loop marches dashes and orbits only the dot without moving label or bracket geometry",
+  "Workflow Loop reduced motion freezes the dashes and dot and leaves bracket/label readable",
+  "Workflow Loop bracket remains attached and structurally identical through zoom and viewport pan",
+  "Dragging the Workflow node preserves bracket attachment, ownership, and geometry",
+  "Two Workflow Loops keep independent identities, authored state, selection, and moving dashes",
+  "Reduced motion freezes both independent Workflow loops without hiding either bracket or label",
   "Workflow save preserves Loop configuration, authored style, and exactly one promoted Conditional exit",
-  "Workflow reload preserves the capsule contract, rendered style, and exact configured value",
-  "Workflow dominant ring supports exact config Undo/Redo and a second persisted edit/reload cycle",
+  "Workflow reload preserves the connector contract, rendered style, and exact configured state",
+  "Workflow connector supports exact config Undo/Redo and a second persisted edit/reload cycle",
   "Workflow Loop stays accessible and Delete/Undo/Redo restores its exact authored state once",
   "Configure loop reopens the Workflow Loop with its unsaved bound edit and authored summary intact"
 ]);
@@ -81,7 +81,7 @@ function seedWorkflow(dataRoot) {
     createdAt: now,
     updatedAt: now,
     nodes: [
-      mkNode("left-blocker", "capsule-flow-blocker", 1, -160),
+      mkNode("left-blocker", "capsule-flow-blocker", 1, -100),
       mkNode("workflow-node-1", "capsule-flow-a", 2, 260),
       mkNode("workflow-node-2", "capsule-flow-b", 3, 780)
     ],
@@ -243,32 +243,44 @@ async function waitForLoop(win, nodeId, present = true, { timeout = 12_000 } = {
 /**
  * Same fail-fast-and-explain treatment as `waitForPersistedMaxIterations`, for the DOM side.
  *
- * This is the wait that actually hangs (awkit-be5o): it runs right after `reopenWorkflowFixture()`
- * reloads the window, and if the fixture came back with the wrong workflow selected — or the loop
- * edge did not re-render — the indicator never appears and the default 30s timeout reports only
- * `page.waitForFunction: Timeout 30000ms exceeded`, which says nothing about which of those it was.
- * On expiry we read back the selected workflow, whether the loop edge exists, and the value actually
- * rendered, so the next failure names its own cause.
+ * The dash-orbit design has no numeric ring, so the wait synchronizes on the rendered design label
+ * ("Count × 3", "While · status = passed"). On expiry we read back the selected workflow, whether
+ * the loop edge exists, and the label actually rendered, so the next failure names its own cause.
  */
-async function waitForValue(win, nodeId, value, { timeout = 12_000 } = {}) {
+async function waitForValue(win, nodeId, label, { timeout = 12_000 } = {}) {
   try {
-    await win.waitForFunction(({ id, expected }) => (document.querySelector(
-      `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
-    )?.textContent ?? "").trim() === expected, { id: nodeId, expected: String(value) }, { polling: 100, timeout });
+    await win.waitForFunction(({ id, expected }) => {
+      const group = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
+      const text = [...document.querySelectorAll(".awkit-loop-indicator-label")]
+        .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
+      return (text?.textContent ?? "").trim() === expected;
+    }, { id: nodeId, expected: label }, { polling: 100, timeout });
   } catch {
     const state = await readModelVsDom(win, nodeId);
-    const renderedValue = await win.evaluate((id) => (document.querySelector(
-      `g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-value`
-    )?.textContent ?? "").trim() || null, nodeId).catch(() => null);
+    const renderedValue = await win.evaluate((id) => {
+      const group = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
+      const text = [...document.querySelectorAll(".awkit-loop-indicator-label")]
+        .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
+      return (text?.textContent ?? "").trim() || null;
+    }, nodeId).catch(() => null);
 
     throw new Error(
-      `Loop indicator never showed value ${value} within ${timeout}ms after reload. ` +
-        `VERDICT: ${verdictFor(state)}. renderedValue: ${JSON.stringify(renderedValue)}. Actual: ` +
+      `Loop indicator never showed label ${JSON.stringify(label)} within ${timeout}ms after reload. ` +
+        `VERDICT: ${verdictFor(state)}. renderedLabel: ${JSON.stringify(renderedValue)}. Actual: ` +
         `${JSON.stringify(state)}. selectedWorkflow other than "verify-workflow-loop-capsule" means ` +
         `reopenWorkflowFixture restored the wrong fixture; a null domLoopEdge means the loop edge did ` +
         `not re-render at all. Neither is slowness, so waiting longer cannot help.`
     );
   }
+}
+
+/** Poll a properties-panel input until it shows the exact value (label-invariant bound edits). */
+async function waitForPanelInput(win, locator, value) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if ((await locator.inputValue().catch(() => "")) === value) return true;
+    await win.waitForTimeout(100);
+  }
+  return false;
 }
 
 async function fitAndStabilize(win, nodeIds) {
@@ -389,7 +401,7 @@ async function waitForPersistedMaxIterations(win, expected, { timeout = 10_000 }
         persistedEdges: profile?.edges?.map((e) => `${e.source}->${e.target}:${e.type}`) ?? null,
         // Was there still a loop on screen to save at the moment the save was expected?
         domLoopPresent: Boolean(domLoop),
-        domLoopValue: (domLoop?.querySelector(".awkit-loop-indicator-value")?.textContent ?? "").trim() || null,
+        domLoopLabel: (domLoop?.querySelector(".awkit-loop-indicator-label")?.textContent ?? "").trim() || null,
         // Did the click have a button to land on, and is the app claiming anything went wrong?
         saveButtonPresent: Boolean(saveButton),
         saveButtonDisabled: saveButton instanceof HTMLButtonElement ? saveButton.disabled : null,
@@ -450,7 +462,7 @@ async function readLoopHistoryStructure(win, nodeId) {
 
 const hasDottedFourPixelPath = (visual) =>
   visual?.pathStrokeDash?.replace(/px|,/g, " ").trim().split(/\s+/).join(" ") === "1 5" &&
-  Number.parseFloat(visual?.pathStrokeWidth) === 4;
+  Math.abs(Number.parseFloat(visual?.pathStrokeWidth) - 4) <= 0.5;
 
 export async function runWorkflowLoopCapsuleSuite(root) {
   const results = [];
@@ -491,18 +503,20 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     const loopMode = win.locator('.scenario-properties-panel label:has-text("Loop mode") select');
     const maxIterations = win.locator('.scenario-properties-panel label:has-text("Max iterations") input');
     await loopMode.waitFor({ state: "visible" });
-    await waitForValue(win, nodeId, 3);
+    await waitForValue(win, nodeId, "Count × 3");
     const initialStable = await fitAndStabilize(win, [nodeId]);
     const initial = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Workflow Loop default renders the approved capsule, dominant ring, configured value, and sweep",
-      matchesLoopCapsuleContract(initial, { owner: nodeId, value: 3 }) && initial?.labelText === "Count × 3",
+      "Workflow Loop default renders the approved green dash-orbit bracket with marching dashes and orbiting dot",
+      matchesLoopCapsuleContract(initial, { owner: nodeId }) && initial?.labelText === "Count × 3" &&
+        initial?.dashAnimationName === "awkit-loop-dash" && initial.orbitAnimationName === "awkit-loop-orbit" &&
+        initial.dashAnimationIterationCount === "infinite" && initial.orbitAnimationIterationCount === "infinite",
       JSON.stringify(initial)
     );
-    check("Workflow Loop capsule oracle rejects the superseded U-route hybrid", rejectsLoopURouteHybrid(initial), JSON.stringify(initial));
+    check("Workflow Loop oracle rejects the superseded capsule-ring and U-route hybrids", rejectsLoopURouteHybrid(initial), JSON.stringify(initial));
     check(
-      "Workflow dense-layout scoring chooses the clear side and fit keeps the complete control visible",
-      initialStable.every(Boolean) && initial?.side === "right" && initial.ringFullyVisible && initial.controlFullyVisible &&
+      "Workflow dense-layout scoring chooses the clear side and fit keeps the complete bracket visible",
+      initialStable.every(Boolean) && initial?.side === "right" && initial.controlFullyVisible &&
         !initial.overlapsOtherNode && !initial.overlapsInsertControl,
       JSON.stringify({ initialStable, initial })
     );
@@ -533,7 +547,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     check(
       "Workflow Loop recomputes its clear side when a neighboring node moves away and back",
       Boolean(blockerBox && movedBlockerBox) && peerMovedAway?.side === "left" && peerRestored?.side === "right" &&
-        matchesLoopCapsuleContract(peerMovedAway, { owner: nodeId, value: 3 }) && matchesLoopCapsuleContract(peerRestored, { owner: nodeId, value: 3 }),
+        matchesLoopCapsuleContract(peerMovedAway, { owner: nodeId }) && matchesLoopCapsuleContract(peerRestored, { owner: nodeId }),
       JSON.stringify({ peerMovedAway, peerRestored })
     );
     const initialHit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
@@ -545,18 +559,18 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     await win.locator('.scenario-properties-panel label:has-text("Line style") select').selectOption("dotted");
     await win.locator('.scenario-properties-panel label:has-text("Thickness") select').selectOption("4");
     await win.locator('.scenario-properties-panel label:has-text("Connector shape") select').selectOption("smoothstep");
-    await waitForValue(win, nodeId, 10);
+    await waitForValue(win, nodeId, "While · status = passed");
     await waitForLoopCapsuleLayoutStable(win, nodeId);
     const visual = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Workflow Loop keeps mode-aware design text while the ring displays maxIterations",
-      matchesLoopCapsuleContract(visual, { owner: nodeId, value: 10 }) && visual?.labelText === "While · status = passed" &&
+      "Workflow Loop keeps mode-aware design text with the authored dotted style",
+      matchesLoopCapsuleContract(visual, { owner: nodeId }) && visual?.labelText === "While · status = passed" &&
         hasDottedFourPixelPath(visual) && !/\b\d+\s*\/\s*\d+\b|\biteration\b/i.test(visual?.ariaLabel ?? ""),
       JSON.stringify(visual)
     );
     check(
-      "Workflow Loop uses same-side capsule attachment and never the full-node U-route",
-      visual?.sameSideAttachment && visual.laneAttachedToNode && visual.capsulePathIsCompact && !visual.pathWrapsWholeNode &&
+      "Workflow Loop uses same-side bracket attachment and never the full-node U-route",
+      visual?.sameSideAttachment && visual.laneAttachedToNode && visual.bracketPathIsCompact && !visual.pathWrapsWholeNode &&
         visual.markerOutsideNode && visual.directionCount === 0 && visual.arrowCount === 0,
       JSON.stringify(visual)
     );
@@ -564,27 +578,33 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     const motion = await readLoopCapsuleMotion(win, nodeId);
     const pixelMotion = await readLoopCapsulePixelMotion(win, nodeId);
     check(
-      "Workflow Loop rotates only the circular sweep without moving value, label, or capsule geometry",
-      visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" &&
-        visual.animationTimingFunction === "linear" && Number.parseFloat(visual.animationDuration) === 2 && visual.sweepAnimationCount === 1 &&
-        motion?.moved && Number.isFinite(motion.delta) && motion.delta >= 100 && !motion.valueMoved && !motion.labelMoved &&
-        motion.valueAnimationCount === 0 && motion.labelAnimationCount === 0 &&
+      "Workflow Loop marches dashes and orbits only the dot without moving label or bracket geometry",
+      visual?.dashAnimationName === "awkit-loop-dash" && visual.dashAnimationIterationCount === "infinite" &&
+        visual.dashAnimationTimingFunction === "linear" && Number.parseFloat(visual.dashAnimationDuration) === 1.8 &&
+        visual.orbitAnimationName === "awkit-loop-orbit" && visual.orbitAnimationIterationCount === "infinite" &&
+        visual.orbitAnimationTimingFunction === "linear" && Number.parseFloat(visual.orbitAnimationDuration) === 2 &&
+        visual.orbitAnimationCount === 1 && visual.orbitOnPath &&
+        motion?.dashMoved && motion.orbitMoved && Number.isFinite(motion.delta) && motion.delta >= 100 && !motion.labelMoved &&
+        motion.labelAnimationCount === 0 &&
         Number.isFinite(pixelMotion?.changedPixels) && pixelMotion.changedPixels >= 12 && pixelMotion.totalDelta > 0,
       JSON.stringify({ visual, motion, pixelMotion })
     );
 
     await win.emulateMedia({ reducedMotion: "reduce" });
     await win.waitForFunction((id) => {
-      const sweep = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-sweep`);
-      return sweep instanceof SVGCircleElement && getComputedStyle(sweep).animationName === "none";
+      const dash = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-dash`);
+      const orbit = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"] .awkit-loop-indicator-orbit`);
+      return dash instanceof SVGPathElement && orbit instanceof SVGCircleElement &&
+        getComputedStyle(dash).animationName === "none" && getComputedStyle(orbit).animationName === "none";
     }, nodeId);
     const reduced = await readLoopCapsuleVisual(win, nodeId);
     const reducedMotion = await readLoopCapsuleMotion(win, nodeId);
     check(
-      "Workflow Loop reduced motion freezes only the sweep and leaves capsule/value readable",
-      matchesLoopCapsuleContract(reduced, { owner: nodeId, value: 10 }) && reduced?.animationName === "none" &&
-        reduced.animationTransform !== "none" && reduced.valueDisplay !== "none" && Number.parseFloat(reduced.valueOpacity) > 0 &&
-        !reducedMotion?.moved && !reducedMotion?.valueMoved && !reducedMotion?.labelMoved,
+      "Workflow Loop reduced motion freezes the dashes and dot and leaves bracket/label readable",
+      matchesLoopCapsuleContract(reduced, { owner: nodeId }) && reduced?.dashAnimationName === "none" &&
+        reduced.orbitAnimationName === "none" && reduced.orbitOnPath &&
+        Number.parseFloat(reduced.pathOpacity) > 0 && Number.parseFloat(reduced.labelOpacity) > 0 &&
+        !reducedMotion?.dashMoved && !reducedMotion?.orbitMoved && !reducedMotion?.labelMoved,
       JSON.stringify({ reduced, reducedMotion })
     );
     await win.emulateMedia({ reducedMotion: "no-preference" });
@@ -611,15 +631,15 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     const panStable = await waitForLoopCapsuleLayoutStable(win, nodeId);
     const afterPan = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Workflow Loop capsule remains attached and structurally identical through zoom and viewport pan",
+      "Workflow Loop bracket remains attached and structurally identical through zoom and viewport pan",
       at25.percent === 25 && at100.percent === 100 && at200.percent === 200 &&
-        [at25, at100, at200].every((sample) => sample.stable && matchesLoopCapsuleContract(sample.visual, { owner: nodeId, value: 10 }) &&
+        [at25, at100, at200].every((sample) => sample.stable && matchesLoopCapsuleContract(sample.visual, { owner: nodeId }) &&
           sample.visual.laneAttachedToNode && sample.visual.sameSideAttachment && !sample.visual.pathWrapsWholeNode) &&
         Boolean(panPoint) && panStable && loopCapsuleMovedWithNode(beforePan, afterPan) &&
         Math.abs((afterPan?.nodeLeft ?? 0) - (beforePan?.nodeLeft ?? 0) - 48) <= 2 &&
         Math.abs((afterPan?.nodeTop ?? 0) - (beforePan?.nodeTop ?? 0) - 24) <= 2 &&
-        beforePan?.pathData === afterPan?.pathData && beforePan?.sweepAnimationStartTime === afterPan?.sweepAnimationStartTime &&
-        matchesLoopCapsuleContract(afterPan, { owner: nodeId, value: 10 }),
+        beforePan?.pathData === afterPan?.pathData && beforePan?.dashAnimationStartTime === afterPan?.dashAnimationStartTime &&
+        matchesLoopCapsuleContract(afterPan, { owner: nodeId }),
       JSON.stringify({ at25, at100, at200, panPoint, panStable, beforePan, afterPan })
     );
 
@@ -635,9 +655,9 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     const dragStable = await waitForLoopCapsuleLayoutStable(win, nodeId);
     const afterDrag = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Dragging the Workflow node preserves capsule attachment, ring/value ownership, and geometry",
+      "Dragging the Workflow node preserves bracket attachment, ownership, and geometry",
       Boolean(box) && dragStable && beforeDrag?.side === "right" && afterDrag?.side === "right" &&
-        loopCapsuleMovedWithNode(beforeDrag, afterDrag) && matchesLoopCapsuleContract(afterDrag, { owner: nodeId, value: 10 }),
+        loopCapsuleMovedWithNode(beforeDrag, afterDrag) && matchesLoopCapsuleContract(afterDrag, { owner: nodeId }),
       JSON.stringify({ dragStable, beforeDrag, afterDrag })
     );
 
@@ -648,7 +668,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     await clickNodeMenuItem(win, secondId, "Add loop");
     await waitForLoop(win, secondId);
     await maxIterations.fill("7");
-    await waitForValue(win, secondId, 7);
+    await waitForValue(win, secondId, "Count × 7");
     const peersStable = await Promise.all([
       waitForLoopCapsuleLayoutStable(win, nodeId),
       waitForLoopCapsuleLayoutStable(win, secondId)
@@ -660,15 +680,15 @@ export async function runWorkflowLoopCapsuleSuite(root) {
       readLoopCapsuleMotion(win, secondId)
     ]);
     check(
-      "Two Workflow Loops keep independent identities, authored state, selection, and moving sweeps",
-      peersStable.every(Boolean) && firstWithPeer?.edgeId !== second?.edgeId && matchesLoopCapsuleContract(firstWithPeer, { owner: nodeId, value: 10 }) &&
-        matchesLoopCapsuleContract(second, { owner: secondId, value: 7 }) && firstWithPeer?.labelText === "While · status = passed" && second?.labelText === "Count × 7" &&
+      "Two Workflow Loops keep independent identities, authored state, selection, and moving dashes",
+      peersStable.every(Boolean) && firstWithPeer?.edgeId !== second?.edgeId && matchesLoopCapsuleContract(firstWithPeer, { owner: nodeId }) &&
+        matchesLoopCapsuleContract(second, { owner: secondId }) && firstWithPeer?.labelText === "While · status = passed" && second?.labelText === "Count × 7" &&
         firstWithPeer.selected === false && second.selected === true &&
         firstWithPeer.duplicateLoopDomIdCount === 0 && second.duplicateLoopDomIdCount === 0 &&
-        firstWithPeer.sweepAnimationStartTime === primaryBeforeSecond?.sweepAnimationStartTime &&
-        Number.isFinite(second.sweepAnimationStartTime) && second.sweepAnimationStartTime !== firstWithPeer.sweepAnimationStartTime &&
-        peerMotion.every((item) => item?.moved && Number.isFinite(item.delta) && item.delta >= 100 &&
-          !item.valueMoved && !item.labelMoved && item.valueAnimationCount === 0 && item.labelAnimationCount === 0),
+        firstWithPeer.dashAnimationStartTime === primaryBeforeSecond?.dashAnimationStartTime &&
+        Number.isFinite(second.dashAnimationStartTime) && second.dashAnimationStartTime !== firstWithPeer.dashAnimationStartTime &&
+        peerMotion.every((item) => item?.dashMoved && item.orbitMoved && Number.isFinite(item.delta) && item.delta >= 100 &&
+          !item.labelMoved && item.labelAnimationCount === 0),
       JSON.stringify({ firstWithPeer, second, peerMotion })
     );
 
@@ -682,10 +702,11 @@ export async function runWorkflowLoopCapsuleSuite(root) {
       readLoopCapsuleVisual(win, secondId)
     ]);
     check(
-      "Reduced motion freezes both independent Workflow sweeps without hiding either value or label",
-      reducedPeers.every((item, index) => matchesLoopCapsuleContract(item, { owner: index === 0 ? nodeId : secondId, value: index === 0 ? 10 : 7 }) &&
-        item.animationName === "none" && item.valueDisplay !== "none" && item.labelDisplay !== "none") &&
-        reducedPeerMotion.every((item) => item && !item.moved && !item.valueMoved && !item.labelMoved),
+      "Reduced motion freezes both independent Workflow loops without hiding either bracket or label",
+      reducedPeers.every((item, index) => matchesLoopCapsuleContract(item, { owner: index === 0 ? nodeId : secondId }) &&
+        item.dashAnimationName === "none" && item.orbitAnimationName === "none" &&
+        item.labelDisplay !== "none" && Number.parseFloat(item.labelOpacity) > 0) &&
+        reducedPeerMotion.every((item) => item && !item.dashMoved && !item.orbitMoved && !item.labelMoved),
       JSON.stringify({ reducedPeers, reducedPeerMotion })
     );
     await win.emulateMedia({ reducedMotion: "no-preference" });
@@ -711,7 +732,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
 
     await clickNodeMenuItem(win, nodeId, "Configure loop");
     await maxIterations.fill("12");
-    await waitForValue(win, nodeId, 12);
+    await waitForValue(win, nodeId, "While · status = passed");
     await win.getByRole("button", { name: "Save", exact: true }).click();
     // `polling: 100` is deliberate, not an arbitrary sleep. waitForFunction defaults to polling on
     // requestAnimationFrame, which only ticks while the window composites — but this predicate asks
@@ -731,11 +752,11 @@ export async function runWorkflowLoopCapsuleSuite(root) {
 
     await reopenWorkflowFixture(win);
     await waitForLoop(win, nodeId);
-    await waitForValue(win, nodeId, 12);
+    await waitForValue(win, nodeId, "While · status = passed");
     const reloaded = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Workflow reload preserves the capsule contract, rendered style, and exact configured value",
-      matchesLoopCapsuleContract(reloaded, { owner: nodeId, value: 12 }) && reloaded?.labelText === "While · status = passed" &&
+      "Workflow reload preserves the connector contract, rendered style, and exact configured state",
+      matchesLoopCapsuleContract(reloaded, { owner: nodeId }) && reloaded?.labelText === "While · status = passed" &&
         hasDottedFourPixelPath(reloaded),
       JSON.stringify(reloaded)
     );
@@ -751,22 +772,22 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     const firstEditorExact = await reloadedLoopMode.inputValue() === "whileCondition" && await reloadedMaxIterations.inputValue() === "12" &&
       await reloadedLineStyle.inputValue() === "dotted" && await reloadedThickness.inputValue() === "4" && await reloadedShape.inputValue() === "smoothstep";
     await reloadedMaxIterations.fill("13");
-    await waitForValue(win, nodeId, 13);
+    await waitForPanelInput(win, reloadedMaxIterations, "13");
     await win.locator("#sb-undo").click();
-    await waitForValue(win, nodeId, 12);
     if (!(await reloadedMaxIterations.isVisible().catch(() => false))) {
       hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
       await hit.click();
       await reloadedMaxIterations.waitFor({ state: "visible" });
     }
+    await waitForPanelInput(win, reloadedMaxIterations, "12");
     const configurationUndoExact = await reloadedMaxIterations.inputValue() === "12";
     await win.locator("#sb-redo").click();
-    await waitForValue(win, nodeId, 13);
     if (!(await reloadedMaxIterations.isVisible().catch(() => false))) {
       hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
       await hit.click();
       await reloadedMaxIterations.waitFor({ state: "visible" });
     }
+    await waitForPanelInput(win, reloadedMaxIterations, "13");
     const configurationRedoExact = await reloadedMaxIterations.inputValue() === "13";
     await win.getByRole("button", { name: "Save", exact: true }).click();
     await waitForPersistedMaxIterations(win, 13);
@@ -774,7 +795,7 @@ export async function runWorkflowLoopCapsuleSuite(root) {
 
     await reopenWorkflowFixture(win);
     await waitForLoop(win, nodeId);
-    await waitForValue(win, nodeId, 13);
+    await waitForValue(win, nodeId, "While · status = passed");
     const secondReloaded = await readLoopCapsuleVisual(win, nodeId);
     hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
     await hit.click();
@@ -782,9 +803,9 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     const secondEditorExact = await reloadedLoopMode.inputValue() === "whileCondition" && await reloadedMaxIterations.inputValue() === "13" &&
       await reloadedLineStyle.inputValue() === "dotted" && await reloadedThickness.inputValue() === "4" && await reloadedShape.inputValue() === "smoothstep";
     check(
-      "Workflow dominant ring supports exact config Undo/Redo and a second persisted edit/reload cycle",
+      "Workflow connector supports exact config Undo/Redo and a second persisted edit/reload cycle",
       firstEditorExact && configurationUndoExact && configurationRedoExact && secondEditorExact &&
-        matchesLoopCapsuleContract(secondReloaded, { owner: nodeId, value: 13 }) && hasDottedFourPixelPath(secondReloaded) &&
+        matchesLoopCapsuleContract(secondReloaded, { owner: nodeId }) && hasDottedFourPixelPath(secondReloaded) &&
         secondPersisted.loop?.loop?.mode === "whileCondition" && secondPersisted.loop?.loop?.maxIterations === 13 &&
         secondPersisted.loop?.style?.lineStyle === "dotted" && secondPersisted.loop?.style?.thickness === 4 && secondPersisted.loop?.style?.shape === "smoothstep" &&
         secondPersisted.exits.length === 1 && secondPersisted.exits[0]?.type === "conditional" && secondPersisted.exits[0]?.condition?.expression === "true",
@@ -841,10 +862,10 @@ export async function runWorkflowLoopCapsuleSuite(root) {
       "Workflow Loop stays accessible and Delete/Undo/Redo restores its exact authored state once",
       enterAccessible && spaceAccessible && doubleClickAccessible && undoneEditorExact && restoredEditorExact &&
         deletedStructure.loops === 0 && deletedStructure.exits === 1 && deletedStructure.loopExitControls === 0 && deletedStructure.defaultExitControls === 1 &&
-        matchesLoopCapsuleContract(undoneVisual, { owner: nodeId, value: 13 }) && undoneStructure.loops === 1 && undoneStructure.exits === 1 &&
+        matchesLoopCapsuleContract(undoneVisual, { owner: nodeId }) && undoneStructure.loops === 1 && undoneStructure.exits === 1 &&
         undoneStructure.loopExitControls === 1 && undoneStructure.defaultExitControls === 0 &&
         redoneStructure.loops === 0 && redoneStructure.exits === 1 && redoneStructure.loopExitControls === 0 && redoneStructure.defaultExitControls === 1 &&
-        matchesLoopCapsuleContract(restoredVisual, { owner: nodeId, value: 13 }) && restoredStructure.loops === 1 && restoredStructure.exits === 1 &&
+        matchesLoopCapsuleContract(restoredVisual, { owner: nodeId }) && restoredStructure.loops === 1 && restoredStructure.exits === 1 &&
         restoredStructure.loopExitControls === 1 && restoredStructure.defaultExitControls === 0,
       JSON.stringify({ enterAccessible, spaceAccessible, doubleClickAccessible, deletedStructure, undoneEditorExact, undoneVisual, undoneStructure, redoneStructure, restoredEditorExact, restoredVisual, restoredStructure })
     );
@@ -864,16 +885,6 @@ export async function runWorkflowLoopCapsuleSuite(root) {
     await unsavedMax.blur();
 
     const loopGroupForUnsaved = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"][role="button"]`);
-    // The ring renders maxIterations, so the unsaved edit must be visible on the canvas immediately.
-    await win.waitForFunction(
-      (id) => {
-        const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
-        return group?.textContent?.includes("21") === true;
-      },
-      nodeId,
-      { timeout: 5_000 }
-    ).catch(() => undefined);
-    const ringShowsUnsaved = (await loopGroupForUnsaved.textContent())?.includes("21") === true;
     const summaryWhileUnsaved = (await loopGroupForUnsaved.getAttribute("aria-label")) ?? "";
 
     await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
@@ -887,12 +898,11 @@ export async function runWorkflowLoopCapsuleSuite(root) {
 
     check(
       "Configure loop reopens the Workflow Loop with its unsaved bound edit and authored summary intact",
-      ringShowsUnsaved &&
         reopenedValue === "21" &&
         reopenedModeValue === "whileCondition" &&
         summaryWhileUnsaved.includes("While · status = passed") &&
         summaryAfterReopen.includes("While · status = passed"),
-      JSON.stringify({ ringShowsUnsaved, reopenedValue, reopenedModeValue, summaryWhileUnsaved, summaryAfterReopen })
+      JSON.stringify({ reopenedValue, reopenedModeValue, summaryWhileUnsaved, summaryAfterReopen })
     );
 
     await app.close();

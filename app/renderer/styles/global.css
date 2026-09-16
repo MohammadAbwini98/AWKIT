@@ -10395,7 +10395,9 @@ th {
   --awkit-connector-failure: #d93f45;
   --awkit-connector-success: #35b85f;
   --awkit-connector-warning: #d99017;
-  --awkit-connector-loop: #1d4ed8;
+  /* Loop is a flow concept (shared with success), not an accent surface: the green stays constant
+     and is deliberately NOT derived from the user accent (see src/theme/accentColor.ts). */
+  --awkit-connector-loop: #14a46c;
   --awkit-connector-parallel: #0ea5a4;
   --awkit-loop-flow-duration: 1800ms;
   --awkit-loop-orbit-duration: 2000ms;
@@ -10413,7 +10415,7 @@ th {
   --awkit-connector-failure: #f87171;
   --awkit-connector-success: #34d399;
   --awkit-connector-warning: #fbbf24;
-  --awkit-connector-loop: #3b82f6;
+  --awkit-connector-loop: #34d399;
   --awkit-connector-parallel: #2dd4bf;
 }
 
@@ -11495,7 +11497,7 @@ th {
   }
 }
 
-/* Structured Loop connector: compact side-attached capsule with a dominant configured-value ring. */
+/* Structured Loop connector: approved green dash-orbit bracket attached to the node side. */
 .awkit-flow-edge[role="button"]:focus {
   outline: none;
 }
@@ -11504,16 +11506,27 @@ th {
   color: var(--awkit-connector-loop);
 }
 
+/* Faint stationary base bracket; the bright marching dash overlay travels on top of it. */
 .awkit-loop-indicator-path {
-  opacity: 0.78;
+  opacity: 0.3;
+}
+
+.awkit-loop-indicator.is-selected .awkit-loop-indicator-path {
+  opacity: 0.55;
+}
+
+/* Selection keeps the loop green rather than adopting the generic accent selected stroke. */
+.awkit-flow-edge.is-loop-connector .awkit-loop-indicator-path.is-selected {
+  stroke: currentColor;
+  stroke-width: 2;
+  filter: none;
 }
 
 .awkit-loop-indicator-marker {
   color: inherit;
 }
 
-.awkit-loop-indicator-outer-ring,
-.awkit-loop-indicator-main-ring,
+.awkit-loop-indicator-dash,
 .awkit-loop-indicator-focus-ring {
   fill: none;
   stroke: currentColor;
@@ -11533,24 +11546,25 @@ th {
   fill: currentColor;
 }
 
-.awkit-loop-indicator-outer-ring {
-  opacity: 0.28;
-  stroke-dasharray: 3 9;
-  stroke-width: 1.5;
-  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+.awkit-loop-indicator-dash {
+  stroke-width: 2;
+  stroke-dasharray: 7 21;
+  stroke-linecap: round;
 }
 
-.awkit-loop-indicator-main-ring {
-  fill: var(--awkit-surface-raised);
-  opacity: 0.92;
-  stroke-width: 2;
-  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+.awkit-loop-indicator-orbit {
+  fill: currentColor;
+  /* The wide low-opacity stroke paints the soft halo ring around the solid dot core. */
+  stroke: currentColor;
+  stroke-opacity: 0.18;
+  stroke-width: 8;
+  pointer-events: none;
 }
 
 .awkit-loop-indicator-focus-ring {
-  opacity: 0;
   stroke: var(--awkit-connector-selected);
   stroke-width: 2;
+  opacity: 0;
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
@@ -11558,24 +11572,16 @@ th {
   cursor: pointer;
 }
 
-.awkit-loop-indicator.is-selected .awkit-loop-indicator-outer-ring {
-  opacity: 0.52;
-}
-
-.awkit-loop-indicator.is-selected .awkit-loop-indicator-main-ring {
-  opacity: 1;
-}
-
 .awkit-flow-edge:focus-visible .awkit-loop-indicator-focus-ring {
   opacity: 1;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-outer-ring {
-    opacity: 0.8;
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-path {
+    opacity: 0.5;
   }
-  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-main-ring {
-    opacity: 1;
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-orbit {
+    stroke-opacity: 0.3;
   }
 }
 

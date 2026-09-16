@@ -194,19 +194,20 @@ export interface GetSmoothStepPathParams {
 export const SMOOTH_STEP_OFFSET = 20;
 
 /**
- * Authoritative structured Loop capsule geometry. Keep the renderer, collision scoring, and
- * fit-to-view bounds on these shared values so a visual change cannot leave the canvas engine
- * modelling an obsolete route. The persisted graph still owns only the semantic self-edge.
+ * Authoritative structured Loop bracket geometry, sized to the approved Workflow Builder
+ * reference: a compact right/left-side bracket with rounded corners, marching dashes, and one
+ * orbiting dot. Keep the renderer, collision scoring, and fit-to-view bounds on these shared
+ * values so a visual change cannot leave the canvas engine modelling an obsolete route. The
+ * persisted graph still owns only the semantic self-edge.
  */
-export const LOOP_CONTROL_LANE_WIDTH = SMOOTH_STEP_OFFSET * 8;
-export const LOOP_CONTROL_LANE_HEIGHT = SMOOTH_STEP_OFFSET;
-export const LOOP_CONTROL_MAIN_RADIUS = SMOOTH_STEP_OFFSET * 1.5;
-export const LOOP_CONTROL_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 2;
-export const LOOP_CONTROL_HIT_RADIUS = SMOOTH_STEP_OFFSET * 2.2;
-export const LOOP_CONTROL_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.5;
-export const LOOP_CONTROL_PATH_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
+export const LOOP_CONTROL_LANE_WIDTH = 46;
+export const LOOP_CONTROL_LANE_HEIGHT = 44;
+export const LOOP_CONTROL_CORNER_RADIUS = 14;
+export const LOOP_CONTROL_HIT_RADIUS = 22;
+export const LOOP_CONTROL_LABEL_GAP = 10;
+export const LOOP_CONTROL_PATH_INTERACTION_WIDTH = 24;
 
-/** Full capsule/ring/label band used by collision-side selection and fit-to-view. */
+/** Full bracket/label band used by collision-side selection and fit-to-view. */
 export function getLoopControlFootprint(
   source: XYPosition,
   sourceSize: { width: number; height: number },
@@ -217,8 +218,9 @@ export function getLoopControlFootprint(
   const sideSign = side === Position.Left ? -1 : 1;
   const farX = anchorX + sideSign * LOOP_CONTROL_LANE_WIDTH;
   const padding = SMOOTH_STEP_OFFSET / 2;
-  const topClearance = LOOP_CONTROL_OUTER_RADIUS + LOOP_CONTROL_LABEL_GAP + SMOOTH_STEP_OFFSET;
-  const bottomClearance = Math.max(LOOP_CONTROL_OUTER_RADIUS, LOOP_CONTROL_HIT_RADIUS) + padding;
+  // The design label sits above the bracket's top arm; the hit target reaches furthest below it.
+  const topClearance = LOOP_CONTROL_LANE_HEIGHT / 2 + LOOP_CONTROL_LABEL_GAP + SMOOTH_STEP_OFFSET;
+  const bottomClearance = LOOP_CONTROL_HIT_RADIUS + padding;
   return {
     x: Math.min(anchorX, farX) - padding,
     y: centerY - topClearance,

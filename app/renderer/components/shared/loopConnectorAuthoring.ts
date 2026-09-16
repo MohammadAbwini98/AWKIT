@@ -16,9 +16,11 @@ export function defaultLoopConnectorConfig(): LoopConnectorConfig {
   return { mode: "count", maxIterations: 3, parameterName: "", condition: undefined };
 }
 
-/** Shared visual defaults for every newly-authored Loop; loaded edges keep their persisted style. */
+/** Shared visual defaults for every newly-authored Loop; loaded edges keep their persisted style.
+ *  The approved dash-orbit bracket draws a solid 2px base — its motion comes from the dedicated
+ *  dash overlay, not from a persisted line style. */
 export function defaultLoopConnectorStyle(): EdgeVisualStyle {
-  return { shape: "circular", lineStyle: "dotted", thickness: 4, arrowHead: "closed" };
+  return { shape: "circular", thickness: 2, arrowHead: "closed" };
 }
 
 const GENERIC_LOOP_LABELS = new Set(["loop", "loop connector"]);

@@ -56,7 +56,8 @@ const isLightDefaultCanvasAccent = (tokens) =>
   tokens["--awkit-edge-strong"] === "#1d4ed8" &&
   tokens["--awkit-connector-default"] === "#1d4ed8" &&
   tokens["--awkit-connector-selected"] === "#173ead" &&
-  tokens["--awkit-connector-loop"] === "#1d4ed8";
+  // The loop connector is a constant semantic green (Workflow Builder loop design), never accent-derived.
+  tokens["--awkit-connector-loop"] === "#14a46c";
 const splashSource = readFileSync(path.join(root, "app/renderer", "splash.html"), "utf8");
 
 async function navTo(win, label) {

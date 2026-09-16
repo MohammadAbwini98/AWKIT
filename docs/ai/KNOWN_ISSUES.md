@@ -2376,3 +2376,22 @@ Recorder observation previously converted every nearby signal into an evidence-f
 so a background `elementEnabled role=button` could fail after a successful SPA route change. New
 captures classify causal evidence as required/optional/advisory and apply route dominance. Legacy
 manual waits intentionally retain their prior semantics.
+
+## Intermittent GUI-verifier transport stall after Loop config Undo (2026-09-16, open)
+
+While iterating the dash-orbit Loop redesign, `verify-flow-loop-capsule-gui` stalled four times at the
+same point — after clicking `flow-undo` in the reloaded-flow editor sequence, the next Playwright call
+(`locator.inputValue()` inside `waitForDrawerInput`) never returned. The wedged renderer kept painting
+(no dialog, post-undo UI fully rendered with the toast visible) while two Electron processes churned
+CPU. Evidence against a product defect: an isolated reproduction that mirrors the full sequence
+(`test-artifacts/repro-loop-wedge.mjs`, gitignored) never wedged across four attempts; the Workflow
+suite exercising the same undo path passed first try; and one clean run of the Flow suite passed 16/16
+with a `pageerror`/console listener and a JS-liveness watchdog attached, capturing nothing. A later full `verify:flow-designer`
+run refined the picture: the suite's Node process dies silently at the same point (no catch, no
+watchdog output — the interval stops with the process) and orphaned Electron processes keep churning
+while holding the wrapper's stdio pipes, so the npm script hangs even though the suite is gone. The
+flow focused suite passed 16/16 once (with console/pageerror/watchdog attached, capturing nothing)
+and 138/138 broad checks passed in the wedged runs before the stall; the Workflow suite (same product
+paths) passed 17/17 first try. The watchdog now aborts a persistently unresponsive page after ~45s
+(exit 3) instead of hanging. Treat this as an environment/harness flake, not a product defect, until
+reproduced with a page error; max one retry per occurrence, then report rather than loop.

@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## `loop-connector-redesign`: green dash-orbit Loop connector (2026-09-16)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This visual
+connector replacement moves no ledger case; its gates are listed in the section body and
+`docs/ai/TASK_LOG.md`.
+
+The structured Loop self-connector in **both** the Flow Designer and the Workflow Builder now renders
+the approved Workflow Builder reference loop design, replacing the 2026-08-15 capsule-and-ring
+control. The change is visual + geometric only; authoring, persistence, runtime semantics, side
+selection, and accessibility surfaces are unchanged.
+
+- **New visual** (`canvas/edges/LoopEdge.tsx` + `LoopEdge.css`): a compact side bracket (46-unit reach,
+  44-unit span, 14-unit corners via the retuned `LOOP_CONTROL_*` constants in `canvas/geometry.ts`)
+  drawn as a faint stationary base stroke, with bright marching dashes (7/21 round caps,
+  `--awkit-loop-flow-duration`) and one halo-stroked dot orbiting the bracket via CSS `offset-path`
+  (`--awkit-loop-orbit-duration`). Reduced motion freezes the dashes and parks the dot at 38%. The
+  lane rect, backplate, concentric rings, rotating sweep, and in-ring iteration value are removed; the
+  bound stays visible in the mode-aware label ("Count × N" / "While · …"). New loops default to a
+  solid 2px base (`defaultLoopConnectorStyle`).
+- **Constant green** — `--awkit-connector-loop` is now `#14a46c` light / `#34d399` dark and is no
+  longer derived from the user accent (`accentColor.ts` drops it from `ACCENT_TOKEN_NAMES`, now 11
+  tokens). Loop = flow concept, shared with success; a loop never reads as selected. Cross-node
+  `loopBack` return paths inherit the same green through the token.
+- **Selection/hover** keep the loop green (opacity rise on the base + halo deepening) instead of the
+  generic accent stroke. The 22-unit hit circle at the bracket's lane centre keeps pointer,
+  double-click, Enter, and Space configuration access; the focus ring contract is unchanged.
+- **Verifiers** pin the new contract: `scripts/lib/loop-capsule-visual-oracle.mjs` (historical name
+  kept for the broad-walkthrough imports) now reads the dash/orbit/marker DOM, asserts the green token
+  on dash and dot, the dot riding the path (`offset-path` sampling), zoom-normalised bracket geometry,
+  and zero-count guards for every removed capsule layer. The focused Flow (16 checks) and Workflow
+  (17 checks) suites assert motion, reduced motion, zoom/pan/drag attachment, two-loop independence,
+  persistence round-trips, and Delete/Undo/Redo restoration against the new contract.
+  `verify:accent-gui` now asserts the loop token stays constant green across accents.
+
 ## `live-monitor-redesign`: Live Run Monitor replaced with the approved target design (2026-09-15)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This UI
