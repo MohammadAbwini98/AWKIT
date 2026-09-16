@@ -439,7 +439,7 @@ button:not(:disabled):not([role="switch"]):active,
 }
 
 .app-shell.sidebar-collapsed {
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 62px minmax(0, 1fr);
 }
 
 /* ==========================================================================
@@ -732,42 +732,104 @@ button:not(:disabled):not([role="switch"]):active,
   align-items: center;
 }
 
-/* Internal section separator inside the sidebar chrome — --awkit-divider, not the chrome frame. */
+/* Internal section separator inside the sidebar chrome — --awkit-border: the approved side-menu
+   design frames the workspace header with the same rule as the sidebar's outer edge. */
 .brand-block {
   align-items: center;
-  border-bottom: 1px solid var(--awkit-divider);
+  border-bottom: 1px solid var(--awkit-border);
   display: flex;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  gap: var(--space-2);
-  height: 60px;
-  padding: 0 var(--space-3);
+  gap: 10px;
+  padding: 12px 12px 11px;
 }
 
 .left-navigation.collapsed .brand-block {
-  justify-content: center;
-  padding: 0 8px;
-  width: 100%;
+  padding: 12px 8px 11px;
 }
 
-/* Template workspace tile: rounded, subtle fill, holds the brand mark + name. */
-.brand-tile {
+/* Workspace identity row (approved side-menu design): gradient mark + name stack, then the
+   collapse control pinned right. A custom logo replaces the whole identity — see
+   .nav-workspace.has-custom-logo below. */
+.nav-workspace {
   align-items: center;
-  background: var(--awkit-surface-soft);
-  border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-xs);
   display: flex;
   flex: 1;
   gap: 10px;
   min-width: 0;
-  padding: 6px var(--space-2);
 }
 
-.left-navigation.collapsed .brand-tile {
-  background: transparent;
-  border-color: transparent;
+.left-navigation.collapsed .nav-workspace {
   flex: none;
-  padding: 0;
+  justify-content: center;
+}
+
+.nav-workspace-mark {
+  align-items: center;
+  background: var(--awkit-accent-gradient, var(--awkit-accent));
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--awkit-accent-contrast) 28%, transparent);
+  color: var(--awkit-accent-on-gradient, var(--awkit-accent-contrast));
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.nav-workspace-name {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nav-workspace-name > span:first-child {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-workspace-name small {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.nav-collapse-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: var(--awkit-text-muted);
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 26px;
+  justify-content: center;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 26px;
+}
+
+.nav-collapse-button:hover {
+  background: var(--awkit-hover-surface);
+  color: var(--awkit-text);
+}
+
+.nav-collapse-chevron {
+  transition: transform var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+.nav-collapse-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* Retained for the tools/roadmap dashboard, which borrows these application classes for its own
+   standalone page (verify:roadmap-dashboard pins their presence here). */
+.brand-tile {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
 }
 
 .brand-name {
@@ -782,46 +844,17 @@ button:not(:disabled):not([role="switch"]):active,
   white-space: nowrap;
 }
 
-.nav-collapse-button {
-  align-items: center;
-  background: var(--awkit-surface);
-  border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-xs);
-  color: var(--awkit-text);
-  display: inline-flex;
-  height: 28px;
-  justify-content: center;
-  margin-left: auto;
-  transition: background var(--awkit-dur-fast) var(--awkit-ease-out);
-  width: 28px;
-}
-
-.nav-collapse-button:hover {
-  background: var(--awkit-hover-surface);
-}
-
-.left-navigation.collapsed .nav-collapse-button {
-  margin-left: 0;
-}
-
 .brand-mark {
   align-items: center;
-  background: var(--awkit-accent);
   border-radius: var(--radius-xs);
-  box-shadow: 0 1px 2px rgba(var(--awkit-accent-rgb), 0.30);
   color: var(--awkit-accent-contrast);
   display: inline-flex;
   flex-shrink: 0;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  height: 32px;
   justify-content: center;
-  letter-spacing: 0.02em;
-  width: 32px;
 }
 
-/* SpecterStudio squircle brick-S mark (AwkitDarkBrandMark) used as the sidebar brand icon. The squircle shape
-   is baked into the SVG (transparent corners); the radius here only rounds the drop shadow. */
+/* SpecterStudio squircle brick-S mark (AwkitDarkBrandMark) — retained for surfaces that still
+   mount it (e.g. the splash); the sidebar itself now uses the gradient workspace mark above. */
 .brand-app-icon {
   border-radius: var(--radius-xs);
   box-shadow: var(--awkit-shadow-soft);
@@ -834,29 +867,23 @@ button:not(:disabled):not([role="switch"]):active,
 .navigation-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 2px;
   overflow: auto;
-  padding: 12px 10px;
+  overflow-x: hidden;
+  padding: 6px 8px 10px;
 }
 
 .left-navigation.collapsed .navigation-list {
   align-items: center;
-  padding: 12px 8px;
+  padding: 6px 8px 10px;
   width: 100%;
 }
 
 .nav-group {
-  display: grid;
-  gap: 4px;
-}
-
-.nav-group-label {
-  color: var(--awkit-text-muted);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.08em;
-  padding: 0 10px 4px;
-  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 2px;
 }
 
 .nav-item {
@@ -866,15 +893,26 @@ button:not(:disabled):not([role="switch"]):active,
   border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: flex;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  gap: 10px;
-  min-height: 36px;
-  padding: 0 10px;
+  gap: 12px;
+  padding: 8px 10px;
   text-align: left;
   transition:
-    background var(--awkit-dur-fast) var(--awkit-ease-out),
-    color var(--awkit-dur-fast) var(--awkit-ease-out);
+    background 130ms ease,
+    color 130ms ease;
+}
+
+.nav-item > svg {
+  flex: 0 0 17px;
+}
+
+.nav-item > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Neutral control hover — the shared neutral hover tint, not a status/accent surface. */
@@ -885,16 +923,21 @@ button:not(:disabled):not([role="switch"]):active,
 
 .left-navigation.collapsed .nav-item {
   justify-content: center;
-  padding: 0;
-  width: 42px;
+  padding: 8px 0;
+  width: 100%;
 }
 
-/* Active row: soft accent fill + contrast ink. Both values resolve through the user-customisable
-   accent tokens, so the selected label stays legible without freezing a custom accent to a literal. */
+/* Active row: soft accent fill + strong accent ink (approved side-menu design). Light theme reads
+   with the deep accent step; dark keeps the white accent-contrast ink pinned for contrast by
+   verify:design-tokens (B4). Both resolve through the user-customisable accent tokens. */
 .nav-item.active {
   background: var(--awkit-accent-soft);
   color: var(--awkit-accent-contrast);
   font-weight: var(--weight-semibold);
+}
+
+[data-theme="light"] .nav-item.active {
+  color: var(--awkit-accent-hover);
 }
 
 .nav-item.active:hover {
@@ -902,14 +945,18 @@ button:not(:disabled):not([role="switch"]):active,
   color: var(--awkit-accent-contrast);
 }
 
-/* Sidebar footer (Settings / Dark Mode / workspace) — pinned under the scrolling nav list. */
+[data-theme="light"] .nav-item.active:hover {
+  color: var(--awkit-accent-hover);
+}
+
+/* Sidebar footer (Settings / Help Center / appearance switch) — pinned under the scrolling nav list. */
 .nav-footer {
-  border-top: 1px solid var(--awkit-divider);
+  border-top: 1px solid var(--awkit-border);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin-top: auto;
-  padding: 10px;
+  padding: 8px;
 }
 
 .left-navigation.collapsed .nav-footer {
@@ -917,83 +964,63 @@ button:not(:disabled):not([role="switch"]):active,
   width: 100%;
 }
 
-.nav-theme-toggle {
-  width: 100%;
-}
-
-/* Non-interactive workspace identity row (template user footer). */
-.nav-workspace {
+/* Appearance row (approved side-menu design): current-appearance label + a real switch control. */
+.nav-theme-row {
   align-items: center;
-  border-top: 1px solid var(--awkit-divider);
+  color: var(--awkit-text-muted);
   display: flex;
-  gap: 10px;
-  margin-top: 6px;
-  min-width: 0;
-  padding: 10px 8px 4px;
+  gap: 12px;
+  justify-content: flex-start;
+  padding: 7px 10px;
 }
 
-.nav-workspace-mark {
-  align-items: center;
-  background: var(--awkit-surface-inset);
-  border-radius: var(--radius-xs);
-  color: var(--awkit-text-secondary);
-  display: inline-flex;
-  flex-shrink: 0;
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-semibold);
-  height: 30px;
+.left-navigation.collapsed .nav-theme-row {
   justify-content: center;
-  letter-spacing: 0.02em;
-  width: 30px;
+  padding: 7px 0;
 }
 
-.nav-workspace-name {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
+.nav-theme-row > svg {
+  flex: 0 0 17px;
 }
 
-.nav-workspace-name > span:first-child {
+.nav-theme-row > span {
+  color: var(--awkit-text-secondary);
+  flex: 1;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.nav-workspace-name small {
-  color: var(--awkit-text-muted);
-  font-size: var(--text-2xs);
-}
-
 .theme-switch {
   background: var(--awkit-surface-inset);
-  border: 1px solid var(--awkit-border-strong);
+  border: 0;
   border-radius: var(--radius-pill);
   display: inline-flex;
-  height: 18px;
-  margin-left: auto;
+  flex: 0 0 auto;
+  height: 21px;
   padding: 2px;
-  transition: background var(--awkit-dur-med) var(--awkit-ease-out);
-  width: 32px;
+  transition: background 200ms ease;
+  width: 38px;
 }
 
 .theme-switch-thumb {
-  background: var(--awkit-surface);
+  background: var(--awkit-accent-contrast);
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.25);
-  height: 12px;
-  transition: transform var(--awkit-dur-med) var(--awkit-ease-out);
-  width: 12px;
+  box-shadow: 0 1px 3px rgba(var(--awkit-shadow-rgb), 0.3);
+  height: 17px;
+  transition: transform 220ms var(--awkit-ease-spring);
+  width: 17px;
 }
 
 .theme-switch.on {
-  background: var(--awkit-accent);
-  border-color: var(--awkit-accent);
+  background: var(--awkit-accent-gradient, var(--awkit-accent));
 }
 
 .theme-switch.on .theme-switch-thumb {
-  transform: translateX(14px);
+  transform: translateX(17px);
 }
 
 /* Settings > Application > Appearance (live theme control) */
@@ -2937,45 +2964,485 @@ th {
   border-color: var(--awkit-danger-muted);
 }
 
-.dashboard-panels {
+/* ── Dashboard (approved design): banner, metric cards, panels, chart ─────────
+   Layout/visual contract from the approved Dashboard reference: 14px rhythm,
+   auto-fit grids (metrics ≥232px, panels ≥420px), tone-filled icon tiles, pill
+   badges, and the 180px throughput chart. All color through status/accent tokens. */
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1480px;
+}
+
+.dash-banner {
+  align-items: center;
+  background: var(--awkit-warning-soft);
+  border: 1px solid var(--awkit-warning);
+  border-radius: var(--radius-md);
+  color: var(--awkit-warning);
+  display: flex;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  gap: 10px;
+  margin: 0;
+  padding: 11px 14px;
+}
+
+.dash-banner > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.dash-banner > span {
+  flex: 1;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.dash-banner-action {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  color: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  height: 28px;
+  opacity: 0.9;
+  padding: 0 12px;
+}
+
+.dash-banner-action:hover {
+  opacity: 1;
+}
+
+.dash-metrics {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(420px, 1fr) 380px;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
 }
 
-.dashboard-roadmap-summary {
-  align-items: center;
-  background: var(--awkit-surface-soft);
+.dash-metric {
+  background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-xs);
-  display: grid;
-  gap: 12px;
-  grid-template-columns: auto minmax(0, 1fr) minmax(90px, auto);
-  margin-bottom: 14px;
-  padding: 13px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--awkit-shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px;
+  transition:
+    box-shadow var(--awkit-dur-fast) var(--awkit-ease-out),
+    transform var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
-.dashboard-roadmap-summary div {
-  display: grid;
+.dash-metric-head {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+}
+
+.dash-metric-label {
+  color: var(--awkit-text-muted);
+  flex: 1;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-metric-trend {
+  align-items: center;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
   gap: 3px;
+  padding: 2px 7px;
 }
 
-.dashboard-roadmap-summary span,
-.dashboard-roadmap-next span,
-.roadmap-summary-grid span,
-.roadmap-next-panel span,
-.roadmap-acceptance span {
-  color: var(--awkit-text-secondary);
+.dash-metric-value {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.dash-metric-value strong {
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-2xl);
+  line-height: 1;
+}
+
+.dash-metric-value > span {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.dash-metric-foot {
+  align-items: flex-end;
+  display: flex;
+  gap: 10px;
+}
+
+.dash-metric-foot > span {
+  color: var(--awkit-text-muted);
+  flex: 1;
+  font-size: var(--text-xs);
+  min-width: 0;
+}
+
+.dash-metric-spark {
+  flex: 0 0 88px;
+  height: 26px;
+  overflow: visible;
+  width: 88px;
+}
+
+.dash-panels {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+}
+
+.dash-panel {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--awkit-shadow-soft);
+  padding: 18px;
+}
+
+.dash-panel-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.dash-panel-heading {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.dash-panel-heading h3 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-lg);
+  margin: 0;
+}
+
+.dash-panel-heading > span {
+  color: var(--awkit-text-muted);
   font-size: var(--text-xs);
 }
 
-.dashboard-roadmap-summary strong {
-  color: var(--awkit-text);
-  font-size: var(--text-lg);
+/* Tone-filled icon tiles (metrics 26px, panels 30px, list rows 28px) and the 22px
+   checklist mark. Filled tones use each status family's soft surface + text ink. */
+.dash-metric-tile,
+.dash-panel-tile,
+.dash-list-tile,
+.dash-check-mark {
+  align-items: center;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
 }
 
-.dashboard-roadmap-next {
-  grid-template-columns: 120px minmax(0, 1fr);
+.dash-metric-tile {
+  height: 26px;
+  width: 26px;
+}
+
+.dash-panel-tile {
+  height: 30px;
+  width: 30px;
+}
+
+.dash-list-tile {
+  height: 28px;
+  width: 28px;
+}
+
+.dash-check-mark {
+  border-radius: var(--radius-pill);
+  height: 22px;
+  margin-top: 1px;
+  width: 22px;
+}
+
+.dash-tone-success {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success-text);
+}
+
+.dash-tone-warning {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.dash-tone-danger {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.dash-tone-info {
+  background: var(--awkit-info-soft);
+  color: var(--awkit-info);
+}
+
+.dash-tone-running {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent-hover);
+}
+
+.dash-tone-neutral {
+  background: var(--awkit-neutral-soft);
+  color: var(--awkit-text-secondary);
+}
+
+/* Text-only tone ink (checklist badges) — color without a fill. */
+.dash-ink-success {
+  color: var(--awkit-success-text);
+}
+
+.dash-ink-warning {
+  color: var(--awkit-warning);
+}
+
+.dash-ink-danger {
+  color: var(--awkit-danger);
+}
+
+.dash-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-check-row {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--awkit-divider);
+  display: flex;
+  gap: 11px;
+  padding: 10px 2px;
+}
+
+.dash-check-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-check-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.dash-check-sub {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.dash-check-badge {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.dash-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-list-row {
+  align-items: center;
+  border-bottom: 1px solid var(--awkit-divider);
+  display: flex;
+  gap: 11px;
+  padding: 11px 4px;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.dash-list-row:last-child {
+  border-bottom: none;
+}
+
+.dash-list-row:hover {
+  background: var(--awkit-hover-surface);
+}
+
+.dash-list-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-list-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-list-sub {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-list-value {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.dash-badge {
+  align-items: center;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  white-space: nowrap;
+}
+
+.dash-icon-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: var(--awkit-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 28px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.dash-icon-button:hover {
+  background: var(--awkit-hover-surface);
+  color: var(--awkit-text);
+}
+
+.dash-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-chart-plot {
+  height: 180px;
+  position: relative;
+}
+
+.dash-chart-plot > svg {
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.dash-chart-axis {
+  color: var(--awkit-text-muted);
+  display: flex;
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  justify-content: space-between;
+}
+
+.dash-chart-legend {
+  border-top: 1px solid var(--awkit-divider);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.dash-chart-legend > span {
+  align-items: center;
+  color: var(--awkit-text-secondary);
+  display: flex;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  gap: 7px;
+}
+
+.dash-chart-legend em {
+  color: var(--awkit-text-muted);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-swatch {
+  border-radius: var(--radius-pill);
+  display: inline-block;
+  height: 3px;
+  width: 10px;
+}
+
+.dash-panel-empty {
+  align-items: center;
+  border: 1px dashed var(--awkit-border-strong);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 28px 18px;
+  text-align: center;
+}
+
+.dash-panel-empty-tile {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent-hover);
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.dash-panel-empty-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.dash-panel-empty-hint {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  max-width: 38ch;
 }
 
 .roadmap-summary-grid {
@@ -3410,17 +3877,13 @@ th {
   grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
 }
 
-.dashboard-panels {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
-}
-
-/* Tablet / small-laptop: collapse multi-pane designers to a single column. */
+/* Tablet / small-laptop: collapse multi-pane designers to a single column.
+   (.dash-panels self-collapses via auto-fit minmax(420px, 1fr) and needs no override.) */
 @media (max-width: 1180px) {
   .designer-layout,
   .scenario-builder-grid,
   .report-grid,
   .monitor-grid,
-  .dashboard-panels,
   .form-designer {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -11341,7 +11804,7 @@ th {
 }
 
 .left-navigation.collapsed {
-  width: 76px;
+  width: 62px;
 }
 
 .nav-group-toggle {
@@ -11353,25 +11816,25 @@ th {
   display: grid;
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
-  gap: var(--space-2);
+  gap: 6px;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  letter-spacing: 0.06em;
-  padding: 6px var(--space-2);
+  letter-spacing: 0.09em;
+  padding: 8px 8px 5px;
   text-align: left;
   text-transform: uppercase;
   width: 100%;
 }
 
 .nav-group-toggle:hover { color: var(--awkit-text-secondary); }
-/* Group counter — chip/counter tier: 6px radius, 10px label floor, tabular so the digits do not
-   jitter as groups are permission-filtered. */
+/* Group counter — chip/counter tier, per the approved side-menu design: inset pill, tabular so the
+   digits do not jitter as groups are permission-filtered. */
 .nav-group-toggle > span:nth-child(2) {
   background: var(--awkit-surface-inset);
   border-radius: var(--radius-2xs);
   font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
   min-width: 18px;
-  padding: 1px 4px;
+  padding: 0 5px;
   text-align: center;
 }
 .nav-group-toggle svg { transition: transform 200ms ease-in-out; }
@@ -13838,19 +14301,24 @@ th {
     0 0 18px 2px rgba(var(--awkit-accent-deep-rgb, var(--awkit-accent-rgb)), 0.4);
 }
 
-/* A custom logo replaces the ENTIRE workspace block: full-width, aspect-preserved, transparency-safe. */
+/* A custom logo replaces the ENTIRE workspace identity in the sidebar header: aspect-preserved,
+   transparency-safe, sized to the header's mark row. */
 .nav-workspace.has-custom-logo {
-  gap: 0;
-  justify-content: center;
-  padding: var(--space-2) var(--space-2) var(--space-1);
+  align-items: center;
+  display: flex;
 }
 
 .nav-workspace-logo-full {
   display: block;
-  height: 44px;
+  height: 30px;
   object-fit: contain;
-  object-position: center;
+  object-position: left center;
   width: 100%;
+}
+
+.left-navigation.collapsed .nav-workspace-logo-full {
+  height: 26px;
+  object-position: center;
 }
 
 .nav-workspace-name {
@@ -13965,34 +14433,34 @@ th {
   }
 }
 
+/* Appearance switch (approved side-menu design) — later duplicate of the sidebar block kept in
+   step with it; this copy exists so any future standalone use of the switch stays styled. */
 .theme-switch {
   background: var(--awkit-surface-inset);
-  border: 1px solid var(--awkit-border-strong);
+  border: 0;
   border-radius: var(--radius-pill);
   display: inline-flex;
-  height: 18px;
-  margin-left: auto;
+  height: 21px;
   padding: 2px;
-  transition: background var(--awkit-dur-med) var(--awkit-ease-out);
-  width: 32px;
+  transition: background 200ms ease;
+  width: 38px;
 }
 
 .theme-switch-thumb {
-  background: var(--awkit-surface);
+  background: var(--awkit-accent-contrast);
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.25);
-  height: 12px;
-  transition: transform var(--awkit-dur-med) var(--awkit-ease-out);
-  width: 12px;
+  box-shadow: 0 1px 3px rgba(var(--awkit-shadow-rgb), 0.3);
+  height: 17px;
+  transition: transform 220ms var(--awkit-ease-spring);
+  width: 17px;
 }
 
 .theme-switch.on {
-  background: var(--awkit-accent);
-  border-color: var(--awkit-accent);
+  background: var(--awkit-accent-gradient, var(--awkit-accent));
 }
 
 .theme-switch.on .theme-switch-thumb {
-  transform: translateX(14px);
+  transform: translateX(17px);
 }
 
 /* Settings > Application > Appearance (live theme control) */

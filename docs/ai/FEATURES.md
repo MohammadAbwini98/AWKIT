@@ -1,5 +1,34 @@
 # FEATURES
 
+## Dashboard page and main side menu redesigned to the approved reference (2026-09-16)
+
+- **Side menu** (`LeftNavigation.tsx` + sidebar CSS): the workspace identity moved to a header block
+  at the top of the sidebar — gradient accent mark, "Specter Automation / Offline workspace" stack,
+  and the collapse control (chevron, 26px, rotates when collapsed). Collapsed width is 62px
+  (expanded 240px) with icon-only centered rows and hidden group headers. Group headers keep the
+  uppercase label + inset count chip + chevron accordion; nav rows are 13px/500 with 12px gap and
+  8px-radius hover/active fills. The footer keeps Settings + Help Center and now presents the
+  appearance control as a label + real `role="switch"` pill (38×21, accent gradient when on).
+  A custom workspace logo (Settings → Branding) replaces the identity inside the header block;
+  the default mark, `.nav-workspace-logo-full`, and `.has-custom-logo` DOM/CSS contracts the
+  branding GUI verifier pins are unchanged.
+- **Active row contrast**: light theme resolves the active label/icon through the deep accent step
+  (`--awkit-accent-hover`) on the accent-soft fill, per the approved design; dark theme keeps the
+  white accent-contrast ink pinned by `verify:design-tokens` (B4) — the one deliberate deviation
+  from the reference (which shows a soft accent ink in dark).
+- **Dashboard** (`Dashboard.tsx` + `dash-*` CSS): approved layout — license-attention banner (real
+  licensing status + "Open Licensing" action), four tone-filled metric cards (runs 24h with real
+  sparkline + bucket-computed trend, median duration with p95 detail, failure rate, active
+  flows/browsers/queue from the live runtime status poll), Run readiness checklist (real
+  offline-runtime validator checks with Ready / Action needed badges), Recent activity (real
+  telemetry run history with status badges, durations, relative times, refresh), Quick actions
+  (permission-filtered deep links), and the Throughput 180px two-series line chart (Completed /
+  Failed from the 24h runs series). Header actions "New workflow" (primary) and "Record a flow"
+  publish through `usePageChrome`. Telemetry surfaces are gated by `PAGE_REPORTS` and degrade to
+  dashed empty states; no demo data is shown as real.
+- Retired the roadmap-summary dashboard panels (the Implementation Roadmap page still owns that
+  content); `.dashboard-panels`/`.dashboard-roadmap-*` CSS was replaced by the `dash-*` block.
+
 ## Updated graph arrangement, Sessions containment, and Component Reference accent (2026-09-14)
 
 - Flow Designer and Workflow Builder share their respective canonical auto-layout engines after a

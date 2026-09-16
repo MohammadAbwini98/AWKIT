@@ -1,5 +1,40 @@
 # CURRENT_STATE
 
+## `dashboard-sidemenu-redesign`: approved Dashboard + main side menu implemented (2026-09-16)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This UI
+redesign moves no ledger case; its gates are listed below and in `docs/ai/TASK_LOG.md`.
+
+The Dashboard page and the application main side menu now follow the user-provided approved
+reference design (bundled single-page mock). Everything else (title bar, page header, status bar,
+all other routes) is untouched. Real data only — no demo values are presented as real.
+
+- **Side menu**: workspace identity header at the top (gradient accent mark + "Specter Automation /
+  Offline workspace" + collapse chevron), 62px collapsed rail (was 76), accordion groups with
+  uppercase label + inset count chip, 13px nav rows with 12px icon gap, footer appearance row with
+  a real `role="switch"` pill. Active row = accent-soft fill + deep accent ink in light; dark keeps
+  the white accent-contrast ink that `verify:design-tokens` B4 pins. Custom workspace logos replace
+  the identity block in place (branding DOM/CSS contracts preserved).
+- **Dashboard**: license-attention banner (real licensing status, LICENSE_VIEW-gated, "Open
+  Licensing" action); 4 tone metric cards (runs-24h + real sparkline + bucket-derived trend,
+  median duration + p95, failure rate, active flows/browsers/queue polled from
+  `executions.runtimeStatus`); Run readiness checklist from the real offline-runtime validator;
+  Recent activity from `telemetry.runHistory` (status badges, durations, relative times, refresh);
+  Quick actions (permission-filtered navigations); Throughput two-series 180px chart from the 24h
+  `runsSeries`. Header actions "New workflow"/"Record a flow" publish via `usePageChrome`.
+  `PAGE_REPORTS` gates every telemetry surface; without it (or with no runs yet) the panels render
+  dashed empty states.
+- **In scope but verified-only**: the Throughput chart's populated series path was verified
+  structurally (SVG geometry helpers shared with the sparkline) but not screenshotted with live
+  run data — a fresh isolated profile has zero runs, so the empty state is what the GUI walkthrough
+  exercised.
+- **Evidence**: `npm run build` PASS; `verify:design-tokens` **35/35** (static no-literal rule
+  covers the new CSS; dark active-nav contract holds); `verify:branding-gui` **30/30** (custom
+  logo still replaces the identity block in its new header position); throwaway real-Electron
+  walkthrough **16/16** (4 metrics + 4 panels, header actions, quick-action navigation, 240/62px
+  collapse, group accordion, appearance switch, dark active-nav ink, zero console errors) —
+  screenshots in `test-artifacts/dashboard-redesign-proof/` (untracked).
+
 ## `loop-connector-redesign`: green dash-orbit Loop connector (2026-09-16)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This visual

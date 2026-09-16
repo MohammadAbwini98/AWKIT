@@ -1,6 +1,5 @@
-import { ChevronDown, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, Sun, Workflow } from "lucide-react";
+import { ChevronDown, ChevronLeft, HelpCircle, Moon, Settings as SettingsIcon, Workflow } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AwkitDarkBrandMark } from "../assets/brand/AwkitBrandMarks";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
 import { useBranding } from "../state/branding";
@@ -68,25 +67,36 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
   );
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
+      {/* Workspace identity header (approved side-menu design): gradient mark + workspace name + collapse. */}
       <div className="brand-block">
-        <div className="brand-tile">
-          {/* Dark finish in both themes: the sidebar mark matches the OS icon (resources/icon.*). */}
-          <AwkitDarkBrandMark size={32} className="brand-app-icon" />
-          {!collapsed ? (
-            <span className="brand-name">
-              <span>SpecterStudio</span>
-            </span>
-          ) : null}
+        <div className={branding.active && branding.dataUrl ? "nav-workspace has-custom-logo" : "nav-workspace"} aria-hidden="true">
+          {branding.active && branding.dataUrl ? (
+            // A custom logo replaces the ENTIRE workspace identity (mark + name + subtitle). Presence check
+            // on already-validated context state (never <img onError>), so a corrupt/mid-swap asset
+            // degrades to active:false and the default block returns — never a broken image.
+            <img src={branding.dataUrl} alt="" className="nav-workspace-logo-full" />
+          ) : (
+            <>
+              <span className="nav-workspace-mark">
+                <Workflow size={15} strokeWidth={2} />
+              </span>
+              {!collapsed ? (
+                <span className="nav-workspace-name">
+                  <span>Specter Automation</span>
+                  <small>Offline workspace</small>
+                </span>
+              ) : null}
+            </>
+          )}
         </div>
         <button
           className="nav-collapse-button"
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
           onClick={onToggle}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand navigation" : "Collapse navigation"}
           type="button"
         >
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          <ChevronLeft size={16} className={collapsed ? "nav-collapse-chevron rotated" : "nav-collapse-chevron"} />
         </button>
       </div>
       <div className="navigation-list">
@@ -123,7 +133,7 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
                     title={collapsed ? route.label : route.description}
                     type="button"
                   >
-                    <Icon size={17} />
+                    <Icon size={17} strokeWidth={isActive ? 2 : 1.8} />
                     {!collapsed ? <span>{route.label}</span> : null}
                   </button>
                 );
@@ -142,56 +152,36 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
             title={collapsed ? "Settings" : undefined}
             type="button"
           >
-            <SettingsIcon size={17} />
+            <SettingsIcon size={17} strokeWidth={activeRouteId === "settings" ? 2 : 1.8} />
             {!collapsed ? <span>Settings</span> : null}
           </button>
         ) : null}
         <button
           aria-label={collapsed ? "Help Center" : undefined}
-          className="nav-item"
+          aria-current={activeRouteId === "projectContract" ? "page" : undefined}
+          className={activeRouteId === "projectContract" ? "nav-item active" : "nav-item"}
           onClick={() => onRouteChange("projectContract")}
           title={collapsed ? "Help Center" : undefined}
           type="button"
         >
-          <HelpCircle size={17} />
+          <HelpCircle size={17} strokeWidth={activeRouteId === "projectContract" ? 2 : 1.8} />
           {!collapsed ? <span>Help Center</span> : null}
         </button>
-        <button
-          className="nav-item nav-theme-toggle"
-          aria-label={collapsed ? "Dark Mode" : undefined}
-          aria-pressed={isDark}
-          onClick={() => setAppearance(isDark ? "light" : "dark")}
-          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          type="button"
-        >
-          {isDark ? <Moon size={17} /> : <Sun size={17} />}
-          {!collapsed ? (
-            <>
-              <span>Dark Mode</span>
-              <span className={isDark ? "theme-switch on" : "theme-switch"} aria-hidden="true">
-                <span className="theme-switch-thumb" />
-              </span>
-            </>
-          ) : null}
-        </button>
-        {!collapsed ? (
-          <div className={branding.active && branding.dataUrl ? "nav-workspace has-custom-logo" : "nav-workspace"} aria-hidden="true">
-            {branding.active && branding.dataUrl ? (
-              // A custom logo replaces the ENTIRE workspace block (icon + name + subtitle). Presence check
-              // on already-validated context state (never <img onError>), so a corrupt/mid-swap asset
-              // degrades to active:false and the default block returns — never a broken image.
-              <img src={branding.dataUrl} alt="" className="nav-workspace-logo-full" />
-            ) : (
-              <>
-                <span className="nav-workspace-mark"><Workflow size={15} /></span>
-                <span className="nav-workspace-name">
-                  <span>SpecterStudio</span>
-                  <small>Offline workspace</small>
-                </span>
-              </>
-            )}
-          </div>
-        ) : null}
+        <div className="nav-theme-row">
+          <Moon size={17} strokeWidth={1.8} />
+          {!collapsed ? <span>{isDark ? "Dark appearance" : "Light appearance"}</span> : null}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isDark}
+            aria-label="Dark appearance"
+            className={isDark ? "theme-switch on" : "theme-switch"}
+            onClick={() => setAppearance(isDark ? "light" : "dark")}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            <span className="theme-switch-thumb" />
+          </button>
+        </div>
       </div>
     </nav>
   );

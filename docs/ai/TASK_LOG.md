@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-09-16 — Dashboard + main side menu redesign to the approved reference (ZCode)
+
+- **Task:** implement the user-provided approved design for the Dashboard page and the application
+  main side menu only (explicitly nothing else), with real data everywhere.
+- **Files:** `app/renderer/layout/LeftNavigation.tsx`, `app/renderer/pages/Dashboard.tsx`,
+  `app/renderer/styles/global.css`, plus `docs/ai/{CURRENT_STATE,FEATURES}.md`.
+- **Implementation:** sidebar — workspace identity header at top (gradient mark + name stack +
+  collapse chevron), 62px collapsed rail, design-exact group headers/rows/footer, appearance
+  `role="switch"`; dashboard — license banner, 4 tone metric cards (real 24h telemetry + runtime
+  capacity), offline-runtime readiness checklist, telemetry recent-activity list, permission-gated
+  quick actions, two-series throughput chart, `usePageChrome` header actions. Retired the old
+  roadmap-summary dashboard panels. Deliberate dark-mode deviation: active nav keeps the white
+  accent-contrast ink pinned by `verify:design-tokens` B4 (reference shows soft accent ink).
+- **Tests run:** `npm run build` PASS; `verify:design-tokens` 35/35; `verify:branding-gui` 30/30;
+  throwaway Electron walkthrough 16/16 (deleted after the run; screenshots kept under
+  `test-artifacts/dashboard-redesign-proof/`). **Not run:** `verify:runner` (no runner/orchestrator
+  logic touched), `validate:offline` (no packaging change), populated-throughput visual (fresh
+  profile has no runs; empty state verified instead).
+- **Result:** complete. Ledger unchanged (no case moved). Roadmap reconciliation run once after
+  the doc updates.
+
 ## 2026-09-14 — `awkit-btcx`: Login workflow preview autoplay (Codex)
 
 - **Task:** resolve the owner-reported Login animation defect after the prior reduced-motion opt-in
