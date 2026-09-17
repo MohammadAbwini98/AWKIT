@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-table-system-ui",
+    "title": "Apply the attached system table design across SpecterStudio",
+    "objective": "Replace SpecterStudio's table presentation with the attached design's shared search, filter, table, and pagination treatment while preserving all existing table data, behavior, handlers, permissions, and page structure. Limit product changes to the table component and its shared CSS.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7d618887e6b0a1b9bcbcb9a3e50fbd856d230af4",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/components/table/TableUI.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-table-system-ui.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-table-system-ui.json",
+        "tools/roadmap/assignments.json"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "scope": [
+      "Change table presentation only; preserve page layouts, table data, filtering logic, sorting logic, pagination state, actions, routes, and preload contracts.",
+      "Reuse the existing table component and Hologram design tokens; do not add a parallel component system or dependency.",
+      "Treat the attached HTML as a visual reference only and do not copy its demo data or simulated behavior."
+    ],
+    "accessibility": [
+      "Preserve semantic table markup, labels, aria-sort state, keyboard operation, visible focus styling, responsive overflow, and reduced-motion behavior."
+    ],
+    "offline": [
+      "Do not add remote assets, fonts, scripts, dependencies, or runtime network access."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "TABLE-SYSTEM-UI",
+      "description": "All existing SpecterStudio table families share the attached design language for their surface, filters, headers, rows, empty states, and pagination without changing page structure or non-table components.",
+      "evidence_required": [
+        "build",
+        "verify:design-tokens",
+        "source-review"
+      ]
+    },
+    {
+      "id": "TABLE-BEHAVIOR-PRESERVED",
+      "description": "Existing search, filter, applied-filter, sorting, selection, paging, and row-action behavior remains wired to the original handlers and state.",
+      "evidence_required": [
+        "build",
+        "verify:flow-library",
+        "verify:reports"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "AI memory, the code graph, and roadmap sources accurately record the completed table-only change.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "2026-09-17: embedded roadmap snapshot, TypeScript no-emit check, and all Electron/Vite bundles completed. The existing securityKernel dynamic-import advisory remained non-failing."
+    },
+    {
+      "id": "verify:design-tokens",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "2026-09-17: 35/35 static and live Electron checks passed in light and dark themes. The real Sessions table retained a 52px row, contained long values/actions, scrolled deliberately at narrow width, and emitted zero renderer console errors."
+    },
+    {
+      "id": "verify:flow-library",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:flow-library",
+      "result": "BLOCKED",
+      "artifact": "BLOCKED — ENVIRONMENT on 2026-09-17. Six pure rescanTitle reason-priority checks passed, then Electron exited before GUI assertions with Target page, context or browser has been closed. One retry after diagnosing the initial concurrent DevToolsActivePort collision reproduced the same pre-assertion exit when run alone; no product assertion failed or passed."
+    },
+    {
+      "id": "verify:reports",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:reports",
+      "result": "BLOCKED",
+      "artifact": "BLOCKED — ENVIRONMENT on 2026-09-17. Electron exited before GUI assertions with Target page, context or browser has been closed. One retry after diagnosing the initial concurrent DevToolsActivePort collision reproduced the same pre-assertion exit when run alone; no product assertion failed or passed."
+    },
+    {
+      "id": "source-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "2026-09-17: product diff is confined to TableUI.tsx and global.css. All 24 renderer table declarations resolve through one of the covered table classes or the explicit unclassified-table selector; no page data, handler, permission, IPC, route, or layout source changed."
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "2026-09-17: required AI memory checks passed after CURRENT_STATE, FEATURES, and TASK_LOG were updated."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "2026-09-17: 177/177 checks passed; the validation ledger remained 65 PASS / 2 NOT RUN / 0 BLOCKED and the Overview banner reads Sources agree."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "2026-09-17: no whitespace errors in the final renderer, project-state, task-contract, and lease-bookkeeping diff."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "blocked",
+    "qa_status": "BLOCKED",
+    "qc_status": "APPROVED",
+    "qa_notes": "Implementation and the live design-system table coverage pass, but the two predeclared broad GUI suites are required evidence and remain BLOCKED — ENVIRONMENT after their one permitted retry. They executed zero product GUI assertions, so QA cannot truthfully be PASS.",
+    "qc_notes": "Approved the requested implementation scope and source diff: the only product files changed are the shared table component and global table CSS; existing page behavior and data contracts remain intact. Approval does not convert the blocked GUI evidence to PASS."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-table-system-ui:frontend:2026-09-17T13:31:02.827Z",
+        "task": "awkit-table-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/table/TableUI.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T13:31:02.827Z",
+        "acquired_at_commit": "7d618887e6b0a1b9bcbcb9a3e50fbd856d230af4",
+        "released_at": "2026-09-17T13:40:27.314Z",
+        "released_reason": "handoff to project-state: Renderer table redesign is implemented and verified; record evidence and project-state closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}

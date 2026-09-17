@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## `table-system-ui`: one approved table and filter design across the renderer (2026-09-17)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This is a
+renderer-only table presentation change; no validation-ledger case moved.
+
+SpecterStudio's library, instance, report, administration, modal, observability, Sessions, Recorder,
+Settings diagnostics, and unclassified data-source tables now share the attached system design's
+token-driven surface: bordered rounded containers, soft uppercase headers, 52px rows, subtle dividers
+and hover states, compact empty states, and a unified pagination footer. The shared
+`AdvancedTableFilters` component now presents the reference's always-visible search and labeled filter
+controls, Apply/Clear pills, validation feedback, and removable applied-filter chips. Shared pagination
+uses a range label, compact rows selector, numbered pages, and previous/next icon controls.
+
+The implementation is confined to `components/table/TableUI.tsx` and the table/filter rules in
+`styles/global.css`. Existing table data, page layouts, column widths, sticky headers, responsive
+overflow, sorting, filtering, selection, row actions, permissions, state persistence, IPC, and offline
+behavior are unchanged. All new styling uses existing Hologram tokens and inherits light/dark and
+reduced-motion behavior.
+
+**Evidence:** `npm run build` PASS; `verify:design-tokens` **35/35** PASS in live light/dark Electron
+(52px session row, long-cell containment, deliberate narrow-width scrolling, zero renderer console
+errors); final source review PASS; `graphify update .` completed. `verify:flow-library` and
+`verify:reports` are **BLOCKED — ENVIRONMENT** after one diagnosed retry each: Electron launched and
+opened its DevTools endpoint, then exited before either GUI suite could execute product assertions
+(`Target page, context or browser has been closed`). The Flow Library verifier's six pure reason-
+priority checks passed before that block. `verify:runner`, `verify:mock-site`, and `validate:offline`
+were NOT RUN because no runner, mock-site, or packaging/offline boundary changed.
+
 ## `settings-system-ui`: Settings page replaced with the approved system design (2026-09-16)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This is a

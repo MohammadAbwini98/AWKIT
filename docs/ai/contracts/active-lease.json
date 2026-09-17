@@ -1,24 +1,24 @@
 {
-  "task": "awkit-settings-system-ui",
-  "contract_path": "docs/ai/contracts/awkit-settings-system-ui.json",
+  "task": "awkit-table-system-ui",
+  "contract_path": "docs/ai/contracts/awkit-table-system-ui.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-settings-system-ui.json",
+    "docs/ai/contracts/awkit-table-system-ui.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-16T19:49:58.149Z",
-  "acquired_at_commit": "3dffc9f2022cddc9376e38a56b86358eea1f1ad2",
+  "acquired_at": "2026-09-17T13:40:27.388Z",
+  "acquired_at_commit": "aacd7b0118c4fe956663f184f66e9c31f8f296dd",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-settings-system-ui.json"
+    "docs/ai/contracts/awkit-table-system-ui.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "8b084c9284c632698eeb0597c953ef5957764c875b7f4a1b71a6dd0691e03cd5",
-    "docs/ai/contracts/awkit-settings-system-ui.json": "1c090953959060393b38523f8f5ff8ddb189e6fd12758a8c590db383ec7d8f34"
+    "docs/ai/contracts/active-lease.json": "186584a3467aa3b4b87a88d93c0e97f5d0738b967fe56f713b7bd809f4a6890a",
+    "docs/ai/contracts/awkit-table-system-ui.json": "273dd852f05a010aa79105d5e4ba5305b9ab0c7ab1caea9ee80abcce80e867da"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,8 +32,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-17T09:18:32.433Z",
-  "released_reason": "Settings-only system UI redesign, verification, code graph refresh, and project-state reconciliation are complete.",
-  "archived_at": "2026-09-17T09:18:32.434Z"
+  "violations": []
 }

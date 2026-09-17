@@ -1,5 +1,19 @@
 # FEATURES
 
+## Shared table and filter system UI (2026-09-17)
+
+- Every renderer table family now resolves through one token-driven presentation layer: rounded
+  bordered surfaces, soft uppercase headers, 52px rows, subtle dividers/hover, compact empty states,
+  and consistent scroll containment. Existing page-owned column widths, sticky headers, selections,
+  row actions, and responsive overflow remain intact.
+- The shared table filter component matches the approved reference with an always-visible search
+  field, compact labeled controls, Apply/Clear pill actions, validation feedback, and removable
+  applied-filter chips. The shared footer shows the visible record range, rows selector, numbered
+  pages, and previous/next icon controls.
+- This is presentation-only: filtering, sorting, paging, permissions, stored table state, IPC, data,
+  and offline behavior are unchanged. Styling uses the existing Hologram tokens and supports both
+  themes and reduced motion.
+
 ## Settings page redesigned to the approved system UI (2026-09-16)
 
 - Settings now uses the system reference's icon-led category introductions and responsive panel

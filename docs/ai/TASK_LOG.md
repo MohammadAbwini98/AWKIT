@@ -1,5 +1,24 @@
 # TASK_LOG
 
+## 2026-09-17 — `awkit-table-system-ui`: shared table and filter redesign (Codex)
+
+- **Task:** apply the attached SpecterStudio table/filter design to every renderer table while
+  changing table presentation only.
+- **Files:** `app/renderer/components/table/TableUI.tsx`, `app/renderer/styles/global.css`,
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`, and the task/lease bookkeeping files.
+- **Implementation:** the shared filter component now renders the reference's always-visible search,
+  compact labeled controls, Apply/Clear pills, validation feedback, and removable applied chips;
+  shared pagination uses a range, rows selector, numbered pages, and icon navigation; one final CSS
+  layer normalizes every existing table class and unclassified data-source tables without altering
+  page-owned columns, scroll/sticky behavior, data, handlers, permissions, IPC, or offline behavior.
+- **Tests run:** `npm run build` PASS; `npm run verify:design-tokens` 35/35 PASS (light/dark live
+  Electron, 52px row, narrow-width scrolling, no console errors); `git diff --check` PASS; final
+  source review PASS; `graphify update .` completed. `verify:flow-library` and `verify:reports` are
+  **BLOCKED — ENVIRONMENT** after one retry each because Electron exited before GUI assertions with
+  `Target page, context or browser has been closed`; the Flow Library suite's six pure checks passed.
+  **Not run:** `verify:runner`, `verify:mock-site`, `validate:offline` (unaffected surfaces).
+- **Result:** implementation complete; validation ledger unchanged.
+
 ## 2026-09-16 — Dashboard/side-menu redesign fix round (ZCode)
 
 - **Task:** owner feedback on the redesign — restore the original sidebar branding layout, repair
