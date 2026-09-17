@@ -2,7 +2,7 @@
   "task": "awkit-reports-correctness-motion",
   "contract_path": "docs/ai/contracts/awkit-reports-correctness-motion.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
@@ -32,5 +32,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T19:39:05.523Z",
+  "released_reason": "terminal closeout after report correctness, motion, and verification reconciliation",
+  "archived_at": "2026-09-17T19:39:05.524Z"
 }

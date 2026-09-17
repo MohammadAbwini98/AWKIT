@@ -253,7 +253,8 @@
     "qa_status": "PASS",
     "qc_status": "APPROVED",
     "qa_notes": "Build, telemetry, runner, design-token, source, memory, roadmap, graph, and diff checks pass. The legacy Reports GUI launcher remains environment-blocked before its first assertion; equivalent Reports GUI gates were not repeated.",
-    "qc_notes": "Approved: every changed value is production-backed or explicitly unavailable, denominator semantics are pinned by tests, all seven report compositions were reviewed, and motion honors reduced-motion."
+    "qc_notes": "Approved: every changed value is production-backed or explicitly unavailable, denominator semantics are pinned by tests, all seven report compositions were reviewed, and motion honors reduced-motion.",
+    "closed_at_commit": "6262a61c804831cc872e018de8c0a395a1223e8a"
   },
   "write_lease": {
     "history": [
@@ -344,6 +345,26 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-reports-correctness-motion:project-state:2026-09-17T19:34:28.720Z",
+        "task": "awkit-reports-correctness-motion",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-reports-correctness-motion.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T19:34:28.720Z",
+        "acquired_at_commit": "15c03ce0a9350a9d6f740970a8d1b1f15de4d604",
+        "released_at": "2026-09-17T19:39:05.523Z",
+        "released_reason": "terminal closeout after report correctness, motion, and verification reconciliation",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }
