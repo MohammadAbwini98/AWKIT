@@ -1,26 +1,31 @@
 {
-  "task": "awkit-reports-verification-closeout",
-  "contract_path": "docs/ai/contracts/awkit-reports-verification-closeout.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-workflows-system-ui",
+  "contract_path": "docs/ai/contracts/awkit-workflows-system-ui.json",
+  "holder": "frontend",
+  "status": "active",
   "allowed_paths": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-reports-correctness-motion.json",
-    "docs/ai/contracts/awkit-reports-verification-closeout.json",
-    "tools/roadmap/assignments.json"
+    "app/renderer/pages/WorkflowsLibrary.tsx",
+    "app/renderer/styles/global.css"
   ],
-  "acquired_at": "2026-09-17T20:35:39.732Z",
-  "acquired_at_commit": "fb251b5b361be1cd94ee4868c433fdc250991fb8",
+  "acquired_at": "2026-09-17T21:32:33.903Z",
+  "acquired_at_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
   "baseline_dirty": [
+    "app/renderer/pages/WorkflowsLibrary.tsx",
+    "app/renderer/styles/global.css",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-reports-verification-closeout.json"
+    "docs/ai/contracts/awkit-workflows-system-ui.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "d9f271f03532e05d9302731f811314e11d66ee2de99481c45c7e481d7458ca4b",
-    "docs/ai/contracts/awkit-reports-verification-closeout.json": "ef5b6372395672c6ef18cf2719a249aadd99960e3b3f9ab691cb87684000cc4d"
+    "app/renderer/pages/WorkflowsLibrary.tsx": "28cd2d77701ce7811edf15e3ef3a765dedfea01f8d1a6f0e7068c7a1efd5c3fd",
+    "app/renderer/styles/global.css": "a683948902b94f50cb9ca8186facafc484a85d6808f962d9aaa872b1c5ee949e",
+    "docs/ai/CURRENT_STATE.md": "123870fc00dd79a7e4dbed5cb4b3d571ff3a724e68683421c0e9c7b4d98e08ca",
+    "docs/ai/FEATURES.md": "d14866567851ec083820f4f07a60aab505960a228c4408931211672a40c96e30",
+    "docs/ai/TASK_LOG.md": "afdd39e77629cfaeabff95311f3c8ed96618c54b202cf1394c96a668355f41c1",
+    "docs/ai/contracts/active-lease.json": "6ac7344d723c0cfcf82b772e2c8e67808dae61a33a71f447a7a4d3b776c0937d",
+    "docs/ai/contracts/awkit-workflows-system-ui.json": "011e732731d86ef7d87f159e3029ac190ddce7934699e3c309766ad0608c0275"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -30,12 +35,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789670376990.1582"
+    "build": "dir(1):native-hosts:1789678335502.039"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-17T20:44:17.179Z",
-  "released_reason": "Reports GUI launcher and canvas verifier issues fixed; required gates pass and project evidence is reconciled",
-  "archived_at": "2026-09-17T20:44:17.181Z"
+  "violations": []
 }

@@ -433,6 +433,13 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 ### Libraries & data
 - ✅ Flows library + Workflows library with pagination, page size, sorting, advanced filters,
   persisted table state (`components/table/*`).
+- ✅ **Workflows library on the system design (`pages/WorkflowsLibrary.tsx`):** New Workflow / Import /
+  Refresh published to the top header via `usePageChrome`; a titled `.table-surface` head showing the
+  record count, or the selection count while rows are selected; row selection with page-level
+  select-all and bulk **Export selected** / **Duplicate** / **Delete** reusing the per-workflow
+  handlers (one confirmation naming the exact delete set); icon-led identity cells with the
+  description as a second line, status-glyph badges, tabular flow counts, monospace data sources, and
+  an inline Open action beside the per-row kebab menu. Permission gates are unchanged.
 - ✅ Data Source Manager (JSON sources, click a row to preview, validate, **Edit Table**, duplicate,
   export, **Create Data Source** from scratch); Runtime Input panel; Form Designer.
 - 🟡 **Oracle Data Sources + Oracle node (read-only; `INTEGRATION-CANDIDATE`, 2026-07-17):** Oracle-backed

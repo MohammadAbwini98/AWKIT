@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-workflows-system-ui`: apply the attached system design to the Workflows library (Claude)
+
+- **Task:** review the attached SpecterStudio offline design artifact and apply its library
+  composition to the Workflows page, preserving every existing action, permission gate, and
+  persistence call.
+- **Files:** `app/renderer/pages/WorkflowsLibrary.tsx`, `app/renderer/styles/global.css`, the task
+  contract, lease record, and roadmap assignment bookkeeping.
+- **Implementation:** published the page's New Workflow / Import / Refresh actions through
+  `usePageChrome` and removed the duplicated page heading and local toolbar; wrapped the saved list in
+  a titled `.table-surface` that reports the record count or the live selection count; added row
+  selection with page-level select-all and bulk Export selected / Duplicate / Delete built on the
+  existing single-row handlers, with one confirmation that names the exact delete set; folded the
+  Description column into an icon-led identity cell and added status-glyph, tabular-numeric, and
+  monospace cell treatments plus an inline Open action beside the kebab. Shared CSS gained the
+  `.table-surface` head and a gap on `.state-pill` for leading glyphs. The dead `.wl-desc-cell` rule
+  was removed. No preload, IPC, profile schema, or route changed.
+- **Tests run:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** against the final
+  CSS; source review PASS; `git diff --check` PASS. `verify:e2e-sweep` and `verify:flow-library` are
+  **BLOCKED — ENVIRONMENT**: `electron.launch` resolved no bridged window on this host (the recorded
+  GUI-harness block), while `verify:design-tokens` launched the same build successfully in the same
+  session. One retry each, then stopped.
+- **Result:** the Workflows library matches the attached design's library composition with every
+  existing behavior intact. Open gap: no live GUI assertion exercises the redesigned page itself,
+  because both verifiers that navigate to it are blocked on this host.
+
 ## 2026-09-17 — `awkit-reports-correctness-motion`: repair Reports values, coverage, and motion (Codex)
 
 - **Task:** audit every Reports route against its production telemetry and the attached offline

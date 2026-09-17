@@ -4390,15 +4390,6 @@ th {
   font-size: var(--text-2xs);
 }
 
-.wl-desc-cell {
-  color: var(--awkit-text-secondary);
-  font-size: var(--text-xs);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 180px;
-}
-
 .wl-date-cell {
   color: var(--awkit-text-secondary);
   font-size: var(--text-xs);
@@ -4432,24 +4423,95 @@ th {
 }
 
 .wl-table-workflows {
-  min-width: 58rem;
+  min-width: 62rem;
   table-layout: fixed;
   width: 100%;
 }
 
-.wl-table-workflows .wl-col-name { width: 22%; }
-.wl-table-workflows .wl-col-description { width: 26%; }
-.wl-table-workflows .wl-col-flows { width: 4.5rem; }
-.wl-table-workflows .wl-col-data { width: 13%; }
-.wl-table-workflows .wl-col-mode { width: 7rem; }
+.wl-table-workflows .wl-col-select { width: 2.75rem; }
+.wl-table-workflows .wl-col-name { width: 28%; }
+.wl-table-workflows .wl-col-status { width: 7.5rem; }
+.wl-table-workflows .wl-col-flows { width: 5rem; }
+.wl-table-workflows .wl-col-data { width: 15%; }
+.wl-table-workflows .wl-col-mode { width: 7.5rem; }
 .wl-table-workflows .wl-col-updated { width: 7rem; }
-.wl-table-workflows .wl-col-status { width: 6.5rem; }
-.wl-table-workflows .wl-col-actions { width: 3rem; }
+.wl-table-workflows .wl-col-actions { width: 5.5rem; }
 
 .wl-table-workflows th:last-child,
 .wl-table-workflows td:last-child {
   padding-inline: var(--space-2);
   text-align: center;
+}
+
+/* Identity cell: an icon badge, the workflow name as the open affordance, and its description as a
+   quiet second line — the design folds the old standalone Description column in here. */
+.wl-main-cell {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.wl-main-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent);
+  display: inline-flex;
+  flex: none;
+  height: 1.875rem;
+  justify-content: center;
+  width: 1.875rem;
+}
+
+.wl-main-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wl-main-text small {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wl-num-cell {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+.wl-mono-cell {
+  color: var(--awkit-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.wl-cell-muted {
+  color: var(--awkit-text-muted);
+  font-family: var(--font-sans);
+}
+
+.wl-select-cell {
+  padding-inline: var(--space-3);
+  text-align: center;
+}
+
+.wl-select-cell input {
+  accent-color: var(--awkit-accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+.wl-table-workflows tbody tr.is-selected {
+  background: var(--awkit-accent-soft);
+}
+
+.wl-row-actions {
+  justify-content: center;
 }
 
 /* ── Instance Monitor Table ─────────────────────────────────────────────────── */
@@ -15353,6 +15415,64 @@ th {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   border-top: 0;
   margin-top: 0;
+}
+
+/* ── System table surface ─────────────────────────────────────────────────────
+   A titled card head above a system table: the collection's name, its live record
+   or selection count, and the bulk actions that apply to the current selection.
+   The head joins the table below it into one card, so it must come after the
+   system-table layer that sets the wrapper's own border and radius. */
+.table-surface {
+  display: grid;
+}
+
+.table-surface-head {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-bottom: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.table-surface-head h2 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+}
+
+.table-surface-count {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  margin-right: auto;
+}
+
+.table-surface-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The wrapper is a card on its own elsewhere; inside a surface it is the card's body. */
+.table-surface > .wl-table-wrapper,
+.table-surface > .wl-table-wrapper:has(+ .table-pagination) {
+  border-radius: 0;
+  border-top: 0;
+}
+
+.table-surface > .table-empty {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  margin-top: 0;
+}
+
+/* Pills carry a leading status glyph in the system design — the gap is inert without one. */
+.state-pill,
+.status-chip {
+  align-items: center;
+  gap: var(--space-1);
 }
 
 :is(.awkit-report-filters, .awkit-admin-filter-bar) {

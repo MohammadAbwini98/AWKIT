@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-workflows-system-ui",
+    "title": "Replace the Workflows library page with the new system UI design",
+    "objective": "Apply the attached SpecterStudio system UI language to the Workflows library page only, preserving every existing workflow action, permission gate, validation rule, and persistence call.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/pages/WorkflowsLibrary.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-workflows-system-ui.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "frontend",
+      "allowed_paths": [
+        "app/renderer/pages/WorkflowsLibrary.tsx",
+        "app/renderer/styles/global.css"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Change the Workflows library renderer only; preserve the app shell, route, preload API, workflow profile schema, and main-process persistence.",
+      "Reuse the existing Hologram tokens, shared table components, dialogs, and page-chrome action system.",
+      "Do not copy demo values or simulated behavior from the attached design artifact."
+    ],
+    "accessibility": [
+      "Keep semantic table markup, aria-sort state, accessible names on every control, visible focus styles, keyboard-operable actions, responsive overflow, and reduced-motion behavior."
+    ],
+    "offline": [
+      "Do not add remote assets, fonts, scripts, dependencies, or runtime network access."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "WORKFLOWS-SYSTEM-UI",
+      "description": "The Workflows library uses the attached system design language: page-header primary and secondary actions, a titled table surface with a record count, selectable rows with a bulk-action bar, identity-led main cells, badge status cells, and token-driven numeric and monospace cells, without changing other routes or the app-shell grid.",
+      "evidence_required": [
+        "verify:design-tokens",
+        "build"
+      ]
+    },
+    {
+      "id": "WORKFLOWS-BEHAVIOR-PRESERVED",
+      "description": "Every existing Workflows control, permission gate, confirmation dialog, import-conflict flow, filter, sort, and pagination path remains wired to its existing handler and preload channel.",
+      "evidence_required": [
+        "build",
+        "source-review"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The task records accurate AI-memory and roadmap evidence before terminal closeout.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:design-tokens",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "2026-09-17: 35/35 static and live Electron design-system checks passed in light and dark themes against the final global.css, with zero renderer console errors."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "2026-09-17: embedded roadmap snapshot, tsc --noEmit, and all Electron/Vite bundles completed; the pre-existing securityKernel dynamic-import advisory remained non-failing."
+    },
+    {
+      "id": "source-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "2026-09-17: the diff contains only Workflows-library structure/styles plus the shared table-surface and pill-gap CSS; every workflow list, create, clone, export, import, conflict-resolution, delete, filter, sort and pagination path stays bound to its existing handler and preload channel, and the page-local toolbar actions moved to usePageChrome without changing their permission gates."
+    },
+    {
+      "id": "verify:e2e-sweep",
+      "type": "gui",
+      "required": false,
+      "command": "npm run verify:e2e-sweep",
+      "result": "BLOCKED",
+      "artifact": "2026-09-17: electron.launch resolved no bridged window on this host (two runs). Matches the recorded host-state-dependent GUI-harness block in KNOWN_ISSUES; verify:design-tokens launched and drove the same build successfully in the same session, so the block is environmental, not a product regression."
+    },
+    {
+      "id": "verify:flow-library",
+      "type": "gui",
+      "required": false,
+      "command": "npm run verify:flow-library",
+      "result": "BLOCKED",
+      "artifact": "2026-09-17: unit coverage 6/6 passed, then electron.launch resolved no bridged window — same recorded host-state-dependent harness block."
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "2026-09-18: required AI memory checks passed after CURRENT_STATE, FEATURES, and TASK_LOG were updated."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "2026-09-18: 177/177 checks passed; the validation ledger remained 65 PASS / 2 NOT RUN / 0 BLOCKED and the Overview banner reads Sources agree."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "2026-09-17: no whitespace errors in the final renderer and project-state diff."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending",
+    "notes": "Implementation and every required gate are PASS. Independent QC review was not performed, and the two GUI verifiers that navigate to the Workflows route are BLOCKED on this host, so the redesigned page has no live GUI assertion yet. The task is deliberately NOT marked complete."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-workflows-system-ui:frontend:2026-09-17T21:19:18.594Z",
+        "task": "awkit-workflows-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/WorkflowsLibrary.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T21:19:18.594Z",
+        "acquired_at_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
+        "released_at": "2026-09-17T21:27:10.145Z",
+        "released_reason": "handoff to project-state: Workflows library redesign implemented and verified, record project-state closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-workflows-system-ui:project-state:2026-09-17T21:27:10.210Z",
+        "task": "awkit-workflows-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-workflows-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T21:27:10.210Z",
+        "acquired_at_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
+        "released_at": "2026-09-17T21:28:27.407Z",
+        "released_reason": "Workflows library system-UI redesign implemented, gates recorded, project-state reconciled. Work is uncommitted pending owner authorization.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}

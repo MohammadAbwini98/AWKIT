@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## `awkit-workflows-system-ui`: the Workflows library rebuilt on the attached system design (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes Workflows-library renderer composition only; no validation-ledger case moved.
+
+The Workflows library now follows the attached design's library composition. Its primary and
+secondary actions (**New Workflow**, **Import**, **Refresh**) moved into the top header through
+`usePageChrome`, so the page no longer repeats the route title and its own toolbar. The saved list
+sits in a titled table surface that reports the live record count, or the current selection count
+while rows are selected, above the shared system table.
+
+Rows are now selectable, with a page-level select-all and bulk **Export selected**, **Duplicate**,
+and **Delete** actions that reuse the existing per-workflow export, clone, and delete handlers; the
+delete confirmation names the exact set it will remove. Each row leads with an identity cell — icon,
+name, and the description folded in as its second line, replacing the standalone Description column —
+followed by an icon-led status badge, a tabular flow count, a monospace data source, the execution
+mode badge, the updated date, and an inline Open action beside the existing kebab menu. Every
+create, clone, export, import, import-conflict, delete, filter, sort, and pagination path stays bound
+to its existing handler, permission gate, and preload channel.
+
+Two reusable pieces landed in `global.css`: a `.table-surface` head that joins a titled strip and
+bulk actions onto any system table, and an `align-items`/`gap` pair on `.state-pill` so pills can
+carry a leading status glyph (inert for the existing text-only pills).
+
+**Evidence:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** in live light/dark
+Electron with zero renderer console errors, run against the final CSS; source review PASS;
+`git diff --check` PASS. **`npm run verify:e2e-sweep` and `npm run verify:flow-library` are BLOCKED**
+on this host — `electron.launch` resolved no bridged window on either, the recorded host-state
+GUI-harness block in KNOWN_ISSUES; `verify:design-tokens` launched and drove the same build in the
+same session, so the block is environmental. **There is therefore no live GUI assertion against the
+redesigned Workflows page itself**; that gap is open and is the first thing to re-run when the
+harness resolves a window again. Runner, mock-site, and offline verifiers were NOT RUN because those
+boundaries were unchanged.
+
 ## `awkit-reports-correctness-motion`: accurate report telemetry and restored UI motion (2026-09-17)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
