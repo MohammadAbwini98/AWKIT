@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-17 — `awkit-reports-reference-composition`: implement all attached Reports designs (Codex)
+
+- **Task:** replace the remaining generic Reports layouts with the attached HTML's report-specific
+  designs, using the provided Chrome screenshots as the visible acceptance example.
+- **Files:** shared report frame/gauge/export components, optional top-header action icon support,
+  all seven `Reports*.tsx` analytics pages, report CSS, the Reports GUI verifier, and AI-memory/task
+  bookkeeping files.
+- **Implementation:** added permission-gated offline JSON snapshot export and compact range/refresh
+  status to the shared frame. Reorganized every report into production-backed KPI, primary analysis,
+  paired secondary, and full-detail panels. Chrome now has one four-dial pressure panel, real
+  contexts/queue and memory history, live activity, per-context slot detail, and process detail.
+  Workflow duration/success comparisons, instance concurrency, failure history/insights, runtime
+  concurrency/resource composition, and server storage breakdown all use real existing telemetry.
+- **Tests run:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** in live
+  light/dark Electron with zero console errors; source review PASS; `git diff --check` PASS.
+  `npm run verify:reports` **BLOCKED — ENVIRONMENT** before its first assertion because the legacy
+  launcher closed Electron (`Target page, context or browser has been closed`); no retry.
+  `verify:reports-populated-gui` NOT RUN because it shares that confirmed unavailable prerequisite.
+  Runner/mock-site/offline verifiers NOT RUN because those areas were unchanged.
+- **Result:** requested implementation complete; no demo values, remote assets, telemetry-contract
+  changes, or offline-boundary changes were introduced.
+
 ## 2026-09-17 — `awkit-settings-reports-reference-ui`: correct Settings and Reports layouts (Codex)
 
 - **Task:** correct the prior surface-level implementations so Settings and Reports reproduce the

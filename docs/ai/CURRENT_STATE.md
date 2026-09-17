@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## `awkit-reports-reference-composition`: all analytics Reports rebuilt from the attached design (2026-09-17)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes renderer composition and offline JSON export only; no validation-ledger case moved.
+
+All seven analytics routes now use report-specific compositions from the attached HTML rather than
+the previous generic card treatment. Their shared frame publishes a permission-gated Export action,
+compact four-option range control, refresh status, and reference-width content area. Reports,
+Workflow Reports, Instance Reports, Runtime Analytics, Failure Analytics, and Server Performance now
+lead with their own production-backed KPI/primary-analysis layouts and use deliberate 12, 8/4, 7/5,
+and 6/6 panel pairings for charts, summaries, tables, filters, and evidence.
+
+Chrome Consumption is fully restructured: one consolidated four-dial Consumption pressure panel,
+contexts-versus-queue history, live activity, per-context slot detail, process detail, and memory
+history. The dials use current CapacitySnapshot, BrowserWorkerPool, and ProcessTreeSampler values;
+historical charts use `runtimeSeries` and `processHistory`. Unsupported mockup values were not copied.
+All exports serialize the currently loaded production snapshot locally as JSON and remain hidden
+without `report.export` permission.
+
+**Evidence:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** in live light/dark
+Electron with zero renderer console errors; source review PASS; `git diff --check` PASS.
+`npm run verify:reports` is **BLOCKED — ENVIRONMENT** because its legacy Electron launcher exited
+before the first product assertion (`Target page, context or browser has been closed`); it was not
+retried. `verify:reports-populated-gui` is **NOT RUN** because it shares that confirmed unavailable
+launcher prerequisite. Runner, mock-site, and offline verifiers were NOT RUN because those boundaries
+were unchanged.
+
 ## `awkit-settings-reports-reference-ui`: Settings and six Reports pages corrected to the reference layouts (2026-09-17)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This correction

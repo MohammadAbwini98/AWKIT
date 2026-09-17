@@ -1,5 +1,18 @@
 # FEATURES
 
+## Report-specific reference compositions and snapshot export (2026-09-17)
+
+- All seven analytics Reports routes use the attached design's report-specific hierarchy: compact
+  range/refresh header, four-up KPI summaries, a dominant analysis surface, paired secondary panels,
+  and full-width detail/evidence tables where the underlying telemetry supports them.
+- Chrome Consumption has one consolidated four-dial pressure panel plus real contexts/queue and
+  memory histories, live pool/process activity, and per-context browser-slot detail. It no longer
+  renders four unrelated gauge cards followed by a second generic metric-card row.
+- The shared top header accepts optional action icons. Reports publish an Export action only when the
+  user has `report.export` and data is loaded; the action downloads the current real report snapshot
+  as offline JSON. Existing routes, telemetry IPC, filters, drill-down drawers, and empty/error states
+  remain authoritative.
+
 ## Settings and Reports reference-layout correction (2026-09-17)
 
 - Settings uses the reference's two-level information architecture: Appearance, then Environment and

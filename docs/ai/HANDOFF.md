@@ -1,5 +1,19 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-17, latest) — full Reports reference composition implemented
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** all seven analytics Reports routes now use report-specific reference compositions.
+  Chrome Consumption has the requested consolidated Consumption pressure panel, range/refresh
+  controls, contexts/queue history, live activity, per-context detail, and memory history. Shared
+  permission-gated JSON export is functional and uses only the currently loaded production data.
+- **Evidence:** build PASS; design tokens/live Electron 35/35 with zero console errors; source review
+  and diff check PASS. `verify:reports` is environment-BLOCKED before assertions by the known legacy
+  Electron launcher exit; `verify:reports-populated-gui` is NOT RUN against the same unavailable
+  prerequisite.
+- **Next:** no implementation remains. A future harness-only task can migrate the legacy Reports
+  launchers to the isolated user-data-dir harness already used by the passing design-token verifier.
+
 ## HANDOFF (2026-09-17, latest) — Settings and Reports reference-layout correction complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
