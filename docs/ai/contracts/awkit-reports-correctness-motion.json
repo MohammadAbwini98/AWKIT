@@ -187,24 +187,40 @@
       "type": "gui",
       "required": false,
       "command": "npm run verify:reports",
-      "result": "NOT RUN",
-      "artifact": "Not run because it shares the legacy Playwright/Electron launcher prerequisite already proven unavailable by verify:reports-settings-a11y."
+      "result": "PASS",
+      "artifact": "35/35 Reports smoke checks passed after the launcher evidence gap was closed."
     },
     {
       "id": "verify:reports-populated-gui",
       "type": "gui",
       "required": false,
       "command": "npm run verify:reports-populated-gui",
-      "result": "NOT RUN",
-      "artifact": "Not run because it shares the unavailable Reports launcher prerequisite; source assertions were updated."
+      "result": "PASS",
+      "artifact": "173 PASS / 0 FAIL / 3 NOT RUN; the three explicit live-engine/stale-row omissions are not counted as passes. Evidence: test-artifacts/reports-populated-gui/2026-09-17T20-29-33-537Z."
     },
     {
       "id": "verify:reports-settings-a11y",
       "type": "verifier",
       "required": false,
       "command": "npm run verify:reports-settings-a11y",
-      "result": "BLOCKED",
-      "artifact": "Environment: the legacy Electron launcher exited before the first product assertion with Target page, context or browser has been closed; not retried."
+      "result": "PASS",
+      "artifact": "17/17 checks passed with the shared harness-provided isolated --user-data-dir. Evidence: test-artifacts/reports-settings-a11y/2026-09-17T20-15-21-853Z."
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run typecheck:scripts",
+      "result": "PASS",
+      "artifact": "tsc -p tsconfig.scripts.json completed with zero diagnostics after explicit canvas edge-fixture typing."
+    },
+    {
+      "id": "verify:canvas-layout",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:canvas-layout",
+      "result": "PASS",
+      "artifact": "46/46 checks passed; production graph-layout behavior and loop-edge assertions were unchanged."
     },
     {
       "id": "source-review",
@@ -252,8 +268,8 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "qa_notes": "Build, telemetry, runner, design-token, source, memory, roadmap, graph, and diff checks pass. The legacy Reports GUI launcher remains environment-blocked before its first assertion; equivalent Reports GUI gates were not repeated.",
-    "qc_notes": "Approved: every changed value is production-backed or explicitly unavailable, denominator semantics are pinned by tests, all seven report compositions were reviewed, and motion honors reduced-motion.",
+    "qa_notes": "Build, telemetry, runner, design-token, source, memory, roadmap, graph, and diff checks pass. The former launcher defect is closed: Reports a11y 17/17, Reports smoke 35/35, populated Reports 173 PASS / 0 FAIL / 3 NOT RUN, script typecheck clean, and canvas layout 46/46.",
+    "qc_notes": "Approved: every changed value is production-backed or explicitly unavailable, denominator semantics are pinned by tests, all seven report compositions were reviewed, motion honors reduced-motion, and the corrected GUI launch/evidence path now reaches product assertions.",
     "closed_at_commit": "6262a61c804831cc872e018de8c0a395a1223e8a"
   },
   "write_lease": {

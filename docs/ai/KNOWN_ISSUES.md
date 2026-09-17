@@ -1,5 +1,23 @@
 # KNOWN_ISSUES
 
+## RESOLVED (2026-09-17) — Reports a11y Electron identity collision and canvas verifier typing
+
+- `verify:reports-settings-a11y` omitted the `electronArgs` returned by `isolatedLaunchEnv`, so its
+  Electron process could lose the shared single-instance lock and close before assertion 1. It now
+  launches with the harness-provided isolated `--user-data-dir`, keeps APPDATA/LOCALAPPDATA isolated,
+  preserves splash-safe `resolveMainWindow()`, and closes the app before reliable profile cleanup.
+  The corrected verifier reaches the product and passes **17/17**.
+- `verify-canvas-layout.mts` relied on an inferred heterogeneous `data` union, making the truthful
+  loop-edge `maxLoopCount` assertion fail `typecheck:scripts`. Its fixture arrays now use an explicit
+  `TestEdge` shape with the optional fields exercised by the verifier. No `any`, `@ts-ignore`,
+  assertion deletion, or production layout change was used; `typecheck:scripts` is clean and
+  `verify:canvas-layout` passes **46/46**.
+- The required Reports reruns also exposed stale verifier selectors from the shipped composition;
+  they were aligned to current headings, summary/KPI locations, four rendered range presets, and
+  computed reduced-motion units. Final evidence is `verify:reports` **35/35** and
+  `verify:reports-populated-gui` **173 PASS / 0 FAIL / 3 NOT RUN**; the three omissions remain
+  explicitly disclosed live-engine/stale-row cases, not passes.
+
 ## RESOLVED (2026-09-17) — assignment-free finalization left two dirty release-preflight files
 
 - The completed `awkit-reports-reference-composition` task had no Beads-backed roadmap claim. Its
@@ -670,10 +688,10 @@ per-defect evidence in `DEFECTS.md`. Two KNOWN_ISSUES families are now guarded, 
   recorder-draft/protected-login-recorder pin EXPECTED check counts via
   `scripts/lib/verify-harness.mjs`.
 
-**Operational note on the new strict gates:** `verify:settings-e2e` and
-`verify:reports-settings-a11y` now exit non-zero when an owner-approved OS-shell or
-environment-gated check cannot run (one such skip each in this environment). That redness is the
-point — a skip is no longer printed as green. Run with the documented approvals for full green.
+**Operational note on the new strict gates:** `verify:settings-e2e` exits non-zero when its
+owner-approved OS-shell or environment-gated check cannot run. That redness is intentional — a skip
+is not printed as green. The former Reports a11y launch issue is resolved above and its current run
+has no skipped checks.
 
 **MID-CAMPAIGN DISCLOSURE:** a *third* independent review pass filed **12 new open defects**
 (`AWKIT-SEC-003..006`, `AWKIT-DUR-002/003`, `AWKIT-REC-038..043`) into DEFECTS.md while this

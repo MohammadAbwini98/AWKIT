@@ -21,17 +21,17 @@ Shared Reports motion is restored at the component boundary: counters ramp on fi
 bars grow; donut/gauge arcs enter; timelines and sparklines draw; report panels fade/translate in.
 The global reduced-motion policy collapses all new movement while preserving final values.
 
-**Evidence:** `npm run build` PASS; `npm run verify:telemetry` **68/68 PASS**; `npm run
-verify:runner` **138/138 PASS**; `npm run verify:design-tokens` **35/35 PASS** with live light/dark
-Electron and zero renderer console errors; source review PASS; `graphify update .` completed (14,798
-nodes / 30,525 edges). `npm run verify:reports-settings-a11y` is **BLOCKED — ENVIRONMENT** because
-its legacy Playwright/Electron launcher exited before the first product assertion (`Target page,
-context or browser has been closed`). `verify:reports` and `verify:reports-populated-gui` are **NOT
-RUN** because they share that confirmed unavailable prerequisite; their source assertions were
-updated for the corrected metrics and reduced-motion behavior. `npm run typecheck:scripts` is
-**FAIL — unrelated pre-existing source error** in `scripts/verify-canvas-layout.mts:127`
-(`maxLoopCount` missing on one union member); the changed report verifier files introduce no build
-error and this unrelated command was not retried.
+**Evidence (closed 2026-09-17):** `npm run build` PASS; `npm run verify:telemetry` **68/68 PASS**;
+`npm run verify:runner` **138/138 PASS**; `npm run verify:design-tokens` **35/35 PASS** with live
+light/dark Electron and zero renderer console errors; source review PASS. The Reports GUI gap is
+closed: `verify:reports-settings-a11y` **17/17 PASS**, `verify:reports` **35/35 PASS**, and
+`verify:reports-populated-gui` **173 PASS / 0 FAIL / 3 NOT RUN**. The three populated-suite omissions
+remain explicitly scoped to live-engine or stale-row states and are not counted as passes. The a11y
+launcher now consumes the shared harness's isolated `--user-data-dir`, preventing Electron
+single-instance collisions while retaining isolated APPDATA/LOCALAPPDATA and splash-window
+resolution. `npm run typecheck:scripts` now passes with zero diagnostics after the canvas-layout
+fixture received an explicit truthful edge type; `verify:canvas-layout` is **46/46 PASS**. No
+TypeScript suppression or product graph-layout change was introduced.
 
 ## `awkit-reports-reference-composition`: all analytics Reports rebuilt from the attached design (2026-09-17)
 
@@ -53,12 +53,10 @@ All exports serialize the currently loaded production snapshot locally as JSON a
 without `report.export` permission.
 
 **Evidence:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** in live light/dark
-Electron with zero renderer console errors; source review PASS; `git diff --check` PASS.
-`npm run verify:reports` is **BLOCKED — ENVIRONMENT** because its legacy Electron launcher exited
-before the first product assertion (`Target page, context or browser has been closed`); it was not
-retried. `verify:reports-populated-gui` is **NOT RUN** because it shares that confirmed unavailable
-launcher prerequisite. Runner, mock-site, and offline verifiers were NOT RUN because those boundaries
-were unchanged.
+Electron with zero renderer console errors; source review PASS; `git diff --check` PASS. The later
+Reports verification closeout supersedes the former launcher block: `verify:reports` **35/35 PASS**
+and `verify:reports-populated-gui` **173 PASS / 0 FAIL / 3 NOT RUN**. Runner, mock-site, and offline
+verifiers were NOT RUN for this renderer composition because those boundaries were unchanged.
 
 ## `awkit-settings-reports-reference-ui`: Settings and six Reports pages corrected to the reference layouts (2026-09-17)
 
@@ -79,14 +77,12 @@ the existing telemetry/runtime queries; no reference demo data or simulated acti
 
 **Evidence:** `npm run build` PASS; `verify:design-tokens` **35/35 PASS** in live light/dark Electron
 with zero renderer console errors; focused source review PASS (6/6 report pages use the widget grid and
-Settings has exactly two reference-level sections); `git diff --check` PASS. `verify:settings-e2e` is
-**BLOCKED — ENVIRONMENT** after its one permitted retry, and `verify:reports-settings-a11y` is
-**BLOCKED — ENVIRONMENT**: their legacy Electron launchers opened DevTools and then exited before the
-first product assertion (`Target page, context or browser has been closed`). `verify:reports` and
-`verify:reports-populated-gui` are **NOT RUN** because they share that already-confirmed unavailable
-launcher prerequisite; no GUI assertion failed. `verify:runner`, `verify:mock-site`, and
-`validate:offline` were NOT RUN because runner, mock-site, main-process, packaging, and offline
-boundaries were unchanged.
+Settings has exactly two reference-level sections); `git diff --check` PASS. The Reports launcher gap
+was subsequently corrected and rerun: `verify:reports-settings-a11y` **17/17 PASS**,
+`verify:reports` **35/35 PASS**, and `verify:reports-populated-gui` **173 PASS / 0 FAIL / 3 NOT RUN**.
+The separate historical `verify:settings-e2e` environment result is unchanged. `verify:runner`,
+`verify:mock-site`, and `validate:offline` were NOT RUN for this layout correction because runner,
+mock-site, main-process, packaging, and offline boundaries were unchanged.
 
 ## `reports-system-ui`: telemetry Reports pages now match the approved design (2026-09-17)
 
@@ -107,11 +103,10 @@ keeps the established light/dark, focus, responsive, and reduced-motion behavior
 
 **Evidence:** `npm run build` PASS; `verify:design-tokens` **35/35 PASS** in live light/dark Electron
 with zero renderer console errors; source review PASS; `graphify update .` completed (14,787 nodes /
-30,454 edges). `verify:reports` is **BLOCKED — ENVIRONMENT** because Electron exited before its first
-Reports assertion. `verify:reports-populated-gui` passed all 10 pre-GUI export/data checks, then hit
-the same pre-assertion Electron shutdown. Neither suite reported a product assertion failure and the
-blocked launchers were not retried. `verify:runner`, `verify:mock-site`, and `validate:offline` were
-NOT RUN because no runner, mock-site, main-process, packaging, or offline boundary changed.
+30,454 edges). The later Reports closeout replaced the obsolete launcher result:
+`verify:reports` **35/35 PASS** and `verify:reports-populated-gui` **173 PASS / 0 FAIL / 3 NOT RUN**.
+`verify:runner`, `verify:mock-site`, and `validate:offline` were NOT RUN for this renderer-only change
+because no runner, mock-site, main-process, packaging, or offline boundary changed.
 
 ## `table-system-ui`: one approved table and filter design across the renderer (2026-09-17)
 

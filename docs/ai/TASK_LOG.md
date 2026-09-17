@@ -15184,6 +15184,29 @@ pm run verify:mock-site
   contract; authoring, persistence, runtime semantics, side selection, and accessibility surfaces are
   unchanged; the loop colour is a constant semantic green no longer derived from the user accent.
 
+## 2026-09-17 — awkit-reports-verification-closeout: Reports GUI and script typecheck evidence closed (Codex)
+
+- **Task:** repair the Reports accessibility launcher's missing isolated Electron identity, fix the
+  canvas-layout verifier's heterogeneous edge-fixture inference, rerun all required Reports and
+  repository gates, and replace stale blocked/NOT RUN project evidence with terminal results.
+- **Files:** `scripts/verify-reports-settings-a11y.mts` (shared `electronArgs`, splash-safe launch,
+  reliable app/profile teardown, current Settings selectors); `scripts/verify-canvas-layout.mts`
+  (explicit `TestEdge` fixture type); `scripts/verify-reports-populated-gui.mts` (current Reports
+  headings, KPI/summary locations, rendered range choices, animation-duration normalization, and
+  deterministic bounded evidence screenshot); `docs/ai/{CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`;
+  current and originating Reports task contracts; lease/assignment closeout files.
+- **Tests:** `npm run build` **PASS**; `typecheck:scripts` **PASS** (zero diagnostics);
+  `verify:canvas-layout` **46/46**; `verify:reports-settings-a11y` **17/17**;
+  `verify:reports` **35/35**; `verify:reports-populated-gui` **173 PASS / 0 FAIL / 3 NOT RUN**;
+  `verify:telemetry` **68/68**; `verify:design-tokens` **35/35**;
+  `verify:verifier-classification` **PASS** (205 classified commands); `graphify update .` **PASS**
+  (14,802 nodes / 30,529 edges); `ai:memory:check` **PASS**; `verify:roadmap-dashboard` **177/177**
+  with **Sources agree**; `git diff --check` **PASS**. The populated-suite omissions are disclosed
+  live-engine/stale-row cases and were not counted as passes.
+- **Result:** Electron no longer exits from a shared single-instance lock before the a11y assertions;
+  all Reports GUI gates reach product assertions; the script type gate is clean without suppression;
+  authoritative evidence now reflects the terminal outcomes.
+
 ## 2026-09-16 — settings-system-ui: Settings page replaced with approved system design (Codex)
 
 - **Task:** review the attached offline SpecterStudio system UI artifact and implement only its

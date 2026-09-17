@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-17, latest) — full Reports reference composition implemented
+## HANDOFF (2026-09-17, latest) — Reports GUI and script-type evidence closed
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** the Reports accessibility verifier now passes the shared harness's isolated
+  `--user-data-dir` into Electron and always cleans up its isolated APPDATA/LOCALAPPDATA profile;
+  the canvas-layout verifier uses an explicit edge fixture type; stale populated-Reports selectors
+  were reconciled with the shipped report composition without weakening product assertions.
+- **Evidence:** build PASS; `typecheck:scripts` PASS with zero diagnostics; canvas layout **46/46**;
+  Reports a11y **17/17**; Reports smoke **35/35**; populated Reports **173 PASS / 0 FAIL / 3 NOT
+  RUN**; telemetry **68/68**; design tokens **35/35**. The three populated-suite omissions are
+  explicitly reported live-engine/stale-row cases and remain outside the pass count.
+- **Next:** no Reports implementation or verification repair remains; retain the three explicit
+  populated-suite omissions until a suitable multi-session/live-engine fixture is added.
+
+## HANDOFF (2026-09-17, superseded) — full Reports reference composition implemented
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** all seven analytics Reports routes now use report-specific reference compositions.
@@ -8,23 +22,19 @@
   controls, contexts/queue history, live activity, per-context detail, and memory history. Shared
   permission-gated JSON export is functional and uses only the currently loaded production data.
 - **Evidence:** build PASS; design tokens/live Electron 35/35 with zero console errors; source review
-  and diff check PASS. `verify:reports` is environment-BLOCKED before assertions by the known legacy
-  Electron launcher exit; `verify:reports-populated-gui` is NOT RUN against the same unavailable
-  prerequisite.
-- **Next:** no implementation remains. A future harness-only task can migrate the legacy Reports
-  launchers to the isolated user-data-dir harness already used by the passing design-token verifier.
+  and diff check PASS. The former launcher block is resolved by the closeout above.
+- **Next:** superseded by the closeout above.
 
-## HANDOFF (2026-09-17, latest) — Settings and Reports reference-layout correction complete
+## HANDOFF (2026-09-17, superseded) — Settings and Reports reference-layout correction complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** Settings now has the reference's two primary groups and organized internal subsections;
   Reports Overview, Workflow Reports, Instance Reports, Chrome Consumption, Runtime Analytics, and
   Failure Analytics now use real 12-column KPI/widget compositions with production data.
-- **Evidence:** build PASS; design tokens 35/35; focused source review and diff check PASS. The legacy
-  Settings/a11y Electron launchers remain environment-blocked before assertions; the remaining two
-  Reports GUI gates were not repeated against the same unavailable prerequisite.
-- **Next:** no implementation remains. A future harness task can migrate the legacy Settings/Reports
-  verifiers to the isolated user-data-dir launcher already used by the passing design-token suite.
+- **Evidence:** build PASS; design tokens 35/35; focused source review and diff check PASS. The
+  Reports/a11y launcher and both Reports GUI gates were subsequently corrected and rerun by the
+  closeout above; the separate Settings-only launcher history is unchanged.
+- **Next:** superseded by the closeout above for Reports.
 
 ## HANDOFF (2026-09-15, latest) — anti-loop execution controls implemented
 
@@ -58,11 +68,9 @@
   accent GUI **40/40** (including the real bundled-splash module/CSP/canvas smoke check); mock-site
   **177/177**; profile store **74/74**; session context **11/11**;
   source hygiene **11/11**; verifier classification **205/205**.
-- **Known verification limitation:** `verify:settings-e2e`, `verify:settings-persistence`, and
-  `verify:reports-settings-a11y` close Electron before attachment because their older launchers do
-  not pass the now-canonical isolated `--user-data-dir`. They are NOT RUN rather than product
-  failures; the passing accent/design-token GUI verifiers use the corrected harness. The launcher
-  gap is outside this scoped change.
+- **Known verification limitation at the time:** `verify:settings-e2e` and
+  `verify:settings-persistence` used older launchers. The Reports a11y launcher was subsequently
+  migrated to the canonical isolated `--user-data-dir` and now passes **17/17**.
 - **QC:** independent review initially rejected the inline-only splash CSP after Vite converted its
   production entry to a local module. The corrected `script-src 'self' 'unsafe-inline'` preserves
   both package and Vite-dev execution; QC re-review **APPROVED** the code and 40/40 real-Electron
