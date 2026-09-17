@@ -2,8 +2,8 @@
   "version": 1,
   "task": {
     "id": "awkit-table-system-ui",
-    "title": "Apply the attached system table design across SpecterStudio",
-    "objective": "Replace SpecterStudio's table presentation with the attached design's shared search, filter, table, and pagination treatment while preserving all existing table data, behavior, handlers, permissions, and page structure. Limit product changes to the table component and its shared CSS.",
+    "title": "Apply the attached table and Reports designs across SpecterStudio",
+    "objective": "Apply the attached design's shared table treatment and Reports-page visual system while preserving all existing data, telemetry queries, behavior, handlers, permissions, and routes. Limit the Reports follow-up to the shared report frame and report-scoped CSS.",
     "requested_by": "owner",
     "mode": "change",
     "risk_level": 1
@@ -32,6 +32,7 @@
     ],
     "expected_paths": [
       "app/renderer/components/table/TableUI.tsx",
+      "app/renderer/components/reports/ReportPage.tsx",
       "app/renderer/styles/global.css",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/FEATURES.md",
@@ -65,6 +66,7 @@
   "constraints": {
     "scope": [
       "Change table presentation only; preserve page layouts, table data, filtering logic, sorting logic, pagination state, actions, routes, and preload contracts.",
+      "For the Reports follow-up, change only the shared Reports presentation layer; preserve every report's telemetry data, queries, states, controls, tables, permissions, and route structure.",
       "Reuse the existing table component and Hologram design tokens; do not add a parallel component system or dependency.",
       "Treat the attached HTML as a visual reference only and do not copy its demo data or simulated behavior."
     ],
@@ -95,8 +97,19 @@
       ]
     },
     {
+      "id": "REPORTS-SYSTEM-UI",
+      "description": "All telemetry Reports routes share the attached design's compact report header, time-range controls, KPI cards, and analytics-panel treatment without changing their data or behavior.",
+      "evidence_required": [
+        "build",
+        "verify:design-tokens",
+        "verify:reports",
+        "verify:reports-populated-gui",
+        "source-review"
+      ]
+    },
+    {
       "id": "STATE-RECONCILED",
-      "description": "AI memory, the code graph, and roadmap sources accurately record the completed table-only change.",
+      "description": "AI memory, the code graph, and roadmap sources accurately record the table and Reports presentation changes.",
       "evidence_required": [
         "ai-memory-check",
         "verify:roadmap-dashboard",
@@ -111,7 +124,7 @@
       "required": true,
       "command": "npm run build",
       "result": "PASS",
-      "artifact": "2026-09-17: embedded roadmap snapshot, TypeScript no-emit check, and all Electron/Vite bundles completed. The existing securityKernel dynamic-import advisory remained non-failing."
+      "artifact": "2026-09-17 Reports follow-up: embedded roadmap snapshot, TypeScript no-emit check, and all Electron/Vite bundles completed. The existing securityKernel dynamic-import advisory remained non-failing."
     },
     {
       "id": "verify:design-tokens",
@@ -119,7 +132,7 @@
       "required": true,
       "command": "npm run verify:design-tokens",
       "result": "PASS",
-      "artifact": "2026-09-17: 35/35 static and live Electron checks passed in light and dark themes. The real Sessions table retained a 52px row, contained long values/actions, scrolled deliberately at narrow width, and emitted zero renderer console errors."
+      "artifact": "2026-09-17 Reports follow-up: 35/35 static and live Electron checks passed in light and dark themes, including token resolution and zero renderer console errors."
     },
     {
       "id": "verify:flow-library",
@@ -135,7 +148,15 @@
       "required": true,
       "command": "npm run verify:reports",
       "result": "BLOCKED",
-      "artifact": "BLOCKED — ENVIRONMENT on 2026-09-17. Electron exited before GUI assertions with Target page, context or browser has been closed. One retry after diagnosing the initial concurrent DevToolsActivePort collision reproduced the same pre-assertion exit when run alone; no product assertion failed or passed."
+      "artifact": "BLOCKED — ENVIRONMENT on 2026-09-17 after the Reports follow-up. Electron opened its inspector and DevTools endpoints, then exited before the first Reports GUI assertion with Target page, context or browser has been closed. No product assertion failed or passed; the blocked gate was not retried."
+    },
+    {
+      "id": "verify:reports-populated-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:reports-populated-gui",
+      "result": "BLOCKED",
+      "artifact": "BLOCKED — ENVIRONMENT on 2026-09-17. Ten export/data checks passed, including CSV/XLSX/JSON integrity and secret omission, then Electron exited before the first populated Reports GUI assertion with Target page, context or browser has been closed. No product GUI assertion failed or passed; the blocked gate was not retried."
     },
     {
       "id": "source-review",
@@ -143,7 +164,7 @@
       "required": true,
       "command": null,
       "result": "PASS",
-      "artifact": "2026-09-17: product diff is confined to TableUI.tsx and global.css. All 24 renderer table declarations resolve through one of the covered table classes or the explicit unclassified-table selector; no page data, handler, permission, IPC, route, or layout source changed."
+      "artifact": "2026-09-17 Reports follow-up: product changes are confined to ReportPage.tsx and report-scoped rules in global.css. Existing report page queries, data states, range values, filters, sorting, tables, charts, drawers, permissions, routes, IPC, and offline behavior remain untouched."
     },
     {
       "id": "ai-memory-check",
@@ -151,7 +172,7 @@
       "required": true,
       "command": "npm run ai:memory:check",
       "result": "PASS",
-      "artifact": "2026-09-17: required AI memory checks passed after CURRENT_STATE, FEATURES, and TASK_LOG were updated."
+      "artifact": "2026-09-17 Reports follow-up: required AI memory checks passed after CURRENT_STATE, FEATURES, and TASK_LOG recorded the shared Reports presentation and verification outcomes."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -159,7 +180,7 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "result": "PASS",
-      "artifact": "2026-09-17: 177/177 checks passed; the validation ledger remained 65 PASS / 2 NOT RUN / 0 BLOCKED and the Overview banner reads Sources agree."
+      "artifact": "2026-09-17 Reports follow-up final state: 177/177 checks passed; the validation ledger remained 65 PASS / 2 NOT RUN / 0 BLOCKED and the Overview banner reads Sources agree."
     },
     {
       "id": "git-diff-check",
@@ -167,7 +188,7 @@
       "required": true,
       "command": "git diff --check",
       "result": "PASS",
-      "artifact": "2026-09-17: no whitespace errors in the final renderer, project-state, task-contract, and lease-bookkeeping diff."
+      "artifact": "2026-09-17 Reports follow-up: no whitespace errors in the final shared Reports renderer, project-state, task-contract, and lease-bookkeeping diff."
     }
   ],
   "scope_escapes": [],
@@ -183,8 +204,8 @@
     "status": "blocked",
     "qa_status": "BLOCKED",
     "qc_status": "APPROVED",
-    "qa_notes": "Implementation and the live design-system table coverage pass, but the two predeclared broad GUI suites are required evidence and remain BLOCKED — ENVIRONMENT after their one permitted retry. They executed zero product GUI assertions, so QA cannot truthfully be PASS.",
-    "qc_notes": "Approved the requested implementation scope and source diff: the only product files changed are the shared table component and global table CSS; existing page behavior and data contracts remain intact. Approval does not convert the blocked GUI evidence to PASS."
+    "qa_notes": "The table and Reports implementations build and pass live light/dark token coverage, but the predeclared Flow Library and two Reports GUI launchers exit before product GUI assertions on this host. Their required evidence is truthfully BLOCKED — ENVIRONMENT.",
+    "qc_notes": "Approved the implementation scope: the product diff is limited to the shared Reports frame and report-scoped token CSS, with telemetry behavior and contracts preserved. Approval does not convert blocked GUI evidence to PASS."
   },
   "write_lease": {
     "history": [
@@ -201,6 +222,63 @@
         "acquired_at_commit": "7d618887e6b0a1b9bcbcb9a3e50fbd856d230af4",
         "released_at": "2026-09-17T13:40:27.314Z",
         "released_reason": "handoff to project-state: Renderer table redesign is implemented and verified; record evidence and project-state closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-table-system-ui:project-state:2026-09-17T13:40:27.388Z",
+        "task": "awkit-table-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-table-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T13:40:27.388Z",
+        "acquired_at_commit": "aacd7b0118c4fe956663f184f66e9c31f8f296dd",
+        "released_at": "2026-09-17T13:59:15.291Z",
+        "released_reason": "handoff to frontend: Implement the owner-requested Reports visual follow-up through the shared report frame and report-scoped CSS only.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-table-system-ui:frontend:2026-09-17T13:59:15.350Z",
+        "task": "awkit-table-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/reports/ReportPage.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T13:59:15.350Z",
+        "acquired_at_commit": "5d0287d1a4f87e023a071d8ac96d900214757825",
+        "released_at": "2026-09-17T14:04:29.911Z",
+        "released_reason": "handoff to project-state: Shared Reports presentation is implemented; record verification evidence, memory, and project-state closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-table-system-ui:project-state:2026-09-17T14:04:29.975Z",
+        "task": "awkit-table-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-table-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T14:04:29.975Z",
+        "acquired_at_commit": "5d0287d1a4f87e023a071d8ac96d900214757825",
+        "released_at": "2026-09-17T14:08:26.524Z",
+        "released_reason": "Implementation and project-state closeout are complete; required GUI gates are truthfully recorded as environment-blocked.",
         "amendments": [],
         "overrides": [],
         "violations": []

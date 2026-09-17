@@ -23,7 +23,14 @@ export function ReportPage({ title, description, icon, range, onRangeChange, onR
     <>
       {range && onRangeChange ? <TimeRangeSelector value={range} onChange={onRangeChange} /> : null}
       {onRefresh ? (
-        <button type="button" className="awkit-icon-button" onClick={onRefresh} aria-label="Refresh" title="Refresh">
+        <button
+          type="button"
+          className="awkit-icon-button awkit-report-refresh"
+          onClick={onRefresh}
+          aria-label="Refresh"
+          aria-busy={refreshing || undefined}
+          title="Refresh"
+        >
           <RefreshCw size={16} className={refreshing ? "awkit-spin" : ""} />
         </button>
       ) : null}

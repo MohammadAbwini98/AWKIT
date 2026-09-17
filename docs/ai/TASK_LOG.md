@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-17 — `awkit-table-system-ui` follow-up: shared Reports redesign (Codex)
+
+- **Task:** apply the previously attached design's Reports-page presentation to the existing
+  telemetry Reports routes while changing only the shared report component design.
+- **Files:** `app/renderer/components/reports/ReportPage.tsx`, report-scoped rules in
+  `app/renderer/styles/global.css`, `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`, and task/lease
+  bookkeeping files.
+- **Implementation:** the shared report frame now carries the compact icon/title introduction, pill
+  range selector, square refresh action, responsive icon-led KPI tiles, and denser bordered analytics
+  panels from the reference. All seven telemetry report pages inherit the change. No page query,
+  telemetry data, range value, loading/empty/error state, filter, sorter, chart, drawer, permission,
+  route, IPC, or offline behavior changed.
+- **Tests run:** `npm run build` PASS; `npm run verify:design-tokens` 35/35 PASS (live light/dark
+  Electron and zero renderer console errors); source review PASS; `graphify update .` completed
+  (14,787 nodes / 30,454 edges). `verify:reports` is **BLOCKED — ENVIRONMENT** before its first GUI
+  assertion; `verify:reports-populated-gui` passed 10 export/data checks then hit the same
+  pre-assertion Electron shutdown. Neither suite reported a product assertion failure and neither
+  blocked launcher was retried. **Not run:** `verify:runner`, `verify:mock-site`, `validate:offline`
+  (unaffected surfaces).
+- **Result:** Reports implementation complete; required GUI evidence remains environment-blocked;
+  validation ledger unchanged.
+
 ## 2026-09-17 — `awkit-table-system-ui`: shared table and filter redesign (Codex)
 
 - **Task:** apply the attached SpecterStudio table/filter design to every renderer table while

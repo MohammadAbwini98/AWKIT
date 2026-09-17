@@ -2,7 +2,7 @@
   "task": "awkit-table-system-ui",
   "contract_path": "docs/ai/contracts/awkit-table-system-ui.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
@@ -10,15 +10,21 @@
     "docs/ai/contracts/awkit-table-system-ui.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-17T13:40:27.388Z",
-  "acquired_at_commit": "aacd7b0118c4fe956663f184f66e9c31f8f296dd",
+  "acquired_at": "2026-09-17T14:04:29.975Z",
+  "acquired_at_commit": "5d0287d1a4f87e023a071d8ac96d900214757825",
   "baseline_dirty": [
+    "app/renderer/components/reports/ReportPage.tsx",
+    "app/renderer/styles/global.css",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-table-system-ui.json"
+    "docs/ai/contracts/awkit-table-system-ui.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "186584a3467aa3b4b87a88d93c0e97f5d0738b967fe56f713b7bd809f4a6890a",
-    "docs/ai/contracts/awkit-table-system-ui.json": "273dd852f05a010aa79105d5e4ba5305b9ab0c7ab1caea9ee80abcce80e867da"
+    "app/renderer/components/reports/ReportPage.tsx": "29322e981f3d0e7f1e7dccb9c1799c7093009171178fe546257d69a67b0c2ceb",
+    "app/renderer/styles/global.css": "928218d749f8937b289fa3ba71ae5421aff883ee42958f1d0c193463739902fd",
+    "docs/ai/contracts/active-lease.json": "e293cb1f30152f56c79dbc9b3d2e910a1c8768fca74ac9f4a9fb5cd63bc6d8c9",
+    "docs/ai/contracts/awkit-table-system-ui.json": "8d055b80945b1743c92bc207f4cb2926e592821285b1a0e5d02c424dcfbd3543",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,5 +38,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T14:08:26.524Z",
+  "released_reason": "Implementation and project-state closeout are complete; required GUI gates are truthfully recorded as environment-blocked.",
+  "archived_at": "2026-09-17T14:08:26.525Z"
 }

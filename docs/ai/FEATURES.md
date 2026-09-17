@@ -633,6 +633,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   chips from `executions.runtimeStatus()` instead of static placeholder values. Flow Designer and Workflow
   Builder now use the attached sparse dot canvas pattern (`gap={44}`, `size={2.4}`) with visible
   light-mode lavender dots and a transparent React Flow pane.
+- ✅ **Unified Reports presentation (2026-09-17):** all seven telemetry Reports routes inherit the
+  approved compact icon/title frame, pill time ranges, refresh action, responsive icon-led KPI tiles,
+  and bordered analytics panels through `ReportPage.tsx` plus report-scoped Hologram-token CSS. Report
+  data, queries, range behavior, filters, tables, charts, drawers, permissions, and IPC remain unchanged.
 
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,

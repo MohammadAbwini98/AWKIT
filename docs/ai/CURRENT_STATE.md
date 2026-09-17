@@ -1,5 +1,30 @@
 # CURRENT_STATE
 
+## `reports-system-ui`: telemetry Reports pages now match the approved design (2026-09-17)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This is a
+renderer-only presentation change; no validation-ledger case moved.
+
+All seven telemetry Reports routes now share the attached design's compact report frame: an
+accent-tinted icon/title introduction, pill time-range selector, square refresh action, responsive
+KPI tiles with icon treatments, and denser bordered analytics panels. The visual layer is centralized
+in `components/reports/ReportPage.tsx` and report-scoped rules in `styles/global.css`, so Reports
+Overview, Workflow Reports, Instance Reports, Chrome Consumption, Runtime Analytics, Failure
+Analytics, and Server Performance inherit the same treatment without duplicating page markup.
+
+All telemetry queries, range values, loading/empty/error states, workflow filters, sortable tables,
+drill-down drawers, charts, permissions, routes, IPC contracts, and offline behavior are unchanged.
+The implementation uses existing Hologram spacing, radius, type, color, shadow, and motion tokens and
+keeps the established light/dark, focus, responsive, and reduced-motion behavior.
+
+**Evidence:** `npm run build` PASS; `verify:design-tokens` **35/35 PASS** in live light/dark Electron
+with zero renderer console errors; source review PASS; `graphify update .` completed (14,787 nodes /
+30,454 edges). `verify:reports` is **BLOCKED — ENVIRONMENT** because Electron exited before its first
+Reports assertion. `verify:reports-populated-gui` passed all 10 pre-GUI export/data checks, then hit
+the same pre-assertion Electron shutdown. Neither suite reported a product assertion failure and the
+blocked launchers were not retried. `verify:runner`, `verify:mock-site`, and `validate:offline` were
+NOT RUN because no runner, mock-site, main-process, packaging, or offline boundary changed.
+
 ## `table-system-ui`: one approved table and filter design across the renderer (2026-09-17)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This is a

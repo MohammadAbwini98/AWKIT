@@ -10167,16 +10167,55 @@ th {
 .awkit-report-page {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-4);
+  padding: var(--space-4h);
+}
+
+.awkit-report-page > .awkit-section-header {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: 0;
+}
+
+.awkit-report-page > .awkit-section-header .awkit-section-header-main {
+  flex: 1;
+  gap: var(--space-3);
+  min-width: calc(var(--space-5) * 8);
+}
+
+.awkit-report-page > .awkit-section-header .awkit-section-header-icon {
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent);
+  flex: 0 0 auto;
+}
+
+.awkit-report-page > .awkit-section-header h2 {
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-lg);
+}
+
+.awkit-report-page > .awkit-section-header p {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  margin-top: var(--space-1);
+  text-wrap: pretty;
+}
+
+.awkit-report-page > .awkit-section-header .awkit-section-header-actions {
+  gap: var(--space-2);
 }
 
 /* Time-range segmented control */
 .awkit-range-selector {
   background: var(--awkit-surface-inset);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
   display: inline-flex;
-  gap: 2px;
-  padding: 3px;
+  gap: var(--space-1);
+  padding: var(--space-1);
 }
 .awkit-range-selector button {
   background: transparent;
@@ -10185,7 +10224,8 @@ th {
   color: var(--awkit-text-muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  padding: 5px 12px;
+  min-height: var(--space-5);
+  padding: 0 var(--space-3);
   transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 .awkit-range-selector button:hover {
@@ -10195,6 +10235,88 @@ th {
   background: var(--awkit-surface);
   color: var(--awkit-accent);
   box-shadow: var(--awkit-shadow-soft);
+}
+
+.awkit-report-refresh {
+  border-radius: var(--radius-xs);
+  box-shadow: var(--awkit-shadow-soft);
+}
+
+.awkit-report-page .metrics-grid {
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-5) * 9), 1fr));
+  margin-bottom: 0;
+}
+
+.awkit-report-page .metric-card {
+  align-items: start;
+  box-shadow: var(--awkit-shadow-soft);
+  gap: var(--space-3);
+  grid-template-areas:
+    "icon metric"
+    "detail detail";
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.awkit-report-page .metric-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  grid-area: metric;
+  min-width: 0;
+}
+
+.awkit-report-page .metric-card > div > span:first-child {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awkit-report-page .metric-card > div > strong {
+  font-size: var(--text-2xl);
+  line-height: var(--leading-2xl);
+  margin-top: 0;
+}
+
+.awkit-report-page .metric-card > svg {
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-xs);
+  box-sizing: content-box;
+  color: var(--awkit-accent);
+  grid-area: icon;
+  padding: var(--space-1);
+}
+
+.awkit-report-page :is(.metric-card-success, .metric-card-warning, .metric-card-danger) {
+  border-color: var(--awkit-border);
+}
+
+.awkit-report-page .metric-card-success > svg {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+
+.awkit-report-page .metric-card-warning > svg {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.awkit-report-page .metric-card-danger > svg {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.awkit-report-page .metric-card > p {
+  align-self: end;
+  font-size: var(--text-xs);
+  grid-area: detail;
+  line-height: var(--leading-xs);
 }
 
 .awkit-icon-button {
@@ -10234,21 +10356,27 @@ th {
 }
 
 .awkit-report-panel {
-  border-radius: var(--awkit-radius-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--awkit-shadow-soft);
+  padding: var(--space-4);
 }
 .awkit-report-panel-head {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: var(--space-4);
 }
 .awkit-report-panel-head strong {
   display: block;
-  font-size: 15px;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-md);
 }
 .awkit-report-panel-head span {
   color: var(--awkit-text-muted);
-  font-size: var(--text-sm);
+  display: block;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  margin-top: var(--space-1);
 }
 
 /* Runtime Observability & Historical Analytics — capacity/anomaly tables */
@@ -10315,8 +10443,8 @@ th {
   align-items: flex-end;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3, 12px);
-  margin-bottom: 16px;
+  gap: var(--space-3);
+  margin-bottom: 0;
 }
 .awkit-filter-field {
   display: flex;
