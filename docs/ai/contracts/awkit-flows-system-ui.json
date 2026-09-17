@@ -173,8 +173,8 @@
       "type": "inspection",
       "required": true,
       "command": "git push origin main",
-      "result": "NOT RUN",
-      "artifact": "Pending coherent implementation and closeout commits."
+      "result": "PASS",
+      "artifact": "2026-09-18: origin/main advanced 5763ac5..a3d1bba. The push carried this task's implementation commit a3d1bba and the two pre-existing local release commits 1fe7e2d and ba17cf6, which were already on main before this task began."
     }
   ],
   "scope_escapes": [],
@@ -264,6 +264,26 @@
         "acquired_at_commit": "ba17cf6cfb96d3d0a8c565bac76c92fa68c75291",
         "released_at": "2026-09-17T22:51:36.609Z",
         "released_reason": "Flows system UI implemented, verified, documented, and reconciled; ready for coherent main commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-flows-system-ui:project-state:2026-09-17T22:52:14.795Z",
+        "task": "awkit-flows-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-flows-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T22:52:14.795Z",
+        "acquired_at_commit": "a3d1bbaf7a4c575180e26ba407c32742eb689afe",
+        "released_at": "2026-09-17T22:52:36.063Z",
+        "released_reason": "push evidence recorded and task gate passed; close final project-state lease",
         "amendments": [],
         "overrides": [],
         "violations": []

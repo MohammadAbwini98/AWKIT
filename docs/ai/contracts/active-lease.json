@@ -10,26 +10,10 @@
     "docs/ai/contracts/awkit-flows-system-ui.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-17T22:48:22.140Z",
-  "acquired_at_commit": "ba17cf6cfb96d3d0a8c565bac76c92fa68c75291",
-  "baseline_dirty": [
-    "app/renderer/pages/FlowLibrary.tsx",
-    "app/renderer/styles/global.css",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-flows-system-ui.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "app/renderer/pages/FlowLibrary.tsx": "4064a2e3a1e21114d037bc572ce79827ac47c2510483eb1bf617e9716fd4a647",
-    "app/renderer/styles/global.css": "0f49c6f94ee7249931df0c959c0665144ff0db03c5c492c69c2b64797dad8700",
-    "docs/ai/CURRENT_STATE.md": "a573e1578ee1ffb3b21fae236e3bdc19d3e4bdc56fc8d864c82e6837358aee3f",
-    "docs/ai/FEATURES.md": "26badc2cb50bd96a146c9a50d8fe002033dad41afa691345e49a9781c4e97ca1",
-    "docs/ai/TASK_LOG.md": "16e8509a34a56c82dc72cb11bcef94e90a5bd870111b991fad86501fc9cf82d3",
-    "docs/ai/contracts/active-lease.json": "ed0f4f89dc9b57a0a1ec1841ebf278233110d68cdd4c9565a6fd6372906cf3a1",
-    "docs/ai/contracts/awkit-flows-system-ui.json": "f80e9942764af01a232579f080c7d6347a2b87fa43c4d4e4a2b47793c73aefec"
-  },
+  "acquired_at": "2026-09-17T22:52:14.795Z",
+  "acquired_at_commit": "a3d1bbaf7a4c575180e26ba407c32742eb689afe",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -43,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-17T22:51:36.609Z",
-  "released_reason": "Flows system UI implemented, verified, documented, and reconciled; ready for coherent main commit",
-  "archived_at": "2026-09-17T22:51:36.611Z"
+  "released_at": "2026-09-17T22:52:36.063Z",
+  "released_reason": "push evidence recorded and task gate passed; close final project-state lease",
+  "archived_at": "2026-09-17T22:52:36.064Z"
 }
