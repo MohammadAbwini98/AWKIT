@@ -4,6 +4,7 @@
   "holder": "frontend",
   "status": "active",
   "allowed_paths": [
+    "app/renderer/components/table/TableUI.tsx",
     "app/renderer/pages/WorkflowsLibrary.tsx",
     "app/renderer/styles/global.css"
   ],
@@ -27,7 +28,17 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789678335502.039"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-17T21:40:38.591Z",
+      "added": [
+        "app/renderer/components/table/TableUI.tsx"
+      ],
+      "reason": "QC review requires the aria-sort attribute on the shared sortable header the redesign relies on",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }

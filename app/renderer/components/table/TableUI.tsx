@@ -14,8 +14,14 @@ interface SortableHeaderCellProps {
 
 export function SortableHeaderCell({ label, columnKey, sortBy, sortDirection, onSort, align = "left" }: SortableHeaderCellProps) {
   const active = sortBy === columnKey;
+  // The direction is drawn as a chevron, which a screen reader cannot see. aria-sort is the only
+  // thing that tells a non-visual reader which column orders the table and which way.
   return (
-    <th className="sortable-header" style={{ textAlign: align }}>
+    <th
+      className="sortable-header"
+      style={{ textAlign: align }}
+      aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+    >
       <button type="button" onClick={() => onSort(columnKey)} title={`Sort by ${label}`}>
         <span>{label}</span>
         {active ? (

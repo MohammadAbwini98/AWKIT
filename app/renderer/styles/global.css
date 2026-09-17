@@ -4496,7 +4496,6 @@ th {
 }
 
 .wl-select-cell {
-  padding-inline: var(--space-3);
   text-align: center;
 }
 
@@ -4504,10 +4503,6 @@ th {
   accent-color: var(--awkit-accent);
   cursor: pointer;
   margin: 0;
-}
-
-.wl-table-workflows tbody tr.is-selected {
-  background: var(--awkit-accent-soft);
 }
 
 .wl-row-actions {
@@ -15473,6 +15468,25 @@ th {
 .status-chip {
   align-items: center;
   gap: var(--space-1);
+}
+
+/* Both of these must outrank the system-table layer above, which is why they live here.
+   A selected row stays visibly selected under the pointer: the plain `.is-selected` rule ties the
+   system layer's `tr:hover` on specificity and would lose on order, hiding the selection of the one
+   row the user is actually pointing at. The select column likewise needs a narrower inline padding
+   than the system layer's cell padding, or a checkbox sits in a 44px column with 32px of padding. */
+.wl-table-workflows tbody tr.is-selected,
+.wl-table-workflows tbody tr.is-selected:hover {
+  background: var(--awkit-accent-soft);
+}
+
+.wl-table-workflows :is(th, td).wl-select-cell {
+  padding-inline: var(--space-3);
+}
+
+.wl-pill-glyph {
+  align-items: center;
+  display: inline-flex;
 }
 
 :is(.awkit-report-filters, .awkit-admin-filter-bar) {

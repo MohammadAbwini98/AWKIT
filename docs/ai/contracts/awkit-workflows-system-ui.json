@@ -33,6 +33,7 @@
     ],
     "expected_paths": [
       "app/renderer/pages/WorkflowsLibrary.tsx",
+      "app/renderer/components/table/TableUI.tsx",
       "app/renderer/styles/global.css",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/FEATURES.md",
@@ -52,6 +53,7 @@
       "agent_id": "frontend",
       "allowed_paths": [
         "app/renderer/pages/WorkflowsLibrary.tsx",
+        "app/renderer/components/table/TableUI.tsx",
         "app/renderer/styles/global.css"
       ]
     },
@@ -84,10 +86,11 @@
     },
     {
       "id": "WORKFLOWS-BEHAVIOR-PRESERVED",
-      "description": "Every existing Workflows control, permission gate, confirmation dialog, import-conflict flow, filter, sort, and pagination path remains wired to its existing handler and preload channel.",
+      "description": "Every existing Workflows control, permission gate, confirmation dialog, import-conflict flow, filter, sort, and pagination path remains wired to its existing handler and preload channel, and the new bulk actions report partial failure truthfully.",
       "evidence_required": [
         "build",
-        "source-review"
+        "source-review",
+        "qc-review"
       ]
     },
     {
@@ -164,6 +167,22 @@
       "command": "git diff --check",
       "result": "PASS",
       "artifact": "2026-09-17: no whitespace errors in the final renderer and project-state diff."
+    },
+    {
+      "id": "qc-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "2026-09-18: independent awkit-qc-reviewer pass over 818ede3 returned REJECTED with two HIGH findings — bulk delete aborted mid-loop, and SortableHeaderCell emitted no aria-sort while the redesign added a sortable column. A second pass REJECTED the first delete correction: setError(msg) before await load() was erased by load's synchronous setError(\"\") in the same React batch, making a partial bulk-delete failure completely silent. The third pass APPROVED after the reload was sequenced ahead of the message. One MEDIUM (tr:hover outranked .is-selected on a specificity tie) and two LOW findings were also fixed and cleared."
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "pending",
+      "artifact": null
     }
   ],
   "scope_escapes": [],
@@ -172,13 +191,14 @@
     "commit_policy": "coherent",
     "force_push": false,
     "destructive_reset": false,
-    "push_authorized": false
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
   },
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending",
-    "notes": "Implementation and every required gate are PASS. Independent QC review was not performed, and the two GUI verifiers that navigate to the Workflows route are BLOCKED on this host, so the redesigned page has no live GUI assertion yet. The task is deliberately NOT marked complete."
+    "qc_status": "APPROVED",
+    "notes": "Owner authorized the push directly. Independent QC APPROVED on its third pass, after two REJECTED passes whose findings are recorded in the qc-review evidence. Status stays 'implemented', not 'complete': the two GUI verifiers that navigate to the Workflows route (verify:e2e-sweep, verify:flow-library) are BLOCKED by the documented host-state electron.launch harness issue, so the redesigned page still has no live GUI assertion. QC's recorded position is that this gap does not block a development push but DOES block a release claim. The bulk-delete partial-failure path is the part of this change least covered by any gate available on this host — it is state sequencing that no static check, build, or token sweep can observe, and it is the single most valuable thing to exercise when the harness is next available."
   },
   "write_lease": {
     "history": [

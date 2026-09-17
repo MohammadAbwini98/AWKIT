@@ -144,17 +144,41 @@ export function WorkflowsLibrary() {
     [load]
   );
 
+  /**
+   * A bulk delete is N independent deletions, so one failure must not strand the other N-1.
+   * Each id is caught on its own and the dialog, the selection, and the list are reconciled from
+   * what actually succeeded — otherwise a failure at id 3 of 5 leaves two workflows gone from disk
+   * while the table still lists all five and the open dialog invites a second Delete that re-issues
+   * the two already-removed ids.
+   */
   const deleteWorkflows = useCallback(
     async (ids: string[]) => {
-      try {
-        for (const id of ids) {
+      const deleted: string[] = [];
+      const failed: string[] = [];
+      for (const id of ids) {
+        try {
           await window.playwrightFlowStudio.workflows.delete(id);
+          deleted.push(id);
+        } catch {
+          failed.push(id);
         }
-        setDeleteTargetIds([]);
-        setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
-        await load();
-      } catch {
-        setError(ids.length > 1 ? "Failed to delete the selected workflows." : "Failed to delete workflow.");
+      }
+      setDeleteTargetIds([]);
+      setSelectedIds((prev) => prev.filter((id) => !deleted.includes(id)));
+      // The reload must come FIRST. `load` clears the error synchronously, before its own first
+      // await, so a message written above this line would be queued in the same batch and silently
+      // overwritten — the failure would vanish instead of being reported. The only lossy case left
+      // is a delete failure AND a reload failure together, where the delete message wins: it is the
+      // more actionable of the two, and a list that did not refresh is visible on its own.
+      await load();
+      if (failed.length > 0) {
+        setError(
+          failed.length === ids.length
+            ? ids.length > 1
+              ? "Failed to delete the selected workflows."
+              : "Failed to delete workflow."
+            : `Deleted ${deleted.length} of ${ids.length} workflows. ${failed.length} could not be deleted.`
+        );
       }
     },
     [load]
@@ -435,7 +459,9 @@ export function WorkflowsLibrary() {
                             </td>
                             <td>
                               <span className={`state-pill ${active ? "pill-active" : "pill-inactive"}`}>
-                                {active ? <CircleCheck size={11} strokeWidth={2.4} /> : <CircleDashed size={11} strokeWidth={2.4} />}
+                                <span aria-hidden="true" className="wl-pill-glyph">
+                                  {active ? <CircleCheck size={11} strokeWidth={2.4} /> : <CircleDashed size={11} strokeWidth={2.4} />}
+                                </span>
                                 {workflowAdapter.status(workflow)}
                               </span>
                             </td>

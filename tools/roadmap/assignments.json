@@ -23,7 +23,7 @@
       "agent": "React / Renderer Engineer",
       "state": "in-progress",
       "claimedAt": "2026-09-17T21:33:39.343Z",
-      "note": "write lease: app/renderer/pages/WorkflowsLibrary.tsx, app/renderer/styles/global.css"
+      "note": "write lease: app/renderer/components/table/TableUI.tsx, app/renderer/pages/WorkflowsLibrary.tsx, app/renderer/styles/global.css"
     }
   ]
 }

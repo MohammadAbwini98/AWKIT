@@ -16,14 +16,25 @@
   monospace cell treatments plus an inline Open action beside the kebab. Shared CSS gained the
   `.table-surface` head and a gap on `.state-pill` for leading glyphs. The dead `.wl-desc-cell` rule
   was removed. No preload, IPC, profile schema, or route changed.
+- **QC:** independent `awkit-qc-reviewer` REJECTED twice before approving. Pass 1: bulk delete
+  aborted mid-loop (partial deletion left a stale list, an open dialog, and a retry that re-issued
+  removed ids) and `SortableHeaderCell` emitted no `aria-sort`. Pass 2 rejected the first delete
+  correction — `setError(message)` before `await load()` was erased by `load`'s synchronous
+  `setError("")` in the same React batch, making a partial failure silent. Pass 3 APPROVED after the
+  reload was sequenced ahead of the message. Also fixed: `.is-selected` losing a specificity tie to
+  `tr:hover`, a dead `.wl-select-cell` padding declaration, unlabelled pill glyphs. `aria-sort` was
+  fixed in the shared component, so the lease and contract were amended to cover
+  `app/renderer/components/table/TableUI.tsx` rather than patching Workflows locally.
 - **Tests run:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** against the final
-  CSS; source review PASS; `git diff --check` PASS. `verify:e2e-sweep` and `verify:flow-library` are
-  **BLOCKED — ENVIRONMENT**: `electron.launch` resolved no bridged window on this host (the recorded
-  GUI-harness block), while `verify:design-tokens` launched the same build successfully in the same
-  session. One retry each, then stopped.
+  CSS; source review PASS; QC **APPROVED**; `git diff --check` PASS. `verify:e2e-sweep` and
+  `verify:flow-library` are **BLOCKED — ENVIRONMENT**: `electron.launch` resolved no bridged window on
+  this host (the recorded GUI-harness block), while `verify:design-tokens` launched the same build
+  successfully in the same session. One retry each, then stopped.
 - **Result:** the Workflows library matches the attached design's library composition with every
   existing behavior intact. Open gap: no live GUI assertion exercises the redesigned page itself,
-  because both verifiers that navigate to it are blocked on this host.
+  because both verifiers that navigate to it are blocked on this host. Both HIGH defects in this task
+  were found by review, not by a gate — the bulk-delete sequencing bug is invisible to every check
+  available on this host, and is the first thing to exercise when the harness resolves a window.
 
 ## 2026-09-17 — `awkit-reports-correctness-motion`: repair Reports values, coverage, and motion (Codex)
 

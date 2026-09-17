@@ -24,14 +24,30 @@ Two reusable pieces landed in `global.css`: a `.table-surface` head that joins a
 bulk actions onto any system table, and an `align-items`/`gap` pair on `.state-pill` so pills can
 carry a leading status glyph (inert for the existing text-only pills).
 
+Independent QC rejected the change twice before approving it. The first pass found that bulk delete
+aborted mid-loop — a failure at id 3 of 5 left two workflows gone from disk while the table still
+listed all five and the open dialog invited a second Delete that re-issued the removed ids — and that
+the shared `SortableHeaderCell` emitted no `aria-sort` although the redesign added a sortable Status
+column. The second pass rejected the first delete correction: `setError(message)` ran before
+`await load()`, and `load` clears the error synchronously before its own first await, so React
+batched both writes and the message was erased — a partial bulk-delete failure became completely
+silent, worse than the defect being fixed. The reload is now sequenced ahead of the message. A
+selection highlight that lost a specificity tie to `tr:hover`, a dead `.wl-select-cell` padding
+declaration, and unlabelled pill glyphs were also corrected. `aria-sort` was fixed in the shared
+component, so every table in the app gains it.
+
 **Evidence:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** in live light/dark
-Electron with zero renderer console errors, run against the final CSS; source review PASS;
-`git diff --check` PASS. **`npm run verify:e2e-sweep` and `npm run verify:flow-library` are BLOCKED**
-on this host — `electron.launch` resolved no bridged window on either, the recorded host-state
-GUI-harness block in KNOWN_ISSUES; `verify:design-tokens` launched and drove the same build in the
-same session, so the block is environmental. **There is therefore no live GUI assertion against the
-redesigned Workflows page itself**; that gap is open and is the first thing to re-run when the
-harness resolves a window again. Runner, mock-site, and offline verifiers were NOT RUN because those
+Electron with zero renderer console errors; source review PASS; independent QC **APPROVED** on its
+third pass; `git diff --check` PASS. **`npm run verify:e2e-sweep` and `npm run verify:flow-library`
+are BLOCKED** on this host — `electron.launch` resolved no bridged window on either, the recorded
+host-state GUI-harness block in KNOWN_ISSUES; `verify:design-tokens` launched and drove the same
+build in the same session, so the block is environmental. **The Workflows route therefore has no live
+GUI assertion against the redesigned page.** Re-run both verifiers on the next host where the harness
+resolves a window, before any release claim — a development push and a release claim are different
+bars. **The bulk-delete partial-failure path is the part of this change least covered by any gate
+available on this host**: it is state sequencing that no static check, build, or token sweep can
+observe, it was caught only by reading, and it is the single most valuable thing to exercise on this
+page when the harness returns. Runner, mock-site, and offline verifiers were NOT RUN because those
 boundaries were unchanged.
 
 ## `awkit-reports-correctness-motion`: accurate report telemetry and restored UI motion (2026-09-17)
