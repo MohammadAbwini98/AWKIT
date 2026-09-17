@@ -7,25 +7,15 @@
     "app/renderer/pages/WorkflowsLibrary.tsx",
     "app/renderer/styles/global.css"
   ],
-  "acquired_at": "2026-09-17T21:32:33.903Z",
-  "acquired_at_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
+  "acquired_at": "2026-09-17T21:33:39.343Z",
+  "acquired_at_commit": "818ede3b4388bcbb5d394473239efe88678448ce",
   "baseline_dirty": [
-    "app/renderer/pages/WorkflowsLibrary.tsx",
-    "app/renderer/styles/global.css",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-workflows-system-ui.json"
   ],
   "baseline_dirty_fingerprints": {
-    "app/renderer/pages/WorkflowsLibrary.tsx": "28cd2d77701ce7811edf15e3ef3a765dedfea01f8d1a6f0e7068c7a1efd5c3fd",
-    "app/renderer/styles/global.css": "a683948902b94f50cb9ca8186facafc484a85d6808f962d9aaa872b1c5ee949e",
-    "docs/ai/CURRENT_STATE.md": "123870fc00dd79a7e4dbed5cb4b3d571ff3a724e68683421c0e9c7b4d98e08ca",
-    "docs/ai/FEATURES.md": "d14866567851ec083820f4f07a60aab505960a228c4408931211672a40c96e30",
-    "docs/ai/TASK_LOG.md": "afdd39e77629cfaeabff95311f3c8ed96618c54b202cf1394c96a668355f41c1",
-    "docs/ai/contracts/active-lease.json": "6ac7344d723c0cfcf82b772e2c8e67808dae61a33a71f447a7a4d3b776c0937d",
-    "docs/ai/contracts/awkit-workflows-system-ui.json": "011e732731d86ef7d87f159e3029ac190ddce7934699e3c309766ad0608c0275"
+    "docs/ai/contracts/active-lease.json": "7514e26b030a2b3b1e0e7f3465b8d4e36a233b6056f6e2f409bc73c29ac32d6e",
+    "docs/ai/contracts/awkit-workflows-system-ui.json": "9135179ea956596e8b23d8773ee3a54cd164ef1568859a6344bd71b0de900acf"
   },
   "baseline_watched_ignored": {
     ".env": "absent",

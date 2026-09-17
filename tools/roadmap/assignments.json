@@ -17,5 +17,13 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-workflows-system-ui",
+      "agent": "React / Renderer Engineer",
+      "state": "in-progress",
+      "claimedAt": "2026-09-17T21:33:39.343Z",
+      "note": "write lease: app/renderer/pages/WorkflowsLibrary.tsx, app/renderer/styles/global.css"
+    }
+  ]
 }

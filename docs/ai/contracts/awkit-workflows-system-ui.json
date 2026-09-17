@@ -218,6 +218,23 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-workflows-system-ui:frontend:2026-09-17T21:32:33.903Z",
+        "task": "awkit-workflows-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/WorkflowsLibrary.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T21:32:33.903Z",
+        "acquired_at_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
+        "released_at": "2026-09-17T21:33:02.178Z",
+        "released_reason": "Workflows library system-UI redesign committed to main at 818ede3",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
