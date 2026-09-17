@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Clock, Gauge, ListChecks, TimerReset, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Clock, Gauge, ListChecks } from "lucide-react";
 import type { TelemetryOverview, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 import { MetricCard } from "../components/shared/MetricCard";
 import { AnimatedCounter } from "../components/shared/AnimatedCounter";
@@ -7,6 +7,7 @@ import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { ReportPage } from "../components/reports/ReportPage";
 import { MetricSparkline } from "../components/reports/MetricSparkline";
+import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 
 interface OverviewData {
@@ -95,9 +96,15 @@ export function ReportsOverview() {
 function OverviewContent({ data }: { data: OverviewData }) {
   const { overview } = data;
   const series = overview.runsSeries.map((point) => point.total);
+  const outcomes: DonutSegment[] = [
+    { label: "Succeeded", value: overview.successRuns, color: "var(--awkit-success)" },
+    { label: "Failed", value: overview.failedRuns, color: "var(--awkit-danger)" },
+    { label: "Cancelled", value: overview.cancelledRuns, color: "var(--awkit-warning)" },
+    { label: "Other", value: overview.otherRuns, color: "var(--awkit-chart-6)" }
+  ].filter((segment) => segment.value > 0);
 
   return (
-    <>
+    <div className="awkit-report-widget-grid">
       <div className="page-grid metrics-grid">
         <MetricCard
           label="Total runs"
@@ -113,34 +120,9 @@ function OverviewContent({ data }: { data: OverviewData }) {
           icon={<CheckCircle2 size={22} />}
         />
         <MetricCard
-          label="Failure rate"
-          tone={overview.failureRate > 0 ? "danger" : "default"}
-          value={pct(overview.failureRate)}
-          detail={`${overview.failedRuns} failed run(s)`}
-          icon={<XCircle size={22} />}
-        />
-        <MetricCard
-          label="Cancelled"
-          value={<AnimatedCounter value={overview.cancelledRuns} />}
-          detail="User-cancelled runs (not counted as failures)"
-          icon={<XCircle size={22} />}
-        />
-        <MetricCard
-          label="Avg duration"
-          value={formatDuration(overview.duration.avgMs)}
-          detail={`Median ${formatDuration(overview.duration.medianMs)}`}
-          icon={<Clock size={22} />}
-        />
-        <MetricCard
-          label="p95 duration"
-          value={formatDuration(overview.duration.p95Ms)}
-          detail="95th percentile run time"
-          icon={<TimerReset size={22} />}
-        />
-        <MetricCard
-          label="Avg queue wait"
-          value={formatDuration(overview.avgQueueWaitMs)}
-          detail="Enqueue to dispatch"
+          label="Median duration"
+          value={formatDuration(overview.duration.medianMs)}
+          detail={`Average ${formatDuration(overview.duration.avgMs)}`}
           icon={<Clock size={22} />}
         />
         <MetricCard
@@ -151,12 +133,13 @@ function OverviewContent({ data }: { data: OverviewData }) {
         />
       </div>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-8">
         <div className="awkit-report-panel-head">
           <div>
-            <strong>Runs over time</strong>
-            <span>{overview.totalRuns} run(s) across the selected range</span>
+            <strong>Outcomes over time</strong>
+            <span>Completed volume and failures across the selected range</span>
           </div>
+          <span className="awkit-report-tag">{overview.totalRuns} runs</span>
         </div>
         {series.length >= 2 ? (
           <MetricSparkline values={series} width={640} height={72} ariaLabel={`Runs over time: ${series.join(", ")}`} />
@@ -164,6 +147,33 @@ function OverviewContent({ data }: { data: OverviewData }) {
           <p className="awkit-muted">Not enough data points yet to draw a trend.</p>
         )}
       </section>
-    </>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-4">
+        <div className="awkit-report-panel-head">
+          <div>
+            <strong>Outcome split</strong>
+            <span>Share of all runs in range</span>
+          </div>
+        </div>
+        <DonutChart segments={outcomes} centerLabel={pct(overview.successRate)} centerSub="success" />
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-12">
+        <div className="awkit-report-panel-head">
+          <div>
+            <strong>Run health</strong>
+            <span>Failure, cancellation, latency, and queue indicators</span>
+          </div>
+        </div>
+        <div className="awkit-report-summary-list">
+          <div><span>Failure rate</span><strong>{pct(overview.failureRate)}</strong><small>{overview.failedRuns} failed</small></div>
+          <div><span>Cancelled</span><strong>{overview.cancelledRuns}</strong><small>not counted as failures</small></div>
+          <div><span>Average duration</span><strong>{formatDuration(overview.duration.avgMs)}</strong><small>all completed runs</small></div>
+          <div><span>p95 duration</span><strong>{formatDuration(overview.duration.p95Ms)}</strong><small>95th percentile</small></div>
+          <div><span>Average queue</span><strong>{formatDuration(overview.avgQueueWaitMs)}</strong><small>enqueue to dispatch</small></div>
+          <div><span>Queued now</span><strong>{data.queuedInstances}</strong><small>waiting instances</small></div>
+        </div>
+      </section>
+    </div>
   );
 }

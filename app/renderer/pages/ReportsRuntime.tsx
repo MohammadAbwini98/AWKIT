@@ -113,7 +113,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
   ];
 
   return (
-    <>
+    <div className="awkit-report-widget-grid">
       <CurrentRuntimeStrip summary={data.summary} />
       <div className="page-grid metrics-grid">
         <MetricCard label="Busiest window" value={busiest ? formatWhen(busiest.bucketIso) : "—"} detail={busiest ? `${busiest.activeFlows} active flow(s)` : "no activity"} icon={<Activity size={22} />} />
@@ -122,7 +122,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <MetricCard label="Peak Chromium memory" value={peakChromiumMb === undefined ? "—" : `${peakChromiumMb.toLocaleString()} MB`} detail={peakProcesses === undefined ? "process sampling unavailable" : `peak ${peakProcesses} process(es)`} icon={<Cpu size={22} />} />
       </div>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-6">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Concurrency over time</strong>
@@ -132,7 +132,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <ConsumptionTimeline series={concurrency} />
       </section>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-6">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Host resources over time</strong>
@@ -142,7 +142,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <ConsumptionTimeline series={host} unit="%" />
       </section>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-6">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Chrome processes over time</strong>
@@ -152,7 +152,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <ConsumptionTimeline series={procCount} />
       </section>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-6">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Chrome memory over time</strong>
@@ -162,16 +162,16 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <ConsumptionTimeline series={procMem} unit=" MB" />
       </section>
 
-      <CapacityEffectivenessPanel capacity={data.capacity} />
-      <AnomaliesPanel anomalies={data.anomalies} />
-    </>
+      <div className="awkit-report-span-7"><CapacityEffectivenessPanel capacity={data.capacity} /></div>
+      <div className="awkit-report-span-5"><AnomaliesPanel anomalies={data.anomalies} /></div>
+    </div>
   );
 }
 
 /** Live runtime summary snapshot (pressure, adaptive target, weighted budget, active weight, admission reason). */
 function CurrentRuntimeStrip({ summary }: { summary: RuntimeObservabilitySummary }) {
   return (
-    <section className="work-panel awkit-report-panel">
+    <section className="work-panel awkit-report-panel awkit-report-span-12">
       <div className="awkit-report-panel-head">
         <div>
           <strong>Current runtime</strong>

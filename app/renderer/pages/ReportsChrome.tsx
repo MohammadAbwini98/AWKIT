@@ -46,7 +46,7 @@ function ChromeContent({ status }: { status: NonNullable<ReturnType<typeof useRu
   const concurrencyPct = safePct(cap.activeFlows, cap.maxActiveFlows);
 
   return (
-    <>
+    <div className="awkit-report-widget-grid">
       <AvailabilityNotice availability={proc?.availability} reason={proc?.availabilityReason} />
 
       {cap.dispatchBlocked ? (
@@ -59,7 +59,7 @@ function ChromeContent({ status }: { status: NonNullable<ReturnType<typeof useRu
         </div>
       ) : null}
 
-      <div className="page-grid awkit-gauge-grid">
+      <div className="page-grid awkit-gauge-grid awkit-report-span-12">
         <RpmGaugeCard
           title="Browser pool"
           value={poolPct}
@@ -110,7 +110,7 @@ function ChromeContent({ status }: { status: NonNullable<ReturnType<typeof useRu
         />
       </div>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-12">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Process detail</strong>
@@ -119,6 +119,6 @@ function ChromeContent({ status }: { status: NonNullable<ReturnType<typeof useRu
         </div>
         <LiveProcessStrip status={status} />
       </section>
-    </>
+    </div>
   );
 }

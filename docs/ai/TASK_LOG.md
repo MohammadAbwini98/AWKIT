@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-17 — `awkit-settings-reports-reference-ui`: correct Settings and Reports layouts (Codex)
+
+- **Task:** correct the prior surface-level implementations so Settings and Reports reproduce the
+  attached design's organization and page composition while retaining production behavior and data.
+- **Files:** `app/renderer/pages/{Settings,ReportsOverview,ReportsWorkflows,ReportsInstances,
+  ReportsChrome,ReportsRuntime,ReportsFailures}.tsx`, `app/renderer/styles/global.css`,
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG,HANDOFF}.md`, and task/lease bookkeeping files.
+- **Implementation:** Settings now has the reference's two primary sections with four organized
+  Environment-and-packaging subsections. The six named report pages now use a responsive 12-column
+  KPI/widget grid with real mixed-width charts, status panels, tables, and drill-downs. Existing
+  controls, permission gates, handlers, telemetry queries, range/filter/sort state, drawers, routes,
+  IPC contracts, and offline behavior remain unchanged.
+- **Tests run:** `npm run build` PASS; `verify:design-tokens` **35/35 PASS** with live light/dark
+  Electron and zero renderer console errors; focused source review PASS; `git diff --check` PASS.
+  `verify:settings-e2e` **BLOCKED — ENVIRONMENT** after one retry and
+  `verify:reports-settings-a11y` **BLOCKED — ENVIRONMENT**, both before product assertions due to the
+  known legacy launcher closing Electron. `verify:reports` and `verify:reports-populated-gui` are
+  **NOT RUN** because the same launcher prerequisite was already confirmed unavailable. Not run:
+  runner/mock-site/offline verifiers (unaffected surfaces).
+- **Result:** the requested layout correction is implemented without demo data or behavior changes;
+  remaining GUI gates are truthfully terminal as environment-blocked/not-run.
+
 ## 2026-09-17 — `awkit-table-system-ui` follow-up: shared Reports redesign (Codex)
 
 - **Task:** apply the previously attached design's Reports-page presentation to the existing

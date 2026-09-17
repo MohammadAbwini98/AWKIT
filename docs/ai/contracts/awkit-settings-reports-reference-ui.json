@@ -1,0 +1,266 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-settings-reports-reference-ui",
+    "title": "Correct Settings and Reports to the attached reference layouts",
+    "objective": "Replace the superficial Settings and Reports styling with the attached design's actual section, KPI, widget-grid, panel, filter, and table organization while preserving every existing real control, query, permission, handler, route, and IPC contract.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "bff0f42283c9d3b175928e2ec36625611762b7f6",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/pages/Settings.tsx",
+      "app/renderer/pages/ReportsOverview.tsx",
+      "app/renderer/pages/ReportsWorkflows.tsx",
+      "app/renderer/pages/ReportsInstances.tsx",
+      "app/renderer/pages/ReportsChrome.tsx",
+      "app/renderer/pages/ReportsRuntime.tsx",
+      "app/renderer/pages/ReportsFailures.tsx",
+      "app/renderer/components/reports/ReportPage.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-settings-reports-reference-ui.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-settings-reports-reference-ui.json"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "scope": [
+      "Reproduce the attached Settings and six named Reports layouts rather than applying only a surface-level skin.",
+      "Preserve every existing real Settings control and report data/query state; do not import demo values or simulated actions from the reference.",
+      "Reuse existing report/chart/shared components and Hologram tokens; add no dependency or parallel component system.",
+      "Do not change app-shell grids, routes, preload APIs, main-process code, persistence schemas, telemetry contracts, or offline behavior."
+    ],
+    "accessibility": [
+      "Preserve semantic headings, labels, tables, aria-sort, keyboard operation, focus styling, responsive overflow, and reduced-motion behavior."
+    ],
+    "offline": [
+      "Do not add remote assets, fonts, scripts, dependencies, or runtime network access."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "SETTINGS-REFERENCE-LAYOUT",
+      "description": "Settings follows the reference's clear Appearance and Environment-and-packaging hierarchy with organized responsive panels, while all existing controls and permission gates remain functional.",
+      "evidence_required": [
+        "build",
+        "verify:design-tokens",
+        "verify:settings-e2e",
+        "verify:reports-settings-a11y",
+        "source-review"
+      ]
+    },
+    {
+      "id": "REPORTS-REFERENCE-LAYOUTS",
+      "description": "Reports Overview, Workflow Reports, Instance Reports, Chrome Consumption, Runtime Analytics, and Failure Analytics use the reference's real KPI/widget/panel grid organization with current production data.",
+      "evidence_required": [
+        "build",
+        "verify:design-tokens",
+        "verify:reports",
+        "verify:reports-populated-gui",
+        "source-review"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "AI memory, code graph, and roadmap sources accurately record the correction and its terminal verification states.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "TypeScript no-emit and all Electron/Vite production bundles completed successfully."
+    },
+    {
+      "id": "verify:design-tokens",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "35/35 static and live light/dark Electron checks passed with zero renderer console errors."
+    },
+    {
+      "id": "verify:settings-e2e",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:settings-e2e",
+      "result": "BLOCKED",
+      "artifact": "Environment: legacy launcher opened Electron DevTools then exited before the first product assertion with Target page, context or browser has been closed; reproduced once after confirming no lingering Electron process."
+    },
+    {
+      "id": "verify:reports-settings-a11y",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:reports-settings-a11y",
+      "result": "BLOCKED",
+      "artifact": "Environment: the same known legacy Electron launcher exited before the first accessibility/product assertion."
+    },
+    {
+      "id": "verify:reports",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:reports",
+      "result": "NOT RUN",
+      "artifact": "Not repeated after the shared legacy Electron-launch prerequisite was confirmed unavailable by the Settings and reports/settings accessibility gates."
+    },
+    {
+      "id": "verify:reports-populated-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:reports-populated-gui",
+      "result": "NOT RUN",
+      "artifact": "Not repeated after the shared legacy Electron-launch prerequisite was confirmed unavailable by the Settings and reports/settings accessibility gates."
+    },
+    {
+      "id": "source-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "Focused source assertion confirmed 6/6 requested Reports pages use awkit-report-widget-grid and Settings has exactly two reference-level settings-section groups; final diff preserves query, permission, route, IPC, and handler code."
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "AI memory files passed all required checks after CURRENT_STATE, FEATURES, HANDOFF, and TASK_LOG reconciliation."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "177/177 checks passed; Overview banner reads Sources agree."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "No whitespace errors; the only output was the existing Settings.tsx CRLF normalization advisory."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "blocked",
+    "qa_status": "BLOCKED",
+    "qc_status": "APPROVED",
+    "qa_notes": "Build, live design-token coverage, source review, memory, roadmap, and diff checks pass. Required legacy Settings/a11y GUI launchers are environment-blocked before assertions; the two remaining Reports GUI gates are NOT RUN against the same unavailable prerequisite.",
+    "qc_notes": "Approved the requested scope: two Settings primary groups and six production-data report widget compositions are implemented without changing queries, controls, permission gates, routes, IPC, dependencies, or offline behavior. Approval does not relabel blocked GUI evidence as PASS."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-settings-reports-reference-ui:frontend:2026-09-17T15:51:13.756Z",
+        "task": "awkit-settings-reports-reference-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/reports/ReportPage.tsx",
+          "app/renderer/pages/ReportsChrome.tsx",
+          "app/renderer/pages/ReportsFailures.tsx",
+          "app/renderer/pages/ReportsInstances.tsx",
+          "app/renderer/pages/ReportsOverview.tsx",
+          "app/renderer/pages/ReportsRuntime.tsx",
+          "app/renderer/pages/ReportsWorkflows.tsx",
+          "app/renderer/pages/Settings.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T15:51:13.756Z",
+        "acquired_at_commit": "bff0f42283c9d3b175928e2ec36625611762b7f6",
+        "released_at": "2026-09-17T16:04:02.295Z",
+        "released_reason": "handoff to project-state: renderer implementation and verification complete; reconcile terminal evidence and closeout state",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-settings-reports-reference-ui:project-state:2026-09-17T16:04:02.356Z",
+        "task": "awkit-settings-reports-reference-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-settings-reports-reference-ui.json"
+        ],
+        "acquired_at": "2026-09-17T16:04:02.356Z",
+        "acquired_at_commit": "bff0f42283c9d3b175928e2ec36625611762b7f6",
+        "released_at": "2026-09-17T16:05:45.934Z",
+        "released_reason": "Implementation complete; required legacy GUI gates are truthfully terminal as environment-blocked or not run",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}

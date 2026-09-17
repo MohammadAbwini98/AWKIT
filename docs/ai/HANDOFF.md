@@ -1,5 +1,17 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-17, latest) — Settings and Reports reference-layout correction complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** Settings now has the reference's two primary groups and organized internal subsections;
+  Reports Overview, Workflow Reports, Instance Reports, Chrome Consumption, Runtime Analytics, and
+  Failure Analytics now use real 12-column KPI/widget compositions with production data.
+- **Evidence:** build PASS; design tokens 35/35; focused source review and diff check PASS. The legacy
+  Settings/a11y Electron launchers remain environment-blocked before assertions; the remaining two
+  Reports GUI gates were not repeated against the same unavailable prerequisite.
+- **Next:** no implementation remains. A future harness task can migrate the legacy Settings/Reports
+  verifiers to the isolated user-data-dir launcher already used by the passing design-token suite.
+
 ## HANDOFF (2026-09-15, latest) — anti-loop execution controls implemented
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.

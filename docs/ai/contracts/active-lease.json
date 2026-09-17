@@ -1,30 +1,47 @@
 {
-  "task": "awkit-table-system-ui",
-  "contract_path": "docs/ai/contracts/awkit-table-system-ui.json",
+  "task": "awkit-settings-reports-reference-ui",
+  "contract_path": "docs/ai/contracts/awkit-settings-reports-reference-ui.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-table-system-ui.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-settings-reports-reference-ui.json"
   ],
-  "acquired_at": "2026-09-17T14:04:29.975Z",
-  "acquired_at_commit": "5d0287d1a4f87e023a071d8ac96d900214757825",
+  "acquired_at": "2026-09-17T16:04:02.356Z",
+  "acquired_at_commit": "bff0f42283c9d3b175928e2ec36625611762b7f6",
   "baseline_dirty": [
-    "app/renderer/components/reports/ReportPage.tsx",
+    "app/renderer/pages/ReportsChrome.tsx",
+    "app/renderer/pages/ReportsFailures.tsx",
+    "app/renderer/pages/ReportsInstances.tsx",
+    "app/renderer/pages/ReportsOverview.tsx",
+    "app/renderer/pages/ReportsRuntime.tsx",
+    "app/renderer/pages/ReportsWorkflows.tsx",
+    "app/renderer/pages/Settings.tsx",
     "app/renderer/styles/global.css",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-table-system-ui.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-settings-reports-reference-ui.json"
   ],
   "baseline_dirty_fingerprints": {
-    "app/renderer/components/reports/ReportPage.tsx": "29322e981f3d0e7f1e7dccb9c1799c7093009171178fe546257d69a67b0c2ceb",
-    "app/renderer/styles/global.css": "928218d749f8937b289fa3ba71ae5421aff883ee42958f1d0c193463739902fd",
-    "docs/ai/contracts/active-lease.json": "e293cb1f30152f56c79dbc9b3d2e910a1c8768fca74ac9f4a9fb5cd63bc6d8c9",
-    "docs/ai/contracts/awkit-table-system-ui.json": "8d055b80945b1743c92bc207f4cb2926e592821285b1a0e5d02c424dcfbd3543",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "app/renderer/pages/ReportsChrome.tsx": "5d3398065a388250e1a6b61caa87afcc8da37868c26c10631482f30de1dd59f7",
+    "app/renderer/pages/ReportsFailures.tsx": "10c3ad7502ecba1285cabad9298bf42f33ba752bf9b49fd636dae8ec951400b8",
+    "app/renderer/pages/ReportsInstances.tsx": "288c94ca58a8a8ef9c73900c358be310a8160e81fac341962c2fb3eb267939a4",
+    "app/renderer/pages/ReportsOverview.tsx": "799131de5768fe1df8ebbfd7f2b9014a91847a4fc26a5833b2dc65a0b6bb5037",
+    "app/renderer/pages/ReportsRuntime.tsx": "7cd4a0ebcfae22e22ee45b6403ebb4d575b3557518e2453d83ee0b5bdf54646e",
+    "app/renderer/pages/ReportsWorkflows.tsx": "2e7642a8ff2dfec1f9ac209f816235fe040970876d498408334021f7853ac3e4",
+    "app/renderer/pages/Settings.tsx": "3c99ff230ed8b6878e87ee1f39f8d482d5ba80a052da27d92fc9f1c5a49911be",
+    "app/renderer/styles/global.css": "6e0c6e9e163ee30e97374af731d695dc6713a4b64f1712bb24563228d672e0cb",
+    "docs/ai/CURRENT_STATE.md": "b4e7fba3ebdb38ec1c0e05a4f5cfe210ed8e9daf255e94fbea14333d6f60b11b",
+    "docs/ai/FEATURES.md": "4d9d40329ed0de370ec4d0b5f83ed0aba6bacf486c94d5e1ca30c0054e6f7ca3",
+    "docs/ai/HANDOFF.md": "48bfec9f2ced1739a6d39a48d3d29d5d3556a6b91fe74d5a083eb75456b7cee9",
+    "docs/ai/TASK_LOG.md": "1d4593a0b57cadefab3ff105e4c13b510a7eedd1c558cc8c5f93a4925bb16baf",
+    "docs/ai/contracts/active-lease.json": "3bc002436c1f21b52c55a830df2110b025db24f19b7a054a4c2cf041d97802f0",
+    "docs/ai/contracts/awkit-settings-reports-reference-ui.json": "818966f8b6b5bacbb1dafd9b544bc71edc1c65547c3408942aa2608068145480"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -34,12 +51,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789585772709.4731"
+    "build": "dir(1):native-hosts:1789657772314.5686"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-17T14:08:26.524Z",
-  "released_reason": "Implementation and project-state closeout are complete; required GUI gates are truthfully recorded as environment-blocked.",
-  "archived_at": "2026-09-17T14:08:26.525Z"
+  "released_at": "2026-09-17T16:05:45.934Z",
+  "released_reason": "Implementation complete; required legacy GUI gates are truthfully terminal as environment-blocked or not run",
+  "archived_at": "2026-09-17T16:05:45.935Z"
 }

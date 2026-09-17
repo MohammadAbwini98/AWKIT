@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Lightbulb, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Lightbulb, ListChecks, RotateCcw, ShieldAlert, Workflow } from "lucide-react";
 import type { FailureBreakdown, TelemetryRangePreset, WorkflowReportRow } from "@src/reports/TelemetryContracts";
 import { reportCategoryLabel, type ReportCategory } from "@src/reports/ReportCategories";
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
+import { MetricCard } from "../components/shared/MetricCard";
 import { ReportPage } from "../components/reports/ReportPage";
 import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
 import { BarChart, type BarDatum } from "../components/reports/BarChart";
@@ -93,6 +94,18 @@ export function ReportsFailures() {
   );
 
   const noFailures = data && data.failures.total === 0;
+  const summary = useMemo(() => {
+    const workflows = data?.workflows ?? [];
+    const totalRuns = workflows.reduce((sum, row) => sum + row.totalRuns, 0);
+    const retries = workflows.reduce((sum, row) => sum + row.retryCount, 0);
+    const leastReliable = [...workflows].filter((row) => row.totalRuns > 0).sort((a, b) => a.successRate - b.successRate)[0];
+    return {
+      totalRuns,
+      retries,
+      failureRate: totalRuns > 0 ? (data?.failures.total ?? 0) / totalRuns : 0,
+      leastReliable
+    };
+  }, [data]);
 
   return (
     <ReportPage
@@ -109,13 +122,20 @@ export function ReportsFailures() {
       ) : error ? (
         <EmptyState icon={<AlertTriangle size={28} />} title="Could not load failure analytics" hint={error} />
       ) : !data ? null : (
-        <>
+        <div className="awkit-report-widget-grid">
+          <div className="page-grid metrics-grid">
+            <MetricCard label="Failed runs" value={data.failures.total.toLocaleString()} detail={`${summary.totalRuns.toLocaleString()} total runs`} icon={<ShieldAlert size={22} />} tone={data.failures.total > 0 ? "danger" : "success"} />
+            <MetricCard label="Failure rate" value={`${(summary.failureRate * 100).toFixed(1)}%`} detail="Of all runs in range" icon={<ListChecks size={22} />} tone={summary.failureRate > 0 ? "warning" : "success"} />
+            <MetricCard label="Least reliable" value={summary.leastReliable ? `${(summary.leastReliable.successRate * 100).toFixed(0)}%` : "—"} detail={summary.leastReliable?.scenarioName ?? summary.leastReliable?.scenarioId ?? "No workflow runs"} icon={<Workflow size={22} />} />
+            <MetricCard label="Retries" value={summary.retries.toLocaleString()} detail="Recorded across workflows" icon={<RotateCcw size={22} />} />
+          </div>
+
           {noFailures ? (
-            <EmptyState icon={<CheckCircle2 size={28} />} title="No failures in this range" hint="Every completed run in this window succeeded (or was cancelled). Nice." />
+            <div className="awkit-report-span-12"><EmptyState icon={<CheckCircle2 size={28} />} title="No failures in this range" hint="Every completed run in this window succeeded (or was cancelled). Nice." /></div>
           ) : (
             <>
               {buildInsights(data).length > 0 ? (
-                <section className="work-panel awkit-report-panel awkit-insights">
+                <section className="work-panel awkit-report-panel awkit-insights awkit-report-span-12">
                   <Lightbulb size={16} />
                   <ul>
                     {buildInsights(data).map((insight) => (
@@ -125,8 +145,7 @@ export function ReportsFailures() {
                 </section>
               ) : null}
 
-              <div className="awkit-failure-grid">
-                <section className="work-panel awkit-report-panel">
+                <section className="work-panel awkit-report-panel awkit-report-span-7">
                   <div className="awkit-report-panel-head">
                     <div>
                       <strong>Failure categories</strong>
@@ -139,7 +158,7 @@ export function ReportsFailures() {
                   </div>
                 </section>
 
-                <section className="work-panel awkit-report-panel">
+                <section className="work-panel awkit-report-panel awkit-report-span-5">
                   <div className="awkit-report-panel-head">
                     <div>
                       <strong>Top failing workflows</strong>
@@ -154,11 +173,10 @@ export function ReportsFailures() {
                     />
                   )}
                 </section>
-              </div>
             </>
           )}
 
-          <section className="work-panel awkit-report-panel">
+          <section className="work-panel awkit-report-panel awkit-report-span-12">
             <div className="awkit-report-panel-head">
               <div>
                 <strong>Workflow reliability</strong>
@@ -209,7 +227,7 @@ export function ReportsFailures() {
               rows carry no free-text error message by contract; full detail is fetched per run
               through the already authorization-gated telemetry.runDetail. */}
           {data.failures.recent.length > 0 ? (
-            <section className="work-panel awkit-report-panel">
+            <section className="work-panel awkit-report-panel awkit-report-span-12">
               <div className="awkit-report-panel-head">
                 <div>
                   <strong>Failure evidence</strong>
@@ -253,7 +271,7 @@ export function ReportsFailures() {
               </div>
             </section>
           ) : null}
-        </>
+        </div>
       )}
 
       {evidenceRunId ? <RunDetailDrawer instanceId={evidenceRunId} onClose={() => setEvidenceRunId(null)} /> : null}

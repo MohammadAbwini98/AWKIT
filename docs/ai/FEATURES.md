@@ -1,5 +1,17 @@
 # FEATURES
 
+## Settings and Reports reference-layout correction (2026-09-17)
+
+- Settings uses the reference's two-level information architecture: Appearance, then Environment and
+  packaging with four labeled internal subsections. Existing controls and security/persistence
+  contracts are preserved.
+- Reports Overview, Workflow Reports, Instance Reports, Chrome Consumption, Runtime Analytics, and
+  Failure Analytics use a shared responsive 12-column widget grid with four-up KPI rows and deliberate
+  mixed-width analytic panels. Existing telemetry, filters, sorters, tables, charts, drawers,
+  permissions, routes, and IPC remain authoritative.
+- The correction is token-only and offline: no dependency, remote asset, reference demo value, or
+  simulated action was added.
+
 ## Shared table and filter system UI (2026-09-17)
 
 - Every renderer table family now resolves through one token-driven presentation layer: rounded
@@ -17,8 +29,9 @@
 ## Settings page redesigned to the approved system UI (2026-09-16)
 
 - Settings now uses the system reference's icon-led category introductions and responsive panel
-  grids while retaining every existing control. The categories are Appearance, Automation and
-  security, Environment and execution, Credentials and integrations, and Storage and maintenance.
+  grids while retaining every existing control. The corrected primary categories are Appearance and
+  Environment and packaging; the latter contains Automation and security, Execution and paths,
+  Credentials, and Artifacts and retention subsections.
 - The existing persisted Save action is published in the shared page header through `usePageChrome`;
   the duplicate in-page title/toolbar is gone. Reset remains in Advanced, and immediate-save security
   controls keep their existing confirmations and IPC paths.
@@ -635,8 +648,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   light-mode lavender dots and a transparent React Flow pane.
 - ✅ **Unified Reports presentation (2026-09-17):** all seven telemetry Reports routes inherit the
   approved compact icon/title frame, pill time ranges, refresh action, responsive icon-led KPI tiles,
-  and bordered analytics panels through `ReportPage.tsx` plus report-scoped Hologram-token CSS. Report
-  data, queries, range behavior, filters, tables, charts, drawers, permissions, and IPC remain unchanged.
+  and bordered analytics panels through `ReportPage.tsx` plus report-scoped Hologram-token CSS. The six
+  owner-named analytics routes additionally use the reference's 12-column KPI/widget compositions,
+  including mixed 8/4, 7/5, and 6/6 spans. Report data, queries, range behavior, filters, tables,
+  charts, drawers, permissions, and IPC remain unchanged.
 
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,

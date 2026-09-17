@@ -589,22 +589,35 @@ export function SettingsPage() {
         {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
             The main process is the real boundary — SETTINGS_BRANDING_MANAGE gates the mutating IPC. */}
         {can(Permission.SETTINGS_BRANDING_MANAGE) ? (
-          <div className="settings-panel-slot settings-panel-slot--wide">
+          <div className="settings-panel-slot">
             <BrandingSettings />
           </div>
         ) : null}
+
+        <JavaRuntimeSettings />
+        <OracleDriverSettings />
+        {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
           </div>
         </section>
 
-        <section className="settings-section" aria-labelledby="settings-security-title">
+        <section className="settings-section" aria-labelledby="settings-environment-packaging-title">
           <div className="settings-section-intro">
-            <span className="settings-section-icon" aria-hidden="true"><ShieldCheck size={17} /></span>
+            <span className="settings-section-icon" aria-hidden="true"><Gauge size={17} /></span>
             <div>
-              <h2 id="settings-security-title">Automation and security</h2>
-              <p>Recorder safeguards, browser policy, privileged diagnostics, and session controls for authorized automation.</p>
+              <h2 id="settings-environment-packaging-title">Environment and packaging</h2>
+              <p>Execution, security, storage, and local integration preferences. Saved values survive a restart.</p>
             </div>
           </div>
-          <div className="settings-panel-grid">
+
+          <div className="settings-subsection" aria-labelledby="settings-security-title">
+            <div className="settings-subsection-intro">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <div>
+                <h3 id="settings-security-title">Automation and security</h3>
+                <p>Recorder safeguards, browser policy, privileged diagnostics, and session controls.</p>
+              </div>
+            </div>
+            <div className="settings-panel-grid">
 
         {can(Permission.DEBUG_MODE_MANAGE) && can(Permission.SESSION_POLICY_MANAGE) ? (
           <section className="work-panel settings-card settings-card--wide" data-testid="super-user-debug-settings">
@@ -797,15 +810,15 @@ export function SettingsPage() {
             ) : null}
           </section>
         ) : null}
+            </div>
           </div>
-        </section>
 
-        <section className="settings-section" aria-labelledby="settings-environment-title">
-          <div className="settings-section-intro">
-            <span className="settings-section-icon" aria-hidden="true"><Gauge size={17} /></span>
+          <div className="settings-subsection" aria-labelledby="settings-environment-title">
+            <div className="settings-subsection-intro">
+              <FolderOpen size={16} aria-hidden="true" />
             <div>
-              <h2 id="settings-environment-title">Environment and execution</h2>
-              <p>Runtime paths, designer defaults, run behavior, and machine-aware capacity. Saved values survive a restart.</p>
+                <h3 id="settings-environment-title">Execution and paths</h3>
+                <p>Runtime directories, designer defaults, run behavior, and machine-aware capacity.</p>
             </div>
           </div>
           <div className="settings-panel-grid">
@@ -1042,15 +1055,15 @@ export function SettingsPage() {
             </details>
           ) : null}
         </section>
+            </div>
           </div>
-        </section>
 
-        <section className="settings-section" aria-labelledby="settings-integrations-title">
-          <div className="settings-section-intro">
-            <span className="settings-section-icon" aria-hidden="true"><KeyRound size={17} /></span>
+          <div className="settings-subsection" aria-labelledby="settings-integrations-title">
+            <div className="settings-subsection-intro">
+              <KeyRound size={16} aria-hidden="true" />
             <div>
-              <h2 id="settings-integrations-title">Credentials and integrations</h2>
-              <p>Encrypted secrets and local runtime components. Sensitive values never appear in workflow files or reports.</p>
+                <h3 id="settings-integrations-title">Credentials</h3>
+                <p>Encrypted operator secrets stay local and never appear in workflow files or reports.</p>
             </div>
           </div>
           <div className="settings-panel-grid">
@@ -1129,26 +1142,15 @@ export function SettingsPage() {
           ) : null}
         </section>
 
-        {/* Database Drivers — user-selected Java runtime + managed Oracle JDBC driver bundles.
-            Java is selected first (it launches the isolated bridge that loads the driver). */}
-        <JavaRuntimeSettings />
-        <div className="settings-panel-slot settings-panel-slot--wide">
-          <OracleDriverSettings />
-        </div>
-        {can(Permission.SEMANTIC_SEARCH) ? (
-          <div className="settings-panel-slot settings-panel-slot--wide">
-            <SemanticIndexSettings />
+            </div>
           </div>
-        ) : null}
-          </div>
-        </section>
 
-        <section className="settings-section" aria-labelledby="settings-maintenance-title">
-          <div className="settings-section-intro">
-            <span className="settings-section-icon" aria-hidden="true"><Database size={17} /></span>
+          <div className="settings-subsection" aria-labelledby="settings-maintenance-title">
+            <div className="settings-subsection-intro">
+              <Database size={16} aria-hidden="true" />
             <div>
-              <h2 id="settings-maintenance-title">Storage and maintenance</h2>
-              <p>Review local data usage, validate the offline runtime, and manage portable Settings backups.</p>
+                <h3 id="settings-maintenance-title">Artifacts and retention</h3>
+                <p>Review local data usage, validate the offline runtime, and manage portable Settings backups.</p>
             </div>
           </div>
           <div className="settings-panel-grid">
@@ -1225,6 +1227,7 @@ export function SettingsPage() {
             <CheckCircle2 size={13} style={{ verticalAlign: "-2px" }} /> Clear UI State and Import never delete saved flows, workflows, data sources, or reports.
           </p>
         </section>
+            </div>
           </div>
         </section>
       </div>

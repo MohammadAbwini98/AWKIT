@@ -5334,6 +5334,45 @@ th {
   max-width: 72ch;
 }
 
+.settings-subsection {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.settings-subsection + .settings-subsection {
+  border-top: 1px solid var(--awkit-border);
+  padding-top: var(--space-5);
+}
+
+.settings-subsection-intro {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.settings-subsection-intro > svg {
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-xs);
+  box-sizing: content-box;
+  color: var(--awkit-text-secondary);
+  flex: 0 0 auto;
+  padding: var(--space-2);
+}
+
+.settings-subsection-intro h3 {
+  color: var(--awkit-text);
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-md);
+  margin: 0;
+}
+
+.settings-subsection-intro p {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  margin: var(--space-1) 0 0;
+}
+
 .settings-panel-grid {
   align-items: start;
   display: grid;
@@ -10248,6 +10287,31 @@ th {
   margin-bottom: 0;
 }
 
+.awkit-report-widget-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.awkit-report-widget-grid > :is(.metrics-grid, .awkit-report-filters, .awkit-availability-notice),
+.awkit-report-span-12 {
+  grid-column: 1 / -1;
+}
+
+.awkit-report-span-8 { grid-column: span 8; }
+.awkit-report-span-7 { grid-column: span 7; }
+.awkit-report-span-6 { grid-column: span 6; }
+.awkit-report-span-5 { grid-column: span 5; }
+.awkit-report-span-4 { grid-column: span 4; }
+
+.awkit-report-widget-grid > * {
+  min-width: 0;
+}
+
+.awkit-report-widget-grid > :is(.awkit-report-span-7, .awkit-report-span-5) > .awkit-report-panel {
+  height: 100%;
+}
+
 .awkit-report-page .metric-card {
   align-items: start;
   box-shadow: var(--awkit-shadow-soft);
@@ -10377,6 +10441,53 @@ th {
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
   margin-top: var(--space-1);
+}
+
+.awkit-report-tag {
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-pill);
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-1) var(--space-2);
+}
+
+.awkit-report-summary-list {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-5) * 6), 1fr));
+}
+
+.awkit-report-summary-list > div {
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.awkit-report-summary-list span {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+}
+
+.awkit-report-summary-list strong {
+  color: var(--awkit-text);
+  font-size: var(--text-lg);
+}
+
+@media (max-width: 900px) {
+  .awkit-report-widget-grid > :is(
+    .awkit-report-span-8,
+    .awkit-report-span-7,
+    .awkit-report-span-6,
+    .awkit-report-span-5,
+    .awkit-report-span-4
+  ) {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Runtime Observability & Historical Analytics — capacity/anomaly tables */

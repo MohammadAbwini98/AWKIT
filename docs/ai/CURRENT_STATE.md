@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## `awkit-settings-reports-reference-ui`: Settings and six Reports pages corrected to the reference layouts (2026-09-17)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This correction
+changes renderer presentation and organization only; no validation-ledger case moved.
+
+Settings now follows the attached reference's two primary groups: **Appearance** and **Environment and
+packaging**. All existing controls remain present, with the latter organized into Automation and
+security, Execution and paths, Credentials, and Artifacts and retention subsections. Permission gates,
+immediate-save controls, validation, confirmations, persisted Save behavior, and Settings IPC are
+unchanged.
+
+Reports Overview, Workflow Reports, Instance Reports, Chrome Consumption, Runtime Analytics, and
+Failure Analytics now use the reference's actual responsive 12-column composition instead of only a
+shared surface skin. The pages use four-up KPI rows, intentional 8/4, 7/5, 6/6, and full-width widget
+spans, compact panel headers/tags, tables, charts, and drill-down areas. Every number is derived from
+the existing telemetry/runtime queries; no reference demo data or simulated action was imported.
+
+**Evidence:** `npm run build` PASS; `verify:design-tokens` **35/35 PASS** in live light/dark Electron
+with zero renderer console errors; focused source review PASS (6/6 report pages use the widget grid and
+Settings has exactly two reference-level sections); `git diff --check` PASS. `verify:settings-e2e` is
+**BLOCKED — ENVIRONMENT** after its one permitted retry, and `verify:reports-settings-a11y` is
+**BLOCKED — ENVIRONMENT**: their legacy Electron launchers opened DevTools and then exited before the
+first product assertion (`Target page, context or browser has been closed`). `verify:reports` and
+`verify:reports-populated-gui` are **NOT RUN** because they share that already-confirmed unavailable
+launcher prerequisite; no GUI assertion failed. `verify:runner`, `verify:mock-site`, and
+`validate:offline` were NOT RUN because runner, mock-site, main-process, packaging, and offline
+boundaries were unchanged.
+
 ## `reports-system-ui`: telemetry Reports pages now match the approved design (2026-09-17)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This is a

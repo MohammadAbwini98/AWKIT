@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, ListChecks, MonitorDot } from "lucide-react";
+import { Activity, AlertTriangle, ChevronLeft, ChevronRight, ListChecks, MonitorDot, PauseCircle } from "lucide-react";
 import type { RunHistoryPage, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
+import { MetricCard } from "../components/shared/MetricCard";
 import { ReportPage } from "../components/reports/ReportPage";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 import { RunDetailDrawer } from "../components/reports/RunDetailDrawer";
@@ -54,6 +55,9 @@ export function ReportsInstances() {
 
   const liveStatuses = DISTRIBUTION_ORDER.filter((status) => (distribution[status] ?? 0) > 0);
   const liveTotal = Object.values(distribution).reduce((sum, value) => sum + value, 0);
+  const activeTotal = (distribution.running ?? 0) + (distribution.starting ?? 0);
+  const queuedTotal = (distribution.queued ?? 0) + (distribution.pending ?? 0);
+  const manualTotal = distribution.waitingForManualAction ?? 0;
 
   return (
     <ReportPage
@@ -68,7 +72,15 @@ export function ReportsInstances() {
       onRefresh={refetch}
       refreshing={loading}
     >
-      <section className="work-panel awkit-report-panel">
+      <div className="awkit-report-widget-grid">
+      <div className="page-grid metrics-grid">
+        <MetricCard label="Active instances" value={activeTotal} detail="Running or starting now" icon={<Activity size={22} />} tone={activeTotal > 0 ? "success" : "default"} />
+        <MetricCard label="Queued" value={queuedTotal} detail="Waiting for a runtime slot" icon={<ListChecks size={22} />} />
+        <MetricCard label="Manual handoffs" value={manualTotal} detail="Awaiting operator action" icon={<PauseCircle size={22} />} tone={manualTotal > 0 ? "warning" : "default"} />
+        <MetricCard label="Runs in range" value={data?.total ?? "—"} detail="Historical workflow instances" icon={<MonitorDot size={22} />} />
+      </div>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-4">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Live status</strong>
@@ -89,7 +101,7 @@ export function ReportsInstances() {
         )}
       </section>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-8">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Run history</strong>
@@ -156,6 +168,7 @@ export function ReportsInstances() {
           </>
         )}
       </section>
+      </div>
 
       {runInstanceId ? <RunDetailDrawer instanceId={runInstanceId} onClose={() => setRunInstanceId(null)} /> : null}
     </ReportPage>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronUp, GitCompare, ListChecks, Minus, TrendingDown, TrendingUp, Workflow } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Clock, GitCompare, ListChecks, Minus, RotateCcw, TrendingDown, TrendingUp, Workflow } from "lucide-react";
 import type {
   MachineFilter,
   MachineSummary,
@@ -11,6 +11,7 @@ import type {
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
+import { MetricCard } from "../components/shared/MetricCard";
 import { ReportPage } from "../components/reports/ReportPage";
 import { MetricSparkline } from "../components/reports/MetricSparkline";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
@@ -108,6 +109,17 @@ export function ReportsWorkflows() {
   }, [data, sort]);
 
   const compareRows = useMemo(() => sorted.filter((row) => compareKeys.includes(rowKey(row))), [sorted, compareKeys]);
+  const totals = useMemo(() => {
+    const runs = sorted.reduce((sum, row) => sum + row.totalRuns, 0);
+    const weightedSuccess = sorted.reduce((sum, row) => sum + row.successRate * row.totalRuns, 0);
+    const weightedDuration = sorted.reduce((sum, row) => sum + (row.duration.avgMs ?? 0) * row.totalRuns, 0);
+    return {
+      runs,
+      successRate: runs > 0 ? weightedSuccess / runs : 0,
+      averageDuration: runs > 0 ? weightedDuration / runs : undefined,
+      retries: sorted.reduce((sum, row) => sum + row.retryCount, 0)
+    };
+  }, [sorted]);
 
   const toggleSort = (key: SortKey) =>
     setSort((current) => (current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
@@ -243,9 +255,24 @@ export function ReportsWorkflows() {
           hint="Run a workflow from the Instances page, or clear the machine filter, to populate per-workflow statistics."
         />
       ) : (
-        <>
-          <div className="awkit-table-wrap work-panel awkit-report-panel">
-            <table className="awkit-table awkit-table-hover">
+        <div className="awkit-report-widget-grid">
+          <div className="page-grid metrics-grid">
+            <MetricCard label="Workflows" value={sorted.length} detail="With runs in this range" icon={<Workflow size={22} />} />
+            <MetricCard label="Total runs" value={totals.runs.toLocaleString()} detail="Across matching workflows" icon={<ListChecks size={22} />} />
+            <MetricCard label="Success rate" value={`${(totals.successRate * 100).toFixed(1)}%`} detail="Weighted by run volume" icon={<CheckCircle2 size={22} />} tone="success" />
+            <MetricCard label="Average duration" value={formatDurationMs(totals.averageDuration)} detail={`${totals.retries} retries recorded`} icon={totals.retries > 0 ? <RotateCcw size={22} /> : <Clock size={22} />} />
+          </div>
+
+          <section className="work-panel awkit-report-panel awkit-report-span-12">
+            <div className="awkit-report-panel-head">
+              <div>
+                <strong>Workflow performance</strong>
+                <span>Success, duration, trend, and latest outcome</span>
+              </div>
+              <span className="awkit-report-tag">{sorted.length} workflows</span>
+            </div>
+            <div className="awkit-table-wrap">
+              <table className="awkit-table awkit-table-hover">
               <thead>
                 <tr>
                   {compareMode ? <th className="awkit-th-select" aria-label="Compare" /> : null}
@@ -316,22 +343,25 @@ export function ReportsWorkflows() {
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+          </section>
 
           {compareMode ? (
-            <ComparePanel rows={compareRows} range={range} filter={activeFilter} filterKey={filterKey} />
+            <div className="awkit-report-span-12"><ComparePanel rows={compareRows} range={range} filter={activeFilter} filterKey={filterKey} /></div>
           ) : selected ? (
-            <RecentRuns
-              scenarioId={selected.scenarioId}
-              name={selected.name}
-              range={range}
-              filter={activeFilter}
-              onOpenRun={setRunInstanceId}
-              onClose={() => setSelected(null)}
-            />
+            <div className="awkit-report-span-12">
+              <RecentRuns
+                scenarioId={selected.scenarioId}
+                name={selected.name}
+                range={range}
+                filter={activeFilter}
+                onOpenRun={setRunInstanceId}
+                onClose={() => setSelected(null)}
+              />
+            </div>
           ) : null}
-        </>
+        </div>
       )}
 
       {runInstanceId ? <RunDetailDrawer instanceId={runInstanceId} onClose={() => setRunInstanceId(null)} /> : null}
