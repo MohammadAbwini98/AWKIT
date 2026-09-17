@@ -5490,6 +5490,25 @@ th {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.settings-panel-columns {
+  align-items: start;
+  display: grid;
+  gap: var(--space-4);
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-panel-column {
+  align-content: start;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-panel-column > .settings-card {
+  min-width: 0;
+}
+
 .settings-card--wide,
 .settings-panel-slot--wide {
   grid-column: 1 / -1;
@@ -15176,7 +15195,8 @@ th {
 }
 
 @media (max-width: 900px) {
-  .settings-panel-grid {
+  .settings-panel-grid,
+  .settings-panel-columns {
     grid-template-columns: 1fr;
   }
 

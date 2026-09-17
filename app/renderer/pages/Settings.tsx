@@ -546,57 +546,60 @@ export function SettingsPage() {
             </div>
           </div>
           <div className="settings-panel-grid">
+            {/* The reference keeps the primary appearance editor full-width, then packs the remaining
+                cards into independent columns. This avoids row-height holes when permission-gated or
+                data-dependent cards are much taller than their neighbors. */}
+            <div className="settings-panel-slot settings-panel-slot--wide">
+              <AccentColorSettings />
+            </div>
 
-        {/* Application */}
-        <section className="work-panel settings-card">
-          <div className="settings-card-head">
-            <Gauge size={16} />
-            <h2>Application</h2>
-          </div>
-          <div className="readiness-list">
-            <span>Application name</span>
-            <strong>SpecterStudio</strong>
-            <span>Version</span>
-            <strong>{stats?.appVersion ?? "—"}</strong>
-            <span>Last launched</span>
-            <strong>{settings.app.lastLaunchedAt ? new Date(settings.app.lastLaunchedAt).toLocaleString() : "—"}</strong>
-            <span>Offline mode</span>
-            <strong>{stats ? (stats.productionOffline ? "Production offline" : "Development") : "—"}</strong>
-            <span>Runtime data root</span>
-            <strong>{stats?.runtimeDataRoot ?? "—"}</strong>
-          </div>
-          <div className="settings-appearance-row">
-            <label>
-              <span>Appearance</span>
-              <select
-                value={appearance}
-                onChange={(ev) => setAppearance(ev.target.value as AppearanceMode)}
-              >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system">System</option>
-              </select>
-            </label>
-            <p className="form-message">Applied immediately and remembered. System follows the Windows theme.</p>
-          </div>
-        </section>
+            <div className="settings-panel-columns">
+              <div className="settings-panel-column">
+                {/* Application */}
+                <section className="work-panel settings-card">
+                  <div className="settings-card-head">
+                    <Gauge size={16} />
+                    <h2>Application</h2>
+                  </div>
+                  <div className="readiness-list">
+                    <span>Application name</span>
+                    <strong>SpecterStudio</strong>
+                    <span>Version</span>
+                    <strong>{stats?.appVersion ?? "—"}</strong>
+                    <span>Last launched</span>
+                    <strong>{settings.app.lastLaunchedAt ? new Date(settings.app.lastLaunchedAt).toLocaleString() : "—"}</strong>
+                    <span>Offline mode</span>
+                    <strong>{stats ? (stats.productionOffline ? "Production offline" : "Development") : "—"}</strong>
+                    <span>Runtime data root</span>
+                    <strong>{stats?.runtimeDataRoot ?? "—"}</strong>
+                  </div>
+                  <div className="settings-appearance-row">
+                    <label>
+                      <span>Appearance</span>
+                      <select
+                        value={appearance}
+                        onChange={(ev) => setAppearance(ev.target.value as AppearanceMode)}
+                      >
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="system">System</option>
+                      </select>
+                    </label>
+                    <p className="form-message">Applied immediately and remembered. System follows the Windows theme.</p>
+                  </div>
+                </section>
 
-        {/* Appearance — Accent Color (user-selectable brand accent) */}
-        <div className="settings-panel-slot settings-panel-slot--wide">
-          <AccentColorSettings />
-        </div>
+                {/* Workspace Logo is Super-User-only. The main process independently enforces the
+                    SETTINGS_BRANDING_MANAGE boundary for every mutation. */}
+                {can(Permission.SETTINGS_BRANDING_MANAGE) ? <BrandingSettings /> : null}
+                <OracleDriverSettings />
+              </div>
 
-        {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
-            The main process is the real boundary — SETTINGS_BRANDING_MANAGE gates the mutating IPC. */}
-        {can(Permission.SETTINGS_BRANDING_MANAGE) ? (
-          <div className="settings-panel-slot">
-            <BrandingSettings />
-          </div>
-        ) : null}
-
-        <JavaRuntimeSettings />
-        <OracleDriverSettings />
-        {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
+              <div className="settings-panel-column">
+                <JavaRuntimeSettings />
+                {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1069,7 +1072,7 @@ export function SettingsPage() {
           <div className="settings-panel-grid">
 
         {/* Secrets — encrypted operator credentials referenced from steps by name (audit §15) */}
-        <section className="work-panel settings-card">
+        <section className="work-panel settings-card settings-card--wide">
           <div className="settings-card-head">
             <KeyRound size={16} />
             <h2>Secrets</h2>
