@@ -675,7 +675,7 @@ async function waitForReportPage(win: Page, title: string): Promise<void> {
     (expected: string) => {
       const heading = document.querySelector(".awkit-section-header h2")?.textContent ?? "";
       const page = document.querySelector(".awkit-report-page");
-      return Boolean(page) && heading.includes(expected) && !page?.querySelector(".awkit-skeleton-card");
+      return Boolean(page) && heading.trim() === expected && !page?.querySelector(".awkit-skeleton-card");
     },
     title,
     { timeout: 20_000 }
@@ -689,6 +689,19 @@ async function metricMap(win: Page): Promise<Record<string, { value: string; det
         const label = card.querySelector("div > span")?.textContent?.trim() ?? "";
         const value = card.querySelector("div > strong")?.textContent?.trim() ?? "";
         const detail = card.querySelector("p")?.textContent?.trim() ?? "";
+        return [label, { value, detail }];
+      })
+    )
+  );
+}
+
+async function summaryMap(win: Page): Promise<Record<string, { value: string; detail: string }>> {
+  return win.evaluate(() =>
+    Object.fromEntries(
+      [...document.querySelectorAll<HTMLElement>(".awkit-report-summary-list > div")].map((row) => {
+        const label = row.querySelector("span")?.textContent?.trim() ?? "";
+        const value = row.querySelector("strong")?.textContent?.trim() ?? "";
+        const detail = row.querySelector("small")?.textContent?.trim() ?? "";
         return [label, { value, detail }];
       })
     )
@@ -878,7 +891,7 @@ try {
 
   // Super User populated Overview.
   await navClick(win, "Reports");
-  await waitForReportPage(win, "Reports Overview");
+  await waitForReportPage(win, "Reports");
   const traversalProbe = await win.evaluate(async () => {
     try {
       await window.playwrightFlowStudio.reports.openFolder("../../outside-report-root");
@@ -922,7 +935,15 @@ try {
       overview.successRate === fixture.expected.success / (fixture.expected.success + fixture.expected.failed)
   );
   check("SYS-REP-003 average queue wait matches source rows", overview.avgQueueWaitMs === fixture.expected.avgQueueWait, overview.avgQueueWaitMs);
+  await win.waitForFunction(
+    (expected: number) =>
+      [...document.querySelectorAll<HTMLElement>(".metric-card")].some(
+        (card) => card.querySelector("div > span")?.textContent?.trim() === "Total runs" && card.querySelector("div > strong")?.textContent?.trim() === String(expected)
+      ),
+    fixture.expected.total
+  );
   const overviewMetrics = await metricMap(win);
+  const overviewSummary = await summaryMap(win);
   check("SYS-REP-003 visible Total runs matches source rows", overviewMetrics["Total runs"]?.value === String(fixture.expected.total), JSON.stringify(overviewMetrics["Total runs"]));
   // Rates use TERMINAL runs as the denominator (completed + failed); cancelled runs are excluded.
   // Derived from the seeded corpus rather than hardcoded, so this asserts the denominator rule and
@@ -931,26 +952,26 @@ try {
   const expectedSuccessRate = `${((fixture.expected.success / terminal) * 100).toFixed(1)}%`;
   const expectedFailureRate = `${((fixture.expected.failed / terminal) * 100).toFixed(1)}%`;
   check(`SYS-REP-003 visible Success rate is ${expectedSuccessRate} (terminal-only denominator)`, overviewMetrics["Success rate"]?.value === expectedSuccessRate, `${overviewMetrics["Success rate"]?.value} vs ${expectedSuccessRate}`);
-  check(`SYS-REP-003 visible Failure rate is ${expectedFailureRate} (terminal-only denominator)`, overviewMetrics["Failure rate"]?.value === expectedFailureRate, `${overviewMetrics["Failure rate"]?.value} vs ${expectedFailureRate}`);
+  check(`SYS-REP-003 visible Failure rate is ${expectedFailureRate} (terminal-only denominator)`, overviewSummary["Failure rate"]?.value === expectedFailureRate, `${overviewSummary["Failure rate"]?.value} vs ${expectedFailureRate}`);
   check("SYS-REP-003 cancelled runs are excluded from the rate denominator", terminal === fixture.expected.total - fixture.expected.cancelled, `${terminal} of ${fixture.expected.total}`);
-  check("SYS-REP-003 visible Cancelled count is 3", overviewMetrics.Cancelled?.value === "3", overviewMetrics.Cancelled?.value);
+  check("SYS-REP-003 visible Cancelled count is 3", overviewSummary.Cancelled?.value === "3", overviewSummary.Cancelled?.value);
 
   // Every range preset, rapid switching and refresh. The hook must expose only the final selection.
   const rangeButtons = win.locator(".awkit-range-selector button");
-  check("SYS-REP-002 all five range presets render", (await rangeButtons.count()) === 5);
-  for (const label of ["15m", "1h", "24h", "7d", "All"]) {
+  check("SYS-REP-002 all four range presets render", (await rangeButtons.count()) === 4);
+  for (const label of ["1h", "24h", "7d", "All"]) {
     await rangeButtons.filter({ hasText: label }).click();
     await win.waitForFunction(
       (wanted: string) => document.querySelector<HTMLButtonElement>(`.awkit-range-selector button[aria-pressed="true"]`)?.textContent?.trim() === wanted,
       label
     );
   }
-  await rangeButtons.filter({ hasText: "15m" }).click();
+  await rangeButtons.filter({ hasText: "1h" }).click();
   await rangeButtons.filter({ hasText: "7d" }).click();
   await rangeButtons.filter({ hasText: "24h" }).click();
   await win.getByRole("button", { name: "Refresh" }).click();
   await win.getByRole("button", { name: "Refresh" }).click();
-  await waitForReportPage(win, "Reports Overview");
+  await waitForReportPage(win, "Reports");
   check(
     "SYS-REP-002 rapid range/refresh settles on the newest 24h request",
     await win.locator('.awkit-range-selector button[aria-pressed="true"]', { hasText: "24h" }).isVisible()
@@ -1255,10 +1276,11 @@ try {
   await navClick(win, "Failure Analytics");
   await waitForReportPage(win, "Failure Analytics");
   const failureText = await win.locator(".awkit-report-page").innerText();
+  const failureMetrics = await metricMap(win);
   // Derived from the seeded corpus, not hardcoded — the count is the point, the fixture size is not.
   check(
     `SYS-REP-009 visible failure total matches the ${fixture.expected.failed} seeded failed rows`,
-    failureText.includes(`${fixture.expected.failed} failed run(s)`) && failureText.includes(`${fixture.expected.failed}\nfailures`),
+    failureMetrics["Failed runs"]?.value === String(fixture.expected.failed) && failureText.includes(`${fixture.expected.failed}\nfailures`),
     failureText.slice(0, 400)
   );
   for (const label of ["Timeout", "Selector", "Network", "Assertion / validation", "Session expired", "Auth handoff required"]) {
@@ -1412,7 +1434,7 @@ try {
   );
 
   // Driving the selector proves the RENDERED page follows the range, not just the IPC call above.
-  for (const preset of ["15m", "7d"]) {
+  for (const preset of ["1h", "7d"]) {
     await win.getByRole("button", { name: preset, exact: true }).click();
     await waitForReportPage(win, "Runtime Analytics");
   }
@@ -1432,7 +1454,7 @@ try {
       return out;
     });
 
-  await win.getByRole("button", { name: "15m", exact: true }).click();
+  await win.getByRole("button", { name: "1h", exact: true }).click();
   await waitForReportPage(win, "Runtime Analytics");
   const narrowCards = await metricCardValues();
   check(
@@ -1532,8 +1554,12 @@ try {
   });
   check("SYS-REP-012 report panels and bars have entry motion", motion.panel.includes("awkit-report-fade-up") && motion.bar.includes("awkit-report-grow-x"), JSON.stringify(motion));
   await win.emulateMedia({ reducedMotion: "reduce" });
-  const reducedDuration = await win.locator(".awkit-bar-fill").first().evaluate((el) => getComputedStyle(el).animationDuration);
-  check("SYS-REP-012 report motion collapses for reduced-motion users", reducedDuration === "0.001ms" || reducedDuration === "0s", reducedDuration);
+  const reducedDuration = await win.locator(".awkit-bar-fill").first().evaluate((el) => {
+    const raw = getComputedStyle(el).animationDuration;
+    const milliseconds = raw.endsWith("ms") ? Number.parseFloat(raw) : raw.endsWith("s") ? Number.parseFloat(raw) * 1000 : Number.POSITIVE_INFINITY;
+    return { raw, milliseconds };
+  });
+  check("SYS-REP-012 report motion collapses for reduced-motion users", reducedDuration.milliseconds <= 0.001, reducedDuration.raw);
   await win.emulateMedia({ reducedMotion: "no-preference" });
 
   // SYS-REP-012 — exact bytes. "A number rendered" is not the claim; "the number equals what was
@@ -1761,7 +1787,12 @@ try {
   await win.waitForFunction(() => (window as any).__awkitReportExportCapture?.size > 0);
   const xlsxUi = await win.evaluate(() => (window as any).__awkitReportExportCapture as { filename: string; size: number });
   check("SYS-REP-008 Excel control downloads non-empty .xlsx evidence bytes", xlsxUi.filename === `report-${REPORT_ID}.xlsx` && xlsxUi.size > 1_000, JSON.stringify(xlsxUi));
-  await win.screenshot({ path: join(screenshots, "05-run-artifacts.png"), fullPage: true });
+  await win.screenshot({
+    path: join(screenshots, "05-run-artifacts.png"),
+    fullPage: true,
+    animations: "disabled",
+    timeout: 60_000
+  });
 
   // ── SYS-REP-006 — the retention message ────────────────────────────────────
   // Previously recorded as needing a telemetry contract change, on the grounds that `runDetail`
@@ -1814,7 +1845,7 @@ try {
   await submitForcedChange(win, viewer.temporary, viewer.final);
   await win.waitForSelector(".app-shell", { timeout: 20_000 });
   await navClick(win, "Reports");
-  await waitForReportPage(win, "Reports Overview");
+  await waitForReportPage(win, "Reports");
   const viewerRead = await win.evaluate(async (id: string) => {
     const api = window.playwrightFlowStudio;
     const overview = await api.telemetry.overview("24h");

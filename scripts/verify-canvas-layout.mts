@@ -52,6 +52,20 @@ interface TestNode {
   data?: { width?: number; height?: number; [key: string]: unknown };
 }
 
+interface TestEdge {
+  id: string;
+  source: string;
+  target: string;
+  data: {
+    linkType: string;
+    label?: string;
+    maxLoopCount?: number;
+    conditional?: {
+      priority: number;
+    };
+  };
+}
+
 const node = (id: string, x = 0, y = 0, dims = true): TestNode => ({
   id,
   position: { x, y },
@@ -97,20 +111,20 @@ console.log("\nNew-node insertion uses the updated canonical graph:");
     { id: "existing", position: { x: 40, y: 220 }, data: existingData },
     { id: "end", position: { x: 40, y: 400 }, data: endData }
   ];
-  const originalEdges = [
+  const originalEdges: TestEdge[] = [
     { id: "start-existing", source: "start", target: "existing", data: { linkType: "always" } },
     { id: "existing-end", source: "existing", target: "end", data: { linkType: "success", conditional: { priority: 0 } } },
     { id: "existing-loop", source: "existing", target: "existing", data: { linkType: "loop", maxLoopCount: 3 } }
   ];
   const firstInserted = { id: "first-new", position: { x: 320, y: 220 }, data: { width: W, height: H, kind: "click", locator: { testId: "add" } } };
-  const firstEdges = [
+  const firstEdges: TestEdge[] = [
     ...originalEdges.filter((edge) => edge.id !== "existing-end"),
     { id: "existing-first", source: "existing", target: "first-new", data: { linkType: "success", label: "next" } },
     { id: "first-end", source: "first-new", target: "end", data: { linkType: "success" } }
   ];
   const first = withAutoLayout([...base, firstInserted], firstEdges, { direction: "TB", force: true });
   const secondInserted = { id: "second-new", position: { x: 640, y: 220 }, data: { width: W, height: H, kind: "condition", nestedWorkflow: { id: "child" } } };
-  const secondEdges = [...firstEdges, { id: "first-second", source: "first-new", target: "second-new", data: { linkType: "conditional", label: "If true" } }];
+  const secondEdges: TestEdge[] = [...firstEdges, { id: "first-second", source: "first-new", target: "second-new", data: { linkType: "conditional", label: "If true" } }];
   const second = withAutoLayout([...first, secondInserted], secondEdges, { direction: "TB", force: true });
   const secondRepeat = withAutoLayout([...first, secondInserted], secondEdges, { direction: "TB", force: true });
   const byId = new Map(second.map((item) => [item.id, item]));
