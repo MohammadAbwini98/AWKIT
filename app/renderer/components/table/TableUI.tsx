@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronsUpDown, ChevronUp, Filter, Search, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Inbox, Search, SearchX, X } from "lucide-react";
 import { PAGE_SIZES, validateFilters, type SortDirection } from "./tableState";
 
 // ── Sortable header cell ──────────────────────────────────────────────────────
@@ -39,13 +39,19 @@ interface DataTablePaginationProps {
 }
 
 export function DataTablePagination({ page, totalPages, total, pageSize, onPage, onPageSize }: DataTablePaginationProps) {
+  const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const last = Math.min(total, page * pageSize);
+  const visiblePageCount = Math.min(5, totalPages);
+  const firstVisiblePage = Math.min(Math.max(1, page - 2), Math.max(1, totalPages - visiblePageCount + 1));
+  const visiblePages = Array.from({ length: visiblePageCount }, (_, index) => firstVisiblePage + index);
+
   return (
     <div className="table-pagination">
       <span className="table-total">
-        {total} matching record{total !== 1 ? "s" : ""}
+        {first}–{last} of {total} record{total !== 1 ? "s" : ""}
       </span>
       <label className="table-pagesize">
-        Rows per page
+        Rows
         <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}>
           {PAGE_SIZES.map((n) => (
             <option key={n} value={n}>
@@ -55,14 +61,23 @@ export function DataTablePagination({ page, totalPages, total, pageSize, onPage,
         </select>
       </label>
       <div className="table-page-controls">
-        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Previous
+        <button type="button" aria-label="Previous page" title="Previous page" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          <ChevronLeft size={14} />
         </button>
-        <span className="table-page-indicator">
-          Page {page} of {totalPages}
-        </span>
-        <button type="button" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
-          Next
+        {visiblePages.map((pageNumber) => (
+          <button
+            type="button"
+            className={pageNumber === page ? "is-current" : undefined}
+            aria-current={pageNumber === page ? "page" : undefined}
+            aria-label={`Page ${pageNumber}`}
+            key={pageNumber}
+            onClick={() => onPage(pageNumber)}
+          >
+            {pageNumber}
+          </button>
+        ))}
+        <button type="button" aria-label="Next page" title="Next page" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+          <ChevronRight size={14} />
         </button>
       </div>
     </div>
@@ -71,8 +86,10 @@ export function DataTablePagination({ page, totalPages, total, pageSize, onPage,
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 export function TableEmptyState({ filtered, title, hint, action }: { filtered: boolean; title: string; hint: string; action?: React.ReactNode }) {
+  const EmptyIcon = filtered ? SearchX : Inbox;
   return (
     <div className="empty-state table-empty">
+      <span className="table-empty-icon" aria-hidden="true"><EmptyIcon size={20} /></span>
       <strong>{title}</strong>
       <span>{hint}</span>
       {!filtered && action ? action : null}
@@ -102,7 +119,6 @@ interface AdvancedTableFiltersProps {
 }
 
 export function AdvancedTableFilters({ searchText, onSearch, fields, applied, onApply, onClear, searchPlaceholder }: AdvancedTableFiltersProps) {
-  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Filters>(applied);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -111,6 +127,13 @@ export function AdvancedTableFilters({ searchText, onSearch, fields, applied, on
   }, [applied]);
 
   const activeCount = Object.values(applied).filter((v) => v !== "" && v !== undefined && v !== null && v !== "all").length;
+  const activeFilters = Object.entries(applied)
+    .filter(([, value]) => value !== "" && value !== undefined && value !== null && value !== "all")
+    .map(([key, value]) => {
+      const field = fields.find((candidate) => candidate.key === key);
+      const option = field?.options?.find((candidate) => candidate.value === String(value));
+      return { key, label: `${field?.label ?? key}: ${option?.label ?? String(value)}` };
+    });
 
   const setField = (key: string, value: string) => setDraft((prev) => ({ ...prev, [key]: value }));
 
@@ -126,8 +149,16 @@ export function AdvancedTableFilters({ searchText, onSearch, fields, applied, on
     onClear();
   };
 
+  const remove = (key: string) => {
+    const next = { ...draft };
+    delete next[key];
+    setDraft(next);
+    setErrors([]);
+    onApply(next);
+  };
+
   return (
-    <div className="table-filters">
+    <div className="table-filters" role="search" aria-label="Table filters">
       <div className="table-filters-bar">
         <div className="table-search">
           <Search size={15} />
@@ -138,55 +169,59 @@ export function AdvancedTableFilters({ searchText, onSearch, fields, applied, on
             </button>
           ) : null}
         </div>
-        <button type="button" className={open ? "toolbar-button primary" : "toolbar-button"} onClick={() => setOpen((v) => !v)}>
-          <Filter size={15} />
-          Filters{activeCount ? ` (${activeCount})` : ""}
-        </button>
+        {fields.map((field) => (
+          <label key={field.key} className="table-filter-field">
+            <span>{field.label}</span>
+            {field.type === "select" ? (
+              <select value={String(draft[field.key] ?? "")} onChange={(e) => setField(field.key, e.target.value)}>
+                {field.options?.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+                min={field.type === "number" ? 0 : undefined}
+                placeholder={field.placeholder}
+                value={String(draft[field.key] ?? "")}
+                onChange={(e) => setField(field.key, e.target.value)}
+              />
+            )}
+          </label>
+        ))}
+        <div className="table-filters-actions">
+          <button type="button" className="toolbar-button primary" onClick={apply}>
+            Apply
+          </button>
+          <button type="button" className="toolbar-button" onClick={clear}>
+            Clear
+          </button>
+        </div>
       </div>
 
-      {open ? (
-        <div className="table-filters-panel">
-          <div className="settings-grid">
-            {fields.map((field) => (
-              <label key={field.key} className="table-filter-field">
-                {field.label}
-                {field.type === "select" ? (
-                  <select value={String(draft[field.key] ?? "")} onChange={(e) => setField(field.key, e.target.value)}>
-                    {field.options?.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-                    min={field.type === "number" ? 0 : undefined}
-                    placeholder={field.placeholder}
-                    value={String(draft[field.key] ?? "")}
-                    onChange={(e) => setField(field.key, e.target.value)}
-                  />
-                )}
-              </label>
+      {errors.length ? (
+        <div className="settings-banner error table-filter-errors">
+          <ul>
+            {errors.map((err) => (
+              <li key={err}>{err}</li>
             ))}
-          </div>
-          {errors.length ? (
-            <div className="settings-banner error">
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                {errors.map((err) => (
-                  <li key={err}>{err}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div className="table-filters-actions">
-            <button type="button" className="toolbar-button" onClick={clear}>
-              Clear Filters
-            </button>
-            <button type="button" className="toolbar-button primary" onClick={apply}>
-              Apply Filters
-            </button>
-          </div>
+          </ul>
+        </div>
+      ) : null}
+
+      {activeCount ? (
+        <div className="table-applied-filters">
+          <span className="table-applied-label">Applied</span>
+          {activeFilters.map((filter) => (
+            <span className="table-applied-chip" key={filter.key}>
+              {filter.label}
+              <button type="button" aria-label={`Remove ${filter.label}`} onClick={() => remove(filter.key)}>
+                <X size={10} />
+              </button>
+            </span>
+          ))}
         </div>
       ) : null}
     </div>
