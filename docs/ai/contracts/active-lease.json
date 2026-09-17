@@ -1,35 +1,24 @@
 {
-  "task": "awkit-uiaa",
-  "contract_path": "docs/ai/contracts/awkit-uiaa.json",
+  "task": "awkit-settings-system-ui",
+  "contract_path": "docs/ai/contracts/awkit-settings-system-ui.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
-    "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-uiaa.json",
+    "docs/ai/contracts/awkit-settings-system-ui.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-14T17:50:42.372Z",
-  "acquired_at_commit": "b4ddae77d2d0180b6d6cbc5de2ad81b522d944dd",
+  "acquired_at": "2026-09-16T19:49:58.149Z",
+  "acquired_at_commit": "3dffc9f2022cddc9376e38a56b86358eea1f1ad2",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-uiaa.json"
+    "docs/ai/contracts/awkit-settings-system-ui.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "f3b8cd1eabd7a4f1646f5c8281ef85079b69f469e31d80c05311fe41526388a2",
-    "docs/ai/FEATURES.md": "864b9ea6f39f4e3318a0ec2faa22014e0df30f3b48f04ddfea1ea4550b682f85",
-    "docs/ai/HANDOFF.md": "98caac2212e7b28724992094f05f4dd3fe5a13ad6ec8d6396d642ca95a08986c",
-    "docs/ai/TASK_LOG.md": "ae1414e0d8ebfc912ee9c769a54c8743036c0a2c962de213aef9de8a559c8663",
-    "docs/ai/contracts/active-lease.json": "ab0cafd422342410686aecbc89af62342e2bf64406fae84a6c136d10e3094c66",
-    "docs/ai/contracts/awkit-uiaa.json": "33bb6c33e06ff40810fcc470a97e6a986cf30a2f98fb1d45c7407f51b0a0834c"
+    "docs/ai/contracts/active-lease.json": "8b084c9284c632698eeb0597c953ef5957764c875b7f4a1b71a6dd0691e03cd5",
+    "docs/ai/contracts/awkit-settings-system-ui.json": "1c090953959060393b38523f8f5ff8ddb189e6fd12758a8c590db383ec7d8f34"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -39,12 +28,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789391737770.8518"
+    "build": "dir(1):native-hosts:1789585772709.4731"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-14T17:53:57.533Z",
-  "released_reason": "All four requested UI behaviors, focused regression coverage, final build, roadmap reconciliation, and independent QC approval are complete.",
-  "archived_at": "2026-09-14T17:53:57.535Z"
+  "violations": []
 }
