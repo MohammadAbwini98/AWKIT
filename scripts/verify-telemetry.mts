@@ -233,11 +233,18 @@ async function main(): Promise<void> {
   check("overview success/failure rate excludes cancelled + in-progress", Math.abs(overview.successRate - 0.6) < 1e-9 && Math.abs(overview.failureRate - 0.4) < 1e-9);
   check("overview duration stats", overview.duration.avgMs === 2000 && overview.duration.medianMs === 2000 && overview.duration.p95Ms === 3000, JSON.stringify(overview.duration));
   check("overview avg queue wait", overview.avgQueueWaitMs === 200, String(overview.avgQueueWaitMs));
+  check(
+    "overview outcome series preserves success/failed/cancelled buckets",
+    overview.runsSeries.length === 1 && overview.runsSeries[0].success === 3 && overview.runsSeries[0].failed === 2 && overview.runsSeries[0].cancelled === 1 && overview.runsSeries[0].other === 0,
+    JSON.stringify(overview.runsSeries)
+  );
 
   const workflows = q.queryWorkflows({});
   check("workflows grouped by scenario, sorted by run count", workflows.length === 3 && workflows[0].scenarioId === "s-A" && workflows[0].totalRuns === 3, JSON.stringify(workflows.map((w) => w.scenarioId)));
   const bravo = workflows.find((w) => w.scenarioId === "s-B");
   check("workflow row: failed count + retry aggregation", bravo?.failed === 2 && bravo?.retryCount === 1, JSON.stringify(bravo));
+  const alpha = workflows.find((w) => w.scenarioId === "s-A");
+  check("workflow row exposes exact duration/queue sample denominators", alpha?.durationSampleCount === 3 && alpha.queueWaitSampleCount === 3 && bravo?.durationSampleCount === 0, JSON.stringify({ alpha, bravo }));
 
   const page1 = q.queryRunHistory({}, { limit: 4, offset: 0 });
   const page2 = q.queryRunHistory({}, { limit: 4, offset: 4 });
