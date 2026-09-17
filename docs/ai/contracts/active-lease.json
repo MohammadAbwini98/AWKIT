@@ -2,7 +2,7 @@
   "task": "awkit-reports-verification-closeout",
   "contract_path": "docs/ai/contracts/awkit-reports-verification-closeout.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
@@ -34,5 +34,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T20:44:17.179Z",
+  "released_reason": "Reports GUI launcher and canvas verifier issues fixed; required gates pass and project evidence is reconciled",
+  "archived_at": "2026-09-17T20:44:17.181Z"
 }

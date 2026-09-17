@@ -228,7 +228,8 @@
     "qa_status": "PASS",
     "qc_status": "APPROVED",
     "qa_notes": "All required gates are terminal: build and script typecheck PASS; canvas 46/46; Reports a11y 17/17; Reports smoke 35/35; populated Reports 173 PASS / 0 FAIL / 3 NOT RUN; telemetry 68/68; design tokens 35/35; classification, memory, graph, roadmap, and diff checks PASS.",
-    "qc_notes": "Approved: Electron receives the shared isolated user-data-dir without bypassing single-instance behavior; teardown remains reliable; canvas fixtures are truthfully typed without suppression; stale GUI assertions were aligned to current rendered semantics without weakening security, accessibility, or runtime checks."
+    "qc_notes": "Approved: Electron receives the shared isolated user-data-dir without bypassing single-instance behavior; teardown remains reliable; canvas fixtures are truthfully typed without suppression; stale GUI assertions were aligned to current rendered semantics without weakening security, accessibility, or runtime checks.",
+    "closed_at_commit": "5849a312d780465930b4ee122b8c1607f626f95a"
   },
   "write_lease": {
     "history": [
@@ -247,6 +248,28 @@
         "acquired_at_commit": "a6ab71051ac7f60def62e98d33197653c6428e46",
         "released_at": "2026-09-17T20:35:39.666Z",
         "released_reason": "handoff to project-state: QA fixes and reruns complete; reconcile authoritative Reports evidence and close task state",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-reports-verification-closeout:project-state:2026-09-17T20:35:39.732Z",
+        "task": "awkit-reports-verification-closeout",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-reports-correctness-motion.json",
+          "docs/ai/contracts/awkit-reports-verification-closeout.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T20:35:39.732Z",
+        "acquired_at_commit": "fb251b5b361be1cd94ee4868c433fdc250991fb8",
+        "released_at": "2026-09-17T20:44:17.179Z",
+        "released_reason": "Reports GUI launcher and canvas verifier issues fixed; required gates pass and project evidence is reconciled",
         "amendments": [],
         "overrides": [],
         "violations": []

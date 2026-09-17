@@ -17,13 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-reports-verification-closeout",
-      "agent": "Documentation / Project-State Specialist",
-      "state": "in-progress",
-      "claimedAt": "2026-09-17T20:35:39.732Z",
-      "note": "write lease: docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/ai/contracts/awkit-reports-correctness-motion.json, docs/ai/contracts/awkit-reports-verification-closeout.json, tools/roadmap/assignments.json"
-    }
-  ]
+  "claims": []
 }
