@@ -1,5 +1,28 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-workflows-system-ui`: collapsible filters and saved-table icon polish (Codex)
+
+- **Task:** make the Workflows filters animated, collapsible, and collapsed by default; remove the
+  hyperlink visual treatment from saved workflow names while keeping them bold and theme-correct;
+  add a Flow icon beside each flow count; and add an Import icon to the top toolbar action.
+- **Files:** `app/renderer/components/table/TableUI.tsx`,
+  `app/renderer/pages/WorkflowsLibrary.tsx`, `app/renderer/styles/global.css`, and
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`.
+- **Implementation:** added an opt-in collapsible mode to the shared advanced-filter component with
+  an accessible toggle, active-filter count, tokenized grid/opacity/chevron transitions, and the
+  repository's final reduced-motion neutralizer; enabled it only on Workflows. Restyled the existing
+  workflow-name button with bold `--awkit-text`, rendered a `Network` glyph beside each count, and
+  supplied the existing page-chrome Import action with Lucide's `Upload` glyph. No handler, preload,
+  IPC, profile, route, table-state, permission, mock-site, or runtime contract changed.
+- **Tests run:** `npm run build` **PASS**; `npm run verify:design-tokens` **35/35 PASS** with live
+  light/dark Electron coverage and zero renderer console errors; `git diff --check` PASS.
+  `verify:e2e-sweep` remains **BLOCKED — ENVIRONMENT** by the already-recorded no-bridged-window
+  launcher condition and was not retried under the anti-loop policy. `verify:workflow-builder`,
+  `verify:mock-site`, `verify:runner`, and `validate:offline` were **NOT RUN** because their canvas,
+  fixture, execution, and packaging boundaries were unchanged.
+- **Result:** all four requested Workflows-library presentation changes are implemented without
+  changing the page's behavior or the non-collapsible Flows-library use of the shared filter.
+
 ## 2026-09-18 — `awkit-workflows-system-ui`: apply the attached system design to the Workflows library (Claude)
 
 - **Task:** review the attached SpecterStudio offline design artifact and apply its library

@@ -1,4 +1,4 @@
-import { CircleCheck, CircleDashed, Copy, Download, FolderOpen, LayoutGrid, MoreVertical, Trash2 } from "lucide-react";
+import { CircleCheck, CircleDashed, Copy, Download, FolderOpen, LayoutGrid, MoreVertical, Network, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createBlankWorkflowProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { usePageChrome } from "../state/pageChrome";
@@ -269,6 +269,7 @@ export function WorkflowsLibrary() {
         {
           id: "import",
           label: "Import",
+          icon: <Upload size={15} aria-hidden="true" />,
           disabled: !canCreate,
           title: canCreate ? "Import a workflow JSON file" : "Requires the Create Workflows permission",
           onClick: () => importInputRef.current?.click()
@@ -353,6 +354,7 @@ export function WorkflowsLibrary() {
           onApply={table.applyFilters}
           onClear={table.clearAll}
           searchPlaceholder="Search workflows by name, flow or tag…"
+          collapsible
         />
 
         {loading ? (
@@ -465,7 +467,12 @@ export function WorkflowsLibrary() {
                                 {workflowAdapter.status(workflow)}
                               </span>
                             </td>
-                            <td className="wl-num-cell">{workflow.nodes?.length ?? 0}</td>
+                            <td className="wl-num-cell">
+                              <span className="wl-flow-count">
+                                <Network size={14} aria-hidden="true" />
+                                {workflow.nodes?.length ?? 0}
+                              </span>
+                            </td>
                             <td className="wl-mono-cell" title={workflow.dataSource?.dataSourceId ?? "None"}>
                               {workflow.dataSource?.dataSourceId ?? <span className="wl-cell-muted">None</span>}
                             </td>

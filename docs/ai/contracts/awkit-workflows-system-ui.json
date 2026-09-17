@@ -10,7 +10,7 @@
   },
   "repository": {
     "branch": "main",
-    "baseline_commit": "f3c00d0b97135c3e02818646df4e4ed2220ee99e",
+    "baseline_commit": "02b9754fe074e2a3efe8c9c12f3eb418e6e7eb19",
     "working_tree_expected": "clean",
     "preserved_paths": []
   },
@@ -110,7 +110,7 @@
       "required": true,
       "command": "npm run verify:design-tokens",
       "result": "PASS",
-      "artifact": "2026-09-17: 35/35 static and live Electron design-system checks passed in light and dark themes against the final global.css, with zero renderer console errors."
+      "artifact": "2026-09-18: 35/35 static and live Electron design-system checks passed in light and dark themes after the collapsible-filter and table-icon follow-up, with zero renderer console errors."
     },
     {
       "id": "build",
@@ -118,7 +118,7 @@
       "required": true,
       "command": "npm run build",
       "result": "PASS",
-      "artifact": "2026-09-17: embedded roadmap snapshot, tsc --noEmit, and all Electron/Vite bundles completed; the pre-existing securityKernel dynamic-import advisory remained non-failing."
+      "artifact": "2026-09-18: embedded roadmap snapshot, tsc --noEmit, and all Electron/Vite bundles completed after the collapsible-filter and table-icon follow-up; the pre-existing securityKernel dynamic-import advisory remained non-failing."
     },
     {
       "id": "source-review",
@@ -126,7 +126,7 @@
       "required": true,
       "command": null,
       "result": "PASS",
-      "artifact": "2026-09-17: the diff contains only Workflows-library structure/styles plus the shared table-surface and pill-gap CSS; every workflow list, create, clone, export, import, conflict-resolution, delete, filter, sort and pagination path stays bound to its existing handler and preload channel, and the page-local toolbar actions moved to usePageChrome without changing their permission gates."
+      "artifact": "2026-09-18: source review confirms the follow-up adds only opt-in shared filter disclosure state, tokenized/reduced-motion-safe accordion presentation, theme-text workflow-name styling, and Lucide icons. Every workflow list, create, clone, export, import, conflict-resolution, delete, filter, sort and pagination path remains bound to its existing handler and preload channel; the non-collapsible Flows-library use remains unchanged."
     },
     {
       "id": "verify:e2e-sweep",
@@ -198,7 +198,7 @@
     "status": "implemented",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "notes": "Owner authorized the push directly. Independent QC APPROVED on its third pass, after two REJECTED passes whose findings are recorded in the qc-review evidence. Status stays 'implemented', not 'complete': the two GUI verifiers that navigate to the Workflows route (verify:e2e-sweep, verify:flow-library) are BLOCKED by the documented host-state electron.launch harness issue, so the redesigned page still has no live GUI assertion. QC's recorded position is that this gap does not block a development push but DOES block a release claim. The bulk-delete partial-failure path is the part of this change least covered by any gate available on this host — it is state sequencing that no static check, build, or token sweep can observe, and it is the single most valuable thing to exercise when the harness is next available."
+    "notes": "Owner authorized the push directly. Independent QC APPROVED the original redesign on its third pass, after two REJECTED passes whose findings are recorded in the qc-review evidence. The 2026-09-18 owner follow-up added collapsed-by-default animated filters, neutral bold workflow-name styling, flow-count icons, and an Import icon; build, source review, design-token, AI-memory, roadmap, and diff gates pass. Status stays 'implemented', not 'complete': the two GUI verifiers that navigate to the Workflows route (verify:e2e-sweep, verify:flow-library) are BLOCKED by the documented host-state electron.launch harness issue, so the redesigned page still has no live GUI assertion. QC's recorded position is that this gap does not block a development push but DOES block a release claim. The bulk-delete partial-failure path is the part of this change least covered by any gate available on this host — it is state sequencing that no static check, build, or token sweep can observe, and it is the single most valuable thing to exercise when the harness is next available."
   },
   "write_lease": {
     "history": [

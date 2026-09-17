@@ -11,6 +11,14 @@ secondary actions (**New Workflow**, **Import**, **Refresh**) moved into the top
 sits in a titled table surface that reports the live record count, or the current selection count
 while rows are selected, above the shared system table.
 
+A follow-up polish pass makes the Workflows filter surface opt-in collapsible through the shared
+`AdvancedTableFilters` component and collapsed by default on this route. Expansion/collapse uses the
+existing tokenized accordion motion pattern, keeps the state interruptible, exposes `aria-expanded`
+and `aria-controls`, and collapses to an instant state change under reduced motion. Saved workflow
+names retain button semantics but now render as bold theme text instead of accent hyperlinks; each
+flow count carries the established Flow/Network glyph; and the header Import action carries the
+standard Upload icon.
+
 Rows are now selectable, with a page-level select-all and bulk **Export selected**, **Duplicate**,
 and **Delete** actions that reuse the existing per-workflow export, clone, and delete handlers; the
 delete confirmation names the exact set it will remove. Each row leads with an identity cell — icon,

@@ -4372,17 +4372,17 @@ th {
 .wl-name-link {
   background: transparent;
   border: none;
-  color: var(--awkit-accent);
+  color: var(--awkit-text);
   cursor: pointer;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: 700;
   padding: 0;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .wl-name-link:hover {
-  color: var(--awkit-accent-hover);
+  color: var(--awkit-text);
 }
 
 .wl-name-cell small {
@@ -4482,6 +4482,17 @@ th {
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-semibold);
   text-align: center;
+}
+
+.wl-flow-count {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-1);
+  justify-content: center;
+}
+
+.wl-flow-count svg {
+  color: var(--awkit-text-muted);
 }
 
 .wl-mono-cell {
@@ -5861,6 +5872,81 @@ th {
   gap: var(--space-3);
   margin-bottom: var(--space-3);
   padding: var(--space-3) var(--space-4);
+}
+
+.table-filters.is-collapsible {
+  gap: 0;
+}
+
+.table-filter-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--awkit-text);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  justify-content: space-between;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.table-filter-toggle-label {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.table-filter-count {
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-pill);
+  color: var(--awkit-accent);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  min-width: var(--space-4h);
+  padding: 0 var(--space-2);
+  text-align: center;
+}
+
+.table-filter-toggle-chevron {
+  color: var(--awkit-text-muted);
+  transition: transform var(--awkit-dur-med) var(--awkit-ease-in-out);
+}
+
+.table-filter-toggle[aria-expanded="true"] .table-filter-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+.table-filters-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--awkit-dur-panel) var(--awkit-ease-in-out),
+    opacity var(--awkit-dur-med) var(--awkit-ease-out),
+    visibility 0s linear var(--awkit-dur-panel);
+}
+
+.table-filters-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition-delay: 0s;
+  visibility: visible;
+}
+
+.table-filters-collapse-inner {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.table-filters.is-collapsible .table-filters-collapse-inner {
+  padding-top: var(--space-3);
 }
 
 .table-filters-bar {
@@ -15522,7 +15608,9 @@ th {
     table:not([class])
   ) tbody tr,
   .table-search,
-  .table-filter-field :is(input, select) {
+  .table-filter-field :is(input, select),
+  .table-filter-toggle-chevron,
+  .table-filters-collapse {
     transition: none;
   }
 }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Inbox, Search, SearchX, X } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Inbox, ListFilter, Search, SearchX, X } from "lucide-react";
 import { PAGE_SIZES, validateFilters, type SortDirection } from "./tableState";
 
 // ── Sortable header cell ──────────────────────────────────────────────────────
@@ -122,11 +122,14 @@ interface AdvancedTableFiltersProps {
   onApply: (filters: Filters) => void;
   onClear: () => void;
   searchPlaceholder: string;
+  collapsible?: boolean;
 }
 
-export function AdvancedTableFilters({ searchText, onSearch, fields, applied, onApply, onClear, searchPlaceholder }: AdvancedTableFiltersProps) {
+export function AdvancedTableFilters({ searchText, onSearch, fields, applied, onApply, onClear, searchPlaceholder, collapsible = false }: AdvancedTableFiltersProps) {
   const [draft, setDraft] = useState<Filters>(applied);
   const [errors, setErrors] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState(!collapsible);
+  const collapseId = useId();
 
   useEffect(() => {
     setDraft(applied);
@@ -163,73 +166,100 @@ export function AdvancedTableFilters({ searchText, onSearch, fields, applied, on
     onApply(next);
   };
 
+  const filtersVisible = !collapsible || expanded;
+
   return (
-    <div className="table-filters" role="search" aria-label="Table filters">
-      <div className="table-filters-bar">
-        <div className="table-search">
-          <Search size={15} />
-          <input value={searchText} placeholder={searchPlaceholder} onChange={(e) => onSearch(e.target.value)} />
-          {searchText ? (
-            <button type="button" title="Clear search" onClick={() => onSearch("")}>
-              <X size={14} />
-            </button>
+    <div className={`table-filters${collapsible ? " is-collapsible" : ""}`} role="search" aria-label="Table filters">
+      {collapsible ? (
+        <button
+          className="table-filter-toggle"
+          type="button"
+          aria-controls={collapseId}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <span className="table-filter-toggle-label">
+            <ListFilter size={15} aria-hidden="true" />
+            Filters
+            {activeCount ? <span className="table-filter-count">{activeCount}</span> : null}
+          </span>
+          <ChevronDown className="table-filter-toggle-chevron" size={16} aria-hidden="true" />
+        </button>
+      ) : null}
+
+      <div
+        id={collapseId}
+        className={`table-filters-collapse${filtersVisible ? " is-open" : ""}`}
+        aria-hidden={!filtersVisible}
+      >
+        <div className="table-filters-collapse-inner">
+          <div className="table-filters-bar">
+            <div className="table-search">
+              <Search size={15} />
+              <input value={searchText} placeholder={searchPlaceholder} onChange={(e) => onSearch(e.target.value)} />
+              {searchText ? (
+                <button type="button" title="Clear search" onClick={() => onSearch("")}>
+                  <X size={14} />
+                </button>
+              ) : null}
+            </div>
+            {fields.map((field) => (
+              <label key={field.key} className="table-filter-field">
+                <span>{field.label}</span>
+                {field.type === "select" ? (
+                  <select value={String(draft[field.key] ?? "")} onChange={(e) => setField(field.key, e.target.value)}>
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+                    min={field.type === "number" ? 0 : undefined}
+                    placeholder={field.placeholder}
+                    value={String(draft[field.key] ?? "")}
+                    onChange={(e) => setField(field.key, e.target.value)}
+                  />
+                )}
+              </label>
+            ))}
+            <div className="table-filters-actions">
+              <button type="button" className="toolbar-button primary" onClick={apply}>
+                Apply
+              </button>
+              <button type="button" className="toolbar-button" onClick={clear}>
+                Clear
+              </button>
+            </div>
+          </div>
+
+          {errors.length ? (
+            <div className="settings-banner error table-filter-errors">
+              <ul>
+                {errors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {activeCount ? (
+            <div className="table-applied-filters">
+              <span className="table-applied-label">Applied</span>
+              {activeFilters.map((filter) => (
+                <span className="table-applied-chip" key={filter.key}>
+                  {filter.label}
+                  <button type="button" aria-label={`Remove ${filter.label}`} onClick={() => remove(filter.key)}>
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
           ) : null}
         </div>
-        {fields.map((field) => (
-          <label key={field.key} className="table-filter-field">
-            <span>{field.label}</span>
-            {field.type === "select" ? (
-              <select value={String(draft[field.key] ?? "")} onChange={(e) => setField(field.key, e.target.value)}>
-                {field.options?.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-                min={field.type === "number" ? 0 : undefined}
-                placeholder={field.placeholder}
-                value={String(draft[field.key] ?? "")}
-                onChange={(e) => setField(field.key, e.target.value)}
-              />
-            )}
-          </label>
-        ))}
-        <div className="table-filters-actions">
-          <button type="button" className="toolbar-button primary" onClick={apply}>
-            Apply
-          </button>
-          <button type="button" className="toolbar-button" onClick={clear}>
-            Clear
-          </button>
-        </div>
       </div>
-
-      {errors.length ? (
-        <div className="settings-banner error table-filter-errors">
-          <ul>
-            {errors.map((err) => (
-              <li key={err}>{err}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {activeCount ? (
-        <div className="table-applied-filters">
-          <span className="table-applied-label">Applied</span>
-          {activeFilters.map((filter) => (
-            <span className="table-applied-chip" key={filter.key}>
-              {filter.label}
-              <button type="button" aria-label={`Remove ${filter.label}`} onClick={() => remove(filter.key)}>
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

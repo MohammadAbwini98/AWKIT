@@ -439,7 +439,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   select-all and bulk **Export selected** / **Duplicate** / **Delete** reusing the per-workflow
   handlers (one confirmation naming the exact delete set); icon-led identity cells with the
   description as a second line, status-glyph badges, tabular flow counts, monospace data sources, and
-  an inline Open action beside the per-row kebab menu. Permission gates are unchanged.
+  an inline Open action beside the per-row kebab menu. The advanced filter surface is collapsed by
+  default and expands with tokenized, reduced-motion-safe accordion animation; saved workflow names
+  use bold theme text instead of hyperlink styling; flow counts carry a Flow/Network glyph; and the
+  top-header Import action carries an Upload icon. Permission gates are unchanged.
 - ✅ Data Source Manager (JSON sources, click a row to preview, validate, **Edit Table**, duplicate,
   export, **Create Data Source** from scratch); Runtime Input panel; Form Designer.
 - 🟡 **Oracle Data Sources + Oracle node (read-only; `INTEGRATION-CANDIDATE`, 2026-07-17):** Oracle-backed
