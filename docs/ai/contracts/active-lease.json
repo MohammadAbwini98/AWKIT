@@ -2,7 +2,7 @@
   "task": "awkit-workflows-system-ui",
   "contract_path": "docs/ai/contracts/awkit-workflows-system-ui.json",
   "holder": "frontend",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "app/renderer/components/table/TableUI.tsx",
     "app/renderer/pages/WorkflowsLibrary.tsx",
@@ -40,5 +40,8 @@
     }
   ],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T22:26:44.676Z",
+  "released_reason": "Workflows filter and saved-table polish implemented, verified, and committed at 01ad630",
+  "archived_at": "2026-09-17T22:26:44.677Z"
 }

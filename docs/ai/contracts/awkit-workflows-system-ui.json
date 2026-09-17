@@ -255,6 +255,34 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-workflows-system-ui:frontend:2026-09-17T21:33:39.343Z",
+        "task": "awkit-workflows-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/components/table/TableUI.tsx",
+          "app/renderer/pages/WorkflowsLibrary.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T21:33:39.343Z",
+        "acquired_at_commit": "818ede3b4388bcbb5d394473239efe88678448ce",
+        "released_at": "2026-09-17T22:26:44.676Z",
+        "released_reason": "Workflows filter and saved-table polish implemented, verified, and committed at 01ad630",
+        "amendments": [
+          {
+            "timestamp": "2026-09-17T21:40:38.591Z",
+            "added": [
+              "app/renderer/components/table/TableUI.tsx"
+            ],
+            "reason": "QC review requires the aria-sort attribute on the shared sortable header the redesign relies on",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
       }
     ],
     "overrides": []
