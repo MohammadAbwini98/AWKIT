@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, ChevronLeft, ChevronRight, ListChecks, MonitorDot, PauseCircle } from "lucide-react";
-import type { RunHistoryPage, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
+import type { RunHistoryPage, RuntimeSeriesPoint, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
@@ -9,6 +9,7 @@ import { ReportPage } from "../components/reports/ReportPage";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 import { RunDetailDrawer } from "../components/reports/RunDetailDrawer";
 import { formatDurationMs, formatWhen, statusToTone } from "../components/reports/statusTone";
+import { ConsumptionTimeline, type TimelineSeries } from "../components/reports/ConsumptionTimeline";
 
 const DISTRIBUTION_ORDER = ["running", "starting", "waitingForManualAction", "queued", "pending", "completed", "failed", "cancelled"];
 const PAGE_SIZE = 25;
@@ -52,12 +53,28 @@ export function ReportsInstances() {
     () => window.playwrightFlowStudio.telemetry.runHistory(range, { limit: PAGE_SIZE, offset }),
     [range, offset]
   );
+  const { data: runtimeSeries } = useTelemetryQuery<RuntimeSeriesPoint[]>(
+    () => window.playwrightFlowStudio.telemetry.runtimeSeries(range),
+    [range]
+  );
 
   const liveStatuses = DISTRIBUTION_ORDER.filter((status) => (distribution[status] ?? 0) > 0);
   const liveTotal = Object.values(distribution).reduce((sum, value) => sum + value, 0);
   const activeTotal = (distribution.running ?? 0) + (distribution.starting ?? 0);
   const queuedTotal = (distribution.queued ?? 0) + (distribution.pending ?? 0);
   const manualTotal = distribution.waitingForManualAction ?? 0;
+  const concurrencySeries: TimelineSeries[] = [
+    {
+      label: "Active instances",
+      color: "var(--awkit-accent)",
+      points: (runtimeSeries ?? []).map((point) => ({ x: Date.parse(point.bucketIso), y: point.activeFlows })).filter((point) => !Number.isNaN(point.x))
+    },
+    {
+      label: "Queue depth",
+      color: "var(--awkit-warning)",
+      points: (runtimeSeries ?? []).map((point) => ({ x: Date.parse(point.bucketIso), y: point.queueDepth })).filter((point) => !Number.isNaN(point.x))
+    }
+  ];
 
   return (
     <ReportPage
@@ -71,6 +88,8 @@ export function ReportsInstances() {
       }}
       onRefresh={refetch}
       refreshing={loading}
+      exportData={data}
+      exportName="instance-reports"
     >
       <div className="awkit-report-widget-grid">
       <div className="page-grid metrics-grid">
@@ -102,6 +121,14 @@ export function ReportsInstances() {
       </section>
 
       <section className="work-panel awkit-report-panel awkit-report-span-8">
+        <div className="awkit-report-panel-head">
+          <div><strong>Concurrency over time</strong><span>Active instances against queue depth</span></div>
+          <span className="awkit-report-tag">Selected range</span>
+        </div>
+        <ConsumptionTimeline series={concurrencySeries} />
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-12">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Run history</strong>

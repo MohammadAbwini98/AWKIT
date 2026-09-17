@@ -49,13 +49,15 @@ export function ReportsOverview() {
 
   return (
     <ReportPage
-      title="Reports Overview"
+      title="Reports"
       description="Automation outcomes, durations, and live activity from completed runs."
       icon={<Gauge size={18} />}
       range={range}
       onRangeChange={setRange}
       onRefresh={refetch}
       refreshing={loading}
+      exportData={data}
+      exportName="reports-overview"
     >
       {loading && !data ? (
         <div className="page-grid metrics-grid">
@@ -158,7 +160,7 @@ function OverviewContent({ data }: { data: OverviewData }) {
         <DonutChart segments={outcomes} centerLabel={pct(overview.successRate)} centerSub="success" />
       </section>
 
-      <section className="work-panel awkit-report-panel awkit-report-span-12">
+      <section className="work-panel awkit-report-panel awkit-report-span-8">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Run health</strong>
@@ -172,6 +174,17 @@ function OverviewContent({ data }: { data: OverviewData }) {
           <div><span>p95 duration</span><strong>{formatDuration(overview.duration.p95Ms)}</strong><small>95th percentile</small></div>
           <div><span>Average queue</span><strong>{formatDuration(overview.avgQueueWaitMs)}</strong><small>enqueue to dispatch</small></div>
           <div><span>Queued now</span><strong>{data.queuedInstances}</strong><small>waiting instances</small></div>
+        </div>
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-4">
+        <div className="awkit-report-panel-head">
+          <div><strong>Live activity</strong><span>Current workload outside the selected history range</span></div>
+          <span className="awkit-report-tag">Live</span>
+        </div>
+        <div className="awkit-report-summary-list awkit-report-summary-compact">
+          <div><span>Active instances</span><strong>{data.activeInstances}</strong><small>running or starting</small></div>
+          <div><span>Queued instances</span><strong>{data.queuedInstances}</strong><small>waiting for capacity</small></div>
         </div>
       </section>
     </div>

@@ -1,7 +1,6 @@
 import type { TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 
 const OPTIONS: Array<{ value: TelemetryRangePreset; label: string }> = [
-  { value: "15m", label: "15m" },
   { value: "1h", label: "1h" },
   { value: "24h", label: "24h" },
   { value: "7d", label: "7d" },

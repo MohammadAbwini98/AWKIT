@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 export interface PageAction {
   id: string;
   label: string;
+  icon?: ReactNode;
   /** May return a promise — the unsaved-changes "Save and Continue" flow awaits it. */
   onClick: () => void | Promise<void>;
   variant?: "default" | "primary";

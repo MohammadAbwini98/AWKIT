@@ -14,6 +14,7 @@ import { StatusBadge } from "../components/shared/StatusBadge";
 import { MetricCard } from "../components/shared/MetricCard";
 import { ReportPage } from "../components/reports/ReportPage";
 import { MetricSparkline } from "../components/reports/MetricSparkline";
+import { BarChart } from "../components/reports/BarChart";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 import { RunDetailDrawer } from "../components/reports/RunDetailDrawer";
 import { formatDurationMs, formatWhen, statusToTone } from "../components/reports/statusTone";
@@ -176,6 +177,8 @@ export function ReportsWorkflows() {
       onRangeChange={setRange}
       onRefresh={refetch}
       refreshing={loading}
+      exportData={data}
+      exportName="workflow-reports"
     >
       <div className="awkit-report-filters" role="group" aria-label="Report filters">
         <label className="awkit-filter-field">
@@ -345,6 +348,16 @@ export function ReportsWorkflows() {
               </tbody>
               </table>
             </div>
+          </section>
+
+          <section className="work-panel awkit-report-panel awkit-report-span-7">
+            <div className="awkit-report-panel-head"><div><strong>Duration by workflow</strong><span>Average runtime for the busiest workflows</span></div></div>
+            <BarChart data={sorted.filter((row) => row.duration.avgMs !== undefined).slice(0, 8).map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: Math.round(row.duration.avgMs ?? 0), color: "var(--awkit-accent)" }))} />
+          </section>
+
+          <section className="work-panel awkit-report-panel awkit-report-span-5">
+            <div className="awkit-report-panel-head"><div><strong>Success rate by workflow</strong><span>Percentage of successful runs</span></div></div>
+            <BarChart data={sorted.slice(0, 8).map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: Math.round(row.successRate * 100), color: "var(--awkit-success)" }))} />
           </section>
 
           {compareMode ? (

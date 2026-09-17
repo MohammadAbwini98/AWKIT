@@ -40,6 +40,7 @@ export function TopHeader({ activeRoute, actions, canGoBack, dirty, onBack }: To
             title={action.title ?? action.label}
             type="button"
           >
+            {action.icon}
             {action.label}
           </button>
         ))}

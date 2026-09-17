@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Lightbulb, ListChecks, RotateCcw, ShieldAlert, Workflow } from "lucide-react";
-import type { FailureBreakdown, TelemetryRangePreset, WorkflowReportRow } from "@src/reports/TelemetryContracts";
+import type { FailureBreakdown, TelemetryOverview, TelemetryRangePreset, WorkflowReportRow } from "@src/reports/TelemetryContracts";
 import { reportCategoryLabel, type ReportCategory } from "@src/reports/ReportCategories";
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
@@ -11,10 +11,12 @@ import { BarChart, type BarDatum } from "../components/reports/BarChart";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 import { RunDetailDrawer } from "../components/reports/RunDetailDrawer";
 import { formatDurationMs, formatWhen } from "../components/reports/statusTone";
+import { ConsumptionTimeline, type TimelineSeries } from "../components/reports/ConsumptionTimeline";
 
 interface FailuresData {
   failures: FailureBreakdown;
   workflows: WorkflowReportRow[];
+  overview: TelemetryOverview;
 }
 
 /* Failure-category → chart-series assignment. Colors resolve through the categorical
@@ -76,11 +78,12 @@ export function ReportsFailures() {
   const [evidenceRunId, setEvidenceRunId] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useTelemetryQuery<FailuresData>(async () => {
-    const [failures, workflows] = await Promise.all([
+    const [failures, workflows, overview] = await Promise.all([
       window.playwrightFlowStudio.telemetry.failures(range),
-      window.playwrightFlowStudio.telemetry.workflows(range)
+      window.playwrightFlowStudio.telemetry.workflows(range),
+      window.playwrightFlowStudio.telemetry.overview(range)
     ]);
-    return { failures, workflows };
+    return { failures, workflows, overview };
   }, [range]);
 
   const segments: DonutSegment[] = useMemo(
@@ -94,6 +97,11 @@ export function ReportsFailures() {
   );
 
   const noFailures = data && data.failures.total === 0;
+  const failureSeries: TimelineSeries[] = data ? [{
+    label: "Failed runs",
+    color: "var(--awkit-danger)",
+    points: data.overview.runsSeries.map((point) => ({ x: Date.parse(point.bucketIso), y: point.failed })).filter((point) => !Number.isNaN(point.x))
+  }] : [];
   const summary = useMemo(() => {
     const workflows = data?.workflows ?? [];
     const totalRuns = workflows.reduce((sum, row) => sum + row.totalRuns, 0);
@@ -116,6 +124,8 @@ export function ReportsFailures() {
       onRangeChange={setRange}
       onRefresh={refetch}
       refreshing={loading}
+      exportData={data}
+      exportName="failure-analytics"
     >
       {loading && !data ? (
         <SkeletonCard variant="chart" />
@@ -134,17 +144,6 @@ export function ReportsFailures() {
             <div className="awkit-report-span-12"><EmptyState icon={<CheckCircle2 size={28} />} title="No failures in this range" hint="Every completed run in this window succeeded (or was cancelled). Nice." /></div>
           ) : (
             <>
-              {buildInsights(data).length > 0 ? (
-                <section className="work-panel awkit-report-panel awkit-insights awkit-report-span-12">
-                  <Lightbulb size={16} />
-                  <ul>
-                    {buildInsights(data).map((insight) => (
-                      <li key={insight}>{insight}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
                 <section className="work-panel awkit-report-panel awkit-report-span-7">
                   <div className="awkit-report-panel-head">
                     <div>
@@ -171,6 +170,20 @@ export function ReportsFailures() {
                     <BarChart
                       data={data.failures.topWorkflows.map((w): BarDatum => ({ label: w.scenarioName ?? w.scenarioId ?? "(unknown)", value: w.failed, color: "var(--awkit-danger)" }))}
                     />
+                  )}
+                </section>
+
+                <section className="work-panel awkit-report-panel awkit-report-span-7">
+                  <div className="awkit-report-panel-head"><div><strong>Failures over time</strong><span>Failed-run volume across the selected range</span></div></div>
+                  <ConsumptionTimeline series={failureSeries} />
+                </section>
+
+                <section className="work-panel awkit-report-panel awkit-insights awkit-report-span-5">
+                  <Lightbulb size={16} />
+                  {buildInsights(data).length > 0 ? (
+                    <ul>{buildInsights(data).map((insight) => <li key={insight}>{insight}</li>)}</ul>
+                  ) : (
+                    <p className="awkit-muted">No statistically useful insight is available yet.</p>
                   )}
                 </section>
             </>

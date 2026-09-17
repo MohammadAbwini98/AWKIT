@@ -7,6 +7,7 @@ import { ReportPage } from "../components/reports/ReportPage";
 import { BarChart, type BarDatum } from "../components/reports/BarChart";
 import { AvailabilityNotice } from "../components/reports/AvailabilityNotice";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
+import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
 
 function pctOrDash(value: number | undefined): string {
   return value === undefined ? "—" : `${value}%`;
@@ -25,6 +26,8 @@ export function ReportsServer() {
       icon={<Server size={18} />}
       onRefresh={refetch}
       refreshing={loading}
+      exportData={data}
+      exportName="server-performance"
     >
       {loading && !data ? (
         <div className="page-grid metrics-grid">
@@ -49,6 +52,11 @@ function ServerContent({ data }: { data: ServerReport }) {
     { label: "Downloads", value: data.storage.downloadsMb, color: "var(--awkit-success)" },
     { label: "Runtime DB", value: data.storage.runtimeDbMb, color: "var(--awkit-accent-hover)" }
   ];
+  const storageSegments: DonutSegment[] = storageBars.filter((item) => item.value > 0).map((item) => ({
+    label: item.label,
+    value: item.value,
+    color: item.color ?? "var(--awkit-accent)"
+  }));
 
   return (
     <>
@@ -64,6 +72,7 @@ function ServerContent({ data }: { data: ServerReport }) {
         </div>
       ) : null}
 
+      <div className="awkit-report-widget-grid">
       <div className="page-grid metrics-grid">
         <MetricCard label="System memory" value={pctOrDash(data.systemMemoryPercent)} detail="Sampled RAM usage" icon={<MemoryStick size={22} />} />
         <MetricCard label="System CPU" value={pctOrDash(data.cpuPercent)} detail={`Main process ${data.processCpuPercent?.toFixed(0) ?? "—"}%`} icon={<Cpu size={22} />} />
@@ -76,7 +85,7 @@ function ServerContent({ data }: { data: ServerReport }) {
         />
       </div>
 
-      <section className="work-panel awkit-report-panel">
+      <section className="work-panel awkit-report-panel awkit-report-span-8">
         <div className="awkit-report-panel-head">
           <div>
             <strong>Storage usage</strong>
@@ -91,7 +100,18 @@ function ServerContent({ data }: { data: ServerReport }) {
         <BarChart data={storageBars} />
       </section>
 
-      <section className="work-panel awkit-report-panel awkit-storage-note">
+      <section className="work-panel awkit-report-panel awkit-report-span-4">
+        <div className="awkit-report-panel-head">
+          <div><strong>Storage breakdown</strong><span>Share by configured data location</span></div>
+        </div>
+        {storageSegments.length > 0 ? (
+          <DonutChart segments={storageSegments} centerLabel={`${data.storage.totalMb.toLocaleString()} MB`} centerSub="on disk" />
+        ) : (
+          <p className="awkit-muted">No stored artifacts were measured.</p>
+        )}
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-storage-note awkit-report-span-12">
         <Database size={15} />
         <p className="awkit-muted">
           Storage sizes are computed from the configured Reports, Screenshots, Logs, and Downloads folders plus the runtime SQLite file,
@@ -106,6 +126,7 @@ function ServerContent({ data }: { data: ServerReport }) {
           ) : null}
         </p>
       </section>
+      </div>
     </>
   );
 }
