@@ -8,7 +8,7 @@
 //
 // Run after `npm run build`:
 //   npm run verify:reports-settings-a11y
-import { _electron as electron } from "playwright";
+import { _electron as electron, type ElectronApplication } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -130,15 +130,16 @@ async function tabThrough(win: any, n: number) {
 
 async function main(): Promise<number> {
   await mkdir(evidenceDir, { recursive: true });
-  const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-a11y");
-  await seedWorkflowReportHistory(dataRoot);
-  const app = await electron.launch({ args: [root], env, cwd: root });
-  const win = await resolveMainWindow(app);
-  const bw = await app.browserWindow(win);
-  await signInFirstRun(win, DEFAULT_CREDS);
-  console.log(`Reports + Settings accessibility (SYS-REP-016, SET-021)\n  profile: ${dataRoot}`);
-
+  const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-a11y");
+  let app: ElectronApplication | undefined;
   try {
+    await seedWorkflowReportHistory(dataRoot);
+    app = await electron.launch({ args: [root, ...electronArgs], env, cwd: root });
+    const win = await resolveMainWindow(app);
+    const bw = await app.browserWindow(win);
+    await signInFirstRun(win, DEFAULT_CREDS);
+    console.log(`Reports + Settings accessibility (SYS-REP-016, SET-021)\n  profile: ${dataRoot}`);
+
     // ── SYS-REP-016 — Reports ───────────────────────────────────────────────────────────────────
     console.log("\nSYS-REP-016 — Reports accessibility:");
     await navClick(win, "Reports");
@@ -295,7 +296,7 @@ async function main(): Promise<number> {
     // aria-live/role=alert with it) only when there is something to say, so this drives the REAL
     // control: an out-of-range zoom in the live input. An out-of-band preload call would never reach
     // React state and would prove nothing about what a screen-reader user hears.
-    const zoomInput = win.locator('input[type="number"]').first();
+    const zoomInput = win.getByLabel("Default zoom (%)", { exact: true });
     if (await zoomInput.count()) {
       await zoomInput.fill("9999");
       await zoomInput.blur().catch(() => undefined);
@@ -303,7 +304,7 @@ async function main(): Promise<number> {
       // the banner happen in `save()`, so the announcement only exists after Save is pressed.
       // Testing without this click asserted nothing — an earlier revision of this check did exactly
       // that and reported a product defect that was not there.
-      await win.getByRole("button", { name: /Save Changes/i }).click();
+      await win.getByRole("button", { name: "Save", exact: true }).click();
       await win.waitForTimeout(1200);
       const announced = await win.evaluate(() =>
         Array.from(document.querySelectorAll("[aria-live], [role='alert']")).map((e) => ({
@@ -322,7 +323,7 @@ async function main(): Promise<number> {
       check(
         "Settings: the invalid field is marked, not signalled by colour alone",
         await win.evaluate(() => {
-          const el = document.querySelector('input[type="number"]') as HTMLElement | null;
+          const el = document.querySelector("#set-designer-zoom") as HTMLElement | null;
           if (!el) return false;
           return (
             el.getAttribute("aria-invalid") === "true" ||
@@ -371,13 +372,16 @@ async function main(): Promise<number> {
     await bw.evaluate((w: any) => w.setBounds({ width: 1280, height: 800 }));
     await win.emulateMedia({ reducedMotion: null });
   } finally {
-    await writeFile(
-      path.join(evidenceDir, "execution-results.json"),
-      JSON.stringify({ total: results.length, passed, failed, notRun, results }, null, 2),
-      "utf8"
-    );
-    await app.close().catch(() => undefined);
-    cleanup();
+    try {
+      await writeFile(
+        path.join(evidenceDir, "execution-results.json"),
+        JSON.stringify({ total: results.length, passed, failed, notRun, results }, null, 2),
+        "utf8"
+      );
+    } finally {
+      if (app) await app.close().catch(() => undefined);
+      cleanup();
+    }
   }
 
   console.log(`\nReports + Settings a11y: ${passed} PASS / ${failed} FAIL / ${notRun} NOT RUN`);
