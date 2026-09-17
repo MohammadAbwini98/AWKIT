@@ -1,27 +1,24 @@
 {
-  "task": "awkit-reports-closeout-recovery",
-  "contract_path": "docs/ai/contracts/awkit-reports-closeout-recovery.json",
+  "task": "awkit-reports-correctness-motion",
+  "contract_path": "docs/ai/contracts/awkit-reports-correctness-motion.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/FEATURES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-reports-closeout-recovery.json",
-    "docs/ai/contracts/awkit-reports-reference-composition.json",
+    "docs/ai/contracts/awkit-reports-correctness-motion.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-17T18:16:52.247Z",
-  "acquired_at_commit": "a1a485f6f0be78f5fb39a1e612016b689646ef85",
+  "acquired_at": "2026-09-17T19:34:28.720Z",
+  "acquired_at_commit": "15c03ce0a9350a9d6f740970a8d1b1f15de4d604",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-reports-closeout-recovery.json",
-    "docs/ai/contracts/awkit-reports-reference-composition.json"
+    "docs/ai/contracts/awkit-reports-correctness-motion.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "65d6a5c88f0bbe254d58867279db6c4ddfe73d16ef06f862092ffea34067c289",
-    "docs/ai/contracts/awkit-reports-closeout-recovery.json": "1991d2fa22964472a5a92ab7f15f1db5a8d1a423da7172618cf547bfee8cc160",
-    "docs/ai/contracts/awkit-reports-reference-composition.json": "9fa2008ccfe267e6eed2bcf4b698b28bbca191912e022eebb284dd8f3fedafe3"
+    "docs/ai/contracts/active-lease.json": "4f3e54220bcb7ae22c4c1f534ed9ea2a3420c0e1d818e5049f6d47f8411ed9d9",
+    "docs/ai/contracts/awkit-reports-correctness-motion.json": "840cc1bf618eaaf570cf18584967f2ffdb32b397d5767c3a0ce9b289008d7e83"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,12 +28,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789663423057.4133"
+    "build": "dir(1):native-hosts:1789670376990.1582"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-17T18:19:04.132Z",
-  "released_reason": "absorbed Reports closeout residue and restored portable-release preflight",
-  "archived_at": "2026-09-17T18:19:04.133Z"
+  "violations": []
 }
