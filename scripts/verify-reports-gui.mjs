@@ -88,10 +88,10 @@ try {
   check("Reports nav item found and clicked", navigated);
 
   await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
-  check("Reports Overview page renders (.awkit-report-page)", true);
+  check("Reports page renders (.awkit-report-page)", true);
 
   const headerText = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
-  check("page header reads 'Reports Overview'", headerText.includes("Reports Overview"), headerText);
+  check("page header reads 'Reports'", headerText.trim() === "Reports", headerText);
 
   // Wait for the query to resolve into one of the valid terminal states.
   await win.waitForFunction(
@@ -117,7 +117,7 @@ try {
 
   // Time-range control present + clickable without crashing.
   const rangeButtons = await win.$$(".awkit-range-selector button");
-  check("time-range selector rendered", rangeButtons.length === 5, `count=${rangeButtons.length}`);
+  check("reference time-range selector rendered", rangeButtons.length === 4, `count=${rangeButtons.length}`);
   await win.click('.awkit-range-selector button:has-text("7d")').catch(() => {});
   await win.waitForTimeout(800);
   check("page still rendered after range change", !!(await win.$(".awkit-report-page")));
@@ -201,23 +201,25 @@ try {
 
   check("Chrome Consumption nav clicked", await navTo("Chrome Consumption"));
   await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
-  // Gauges resolve once the first runtime-status poll returns.
+  // The consolidated pressure panel resolves once the first runtime-status poll returns.
   await win.waitForFunction(
     () => {
       const page = document.querySelector(".awkit-report-page");
-      return !!page && page.querySelectorAll(".awkit-gauge-card").length > 0 && !page.querySelector(".awkit-skeleton-card");
+      return !!page && page.querySelectorAll(".awkit-report-gauge").length > 0 && !page.querySelector(".awkit-skeleton-card");
     },
     { timeout: 15000 }
   );
-  const gaugeCount = await win.$$eval(".awkit-gauge-card", (els) => els.length);
-  check("Chrome Consumption renders 4 RPM gauges", gaugeCount === 4, `count=${gaugeCount}`);
-  const gaugeValues = await win.$$eval(".awkit-gauge-value", (els) => els.map((e) => (e.textContent || "").trim()));
-  check("gauges show a value or neutral dash (no crash)", gaugeValues.length === 4 && gaugeValues.every((v) => v.length > 0), JSON.stringify(gaugeValues));
+  const pressurePanels = await win.$$eval(".awkit-report-gauges", (els) => els.length);
+  check("Chrome Consumption renders one consolidated pressure panel", pressurePanels === 1, `count=${pressurePanels}`);
+  const gaugeValues = await win.$$eval(".awkit-report-gauge", (els) => els.map((e) => (e.querySelector(":scope > strong")?.textContent || "").trim()));
+  check("consolidated panel renders 4 real gauge values", gaugeValues.length === 4 && gaugeValues.every((v) => v.length > 0), JSON.stringify(gaugeValues));
+  const hasContextsTimeline = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Contexts over time")));
+  check("Chrome Consumption shows contexts-over-time history", hasContextsTimeline);
   const hasProcessDetail = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Process detail")));
   check("Chrome Consumption shows the process-detail section", hasProcessDetail);
   // Second poll cycle: page stays stable (no leak/crash across a runtime-status tick).
   await win.waitForTimeout(2500);
-  check("page stable after a runtime-status poll tick", !!(await win.$(".awkit-gauge-card")));
+  check("page stable after a runtime-status poll tick", !!(await win.$(".awkit-report-gauges")));
 
   check("Runtime Analytics nav clicked", await navTo("Runtime Analytics"));
   await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
