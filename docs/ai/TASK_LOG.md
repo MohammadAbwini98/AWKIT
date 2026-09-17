@@ -1,5 +1,21 @@
 # TASK_LOG
 
+## 2026-09-17 — `awkit-reports-closeout-recovery`: clear portable-release preflight residue (Codex)
+
+- **Task:** diagnose the dashboard's `Portable release requires a clean working tree` failure and
+  restore the clean `main` prerequisite without changing product or packaging behavior.
+- **Files:** the completed Reports task contract and released lease record, this recovery contract,
+  roadmap assignment bookkeeping, `KNOWN_ISSUES.md`, and this task log.
+- **Implementation:** fingerprinted and absorbed the two generated terminal files left after the
+  Reports task's assignment-free finalization edge case. The Reports implementation remains closed
+  at `a1a485f`; no renderer, runtime, package version, manifest, or release artifact changed during
+  recovery.
+- **Tests run:** `npm run build` PASS; `npm run verify:roadmap-dashboard` **177/177 PASS** with
+  **Sources agree**; `git diff --check` PASS; source/residue identity review PASS. Runner, mock-site,
+  and offline validation were not run because no runner, fixture, or packaging source changed.
+- **Result:** recovery checks pass; terminal closeout will commit the bookkeeping atomically and
+  leave `main` clean for the owner-requested portable-release retry.
+
 ## 2026-09-17 — `awkit-reports-reference-composition`: implement all attached Reports designs (Codex)
 
 - **Task:** replace the remaining generic Reports layouts with the attached HTML's report-specific

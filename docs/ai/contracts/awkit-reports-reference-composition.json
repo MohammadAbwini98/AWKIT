@@ -198,9 +198,10 @@
     "final_release_authorized": true
   },
   "completion": {
-    "status": "blocked",
+    "status": "complete",
     "qa_status": "BLOCKED",
     "qc_status": "APPROVED",
+    "closed_at_commit": "a1a485f6f0be78f5fb39a1e612016b689646ef85",
     "qa_notes": "Build, live design-token coverage, source review, memory, roadmap, and diff checks pass. The required legacy Reports GUI launcher remains environment-blocked before its first product assertion; the populated GUI gate was not repeated against the same unavailable prerequisite.",
     "qc_notes": "Approved the requested scope: all seven analytics routes use report-specific reference compositions, Chrome uses one consolidated production-backed pressure panel with histories and detail, exports are permission-gated real JSON snapshots, and no telemetry/offline contract changed."
   },
@@ -268,6 +269,26 @@
         "acquired_at_commit": "ca4b56a36c6d8f98d0de0e053982dfbe4de3d9cc",
         "released_at": "2026-09-17T17:20:16.463Z",
         "released_reason": "handoff to project-state: Renderer and QA harness updates committed; reconcile evidence and AI memory",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-reports-reference-composition:project-state:2026-09-17T17:20:16.526Z",
+        "task": "awkit-reports-reference-composition",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-reports-reference-composition.json"
+        ],
+        "acquired_at": "2026-09-17T17:20:16.526Z",
+        "acquired_at_commit": "c3fc5828b6a8816dfb12b09125c6af21280300f9",
+        "released_at": "2026-09-17T17:25:17.825Z",
+        "released_reason": "Implementation and runnable verification complete; required Reports GUI gate is terminally environment-blocked before assertions",
         "amendments": [],
         "overrides": [],
         "violations": []

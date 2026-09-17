@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-reports-closeout-recovery",
+    "title": "Reconcile Reports closeout residue before portable release",
+    "objective": "Absorb the exact terminal bookkeeping residue left by the completed Reports reference-composition task, document the closeout edge case, and restore a clean main branch so the owner-authorized portable release can pass its clean-tree preflight.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "a1a485f6f0be78f5fb39a1e612016b689646ef85",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [],
+    "final_release_residue": {
+      "task": "awkit-reports-reference-composition",
+      "lease_id": "awkit-reports-reference-composition:project-state:2026-09-17T17:20:16.526Z",
+      "paths": [
+        {
+          "path": "docs/ai/contracts/active-lease.json",
+          "git_status": " M",
+          "sha256": "65d6a5c88f0bbe254d58867279db6c4ddfe73d16ef06f862092ffea34067c289"
+        },
+        {
+          "path": "docs/ai/contracts/awkit-reports-reference-composition.json",
+          "git_status": " M",
+          "sha256": "9fa2008ccfe267e6eed2bcf4b698b28bbca191912e022eebb284dd8f3fedafe3"
+        }
+      ]
+    }
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-reports-closeout-recovery.json",
+      "docs/ai/contracts/awkit-reports-reference-composition.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-reports-closeout-recovery.json",
+        "docs/ai/contracts/awkit-reports-reference-composition.json",
+        "tools/roadmap/assignments.json"
+      ]
+    },
+    "reviewers": []
+  },
+  "constraints": {
+    "architecture": [
+      "Do not modify renderer, runtime, packaging, version, manifest, or application behavior as part of the residue recovery.",
+      "Absorb only the fingerprinted released-task residue plus this recovery task's own project-state records."
+    ],
+    "compatibility": [
+      "Keep the completed Reports task closed at its recorded commit and preserve its truthful blocked GUI evidence.",
+      "Leave main clean and synchronized with origin/main before invoking the portable release wrapper."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "RESIDUE-ABSORBED",
+      "description": "The two fingerprinted Reports closeout files are incorporated without reopening or changing the completed product implementation.",
+      "evidence_required": [
+        "source-review",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "RELEASE-PREFLIGHT-READY",
+      "description": "Repository controls, build, and roadmap sources remain valid before the terminal closeout produces a clean main branch.",
+      "evidence_required": [
+        "build",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "source-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "The two pre-existing files matched the captured released-task status and SHA-256 fingerprints; no product, package, version, manifest, or artifact file is in the recovery diff."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "No whitespace errors in the recovery diff."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "TypeScript no-emit and all Electron/Vite production bundles completed successfully."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "177/177 checks passed; Overview banner reads Sources agree."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": []
+  }
+}

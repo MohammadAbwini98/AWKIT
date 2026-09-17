@@ -1,5 +1,20 @@
 # KNOWN_ISSUES
 
+## RESOLVED (2026-09-17) — assignment-free finalization left two dirty release-preflight files
+
+- The completed `awkit-reports-reference-composition` task had no Beads-backed roadmap claim. Its
+  terminal finalizer restored `tools/roadmap/assignments.json` byte-for-byte, so only the released
+  lease record and task contract remained modified. The retry safety check expects either a clean
+  tree or all three terminal bookkeeping paths and therefore correctly refused a partial residue.
+- The next dashboard portable-build attempt then stopped before Electron Builder with
+  `Portable release requires a clean working tree; no files were changed.` Product and package
+  files were unaffected.
+- `awkit-reports-closeout-recovery` used the repository's fingerprinted
+  `final_release_residue` path to absorb those exact files without reopening the Reports work.
+  Future assignment-free tasks should use the atomic finalizer while its lease is still active; if
+  a partial historical residue already exists, capture its status and SHA-256 values before the
+  next lease overwrites `active-lease.json`.
+
 ## Remaining 0.1.29 external/tooling residuals — QA defects resolved (2026-09-10)
 
 - **RESOLVED `awkit-vpje` (`534a694`):** the stale `Key unavailable` assertion now observes the
