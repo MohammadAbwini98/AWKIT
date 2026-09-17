@@ -1,4 +1,4 @@
-import { Copy, Download, FilePlus2, Trash2 } from "lucide-react";
+import { Boxes, CircleCheck, CircleDashed, Copy, Download, FilePlus2, LayoutGrid, Network, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
@@ -139,6 +139,14 @@ export function FlowLibrary() {
           disabled: !canCreate
         },
         {
+          id: "import",
+          label: "Import Flow",
+          icon: <Upload size={15} aria-hidden="true" />,
+          title: "Import from disk will use the import channel after file picker support is added.",
+          disabled: true,
+          onClick: () => undefined
+        },
+        {
           id: "rescan",
           // Always present (awkit-k2s): the action must never be silently removed from the header
           // for any of {permission denied, capability unavailable, mid-scan, prior failure}. Only
@@ -239,28 +247,7 @@ export function FlowLibrary() {
 
   return (
     <section className="page">
-      <section className="work-panel">
-        <div className="section-heading">
-          <h1>Flows</h1>
-          <span>{status}</span>
-        </div>
-
-        <div className="library-toolbar">
-          <button
-            className="toolbar-button primary"
-            onClick={() => setNamingFlow(true)}
-            disabled={!canCreate}
-            title={canCreate ? undefined : "Requires the Create Flows permission"}
-            type="button"
-          >
-            <FilePlus2 size={15} />
-            New Flow
-          </button>
-          <button className="toolbar-button" disabled title="Import from disk will use the import channel after file picker support is added." type="button">
-            Import Flow
-          </button>
-        </div>
-
+      <section className="work-panel" data-testid="flows-library-surface">
         <AdvancedTableFilters
           searchText={table.state.searchText}
           onSearch={table.setSearch}
@@ -269,6 +256,7 @@ export function FlowLibrary() {
           onApply={table.applyFilters}
           onClear={table.clearAll}
           searchPlaceholder="Search flows by name or ID…"
+          collapsible
         />
 
         {flows.length === 0 ? (
@@ -289,57 +277,98 @@ export function FlowLibrary() {
               </button>
             }
           />
-        ) : total === 0 ? (
-          <TableEmptyState filtered title="No matching flows found." hint="Adjust your search criteria." />
         ) : (
-          <>
-            <div className="wl-table-wrapper">
-              <table className="wl-table">
-                <colgroup>
-                  <col style={{ width: "22%" }} />
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <SortableHeaderCell label="Name" columnKey="name" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
-                    <SortableHeaderCell label="ID" columnKey="id" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
-                    <SortableHeaderCell label="Version" columnKey="version" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
-                    <SortableHeaderCell label="Nodes" columnKey="nodes" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
-                    <SortableHeaderCell label="Connectors" columnKey="connectors" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
-                    <SortableHeaderCell label="Status" columnKey="status" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
-                    <th>Validation</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paged.map((flow) => (
-                    <tr
-                      key={flow.id}
-                      className="wl-row-clickable"
-                      role="button"
-                      tabIndex={0}
-                      title="Open this flow in the Flow Designer"
-                      onClick={() => void openFlow(flow)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          void openFlow(flow);
-                        }
-                      }}
-                    >
-                      <td>{flow.name}</td>
-                      <td>{flow.id}</td>
-                      <td style={{ textAlign: "center" }}>{flow.version}</td>
-                      <td style={{ textAlign: "center" }}>{flow.nodes.length}</td>
-                      <td style={{ textAlign: "center" }}>{flow.edges.length}</td>
+          <div className="table-surface">
+            <div className="table-surface-head">
+              <h2>Saved flows</h2>
+              <span className="table-surface-count">{status}</span>
+            </div>
+
+            {total === 0 ? (
+              <TableEmptyState filtered title="No matching flows found." hint="Adjust your search criteria." />
+            ) : (
+              <>
+                <div className="wl-table-wrapper">
+                  <table className="wl-table wl-table-flows">
+                    <colgroup>
+                      <col className="wl-col-name" />
+                      <col className="wl-col-id" />
+                      <col className="wl-col-version" />
+                      <col className="wl-col-nodes" />
+                      <col className="wl-col-connectors" />
+                      <col className="wl-col-status" />
+                      <col className="wl-col-validation" />
+                      <col className="wl-col-actions" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <SortableHeaderCell label="Name" columnKey="name" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
+                        <SortableHeaderCell label="ID" columnKey="id" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
+                        <SortableHeaderCell label="Version" columnKey="version" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
+                        <SortableHeaderCell label="Nodes" columnKey="nodes" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
+                        <SortableHeaderCell label="Connectors" columnKey="connectors" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
+                        <SortableHeaderCell label="Status" columnKey="status" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
+                        <th>Validation</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paged.map((flow) => (
+                        <tr
+                          key={flow.id}
+                          className="wl-row-clickable"
+                          role="button"
+                          tabIndex={0}
+                          title="Open this flow in the Flow Designer"
+                          onClick={() => void openFlow(flow)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              void openFlow(flow);
+                            }
+                          }}
+                        >
+                      <td className="wl-name-cell">
+                        <span className="wl-main-cell">
+                          <span className="wl-main-icon" aria-hidden="true">
+                            <LayoutGrid size={15} />
+                          </span>
+                          <span className="wl-main-text">
+                            <button
+                              className="wl-name-link"
+                              title={flow.name}
+                              type="button"
+                              onKeyDown={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void openFlow(flow);
+                              }}
+                            >
+                              {flow.name}
+                            </button>
+                            <small title={flow.description ?? undefined}>{flow.description ?? "No description"}</small>
+                          </span>
+                        </span>
+                      </td>
+                      <td className="wl-mono-cell" title={flow.id}>{flow.id}</td>
+                      <td className="wl-num-cell">{flow.version}</td>
+                      <td className="wl-num-cell">
+                        <span className="wl-flow-count">
+                          <Boxes size={14} aria-hidden="true" />
+                          {flow.nodes.length}
+                        </span>
+                      </td>
+                      <td className="wl-num-cell">
+                        <span className="wl-flow-count">
+                          <Network size={14} aria-hidden="true" />
+                          {flow.edges.length}
+                        </span>
+                      </td>
                       <td>
                         <span className={`state-pill ${flowAdapter.status(flow) === "active" ? "pill-active" : "pill-inactive"}`}>
+                          <span aria-hidden="true" className="wl-pill-glyph">
+                            {flowAdapter.status(flow) === "active" ? <CircleCheck size={11} strokeWidth={2.4} /> : <CircleDashed size={11} strokeWidth={2.4} />}
+                          </span>
                           {flowAdapter.status(flow)}
                         </span>
                       </td>
@@ -381,25 +410,31 @@ export function FlowLibrary() {
                         })()}
                       </td>
                       <td>
-                        <div className="table-actions" onClick={(event) => event.stopPropagation()}>
-                          <button onClick={() => cloneFlow(flow)} disabled={!canCreate} title={canCreate ? "Clone flow" : "Requires the Create Flows permission"} type="button">
+                        <div
+                          className="table-actions wl-row-actions"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          <button className="icon-button" aria-label={`Clone ${flow.name}`} onClick={() => cloneFlow(flow)} disabled={!canCreate} title={canCreate ? "Clone flow" : "Requires the Create Flows permission"} type="button">
                             <Copy size={14} />
                           </button>
-                          <button onClick={() => exportFlow(flow)} title="Export flow JSON" type="button">
+                          <button className="icon-button" aria-label={`Export ${flow.name}`} onClick={() => exportFlow(flow)} title="Export flow JSON" type="button">
                             <Download size={14} />
                           </button>
-                          <button onClick={() => deleteFlow(flow)} disabled={!canDelete} title={canDelete ? "Delete flow" : "Requires the Delete Flows permission"} type="button">
+                          <button className="icon-button" aria-label={`Delete ${flow.name}`} onClick={() => deleteFlow(flow)} disabled={!canDelete} title={canDelete ? "Delete flow" : "Requires the Delete Flows permission"} type="button">
                             <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <DataTablePagination page={page} totalPages={totalPages} total={total} pageSize={table.state.pageSize} onPage={table.setPage} onPageSize={table.setPageSize} />
-          </>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <DataTablePagination page={page} totalPages={totalPages} total={total} pageSize={table.state.pageSize} onPage={table.setPage} onPageSize={table.setPageSize} />
+              </>
+            )}
+          </div>
         )}
       </section>
 

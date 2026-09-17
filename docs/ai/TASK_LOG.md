@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-flows-system-ui`: apply Workflows design criteria to Flows (Codex)
+
+- **Task:** give the Flows library the same UI treatment as Workflows while preserving all Flow
+  behavior, validation verdicts, and permission gates.
+- **Files:** `app/renderer/pages/FlowLibrary.tsx`, `app/renderer/styles/global.css`,
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`, and task/lease/roadmap bookkeeping.
+- **Implementation:** moved the existing New Flow and disabled Import Flow controls into page chrome
+  beside Re-scan Library, added the Upload glyph to Import Flow, enabled the shared collapsed-by-
+  default animated filter disclosure, and joined the list to a titled Saved flows table surface.
+  Rows now use an icon-led identity cell with a bold theme-text name and description, monospace ID,
+  tabular version, icon-led Nodes/Connectors counts, status glyphs, and consistently labelled icon
+  actions. Import remains disabled and explained because no file-picker path exists; no fake enabled
+  action was introduced. All existing handlers and preload calls are unchanged.
+- **Tests run:** `npm run build` **PASS**; `npm run verify:design-tokens` **35/35 PASS** with live
+  light/dark Electron coverage and zero renderer console errors; source/QC review PASS;
+  `git diff --check` PASS. `verify:flow-library` remains **BLOCKED — ENVIRONMENT** from its 2026-09-17
+  no-bridged-window launch after 6/6 pure checks, and was not retried on the unchanged host.
+  `verify:flow-designer`, `verify:mock-site`, `verify:runner`, and `validate:offline` were **NOT RUN**
+  because the designer, fixture, execution, and packaging boundaries did not change.
+- **Result:** the Flows library now matches the Workflows page's UI criteria without changing Flow
+  storage, validation, execution, or authority behavior.
+
 ## 2026-09-18 — `awkit-workflows-system-ui`: collapsible filters and saved-table icon polish (Codex)
 
 - **Task:** make the Workflows filters animated, collapsible, and collapsed by default; remove the

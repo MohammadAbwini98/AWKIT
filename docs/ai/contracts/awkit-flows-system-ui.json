@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-flows-system-ui",
+    "title": "Apply the Workflows system UI criteria to the Flows library",
+    "objective": "Bring the Flows library into visual parity with the completed Workflows library treatment while preserving every existing Flow action, permission gate, validation verdict, and persistence call.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ba17cf6",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/pages/FlowLibrary.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-flows-system-ui.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-flows-system-ui.json",
+        "tools/roadmap/assignments.json"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Change the Flows library renderer only; preserve the app shell, route, preload API, FlowProfile schema, validation service, and main-process persistence.",
+      "Reuse the existing Hologram tokens, shared animated filter disclosure, system table surface, status pills, and page-chrome action system.",
+      "Keep the unavailable Flow importer visibly disabled with an explanatory tooltip; do not add a fake enabled action."
+    ],
+    "accessibility": [
+      "Keep semantic table markup, aria-sort state, accessible action names, keyboard row opening, visible focus styles, responsive overflow, and reduced-motion behavior."
+    ],
+    "offline": [
+      "Do not add remote assets, fonts, scripts, dependencies, or runtime network access."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "FLOWS-SYSTEM-UI",
+      "description": "The Flows library uses the Workflows system design language: page-header actions, collapsed-by-default animated filters, a titled table surface with a record/status count, identity-led bold theme-text names, icon-led numeric cells, and token-driven status and validation cells.",
+      "evidence_required": [
+        "verify:design-tokens",
+        "build"
+      ]
+    },
+    {
+      "id": "FLOWS-BEHAVIOR-PRESERVED",
+      "description": "Every existing Flow create, open, clone, export, delete, re-scan, permission, validation, filter, sort, and pagination path remains wired to its existing handler and preload channel; unavailable import remains explained and disabled.",
+      "evidence_required": [
+        "build",
+        "source-review"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The task records accurate AI-memory and roadmap evidence before terminal closeout.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:design-tokens",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "2026-09-18: 35/35 static and live Electron design-system checks passed in light and dark themes, with zero renderer console errors."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "2026-09-18: embedded roadmap snapshot, tsc --noEmit, and all Electron/Vite bundles completed against the final Flow-library renderer; the pre-existing securityKernel dynamic-import advisory remained non-failing."
+    },
+    {
+      "id": "source-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "2026-09-18: source review confirms the change is confined to FlowLibrary presentation and token CSS. Create, re-scan, open, clone, export, delete, validation, filtering, sorting, pagination, permission, and preload paths retain their existing handlers; Import Flow remains disabled and explained. Icon glyphs are decorative, action buttons are labelled, sortable headers retain aria-sort, the row remains keyboard-openable, and nested actions stop keyboard propagation so they do not also open the row."
+    },
+    {
+      "id": "qc-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "2026-09-18: final focused review found and corrected nested keyboard-event ownership before closeout; Enter/Space on the name or row actions now performs only the chosen action. No remaining correctness, accessibility, token, permission, or scope finding was identified in the final diff."
+    },
+    {
+      "id": "verify:flow-library",
+      "type": "gui",
+      "required": false,
+      "command": "npm run verify:flow-library",
+      "result": "BLOCKED",
+      "artifact": "2026-09-17: the verifier's six pure rescanTitle checks passed, then electron.launch resolved no bridged window on this unchanged host. Per the repository anti-loop policy, the known host-state block is not retried without a relevant environment change."
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "2026-09-18: required AI memory checks passed after CURRENT_STATE, FEATURES, and TASK_LOG were updated."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "2026-09-18: 177/177 checks passed; the validation ledger remains 65 PASS / 2 NOT RUN / 0 BLOCKED and the Overview banner reads Sources agree."
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "2026-09-18: no whitespace errors in the final renderer and project-state diff."
+    },
+    {
+      "id": "push-main",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "result": "NOT RUN",
+      "artifact": "Pending coherent implementation and closeout commits."
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "push-main"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "notes": "The requested Flow-library system UI is implemented and static/live design-system, build, source, and QC gates pass. Status remains implemented rather than complete because the focused Flow Library route verifier is still BLOCKED by the documented host-state electron.launch bridge issue; that unchanged environmental gate was not retried under the anti-loop policy."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-flows-system-ui:frontend:2026-09-17T22:42:07.668Z",
+        "task": "awkit-flows-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/FlowLibrary.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T22:42:07.668Z",
+        "acquired_at_commit": "ba17cf6cfb96d3d0a8c565bac76c92fa68c75291",
+        "released_at": "2026-09-17T22:45:57.889Z",
+        "released_reason": "Flows library system-UI treatment implemented; build and design-token gates pass; hand off to project-state closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-flows-system-ui:project-state:2026-09-17T22:46:18.592Z",
+        "task": "awkit-flows-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-flows-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T22:46:18.592Z",
+        "acquired_at_commit": "ba17cf6cfb96d3d0a8c565bac76c92fa68c75291",
+        "released_at": "2026-09-17T22:47:18.889Z",
+        "released_reason": "project-state draft recorded; return to frontend for nested keyboard-action propagation correction",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-flows-system-ui:frontend:2026-09-17T22:47:30.938Z",
+        "task": "awkit-flows-system-ui",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/FlowLibrary.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-17T22:47:30.938Z",
+        "acquired_at_commit": "ba17cf6cfb96d3d0a8c565bac76c92fa68c75291",
+        "released_at": "2026-09-17T22:48:11.268Z",
+        "released_reason": "final Flow renderer including keyboard event ownership passes build; return to project-state closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-flows-system-ui:project-state:2026-09-17T22:48:22.140Z",
+        "task": "awkit-flows-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-flows-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T22:48:22.140Z",
+        "acquired_at_commit": "ba17cf6cfb96d3d0a8c565bac76c92fa68c75291",
+        "released_at": "2026-09-17T22:51:36.609Z",
+        "released_reason": "Flows system UI implemented, verified, documented, and reconciled; ready for coherent main commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}

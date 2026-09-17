@@ -433,6 +433,13 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 ### Libraries & data
 - ✅ Flows library + Workflows library with pagination, page size, sorting, advanced filters,
   persisted table state (`components/table/*`).
+- ✅ **Flows library on the Workflows system design (`pages/FlowLibrary.tsx`):** New Flow / disabled
+  and explained Import Flow / Re-scan Library published to the top header; filters collapsed by
+  default with the shared accessible, tokenized, reduced-motion-safe accordion; a titled Saved flows
+  table surface; icon-led identity cells with bold theme-text names and descriptions; monospace IDs;
+  Boxes/Network glyphs beside Nodes/Connectors counts; and status-glyph pills. Existing row-open,
+  clone, export, delete, validation, permission, sort, filter, pagination, and preload behavior is
+  unchanged.
 - ✅ **Workflows library on the system design (`pages/WorkflowsLibrary.tsx`):** New Workflow / Import /
   Refresh published to the top header via `usePageChrome`; a titled `.table-surface` head showing the
   record count, or the selection count while rows are selected; row selection with page-level

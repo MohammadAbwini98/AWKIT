@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## `awkit-flows-system-ui`: Workflows design criteria applied to the Flows library (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes Flow-library renderer composition only; no validation-ledger case moved.
+
+The Flows library now uses the same system presentation as the completed Workflows page. **New
+Flow**, the visibly disabled/explained **Import Flow** action, and **Re-scan Library** live in the top
+header; Import Flow carries the standard Upload glyph without pretending that a file-picker path is
+implemented. The advanced filter panel is collapsed by default and reuses the shared accessible,
+tokenized accordion motion plus the reduced-motion override. The saved collection sits in a titled
+table surface with its live library status/count.
+
+Each row now starts with an icon-led identity cell containing the flow's bold theme-text name and
+description. IDs remain monospace; version remains tabular; Nodes and Connectors counts have Boxes
+and Network glyphs; and active/inactive pills use the established leading status glyph. Row-open,
+name-open, clone, export, delete, validation, sort, filter, pagination, re-scan, and permission paths
+remain bound to their previous handlers and preload calls. No route, profile, IPC, persistence,
+designer, runtime, mock-site, or offline boundary changed.
+
+**Evidence:** `npm run build` PASS against the final renderer; `npm run verify:design-tokens`
+**35/35 PASS** in live light/dark Electron with zero renderer console errors; source/QC review PASS;
+`git diff --check` PASS. `npm run verify:flow-library` remains **BLOCKED — ENVIRONMENT** from the
+2026-09-17 run: its six pure reason-priority checks passed, then `electron.launch` resolved no
+bridged window on this unchanged host. It was not retried under the repository anti-loop policy.
+`verify:flow-designer`, `verify:mock-site`, `verify:runner`, and `validate:offline` were **NOT RUN**
+because their canvas, fixture, execution, and packaging boundaries were unchanged.
+
 ## `awkit-workflows-system-ui`: the Workflows library rebuilt on the attached system design (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task

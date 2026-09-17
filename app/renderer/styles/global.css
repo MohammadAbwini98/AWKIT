@@ -4443,6 +4443,48 @@ th {
   text-align: center;
 }
 
+/* The Flows library shares the Workflows system-table grammar while retaining its wider validation
+   and three-action columns. Names remain readable identity cells; technical IDs stay monospace. */
+.wl-table-flows {
+  min-width: 68rem;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.wl-table-flows td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.wl-table-flows .wl-name-cell {
+  display: table-cell;
+}
+
+.wl-table-flows .wl-name-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.wl-table-flows .wl-col-name { width: 24%; }
+.wl-table-flows .wl-col-id { width: 14%; }
+.wl-table-flows .wl-col-version { width: 5rem; }
+.wl-table-flows .wl-col-nodes { width: 5.5rem; }
+.wl-table-flows .wl-col-connectors { width: 7rem; }
+.wl-table-flows .wl-col-status { width: 7rem; }
+.wl-table-flows .wl-col-validation { width: 10rem; }
+.wl-table-flows .wl-col-actions { width: 8.5rem; }
+
+.wl-table-flows th:last-child,
+.wl-table-flows td:last-child {
+  padding-inline: var(--space-2);
+  text-align: center;
+}
+
 /* Identity cell: an icon badge, the workflow name as the open affordance, and its description as a
    quiet second line — the design folds the old standalone Description column in here. */
 .wl-main-cell {
