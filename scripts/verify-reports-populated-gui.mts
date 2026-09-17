@@ -516,8 +516,8 @@ async function seedFixture(): Promise<{
     // Runtime capacity SNAPSHOTS, which are a different table from the capacity BUCKETS above:
     // `queryRuntimeSeries` reads `runtime_capacity_snapshots`, while `queryCapacityAnalytics` reads
     // `runtime_capacity_buckets`. The fixture seeded only the latter, so the concurrency/host
-    // timelines and three of the four Runtime Analytics metric cards ("Busiest window", "Peak active
-    // browsers", "Peak system memory") had never rendered anything but "—" and no check noticed.
+    // timelines and Runtime Analytics host-pressure cards had never rendered anything but "—" and
+    // no check noticed.
     // Seeded in the recent window so they stay available at 15m, which is what makes the
     // neutral-vs-zero matrix a contrast rather than an empty page.
     store.recordCapacitySnapshot({
@@ -1418,13 +1418,7 @@ try {
   }
   check("SYS-REP-010 the range selector re-renders without error", (await win.locator(".awkit-report-page").count()) === 1);
 
-  // ── SYS-REP-010 — the neutral-vs-zero matrix ───────────────────────────────
-  // "Unavailable" and "measured zero" must not look the same. A metric with no samples in range has
-  // to read as UNKNOWN; rendering `0` there tells the operator the system measured no Chromium
-  // memory, which is a different and false claim.
-  //
-  // Driven through the real range selector rather than by mutating data, so the dash is provably
-  // range-driven absence: process samples sit 40-51 minutes back, capacity buckets 0-11 minutes back.
+  // Runtime cards use the real duration aggregate plus the host samples inside the selected range.
   const metricCardValues = async () =>
     win!.evaluate(() => {
       const out: Record<string, { value: string; detail: string }> = {};
@@ -1442,38 +1436,29 @@ try {
   await waitForReportPage(win, "Runtime Analytics");
   const narrowCards = await metricCardValues();
   check(
-    "SYS-REP-010 a metric with no samples in range reads as unknown, not as a measured 0",
-    narrowCards["Peak Chromium memory"]?.value === "—",
-    `Peak Chromium memory = ${JSON.stringify(narrowCards["Peak Chromium memory"])}`
+    "SYS-REP-010 host CPU is derived from the selected runtime samples",
+    /^\d+%$/.test(narrowCards["Peak host CPU"]?.value ?? ""),
+    `Peak host CPU = ${JSON.stringify(narrowCards["Peak host CPU"])}`
   );
   check(
-    "SYS-REP-010 the unavailable metric SAYS it is unavailable rather than showing a bare dash",
-    /unavailable/i.test(narrowCards["Peak Chromium memory"]?.detail ?? ""),
-    narrowCards["Peak Chromium memory"]?.detail ?? "(no detail)"
+    "SYS-REP-010 host memory is derived from the selected runtime samples",
+    /^\d+%$/.test(narrowCards["Peak host memory"]?.value ?? ""),
+    `Peak host memory = ${JSON.stringify(narrowCards["Peak host memory"])}`
   );
-  // Co-rendered control: another card in the SAME render is populated, so the dash above is not
-  // simply "this page has no data at all".
   check(
-    "SYS-REP-010 a metric that DOES have samples in the same range still reports a value",
-    /^\d+%$/.test(narrowCards["Peak system memory"]?.value ?? ""),
-    `Peak system memory = ${narrowCards["Peak system memory"]?.value ?? "(missing)"}`
+    "SYS-REP-010 duration KPIs are backed by completed-run telemetry",
+    narrowCards["Median duration"]?.value !== "—" && narrowCards["p95 duration"]?.value !== "—",
+    `median=${narrowCards["Median duration"]?.value ?? "(missing)"} p95=${narrowCards["p95 duration"]?.value ?? "(missing)"}`
   );
 
   await win.getByRole("button", { name: "1h", exact: true }).click();
   await waitForReportPage(win, "Runtime Analytics");
-  const widerCards = await metricCardValues();
-  // The other half: widening the range makes the SAME metric available. Without this, "renders —"
-  // is equally satisfied by a card that is hardcoded to a dash.
-  check(
-    "SYS-REP-010 widening the range makes the same metric available, so the dash was absence",
-    /MB$/.test(widerCards["Peak Chromium memory"]?.value ?? ""),
-    `Peak Chromium memory at 1h = ${widerCards["Peak Chromium memory"]?.value ?? "(missing)"}`
-  );
-  check(
-    "SYS-REP-010 the now-available metric reports its sampled process count rather than 'unavailable'",
-    /peak \d+ process/i.test(widerCards["Peak Chromium memory"]?.detail ?? ""),
-    widerCards["Peak Chromium memory"]?.detail ?? "(no detail)"
-  );
+  const processProjection = await win.evaluate(async () => {
+    const points = await window.playwrightFlowStudio.telemetry.processHistory("1h" as never, 500);
+    return points.map((point) => ({ contexts: point.browserContextCount, pages: point.pageCount }));
+  });
+  check("SYS-REP-010 process history projects recorded browser contexts", processProjection.some((point) => point.contexts === 3), JSON.stringify(processProjection.slice(-2)));
+  check("SYS-REP-010 process history projects recorded page counts", processProjection.some((point) => point.pages === 3), JSON.stringify(processProjection.slice(-2)));
   await win.getByRole("button", { name: "24h", exact: true }).click();
   await waitForReportPage(win, "Runtime Analytics");
 
@@ -1516,9 +1501,12 @@ try {
 
   await navClick(win, "Chrome Consumption");
   await waitForReportPage(win, "Chrome Consumption");
-  check("SYS-REP-011 four live gauges render", (await win.locator(".awkit-gauge-card").count()) === 4);
+  check("SYS-REP-011 four live gauges render", (await win.locator(".awkit-report-gauge").count()) === 4);
   await win.waitForTimeout(2_500);
-  check("SYS-REP-011 polling remains stable through a second cycle", (await win.locator(".awkit-gauge-card").count()) === 4);
+  check("SYS-REP-011 polling remains stable through a second cycle", (await win.locator(".awkit-report-gauge").count()) === 4);
+  const chromeText = await win.locator(".awkit-report-page").innerText();
+  check("SYS-REP-011 Chromium-only CPU is honest when unavailable", chromeText.includes("Chromium-only CPU sampling is unavailable"));
+  check("SYS-REP-011 context history uses recorded contexts", chromeText.includes("Contexts") && chromeText.includes("3"));
   // `backpressureBlocked` is read from the LIVE ExecutionEngine's runtime status, not from the
   // durable store this fixture seeds, so no amount of seeding can produce it. Proving it needs a
   // harness that saturates a real engine with real instances. Recorded, not silently skipped.
@@ -1532,6 +1520,21 @@ try {
   const serverText = await win.locator(".awkit-report-page").innerText();
   check("SYS-REP-012 four process metric cards render", (await win.locator(".metric-card").count()) >= 4);
   check("SYS-REP-012 storage sizing includes the seeded stores", serverText.includes("Storage usage") && serverText.includes("Reports") && serverText.includes("Runtime DB"), serverText.slice(0, 600));
+  check("SYS-REP-012 host health and capacity headroom render", serverText.includes("Host health") && serverText.includes("Capacity headroom"));
+
+  const motion = await win.evaluate(() => {
+    const panel = document.querySelector(".awkit-report-widget-grid > *");
+    const bar = document.querySelector(".awkit-bar-fill");
+    return {
+      panel: panel ? getComputedStyle(panel).animationName : "",
+      bar: bar ? getComputedStyle(bar).animationName : ""
+    };
+  });
+  check("SYS-REP-012 report panels and bars have entry motion", motion.panel.includes("awkit-report-fade-up") && motion.bar.includes("awkit-report-grow-x"), JSON.stringify(motion));
+  await win.emulateMedia({ reducedMotion: "reduce" });
+  const reducedDuration = await win.locator(".awkit-bar-fill").first().evaluate((el) => getComputedStyle(el).animationDuration);
+  check("SYS-REP-012 report motion collapses for reduced-motion users", reducedDuration === "0.001ms" || reducedDuration === "0s", reducedDuration);
+  await win.emulateMedia({ reducedMotion: "no-preference" });
 
   // SYS-REP-012 — exact bytes. "A number rendered" is not the claim; "the number equals what was
   // written" is. `dirSizeMb` rounds to 0.1 MB and the pre-existing fixture evidence in these folders

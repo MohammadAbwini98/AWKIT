@@ -198,6 +198,7 @@ try {
   check("Instance Reports renders + resolves", instHeader.includes("Instance Reports"), instHeader);
   const hasLiveSection = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Live status")));
   check("Instance Reports shows the live-status section", hasLiveSection);
+  check("Instance Reports reserves the live donut surface", (await win.$$(".awkit-donut, .awkit-muted")).length > 0);
 
   check("Chrome Consumption nav clicked", await navTo("Chrome Consumption"));
   await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
@@ -242,6 +243,8 @@ try {
   await awaitResolved();
   const failHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
   check("Failure Analytics renders + resolves", failHeader.includes("Failure Analytics"), failHeader);
+  const failureText = await win.$eval(".awkit-report-page", (el) => el.textContent || "");
+  check("Failure Analytics exposes the auth-handoff KPI", failureText.includes("Auth handoffs"));
 
   check("Server Performance nav clicked", await navTo("Server Performance"));
   await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
@@ -256,6 +259,7 @@ try {
   check("Server Performance renders 4 metric cards", srvHeader.includes("Server Performance"), srvHeader);
   const hasStorage = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Storage usage")));
   check("Server Performance shows a storage-usage section (real dir sizing)", hasStorage);
+  check("Server Performance shows health and headroom", (await win.$eval(".awkit-report-page", (el) => el.textContent || "")).includes("Host health") && (await win.$eval(".awkit-report-page", (el) => el.textContent || "")).includes("Capacity headroom"));
 
   const telemetryErrors = consoleErrors.filter((e) => /telemetry|undefined is not|cannot read/i.test(e));
   check("no telemetry/undefined console errors", telemetryErrors.length === 0, telemetryErrors.slice(0, 2).join(" | "));
