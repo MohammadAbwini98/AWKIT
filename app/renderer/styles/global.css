@@ -10308,7 +10308,18 @@ th {
 .awkit-report-span-4 { grid-column: span 4; }
 
 .awkit-report-widget-grid > * {
+  animation: awkit-report-fade-up var(--awkit-dur-med) var(--awkit-ease-out) both;
   min-width: 0;
+}
+
+.awkit-report-widget-grid > :nth-child(2) { animation-delay: 35ms; }
+.awkit-report-widget-grid > :nth-child(3) { animation-delay: 70ms; }
+.awkit-report-widget-grid > :nth-child(4) { animation-delay: 105ms; }
+.awkit-report-widget-grid > :nth-child(n + 5) { animation-delay: 140ms; }
+
+@keyframes awkit-report-fade-up {
+  from { opacity: 0; transform: translateY(var(--space-2)); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .awkit-report-widget-grid > :is(.awkit-report-span-7, .awkit-report-span-5) > .awkit-report-panel {
@@ -10820,10 +10831,16 @@ th {
   overflow: hidden;
 }
 .awkit-bar-fill {
+  animation: awkit-report-grow-x var(--awkit-dur-med) var(--awkit-ease-out) both;
   border-radius: var(--radius-pill);
   display: block;
   height: 100%;
+  transform-origin: left center;
   transition: width var(--awkit-dur-med) var(--awkit-ease-out);
+}
+@keyframes awkit-report-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 .awkit-bar-value {
   color: var(--awkit-text);
@@ -10834,6 +10851,16 @@ th {
 
 .awkit-donut {
   display: inline-flex;
+}
+.awkit-donut-segment,
+.awkit-gauge-band {
+  animation: awkit-report-arc-in var(--awkit-dur-med) var(--awkit-ease-out) both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes awkit-report-arc-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 .awkit-donut-center {
   fill: var(--awkit-text);
@@ -11181,6 +11208,14 @@ th {
   display: block;
   height: auto;
   width: 100%;
+}
+.awkit-chart-line {
+  animation: awkit-report-line-draw var(--awkit-dur-med) var(--awkit-ease-out) both;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+@keyframes awkit-report-line-draw {
+  to { stroke-dashoffset: 0; }
 }
 .awkit-timeline-axis {
   fill: var(--awkit-text-muted);

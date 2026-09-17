@@ -36,6 +36,7 @@ export function DonutChart({ segments, size = 148, thickness = 18, centerLabel, 
               const circle = (
                 <circle
                   key={segment.label}
+                  className="awkit-donut-segment"
                   cx={size / 2}
                   cy={size / 2}
                   r={radius}
@@ -44,6 +45,7 @@ export function DonutChart({ segments, size = 148, thickness = 18, centerLabel, 
                   strokeWidth={thickness}
                   strokeDasharray={`${dash} ${circumference - dash}`}
                   strokeDashoffset={-offset}
+                  style={{ animationDelay: `${segments.indexOf(segment) * 35}ms` }}
                 />
               );
               offset += dash;

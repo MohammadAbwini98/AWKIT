@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Lightbulb, ListChecks, RotateCcw, ShieldAlert, Workflow } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Lightbulb, ListChecks, ShieldAlert, Workflow } from "lucide-react";
 import type { FailureBreakdown, TelemetryOverview, TelemetryRangePreset, WorkflowReportRow } from "@src/reports/TelemetryContracts";
 import { reportCategoryLabel, type ReportCategory } from "@src/reports/ReportCategories";
 import { EmptyState } from "../components/shared/EmptyState";
@@ -96,7 +96,7 @@ export function ReportsFailures() {
     [data]
   );
 
-  const noFailures = data && data.failures.total === 0;
+  const noFailures = data && data.overview.failedRuns === 0;
   const failureSeries: TimelineSeries[] = data ? [{
     label: "Failed runs",
     color: "var(--awkit-danger)",
@@ -104,13 +104,13 @@ export function ReportsFailures() {
   }] : [];
   const summary = useMemo(() => {
     const workflows = data?.workflows ?? [];
-    const totalRuns = workflows.reduce((sum, row) => sum + row.totalRuns, 0);
-    const retries = workflows.reduce((sum, row) => sum + row.retryCount, 0);
-    const leastReliable = [...workflows].filter((row) => row.totalRuns > 0).sort((a, b) => a.successRate - b.successRate)[0];
+    const leastReliable = [...workflows].filter((row) => row.success + row.failed > 0).sort((a, b) => a.successRate - b.successRate)[0];
+    const authHandoffs = data?.failures.categories.find((entry) => entry.category === "auth-handoff-required")?.count ?? 0;
     return {
-      totalRuns,
-      retries,
-      failureRate: totalRuns > 0 ? (data?.failures.total ?? 0) / totalRuns : 0,
+      totalRuns: data?.overview.totalRuns ?? 0,
+      failedRuns: data?.overview.failedRuns ?? 0,
+      failureRate: data?.overview.failureRate ?? 0,
+      authHandoffs,
       leastReliable
     };
   }, [data]);
@@ -134,10 +134,10 @@ export function ReportsFailures() {
       ) : !data ? null : (
         <div className="awkit-report-widget-grid">
           <div className="page-grid metrics-grid">
-            <MetricCard label="Failed runs" value={data.failures.total.toLocaleString()} detail={`${summary.totalRuns.toLocaleString()} total runs`} icon={<ShieldAlert size={22} />} tone={data.failures.total > 0 ? "danger" : "success"} />
+            <MetricCard label="Failed runs" value={summary.failedRuns.toLocaleString()} detail={`${summary.totalRuns.toLocaleString()} total runs`} icon={<ShieldAlert size={22} />} tone={summary.failedRuns > 0 ? "danger" : "success"} />
             <MetricCard label="Failure rate" value={`${(summary.failureRate * 100).toFixed(1)}%`} detail="Of all runs in range" icon={<ListChecks size={22} />} tone={summary.failureRate > 0 ? "warning" : "success"} />
             <MetricCard label="Least reliable" value={summary.leastReliable ? `${(summary.leastReliable.successRate * 100).toFixed(0)}%` : "—"} detail={summary.leastReliable?.scenarioName ?? summary.leastReliable?.scenarioId ?? "No workflow runs"} icon={<Workflow size={22} />} />
-            <MetricCard label="Retries" value={summary.retries.toLocaleString()} detail="Recorded across workflows" icon={<RotateCcw size={22} />} />
+            <MetricCard label="Auth handoffs" value={summary.authHandoffs.toLocaleString()} detail="Protected-login operator handoffs" icon={<ShieldAlert size={22} />} />
           </div>
 
           {noFailures ? (
@@ -148,7 +148,7 @@ export function ReportsFailures() {
                   <div className="awkit-report-panel-head">
                     <div>
                       <strong>Failure categories</strong>
-                      <span>{data.failures.total} failed run(s)</span>
+                      <span>{data.failures.total} categorized failure(s){data.failures.total < summary.failedRuns ? " from the bounded recent sample" : ""}</span>
                     </div>
                   </div>
                   <div className="awkit-donut-with-legend">

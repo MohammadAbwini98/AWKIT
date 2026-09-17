@@ -12,8 +12,8 @@ interface AnimatedCounterProps {
 }
 
 /**
- * rAF count-up to `value`. Under OS reduced-motion (or on first mount) it renders the final value
- * immediately, so no animation is required for correctness.
+ * rAF count-up to `value`. The first populated render ramps from zero; later updates ramp from the
+ * previous value. Reduced-motion users always receive the final value immediately.
  */
 export function AnimatedCounter({
   value,
@@ -23,8 +23,8 @@ export function AnimatedCounter({
   suffix = ""
 }: AnimatedCounterProps) {
   const reduced = usePrefersReducedMotion();
-  const [display, setDisplay] = useState(value);
-  const fromRef = useRef(value);
+  const [display, setDisplay] = useState(reduced ? value : 0);
+  const fromRef = useRef(reduced ? value : 0);
   const frameRef = useRef<number>();
 
   useEffect(() => {

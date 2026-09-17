@@ -10,8 +10,10 @@ import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 import { RunDetailDrawer } from "../components/reports/RunDetailDrawer";
 import { formatDurationMs, formatWhen, statusToTone } from "../components/reports/statusTone";
 import { ConsumptionTimeline, type TimelineSeries } from "../components/reports/ConsumptionTimeline";
+import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
 
-const DISTRIBUTION_ORDER = ["running", "starting", "waitingForManualAction", "queued", "pending", "completed", "failed", "cancelled"];
+const DISTRIBUTION_ORDER = ["running", "starting", "waitingForManualAction", "paused", "queued", "pending"];
+const LIVE_STATUSES = new Set(DISTRIBUTION_ORDER);
 const PAGE_SIZE = 25;
 
 /** Live instance status distribution, polled every 2s (cleaned up on unmount). */
@@ -26,6 +28,7 @@ function useLiveDistribution(): Record<string, number> {
         const next: Record<string, number> = {};
         for (const instance of instances) {
           const status = String(instance.status ?? "unknown");
+          if (!LIVE_STATUSES.has(status)) continue;
           next[status] = (next[status] ?? 0) + 1;
         }
         setCounts(next);
@@ -53,7 +56,7 @@ export function ReportsInstances() {
     () => window.playwrightFlowStudio.telemetry.runHistory(range, { limit: PAGE_SIZE, offset }),
     [range, offset]
   );
-  const { data: runtimeSeries } = useTelemetryQuery<RuntimeSeriesPoint[]>(
+  const { data: runtimeSeries, loading: runtimeLoading, refetch: refetchRuntime } = useTelemetryQuery<RuntimeSeriesPoint[]>(
     () => window.playwrightFlowStudio.telemetry.runtimeSeries(range),
     [range]
   );
@@ -63,6 +66,11 @@ export function ReportsInstances() {
   const activeTotal = (distribution.running ?? 0) + (distribution.starting ?? 0);
   const queuedTotal = (distribution.queued ?? 0) + (distribution.pending ?? 0);
   const manualTotal = distribution.waitingForManualAction ?? 0;
+  const statusSegments: DonutSegment[] = liveStatuses.map((status) => ({
+    label: status,
+    value: distribution[status] ?? 0,
+    color: status === "running" ? "var(--awkit-success)" : status === "waitingForManualAction" || status === "paused" ? "var(--awkit-warning)" : "var(--awkit-accent)"
+  }));
   const concurrencySeries: TimelineSeries[] = [
     {
       label: "Active instances",
@@ -86,9 +94,9 @@ export function ReportsInstances() {
         setRange(next);
         setOffset(0);
       }}
-      onRefresh={refetch}
-      refreshing={loading}
-      exportData={data}
+      onRefresh={() => { void refetch(); void refetchRuntime(); }}
+      refreshing={loading || runtimeLoading}
+      exportData={data ? { range, history: data, liveDistribution: distribution, runtimeSeries: runtimeSeries ?? [] } : undefined}
       exportName="instance-reports"
     >
       <div className="awkit-report-widget-grid">
@@ -109,13 +117,16 @@ export function ReportsInstances() {
         {liveStatuses.length === 0 ? (
           <p className="awkit-muted">Nothing running. Start a workflow from the Instances page to see live status here.</p>
         ) : (
-          <div className="awkit-distribution">
-            {liveStatuses.map((status) => (
-              <div className="awkit-distribution-item" key={status}>
-                <StatusBadge tone={statusToTone(status)} label={status} />
-                <strong>{distribution[status]}</strong>
-              </div>
-            ))}
+          <div className="awkit-donut-with-legend">
+            <DonutChart segments={statusSegments} centerLabel={String(liveTotal)} centerSub="live" />
+            <div className="awkit-distribution">
+              {liveStatuses.map((status) => (
+                <div className="awkit-distribution-item" key={status}>
+                  <StatusBadge tone={statusToTone(status)} label={status} />
+                  <strong>{distribution[status]}</strong>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>

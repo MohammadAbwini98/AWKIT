@@ -112,15 +112,22 @@ export function ReportsWorkflows() {
   const compareRows = useMemo(() => sorted.filter((row) => compareKeys.includes(rowKey(row))), [sorted, compareKeys]);
   const totals = useMemo(() => {
     const runs = sorted.reduce((sum, row) => sum + row.totalRuns, 0);
-    const weightedSuccess = sorted.reduce((sum, row) => sum + row.successRate * row.totalRuns, 0);
-    const weightedDuration = sorted.reduce((sum, row) => sum + (row.duration.avgMs ?? 0) * row.totalRuns, 0);
+    const successes = sorted.reduce((sum, row) => sum + row.success, 0);
+    const failures = sorted.reduce((sum, row) => sum + row.failed, 0);
+    const durationSamples = sorted.reduce((sum, row) => sum + row.durationSampleCount, 0);
+    const weightedDuration = sorted.reduce((sum, row) => sum + (row.duration.avgMs ?? 0) * row.durationSampleCount, 0);
     return {
       runs,
-      successRate: runs > 0 ? weightedSuccess / runs : 0,
-      averageDuration: runs > 0 ? weightedDuration / runs : undefined,
+      successRate: successes + failures > 0 ? successes / (successes + failures) : 0,
+      averageDuration: durationSamples > 0 ? weightedDuration / durationSamples : undefined,
       retries: sorted.reduce((sum, row) => sum + row.retryCount, 0)
     };
   }, [sorted]);
+  const busiestRows = useMemo(() => [...sorted].sort((a, b) => b.totalRuns - a.totalRuns).slice(0, 8), [sorted]);
+  const leastReliableRows = useMemo(
+    () => [...sorted].filter((row) => row.success + row.failed > 0).sort((a, b) => a.successRate - b.successRate || b.totalRuns - a.totalRuns).slice(0, 8),
+    [sorted]
+  );
 
   const toggleSort = (key: SortKey) =>
     setSort((current) => (current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
@@ -262,7 +269,7 @@ export function ReportsWorkflows() {
           <div className="page-grid metrics-grid">
             <MetricCard label="Workflows" value={sorted.length} detail="With runs in this range" icon={<Workflow size={22} />} />
             <MetricCard label="Total runs" value={totals.runs.toLocaleString()} detail="Across matching workflows" icon={<ListChecks size={22} />} />
-            <MetricCard label="Success rate" value={`${(totals.successRate * 100).toFixed(1)}%`} detail="Weighted by run volume" icon={<CheckCircle2 size={22} />} tone="success" />
+            <MetricCard label="Success rate" value={`${(totals.successRate * 100).toFixed(1)}%`} detail="Successful of success/failure outcomes" icon={<CheckCircle2 size={22} />} tone="success" />
             <MetricCard label="Average duration" value={formatDurationMs(totals.averageDuration)} detail={`${totals.retries} retries recorded`} icon={totals.retries > 0 ? <RotateCcw size={22} /> : <Clock size={22} />} />
           </div>
 
@@ -352,12 +359,12 @@ export function ReportsWorkflows() {
 
           <section className="work-panel awkit-report-panel awkit-report-span-7">
             <div className="awkit-report-panel-head"><div><strong>Duration by workflow</strong><span>Average runtime for the busiest workflows</span></div></div>
-            <BarChart data={sorted.filter((row) => row.duration.avgMs !== undefined).slice(0, 8).map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: Math.round(row.duration.avgMs ?? 0), color: "var(--awkit-accent)" }))} />
+            <BarChart data={busiestRows.filter((row) => row.duration.avgMs !== undefined).map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: Math.round(row.duration.avgMs ?? 0), color: "var(--awkit-accent)" }))} />
           </section>
 
           <section className="work-panel awkit-report-panel awkit-report-span-5">
-            <div className="awkit-report-panel-head"><div><strong>Success rate by workflow</strong><span>Percentage of successful runs</span></div></div>
-            <BarChart data={sorted.slice(0, 8).map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: Math.round(row.successRate * 100), color: "var(--awkit-success)" }))} />
+            <div className="awkit-report-panel-head"><div><strong>Success rate by workflow</strong><span>Least reliable first</span></div></div>
+            <BarChart data={leastReliableRows.map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: Math.round(row.successRate * 100), color: row.successRate < 0.8 ? "var(--awkit-danger)" : "var(--awkit-success)" }))} />
           </section>
 
           {compareMode ? (

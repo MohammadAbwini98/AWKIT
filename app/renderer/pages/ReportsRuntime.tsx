@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Activity, AlertTriangle, Cpu, Gauge, LineChart, ListChecks, ShieldAlert } from "lucide-react";
-import type { ProcessHistoryPoint, RuntimeSeriesPoint, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
+import type { ProcessHistoryPoint, RuntimeSeriesPoint, TelemetryOverview, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 import type { AnomalyEvent, CapacityAnalytics, CapacityMetricStats, RuntimeObservabilitySummary } from "@src/reports/ObservabilityContracts";
 import { MetricCard } from "../components/shared/MetricCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
@@ -9,7 +9,7 @@ import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { ReportPage } from "../components/reports/ReportPage";
 import { ConsumptionTimeline, type TimelineSeries } from "../components/reports/ConsumptionTimeline";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
-import { formatWhen } from "../components/reports/statusTone";
+import { formatDurationMs, formatWhen } from "../components/reports/statusTone";
 
 interface RuntimeHistory {
   series: RuntimeSeriesPoint[];
@@ -17,6 +17,7 @@ interface RuntimeHistory {
   capacity: CapacityAnalytics;
   anomalies: AnomalyEvent[];
   summary: RuntimeObservabilitySummary;
+  overview: TelemetryOverview;
 }
 
 function epoch(iso: string): number {
@@ -43,18 +44,19 @@ export function ReportsRuntime() {
   const [range, setRange] = useState<TelemetryRangePreset>("24h");
 
   const { data, loading, error, refetch } = useTelemetryQuery<RuntimeHistory>(async () => {
-    const [series, processes, capacity, anomalies, summary] = await Promise.all([
+    const [series, processes, capacity, anomalies, summary, overview] = await Promise.all([
       window.playwrightFlowStudio.telemetry.runtimeSeries(range),
       window.playwrightFlowStudio.telemetry.processHistory(range, 500),
       window.playwrightFlowStudio.telemetry.capacityAnalytics(range),
       window.playwrightFlowStudio.telemetry.anomalies(range, undefined, 100),
-      window.playwrightFlowStudio.telemetry.observabilitySummary()
+      window.playwrightFlowStudio.telemetry.observabilitySummary(),
+      window.playwrightFlowStudio.telemetry.overview(range)
     ]);
-    return { series, processes, capacity, anomalies, summary };
+    return { series, processes, capacity, anomalies, summary, overview };
   }, [range]);
 
   const empty =
-    data && data.series.length === 0 && data.processes.length === 0 && data.capacity.bucketCount === 0 && data.anomalies.length === 0;
+    data && data.overview.totalRuns === 0 && data.series.length === 0 && data.processes.length === 0 && data.capacity.bucketCount === 0 && data.anomalies.length === 0;
 
   return (
     <ReportPage
@@ -91,11 +93,8 @@ export function ReportsRuntime() {
 function RuntimeContent({ data }: { data: RuntimeHistory }) {
   const { series, processes } = data;
 
-  const busiest = series.reduce<RuntimeSeriesPoint | undefined>((best, point) => (!best || point.activeFlows > best.activeFlows ? point : best), undefined);
-  const peakBrowsers = maxBy(series, (p) => p.activeBrowsers);
+  const peakCpu = maxBy(series, (p) => p.cpuPercent);
   const peakMemory = maxBy(series, (p) => p.systemMemoryPercent);
-  const peakChromiumMb = maxBy(processes, (p) => p.chromiumMemoryMb);
-  const peakProcesses = maxBy(processes, (p) => p.chromiumProcessCount);
 
   const concurrency: TimelineSeries[] = [
     seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.activeBrowsers, "Active browsers", "var(--awkit-accent)"),
@@ -106,18 +105,18 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
     seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.systemMemoryPercent, "System memory", "var(--awkit-blue)"),
     seriesFrom(series, (p) => epoch(p.bucketIso), (p) => p.cpuPercent, "CPU", "var(--awkit-danger)")
   ];
-  const procMem: TimelineSeries[] = [
-    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.chromiumMemoryMb, "Chromium memory", "var(--awkit-accent)"),
-    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.electronMainMemoryMb, "Electron main", "var(--awkit-blue)")
+  const chromeUsage: TimelineSeries[] = [
+    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.browserContextCount, "Contexts", "var(--awkit-accent)"),
+    seriesFrom(processes, (p) => epoch(p.timestamp), (p) => p.pageCount, "Pages", "var(--awkit-blue)")
   ];
 
   return (
     <div className="awkit-report-widget-grid">
       <div className="page-grid metrics-grid">
-        <MetricCard label="Busiest window" value={busiest ? formatWhen(busiest.bucketIso) : "—"} detail={busiest ? `${busiest.activeFlows} active flow(s)` : "no activity"} icon={<Activity size={22} />} />
-        <MetricCard label="Peak active browsers" value={peakBrowsers?.toString() ?? "—"} detail="Highest concurrent browsers" icon={<Cpu size={22} />} />
-        <MetricCard label="Peak system memory" value={peakMemory === undefined ? "—" : `${peakMemory}%`} detail="Highest sampled RAM usage" icon={<LineChart size={22} />} />
-        <MetricCard label="Peak Chromium memory" value={peakChromiumMb === undefined ? "—" : `${peakChromiumMb.toLocaleString()} MB`} detail={peakProcesses === undefined ? "process sampling unavailable" : `peak ${peakProcesses} process(es)`} icon={<Cpu size={22} />} />
+        <MetricCard label="Median duration" value={formatDurationMs(data.overview.duration.medianMs)} detail="p50 completed-run duration" icon={<Activity size={22} />} />
+        <MetricCard label="p95 duration" value={formatDurationMs(data.overview.duration.p95Ms)} detail="95th percentile completed-run duration" icon={<Cpu size={22} />} />
+        <MetricCard label="Peak host CPU" value={peakCpu === undefined ? "—" : `${Math.round(peakCpu)}%`} detail="Highest sampled system CPU" icon={<LineChart size={22} />} />
+        <MetricCard label="Peak host memory" value={peakMemory === undefined ? "—" : `${Math.round(peakMemory)}%`} detail="Highest sampled RAM usage" icon={<Cpu size={22} />} />
       </div>
 
       <section className="work-panel awkit-report-panel awkit-report-span-12">
@@ -144,10 +143,10 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <div className="awkit-report-panel-head">
           <div>
             <strong>Chrome consumption history</strong>
-            <span>Chromium and Electron resident memory</span>
+            <span>Browser contexts and pages recorded from SpecterStudio-owned Chromium</span>
           </div>
         </div>
-        <ConsumptionTimeline series={procMem} unit=" MB" />
+        <ConsumptionTimeline series={chromeUsage} />
       </section>
 
       <CurrentRuntimeStrip summary={data.summary} />

@@ -20,7 +20,7 @@ export function BarChart({ data, maxBars = 12 }: BarChartProps) {
   const max = Math.max(1, ...rows.map((row) => row.value));
   return (
     <div className="awkit-bar-chart">
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div className="awkit-bar-row" key={row.label}>
           <span className="awkit-bar-label" title={row.label}>
             {row.label}
@@ -28,7 +28,7 @@ export function BarChart({ data, maxBars = 12 }: BarChartProps) {
           <span className="awkit-bar-track">
             <span
               className="awkit-bar-fill"
-              style={{ width: `${Math.round((row.value / max) * 100)}%`, background: row.color ?? "var(--awkit-blue)" }}
+              style={{ width: `${Math.max(0, (row.value / max) * 100)}%`, background: row.color ?? "var(--awkit-blue)", animationDelay: `${index * 35}ms` }}
             />
           </span>
           <span className="awkit-bar-value">{row.value.toLocaleString()}</span>

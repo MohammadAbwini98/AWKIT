@@ -53,7 +53,7 @@ export function RadialGauge({ value, unit, bands = DEFAULT_BANDS }: RadialGaugeP
       {available ? (
         bands.map((band) => {
           const arc = bandArc(cursor, band.upTo);
-          const el = <path key={band.upTo} d={arc} fill="none" stroke={band.color} strokeWidth="12" strokeLinecap="butt" opacity="0.85" />;
+          const el = <path className="awkit-gauge-band" key={band.upTo} d={arc} fill="none" stroke={band.color} strokeWidth="12" strokeLinecap="butt" opacity="0.85" />;
           cursor = band.upTo;
           return el;
         })

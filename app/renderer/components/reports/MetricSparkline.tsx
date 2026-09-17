@@ -36,7 +36,7 @@ export function MetricSparkline({ values, width = 160, height = 40, stroke = "va
 
   return (
     <svg className="awkit-sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label} preserveAspectRatio="none">
-      <path d={path} fill="none" stroke={stroke} strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
+      <path key={path} className="awkit-chart-line" pathLength={1} d={path} fill="none" stroke={stroke} strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }

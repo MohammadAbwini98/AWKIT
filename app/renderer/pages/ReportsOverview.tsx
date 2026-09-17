@@ -1,19 +1,22 @@
 import { useState } from "react";
 import { Activity, AlertTriangle, CheckCircle2, Clock, Gauge, ListChecks } from "lucide-react";
-import type { TelemetryOverview, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
+import type { RuntimeSeriesPoint, TelemetryOverview, TelemetryRangePreset, WorkflowReportRow } from "@src/reports/TelemetryContracts";
 import { MetricCard } from "../components/shared/MetricCard";
 import { AnimatedCounter } from "../components/shared/AnimatedCounter";
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { ReportPage } from "../components/reports/ReportPage";
-import { MetricSparkline } from "../components/reports/MetricSparkline";
 import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
+import { BarChart } from "../components/reports/BarChart";
+import { ConsumptionTimeline, type TimelineSeries } from "../components/reports/ConsumptionTimeline";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 
 interface OverviewData {
   overview: TelemetryOverview;
   activeInstances: number;
   queuedInstances: number;
+  runtime: RuntimeSeriesPoint[];
+  workflows: WorkflowReportRow[];
 }
 
 const ACTIVE = new Set(["running", "starting"]);
@@ -36,14 +39,18 @@ export function ReportsOverview() {
   const [range, setRange] = useState<TelemetryRangePreset>("24h");
 
   const { data, loading, error, refetch } = useTelemetryQuery<OverviewData>(async () => {
-    const [overview, instances] = await Promise.all([
+    const [overview, instances, runtime, workflows] = await Promise.all([
       window.playwrightFlowStudio.telemetry.overview(range),
-      window.playwrightFlowStudio.executions.list() as Promise<Array<{ status?: string }>>
+      window.playwrightFlowStudio.executions.list() as Promise<Array<{ status?: string }>>,
+      window.playwrightFlowStudio.telemetry.runtimeSeries(range),
+      window.playwrightFlowStudio.telemetry.workflows(range)
     ]);
     return {
       overview,
       activeInstances: instances.filter((i) => ACTIVE.has(String(i.status))).length,
-      queuedInstances: instances.filter((i) => QUEUED.has(String(i.status))).length
+      queuedInstances: instances.filter((i) => QUEUED.has(String(i.status))).length,
+      runtime,
+      workflows
     };
   }, [range]);
 
@@ -97,7 +104,14 @@ export function ReportsOverview() {
 
 function OverviewContent({ data }: { data: OverviewData }) {
   const { overview } = data;
-  const series = overview.runsSeries.map((point) => point.total);
+  const outcomeSeries: TimelineSeries[] = [
+    { label: "Succeeded", color: "var(--awkit-success)", points: overview.runsSeries.map((point) => ({ x: Date.parse(point.bucketIso), y: point.success })) },
+    { label: "Failed", color: "var(--awkit-danger)", points: overview.runsSeries.map((point) => ({ x: Date.parse(point.bucketIso), y: point.failed })) },
+    { label: "Cancelled", color: "var(--awkit-warning)", points: overview.runsSeries.map((point) => ({ x: Date.parse(point.bucketIso), y: point.cancelled })) }
+  ];
+  const peakConcurrency = data.runtime.reduce((peak, point) => Math.max(peak, point.activeFlows), 0);
+  const peakQueue = data.runtime.reduce((peak, point) => Math.max(peak, point.queueDepth), 0);
+  const busiest = [...data.workflows].sort((a, b) => b.totalRuns - a.totalRuns).slice(0, 8);
   const outcomes: DonutSegment[] = [
     { label: "Succeeded", value: overview.successRuns, color: "var(--awkit-success)" },
     { label: "Failed", value: overview.failedRuns, color: "var(--awkit-danger)" },
@@ -118,7 +132,7 @@ function OverviewContent({ data }: { data: OverviewData }) {
           label="Success rate"
           tone="success"
           value={pct(overview.successRate)}
-          detail={`${overview.successRuns} completed of ${overview.successRuns + overview.failedRuns} terminal`}
+          detail={`${overview.successRuns} succeeded of ${overview.successRuns + overview.failedRuns} success/failure outcomes`}
           icon={<CheckCircle2 size={22} />}
         />
         <MetricCard
@@ -128,9 +142,9 @@ function OverviewContent({ data }: { data: OverviewData }) {
           icon={<Clock size={22} />}
         />
         <MetricCard
-          label="Live instances"
-          value={<AnimatedCounter value={data.activeInstances} />}
-          detail={`${data.queuedInstances} queued right now`}
+          label="Peak concurrency"
+          value={<AnimatedCounter value={peakConcurrency} />}
+          detail={`Peak queue ${peakQueue} · ${data.activeInstances} active now`}
           icon={<Activity size={22} />}
         />
       </div>
@@ -143,8 +157,8 @@ function OverviewContent({ data }: { data: OverviewData }) {
           </div>
           <span className="awkit-report-tag">{overview.totalRuns} runs</span>
         </div>
-        {series.length >= 2 ? (
-          <MetricSparkline values={series} width={640} height={72} ariaLabel={`Runs over time: ${series.join(", ")}`} />
+        {overview.runsSeries.length >= 2 ? (
+          <ConsumptionTimeline series={outcomeSeries} height={240} />
         ) : (
           <p className="awkit-muted">Not enough data points yet to draw a trend.</p>
         )}
@@ -158,6 +172,15 @@ function OverviewContent({ data }: { data: OverviewData }) {
           </div>
         </div>
         <DonutChart segments={outcomes} centerLabel={pct(overview.successRate)} centerSub="success" />
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-4">
+        <div className="awkit-report-panel-head">
+          <div><strong>Busiest workflows</strong><span>Run volume in the selected range</span></div>
+        </div>
+        {busiest.length > 0 ? (
+          <BarChart data={busiest.map((row) => ({ label: row.scenarioName ?? row.scenarioId ?? "(unknown)", value: row.totalRuns, color: "var(--awkit-accent)" }))} />
+        ) : <p className="awkit-muted">No attributable workflow volume in this range.</p>}
       </section>
 
       <section className="work-panel awkit-report-panel awkit-report-span-8">
@@ -177,7 +200,7 @@ function OverviewContent({ data }: { data: OverviewData }) {
         </div>
       </section>
 
-      <section className="work-panel awkit-report-panel awkit-report-span-4">
+      <section className="work-panel awkit-report-panel awkit-report-span-12">
         <div className="awkit-report-panel-head">
           <div><strong>Live activity</strong><span>Current workload outside the selected history range</span></div>
           <span className="awkit-report-tag">Live</span>

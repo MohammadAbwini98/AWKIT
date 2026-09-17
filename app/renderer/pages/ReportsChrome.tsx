@@ -71,16 +71,17 @@ function ChromeContent({ status, history, historyError }: {
   const cap = status.capacity;
   const pool = status.browserPool;
   const proc = status.processes;
-  const totalMemoryMb = cap.systemMemoryPercent && cap.systemMemoryPercent < 100 ? cap.freeMemoryMb / (1 - cap.systemMemoryPercent / 100) : undefined;
+  const totalMemoryMb = cap.systemMemoryPercent !== undefined && cap.systemMemoryPercent < 100 ? cap.freeMemoryMb / (1 - cap.systemMemoryPercent / 100) : undefined;
   const memoryPct = proc?.chromiumMemoryMb !== undefined && totalMemoryMb ? safePct(proc.chromiumMemoryMb, totalMemoryMb) : cap.systemMemoryPercent;
+  const pageCapacity = cap.maxActiveFlows * pool.maxPagesPerContext;
   const gauges: ReportGauge[] = [
-    { label: "Contexts", value: safePct(cap.activeContexts, cap.maxActiveFlows), display: String(cap.activeContexts), unit: "CONTEXTS", detail: `Capacity reference ${cap.maxActiveFlows} active flows`, color: "var(--awkit-accent)" },
-    { label: "CPU", value: cap.cpuPercent, display: cap.cpuPercent === undefined ? "—" : `${Math.round(cap.cpuPercent)}%`, unit: "CPU", detail: "System-wide sampled CPU", color: "var(--awkit-warning)" },
+    { label: "Contexts", value: safePct(cap.activeContexts, cap.maxActiveFlows), display: String(cap.activeContexts), unit: "CONTEXTS", detail: `Saturates at ${cap.maxActiveFlows} concurrent contexts`, color: "var(--awkit-accent)" },
+    { label: "CPU", value: undefined, display: "—", unit: "CPU", detail: "Chromium-only CPU sampling is unavailable", color: "var(--awkit-warning)" },
     { label: "Memory", value: memoryPct, display: proc?.chromiumMemoryMb === undefined ? "—" : `${(proc.chromiumMemoryMb / 1024).toFixed(1)} GB`, unit: "MEMORY", detail: proc?.availability === "full" ? "Chromium resident set" : "Process sampling unavailable", color: "var(--awkit-blue)" },
-    { label: "Pages open", value: safePct(cap.activePages, Math.max(1, cap.maxActiveFlows * 2)), display: String(cap.activePages), unit: "PAGES OPEN", detail: `${cap.activeBrowsers} active browser${cap.activeBrowsers === 1 ? "" : "s"}`, color: "var(--awkit-success)" }
+    { label: "Pages open", value: safePct(cap.activePages, Math.max(1, pageCapacity)), display: String(cap.activePages), unit: "PAGES OPEN", detail: `${pageCapacity} configured page slots`, color: "var(--awkit-success)" }
   ];
   const contextSeries = history ? [
-    timeline(history.runtime, "activeBrowsers", "Contexts", "var(--awkit-accent)"),
+    { label: "Contexts", color: "var(--awkit-accent)", points: history.processes.flatMap((point) => point.browserContextCount === undefined ? [] : [{ x: Date.parse(point.timestamp), y: point.browserContextCount }]).filter((point) => !Number.isNaN(point.x)) },
     timeline(history.runtime, "queueDepth", "Queue depth", "var(--awkit-warning)")
   ] : [];
   const memorySeries: TimelineSeries[] = history ? [

@@ -8,9 +8,10 @@ import { BarChart, type BarDatum } from "../components/reports/BarChart";
 import { AvailabilityNotice } from "../components/reports/AvailabilityNotice";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
 import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
+import { StatusBadge } from "../components/shared/StatusBadge";
 
 function pctOrDash(value: number | undefined): string {
-  return value === undefined ? "—" : `${value}%`;
+  return value === undefined ? "—" : `${Math.round(value)}%`;
 }
 
 export function ReportsServer() {
@@ -109,6 +110,33 @@ function ServerContent({ data }: { data: ServerReport }) {
         ) : (
           <p className="awkit-muted">No stored artifacts were measured.</p>
         )}
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-7">
+        <div className="awkit-report-panel-head">
+          <div><strong>Host health</strong><span>Current production telemetry and dispatch state</span></div>
+        </div>
+        <div className="awkit-table-wrap">
+          <table className="awkit-table">
+            <thead><tr><th>Signal</th><th>Status</th><th className="awkit-th-numeric">Observed</th></tr></thead>
+            <tbody>
+              <tr><td>Runtime dispatch</td><td><StatusBadge tone={data.backpressureBlocked ? "warning" : "success"} label={data.backpressureBlocked ? "Throttled" : "Ready"} /></td><td className="awkit-td-numeric">{data.backpressureReason ?? "No backpressure"}</td></tr>
+              <tr><td>Process sampler</td><td><StatusBadge tone={data.processAvailability === "full" ? "success" : "warning"} label={data.processAvailability ?? "Unavailable"} /></td><td className="awkit-td-numeric">{data.chromiumMemoryMb === undefined ? "—" : `${data.chromiumMemoryMb.toLocaleString()} MB Chromium`}</td></tr>
+              <tr><td>Storage scan</td><td><StatusBadge tone={data.storage.truncated ? "warning" : "success"} label={data.storage.truncated ? "Bounded" : "Complete"} /></td><td className="awkit-td-numeric">{data.storage.totalMb.toLocaleString()} MB</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="work-panel awkit-report-panel awkit-report-span-5">
+        <div className="awkit-report-panel-head">
+          <div><strong>Capacity headroom</strong><span>Remaining host resource percentage</span></div>
+        </div>
+        <BarChart data={[
+          { label: "CPU headroom", value: data.cpuPercent === undefined ? 0 : Math.max(0, 100 - data.cpuPercent), color: "var(--awkit-success)" },
+          { label: "Memory headroom", value: data.systemMemoryPercent === undefined ? 0 : Math.max(0, 100 - data.systemMemoryPercent), color: "var(--awkit-blue)" }
+        ]} />
+        {data.cpuPercent === undefined || data.systemMemoryPercent === undefined ? <p className="awkit-muted">Unavailable signals render as zero and are not capacity measurements.</p> : null}
       </section>
 
       <section className="work-panel awkit-report-panel awkit-storage-note awkit-report-span-12">

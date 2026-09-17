@@ -31,8 +31,9 @@ function formatTick(epoch: number): string {
  * 0→max. Renders start/end time ticks + a legend with each series' latest value. Empty-safe.
  */
 export function ConsumptionTimeline({ series, unit = "", height = 200 }: ConsumptionTimelineProps) {
-  const allPoints = series.flatMap((s) => s.points);
-  const summary = series.map((s) => `${s.label}: ${s.points.length} points`).join("; ");
+  const normalized = series.map((item) => ({ ...item, points: [...item.points].sort((a, b) => a.x - b.x) }));
+  const allPoints = normalized.flatMap((s) => s.points);
+  const summary = normalized.map((s) => `${s.label}: ${s.points.length} points`).join("; ");
   if (allPoints.length < 2) {
     return <p className="awkit-muted">Not enough history yet to draw a trend. Run some workflows and check back.</p>;
   }
@@ -58,13 +59,11 @@ export function ConsumptionTimeline({ series, unit = "", height = 200 }: Consump
           {Math.round(yMax)}
           {unit}
         </text>
-        {series.map((s) => {
+        {normalized.map((s) => {
           const path = s.points
-            .slice()
-            .sort((a, b) => a.x - b.x)
             .map((p, index) => `${index === 0 ? "M" : "L"}${mapX(p.x).toFixed(1)},${mapY(p.y).toFixed(1)}`)
             .join(" ");
-          return <path key={s.label} d={path} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />;
+          return <path key={`${s.label}-${path}`} className="awkit-chart-line" pathLength={1} d={path} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />;
         })}
         <text x={PAD_L} y={height - 6} className="awkit-timeline-axis">
           {formatTick(xMin)}
@@ -74,7 +73,7 @@ export function ConsumptionTimeline({ series, unit = "", height = 200 }: Consump
         </text>
       </svg>
       <div className="awkit-timeline-legend">
-        {series.map((s) => {
+        {normalized.map((s) => {
           const last = s.points[s.points.length - 1];
           return (
             <span key={s.label}>
