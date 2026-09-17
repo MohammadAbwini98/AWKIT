@@ -174,7 +174,8 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "notes": "The requested Settings system composition is complete: the required build, live design-token, source, visual-layout, AI-memory, roadmap, and diff gates pass. The optional focused Settings E2E launcher remains terminally BLOCKED before assertions by the documented host environment condition; under the repository stopping policy that external gate does not prevent task completion."
+    "notes": "The requested Settings system composition is complete: the required build, live design-token, source, visual-layout, AI-memory, roadmap, and diff gates pass. The optional focused Settings E2E launcher remains terminally BLOCKED before assertions by the documented host environment condition; under the repository stopping policy that external gate does not prevent task completion.",
+    "closed_at_commit": "bc2bfa859dc1b8edf66f37f547b792011bf23bff"
   },
   "write_lease": {
     "history": [
@@ -191,6 +192,26 @@
         "acquired_at_commit": "28d09fd8726f367cc3ce72caf8b4919a13a83608",
         "released_at": "2026-09-17T23:44:28.480Z",
         "released_reason": "Settings system layout implemented, visually measured, and committed at b066663; hand off to project-state closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-settings-system-ui-0918:project-state:2026-09-17T23:44:41.520Z",
+        "task": "awkit-settings-system-ui-0918",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-settings-system-ui-0918.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T23:44:41.520Z",
+        "acquired_at_commit": "b0666639f4d4cafa89f7a40469dff553f72f2d80",
+        "released_at": "2026-09-17T23:50:00.169Z",
+        "released_reason": "terminal closeout",
         "amendments": [],
         "overrides": [],
         "violations": []

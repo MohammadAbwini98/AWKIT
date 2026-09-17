@@ -2,7 +2,7 @@
   "task": "awkit-settings-system-ui-0918",
   "contract_path": "docs/ai/contracts/awkit-settings-system-ui-0918.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
@@ -32,5 +32,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T23:50:00.169Z",
+  "released_reason": "terminal closeout",
+  "archived_at": "2026-09-17T23:50:00.171Z"
 }
