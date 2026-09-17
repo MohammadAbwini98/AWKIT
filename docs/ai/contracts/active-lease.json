@@ -1,19 +1,25 @@
 {
-  "task": "awkit-flows-system-ui",
-  "contract_path": "docs/ai/contracts/awkit-flows-system-ui.json",
+  "task": "awkit-settings-system-ui-0918",
+  "contract_path": "docs/ai/contracts/awkit-settings-system-ui-0918.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-flows-system-ui.json",
+    "docs/ai/contracts/awkit-settings-system-ui-0918.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-17T22:52:14.795Z",
-  "acquired_at_commit": "a3d1bbaf7a4c575180e26ba407c32742eb689afe",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-17T23:44:41.520Z",
+  "acquired_at_commit": "b0666639f4d4cafa89f7a40469dff553f72f2d80",
+  "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-settings-system-ui-0918.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/active-lease.json": "c31541722c8621cd7e837fe5b2e823389fe7b5309edc182ef82c89a651877644",
+    "docs/ai/contracts/awkit-settings-system-ui-0918.json": "07df7deb66e58a8707052bcadc4a66b970ad2ec187cade73a6da62ec12c12b4d"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -22,12 +28,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789684182983.3105"
+    "build": "dir(1):native-hosts:1789685699037.3977"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-17T22:52:36.063Z",
-  "released_reason": "push evidence recorded and task gate passed; close final project-state lease",
-  "archived_at": "2026-09-17T22:52:36.064Z"
+  "violations": []
 }

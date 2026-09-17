@@ -1,5 +1,16 @@
 # FEATURES
 
+## Settings system UI compact composition (2026-09-18)
+
+- The Appearance group now follows the reference hierarchy: a full-width Accent editor followed by
+  two independent compact card columns. This eliminates row-height holes while keeping Application,
+  Branding, Java Runtime, Oracle JDBC, and Semantic Index controls intact.
+- The live Super User layout balances those columns to 1,080px and 1,138px at 1440×1000; the
+  Credentials card spans the full content width, and both compositions collapse to one column at the
+  existing 900px breakpoint.
+- The change is renderer-only and token-only. Settings persistence, validation, permissions,
+  confirmations, IPC/preload contracts, offline behavior, and every existing action remain unchanged.
+
 ## Reports telemetry correctness and motion (2026-09-17)
 
 - Reports Overview exposes per-outcome history, peak concurrency, and busiest workflows from real

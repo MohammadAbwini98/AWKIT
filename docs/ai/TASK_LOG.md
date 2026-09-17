@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-settings-system-ui-0918`: apply the new Settings composition (Codex)
+
+- **Task:** review the attached SpecterStudio system UI artifact and replace the old Settings card
+  arrangement with an organized, aligned layout that does not leave empty half-rows or tall row gaps.
+- **Files:** `app/renderer/pages/Settings.tsx`, `app/renderer/styles/global.css`,
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`, and task/lease/roadmap bookkeeping.
+- **Implementation:** moved the Accent editor to the full-width lead position; replaced the uneven
+  Appearance row grid with two independent responsive card columns; measured and balanced the real
+  Super User cards from 1,504px / 714px to 1,080px / 1,138px; made the single Credentials card span
+  the full grid; and retained the existing 900px single-column breakpoint. No control, permission,
+  validation, confirmation, handler, preload call, Settings schema, persistence path, or offline
+  behavior changed.
+- **Tests run:** `npm run build` **PASS**; `npm run verify:design-tokens` **35/35 PASS** in live
+  light/dark Electron with zero renderer console errors; focused real-Electron 1440×1000 visual
+  capture and layout measurement PASS; source review and `git diff --check` PASS.
+  `npm run verify:settings-e2e` is **BLOCKED — ENVIRONMENT** before its first product assertion by
+  the recorded no-bridged-window Electron launcher condition and was not retried. Runner,
+  mock-site, and offline verifiers were **NOT RUN** because those boundaries were unchanged.
+- **Result:** the Settings page now matches the reference composition with balanced, compact cards
+  and no orphan half-width surface, while all existing behavior remains intact.
+
 ## 2026-09-18 — `awkit-flows-system-ui`: apply Workflows design criteria to Flows (Codex)
 
 - **Task:** give the Flows library the same UI treatment as Workflows while preserving all Flow

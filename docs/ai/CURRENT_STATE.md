@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## `awkit-settings-system-ui-0918`: gap-free Settings composition applied (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes Settings renderer composition only; no validation-ledger case moved.
+
+Settings now follows the attached system design with the full-width Accent editor leading the
+icon-led Appearance group. The remaining Appearance cards use two independent, token-spaced columns
+instead of a shared row grid, so a tall data-dependent card no longer leaves a matching hole under a
+short neighbor. The live Super User render measures **1,080px / 1,138px** for those columns — only a
+58px difference, down from **1,504px / 714px**. Application, Branding, and Oracle occupy the first
+column; Java Runtime and Semantic Index occupy the second. The single Credentials card now spans the
+available grid width instead of leaving an empty half-row. Both layouts collapse to one column at the
+existing 900px breakpoint.
+
+Every existing control, permission check, validation binding, confirmation, Settings store call,
+diagnostic action, secret operation, and import/export path is unchanged. No route, preload, IPC,
+schema, persistence, runtime, packaging, or offline boundary changed, and no demo value or remote
+asset was copied from the reference artifact.
+
+**Evidence:** `npm run build` PASS against the final renderer; `npm run verify:design-tokens`
+**35/35 PASS** in live light/dark Electron with zero renderer console errors; a focused real-Electron
+visual capture at 1440×1000 confirmed the balanced 1,080px / 1,138px column heights and clean section
+transition; final source review and `git diff --check` PASS. `npm run verify:settings-e2e` is
+**BLOCKED — ENVIRONMENT** before its first product assertion because `electron.launch` again resolved
+no bridged window on this host; the known launcher failure was not retried. Runner, mock-site, and
+offline verifiers were **NOT RUN** because those boundaries were unchanged.
+
 ## `awkit-flows-system-ui`: Workflows design criteria applied to the Flows library (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
