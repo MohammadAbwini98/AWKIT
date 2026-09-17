@@ -77,7 +77,10 @@ export interface TelemetryOverview {
 export interface RunsSeriesPoint {
   bucketIso: string;
   total: number;
+  success: number;
   failed: number;
+  cancelled: number;
+  other: number;
 }
 
 export interface WorkflowReportRow {
@@ -89,7 +92,11 @@ export interface WorkflowReportRow {
   cancelled: number;
   successRate: number;
   duration: DurationStats;
+  /** Runs in this row that recorded a duration; used for correct cross-workflow weighting. */
+  durationSampleCount: number;
   avgQueueWaitMs?: number;
+  /** Runs in this row that recorded queue wait; used for correct cross-workflow weighting. */
+  queueWaitSampleCount: number;
   retryCount: number;
   lastRunStatus?: string;
   lastRunAt?: string;
@@ -229,6 +236,7 @@ export interface ProcessHistoryPoint {
   chromiumMemoryMb?: number;
   electronMainMemoryMb?: number;
   activeBrowsers?: number;
+  browserContextCount?: number;
   pageCount?: number;
   availability?: string;
 }
@@ -272,6 +280,7 @@ export function processSampleToHistoryPoint(sample: DurableProcessSampleRecord):
     chromiumMemoryMb: sample.chromiumMemoryMb,
     electronMainMemoryMb: sample.electronMainMemoryMb,
     activeBrowsers: sample.activeBrowsers,
+    browserContextCount: sample.browserContextCount,
     pageCount: sample.pageCount,
     availability: sample.availability
   };
