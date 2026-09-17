@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## `awkit-reports-correctness-motion`: accurate report telemetry and restored UI motion (2026-09-17)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+repairs reporting read models and renderer presentation; no formal validation-ledger case moved.
+
+All seven analytics Reports routes were traced from the rendered value back to the durable store or
+live runtime snapshot. Outcome history now carries successful, failed, cancelled, and other counts;
+workflow rollups expose their real duration/queue sample denominators; process history projects the
+persisted browser-context count; and browser-pool snapshots expose the configured pages-per-context
+ceiling. Overview now shows real peak concurrency, outcome series, and busiest workflows. Workflow
+summary rates/durations use matching denominators and its charts are independently busiest/worst
+first. Instance live distribution excludes retained terminal rows and includes the reference donut.
+Chrome uses recorded contexts, configured page capacity, and an honest unavailable state for
+Chromium-only CPU instead of mislabelling host CPU. Runtime uses duration/host KPIs and context/page
+history. Failure KPIs use the unbounded overview total and real auth-handoff category. Server adds
+production-backed host-health and capacity-headroom surfaces.
+
+Shared Reports motion is restored at the component boundary: counters ramp on first population;
+bars grow; donut/gauge arcs enter; timelines and sparklines draw; report panels fade/translate in.
+The global reduced-motion policy collapses all new movement while preserving final values.
+
+**Evidence:** `npm run build` PASS; `npm run verify:telemetry` **68/68 PASS**; `npm run
+verify:runner` **138/138 PASS**; `npm run verify:design-tokens` **35/35 PASS** with live light/dark
+Electron and zero renderer console errors; source review PASS; `graphify update .` completed (14,798
+nodes / 30,525 edges). `npm run verify:reports-settings-a11y` is **BLOCKED — ENVIRONMENT** because
+its legacy Playwright/Electron launcher exited before the first product assertion (`Target page,
+context or browser has been closed`). `verify:reports` and `verify:reports-populated-gui` are **NOT
+RUN** because they share that confirmed unavailable prerequisite; their source assertions were
+updated for the corrected metrics and reduced-motion behavior. `npm run typecheck:scripts` is
+**FAIL — unrelated pre-existing source error** in `scripts/verify-canvas-layout.mts:127`
+(`maxLoopCount` missing on one union member); the changed report verifier files introduce no build
+error and this unrelated command was not retried.
+
 ## `awkit-reports-reference-composition`: all analytics Reports rebuilt from the attached design (2026-09-17)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task

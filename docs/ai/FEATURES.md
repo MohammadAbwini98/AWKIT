@@ -1,5 +1,19 @@
 # FEATURES
 
+## Reports telemetry correctness and motion (2026-09-17)
+
+- Reports Overview exposes per-outcome history, peak concurrency, and busiest workflows from real
+  telemetry. Workflow Reports weights success and duration by their matching outcome/sample counts,
+  and its supporting charts no longer change semantic ordering with the table sorter.
+- Instance Reports counts only live statuses and visualizes them as a donut. Chrome Consumption uses
+  persisted browser-context history, the configured pages-per-context ceiling, and does not present
+  host CPU as Chromium CPU. Runtime Analytics uses completed-run duration percentiles, host pressure,
+  and recorded context/page history. Failure Analytics uses unbounded overview totals plus real
+  protected-login handoff counts. Server Performance includes live health and headroom evidence.
+- Shared report counters, bars, donuts, gauges, timelines, sparklines, and panels animate on entry or
+  update. All new movement resolves immediately under `prefers-reduced-motion`; no value depends on
+  animation, and no new dependency or remote asset was added.
+
 ## Report-specific reference compositions and snapshot export (2026-09-17)
 
 - All seven analytics Reports routes use the attached design's report-specific hierarchy: compact

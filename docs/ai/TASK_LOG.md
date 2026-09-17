@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-17 — `awkit-reports-correctness-motion`: repair Reports values, coverage, and motion (Codex)
+
+- **Task:** audit every Reports route against its production telemetry and the attached offline
+  design; correct inaccurate values, implement missing production-backed surfaces, and restore UI
+  animation without fabricating unsupported metrics.
+- **Files:** runtime browser-pool/store read models; additive telemetry contracts; all seven
+  `Reports*.tsx` pages; shared counter/chart components and report CSS; Reports/telemetry verifiers;
+  AI memory, graph, task contract, and roadmap assignment bookkeeping.
+- **Implementation:** added exact outcome buckets, workflow sample denominators, persisted context
+  projection, and configured page capacity. Replaced incorrect contexts/host-CPU/page-pressure,
+  workflow weighting, live-instance, Runtime KPI, and Failure total semantics. Added real outcome,
+  busiest-workflow, live-status, context/page, auth-handoff, host-health, and headroom surfaces.
+  Restored token-driven entry/update animation across shared Reports components with reduced-motion
+  collapse.
+- **Tests run:** `npm run build` PASS; `verify:telemetry` **68/68 PASS**; `verify:runner` **138/138
+  PASS**; `verify:design-tokens` **35/35 PASS**; source review PASS; `graphify update .` PASS.
+  `verify:reports-settings-a11y` **BLOCKED — ENVIRONMENT** before its first assertion because the
+  legacy Electron launcher closed. `verify:reports` and `verify:reports-populated-gui` NOT RUN against
+  the same unavailable prerequisite. `typecheck:scripts` FAIL on the unrelated pre-existing
+  `scripts/verify-canvas-layout.mts:127` union-narrowing error; no retry.
+- **Result:** report values now match their production sources and denominators, the missing
+  reference-backed surfaces and shared motion are implemented, and unsupported Chromium-only CPU is
+  explicitly unavailable instead of being replaced with a misleading host value.
+
 ## 2026-09-17 — `awkit-reports-closeout-recovery`: clear portable-release preflight residue (Codex)
 
 - **Task:** diagnose the dashboard's `Portable release requires a clean working tree` failure and
