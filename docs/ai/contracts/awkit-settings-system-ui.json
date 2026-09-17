@@ -165,7 +165,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "APPROVED"
+    "qc_status": "APPROVED",
+    "closed_at_commit": "8311cfded71225bd9ec25a770cb5b9ef0b3a4cd6"
   },
   "write_lease": {
     "history": [
@@ -182,6 +183,26 @@
         "acquired_at_commit": "02c663c8ec2b3304dd34c501c0be96b5ab0ae21a",
         "released_at": "2026-09-16T19:49:58.086Z",
         "released_reason": "handoff to project-state: Settings renderer redesign is implemented and verified; record evidence and project-state closeout.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-settings-system-ui:project-state:2026-09-16T19:49:58.149Z",
+        "task": "awkit-settings-system-ui",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-settings-system-ui.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-16T19:49:58.149Z",
+        "acquired_at_commit": "3dffc9f2022cddc9376e38a56b86358eea1f1ad2",
+        "released_at": "2026-09-17T09:18:32.433Z",
+        "released_reason": "Settings-only system UI redesign, verification, code graph refresh, and project-state reconciliation are complete.",
         "amendments": [],
         "overrides": [],
         "violations": []

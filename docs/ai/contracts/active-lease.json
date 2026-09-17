@@ -2,7 +2,7 @@
   "task": "awkit-settings-system-ui",
   "contract_path": "docs/ai/contracts/awkit-settings-system-ui.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
@@ -32,5 +32,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T09:18:32.433Z",
+  "released_reason": "Settings-only system UI redesign, verification, code graph refresh, and project-state reconciliation are complete.",
+  "archived_at": "2026-09-17T09:18:32.434Z"
 }
