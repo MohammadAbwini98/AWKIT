@@ -1,24 +1,26 @@
 {
-  "task": "awkit-reports-correctness-motion",
-  "contract_path": "docs/ai/contracts/awkit-reports-correctness-motion.json",
+  "task": "awkit-reports-verification-closeout",
+  "contract_path": "docs/ai/contracts/awkit-reports-verification-closeout.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/awkit-reports-correctness-motion.json",
+    "docs/ai/contracts/awkit-reports-verification-closeout.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-17T19:34:28.720Z",
-  "acquired_at_commit": "15c03ce0a9350a9d6f740970a8d1b1f15de4d604",
+  "acquired_at": "2026-09-17T20:35:39.732Z",
+  "acquired_at_commit": "fb251b5b361be1cd94ee4868c433fdc250991fb8",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-reports-correctness-motion.json"
+    "docs/ai/contracts/awkit-reports-verification-closeout.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "4f3e54220bcb7ae22c4c1f534ed9ea2a3420c0e1d818e5049f6d47f8411ed9d9",
-    "docs/ai/contracts/awkit-reports-correctness-motion.json": "840cc1bf618eaaf570cf18584967f2ffdb32b397d5767c3a0ce9b289008d7e83"
+    "docs/ai/contracts/active-lease.json": "d9f271f03532e05d9302731f811314e11d66ee2de99481c45c7e481d7458ca4b",
+    "docs/ai/contracts/awkit-reports-verification-closeout.json": "ef5b6372395672c6ef18cf2719a249aadd99960e3b3f9ab691cb87684000cc4d"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,8 +34,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-17T19:39:05.523Z",
-  "released_reason": "terminal closeout after report correctness, motion, and verification reconciliation",
-  "archived_at": "2026-09-17T19:39:05.524Z"
+  "violations": []
 }
