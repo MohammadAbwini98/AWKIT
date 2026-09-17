@@ -2,7 +2,7 @@
   "task": "awkit-reports-closeout-recovery",
   "contract_path": "docs/ai/contracts/awkit-reports-closeout-recovery.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
@@ -35,5 +35,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-17T18:19:04.132Z",
+  "released_reason": "absorbed Reports closeout residue and restored portable-release preflight",
+  "archived_at": "2026-09-17T18:19:04.133Z"
 }

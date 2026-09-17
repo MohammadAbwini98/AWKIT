@@ -136,9 +136,32 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "NOT_REQUIRED"
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "348ea3c86571b54789382bbef12dc3d11ee393bd"
   },
   "write_lease": {
-    "history": []
+    "history": [
+      {
+        "id": "awkit-reports-closeout-recovery:project-state:2026-09-17T18:16:52.247Z",
+        "task": "awkit-reports-closeout-recovery",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-reports-closeout-recovery.json",
+          "docs/ai/contracts/awkit-reports-reference-composition.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-17T18:16:52.247Z",
+        "acquired_at_commit": "a1a485f6f0be78f5fb39a1e612016b689646ef85",
+        "released_at": "2026-09-17T18:19:04.132Z",
+        "released_reason": "absorbed Reports closeout residue and restored portable-release preflight",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
