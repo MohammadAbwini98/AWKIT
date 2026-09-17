@@ -34,6 +34,8 @@ export interface BrowserWorkerSlot {
 export interface BrowserPoolSnapshot {
   activeSlots: number;
   maxSlots: number;
+  /** Configured page ceiling for each live browser context. */
+  maxPagesPerContext: number;
   pendingWaiters: number;
   totalAcquired: number;
   totalReleased: number;
@@ -203,6 +205,7 @@ export class BrowserWorkerPool {
     return {
       activeSlots: realSlots,
       maxSlots: this.limits.maxBrowsersPerHost,
+      maxPagesPerContext: this.limits.maxPagesPerContext,
       pendingWaiters: this.slotSemaphore.pendingWaiters,
       totalAcquired: this.totalAcquired,
       totalReleased: this.totalReleased,

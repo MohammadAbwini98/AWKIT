@@ -1172,7 +1172,9 @@ function aggregateWorkflows(runs: DurableRunRecord[]): WorkflowReportRow[] {
       cancelled,
       successRate: denom ? success / denom : 0,
       duration: durationStats(durations),
+      durationSampleCount: durations.length,
       avgQueueWaitMs: queueWaits.length ? Math.round(queueWaits.reduce((a, b) => a + b, 0) / queueWaits.length) : undefined,
+      queueWaitSampleCount: queueWaits.length,
       retryCount,
       lastRunStatus: last?.status,
       lastRunAt: last ? last.endedAt ?? last.startedAt ?? last.updatedAt : undefined
@@ -1219,17 +1221,17 @@ function buildRunsSeries(runs: DurableRunRecord[]): RunsSeriesPoint[] {
   const max = Math.max(...times);
   const span = Math.max(1, max - min);
   const bucketMs = Math.max(1, Math.ceil(span / 24));
-  const buckets = new Map<number, { total: number; failed: number }>();
+  const buckets = new Map<number, { total: number; success: number; failed: number; cancelled: number; other: number }>();
   for (const run of runs) {
     const t = runTime(run);
     if (Number.isNaN(t)) continue;
     const key = Math.floor((t - min) / bucketMs);
-    const agg = buckets.get(key) ?? { total: 0, failed: 0 };
+    const agg = buckets.get(key) ?? { total: 0, success: 0, failed: 0, cancelled: 0, other: 0 };
     agg.total += 1;
-    if (statusBucket(run.status) === "failed") agg.failed += 1;
+    agg[statusBucket(run.status)] += 1;
     buckets.set(key, agg);
   }
   return [...buckets.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([key, agg]) => ({ bucketIso: new Date(min + key * bucketMs).toISOString(), total: agg.total, failed: agg.failed }));
+    .map(([key, agg]) => ({ bucketIso: new Date(min + key * bucketMs).toISOString(), ...agg }));
 }
