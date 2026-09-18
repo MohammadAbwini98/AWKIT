@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-operations-system-ui-0918`: operational routes adopt the new system design (Codex)
+
+- **Task:** apply the supplied offline SpecterStudio system UI direction to Run Artifacts, Recorder,
+  Data Sources, Runtime Inputs, and Sessions without changing the product's live behavior or state.
+- **Files:** `app/renderer/pages/{ExecutionReports,Recorder,DataSourceManager,RuntimeInputPanel,
+  SessionsManager}.tsx`, `app/renderer/styles/global.css`, `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`,
+  and task/lease/roadmap bookkeeping.
+- **Implementation:** published real primary actions through page chrome, introduced live summary/context
+  surfaces and titled record/control panels, and applied token-only responsive identity/status styling.
+  Report exports/folder access, recorder plus protected-login paths, JSON/Oracle CRUD, input
+  validation/dry run, and browser session capture/management stay connected to their existing handlers,
+  preload APIs, persistence, and permissions. No reference demo data, placeholder behavior, dependency,
+  remote asset, or offline/runtime contract was introduced.
+- **Tests run:** `npm run build` **PASS**; `npm run verify:design-tokens` **35/35 PASS**; `npm run
+  verify:recorder-gui` **194/194 PASS**; `npm run verify:reports` **35/35 PASS**; visual review of
+  fresh-profile captures for all five changed routes; source review and `git diff --check` **PASS**.
+  The optional route sweep's 29-route mount/fresh-profile phases passed and produced all route captures;
+  its later resize/keyboard stage is **INCONCLUSIVE — HOST HARNESS** because the command session ended.
+  Runner, mock-site, and offline validation were **NOT RUN** because their boundaries were unchanged.
+- **Result:** the requested operational pages now use the system layout while preserving the underlying
+  recorder, session, data, input, report, authorization, persistence, execution, and offline behavior.
+
 ## 2026-09-18 — `awkit-settings-system-ui-0918`: apply the new Settings composition (Codex)
 
 - **Task:** review the attached SpecterStudio system UI artifact and replace the old Settings card

@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-operations-system-ui-0918",
+    "title": "Apply the attached system UI to operational routes",
+    "objective": "Replace the Run Artifacts, Recorder, Data Sources, Runtime Inputs, and Sessions renderer presentation with the attached SpecterStudio system design while preserving their live report, recorder, data binding, runtime-input, and session-capture behavior.",
+    "requested_by": "owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "36abcd785b0fa5349126de047056f6dd5522f309",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "app/renderer/pages/ExecutionReports.tsx",
+      "app/renderer/pages/Recorder.tsx",
+      "app/renderer/pages/DataSourceManager.tsx",
+      "app/renderer/pages/RuntimeInputPanel.tsx",
+      "app/renderer/pages/SessionsManager.tsx",
+      "app/renderer/styles/global.css",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/FEATURES.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-operations-system-ui-0918.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/FEATURES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-operations-system-ui-0918.json",
+        "tools/roadmap/assignments.json"
+      ]
+    },
+    "writer_sequence": [
+      "frontend",
+      "project-state"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Change only renderer composition and token CSS; preserve routes, app shell, preload APIs, main-process session capture, recorder behavior, report storage, data-source persistence, and runtime execution.",
+      "Reuse existing Hologram tokens, page-chrome actions, semantic tables, dialogs, table pagination, responsive table overflow treatment, and reduced-motion guards.",
+      "Do not copy reference demo records, counts, session state, artifact actions, or placeholder values into product UI."
+    ],
+    "accessibility": [
+      "Preserve semantic headings, labels, status announcements, accessible action names, keyboard focus, visible focus styles, and responsive containment."
+    ],
+    "offline": [
+      "Do not add dependencies, remote assets, fonts, scripts, or runtime network access."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "OPERATIONS-SYSTEM-UI",
+      "description": "Run Artifacts, Recorder, Data Sources, Runtime Inputs, and Sessions use the attached system hierarchy: prominent titled surfaces, compact live summaries, icon-led identity and status treatments, and token-driven responsive spacing.",
+      "evidence_required": [
+        "verify:design-tokens",
+        "build",
+        "source-review"
+      ]
+    },
+    {
+      "id": "OPERATIONS-BEHAVIOR-PRESERVED",
+      "description": "Existing report export and folder access, recorder and protected-login controls, data-source CRUD and Oracle actions, runtime-input validation and dry run, session capture and session-management handlers retain their authorization, persistence, and preload behavior; no enabled placeholder control is introduced.",
+      "evidence_required": [
+        "verify:recorder-gui",
+        "verify:reports",
+        "build",
+        "source-review"
+      ]
+    },
+    {
+      "id": "STATE-RECONCILED",
+      "description": "The task records accurate AI-memory and roadmap evidence before terminal closeout.",
+      "evidence_required": [
+        "ai-memory-check",
+        "verify:roadmap-dashboard",
+        "git-diff-check"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:design-tokens",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:design-tokens",
+      "result": "PASS",
+      "artifact": "35/35 live Electron token checks (light/dark)"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "result": "PASS",
+      "artifact": "TypeScript check and production renderer bundle"
+    },
+    {
+      "id": "verify:recorder-gui",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:recorder-gui",
+      "result": "PASS",
+      "artifact": "test-artifacts/recorder-gui/2026-09-18T16-10-17-121Z/execution-results.json (194/194)"
+    },
+    {
+      "id": "verify:reports",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:reports",
+      "result": "PASS",
+      "artifact": "35/35 real-Electron Reports GUI checks"
+    },
+    {
+      "id": "source-review",
+      "type": "inspection",
+      "required": true,
+      "command": null,
+      "result": "PASS",
+      "artifact": "Focused handler/API review plus fresh-profile visual review of all five changed routes"
+    },
+    {
+      "id": "ai-memory-check",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run ai:memory:check",
+      "result": "PASS",
+      "artifact": "AI memory required checks passed"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "result": "PASS",
+      "artifact": "177/177 checks; Overview banner: Sources agree"
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "result": "PASS",
+      "artifact": "Final tracked change set has no whitespace errors"
+    }
+  ],
+  "scope_escapes": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-operations-system-ui-0918:frontend:2026-09-18T15:11:52.641Z",
+        "task": "awkit-operations-system-ui-0918",
+        "holder": "frontend",
+        "status": "released",
+        "allowed_paths": [
+          "app/renderer/pages/DataSourceManager.tsx",
+          "app/renderer/pages/ExecutionReports.tsx",
+          "app/renderer/pages/Recorder.tsx",
+          "app/renderer/pages/RuntimeInputPanel.tsx",
+          "app/renderer/pages/SessionsManager.tsx",
+          "app/renderer/styles/global.css"
+        ],
+        "acquired_at": "2026-09-18T15:11:52.641Z",
+        "acquired_at_commit": "36abcd785b0fa5349126de047056f6dd5522f309",
+        "released_at": "2026-09-18T16:20:06.411Z",
+        "released_reason": "handoff to project-state: Operational system UI implemented and verified; record task evidence and terminal closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ],
+    "overrides": []
+  }
+}

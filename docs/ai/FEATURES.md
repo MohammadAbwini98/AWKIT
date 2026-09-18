@@ -477,6 +477,12 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   top-header Import action carries an Upload icon. Permission gates are unchanged.
 - ✅ Data Source Manager (JSON sources, click a row to preview, validate, **Edit Table**, duplicate,
   export, **Create Data Source** from scratch); Runtime Input panel; Form Designer.
+- ✅ **Operational system presentation (2026-09-18):** Run Artifacts, Recorder, Data Sources, Runtime
+  Inputs, and Sessions use the shared system hierarchy — live context/summary tiles, titled record or
+  control surfaces, icon-led identity and status treatment, token-spaced responsive layouts, and real
+  page-chrome actions. Existing report exports/folder access, recorder and protected-login controls,
+  JSON/Oracle operations, runtime-input validation/dry run, and manual session-capture handlers are
+  unchanged; no reference demo state or simulated action is presented as product data.
 - 🟡 **Oracle Data Sources + Oracle node (read-only; `INTEGRATION-CANDIDATE`, 2026-07-17):** Oracle-backed
   Data Sources in **Runtime** mode (query executes lazily, only when a consumer actually needs the rows —
   single-flight per run) or **Snapshot** mode (query runs once, rows persist for fully offline use), plus an

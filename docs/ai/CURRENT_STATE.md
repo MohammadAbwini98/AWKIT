@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## `awkit-operations-system-ui-0918`: operational routes adopt the attached system UI (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes renderer composition and token CSS only; no validation-ledger case moved.
+
+Run Artifacts, Recorder, Data Sources, Runtime Inputs, and Sessions now use the supplied system
+hierarchy: page-chrome actions lead the page, real-state summary tiles establish context, and each
+page's live records, controls, empty state, or capture handoff sit in clearly titled system surfaces.
+Run Artifacts retains real report folder/export actions and live totals; Recorder keeps its actual
+start/stop, protected-login, smart-wait, URL, review, and save-flow paths; Data Sources retains its
+JSON/Oracle CRUD, preview, validation, and editor paths; Runtime Inputs retains data binding,
+validation, local persistence, and dry-run behavior; Sessions retains browser detection, manual
+capture, storage, filtering, and session-management actions. The Sessions header's capture action
+focuses the required existing capture form rather than starting an invalid, unnamed capture.
+
+No routes, preload APIs, IPC channels, persistence schemas, report storage, recorder behavior,
+session-capture service, execution behavior, packaging, offline boundary, or remote dependency
+changed. The supplied artifact provided visual hierarchy only: no reference demo records, counts,
+session state, report action, placeholder value, or enabled fake control was added.
+
+**Evidence:** `npm run build` PASS; `npm run verify:design-tokens` **35/35 PASS** in live light/dark
+Electron; `npm run verify:recorder-gui` **194/194 PASS**, including recorder controls and keyboard
+focus; `npm run verify:reports` **35/35 PASS**; source review and `git diff --check` PASS. Fresh-profile
+captures of all five changed routes were visually reviewed. The optional route sweep's route-mount and
+fresh-profile stages passed and captured all 29 routes, but its remaining resize/keyboard stages are
+**INCONCLUSIVE — HOST HARNESS** after the command session ended; that incomplete suite is not counted
+as a pass. Runner, mock-site, and offline validation were **NOT RUN** because no runner, fixture,
+main-process, packaging, or offline behavior changed.
+
 ## `awkit-admin-system-ui-0918`: Administration routes adopt the attached system UI (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
