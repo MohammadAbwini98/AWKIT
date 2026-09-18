@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardList, Search, ShieldAlert, Users as UsersIcon } from "lucide-react";
+import { ClipboardList, RotateCw, Search, ShieldAlert, Users as UsersIcon } from "lucide-react";
 import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
@@ -36,7 +36,16 @@ export function AuditLogPage() {
 
   // Primary page action lives in the shared TopHeader, not a card, so every Administration page reads alike.
   usePageChrome(
-    { actions: [{ id: "audit-refresh", label: "Refresh", onClick: load, disabled: loading }], dirty: false },
+    {
+      actions: [{
+        id: "audit-refresh",
+        label: "Refresh",
+        icon: <RotateCw size={15} aria-hidden="true" />,
+        onClick: load,
+        disabled: loading
+      }],
+      dirty: false
+    },
     [load, loading]
   );
 
@@ -61,7 +70,7 @@ export function AuditLogPage() {
 
   return (
     <AdminPage
-      title="Audit log"
+      title="Audit Log"
       description="Inspect the local, read-only trail of privileged actions and security decisions."
       banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}
     >
@@ -78,9 +87,10 @@ export function AuditLogPage() {
       </AdminMetrics>
 
       <AdminSectionCard
-        title="Security events"
+        title="Privileged actions"
         icon={ClipboardList}
         meta={`${filteredRows.length} of ${rows.length}`}
+        className="awkit-admin-primary-surface"
       >
         <div className="awkit-admin-filter-bar" role="search" aria-label="Audit filters">
           <label className="awkit-admin-search-field">
@@ -104,7 +114,8 @@ export function AuditLogPage() {
           <AdminEmpty icon={Search} title="No matching audit events" hint="Clear or change the current filters." />
         ) : (
           <div className="awkit-admin-table-scroll">
-            <table className="awkit-admin-table">
+            <table className="awkit-admin-table awkit-admin-audit-table">
+              <caption className="sr-only">Privileged action audit trail</caption>
               <thead>
                 <tr><th>When</th><th>Event</th><th scope="col">Actor</th><th>Target</th><th>Result</th></tr>
               </thead>
@@ -120,7 +131,12 @@ export function AuditLogPage() {
                       </time>
                     </td>
                     <td><code>{r.eventType}</code>{r.reasonCode ? <span className="awkit-admin-muted"> · {r.reasonCode}</span> : null}</td>
-                    <td>{r.actorName ?? "—"}</td>
+                    <td>
+                      <span className="awkit-admin-audit-actor">
+                        <UsersIcon size={14} aria-hidden="true" />
+                        {r.actorName ?? "—"}
+                      </span>
+                    </td>
                     <td>{r.targetType ? `${r.targetType}${r.targetId ? ` (${r.targetId.slice(0, 8)}…)` : ""}` : "—"}</td>
                     <td><AdminStatusBadge status={r.result} /></td>
                   </tr>

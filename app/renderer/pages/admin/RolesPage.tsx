@@ -4,6 +4,7 @@ import { ALL_PERMISSIONS } from "@src/security/authz/Permissions";
 import type { AdminRoleView } from "@src/security/admin/RoleAdminService";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import { useSession } from "../../security/SessionContext";
+import { usePageChrome } from "../../state/pageChrome";
 import { adminReasonMessage } from "./adminMessages";
 import { ReauthDialog } from "./ReauthDialog";
 import {
@@ -31,6 +32,7 @@ export function RolesPage() {
   const [pendingFn, setPendingFn] = useState<(() => Promise<AdminResponse<unknown>>) | null>(null);
   /** Assigned-user counts per role id; null when the caller can't read the user directory. */
   const [assignedUsers, setAssignedUsers] = useState<Map<string, number> | null>(null);
+  const createRoleRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => {
     const result = await security().admin.listRoles(sessionRef);
@@ -66,6 +68,26 @@ export function RolesPage() {
     setNotice("Role change applied.");
     await reload();
   }, [reload]);
+
+  const focusCreateRole = useCallback(() => {
+    createRoleRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    createRoleRef.current?.focus();
+  }, []);
+
+  usePageChrome(
+    {
+      actions: [{
+        id: "create-role",
+        label: "Create role",
+        icon: <Plus size={15} aria-hidden="true" />,
+        onClick: focusCreateRole,
+        disabled: loading,
+        variant: "primary"
+      }],
+      dirty: false
+    },
+    [focusCreateRole, loading]
+  );
 
   if (loading) return <AdminPage><AdminLoading label="Loading roles…" /></AdminPage>;
   const builtInCount = roles.filter((role) => role.builtIn).length;
@@ -139,6 +161,7 @@ export function RolesPage() {
       })}
       </div>
       <CreateRoleCard
+        nameRef={createRoleRef}
         onCreate={(input) => sensitive(() => security().admin.createRole({ sessionRef, ...input }))}
       />
       </div>
@@ -186,8 +209,10 @@ export function RolesPage() {
 }
 
 function CreateRoleCard({
+  nameRef,
   onCreate
 }: {
+  nameRef: { readonly current: HTMLInputElement | null };
   onCreate: (input: { name: string; description?: string; permissions: string[] }) => void;
 }) {
   const [name, setName] = useState("");
@@ -206,7 +231,7 @@ function CreateRoleCard({
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field">
           <span className="awkit-login-field-label">Role name</span>
-          <input value={name} onChange={(event) => setName(event.target.value)} maxLength={64} />
+          <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} maxLength={64} />
         </label>
         <label className="awkit-login-field">
           <span className="awkit-login-field-label">Description (optional)</span>

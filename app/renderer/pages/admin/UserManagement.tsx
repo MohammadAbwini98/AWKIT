@@ -5,6 +5,7 @@ import { ALL_PERMISSIONS, ISSUER_ROLE } from "@src/security/authz/Permissions";
 import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
 import { useModalFocusContract } from "../../components/shared/useModalFocusContract";
+import { usePageChrome } from "../../state/pageChrome";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
 import {
@@ -74,6 +75,21 @@ export function UserManagement() {
     createUsernameRef.current?.focus();
   }, []);
 
+  usePageChrome(
+    {
+      actions: [{
+        id: "create-user",
+        label: "Add user",
+        icon: <UserPlus size={15} aria-hidden="true" />,
+        onClick: focusCreateForm,
+        disabled: loading,
+        variant: "primary"
+      }],
+      dirty: false
+    },
+    [focusCreateForm, loading]
+  );
+
   if (loading) {
     return <AdminPage><AdminLoading label="Loading users…" /></AdminPage>;
   }
@@ -86,11 +102,6 @@ export function UserManagement() {
     <AdminPage
       title="Users"
       description="Manage local accounts, access roles, credentials, and active sessions."
-      actions={
-        <button className="toolbar-button primary" type="button" onClick={focusCreateForm}>
-          <UserPlus size={14} aria-hidden="true" /> Add user
-        </button>
-      }
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -113,9 +124,10 @@ export function UserManagement() {
 
       <div className="awkit-admin-split awkit-admin-users-layout">
       <AdminSectionCard
-        title="Account directory"
+        title="User directory"
         icon={UsersIcon}
         meta={`${filteredUsers.length} of ${users.length}`}
+        className="awkit-admin-primary-surface"
       >
         <div className="awkit-admin-filter-bar" role="search" aria-label="User filters">
           <label className="awkit-admin-search-field">
@@ -141,6 +153,7 @@ export function UserManagement() {
         ) : (
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table">
+            <caption className="sr-only">User directory</caption>
             <thead>
               <tr><th>User</th><th>Status</th><th>Roles</th><th>Last login</th><th>Actions</th></tr>
             </thead>

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Check, ListChecks } from "lucide-react";
+import { Check, ListChecks, ShieldCheck } from "lucide-react";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
 import {
@@ -66,19 +66,23 @@ export function PermissionsPage() {
       <AdminMetrics label="Permission summary">
         <AdminMetricCard label="Permissions" value={permissions.length} icon={ListChecks} />
         <AdminMetricCard label="Capability groups" value={groupedPermissions.length} hint="deny-by-default categories" />
-        <AdminMetricCard label="Built-in roles" value={builtInRoles} hint="always present" />
+        <AdminMetricCard label="Built-in roles" value={builtInRoles} icon={ShieldCheck} hint="always present" />
         <AdminMetricCard label="Custom roles" value={roles.length - builtInRoles} hint={roles.length - builtInRoles > 0 ? "grant extra access" : undefined} />
       </AdminMetrics>
+
+      <AdminBanner tone="info">A capability is denied unless an assigned role explicitly grants it.</AdminBanner>
 
       <AdminSectionCard
         title="Permission matrix"
         icon={ListChecks}
         description="Every permission and the roles that grant it. Enforced deny-by-default in the main process."
         meta={<><Check size={13} aria-hidden="true" /> granted · · not granted</>}
+        className="awkit-admin-primary-surface"
       >
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table awkit-admin-matrix">
-            <thead><tr><th>Permission</th>{roles.map((r) => <th key={r.id}>{r.name}</th>)}</tr></thead>
+            <caption className="sr-only">Permission grants by role</caption>
+            <thead><tr><th scope="col">Permission</th>{roles.map((r) => <th scope="col" key={r.id}><span className="awkit-admin-matrix-role">{r.name}</span><span>{r.builtIn ? "Built-in" : "Custom"}</span></th>)}</tr></thead>
             <tbody>
               {groupedPermissions.map(([group, groupPermissions]) => (
                 <Fragment key={group}>

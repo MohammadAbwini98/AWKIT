@@ -108,15 +108,24 @@ export function LicensingPage() {
     {
       actions: [
         {
+          id: "license-import",
+          label: "Import license",
+          icon: <Upload size={15} aria-hidden="true" />,
+          onClick: () => fileInputRef.current?.click(),
+          disabled: busy || denied || loading,
+          variant: "primary"
+        },
+        {
           id: "license-revalidate",
           label: "Revalidate",
+          icon: <RotateCw size={15} aria-hidden="true" />,
           onClick: () => run(() => licensing().revalidate(sessionRef), "License revalidated."),
           disabled: busy || denied
         }
       ],
       dirty: false
     },
-    [run, sessionRef, busy, denied]
+    [run, sessionRef, busy, denied, loading]
   );
 
   const onExportRequest = async () => {
@@ -231,7 +240,7 @@ export function LicensingPage() {
 
       <div className="awkit-admin-dashboard-grid awkit-admin-license-layout">
       {/* Status */}
-      <AdminSectionCard title="License status" icon={KeyRound} meta={report ? <AdminStatusBadge status={report.status} /> : null}>
+      <AdminSectionCard title="License status" icon={KeyRound} meta={report ? <AdminStatusBadge status={report.status} /> : null} className="awkit-admin-license-status">
         <p className="awkit-admin-muted">{report?.userAction}</p>
         <div className="awkit-license-grid">
           <Field label="Type" value={lic?.licenseType ?? "—"} />
@@ -256,7 +265,7 @@ export function LicensingPage() {
 
       {/* Machine activation */}
       <AdminSectionCard
-        title="Machine activation"
+        title="Offline activation"
         description="Export this machine's activation request and send it to your license issuer. The request contains no personal data — only a hashed machine fingerprint."
       >
         <div className="awkit-license-machine">
@@ -274,10 +283,15 @@ export function LicensingPage() {
             </button>
           </div>
         </div>
+        <ol className="awkit-license-steps">
+          <li><strong>Export</strong><span>Save this machine's activation request.</span></li>
+          <li><strong>Sign</strong><span>Have an Issuer role holder sign the request offline.</span></li>
+          <li><strong>Import</strong><span>Use the header action to verify and install the signed license.</span></li>
+        </ol>
       </AdminSectionCard>
 
       {/* License management */}
-      <AdminSectionCard title="Manage license" description="Import a signed license file, or replace/remove the installed one.">
+      <AdminSectionCard title="License controls" description="Revoke or remove an installed local license. Import or replace a signed license from the page header.">
         <input
           ref={fileInputRef}
           type="file"
@@ -290,9 +304,6 @@ export function LicensingPage() {
           }}
         />
         <div className="awkit-admin-row-actions">
-          <button className="toolbar-button primary" onClick={() => fileInputRef.current?.click()} disabled={busy}>
-            <Upload size={14} /> {lic ? "Replace license…" : "Import license…"}
-          </button>
           <button
             className="toolbar-button"
             onClick={() => run(() => licensing().revoke(sessionRef), "License revoked.")}
