@@ -72,7 +72,9 @@ async function walkState(state) {
   rmSync(path.join(stateRoot, "SpecterStudio", "security"), { recursive: true, force: true });
   const env = { ...process.env, LOCALAPPDATA: stateRoot };
   delete env.ELECTRON_RUN_AS_NODE; // must run as a GUI app, not plain Node
-  const app = await electron.launch({ args: [root], cwd: root, env });
+  // Per-state --user-data-dir: Electron keys the single-instance lock off userData, not LOCALAPPDATA.
+  const userDataArg = `--user-data-dir=${path.join(stateRoot, "Roaming", "SpecterStudio")}`;
+  const app = await electron.launch({ args: [root, userDataArg], cwd: root, env });
   try {
     const win = await resolveMainWindow(app);
     const pageErrors = [];

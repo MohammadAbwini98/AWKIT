@@ -261,7 +261,7 @@ try {
     throw new Error("mock site never came up — every instance below would fail for the wrong reason");
   }
 
-  const app = await electron.launch({ args: [root], cwd: root, env: launch.env });
+  const app = await electron.launch({ args: [root, ...launch.electronArgs], cwd: root, env: launch.env });
   try {
     const win = await resolveMainWindow(app);
     win.on("console", (message: ConsoleMessage) => {

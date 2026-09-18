@@ -14,7 +14,7 @@ import path from "node:path";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { env, cleanup } = isolatedLaunchEnv("awkit-capacity-settings-gui");
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-capacity-settings-gui");
 
 const results = [];
 function check(name, pass, detail) {
@@ -22,7 +22,7 @@ function check(name, pass, detail) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-const app = await electron.launch({ args: [root], cwd: root, env });
+const app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
 const win = await resolveMainWindow(app);
 const consoleErrors = [];
 win.on("console", (msg) => {

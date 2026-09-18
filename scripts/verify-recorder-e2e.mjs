@@ -50,7 +50,7 @@ const MIN_AGGREGATE_FIDELITY_PERCENT = 95;
 const MIN_SCENARIO_FIDELITY_PERCENT = 80;
 const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const evidenceDir = path.join(root, "test-artifacts", "recorder-e2e", runStamp);
-const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-e2e", {
+const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-e2e", {
   // Isolation also changes Playwright's developer cache location. Force the app's supported
   // production-offline path so Recorder and ExecutionEngine both use resources/browsers/chromium.
   PRODUCTION_OFFLINE: "true",
@@ -456,7 +456,7 @@ function watchRenderer(win, phase) {
 }
 
 async function launchMainWindow(phase, firstRun) {
-  app = await electron.launch({ args: [root], cwd: root, env });
+  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
   const win = await resolveMainWindow(app);
   watchRenderer(win, phase);
   await win.waitForLoadState("domcontentloaded");

@@ -19,7 +19,12 @@
 
 - Fragile area confirmed again: GUI suites that launch without the harness `electronArgs`
   (`--user-data-dir`) quit during `electron.launch()` whenever another SpecterStudio instance holds the
-  default single-instance lock. The suites touched on 2026-09-18 now pass it; others may still omit it.
+  default single-instance lock. The suites touched on 2026-09-18 now pass it. **2026-09-19 sweep:**
+  capacity-settings-gui, recorder-e2e, reports-live-engine, settings-runner-behaviour and
+  runtime-analytics-gui now pass one too. Remaining exception: `verify:settings-persistence` launches
+  against the REAL user profile (no isolation at all), so it collides with a running app and writes the
+  user's real `ui-settings.json`. Converting it changes what it proves, so that needs a separate decision.
+  Packaged-exe suites (`executablePath`) were not in scope.
 - A hook class kept on new markup can re-activate an old rule: `.report-card { display: grid }` turned
   Run Artifacts `<tr>`s into grids. When a verifier-owned class stays on a rebuilt element, delete or
   neutralize its legacy rule and prove the populated state, not only the empty one.

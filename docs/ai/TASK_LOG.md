@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-09-19 — `awkit-gui-launch-isolation-0919`: sweep GUI verifiers for drift and missing isolation (Claude)
+
+- **Task:** sweep every GUI verifier for selectors removed by the system-pages rebuild and for Electron
+  launches that omit a per-run `--user-data-dir` (single-instance lock collision).
+- **Files:** `scripts/verify-{capacity-settings-gui,recorder-e2e,runtime-analytics-gui}.mjs`,
+  `scripts/verify-{reports-live-engine,settings-runner-behaviour}.mts`, `docs/ai/{KNOWN_ISSUES,TASK_LOG}.md`.
+- **Findings:** no remaining references to removed shell/Settings markup. Five dev-mode suites (six
+  launches) launched with `args: [root]` only; four already called `isolatedLaunchEnv` and dropped its
+  `electronArgs`, and runtime-analytics isolated only LOCALAPPDATA. All now pass a per-run user-data dir.
+- **Tests run:** `typecheck:scripts` PASS; `verify:capacity-settings-gui` **12/12**. recorder-e2e,
+  reports-live-engine, settings-runner-behaviour, runtime-analytics-gui **NOT RUN** (same one-argument
+  change; need mock site / seeded fixtures). Build NOT RUN (no product source changed).
+- **Result:** launch isolation is now uniform across dev-mode GUI verifiers except
+  `verify:settings-persistence`, which deliberately uses the real profile (recorded in KNOWN_ISSUES).
+
 ## 2026-09-18 — `awkit-gui-selector-drift-0918`: align route sweep and Settings E2E to current markup (Claude)
 
 - **Task:** fix `verify:e2e-sweep` and `verify:settings-e2e`, which failed on shell/Settings markup

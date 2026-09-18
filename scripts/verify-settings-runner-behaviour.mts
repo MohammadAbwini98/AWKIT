@@ -227,7 +227,7 @@ try {
     throw new Error("mock site never came up");
   }
 
-  const app = await electron.launch({ args: [root], cwd: root, env: launch.env });
+  const app = await electron.launch({ args: [root, ...launch.electronArgs], cwd: root, env: launch.env });
   try {
     const win = await resolveMainWindow(app);
     win.on("console", (message: ConsoleMessage) => {
@@ -416,7 +416,7 @@ console.log("\nSET-007 — corrupt ui-settings.json quarantine");
     mkdirSync(settingsDir, { recursive: true });
     writeFileSync(settingsFile, CORRUPT, "utf8");
 
-    app2 = await electron.launch({ args: [root], cwd: root, env: iso.env });
+    app2 = await electron.launch({ args: [root, ...iso.electronArgs], cwd: root, env: iso.env });
     app2.process().stderr?.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       if (text.includes("ui-settings")) console.log(`  [app-stderr] ${text.trim().slice(0, 220)}`);
