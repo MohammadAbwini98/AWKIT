@@ -106,6 +106,7 @@ import {
   decideWrite,
   effectiveActorFor,
   isAllowedActiveShellCommand,
+  isAllowedUnleasedShellCommand,
   isContractControlPath,
   isLeaseFinalizeCommand,
   isLeaseHandoffCommand,
@@ -114,6 +115,7 @@ import {
   isPhysicallyWithinRepo,
   isReadOnlyShellCommand,
   isRootPrimaryIdentity,
+  isUnleasedGitCommand,
   pushAuthorizedForLease,
   targetPathOf
 } from "../tools/agents/lease-guard.mjs";
@@ -159,7 +161,9 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  * Counts exclude this guard itself: it does not call `check()`, so the pins below equal the number
  * the summary line prints.
  */
-const EXPECTED_UNCONDITIONAL_CHECKS = 1112;
+// The direct-loop policy intentionally replaced four legacy hook/compaction assertions with one
+// combined settings assertion. The resulting six checks are represented by the 1,108 baseline.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1108;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -803,11 +807,7 @@ try {
 
   const tokenBoundaries = [
     [0, "normal"],
-    [99_999, "normal"],
-    [100_000, "delegate"],
-    [119_999, "delegate"],
-    [120_000, "warning"],
-    [149_999, "warning"],
+    [149_999, "normal"],
     [150_000, "compact"],
     [250_000, "compact"]
   ];
@@ -832,9 +832,9 @@ try {
     crossLayerCount: 3,
     broadInvestigation: true
   });
-  check("routine work permits at most 2 specialists", routineLimit.value === 2, `${routineLimit.value}`);
-  check("cross-layer work permits at most 3 specialists", crossLayerLimit.value === 3, `${crossLayerLimit.value}`);
-  check("major investigation permits at most 4 specialists", majorLimit.value === 4, `${majorLimit.value}`);
+  check("routine work permits at most one independent review", routineLimit.value === 1, `${routineLimit.value}`);
+  check("cross-layer work cannot fan out", crossLayerLimit.value === 1, `${crossLayerLimit.value}`);
+  check("major investigation cannot fan out", majorLimit.value === 1, `${majorLimit.value}`);
 
   const concurrencyPolicy = contextPolicy?.CONCURRENCY_POLICY ?? {};
   const swarmPolicy =
@@ -921,10 +921,10 @@ try {
     JSON.stringify(alwaysSources)
   );
   check(
-    "the always-set carries the task contract, CURRENT_STATE and the operating rules",
-    (alwaysSources ?? []).some((entry) => /task contract/i.test(entry?.source ?? "")) &&
-      (alwaysSources ?? []).some((entry) => /CURRENT_STATE\.md/.test(entry?.source ?? "")) &&
-      (alwaysSources ?? []).some((entry) => /AGENTS\.md/.test(entry?.source ?? "")),
+    "the always-set carries the user task and operating rules, not a task contract",
+    (alwaysSources ?? []).some((entry) => /user's task/i.test(entry?.source ?? "")) &&
+      (alwaysSources ?? []).some((entry) => /AGENTS\.md/.test(entry?.source ?? "")) &&
+      !(alwaysSources ?? []).some((entry) => /task contract|CURRENT_STATE\.md/i.test(entry?.source ?? "")),
     JSON.stringify((alwaysSources ?? []).map((entry) => entry?.source))
   );
   check(
@@ -968,6 +968,22 @@ try {
       contextLoading.historical.length > 0 &&
       contextLoading.historical.some((entry) => /TASK_LOG\.md/.test(String(entry))),
     JSON.stringify(contextLoading.historical)
+  );
+  const directDelegation = invoke(contextPolicy?.delegationDecisionFor, {});
+  const requestedDelegation = invoke(contextPolicy?.delegationDecisionFor, {
+    triggers: ["explicit-request", "security-sensitive-change"],
+    crossLayerCount: 4,
+    broadInvestigation: true
+  });
+  check(
+    "delegation is disabled unless the requester explicitly asks",
+    directDelegation.ok &&
+      directDelegation.value.delegate === false &&
+      requestedDelegation.ok &&
+      requestedDelegation.value.delegate === true &&
+      requestedDelegation.value.maxSubagents === 1 &&
+      JSON.stringify(requestedDelegation.value.triggers) === JSON.stringify(["explicit-request"]),
+    JSON.stringify({ direct: directDelegation.value, requested: requestedDelegation.value })
   );
 
   const delegationFields = Array.isArray(contextPolicy?.DELEGATION_FIELDS)
@@ -2047,12 +2063,13 @@ try {
     const finalCommand = `node tools/agents/lease-cli.mjs finalize --task ${happy.task} --lease-id ${leaseIdOf(happy.lease)} --reason terminal closeout`;
     const handoffCommand = "node tools/agents/lease-cli.mjs handoff --holder qa --paths scripts/verify-agent-routing.mjs --reason QA verification";
     check(
-      "the final-release command is exact while ordinary no-lease add, commit and push remain blocked",
+      "the final-release command is exact while ordinary no-lease add, commit and push are direct",
       isLeaseFinalizeCommand(finalCommand) &&
         !isLeaseFinalizeCommand(`${finalCommand} --extra`) &&
-        ["git add -- docs/ai/contracts/active-lease.json", "git commit -m unsafe", "git push origin main"].every((command) =>
-          !isReadOnlyShellCommand(command) && !isAllowedActiveShellCommand(command, null)
-        )
+        !isUnleasedGitCommand("git add -- src/licensing/x.ts") &&
+        isUnleasedGitCommand("git add -- CLAUDE.md") &&
+        isUnleasedGitCommand("git commit -m direct", { stagedPaths: ["CLAUDE.md"] }) &&
+        isUnleasedGitCommand("git push origin main")
     );
     check(
       "the direct handoff command has exact grammar and cannot become a no-lease bypass",
@@ -2343,7 +2360,7 @@ try {
     );
   }
 
-  /* ── Protected-path audit plus the fail-closed no-lease gate ────────────────────────────────
+  /* ── Protected-path audit plus the direct ordinary-work gate ────────────────────────────────
      All repository writes now need a lease. The protected set remains independently useful to the
      post-command audit: when no lease exists it identifies critical already-dirty paths that still
      need an accountable owner. */
@@ -2385,12 +2402,14 @@ try {
     // The guard's actual JUDGEMENT, not just its payload parser.
     const held = { holder: "qa", allowed_paths: ["tests/**"], task: "t", status: "active" };
     check(
-      "no lease + ordinary path fails closed",
-      decideWrite(null, "app/renderer/App.tsx").allow === false &&
-        decideWrite(null, "app/renderer/App.tsx").reason === "lease-required"
+      "no lease + ordinary path is directly writable by the root primary",
+      decideWrite(null, "app/renderer/App.tsx").allow === true &&
+        decideWrite(null, "app/renderer/App.tsx").reason === "unleased-routine" &&
+        decideActorWrite(null, "app/renderer/App.tsx", undefined, undefined).allow === true &&
+        decideActorWrite(null, "app/renderer/App.tsx", agent("qa").claudeName, "instance-qa").allow === false
     );
     check(
-      "no lease + protected path also fails closed through the same lease requirement",
+      "no lease + protected path still requires a lease",
       decideWrite(null, "src/licensing/x.ts").allow === false &&
         decideWrite(null, "src/licensing/x.ts").reason === "lease-required"
     );
@@ -2427,8 +2446,8 @@ try {
       "a lease covering a protected path permits it",
       decideWrite({ ...held, allowed_paths: ["src/licensing/**"] }, "src/licensing/x.ts").allow === true
     );
-    // 2026-09 anti-loop repair: mandatory closeout bookkeeping is writable under any ACTIVE
-    // lease without an amendment, but never without a lease at all.
+    // Closeout bookkeeping remains writable under an active lease without an amendment; ordinary
+    // direct work can also update it without entering a lease lifecycle.
     check(
       "an active lease may update closeout bookkeeping without an amendment",
       decideWrite(held, "docs/ai/TASK_LOG.md").allow === true &&
@@ -2438,9 +2457,9 @@ try {
         decideWrite(held, "tools/roadmap/assignments.json").allow === true
     );
     check(
-      "closeout bookkeeping still requires an active lease",
-      decideWrite(null, "docs/ai/TASK_LOG.md").allow === false &&
-        decideWrite(null, "docs/ai/TASK_LOG.md").reason === "lease-required"
+      "closeout bookkeeping is ordinary direct work without a lease",
+      decideWrite(null, "docs/ai/TASK_LOG.md").allow === true &&
+        decideWrite(null, "docs/ai/TASK_LOG.md").reason === "unleased-routine"
     );
 
     // Bounded denial ledger: identical denials escalate to TERMINAL instead of another
@@ -2471,7 +2490,7 @@ try {
       );
     }
 
-    // The live hook itself must bound the loop: the third identical no-lease write denial in
+    // The live hook itself must bound the loop: the third identical protected no-lease write denial in
     // one Claude session is labelled TERMINAL with an instruction to report BLOCKED.
     {
       const guardRoot = mkdtempSync(join(tmpdir(), "awkit-guard-"));
@@ -2479,7 +2498,7 @@ try {
       const guardPayload = JSON.stringify({
         session_id: "escalation-fixture",
         tool_name: "Edit",
-        tool_input: { file_path: join(process.cwd(), "src", "runner", "exec.ts") }
+        tool_input: { file_path: join(process.cwd(), "src", "licensing", "fixture.ts") }
       });
       const guardEnv = { ...process.env, LOCALAPPDATA: guardRoot };
       let everyAttemptBlocked = true;
@@ -3293,6 +3312,19 @@ try {
     unsafeNoLeaseCommands.every((command) => !isReadOnlyShellCommand(command)),
     unsafeNoLeaseCommands.filter((command) => isReadOnlyShellCommand(command)).join(" | ")
   );
+  check(
+    "the direct loop permits bounded routine commands and direct-main Git only for the root primary",
+    isAllowedUnleasedShellCommand("npm run build") &&
+      isAllowedUnleasedShellCommand("node tools/agents/render-platform-agents.mjs --write") &&
+      isAllowedUnleasedShellCommand("git add -- CLAUDE.md") &&
+      isAllowedUnleasedShellCommand("git commit -m direct", { stagedPaths: ["CLAUDE.md"] }) &&
+      isAllowedUnleasedShellCommand("git push origin main") &&
+      !isAllowedUnleasedShellCommand("git add -- src/licensing/x.ts") &&
+      !isAllowedUnleasedShellCommand("git add -- .") &&
+      !isAllowedUnleasedShellCommand("npm run build", { agentType: qaAgentType, agentId: "instance-qa" }) &&
+      !isAllowedUnleasedShellCommand("npm run build && echo unsafe"),
+    "direct command policy"
+  );
   const projectStateLease = {
     ...actorLease,
     holder: "project-state",
@@ -3382,8 +3414,8 @@ try {
   );
   const warningStatus = invoke(contextStatus?.renderStatusLine, statusPayload(120_000));
   check(
-    "status rendering labels the warning zone",
-    warningStatus.ok && /warning/i.test(String(warningStatus.value)),
+    "status rendering keeps ordinary context in the normal zone",
+    warningStatus.ok && /normal/i.test(String(warningStatus.value)),
     warningStatus.error?.message ?? String(warningStatus.value)
   );
   const compactStatus = invoke(contextStatus?.renderStatusLine, statusPayload(150_000));
@@ -3400,7 +3432,7 @@ try {
   });
   check(
     "context-status CLI accepts a spawned Claude payload",
-    statusCli.status === 0 && /warning/i.test(statusCli.stdout),
+    statusCli.status === 0 && /normal/i.test(statusCli.stdout),
     `${statusCli.status}: ${statusCli.stderr || statusCli.stdout}`
   );
 
@@ -3806,16 +3838,13 @@ try {
   const claudeSettings = JSON.parse(
     readFileSync(new URL("../.claude/settings.json", import.meta.url), "utf8")
   );
-  const expectedProjectPermissionAllows = [
-    ...CODEBASE_MEMORY_READ_TOOLS,
-    ...CLAUDE_BASH_PERMISSION_RULES
-  ];
+  const expectedProjectPermissionAllows = [...CLAUDE_BASH_PERMISSION_RULES];
   const projectPermissionAllows = claudeSettings.permissions?.allow ?? [];
   const projectPermissionDenies = claudeSettings.permissions?.deny ?? [];
   check(
-    "project settings have the byte/order-exact 65-entry MCP plus Bash allowlist",
-    expectedProjectPermissionAllows.length === 65 &&
-      projectPermissionAllows.length === 65 &&
+    "project settings have the byte/order-exact 29-entry direct-work allowlist",
+    expectedProjectPermissionAllows.length === 29 &&
+      projectPermissionAllows.length === 29 &&
       sameArray(projectPermissionAllows, expectedProjectPermissionAllows),
     JSON.stringify(projectPermissionAllows)
   );
@@ -3844,42 +3873,22 @@ try {
       (group.hooks ?? []).map((hook) => ({ matcher: group.matcher, ...hook }))
     );
   const leaseHooks = hooksFor("PreToolUse");
-  const bashHooks = hooksFor("PostToolUse");
   check(
-    "the exact Edit/Write/NotebookEdit lease hook remains wired",
+    "one combined direct-work lease hook remains wired",
     leaseHooks.filter(
       (hook) =>
-        hook.matcher === "Edit|Write|NotebookEdit" &&
+        hook.matcher === "Edit|Write|NotebookEdit|Bash|PowerShell" &&
         hook.type === "command" &&
         hook.command === "node tools/agents/lease-guard.mjs"
     ).length === 1
   );
   check(
-    "the exact Bash/PowerShell pre-command lease hook remains wired",
-    leaseHooks.filter(
-      (hook) =>
-        hook.matcher === "Bash|PowerShell" &&
-        hook.type === "command" &&
-        hook.command === "node tools/agents/lease-guard.mjs"
-    ).length === 1
-  );
-  check(
-    "the exact Bash post-write audit hook remains wired",
-    bashHooks.filter(
-      (hook) =>
-        hook.matcher === "Bash" &&
-        hook.type === "command" &&
-        hook.command === "node tools/agents/bash-audit.mjs"
-    ).length === 1
-  );
-  check(
-    "the exact PowerShell post-write audit hook remains wired",
-    bashHooks.filter(
-      (hook) =>
-        hook.matcher === "PowerShell" &&
-        hook.type === "command" &&
-        hook.command === "node tools/agents/bash-audit.mjs"
-    ).length === 1
+    "the settings omit redundant post-write, compaction, and status hooks",
+    hooksFor("PostToolUse").length === 0 &&
+      hooksFor("PreCompact").length === 0 &&
+      hooksFor("SessionStart").length === 0 &&
+      claudeSettings.statusLine === undefined &&
+      Object.keys(claudeSettings.env ?? {}).filter((key) => /COMPACT/i.test(key)).length === 0
   );
   const preCompactHooks = hooksFor("PreCompact");
   const postCompactHooks = hooksFor("PostCompact");
@@ -3887,22 +3896,12 @@ try {
     (hook) => hook.matcher === "compact"
   );
   check(
-    "PreCompact synchronously captures one checkpoint with the bounded timeout",
-    preCompactHooks.length === 1 &&
-      preCompactHooks[0].matcher === "manual|auto" &&
-      preCompactHooks[0].type === "command" &&
-      preCompactHooks[0].command === "node tools/agents/compaction-checkpoint.mjs capture" &&
-      preCompactHooks[0].timeout === 15 &&
-      !("async" in preCompactHooks[0])
+    "PreCompact is absent; ordinary work does not require a checkpoint ceremony",
+    preCompactHooks.length === 0
   );
   check(
-    "compact SessionStart synchronously restores one checkpoint with the bounded timeout",
-    compactSessionStartHooks.length === 1 &&
-      compactSessionStartHooks[0].type === "command" &&
-      compactSessionStartHooks[0].command ===
-        "node tools/agents/compaction-checkpoint.mjs restore" &&
-      compactSessionStartHooks[0].timeout === 15 &&
-      !("async" in compactSessionStartHooks[0])
+    "compact SessionStart is absent; direct tasks resume from their request and changed files",
+    compactSessionStartHooks.length === 0
   );
   check(
     "PostCompact is absent because compact SessionStart owns restore",
@@ -3910,18 +3909,13 @@ try {
     JSON.stringify(postCompactHooks)
   );
   check(
-    "statusLine runs context-status.mjs",
-    claudeSettings.statusLine?.type === "command" &&
-      /(?:^|\s)node\s+tools\/agents\/context-status\.mjs(?:\s|$)/.test(
-        claudeSettings.statusLine.command ?? ""
-      )
+    "settings omit the statusLine helper",
+    claudeSettings.statusLine === undefined
   );
   check(
-    "the supported compaction window is exactly 200000 tokens with a 75 percent override",
-    claudeSettings.env?.CLAUDE_CODE_AUTO_COMPACT_WINDOW === "200000" &&
-      claudeSettings.env?.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE === "75" &&
+    "settings omit compaction overrides",
     !("autoCompactWindow" in claudeSettings) &&
-      Object.keys(claudeSettings.env ?? {}).filter((key) => /COMPACT/i.test(key)).length === 2
+      Object.keys(claudeSettings.env ?? {}).filter((key) => /COMPACT/i.test(key)).length === 0
   );
   check(
     "Agent Teams are not globally enabled",

@@ -1,235 +1,51 @@
 # ROUTING_RULES
 
-How a task moves through AWKIT's deterministic routing system.
+Routing is a safety tool, not the normal development process. The default is one primary Claude
+Code agent completing one task directly on `main`.
 
-`ROUTING_MATRIX.md` is the **data** — who owns what, which flags activate whom, how risk is computed
-— and it is generated from `tools/agents/routing-matrix.mjs`. This file is the **process**, and it is
-hand-written because a process is not a table.
+## Ordinary work
 
-> **Executable and token-aware.** The registry generates 16 project-scoped Claude definitions plus
-> Codex/Gemini adapters. The main session remains the Manager; subagents are bounded specialists,
-> and the same registry drives routing, write ownership, schema checks and generated documentation.
-> See `docs/ai/MULTI_AGENT_ARCHITECTURE.md` for context thresholds and orchestration policy.
+Use this loop:
 
----
+1. Reason about the request and inspect only the directly affected files.
+2. Decide the smallest correct change.
+3. Implement it.
+4. Run the narrowest meaningful verification once.
+5. Inspect the final diff, commit it to `main`, then push `origin/main`.
 
-## 1. Classify before you start
+Ordinary code, documentation, test, and configuration changes do not need a task contract, route,
+lease, handoff, or subagent. The root primary is the only writer. A rejected push is the terminal
+Git result: report its exact error and do not create a branch or workaround.
 
-Write the classification into the contract **before** implementation. It drives routing, and routing
-has to happen before the work does.
+## Reviews and delegation
 
-Set `task.mode` explicitly. `inspect` activates advisers but can never name a writer; `change`
-requires one serialized writer whenever routing finds a writable domain.
+Do not call another agent automatically. One independent review is allowed only when the requester
+explicitly asks for it. That reviewer neither writes nor delegates further. External-model
+delegation follows the same rule.
 
-Only the flags in `ROUTING_MATRIX.md` count. An unknown key is rejected rather than ignored — a
-contract carrying `persistance_change` would otherwise route as though persistence were untouched
-while reading, to a human, as though it had been declared.
+## Protected work
 
-```bash
-npm run agent:lease
-```
-
-Risk is **computed**, never chosen. A contract may declare a higher level than computed (caution is
-free); it may never declare a lower one.
-
-## 2. Route
-
-The router turns a classification into a set of agents, an ordered writer sequence, and a rationale
-naming the trigger for each activation. It is a pure function: identical input, identical output.
-
-A task touching several domains is a **sequence of leases**, not a committee. One writer at a time is
-not a preference on a `main`-only repository — it is the only thing standing between two concurrent
-specialists and a working tree neither can reason about.
-
-QA is a *sequential* lease holder, not a concurrent one. The implementation writer commits and
-releases; QA then acquires a lease over `tests/**`, `mock-site/**` and `scripts/verify-*`. The
-reviewed proposal granted QA write paths while also declaring one lease — those cannot both be true.
-
-If the contract must advance its explicit current writer, do it inside the lease control plane:
+The lease guard derives protected paths from the Risk-3 routing flags. These include licensing,
+authentication, authorization, secrets, protected-login handoff, required migrations, signing, and
+the offline boundary. A protected change must use a validated task contract and a scoped lease:
 
 ```bash
-node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-agent-routing.mjs" --reason "QA verification"
+npm run agent:lease-grant -- --task awkit-xyz --holder security --paths "src/security/**"
 ```
 
-The command permits only another activated routed holder and exact owned/routed paths; it archives
-the outgoing lease and establishes the incoming lease/claim atomically. Never edit
-`routing.writer` from an unleased transition.
+While that lease is active, its scope, identity, and shell rules remain enforced. Amend it when a
+protected scope genuinely grows; do not widen it informally. The contract gate and terminal
+finalizer remain available for work that needs that audit trail.
 
-## 3. Hold the lease
+## Verification and records
 
-```bash
-npm run agent:lease-grant -- --task awkit-xyz --holder frontend --paths "app/renderer/**"
-```
+Run checks in proportion to the changed boundary. Record the result once as `PASS`, `FAIL`,
+`BLOCKED`, `NOT RUN`, or `NOT APPLICABLE`; do not rerun an unchanged green check. Update project
+state only when this task changed the fact it records. The roadmap dashboard is for tracked work,
+not a prerequisite for an ordinary scoped change.
 
-The task contract must already validate, name the same current writer, and declare the exact allowed
-paths. A grant is rejected when its holder is unrouted, its scope belongs to another role, or the
-paths exceed the contract's expected scope.
+## Source of truth
 
-A lease is a **budget**, so it is scoped to what the task actually expects to touch rather than to
-everything its holder owns. That is what makes an amendment happen at the moment scope really grows.
-
-While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` hook on
-`Edit|Write|NotebookEdit` and blocks writes outside it.
-
-### Two limitations, stated rather than hidden
-
-1. **No active lease means ordinary edits are allowed — but not everywhere.** Failing closed on every
-   path would block every task that does not go through a contract, and a gate that stops all work
-   gets removed rather than obeyed. So ordinary paths stay unrestricted, and **protected paths do
-   not**: licensing, auth, secrets, authorization, and the offline boundary refuse an unclaimed
-   write outright. That set is *derived* from the risk model — anything whose implied classification
-   is already Risk 3 — so it extends automatically rather than drifting from a second hand-kept list.
-   The remaining gap closes at the other end: the completion gate requires a contract for any task
-   that changed product code.
-2. **`Bash` writes are detected, not prevented.** A shell redirect or `git checkout` never reaches
-   an `Edit` matcher, and widening the hook to `Bash` would mean parsing arbitrary shell to guess at
-   write intent — unreliable in both directions, missing `python -c "open(...)"` while blocking
-   `echo "a > b"`. Instead a **PostToolUse audit** on `Bash` observes the filesystem: it asks git
-   what is dirty, what was committed after `acquired_at_commit`, and whether a baseline-dirty file's
-   content fingerprint changed. It subtracts the lease scope and shared paths. Whatever remains is
-   named immediately and recorded onto the lease, where the completion gate reads it back. The same
-   audit is wired for Claude's Bash and Windows PowerShell tools.
-
-   The write has already happened by then — this converts an invisible bypass into an attributable
-   one, not into prevention. It costs ~100ms per `Bash` call while a lease is held, and nothing at
-   all when none is.
-
-   **Gitignored paths** need a second mechanism, because `git status` never reports them and
-   enumerating them all would mean walking `node_modules/`. Most of them genuinely do not matter —
-   `out/`, `dist/`, `graphify-out/` and the logs are derived. The ones that do (secrets, captured
-   auth state, the local permission file, and the ignored subtrees inside the protected offline
-   boundary) are listed in `WATCHED_IGNORED_PATHS` and fingerprinted by mtime and size at lease
-   grant. Anything outside that list stays unwatched by design.
-
-   If it fires, do not delete the file quietly. Either revert the path or amend the lease so the
-   recorded scope is honest.
-
-Neither is a reason to skip the gate. Both are reasons not to call it airtight.
-
-### Shared write paths
-
-Some files are genuinely owned but carry their risk in specific keys. `package.json` is release-owned
-because it holds the dependency graph — yet it also holds the npm script inventory, and requiring a
-full lease handoff to add a one-line `verify:*` script was measured ceremony that bought nothing.
-
-For those paths the edit-time gate is **relaxed**, because it runs before the edit and cannot see
-which key is changing. The enforcement moves rather than disappearing: `deriveGuardedFieldChanges()`
-compares the committed file against the working tree, and a change to any non-shared field is a scope
-escape that blocks completion.
-
-```bash
-node -e "import('./tools/agents/classify.mjs').then(m=>console.log(m.findGuardedFieldEscapes(['manager','qa'])))"
-```
-
-`sharedFields` is an allow-list, so a top-level key nobody listed is guarded automatically. Adding a
-script is free; touching `dependencies` still requires the Release specialist and is reported if it
-happens without them.
-
-## 4. When scope grows — amend, never work around
-
-Discovering that the work is bigger than declared is normal. Hiding it is not.
-
-```bash
-npm run agent:lease-amend -- --add "src/storage/**" --reason "Persistence impact discovered"
-```
-
-An amendment **re-runs routing**. Two outcomes:
-
-- **Extended** — the added paths are still yours. The lease widens and the amendment is logged with
-  its reason.
-- **Rerouted** — the added paths belong to someone else. The lease is **released, not widened**, and
-  the CLI names the specialist who owns them. Commit what you have, then grant the next lease.
-
-That second outcome is the point. Adding `src/storage/**` to a `frontend` lease does not quietly
-turn frontend into a persistence engineer; it makes the change a persistence change, which makes the
-Persistence specialist mandatory. Specialization survives contact with surprise.
-
-### Emergency override
-
-Rare recovery only. Narrow, logged, and it forces QC:
-
-```json
-"overrides": [{
-  "timestamp": "2026-08-16T00:12:00+03:00",
-  "reason": "Repository repair after malformed generated state",
-  "affected_paths": ["tools/roadmap/assignments.json"],
-  "qc_required": true
-}]
-```
-
-`verify:agent-routing` rejects an override with no reason, no affected paths, `qc_required: false`,
-or a forced QC that never resolved to `APPROVED`. There is deliberately **no environment-variable
-bypass** — one keystroke, invisible afterwards, leaving no trace that scope grew.
-
-## 5. Prove it, then check what you actually touched
-
-Declare evidence **before** implementation. Evidence chosen afterwards tends to be evidence that
-passes.
-
-Statuses are the validation ledger's own — `PASS | FAIL | BLOCKED | NOT RUN | NOT APPLICABLE`. There
-is no `INCONCLUSIVE`; an inconclusive check is `NOT RUN` with a reason. `BLOCKED`, `NOT RUN` and
-`FAIL` are not `PASS`, and development-tree evidence never substitutes for packaged evidence.
-
-At least one evidence item must be `required: true`. A list where everything is optional makes the
-completion gate vacuous — `.every()` over an empty filtered array returns true, which is how a gate
-comes to pass hardest when nothing was proven.
-
-Then compare declared against **derived**:
-
-```bash
-node -e "import('./tools/agents/classify.mjs').then(m=>console.log(m.deriveClassification(m.changedFiles())))"
-```
-
-Derived classification is computed from `git diff --name-only` through the path map. Declared is a
-prediction; derived is a measurement. A domain in `derived` that the contract never activated is a
-**scope escape**, and any unresolved escape blocks completion.
-
-## 6. Complete
-
-Run the operational gate:
-
-```bash
-node tools/agents/task-gate.mjs docs/ai/contracts/awkit-xyz.json
-```
-
-It evaluates `completionBlockers()` plus the live diff from `repository.baseline_commit`, expected
-paths, guarded shared-file fields, preserved pre-existing paths, lease violations and routed QC.
-Only an empty blocker set permits a completion claim.
-
-Then finish the normal `AGENTS.md` end-of-task checklist. The contract is execution mechanics; Beads
-remains the work, status and dependency source, and the Program Status dashboard remains derived
-from the sources it already reads.
-
-### Terminal closeout
-
-Commit all ordinary implementation, QA and project-state evidence while the final writer lease is
-still active. Once the gate is green, close that lease with the exact command below — do not use
-`agent:lease-release` and then try to acquire a bookkeeping-only lease:
-
-```bash
-node tools/agents/lease-cli.mjs finalize --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
-```
-
-The control-plane operation validates the exact current task and derived lease identity, completed
-contract/gate, one final release-history entry, cleared assignment, absence of violations and the
-three permitted terminal files. It stages and commits only those files, then runs the authorized
-normal `git push origin main`. A retry is limited to that same terminal state; arbitrary repository
-changes and ordinary no-lease Git remain blocked.
-
----
-
-## Changing the rules
-
-Edit `tools/agents/routing-matrix.mjs`, then:
-
-```bash
-npm run agent:render-agents
-```
-
-```bash
-npm run verify:agent-routing
-```
-
-Never hand-edit `ROUTING_MATRIX.md`. The verifier re-renders it and compares byte-for-byte, because
-the reviewed proposal stated its routing rules in three places that had already drifted into
-disagreement before anyone implemented them.
+`tools/agents/routing-matrix.mjs` remains the data authority for ownership and Risk-3 paths.
+`ROUTING_MATRIX.md` is generated from it. `tools/agents/context-policy.mjs` is the authority for
+single-agent execution and the explicit-review rule.

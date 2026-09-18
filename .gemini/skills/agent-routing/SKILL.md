@@ -41,13 +41,13 @@ does have a subagent runtime, gets generated definitions under `.claude/agents/`
 
 ## The rules that matter most
 
-1. **One writer at a time.** Lease order: persistence -> security -> runtime -> recorder -> frontend -> software -> qa -> release -> project-state -> manager. AWKIT develops directly on `main`, so a second concurrent writer has nothing to isolate it.
-2. **A blocked write is scope expansion, not an obstacle.** Amend the lease (`npm run agent:lease-amend`), which re-runs routing and may reassign the work.
+1. **One writer at a time.** AWKIT develops directly on `main`. Use a lease only for Risk-3 paths.
+2. **A protected write is a deliberate escalation.** Grant or amend its lease; ordinary paths need none.
 3. **Evidence vocabulary is the ledger's:** PASS | FAIL | BLOCKED | NOT RUN | NOT APPLICABLE. No `INCONCLUSIVE`, no underscored `NOT_RUN`.
 4. **Declare evidence before implementing**, and never weaken an assertion to get green.
 5. **No worktrees, no new branches.** See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
-6. **One agent, one task.** The default is `single-agent`: a routed role names who is accountable, not who must be spawned. Routine work uses 0 subagents and the primary agent runs its own targeted validation. Delegate only on a named trigger — `major-phase-completion`, `release-candidate`, `security-sensitive-change`, `concurrency-or-runtime-change`, `persistence-migration`, `architectural-refactor`, `difficult-root-cause`, `explicit-request` — and then normally just 1. Availability is not a reason. Subagents must complete their assigned scope themselves. They must not delegate to additional agents unless the primary agent explicitly authorizes nested delegation.
-7. **Load what the task needs.** Always: AGENTS.md + CLAUDE.md, docs/ai/CURRENT_STATE.md, the active task contract. Open a conditional source only when its trigger actually fires, and stop there. Open a historical document only to answer a specific question, and read the section, not the file. Never load the whole repository, every planning file, all phase reports or unrelated architecture documents to make a scoped change: for a small single-layer change the always-set is the whole budget, and a tiny UI bug loads no persistence, release, architecture or historical validation context at all. The conditional sources and the triggers that open them:
+6. **One agent, one task.** Routine work uses 0 subagents. Only `explicit-request` permits 1 independent review. Subagents must complete their assigned scope themselves. They must not delegate to additional agents unless the primary agent explicitly authorizes nested delegation.
+7. **Load what the task needs.** Always: AGENTS.md + CLAUDE.md, the user's task. Open a conditional source only when its trigger actually fires, and stop there. Open a historical document only to answer a specific question, and read the section, not the file. Never load the whole repository, every planning file, all phase reports or unrelated architecture documents to make a scoped change: for a small single-layer change the always-set is the whole budget, and a tiny UI bug loads no persistence, release, architecture or historical validation context at all. The conditional sources and the triggers that open them:
    - architecture or cross-layer change → docs/ai/ARCHITECTURE.md, docs/ai/DECISIONS.md
    - validating → docs/ai/COMMANDS.md, docs/ai/TESTING.md
    - security-sensitive work → docs/ai/SECURITY.md

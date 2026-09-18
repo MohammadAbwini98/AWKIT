@@ -11,12 +11,10 @@
  *
  * ── With no active lease ──────────────────────────────────────────────────────────────────────
  *
- * Every repository write is blocked until deterministic routing grants a lease. The sole bootstrap
- * exception is one exact task-contract JSON file under docs/ai/contracts; the grant CLI validates
- * it before creating the lease. With no lease, shell is limited to an intentionally tiny command
- * grammar whose operations are read-only, plus the validated lease-grant control-plane command.
- * Shell metacharacters and write-like flags fail closed. With a lease, PostToolUse still observes
- * actual working-tree, committed and watched-ignored changes rather than trusting command text.
+ * Ordinary repository work is allowed directly. Risk-3 paths still require deterministic routing
+ * and a lease; this guard derives those paths from the routing matrix. With a lease, PostToolUse
+ * still observes actual working-tree, committed and watched-ignored changes rather than trusting
+ * command text.
  */
 
 import { execFileSync } from "node:child_process";
@@ -33,7 +31,7 @@ import {
 } from "./lease.mjs";
 import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "./guard-denials.mjs";
 import { CONCURRENCY_POLICY } from "./context-policy.mjs";
-import { AGENTS, agent } from "./routing-matrix.mjs";
+import { AGENTS, agent, protectedPathFor } from "./routing-matrix.mjs";
 import { evaluateTaskGate } from "./task-gate.mjs";
 
 const ALLOW = 0;
@@ -337,6 +335,34 @@ export function isManagerGitCommand(
   return false;
 }
 
+function isUnleasedStagePath(path) {
+  const normalized = String(path ?? "").replace(/\\/g, "/");
+  return (
+    normalized.length > 0 &&
+    !normalized.startsWith("/") &&
+    !normalized.split("/").some((part) => !part || part === "." || part === "..") &&
+    !/[*?[\]{}]/.test(normalized) &&
+    isPhysicallyWithinRepo(normalized) &&
+    protectedPathFor(normalized) === null
+  );
+}
+
+/** Direct-main Git is available for ordinary, unleased work; Risk-3 paths remain lease-only. */
+export function isUnleasedGitCommand(command, { stagedPaths = [] } = {}) {
+  if (hasUnsafeShellSyntax(command)) return false;
+  const tokens = shellTokens(command.trim());
+  if (!tokens) return false;
+  if (tokens.length === 3 && tokens[0] === "git" && tokens[1] === "fetch" && tokens[2] === "origin") return true;
+  if (tokens.length === 4 && tokens[0] === "git" && tokens[1] === "push" && tokens[2] === "origin" && tokens[3] === "main") return true;
+  if (tokens[0] === "git" && tokens[1] === "add" && tokens[2] === "--" && tokens.length > 3) {
+    return tokens.slice(3).every(isUnleasedStagePath);
+  }
+  if (tokens[0] === "git" && tokens[1] === "commit" && tokens[2] === "-m" && tokens.length === 4) {
+    return stagedPaths.length > 0 && stagedPaths.every(isUnleasedStagePath);
+  }
+  return false;
+}
+
 function isCommonWriterCommand(command) {
   if (hasUnsafeShellSyntax(command)) return false;
   const value = command.trim().replace(/\\/g, "/");
@@ -419,6 +445,19 @@ export function isAllowedActiveShellCommand(
   return false;
 }
 
+/** Commands for the direct loop when no critical-path lease is active. */
+export function isAllowedUnleasedShellCommand(command, { stagedPaths = [], agentType, agentId } = {}) {
+  if (!isRootPrimaryIdentity(agentType, agentId)) return false;
+  return (
+    isReadOnlyShellCommand(command) ||
+    isCommonWriterCommand(command) ||
+    isManagerWriterCommand(command) ||
+    isUnleasedGitCommand(command, { stagedPaths }) ||
+    isLeaseGrantCommand(command) ||
+    isLeaseFinalizeCommand(command)
+  );
+}
+
 /**
  * The whole decision, as a pure function.
  *
@@ -430,11 +469,12 @@ export function isAllowedActiveShellCommand(
  * Required closeout bookkeeping (`SYSTEM_BOOKKEEPING_PATHS`) is writable under ANY active lease:
  * the end-of-task checklist obliges the holder to update those files, so blocking them by scope
  * manufactured amendment loops (2026-09 diagnostic). An active lease is still required — only
- * the scope check is waived, and only for this exact list.
+ * the scope check is waived, and only for this exact list. Without a lease, routine paths stay
+ * directly writable while paths derived as Risk 3 remain protected.
  *
  * @param {import("./lease.mjs").Lease|null} lease
  * @param {string} relativePath repo-relative, POSIX
- * @returns {{allow: boolean, reason: "contract-control-plane"|"lease-required"|"system-bookkeeping"|"in-scope"|"out-of-scope"}}
+ * @returns {{allow: boolean, reason: "contract-control-plane"|"lease-required"|"unleased-routine"|"system-bookkeeping"|"in-scope"|"out-of-scope"}}
  */
 export function decideWrite(lease, relativePath) {
   if (
@@ -444,7 +484,9 @@ export function decideWrite(lease, relativePath) {
     return { allow: true, reason: "contract-control-plane" };
   }
   if (!lease) {
-    return { allow: false, reason: "lease-required" };
+    return protectedPathFor(relativePath)
+      ? { allow: false, reason: "lease-required" }
+      : { allow: true, reason: "unleased-routine" };
   }
   if (SYSTEM_BOOKKEEPING_PATHS.includes(relativePath)) {
     return { allow: true, reason: "system-bookkeeping" };
@@ -462,10 +504,15 @@ export function decideWrite(lease, relativePath) {
  * the single-agent relaxation can only ever change WHO exercises the lease, never WHAT it covers.
  */
 export function decideActorWrite(lease, relativePath, agentType, agentId, policy = CONCURRENCY_POLICY) {
-  const actor = canonicalActorId(agentType, agentId);
-  if (!actor) return { allow: false, reason: "unknown-actor" };
   const base = decideWrite(lease, relativePath);
   if (!base.allow) return base;
+  if (base.reason === "unleased-routine") {
+    return isRootPrimaryIdentity(agentType, agentId)
+      ? base
+      : { allow: false, reason: "non-holder" };
+  }
+  const actor = canonicalActorId(agentType, agentId);
+  if (!actor) return { allow: false, reason: "unknown-actor" };
   if (base.reason === "contract-control-plane") {
     return actor === "manager" ? base : { allow: false, reason: "non-holder" };
   }
@@ -598,17 +645,27 @@ async function main() {
       process.exit(BLOCK);
     }
     if (!lease) {
-      if (isReadOnlyShellCommand(command)) process.exit(ALLOW);
-      if (canonicalActorId(payload?.agent_type, payload?.agent_id) === "manager" && isLeaseGrantCommand(command)) {
-        process.exit(ALLOW);
+      let cachedPaths = [];
+      if (/^git\s+commit\s/i.test(String(command ?? "").trim())) {
+        try {
+          cachedPaths = stagedPaths();
+        } catch (error) {
+          process.stderr.write(
+            `[write-lease] BLOCKED: cannot verify staged paths before commit (${error instanceof Error ? error.message : String(error)}).\n`
+          );
+          process.exit(BLOCK);
+        }
       }
-      if (canonicalActorId(payload?.agent_type, payload?.agent_id) === "manager" && isLeaseFinalizeCommand(command)) {
+      if (isAllowedUnleasedShellCommand(command, {
+        stagedPaths: cachedPaths,
+        agentType: payload?.agent_type,
+        agentId: payload?.agent_id
+      })) {
         process.exit(ALLOW);
       }
       process.stderr.write(
-        "[write-lease] BLOCKED: no active lease permits only bounded read-only shell discovery or\n" +
-          "[write-lease] the validated Manager-only agent:lease-grant command. Grant the routed writer lease first\n" +
-          "[write-lease] (once; if the prerequisites are unavailable, report this gate as BLOCKED).\n" +
+        "[write-lease] BLOCKED: direct work permits only bounded routine commands and direct-main Git.\n" +
+          "[write-lease] Risk-3 paths and unsupported shell operations still require a routed lease.\n" +
           denialNotice(shellIntent(command), payload)
       );
       process.exit(BLOCK);

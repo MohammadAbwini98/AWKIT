@@ -695,7 +695,7 @@ npm run verify:graphify-shrink-guard  # shrink-guard regression: refusal of unex
 
 ## Deterministic agent routing (developer/AI tool — never part of the app or its build)
 ```bash
-npm run agent:lease         # show the active write lease, or state that none is held
+npm run agent:lease         # show the active Risk-3 write lease, if one is held
 ```
 ```bash
 npm run agent:lease-grant -- --task awkit-xyz --holder frontend --paths "app/renderer/**"
@@ -715,12 +715,14 @@ node tools/agents/lease-cli.mjs handoff --holder qa --paths "scripts/verify-agen
 ```bash
 node tools/agents/lease-cli.mjs finalize --task awkit-xyz --lease-id "awkit-xyz:project-state:<acquired-at>" --reason "terminal closeout"
 ```
-> `lease-cli.mjs finalize` is the only terminal closeout command. It is valid only for the active,
+> Ordinary work needs neither a contract nor a lease: reason, decide, implement, verify, commit to
+> `main`, then push `origin/main`. Leases and `finalize` are reserved for Risk-3 paths. `lease-cli.mjs
+> finalize` is the terminal closeout command for that audited path. It is valid only for the active,
 > completed task's exact most-recent lease and commits/pushes only the released lease record, task
 > contract and cleared roadmap assignment after revalidating the task gate. It is neither a broad
 > no-lease `git` exemption nor a substitute for the normal lease lifecycle.
 ```bash
-npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 11 .claude/agents/*.md subagent
+npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 16 .claude/agents/*.md role
                             # definitions, and the Codex + Gemini adapter skills
 ```
 > ALL of those are GENERATED from `tools/agents/routing-matrix.mjs` and byte-compared by
@@ -733,13 +735,10 @@ npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 11 .claude/agent
 > so hand-editing it fails. Process guide: `docs/ai/routing/ROUTING_RULES.md`.
 > **`agent:lease-amend` re-runs routing.** If the added paths belong to another specialist the lease
 > is RELEASED rather than widened, and the CLI names who should hold the next one (exit code 3).
-> While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` hook on
-> `Edit|Write|NotebookEdit` and BLOCKS out-of-scope writes, and `tools/agents/bash-audit.mjs` runs
-> as a `PostToolUse` hook on `Bash` and DETECTS them by comparing `git status` against the lease
-> scope plus the dirty set recorded at grant. The audit cannot prevent a shell write — it runs after
-> — but it names it and records it on the lease, which blocks completion. Remaining limits: no
-> active lease means edits are unrestricted (failing closed would block every task not yet using a
-> contract), and gitignored paths are invisible to `git status` by design.
+> While a lease is active, `tools/agents/lease-guard.mjs` runs as one `PreToolUse` hook for
+> `Edit|Write|NotebookEdit|Bash|PowerShell` and blocks out-of-scope writes. Without a lease, the
+> same guard permits bounded direct work and direct-main Git for ordinary paths, but still blocks
+> every path derived as Risk 3. Gitignored paths remain outside `git status` by design.
 
 ## Notes
 - Bash tool note: this repo runs on Windows; prefer the npm scripts above. PowerShell is the shell

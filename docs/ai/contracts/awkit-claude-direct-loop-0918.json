@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-claude-direct-loop-0918",
+    "title": "Simplify Claude Code's direct development loop",
+    "objective": "Let Claude Code complete ordinary repository work through one direct loop: reason, decide, implement, verify, commit, and push to main. Keep leases only for Risk-3 paths and eliminate automatic multi-agent escalation.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "734b1a5",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "agent_infrastructure_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "tools/agents/**",
+      ".claude/**",
+      "CLAUDE.md"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "manager",
+      "allowed_paths": [
+        "tools/agents/**",
+        ".claude/**",
+        "CLAUDE.md"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**"
+      ]
+    },
+    "reviewers": [
+      "qa"
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "direct-loop",
+      "description": "Ordinary work follows a direct single-agent loop, while Risk-3 paths still require a lease.",
+      "evidence_required": [
+        "agent-routing"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "agent-routing",
+      "type": "verifier",
+      "command": "npm run verify:agent-routing",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "npm run verify:agent-routing passed 1,109 of 1,109 checks; npm run build and npm run agent:check-agents also passed."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-claude-direct-loop-0918:manager:2026-09-18T17:13:12.179Z",
+        "task": "awkit-claude-direct-loop-0918",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/**",
+          "CLAUDE.md",
+          "tools/agents/**"
+        ],
+        "acquired_at": "2026-09-18T17:13:12.179Z",
+        "acquired_at_commit": "734b1a5a80e6c12a522f9f01d1ab3977a1897b50",
+        "released_at": "2026-09-18T17:16:46.591Z",
+        "released_reason": "direct-loop guard now permits ordinary unleased work",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

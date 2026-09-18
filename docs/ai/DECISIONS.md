@@ -1,5 +1,21 @@
 # DECISIONS
 
+### 2026-09-18 — Claude Code uses a direct loop for ordinary repository work
+
+- **Decision:** ordinary Claude Code tasks use one primary agent and the direct sequence: reason,
+  decide, implement, verify, commit to `main`, and push `origin/main`. Subagents and external-model
+  delegation require an explicit user request and are limited to one independent review. Ordinary
+  source, documentation, test, and configuration changes no longer require a task contract, route,
+  lease, handoff, or terminal finalizer.
+- **Reason:** the prior universal lease lifecycle made a small change require a task contract,
+  deterministic route, grant, handoff/amendment, finalizer, and multiple role calls before the work
+  could be committed. The routing policy already documented ordinary paths as unrestricted, but the
+  hook contradicted it by blocking every no-lease edit and Git mutation.
+- **Safety boundary:** `tools/agents/lease-guard.mjs` still derives and protects Risk-3 paths.
+  Licensing, authentication, authorization, secrets, protected-login handoff, required migrations,
+  signing, and the offline boundary continue to require a validated, scoped lease. Destructive Git
+  operations remain denied and direct work still uses bounded commands.
+
 ### 2026-09-15 — Agent-control gates get terminal states and bounded remediation (anti-loop repair)
 
 - **Decision:** every agent-facing gate now recognizes truthful terminal outcomes

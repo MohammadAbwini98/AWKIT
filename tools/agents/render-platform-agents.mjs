@@ -183,18 +183,14 @@ function roleBody(a) {
   );
   lines.push("");
   lines.push(
-    "Activation is unchanged by this. Every routed role still applies, every risk level still " +
-      "computes the same, and no check is skipped: the work is done, not delegated. A separate " +
-      "context is spawned only when it buys independent judgement or real context relief, which " +
-      "means one of these is true and named:"
+    "A separate context is used only when the requester explicitly asks for one independent review:"
   );
   lines.push("");
   for (const trigger of DELEGATION_TRIGGERS) lines.push(`- \`${trigger.id}\` — ${trigger.why}`);
   lines.push("");
   lines.push(
-    `Otherwise the subagent count for the task is ${CONCURRENCY_POLICY.routineSubagents}; with a ` +
-      `trigger the default is ${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask}. **Never spawn a ` +
-      "subagent merely because one is available.**"
+    `Otherwise the subagent count is ${CONCURRENCY_POLICY.routineSubagents}; an explicit request allows ` +
+      `${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask}. **Never spawn a subagent automatically.**`
   );
   lines.push("");
 
@@ -202,16 +198,10 @@ function roleBody(a) {
     lines.push("## Deterministic orchestration");
     lines.push("");
     lines.push(
-      "- Validate the task contract and compute `route()` before delegating. Activate exactly " +
-        "`routing.activated` in canonical order—never the whole roster and never a role chosen only " +
-        "from free-form prose."
+      "- Complete ordinary work directly. Routing and leases are reserved for Risk-3 paths or an explicit review request."
     );
     lines.push(
-      "- Perform the activated roles yourself by default. Reach for a project subagent only on a " +
-        "named trigger above, and prefer one independent reader over several — parallel reviewers " +
-        "of one diff mostly re-derive each other at full price. Agent Teams remain disabled unless " +
-        "the task contract documents genuine peer-to-peer coordination that isolated " +
-        "result-returning subagents cannot handle."
+      "- Do not fan out. If the requester asks for review, use one independent reader only."
     );
     lines.push(
       `- Optimize in this order: ${OPTIMIZATION_PRIORITY.join(" -> ")}. A wasteful call moved to a ` +
@@ -223,13 +213,7 @@ function roleBody(a) {
         `${EXTERNAL_DELEGATION_POLICY.neverFor.join(", ")}.`
     );
     lines.push(
-      "- Address specialists by their exact `awkit-*` identity. Preserve each generated agent's " +
-        "frontmatter model; in particular, do not upgrade `awkit-researcher` from Haiku without an " +
-        "explicit risk reason recorded in the task contract."
-    );
-    lines.push(
-      "- Delegate the smallest independently useful packet, accept only the bounded report contract, " +
-        "and keep raw discovery/log volume out of the Manager context."
+      "- Keep evidence and logs concise; a review request receives the smallest useful packet."
     );
     lines.push("");
   }
@@ -383,12 +367,10 @@ export function renderAdapter(platform) {
   lines.push("## The rules that matter most");
   lines.push("");
   lines.push(
-    `1. **One writer at a time.** Lease order: ${WRITER_PRECEDENCE.join(" -> ")}. AWKIT develops ` +
-      "directly on `main`, so a second concurrent writer has nothing to isolate it."
+    "1. **One writer at a time.** AWKIT develops directly on `main`. Use a lease only for Risk-3 paths."
   );
   lines.push(
-    "2. **A blocked write is scope expansion, not an obstacle.** Amend the lease " +
-      "(`npm run agent:lease-amend`), which re-runs routing and may reassign the work."
+    "2. **A protected write is a deliberate escalation.** Grant or amend its lease; ordinary paths need none."
   );
   lines.push(
     `3. **Evidence vocabulary is the ledger's:** ${EVIDENCE_STATUSES.join(" | ")}. No ` +
@@ -397,12 +379,9 @@ export function renderAdapter(platform) {
   lines.push("4. **Declare evidence before implementing**, and never weaken an assertion to get green.");
   lines.push("5. **No worktrees, no new branches.** See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.");
   lines.push(
-    `6. **One agent, one task.** The default is \`${CONCURRENCY_POLICY.defaultMode}\`: a routed role ` +
-      "names who is accountable, not who must be spawned. Routine work uses " +
-      `${CONCURRENCY_POLICY.routineSubagents} subagents and the primary agent runs its own targeted ` +
-      `validation. Delegate only on a named trigger — ${DELEGATION_TRIGGERS.map((t) => `\`${t.id}\``).join(", ")} — ` +
-      `and then normally just ${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask}. Availability is not a ` +
-      `reason. ${NESTED_DELEGATION.rule}`
+    `6. **One agent, one task.** Routine work uses ${CONCURRENCY_POLICY.routineSubagents} subagents. ` +
+      `Only \`explicit-request\` permits ${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask} independent review. ` +
+      `${NESTED_DELEGATION.rule}`
   );
   lines.push(
     `7. **Load what the task needs.** Always: ${alwaysContextSources()}. ${CONTEXT_LOADING.rule} ` +

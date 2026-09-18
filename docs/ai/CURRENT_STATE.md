@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## `awkit-claude-direct-loop-0918`: Claude Code ordinary work is direct (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes Claude Code workflow tooling and contributor guidance only; no product validation case moved.
+
+Claude Code now completes ordinary work in one direct sequence: reason, decide, implement, verify,
+commit to `main`, then push `origin/main`. It does not create task contracts, leases, handoffs, or
+subagent calls for normal code, documentation, tests, or configuration changes. One independent
+review or external-model call is permitted only on an explicit user request. The context policy
+compacts high-context work rather than delegating it.
+
+`lease-guard.mjs` now matches the documented ordinary-work boundary: with no active lease, the root
+primary may edit routine paths and run bounded build, verification, generated-guidance, direct-main
+Git commands. Paths derived as Risk 3 still require a scoped lease: licensing, authentication,
+authorization, secrets, protected-login handoff, migrations, signing, and the offline boundary.
+Destructive Git and unsupported shell operations remain denied.
+
+**Evidence:** `npm run verify:agent-routing` **1,109/1,109 PASS**; `npm run agent:check-agents`
+PASS; `npm run build` PASS. The Vite build retains its existing dynamic/static import advisory for
+`securityKernel.ts`; it is a warning, not a build failure. Runner, mock-site, and offline verifiers
+were **NOT RUN** because runner, test-lab, and packaging behavior did not change.
+
 ## `awkit-operations-system-ui-0918`: operational routes adopt the attached system UI (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task

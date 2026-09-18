@@ -1,5 +1,24 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-claude-direct-loop-0918`: simplify the Claude Code development loop (Codex)
+
+- **Task:** reduce Claude Code task ceremony and automatic agent calls to a direct single-agent
+  sequence, then commit and push ordinary changes directly to `main` without an approval step.
+- **Files:** `CLAUDE.md`, `.claude/settings.json`, generated `.claude/agents/*.md` and Codex/Gemini
+  routing adapters, `tools/agents/{context-policy,lease-guard,lease-cli,render-platform-agents,
+  routing-matrix}.mjs`, `scripts/verify-agent-routing.mjs`, and the corresponding workflow/state
+  documentation.
+- **Implementation:** routine paths now work without a task contract or active lease; bounded build,
+  verification, generated-guidance, `git add -- <paths>`, `git commit -m`, and `git push origin main`
+  are available to the root primary. Delegation and external models require an explicit user request
+  and are capped at one review. Risk-3 paths remain routed and lease-protected; destructive Git and
+  unsupported shell commands remain denied.
+- **Tests run:** `npm run verify:agent-routing` **1,109/1,109 PASS**; `npm run agent:check-agents`
+  **PASS**; `npm run build` **PASS**. Runner, mock-site, and offline verification were **NOT RUN**
+  because those product boundaries did not change.
+- **Result:** ordinary Claude Code work no longer enters the contract/lease/delegation lifecycle;
+  sensitive Risk-3 work still does.
+
 ## 2026-09-18 — `awkit-operations-system-ui-0918`: operational routes adopt the new system design (Codex)
 
 - **Task:** apply the supplied offline SpecterStudio system UI direction to Run Artifacts, Recorder,

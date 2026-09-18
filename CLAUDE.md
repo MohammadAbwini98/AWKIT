@@ -1,24 +1,20 @@
 @AGENTS.md
 
-# CLAUDE.md — Lean Claude Code execution contract
+# CLAUDE.md — Direct Claude Code execution
 
 These are Claude Code-specific operating rules for AWKIT. `AGENTS.md` remains the shared source for product, security, offline, UI, testing, and Git constraints. This file controls **how Claude consumes context and executes work**.
 
-## Default behavior: act, do not orbit the task
+## The loop
 
-For an implementation request, move from evidence to a concrete change quickly. Do not spend a session repeatedly planning, rereading project history, reconciling unchanged state, or restating requirements.
+For every ordinary change, use one direct loop:
 
-Use this loop:
+1. Reason about the request and inspect the affected sources once.
+2. Decide the smallest correct change.
+3. Implement it.
+4. Verify it proportionately.
+5. Inspect the final diff once, commit to `main`, and push `origin/main`.
 
-1. Read the user request and identify the smallest acceptance criteria.
-2. Inspect the directly implicated source files once.
-3. Make the smallest correct edit.
-4. Run the narrowest meaningful verification once.
-5. Run `npm run build` when product TypeScript/Electron/renderer/runtime code can affect the build.
-6. Inspect the final diff/status once, update only project-state sources that actually changed, then commit/push when the active instructions authorize it.
-7. Report the result and stop.
-
-Choose an approach and commit to it. Reconsider only when new evidence disproves it.
+Do not wait for approval to commit or push. If the push is rejected, report the exact error; do not create a branch or retry with a workaround.
 
 ## Context loading
 
@@ -65,8 +61,8 @@ Prefer direct source inspection over an abstraction layer.
 - **Graphify:** use only for a genuinely broad dependency/impact question, or when the user explicitly invokes `/graphify`. Never run it before a simple file-level search.
 - **Codebase Memory MCP:** do not query it for normal implementation, file discovery, summaries, or routine impact checks. Use it only when native source search cannot cheaply answer a broad architecture question.
 - **Beads (`bd`):** use only when the task is tracked, must change tracker state, or the user asks for roadmap/task status. Do not run `bd prime` as routine session startup.
-- **GLM/external model delegation:** never automatic. Use only when the user explicitly asks or when one isolated, large investigation clearly reduces total context.
-- **Subagents:** zero for normal tasks. Use at most one independent reviewer for a named high-risk trigger: security boundary, concurrency/runtime race, persistence migration, architectural refactor, release claim, difficult stalled root cause, or explicit user request.
+- **GLM/external model delegation:** use only when the user explicitly asks.
+- **Subagents:** use none unless the user explicitly asks for one independent review. Never create a team or chain delegations.
 
 Do not stack Graphify + Codebase Memory + subagents + external delegation for the same discovery problem.
 
@@ -83,10 +79,8 @@ Do not stack Graphify + Codebase Memory + subagents + external delegation for th
 
 ## Leases and Git
 
-Keep the existing AWKIT safety boundaries:
+Ordinary code, documentation, tests, and configuration work does not need a task contract or lease. The lease guard remains active for Risk-3 paths: security, secrets, protected login, migrations, signing, and the offline boundary.
 
-- One writer at a time.
-- Never bypass `tools/agents/lease-guard.mjs`.
 - Work only on `main`; no task branches/worktrees.
 - Preserve all existing user work.
 - No reset, stash, destructive restore, force-push, or history rewrite without explicit approval.
@@ -118,7 +112,7 @@ Stop as soon as all of these are true:
 - requested behavior/root cause is addressed, or remaining work is externally blocked;
 - relevant verification has run once against the final state;
 - required state updates are complete;
-- changes are committed/pushed when authorized, or the exact Git blocker is recorded.
+- changes are committed and pushed to `main`, or the exact Git blocker is recorded.
 
 Do not start another discovery cycle after this point.
 

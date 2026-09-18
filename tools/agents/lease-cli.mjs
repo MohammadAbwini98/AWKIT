@@ -54,7 +54,7 @@ function showStatus() {
   const lease = readLease();
   if (!lease) {
     console.log("No active write lease.");
-    console.log("Repository writes are blocked until a valid routed task contract grants a lease.");
+    console.log("Ordinary work may proceed directly; Risk-3 paths require a routed lease.");
     return;
   }
   console.log(`Task    : ${lease.task}`);

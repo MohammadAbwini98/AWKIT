@@ -1,24 +1,20 @@
 {
-  "task": "awkit-operations-system-ui-0918",
-  "contract_path": "docs/ai/contracts/awkit-operations-system-ui-0918.json",
-  "holder": "project-state",
+  "task": "awkit-claude-direct-loop-0918",
+  "contract_path": "docs/ai/contracts/awkit-claude-direct-loop-0918.json",
+  "holder": "manager",
   "status": "released",
   "allowed_paths": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/FEATURES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-operations-system-ui-0918.json",
-    "tools/roadmap/assignments.json"
+    ".claude/**",
+    "CLAUDE.md",
+    "tools/agents/**"
   ],
-  "acquired_at": "2026-09-18T16:20:06.476Z",
-  "acquired_at_commit": "f64c3c95a1a444e7fb4d92cb2a3e81953cbf61b5",
+  "acquired_at": "2026-09-18T17:13:12.179Z",
+  "acquired_at_commit": "734b1a5a80e6c12a522f9f01d1ab3977a1897b50",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-operations-system-ui-0918.json"
+    "docs/ai/contracts/awkit-claude-direct-loop-0918.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "63f572c5a4b4acb5efee6c5731317e222574748ec6fa469297f0d77632eb4358",
-    "docs/ai/contracts/awkit-operations-system-ui-0918.json": "1ca73aca59349ce8177c224e15b10f5e210ffe058a75ff39b4eeb1a96600f8e5"
+    "docs/ai/contracts/awkit-claude-direct-loop-0918.json": "e724a913e2647247cea021610305a932da2b35b26b924e4f5d744e7ab93cb002"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -28,12 +24,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789743444333.1323"
+    "build": "dir(1):native-hosts:1789750674565.6587"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-18T16:24:45.030Z",
-  "released_reason": "Operational system UI implementation, evidence, and dashboard reconciliation complete",
-  "archived_at": "2026-09-18T16:24:45.031Z"
+  "released_at": "2026-09-18T17:16:46.591Z",
+  "released_reason": "direct-loop guard now permits ordinary unleased work",
+  "archived_at": "2026-09-18T17:16:46.593Z"
 }

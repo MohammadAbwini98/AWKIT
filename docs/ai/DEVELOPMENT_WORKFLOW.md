@@ -1,6 +1,8 @@
 # DEVELOPMENT_WORKFLOW
 
-> **Workflow (2026-07-25):** AWKIT develops on `main` only — no feature/spike/backup branches, no
+> **Workflow (2026-09-18):** Ordinary Claude Code work follows one direct loop: reason, decide,
+> implement, verify, commit, and push `main`. Contracts, leases, and delegation are reserved for
+> Risk-3 work or an explicitly requested independent review. AWKIT develops on `main` only — no
 > task worktrees, and no freeze before committing. Failing or incomplete states are committed with
 > truthful messages; release gates govern release claims, not whether work may continue.
 > Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`. Any branch-per-task guidance below is superseded.
@@ -8,9 +10,8 @@
 How AI agents should work in this repository.
 
 ## 1. Start — load context
-- Read `AGENTS.md`, then follow its required-reading order: `docs/ai/PROJECT_BRIEF.md`,
-  `CURRENT_STATE.md`, `HANDOFF.md`, `ARCHITECTURE.md`, `RULES.md`, `COMMANDS.md`, plus
-  `KNOWN_ISSUES.md` / `TESTING.md` / `SECURITY.md` as relevant.
+- Read the task, `AGENTS.md`, `CLAUDE.md`, and the directly implicated source files. Read project
+  history, state, architecture, security, or testing references only when the task needs them.
 - **Reading is bounded (anti-loop rule):** read the *newest section* of `CURRENT_STATE.md` and
   `HANDOFF.md` first; read older sections only when the task directly concerns them. Historical
   handoffs live in `docs/ai/HANDOFF_ARCHIVE.md` and are never read at startup. One
@@ -40,8 +41,8 @@ How AI agents should work in this repository.
 - Treat `mock-site/` as the local Feature Test Lab. For Recorder, Runner, Smart Wait, Flow Designer,
   Workflow Builder, Instance Monitor, locator, node, wait, or execution features, decide whether an
   existing scenario needs to be updated before adding separate fixtures.
-- For large/risky changes (runner, orchestrator, packaging, settings schema, IPC), plan first
-  (Claude Code: use plan mode).
+- For a large or risky change, make a concise decision before editing; do not create an agent swarm
+  or a multi-step planning ceremony.
 
 ## 4. Verify
 - **Change-triggered reruns (authoritative).** Run each relevant verifier once against the final
@@ -50,7 +51,7 @@ How AI agents should work in this repository.
   or (4) it is an explicitly required final-state gate that has not run against the current
   state. A green result at unchanged inputs is reused, not repeated; a `BLOCKED`/`NOT RUN`
   environmental result is recorded once as terminal for that gate.
-- Always: `npm run build` (typecheck + bundles).
+- TypeScript, Electron, renderer, runtime, build, or configuration changes: `npm run build`.
 - Runner/connector/node changes: `npm run verify:runner` (report pass count; add a case for new behavior).
 - Mock Site changes: `npm run verify:mock-site` plus the related feature verifier.
 - Instance Monitor card-logic changes: `npm run verify:instance-monitor` (pure functions in
@@ -60,11 +61,11 @@ How AI agents should work in this repository.
   Workflow Builder, run `npm run mock-site` + `npm run seed:mock-fixtures` first (test-only Mock —
   flows/workflows/data source). Report anything you could not run (e.g. the clean-machine GUI
   walkthrough).
-- Record each executed verifier and its exact result with
+- For a long or resumed task, record executed verification with
   `node tools/agents/compaction-checkpoint.mjs record --task <id> --command "<cmd>" --result <PASS|FAIL|BLOCKED|NOT RUN>`
-  so a compaction or continuation reuses the evidence instead of rerunning it.
+  so a continuation reuses evidence instead of rerunning it.
 
-## 5. Update memory (every task)
+## 5. Update memory when a recorded fact changed
 - Update `docs/ai/CURRENT_STATE.md` if state/behavior/commands/architecture changed.
 - Update `docs/ai/HANDOFF.md` when work is paused, blocked, or handed to another agent/tool or human.
 - Append an entry to `docs/ai/TASK_LOG.md` (date, agent, task, files, tests run/not-run, result).
@@ -90,7 +91,7 @@ How AI agents should work in this repository.
 - Keep handoffs short and factual. Do not copy secrets, tokens, cookies, passwords, private URLs,
   credentials, or session values into Markdown.
 
-## 6. Keep the Program Status dashboard current (every task)
+## 6. Keep the Program Status dashboard current for tracked work
 
 `npm run roadmap` → <http://127.0.0.1:4380> is the single view of what is left, in what order,
 blocked by what, and who is on it. **Contract: `tools/roadmap/README.md`.**
@@ -101,8 +102,7 @@ blocked by what, and who is on it. **Contract: `tools/roadmap/README.md`.**
 > the repository — which is the exact failure it exists to detect. Update the **source**; the page
 > follows within ~1.5s with no restart.
 
-Whenever you make a change, reach a stage, or observe/report an issue, update the source that owns
-that fact:
+When a tracked task changes a source the dashboard reads, update the source that owns that fact:
 
 | What happened | Update this — the dashboard reads it |
 |---|---|
@@ -152,14 +152,12 @@ failure.
    `verify:*` / `validate:*` script is missing from the registry, and it stayed red for two sessions
    because of exactly this.
 
-## 7. Finish — report
+## 7. Finish — report and push
 - Summary of the change; files changed; tests run and not-run (with why); remaining risks or manual
   verification needed.
-- Finish under the **Stopping semantics** in `AGENTS.md`: once implementation is complete or
-  externally BLOCKED, final-state verification has run once, sources are reconciled within the
-  caps, and work is committed with remaining gates truthfully reported — stop. Reserve ~20% of
-  the context window for this report; record established facts with the compaction-checkpoint
-  `record` CLI before ending a long session.
+- Once implementation is complete or externally BLOCKED, final-state verification has run once,
+  and required state updates are complete, inspect the diff once, commit to `main`, and push
+  `origin/main` without waiting for approval. Report a rejected push exactly and stop.
 
 ## Quick reference
 - Build/run/test/package commands: `docs/ai/COMMANDS.md`.

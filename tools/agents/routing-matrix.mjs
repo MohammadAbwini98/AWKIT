@@ -557,23 +557,32 @@ export const MANAGER_SHELL_TOOLS = Object.freeze([
   "Bash(git push origin main)"
 ]);
 
-/** The exact project permission allowlist, after the ten read-only MCP tools. */
+/** The exact project permission allowlist for the direct Claude Code loop. */
 export const CLAUDE_BASH_PERMISSION_RULES = Object.freeze([
-  ...GRAPHIFY_READ_TOOLS,
   ...GIT_READ_TOOLS,
-  ...BEADS_READ_TOOLS,
-  "Bash(claude --version)",
-  "Bash(claude --help)",
-  "Bash(claude mcp list)",
+  "Bash(git fetch origin)",
+  "Bash(git add --:*)",
+  "Bash(git commit -m:*)",
+  "Bash(git push origin main)",
+  "Bash(npm run build)",
+  "Bash(npm run typecheck)",
+  "Bash(npm run typecheck:scripts)",
+  "Bash(npm run verify:*)",
+  "Bash(npm run validate:*)",
+  "Bash(npm run package:*)",
+  "Bash(node --check:*)",
   "Bash(npm run agent:lease)",
+  "Bash(npm run agent:lease-grant:*)",
+  "Bash(npm run agent:lease-amend:*)",
+  "Bash(npm run agent:lease-release:*)",
+  "Bash(npm run agent:lease-finalize:*)",
   "Bash(node tools/agents/task-gate.mjs:*)",
-  ...WRITER_SHELL_TOOLS,
-  ...RELEASE_SHELL_TOOLS,
-  ...PROJECT_STATE_SHELL_TOOLS,
-  ...MANAGER_SHELL_TOOLS.filter((rule) => ![
-    "Bash(npm run agent:lease)",
-    "Bash(node tools/agents/task-gate.mjs:*)"
-  ].includes(rule))
+  "Bash(bd show:*)",
+  "Bash(bd list:*)",
+  "Bash(bd update:*)",
+  "Bash(bd close:*)",
+  "Bash(npm run verify:roadmap-dashboard)",
+  "Bash(npm run verify:verifier-classification)"
 ]);
 
 export const CODEBASE_MEMORY_MUTATING_TOOLS = Object.freeze([

@@ -35,18 +35,11 @@ These already exist. Use them rather than reinventing their procedure:
 
 The orchestration default is `single-agent`. Routing decides which role OWNS a concern; it does not decide that a separate model must perform it. When this role is activated, the primary agent discharges it in place — reading the relevant code, making the change, and running the validation this role is accountable for.
 
-Activation is unchanged by this. Every routed role still applies, every risk level still computes the same, and no check is skipped: the work is done, not delegated. A separate context is spawned only when it buys independent judgement or real context relief, which means one of these is true and named:
+A separate context is used only when the requester explicitly asks for one independent review:
 
-- `major-phase-completion` — A phase or milestone is being declared done, and the author of the work is the worst judge of whether it is.
-- `release-candidate` — A release claim is being made; release gates govern release claims.
-- `security-sensitive-change` — Licensing, auth, authorization, secret handling, protected-login or signing changed. Self-review of a trust boundary is not review.
-- `concurrency-or-runtime-change` — Admission control, scheduling, cancellation or shared-browser behavior changed; the failure modes are interleavings the author already reasoned past once.
-- `persistence-migration` — A persisted shape or migration changed, where the cost of being wrong is the user's data.
-- `architectural-refactor` — A contract, boundary or ownership rule moved, so the blast radius is larger than the diff.
-- `difficult-root-cause` — Investigation has stalled and a second independent reading is cheaper than a third wrong hypothesis.
-- `explicit-request` — The requester asked for review. No further justification is needed.
+- `explicit-request` — The requester explicitly asked for one independent review.
 
-Otherwise the subagent count for the task is 0; with a trigger the default is 1. **Never spawn a subagent merely because one is available.**
+Otherwise the subagent count is 0; an explicit request allows 1. **Never spawn a subagent automatically.**
 
 ## Rules that bind you
 
@@ -57,7 +50,7 @@ Otherwise the subagent count for the task is 0; with a trigger the default is 1.
 - **Work in-tree.** No worktrees, no new branches — AWKIT develops on `main` only (`docs/ai/BRANCH_AND_COMMIT_POLICY.md`).
 - **Protect context.** Do not return giant logs, full files, raw search dumps, repeated project instructions, chain-of-thought, or irrelevant failed hypotheses.
 - **No nested delegation.** Subagents must complete their assigned scope themselves. They must not delegate to additional agents unless the primary agent explicitly authorizes nested delegation.
-- **Read what the task needs.** Always: AGENTS.md + CLAUDE.md, docs/ai/CURRENT_STATE.md, the active task contract. Open a conditional source only when its trigger actually fires, and stop there. Open a historical document only to answer a specific question, and read the section, not the file. Never load the whole repository, every planning file, all phase reports or unrelated architecture documents to make a scoped change: for a small single-layer change the always-set is the whole budget, and a tiny UI bug loads no persistence, release, architecture or historical validation context at all. The conditional sources and the triggers that open them:
+- **Read what the task needs.** Always: AGENTS.md + CLAUDE.md, the user's task. Open a conditional source only when its trigger actually fires, and stop there. Open a historical document only to answer a specific question, and read the section, not the file. Never load the whole repository, every planning file, all phase reports or unrelated architecture documents to make a scoped change: for a small single-layer change the always-set is the whole budget, and a tiny UI bug loads no persistence, release, architecture or historical validation context at all. The conditional sources and the triggers that open them:
   - architecture or cross-layer change → docs/ai/ARCHITECTURE.md, docs/ai/DECISIONS.md
   - validating → docs/ai/COMMANDS.md, docs/ai/TESTING.md
   - security-sensitive work → docs/ai/SECURITY.md

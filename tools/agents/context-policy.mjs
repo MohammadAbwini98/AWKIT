@@ -2,47 +2,30 @@
  * AWKIT's token-aware delegation policy.
  *
  * These are orchestration thresholds, not product limits. Claude's status-line payload reports the
- * current input context, and the manager uses this policy to decide when verbose investigation
- * belongs in an isolated specialist context. `.claude/settings.json` bounds auto-compaction
- * calculations to 200K and applies the installed client's 75% override, targeting approximately
- * 150K even when the selected model advertises an extended context window.
+ * current input context. High context triggers compaction, not delegation. The policy uses a 200K
+ * window and a 150K compaction threshold without requiring a client-specific settings override.
  */
 
 export const CONTEXT_POLICY = Object.freeze({
   standardWindowTokens: 200_000,
   autoCompactWindowTokens: 200_000,
-  delegateAtTokens: 100_000,
-  warnAtTokens: 120_000,
   compactAtTokens: 150_000,
   autoCompactPercent: 75,
   zones: Object.freeze({
     normal: Object.freeze({
       minTokens: 0,
-      maxTokensExclusive: 100_000,
-      action: "Work normally; delegate only bounded specialist work that saves total context."
-    }),
-    delegate: Object.freeze({
-      minTokens: 100_000,
-      maxTokensExclusive: 120_000,
-      action: "Move verbose discovery, logs, history and broad source reading to one specialist."
-    }),
-    warning: Object.freeze({
-      minTokens: 120_000,
       maxTokensExclusive: 150_000,
-      action: "Strongly prefer isolated specialists and retain only concise evidence in the manager."
+      action: "Work directly from the task and relevant sources."
     }),
     compact: Object.freeze({
       minTokens: 150_000,
       maxTokensExclusive: Number.POSITIVE_INFINITY,
-      action: "Allow automatic compaction; continue from the ephemeral repository-state checkpoint."
+      action: "Compact and continue from concise evidence; do not delegate automatically."
     })
   })
 });
 
 export const CONCURRENCY_POLICY = Object.freeze({
-  routineSpecialists: 2,
-  crossLayerSpecialists: 3,
-  majorInvestigationSpecialists: 4,
   allRoleSwarm: "prohibited",
   allRoleSwarmProhibited: true,
   writerConcurrency: 1,
@@ -50,7 +33,7 @@ export const CONCURRENCY_POLICY = Object.freeze({
   routineSubagents: 0,
   defaultMaxSubagentsPerTask: 1,
   teamsMode:
-    "Optional local interactive opt-in only for independent peer coordination; never enabled in shared settings."
+    "Disabled for repository work; one primary agent owns the task end to end."
 });
 
 /**
@@ -60,45 +43,13 @@ export const CONCURRENCY_POLICY = Object.freeze({
  * routed `qa` was spawning `awkit-qa-engineer` to run a typecheck the primary agent could have run
  * itself in one command. Activation is unchanged — `route()` still names every role a task is
  * accountable for, every risk level still computes the same, and no check is skipped. What changes
- * is that the primary agent discharges a routed role IN PLACE unless one of the triggers below
- * fires, at which point the isolated context is buying something the primary cannot supply:
- * independent judgement, or genuine context relief.
- *
- * The numbers above are still ceilings, not targets. `routineSpecialists: 2` says a routine task may
- * never exceed two; `routineSubagents: 0` says it should normally use none.
+ * is that the primary agent discharges every routed role IN PLACE. A second context is only used
+ * when the requester explicitly asks for an independent review.
  */
 export const DELEGATION_TRIGGERS = Object.freeze([
   Object.freeze({
-    id: "major-phase-completion",
-    why: "A phase or milestone is being declared done, and the author of the work is the worst judge of whether it is."
-  }),
-  Object.freeze({
-    id: "release-candidate",
-    why: "A release claim is being made; release gates govern release claims."
-  }),
-  Object.freeze({
-    id: "security-sensitive-change",
-    why: "Licensing, auth, authorization, secret handling, protected-login or signing changed. Self-review of a trust boundary is not review."
-  }),
-  Object.freeze({
-    id: "concurrency-or-runtime-change",
-    why: "Admission control, scheduling, cancellation or shared-browser behavior changed; the failure modes are interleavings the author already reasoned past once."
-  }),
-  Object.freeze({
-    id: "persistence-migration",
-    why: "A persisted shape or migration changed, where the cost of being wrong is the user's data."
-  }),
-  Object.freeze({
-    id: "architectural-refactor",
-    why: "A contract, boundary or ownership rule moved, so the blast radius is larger than the diff."
-  }),
-  Object.freeze({
-    id: "difficult-root-cause",
-    why: "Investigation has stalled and a second independent reading is cheaper than a third wrong hypothesis."
-  }),
-  Object.freeze({
     id: "explicit-request",
-    why: "The requester asked for review. No further justification is needed."
+    why: "The requester explicitly asked for one independent review."
   })
 ]);
 
@@ -123,11 +74,7 @@ export const PRIMARY_AGENT_WORK = Object.freeze([
  */
 export const EXTERNAL_DELEGATION_POLICY = Object.freeze({
   automatic: false,
-  allowedWhen: Object.freeze([
-    "the requester explicitly asks for it",
-    "the task is isolated and large enough that offloading it is economically advantageous",
-    "a genuinely independent second analysis has measurable value"
-  ]),
+  allowedWhen: Object.freeze(["the requester explicitly asks for it"]),
   neverFor: Object.freeze([
     "file searching",
     "summarization",
@@ -186,12 +133,8 @@ export const CONTEXT_LOADING = Object.freeze({
       why: "The operating rules. CLAUDE.md imports AGENTS.md, so this is one read, not two."
     }),
     Object.freeze({
-      source: "docs/ai/CURRENT_STATE.md",
-      why: "Current project state: what works, what is incomplete, what moved last."
-    }),
-    Object.freeze({
-      source: "the active task contract",
-      why: "The task's own objective, classification, acceptance criteria and lease scope."
+      source: "the user's task",
+      why: "The acceptance criteria for the work being done."
     })
   ]),
 
@@ -314,31 +257,24 @@ export const DEFECT_REPORT_FIELDS = Object.freeze([
 
 /**
  * @param {number} tokens current input-context tokens
- * @returns {{zone:"normal"|"delegate"|"warning"|"compact", tokens:number, action:string}}
+ * @returns {{zone:"normal"|"compact", tokens:number, action:string}}
  */
 export function contextZoneFor(tokens) {
   const value = Number.isFinite(Number(tokens)) ? Math.max(0, Number(tokens)) : 0;
   let zone = "normal";
   if (value >= CONTEXT_POLICY.compactAtTokens) zone = "compact";
-  else if (value >= CONTEXT_POLICY.warnAtTokens) zone = "warning";
-  else if (value >= CONTEXT_POLICY.delegateAtTokens) zone = "delegate";
 
   return { zone, tokens: value, action: CONTEXT_POLICY.zones[zone].action };
 }
 
 /**
- * Maximum concurrently active specialists, excluding the manager. Writers remain serialized even
- * when read-only specialists run in parallel.
+ * Compatibility helper for callers that need the policy ceiling. Delegation never fans out.
  *
  * @param {{crossLayerCount?:number, broadInvestigation?:boolean}} [input]
  * @returns {number}
  */
-export function specialistLimitFor({ crossLayerCount = 1, broadInvestigation = false } = {}) {
-  if (broadInvestigation && Number(crossLayerCount) >= 3) {
-    return CONCURRENCY_POLICY.majorInvestigationSpecialists;
-  }
-  if (Number(crossLayerCount) >= 2) return CONCURRENCY_POLICY.crossLayerSpecialists;
-  return CONCURRENCY_POLICY.routineSpecialists;
+export function specialistLimitFor() {
+  return CONCURRENCY_POLICY.defaultMaxSubagentsPerTask;
 }
 
 /** Trigger ids, for callers that only need membership. */
@@ -378,13 +314,7 @@ export function delegationDecisionFor({
     };
   }
 
-  // Even with a trigger the default is ONE independent reader. More requires the ceiling to allow
-  // it AND a genuine second concern — parallel reviewers of the same diff mostly re-derive
-  // each other, at full price.
-  const maxSubagents = Math.min(
-    Math.max(CONCURRENCY_POLICY.defaultMaxSubagentsPerTask, named.length > 1 ? 2 : 1),
-    ceiling
-  );
+  const maxSubagents = CONCURRENCY_POLICY.defaultMaxSubagentsPerTask;
 
   return {
     delegate: true,
