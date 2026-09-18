@@ -180,7 +180,7 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "closed_at_commit": "d1461b57db245b6388f9f750c0f8cd42297d11b2",
+    "closed_at_commit": "77d67c69086d28e55924d3b5a38c45d928d5f285",
     "notes": "The requested Administration page presentation is complete. Build, token, real-Electron administration, source/visual, AI-memory, roadmap, and diff checks pass. Runner, mock-site, and offline validation are not applicable to this renderer-only change and were not run."
   },
   "write_lease": {
@@ -203,6 +203,26 @@
         "acquired_at_commit": "b6817771076478528fec1bc4c4929ba94ddc983b",
         "released_at": "2026-09-18T13:20:48.176Z",
         "released_reason": "handoff to project-state: Administration system UI implemented and verified; record task evidence and terminal closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-admin-system-ui-0918:project-state:2026-09-18T13:20:48.239Z",
+        "task": "awkit-admin-system-ui-0918",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-admin-system-ui-0918.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-18T13:20:48.239Z",
+        "acquired_at_commit": "d1461b57db245b6388f9f750c0f8cd42297d11b2",
+        "released_at": "2026-09-18T13:24:17.567Z",
+        "released_reason": "terminal closeout",
         "amendments": [],
         "overrides": [],
         "violations": []
