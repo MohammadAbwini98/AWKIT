@@ -114,6 +114,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:popup-mock-site": { class: "real-browser", why: "Popup handling against real Chromium + the mock site." },
   "verify:chromium-hardening": { class: "real-browser", why: "Arg-contract unit part PLUS a live Chromium no-egress check." },
   "verify:admin-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Super User Administration area." },
+  "verify:system-pages-gui": { class: "real-browser", why: "Real-Electron walkthrough of the ten SpecterStudio-design system pages: design surface + signature blocks mounted, containment at 1024/1440/1920, token fills painting, a seeded Run Artifacts report rendering as a real table row with every action reachable, no console errors, light/dark screenshots." },
   "verify:e2e-auth": { class: "real-browser", why: "Authentication lifecycle against the REAL Electron app." },
   "verify:e2e-rbac": { class: "real-browser", why: "Per-role authorization in the REAL Electron app." },
   "verify:e2e-licensing": { class: "real-browser", why: "Licensing page + run-enforcement gate in the REAL Electron app." },

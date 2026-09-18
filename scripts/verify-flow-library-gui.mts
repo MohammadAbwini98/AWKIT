@@ -46,6 +46,8 @@ import {
 } from "./lib/gui-verify-harness.mjs";
 import {
   createUser,
+  userRows,
+  waitForUsersPage,
   genPassword,
   loginAs,
   navClick,
@@ -56,7 +58,7 @@ import {
 import { rescanTitle } from "../app/renderer/pages/FlowLibrary";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { env, cleanup } = isolatedLaunchEnv("awkit-flow-library-gui");
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-flow-library-gui");
 
 // Seeds must not contain the username substring — the password policy rejects a password
 // containing the account's username, and "flowlibviewer" is literally inside "FlowLibViewer...".
@@ -113,7 +115,7 @@ check(
     rescanTitle({ rescanCapable: true, canRescan: false, rescanning: false, rescanError: null })
 );
 
-const app = await electron.launch({ args: [root], cwd: root, env });
+const app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
 try {
   const win = await resolveMainWindow(app);
   await win.waitForLoadState("domcontentloaded");
@@ -153,9 +155,9 @@ try {
 
   // ── 3. Denied role (Viewer: WORKFLOW_VIEW, not WORKFLOW_EDIT) ───────────────────────────────
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 15000 });
+  await waitForUsersPage(win, 15000);
   await createUser(win, { username: viewer.username, displayName: "Flow Library Viewer", password: viewer.temporary, roles: ["Viewer"] });
-  check("Viewer fixture created", (await win.getByText(`@${viewer.username}`).count()) > 0);
+  check("Viewer fixture created", (await userRows(win, viewer.username).count()) > 0);
 
   await signOut(win);
   await loginAs(win, viewer.username, viewer.temporary);

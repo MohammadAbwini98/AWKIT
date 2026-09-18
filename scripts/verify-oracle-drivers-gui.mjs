@@ -43,12 +43,12 @@ function check(name, pass, detail) {
 
 // The missing-runtime/profile path must execute without inheriting configured user stores.
 const emptyRuntime = isolatedLaunchEnv("awkit-oracle-modal-empty", { PRODUCTION_OFFLINE: "true" });
-const emptyApp = await electron.launch({ args: [root], cwd: root, env: emptyRuntime.env });
+const emptyApp = await electron.launch({ args: [root, ...emptyRuntime.electronArgs], cwd: root, env: emptyRuntime.env });
 try {
   const emptyWin = await resolveMainWindow(emptyApp);
   await signInFirstRun(emptyWin);
   await navClick(emptyWin, "Data Sources");
-  await emptyWin.getByRole("button", { name: "Add Oracle Source", exact: true }).click();
+  await emptyWin.getByRole("button", { name: "Oracle connection", exact: true }).click();
   const dialog = emptyWin.getByRole("dialog", { name: "Create Oracle Data Source" });
   await dialog.getByText(/No Oracle connection profiles configured\. A saved profile/).waitFor();
   await dialog.getByText(/Oracle queries are unavailable:/).waitFor();
@@ -125,7 +125,7 @@ for (const store of seededStores) {
   }
 }
 
-const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-oracle-drivers-gui");
+const { env, dataRoot, electronArgs, cleanup } = isolatedLaunchEnv("awkit-oracle-drivers-gui");
 // Copy the validation stores into the isolated profile so the app resolves the same runtime + bundle ids.
 const destSpecter = path.join(dataRoot, "SpecterStudio");
 mkdirSync(destSpecter, { recursive: true });
@@ -133,7 +133,7 @@ for (const store of seededStores) {
   cpSync(path.join(sourceSpecter, store), path.join(destSpecter, store), { recursive: true });
 }
 
-const app = await electron.launch({ args: [root], cwd: root, env });
+const app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
 const win = await resolveMainWindow(app);
 const consoleErrors = [];
 win.on("console", (msg) => {
@@ -235,7 +235,7 @@ try {
 
   // Save through the real modal, then inspect the production store and reopen the saved source.
   await navClick(win, "Data Sources");
-  await win.getByRole("button", { name: "Add Oracle Source", exact: true }).click();
+  await win.getByRole("button", { name: "Oracle connection", exact: true }).click();
   const sourceDialog = win.getByRole("dialog", { name: "Create Oracle Data Source" });
   const profileSelect = sourceDialog.getByRole("combobox", { name: "Oracle connection profile" });
   await profileSelect.selectOption(TEMP_PROFILE_ID);

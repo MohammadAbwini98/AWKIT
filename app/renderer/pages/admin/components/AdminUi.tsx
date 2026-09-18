@@ -197,6 +197,11 @@ function normaliseStatus(status: string): string {
   return status.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/** Tone, glyph and display label for a user/audit/licensing status string (neutral fallback). */
+export function adminStatusMeta(status: string): StatusMeta {
+  return STATUS_META[normaliseStatus(status)] ?? { tone: "neutral", icon: HelpCircle, label: status };
+}
+
 /**
  * Shared status badge for Administration. Pass the raw status string (user status, audit result, or a
  * licensing status code); an unknown value falls back to a neutral badge showing the raw text, so a new

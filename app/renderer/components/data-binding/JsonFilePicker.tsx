@@ -1,12 +1,17 @@
 import { FileJson } from "lucide-react";
 import { useState } from "react";
+import { SysButton, SysField } from "../system/SystemUI";
 
 interface JsonFilePickerProps {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
+  hint?: string;
+  wide?: boolean;
+  invalid?: boolean;
 }
 
-export function JsonFilePicker({ value, onChange }: JsonFilePickerProps) {
+export function JsonFilePicker({ value, onChange, label = "JSON file", hint, wide, invalid }: JsonFilePickerProps) {
   const [error, setError] = useState("");
 
   const browse = async () => {
@@ -22,16 +27,13 @@ export function JsonFilePicker({ value, onChange }: JsonFilePickerProps) {
   };
 
   return (
-    <label>
-      JSON File
-      <div className="file-input-row">
-        <FileJson size={16} />
-        <input value={value} onChange={(event) => onChange(event.target.value)} />
-        <button onClick={browse} type="button">
+    <SysField label={label} hint={error || hint} invalid={Boolean(error) || invalid} wide={wide}>
+      <span className="sys-file-row">
+        <input className="sys-control is-mono" value={value} onChange={(event) => onChange(event.target.value)} />
+        <SysButton kind="small" icon={FileJson} onClick={() => void browse()}>
           Browse
-        </button>
-      </div>
-      {error ? <span className="form-message error">{error}</span> : null}
-    </label>
+        </SysButton>
+      </span>
+    </SysField>
   );
 }

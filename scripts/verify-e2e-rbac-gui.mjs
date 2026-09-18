@@ -25,6 +25,8 @@ import {
   navClick,
   navLabels,
   createUser,
+  userRows,
+  waitForUsersPage,
   submitForcedChange,
   directLogin,
   directLogout
@@ -59,8 +61,8 @@ const ROLES = [
   }
 ].map((r) => ({ ...r, temp: genPassword(`T${r.role[0]}`), final: genPassword(`F${r.role[0]}`) }));
 
-const { env, cleanup } = isolatedLaunchEnv("awkit-e2e-rbac");
-const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env });
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-e2e-rbac");
+const app = await electron.launch({ args: [repoRoot, ...electronArgs], cwd: repoRoot, env });
 try {
   const win = await resolveMainWindow(app);
   const consoleWatch = watchConsole(win);
@@ -71,10 +73,10 @@ try {
   // ── Seed: SU creates the three role accounts ────────────────────────────────
   consoleWatch.setLabel("seed users");
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 10000 });
+  await waitForUsersPage(win);
   for (const r of ROLES) {
     await createUser(win, { username: r.username, displayName: `${r.role} E2E`, password: r.temp, roles: [r.role] });
-    check(`seed: ${r.role} account created`, (await win.getByText(`@${r.username}`).count()) >= 1);
+    check(`seed: ${r.role} account created`, (await userRows(win, r.username).count()) >= 1);
   }
 
   // ── Per-role pass ───────────────────────────────────────────────────────────
@@ -106,7 +108,7 @@ try {
       check(
         `${r.role}: restored unpermitted route mounts NotAuthorized (route guard)`,
         (await win.locator(".awkit-not-authorized").count()) === 1 &&
-          (await win.getByRole("heading", { name: "Add a user" }).count()) === 0
+          (await win.locator(".users-page").count()) === 0
       );
       await win.screenshot({ path: path.join(shotDir, `not-authorized-${r.role}.png`) }).catch(() => undefined);
       await win.getByRole("button", { name: "Go to Dashboard" }).click();

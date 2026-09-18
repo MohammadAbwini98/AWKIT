@@ -16,7 +16,7 @@
 import { _electron as electron } from "playwright";
 import path from "node:path";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun, DEFAULT_CREDS } from "./lib/gui-verify-harness.mjs";
-import { repoRoot, makeChecker, genPassword, watchConsole, navClick, createUser, directLogin, directLogout } from "./lib/e2e-qa-lib.mjs";
+import { repoRoot, makeChecker, genPassword, watchConsole, navClick, createUser, waitForUsersPage, directLogin, directLogout } from "./lib/e2e-qa-lib.mjs";
 
 const REAUTH_WINDOW_MS = 1000;
 const { check, shotDir, summarize } = makeChecker("e2e-reauth");
@@ -27,8 +27,8 @@ const pwTarget = genPassword("Tgt");
 const pwWrong = genPassword("Bad");
 const secrets = [pwCancel, pwTarget, pwWrong, DEFAULT_CREDS.password];
 
-const { env, cleanup } = isolatedLaunchEnv("awkit-e2e-reauth", { AWKIT_REAUTH_WINDOW_MS: String(REAUTH_WINDOW_MS) });
-const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env });
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-e2e-reauth", { AWKIT_REAUTH_WINDOW_MS: String(REAUTH_WINDOW_MS) });
+const app = await electron.launch({ args: [repoRoot, ...electronArgs], cwd: repoRoot, env });
 try {
   const win = await resolveMainWindow(app);
   const consoleWatch = watchConsole(win);
@@ -40,7 +40,7 @@ try {
   consoleWatch.setLabel("reauth");
 
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 10000 });
+  await waitForUsersPage(win);
 
   // A SEPARATE Super-User session (direct IPC) used only for verification READS (listUsers / listAudit).
   // Reads are non-sensitive, so this session's own reauth window is irrelevant; it never drives the UI.
@@ -105,7 +105,7 @@ try {
   check("apply: sensitive create prompts the ReauthDialog", (await dialog.count()) === 1);
   check(
     "apply: ReauthDialog shows the confirm-password heading",
-    (await win.getByRole("heading", { name: "Confirm your password" }).count()) === 1
+    (await dialog.getByRole("heading", { name: "Confirm your identity" }).count()) === 1
   );
   // Screenshot the empty dialog (no password entered → nothing sensitive on screen).
   await win.screenshot({ path: path.join(shotDir, "reauth-dialog.png") }).catch(() => undefined);
@@ -118,9 +118,9 @@ try {
   // (a) WRONG password — dialog stays open with an error, applies nothing, writes NO success audit.
   await dialogPassword().fill(pwWrong);
   await confirmButton().click();
-  await dialog.locator(".form-message.error").waitFor({ state: "visible", timeout: 6000 }).catch(() => undefined);
+  await dialog.locator(".sys-form-error").waitFor({ state: "visible", timeout: 6000 }).catch(() => undefined);
   check("wrong password: keeps the ReauthDialog open", (await dialog.count()) === 1);
-  check("wrong password: surfaces an error inside the dialog", (await dialog.locator(".form-message.error").count()) === 1);
+  check("wrong password: surfaces an error inside the dialog", (await dialog.locator(".sys-form-error").count()) === 1);
   const afterWrong = await snapshot();
   check("wrong password: applied nothing (target still absent)", !afterWrong.usernames.includes(targetUser));
   check("wrong password: wrote NO USER_CREATE success audit event", afterWrong.createSuccess === base.createSuccess);
@@ -131,7 +131,11 @@ try {
   await dialog.waitFor({ state: "detached", timeout: 10000 }).catch(() => undefined);
   check("correct password: closes the ReauthDialog", (await dialog.count()) === 0);
   // Poll on observable applied state (the created user appears) rather than a fixed wait.
-  await win.getByText(`@${targetUser}`).first().waitFor({ timeout: 10000 }).catch(() => undefined);
+  await win.locator(".users-page .sys-table tbody tr", { hasText: targetUser }).first().waitFor({ timeout: 10000 }).catch(() => undefined);
+  check(
+    "correct password: the Create user dialog closes once the held create applies",
+    (await win.locator(".users-create-modal").count()) === 0
+  );
   const afterCorrect = await snapshot();
   check(
     "correct password: applied the held create — target user exists EXACTLY once",

@@ -256,58 +256,63 @@ try {
   // B2. Sessions page — the seeded ready profile renders a real status pill whose background and
   // border survive. The `var(--x)1a` regression dropped BOTH declarations silently; a resolved,
   // non-transparent background proves the pill paints the soft status fill.
+  // The Sessions page lists saved sessions as design list rows: tone tile, name + sub-line (target
+  // URL, origin, meta), a status badge, then the row actions.
   await navTo("Sessions");
-  await win.waitForSelector(".sessions-table .state-pill", { timeout: 15000 });
-  const pill = win.locator(".sessions-table .state-pill", { hasText: "Ready" }).first();
+  await win.waitForSelector(".sessions-row .sys-badge", { timeout: 15000 });
+  const pill = win.locator(".sessions-row .sys-badge", { hasText: "Ready" }).first();
   const pillPaint = await pill.evaluate((el) => {
     const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, border: cs.borderTopColor, text: (el.textContent || "").trim() };
+    const title = el.closest(".sys-list-row")?.querySelector(".sys-list-title");
+    return { bg: cs.backgroundColor, color: cs.color, titleColor: title ? getComputedStyle(title).color : "", text: (el.textContent || "").trim() };
   });
   const bgAlphaMatch = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\)/.exec(pillPaint.bg);
   const bgAlpha = bgAlphaMatch ? (bgAlphaMatch[1] === undefined ? 1 : parseFloat(bgAlphaMatch[1])) : 0;
   check("live: session status pill text renders", pillPaint.text === "Ready", pillPaint.text);
   check("live: session status pill background paints (soft status fill)", bgAlpha > 0, pillPaint.bg);
-  check("live: session status pill border paints (muted status border)", !/rgba\(0, 0, 0, 0\)/.test(pillPaint.border), pillPaint.border);
-
-  const capturingRow = win.locator(".sessions-table tbody tr", { hasText: "Capturing…" }).first();
-  await capturingRow.waitFor({ timeout: 15000 });
-  const sessionContainment = await capturingRow.evaluate((row) => {
-    const cell = (selector) => row.querySelector(selector);
-    const statusCell = cell(".sessions-status-cell");
-    const statusPill = cell(".sessions-status-cell .state-pill");
-    const nameCell = cell(".sessions-name-cell");
-    const targetCell = cell(".sessions-target-cell");
-    const target = cell(".sessions-target-url");
-    const origin = cell(".sessions-target-origin");
-    const actions = cell(".sessions-actions-cell");
-    const rect = (element) => element?.getBoundingClientRect();
-    const statusRect = rect(statusPill);
-    const statusCellRect = rect(statusCell);
-    const nameRect = rect(nameCell);
-    const targetRect = rect(target);
-    const targetCellRect = rect(targetCell);
-    const originRect = rect(origin);
-    const actionsRect = rect(actions);
-    const tableRect = rect(row.closest("table"));
-    const statusStyle = statusPill ? getComputedStyle(statusPill) : null;
-    return {
-      statusText: statusPill?.textContent?.trim(),
-      statusTitle: statusPill?.getAttribute("title"),
-      statusContained: Boolean(statusRect && statusCellRect && statusRect.right <= statusCellRect.right + 1),
-      statusClearsName: Boolean(statusRect && nameRect && statusRect.right <= nameRect.left + 1),
-      statusStyle: statusStyle ? { maxWidth: statusStyle.maxWidth, overflow: statusStyle.overflow, textOverflow: statusStyle.textOverflow } : null,
-      targetTitle: target?.getAttribute("title"),
-      targetContained: Boolean(targetRect && targetCellRect && targetRect.right <= targetCellRect.right + 1),
-      targetTruncated: Boolean(target && target.scrollWidth > target.clientWidth),
-      originTitle: origin?.getAttribute("title"),
-      originContained: Boolean(originRect && targetCellRect && originRect.right <= targetCellRect.right + 1),
-      originTruncated: Boolean(origin && origin.scrollWidth > origin.clientWidth),
-      actionsContained: Boolean(actionsRect && tableRect && actionsRect.right <= tableRect.right + 1),
-      rowHeight: row.getBoundingClientRect().height
-    };
-  });
   check(
-    "live: Capturing… stays inside Status and clears Name",
+    "live: session status pill ink paints in its status tone (not the plain row text color)",
+    pillPaint.color !== pillPaint.titleColor && !/rgba\(0, 0, 0, 0\)/.test(pillPaint.color),
+    JSON.stringify(pillPaint)
+  );
+
+  const capturingRow = win.locator(".sessions-row", { hasText: "Capturing…" }).first();
+  await capturingRow.waitFor({ timeout: 15000 });
+  const readRowContainment = () =>
+    capturingRow.evaluate((row) => {
+      const rect = (element) => element?.getBoundingClientRect();
+      const statusPill = row.querySelector(".sys-badge");
+      const name = row.querySelector(".sys-list-title");
+      const text = row.querySelector(".sys-list-text");
+      const target = row.querySelector(".sessions-target-url");
+      const origin = row.querySelector(".sessions-target-origin");
+      const actions = row.querySelector(".sys-list-actions");
+      const rowRect = rect(row);
+      const statusRect = rect(statusPill);
+      const nameRect = rect(name);
+      const textRect = rect(text);
+      const targetRect = rect(target);
+      const originRect = rect(origin);
+      const actionsRect = rect(actions);
+      const statusStyle = statusPill ? getComputedStyle(statusPill) : null;
+      return {
+        statusText: statusPill?.textContent?.trim(),
+        statusContained: Boolean(statusRect && rowRect && statusRect.right <= rowRect.right + 1),
+        statusClearsName: Boolean(statusRect && nameRect && nameRect.right <= statusRect.left + 1),
+        statusStyle: statusStyle ? { maxWidth: statusStyle.maxWidth, overflow: statusStyle.overflow, textOverflow: statusStyle.textOverflow } : null,
+        targetTitle: target?.getAttribute("title"),
+        targetContained: Boolean(targetRect && textRect && targetRect.right <= textRect.right + 1),
+        targetTruncated: Boolean(target && target.scrollWidth > target.clientWidth),
+        originTitle: origin?.getAttribute("title"),
+        originContained: Boolean(originRect && textRect && originRect.right <= textRect.right + 1),
+        actionsContained: Boolean(actionsRect && rowRect && actionsRect.right <= rowRect.right + 1),
+        rowHeight: rowRect.height,
+        pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+      };
+    });
+  const sessionContainment = await readRowContainment();
+  check(
+    "live: Capturing… stays inside its row and clears the session name",
     sessionContainment.statusText === "Capturing…" && sessionContainment.statusContained && sessionContainment.statusClearsName,
     JSON.stringify(sessionContainment)
   );
@@ -322,30 +327,18 @@ try {
     JSON.stringify(sessionContainment)
   );
   check(
-    "live: Actions stays inside the table and the long-URL row remains compact",
+    "live: Actions stays inside the row and the long-URL row remains compact",
     sessionContainment.actionsContained && sessionContainment.rowHeight < 90,
     JSON.stringify(sessionContainment)
   );
 
   await win.setViewportSize({ width: 800, height: 760 });
   await win.waitForTimeout(200);
-  const responsiveTable = await win.locator(".wl-table-wrapper").evaluate((wrapper) => {
-    const table = wrapper.querySelector(".sessions-table");
-    return {
-      scrolls: wrapper.scrollWidth > wrapper.clientWidth,
-      layout: table ? getComputedStyle(table).tableLayout : "",
-      statusWithinName: (() => {
-        const row = table?.querySelector("tbody tr");
-        const pill = row?.querySelector(".sessions-status-cell .state-pill");
-        const name = row?.querySelector(".sessions-name-cell");
-        return Boolean(pill && name && pill.getBoundingClientRect().right <= name.getBoundingClientRect().left + 1);
-      })()
-    };
-  });
+  const narrowRow = await readRowContainment();
   check(
-    "live: narrow Sessions layout scrolls deliberately instead of allowing cell overlap",
-    responsiveTable.scrolls && responsiveTable.layout === "fixed" && responsiveTable.statusWithinName,
-    JSON.stringify(responsiveTable)
+    "live: narrow Sessions layout keeps the status clear of the name without page overflow",
+    narrowRow.statusClearsName && narrowRow.statusContained && narrowRow.actionsContained && narrowRow.targetContained && !narrowRow.pageOverflow,
+    JSON.stringify(narrowRow)
   );
   await win.screenshot({ path: path.join(evidenceDir, "sessions-overflow-light.png") });
   await win.setViewportSize({ width: 1280, height: 800 });
@@ -386,8 +379,8 @@ try {
 
   // B5. The pill must still paint in dark mode (dark soft fill is translucent — alpha must be > 0).
   await navTo("Sessions");
-  await win.waitForSelector(".sessions-table .state-pill", { timeout: 15000 });
-  const pillDark = await win.locator(".sessions-table .state-pill").first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  await win.waitForSelector(".sessions-row .sys-badge", { timeout: 15000 });
+  const pillDark = await win.locator(".sessions-row .sys-badge").first().evaluate((el) => getComputedStyle(el).backgroundColor);
   const darkAlphaMatch = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\)/.exec(pillDark);
   const darkAlpha = darkAlphaMatch ? (darkAlphaMatch[1] === undefined ? 1 : parseFloat(darkAlphaMatch[1])) : 0;
   check("live: session status pill background paints in dark theme", darkAlpha > 0, pillDark);

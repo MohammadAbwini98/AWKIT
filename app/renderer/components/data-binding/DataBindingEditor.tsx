@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { resolveJsonPath, stringifyResolvedValue } from "@src/data/JsonPathResolver";
 import type { ValueSource, ValueSourceType } from "@src/profiles/FlowProfile";
+import { SysField, SysFormGrid, SysKvItem, SysSelect } from "../system/SystemUI";
 import { JsonFilePicker } from "./JsonFilePicker";
 import { JsonPathPicker } from "./JsonPathPicker";
 import { sampleCustomersData } from "./sampleData";
@@ -20,6 +21,7 @@ interface DataBindingEditorProps {
   onChange: (valueSource: ValueSource) => void;
 }
 
+/** Value-source binding editor on the design form grid: source type, its parameters, resolved preview. */
 export function DataBindingEditor({ valueSource, runtimeInputKeys, onChange }: DataBindingEditorProps) {
   const [file, setFile] = useState(valueSource.file ?? "resources/sample-data/customers.json");
   const [path, setPath] = useState(valueSource.path ?? "$.customers[0].firstName");
@@ -46,10 +48,9 @@ export function DataBindingEditor({ valueSource, runtimeInputKeys, onChange }: D
   };
 
   return (
-    <section className="data-binding-editor">
-      <label>
-        Value Source
-        <select value={valueSource.type} onChange={(event) => updateType(event.target.value as ValueSourceType)}>
+    <SysFormGrid min={220}>
+      <SysField label="Value source">
+        <SysSelect value={valueSource.type} onChange={(event) => updateType(event.target.value as ValueSourceType)}>
           <option value="static">Static value</option>
           <option value="json">JSON file value</option>
           <option value="runtimeInput">Runtime UI input</option>
@@ -58,18 +59,11 @@ export function DataBindingEditor({ valueSource, runtimeInputKeys, onChange }: D
           <option value="generated">Generated value</option>
           <option value="currentRow">Current JSON row</option>
           <option value="instanceVariable">Instance variable</option>
-        </select>
-      </label>
+        </SysSelect>
+      </SysField>
 
       {valueSource.type === "json" ? (
         <>
-          <JsonFilePicker
-            value={file}
-            onChange={(nextFile) => {
-              setFile(nextFile);
-              onChange({ type: "json", file: nextFile, path });
-            }}
-          />
           <JsonPathPicker
             paths={paths}
             value={path}
@@ -78,47 +72,50 @@ export function DataBindingEditor({ valueSource, runtimeInputKeys, onChange }: D
               onChange({ type: "json", file, path: nextPath });
             }}
           />
+          <JsonFilePicker
+            wide
+            value={file}
+            onChange={(nextFile) => {
+              setFile(nextFile);
+              onChange({ type: "json", file: nextFile, path });
+            }}
+          />
         </>
       ) : null}
 
       {valueSource.type === "runtimeInput" ? (
-        <label>
-          Runtime Input Key
-          <select value={valueSource.key ?? ""} onChange={(event) => onChange({ type: "runtimeInput", key: event.target.value })}>
+        <SysField label="Runtime input key">
+          <SysSelect value={valueSource.key ?? ""} onChange={(event) => onChange({ type: "runtimeInput", key: event.target.value })}>
             {runtimeInputKeys.map((key) => (
               <option key={key} value={key}>
                 {key}
               </option>
             ))}
-          </select>
-        </label>
+          </SysSelect>
+        </SysField>
       ) : null}
 
       {valueSource.type === "static" ? (
-        <label>
-          Static Value
-          <input value={valueSource.value ?? ""} onChange={(event) => onChange({ type: "static", value: event.target.value })} />
-        </label>
+        <SysField label="Static value">
+          <input className="sys-control" value={valueSource.value ?? ""} onChange={(event) => onChange({ type: "static", value: event.target.value })} />
+        </SysField>
       ) : null}
 
       {valueSource.type === "env" ? (
-        <label>
-          Environment Key
-          <input value={valueSource.envKey ?? ""} onChange={(event) => onChange({ type: "env", envKey: event.target.value })} />
-        </label>
+        <SysField label="Environment key">
+          <input className="sys-control is-mono" value={valueSource.envKey ?? ""} onChange={(event) => onChange({ type: "env", envKey: event.target.value })} />
+        </SysField>
       ) : null}
 
       {valueSource.type === "currentRow" ? (
-        <label>
-          Current Row Path
-          <input value={valueSource.path ?? "$.firstName"} onChange={(event) => onChange({ type: "currentRow", path: event.target.value })} />
-        </label>
+        <SysField label="Current row path">
+          <input className="sys-control is-mono" value={valueSource.path ?? "$.firstName"} onChange={(event) => onChange({ type: "currentRow", path: event.target.value })} />
+        </SysField>
       ) : null}
 
-      <article className="binding-preview">
-        <span>Resolved preview</span>
-        <strong>{preview}</strong>
-      </article>
-    </section>
+      <div className="sys-field is-wide">
+        <SysKvItem label="Resolved preview" value={preview === "" ? "—" : preview} mono />
+      </div>
+    </SysFormGrid>
   );
 }

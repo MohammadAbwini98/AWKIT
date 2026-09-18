@@ -1,42 +1,66 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, Download, Hourglass, KeyRound, RotateCw, ShieldX, Trash2, Upload } from "lucide-react";
+import { Ban, Clock, Copy, Download, Eye, KeyRound, Monitor, RotateCw, ShieldCheck, ShieldX, Trash2, Upload } from "lucide-react";
 import type { LicenseStatusView } from "@main/licensing/licenseRuntime";
+import { LICENSE_REVALIDATE_INTERVAL_MS } from "@src/licensing/LicenseAttention";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
 import { useSession } from "../../security/SessionContext";
-import { usePageChrome } from "../../state/pageChrome";
+import { routes } from "../../routes";
+import {
+  SysAdminHead,
+  SysBanner,
+  SysButton,
+  SysCheckRow,
+  SysChecklist,
+  SysKv,
+  SysKvItem,
+  SysList,
+  SysListRow,
+  SysMetric,
+  SysMetrics,
+  SysPage,
+  SysPanel,
+  SysPanelEmpty,
+  SysPanels,
+  type SysTone
+} from "../../components/system/SystemUI";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
-import {
-  AdminBanner,
-  AdminEmpty,
-  AdminLoading,
-  AdminMetricCard,
-  AdminMetrics,
-  AdminPage,
-  AdminSectionCard,
-  AdminStatusBadge
-} from "./components/AdminUi";
+import { adminStatusMeta } from "./components/AdminUi";
 
 type Resp<T> = { ok: boolean; value?: T; reason?: string };
 const licensing = () => window.playwrightFlowStudio.licensing;
+const MINUTES_PER_DAY = 60 * 24;
 
-/** Format a UTC ISO timestamp in the user's local time with timezone, or an em dash when absent/invalid. */
-function localTime(iso?: string): string {
+/** Format a UTC ISO timestamp in the user's local time, or an em dash when absent/invalid. */
+function localTime(iso?: string | null): string {
   if (!iso) return "—";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "—";
   return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-/** Human "time remaining" from whole minutes (negative ⇒ already expired). */
-function remaining(minutes?: number): string {
-  if (minutes == null) return "—";
-  if (minutes <= 0) return "Expired";
-  const days = Math.floor(minutes / (60 * 24));
-  if (days >= 1) return `${days} day${days === 1 ? "" : "s"}`;
+function localDate(iso?: string | null): string {
+  if (!iso) return "—";
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "—";
+  return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** "Expires in" readout: the largest whole unit remaining (negative ⇒ already expired). */
+function remainingParts(minutes?: number): { value: string; unit: string } {
+  if (minutes == null) return { value: "—", unit: "" };
+  if (minutes <= 0) return { value: "0", unit: "days" };
+  const days = Math.floor(minutes / MINUTES_PER_DAY);
+  if (days >= 1) return { value: String(days), unit: days === 1 ? "day" : "days" };
   const hours = Math.floor(minutes / 60);
-  if (hours >= 1) return `${hours} hour${hours === 1 ? "" : "s"}`;
-  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  if (hours >= 1) return { value: String(hours), unit: hours === 1 ? "hour" : "hours" };
+  return { value: String(minutes), unit: minutes === 1 ? "minute" : "minutes" };
+}
+
+function intervalLabel(ms: number): string {
+  const minutes = Math.round(ms / 60000);
+  if (minutes >= 60 && minutes % 60 === 0) return `Every ${minutes / 60} hour${minutes === 60 ? "" : "s"}`;
+  return `Every ${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
 /**
@@ -104,47 +128,39 @@ export function LicensingPage() {
     [load]
   );
 
-  usePageChrome(
-    {
-      actions: [
-        {
-          id: "license-import",
-          label: "Import license",
-          icon: <Upload size={15} aria-hidden="true" />,
-          onClick: () => fileInputRef.current?.click(),
-          disabled: busy || denied || loading,
-          variant: "primary"
-        },
-        {
-          id: "license-revalidate",
-          label: "Revalidate",
-          icon: <RotateCw size={15} aria-hidden="true" />,
-          onClick: () => run(() => licensing().revalidate(sessionRef), "License revalidated."),
-          disabled: busy || denied
-        }
-      ],
-      dirty: false
-    },
-    [run, sessionRef, busy, denied, loading]
-  );
-
-  const onExportRequest = async () => {
+  const fetchRequest = async () => {
     setError(null);
     setNotice(null);
     const res = await licensing().exportRequest(sessionRef);
     if (!res.ok || !res.value) {
       setError(adminReasonMessage(res.reason));
-      return;
+      return null;
     }
+    return JSON.stringify(res.value, null, 2);
+  };
+
+  const onExportRequest = async () => {
+    const json = await fetchRequest();
+    if (!json) return;
     // Download the activation request the operator sends to the issuer (app-generated, no secrets).
-    const blob = new Blob([JSON.stringify(res.value, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = "specterstudio-activation-request.json";
     a.click();
     URL.revokeObjectURL(url);
     setNotice("Activation request exported. Send it to your license issuer.");
+  };
+
+  const onCopyRequest = async () => {
+    const json = await fetchRequest();
+    if (!json) return;
+    try {
+      await navigator.clipboard.writeText(json);
+      setNotice("Activation request copied to the clipboard. Send it to your license issuer.");
+    } catch {
+      setError("Could not copy to the clipboard.");
+    }
   };
 
   const onImportFile = async (file: File, replace: boolean) => {
@@ -172,156 +188,211 @@ export function LicensingPage() {
     }
   };
 
-  if (loading) return <AdminPage><AdminLoading label="Loading licensing…" /></AdminPage>;
-  if (denied) {
-    return (
-      <AdminPage>
-        <AdminEmpty icon={ShieldX} title="Not authorized" hint="Licensing is managed by a Super User." />
-      </AdminPage>
-    );
-  }
-
   const lic = report?.license;
+  const shared = report?.source === "shared";
+  const meta = report ? adminStatusMeta(report.status) : null;
+  const remaining = remainingParts(lic ? report?.remainingMinutes : undefined);
+  const expiringDays = report?.remainingMinutes != null ? Math.floor(report.remainingMinutes / MINUTES_PER_DAY) : null;
+  const expiryTone: SysTone =
+    !lic || report?.remainingMinutes == null
+      ? "neutral"
+      : report.remainingMinutes <= 0
+        ? "danger"
+        : report.remainingMinutes < MINUTES_PER_DAY * 14
+          ? "warning"
+          : "success";
+  const operable = report?.status === "VALID" || report?.status === "EXPIRING_SOON";
+  const clockWarning = report?.status === "CLOCK_INTEGRITY_WARNING";
 
   return (
-    <AdminPage
-      title="Licensing"
-      description="Review this machine's offline license, activation identity, and enforcement state."
-      banner={
+    <SysPage className="licensing-page">
+      <SysAdminHead
+        title="Licensing"
+        description={routes.find((route) => route.id === "licensing")?.description}
+        actions={
+          denied ? null : (
+            <>
+              <SysButton kind="primary" icon={Upload} disabled={busy || loading} onClick={() => fileInputRef.current?.click()}>
+                Import license
+              </SysButton>
+              <SysButton kind="secondary" icon={Copy} disabled={busy || loading} onClick={() => void onCopyRequest()}>
+                Copy activation request
+              </SysButton>
+              <SysButton
+                kind="danger"
+                icon={Ban}
+                disabled={busy || !lic || shared}
+                title={shared ? "A provisioned machine-wide license can't be revoked here." : "Revoke the installed license"}
+                onClick={() => void run(() => licensing().revoke(sessionRef), "License revoked.")}
+              >
+                Revoke
+              </SysButton>
+            </>
+          )
+        }
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".dat,.json,application/json"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void onImportFile(file, Boolean(lic));
+        }}
+      />
+
+      {error ? <SysBanner tone="danger">{error}</SysBanner> : null}
+      {notice ? <SysBanner tone="success">{notice}</SysBanner> : null}
+      {report?.enforcement?.inGrace ? (
+        <SysBanner tone="warning" icon={Clock}>
+          This installation is running under a one-time {report.enforcement.graceDaysRemaining}-day activation period, which
+          ends on {localTime(report.enforcement.graceEndsAtUtc ?? undefined)}. Saved workflows keep running until then. Export
+          the activation request and import your license to keep running afterwards.
+        </SysBanner>
+      ) : null}
+      {report?.enforcement && !report.enforcement.runsAllowed ? (
+        <SysBanner tone="danger">
+          Workflow execution is blocked on this machine until a valid license is activated. Editing, exporting, reports and
+          settings remain available.
+        </SysBanner>
+      ) : null}
+      {report?.status === "EXPIRING_SOON" && expiringDays != null ? (
+        <SysBanner tone="warning" icon={Clock}>
+          This license expires in {expiringDays} day{expiringDays === 1 ? "" : "s"}, on {localDate(lic?.expiresAtUtc)}. Generate an
+          activation request, have it signed by an Issuer account, then import the returned license file.
+        </SysBanner>
+      ) : null}
+      {report?.conflict ? (
+        <SysBanner tone="info">
+          Both a machine-wide (provisioned) and a per-user license are present. The provisioned license is in use. Remove one to
+          resolve the conflict.
+        </SysBanner>
+      ) : null}
+
+      {denied ? (
+        <SysPanel icon={ShieldX} tone="danger" title="Not authorized">
+          <SysPanelEmpty icon={ShieldX} title="Not authorized" hint="Licensing is managed by a Super User." />
+        </SysPanel>
+      ) : (
         <>
-          {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
-          {notice ? <AdminBanner tone="success">{notice}</AdminBanner> : null}
-          {report?.enforcement?.inGrace ? (
-            <AdminBanner tone="warning">
-              This installation is running under a one-time {report.enforcement.graceDaysRemaining}-day
-              activation period, which ends on {localTime(report.enforcement.graceEndsAtUtc ?? undefined)}.
-              Saved workflows keep running until then. Export the activation request below and import your
-              license to keep running afterwards.
-            </AdminBanner>
-          ) : null}
-          {report?.enforcement && !report.enforcement.runsAllowed ? (
-            <AdminBanner tone="error">
-              Workflow execution is blocked on this machine until a valid license is activated. Editing,
-              exporting, reports and settings remain available.
-            </AdminBanner>
-          ) : null}
-          {report?.conflict ? (
-            <AdminBanner tone="info">
-              Both a machine-wide (provisioned) and a per-user license are present. The provisioned license
-              is in use. Remove one to resolve the conflict.
-            </AdminBanner>
-          ) : null}
+          <SysMetrics min={210} label="License summary">
+            <SysMetric
+              loading={loading}
+              tone={meta?.tone ?? "neutral"}
+              icon={meta?.icon ?? KeyRound}
+              label="Status"
+              value={meta?.label ?? "—"}
+              detail={operable ? "Signature verified against the bundled public key" : report?.userAction}
+            />
+            <SysMetric
+              loading={loading}
+              tone={expiryTone}
+              icon={Clock}
+              label="Expires in"
+              value={remaining.value}
+              unit={remaining.unit}
+              detail={lic ? localDate(lic.expiresAtUtc) : "No license installed"}
+            />
+            <SysMetric loading={loading} tone="info" icon={Monitor} label="Seats" value="1" unit="machine" detail="Per-machine offline license" />
+            <SysMetric
+              loading={loading}
+              tone={clockWarning ? "warning" : "success"}
+              icon={ShieldCheck}
+              label="Clock integrity"
+              value={clockWarning ? "Warning" : "OK"}
+              detail={clockWarning ? "System clock moved backwards beyond tolerance" : "System clock within tolerance"}
+            />
+          </SysMetrics>
+
+          <SysPanels min={640}>
+            <SysPanel
+              wide
+              icon={KeyRound}
+              title="License detail"
+              meta={lic ? "Read-only values from the signed file" : report?.userAction ?? "No license installed"}
+              actions={
+                <SysButton
+                  kind="smallDanger"
+                  icon={Trash2}
+                  disabled={busy || !lic || shared}
+                  title={shared ? "A provisioned machine-wide license can't be removed here." : "Remove the installed local license"}
+                  onClick={() => void run(() => licensing().remove(sessionRef), "License removed.")}
+                >
+                  Remove
+                </SysButton>
+              }
+            >
+              <SysKv min={220}>
+                <SysKvItem
+                  label="Machine code"
+                  value={report?.machineFingerprintHash ?? "—"}
+                  mono
+                  hint={report ? `Fingerprint confidence: ${report.fingerprintConfidence}` : undefined}
+                  onCopy={report?.machineFingerprintHash ? () => void copyMachineCode() : undefined}
+                  copyLabel="Copy machine code"
+                />
+                <SysKvItem label="License type" value={lic?.licenseType ?? "—"} big />
+                <SysKvItem label="License ID" value={lic?.licenseId ?? "—"} mono />
+                <SysKvItem label="Serial" value={lic?.serialNumberMasked ?? "—"} mono />
+                <SysKvItem label="Issued" value={localDate(lic?.issuedAtUtc)} />
+                <SysKvItem label="Valid from" value={localDate(lic?.validFromUtc)} />
+                <SysKvItem label="Expires" value={localDate(lic?.expiresAtUtc)} tone={lic && expiryTone !== "success" ? expiryTone : undefined} />
+                <SysKvItem label="Last validated" value={localTime(report?.checkedAtUtc)} />
+                <SysKvItem label="Source" value={shared ? "Machine-wide (provisioned)" : report?.source === "local" ? "This user" : "—"} />
+                <SysKvItem label="Entitlements" value={lic?.entitlements?.length ? lic.entitlements.join(", ") : "—"} />
+              </SysKv>
+            </SysPanel>
+          </SysPanels>
+
+          <SysPanels>
+            <SysPanel
+              icon={Upload}
+              title="Activation"
+              meta="Offline, three steps"
+              actions={
+                <SysButton kind="small" icon={Download} disabled={busy || loading} onClick={() => void onExportRequest()}>
+                  Export activation request
+                </SysButton>
+              }
+            >
+              <SysChecklist label="Activation steps">
+                <SysCheckRow tone="success" title="Generate an activation request" sub="Encodes this machine's fingerprint and the app version — no personal data" badge="Ready" />
+                <SysCheckRow tone="info" title="Have it signed by an Issuer" sub="Send the request file to a holder of the Issuer role" badge="Manual" />
+                <SysCheckRow
+                  tone={operable ? "success" : "warning"}
+                  title="Import the returned license"
+                  sub="The file is verified locally — no network call is made"
+                  badge={operable ? "Installed" : "Ready"}
+                />
+              </SysChecklist>
+            </SysPanel>
+
+            <SysPanel
+              icon={RotateCw}
+              title="Revalidation"
+              meta="When the license is re-checked"
+              actions={
+                <SysButton
+                  kind="small"
+                  icon={RotateCw}
+                  disabled={busy || loading}
+                  onClick={() => void run(() => licensing().revalidate(sessionRef), "License revalidated.")}
+                >
+                  Revalidate now
+                </SysButton>
+              }
+            >
+              <SysList label="Revalidation triggers">
+                <SysListRow icon={Clock} title="On an interval" sub={`${intervalLabel(LICENSE_REVALIDATE_INTERVAL_MS)} · LICENSE_REVALIDATE_INTERVAL_MS`} badge="Active" badgeTone="success" />
+                <SysListRow icon={Monitor} title="On window focus" sub="Catches a clock change while the app was in the background" badge="Active" badgeTone="success" />
+                <SysListRow icon={Eye} title="On visibilitychange" sub="Same check when the window is restored" badge="Active" badgeTone="success" />
+              </SysList>
+            </SysPanel>
+          </SysPanels>
         </>
-      }
-    >
-      <AdminMetrics label="License summary">
-        <AdminMetricCard label="License status" value={report ? <AdminStatusBadge status={report.status} /> : "—"} icon={KeyRound} />
-        <AdminMetricCard label="Edition" value={lic?.licenseType ?? "—"} hint={lic ? `${lic.serialNumberMasked} · ${lic.licenseId}` : undefined} />
-        <AdminMetricCard
-          label="Execution"
-          value={report?.enforcement?.runsAllowed ? "Allowed" : "Blocked"}
-          icon={RotateCw}
-          tone={report?.enforcement?.runsAllowed ? "success" : "danger"}
-        />
-        <AdminMetricCard
-          label="Remaining validity"
-          value={remaining(report?.remainingMinutes)}
-          icon={Hourglass}
-          tone={
-            report?.status === "VALID" || report?.status === "EXPIRING_SOON"
-              ? report.remainingMinutes != null && report.remainingMinutes < 60 * 24 * 14
-                ? "warning"
-                : "neutral"
-              : "neutral"
-          }
-          hint={report ? `expires ${localTime(lic?.expiresAtUtc)}` : undefined}
-        />
-      </AdminMetrics>
-
-      <div className="awkit-admin-dashboard-grid awkit-admin-license-layout">
-      {/* Status */}
-      <AdminSectionCard title="License status" icon={KeyRound} meta={report ? <AdminStatusBadge status={report.status} /> : null} className="awkit-admin-license-status">
-        <p className="awkit-admin-muted">{report?.userAction}</p>
-        <div className="awkit-license-grid">
-          <Field label="Type" value={lic?.licenseType ?? "—"} />
-          <Field label="Serial" value={lic?.serialNumberMasked ?? "—"} mono />
-          <Field label="License ID" value={lic?.licenseId ?? "—"} mono />
-          <Field label="Issued" value={localTime(lic?.issuedAtUtc)} />
-          <Field label="Valid from" value={localTime(lic?.validFromUtc)} />
-          <Field label="Expires" value={localTime(lic?.expiresAtUtc)} />
-          <Field label="Remaining" value={remaining(report?.remainingMinutes)} />
-          <Field label="Last validated" value={localTime(report?.checkedAtUtc)} />
-          <Field label="Source" value={report?.source === "shared" ? "Machine-wide (provisioned)" : report?.source === "local" ? "This user" : "—"} />
-        </div>
-        {lic?.entitlements?.length ? (
-          <div className="awkit-license-entitlements">
-            <span className="awkit-admin-muted">Entitlements</span>
-            <div className="awkit-admin-perm-list">
-              {lic.entitlements.map((e) => <span key={e} className="awkit-admin-role-chip">{e}</span>)}
-            </div>
-          </div>
-        ) : null}
-      </AdminSectionCard>
-
-      {/* Machine activation */}
-      <AdminSectionCard
-        title="Offline activation"
-        description="Export this machine's activation request and send it to your license issuer. The request contains no personal data — only a hashed machine fingerprint."
-      >
-        <div className="awkit-license-machine">
-          <div className="awkit-license-code">
-            <span className="awkit-admin-muted">Machine code</span>
-            <code title={report?.machineFingerprintHash}>{report?.machineFingerprintHash?.slice(0, 24) ?? "—"}…</code>
-            <span className="awkit-license-confidence">confidence: {report?.fingerprintConfidence ?? "—"}</span>
-          </div>
-          <div className="awkit-admin-row-actions">
-            <button className="toolbar-button" onClick={copyMachineCode} disabled={!report?.machineFingerprintHash}>
-              <Copy size={14} /> Copy machine code
-            </button>
-            <button className="toolbar-button primary" onClick={onExportRequest} disabled={busy}>
-              <Download size={14} /> Export activation request
-            </button>
-          </div>
-        </div>
-        <ol className="awkit-license-steps">
-          <li><strong>Export</strong><span>Save this machine's activation request.</span></li>
-          <li><strong>Sign</strong><span>Have an Issuer role holder sign the request offline.</span></li>
-          <li><strong>Import</strong><span>Use the header action to verify and install the signed license.</span></li>
-        </ol>
-      </AdminSectionCard>
-
-      {/* License management */}
-      <AdminSectionCard title="License controls" description="Revoke or remove an installed local license. Import or replace a signed license from the page header.">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".dat,.json,application/json"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void onImportFile(file, Boolean(lic));
-          }}
-        />
-        <div className="awkit-admin-row-actions">
-          <button
-            className="toolbar-button"
-            onClick={() => run(() => licensing().revoke(sessionRef), "License revoked.")}
-            disabled={busy || !lic || report?.source === "shared"}
-            title={report?.source === "shared" ? "A provisioned machine-wide license can't be revoked here." : undefined}
-          >
-            <ShieldX size={14} /> Revoke
-          </button>
-          <button
-            className="toolbar-button danger"
-            onClick={() => run(() => licensing().remove(sessionRef), "License removed.")}
-            disabled={busy || !lic || report?.source === "shared"}
-          >
-            <Trash2 size={14} /> Remove
-          </button>
-        </div>
-      </AdminSectionCard>
-      </div>
+      )}
 
       {pendingFn ? (
         <ReauthDialog
@@ -334,16 +405,7 @@ export function LicensingPage() {
           }}
         />
       ) : null}
-    </AdminPage>
-  );
-}
-
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="awkit-license-field">
-      <span className="awkit-admin-muted">{label}</span>
-      <span className={mono ? "awkit-license-mono" : undefined}>{value}</span>
-    </div>
+    </SysPage>
   );
 }
 

@@ -33,7 +33,7 @@ export function TopHeader({ activeRoute, actions, canGoBack, dirty, onBack }: To
         {actions.map((action) => (
           <button
             key={action.id}
-            className={action.variant === "primary" ? "toolbar-button primary" : "toolbar-button"}
+            className={action.variant === "primary" || action.variant === "danger" ? `toolbar-button ${action.variant}` : "toolbar-button"}
             data-testid={`page-action-${action.id}`}
             disabled={action.disabled}
             onClick={action.onClick}

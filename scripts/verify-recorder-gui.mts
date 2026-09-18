@@ -1733,6 +1733,7 @@ try {
   check("Recorder GUI emits no renderer console/page error", rendererErrors.length === 0, JSON.stringify(rendererErrors.slice(0, 5)));
 } catch (error) {
   check("Recorder GUI suite completes without an unhandled error", false, error instanceof Error ? error.stack ?? error.message : String(error));
+  await win?.screenshot({ path: join(evidenceDir, "unhandled-error.png") }).catch(() => undefined);
 } finally {
   try {
     await win?.evaluate(async () => {

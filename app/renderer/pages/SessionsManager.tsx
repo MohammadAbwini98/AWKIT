@@ -1,43 +1,85 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  KeyRound,
+  CheckCircle2,
   Chrome,
-  Search,
-  X,
-  Trash2,
+  Clock,
   Edit3,
   FolderOpen,
-  Play,
-  Square,
-  RefreshCw,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
+  GitBranch,
   Globe,
-  Clock,
-  Info
+  KeyRound,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  Trash2,
+  XCircle
 } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
-import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
+import type { FlowProfile } from "@src/profiles/FlowProfile";
+import {
+  SysBanner,
+  SysButton,
+  SysCheckRow,
+  SysChecklist,
+  SysField,
+  SysIconButton,
+  SysList,
+  SysListRow,
+  SysModal,
+  SysModalFields,
+  SysPage,
+  SysPanel,
+  SysPanelEmpty,
+  SysPanels,
+  type SysTone
+} from "../components/system/SystemUI";
+
+const STATUS: Record<SessionProfile["status"], { label: string; tone: SysTone }> = {
+  ready: { label: "Ready", tone: "success" },
+  capturing: { label: "Capturing…", tone: "warning" },
+  error: { label: "Error", tone: "danger" }
+};
+
+function sourceLabel(source: SessionProfile["source"]): string {
+  return source === "autoSecureLogin" ? "Auto login" : source === "imported" ? "Imported" : "Manual";
+}
+
+function browserLabel(path?: string): string | null {
+  if (path?.includes("msedge")) return "Edge";
+  if (path?.includes("chrome")) return "Chrome";
+  return null;
+}
+
+function shortDate(iso?: string): string {
+  if (!iso) return "Never";
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? "—" : at.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+interface Binding {
+  flowName: string;
+  stepName: string;
+  sessionId?: string;
+  mode: "autoDetect" | "selected";
+}
 
 export function SessionsManager() {
   // ─── State ──────────────────────────────────────────────────────────
   const [profiles, setProfiles] = useState<SessionProfile[]>([]);
   const [captureStatus, setCaptureStatus] = useState<SessionCaptureStatus>({ active: false, status: "idle" });
   const [browser, setBrowser] = useState<DetectedBrowser | null>(null);
-
+  const [flows, setFlows] = useState<FlowProfile[]>([]);
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
   const [isStarting, setIsStarting] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const captureNameRef = useRef<HTMLInputElement | null>(null);
-
-  // Table state
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [deleting, setDeleting] = useState<SessionProfile | null>(null);
 
   // Rename inline editing
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -57,10 +99,15 @@ export function SessionsManager() {
     } catch {
       // best effort
     }
+    // Reuse Session bindings come from the saved flows; a role without the Flows read sees none.
+    window.playwrightFlowStudio.flows
+      .list()
+      .then(setFlows)
+      .catch(() => setFlows([]));
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   // Poll while capturing is active
@@ -82,19 +129,28 @@ export function SessionsManager() {
     return () => clearInterval(interval);
   }, [captureStatus.active]);
 
-  // ─── Filtered + paginated profiles ─────────────────────────────────
+  // ─── Filtered profiles ──────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const sorted = [...profiles].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     if (!q) return sorted;
-    return sorted.filter(
-      (p) => `${p.name} ${p.targetUrl ?? ""} ${p.origin ?? ""} ${p.source ?? ""} ${p.status} ${p.id}`.toLowerCase().includes(q)
-    );
+    return sorted.filter((p) => `${p.name} ${p.targetUrl ?? ""} ${p.origin ?? ""} ${p.source ?? ""} ${p.status} ${p.id}`.toLowerCase().includes(q));
   }, [profiles, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageClamped = Math.min(page, totalPages);
-  const paged = filtered.slice((pageClamped - 1) * pageSize, pageClamped * pageSize);
+  const bindings = useMemo<Binding[]>(
+    () =>
+      flows.flatMap((flow) =>
+        (flow.nodes ?? [])
+          .filter((step) => step.type === "reuseSession")
+          .map((step) => ({
+            flowName: flow.name,
+            stepName: step.name,
+            sessionId: step.config?.reuseSessionId,
+            mode: step.config?.reuseSessionMode === "selected" ? "selected" : "autoDetect"
+          }))
+      ),
+    [flows]
+  );
 
   // ─── Actions ────────────────────────────────────────────────────────
   const handleStartCapture = async () => {
@@ -110,7 +166,10 @@ export function SessionsManager() {
         targetUrl: targetUrl.trim()
       });
       setCaptureStatus(status);
-      setToast({ tone: "success", message: `Browser launched. Log in manually, then close the browser when done.` });
+      setCaptureOpen(false);
+      setSessionName("");
+      setTargetUrl("");
+      setToast({ tone: "success", message: "Browser launched. Log in manually, then close the browser when done." });
       await refresh();
     } catch (err: any) {
       setToast({ tone: "error", message: err?.message ?? "Failed to start session capture." });
@@ -167,9 +226,8 @@ export function SessionsManager() {
     }
   };
 
-  const focusCapture = () => {
-    captureNameRef.current?.scrollIntoView({ block: "center" });
-    captureNameRef.current?.focus();
+  const openCapture = () => {
+    if (!captureStatus.active) setCaptureOpen(true);
   };
 
   usePageChrome(
@@ -178,315 +236,259 @@ export function SessionsManager() {
         {
           id: "capture-session",
           label: "Capture session",
-          icon: <Play size={15} aria-hidden="true" />,
+          icon: <Plus size={15} aria-hidden="true" />,
           variant: "primary",
-          disabled: captureStatus.active,
-          onClick: focusCapture,
-          title: captureStatus.active ? "A session capture is already active" : "Focus the session capture details"
-        },
-        {
-          id: "refresh-sessions",
-          label: "Refresh",
-          icon: <RefreshCw size={15} aria-hidden="true" />,
-          onClick: () => void refresh(),
-          title: "Reload saved sessions and browser detection"
+          disabled: captureStatus.active || !browser?.found,
+          onClick: openCapture,
+          title: captureStatus.active
+            ? "A session capture is already active"
+            : browser?.found
+              ? "Open your real Chrome or Edge in an app-owned profile and capture the login"
+              : "Install Chrome or Edge to capture sessions"
         }
       ],
       dirty: false
     },
-    [captureStatus.active, refresh]
+    [captureStatus.active, browser?.found]
   );
 
-  // ─── Render ─────────────────────────────────────────────────────────
-  // Status pills use the shared status-token trio (-soft fill, base ink, -muted border) so
-  // they track the theme. Never concatenate alpha onto a var() string — `var(--x)1a` is
-  // invalid CSS and the declaration is silently dropped.
-  const statusTone = (s: SessionProfile["status"]) =>
-    s === "ready" ? "success" : s === "capturing" ? "warning" : "danger";
-
-  const statusLabel = (s: SessionProfile["status"]) =>
-    s === "ready" ? "Ready" : s === "capturing" ? "Capturing…" : "Error";
+  const sessionNameById = (id?: string) => profiles.find((profile) => profile.id === id)?.name;
 
   return (
-    <section className="page sessions-system-page operations-system-page">
+    <SysPage className="sessions-page">
       <h1 className="sr-only">Sessions</h1>
 
-      <section className={`operations-system-banner sessions-browser-banner ${browser?.found ? "tone-success" : "tone-danger"}`}>
-        <Chrome size={20} aria-hidden="true" />
-        {browser?.found ? (
-          <span>
-            <strong>{browser.browser === "chrome" ? "Google Chrome" : "Microsoft Edge"}</strong> detected at{" "}
-            <code>{browser.path}</code>
-          </span>
-        ) : (
-          <span>
-            No Chrome or Edge browser found. Install one to use Session Capture.
-          </span>
-        )}
-      </section>
+      {browser?.found ? (
+        <SysBanner tone="success" icon={Chrome}>
+          <strong>{browser.browser === "chrome" ? "Google Chrome" : "Microsoft Edge"}</strong> detected at <code>{browser.path}</code>
+        </SysBanner>
+      ) : browser ? (
+        <SysBanner tone="danger" icon={Chrome}>
+          No Chrome or Edge browser found. Install one to use Session Capture.
+        </SysBanner>
+      ) : null}
 
-      <section className="operations-system-panel sessions-capture-panel" aria-labelledby="capture-session-heading">
-        <div className="operations-system-panel-head">
-          <div>
-            <h2 id="capture-session-heading"><KeyRound size={18} aria-hidden="true" />Capture session</h2>
-            <span>Open a real Chrome or Edge profile, sign in manually, then close it to save the reusable session.</span>
-          </div>
-          <span className={`state-pill sessions-capture-status ${captureStatus.active ? "is-capturing" : "is-idle"}`}>
-            {captureStatus.active ? "Capture active" : "Ready to capture"}
-          </span>
-        </div>
+      <SysBanner tone="info" icon={KeyRound}>
+        Session capture opens your real Chrome or Edge — not the automation Chromium — in an app-owned profile, so sign-in pages
+        will not block you. Log in, close the browser, then reuse the saved login state through the Reuse Session node in any flow.
+      </SysBanner>
 
-        {captureStatus.active ? (
-          <div className="sessions-active-capture">
-            <div className="sessions-active-capture-title">
-              <Loader2 size={18} className="sessions-spin" aria-hidden="true" />
-              <strong>Browser is open — log in manually</strong>
-            </div>
-            <p>
-              Session: <strong>{captureStatus.sessionName}</strong>
-              {captureStatus.browserPid ? ` (PID ${captureStatus.browserPid})` : ""}.
-              Complete your login, then <strong>close the browser window</strong> when done.
-              The session profile will be saved automatically.
-            </p>
-            <button
-              onClick={handleStopCapture}
-              className="toolbar-button danger"
-              type="button"
-            >
-              <Square size={14} />
-              Force Close Browser
-            </button>
-          </div>
-        ) : (
-          <div className="sessions-capture-form">
-            <div className="sessions-capture-fields">
-              <label className="sessions-field">
-                  Session Name
-                <input
-                  ref={captureNameRef}
-                  type="text"
-                  value={sessionName}
-                  onChange={(e) => setSessionName(e.target.value)}
-                  placeholder="e.g. Google Work Account"
-                />
-              </label>
-              <label className="sessions-field">
-                  Target URL <span className="sessions-field-optional">(optional)</span>
-                <span className="sessions-url-input">
-                  <Globe size={14} aria-hidden="true" />
+      {captureStatus.active ? (
+        <SysBanner tone="warning" icon={Loader2} actionLabel="Force close browser" onAction={() => void handleStopCapture()}>
+          Browser is open — log in manually. Session <strong>{captureStatus.sessionName}</strong>
+          {captureStatus.browserPid ? ` (PID ${captureStatus.browserPid})` : ""}: complete your login, then close the browser window.
+          The session profile is saved automatically.
+        </SysBanner>
+      ) : captureStatus.status === "closed" ? (
+        <SysBanner tone="success" icon={CheckCircle2}>
+          Session captured successfully! You can now select it when running a workflow.
+        </SysBanner>
+      ) : null}
+
+      <SysPanels min={640}>
+        <SysPanel
+          wide
+          icon={KeyRound}
+          title="Saved sessions"
+          meta={`${profiles.length} session${profiles.length === 1 ? "" : "s"} · stored in app-owned scoped profiles`}
+          className="sessions-panel"
+          actions={
+            <>
+              {profiles.length > 0 ? (
+                <span className="sys-search sessions-search">
+                  <Search size={14} strokeWidth={1.9} aria-hidden="true" />
                   <input
-                    type="text"
-                    value={targetUrl}
-                    onChange={(e) => setTargetUrl(e.target.value)}
-                    placeholder="https://accounts.google.com"
+                    value={search}
+                    aria-label="Search sessions"
+                    placeholder="Search by name, URL, or status…"
+                    onChange={(event) => setSearch(event.target.value)}
                   />
                 </span>
-              </label>
-            </div>
-            <div className="sessions-capture-actions">
-              <button
-                disabled={isStarting || !browser?.found || !sessionName.trim()}
-                onClick={handleStartCapture}
-                className="toolbar-button primary"
-                type="button"
-              >
-                <Play size={15} />
-                {isStarting ? "Launching…" : "Open Browser & Capture Session"}
-              </button>
-              <button
-                onClick={refresh}
-                title="Refresh"
-                className="toolbar-button"
-                type="button"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="operations-system-banner sessions-security-banner tone-info">
-        <Info size={16} aria-hidden="true" />
-        <div>
-          <strong>How it works:</strong> This opens your real Chrome/Edge browser — not the
-          automation Chromium — so login pages like Google won't block you. After you log in
-          and close the browser, select the saved session when running a workflow. The
-          automation browser will reuse your login state.
-        </div>
-      </section>
-
-      <section className="table-surface sessions-table-surface" aria-labelledby="saved-sessions-heading">
-        <div className="table-surface-head">
-          <h2 id="saved-sessions-heading">Saved sessions</h2>
-          <span className="table-surface-count">{filtered.length} session{filtered.length === 1 ? "" : "s"}</span>
-        </div>
-
-        <div className="table-search sessions-search">
-          <Search size={15} />
-          <input
-            value={search}
-            placeholder="Search by name, URL, or status…"
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-          {search ? (
-            <button type="button" title="Clear search" onClick={() => { setSearch(""); setPage(1); }}>
-              <X size={14} />
-            </button>
-          ) : null}
-        </div>
-
-        {profiles.length === 0 ? (
-          <TableEmptyState
-            filtered={false}
-            title="No saved sessions yet."
-            hint="Capture a session above to start. Your login will be saved for reuse in automation runs."
-          />
-        ) : filtered.length === 0 ? (
-          <TableEmptyState filtered title="No matching sessions found." hint="Adjust your search." />
-        ) : (
-          <>
-            <div className="wl-table-wrapper">
-                <table className="wl-table sessions-table">
-                  <colgroup>
-                    <col className="sessions-col-status" />
-                    <col className="sessions-col-name" />
-                    <col className="sessions-col-target" />
-                    <col className="sessions-col-source" />
-                    <col className="sessions-col-created" />
-                    <col className="sessions-col-last-used" />
-                    <col className="sessions-col-browser" />
-                    <col className="sessions-col-actions" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Name</th>
-                    <th>Target URL</th>
-                    <th>Source</th>
-                    <th>Created</th>
-                    <th>Last Used</th>
-                    <th>Browser</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paged.map((profile) => (
-                    <tr key={profile.id}>
-                      <td className="sessions-status-cell">
-                        <span
-                          className={`state-pill sessions-status-pill tone-${statusTone(profile.status)}`}
-                          title={statusLabel(profile.status)}
-                        >
-                          {statusLabel(profile.status)}
-                        </span>
-                      </td>
-                      <td className="sessions-name-cell" title={profile.name}>
-                        {renamingId === profile.id ? (
+              ) : null}
+              <SysButton kind="smallPrimary" icon={Plus} disabled={captureStatus.active || !browser?.found} onClick={openCapture}>
+                Capture
+              </SysButton>
+              <SysButton kind="small" icon={RefreshCw} onClick={() => void refresh()} title="Reload saved sessions and browser detection">
+                Refresh
+              </SysButton>
+            </>
+          }
+        >
+          {profiles.length === 0 ? (
+            <SysPanelEmpty icon={KeyRound} title="No saved sessions yet" hint="Capture a session to start. Your login will be saved for reuse in automation runs." />
+          ) : filtered.length === 0 ? (
+            <SysPanelEmpty icon={Search} title="No matching sessions found" hint="Adjust your search." />
+          ) : (
+            <div className="sessions-list">
+              <SysList label="Saved sessions">
+                {filtered.map((profile) => {
+                  const status = STATUS[profile.status] ?? STATUS.error;
+                  const browserName = browserLabel(profile.browserPath);
+                  const target = profile.targetUrl || profile.origin || "";
+                  const meta = [
+                    sourceLabel(profile.source),
+                    `captured ${shortDate(profile.createdAt)}`,
+                    `last used ${shortDate(profile.lastUsedAt)}`,
+                    browserName
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <SysListRow
+                      key={profile.id}
+                      className="sessions-row"
+                      icon={profile.status === "error" ? XCircle : profile.status === "capturing" ? Clock : Globe}
+                      tone={status.tone === "success" ? "running" : status.tone}
+                      titleAttr={profile.name}
+                      title={
+                        renamingId === profile.id ? (
                           <input
                             autoFocus
-                            className="sessions-rename-input"
+                            className="sys-control sessions-rename-input"
+                            aria-label={`Rename ${profile.name}`}
                             value={renameValue}
                             onChange={(e) => setRenameValue(e.target.value)}
-                            onBlur={() => handleRenameSubmit(profile.id)}
+                            onBlur={() => void handleRenameSubmit(profile.id)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") handleRenameSubmit(profile.id);
+                              if (e.key === "Enter") void handleRenameSubmit(profile.id);
                               if (e.key === "Escape") setRenamingId(null);
                             }}
                           />
                         ) : (
-                          <strong className="sessions-name-value">{profile.name}</strong>
-                        )}
-                      </td>
-                      <td className="sessions-target-cell">
-                        <span className="sessions-target-value">
+                          profile.name
+                        )
+                      }
+                      badge={status.label}
+                      badgeTone={status.tone}
+                      actions={
+                        <>
+                          <SysIconButton icon={Edit3} label={`Rename ${profile.name}`} title="Rename" disabled={profile.status === "capturing"} onClick={() => handleRenameStart(profile)} />
+                          <SysIconButton icon={FolderOpen} label={`Open profile folder for ${profile.name}`} title="Open profile folder" onClick={() => void handleOpenFolder(profile)} />
+                          <SysIconButton icon={Trash2} tone="danger" label={`Delete ${profile.name}`} title="Delete session" disabled={profile.status === "capturing"} onClick={() => setDeleting(profile)} />
+                        </>
+                      }
+                    >
+                      <span className="sessions-row-sub">
+                        {target ? (
                           <span className="sessions-target-url" title={profile.targetUrl || undefined}>
-                            {profile.targetUrl || "—"}
+                            {target}
                           </span>
-                          {profile.origin && profile.origin !== profile.targetUrl ? (
-                            <span className="sessions-target-origin" title={`origin: ${profile.origin}`}>origin: {profile.origin}</span>
-                          ) : null}
-                        </span>
-                      </td>
-                      <td className="sessions-source-cell">
-                        <span className="sessions-source-value">
-                          {profile.source === "autoSecureLogin" ? "Auto login" : profile.source === "imported" ? "Imported" : "Manual"}
-                        </span>
-                      </td>
-                      <td className="sessions-date-cell" title={new Date(profile.createdAt).toLocaleString()}>
-                        <span className="sessions-date-value">
-                          <Clock size={12} />
-                          {new Date(profile.createdAt).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="sessions-date-cell">
-                        <span className="sessions-date-value">
-                          {profile.lastUsedAt
-                            ? new Date(profile.lastUsedAt).toLocaleDateString()
-                            : "Never"}
-                        </span>
-                      </td>
-                      <td className="sessions-browser-cell">
-                        <span className="sessions-browser-value">
-                          {profile.browserPath?.includes("msedge") ? "Edge" : profile.browserPath?.includes("chrome") ? "Chrome" : "—"}
-                        </span>
-                      </td>
-                      <td className="sessions-actions-cell">
-                        <div className="table-actions sessions-actions">
-                          <button
-                            type="button"
-                            title="Rename"
-                            onClick={() => handleRenameStart(profile)}
-                            disabled={profile.status === "capturing"}
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Open profile folder"
-                            onClick={() => handleOpenFolder(profile)}
-                          >
-                            <FolderOpen size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Delete session"
-                            onClick={() => handleDelete(profile.id)}
-                            disabled={profile.status === "capturing"}
-                            className="sessions-delete-action"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        ) : (
+                          <span className="sessions-target-url">No target URL</span>
+                        )}
+                        {profile.origin && profile.origin !== profile.targetUrl ? (
+                          <span className="sessions-target-origin" title={`origin: ${profile.origin}`}>
+                            origin: {profile.origin}
+                          </span>
+                        ) : null}
+                        <span className="sessions-row-meta">{meta}</span>
+                      </span>
+                    </SysListRow>
+                  );
+                })}
+              </SysList>
             </div>
-            <DataTablePagination
-              page={pageClamped}
-              totalPages={totalPages}
-              total={filtered.length}
-              pageSize={pageSize}
-              onPage={setPage}
-              onPageSize={(s) => { setPageSize(s); setPage(1); }}
-            />
-          </>
-        )}
-      </section>
+          )}
+        </SysPanel>
+      </SysPanels>
 
-      {/* ── Capture completion toast ─ */}
-      {captureStatus.status === "closed" && !captureStatus.active && (
-        <section className="operations-system-banner sessions-capture-complete tone-success">
-          <CheckCircle2 size={18} aria-hidden="true" />
-          <span>
-            Session captured successfully! You can now select it when running a workflow.
-          </span>
-        </section>
-      )}
+      <SysPanels>
+        <SysPanel icon={GitBranch} title="Reuse Session bindings" meta="Which flows consume which session">
+          {bindings.length === 0 ? (
+            <SysPanelEmpty icon={GitBranch} title="No Reuse Session nodes yet" hint="Add a Reuse Session node to a flow to load a captured session before the flow runs." />
+          ) : (
+            <SysList label="Reuse Session bindings">
+              {bindings.map((binding, index) => {
+                const bound = binding.mode === "selected" ? sessionNameById(binding.sessionId) : undefined;
+                const missing = binding.mode === "selected" && !bound;
+                return (
+                  <SysListRow
+                    key={`${binding.flowName}-${binding.stepName}-${index}`}
+                    icon={missing ? ShieldAlert : GitBranch}
+                    tone={missing ? "warning" : "running"}
+                    title={`${binding.flowName} · ${binding.stepName}`}
+                    sub={
+                      binding.mode === "selected"
+                        ? missing
+                          ? "The selected session no longer exists — the run will pause for handoff"
+                          : `Reuse Session node → ${bound}`
+                        : "Reuse Session node → auto-detected by target origin"
+                    }
+                    badge={missing ? "Will pause" : binding.mode === "selected" ? "Bound" : "Auto-detect"}
+                    badgeTone={missing ? "warning" : binding.mode === "selected" ? "success" : "info"}
+                  />
+                );
+              })}
+            </SysList>
+          )}
+        </SysPanel>
+
+        <SysPanel icon={ShieldAlert} tone="warning" title="Capture contract" meta="Product behaviour, not a preference">
+          <SysChecklist label="Capture contract">
+            <SysCheckRow tone="success" title="The app never automates a login page" sub="MFA, OTP, CAPTCHA, passkey and approval surfaces are completed by you" badge="Enforced" />
+            <SysCheckRow tone="success" title="The run pauses and preserves the draft" sub="The automation browser closes; nothing is lost" badge="Enforced" />
+            <SysCheckRow tone="success" title="Handoff uses your real Chrome" sub="In an app-owned scoped session profile, never your default profile" badge="Enforced" />
+          </SysChecklist>
+        </SysPanel>
+      </SysPanels>
+
+      {captureOpen ? (
+        <SysModal
+          icon={KeyRound}
+          title="Capture session"
+          message="Opens your real Chrome or Edge in an app-owned profile. Sign in manually, then close the browser to save the reusable session."
+          width={480}
+          closeDisabled={isStarting}
+          onClose={() => setCaptureOpen(false)}
+          onSubmit={() => void handleStartCapture()}
+          actions={
+            <>
+              <SysButton kind="secondary" onClick={() => setCaptureOpen(false)} disabled={isStarting}>Cancel</SysButton>
+              <SysButton kind="primary" type="submit" icon={Globe} disabled={isStarting || !browser?.found || !sessionName.trim()}>
+                {isStarting ? "Launching…" : "Open browser & capture"}
+              </SysButton>
+            </>
+          }
+        >
+          <SysModalFields>
+            <SysField label="Session name" wide>
+              <input className="sys-control" autoFocus value={sessionName} onChange={(e) => setSessionName(e.target.value)} placeholder="e.g. Google Work Account" />
+            </SysField>
+            <SysField label="Target URL" wide hint="Optional — the page the browser opens first">
+              <input className="sys-control is-mono" value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} placeholder="https://accounts.google.com" />
+            </SysField>
+          </SysModalFields>
+        </SysModal>
+      ) : null}
+
+      {deleting ? (
+        <SysModal
+          role="alertdialog"
+          tone="danger"
+          icon={Trash2}
+          width={420}
+          title={`Delete “${deleting.name}”?`}
+          message="The saved login state and its profile folder are removed. Flows bound to this session will pause for handoff."
+          onClose={() => setDeleting(null)}
+          actions={
+            <>
+              <SysButton kind="secondary" onClick={() => setDeleting(null)}>Cancel</SysButton>
+              <SysButton
+                kind="danger"
+                onClick={() => {
+                  const id = deleting.id;
+                  setDeleting(null);
+                  void handleDelete(id);
+                }}
+              >
+                Delete session
+              </SysButton>
+            </>
+          }
+        />
+      ) : null}
 
       <Toast toast={toast} onDismiss={() => setToast(null)} />
-    </section>
+    </SysPage>
   );
 }

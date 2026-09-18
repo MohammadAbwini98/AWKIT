@@ -189,11 +189,14 @@ async function createUser(
   win: Page,
   input: { username: string; displayName: string; password: string; roles: string[] }
 ): Promise<void> {
-  const form = win.locator(".awkit-admin-create-form");
+  // The Users page opens "Create user" as a design dialog from its administration head.
+  const form = win.locator(".users-create-modal");
+  await win.locator(".sys-admin-actions").getByRole("button", { name: "Create user", exact: true }).click();
+  await form.waitFor({ state: "visible", timeout: 10_000 });
   await form.locator("label", { hasText: "Username" }).locator("input").first().fill(input.username);
   await form.locator("label", { hasText: "Display name" }).locator("input").first().fill(input.displayName);
   await form.locator('input[type="password"]').first().fill(input.password);
-  const roleOptions = form.locator(".awkit-admin-role-option");
+  const roleOptions = form.locator(".sys-check-pill");
   for (let index = 0; index < (await roleOptions.count()); index += 1) {
     const option = roleOptions.nth(index);
     await option.locator('input[type="checkbox"]').setChecked(input.roles.includes((await option.innerText()).trim()));
@@ -811,7 +814,9 @@ env.PRODUCTION_OFFLINE = "true";
 delete env.ELECTRON_RUN_AS_NODE;
 
 const rendererErrors: string[] = [];
-const app = await electron.launch({ args: [root], cwd: root, env });
+// An explicit user-data dir isolates Electron's single-instance lock from any other SpecterStudio
+// instance on the machine (the lock is keyed before AWKIT reads LOCALAPPDATA).
+const app = await electron.launch({ args: [root, `--user-data-dir=${join(dataRoot, "Roaming", "SpecterStudio")}`], cwd: root, env });
 try {
   const win = await resolveMainWindow(app);
   win.on("console", (message: ConsoleMessage) => {
@@ -859,7 +864,7 @@ try {
 
   // Seed Viewer + no-role accounts for UI/deep-link/direct-IPC authorization checks.
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 15_000 });
+  await win.locator(".sys-admin-head").getByRole("heading", { name: "Users", exact: true }).waitFor({ timeout: 15_000 });
   await createUser(win, {
     username: viewer.username,
     displayName: "Reports Viewer",
@@ -885,7 +890,7 @@ try {
   }, { username: noRole.username, password: noRole.temporary });
   check(
     "authorization fixture users were created",
-    (await win.getByText(`@${viewer.username}`).count()) > 0 && noRoleCreated.ok,
+    (await win.locator(".users-page .sys-table tbody tr", { hasText: viewer.username }).count()) > 0 && noRoleCreated.ok,
     noRoleCreated.reason
   );
 

@@ -29,6 +29,8 @@ import {
 } from "./lib/gui-verify-harness.mjs";
 import {
   createUser,
+  userRows,
+  waitForUsersPage,
   genPassword,
   loginAs,
   navClick,
@@ -160,7 +162,7 @@ const channels = [
   "start"
 ] as const;
 
-const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-authz", {
+const { env, dataRoot, electronArgs, cleanup } = isolatedLaunchEnv("awkit-recorder-authz", {
   PRODUCTION_OFFLINE: "true"
 });
 
@@ -180,7 +182,7 @@ let app: ElectronApplication | undefined;
 let win: Page | undefined;
 
 try {
-  app = await electron.launch({ args: [root], cwd: root, env });
+  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
   win = (await resolveMainWindow(app)) as Page;
   win.on("console", (message: ConsoleMessage) => {
     if (message.type() === "error") rendererErrors.push(message.text());
@@ -226,7 +228,7 @@ try {
 
   // ── Phase B — provision a role without `page.recorder` and one with it. ───────────────────────
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 15_000 });
+  await waitForUsersPage(win, 15_000);
   await createUser(win, {
     username: viewer.username,
     displayName: "Recorder Viewer",
@@ -241,7 +243,7 @@ try {
   });
   check(
     "REC-028 Viewer and Operator fixtures created",
-    (await win.getByText(`@${viewer.username}`).count()) > 0 && (await win.getByText(`@${operator.username}`).count()) > 0
+    (await userRows(win, viewer.username).count()) > 0 && (await userRows(win, operator.username).count()) > 0
   );
 
   // ── Phase C — Viewer holds no `page.recorder`. Every channel must refuse. ─────────────────────

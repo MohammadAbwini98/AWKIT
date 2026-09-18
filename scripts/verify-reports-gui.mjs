@@ -65,7 +65,9 @@ async function resolveMainWindow(app, timeoutMs = 40000) {
 }
 
 const consoleErrors = [];
-const app = await electron.launch({ args: [root], cwd: root, env });
+// An explicit user-data dir isolates Electron's single-instance lock from any other SpecterStudio
+// instance on the machine (the lock is keyed before AWKIT reads LOCALAPPDATA).
+const app = await electron.launch({ args: [root, `--user-data-dir=${path.join(dataRoot, "Roaming", "SpecterStudio")}`], cwd: root, env });
 try {
   const win = await resolveMainWindow(app);
   win.on("console", (msg) => {

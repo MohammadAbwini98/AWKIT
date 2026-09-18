@@ -34,8 +34,8 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
 
 // ── Launch 1: full lifecycle on a fresh profile ────────────────────────────────
 {
-  const { env, cleanup } = isolatedLaunchEnv("awkit-e2e-auth");
-  const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env });
+  const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-e2e-auth");
+  const app = await electron.launch({ args: [repoRoot, ...electronArgs], cwd: repoRoot, env });
   try {
     const win = await resolveMainWindow(app);
     const consoleWatch = watchConsole(win);
@@ -81,16 +81,20 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
     // 4 — create user with a weak temp password → rejected, absent from the list.
     consoleWatch.setLabel("user admin");
     await navClick(win, "Users");
-    await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 10000 });
+    await win.locator(".sys-admin-head").getByRole("heading", { name: "Users" }).waitFor({ timeout: 10000 });
+    // A user row is matched by its username inside the directory table (the design shows it as the
+    // row's sub-line, without the old "@" prefix).
+    const userRows = (username) => win.locator(".users-page .sys-table tbody tr", { hasText: username });
+    const createError = () => win.locator(".users-create-modal .sys-form-error");
     await createUser(win, { username: OP.username, password: "weakpw", roles: ["Operator"] });
-    check("admin: weak temp password rejected with a message", (await win.locator(".form-message.error").count()) >= 1);
-    check("admin: rejected user is absent from the list", (await win.getByText(`@${OP.username}`).count()) === 0);
+    check("admin: weak temp password rejected with a message", (await createError().count()) >= 1);
+    check("admin: rejected user is absent from the list", (await userRows(OP.username).count()) === 0);
 
     // 5 — compliant create with a DOUBLE-CLICK on Create user → exactly one row (no duplicate).
-    const form = win.locator(".awkit-admin-create-form");
+    const form = win.locator(".users-create-modal");
     await form.locator("label", { hasText: "Username" }).locator("input").first().fill(OP.username);
     await form.locator('input[type="password"]').first().fill(OP.temp);
-    const options = form.locator(".awkit-admin-role-option");
+    const options = form.locator(".sys-check-pill");
     const optionCount = await options.count();
     for (let i = 0; i < optionCount; i++) {
       const option = options.nth(i);
@@ -99,16 +103,19 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
     }
     await form.getByRole("button", { name: "Create user", exact: true }).dblclick();
     await win.waitForTimeout(1200);
-    const opRows = await win.locator("tr", { hasText: `@${OP.username}` }).count();
+    const opRows = await userRows(OP.username).count();
     check("admin: double-clicked create yields exactly one user row", opRows === 1, `rows=${opRows}`);
-    const opRow = win.locator("tr", { hasText: `@${OP.username}` }).first();
-    check("admin: new user carries the must-reset badge", (await opRow.getByText("must reset").count()) >= 1);
+    const opRow = userRows(OP.username).first();
+    check("admin: new user carries the must-reset badge", (await opRow.getByText("Reset pending").count()) >= 1);
     await win.screenshot({ path: path.join(shotDir, "02-user-created.png") }).catch(() => undefined);
 
     // 6 — duplicate username rejected; list unchanged.
     await createUser(win, { username: OP.username, password: genPassword("Dup"), roles: ["Operator"] });
-    check("admin: duplicate username rejected with a message", (await win.locator(".form-message.error").count()) >= 1);
-    check("admin: duplicate create leaves one row", (await win.locator("tr", { hasText: `@${OP.username}` }).count()) === 1);
+    check("admin: duplicate username rejected with a message", (await createError().count()) >= 1);
+    check("admin: duplicate create leaves one row", (await userRows(OP.username).count()) === 1);
+    // The rejected dialog stays open with its error; dismiss it before leaving the page.
+    await form.getByRole("button", { name: "Cancel", exact: true }).click();
+    await form.waitFor({ state: "hidden", timeout: 8000 });
 
     // 7 — sign out via the AccountMenu returns to login.
     await signOut(win);
@@ -166,7 +173,7 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
     await loginAs(win, SU.username, SU.password);
     await win.waitForSelector(".app-shell", { timeout: 20000 });
     await navClick(win, "Users");
-    const row = () => win.locator("tr", { hasText: `@${OP.username}` }).first();
+    const row = () => win.locator(".users-page .sys-table tbody tr", { hasText: OP.username }).first();
     await row().getByRole("button", { name: "Disable", exact: true }).click();
     await win.waitForTimeout(900);
     check("admin: disable updates the status badge", (await row().getByText("Disabled").count()) >= 1);
@@ -182,10 +189,10 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
     await row().getByRole("button", { name: "Enable", exact: true }).click();
     await win.waitForTimeout(900);
     await row().getByRole("button", { name: "Reset password", exact: true }).click();
-    const modal = win.locator(".awkit-admin-modal");
+    const modal = win.locator(".users-reset-modal");
     await modal.waitFor({ timeout: 8000 });
     await modal.locator('input[type="password"]').first().fill(OP.temp2);
-    await modal.getByRole("button", { name: "Reset password", exact: true }).click();
+    await modal.getByRole("button", { name: "Reset and revoke", exact: true }).click();
     await win.waitForTimeout(900);
     await signOut(win);
     await loginAs(win, OP.username, OP.temp2);
@@ -202,8 +209,8 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
 
 // ── Launch 2: proactive idle lock (spec step 14) on its own short-idle profile ─
 {
-  const { env, cleanup } = isolatedLaunchEnv("awkit-e2e-auth-idle", { AWKIT_SESSION_IDLE_MS: "4000" });
-  const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env });
+  const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-e2e-auth-idle", { AWKIT_SESSION_IDLE_MS: "4000" });
+  const app = await electron.launch({ args: [repoRoot, ...electronArgs], cwd: repoRoot, env });
   try {
     const win = await resolveMainWindow(app);
     await win.waitForLoadState("domcontentloaded");

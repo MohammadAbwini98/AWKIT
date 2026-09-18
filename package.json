@@ -244,6 +244,7 @@
     "verify:authz": "tsx scripts/verify-authz.mts",
     "verify:session-context": "tsx scripts/verify-session-context.mts",
     "verify:admin-gui": "node scripts/verify-admin-gui.mjs",
+    "verify:system-pages-gui": "node scripts/verify-system-pages-gui.mjs",
     "verify:e2e-auth": "node scripts/verify-e2e-auth-gui.mjs",
     "verify:e2e-rbac": "node scripts/verify-e2e-rbac-gui.mjs",
     "verify:e2e-licensing": "node scripts/verify-e2e-licensing-gui.mjs",

@@ -87,8 +87,19 @@ export async function signOut(win) {
   await win.waitForSelector("#awkit-login-username", { timeout: 15000 });
 }
 
-/** Click a left-nav item (group item or footer) by its exact visible label. */
+/**
+ * Click a left-nav item (group item or footer) by its exact visible label. Right after sign-in the
+ * permission-filtered nav may not have rendered yet, so wait (bounded) for the item before clicking;
+ * an item that never appears still falls through to the old silent no-op.
+ */
 export async function navClick(win, label) {
+  await win
+    .waitForFunction(
+      (text) => [...document.querySelectorAll("button.nav-item")].some((b) => (b.textContent || "").trim() === text),
+      label,
+      { timeout: 5000 }
+    )
+    .catch(() => undefined);
   await win.evaluate((text) => {
     const item = [...document.querySelectorAll("button.nav-item")].find(
       (b) => (b.textContent || "").trim() === text
@@ -107,18 +118,42 @@ export async function navLabels(win) {
   );
 }
 
+/** Wait for the Users page's design frame (the administration head titled "Users"). */
+export async function waitForUsersPage(win, timeout = 10000) {
+  await win
+    .locator(".sys-admin-head")
+    .getByRole("heading", { name: "Users", exact: true })
+    .waitFor({ timeout })
+    .catch(async (error) => {
+      // Evidence for the failure: what the window showed instead of the Users page.
+      mkdirSync(artifactRoot, { recursive: true });
+      await win.screenshot({ path: path.join(artifactRoot, "users-page-timeout.png") }).catch(() => undefined);
+      throw error;
+    });
+}
+
+/** Directory rows on the Users page for a username (shown as each row's sub-line). */
+export function userRows(win, username) {
+  return win.locator(".users-page .sys-table tbody tr", { hasText: username });
+}
+
 /**
- * Fill + submit the "Add a user" card on the Users page. `roles` is the exact set of role names to
- * check (all other role checkboxes are unchecked). Waits briefly for the IPC round-trip.
+ * Open the Users page "Create user" dialog (unless a rejected attempt left it open), fill it and
+ * submit. `roles` is the exact set of role names to check (all other role pills are unchecked).
+ * Waits briefly for the IPC round-trip; a rejection keeps the dialog open with its inline error.
  */
 export async function createUser(win, { username, displayName, password, roles }) {
-  const form = win.locator(".awkit-admin-create-form");
+  const form = win.locator(".users-create-modal");
+  if (!(await form.isVisible())) {
+    await win.locator(".sys-admin-actions").getByRole("button", { name: "Create user", exact: true }).click();
+    await form.waitFor({ state: "visible", timeout: 10000 });
+  }
   await form.locator("label", { hasText: "Username" }).locator("input").first().fill(username);
   if (displayName) {
     await form.locator("label", { hasText: "Display name" }).locator("input").first().fill(displayName);
   }
   await form.locator('input[type="password"]').first().fill(password);
-  const options = form.locator(".awkit-admin-role-option");
+  const options = form.locator(".sys-check-pill");
   const count = await options.count();
   for (let i = 0; i < count; i++) {
     const option = options.nth(i);

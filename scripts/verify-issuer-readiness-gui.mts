@@ -30,6 +30,7 @@ import {
 } from "./lib/gui-verify-harness.mjs";
 import {
   createUser,
+  waitForUsersPage,
   genPassword,
   loginAs,
   navClick,
@@ -129,7 +130,7 @@ async function readIssuerPanel(win: Page) {
 async function openIssuerConsole(win: Page): Promise<void> {
   await signInFirstRun(win);
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 15000 });
+  await waitForUsersPage(win, 15000);
   await createUser(win, { username: issuer.username, password: issuer.temporary, roles: ["Issuer"] });
   await signOut(win);
   await loginAs(win, issuer.username, issuer.temporary);
@@ -141,8 +142,8 @@ async function openIssuerConsole(win: Page): Promise<void> {
 }
 
 async function launch(label: string, extraEnv: Record<string, string> = {}) {
-  const { env, cleanup } = isolatedLaunchEnv(label, extraEnv);
-  const app: ElectronApplication = await electron.launch({ args: [path.join(root, "out", "main", "main.js")], env });
+  const { env, electronArgs, cleanup } = isolatedLaunchEnv(label, extraEnv);
+  const app: ElectronApplication = await electron.launch({ args: [path.join(root, "out", "main", "main.js"), ...electronArgs], env });
   return { app, cleanup };
 }
 

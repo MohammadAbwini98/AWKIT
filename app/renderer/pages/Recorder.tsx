@@ -1,11 +1,62 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw, ClipboardCheck, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  Bookmark,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock,
+  Copy,
+  CornerDownLeft,
+  ExternalLink,
+  Eye,
+  Fingerprint,
+  Globe,
+  KeyRound,
+  Link,
+  Link2,
+  ListChecks,
+  Play,
+  PlayCircle,
+  RefreshCw,
+  Save,
+  Search,
+  ShieldAlert,
+  StopCircle,
+  Trash2,
+  Video,
+  XCircle
+} from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
-import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
-import type { 
-  RecordedAction, 
-  RecordedUrl, 
+import {
+  SysBadge,
+  SysBanner,
+  SysBars,
+  SysButton,
+  SysCellActions,
+  SysCheckRow,
+  SysChecklist,
+  SysField,
+  SysIconButton,
+  SysList,
+  SysListRow,
+  SysMetric,
+  SysMetrics,
+  SysPage,
+  SysPagination,
+  SysPanel,
+  SysPanelEmpty,
+  SysPanels,
+  SysSwitch,
+  SysTableCard,
+  SysTableEmpty,
+  SysTimeline,
+  SysTimelineRow,
+  type SysTone
+} from "../components/system/SystemUI";
+import type {
+  RecordedAction,
+  RecordedUrl,
   RecorderHandoffInfo,
   AmbiguityState,
   AmbiguityResolutionChoice,
@@ -65,6 +116,8 @@ export function Recorder() {
   const reviewReturnFocusRef = useRef<HTMLElement | null>(null);
   const ambiguityDialogRef = useRef<HTMLElement | null>(null);
   const ambiguityReturnFocusRef = useRef<HTMLElement | null>(null);
+  // Session clock for the Elapsed metric: starts when capture goes live, freezes when it ends.
+  const [clock, setClock] = useState<{ start: number | null; stop: number | null; now: number }>(() => ({ start: null, stop: null, now: Date.now() }));
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -572,6 +625,23 @@ export function Recorder() {
   // AWKIT-REC-037: saving during an active handoff pause empties the service's in-memory actions
   // mid-pause, so it must be disabled for the whole pause — not only while isRecording.
   const saveDisabled = isRecording || handoffActive || isSaving || actions.length === 0 || !flowName.trim();
+  const hasDraft = actions.length > 0;
+  const live = isRecording || handoffActive;
+
+  useEffect(() => {
+    if (!live) {
+      setClock((current) => (current.start !== null && current.stop === null ? { ...current, stop: Date.now() } : current));
+      return;
+    }
+    setClock((current) => (current.start !== null && current.stop === null ? current : { start: Date.now(), stop: null, now: Date.now() }));
+    const tick = setInterval(() => setClock((current) => ({ ...current, now: Date.now() })), 1000);
+    return () => clearInterval(tick);
+  }, [live]);
+
+  // Header actions call through a ref so they always reach the latest handlers without
+  // re-publishing the page chrome on every recorded action.
+  const latest = useRef({ handleStart, handleStop, requestSave });
+  latest.current = { handleStart, handleStop, requestSave };
 
   usePageChrome(
     {
@@ -580,300 +650,340 @@ export function Recorder() {
           id: "start-recording",
           label: "Start Recording",
           icon: <PlayCircle size={15} aria-hidden="true" />,
-          variant: "primary",
+          variant: hasDraft && !live ? "default" : "primary",
           disabled: isRecording || handoffActive,
-          onClick: () => void handleStart(),
+          onClick: () => void latest.current.handleStart(),
           title: handoffActive ? "Finish or cancel the active secure-login handoff first" : "Start recording the target URL"
+        },
+        {
+          id: "stop-recording",
+          label: "Stop recording",
+          icon: <StopCircle size={15} aria-hidden="true" />,
+          variant: "danger",
+          disabled: !isRecording,
+          onClick: () => void latest.current.handleStop(),
+          title: "Stop recording and keep the captured steps"
+        },
+        {
+          id: "save-flow",
+          label: "Save as flow",
+          icon: <Save size={15} aria-hidden="true" />,
+          variant: hasDraft && !live ? "primary" : "default",
+          disabled: saveDisabled,
+          onClick: () => latest.current.requestSave(),
+          title: saveDisabled ? "Stop the recording and name the flow to save it" : "Save the captured steps to the Flow Library"
         }
       ],
       dirty: false
     },
-    [url, isRecording, handoffActive, captureWaitTime, captureSmartWaits, pendingRestoredDraft]
+    [isRecording, handoffActive, hasDraft, live, saveDisabled]
   );
 
+  const stepMix = useMemo(() => {
+    const mix = { interaction: 0, navigation: 0, wait: 0, strong: 0, medium: 0, brittle: 0 };
+    for (const action of actions) {
+      const tone = recorderActionTone(action.type);
+      if (tone === "nav") mix.navigation += 1;
+      else if (tone === "wait") mix.wait += 1;
+      else mix.interaction += 1;
+      const strength = locatorStrength(action);
+      if (strength) mix[strength] += 1;
+    }
+    return mix;
+  }, [actions]);
+  const located = stepMix.strong + stepMix.medium + stepMix.brittle;
+  const qualityPct = located ? Math.round((stepMix.strong / located) * 100) : null;
+  const unresolved = actions.filter((action) => action.locator?.resolution === "needs-review" || action.locator?.resolution === "invalid").length;
+  const riskyWaits = reviewSummary.counts.unsafe + reviewSummary.counts.incomplete;
+  const sessionLinked = handoff?.sessionName ?? (actions.some((action) => action.type === "reuseSession") ? "" : null);
+  const elapsedMs = clock.start === null ? null : (clock.stop ?? clock.now) - clock.start;
+  const statusLabel = isRecording ? "Recording" : handoffActive ? "Manual handoff" : hasDraft ? "Ready to save" : "Idle";
+  const handoffPhaseBadge =
+    handoff?.phase === "error" ? "Error" : handoff?.phase === "capturingSession" ? "Signing in" : handoff?.phase === "sessionCaptured" ? "Resuming" : "Paused";
+
   return (
-    <div className="page-content recorder-page operations-system-page">
+    <SysPage className="recorder-page">
       <h1 className="sr-only">Recorder</h1>
-      <div className="operations-system-metrics recorder-system-metrics" aria-label="Recorder summary">
-        <article className={`operations-system-metric ${isRecording ? "tone-danger" : handoffActive ? "tone-warning" : "tone-info"}`}>
-          <span className="operations-system-metric-icon" aria-hidden="true"><Video size={16} /></span>
-          <span className="operations-system-metric-label">Capture state</span>
-          <strong>{isRecording ? "Recording" : handoffActive ? "Paused" : actions.length > 0 ? "Ready" : "Idle"}</strong>
-          <small>{handoffActive ? "Manual handoff in progress" : isRecording ? "Live browser capture" : "Ready for a target URL"}</small>
-        </article>
-        <article className="operations-system-metric tone-neutral">
-          <span className="operations-system-metric-icon" aria-hidden="true"><Video size={16} /></span>
-          <span className="operations-system-metric-label">Captured actions</span>
-          <strong>{actions.length}</strong>
-          <small>{actions.length === 1 ? "Action in the current draft" : "Actions in the current draft"}</small>
-        </article>
-        <article className={`operations-system-metric ${captureSmartWaits ? "tone-success" : "tone-neutral"}`}>
-          <span className="operations-system-metric-icon" aria-hidden="true"><Sparkles size={16} /></span>
-          <span className="operations-system-metric-label">Smart waits</span>
-          <strong>{captureSmartWaits ? "On" : "Off"}</strong>
-          <small>{captureWaitTime ? "Time waits are captured too" : "Signal-based capture enabled"}</small>
-        </article>
-      </div>
-      <section className={`recorder-control-bar${isRecording ? " is-recording" : ""}`} aria-label="Recorder controls">
-        <header className="recorder-control-head">
-          <div className="recorder-control-title">
-            <Video size={18} />
-            <div>
-              <h3>Recorder Controls</h3>
-              <span>Capture browser actions into a reusable flow.</span>
-            </div>
-          </div>
-          {/* The page's primary state readout. `role="status"` (polite + atomic) so that starting,
-              stopping or pausing a recording is announced rather than only recoloured — a
-              screen-reader user otherwise has no signal that the recorder changed state at all. */}
-          <span
-            className={`recorder-status-pill${isRecording ? " is-recording" : handoffActive ? " is-handoff" : " is-idle"}`}
-            role="status"
-          >
-            {isRecording ? "Recording" : handoffActive ? "Manual handoff" : actions.length > 0 ? "Ready to save" : "Idle"}
-          </span>
-        </header>
-
-        <div className="recorder-url-row">
-          <label className="recorder-url-field">
-            <span className="recorder-field-label">Target URL</span>
-            <span className="recorder-url-input-shell">
-              <Link size={16} />
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isRecording}
-                placeholder="https://example.com"
-              />
-            </span>
-          </label>
-          <div className="recorder-control-actions">
-            <button
-              type="button"
-              className="toolbar-button recorder-favorite-toggle"
-              aria-pressed={Boolean(currentFavorite)}
-              aria-label={currentFavorite ? "Remove current URL from Favorites" : "Favorite current URL"}
-              title={currentFavorite ? "Remove current URL from Favorites" : "Favorite current URL"}
-              disabled={!url.trim() || favoriteBusy}
-              onClick={() => void toggleFavorite(url)}
-            >
-              <Bookmark size={16} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="toolbar-button recorder-button-subtle"
-              disabled={isRecording || !url.trim()}
-              onClick={() => void saveCurrentUrl()}
-              title="Save this URL to the reusable list"
-            >
-              <Save size={16} />
-              Save URL
-            </button>
-          </div>
-        </div>
-
-        <div className="recorder-switch-row">
-          <button
-            type="button"
-            className={`recorder-switch${captureSmartWaits ? " is-on" : ""}`}
-            role="switch"
-            aria-checked={captureSmartWaits}
-            disabled={isRecording}
-            onClick={toggleCaptureSmartWaits}
-            title="When on, condition-based waits are captured from page signals"
-          >
-            <span className="recorder-switch-track" aria-hidden><span /></span>
-            <Sparkles size={15} />
-            Smart waits {captureSmartWaits ? "On" : "Off"}
-          </button>
-          <button
-            type="button"
-            className={`recorder-switch recorder-switch-wait${captureWaitTime ? " is-on" : ""}`}
-            role="switch"
-            aria-checked={captureWaitTime}
-            disabled={isRecording}
-            onClick={toggleCaptureWaitTime}
-            title="When on, pauses between your actions are recorded as wait steps"
-          >
-            <span className="recorder-switch-track" aria-hidden><span /></span>
-            <Timer size={15} />
-            Capture waiting time {captureWaitTime ? "On" : "Off"}
-          </button>
-          <span className="recorder-switch-note">Records pauses of 0.5s or longer between actions as wait steps.</span>
-        </div>
-
-        <fieldset className="recorder-locator-mode" data-testid="recorder-locator-mode">
-          <legend>Locator Recording</legend>
-          <div className="recorder-locator-mode-options">
-            {(["default", "xpath"] as const).map((mode) => (
-              <label
-                key={mode}
-                className={`recorder-locator-mode-option${locatorRecordingMode === mode ? " is-active" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="recorder-locator-mode"
-                  value={mode}
-                  checked={locatorRecordingMode === mode}
-                  disabled={locatorModeBusy}
-                  onChange={() => void changeLocatorRecordingMode(mode)}
-                />
-                <span>{mode === "default" ? "Default" : "XPath"}</span>
-              </label>
-            ))}
-          </div>
-          <p className="recorder-locator-mode-help" aria-live="polite">
-            {locatorRecordingMode === "default"
-              ? "Uses AWKIT's existing resilient locator generation."
-              : "Records element locators as XPath. Existing actions keep their recorded strategy."}
-          </p>
-        </fieldset>
-
-        <div className="recorder-command-row">
-          <button
-            type="button"
-            className="toolbar-button recorder-button-danger"
-            disabled={!isRecording}
-            onClick={handleStop}
-          >
-            <StopCircle size={16} />
-            Stop
-          </button>
-          <button
-            type="button"
-            className="toolbar-button recorder-button-subtle"
-            disabled={!isRecording}
-            onClick={handleCancel}
-          >
-            <XCircle size={16} />
-            Cancel
-          </button>
-          {statusMsg ? <span className="recorder-status-text" role="status">{statusMsg}</span> : null}
-        </div>
-      </section>
-
-      {protectedDetectionIgnored && isRecording && !showHandoffPanel ? (
-        <div className="recorder-ignore-notice" role="status" data-testid="protected-ignore-notice">
-          <ShieldAlert size={15} />
-          <span>
-            Protected login detection is ignored for this Recorder session. Authentication and security
-            steps (login, MFA, CAPTCHA) must still be completed manually.
-          </span>
-        </div>
-      ) : null}
-
-      {/* Non-blocking security indicator: rendered BELOW the toolbar so it never covers the
-          Start/Stop/Cancel controls. Shown only while a session is actually running with the bypass. */}
-      {isRecording && ignoreHttpsErrors ? (
-        <section className="recorder-security-notice" role="status">
-          <ShieldAlert size={16} />
-          <span>
-            Certificate validation is disabled for this Recorder session. Change it in Settings → Recorder
-            Security.
-          </span>
-        </section>
-      ) : null}
 
       {showHandoffPanel && handoff ? (
-        <section
-          className={`recorder-handoff-panel${handoff.phase === "error" ? " is-error" : ""}`}
-          data-testid="protected-handoff-panel"
-          role="alertdialog"
-          aria-label="Protected login detected"
+        <SysBanner
+          tone={handoff.phase === "error" ? "danger" : "warning"}
+          icon={Fingerprint}
+          actionLabel={(handoff.phase === "detected" || handoff.phase === "error") && !handoffBusy ? "Open Chrome" : undefined}
+          onAction={() => void handleContinueBrowser()}
         >
-          <div className="recorder-handoff-head">
-            <ShieldAlert size={20} />
-            <h3>{handoff.phase === "error" ? "Secure login handoff error" : "Protected login or protected popup detected"}</h3>
-          </div>
-
-          <p>{handoff.message}</p>
-
-          <div className="recorder-handoff-meta">
-            <span><strong>Source:</strong> {handoff.sourceAlias}</span>
-            <span><strong>Reason:</strong> {handoff.reason}</span>
-            {handoff.origin ? <span><strong>Origin:</strong> {handoff.origin}</span> : null}
-            {handoff.signals.length > 0 ? <span><strong>Signals:</strong> {handoff.signals.join(", ")}</span> : null}
-          </div>
-
-          {handoff.phase === "error" && handoff.error ? (
-            <div className="recorder-handoff-error">{handoff.error}</div>
-          ) : null}
-
-          {handoff.phase === "capturingSession" ? (
-            <div className="recorder-handoff-session">
-              <label className="recorder-field-label">Session name (optional)</label>
-              <input
-                type="text"
-                value={sessionNameInput}
-                onChange={(e) => setSessionNameInput(e.target.value)}
-                placeholder="e.g. Acme Portal Login"
-                disabled={handoffBusy}
-              />
-              {handoff.sessionName ? <span>Saved session: {handoff.sessionName}</span> : null}
-            </div>
-          ) : null}
-
-          <div className="recorder-handoff-actions">
-            {handoff.phase === "detected" ? (
-              <button
-                type="button"
-                className="toolbar-button primary"
-                data-testid="handoff-ignore-continue"
-                disabled={handoffBusy}
-                onClick={() => void handleIgnoreProtected()}
-                title="Treat this as a false positive and keep recording on the same page. Does not bypass authentication."
-              >
-                <PlayCircle size={16} />
-                Ignore and continue recording
-              </button>
-            ) : null}
-
-            {handoff.phase === "detected" || handoff.phase === "error" ? (
-              <button
-                type="button"
-                className="toolbar-button"
-                data-testid="handoff-continue-browser"
-                disabled={handoffBusy}
-                onClick={() => void handleContinueBrowser()}
-              >
-                <ExternalLink size={16} />
-                {handoff.phase === "error" ? "Retry in normal browser" : "Continue using normal browser"}
-              </button>
-            ) : null}
-
-            {handoff.phase === "capturingSession" ? (
-              <button
-                type="button"
-                className="toolbar-button recorder-button-success"
-                data-testid="handoff-capture-resume"
-                disabled={handoffBusy}
-                onClick={() => void handleCaptureAndResume()}
-              >
-                {handoffBusy ? <RefreshCw size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                {handoffBusy ? "Capturing..." : "Capture Session & Resume"}
-              </button>
-            ) : null}
-
-            {handoff.phase === "sessionCaptured" ? (
-              <span className="recorder-handoff-resuming">
-                <RefreshCw size={16} className="spin" /> Resuming recorder with the saved session...
-              </span>
-            ) : null}
-
-            <button
-              type="button"
-              className="toolbar-button recorder-button-subtle"
-              data-testid="handoff-cancel"
-              disabled={handoffBusy}
-              onClick={() => void handleCancelHandoff()}
-            >
-              <XCircle size={16} />
-              {handoff.phase === "detected" || handoff.phase === "error" ? "Cancel recording" : "Cancel"}
-            </button>
-          </div>
-        </section>
+          {handoff.phase === "error"
+            ? `Secure login handoff failed. ${handoff.error ?? handoff.message}`
+            : handoff.phase === "capturingSession"
+              ? "Recording is paused. Complete the sign-in in the Chrome window, then capture the session and resume."
+              : handoff.phase === "sessionCaptured"
+                ? "Session captured. Resuming the recorder with the saved session."
+                : "Recording is paused. A protected login was detected, so capture stopped and the draft is preserved. Complete the sign-in in your own Chrome window, then continue."}
+        </SysBanner>
       ) : null}
+
+      {protectedDetectionIgnored && isRecording && !showHandoffPanel ? (
+        <SysBanner tone="warning" icon={ShieldAlert} data-testid="protected-ignore-notice">
+          Protected login detection is ignored for this Recorder session. Authentication and security steps (login, MFA, CAPTCHA) must
+          still be completed manually.
+        </SysBanner>
+      ) : null}
+
+      {/* Non-blocking security indicator, shown only while a session is actually running with the bypass. */}
+      {isRecording && ignoreHttpsErrors ? (
+        <SysBanner tone="warning" icon={ShieldAlert}>
+          Certificate validation is disabled for this Recorder session. Change it in Settings → Recorder Security.
+        </SysBanner>
+      ) : null}
+
+      {instrumentationError ? <SysBanner tone="danger">{instrumentationError}</SysBanner> : null}
+
+      <SysMetrics min={210} label="Recorder summary">
+        <SysMetric
+          tone="info"
+          icon={ListChecks}
+          label="Steps captured"
+          value={actions.length}
+          detail={`${stepMix.interaction} interaction · ${stepMix.navigation} navigation · ${stepMix.wait} wait`}
+        />
+        <SysMetric
+          tone={qualityPct === null ? "neutral" : stepMix.brittle > 0 ? "warning" : "success"}
+          icon={Search}
+          label="Locator quality"
+          value={qualityPct ?? "—"}
+          unit={qualityPct === null ? undefined : "%"}
+          detail={located ? `${stepMix.strong} strong, ${stepMix.medium} medium, ${stepMix.brittle} brittle` : "Scored as each step is captured"}
+        />
+        <SysMetric
+          tone={handoffActive ? "warning" : isRecording ? "running" : "neutral"}
+          icon={Clock}
+          label="Elapsed"
+          value={elapsedMs === null ? "—" : formatClock(elapsedMs)}
+          detail={handoffActive ? "Paused — waiting for your sign-in" : isRecording ? "Recording live" : elapsedMs === null ? "Starts when you record" : "Last recording session"}
+        />
+        <SysMetric
+          tone={sessionLinked === null ? "neutral" : "success"}
+          icon={KeyRound}
+          label="Session"
+          value={sessionLinked === null ? "None" : "Scoped"}
+          detail={
+            sessionLinked
+              ? `Profile “${sessionLinked}” — will link to Reuse Session`
+              : sessionLinked === ""
+                ? "Reuse Session node in this draft"
+                : "No saved session in this draft"
+          }
+        />
+      </SysMetrics>
+
+      {showHandoffPanel && handoff ? (
+        <SysPanels min={640}>
+          <SysPanel
+            wide
+            tone={handoff.phase === "error" ? "danger" : "warning"}
+            icon={ShieldAlert}
+            title={handoff.phase === "error" ? "Secure login handoff error" : "Protected login handoff"}
+            meta={
+              handoff.phase === "capturingSession"
+                ? "Complete the sign-in in Chrome, then capture the session"
+                : handoff.phase === "sessionCaptured"
+                  ? "Resuming with the saved session"
+                  : "Waiting for you — three exits"
+            }
+            data-testid="protected-handoff-panel"
+            role="alertdialog"
+            actions={
+              <div className="recorder-handoff-actions">
+                {handoff.phase === "detected" ? (
+                  <SysButton
+                    kind="smallPrimary"
+                    icon={Play}
+                    data-testid="handoff-ignore-continue"
+                    disabled={handoffBusy}
+                    onClick={() => void handleIgnoreProtected()}
+                    title="Treat this as a false positive and keep recording on the same page. Does not bypass authentication."
+                  >
+                    Ignore and continue recording
+                  </SysButton>
+                ) : null}
+                {handoff.phase === "detected" || handoff.phase === "error" ? (
+                  <SysButton kind="small" icon={ExternalLink} data-testid="handoff-continue-browser" disabled={handoffBusy} onClick={() => void handleContinueBrowser()}>
+                    {handoff.phase === "error" ? "Retry in normal browser" : "Continue using normal browser"}
+                  </SysButton>
+                ) : null}
+                {handoff.phase === "capturingSession" ? (
+                  <SysButton
+                    kind="smallPrimary"
+                    icon={handoffBusy ? RefreshCw : CheckCircle2}
+                    data-testid="handoff-capture-resume"
+                    disabled={handoffBusy}
+                    onClick={() => void handleCaptureAndResume()}
+                  >
+                    {handoffBusy ? "Capturing..." : "Capture Session & Resume"}
+                  </SysButton>
+                ) : null}
+                <SysButton kind="smallDanger" icon={XCircle} data-testid="handoff-cancel" disabled={handoffBusy} onClick={() => void handleCancelHandoff()}>
+                  {handoff.phase === "detected" || handoff.phase === "error" ? "Cancel recording" : "Cancel"}
+                </SysButton>
+              </div>
+            }
+          >
+            <SysList label="Handoff details">
+              <SysListRow
+                icon={ShieldAlert}
+                tone={handoff.phase === "error" ? "danger" : "warning"}
+                title="Reason for the pause"
+                sub={handoff.message}
+                badge={handoffPhaseBadge}
+                badgeTone={handoff.phase === "error" ? "danger" : "warning"}
+              />
+              <SysListRow
+                icon={Search}
+                tone="neutral"
+                title={`Detected ${handoff.reason} on ${handoff.origin || handoff.sourceAlias}`}
+                sub={`Source ${handoff.sourceAlias}${handoff.signals.length ? ` · ${handoff.signals.join(", ")}` : ""}. The app never automates a login, MFA, CAPTCHA, passkey or approval surface.`}
+                badge={handoff.confidence ? `${capitalize(handoff.confidence)} confidence` : undefined}
+                badgeTone="neutral"
+              />
+              {handoff.phase === "error" && handoff.error ? (
+                <SysListRow icon={XCircle} tone="danger" title="Handoff step failed" sub={handoff.error} badge="Error" badgeTone="danger" />
+              ) : null}
+              <SysListRow
+                icon={ExternalLink}
+                title="Sign in with your own Chrome"
+                sub="Opens your real Chrome in an app-owned scoped session profile — never your default profile"
+                badge={handoff.phase === "capturingSession" ? "In progress" : handoff.phase === "sessionCaptured" ? "Done" : "Available"}
+                badgeTone={handoff.phase === "capturingSession" ? "info" : "success"}
+              />
+              {handoff.phase === "sessionCaptured" ? (
+                <SysListRow icon={RefreshCw} title="Resuming recorder with the saved session" sub={handoff.sessionName ? `Session “${handoff.sessionName}”` : undefined} badge="Resuming" badgeTone="info" />
+              ) : null}
+              <SysListRow
+                icon={Link2}
+                title="Captured session links to Reuse Session"
+                sub="When you continue, the recorder inserts a Reuse Session node bound to this profile"
+                badge="Contract"
+                badgeTone="info"
+              />
+            </SysList>
+            {handoff.phase === "capturingSession" ? (
+              <div className="recorder-handoff-name">
+                <SysField label="Session name (optional)" hint={handoff.sessionName ? `Saved session: ${handoff.sessionName}` : undefined}>
+                  <input
+                    type="text"
+                    className="sys-control"
+                    value={sessionNameInput}
+                    onChange={(e) => setSessionNameInput(e.target.value)}
+                    placeholder="e.g. Acme Portal Login"
+                    disabled={handoffBusy}
+                  />
+                </SysField>
+              </div>
+            ) : null}
+          </SysPanel>
+        </SysPanels>
+      ) : null}
+
+      <SysPanels min={640}>
+        <SysPanel
+          wide
+          icon={Video}
+          tone={isRecording ? "danger" : "running"}
+          title="Recorder controls"
+          meta="Capture browser actions into a reusable flow"
+          className={`recorder-control-bar${isRecording ? " is-recording" : ""}`}
+          actions={
+            // The page's primary state readout. `role="status"` (polite + atomic) so starting, stopping or
+            // pausing a recording is announced rather than only recoloured.
+            <span className={`recorder-status-pill${isRecording ? " is-recording" : handoffActive ? " is-handoff" : " is-idle"}`} role="status">
+              {statusLabel}
+            </span>
+          }
+        >
+          <div className="recorder-control-body">
+            <div className="recorder-url-row">
+              <SysField label="Target URL" className="recorder-url-field">
+                <span className="recorder-url-input-shell">
+                  <Link size={15} aria-hidden="true" />
+                  <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} disabled={isRecording} placeholder="https://example.com" />
+                </span>
+              </SysField>
+              <div className="recorder-control-actions">
+                <SysButton
+                  kind="secondary"
+                  icon={Bookmark}
+                  className="recorder-favorite-toggle"
+                  aria-pressed={Boolean(currentFavorite)}
+                  aria-label={currentFavorite ? "Remove current URL from Favorites" : "Favorite current URL"}
+                  title={currentFavorite ? "Remove current URL from Favorites" : "Favorite current URL"}
+                  disabled={!url.trim() || favoriteBusy}
+                  onClick={() => void toggleFavorite(url)}
+                />
+                <SysButton kind="secondary" icon={Save} disabled={isRecording || !url.trim()} onClick={() => void saveCurrentUrl()} title="Save this URL to the reusable list">
+                  Save URL
+                </SysButton>
+              </div>
+            </div>
+
+            <div className="recorder-switch-row">
+              <SysSwitch
+                label="Smart waits"
+                hint="Capture condition-based waits from page signals"
+                checked={captureSmartWaits}
+                disabled={isRecording}
+                onToggle={toggleCaptureSmartWaits}
+                title="When on, condition-based waits are captured from page signals"
+              />
+              <SysSwitch
+                label="Capture waiting time"
+                hint="Records pauses of 0.5s or longer between actions as wait steps"
+                checked={captureWaitTime}
+                disabled={isRecording}
+                onToggle={toggleCaptureWaitTime}
+                title="When on, pauses between your actions are recorded as wait steps"
+              />
+            </div>
+
+            <fieldset className="recorder-locator-mode" data-testid="recorder-locator-mode">
+              <legend>Locator Recording</legend>
+              <div className="recorder-locator-mode-options">
+                {(["default", "xpath"] as const).map((mode) => (
+                  <label key={mode} className={`recorder-locator-mode-option${locatorRecordingMode === mode ? " is-active" : ""}`}>
+                    <input
+                      type="radio"
+                      name="recorder-locator-mode"
+                      value={mode}
+                      checked={locatorRecordingMode === mode}
+                      disabled={locatorModeBusy}
+                      onChange={() => void changeLocatorRecordingMode(mode)}
+                    />
+                    <span>{mode === "default" ? "Default" : "XPath"}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="recorder-locator-mode-help" aria-live="polite">
+                {locatorRecordingMode === "default"
+                  ? "Uses AWKIT's existing resilient locator generation."
+                  : "Records element locators as XPath. Existing actions keep their recorded strategy."}
+              </p>
+            </fieldset>
+
+            <div className="recorder-command-row">
+              <SysButton kind="danger" icon={StopCircle} disabled={!isRecording} onClick={handleStop}>
+                Stop
+              </SysButton>
+              <SysButton kind="secondary" icon={XCircle} disabled={!isRecording} onClick={handleCancel}>
+                Cancel
+              </SysButton>
+              {statusMsg ? (
+                <span className="recorder-status-text" role="status">
+                  {statusMsg}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </SysPanel>
+      </SysPanels>
 
       {ambiguity ? (
         <div className="modal-overlay" data-testid="ambiguity-resolution-overlay">
@@ -1020,289 +1130,329 @@ export function Recorder() {
         </div>
       ) : null}
 
-      <div className="recorder-main-grid">
-        <section className="form-panel recorder-actions-panel">
-          <header className="recorder-panel-header">
-            <div className="recorder-panel-title">
-              <Video size={18} />
-              <div>
-                <h3>Recorded Actions</h3>
-                <span>{actions.length} captured action{actions.length === 1 ? "" : "s"}</span>
-              </div>
-            </div>
+      <SysPanels min={640}>
+        <SysPanel
+          wide
+          icon={Play}
+          title="Captured steps"
+          meta={`Draft flow — editable before saving · ${actions.length} step${actions.length === 1 ? "" : "s"}`}
+          actions={
             <div className="recorder-panel-actions">
               {isRecording ? <span className="recorder-recording-dot" title="Recording" /> : null}
-              <button
-                type="button"
-                className="toolbar-button recorder-clear-actions"
+              <SysButton
+                kind="small"
+                icon={Eye}
+                disabled={asyncReviews.length === 0 || saveDisabled}
+                onClick={() => setReviewOpen(true)}
+                title={asyncReviews.length ? "Review the captured async activity before saving" : "No async activity to review"}
+              >
+                Review all
+              </SysButton>
+              <SysButton
+                kind="smallDanger"
+                icon={Trash2}
+                className="recorder-clear-actions"
                 disabled={actions.length === 0 || actionMutationBusy}
                 onClick={() => setActionMutationConfirm({ kind: "clear" })}
               >
-                <Trash2 size={14} />
                 Clear all
-              </button>
+              </SysButton>
             </div>
-          </header>
-
-          {instrumentationError ? (
-            <div className="recorder-instrumentation-error" role="alert">{instrumentationError}</div>
-          ) : null}
-
+          }
+        >
           {actions.length === 0 ? (
             <div className="recorder-empty">
-              <Video size={40} />
-              <strong>No actions recorded yet.</strong>
-              <span>Start recording to capture browser events.</span>
+              <SysPanelEmpty icon={Video} title="No actions recorded yet." hint="Start recording to capture browser events." />
             </div>
           ) : (
-            <div ref={actionsListRef} className="recorder-timeline" aria-live="polite">
-              {actions.map((action, index) => {
-                const actionBadge = recorderActionBadge(action);
-                const waitTypes = [...(action.beforeWaits ?? []), ...(action.afterWaits ?? [])].map((wait) => wait.type);
-
-                return (
-                  <article key={action.id} className="recorder-timeline-row">
-                    <div className="recorder-timeline-marker" aria-hidden>
-                      <span>{index + 1}</span>
-                    </div>
-                    <div className="recorder-action-card">
-                      <div className={`recorder-action-icon tone-${recorderActionTone(action.type)}`}>
-                        <RecorderActionIcon type={action.type} />
-                      </div>
-                      <div className="recorder-action-main">
-                        <div className="recorder-action-head">
-                          <strong>{action.name}</strong>
-                          <span className="recorder-action-type">{formatActionType(action.type)}</span>
-                          {actionBadge ? <span className="recorder-action-badge">{actionBadge}</span> : null}
-                        </div>
-                        {action.locator ? (
-                          <>
-                            <code className="recorder-locator-code">
-                              {action.locator.strategy}: {action.locator.value}
-                            </code>
-                            {locatorContainerChain(action.locator.context).length ? (
-                              <span className="recorder-locator-scope">{formatLocatorScope(action)}</span>
-                            ) : null}
-                          </>
-                        ) : null}
-                        {waitTypes.length > 0 ? (
-                          <span className="recorder-wait-note">Smart waits: {waitTypes.join(", ")}</span>
-                        ) : null}
-                      </div>
-                      {action.valueSource ? (
-                        <div className="recorder-action-value" title={action.valueSource.value}>
-                          <ArrowRight size={12} />
-                          <span>{action.valueSource.value}</span>
-                        </div>
+            <div ref={actionsListRef} className="recorder-steps-scroll">
+              <SysTimeline className="recorder-timeline" label="Captured steps" aria-live="polite">
+                {actions.map((action, index) => {
+                  const strength = locatorStrength(action);
+                  const waitTypes = [...(action.beforeWaits ?? []), ...(action.afterWaits ?? [])].map((wait) => wait.type);
+                  const meta = [
+                    action.locator && locatorContainerChain(action.locator.context).length ? formatLocatorScope(action) : "",
+                    waitTypes.length ? `Smart waits: ${waitTypes.join(", ")}` : "",
+                    action.valueSource ? `Value → ${action.valueSource.value}` : ""
+                  ].filter(Boolean);
+                  return (
+                    <SysTimelineRow
+                      key={action.id}
+                      className="recorder-timeline-row"
+                      tone={stepTone(action, strength)}
+                      live={isRecording && index === actions.length - 1}
+                      title={action.name}
+                      badge={recorderActionBadge(action) ?? (strength ? STRENGTH_LABEL[strength] : formatActionType(action.type))}
+                      time={`Step ${index + 1}`}
+                      sub={
+                        <>
+                          {formatActionType(action.type)}
+                          {action.locator ? (
+                            <>
+                              {" · "}
+                              <code className="recorder-step-locator">
+                                {action.locator.strategy}: {action.locator.value}
+                              </code>
+                            </>
+                          ) : null}
+                        </>
+                      }
+                      actions={
+                        <SysIconButton
+                          icon={Trash2}
+                          tone="danger"
+                          className="recorder-action-delete"
+                          label={`Delete recorded action ${index + 1}: ${action.name}`}
+                          title="Delete recorded action"
+                          disabled={actionMutationBusy}
+                          onClick={() => setActionMutationConfirm({ kind: "delete", action })}
+                        />
+                      }
+                    >
+                      {meta.length ? (
+                        <span className="recorder-step-meta" title={action.valueSource?.value}>
+                          {meta.join(" · ")}
+                        </span>
                       ) : null}
-                      <button
-                        type="button"
-                        className="recorder-action-delete"
-                        aria-label={`Delete recorded action ${index + 1}: ${action.name}`}
-                        title="Delete recorded action"
-                        disabled={actionMutationBusy}
-                        onClick={() => setActionMutationConfirm({ kind: "delete", action })}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+                    </SysTimelineRow>
+                  );
+                })}
+              </SysTimeline>
             </div>
           )}
-        </section>
+        </SysPanel>
+      </SysPanels>
 
-        <aside className="form-panel recorder-save-panel">
-          <header className="recorder-panel-header">
-            <div className="recorder-panel-title">
-              <Save size={18} />
-              <div>
-                <h3>Save Options</h3>
-                <span>Send the captured actions to the Flow Library.</span>
-              </div>
-            </div>
-          </header>
-          <div className="recorder-save-stack">
-            <label className="recorder-field">
-              <span className="recorder-field-label">Flow Name</span>
-              <input
-                type="text"
-                value={flowName}
-                onChange={(e) => setFlowName(e.target.value)}
-                disabled={isRecording}
-              />
-            </label>
-            <button
-              type="button"
-              className="toolbar-button recorder-button-success recorder-save-button"
-              disabled={saveDisabled}
-              onClick={requestSave}
-            >
-              <Save size={16} />
-              {isSaving ? "Saving..." : "Save to Flow Library"}
-            </button>
-            {saveResult ? (
-              <div role="status" className={`recorder-save-result ${saveResult.tone}`}>
-                {saveResult.tone === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-                <span>{saveResult.text}</span>
-              </div>
-            ) : null}
-            {actions.length === 0 && !isRecording && !isSaving ? (
-              <p className="recorder-save-hint">Record some actions first.</p>
-            ) : null}
-          </div>
-        </aside>
-      </div>
-
-      <section className="form-panel recorder-saved-urls-panel">
-        <header className="recorder-panel-header">
-          <div className="recorder-panel-title">
-            <Globe size={18} />
-            <div>
-              <h3>URL history</h3>
-              <span>{filteredUrls.length} matching URL{filteredUrls.length === 1 ? "" : "s"}</span>
-            </div>
-          </div>
-        </header>
-
-        <div className="recorder-url-tabs" role="tablist" aria-label="URL history">
-          {(["recorded", "favorites"] as const).map((tab) => (
-            <button
-              key={tab}
-              id={`recorder-url-tab-${tab}`}
-              type="button"
-              role="tab"
-              aria-selected={urlTab === tab}
-              aria-controls="recorder-url-panel"
-              tabIndex={urlTab === tab ? 0 : -1}
-              className="toolbar-button"
-              onClick={() => { setUrlTab(tab); setUrlPage(1); }}
-              onKeyDown={(event) => {
-                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-                event.preventDefault();
-                const next = event.key === "Home" ? "recorded" : event.key === "End" ? "favorites" : tab === "recorded" ? "favorites" : "recorded";
-                setUrlTab(next);
-                setUrlPage(1);
-                document.getElementById(`recorder-url-tab-${next}`)?.focus();
-              }}
-            >
-              {tab === "recorded" ? "Recorded URLs" : "Favorite URLs"}
-            </button>
-          ))}
-        </div>
-        <div id="recorder-url-panel" role="tabpanel" aria-labelledby={`recorder-url-tab-${urlTab}`}>
-        <div className="table-search recorder-url-search">
-          <Search size={15} />
-          {/* A placeholder is not an accessible name: it is not reliably announced as one, and it
-              disappears the moment the user types. */}
-          <input
-            value={urlSearch}
-            aria-label={urlTab === "favorites" ? "Search favorite URLs" : "Search recorded URLs"}
-            placeholder="Search by URL, title, source, or session..."
-            onChange={(e) => {
-              setUrlSearch(e.target.value);
-              setUrlPage(1);
-            }}
+      <SysPanels>
+        <SysPanel icon={Search} title="Locator quality" meta="Scored as each step is captured">
+          <SysBars
+            label="Locator quality"
+            rows={[
+              { label: "Strong · role, test id or label", raw: stepMix.strong, value: stepMix.strong, color: "var(--awkit-success)" },
+              { label: "Medium · text, placeholder or id", raw: stepMix.medium, value: stepMix.medium, color: "var(--awkit-warning)" },
+              { label: "Brittle · positional or fallback", raw: stepMix.brittle, value: stepMix.brittle, color: "var(--awkit-danger)" }
+            ]}
           />
-          {urlSearch ? (
-            <button type="button" title="Clear search" onClick={() => { setUrlSearch(""); setUrlPage(1); }}>
-              <X size={14} />
-            </button>
-          ) : null}
-        </div>
+        </SysPanel>
 
-        {visibleUrls.length === 0 ? (
-          <TableEmptyState filtered={false} title={urlTab === "favorites" ? "No favorite URLs yet." : "No URLs recorded yet."} hint={urlTab === "favorites" ? "Use the bookmark beside a URL to add it to Favorites." : "Start recording and navigate to pages to see them here."} />
-        ) : filteredUrls.length === 0 ? (
-          <TableEmptyState filtered title="No matching URLs found." hint="Adjust your search text." />
-        ) : (
-          <>
-            <div className="wl-table-wrapper">
-              <table className="wl-table recorded-urls-table">
-                <colgroup>
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "18%" }} />
-                  <col style={{ width: "30%" }} />
-                  <col style={{ width: "13%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "17%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Title</th>
-                    <th>URL</th>
-                    <th>Source</th>
-                    <th>Session</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedUrls.map((record) => (
-                    <tr
-                      key={record.id}
-                      className="recorded-url-row"
-                      data-disabled={isRecording || undefined}
-                      onClick={() => { if (!isRecording) useSavedUrl(record.url); }}
-                    >
-                      <td className="recorded-url-row-primary" title={new Date(record.timestamp).toLocaleString()}>
-                        <button
-                          type="button"
-                          className="recorded-url-row-activator recorded-url-use"
-                          disabled={isRecording}
-                          aria-label={`Use ${urlTab === "favorites" ? "favorite" : "recorded"} URL ${record.title || record.url}`}
-                          onClick={(event) => { event.stopPropagation(); useSavedUrl(record.url); }}
-                        />
-                        {new Date(record.timestamp).toLocaleTimeString()}
-                      </td>
-                      <td title={record.title || undefined}>{record.title || "--"}</td>
-                      <td title={isRecording ? record.url : `Click row to use: ${record.url}`}><span className="recorded-url-value">{record.url}</span></td>
-                      <td>
-                        <span className="state-pill">{record.source}</span>
-                      </td>
-                      <td title={record.sessionId || undefined}>{record.sessionId ? record.sessionId.slice(0, 8) : "--"}</td>
-                      <td className="recorded-url-row-actions">
-                        <div className="table-actions">
-                          <button type="button" title="Use this URL in Recorder Controls" disabled={isRecording} onClick={(event) => { event.stopPropagation(); useSavedUrl(record.url); }}>
-                            <CornerDownLeft size={14} />
-                          </button>
-                          <button type="button" title="Copy URL" onClick={(event) => { event.stopPropagation(); copyUrl(record.url); }}>
-                            <Copy size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="recorder-favorite-toggle"
-                            title={favoriteForUrl(record.url) ? "Remove from Favorites" : "Add to Favorites"}
-                            aria-label={`${favoriteForUrl(record.url) ? "Remove" : "Add"} ${record.url} ${favoriteForUrl(record.url) ? "from" : "to"} Favorites`}
-                            aria-pressed={Boolean(favoriteForUrl(record.url))}
-                            disabled={favoriteBusy}
-                            onClick={(event) => { event.stopPropagation(); void toggleFavorite(record.url); }}
-                          >
-                            <Bookmark size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <DataTablePagination
-              page={urlPageClamped}
-              totalPages={urlTotalPages}
-              total={filteredUrls.length}
-              pageSize={urlPageSize}
-              onPage={setUrlPage}
-              onPageSize={(size) => {
-                setUrlPageSize(size);
-                setUrlPage(1);
-              }}
+        <SysPanel icon={ListChecks} title="Review before saving" meta="Send the captured steps to the Flow Library">
+          <SysChecklist label="Review before saving">
+            <SysCheckRow
+              tone={unresolved ? "warning" : "success"}
+              title={unresolved ? `${unresolved} step${unresolved === 1 ? "" : "s"} need${unresolved === 1 ? "s" : ""} locator review` : "Every locator is resolved"}
+              sub={unresolved ? "Execution stays blocked for these steps until they are resolved" : "No step is waiting on identity proof"}
+              badge={unresolved ? "Review" : "Pass"}
             />
+            <SysCheckRow
+              tone={stepMix.brittle ? "warning" : "success"}
+              title={stepMix.brittle ? `${stepMix.brittle} brittle locator${stepMix.brittle === 1 ? "" : "s"} remain${stepMix.brittle === 1 ? "s" : ""}` : "No brittle locators"}
+              sub="Positional and fallback locators are the first to break when the page changes"
+              badge={stepMix.brittle ? "Review" : "Pass"}
+            />
+            <SysCheckRow
+              tone={riskyWaits ? "warning" : "success"}
+              title={asyncReviews.length ? `${asyncReviews.length} step${asyncReviews.length === 1 ? "" : "s"} captured async activity` : "No async activity to review"}
+              sub={riskyWaits ? `${riskyWaits} unsafe or incomplete wait${riskyWaits === 1 ? "" : "s"} — reviewed before saving` : "Captured waits are reliable"}
+              badge={riskyWaits ? "Review" : "Pass"}
+            />
+            <SysCheckRow
+              tone={sessionLinked === null ? "neutral" : "success"}
+              title={sessionLinked === null ? "No session to link" : "Session will be linked"}
+              sub={sessionLinked === null ? "Protected logins pause for a manual handoff" : "A Reuse Session node carries the captured login"}
+              badge={sessionLinked === null ? "None" : "Pass"}
+            />
+          </SysChecklist>
+          <div className="recorder-save-row">
+            <SysField label="Flow Name">
+              <input type="text" className="sys-control" value={flowName} onChange={(e) => setFlowName(e.target.value)} disabled={isRecording} />
+            </SysField>
+            <SysButton kind="primary" icon={Save} className="recorder-save-button" disabled={saveDisabled} onClick={requestSave}>
+              {isSaving ? "Saving..." : "Save to Flow Library"}
+            </SysButton>
+          </div>
+          {saveResult ? (
+            <div role="status" className={`recorder-save-result ${saveResult.tone}`}>
+              {saveResult.tone === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+              <span>{saveResult.text}</span>
+            </div>
+          ) : null}
+          {actions.length === 0 && !isRecording && !isSaving ? <p className="recorder-save-hint">Record some actions first.</p> : null}
+        </SysPanel>
+      </SysPanels>
+
+      <SysTableCard
+        title="URL history"
+        className="recorder-saved-urls-panel"
+        actions={
+          <>
+            <div className="recorder-url-tabs" role="tablist" aria-label="URL history">
+              {(["recorded", "favorites"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  id={`recorder-url-tab-${tab}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={urlTab === tab}
+                  aria-controls="recorder-url-panel"
+                  tabIndex={urlTab === tab ? 0 : -1}
+                  className="recorder-url-tab"
+                  onClick={() => {
+                    setUrlTab(tab);
+                    setUrlPage(1);
+                  }}
+                  onKeyDown={(event) => {
+                    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    const next = event.key === "Home" ? "recorded" : event.key === "End" ? "favorites" : tab === "recorded" ? "favorites" : "recorded";
+                    setUrlTab(next);
+                    setUrlPage(1);
+                    document.getElementById(`recorder-url-tab-${next}`)?.focus();
+                  }}
+                >
+                  {tab === "recorded" ? "Recorded URLs" : "Favorite URLs"}
+                </button>
+              ))}
+            </div>
+            <span className="sys-search recorder-url-search">
+              <Search size={14} strokeWidth={1.9} aria-hidden="true" />
+              {/* A placeholder is not an accessible name: it is not reliably announced as one, and it
+                  disappears the moment the user types. */}
+              <input
+                type="search"
+                value={urlSearch}
+                aria-label={urlTab === "favorites" ? "Search favorite URLs" : "Search recorded URLs"}
+                placeholder="Search by URL, title, source, or session..."
+                onChange={(e) => {
+                  setUrlSearch(e.target.value);
+                  setUrlPage(1);
+                }}
+              />
+            </span>
           </>
-        )}
+        }
+      >
+        <div id="recorder-url-panel" role="tabpanel" aria-labelledby={`recorder-url-tab-${urlTab}`}>
+          {visibleUrls.length === 0 ? (
+            <SysTableEmpty
+              icon={urlTab === "favorites" ? Bookmark : Globe}
+              title={urlTab === "favorites" ? "No favorite URLs yet." : "No URLs recorded yet."}
+              hint={urlTab === "favorites" ? "Use the bookmark beside a URL to add it to Favorites." : "Start recording and navigate to pages to see them here."}
+            />
+          ) : filteredUrls.length === 0 ? (
+            <SysTableEmpty icon={Search} title="No matching URLs found." hint="Adjust your search text." />
+          ) : (
+            <>
+              <div className="sys-table-scroll">
+                <table className="sys-table recorded-urls-table">
+                  <colgroup>
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "30%" }} />
+                    <col style={{ width: "13%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "17%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="sys-th"><span className="sys-th-button">Time</span></th>
+                      <th scope="col" className="sys-th"><span className="sys-th-button">Title</span></th>
+                      <th scope="col" className="sys-th"><span className="sys-th-button">URL</span></th>
+                      <th scope="col" className="sys-th"><span className="sys-th-button">Source</span></th>
+                      <th scope="col" className="sys-th"><span className="sys-th-button">Session</span></th>
+                      <th scope="col" className="sys-th"><span className="sys-th-button">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedUrls.map((record) => {
+                      const favorite = favoriteForUrl(record.url);
+                      return (
+                        <tr
+                          key={record.id}
+                          className="recorded-url-row"
+                          data-disabled={isRecording || undefined}
+                          onClick={() => {
+                            if (!isRecording) useSavedUrl(record.url);
+                          }}
+                        >
+                          <td className="recorded-url-row-primary" title={new Date(record.timestamp).toLocaleString()}>
+                            <button
+                              type="button"
+                              className="recorded-url-row-activator recorded-url-use"
+                              disabled={isRecording}
+                              aria-label={`Use ${urlTab === "favorites" ? "favorite" : "recorded"} URL ${record.title || record.url}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                useSavedUrl(record.url);
+                              }}
+                            />
+                            <span className="sys-cell-text is-muted is-num">{new Date(record.timestamp).toLocaleTimeString()}</span>
+                          </td>
+                          <td title={record.title || undefined}>{record.title || "--"}</td>
+                          <td title={isRecording ? record.url : `Click row to use: ${record.url}`}>
+                            <span className="recorded-url-value">{record.url}</span>
+                          </td>
+                          <td>
+                            <SysBadge tone="neutral" icon={null} size="sm">
+                              {record.source}
+                            </SysBadge>
+                          </td>
+                          <td title={record.sessionId || undefined}>{record.sessionId ? record.sessionId.slice(0, 8) : "--"}</td>
+                          <td className="recorded-url-row-actions">
+                            <SysCellActions>
+                              <SysIconButton
+                                icon={CornerDownLeft}
+                                label="Use this URL in Recorder Controls"
+                                disabled={isRecording}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  useSavedUrl(record.url);
+                                }}
+                              />
+                              <SysIconButton
+                                icon={Copy}
+                                label="Copy URL"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  copyUrl(record.url);
+                                }}
+                              />
+                              <SysIconButton
+                                icon={Bookmark}
+                                className="recorder-favorite-toggle"
+                                title={favorite ? "Remove from Favorites" : "Add to Favorites"}
+                                label={`${favorite ? "Remove" : "Add"} ${record.url} ${favorite ? "from" : "to"} Favorites`}
+                                aria-pressed={Boolean(favorite)}
+                                disabled={favoriteBusy}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void toggleFavorite(record.url);
+                                }}
+                              />
+                            </SysCellActions>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <SysPagination
+                total={filteredUrls.length}
+                noun="URLs"
+                page={urlPageClamped}
+                pageSize={urlPageSize}
+                totalPages={urlTotalPages}
+                onPage={setUrlPage}
+                onPageSize={(size) => {
+                  setUrlPageSize(size);
+                  setUrlPage(1);
+                }}
+              />
+            </>
+          )}
         </div>
-      </section>
+      </SysTableCard>
+
       {reviewOpen ? (
         <div className="modal-overlay" role="presentation" onClick={() => setReviewOpen(false)}>
           <div
@@ -1398,8 +1548,35 @@ export function Recorder() {
       ) : null}
 
       <Toast toast={toast} onDismiss={() => setToast(null)} />
-    </div>
+    </SysPage>
   );
+}
+
+type LocatorStrength = "strong" | "medium" | "brittle";
+
+const STRENGTH_LABEL: Record<LocatorStrength, string> = {
+  strong: "Strong locator",
+  medium: "Medium locator",
+  brittle: "Brittle locator"
+};
+
+/** Recorder-time quality grade: the captured confidence when present, else the strategy family. */
+function locatorStrength(action: RecordedAction): LocatorStrength | null {
+  const locator = action.locator;
+  if (!locator) return null;
+  const confidence = locator.quality?.confidence;
+  if (confidence) return confidence === "high" ? "strong" : confidence === "medium" ? "medium" : "brittle";
+  if (["role", "testId", "label"].includes(locator.strategy)) return "strong";
+  if (["text", "placeholder", "id"].includes(locator.strategy)) return "medium";
+  return "brittle";
+}
+
+function stepTone(action: RecordedAction, strength: LocatorStrength | null): SysTone {
+  if (action.locator?.resolution === "invalid") return "danger";
+  if (action.locator?.resolution === "needs-review") return "warning";
+  if (strength) return strength === "strong" ? "success" : strength === "medium" ? "warning" : "danger";
+  const tone = recorderActionTone(action.type);
+  return tone === "session" ? "warning" : tone === "wait" ? "neutral" : "info";
 }
 
 function recorderActionTone(type: string): "nav" | "click" | "input" | "wait" | "session" | "default" {
@@ -1412,22 +1589,12 @@ function recorderActionTone(type: string): "nav" | "click" | "input" | "wait" | 
   return "default";
 }
 
-function RecorderActionIcon({ type }: { type: string }) {
-  const tone = recorderActionTone(type);
-  if (tone === "nav") return <Globe size={15} />;
-  if (tone === "click") return <CornerDownLeft size={15} />;
-  if (tone === "input") return <ArrowRight size={15} />;
-  if (tone === "wait") return <Timer size={15} />;
-  if (tone === "session") return <ShieldAlert size={15} />;
-  return <Video size={15} />;
-}
-
+/** Attention and popup-lifecycle badges; an ordinary resolved step shows its locator grade instead. */
 function recorderActionBadge(action: RecordedAction): string | null {
   if (action.locator?.prerequisite?.status === "unknown") return "Prerequisite unknown";
   if (action.locator?.resolution === "needs-review") return action.locator?.identity ? "Identity resolved · action blocked" : "Needs identity proof";
   if (action.locator?.resolution === "user-approved-fallback") return "Approved fallback";
   if (action.locator?.resolution === "invalid") return "Invalid locator";
-  if (action.locator?.resolution === "resolved") return action.locator?.identity ? "Identity resolved" : "Resolved";
   if (action.type === "switchToPopup") return "Switch popup";
   if (action.type === "closePopup") return "Close popup";
   if (action.type === "switchToMainPage") return "Main page";
@@ -1461,4 +1628,13 @@ function formatActionType(type: string): string {
     .replace(/[_-]+/g, " ")
     .trim();
   return formatted ? formatted.charAt(0).toUpperCase() + formatted.slice(1) : "Action";
+}
+
+function formatClock(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

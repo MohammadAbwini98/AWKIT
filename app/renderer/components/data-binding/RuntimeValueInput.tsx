@@ -1,44 +1,51 @@
 import type { RuntimeInputDefinition } from "@src/data/RuntimeInputDefinition";
+import { SysField, SysSelect, SysSwitch } from "../system/SystemUI";
 
 interface RuntimeValueInputProps {
   definition: RuntimeInputDefinition;
   value: unknown;
   onChange: (key: string, value: unknown) => void;
+  /** Validation message for this field; marks the field invalid (red label, border and hint). */
+  invalidMessage?: string;
+  hint?: string;
 }
 
-export function RuntimeValueInput({ definition, value, onChange }: RuntimeValueInputProps) {
+export function RuntimeValueInput({ definition, value, onChange, invalidMessage, hint }: RuntimeValueInputProps) {
+  if (definition.type === "checkbox") {
+    return (
+      <SysSwitch
+        checked={Boolean(value)}
+        onToggle={() => onChange(definition.key, !value)}
+        label={definition.label}
+        hint={invalidMessage ?? hint}
+        wide
+      />
+    );
+  }
+
+  const fieldHint = invalidMessage ?? hint;
   if (definition.type === "dropdown") {
     return (
-      <label>
-        {definition.label}
-        <select value={String(value ?? "")} onChange={(event) => onChange(definition.key, event.target.value)}>
+      <SysField label={definition.label} hint={fieldHint} invalid={Boolean(invalidMessage)}>
+        <SysSelect value={String(value ?? "")} onChange={(event) => onChange(definition.key, event.target.value)}>
           {(definition.options ?? []).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
-      </label>
-    );
-  }
-
-  if (definition.type === "checkbox") {
-    return (
-      <label className="inline-check">
-        <input checked={Boolean(value)} type="checkbox" onChange={(event) => onChange(definition.key, event.target.checked)} />
-        {definition.label}
-      </label>
+        </SysSelect>
+      </SysField>
     );
   }
 
   return (
-    <label>
-      {definition.label}
+    <SysField label={definition.label} hint={fieldHint} invalid={Boolean(invalidMessage)}>
       <input
+        className="sys-control"
         type={definition.type === "number" ? "number" : "text"}
         value={String(value ?? "")}
         onChange={(event) => onChange(definition.key, definition.type === "number" ? Number(event.target.value) : event.target.value)}
       />
-    </label>
+    </SysField>
   );
 }

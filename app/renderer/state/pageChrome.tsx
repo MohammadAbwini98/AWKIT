@@ -6,7 +6,7 @@ export interface PageAction {
   icon?: ReactNode;
   /** May return a promise — the unsaved-changes "Save and Continue" flow awaits it. */
   onClick: () => void | Promise<void>;
-  variant?: "default" | "primary";
+  variant?: "default" | "primary" | "danger";
   disabled?: boolean;
   title?: string;
 }

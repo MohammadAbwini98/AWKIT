@@ -52,8 +52,8 @@ const NON_NAV_ROUTES = ["workflow", "dataSourceEditor"];
 // Data-bearing routes that must show intentional empty states on a fresh profile.
 const EMPTY_STATE_ROUTES = ["Workflows", "Flows", "Data Sources", "Sessions", "Run Artifacts"];
 
-const { env, cleanup } = isolatedLaunchEnv("awkit-e2e-sweep");
-const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env });
+const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-e2e-sweep");
+const app = await electron.launch({ args: [repoRoot, ...electronArgs], cwd: repoRoot, env });
 try {
   const win = await resolveMainWindow(app);
   const consoleWatch = watchConsole(win);

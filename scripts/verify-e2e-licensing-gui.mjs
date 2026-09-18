@@ -42,6 +42,10 @@ const baseEnv = {
 };
 delete baseEnv.ELECTRON_RUN_AS_NODE;
 delete baseEnv.AWKIT_TEST_LICENSE_BYPASS; // launch A must run with enforcement at its DEFAULT (on)
+// Electron keys its single-instance lock on userData, which it resolves before AWKIT reads
+// LOCALAPPDATA; an explicit per-profile user-data dir keeps these launches from colliding with any
+// other SpecterStudio instance on the machine (the same isolation gui-verify-harness applies).
+const userDataArg = (profileRoot) => `--user-data-dir=${path.join(profileRoot, "roaming", "SpecterStudio")}`;
 
 const fixturesRoot = path.join(repoRoot, "resources", "test-fixtures", "mock-site");
 const readFixture = (kind, id) => JSON.parse(readFileSync(path.join(fixturesRoot, kind, `${id}.json`), "utf8"));
@@ -51,7 +55,7 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
 
 // ── Launch A: FRESH profile, enforcement at its default (ON) ──────────────────
 {
-  const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env: baseEnv });
+  const app = await electron.launch({ args: [repoRoot, userDataArg(dataRoot)], cwd: repoRoot, env: baseEnv });
   try {
     const win = await resolveMainWindow(app);
     const consoleWatch = watchConsole(win);
@@ -66,13 +70,17 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
     // A1 — unlicensed Licensing page renders real content (placeholder is gone).
     consoleWatch.setLabel("A1 page render");
     await navClick(win, "Licensing");
-    await win.getByRole("heading", { name: "License status" }).waitFor({ timeout: 10000 });
+    const licensingHead = win.locator(".licensing-page .sys-admin-head").getByRole("heading", { name: "Licensing", exact: true });
+    await licensingHead.waitFor({ timeout: 10000 });
     check("A1: License status card renders (no placeholder)", (await win.getByText(/not yet implemented/i).count()) === 0);
-    const badgeText = (await win.locator(".awkit-admin-badge").first().innerText().catch(() => "")).trim();
+    const statusMetric = win.locator(".licensing-page .sys-metric", { has: win.locator(".sys-metric-label", { hasText: /^Status$/ }) });
+    await statusMetric.locator(".sys-metric-value").waitFor({ timeout: 10000 }).catch(() => undefined);
+    const badgeText = (await statusMetric.locator(".sys-metric-value").innerText().catch(() => "")).trim();
     check("A1: status badge shows the no-license state", /not activated/i.test(badgeText), badgeText);
-    const machineCode = (await win.locator(".awkit-license-code code").innerText().catch(() => "")).trim();
+    const machineCode = (await win.locator(".sys-kv-item", { hasText: "Machine code" }).locator(".sys-kv-value").innerText().catch(() => "")).trim();
     check("A1: machine code is visible", machineCode.length >= 8, machineCode.slice(0, 12));
-    check("A1: actionable guidance text present", (await win.locator(".awkit-admin-muted").count()) >= 1);
+    const guidance = (await statusMetric.locator(".sys-metric-foot").innerText().catch(() => "")).trim();
+    check("A1: actionable guidance text present", guidance.length > 0, guidance.slice(0, 80));
     await win.screenshot({ path: path.join(shotDir, "A1-unlicensed.png") }).catch(() => undefined);
 
     // A2/A3 — machine code + activation request through the SAME preload IPC the page uses.
@@ -118,7 +126,10 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
     await win.locator('input[type="file"]').setInputFiles(garbageFile);
     await win.waitForTimeout(700);
     check("A4: garbage file surfaces a safe on-page error", (await win.getByText(/isn't a valid license file/i).count()) >= 1);
-    check("A4: page remains usable after the bad import", (await win.getByRole("heading", { name: "License status" }).count()) >= 1);
+    check(
+      "A4: page remains usable after the bad import",
+      (await licensingHead.count()) === 1 && (await win.getByRole("button", { name: "Import license", exact: true }).isEnabled())
+    );
 
     // A5 — structurally-valid but FORGED license is rejected by signature verification.
     consoleWatch.setLabel("A5 forged import");
@@ -142,7 +153,11 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
     writeFileSync(forgedFile, JSON.stringify(forged, null, 2), "utf8");
     await win.locator('input[type="file"]').setInputFiles(forgedFile);
     await win.waitForTimeout(900);
-    check("A5: forged license rejected with a signature-class message", (await win.locator(".form-message.error").count()) >= 1);
+    // The import-rejection family ("That license …"), not the page's other danger banners.
+    check(
+      "A5: forged license rejected with a signature-class message",
+      (await win.locator(".licensing-page .sys-banner.sys-tone-danger .sys-banner-text", { hasText: /That license/ }).count()) >= 1
+    );
     if (su.ok) {
       const after = await win.evaluate(async (ref) => {
         const r = await window.playwrightFlowStudio.licensing.getStatus(ref);
@@ -218,7 +233,7 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
 // B would block too.
 {
   const env = { ...baseEnv, AWKIT_TEST_LICENSE_BYPASS: "1" };
-  const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env });
+  const app = await electron.launch({ args: [repoRoot, userDataArg(dataRoot)], cwd: repoRoot, env });
   try {
     const win = await resolveMainWindow(app);
     const consoleWatch = watchConsole(win);
@@ -242,7 +257,7 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
 
     // B2 — the shell + Licensing page stay fully usable.
     await navClick(win, "Licensing");
-    await win.getByRole("heading", { name: "License status" }).waitFor({ timeout: 10000 });
+    await win.locator(".licensing-page .sys-admin-head").getByRole("heading", { name: "Licensing", exact: true }).waitFor({ timeout: 10000 });
     check("B2: app shell fully usable", (await win.locator(".app-shell").count()) === 1);
 
     check("B: zero renderer console errors", consoleWatch.errors.length === 0, consoleWatch.summary());
@@ -269,7 +284,7 @@ rmSync(dataRoot, { recursive: true, force: true });
   });
   note("seeded mock fixtures BEFORE first launch so the profile classifies as an upgrade");
 
-  const app = await electron.launch({ args: [repoRoot], cwd: repoRoot, env: upgradedEnv });
+  const app = await electron.launch({ args: [repoRoot, userDataArg(upgradedRoot)], cwd: repoRoot, env: upgradedEnv });
   try {
     const win = await resolveMainWindow(app);
     const consoleWatch = watchConsole(win);
@@ -317,7 +332,7 @@ rmSync(dataRoot, { recursive: true, force: true });
 
     // C3 — the deadline and the activation action are visible on the Licensing page, not just in IPC.
     await navClick(win, "Licensing");
-    await win.getByRole("heading", { name: "License status" }).waitFor({ timeout: 10000 });
+    await win.locator(".licensing-page .sys-admin-head").getByRole("heading", { name: "Licensing", exact: true }).waitFor({ timeout: 10000 });
     const graceBanner = win.getByText(/one-time .* activation period/i);
     check("C3: the Licensing page shows the grace period", (await graceBanner.count()) >= 1);
     // Format the expected date INSIDE the page: Node's ICU and Chromium's can differ, and comparing

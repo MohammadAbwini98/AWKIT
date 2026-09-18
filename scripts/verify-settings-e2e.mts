@@ -20,6 +20,8 @@ import {
 } from "./lib/gui-verify-harness.mjs";
 import {
   createUser,
+  userRows,
+  waitForUsersPage,
   genPassword,
   loginAs,
   navClick,
@@ -346,7 +348,10 @@ async function loginExisting(win: Page, username: string, password: string): Pro
 }
 
 async function launch(env: Record<string, string>): Promise<{ app: ElectronApplication; win: Page }> {
-  const app = await electron.launch({ args: [root], cwd: root, env });
+  // An explicit user-data dir isolates Electron's single-instance lock from any other SpecterStudio
+  // instance on the machine (the lock is keyed before AWKIT reads LOCALAPPDATA).
+  const userDataArg = `--user-data-dir=${join(env.LOCALAPPDATA, "Roaming", "SpecterStudio")}`;
+  const app = await electron.launch({ args: [root, userDataArg], cwd: root, env });
   const win = await resolveMainWindow(app);
   await win.waitForLoadState("domcontentloaded");
   return { app, win };
@@ -475,7 +480,7 @@ try {
 
   // Provision Administrator + Viewer fixtures while the protected Super User is active.
   await navClick(win, "Users");
-  await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 15_000 });
+  await waitForUsersPage(win, 15_000);
   await createUser(win, {
     username: admin.username,
     displayName: "Settings Administrator",
@@ -490,7 +495,7 @@ try {
   });
   check(
     "SET-001 Administrator and Viewer fixtures created",
-    (await win.getByText(`@${admin.username}`).count()) > 0 && (await win.getByText(`@${viewer.username}`).count()) > 0
+    (await userRows(win, admin.username).count()) > 0 && (await userRows(win, viewer.username).count()) > 0
   );
 
   await openSettings(win);

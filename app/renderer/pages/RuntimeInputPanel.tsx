@@ -1,21 +1,47 @@
-import { Database, FileJson, Play, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Database, Eye, FileJson, FormInput, LayoutGrid, Link2, ListFilter, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DataBindingEditor } from "../components/data-binding/DataBindingEditor";
 import { DropdownValueSelector } from "../components/data-binding/DropdownValueSelector";
 import { RuntimeValueInput } from "../components/data-binding/RuntimeValueInput";
 import { runtimeInputDefinitions, sampleCustomersData } from "../components/data-binding/sampleData";
+import {
+  SysBanner,
+  SysButton,
+  SysCheckRow,
+  SysChecklist,
+  SysField,
+  SysFormFooter,
+  SysFormGrid,
+  SysList,
+  SysListRow,
+  SysPage,
+  SysPanel,
+  SysPanels,
+  SysSection,
+  type SysTone
+} from "../components/system/SystemUI";
 import { usePageChrome } from "../state/pageChrome";
+import { useNavigation } from "../state/navigation";
+import { usePermissions } from "../security/usePermissions";
+import { RoutePermissions } from "../security/routePermissions";
 import { resolveJsonPath, stringifyResolvedValue } from "@src/data/JsonPathResolver";
 import { buildDefaultRuntimeValues, validateRuntimeValues } from "@src/data/RuntimeInputDefinition";
 import type { ValueSource } from "@src/profiles/FlowProfile";
 
 const runtimeValuesStorageKey = "specterstudio.runtime-input-values";
 
+function fileBaseName(file: string): string {
+  return file.split(/[\\/]/).pop() || file;
+}
+
 export function RuntimeInputPanel() {
+  const { navigateTo } = useNavigation();
+  const { can } = usePermissions();
   const [runtimeValues, setRuntimeValues] = useState<Record<string, unknown>>(() => buildDefaultRuntimeValues(runtimeInputDefinitions));
   const [selectionMode, setSelectionMode] = useState<"value" | "label" | "index">("value");
   const [runWorkflowId, setRunWorkflowId] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
+  const [workflowName, setWorkflowName] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ tone: SysTone; text: string } | null>(null);
   const [valueSource, setValueSource] = useState<ValueSource>({
     type: "json",
     file: "resources/sample-data/customers.json",
@@ -31,25 +57,40 @@ export function RuntimeInputPanel() {
       .catch(() => undefined);
   }, []);
 
+  // The selected workflow's name titles the form panel; unreadable workflows simply fall back to the id.
+  useEffect(() => {
+    if (!runWorkflowId) {
+      setWorkflowName(null);
+      return;
+    }
+    window.playwrightFlowStudio.workflows
+      .list()
+      .then((workflows) => setWorkflowName(workflows.find((workflow) => workflow.id === runWorkflowId)?.name ?? null))
+      .catch(() => setWorkflowName(null));
+  }, [runWorkflowId]);
+
   useEffect(() => {
     localStorage.setItem(runtimeValuesStorageKey, JSON.stringify(runtimeValues));
   }, [runtimeValues]);
 
   const validationIssues = useMemo(() => validateRuntimeValues(runtimeInputDefinitions, runtimeValues), [runtimeValues]);
+  const issueByKey = useMemo(() => new Map(validationIssues.map((issue) => [issue.key, issue.message])), [validationIssues]);
 
   const validateInputs = () => {
-    setStatusMessage(
-      validationIssues.length ? `${validationIssues.length} required value(s) missing.` : "All runtime inputs are valid."
+    setStatus(
+      validationIssues.length
+        ? { tone: "warning", text: `${validationIssues.length} required value(s) missing.` }
+        : { tone: "success", text: "All runtime inputs are valid." }
     );
   };
 
   const runScenario = async () => {
     if (!runWorkflowId) {
-      setStatusMessage("Select a workflow on the Instances page before running.");
+      setStatus({ tone: "warning", text: "Select a workflow on the Instances page before running." });
       return;
     }
     if (validationIssues.length) {
-      setStatusMessage(`Cannot run: ${validationIssues.length} required value(s) missing.`);
+      setStatus({ tone: "danger", text: `Cannot run: ${validationIssues.length} required value(s) missing.` });
       return;
     }
     try {
@@ -57,9 +98,9 @@ export function RuntimeInputPanel() {
         status?: string;
         message?: string;
       };
-      setStatusMessage(result.message ?? `Workflow ${result.status ?? "run"} requested with current inputs.`);
+      setStatus({ tone: "info", text: result.message ?? `Workflow ${result.status ?? "run"} requested with current inputs.` });
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Run request failed.");
+      setStatus({ tone: "danger", text: error instanceof Error ? error.message : "Run request failed." });
     }
   };
 
@@ -81,8 +122,13 @@ export function RuntimeInputPanel() {
     },
     [validationIssues.length, runWorkflowId]
   );
+
   const sampleRow = sampleCustomersData.customers[0];
   const rowPreview = stringifyResolvedValue(resolveJsonPath(sampleCustomersData, "$.customers[0].email"));
+  const dataFile = String(runtimeValues.customerDataFile ?? "");
+  const accountType = String(runtimeValues.selectedAccountType ?? "");
+  const formDesignerPermission = RoutePermissions.formDesigner;
+  const canPreviewForm = !formDesignerPermission || can(formDesignerPermission);
 
   const updateRuntimeValue = (key: string, value: unknown) => {
     setRuntimeValues((current) => ({ ...current, [key]: value }));
@@ -98,57 +144,54 @@ export function RuntimeInputPanel() {
     }
   };
 
+  const resetToDefaults = () => {
+    setRuntimeValues(buildDefaultRuntimeValues(runtimeInputDefinitions));
+    setSelectionMode("value");
+    setStatus({ tone: "info", text: "Runtime inputs reset to their defaults." });
+  };
+
   return (
-    <section className="page operations-system-page runtime-system-page">
+    <SysPage className="runtime-inputs-page">
       <h1 className="sr-only">Runtime Inputs</h1>
-      <section className="work-panel input-panel runtime-panel operations-system-surface">
-        <div className="operations-system-context">
-          <ShieldCheck size={17} aria-hidden="true" />
-          <span>Runtime values are retained locally for the selected workflow and verified before the dry run starts.</span>
-        </div>
+      {status ? (
+        <SysBanner tone={status.tone} actionLabel="Dismiss" onAction={() => setStatus(null)}>
+          {status.text}
+        </SysBanner>
+      ) : null}
 
-        <div className="operations-system-metrics runtime-system-metrics" aria-label="Runtime input summary">
-          <article className="operations-system-metric tone-info">
-            <span className="operations-system-metric-icon" aria-hidden="true"><Database size={16} /></span>
-            <span className="operations-system-metric-label">Input fields</span>
-            <strong>{runtimeInputDefinitions.length}</strong>
-            <small>Available to this scenario</small>
-          </article>
-          <article className={`operations-system-metric ${validationIssues.length ? "tone-warning" : "tone-success"}`}>
-            <span className="operations-system-metric-icon" aria-hidden="true"><ShieldCheck size={16} /></span>
-            <span className="operations-system-metric-label">Validation</span>
-            <strong>{validationIssues.length ? "Review" : "Ready"}</strong>
-            <small>{validationIssues.length ? `${validationIssues.length} required value${validationIssues.length === 1 ? "" : "s"} missing` : "All required values present"}</small>
-          </article>
-          <article className="operations-system-metric tone-neutral">
-            <span className="operations-system-metric-icon" aria-hidden="true"><FileJson size={16} /></span>
-            <span className="operations-system-metric-label">Selection mode</span>
-            <strong>{selectionMode}</strong>
-            <small>How dropdown values resolve</small>
-          </article>
-        </div>
+      <SysSection
+        icon={FormInput}
+        title="Scenario fields"
+        text="Fields the runner prompts for, or binds from a data source, before a workflow starts. Values are kept on this machine."
+        actions={
+          canPreviewForm ? (
+            <SysButton kind="small" icon={Eye} onClick={() => navigateTo("formDesigner")}>
+              Preview form
+            </SysButton>
+          ) : null
+        }
+      />
 
-        <div className="runtime-grid expanded operations-runtime-grid">
-          <section className="runtime-form operations-system-panel">
-            <div className="operations-system-panel-head">
-              <div>
-                <h2>Scenario fields</h2>
-                <span>Values supplied before the selected workflow starts.</span>
-              </div>
-            </div>
-            <label>
-              Customer Data File
-              <div className="file-input-row">
-                <FileJson size={16} />
-                <input
-                  value={String(runtimeValues.customerDataFile ?? "")}
-                  onChange={(event) => updateRuntimeValue("customerDataFile", event.target.value)}
-                />
-                <button onClick={browseCustomerDataFile} type="button">
+      <SysPanels>
+        <SysPanel
+          icon={LayoutGrid}
+          title={workflowName ?? (runWorkflowId ? runWorkflowId : "Scenario inputs")}
+          meta={`${runtimeInputDefinitions.length} fields · bound to ${fileBaseName(dataFile) || "no data file"}`}
+        >
+          <SysFormGrid min={240}>
+            <SysField
+              label="Customer data file"
+              wide
+              invalid={issueByKey.has("customerDataFile")}
+              hint={issueByKey.get("customerDataFile") ?? "JSON file whose rows drive data-driven runs"}
+            >
+              <span className="sys-file-row">
+                <input className="sys-control is-mono" value={dataFile} onChange={(event) => updateRuntimeValue("customerDataFile", event.target.value)} />
+                <SysButton kind="small" icon={FileJson} onClick={() => void browseCustomerDataFile()}>
                   Browse
-                </button>
-              </div>
-            </label>
+                </SysButton>
+              </span>
+            </SysField>
             {runtimeInputDefinitions
               .filter((definition) => definition.key !== "customerDataFile")
               .map((definition) => (
@@ -157,75 +200,85 @@ export function RuntimeInputPanel() {
                   key={definition.key}
                   value={runtimeValues[definition.key]}
                   onChange={updateRuntimeValue}
+                  invalidMessage={issueByKey.get(definition.key)}
                 />
               ))}
             <DropdownValueSelector mode={selectionMode} onModeChange={setSelectionMode} />
-          </section>
+          </SysFormGrid>
+          <SysFormFooter>
+            <SysButton kind="small" icon={RotateCcw} onClick={resetToDefaults}>
+              Reset to defaults
+            </SysButton>
+            <SysButton kind="smallPrimary" icon={ShieldCheck} onClick={validateInputs}>
+              Validate inputs
+            </SysButton>
+          </SysFormFooter>
+        </SysPanel>
 
-          <section className="binding-workbench operations-system-panel">
-            <div className="operations-system-panel-head">
-              <div>
-                <h2>Value sources</h2>
-                <span>Fill input from JSON or a runtime value.</span>
-              </div>
-            </div>
-            <DataBindingEditor
-              runtimeInputKeys={runtimeInputDefinitions.map((definition) => definition.key)}
-              valueSource={valueSource}
-              onChange={setValueSource}
+        <SysPanel icon={Link2} title="Value sources" meta="Where each field resolves from">
+          <SysList label="Value sources">
+            <SysListRow
+              icon={Database}
+              title="$.customers[0].email"
+              sub={`JSON path · ${fileBaseName(dataFile) || "sample data"} row 1 → "${rowPreview}"`}
+              badge={rowPreview ? "Resolved" : "Unresolved"}
+              badgeTone={rowPreview ? "success" : "danger"}
             />
-            <div className="runtime-preview-grid">
-              <article>
-                <span>Current row email</span>
-                <strong>{rowPreview}</strong>
-              </article>
-              <article>
-                <span>Dropdown select mode</span>
-                <strong>{selectionMode}</strong>
-              </article>
-              <article>
-                <span>Runtime account type</span>
-                <strong>{String(runtimeValues.selectedAccountType ?? "")}</strong>
-              </article>
-              <article>
-                <span>Current row account type</span>
-                <strong>{sampleRow.accountType}</strong>
-              </article>
-            </div>
-          </section>
+            <SysListRow
+              icon={Database}
+              title="$.customers[0].accountType"
+              sub={`JSON path · current row → "${sampleRow.accountType}"`}
+              badge="Resolved"
+              badgeTone="success"
+            />
+            <SysListRow
+              icon={FormInput}
+              tone={accountType ? "running" : "danger"}
+              title="{{ runtime.selectedAccountType }}"
+              sub={accountType ? `Runtime input · prompted at start → "${accountType}"` : "Runtime input · no value selected"}
+              badge={accountType ? "Prompt" : "Unresolved"}
+              badgeTone={accountType ? "info" : "danger"}
+            />
+            <SysListRow
+              icon={ListFilter}
+              title="Dropdown select mode"
+              sub="How a dropdown option is matched when the flow runs"
+              value={selectionMode === "value" ? "By value" : selectionMode === "label" ? "By label" : "By index"}
+            />
+          </SysList>
+        </SysPanel>
+      </SysPanels>
 
-          <aside className="runtime-summary operations-runtime-summary operations-system-panel">
-            <div className="operations-system-panel-head">
-              <div>
-                <h2>Run readiness</h2>
-                <span>Live checks for this dry run.</span>
-              </div>
-            </div>
-            <article>
-              <Database size={18} />
-              <div>
-                <strong>Data rows</strong>
-                <span>{sampleCustomersData.customers.length} sample rows detected</span>
-              </div>
-            </article>
-            <article>
-              <ShieldCheck size={18} />
-              <div>
-                <strong>Input validation</strong>
-                <span>{validationIssues.length ? `${validationIssues.length} required values missing` : "All required values present"}</span>
-              </div>
-            </article>
-            <div className="validation-list">
-              {validationIssues.length ? (
-                validationIssues.map((issue) => <span key={issue.key}>{issue.message}</span>)
-              ) : (
-                <strong>Runtime inputs are valid.</strong>
-              )}
-            </div>
-            {statusMessage ? <span className="form-message">{statusMessage}</span> : null}
-          </aside>
-        </div>
-      </section>
-    </section>
+      <SysPanels>
+        <SysPanel icon={Link2} title="Value source binding" meta="Fill an input from JSON, a runtime value or the environment">
+          <DataBindingEditor
+            runtimeInputKeys={runtimeInputDefinitions.map((definition) => definition.key)}
+            valueSource={valueSource}
+            onChange={setValueSource}
+          />
+        </SysPanel>
+
+        <SysPanel icon={CheckCircle2} tone={validationIssues.length ? "warning" : "success"} title="Run readiness" meta="Live checks for this dry run">
+          <SysChecklist label="Run readiness">
+            <SysCheckRow tone="success" title="Data rows" sub={`${sampleCustomersData.customers.length} sample rows detected`} badge="Pass" />
+            <SysCheckRow
+              tone={validationIssues.length ? "warning" : "success"}
+              title="Input validation"
+              sub={validationIssues.length ? `${validationIssues.length} required value${validationIssues.length === 1 ? "" : "s"} missing` : "All required values present"}
+              badge={validationIssues.length ? "Review" : "Pass"}
+            />
+            <SysCheckRow
+              tone={runWorkflowId ? "success" : "warning"}
+              title="Workflow selected"
+              sub={runWorkflowId ? workflowName ?? runWorkflowId : "Select a workflow on the Instances page before running"}
+              badge={runWorkflowId ? "Pass" : "Required"}
+            />
+            {validationIssues.map((issue) => (
+              <SysCheckRow key={issue.key} tone="danger" title={issue.message} sub="Fill the field above, then validate again" badge="Missing" />
+            ))}
+          </SysChecklist>
+        </SysPanel>
+      </SysPanels>
+    </SysPage>
   );
 }
