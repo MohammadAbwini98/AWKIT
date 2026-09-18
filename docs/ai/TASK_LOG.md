@@ -15325,3 +15325,22 @@ pm run verify:mock-site
 - **Result:** Settings alone now matches the new system layout; all prior controls, permission gates,
   confirmation dialogs, validation bindings, immediate-save toggles, IPC calls, and persisted Save
   behavior remain intact. No demo data or simulated action from the reference artifact was imported.
+
+## 2026-09-18 — awkit-admin-system-ui-0918: Administration pages adopt the attached system UI (Codex)
+
+- **Task:** replace the Users, Roles, Permissions, Audit Log, and Licensing page presentation from
+  the supplied offline SpecterStudio reference while preserving real product state and behavior.
+- **Files:** `app/renderer/pages/admin/{UserManagement,RolesPage,PermissionsPage,AuditLogPage,LicensingPage}.tsx`
+  (header-published real actions, live directory/matrix/audit/license composition, semantic table
+  captions, icon-led scanability, existing create-form focus targets); `app/renderer/styles/global.css`
+  (token-only primary table surfaces, responsive role cards, matrix metadata, offline activation
+  steps, audit-actor treatment); `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md` and task lease
+  closeout state.
+- **Tests:** `npm run build` **PASS**; `npm run verify:design-tokens` **35/35 PASS**; `npm run
+  verify:admin-gui` **36/36 PASS** (real Electron, CRUD, direct overrides, matrix/audit/license
+  states, role isolation, light/dark screenshots, 1024–1920 containment, zero console errors);
+  visual review of light captures for all five changed routes. Not run: runner, mock-site, offline
+  validation — their main-process, fixture, execution, and packaging boundaries were unchanged.
+- **Result:** every changed page follows the approved system hierarchy without importing reference
+  demo data or simulated actions. Authentication, authorization, reauthentication, audit, license
+  validation/enforcement, persistence, preload/IPC, and offline behavior are unchanged.

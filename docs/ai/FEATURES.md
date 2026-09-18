@@ -1,5 +1,19 @@
 # FEATURES
 
+## Administration system UI (2026-09-18)
+
+- Users, Roles, Permissions, Audit Log, and Licensing use the attached system UI's compact
+  route-action/KPI/panel hierarchy. Their data remains real: page-header actions focus the existing
+  Users and Roles create forms; Audit refresh, signed license import, and revalidation retain their
+  existing app-owned handlers.
+- User and audit tables now read as primary system surfaces with accessible captions and icon-led
+  identity/status cells. Roles uses a responsive card directory; Permissions labels live role columns
+  as built-in or custom; Licensing groups real status, activation export, the manual Issuer handoff,
+  and destructive license controls without adding a network path.
+- The change is renderer-only and token-only. RBAC, reauthentication, audit storage, licensing
+  validation/enforcement, IPC/preload contracts, persistence, routes, offline behavior, and the
+  role-exclusive License Issuer trust boundary are unchanged.
+
 ## Settings system UI compact composition (2026-09-18)
 
 - The Appearance group now follows the reference hierarchy: a full-width Accent editor followed by

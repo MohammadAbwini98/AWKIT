@@ -1,24 +1,24 @@
 {
-  "task": "awkit-settings-system-ui-0918",
-  "contract_path": "docs/ai/contracts/awkit-settings-system-ui-0918.json",
+  "task": "awkit-admin-system-ui-0918",
+  "contract_path": "docs/ai/contracts/awkit-admin-system-ui-0918.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/FEATURES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-settings-system-ui-0918.json",
+    "docs/ai/contracts/awkit-admin-system-ui-0918.json",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-17T23:44:41.520Z",
-  "acquired_at_commit": "b0666639f4d4cafa89f7a40469dff553f72f2d80",
+  "acquired_at": "2026-09-18T13:20:48.239Z",
+  "acquired_at_commit": "d1461b57db245b6388f9f750c0f8cd42297d11b2",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-settings-system-ui-0918.json"
+    "docs/ai/contracts/awkit-admin-system-ui-0918.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "c31541722c8621cd7e837fe5b2e823389fe7b5309edc182ef82c89a651877644",
-    "docs/ai/contracts/awkit-settings-system-ui-0918.json": "07df7deb66e58a8707052bcadc4a66b970ad2ec187cade73a6da62ec12c12b4d"
+    "docs/ai/contracts/active-lease.json": "e55110da40a580745ecb7df6ccd1c4388431fdc99cd20e4e95b9ffb2967d9d56",
+    "docs/ai/contracts/awkit-admin-system-ui-0918.json": "022f75cfbc3eaaddc789afb0d02e0d3a555e5c31e2692562c65a325c88038ab2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -28,12 +28,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789685699037.3977"
+    "build": "dir(1):native-hosts:1789735702419.9949"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-17T23:50:00.169Z",
-  "released_reason": "terminal closeout",
-  "archived_at": "2026-09-17T23:50:00.171Z"
+  "violations": []
 }

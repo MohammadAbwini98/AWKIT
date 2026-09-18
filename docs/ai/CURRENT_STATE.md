@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## `awkit-admin-system-ui-0918`: Administration routes adopt the attached system UI (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes only renderer composition and token CSS; no validation-ledger case moved.
+
+Users, Roles, Permissions, Audit Log, and Licensing now follow the attached system hierarchy: the
+real primary actions publish in the shared top header, KPI tiles lead each page, and the live
+directory, role cards, permission matrix, audit trail, and license details sit in visibly titled
+system surfaces. Users and Roles header actions scroll and focus their existing create forms.
+Permissions adds actual built-in/custom role context to the existing live matrix; Audit Log leads
+with the same real filters and improves actor/status scanability; Licensing moves its existing signed
+license import into the header, keeps revalidation beside it, makes status span the page, and presents
+the genuine offline activation handoff as Export → Sign → Import.
+
+All user/role CRUD, authorization, fresh reauthentication, direct permission overrides, audit query,
+signed-license verification, activation export, license removal/revocation, routes, preload calls,
+IPC contracts, persistence, licensing enforcement, and offline behavior remain unchanged. The
+reference artifact supplied only composition and visual direction: no demo identities, status counts,
+seat values, or placeholder actions were copied into product UI.
+
+**Evidence:** `npm run build` PASS against the final renderer; `npm run verify:design-tokens`
+**35/35 PASS** in live light/dark Electron with zero renderer-console errors; `npm run
+verify:admin-gui` **36/36 PASS**, covering real Super User user/role CRUD, overrides,
+permission matrix, audit events, licensing state, License Issuer access isolation, and 1024/1280/
+1440/1920 responsive containment. Final light-theme captures of all five changed pages were visually
+reviewed. Runner, mock-site, and offline verifiers were **NOT RUN** because their boundaries did not
+change.
+
 ## `awkit-settings-system-ui-0918`: gap-free Settings composition applied (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
