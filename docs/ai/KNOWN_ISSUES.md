@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## OPEN (2026-09-18) — two GUI suites still target removed shell/Settings markup
+
+- `verify:e2e-sweep` clicks `button.nav-theme-toggle`, which `bf95529` removed from the side menu;
+  its route-mount and empty-state stages pass first. `verify:settings-e2e` waits for a "Settings"
+  heading the Settings system-layout commits (`3dffc9f`, `b066663`) no longer render. Both predate the
+  SpecterStudio system-pages work and need their selectors aligned to the current shell/Settings.
+- Fragile area confirmed again: GUI suites that launch without the harness `electronArgs`
+  (`--user-data-dir`) quit during `electron.launch()` whenever another SpecterStudio instance holds the
+  default single-instance lock. The suites touched on 2026-09-18 now pass it; others may still omit it.
+- A hook class kept on new markup can re-activate an old rule: `.report-card { display: grid }` turned
+  Run Artifacts `<tr>`s into grids. When a verifier-owned class stays on a rebuilt element, delete or
+  neutralize its legacy rule and prove the populated state, not only the empty one.
+
 ## RESOLVED (2026-09-17) — Reports a11y Electron identity collision and canvas verifier typing
 
 - `verify:reports-settings-a11y` omitted the `electronArgs` returned by `isolatedLaunchEnv`, so its

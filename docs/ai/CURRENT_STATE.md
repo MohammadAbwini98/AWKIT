@@ -1,5 +1,44 @@
 # CURRENT_STATE
 
+## `awkit-specter-system-pages-0918`: ten pages rebuilt on the exact SpecterStudio design (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+changes renderer composition, token CSS and GUI verifiers; no validation-ledger case moved.
+
+Users, Roles, Permissions, Audit Log, Licensing, Run Artifacts, Recorder, Data Sources, Runtime
+Inputs and Sessions now render the supplied "SpecterStudio (offline)" design through one shared
+block library, `app/renderer/components/system/SystemUI.tsx` (admin frame, banners, metric cards,
+panels, list/checklist/bars/timeline/key-value rows, the titled table card with sort/selection/
+pagination, the filter card and the modal dialog; `sys-*` classes appended last in `global.css`).
+Every block is driven by real data; nothing from the reference's demo records was copied. The
+Recorder keeps every control, label and hook its 194-check verifier drives, laid out as the design's
+metrics (steps, locator quality, elapsed, session), protected-login handoff panel, captured-steps
+timeline, locator-quality bars and review-before-saving checklist, with Stop recording / Save as flow
+in the header. Two real defects found while finishing were fixed: a re-auth-confirmed create/edit left
+the Users "Create user" and Roles editor dialogs open, and the legacy `.report-card { display: grid }`
+rule turned each Run Artifacts table row into a grid (3 of 4 row actions unclickable whenever a report
+existed).
+
+GUI verifiers that targeted the pre-design markup were migrated to the new structure with the same
+intent (shared `createUser`/`userRows`/`waitForUsersPage` helpers; `navClick` now waits for the nav item),
+and the suites run here now pass the harness `--user-data-dir` so they cannot collide with another
+SpecterStudio instance's single-instance lock. `verify:system-pages-gui` now seeds a stored report and
+proves the Run Artifacts row stays a table row with every action reachable (mutation-checked: it fails
+on the pre-fix build).
+
+**Evidence:** `npm run build` PASS; `verify:system-pages-gui` **52/52**; `verify:recorder-gui`
+**194/194**; `verify:admin-gui` **38/38**; `verify:e2e-auth` **30/30**; `verify:e2e-reauth` **20/20**;
+`verify:e2e-rbac` **70/70**; `verify:e2e-licensing` **38/38**; `verify:design-tokens` **35/35**;
+`verify:oracle-drivers-gui` **46/46**; `verify:reports` **35/35**; `verify:reports-populated-gui`
+**173 PASS / 0 FAIL / 3 NOT RUN** (the three pre-existing live-engine/stale-row cases); `verify:flow-library`
+**19/19**; `verify:recorder-authz` **58/58**; `verify:issuer-readiness-gui` **21/21**; `verify:branding-gui`
+**30/30**; `verify:semantic-ui-gui` **19/19**. `verify:e2e-sweep` passes its route-mount and empty-state
+stages, then **FAIL** on `button.nav-theme-toggle` (removed by `bf95529`, pre-existing); `verify:settings-e2e`
+passes its 16 pre-auth/seeding checks, then **FAIL** waiting for a "Settings" heading the Settings layout
+commits (`3dffc9f`/`b066663`) removed (pre-existing). `verify:recorder-e2e` **NOT RUN**: its Recorder
+interactions are the exact selectors `verify:recorder-gui` proved. Runner, mock-site and offline
+verifiers **NOT RUN**: no runner, fixture, main-process, packaging or offline behavior changed.
+
 ## `awkit-claude-direct-loop-0918`: Claude Code ordinary work is direct (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task

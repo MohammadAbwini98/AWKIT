@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-specter-system-pages-0918`: exact SpecterStudio design for ten pages (Claude)
+
+- **Task:** replace the Users, Roles, Permissions, Audit Log, Licensing, Run Artifacts, Recorder, Data
+  Sources, Runtime Inputs and Sessions UI with the supplied "SpecterStudio (offline)" design; resumed
+  from a prior Claude session that stopped before the Recorder and before any verification of four pages.
+- **Files:** `app/renderer/components/system/SystemUI.tsx` (new), `app/renderer/pages/{Recorder,
+  ExecutionReports,DataSourceManager,RuntimeInputPanel,SessionsManager}.tsx`, `app/renderer/pages/admin/
+  {UserManagement,RolesPage,PermissionsPage,AuditLogPage,LicensingPage,ReauthDialog}.tsx`,
+  `app/renderer/pages/admin/permissionGroups.ts` (new), `app/renderer/components/data-binding/*`,
+  `app/renderer/layout/TopHeader.tsx`, `app/renderer/state/pageChrome.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-system-pages-gui.mjs` (new), migrated GUI verifiers + `scripts/lib/e2e-qa-lib.mjs`,
+  `package.json`, `scripts/lib/verifier-classification.ts`, `docs/ai/{CURRENT_STATE,TASK_LOG,KNOWN_ISSUES}.md`.
+- **Implementation:** pages compose the shared `sys-*` blocks over real state only. Recorder keeps every
+  verifier hook while adopting the design's metrics/handoff/timeline/bars/checklist; dead legacy recorder
+  and report-card CSS removed. Fixed: re-auth-confirmed create/edit now closes its dialog (Users, Roles);
+  Run Artifacts rows no longer inherit the legacy `.report-card` grid.
+- **Tests run:** see CURRENT_STATE — build PASS; system-pages 52/52; recorder-gui 194/194; admin-gui 38/38;
+  e2e auth 30/30, reauth 20/20, rbac 70/70, licensing 38/38; design-tokens 35/35; oracle-drivers-gui 46/46;
+  reports 35/35; reports-populated 173/0/3 NOT RUN; flow-library 19/19; recorder-authz 58/58;
+  issuer-readiness 21/21; branding 30/30; semantic-ui 19/19. e2e-sweep and settings-e2e **FAIL** on
+  pre-existing selector drift from earlier shell/Settings commits. recorder-e2e, runner, mock-site and
+  offline **NOT RUN** (unchanged boundaries / selectors already proven).
+- **Result:** all ten pages on the design; every verifier covering them green.
+
 ## 2026-09-18 — `awkit-claude-direct-loop-0918`: simplify the Claude Code development loop (Codex)
 
 - **Task:** reduce Claude Code task ceremony and automatic agent calls to a direct single-agent
