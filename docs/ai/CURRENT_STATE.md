@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## `awkit-gui-selector-drift-0918`: route sweep and Settings E2E aligned to the current shell (2026-09-18)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
+corrects two GUI verifiers and one line of Settings copy; no validation-ledger case moved.
+
+`verify:e2e-sweep` now toggles the theme through the side menu's "Dark appearance" switch (the
+`button.nav-theme-toggle` it clicked was removed by `bf95529`). `verify:settings-e2e` now identifies
+the Settings page by the shared header title plus the page's own Appearance heading, and saves through
+the header's `Save` action (the page-level heading and in-page "Save Changes" button were removed by
+`3dffc9f`/`b066663`). The Administrator branding-denial check had silently become vacuous under the
+card's new "Appearance — Workspace Logo" title; it now targets that heading and has a Super User
+control. The Recorder Security note now points at "Save" instead of the removed "Save Changes".
+
+**Evidence:** `npm run build` PASS; `npm run typecheck:scripts` PASS; `verify:e2e-sweep` **13/13 PASS**;
+`verify:settings-e2e` **180 PASS / 0 FAIL / 1 NOT RUN** (exit 1 by the suite's NOT-RUN-fails rule) —
+SET-015 is owner-gated (`AWKIT_ALLOW_OS_SHELL_LAUNCH=1`) because it launches Explorer. Runner,
+mock-site and offline verifiers **NOT RUN**: no runtime, fixture or packaging behavior changed.
+
 ## `awkit-specter-system-pages-0918`: ten pages rebuilt on the exact SpecterStudio design (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task

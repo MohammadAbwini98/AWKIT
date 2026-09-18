@@ -131,10 +131,12 @@ try {
   }
   check("data-bearing routes show intentional empty states on a fresh profile", emptyFindings.length === 0, emptyFindings.join(" | "));
 
-  // 4 — theme toggle: nav footer switch flips data-theme; representative dark screenshots.
+  // 4 — theme toggle: nav footer switch flips data-theme; representative dark screenshots. The footer
+  // control is the "Dark appearance" switch (the older `button.nav-theme-toggle` was removed by bf95529).
   consoleWatch.setLabel("theme toggle");
   await navClick(win, "Dashboard");
-  await win.locator("button.nav-theme-toggle").click();
+  const themeSwitch = win.locator(".left-navigation .nav-footer").getByRole("switch", { name: "Dark appearance" });
+  await themeSwitch.click();
   await win.waitForTimeout(400);
   const darkTheme = await win.evaluate(() => document.documentElement.dataset.theme);
   check("theme toggle applies dark mode", darkTheme === "dark", `theme=${darkTheme}`);
@@ -150,7 +152,7 @@ try {
     return Boolean(color) && color !== "rgba(0, 0, 0, 0)";
   });
   check("dark mode keeps text styled/visible (token check)", darkTextVisible);
-  await win.locator("button.nav-theme-toggle").click();
+  await themeSwitch.click();
   await win.waitForTimeout(400);
   check("theme toggles back to light", (await win.evaluate(() => document.documentElement.dataset.theme)) === "light");
 

@@ -331,8 +331,22 @@ async function dataInventory(win: Page): Promise<{
 }
 
 type Probe = { rejected: boolean; message: string };
+/**
+ * The Settings page no longer renders its own "Settings" heading (the 3dffc9f/b066663 system layout):
+ * the shared top header names the active route, and the page's first section heading is Appearance.
+ * Requiring BOTH proves the Settings route is active AND the Settings page itself rendered — the header
+ * alone would also read "Settings" over a NotAuthorized body.
+ */
+/** The Super-User-only branding card's heading (BrandingSettings.tsx); formerly "Workspace Branding". */
+const WORKSPACE_LOGO_HEADING = "Appearance — Workspace Logo";
+const settingsHeaderTitle = (win: Page) => win.locator(".top-header .header-title strong", { hasText: /^Settings$/ });
+const settingsPageHeading = (win: Page) => win.locator("#settings-appearance-title");
+/** The page's Save action, published into the shared top header (formerly an in-page "Save Changes"). */
+const saveSettingsButton = (win: Page) => win.locator(".top-header .header-actions").getByRole("button", { name: "Save", exact: true });
+
 async function waitForSettings(win: Page): Promise<void> {
-  await win.getByRole("heading", { name: "Settings", exact: true }).waitFor({ timeout: 20_000 });
+  await settingsHeaderTitle(win).waitFor({ timeout: 20_000 });
+  await settingsPageHeading(win).waitFor({ timeout: 20_000 });
   await win.getByRole("heading", { name: "Advanced", exact: true }).waitFor({ timeout: 20_000 });
   await win.waitForTimeout(500);
 }
@@ -610,6 +624,9 @@ try {
   ]) {
     check(`SET-001 Super User sees ${heading}`, headings.includes(heading), headings.join(" | "));
   }
+  // Control for the Administrator denial below: the SU-only branding card must render for the Super
+  // User, or "Administrator does not see it" would pass on a card that no longer exists at all.
+  check(`SET-001 Super User sees the SU-only ${WORKSPACE_LOGO_HEADING} card`, headings.includes(WORKSPACE_LOGO_HEADING), headings.join(" | "));
 
   // Paths: seven defaults, correct file-vs-directory truth, individual reset and blank client guard.
   const pathCards = win.locator(".settings-path-field");
@@ -635,7 +652,7 @@ try {
   await screenshotsField.getByRole("button", { name: "Reset", exact: true }).click();
   check("SET-007 individual Reset restores the runtime default", (await screenshotsInput.inputValue()) === defaultPaths.screenshotsPath);
   await screenshotsInput.fill("");
-  await win.getByRole("button", { name: "Save Changes" }).click();
+  await saveSettingsButton(win).click();
   const blankError = win.getByText("Screenshots path must not be empty.");
   check("SET-007 blank path is blocked with actionable text", await blankError.isVisible().catch(() => false));
   check(
@@ -673,7 +690,7 @@ try {
   await browseButton.click();
   await win.waitForTimeout(400);
   check("SET-007 accepting the picker applies the chosen folder", (await screenshotsInput.inputValue()) === pickedDir, `${await screenshotsInput.inputValue()}`);
-  await win.getByRole("button", { name: "Save Changes" }).click();
+  await saveSettingsButton(win).click();
   await win.waitForTimeout(600);
   check("SET-007 the picked folder persists as the artifact location", (await snapshotSettings(win)).paths.screenshotsPath === pickedDir);
 
@@ -690,7 +707,7 @@ try {
     readOnlyDir.replace(root, "<repo>")
   );
   await screenshotsInput.fill(readOnlyDir);
-  await win.getByRole("button", { name: "Save Changes" }).click();
+  await saveSettingsButton(win).click();
   await win.waitForTimeout(800);
   const readOnlyStatus = await win.evaluate(() => window.playwrightFlowStudio.settings.validatePaths());
   check(
@@ -705,7 +722,7 @@ try {
   restoreDirectoryWrite(readOnlyDir);
   deniedPaths.pop();
   await screenshotsInput.fill(savedScreenshotsPath);
-  await win.getByRole("button", { name: "Save Changes" }).click();
+  await saveSettingsButton(win).click();
   await win.waitForTimeout(600);
 
   // Direct invalid IPC must fail in the main process; restore after a vulnerable pre-fix write.
@@ -789,7 +806,7 @@ try {
   await win.getByLabel("Default run mode").selectOption("headed");
   await win.getByLabel("Screenshot on failure").uncheck();
   await win.getByLabel("Stop on error").check();
-  await win.getByRole("button", { name: "Save Changes" }).click();
+  await saveSettingsButton(win).click();
   await win.getByText("Settings saved.").waitFor({ timeout: 10_000 });
   const savedExecution = (await snapshotSettings(win)).execution;
   check(
@@ -1451,8 +1468,14 @@ try {
   check("SET-001 Administrator has Settings navigation", adminLabels.includes("Settings"));
   check("SET-001 Administrator has no Program Status navigation", !adminLabels.includes("Program Status"));
   await openSettings(win);
-  check("SET-001 Administrator sees Settings page", await win.getByRole("heading", { name: "Settings", exact: true }).isVisible());
-  check("SET-001 Administrator does not see SU-only Workspace Branding", (await win.getByRole("heading", { name: "Workspace Branding" }).count()) === 0);
+  check(
+    "SET-001 Administrator sees Settings page",
+    (await settingsHeaderTitle(win).isVisible()) && (await settingsPageHeading(win).isVisible())
+  );
+  check(
+    "SET-001 Administrator does not see SU-only Workspace Branding",
+    (await win.getByRole("heading", { name: WORKSPACE_LOGO_HEADING, exact: true }).count()) === 0
+  );
   const adminMutation = await directProbe(
     win,
     `() => window.playwrightFlowStudio.settings.update({ execution: { maxRuns: 99 } })`

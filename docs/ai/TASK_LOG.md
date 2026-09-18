@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-09-18 — `awkit-gui-selector-drift-0918`: align route sweep and Settings E2E to current markup (Claude)
+
+- **Task:** fix `verify:e2e-sweep` and `verify:settings-e2e`, which failed on shell/Settings markup
+  removed by earlier commits, without weakening any check.
+- **Files:** `scripts/verify-e2e-route-sweep.mjs`, `scripts/verify-settings-e2e.mts`,
+  `app/renderer/pages/Settings.tsx` (copy only), `docs/ai/{KNOWN_ISSUES,CURRENT_STATE,TASK_LOG}.md`.
+- **Implementation:** theme toggle → nav-footer "Dark appearance" switch; Settings identity → header
+  title + `#settings-appearance-title`; save → header `Save` action; branding denial retargeted to
+  "Appearance — Workspace Logo" with a new Super User control (the old heading made it vacuous);
+  Recorder Security copy no longer names the removed "Save Changes" button.
+- **Tests run:** build PASS; `typecheck:scripts` PASS; `verify:e2e-sweep` **13/13**;
+  `verify:settings-e2e` **180 PASS / 0 FAIL / 1 NOT RUN** (SET-015 owner-gated Explorer launch; the suite
+  exits 1 on NOT RUN by design). Runner, mock-site, offline **NOT RUN** (unchanged boundaries).
+- **Result:** both suites reach and pass every executable check.
+
 ## 2026-09-18 — `awkit-specter-system-pages-0918`: exact SpecterStudio design for ten pages (Claude)
 
 - **Task:** replace the Users, Roles, Permissions, Audit Log, Licensing, Run Artifacts, Recorder, Data

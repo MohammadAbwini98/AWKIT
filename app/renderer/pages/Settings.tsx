@@ -367,7 +367,7 @@ export function SettingsPage() {
 
   /**
    * Persist the certificate-trust toggle immediately (it is a security control, not a draft field that
-   * waits for "Save Changes"). Enabling always routes through the confirmation dialog first; disabling
+   * waits for "Save"). Enabling always routes through the confirmation dialog first; disabling
    * — the secure direction — applies straight away. On failure the local state is reverted so the
    * checkbox can never show a value the main process did not accept.
    */
@@ -781,7 +781,7 @@ export function SettingsPage() {
             </div>
             <p className="form-message">
               Applies to Recorder sessions and to workflow execution. Saved immediately — it does not wait for
-              “Save Changes”.
+              “Save”.
             </p>
             <div className="settings-grid">
               <label className="inline-check">

@@ -1,11 +1,22 @@
 # KNOWN_ISSUES
 
-## OPEN (2026-09-18) — two GUI suites still target removed shell/Settings markup
+## RESOLVED (2026-09-18) — two GUI suites targeted removed shell/Settings markup
 
-- `verify:e2e-sweep` clicks `button.nav-theme-toggle`, which `bf95529` removed from the side menu;
-  its route-mount and empty-state stages pass first. `verify:settings-e2e` waits for a "Settings"
-  heading the Settings system-layout commits (`3dffc9f`, `b066663`) no longer render. Both predate the
-  SpecterStudio system-pages work and need their selectors aligned to the current shell/Settings.
+- `verify:e2e-sweep` clicked `button.nav-theme-toggle`, removed by `bf95529`; it now drives the side
+  menu's "Dark appearance" `role="switch"` and passes **13/13**.
+- `verify:settings-e2e` waited for a page-level "Settings" heading and clicked an in-page "Save
+  Changes" button; the Settings system layout (`3dffc9f`, `b066663`) removed both. It now requires the
+  shared header to name the route AND the page's own `#settings-appearance-title` (the header alone
+  would also read "Settings" over NotAuthorized), and clicks the header's real `Save` action.
+- The same drift had made "Administrator does not see SU-only Workspace Branding" vacuous: that card
+  is now titled "Appearance — Workspace Logo", so the old heading never matched anyone. The check now
+  uses the real heading, with a new Super User control proving the card renders for the SU.
+- The Recorder Security copy still told users to click "Save Changes"; it now says "Save".
+- Result: **180 PASS / 0 FAIL / 1 NOT RUN** — SET-015 opens Explorer and stays owner-gated behind
+  `AWKIT_ALLOW_OS_SHELL_LAUNCH=1`; the suite exits 1 on any NOT RUN by design (AWKIT-QA-007).
+
+## OPEN (2026-09-18) — GUI launch isolation and legacy hook classes (fragile areas)
+
 - Fragile area confirmed again: GUI suites that launch without the harness `electronArgs`
   (`--user-data-dir`) quit during `electron.launch()` whenever another SpecterStudio instance holds the
   default single-instance lock. The suites touched on 2026-09-18 now pass it; others may still omit it.
