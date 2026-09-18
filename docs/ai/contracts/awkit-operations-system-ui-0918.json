@@ -188,7 +188,8 @@
   "completion": {
     "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "APPROVED"
+    "qc_status": "APPROVED",
+    "closed_at_commit": "c6b87506de85d85698afd4a680077208559bbb43"
   },
   "write_lease": {
     "history": [
@@ -209,6 +210,26 @@
         "acquired_at_commit": "36abcd785b0fa5349126de047056f6dd5522f309",
         "released_at": "2026-09-18T16:20:06.411Z",
         "released_reason": "handoff to project-state: Operational system UI implemented and verified; record task evidence and terminal closeout",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-operations-system-ui-0918:project-state:2026-09-18T16:20:06.476Z",
+        "task": "awkit-operations-system-ui-0918",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/FEATURES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-operations-system-ui-0918.json",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-18T16:20:06.476Z",
+        "acquired_at_commit": "f64c3c95a1a444e7fb4d92cb2a3e81953cbf61b5",
+        "released_at": "2026-09-18T16:24:45.030Z",
+        "released_reason": "Operational system UI implementation, evidence, and dashboard reconciliation complete",
         "amendments": [],
         "overrides": [],
         "violations": []
