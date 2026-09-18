@@ -66,10 +66,11 @@ export function RuntimeInputPanel() {
   usePageChrome(
     {
       actions: [
-        { id: "validate", label: "Validate", onClick: validateInputs, title: "Check required runtime inputs" },
+        { id: "validate", label: "Validate", icon: <ShieldCheck size={15} aria-hidden="true" />, onClick: validateInputs, title: "Check required runtime inputs" },
         {
           id: "run",
           label: "Run",
+          icon: <Play size={15} aria-hidden="true" />,
           variant: "primary",
           onClick: () => void runScenario(),
           disabled: !runWorkflowId,
@@ -98,14 +99,43 @@ export function RuntimeInputPanel() {
   };
 
   return (
-    <section className="page">
-      <section className="work-panel input-panel runtime-panel">
-        <div className="section-heading">
-          <h1>Runtime Inputs</h1>
-          <span>Customer Onboarding Scenario</span>
+    <section className="page operations-system-page runtime-system-page">
+      <h1 className="sr-only">Runtime Inputs</h1>
+      <section className="work-panel input-panel runtime-panel operations-system-surface">
+        <div className="operations-system-context">
+          <ShieldCheck size={17} aria-hidden="true" />
+          <span>Runtime values are retained locally for the selected workflow and verified before the dry run starts.</span>
         </div>
-        <div className="runtime-grid expanded">
-          <section className="runtime-form">
+
+        <div className="operations-system-metrics runtime-system-metrics" aria-label="Runtime input summary">
+          <article className="operations-system-metric tone-info">
+            <span className="operations-system-metric-icon" aria-hidden="true"><Database size={16} /></span>
+            <span className="operations-system-metric-label">Input fields</span>
+            <strong>{runtimeInputDefinitions.length}</strong>
+            <small>Available to this scenario</small>
+          </article>
+          <article className={`operations-system-metric ${validationIssues.length ? "tone-warning" : "tone-success"}`}>
+            <span className="operations-system-metric-icon" aria-hidden="true"><ShieldCheck size={16} /></span>
+            <span className="operations-system-metric-label">Validation</span>
+            <strong>{validationIssues.length ? "Review" : "Ready"}</strong>
+            <small>{validationIssues.length ? `${validationIssues.length} required value${validationIssues.length === 1 ? "" : "s"} missing` : "All required values present"}</small>
+          </article>
+          <article className="operations-system-metric tone-neutral">
+            <span className="operations-system-metric-icon" aria-hidden="true"><FileJson size={16} /></span>
+            <span className="operations-system-metric-label">Selection mode</span>
+            <strong>{selectionMode}</strong>
+            <small>How dropdown values resolve</small>
+          </article>
+        </div>
+
+        <div className="runtime-grid expanded operations-runtime-grid">
+          <section className="runtime-form operations-system-panel">
+            <div className="operations-system-panel-head">
+              <div>
+                <h2>Scenario fields</h2>
+                <span>Values supplied before the selected workflow starts.</span>
+              </div>
+            </div>
             <label>
               Customer Data File
               <div className="file-input-row">
@@ -132,10 +162,12 @@ export function RuntimeInputPanel() {
             <DropdownValueSelector mode={selectionMode} onModeChange={setSelectionMode} />
           </section>
 
-          <section className="binding-workbench">
-            <div className="section-heading compact">
-              <h2>Data Binding Editor</h2>
-              <span>Fill input from JSON or runtime value</span>
+          <section className="binding-workbench operations-system-panel">
+            <div className="operations-system-panel-head">
+              <div>
+                <h2>Value sources</h2>
+                <span>Fill input from JSON or a runtime value.</span>
+              </div>
             </div>
             <DataBindingEditor
               runtimeInputKeys={runtimeInputDefinitions.map((definition) => definition.key)}
@@ -162,7 +194,13 @@ export function RuntimeInputPanel() {
             </div>
           </section>
 
-          <aside className="runtime-summary">
+          <aside className="runtime-summary operations-runtime-summary operations-system-panel">
+            <div className="operations-system-panel-head">
+              <div>
+                <h2>Run readiness</h2>
+                <span>Live checks for this dry run.</span>
+              </div>
+            </div>
             <article>
               <Database size={18} />
               <div>
@@ -185,20 +223,6 @@ export function RuntimeInputPanel() {
               )}
             </div>
             {statusMessage ? <span className="form-message">{statusMessage}</span> : null}
-            <button className="toolbar-button" onClick={validateInputs} type="button">
-              <ShieldCheck size={16} />
-              Validate Inputs
-            </button>
-            <button
-              className="toolbar-button primary"
-              disabled={!runWorkflowId}
-              onClick={() => void runScenario()}
-              title={runWorkflowId ? "Run the selected workflow with these inputs" : "Select a workflow on the Instances page first"}
-              type="button"
-            >
-              <Play size={16} />
-              Run Scenario
-            </button>
           </aside>
         </div>
       </section>

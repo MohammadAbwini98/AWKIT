@@ -10,11 +10,12 @@
  * Demo reports are completely removed. If needed for development, gate them
  * behind the env variable VITE_ENABLE_DEMO_REPORTS=true (default: false).
  */
-import { Download, FileText, FolderOpen, RefreshCw, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Download, FileText, FolderOpen, HardDrive, RefreshCw, TriangleAlert, XCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import { Permission } from "@src/security/authz/Permissions";
 import { usePermissions } from "../security/usePermissions";
+import { usePageChrome } from "../state/pageChrome";
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
 const DEMO_REPORTS_ENABLED = (import.meta as any).env?.VITE_ENABLE_DEMO_REPORTS === "true";
@@ -57,6 +58,22 @@ export function ExecutionReports() {
     void load();
   }, [load]);
 
+  usePageChrome(
+    {
+      actions: [
+        {
+          id: "refresh-reports",
+          label: "Refresh",
+          icon: <RefreshCw size={15} aria-hidden="true" />,
+          onClick: () => void load(),
+          title: "Reload the stored run reports"
+        }
+      ],
+      dirty: false
+    },
+    [load]
+  );
+
   const openReport = useCallback(async (report: StoredReport) => {
     setError("");
     try {
@@ -94,26 +111,50 @@ export function ExecutionReports() {
     }
   }, []);
 
+  const completedReports = reports.filter((report) => /completed|succeeded/i.test(String(report.status))).length;
+  const failedReports = reports.filter((report) => /failed|error/i.test(String(report.status))).length;
+  const reportedInstances = reports.reduce((total, report) => total + report.instances.length, 0);
+
   return (
-    <section className="page reports-page">
-      <section className="work-panel">
-        <div className="section-heading">
-          <h1>Execution Reports</h1>
+    <section className="page reports-page operations-system-page reports-system-page">
+      <h1 className="sr-only">Run Artifacts</h1>
+      <section className="work-panel operations-system-surface">
+        <div className="operations-system-context" role="status">
+          <FileText size={17} aria-hidden="true" />
           <span>
             {loading
-              ? "Loading…"
+              ? "Loading stored run reports…"
               : reports.length === 0
-                ? "No reports yet"
-                : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
+                ? "No run artifacts have been retained yet."
+                : `${reports.length} stored run report${reports.length !== 1 ? "s" : ""} available.`}
           </span>
         </div>
 
-        {/* Toolbar */}
-        <div className="library-toolbar">
-          <button className="toolbar-button" id="reports-refresh" onClick={() => void load()} title="Refresh reports list" type="button">
-            <RefreshCw size={14} />
-            Refresh
-          </button>
+        <div className="operations-system-metrics reports-system-metrics" aria-label="Run artifact summary">
+          <article className="operations-system-metric tone-info">
+            <span className="operations-system-metric-icon" aria-hidden="true"><FileText size={16} /></span>
+            <span className="operations-system-metric-label">Stored reports</span>
+            <strong>{reports.length}</strong>
+            <small>Completed workflow runs</small>
+          </article>
+          <article className="operations-system-metric tone-success">
+            <span className="operations-system-metric-icon" aria-hidden="true"><CheckCircle2 size={16} /></span>
+            <span className="operations-system-metric-label">Completed</span>
+            <strong>{completedReports}</strong>
+            <small>Successful retained reports</small>
+          </article>
+          <article className="operations-system-metric tone-danger">
+            <span className="operations-system-metric-icon" aria-hidden="true"><XCircle size={16} /></span>
+            <span className="operations-system-metric-label">Need review</span>
+            <strong>{failedReports}</strong>
+            <small>Failed run reports</small>
+          </article>
+          <article className="operations-system-metric tone-neutral">
+            <span className="operations-system-metric-icon" aria-hidden="true"><HardDrive size={16} /></span>
+            <span className="operations-system-metric-label">Reported instances</span>
+            <strong>{reportedInstances}</strong>
+            <small>Across stored reports</small>
+          </article>
         </div>
 
         {/* Error banner */}
@@ -124,84 +165,92 @@ export function ExecutionReports() {
         ) : null}
 
         {/* Content area */}
-        {loading ? (
-          <div className="reports-empty-state">
-            <strong>Loading reports…</strong>
+        <section className="table-surface reports-system-surface" aria-labelledby="stored-run-reports-heading">
+          <div className="table-surface-head">
+            <h2 id="stored-run-reports-heading">Stored run reports</h2>
+            <span className="table-surface-count">{loading ? "Loading" : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}</span>
           </div>
-        ) : reports.length === 0 ? (
-          <div className="reports-empty-state" id="reports-empty-state">
-            <FileText size={36} style={{ color: "var(--awkit-text-muted)" }} />
-            <strong>No reports yet.</strong>
-            <span>Run a workflow to generate your first execution report. Reports appear here after a workflow completes.</span>
-          </div>
-        ) : (
-          <div className="reports-list" id="reports-list">
-            {reports.map((report) => (
-              <div className="report-card" key={report.id}>
-                <div className="report-card-meta">
-                  <strong>{report.scenarioName || report.scenarioId || "Workflow"}</strong>
-                  <small>
-                    Status: <span className={`state-pill ${report.status.toLowerCase()}`}>{report.status}</span>
-                    {" · "}
-                    {new Date(report.startedAt).toLocaleString()}
-                    {report.durationMs !== undefined ? ` · ${formatDuration(report.durationMs)}` : ""}
-                    {` · ${report.instances.length} instance${report.instances.length !== 1 ? "s" : ""}`}
-                  </small>
-                </div>
-                <div className="report-card-actions">
-                  {canExport ? (
-                    <button
-                      className="toolbar-button"
-                      id={`report-open-${report.id}`}
-                      title="Open report folder"
-                      type="button"
-                      onClick={() => void openReport(report)}
-                    >
-                      <FolderOpen size={14} />
-                      Open
-                    </button>
-                  ) : null}
-                  {canExport ? (
-                    <button
-                      className="toolbar-button"
-                      id={`report-export-csv-${report.id}`}
-                      title="Export report as CSV"
-                      type="button"
-                      onClick={() => void exportReport(report, "csv")}
-                    >
-                      <Download size={14} />
-                      CSV
-                    </button>
-                  ) : null}
-                  {canExport ? (
-                    <button
-                      className="toolbar-button"
-                      id={`report-export-xlsx-${report.id}`}
-                      title="Export report as Excel workbook"
-                      type="button"
-                      onClick={() => void exportReport(report, "xlsx")}
-                    >
-                      <Download size={14} />
-                      Excel
-                    </button>
-                  ) : null}
-                  {canExport ? (
-                    <button
-                      className="toolbar-button"
-                      id={`report-export-${report.id}`}
-                      title="Export report as JSON"
-                      type="button"
-                      onClick={() => void exportReport(report, "json")}
-                    >
-                      <Download size={14} />
-                      JSON
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+
+          {loading ? (
+            <div className="reports-empty-state">
+              <strong>Loading reports…</strong>
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="reports-empty-state" id="reports-empty-state">
+              <FileText size={36} aria-hidden="true" />
+              <strong>No reports yet.</strong>
+              <span>Run a workflow to generate your first execution report. Reports appear here after a workflow completes.</span>
+            </div>
+          ) : (
+            <div className="reports-list reports-system-list" id="reports-list">
+              {reports.map((report) => (
+                <article className="report-card" key={report.id}>
+                  <span className="reports-system-icon" aria-hidden="true"><FileText size={17} /></span>
+                  <div className="report-card-meta">
+                    <strong>{report.scenarioName || report.scenarioId || "Workflow"}</strong>
+                    <small>
+                      <span className={`state-pill reports-system-status ${String(report.status).toLowerCase()}`}>{report.status}</span>
+                      {" · "}
+                      {new Date(report.startedAt).toLocaleString()}
+                      {report.durationMs !== undefined ? ` · ${formatDuration(report.durationMs)}` : ""}
+                      {` · ${report.instances.length} instance${report.instances.length !== 1 ? "s" : ""}`}
+                    </small>
+                  </div>
+                  <div className="report-card-actions">
+                    {canExport ? (
+                      <button
+                        className="toolbar-button"
+                        id={`report-open-${report.id}`}
+                        title="Open report folder"
+                        type="button"
+                        onClick={() => void openReport(report)}
+                      >
+                        <FolderOpen size={14} />
+                        Open folder
+                      </button>
+                    ) : null}
+                    {canExport ? (
+                      <button
+                        className="toolbar-button"
+                        id={`report-export-csv-${report.id}`}
+                        title="Export report as CSV"
+                        type="button"
+                        onClick={() => void exportReport(report, "csv")}
+                      >
+                        <Download size={14} />
+                        CSV
+                      </button>
+                    ) : null}
+                    {canExport ? (
+                      <button
+                        className="toolbar-button"
+                        id={`report-export-xlsx-${report.id}`}
+                        title="Export report as Excel workbook"
+                        type="button"
+                        onClick={() => void exportReport(report, "xlsx")}
+                      >
+                        <Download size={14} />
+                        Excel
+                      </button>
+                    ) : null}
+                    {canExport ? (
+                      <button
+                        className="toolbar-button"
+                        id={`report-export-${report.id}`}
+                        title="Export report as JSON"
+                        type="button"
+                        onClick={() => void exportReport(report, "json")}
+                      >
+                        <Download size={14} />
+                        JSON
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Dev-only demo reports notice */}
         {DEMO_REPORTS_ENABLED ? (
@@ -211,7 +260,7 @@ export function ExecutionReports() {
         ) : null}
 
         {/* Security note */}
-        <section className="report-section security-note" style={{ marginTop: "24px" }}>
+        <section className="report-section security-note reports-system-security-note">
           <TriangleAlert size={18} />
           <div>
             <strong>Security policy</strong>

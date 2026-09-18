@@ -1,4 +1,4 @@
-import { Copy, Database, Download, Eye, FilePlus2, Pencil, RefreshCw, ShieldCheck, Table2, Trash2, Upload } from "lucide-react";
+import { CircleCheck, CircleDashed, Copy, Database, Download, Eye, FilePlus2, Pencil, RefreshCw, ShieldCheck, Table2, Trash2, Upload } from "lucide-react";
 import { useModalFocusContract } from "../components/shared/useModalFocusContract";
 import { useEffect, useMemo, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
@@ -210,51 +210,59 @@ export function DataSourceManager() {
   usePageChrome(
     {
       actions: [
-        { id: "create", label: "Create", variant: "primary", onClick: () => setCreateOpen(true), title: canManage ? "Create a new data source" : manageHint, disabled: !canManage },
-        { id: "add", label: "Add JSON", onClick: () => void addJson(), title: canManage ? "Add a JSON data source from disk" : manageHint, disabled: !canManage }
+        { id: "create", label: "New data source", icon: <FilePlus2 size={15} aria-hidden="true" />, variant: "primary", onClick: () => setCreateOpen(true), title: canManage ? "Create a new data source" : manageHint, disabled: !canManage },
+        { id: "add", label: "Add JSON", icon: <Upload size={15} aria-hidden="true" />, onClick: () => void addJson(), title: canManage ? "Add a JSON data source from disk" : manageHint, disabled: !canManage },
+        { id: "oracle", label: "Oracle", icon: <Database size={15} aria-hidden="true" />, onClick: () => setOracleModal({ profile: null }), title: canManage ? "Create an Oracle-backed data source" : manageHint, disabled: !canManage },
+        { id: "refresh", label: "Refresh", icon: <RefreshCw size={15} aria-hidden="true" />, onClick: refresh, title: "Reload saved data sources" }
       ],
       dirty: false
     },
-    [canManage]
+    [canManage, manageHint]
   );
 
   const previewText = useMemo(() => (preview ? JSON.stringify(preview.rows.slice(0, 5), null, 2) : ""), [preview]);
 
   return (
-    <section className="page">
-      <section className="work-panel">
-        <div className="section-heading">
-          <h1>Data Source Manager</h1>
+    <section className="page operations-system-page data-sources-system-page">
+      <h1 className="sr-only">Data Sources</h1>
+      <section className="work-panel operations-system-surface">
+        <div className="operations-system-context" role="status">
+          <Database size={17} aria-hidden="true" />
           <span>{message}</span>
         </div>
 
-        <div className="library-toolbar">
-          <button className="toolbar-button primary" onClick={() => setCreateOpen(true)} disabled={!canManage} title={manageHint} type="button">
-            <FilePlus2 size={15} />
-            Create Data Source
-          </button>
-          <button className="toolbar-button" onClick={() => void addJson()} disabled={!canManage} type="button" title={canManage ? "Add a JSON data source from disk" : manageHint}>
-            <Upload size={15} />
-            Add JSON
-          </button>
-          <button
-            className="toolbar-button"
-            onClick={() => setOracleModal({ profile: null })}
-            disabled={!canManage}
-            type="button"
-            title={canManage ? "Create an Oracle-backed data source" : manageHint}
-          >
-            <Database size={15} />
-            Add Oracle Source
-          </button>
+        <div className="operations-system-metrics data-sources-system-metrics" aria-label="Data source summary">
+          <article className="operations-system-metric tone-info">
+            <span className="operations-system-metric-icon" aria-hidden="true"><Database size={16} /></span>
+            <span className="operations-system-metric-label">JSON sources</span>
+            <strong>{dataSources.length}</strong>
+            <small>Saved local JSON profiles</small>
+          </article>
+          <article className="operations-system-metric tone-neutral">
+            <span className="operations-system-metric-icon" aria-hidden="true"><Database size={16} /></span>
+            <span className="operations-system-metric-label">Oracle sources</span>
+            <strong>{oracleSources.length}</strong>
+            <small>Configured database profiles</small>
+          </article>
+          <article className={`operations-system-metric ${Object.values(statusById).some((status) => status === "invalid") ? "tone-danger" : "tone-success"}`}>
+            <span className="operations-system-metric-icon" aria-hidden="true"><ShieldCheck size={16} /></span>
+            <span className="operations-system-metric-label">Validated now</span>
+            <strong>{Object.values(statusById).filter((status) => status === "valid").length}</strong>
+            <small>{Object.values(statusById).some((status) => status === "invalid") ? "At least one source needs review" : "No validation errors reported"}</small>
+          </article>
         </div>
 
-        {dataSources.length ? (
-          <table>
+        <section className="table-surface data-sources-table-surface" aria-labelledby="json-data-sources-heading">
+          <div className="table-surface-head">
+            <h2 id="json-data-sources-heading">JSON data sources</h2>
+            <span className="table-surface-count">{dataSources.length} source{dataSources.length === 1 ? "" : "s"}</span>
+          </div>
+          {dataSources.length ? (
+          <div className="wl-table-wrapper">
+          <table className="wl-table data-sources-table">
             <thead>
               <tr>
                 <th>Name</th>
-                <th>File Path</th>
                 <th>Root Array Path</th>
                 <th>Records</th>
                 <th>Status</th>
@@ -273,8 +281,13 @@ export function DataSourceManager() {
                     onClick={() => void openPreview(source)}
                     title="Click to preview this data source"
                   >
-                    <td>{source.name}</td>
-                    <td title={source.file}>{source.file}</td>
+                    <td className="operations-identity-cell">
+                      <span className="operations-identity-icon" aria-hidden="true"><Database size={15} /></span>
+                      <span className="operations-identity-copy">
+                        <strong>{source.name}</strong>
+                        <small title={source.file}>{source.file}</small>
+                      </span>
+                    </td>
                     <td>
                       <input
                         value={source.path}
@@ -287,7 +300,8 @@ export function DataSourceManager() {
                     </td>
                     <td>{records ?? "—"}</td>
                     <td>
-                      <span className={`status-chip ${status === "valid" ? "ok" : status === "invalid" ? "warn" : "neutral"}`}>
+                      <span className={`state-pill data-sources-status ${status === "valid" ? "is-valid" : status === "invalid" ? "is-invalid" : "is-unchecked"}`}>
+                        {status === "valid" ? <CircleCheck size={12} aria-hidden="true" /> : <CircleDashed size={12} aria-hidden="true" />}
                         {status === "valid" ? "Valid" : status === "invalid" ? "Invalid" : "Unchecked"}
                       </span>
                     </td>
@@ -319,8 +333,9 @@ export function DataSourceManager() {
               })}
             </tbody>
           </table>
+          </div>
         ) : (
-          <section className="empty-state">
+          <section className="empty-state data-sources-empty-state">
             <strong>No JSON data sources yet.</strong>
             <span>Create one from scratch, or add a JSON file from disk.</span>
             <button className="toolbar-button primary" onClick={() => setCreateOpen(true)} disabled={!canManage} title={manageHint} type="button">
@@ -329,14 +344,16 @@ export function DataSourceManager() {
             </button>
           </section>
         )}
+        </section>
 
         {oracleSources.length ? (
-          <div className="report-section">
-            <div className="section-heading compact">
-              <h2>Oracle Data Sources</h2>
-              <span>{oracleSources.length} Oracle source{oracleSources.length === 1 ? "" : "s"}</span>
+          <section className="table-surface data-sources-table-surface" aria-labelledby="oracle-data-sources-heading">
+            <div className="table-surface-head">
+              <h2 id="oracle-data-sources-heading">Oracle data sources</h2>
+              <span className="table-surface-count">{oracleSources.length} source{oracleSources.length === 1 ? "" : "s"}</span>
             </div>
-            <table>
+            <div className="wl-table-wrapper">
+            <table className="wl-table data-sources-table">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -354,15 +371,21 @@ export function DataSourceManager() {
                   const snapClass = snap?.status === "ready" ? "ok" : snap?.status === "error" ? "warn" : "neutral";
                   return (
                     <tr key={source.id}>
-                      <td title={source.description ?? undefined}>{source.name}</td>
+                      <td className="operations-identity-cell" title={source.description ?? undefined}>
+                        <span className="operations-identity-icon" aria-hidden="true"><Database size={15} /></span>
+                        <span className="operations-identity-copy">
+                          <strong>{source.name}</strong>
+                          <small>{source.description ?? source.connectionProfileId}</small>
+                        </span>
+                      </td>
                       <td>{source.connectionProfileId}</td>
                       <td>{source.mode === "snapshot" ? "Snapshot" : "Runtime"}</td>
                       <td>{source.mode === "snapshot" ? snap?.rowCount ?? "—" : "live"}</td>
                       <td>
                         {source.mode === "snapshot" ? (
-                          <span className={`status-chip ${snapClass}`}>{snap ? snap.status : "none"}</span>
+                          <span className={`state-pill data-sources-status ${snapClass === "ok" ? "is-valid" : snapClass === "warn" ? "is-invalid" : "is-unchecked"}`}>{snap ? snap.status : "none"}</span>
                         ) : (
-                          <span className="status-chip neutral">—</span>
+                          <span className="state-pill data-sources-status is-unchecked">—</span>
                         )}
                       </td>
                       <td>{source.updatedAt ? source.updatedAt.slice(0, 10) : "—"}</td>
@@ -386,17 +409,20 @@ export function DataSourceManager() {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </section>
         ) : null}
 
         {preview ? (
-          <div className="report-section">
-            <div className="section-heading compact">
-              <h2>Preview — {preview.name}</h2>
-              <span>{preview.rows.length} record(s), showing first 5</span>
+          <section className="operations-system-panel data-sources-preview">
+            <div className="operations-system-panel-head">
+              <div>
+                <h2>Preview — {preview.name}</h2>
+                <span>{preview.rows.length} record(s), showing first 5.</span>
+              </div>
             </div>
             <pre className="json-preview">{previewText}</pre>
-          </div>
+          </section>
         ) : null}
       </section>
 

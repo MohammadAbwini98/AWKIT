@@ -567,19 +567,53 @@ export function Recorder() {
     }
   };
 
-  usePageChrome({
-    actions: [],
-    dirty: false
-  }, []);
-
   const handoffActive = !!handoff?.active;
   const showHandoffPanel = !!handoff && handoff.phase !== "resumed";
   // AWKIT-REC-037: saving during an active handoff pause empties the service's in-memory actions
   // mid-pause, so it must be disabled for the whole pause — not only while isRecording.
   const saveDisabled = isRecording || handoffActive || isSaving || actions.length === 0 || !flowName.trim();
 
+  usePageChrome(
+    {
+      actions: [
+        {
+          id: "start-recording",
+          label: "Start Recording",
+          icon: <PlayCircle size={15} aria-hidden="true" />,
+          variant: "primary",
+          disabled: isRecording || handoffActive,
+          onClick: () => void handleStart(),
+          title: handoffActive ? "Finish or cancel the active secure-login handoff first" : "Start recording the target URL"
+        }
+      ],
+      dirty: false
+    },
+    [url, isRecording, handoffActive, captureWaitTime, captureSmartWaits, pendingRestoredDraft]
+  );
+
   return (
-    <div className="page-content recorder-page">
+    <div className="page-content recorder-page operations-system-page">
+      <h1 className="sr-only">Recorder</h1>
+      <div className="operations-system-metrics recorder-system-metrics" aria-label="Recorder summary">
+        <article className={`operations-system-metric ${isRecording ? "tone-danger" : handoffActive ? "tone-warning" : "tone-info"}`}>
+          <span className="operations-system-metric-icon" aria-hidden="true"><Video size={16} /></span>
+          <span className="operations-system-metric-label">Capture state</span>
+          <strong>{isRecording ? "Recording" : handoffActive ? "Paused" : actions.length > 0 ? "Ready" : "Idle"}</strong>
+          <small>{handoffActive ? "Manual handoff in progress" : isRecording ? "Live browser capture" : "Ready for a target URL"}</small>
+        </article>
+        <article className="operations-system-metric tone-neutral">
+          <span className="operations-system-metric-icon" aria-hidden="true"><Video size={16} /></span>
+          <span className="operations-system-metric-label">Captured actions</span>
+          <strong>{actions.length}</strong>
+          <small>{actions.length === 1 ? "Action in the current draft" : "Actions in the current draft"}</small>
+        </article>
+        <article className={`operations-system-metric ${captureSmartWaits ? "tone-success" : "tone-neutral"}`}>
+          <span className="operations-system-metric-icon" aria-hidden="true"><Sparkles size={16} /></span>
+          <span className="operations-system-metric-label">Smart waits</span>
+          <strong>{captureSmartWaits ? "On" : "Off"}</strong>
+          <small>{captureWaitTime ? "Time waits are captured too" : "Signal-based capture enabled"}</small>
+        </article>
+      </div>
       <section className={`recorder-control-bar${isRecording ? " is-recording" : ""}`} aria-label="Recorder controls">
         <header className="recorder-control-head">
           <div className="recorder-control-title">
@@ -635,15 +669,6 @@ export function Recorder() {
             >
               <Save size={16} />
               Save URL
-            </button>
-            <button
-              type="button"
-              className="toolbar-button primary recorder-record-button"
-              disabled={isRecording || handoffActive}
-              onClick={handleStart}
-            >
-              <PlayCircle size={16} />
-              Start Recording
             </button>
           </div>
         </div>

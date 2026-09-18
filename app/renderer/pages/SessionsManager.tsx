@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   KeyRound,
   Chrome,
@@ -32,6 +32,7 @@ export function SessionsManager() {
   const [targetUrl, setTargetUrl] = useState("");
   const [isStarting, setIsStarting] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const captureNameRef = useRef<HTMLInputElement | null>(null);
 
   // Table state
   const [search, setSearch] = useState("");
@@ -166,7 +167,35 @@ export function SessionsManager() {
     }
   };
 
-  usePageChrome({ actions: [], dirty: false }, []);
+  const focusCapture = () => {
+    captureNameRef.current?.scrollIntoView({ block: "center" });
+    captureNameRef.current?.focus();
+  };
+
+  usePageChrome(
+    {
+      actions: [
+        {
+          id: "capture-session",
+          label: "Capture session",
+          icon: <Play size={15} aria-hidden="true" />,
+          variant: "primary",
+          disabled: captureStatus.active,
+          onClick: focusCapture,
+          title: captureStatus.active ? "A session capture is already active" : "Focus the session capture details"
+        },
+        {
+          id: "refresh-sessions",
+          label: "Refresh",
+          icon: <RefreshCw size={15} aria-hidden="true" />,
+          onClick: () => void refresh(),
+          title: "Reload saved sessions and browser detection"
+        }
+      ],
+      dirty: false
+    },
+    [captureStatus.active, refresh]
+  );
 
   // ─── Render ─────────────────────────────────────────────────────────
   // Status pills use the shared status-token trio (-soft fill, base ink, -muted border) so
@@ -175,79 +204,45 @@ export function SessionsManager() {
   const statusTone = (s: SessionProfile["status"]) =>
     s === "ready" ? "success" : s === "capturing" ? "warning" : "danger";
 
-  const statusPillStyle = (s: SessionProfile["status"]): CSSProperties => {
-    const tone = statusTone(s);
-    return {
-      background: `var(--awkit-${tone}-soft)`,
-      color: `var(--awkit-${tone})`,
-      border: `1px solid var(--awkit-${tone}-muted)`
-    };
-  };
-
   const statusLabel = (s: SessionProfile["status"]) =>
     s === "ready" ? "Ready" : s === "capturing" ? "Capturing…" : "Error";
 
   return (
-    <div className="page-content" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4h)", padding: "var(--space-4h)" }}>
+    <section className="page sessions-system-page operations-system-page">
+      <h1 className="sr-only">Sessions</h1>
 
-      {/* ── Browser Detection Banner ─────────────────────────────── */}
-      <div
-        className="form-panel session-browser-banner"
-        style={{
-          padding: "var(--space-3) var(--space-4h)",
-          background: browser?.found ? "var(--awkit-success-soft)" : "var(--awkit-danger-soft)",
-          borderRadius: "var(--radius-xs)",
-          border: `1px solid ${browser?.found ? "var(--awkit-success-muted)" : "var(--awkit-danger-muted)"}`,
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--space-3)"
-        }}
-      >
-        <Chrome size={20} color={browser?.found ? "var(--awkit-success)" : "var(--awkit-danger)"} />
+      <section className={`operations-system-banner sessions-browser-banner ${browser?.found ? "tone-success" : "tone-danger"}`}>
+        <Chrome size={20} aria-hidden="true" />
         {browser?.found ? (
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--awkit-success)" }}>
+          <span>
             <strong>{browser.browser === "chrome" ? "Google Chrome" : "Microsoft Edge"}</strong> detected at{" "}
-            <code style={{ fontSize: "var(--text-xs)", background: "var(--awkit-success-soft)", padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-2xs)" }}>
-              {browser.path}
-            </code>
+            <code>{browser.path}</code>
           </span>
         ) : (
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--awkit-danger)" }}>
+          <span>
             No Chrome or Edge browser found. Install one to use Session Capture.
           </span>
         )}
-      </div>
+      </section>
 
-      {/* ── Capture Session Panel ────────────────────────────────── */}
-      <div className="form-panel" style={{ padding: "var(--space-4h)", background: "var(--awkit-surface)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-border)" }}>
-        <h3 style={{ margin: "0 0 var(--space-2) 0", fontSize: "var(--text-md)", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <KeyRound size={18} />
-          Capture Session
-        </h3>
-        <p style={{ margin: "0 0 var(--space-4) 0", fontSize: "var(--text-sm)", color: "var(--awkit-text-secondary)", lineHeight: "var(--leading-base)" }}>
-          Opens your real Chrome or Edge browser (no automation flags) so you can log into protected
-          sites like Google, Microsoft, or Cloudflare-gated pages. After you log in and close the
-          browser, the session is saved for reuse in automation runs.
-        </p>
+      <section className="operations-system-panel sessions-capture-panel" aria-labelledby="capture-session-heading">
+        <div className="operations-system-panel-head">
+          <div>
+            <h2 id="capture-session-heading"><KeyRound size={18} aria-hidden="true" />Capture session</h2>
+            <span>Open a real Chrome or Edge profile, sign in manually, then close it to save the reusable session.</span>
+          </div>
+          <span className={`state-pill sessions-capture-status ${captureStatus.active ? "is-capturing" : "is-idle"}`}>
+            {captureStatus.active ? "Capture active" : "Ready to capture"}
+          </span>
+        </div>
 
         {captureStatus.active ? (
-          /* ── Active capture state ─ */
-          <div className="session-active-capture" style={{
-            padding: "var(--space-4) var(--space-4h)",
-            background: "var(--awkit-warning-soft)",
-            borderRadius: "var(--radius-xs)",
-            border: "1px solid var(--awkit-warning-muted)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-              <Loader2 size={18} className="session-spin" color="var(--awkit-warning)" />
-              <strong style={{ color: "var(--awkit-warning)", fontSize: "var(--text-base)" }}>
-                Browser is open — log in manually
-              </strong>
+          <div className="sessions-active-capture">
+            <div className="sessions-active-capture-title">
+              <Loader2 size={18} className="sessions-spin" aria-hidden="true" />
+              <strong>Browser is open — log in manually</strong>
             </div>
-            <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--awkit-warning)", lineHeight: "var(--leading-base)" }}>
+            <p>
               Session: <strong>{captureStatus.sessionName}</strong>
               {captureStatus.browserPid ? ` (PID ${captureStatus.browserPid})` : ""}.
               Complete your login, then <strong>close the browser window</strong> when done.
@@ -255,66 +250,45 @@ export function SessionsManager() {
             </p>
             <button
               onClick={handleStopCapture}
-              style={{
-                display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)",
-                background: "var(--awkit-danger)", color: "var(--awkit-accent-contrast)", border: "none", borderRadius: "var(--radius-2xs)",
-                cursor: "pointer", fontWeight: "var(--weight-medium)", width: "fit-content"
-              }}
+              className="toolbar-button danger"
+              type="button"
             >
               <Square size={14} />
               Force Close Browser
             </button>
           </div>
         ) : (
-          /* ── Capture form ─ */
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
-                <label style={{ fontSize: "var(--text-2xs)", fontWeight: "var(--weight-semibold)", color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <div className="sessions-capture-form">
+            <div className="sessions-capture-fields">
+              <label className="sessions-field">
                   Session Name
-                </label>
                 <input
+                  ref={captureNameRef}
                   type="text"
                   value={sessionName}
                   onChange={(e) => setSessionName(e.target.value)}
                   placeholder="e.g. Google Work Account"
-                  style={{
-                    padding: "var(--space-2) var(--space-3)", border: "1px solid var(--awkit-border-strong)", borderRadius: "var(--radius-2xs)",
-                    outline: "none", fontSize: "var(--text-sm)", width: "100%", boxSizing: "border-box"
-                  }}
                 />
-              </div>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
-                <label style={{ fontSize: "var(--text-2xs)", fontWeight: "var(--weight-semibold)", color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Target URL <span style={{ fontWeight: "var(--weight-regular)", textTransform: "none" }}>(optional)</span>
-                </label>
-                <div style={{ display: "flex", alignItems: "center", border: "1px solid var(--awkit-border-strong)", borderRadius: "var(--radius-2xs)", padding: "0 var(--space-2)" }}>
-                  <Globe size={14} color="var(--awkit-text-muted)" />
+              </label>
+              <label className="sessions-field">
+                  Target URL <span className="sessions-field-optional">(optional)</span>
+                <span className="sessions-url-input">
+                  <Globe size={14} aria-hidden="true" />
                   <input
                     type="text"
                     value={targetUrl}
                     onChange={(e) => setTargetUrl(e.target.value)}
                     placeholder="https://accounts.google.com"
-                    style={{
-                      flex: 1, border: "none", padding: "var(--space-2) var(--space-2)", outline: "none",
-                      background: "transparent", fontSize: "var(--text-sm)"
-                    }}
                   />
-                </div>
-              </div>
+                </span>
+              </label>
             </div>
-            <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
+            <div className="sessions-capture-actions">
               <button
                 disabled={isStarting || !browser?.found || !sessionName.trim()}
                 onClick={handleStartCapture}
-                style={{
-                  display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2) var(--space-4h)",
-                  background: (isStarting || !browser?.found || !sessionName.trim()) ? "var(--awkit-border-strong)" : "var(--awkit-accent)",
-                  color: (isStarting || !browser?.found || !sessionName.trim()) ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)",
-                  border: "none", borderRadius: "var(--radius-2xs)",
-                  cursor: (isStarting || !browser?.found || !sessionName.trim()) ? "not-allowed" : "pointer",
-                  fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)"
-                }}
+                className="toolbar-button primary"
+                type="button"
               >
                 <Play size={15} />
                 {isStarting ? "Launching…" : "Open Browser & Capture Session"}
@@ -322,41 +296,33 @@ export function SessionsManager() {
               <button
                 onClick={refresh}
                 title="Refresh"
-                style={{
-                  display: "flex", alignItems: "center", gap: "var(--space-1)", padding: "var(--space-2) var(--space-3)",
-                  background: "transparent", color: "var(--awkit-text-secondary)",
-                  border: "1px solid var(--awkit-border-strong)", borderRadius: "var(--radius-2xs)", cursor: "pointer"
-                }}
+                className="toolbar-button"
+                type="button"
               >
                 <RefreshCw size={14} />
               </button>
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* ── Info Banner ─────────────────────────────────────────── */}
-      <div style={{
-        display: "flex", alignItems: "flex-start", gap: "var(--space-3)", padding: "var(--space-3) var(--space-4)",
-        background: "var(--awkit-accent-soft)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-accent-muted)"
-      }}>
-        <Info size={16} color="var(--awkit-accent)" style={{ marginTop: 2, flexShrink: 0 }} />
-        <div style={{ fontSize: "var(--text-xs)", color: "var(--awkit-accent)", lineHeight: "var(--leading-base)" }}>
+      <section className="operations-system-banner sessions-security-banner tone-info">
+        <Info size={16} aria-hidden="true" />
+        <div>
           <strong>How it works:</strong> This opens your real Chrome/Edge browser — not the
           automation Chromium — so login pages like Google won't block you. After you log in
           and close the browser, select the saved session when running a workflow. The
           automation browser will reuse your login state.
         </div>
-      </div>
+      </section>
 
-      {/* ── Saved Sessions Table ─────────────────────────────────── */}
-      <div className="form-panel" style={{ padding: "var(--space-4h)", background: "var(--awkit-surface)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-border)" }}>
-        <h3 style={{ margin: "0 0 var(--space-4) 0", fontSize: "var(--text-md)", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <KeyRound size={18} />
-          Saved Sessions ({filtered.length})
-        </h3>
+      <section className="table-surface sessions-table-surface" aria-labelledby="saved-sessions-heading">
+        <div className="table-surface-head">
+          <h2 id="saved-sessions-heading">Saved sessions</h2>
+          <span className="table-surface-count">{filtered.length} session{filtered.length === 1 ? "" : "s"}</span>
+        </div>
 
-        <div className="table-search" style={{ maxWidth: 460, marginBottom: "var(--space-3)" }}>
+        <div className="table-search sessions-search">
           <Search size={15} />
           <input
             value={search}
@@ -409,8 +375,7 @@ export function SessionsManager() {
                     <tr key={profile.id}>
                       <td className="sessions-status-cell">
                         <span
-                          className="state-pill"
-                          style={statusPillStyle(profile.status)}
+                          className={`state-pill sessions-status-pill tone-${statusTone(profile.status)}`}
                           title={statusLabel(profile.status)}
                         >
                           {statusLabel(profile.status)}
@@ -420,6 +385,7 @@ export function SessionsManager() {
                         {renamingId === profile.id ? (
                           <input
                             autoFocus
+                            className="sessions-rename-input"
                             value={renameValue}
                             onChange={(e) => setRenameValue(e.target.value)}
                             onBlur={() => handleRenameSubmit(profile.id)}
@@ -427,13 +393,9 @@ export function SessionsManager() {
                               if (e.key === "Enter") handleRenameSubmit(profile.id);
                               if (e.key === "Escape") setRenamingId(null);
                             }}
-                            style={{
-                              padding: "var(--space-1) var(--space-2)", border: "1px solid var(--awkit-accent)", borderRadius: "var(--radius-2xs)",
-                              outline: "none", fontSize: "var(--text-sm)", width: "100%", boxSizing: "border-box"
-                            }}
                           />
                         ) : (
-                          <strong className="sessions-name-value" style={{ fontSize: "var(--text-sm)", color: "var(--awkit-text)" }}>{profile.name}</strong>
+                          <strong className="sessions-name-value">{profile.name}</strong>
                         )}
                       </td>
                       <td className="sessions-target-cell">
@@ -447,30 +409,30 @@ export function SessionsManager() {
                         </span>
                       </td>
                       <td className="sessions-source-cell">
-                        <span style={{ fontSize: "var(--text-2xs)", color: "var(--awkit-text-secondary)" }}>
+                        <span className="sessions-source-value">
                           {profile.source === "autoSecureLogin" ? "Auto login" : profile.source === "imported" ? "Imported" : "Manual"}
                         </span>
                       </td>
                       <td className="sessions-date-cell" title={new Date(profile.createdAt).toLocaleString()}>
-                        <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
+                        <span className="sessions-date-value">
                           <Clock size={12} />
                           {new Date(profile.createdAt).toLocaleDateString()}
                         </span>
                       </td>
                       <td className="sessions-date-cell">
-                        <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
+                        <span className="sessions-date-value">
                           {profile.lastUsedAt
                             ? new Date(profile.lastUsedAt).toLocaleDateString()
                             : "Never"}
                         </span>
                       </td>
                       <td className="sessions-browser-cell">
-                        <span style={{ fontSize: "var(--text-xs)", color: "var(--awkit-text-secondary)" }}>
+                        <span className="sessions-browser-value">
                           {profile.browserPath?.includes("msedge") ? "Edge" : profile.browserPath?.includes("chrome") ? "Chrome" : "—"}
                         </span>
                       </td>
                       <td className="sessions-actions-cell">
-                        <div className="table-actions sessions-actions" style={{ display: "flex", gap: "var(--space-1)" }}>
+                        <div className="table-actions sessions-actions">
                           <button
                             type="button"
                             title="Rename"
@@ -491,7 +453,7 @@ export function SessionsManager() {
                             title="Delete session"
                             onClick={() => handleDelete(profile.id)}
                             disabled={profile.status === "capturing"}
-                            style={{ color: profile.status === "capturing" ? "var(--awkit-border-strong)" : "var(--awkit-danger)" }}
+                            className="sessions-delete-action"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -512,33 +474,19 @@ export function SessionsManager() {
             />
           </>
         )}
-      </div>
+      </section>
 
       {/* ── Capture completion toast ─ */}
       {captureStatus.status === "closed" && !captureStatus.active && (
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-3) var(--space-4h)",
-            background: "var(--awkit-success-soft)", borderRadius: "var(--radius-xs)", border: "1px solid var(--awkit-success-muted)"
-          }}
-        >
-          <CheckCircle2 size={18} color="var(--awkit-success)" />
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--awkit-success)" }}>
+        <section className="operations-system-banner sessions-capture-complete tone-success">
+          <CheckCircle2 size={18} aria-hidden="true" />
+          <span>
             Session captured successfully! You can now select it when running a workflow.
           </span>
-        </div>
+        </section>
       )}
 
-      {/* spinner animation */}
-      <style>{`
-        @keyframes session-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .session-spin { animation: session-spin 1.2s linear infinite; }
-      `}</style>
-
       <Toast toast={toast} onDismiss={() => setToast(null)} />
-    </div>
+    </section>
   );
 }
