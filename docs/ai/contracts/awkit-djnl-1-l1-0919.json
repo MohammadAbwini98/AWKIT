@@ -114,6 +114,23 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-1-l1-0919:project-state:2026-09-19T10:09:33.907Z",
+        "task": "awkit-djnl-1-l1-0919",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl",
+          "docs/ai/routing/ROUTING_MATRIX.md"
+        ],
+        "acquired_at": "2026-09-19T10:09:33.907Z",
+        "acquired_at_commit": "7f774dc890df198b720bd185f816eaf072e77d08",
+        "released_at": "2026-09-19T10:10:50.511Z",
+        "released_reason": "ROUTING_MATRIX.md regenerated and L1 marked in_progress in e238edb",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

@@ -2,7 +2,7 @@
   "task": "awkit-djnl-1-l1-0919",
   "contract_path": "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl",
     "docs/ai/routing/ROUTING_MATRIX.md"
@@ -27,5 +27,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-19T10:10:50.511Z",
+  "released_reason": "ROUTING_MATRIX.md regenerated and L1 marked in_progress in e238edb",
+  "archived_at": "2026-09-19T10:10:50.513Z"
 }
