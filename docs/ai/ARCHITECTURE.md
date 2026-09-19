@@ -634,6 +634,34 @@ unaffected — they read stored rows and never launch the bridge.
 spawned, Java re-validates authoritatively so a racing/compromised caller cannot bypass it. Both are
 defense in depth; the primary boundary is a least-privilege Oracle account.
 
+## Local AI (Phase L, optional; separate process boundary)
+
+```text
+src/security/authz/AiAutonomyPolicy.ts  Pure policy: observe / suggest / autoApply / forbidden, tier
+                          ceilings, T2 cap, hard-coded T3 classes, self-demotion. Lease-gated (security).
+src/offline/AiModelManifest.ts  Release-owned list of accepted model packs (checksums) + runtime pin.
+src/ai/                 Framework-agnostic core (no Electron).
+  AiService.ts            The one boundary: bounded priority queue, one inference at a time, timeout,
+                          cancel, yield-to-runs (cancel + requeue), idle unload. Builds every prompt
+                          and validates every output itself. Transport is INJECTED.
+  AiPromptBuilder.ts      Instructions vs nonce-delimited untrusted data; SemanticRedactor + rescan refuse.
+  AiOutputContract.ts     Bounded JSON-schema subset; re-validates constrained output; ids as enums.
+  AiAdmission.ts          Admission against the engine view + WorkloadWeights.aiInferenceWeight; threads.
+  AiActionRecord / AiActionStore / AiRevert  Audit (ids/enums/counts), persisted demotion, CAS revert.
+  AiSettings.ts           Dedicated ai-settings.json (NOT UiSettings: single authorized writer).
+  AiModelPack.ts          GGUF import with single-pass hashing, status, once-per-session verification.
+  FakeAiHostTransport.ts  Deterministic host for every normal verifier.
+  contracts/              AiHostProtocol (utility-process wire protocol), AiApi (renderer contract).
+app/main/ai/            AiUtilityHostManager (utilityProcess, Zvec restart policy) + aiRuntime (lazy
+                          composition, views, revert, import/remove, staged shutdown).
+app/main/ipc/ai.ipc.ts  Nine permission-gated channels; no prompt, path or process surface.
+native-hosts/ai/        NOT YET WRITTEN — the inference host awaits the runtime-binding decision.
+```
+
+The engine never calls AI: `ExecutionEngine.getAiAdmissionView()` is read-only, and no module in the
+execution tree imports `src/ai` (`verify:ai-fallback`). With no runtime, no pinned build or no pack,
+every AI entry point answers with a code and the app is unchanged.
+
 ## Semantic index (separate process boundary)
 
 ```text

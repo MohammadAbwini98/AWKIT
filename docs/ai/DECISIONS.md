@@ -1,5 +1,50 @@
 # DECISIONS
 
+### 2026-09-19 — Phase L L1 implementation choices (`awkit-djnl.1`)
+
+- **Scope:** choices made while building the L1 foundation. They refine the L0 entry below. Items
+  marked *default* were chosen by the implementing agent and are open to owner override.
+- **Policy location:** the autonomy policy is `src/security/authz/AiAutonomyPolicy.ts`, not `src/ai/`.
+  The routing matrix forbids one owner's glob inside another's (`verify:agent-routing` checks
+  cross-agent overlap), so a protected file inside a software-owned `src/ai/**` was impossible. The
+  policy is authorization anyway: `src/security/**` routes to security as `authorization_change`, so
+  editing a ceiling, the T2 cap, the T3 list or the self-demotion seeds needs a security lease.
+  `src/ai/**` is registered to the software domain.
+- **AI settings are not a `UiSettings` group.** `settings:update` leaves groups outside its
+  substantive list open to every signed-in role, and `settings:import`/`reset` rewrite whole
+  documents under other permissions. The switch and tiers therefore live in
+  `<data root>/ai/ai-settings.json`, written only by `ai:updateSettings` (`ai.manage` plus
+  re-authentication). The file is read fail-closed: missing means AI off, corrupt is preserved and
+  read as off, and an invalid stored tier reads as T0. The existing `semantic` group has the bypass
+  this avoids; it is tracked as a separate task.
+- **Permissions (*default*):** `ai.use` goes to Operator, Administrator and Super User. `ai.manage`
+  (re-authenticated) and `ai.audit.view` go to Administrator and Super User; the denylist grants them
+  to Administrator on purpose, and `verify:ai-permissions` asserts both directions.
+  `recorder.elementSpy` goes to Operator and above. Viewer and Issuer get none. Revert needs
+  `ai.audit.view` and `workflow.edit`.
+- **Empty manifest and unpinned runtime.** `AI_MODEL_MANIFEST` is empty and `AI_RUNTIME_PIN.build`
+  is null until the owner supplies a measured pack and a runtime build. A guessed checksum would let
+  the import check pass for the wrong reason. Meanwhile every import is refused, no host starts even
+  if a host script exists, and the app behaves exactly as before Phase L.
+- **Admission (L1.6):** inference yields and never preempts. By default it waits for zero active or
+  queued runs; manual-action and paused instances count as active. It also waits on dispatch
+  backpressure, pressure beyond `stable` and low free memory. With yield off it must fit the weighted
+  budget, where `aiInferenceWeight` has a seed of 1.5 (*default*, superseded by the L1.8 benchmark).
+  The engine never counts AI weight against instance admission, and no `src/runner` module imports
+  `src/ai` (`verify:ai-fallback`). Inference threads are floor(logical CPUs / 2), clamped to 1–4.
+- **Self-demotion seeds (*default*):** a 30-day window, more than 20% reverted, and at least 10
+  auto-applied actions. Demotion is persisted and cleared only by an explicit administrator restore.
+- **Runtime binding: pending an owner decision.** The protocol and manager are runtime-agnostic
+  (utility process, MessagePort, no TCP). The host script `native-hosts/ai/ai-host.cjs` is not
+  written, because it depends on the choice:
+  - an in-process binding (e.g. `node-llama-cpp`) inside the utility process: no listener, a new
+    npm dependency with prebuilt native binaries;
+  - pinned `llama-server.exe` behind the host: the plan's loopback fallback with a random port and
+    token.
+
+  Either way the binary and the model pack must be obtained (a download the owner must approve),
+  pinned in the manifests and noticed. The L1.8 benchmark is blocked until then.
+
 ### 2026-09-19 — Phase L (local AI): decisions ratified against the code (`awkit-djnl.2`, L0)
 
 - **Scope:** the owner decisions for Phase L (`docs/plans/ai-upgrade-v5/ROADMAP.md`), checked against

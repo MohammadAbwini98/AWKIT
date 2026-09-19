@@ -1,7 +1,8 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **IN PROGRESS — L0 complete 2026-09-19** (owner audit below; decisions ratified in
-`docs/ai/DECISIONS.md`). Roadmap Phase `L` (`in-progress`), Beads epic `awkit-djnl`.
+Status: **IN PROGRESS — L0 complete 2026-09-19; L1 foundation built, runtime binding and benchmark
+blocked on an owner decision** (owner audit below; decisions ratified in `docs/ai/DECISIONS.md`).
+Roadmap Phase `L` (`in-progress`), Beads epic `awkit-djnl`.
 Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
 Milestone files `L0`–`L7` hold only milestone-specific tasks.

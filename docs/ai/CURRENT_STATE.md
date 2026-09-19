@@ -1,5 +1,59 @@
 # CURRENT_STATE
 
+## `awkit-djnl-1-l1-0919`: Phase L milestone L1 started — AI foundation built, runtime and benchmark blocked (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** L1 adds a
+dormant, optional subsystem. With no runtime and no model pack the app behaves exactly as before, and
+no validation case moved.
+
+L1 `awkit-djnl.1` is `in_progress`. Everything that does not need a real model is built and verified:
+
+- **Autonomy policy (L1.4):** `src/security/authz/AiAutonomyPolicy.ts`. Ceilings equal the ratified
+  defaults, configuration can only lower a feature, and the T2 cap and the five T3 classes are code
+  constants checked before configuration is read. Self-demotion is computed here and persisted by
+  the audit store.
+- **Audit and revert (L1.4):** `src/ai/AiActionRecord.ts` holds ids, enums and counts only, capped
+  at 5,000 records and 90 days. `src/ai/AiActionStore.ts` is an atomic, lane-serialized JSON store
+  that keeps demotion state. `src/ai/AiRevert.ts` reverts by compare-and-swap through
+  `JsonProfileStore.updateWith`, a read-modify-write in the flow folder lane. A locator edited after
+  the change refuses the revert as STALE, and revert never needs the model or the log.
+  `StepLocator.locatorProvenance` is typed; L3 writes it.
+- **AI boundary (L1.1, L1.3, L1.6, L1.7):** `src/ai/AiService.ts` runs one bounded, cancellable
+  queue, one inference at a time, and yields to active runs by cancelling and requeueing, a bounded
+  number of times. `src/ai/AiPromptBuilder.ts` separates instructions from nonce-delimited untrusted
+  data, redacts with `SemanticRedactor`, and refuses a prompt the policy-validator rescan flags.
+  `src/ai/AiOutputContract.ts` re-validates the constrained output against a bounded schema, with ids
+  as per-request enums. The versioned utility-host protocol and the deterministic
+  `FakeAiHostTransport` complete the boundary. Admission lives in `src/ai/AiAdmission.ts`, uses
+  `aiInferenceWeight` in `WorkloadWeights`, and reads a new read-only
+  `ExecutionEngine.getAiAdmissionView()`.
+- **Main process and UI (L1.1, L1.2, L1.5):**
+  - `app/main/ai/{AiUtilityHostManager,aiRuntime}.ts` add the utility-host manager (on the Zvec
+    restart policy), lazy composition, and staged shutdown.
+  - `app/main/ipc/ai.ipc.ts` and preload `ai.*` expose nine gated channels, none of which carries a
+    prompt, a path or a process.
+  - Permissions `ai.use`, `ai.manage` (re-authenticated), `ai.audit.view` and `recorder.elementSpy`.
+  - The dedicated `ai/ai-settings.json` (off by default, outside `UiSettings`).
+  - A checksum-verified model-pack store and the release-owned `src/offline/AiModelManifest.ts`.
+  - Settings › **Local AI** panel.
+
+**Blocked (external prerequisite):** the real inference host, the llama.cpp runtime pin, the
+model/runtime notices, `verify:ai-model-live`, and the L1.8 constrained-CPU benchmark and go/no-go.
+These need the owner's choice of runtime binding and an approved runtime and model pack. The manifest
+is deliberately empty, and `AI_RUNTIME_PIN.build` is null. L3, L4b and L5b stay gated on L1.
+
+**Evidence:** `npm run build` PASS; `typecheck:scripts` PASS; `verify:ai-autonomy-policy` **62/62**;
+`verify:ai-audit-revert` **69/69**; `verify:ai-permissions` **66/66**; `verify:ai-adapter`
+**102/102**; `verify:ai-redaction` **52/52**; `verify:ai-fallback` **36/36**; `verify:ai-model-pack`
+**46/46**; `verify:ai-settings-gui` **30/30** in real Electron; `verify:authz` 92/92;
+`verify:ipc-contract` 9/9; `verify:semantic-store` 261/261; `verify:semantic-policy` 141/141;
+`verify:workload-weights` 53/53; `verify:agent-routing` 1112/1112; `verify:verifier-classification`
+214/214. Thirteen mutations were run and caught: policy 4, adapter 2, redaction 2, model pack 2, fallback
+1, permissions 1, audit/revert 1. The GUI verifier was not mutation-tested, because each mutation would
+need a rebuild. `verify:ai-model-live` and the L1.8
+benchmark are **NOT RUN** (no runtime or model). Runner, mock-site and offline verifiers **NOT RUN**:
+the run path gained only a read-only getter, and no import of `src/ai` exists in the execution tree.
+
 ## `awkit-phase-l-l0-0919`: Phase L milestone L0 complete — owner audit and decisions recorded (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Documentation and

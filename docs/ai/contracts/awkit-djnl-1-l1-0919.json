@@ -72,7 +72,8 @@
       "required": true,
       "command": "npm run verify:ai-autonomy-policy",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "62/62 on the final state: exhaustive 968-case tier matrix against an independently restated table, 3,916 T3 probes all forbidden with T3 reasons under every configuration including the switch off, ceilings and the T2 cap, self-demotion thresholds, and the settings store refusing any tier above a ceiling. Four mutations (raised ceiling, keyword-sensitive step, protected-login interpretation, demotion at the threshold) were each caught."
     },
     {
       "id": "build",
@@ -80,7 +81,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build passed on the final state (016c37c plus docs); typecheck:scripts also passed."
     }
   ],
   "git": {
@@ -91,8 +93,10 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "The leased Risk-3 deliverables (autonomy policy, AI permissions, model manifest, routing and bead bookkeeping) are committed and verified: verify:ai-autonomy-policy 62/62, verify:ai-permissions 66/66, verify:ai-model-pack 46/46, verify:authz 92/92, verify:agent-routing 1112/1112, verify:roadmap-dashboard with Sources agree, build PASS, each new verifier mutation-tested except the GUI suite.",
+    "qa_known_limitations": "L1 itself stays open (awkit-djnl.1 in_progress). The real inference host, the llama.cpp runtime pin, the first manifest entry, the model and runtime notices, verify:ai-model-live and the L1.8 benchmark and go/no-go are BLOCKED. They need an owner decision on the runtime binding and an approved runtime and model pack. The manifest is deliberately empty and AI_RUNTIME_PIN.build is null. Unleased direct-loop edits outside this contract's routing (src/ai, app/main, app/renderer, scripts, docs) are disclosed here and in TASK_LOG, not hidden, so the derived scope escapes are expected. No independent QC review was run: subagents were not requested.",
     "qc_status": "pending"
   },
   "write_lease": {

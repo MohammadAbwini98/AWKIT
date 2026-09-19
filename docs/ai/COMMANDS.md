@@ -391,6 +391,20 @@ npm run verify:browser-resource-profile # tsx scripts/verify-browser-resource-pr
                             # Optimization resolver (pure): balanced == today invariant, capability relaxations,
                             # low-resource has background throttling OFF (+ Custom-throttling mechanism still works),
                             # mode parsing, routing mapping. (51 checks)
+# ── Local AI (Phase L, L1) ─────────────────────────────────────────────────────────────────────
+# All run against the deterministic FakeAiHostTransport or temp folders; none needs a model.
+npm run verify:ai-autonomy-policy # tier matrix, T3 unreachable, ceilings/T2 cap, self-demotion, settings store (62)
+npm run verify:ai-audit-revert    # AiActionRecord contract/retention, atomic store, persisted demotion,
+                                  # compare-and-swap revert through the flow folder lane (69)
+npm run verify:ai-permissions     # every role both directions + the nine ai:* IPC gates and preload surface (66)
+npm run verify:ai-adapter         # AiService queue/protocol: one-at-a-time, cancel, timeout, crash/circuit,
+                                  # schema rejection, yield to runs, idle unload, checksum-before-load (102)
+npm run verify:ai-redaction       # prompt redaction, nonce-delimited injection containment, caps, rescan refusal (52)
+npm run verify:ai-fallback        # degraded modes make zero host calls; run path and renderer cannot reach the model (36)
+npm run verify:ai-model-pack      # GGUF/size/SHA-256 import, tamper detection, retirement, replacement (46)
+npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceiling-bounded tiers, persistence on disk (30)
+# verify:ai-model-live and the L1.8 benchmark do not exist yet: they need the runtime binding (owner decision).
+
 # ── Semantic index / Zvec native host ──────────────────────────────────────────────────────────
 # Reachable from NO product surface yet. `prepare:zvec-host` MUST run before any live verifier:
 # they refuse a host tree that is not byte-identical to native-hosts/zvec/zvec-host.cjs, because a

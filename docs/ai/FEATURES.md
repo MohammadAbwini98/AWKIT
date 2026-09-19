@@ -1,5 +1,20 @@
 # FEATURES
 
+## Local AI foundation — Settings › Local AI (Phase L L1, 2026-09-19; dormant until a runtime and pack exist)
+
+- An optional, offline-only AI subsystem that is off by default. Settings › Local AI shows its status
+  and model pack. An administrator (`ai.manage`, re-authenticated) can turn it on, pause AI work
+  while runs are active (default on), set idle unload, and lower each feature's autonomy tier. The
+  selector offers only tiers up to that feature's fixed ceiling. The administrator can also restore a
+  self-demoted feature and import or remove a model pack; the pack is picked in a main-process dialog
+  and checked for format, size and SHA-256 against the release manifest.
+- `ai.audit.view` shows runtime and model diagnostics, plus the audit log of applied AI changes, each
+  with a compare-and-swap revert. The revert also needs `workflow.edit`, and it refuses if the
+  locator was edited after the change.
+- Nothing runs yet. This build ships no inference runtime and an empty model manifest, so every AI
+  entry point reports unavailable and the app behaves exactly as before. The features that will use
+  this foundation (L3 locators, L4b explanations, L5b failure analysis) come later.
+
 ## Administration system UI (2026-09-18)
 
 - Users, Roles, Permissions, Audit Log, and Licensing use the attached system UI's compact

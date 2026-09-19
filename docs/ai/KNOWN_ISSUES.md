@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## OPEN (2026-09-19) — `semantic` settings are writable by any signed-in role
+
+- `settings:update` requires SETTINGS_EDIT only for `paths`, `runtime`, `execution`,
+  `designerDefaults` and two recorder keys. The `semantic` group (`enabled`, `defaultTopK`,
+  `autoIndex`) is not covered, so any signed-in role can change it through the generic channel. That
+  bypasses `semantic:updateSettings`, which requires `semantic.manageIndex` with re-authentication.
+  `settings:import`/`reset` also rewrite the group under unrelated permissions.
+- Found while wiring Phase L L1. The new AI settings were kept out of `UiSettings` for exactly this
+  reason (`src/ai/AiSettings.ts`). The fix is tracked as a separate task: gate `patch.semantic` in
+  `settings:update` and preserve the group on import/reset, with a both-directions verifier.
+- **Pattern to remember:** a new `UiSettings` group is open to every role unless `settings:update`
+  gates it explicitly.
+
 ## RESOLVED (2026-09-18) — two GUI suites targeted removed shell/Settings markup
 
 - `verify:e2e-sweep` clicked `button.nav-theme-toggle`, removed by `bf95529`; it now drives the side

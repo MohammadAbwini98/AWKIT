@@ -1,5 +1,41 @@
 # TASK_LOG
 
+## 2026-09-19 — `awkit-djnl-1-l1-0919`: Phase L L1 foundation (Claude)
+
+- **Task:** start L1 `awkit-djnl.1`: build everything the AI foundation needs without a real model.
+- **Commits:** `9f452e5` policy and permissions (security lease); `7f774dc` audit store, revert and
+  routing; `e238edb` routing doc and bead in_progress (project-state lease); `533217d` AiService
+  boundary; `735fa90` manifest (release lease); `8626fb7` main-process wiring; `016c37c` Settings panel.
+- **Files:**
+  - `src/security/authz/{AiAutonomyPolicy,Permissions}.ts` and `src/offline/AiModelManifest.ts`.
+  - `src/ai/{AiActionRecord,AiActionStore,AiRevert,AiAdmission,AiOutputContract,AiPromptBuilder,AiService,FakeAiHostTransport,AiSettings,AiModelPack}.ts`
+    and `src/ai/contracts/{AiHostProtocol,AiApi}.ts`.
+  - `app/main/ai/{AiUtilityHostManager,aiRuntime}.ts`, `app/main/ipc/{ai.ipc,index}.ts`,
+    `app/main/{preload,main}.ts`.
+  - `app/renderer/pages/{LocalAiSettings,Settings}.tsx` and `app/renderer/semantic/useSensitiveSemanticAction.ts`.
+  - Small extensions: `src/profiles/{FlowProfile,locatorApproval}.ts`, `src/storage/ProfileStore.ts`
+    (`updateWith`), `src/runner/concurrency/WorkloadWeights.ts` (`aiInferenceWeight`),
+    `src/runner/ExecutionEngine.ts` (`getAiAdmissionView`) and
+    `src/semantic/SemanticPolicyValidator.ts` (`findResidualSecrets`).
+  - Nine `scripts/verify-ai-*`, `tools/agents/routing-matrix.mjs` and its generated docs.
+- **Tests run:** `npm run build` PASS; `typecheck:scripts` PASS; ai-autonomy-policy 62/62,
+  ai-audit-revert 69/69, ai-permissions 66/66, ai-adapter 102/102, ai-redaction 52/52, ai-fallback
+  36/36, ai-model-pack 46/46, ai-settings-gui 30/30 (real Electron); authz 92/92, ipc-contract 9/9,
+  semantic-store 261/261, semantic-policy 141/141, workload-weights 53/53, agent-routing 1112/1112,
+  verifier-classification 214/214. Thirteen mutations were caught.
+- **Not run:** `verify:ai-model-live` and the L1.8 benchmark (**BLOCKED**: no runtime or model; the
+  binding needs an owner decision). Runner, mock-site and offline were not run: the run path gained
+  only a read-only getter.
+- **Gotchas:**
+  - A protected module cannot sit inside another owner's glob, so the policy moved to
+    `src/security/authz`.
+  - The open `settings:update` channel would have bypassed `ai.manage`, so AI settings got their own
+    store.
+  - `Object.freeze` literal-typed the service limits.
+  - A synchronous fake cancel hid a timeout overlap.
+  - The redactor collapses a single-letter run as an opaque blob, which made a cap test pass
+    vacuously.
+
 ## 2026-09-19 — `awkit-phase-l-l0-0919`: Phase L L0 owner audit and decision records (Claude)
 
 - **Task:** L0 `awkit-djnl.2`: audit every Phase L owner against the code and record the owner decisions.

@@ -1,6 +1,37 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L0 complete; L1, L2, L4a and L5a are ready
+## HANDOFF (2026-09-19, latest) — L1 foundation built; runtime and benchmark need an owner decision
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (L1 `awkit-djnl.1`, `in_progress`):** the autonomy policy, the audit store and revert, the
+  AiService boundary and fake host, the prompt builder and output contract, admission and yield,
+  the host manager, IPC and preload, permissions, the dedicated AI settings store, the model-pack
+  store and manifest, and Settings › Local AI. Commits `9f452e5`..`016c37c`. Details and evidence are in
+  `docs/ai/CURRENT_STATE.md`; the design choices are in `docs/ai/DECISIONS.md` (L1 entry).
+- **Blocked on the owner:**
+  1. **Choose the runtime binding.** Option (a) is an in-process binding such as `node-llama-cpp`
+     inside the utility process: no listener, a new native npm dependency. Option (b) is a pinned
+     `llama-server.exe` behind the host: loopback, random port and token.
+  2. **Approve obtaining the runtime and the Qwen3.5-4B Q4_K_M pack** (downloads). Then the release
+     role pins `AI_RUNTIME_PIN.build` and adds the measured manifest entry (size and SHA-256), and
+     the notices ship.
+  3. Only then can L1.8 run: the constrained 6-logical-CPU benchmark, its per-feature budgets and
+     the go/no-go. L3, L4b and L5b wait on that result.
+- **Next once unblocked:** write `native-hosts/ai/ai-host.cjs` against `src/ai/contracts/AiHostProtocol.ts`.
+  It must refuse model paths outside `AWKIT_AI_MODEL_ROOT`, honour `cancel` asynchronously, require
+  a JSON schema, and send `enable_thinking: false`. Add `verify:ai-model-live` (host plus pack, else
+  NOT RUN), then the benchmark.
+- **Traps:**
+  - `src/security/**` and `src/offline/**` are lease-gated. Each lease can commit only its own
+    paths, and the grant needs the contract's `writer` to name the holder.
+  - `AiServiceLimits` must stay an explicit interface: `Object.freeze` inferred literal types that
+    only `typecheck:scripts` caught.
+  - `FakeAiHostTransport` cancels asynchronously on purpose. A synchronous fake hid an overlap race
+    at timeout.
+  - The `semantic` settings group is writable through `settings:update` by any role; this is
+    tracked as a separate task.
+
+## HANDOFF (2026-09-19, superseded) — L0 complete; L1, L2, L4a and L5a are ready
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** L0 `awkit-djnl.2` is closed. The owner audit is in `docs/plans/ai-upgrade-v5/ROADMAP.md` ›

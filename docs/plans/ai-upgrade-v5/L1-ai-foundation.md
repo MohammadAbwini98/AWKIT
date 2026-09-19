@@ -2,6 +2,23 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 
+**Status (2026-09-19): IN PROGRESS.** `awkit-djnl.1` is `in_progress`. Implementation choices are in
+`docs/ai/DECISIONS.md` (L1 entry).
+
+| Task | State | Where |
+|---|---|---|
+| L1.1 AiService host | **Built, except the real host script.** Service, queue, protocol, utility-host manager and IPC. `native-hosts/ai/ai-host.cjs` is BLOCKED on the runtime-binding decision. | `src/ai/AiService.ts`, `src/ai/contracts/AiHostProtocol.ts`, `app/main/ai/*`, `app/main/ipc/ai.ipc.ts` |
+| L1.2 Model pack | **Built:** import, SHA-256 against the manifest, status, remove. **BLOCKED:** the llama.cpp pin, the manifest entry and the notices need the runtime and pack. | `src/ai/AiModelPack.ts`, `src/offline/AiModelManifest.ts` |
+| L1.3 Output contract | **Done.** | `src/ai/{AiPromptBuilder,AiOutputContract}.ts` |
+| L1.4 Autonomy and audit | **Done.** The policy lives in `src/security/authz` (see DECISIONS). | `src/security/authz/AiAutonomyPolicy.ts`, `src/ai/{AiActionRecord,AiActionStore,AiRevert}.ts` |
+| L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
+| L1.6 Resource integration | **Done:** yield, weighted admission, derived threads, idle unload. | `src/ai/AiAdmission.ts`, `WorkloadWeights.aiInferenceWeight`, `ExecutionEngine.getAiAdmissionView` |
+| L1.7 Fake provider | **Done.** | `src/ai/FakeAiHostTransport.ts` |
+| L1.8 Performance go/no-go | **BLOCKED:** no runtime or model. | — |
+
+Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`. `verify:ai-model-live`
+is not written until a host exists: NOT RUN.
+
 ## Goal
 
 Build the single optional AI boundary, the autonomy/audit machinery every AI feature uses, and prove the model is
