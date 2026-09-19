@@ -1,6 +1,7 @@
 /**
- * The A-K phase model the app renders on its Roadmap page, and the only source the Program Status
- * dashboard reads for phase state.
+ * The A-L phase model the app renders on its Roadmap page, and the only source the Program Status
+ * dashboard reads for phase state. L (Local AI & Intelligent Automation) was registered pending on
+ * 2026-09-19; its milestone order lives in Beads epic awkit-djnl, not in this file.
  *
  * THIS FILE IS HAND-MAINTAINED. Nothing derives it, so it goes stale silently: between the initial
  * commit (2026-07-04) and the 2026-07-27 reconciliation it was untouched across 282 commits, which
@@ -16,7 +17,7 @@
 export type RoadmapStatus = "complete" | "in-progress" | "partially-completed" | "pending" | "blocked";
 
 export interface RoadmapPhase {
-  id: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K";
+  id: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L";
   title: string;
   status: RoadmapStatus;
   deliverables: string[];
@@ -112,6 +113,14 @@ export const implementationRoadmap: RoadmapPhase[] = [
     deliverables: ["Browser action recorder", "Locator suggestions", "Action-to-node conversion", "Editable recorded flows"],
     acceptance: "User records a flow and saves it as editable nodes.",
     implementationNote: "All four deliverables shipped and the acceptance criterion is met: ranked unique locators with compound/tree disambiguation, runtime locator self-healing, Smart Wait observation, auto-captured URLs, and the protected-login handoff. REC-024 passed on 2026-07-27 (commit 958f575; bead awkit-38k closed). The final gate, REC-022, was executed live on 2026-08-22 by an authorized operator with an approved test identity: protected login completed manually in real Chrome on an app-owned scoped profile (session session-f11ab5c3 captured), the recorder resumed authenticated, and the saved workflow reused the captured session - final report 8edbdb98-dfd8-48cc-84cc-ebde3d5e6a4d passed 10/10 steps with Reuse Session returning outcome=sessionLoaded. Closing bead awkit-cey is closed; comprehensive-validation ledger stands at 64 PASS / 2 NOT RUN / 0 BLOCKED with REC-022 PASS. Reconciled from partially-completed to complete on 2026-08-24."
+  },
+  {
+    id: "L",
+    title: "Local AI & Intelligent Automation",
+    status: "pending",
+    deliverables: ["L0 Decisions & owner audit", "L1 AI foundation, autonomy policy & performance gate", "L2 Deterministic Recorder & Element Spy", "L3 Intelligent locators", "L4 Authoring diagnostics & AI explanations", "L5 Failure evidence & failure intelligence", "L6 Reusable fragments & templates", "L7 Release confirmation"],
+    acceptance: "With no model installed the product behaves exactly as today; with the model, every automatic change is proven, audited and one-click revertible, and no model call runs on the synchronous execution path.",
+    implementationNote: "Plan only, registered 2026-09-19: docs/plans/ai-upgrade-v5/ROADMAP.md (commit 0d6e0fd) - one local CPU-only model (Qwen3.5-4B GGUF, separate offline model pack) with event-driven automation under policy-tiered autonomy T0-T3. Tracked as Beads epic awkit-djnl with ten dependency-ordered milestones: L0 awkit-djnl.2 (the only ready item), then L1 .1, L2 .3, L3 .4, L4a .5, L4b .6, L5a .7, L5b .8, L6 .9 and L7 .10. No implementation has started and no model is bundled or required."
   }
 ];
 

@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-19 — `awkit-phase-l-roadmap-0919`: Phase L V5 plan committed and registered in order (Claude)
+
+- **Task:** consolidate the external SpecterStudio local-AI drafts (V1–V4) into one V5 plan set, then
+  register it in the roadmap in milestone order for the next session to start L0.
+- **Files:** `docs/plans/ai-upgrade-v5/*` (10 files, `0d6e0fd`); `src/roadmap/ImplementationRoadmap.ts`
+  (phase `L`, id union widened); `tools/roadmap/lib/{parse-roadmap-phases,sources,normalize}.mjs`
+  (`A..L`); `scripts/verify-roadmap-dashboard.mjs` (pins); `.beads/{issues,interactions}.jsonl`;
+  `docs/ai/contracts/{awkit-phase-l-roadmap-0919,active-lease}.json`; `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  `docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md`.
+- **Tracker:** epic `awkit-djnl` + ten children (L0 `.2`, L1 `.1`, L2 `.3`, L3 `.4`, L4a `.5`, L4b `.6`,
+  L5a `.7`, L5b `.8`, L6 `.9`, L7 `.10`), 10 parent-child + 16 blocks edges; ready = epic and L0.
+- **Tests run:** `npm run build` PASS; `verify:roadmap-dashboard` **177/177**, "Sources agree".
+  Runner, mock-site, offline **NOT RUN** (no runtime change).
+- **Gotcha:** `bd create --deps blocks:X` records that the NEW issue blocks X (the inverse of what the
+  flag reads like); `bd dep add A B` records A depends on B. Probe direction without side effects by
+  re-adding an existing parent link (`bd dep add <child> <epic> --type parent-child` is refused as a
+  duplicate). The lease guard only allows `git add -- <paths>` and a one-line `git commit -m`.
+
 ## 2026-09-19 — `awkit-gui-launch-isolation-0919`: sweep GUI verifiers for drift and missing isolation (Claude)
 
 - **Task:** sweep every GUI verifier for selectors removed by the system-pages rebuild and for Electron

@@ -1,6 +1,7 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **PLAN — not started.** Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
+Status: **PLAN — not started; registered 2026-09-19** as roadmap Phase `L` (`pending`) and Beads epic
+`awkit-djnl`. Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
 Milestone files `L0`–`L7` hold only milestone-specific tasks.
 
@@ -100,16 +101,19 @@ cancellable. The synchronous run path makes **zero** model calls.
 
 ## Milestones & dependencies
 
-| ID | Name | Depends | File |
-|---|---|---|---|
-| L0 | Decisions & roadmap registration | — | `L0-decisions-and-registration.md` |
-| L1 | AI foundation, autonomy & performance gate | L0 | `L1-ai-foundation.md` |
-| L2 | Deterministic Recorder & Element Spy | L0 | `L2-recorder-and-element-spy.md` |
-| L3 | Intelligent locators | L1, L2 | `L3-intelligent-locators.md` |
-| L4 | Authoring diagnostics (L4a determ. / L4b AI) | L0 / L1+L4a | `L4-authoring-diagnostics.md` |
-| L5 | Failure evidence (L5a) & intelligence (L5b) | L0 / L1+L5a | `L5-failure-evidence-and-analysis.md` |
-| L6 | Fragments & templates | L2, L4 | `L6-fragments-and-templates.md` |
-| L7 | Release confirmation | L1–L6 | `L7-release-confirmation.md` |
+| ID | Name | Depends | File | Beads |
+|---|---|---|---|---|
+| L0 | Decisions & roadmap registration | — | `L0-decisions-and-registration.md` | `awkit-djnl.2` |
+| L1 | AI foundation, autonomy & performance gate | L0 | `L1-ai-foundation.md` | `awkit-djnl.1` |
+| L2 | Deterministic Recorder & Element Spy | L0 | `L2-recorder-and-element-spy.md` | `awkit-djnl.3` |
+| L3 | Intelligent locators | L1, L2 | `L3-intelligent-locators.md` | `awkit-djnl.4` |
+| L4 | Authoring diagnostics (L4a determ. / L4b AI) | L0 / L1+L4a | `L4-authoring-diagnostics.md` | `.5` / `.6` |
+| L5 | Failure evidence (L5a) & intelligence (L5b) | L0 / L1+L5a | `L5-failure-evidence-and-analysis.md` | `.7` / `.8` |
+| L6 | Fragments & templates | L2, L4 | `L6-fragments-and-templates.md` | `awkit-djnl.9` |
+| L7 | Release confirmation | L1–L6 | `L7-release-confirmation.md` | `awkit-djnl.10` |
+
+Beads is the source of truth for order and status (`bd ready` shows what can start); L0/L1 numbers are
+swapped because the first L1 was filed with an inverted `--deps` edge and the titles were exchanged.
 
 ```
 L0 ─┬─ L1 ─────────┬─ L3 ──┐

@@ -1,20 +1,18 @@
 {
-  "task": "awkit-claude-direct-loop-0918",
-  "contract_path": "docs/ai/contracts/awkit-claude-direct-loop-0918.json",
-  "holder": "manager",
+  "task": "awkit-phase-l-roadmap-0919",
+  "contract_path": "docs/ai/contracts/awkit-phase-l-roadmap-0919.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    ".claude/**",
-    "CLAUDE.md",
-    "tools/agents/**"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-18T17:13:12.179Z",
-  "acquired_at_commit": "734b1a5a80e6c12a522f9f01d1ab3977a1897b50",
+  "acquired_at": "2026-09-19T01:28:09.213Z",
+  "acquired_at_commit": "0d6e0fd0b71960efad9e38d9c7224173f20e2d27",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-claude-direct-loop-0918.json"
+    "docs/ai/contracts/awkit-phase-l-roadmap-0919.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-claude-direct-loop-0918.json": "e724a913e2647247cea021610305a932da2b35b26b924e4f5d744e7ab93cb002"
+    "docs/ai/contracts/awkit-phase-l-roadmap-0919.json": "e30b66fde93e5c452444c33a3ff243ab969af15e84f99b26a88c88365c947661"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,12 +22,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789750674565.6587"
+    "build": "dir(1):native-hosts:1789762718948.7537"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-18T17:16:46.591Z",
-  "released_reason": "direct-loop guard now permits ordinary unleased work",
-  "archived_at": "2026-09-18T17:16:46.593Z"
+  "released_at": "2026-09-19T01:41:56.568Z",
+  "released_reason": "Phase L epic awkit-djnl and ten ordered milestones filed with parent-child and blocks edges, export refreshed to 302 issues",
+  "archived_at": "2026-09-19T01:41:56.569Z"
 }

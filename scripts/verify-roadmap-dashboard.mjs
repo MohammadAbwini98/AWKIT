@@ -131,7 +131,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("291 issues parse", beads.stats.total === 291, `got ${beads.stats.total}`);
+  check("302 issues parse", beads.stats.total === 302, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -575,8 +575,14 @@ try {
   // Then 2/289 of 291 on 2026-09-14: `awkit-uiaa` closed after canonical post-insertion canvas
   // arrangement, Sessions table containment, and shared Reference Blue splash/application accents.
   // No dependency edge was added, so the two external Oracle items remain the only outstanding work.
-    "2 outstanding / 289 closed",
-    beads.stats.outstanding === 2 && beads.stats.closed === 289,
+  // Then 13/289 of 302 on 2026-09-19: `awkit-phase-l-roadmap-0919` filed the Phase L epic
+  // `awkit-djnl` and its ten milestone children (`awkit-djnl.1`…`.10`), all OPEN and none closed, so
+  // total rises 291 → 302 and outstanding 2 → 13 while closed holds at 289. Measured after the
+  // required `bd export -o .beads/issues.jsonl`: `bd stats` reports Total 302, Open 11, Closed 289,
+  // dependency-Blocked 9 and Ready 2 (the epic and L0 `awkit-djnl.2`), while the two status-blocked
+  // Oracle items stay the only declared-blocked work. The edge pin below moves in the same move.
+    "13 outstanding / 289 closed",
+    beads.stats.outstanding === 13 && beads.stats.closed === 289,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -638,9 +644,13 @@ try {
   // Then 108 on 2026-09-09: `awkit-tsq1` was filed with a `discovered-from: awkit-rkd8`
   // dependency and closed the same day - one edge added, none removed - so this pin moves
   // 107 → 108 in step with the total/outstanding/closed move above.
+  // Then 134 on 2026-09-19: the Phase L epic `awkit-djnl` added 26 edges and removed none - ten
+  // `parent-child` links (one per milestone) and sixteen `blocks` edges encoding the plan order
+  // (L0 before L1, L2, L4a and L5a; L1 and L2 before L3; L1 and L4a before L4b; L1 and L5a before
+  // L5b; L2 and L4b before L6; L3, L4b, L5b and L6 before L7). Measured at 134, not derived.
   check(
-    "108 edges are present to classify",
-    beads.stats.edges === 108,
+    "134 edges are present to classify",
+    beads.stats.edges === 134,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
@@ -711,9 +721,10 @@ try {
   console.log("Roadmap phase module:");
   const phasesText = readSource("phases").text;
   const phases = extractPhases(phasesText, null, 0);
-  check("11 phases", phases.phases.length === 11, `got ${phases.phases.length}`);
+  // 12 since 2026-09-19: Phase L (Local AI & Intelligent Automation) registered as pending.
+  check("12 phases", phases.phases.length === 12, `got ${phases.phases.length}`);
   check(
-    "phase ids are exactly A..K",
+    "phase ids are exactly A..L",
     phases.phases.map((p) => p.id).join("") === EXPECTED_PHASE_IDS,
     phases.phases.map((p) => p.id).join("")
   );
@@ -775,8 +786,8 @@ try {
   );
   // Live-data guards. Cardinality first, so neither `every` can pass over an empty list.
   check(
-    "all 11 live phase notes parsed non-empty",
-    phases.phases.length === 11 && phases.phases.every((p) => p.implementationNote.length > 0),
+    "all 12 live phase notes parsed non-empty",
+    phases.phases.length === 12 && phases.phases.every((p) => p.implementationNote.length > 0),
     "a silently truncated string value would leave a phase with no note"
   );
   check(

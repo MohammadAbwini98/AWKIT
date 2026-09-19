@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-17, latest) — Reports GUI and script-type evidence closed
+## HANDOFF (2026-09-19, latest) — Phase L registered; the next session starts L0
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** V5 plan committed (`docs/plans/ai-upgrade-v5/`, `0d6e0fd`); Phase L registered `pending`
+  in `src/roadmap/ImplementationRoadmap.ts`; Beads epic `awkit-djnl` holds ten dependency-ordered
+  milestones; `verify:roadmap-dashboard` pins moved and "Sources agree".
+- **Next:** start **L0 = `awkit-djnl.2`** (the only ready milestone): owner audit and decision records
+  per `docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md`. L0.1 (roadmap registration) is
+  already done. Claim it in `tools/roadmap/assignments.json` while working and clear it when done.
+- **Traps:** L0 is `.2` and L1 is `.1`. `bd create --deps blocks:X` = the new issue blocks X, while
+  `bd dep add A B` = A depends on B. `bd` writes need a `project-state` lease (contract + grant +
+  release). The lease guard accepts only one-line `git commit -m "…"` and `git add -- <paths>`.
+- **Left to measurement (not decided):** the T2 promotion replay count N and the self-demotion revert
+  threshold, both committed after the L1 baseline.
+
+## HANDOFF (2026-09-17, superseded) — Reports GUI and script-type evidence closed
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** the Reports accessibility verifier now passes the shared harness's isolated

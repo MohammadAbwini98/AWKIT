@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-phase-l-roadmap-0919",
+    "title": "Register Phase L (Local AI and Intelligent Automation) as dependency-ordered Beads work items",
+    "objective": "File one Phase L epic and its ten milestone children (L0, L1, L2, L3, L4a, L4b, L5a, L5b, L6, L7) from docs/plans/ai-upgrade-v5/ROADMAP.md, with parent-child links and blocks edges that encode the plan's milestone order, then refresh .beads/issues.jsonl with bd export -o. The lease exists only because bd writes require the project-state role; the phase-model registration in src/roadmap/ImplementationRoadmap.ts, the dashboard parser/verifier pins and the docs/ai narrative updates are ordinary unleased direct-loop edits made after this lease is released. No milestone is started, claimed or closed.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "0d6e0fd",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "docs/ai/contracts/awkit-phase-l-roadmap-0919.json",
+      "docs/ai/contracts/active-lease.json",
+      "tools/roadmap/assignments.json",
+      "tools/roadmap/lib/parse-roadmap-phases.mjs",
+      "tools/roadmap/lib/sources.mjs",
+      "tools/roadmap/lib/normalize.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHL-BEADS-FILED",
+      "description": "One Phase L epic and exactly ten milestone children exist in the tracker, each child linked to the epic by parent-child, with blocks edges L0 before L1, L2, L4a and L5a; L1 and L2 before L3; L1 and L4a before L4b; L1 and L5a before L5b; L2 and L4b before L6; and L3, L4b, L5b and L6 before L7. Only the epic and L0 are ready.",
+      "evidence_required": [
+        "beads-structure",
+        "beads-ready-set"
+      ]
+    },
+    {
+      "id": "PHL-EXPORT-FRESH",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl so the Program Status dashboard parses the new items, and verify:roadmap-dashboard passes with the Overview banner reading Sources agree after its pins move deliberately.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-djnl, bd show awkit-djnl.2, bd show awkit-djnl.3 and the output of each bd dep add",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd show awkit-djnl lists exactly ten children (awkit-djnl.1 to .10). The mapping is L0 .2, L1 .1, L2 .3, L3 .4, L4a .5, L4b .6, L5a .7, L5b .8, L6 .9, L7 .10: the first L1 was created with --deps blocks:awkit-djnl.1, which in this bd version records that the NEW issue blocks the named one, so bd show awkit-djnl.2 listed awkit-djnl.1 under BLOCKS. Instead of leaving a junk issue, the two titles, descriptions, acceptance, priorities and spec links were exchanged with bd update, which turns that edge into the intended L0-before-L1. The direction of bd dep add was then proven without side effects: bd dep add awkit-djnl.1 awkit-djnl --type parent-child was refused as a duplicate of the existing child link, so bd dep add A B records A depends on B. Each of the remaining 15 bd dep add calls printed 'X depends on Y (blocks)' with the intended prerequisite, and bd show awkit-djnl.3 lists awkit-djnl.2 under DEPENDS ON."
+    },
+    {
+      "id": "beads-ready-set",
+      "type": "inspection",
+      "required": true,
+      "command": "bd ready",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Ready: 2 issues with no active blockers - awkit-djnl.2 (L0) and the epic awkit-djnl. Every other milestone is dependency-blocked (bd stats Blocked 9)."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 302 issues to .beads/issues.jsonl'. bd stats then reported Total 302, Open 11, In Progress 0, dependency-Blocked 9, Closed 289, Ready 2. The verifier's independent recount of issue records in the export text matched the parse (302)."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run before the pins moved failed exactly the three tracker pins (got 302 issues, 13 outstanding / 289 closed, 134 edges) and passed the new phase checks. After the pins were moved to those measured values, the final-state run printed '177/177 roadmap dashboard checks passed', including '12 phases', 'phase ids are exactly A..L', 'no cycles in the real data', 'every declared-blocked issue is present and out of the layers' (still the two Oracle items) and 'the Overview banner reads \"Sources agree\"'. npm run build also passed on the final state."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker structure, ready set and export were inspected with bd show, bd ready and bd stats after every write, and the final state passed npm run build and verify:roadmap-dashboard 177/177 with Sources agree.",
+    "qa_known_limitations": "Two direct-loop edits sit outside this contract's project-state routing by design and are disclosed rather than hidden: src/roadmap/ImplementationRoadmap.ts (phase L added, id union widened) and scripts/verify-roadmap-dashboard.mjs (phase and tracker pins moved to measured values). Both were made unleased after the lease was released, as CLAUDE.md permits for ordinary non-Risk-3 work. node tools/agents/task-gate.mjs therefore reports canComplete false with 5 derived scope escapes, all traceable to those two files (the qa and software ownership domains, the implied general_engineering_change flag, and the two paths), which is why completion.status is implemented rather than complete. L0 and L1 carry swapped dotted numbers (see beads-structure). The in-app Roadmap page and the Program Status dashboard were not inspected in a GUI; the page maps over the phase list with no count assumption and the dashboard API served the new snapshot inside the verifier.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-phase-l-roadmap-0919:project-state:2026-09-19T01:28:09.213Z",
+        "task": "awkit-phase-l-roadmap-0919",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-19T01:28:09.213Z",
+        "acquired_at_commit": "0d6e0fd0b71960efad9e38d9c7224173f20e2d27",
+        "released_at": "2026-09-19T01:41:56.568Z",
+        "released_reason": "Phase L epic awkit-djnl and ten ordered milestones filed with parent-child and blocks edges, export refreshed to 302 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

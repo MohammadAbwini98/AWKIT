@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## `awkit-phase-l-roadmap-0919`: Phase L (Local AI & Intelligent Automation) registered in order (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Planning and
+roadmap registration only; no product behavior changed and no validation case moved.
+
+The consolidated V5 plan is committed at `docs/plans/ai-upgrade-v5/` (`0d6e0fd`): one local CPU-only
+model (Qwen3.5-4B GGUF, separate offline model pack), event-driven automation under policy-tiered
+autonomy (T0 observe / T1 suggest / T2 auto-apply with proof / T3 forbidden), every automatic change
+audited and one-click revertible, and zero model calls on the synchronous run path. Phase **L** is the
+twelfth phase in `src/roadmap/ImplementationRoadmap.ts` (status `pending`, so it is now the in-app
+Roadmap's current focus) and the dashboard parser expects `A..L`. Milestone order lives in Beads epic
+`awkit-djnl`: **L0 `awkit-djnl.2`** (the only ready milestone) → L1 `.1`, L2 `.3`, L4a `.5`, L5a `.7`
+→ L3 `.4`, L4b `.6`, L5b `.8` → L6 `.9` → L7 `.10`, encoded by 16 `blocks` edges. L0 and L1 carry
+swapped numbers: `bd create --deps blocks:X` means *the new issue blocks X*, so the first L1 was filed
+inverted and the two titles were exchanged rather than leaving a junk issue.
+
+**Evidence:** `npm run build` PASS; `verify:roadmap-dashboard` **177/177** with "Sources agree" (pins
+moved deliberately: 291 → 302 issues, 2/289 → 13/289 outstanding/closed, 108 → 134 edges, 11 → 12
+phases). Runner, mock-site and offline verifiers **NOT RUN**: no runtime, fixture or packaging change.
+
 ## `awkit-gui-selector-drift-0918`: route sweep and Settings E2E aligned to the current shell (2026-09-18)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** This task
