@@ -16,12 +16,18 @@
  * baseline writes nothing. Results carry codes, gates, counts and a digest — never candidate text,
  * page text or typed values.
  */
-import { createHash } from "node:crypto";
 import type { Locator, Page } from "playwright";
 import { evaluateLocatorPlan, planFromCandidate, type CompiledLocatorPlan, type LocatorPlanPolicy } from "@src/ai/locatorPlan";
-import { mergeReplayProof, type LocatorReplayProofRecord } from "@src/ai/pendingUpgrade";
-import { locatorFrameChain, type FlowStep, type LocatorCandidate, type LocatorContext } from "@src/profiles/FlowProfile";
-import { createLocatorApprovalBinding, locatorBindingMatches } from "@src/profiles/locatorApproval";
+import {
+  canonicalJson as canonical,
+  locatorCandidateDigest,
+  mergeReplayProof,
+  pendingUpgradeDigests,
+  sha256Hex as sha256,
+  type LocatorReplayProofRecord
+} from "@src/ai/pendingUpgrade";
+import { locatorFrameChain, type FlowStep, type LocatorContext } from "@src/profiles/FlowProfile";
+import { locatorBindingMatches } from "@src/profiles/locatorApproval";
 import { UPGRADE_CONTEXT_TTL_MS, type UpgradeContext } from "@src/recorder/upgradeContext";
 import { decideAiAction } from "@src/security/authz/AiAutonomyPolicy";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
@@ -54,33 +60,13 @@ export interface LocatorProofResult {
 
 const NOT_RUN = { policy: "not-run", buildable: "not-run", unique: "not-run", sameElement: "not-run" } as const;
 
-function canonical(value: unknown): string {
-  if (value === undefined) return "undefined";
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .filter((key) => record[key] !== undefined)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
-    .join(",")}}`;
-}
-
-const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
+// The digest helpers moved to `src/ai/pendingUpgrade.ts` when L3 §6 needed them outside the runner
+// (promotion must recompute them without importing Playwright). Re-exported so the runner remains
+// the one place the proof path imports them from.
+export { locatorCandidateDigest, pendingUpgradeDigests };
 
 /** Frame chain + shadow scope: the part of a context a candidate may never change. */
 const scopeOf = (context?: LocatorContext): string => canonical({ frames: locatorFrameChain(context), shadow: context?.shadow });
-
-export function locatorCandidateDigest(candidate: LocatorCandidate, context?: LocatorContext): string {
-  return sha256(canonical({ candidate, context }));
-}
-
-export function pendingUpgradeDigests(step: FlowStep): { candidateDigest: string; bindingDigest: string } | undefined {
-  const pending = step.locator?.pendingUpgrade;
-  const binding = createLocatorApprovalBinding(step);
-  if (!pending || !binding) return undefined;
-  return { candidateDigest: locatorCandidateDigest(pending.candidate, pending.context), bindingDigest: sha256(canonical(binding)) };
-}
 
 function result(outcome: LocatorProofOutcome, code: string, partial: Partial<LocatorProofResult> = {}): LocatorProofResult {
   return {

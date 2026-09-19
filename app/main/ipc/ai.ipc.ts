@@ -17,11 +17,15 @@ import {
   sanitizeActionId,
   sanitizeAuditPage,
   sanitizeFeatureId,
+  sanitizeFlowEditorState,
+  sanitizeProfileId,
+  sanitizePromotionRequest,
   type AiAdminResponse,
   type AiAuditView,
   type AiDiagnosticsView,
   type AiSettingsView,
-  type AiStatusView
+  type AiStatusView,
+  type FlowLocatorUpgradesView
 } from "@src/ai/contracts/AiApi";
 import { Permission } from "@src/security/authz/Permissions";
 
@@ -37,6 +41,7 @@ import {
   revertAiActionFromAudit,
   updateAiSettings
 } from "../ai/aiRuntime";
+import { clearFlowEditorState, flowLocatorUpgrades, promoteFlowLocatorUpgrade, setFlowEditorState } from "../ai/locatorUpgradeService";
 
 async function authorize(event: IpcMainInvokeEvent, permission: Permission, sensitive: boolean): Promise<AiAdminResponse | null> {
   const auth = await authorizeAiAction(() => assertSenderPermission(event, permission, { sensitive }));
@@ -81,6 +86,34 @@ export function registerAiIpc(): void {
     if (denied) return denied;
     const id = sanitizeActionId(actionId);
     return id ? revertAiActionFromAudit(id) : { code: "INVALID_REQUEST", ok: false, message: "Unknown AI action." };
+  });
+
+  // L3 §6. Reading a flow's AI locator state needs both the AI surface and permission to see the
+  // flow; applying one is a write to a saved flow, so it needs the flow-edit permission as well.
+  ipcMain.handle("ai:listUpgrades", async (event, flowId: unknown): Promise<FlowLocatorUpgradesView> => {
+    await assertSenderPermission(event, Permission.AI_USE);
+    await assertSenderPermission(event, Permission.WORKFLOW_VIEW);
+    const id = sanitizeProfileId(flowId);
+    return id ? flowLocatorUpgrades(id) : { flowId: "", pending: [], applied: [], editorDirty: false };
+  });
+
+  ipcMain.handle("ai:promoteUpgrade", async (event, request: unknown): Promise<AiAdminResponse> => {
+    const denied = (await authorize(event, Permission.AI_USE, false)) ?? (await authorize(event, Permission.WORKFLOW_EDIT, false));
+    if (denied) return denied;
+    const parsed = sanitizePromotionRequest(request);
+    return parsed ? promoteFlowLocatorUpgrade(parsed) : { code: "INVALID_REQUEST", ok: false, message: "Unknown flow or step." };
+  });
+
+  // A renderer declaring what it has open. It grants nothing — it can only make promotion stricter —
+  // so it is gated on the flow-edit permission an editor already needs and nothing else.
+  ipcMain.handle("ai:setEditorState", async (event, state: unknown): Promise<AiAdminResponse> => {
+    await assertSenderPermission(event, Permission.WORKFLOW_EDIT);
+    const parsed = sanitizeFlowEditorState(state);
+    const sender = event.sender;
+    setFlowEditorState(sender.id, parsed);
+    // A window that closes while it still claims a dirty flow would block promotion for ever.
+    if (parsed) sender.once("destroyed", () => clearFlowEditorState(sender.id));
+    return { code: "OK", ok: true };
   });
 
   ipcMain.handle("ai:importModelPack", async (event): Promise<AiAdminResponse> => {

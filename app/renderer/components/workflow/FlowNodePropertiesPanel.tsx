@@ -14,6 +14,7 @@ import { classifyLocatorQuality, LOCATOR_QUALITY_CLASS_LABEL } from "@src/record
 import {
   isSensitiveInteractionStep
 } from "@src/profiles/interactionPrerequisiteDecision";
+import { LocatorUpgradeSection } from "./LocatorUpgradeSection";
 import { confirmDirectActionPatch, interactionReviewForNode, type DesignerValidationFinding } from "./flowValidationPresentation";
 import { useNavigation } from "../../state/navigation";
 
@@ -53,8 +54,14 @@ interface FlowNodePropertiesPanelProps {
   dataSources: DataSourceOption[];
   flows: DataSourceOption[];
   collapsed: boolean;
+  /** The flow being edited, for the L3 §6 locator-upgrade surface. */
+  flowId: string;
+  /** The editor has unsaved changes, so a locator promotion is deferred rather than applied. */
+  editorDirty: boolean;
   onToggleCollapsed: () => void;
   onUpdateNode: (nodeId: string, data: Partial<FlowDesignerNodeData>) => void;
+  /** A locator promotion or revert changed the saved flow: reload it instead of keeping a stale copy. */
+  onSavedFlowChanged: () => void;
   onDelete?: () => void;
 }
 
@@ -64,8 +71,11 @@ export function FlowNodePropertiesPanel({
   dataSources,
   flows,
   collapsed,
+  flowId,
+  editorDirty,
   onToggleCollapsed,
   onUpdateNode,
+  onSavedFlowChanged,
   onDelete
 }: FlowNodePropertiesPanelProps) {
   // Saved sessions for the Reuse Session node's dropdown (fetched from the Main process).
@@ -660,6 +670,14 @@ export function FlowNodePropertiesPanel({
                       <span key={reason.code}>{reason.detail}</span>
                     ))}
                   </div>
+                ) : null}
+                {selectedNode ? (
+                  <LocatorUpgradeSection
+                    editorDirty={editorDirty}
+                    flowId={flowId}
+                    stepId={selectedNode.id}
+                    onApplied={onSavedFlowChanged}
+                  />
                 ) : null}
                 {data.locatorQuality ? (
                   <details>

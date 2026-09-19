@@ -13,8 +13,11 @@
  */
 
 import { authorizeSemanticAction } from "../../semantic/contracts/SemanticApi";
+import type { LocatorCandidate } from "../../profiles/FlowProfile";
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
 import type { AiActionRecord } from "../AiActionRecord";
+import type { LocatorPromotionRefusal } from "../locatorPromotion";
+import type { PendingUpgradeState } from "../pendingUpgrade";
 
 export type AiReasonCode =
   | "OK"
@@ -24,6 +27,7 @@ export type AiReasonCode =
   | "IMPORT_REFUSED"
   | "IMPORT_CANCELLED"
   | "REVERT_REFUSED"
+  | "PROMOTION_REFUSED"
   | "NOT_FOUND"
   | "REAUTH_REQUIRED"
   | "NOT_AUTHORIZED";
@@ -83,6 +87,62 @@ export interface AiAuditView {
   total: number;
 }
 
+/**
+ * One step's unpromoted AI locator candidate, as the Flow Designer may show it (Phase L, L3 §6).
+ *
+ * It carries the two locators being compared and the verification counts, never a prompt, model
+ * text, page text or a typed value: the candidate is a compiler-validated locator that the intent
+ * guard already proved is not a bound data value, and it is already stored in the saved flow.
+ * `promotable` and `blockedReason` are the main process's own answer, recomputed on every read —
+ * the renderer decides what to render with them, never whether the write is allowed.
+ */
+export interface PendingLocatorUpgradeView {
+  stepId: string;
+  stepName: string;
+  state: PendingUpgradeState;
+  proof: "unprovable-now" | "capture-proven";
+  meaningChange: boolean;
+  replays: number;
+  dataRows: number;
+  minReplays: number;
+  minDataRows: number;
+  createdAt: string;
+  modelId: string;
+  /** The saved locator this would replace. */
+  current: LocatorCandidate;
+  /** The proposed replacement. */
+  proposed: LocatorCandidate;
+  promotable: boolean;
+  blockedReason: LocatorPromotionRefusal | null;
+}
+
+/** A promotion that was applied to this step, and whether its one-click revert would still be accepted. */
+export interface AppliedLocatorUpgradeView {
+  stepId: string;
+  stepName: string;
+  actionId: string;
+  tier: "T1" | "T2";
+  appliedAt: string;
+  /** False once the promoted locator was edited: revert is refused rather than overwriting that edit. */
+  revertable: boolean;
+  previous: LocatorCandidate;
+}
+
+export interface FlowLocatorUpgradesView {
+  flowId: string;
+  pending: PendingLocatorUpgradeView[];
+  applied: AppliedLocatorUpgradeView[];
+  /** A renderer reported unsaved changes for this flow, so promotion is deferred until it saves. */
+  editorDirty: boolean;
+}
+
+export interface LocatorPromotionRequest {
+  flowId: string;
+  stepId: string;
+  /** The exact pending candidate the user reviewed; a newer one is refused rather than applied. */
+  createdAt: string;
+}
+
 export const AI_AUDIT_PAGE_MAX = 200;
 const ACTION_ID = /^[^\p{Cc}]{1,200}$/u;
 
@@ -99,6 +159,33 @@ export function sanitizeActionId(input: unknown): string | null {
 
 export function sanitizeFeatureId(input: unknown): AiFeatureId | null {
   return isAiFeatureId(input) ? input : null;
+}
+
+/** A profile/step identifier: bounded, no control characters, no path separators. */
+export function sanitizeProfileId(input: unknown): string | null {
+  return typeof input === "string" && ACTION_ID.test(input) && !/[/\\]/.test(input) ? input : null;
+}
+
+/**
+ * Rebuild a promotion request from its known fields, dropping everything else (the `SemanticApi`
+ * rule). Nothing here authorizes anything: the flow, the step and the candidate's `createdAt` only
+ * NAME what the main process then re-reads and re-proves for itself.
+ */
+export function sanitizePromotionRequest(input: unknown): LocatorPromotionRequest | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  if (!raw) return null;
+  const flowId = sanitizeProfileId(raw.flowId);
+  const stepId = sanitizeProfileId(raw.stepId);
+  const createdAt =
+    typeof raw.createdAt === "string" && raw.createdAt.length <= 40 && !Number.isNaN(Date.parse(raw.createdAt)) ? raw.createdAt : null;
+  return flowId && stepId && createdAt ? { flowId, stepId, createdAt } : null;
+}
+
+/** The renderer's report that it has a flow open, and whether that editor has unsaved changes. */
+export function sanitizeFlowEditorState(input: unknown): { flowId: string; dirty: boolean } | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const flowId = raw ? sanitizeProfileId(raw.flowId) : null;
+  return flowId && typeof raw?.dirty === "boolean" ? { flowId, dirty: raw.dirty } : null;
 }
 
 /**

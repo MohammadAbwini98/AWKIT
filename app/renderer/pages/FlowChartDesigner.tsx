@@ -802,6 +802,21 @@ function FlowChartDesignerContent() {
     [setEdges, setNodes, armLayoutGlide, editorHistory.reset]
   );
 
+  /**
+   * Re-open the saved flow after main changed it (an AI locator promotion or its revert, L3 §6).
+   * The canvas is the loaded document, so without this the next save would write the copy from
+   * before the change and quietly undo it. Promotion is refused while this editor is dirty, so
+   * reloading here discards nothing the user typed.
+   */
+  const reloadSavedFlow = useCallback(() => {
+    window.playwrightFlowStudio.flows
+      .get(flowId)
+      .then((profile) => {
+        if (profile) loadProfile(profile);
+      })
+      .catch(() => undefined);
+  }, [flowId, loadProfile]);
+
   /* ── Stage 2c suggested fixes: preview → confirm → apply → undo ──────────── */
 
   /** Step 1: ask main what the fixes WOULD change. Nothing is written. */
@@ -1220,6 +1235,18 @@ function FlowChartDesignerContent() {
     [saveFlow, exportFlow, isDirty, canSaveFlow]
   );
 
+  // Tell the main process which flow is open and whether it has unsaved changes, so an AI locator
+  // promotion is deferred rather than silently undone by this editor's next save (Phase L, L3 §6).
+  // Only the renderer can know this, so main holds it as declared state, never as authorization.
+  useEffect(() => {
+    if (!canSaveFlow) return;
+    const api = window.playwrightFlowStudio.ai;
+    void api.setEditorState({ flowId, dirty: isDirty }).catch(() => undefined);
+    return () => {
+      void api.setEditorState(null).catch(() => undefined);
+    };
+  }, [flowId, isDirty, canSaveFlow]);
+
   return (
     <DesignerCanvasLayout
       flush
@@ -1242,8 +1269,11 @@ function FlowChartDesignerContent() {
               .filter((flow) => flow.id !== flowId && flow.nodes.length > 2)
               .map((flow) => ({ id: flow.id, name: flow.name }))}
             collapsed={propertiesCollapsed}
+            flowId={flowId}
+            editorDirty={isDirty}
             onToggleCollapsed={togglePropertiesCollapsed}
             onUpdateNode={updateNode}
+            onSavedFlowChanged={reloadSavedFlow}
             onDelete={deleteSelectedNode}
           />
         ) : null

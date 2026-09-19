@@ -34,6 +34,12 @@ export interface LocatorRecoveryStore {
   getReplayProof?(scopeKey: string): Promise<LocatorReplayProofRecord | undefined>;
   /** Read-modify-write of one tally, serialized per key so concurrent replays never lose an update. */
   updateReplayProof?(scopeKey: string, change: (previous: LocatorReplayProofRecord | undefined) => LocatorReplayProofRecord): Promise<LocatorReplayProofRecord>;
+  /**
+   * Every tally, for a caller that has no scope key. A tally is keyed by scenario, so the promotion
+   * boundary (L3 §6) — which knows a flow and a step, not which scenario ran them — cannot address
+   * one by name and must scan. Malformed files are skipped, like `list`.
+   */
+  listReplayProofs?(limit?: number): Promise<LocatorReplayProofRecord[]>;
 }
 
 /** Durable, offline-only locator memory. One hashed file per step avoids cross-run file contention. */
@@ -121,6 +127,40 @@ export class FileLocatorRecoveryStore implements LocatorRecoveryStore {
     } catch {
       return undefined;
     }
+  }
+
+  async listReplayProofs(limit = 2000): Promise<LocatorReplayProofRecord[]> {
+    let names: string[];
+    try {
+      names = await readdir(join(this.folder, "upgrade-proofs"));
+    } catch {
+      return [];
+    }
+    const records: LocatorReplayProofRecord[] = [];
+    for (const name of names) {
+      if (records.length >= limit) break;
+      if (!name.endsWith(".json")) continue;
+      try {
+        const parsed = JSON.parse(await readFile(join(this.folder, "upgrade-proofs", name), "utf8")) as Partial<LocatorReplayProofRecord>;
+        // The same shape gate `getReplayProof` applies, minus the scope-key equality it gets for free
+        // from addressing the file by name. A file read by listing has matched nothing yet.
+        if (
+          parsed.version !== 1 ||
+          typeof parsed.scopeKey !== "string" ||
+          typeof parsed.candidateDigest !== "string" ||
+          typeof parsed.bindingDigest !== "string" ||
+          !Number.isInteger(parsed.proven) ||
+          !Number.isInteger(parsed.rejected) ||
+          !Array.isArray(parsed.dataRowKeys)
+        ) {
+          continue;
+        }
+        records.push(parsed as LocatorReplayProofRecord);
+      } catch {
+        continue;
+      }
+    }
+    return records;
   }
 
   updateReplayProof(

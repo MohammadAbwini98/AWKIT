@@ -19,7 +19,9 @@ import type {
   AiAuditView,
   AiDiagnosticsView,
   AiSettingsView,
-  AiStatusView
+  AiStatusView,
+  FlowLocatorUpgradesView,
+  LocatorPromotionRequest
 } from "@src/ai/contracts/AiApi";
 import type { AiSettingsPatch } from "@src/ai/AiSettings";
 import type { AiFeatureId } from "@src/security/authz/AiAutonomyPolicy";
@@ -397,6 +399,11 @@ const api = {
     getDiagnostics: () => invoke("ai:getDiagnostics") as Promise<AiDiagnosticsView>,
     listAudit: (page?: { limit?: number; offset?: number }) => invoke("ai:listAudit", page) as Promise<AiAuditView>,
     revert: (actionId: string) => invoke("ai:revert", actionId) as Promise<AiAdminResponse>,
+    // L3 §6 locator promotion. The renderer names a flow, a step and the candidate it reviewed; main
+    // re-reads the flow, the replay evidence and the policy and decides for itself.
+    listUpgrades: (flowId: string) => invoke("ai:listUpgrades", flowId) as Promise<FlowLocatorUpgradesView>,
+    promoteUpgrade: (request: LocatorPromotionRequest) => invoke("ai:promoteUpgrade", request) as Promise<AiAdminResponse>,
+    setEditorState: (state: { flowId: string; dirty: boolean } | null) => invoke("ai:setEditorState", state) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>
   },

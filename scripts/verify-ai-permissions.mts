@@ -102,6 +102,11 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     "ai:getDiagnostics": [["AI_AUDIT_VIEW"], false],
     "ai:listAudit": [["AI_AUDIT_VIEW"], false],
     "ai:revert": [["AI_AUDIT_VIEW", "WORKFLOW_EDIT"], false],
+    // L3 §6: reading a flow's AI locator state needs the AI surface and sight of the flow; applying a
+    // promotion writes a saved flow; declaring editor state is gated on the permission an editor has.
+    "ai:listUpgrades": [["AI_USE", "WORKFLOW_VIEW"], false],
+    "ai:promoteUpgrade": [["AI_USE", "WORKFLOW_EDIT"], false],
+    "ai:setEditorState": [["WORKFLOW_EDIT"], false],
     "ai:importModelPack": [["AI_MANAGE"], true],
     "ai:removeModelPack": [["AI_MANAGE"], true]
   };
@@ -119,7 +124,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|importAiModelPack|removeAiModelPack|showOpenDialog/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|importAiModelPack|removeAiModelPack|showOpenDialog/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }

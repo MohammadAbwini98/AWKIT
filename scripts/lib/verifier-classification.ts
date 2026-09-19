@@ -381,6 +381,14 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "L3 proof gates and pending-upgrade replay in real Chromium on the mock-site Locator Upgrade Lab: Recorder-captured guarded baselines, same-element identity, wrong/ambiguous/frame/shadow/bound-data/T3 refusals, observational proof, StepExecutor replays counted only on a passing step, persistence and staleness through JsonProfileStore and the Flow Designer save mapping."
   },
+  "verify:ai-locator-upgrade": {
+    class: "real-browser",
+    why: "L3 §6 controlled promotion, audit and revert in real Chromium on the mock-site Locator Upgrade Lab: evidence earned by StepExecutor replays, refusals for unverified, replay-rejected, superseded, stale, T3, non-promotable, dirty-editor and provisional-threshold cases, the promoted locator executing and surviving save/reload through JsonProfileStore and the Flow Designer mapping, concurrent promotions collapsing to one write, and revert restoring the exact previous locator without overwriting a newer edit."
+  },
+  "verify:ai-locator-upgrade-gui": {
+    class: "real-browser",
+    why: "Drives the real Electron Flow Designer: the locator-upgrade panel renders the lifecycle state, the Apply control is offered only when the main process says the promotion is permitted, an unsaved editor defers it, and the applied upgrade's one-click revert restores the saved locator on disk."
+  },
 
   // ── Phase L (local AI) — L1 foundation ───────────────────────────────────────────────────────
   "verify:ai-autonomy-policy": {

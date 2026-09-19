@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path, { join } from "node:path";
 
 import { deriveInferenceThreads } from "@src/ai/AiAdmission";
-import { AiActionStore } from "@src/ai/AiActionStore";
+import { AiActionStore, type AiAppendResult } from "@src/ai/AiActionStore";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService } from "@src/ai/AiService";
@@ -210,6 +210,14 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
     threads: inferenceThreads(),
     counters: status.counters
   };
+}
+
+/**
+ * Append an applied AI change to the audit log (L3 §6 promotion; L3 §8 repair later). The store
+ * re-sanitizes whatever it is given, so a record is never trusted because of where it came from.
+ */
+export function appendAiActionRecord(record: unknown): Promise<AiAppendResult> {
+  return audit().append(record);
 }
 
 export async function aiAuditView(page: { limit: number; offset: number }): Promise<AiAuditView> {
