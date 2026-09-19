@@ -87,6 +87,23 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
     return profile;
   }
 
+  /**
+   * Read-modify-write inside this folder's lane: `change` sees the file as it is now and returns the
+   * next profile, or `undefined` to write nothing. No writer to the folder can land between the read
+   * and the write, which is what makes a compare-and-swap (an AI revert) safe against a concurrent
+   * save through any other store instance. The id cannot change here; use `update` to rename.
+   */
+  async updateWith(id: string, change: (current: TProfile | null) => TProfile | undefined): Promise<TProfile | undefined> {
+    await this.ensureStoreFolder();
+    return this.serialize(async () => {
+      const next = change(await this.readProfileFile(this.pathForId(id)));
+      if (next === undefined) return undefined;
+      if (next.id !== id) throw new Error(`updateWith cannot change a profile id (${id} -> ${next.id})`);
+      await this.writeProfileUnlocked(next);
+      return next;
+    });
+  }
+
   async delete(id: string): Promise<void> {
     await this.serialize(() => this.deleteUnlocked(id));
   }

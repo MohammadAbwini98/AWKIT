@@ -272,7 +272,10 @@
     "verify:semantic-ui-gui": "node scripts/verify-semantic-ui-gui.mjs",
     "verify:async-wait-hygiene": "node scripts/verify-async-wait-hygiene.mjs",
     "verify:source-hygiene": "tsx scripts/verify-source-hygiene.mts",
-    "verify:reports-settings-a11y": "tsx scripts/verify-reports-settings-a11y.mts"
+    "verify:reports-settings-a11y": "tsx scripts/verify-reports-settings-a11y.mts",
+    "verify:ai-autonomy-policy": "tsx scripts/verify-ai-autonomy-policy.mts",
+    "verify:ai-audit-revert": "tsx scripts/verify-ai-audit-revert.mts",
+    "verify:ai-permissions": "tsx scripts/verify-ai-permissions.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

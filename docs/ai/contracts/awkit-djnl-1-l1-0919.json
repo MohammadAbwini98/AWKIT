@@ -95,5 +95,26 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l1-0919:security:2026-09-19T10:02:13.299Z",
+        "task": "awkit-djnl-1-l1-0919",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/authz/AiAutonomyPolicy.ts",
+          "src/security/authz/Permissions.ts"
+        ],
+        "acquired_at": "2026-09-19T10:02:13.299Z",
+        "acquired_at_commit": "2dc8a0bfe36c3a8122fcb3f88cedfec78d81f5e1",
+        "released_at": "2026-09-19T10:06:07.125Z",
+        "released_reason": "AiAutonomyPolicy and AI permissions committed in 9f452e5, verify:ai-autonomy-policy 40/40 with four caught mutations",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

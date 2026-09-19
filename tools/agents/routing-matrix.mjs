@@ -154,6 +154,7 @@ export const AGENTS = Object.freeze([
     model: "inherit",
     maxTurns: 32,
     ownsPaths: [
+      "src/ai/**",
       "src/branding/**",
       "src/logging/**",
       "src/reports/**",
@@ -892,7 +893,10 @@ export const PATH_DOMAINS = Object.freeze([
   },
 
   // ── General product modules without a narrower specialist ───────────────────────────────────
+  // `ai` = Phase L service, audit and prompt code. Its autonomy policy is authorization and lives in
+  // src/security/authz/AiAutonomyPolicy.ts, where the security domain protects it (DECISIONS 2026-09-19).
   ...[
+    "ai",
     "branding",
     "logging",
     "reports",

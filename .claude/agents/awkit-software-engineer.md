@@ -25,6 +25,7 @@ Implements scoped TypeScript product work that does not belong to a narrower own
 
 Only inside a granted write lease, and only within:
 
+- `src/ai/**`
 - `src/branding/**`
 - `src/logging/**`
 - `src/reports/**`

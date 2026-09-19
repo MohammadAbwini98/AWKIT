@@ -57,12 +57,19 @@ function canonical(value: unknown): string {
     .join(",")}}`;
 }
 
+/** True while `binding` still describes the step's current target/action fields. */
+export function locatorBindingMatches(
+  binding: LocatorApprovalBinding | undefined,
+  step: Pick<FlowStep, "type" | "name" | "safety" | "locator">
+): boolean {
+  const current = comparableBinding(step);
+  return binding !== undefined && current !== undefined && canonical(binding) === canonical(current);
+}
+
 export function locatorApprovalBindingMatches(
   step: Pick<FlowStep, "type" | "name" | "safety" | "locator">
 ): boolean {
-  const binding = step.locator?.approvedFallbackBinding;
-  const current = comparableBinding(step);
-  return binding !== undefined && current !== undefined && canonical(binding) === canonical(current);
+  return locatorBindingMatches(step.locator?.approvedFallbackBinding, step);
 }
 
 export function hasExplicitFallbackReason(locator: StepLocator | undefined): boolean {

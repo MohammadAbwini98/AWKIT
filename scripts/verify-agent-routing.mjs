@@ -163,7 +163,9 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
  */
 // The direct-loop policy intentionally replaced four legacy hook/compaction assertions with one
 // combined settings assertion. The resulting six checks are represented by the 1,108 baseline.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1108;
+// +3 (2026-09-19, awkit-djnl.1): the Phase L `src/ai/**` software domain adds one ownsPaths
+// resolution, one domain-inside-ownsPaths and one expected-path activation check.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1111;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */

@@ -1,28 +1,35 @@
 {
-  "task": "awkit-phase-l-l0-0919",
-  "contract_path": "docs/ai/contracts/awkit-phase-l-l0-0919.json",
-  "holder": "project-state",
+  "task": "awkit-djnl-1-l1-0919",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
+  "holder": "security",
   "status": "released",
   "allowed_paths": [
-    ".beads/issues.jsonl"
+    "src/security/authz/AiAutonomyPolicy.ts",
+    "src/security/authz/Permissions.ts"
   ],
-  "acquired_at": "2026-09-19T02:02:24.819Z",
-  "acquired_at_commit": "163b8b031a5dc50e066be7b633aeef43fa069616",
+  "acquired_at": "2026-09-19T10:02:13.299Z",
+  "acquired_at_commit": "2dc8a0bfe36c3a8122fcb3f88cedfec78d81f5e1",
   "baseline_dirty": [
-    "docs/ai/DECISIONS.md",
-    "docs/ai/contracts/awkit-phase-l-l0-0919.json",
-    "docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md",
-    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md",
-    "src/roadmap/ImplementationRoadmap.ts"
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-ai-audit-revert.mts",
+    "scripts/verify-ai-autonomy-policy.mts",
+    "src/ai/",
+    "src/profiles/FlowProfile.ts",
+    "src/profiles/locatorApproval.ts",
+    "src/storage/ProfileStore.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/DECISIONS.md": "f9bbe4e0ea080c9289e30b6719ea1e832d53cc56c0bcde392dea0d32e3f8ec50",
-    "docs/ai/contracts/awkit-phase-l-l0-0919.json": "59ec651484d085c1d2dfff81abc62d0fedbe3ef0c1ee7e3e4eae007d939f3a19",
-    "docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md": "d7c670ec497a561b0821225f5ed1f4d81b4806ecac02bf5ee44bd6a97a5a60dc",
-    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md": "c7f93b9e7bc27be73fcedf903eea3872d18dcb8a36c0729a6791cdba393ebee2",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md": "909244290e4cc96a04dc331971d8028dae80d51ba656d9d5c1292a01bc52ca1e",
-    "src/roadmap/ImplementationRoadmap.ts": "9121700cefff79e3b0e21b9683730fb332a61f39ded532b5c76614eed518a3f8"
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "90773b60439ca4c0bb718554fc625ee8767452716aad4fd6d810043d4af46d22",
+    "package.json": "2616d3cff6eb65135d55e6ee4dcb6ba4ac8d240a06de958e4330560653b0670c",
+    "scripts/lib/verifier-classification.ts": "18ed4ab5188ea0d02fe7ce0b9b16fd7a97b0f9595ee9e09a58767794449d1c1d",
+    "scripts/verify-ai-audit-revert.mts": "e1a76183feb19651c108cbb69bd1b6034a8b4799d11f8cd2c4578fc1eaf0856b",
+    "scripts/verify-ai-autonomy-policy.mts": "b90bfc83db5f5c73467ad5a627553f5e6de699d7c4baa0db86b2af9707d82db8",
+    "src/ai/": "absent",
+    "src/profiles/FlowProfile.ts": "6e90e1b31c56127a7781f9218dee85b26c961086320ab75890b14fd134702bc3",
+    "src/profiles/locatorApproval.ts": "9c7acc247e0a0c095b23d50fce15362b056993883f38a96f6ce4d69c63e113e6",
+    "src/storage/ProfileStore.ts": "ce98638d99f2acbd41a57d7c3c365da8cd8b73dba889f9af3f20e87643b1fabc"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -37,7 +44,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-19T02:03:04.291Z",
-  "released_reason": "L0 awkit-djnl.2 closed and export refreshed to 302 issues, 290 closed, ready set is the epic plus L1, L2, L4a and L5a",
-  "archived_at": "2026-09-19T02:03:04.292Z"
+  "released_at": "2026-09-19T10:06:07.125Z",
+  "released_reason": "AiAutonomyPolicy and AI permissions committed in 9f452e5, verify:ai-autonomy-policy 40/40 with four caught mutations",
+  "archived_at": "2026-09-19T10:06:07.126Z"
 }

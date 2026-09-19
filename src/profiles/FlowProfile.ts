@@ -392,6 +392,30 @@ export interface StepLocator extends LocatorCandidate {
    * recovery layer after `recoverLocally()` fails. Absent on legacy and pre-blueprint steps.
    */
   blueprintId?: string;
+  /** Present only on a locator an AI feature changed (Phase L). The runner never reads it. */
+  locatorProvenance?: LocatorProvenance;
+}
+
+/**
+ * Provenance of an AI-applied locator change (Phase L, docs/ai/DECISIONS.md 2026-09-19). Additive:
+ * absent means the recorder or the user, as `resolvedBy` says. `previous` is the exact pre-change
+ * locator and the one-click revert target — never a runtime fallback, because `LocatorFactory`
+ * applies `guard` only to a positional primary, so a guarded locator moved into `alternatives`
+ * would run without its identity proof.
+ */
+export interface LocatorProvenance {
+  schemaVersion: 1;
+  source: "ai-semantic-upgrade" | "ai-repair";
+  tier: "T1" | "T2";
+  /** `AiActionRecord.id` of the change. */
+  actionId: string;
+  modelId: string;
+  proof: "capture-proven" | "replay-proven" | "repair-proven";
+  appliedAt: string;
+  /** `createLocatorApprovalBinding` of the step as applied; revert is refused once it stops matching. */
+  binding: LocatorApprovalBinding;
+  /** One level only: never carries its own `locatorProvenance` or `pendingUpgrade`. */
+  previous: StepLocator;
 }
 
 export type ValueSourceType =

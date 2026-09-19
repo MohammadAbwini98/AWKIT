@@ -367,5 +367,19 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:zvec-coexistence": {
     class: "real-browser",
     why: "Runs a real Playwright workflow alongside a large Zvec indexing batch to quantify coexistence impact."
+  },
+
+  // ── Phase L (local AI) — L1 foundation ───────────────────────────────────────────────────────
+  "verify:ai-autonomy-policy": {
+    class: "unit",
+    why: "Exhaustive tier matrix, T3 unreachability under every configuration, ceilings and the T2 cap, and self-demotion thresholds, against an independently restated decision table; pure policy in-process."
+  },
+  "verify:ai-permissions": {
+    class: "unit",
+    why: "Every built-in role asserted in both directions for ai.use, ai.manage, ai.audit.view and recorder.elementSpy, pinned permission values, re-auth for AI management only, and deny/grant overrides; pure registry in-process."
+  },
+  "verify:ai-audit-revert": {
+    class: "integration",
+    why: "Real temp-folder AiActionStore and JsonProfileStore: record sanitization and retention, concurrent atomic appends, persisted self-demotion, and compare-and-swap revert through the flow folder lane (stale refusal, exact restore, lost-audit revert)."
   }
 };
