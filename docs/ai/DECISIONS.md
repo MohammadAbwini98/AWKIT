@@ -1,5 +1,46 @@
 # DECISIONS
 
+### 2026-09-20 — Phase L L3 §6: controlled locator promotion, audit and revert (`awkit-djnl.4`)
+
+- **One trusted operation, re-deriving everything.** `promoteLocatorUpgrade` (`src/ai/locatorPromotion.ts`) is
+  the only path from `pendingUpgrade` to the saved locator, and it runs inside the flow store's lane. It takes
+  no `eligible` flag and no caller-chosen tally: the caller names a flow, a step and the candidate's
+  `createdAt`, and everything else is recomputed from the profile the lane hands it. The Flow Designer's badge
+  comes from a DRY RUN of the same function, so the preview and the write cannot disagree.
+- **Evidence is selected inside the lane, never summed across scenarios.** A replay tally is keyed by
+  scenario, so one flow step can have several. `selectReplayEvidence` considers only tallies whose candidate
+  and binding digests match the step as it is now; one refusal in any of them disqualifies the candidate for
+  good; otherwise a single tally must satisfy the policy alone, because three single-row runs in three
+  workflows are not "three replays across two data rows".
+- **Seeded thresholds authorize review, not autonomy.** `LOCATOR_UPGRADE_REPLAY_POLICY.committed` is `false`
+  until L7 commits the numbers. While it is false, mode `auto` is refused (`THRESHOLDS_PROVISIONAL`) even when
+  the policy says `autoApply`; a user-approved apply still requires the full evidence and is recorded as
+  **T1**, so a later revert cannot self-demote the feature for a decision a person made.
+- **Only an already-authoritative locator is upgraded.** A `needs-review`, `invalid` or
+  `user-approved-fallback` baseline is refused (`BASELINE_NOT_PROMOTABLE`). This keeps decision 3 intact —
+  `resolution` is not repurposed and is never written by promotion — and leaves repairing those locators to
+  L3 §8, which has its own approval path.
+- **The promoted locator drops the guard and rewrites `quality`.** `LocatorFactory` routes a locator to
+  `resolveGuardedPositional` whenever `isPositionalLocator` is true, which reads the record-time `quality`. A
+  promotion that left the replaced primary's `quality` in place would therefore keep executing positionally and
+  the promotion would have no runtime effect at all. `quality` is replaced with what the proof established
+  (`isUnique`, `matchCount: 1`), and `context` is exactly the compiled scope the proof used — carrying the old
+  one would run something no gate ever saw.
+- **The locator write commits before the audit record.** The other order can leave an `AiActionRecord`
+  claiming a change that never happened; this order can only leave a promotion with no audit entry, which is
+  visible and still revertible from `locatorProvenance.previous` on the step.
+- **Unsaved editor changes defer promotion, as integrity rather than authorization.** Only a renderer knows
+  its own dirty state, so main holds it as declared state (`ai:setEditorState`, keyed by `WebContents` id) and
+  refuses `EDITOR_DIRTY`. It can only ever make promotion stricter. The authorization guarantees — the IPC
+  permission, T3, the trusted evidence and the binding compare-and-swap — trust the renderer for nothing.
+- **Dirtiness is never folded into the cached view.** `describeFlowLocatorUpgrades` dry-runs as if the editor
+  were clean and reports `editorDirty` beside the result. A real-Electron run showed the panel stuck on
+  "unsaved changes" for a flow that had been clean for twenty seconds, because its one fetch crossed the
+  editor's own report. A fact that changes per keystroke does not belong in a fetched, cached view.
+- **No new permission.** Reading a flow's AI locator state is `ai.use` + `workflow.view`; applying a promotion
+  is `ai.use` + `workflow.edit`; declaring editor state is `workflow.edit`. Reusing existing permissions avoids
+  the `ADMINISTRATOR_PERMISSIONS` denylist trap that a new permission would spring.
+
 ### 2026-09-20 — Phase L L3 §4–§5: browser proof gates, pending upgrades and replay proof (`awkit-djnl.4`)
 
 - **Proof lives in the runner** (`src/runner/locatorProof.ts`) and uses the same `LocatorFactory` roots as

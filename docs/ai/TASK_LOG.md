@@ -1,5 +1,38 @@
 # TASK_LOG
 
+## 2026-09-20 — L3 §6: controlled locator promotion, audit and one-click revert (Claude)
+
+- **Built:** `src/ai/locatorPromotion.ts` (the single authorized promotion, its evidence selector and the
+  Flow Designer view builder), `LOCATOR_UPGRADE_REPLAY_POLICY.committed`, the digest helpers moved into
+  `src/ai/pendingUpgrade.ts` (re-exported from `locatorProof.ts`) so promotion needs no Playwright,
+  `FileLocatorRecoveryStore.listReplayProofs`, `app/main/ai/locatorUpgradeService.ts` (open-editor registry +
+  lane driver), `appendAiActionRecord`, three permission-gated channels (`ai:listUpgrades`,
+  `ai:promoteUpgrade`, `ai:setEditorState`) with their preload surface, and
+  `app/renderer/components/workflow/LocatorUpgradeSection.tsx` wired into the node properties panel.
+- **Fixed (found by the new GUI verifier):** the designer's editor-state report raced its own effect cleanup
+  so main never saw the dirty flag (now one in-order lane, released on unmount only); and re-opening the
+  already-loaded flow left the dirty baseline armed, so the next edit silently became the new clean baseline
+  (`loadToken`). The second defeated the §6 dirty-editor guard outright.
+- **Files:** src/ai/{locatorPromotion,pendingUpgrade}.ts, src/ai/contracts/AiApi.ts,
+  src/runner/{locatorProof,LocatorRecoveryStore}.ts, app/main/ai/{locatorUpgradeService,aiRuntime}.ts,
+  app/main/ipc/ai.ipc.ts, app/main/preload.ts, app/renderer/components/workflow/{LocatorUpgradeSection.tsx,
+  FlowNodePropertiesPanel.tsx}, app/renderer/pages/FlowChartDesigner.tsx,
+  scripts/verify-ai-locator-upgrade{,-gui}.mts, scripts/verify-ai-permissions.mts,
+  scripts/lib/verifier-classification.ts, package.json, docs.
+- **Tests:** new `verify:ai-locator-upgrade` 78/78 (real Chromium), mutation-tested four times — binding
+  compare-and-swap 77/1, unverified promote 64/14, dirty-editor guard 75/3, revert conflict check 62/8 — all
+  caught, source restored and re-verified 78/78. New `verify:ai-locator-upgrade-gui` 24/24 (real Electron).
+  Regression: build, typecheck:scripts, locator-upgrade-proof 75, locator-plan 53, ai-permissions 75,
+  ai-audit-revert 69, flow-step-mapping 194, profile-store 74, flow-designer PASS (140 broad, capsule 16/16),
+  runner 138, mock-site 220, verifier-classification PASS (228), `git diff --check` clean.
+  **FAIL, both pre-existing and not introduced here:** ipc-contract 8/9 (`recorder:start` is gated via
+  `resolveRecorderBrowser`; the static scan cannot see it) and source-hygiene 10/1 (a literal NUL written by a
+  previous session into CURRENT_STATE.md, not removable with the tools available here).
+  **NOT RUN:** validate:offline (no dependency or packaging change). **BLOCKED:** packaged walkthrough and
+  clean machine (no authorized issuer key).
+- **State:** `awkit-djnl.4` stays `in_progress`; Beads and the roadmap tracker pin were not touched, because
+  no work item opened or closed. Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
 ## 2026-09-20 — L3 §4–§5: real-browser proof gates, pending upgrades and replay proof (Claude)
 
 - **Built:** `src/runner/locatorProof.ts` (proof gates D/A/B/C, capture and replay entries, runner hooks),

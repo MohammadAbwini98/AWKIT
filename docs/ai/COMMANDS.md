@@ -401,7 +401,12 @@ npm run verify:ai-audit-revert    # AiActionRecord contract/retention, atomic st
 npm run verify:locator-plan       # L3 plan DSL, trusted compiler and intent guard; pure, no model or browser (53)
 npm run verify:locator-upgrade-proof # L3 §4 proof gates + §5 pending upgrade/replay in real Chromium on
                                   # /recorder-lab/locator-upgrade; fake plan provider only (75)
-npm run verify:ai-permissions     # every role both directions + the nine ai:* IPC gates and preload surface (66)
+npm run verify:ai-locator-upgrade # L3 §6 promotion, audit and revert in real Chromium: evidence earned by
+                                  # StepExecutor replays, every refusal, the promoted locator executing and
+                                  # surviving reload, concurrency, and revert without overwriting (78)
+npm run verify:ai-locator-upgrade-gui # L3 §6 in real Electron: the Flow Designer's upgrade panel, the
+                                  # dirty-editor deferral (panel AND main), Apply, and one-click revert (24)
+npm run verify:ai-permissions     # every role both directions + the twelve ai:* IPC gates and preload surface (75)
 npm run verify:ai-adapter         # AiService queue/protocol: one-at-a-time, cancel, timeout, crash/circuit,
                                   # schema rejection, yield to runs, idle unload, checksum-before-load (102)
 npm run verify:ai-redaction       # prompt redaction, nonce-delimited injection containment, caps, rescan refusal (52)

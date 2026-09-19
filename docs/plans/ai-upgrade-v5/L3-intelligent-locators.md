@@ -5,13 +5,45 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go P
 
 **Status (2026-09-20): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
 §2 plan DSL + trusted compiler and §3 intent guard in `src/ai/locatorPlan.ts`, proven by `verify:locator-plan`
-(53/53, pure, no model or browser). **§4 and §5 are built** (`src/runner/locatorProof.ts`,
-`src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook), proven in real Chromium by
-`verify:locator-upgrade-proof` (75/75) on `/recorder-lab/locator-upgrade`, with plan text from a deterministic
-fake provider parsed by the real output contract. No job calls the capture-time entry yet: the L3 job that asks
-`AiService` for a plan and runs `proveLocatorPlan` + `annotatePendingUpgrade` comes after the L1 go/no-go. Not
-built: §6 promotion, §7 attempt loop, §8 repair, §9 sweep, §10 UX, and `verify:ai-locator-upgrade` /
-`verify:ai-locator-repair` / `verify:ai-locator-quality-live`.
+(53/53, pure, no model or browser). **§4, §5 and §6 are built** (`src/runner/locatorProof.ts`,
+`src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook, `src/ai/locatorPromotion.ts`), proven in real
+Chromium by `verify:locator-upgrade-proof` (75/75) and `verify:ai-locator-upgrade` (78/78) on
+`/recorder-lab/locator-upgrade` and in real Electron by `verify:ai-locator-upgrade-gui` (24/24), with plan text
+from a deterministic fake provider parsed by the real output contract. No job calls the capture-time entry yet:
+the L3 job that asks `AiService` for a plan and runs `proveLocatorPlan` + `annotatePendingUpgrade` comes after
+the L1 go/no-go, so in practice a pending candidate only reaches §6 once that job exists. Not built: §7 attempt
+loop, §8 repair, §9 sweep, §10 UX (§6 ships the minimum panel that makes an approved promotion reachable and an
+applied one revertible — the full badge vocabulary stays §10), and `verify:ai-locator-repair` /
+`verify:ai-locator-quality-live`.
+
+§6 as built:
+- **One authorized path.** `promoteLocatorUpgrade` is the only way a `pendingUpgrade` becomes the saved
+  locator. It runs inside `JsonProfileStore.updateWith` and re-derives every precondition from the profile it
+  is handed: the exact candidate named by `createdAt` (else `SUPERSEDED`), the step binding (`STALE`), a
+  `resolution` of `resolved`/absent (`BASELINE_NOT_PROMOTABLE`), T3 first and unconditionally, then eligibility
+  and the tier. A caller supplies no evidence and no `eligible` flag.
+- **Evidence is selected, not supplied.** `selectReplayEvidence` picks the tally for this flow+step whose
+  candidate and binding digests match the step as it is now. A tally is per SCENARIO, so counts are never
+  summed across scenarios, and one refusal in any matching tally disqualifies the candidate outright.
+- **Seeded thresholds do not authorize an unattended replacement.** `LOCATOR_UPGRADE_REPLAY_POLICY.committed`
+  is `false`, so mode `auto` is refused with `THRESHOLDS_PROVISIONAL`; a user who reviews the same evidence and
+  applies it is a separate authorization, recorded as **T1** so a later revert cannot self-demote the feature
+  for a decision a person made. L7 flips `committed`.
+- **What changes:** `strategy`/`value`/`name`/`exact`, the scope `context` (exactly the one the proof used),
+  `quality` (rewritten to what the proof established, which also stops the new semantic primary being
+  classified positional), and the positional `guard` is dropped. Everything else on the step and its locator is
+  carried through, unknown keys included. The whole pre-change locator goes to `locatorProvenance.previous`.
+- **Audit ordering:** the locator write commits first; the `AiActionRecord` is appended after. A crash between
+  them leaves a promotion with no audit entry — visible, and still revertible from the step — rather than an
+  audit entry for a change that never happened.
+- **Editor coordination:** the Flow Designer reports its open flow and dirty state (`ai:setEditorState`), and
+  promotion is refused with `EDITOR_DIRTY` while that flow is dirty, because the editor's next save writes its
+  whole document and would undo the promotion. This is data integrity, not authorization. Dirtiness is
+  deliberately NOT folded into the cached `listUpgrades` view: it changes faster than the view is fetched, so
+  the renderer combines its own state with main's answer, and main enforces its own view at the write.
+- **Codes:** `EDITOR_DIRTY`, `STEP_NOT_FOUND`, `NO_LOCATOR`, `NO_PENDING`, `SUPERSEDED`, `STALE`,
+  `BASELINE_NOT_PROMOTABLE`, `PROOF_NOT_SATISFIED`, `REPLAY_REJECTED`, `THRESHOLDS_PROVISIONAL`,
+  `POLICY_REFUSED`, `T3_*`.
 
 §4–§5 as built:
 - **Proof result** (`LocatorProofResult`): `proven` / `rejected` / `unprovable-now`, a stable code, gates
@@ -126,8 +158,10 @@ Metrics: upgrade rate, capture/replay proof rates, rejection reasons, latency, a
 
 ## Verifiers
 
-New `verify:ai-locator-upgrade` (fake provider; must include: pending present + primary misses ⇒ pending never tried;
-data-bound scope rejected; concurrent replays ⇒ one promotion write; unsaved editor ⇒ promotion deferred),
+`verify:ai-locator-upgrade` (built, 78/78; fake provider) covers all four required cases: pending present +
+primary misses ⇒ pending never tried (in `verify:locator-upgrade-proof`); data-bound scope rejected; concurrent
+promotions ⇒ one write; unsaved editor ⇒ promotion deferred. `verify:ai-locator-upgrade-gui` (built, 24/24)
+covers the same deferral and the one-click revert in real Electron. Still to build:
 `verify:ai-locator-repair`, live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 

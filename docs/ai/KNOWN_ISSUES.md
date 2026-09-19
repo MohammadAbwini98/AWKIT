@@ -1,5 +1,24 @@
 # KNOWN_ISSUES
 
+## OPEN (2026-09-20) — `verify:source-hygiene` fails on a NUL this project's own tools cannot remove
+
+- `docs/ai/CURRENT_STATE.md` contains a literal U+0000 inside the 2026-09-20 §4–§5 section, written by a
+  previous session's editing tool in place of an escape sequence — the exact trap that section describes.
+  `Read` renders it as a space, so the file looks fine.
+- It cannot be fixed from a Claude Code session here: `Edit` matches on a string and a NUL cannot be put in
+  one, `Write` would mean re-emitting a 1.1 MB file, and the lease guard's command set has no text-processing
+  shell. **Anyone with a shell:** strip control characters from that one line and the gate goes green.
+- Until then `verify:source-hygiene` reports 10 passed / 1 failed. The TypeScript half of the scan is green,
+  so new source is still covered.
+
+## OPEN (2026-09-20) — `verify:ipc-contract` reports `recorder:start` as ungated; it is not
+
+- The scan requires a `Permission.` reference inside each handler body. `recorder:start` delegates to
+  `resolveRecorderBrowser`, which asserts `PAGE_RECORDER` (or Super User when the installed-Chrome mode is
+  on), so the gate is one call away and the static scan cannot see it. Reported as 8/9.
+- It is a harness false positive, not a hole. Fix the scan (follow one level of local helper, or let a
+  handler name its gating helper) rather than moving the assertion to satisfy the text match.
+
 - **OPEN `awkit-djnl.7` (2026-09-19, updated): the L5a duration gate is unstable on the development
   host.** Root cause of the original +326/+380 ms was found and fixed (`6bfd59d`, see CURRENT_STATE):
   per-page subscribe/unsubscribe calls and live-page setup, each paying Playwright's stack capture, which
@@ -15,6 +34,31 @@
   protected-login capture to take over. It failed once (`page.goto: Timeout 25ms exceeded`, zero
   polls) and passed on the immediate rerun with no source change; the runner code was not touched.
   Treat a single failure here as timing until it repeats; a repeat is a runner defect to diagnose.
+
+## FIXED (2026-09-20) — two Flow Designer dirty-state defects the L3 §6 GUI verifier exposed
+
+- **The editor-state report raced its own cleanup.** The effect that told main which flow was open fired
+  `setEditorState(null)` from its cleanup and `setEditorState({dirty})` from its body as two independent
+  `invoke` calls; either could land last, and main kept the wrong one. Now one in-order lane, released on
+  unmount only. Any pair of `invoke` calls that must be ordered needs the same treatment.
+- **Re-opening the already-open flow left the dirty baseline armed.** `loadProfile` sets
+  `pendingSnapshot.current = true` and an effect keyed on the serialized document consumes it. Loading the
+  flow that is already loaded produces an identical document, so the effect never ran, and the user's next
+  edit became the new "clean" baseline — the editor reported itself unchanged with a real change in it, and
+  the §6 promotion guard was told the flow was safe to write under. Fixed with a `loadToken` in the effect's
+  deps. Watch for the shape generally: a ref armed by one code path and consumed by a value-keyed effect.
+
+## L3 §6 promotion limits (2026-09-20, by design)
+
+- **Only an already-authoritative locator is promoted.** A `needs-review`, `invalid` or
+  `user-approved-fallback` baseline is refused (`BASELINE_NOT_PROMOTABLE`). Repairing those is L3 §8.
+- **Automatic (T2) promotion is refused** while `LOCATOR_UPGRADE_REPLAY_POLICY.committed` is `false`. L7
+  commits the numbers; until then only a reviewed, user-approved apply can replace a locator, recorded as T1.
+- **A crash between the locator write and the audit append** leaves a promotion with no audit entry. It is
+  visible and the previous locator is still on the step, but `ai:revert` (which looks the action up by id)
+  will answer `NOT_FOUND` for it. The ordering is deliberate: the other order lies.
+- **The open-editor registry is per `WebContents`.** A renderer that never reports is treated as having
+  nothing open. It can only make promotion stricter, never permit one.
 
 ## L3 replay proof limits (2026-09-20, by design)
 

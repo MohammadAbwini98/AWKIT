@@ -1,6 +1,43 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L3 §4–§5 built (browser proof, pending upgrades, replay proof)
+## HANDOFF (2026-09-20, latest) — L3 §6 built (promotion, audit, one-click revert)
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** see CURRENT_STATE and the L3 plan's "§6 as built". `awkit-djnl.4` stays `in_progress`; Beads and
+  the roadmap tracker pin (10 outstanding / 292 closed) were NOT touched, because no work item opened or
+  closed. New: `src/ai/locatorPromotion.ts`, `app/main/ai/locatorUpgradeService.ts`,
+  `app/renderer/components/workflow/LocatorUpgradeSection.tsx`, `verify:ai-locator-upgrade` (78/78) and
+  `verify:ai-locator-upgrade-gui` (24/24).
+- **Next agent work without the model:** L3 §7 (the bounded attempt loop: max 2 synthesis attempts per job,
+  consumed only by real rejections, with structured deterministic feedback between them). §8 repair and §9
+  sweep both need the L1 job, so they come after the go/no-go. §10 UX (the full badge vocabulary) is
+  independent and can be done any time — §6 deliberately shipped only the minimum panel.
+- **Where §6 stops:** nothing queues a proposal, so `pendingUpgrade` is only ever written by a test today. The
+  promotion path itself is complete and proven; wiring the capture-time job to `AiService` is the L1-gated
+  piece.
+- **Traps:**
+  - **Do not fold a fast-changing fact into a fetched view.** Dirtiness was originally part of
+    `listUpgrades`'s `blockedReason`; the panel then showed "unsaved changes" for a flow that had been clean
+    for twenty seconds, because its one fetch crossed the editor's report. The renderer now combines its own
+    state with main's answer.
+  - **Two `invoke` calls from one effect can land out of order.** The designer's clean→dirty report raced its
+    own cleanup and main kept the wrong one. It now goes through one in-order lane and releases on unmount only.
+  - **`loadProfile` on the flow that is ALREADY open produces an identical document**, so an effect keyed on
+    the document never runs. That left the dirty baseline armed and silently adopted the user's next edit as
+    "clean". Fixed with `loadToken`; watch for the same shape anywhere a ref is armed and consumed by a
+    value-keyed effect.
+  - **`page.waitForFunction` never awaits a promise-returning predicate** — it passes on the first tick. Poll
+    with an awaited `evaluate` instead (this bit the GUI verifier before it was written properly).
+  - The step's Description field and the flow's share an accessible name; only the step's is part of the
+    saveable document, so dirtying the flow-level one changes nothing.
+  - `verify:source-hygiene` FAILS on a literal NUL in CURRENT_STATE.md's own §4–§5 section (a previous
+    session's editing tool). It cannot be fixed with Edit (a NUL is not expressible in a match string) and the
+    shell text tools are outside the lease guard's command set. Anyone with a shell: strip control characters
+    from that one line.
+  - `verify:ipc-contract` FAILS on `recorder:start`, which IS gated — `resolveRecorderBrowser` asserts
+    `PAGE_RECORDER` (or Super User for installed Chrome). The static scan cannot see a gate one call away.
+
+## HANDOFF (2026-09-20, superseded) — L3 §4–§5 built (browser proof, pending upgrades, replay proof)
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** see CURRENT_STATE and the L3 plan's "§4–§5 as built". `awkit-djnl.4` moved open → `in_progress`
