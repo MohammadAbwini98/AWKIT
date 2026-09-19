@@ -43,10 +43,10 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "security",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "src/security/authz/AiAutonomyPolicy.ts",
-        "src/security/authz/Permissions.ts"
+        "docs/ai/routing/ROUTING_MATRIX.md",
+        ".beads/issues.jsonl"
       ]
     }
   },

@@ -1,35 +1,19 @@
 {
   "task": "awkit-djnl-1-l1-0919",
   "contract_path": "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
-  "holder": "security",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "src/security/authz/AiAutonomyPolicy.ts",
-    "src/security/authz/Permissions.ts"
+    ".beads/issues.jsonl",
+    "docs/ai/routing/ROUTING_MATRIX.md"
   ],
-  "acquired_at": "2026-09-19T10:02:13.299Z",
-  "acquired_at_commit": "2dc8a0bfe36c3a8122fcb3f88cedfec78d81f5e1",
+  "acquired_at": "2026-09-19T10:09:33.907Z",
+  "acquired_at_commit": "7f774dc890df198b720bd185f816eaf072e77d08",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
-    "package.json",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-ai-audit-revert.mts",
-    "scripts/verify-ai-autonomy-policy.mts",
-    "src/ai/",
-    "src/profiles/FlowProfile.ts",
-    "src/profiles/locatorApproval.ts",
-    "src/storage/ProfileStore.ts"
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "90773b60439ca4c0bb718554fc625ee8767452716aad4fd6d810043d4af46d22",
-    "package.json": "2616d3cff6eb65135d55e6ee4dcb6ba4ac8d240a06de958e4330560653b0670c",
-    "scripts/lib/verifier-classification.ts": "18ed4ab5188ea0d02fe7ce0b9b16fd7a97b0f9595ee9e09a58767794449d1c1d",
-    "scripts/verify-ai-audit-revert.mts": "e1a76183feb19651c108cbb69bd1b6034a8b4799d11f8cd2c4578fc1eaf0856b",
-    "scripts/verify-ai-autonomy-policy.mts": "b90bfc83db5f5c73467ad5a627553f5e6de699d7c4baa0db86b2af9707d82db8",
-    "src/ai/": "absent",
-    "src/profiles/FlowProfile.ts": "6e90e1b31c56127a7781f9218dee85b26c961086320ab75890b14fd134702bc3",
-    "src/profiles/locatorApproval.ts": "9c7acc247e0a0c095b23d50fce15362b056993883f38a96f6ce4d69c63e113e6",
-    "src/storage/ProfileStore.ts": "ce98638d99f2acbd41a57d7c3c365da8cd8b73dba889f9af3f20e87643b1fabc"
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "08ae1104f5a0f1b0f5142ee15b255c19e07fb59f94c0d05f7610a58eb2a3e2d0"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -43,8 +27,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-19T10:06:07.125Z",
-  "released_reason": "AiAutonomyPolicy and AI permissions committed in 9f452e5, verify:ai-autonomy-policy 40/40 with four caught mutations",
-  "archived_at": "2026-09-19T10:06:07.126Z"
+  "violations": []
 }

@@ -15,7 +15,7 @@ and what risk it carries. An earlier draft stated these rules in three places th
 | `architect` | Software Architect | read-only | — | — |
 | `uiux` | UI/UX & Accessibility Specialist | read-only | — | — |
 | `frontend` | React / Renderer Engineer | writer | `app/renderer/**`<br>`logos/**`<br>`UI Samples/**`<br>`ui-mock.html`<br>`capture-dribbble.mjs`<br>`get-videos.mjs` | `app/renderer/AGENTS.md` |
-| `software` | General Software Engineer | writer | `src/branding/**`<br>`src/logging/**`<br>`src/reports/**`<br>`src/roadmap/**`<br>`src/semantic/**`<br>`src/theme/**`<br>`src/utils/**`<br>`src/validation/**` | `src/AGENTS.md` |
+| `software` | General Software Engineer | writer | `src/ai/**`<br>`src/branding/**`<br>`src/logging/**`<br>`src/reports/**`<br>`src/roadmap/**`<br>`src/semantic/**`<br>`src/theme/**`<br>`src/utils/**`<br>`src/validation/**` | `src/AGENTS.md` |
 | `runtime` | Electron Main / Runner Engineer | writer | `app/main/**`<br>`src/runner/**`<br>`src/orchestrator/**`<br>`src/instances/**`<br>`src/oracle/**`<br>`oracle-jdbc-bridge/**`<br>`native-hosts/**`<br>`scripts/oracle/**`<br>`scripts/prepare-oracle-runtime.mjs`<br>`scripts/prepare-zvec-native-host.mjs`<br>`scripts/zvec-harness/**`<br>`scripts/zvec-spike/**` | `app/main/AGENTS.md` |
 | `integration` | Cross-Boundary Integration Specialist | read-only | — | — |
 | `recorder` | Recorder / Playwright Specialist | writer | `src/recorder/**`<br>`src/session/**` | `src/AGENTS.md` |
@@ -85,6 +85,7 @@ change was visual. First match wins, so narrower paths come first.
 | `tools/license-issuer/**` | `security` | `licensing_change`, `signing_change`, `secret_handling_change` | License issuance and signing-key custody are security-owned Risk 3 surfaces. |
 | `.env.example` | `security` | `secret_handling_change`, `authorization_change` | The public secret-key inventory is a trust-boundary contract even though values are placeholders. |
 | `src/testing/**` | `qa` | — | Test-only helpers that ship in src for reuse by verifiers. |
+| `src/ai/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
 | `src/branding/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
 | `src/logging/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
 | `src/reports/**` | `software` | `general_engineering_change` | General product module; use a narrower specialist when the task crosses its boundary. |
