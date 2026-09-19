@@ -3,8 +3,8 @@
 ## HANDOFF (2026-09-19, latest) — L4a verified, L5a capture evidence passes but duration gate fails, L1 waits on two owner steps
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
-- **Done:** L4a `awkit-djnl.5` implementation is verified (authoring diagnostics 94/94; Flow Designer
-  138/138 broad + 16/16 capsule) but its tracker closeout is pending. L5a `awkit-djnl.7` has working
+- **Done:** L4a `awkit-djnl.5` is closed (authoring diagnostics 94/94; Flow Designer 138/138 broad +
+  16/16 capsule). L5a `awkit-djnl.7` has working
   real-browser evidence (74/74), persistence, privacy and teardown proof, but its current duration gate
   is **FAIL**: +326 ms fast vs +193.4 ms and +380 ms evidence vs +341.6 ms. It remains open. The L1
   real host is written (`51cacba`, `9c25288`).

@@ -24,6 +24,8 @@
 - **Not run:** L1 real-model verification and constrained-CPU model benchmark remain BLOCKED by the
   missing approved runtime/model pack. The L5a performance command was not rerun after its one
   diagnosed corrective change, in accordance with the bounded verifier policy.
+- **Tracker closeout:** `awkit-djnl.5` closed under the task-specific project-state lease after the
+  L4a acceptance evidence above. `awkit-djnl.7` remains OPEN because the duration acceptance gate is FAIL.
 
 ## 2026-09-19 — `awkit-djnl-1-l1-0919`: Phase L L1 foundation (Claude)
 

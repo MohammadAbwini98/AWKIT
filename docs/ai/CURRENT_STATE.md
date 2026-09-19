@@ -6,7 +6,7 @@
 case moved. L4a tightens authoring validation and L5a adds evidence to run reports; both are verified
 by their own suites below.
 
-- **L4a `awkit-djnl.5` — implementation and verification complete; tracker closeout pending.** `FlowValidator` owns every graph diagnostic: `incompleteBranchPair`
+- **L4a `awkit-djnl.5` — closed.** `FlowValidator` owns every graph diagnostic: `incompleteBranchPair`
   and `unguardedCycle` (errors), and six new warnings. Reachability stops at End, and
   `FLOW_VALIDATOR_VERSION` is 4, so the next run gate performs a fresh inventory scan that grants
   off-path-only flows their window. The Flow Designer shows only engine issues. Four verifier fixtures

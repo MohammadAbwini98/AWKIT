@@ -1,39 +1,22 @@
 {
-  "task": "awkit-djnl-1-runtime-0919",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-runtime-0919.json",
-  "holder": "runtime",
-  "status": "released",
+  "task": "awkit-djnl.5",
+  "contract_path": "docs/ai/contracts/awkit-djnl.5.json",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "native-hosts/ai/ai-host.cjs"
-  ],
-  "acquired_at": "2026-09-19T12:08:41.113Z",
-  "acquired_at_commit": "b18c1d3caee319c9dd6c4b18aefc4f09ed547ff9",
-  "baseline_dirty": [
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-1-runtime-0919.json",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "native-hosts/ai/",
-    "package.json",
-    "scripts/ai-harness/",
-    "scripts/benchmark-ai-model.mts",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-ai-host-electron.mts",
-    "scripts/verify-ai-host.mts",
-    "scripts/verify-ai-model-live.mts"
+    "docs/ai/contracts/awkit-djnl.5.json",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+    "tools/roadmap/assignments.json"
   ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "4cac00739df0d5f0a15974ba2668c9835d669014268453cbdcb96a86e5992fc5",
-    "docs/ai/contracts/awkit-djnl-1-runtime-0919.json": "3d2ed3ac05c770637646ee7a0855935b0ad1e05255990b28052f13039e89b113",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "db9bb709aba2ce104299c4737b062b753f1d832cb33e0193babf86bee77340fe",
-    "native-hosts/ai/": "absent",
-    "package.json": "f865f98e8065df93215b1b256b05758b8ead3d9e17bd362d68840d392dcaf392",
-    "scripts/ai-harness/": "absent",
-    "scripts/benchmark-ai-model.mts": "cbba82cf784b1fd2734b7330743a183c17171b2ebe40aff2b435e91caa106d64",
-    "scripts/lib/verifier-classification.ts": "deb7dc4aa51e76d95c4ea16092f134e304659e823ee77f2e1207190b5620e601",
-    "scripts/verify-ai-host-electron.mts": "88e82241d7097aeffc3c5192d450bedc4ca3820a3933ca236ec828fdd9891c70",
-    "scripts/verify-ai-host.mts": "489dbd8514069d9fc898caa1287a9a89d023cd8e9b0356a13818971f4cef5bcd",
-    "scripts/verify-ai-model-live.mts": "a1569e2ca901162f618c2047cd855b4a4988051c4b301d0c3ea3588326a29157"
-  },
+  "acquired_at": "2026-09-19T15:41:13.113Z",
+  "acquired_at_commit": "5ef5640ec810796032393e8e31ac180356edd718",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -46,8 +29,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-19T12:09:01.374Z",
-  "released_reason": "AI host committed in 51cacba, verify:ai-host 135/135 with 12 of 12 mutations caught, verify:ai-host-electron 20/20",
-  "archived_at": "2026-09-19T12:09:01.375Z"
+  "violations": []
 }

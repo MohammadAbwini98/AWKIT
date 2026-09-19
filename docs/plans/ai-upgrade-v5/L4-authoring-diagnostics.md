@@ -42,8 +42,9 @@ Everything else is a **warning**, so no flow that runs today is newly blocked ex
 reachability can newly report steps past End as `unreachableNode`. That is off-path, so a Legacy Compatibility grant
 tolerates it, and `FLOW_VALIDATOR_VERSION` 4 triggers a fresh inventory scan that issues those grants.
 
-**Status:** matrix complete, missing checks added, `verify:authoring-diagnostics` 94/94 (two mutations caught),
-designer advisories moved into the engine (only L2's locator-quality advisory stays in the renderer). Open follow-ups:
+**Status:** **closed** as `awkit-djnl.5`: matrix complete, missing checks added,
+`verify:authoring-diagnostics` 94/94 (two mutations caught), and final Flow Designer evidence 138/138 broad +
+16/16 capsule. Designer advisories moved into the engine (only L2's locator-quality advisory stays in the renderer). Open follow-ups:
 design-time data-source/secret reference checks (needs a library context like `referenceableFlowIds`).
 
 ## L4b — AI explanations (T0) and fix ranking (T1)
