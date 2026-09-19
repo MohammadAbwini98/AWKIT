@@ -83,6 +83,13 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    */
   onBrowserRuntime?: (info: { runtime: BrowserRuntime; generation: number }) => void | Promise<void>;
   /**
+   * Called once per browser generation as soon as its context exists, BEFORE the runner creates or
+   * selects its first page (a persistent context may already hold one). Context-level init scripts and
+   * bindings registered here join each new page's own initialization instead of costing extra
+   * protocol round trips against a live page.
+   */
+  onBrowserContext?: (info: { runtime: BrowserRuntime; generation: number }) => void | Promise<void>;
+  /**
    * Called immediately before the runner intentionally closes a browser runtime (end-of-run
    * cleanup, hard cancel, or Reuse Session swap of the old generation). Lets the engine tell its
    * BrowserWorkerPool that the resulting "disconnected" event is an expected teardown, not a crash,
@@ -181,6 +188,7 @@ export class PlaywrightRunner {
       this.closedShadowInstrumentedContexts.add(runtime.context);
       await runtime.context.addInitScript({ content: closedShadowBridgeScript() }).catch(() => undefined);
     }
+    await this.options.onBrowserContext?.({ runtime, generation: browserGeneration });
     // Mutable holder so Auto Secure Login can close/relaunch the automation browser mid-run
     // and re-point the live StepExecutor + subsequent flows at the new page.
     const rootPage = await this.resolveLivePage(runtime.context);
@@ -240,6 +248,7 @@ export class PlaywrightRunner {
       let candidate: RuntimeCandidate | undefined;
       try {
         const newRuntime = await this.browserContextFactory.create(customConfig, context);
+        await this.options.onBrowserContext?.({ runtime: newRuntime, generation: newGeneration });
         const newPage = await this.resolveLivePage(newRuntime.context);
         candidate = {
           runtime: newRuntime,

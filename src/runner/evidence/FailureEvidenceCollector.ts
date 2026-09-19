@@ -1,8 +1,8 @@
 /**
  * Run-lifetime failure evidence collector (Phase L, L5a): the new evidence owner.
  *
- * It attaches through the same per-generation lifecycle `PassiveCdpTrace` uses
- * (`ExecutionEngine` → `onBrowserRuntime` / `onRuntimeClosing`), so it adds no second browser owner.
+ * It attaches through the runner's per-generation lifecycle (`ExecutionEngine` → `onBrowserContext`,
+ * before the first page, / `onRuntimeClosing`), so it adds no second browser owner.
  * `NetworkDiagnosticsObserver` keeps its per-action role and `captureFailureEvidence` its
  * point-in-time screenshot/DOM role. This collector owns page and popup attach, the UI init script,
  * listeners, step-window correlation, bounded buffering, teardown and the report handoff.
@@ -121,8 +121,19 @@ function documentKey(raw: string | undefined): string | undefined {
   }
 }
 
+/** The page a request belongs to; undefined for service-worker requests, which have no frame. */
+function pageOfRequest(request: Request): Page | undefined {
+  try {
+    return request.frame().page();
+  } catch {
+    return undefined;
+  }
+}
+
 interface GenerationBinding {
   context: BrowserContext;
+  /** False once the generation stopped: its context-level listeners are inert from then on. */
+  active: boolean;
   onPage: (page: Page) => void;
   pages: Set<Page>;
 }
@@ -160,11 +171,16 @@ export class FailureEvidenceCollector {
   }
 
   /**
-   * Awaited on the instance's start-up path, so it holds only what must precede the first
-   * navigation: the init script (one round trip). Exposing the binding takes several sequential
-   * round trips (~330 ms median under start-up contention, measured by verify:failure-capture-overhead),
-   * so it completes in the background; until it does, the script queues its messages and each frame
-   * is flushed once it lands.
+   * Called as soon as the generation's context exists, before its first page (`onBrowserContext`),
+   * so the init script and binding join each page's own initialization. Only the init script is
+   * awaited. Exposing the binding is never awaited on the start-up path (against a live page it takes
+   * several sequential round trips, ~330 ms median under start-up contention, measured by
+   * verify:failure-capture-overhead); until it lands, the script queues its messages and each frame is
+   * flushed once it does.
+   *
+   * Network and console listeners are context-level: every Playwright subscription change is a
+   * protocol call that captures a stack trace, so one subscription per generation replaces three per
+   * page plus three more at each page's close.
    */
   async startGeneration(runtime: { context: BrowserContext }, generation: number): Promise<void> {
     if (this.stopped) return;
@@ -175,10 +191,20 @@ export class FailureEvidenceCollector {
       this.degraded += 1;
       return;
     }
-    const binding: GenerationBinding = { context, onPage: (page) => this.attachPage(page, binding), pages: new Set() };
+    const binding: GenerationBinding = { context, active: true, onPage: (page) => this.attachPage(page, binding), pages: new Set() };
     this.generations.set(generation, binding);
     liveGenerations += 1;
     context.on("page", binding.onPage);
+    /** Route a context event to its page, attaching a page the `page` event has not delivered yet. */
+    const route = (page: Page | null | undefined, handle: (page: Page) => void) =>
+      this.guard(() => {
+        if (!binding.active || !page || page.isClosed()) return;
+        if (!this.detachers.has(page)) this.attachPage(page, binding);
+        if (this.detachers.has(page)) handle(page);
+      });
+    context.on("response", (response: Response) => route(pageOfRequest(response.request()), (page) => this.onResponse(page, response)));
+    context.on("requestfailed", (request: Request) => route(pageOfRequest(request), (page) => this.onRequestFailed(page, request)));
+    if (this.captureConsole) context.on("console", (message: ConsoleMessage) => route(message.page(), (page) => this.onConsole(page, message)));
     for (const page of context.pages()) this.attachPage(page, binding);
     context
       .exposeBinding(this.bindingName, (source: { page: Page; frame: Frame }, payload: unknown) => this.onUi(source.page, source.frame, payload))
@@ -193,9 +219,15 @@ export class FailureEvidenceCollector {
       );
   }
 
+  /**
+   * A generation stops because its context is closing (`onRuntimeClosing`) or already closed. The
+   * context-level network and console listeners are made inert, not removed: removing them is one
+   * more protocol call each, against a context about to be discarded, and they go with it.
+   */
   async stopGeneration(generation: number): Promise<void> {
     const binding = this.generations.get(generation);
     if (!binding) return;
+    binding.active = false;
     binding.context.off("page", binding.onPage);
     for (const page of [...binding.pages]) this.detach(page);
     this.generations.delete(generation);
@@ -279,26 +311,19 @@ export class FailureEvidenceCollector {
     this.pageIds.set(page, `p${this.pageSequence}`);
     this.navMarks.set(page, this.buffer.offsetNow());
     binding.pages.add(page);
-    const onResponse = (response: Response) => this.guard(() => this.onResponse(page, response));
-    const onRequestFailed = (request: Request) => this.guard(() => this.onRequestFailed(page, request));
+    // Only events Playwright delivers without a subscription are per page, so attaching and detaching
+    // a page costs no protocol call. Network and console arrive through the context (startGeneration).
     const onPageError = (error: Error) => this.guard(() => this.onPageError(page, error));
-    const onConsole = (message: ConsoleMessage) => this.guard(() => this.onConsole(page, message));
     const onNavigated = (frame: Frame) => {
       if (frame === page.mainFrame()) this.navMarks.set(page, this.buffer.offsetNow());
     };
     const onClose = () => this.detach(page);
-    page.on("response", onResponse);
-    page.on("requestfailed", onRequestFailed);
     page.on("pageerror", onPageError);
-    page.on("console", onConsole);
     page.on("framenavigated", onNavigated);
     page.once("close", onClose);
     livePages += 1;
     this.detachers.set(page, () => {
-      page.off("response", onResponse);
-      page.off("requestfailed", onRequestFailed);
       page.off("pageerror", onPageError);
-      page.off("console", onConsole);
       page.off("framenavigated", onNavigated);
       page.off("close", onClose);
       binding.pages.delete(page);

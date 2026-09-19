@@ -13,7 +13,8 @@
  * transient toast then a timeout, native + inline validation, HTTP 409/422/500/503, a transport
  * failure, an uncaught page error, a console error the runner outranks, an application error page, a
  * repeated-error burst, a PASS with an unrelated warning, a failure followed by a consequential wait
- * timeout, a protected-login surface (excluded entirely), a manual handoff that resumes, a user
+ * timeout, a protected-login surface (excluded entirely, and lifted again for the page's next ordinary
+ * document), a manual handoff that resumes, a user
  * cancellation, a clean pass, and the `AWKIT_FAILURE_EVIDENCE=0` switch.
  *
  * Run: npm run verify:ui-error-evidence   (node scripts/benchmark/run.mjs → tsx + the electron stub)
@@ -161,6 +162,19 @@ const SCENARIOS: Scenario[] = [
   {
     key: "protected",
     steps: [goto("l-goto"), click("l-click", "fe-login-reveal"), waitText("l-wait", "sign-in failed"), assertText("l-assert", "fe-login-result", "signed in")]
+  },
+  {
+    // The same page leaves the protected document for an ordinary one: that document is captured again.
+    key: "reprieve",
+    steps: [
+      goto("r-goto"),
+      click("r-login", "fe-login-reveal"),
+      waitText("r-login-wait", "sign-in failed"),
+      goto("r-goto-again"),
+      click("r-http", "fe-http-500"),
+      waitText("r-http-wait", "(HTTP 500)"),
+      assertText("r-assert", "fe-http-result", "200")
+    ]
   },
   {
     key: "handoff",
@@ -450,6 +464,14 @@ try {
     check("the exclusions are counted, never silent", (diagnostics?.summary.dropped.protected ?? 0) >= 2, diagnostics?.summary);
     check("no canary from the login surface reaches the report", LOGIN_CANARIES.every((canary) => !serialized.includes(canary)), LOGIN_CANARIES.filter((canary) => serialized.includes(canary)));
     check("the cause is the runner's own (assertion), not page evidence", diagnostics?.cause?.cause === "assertionFailed", diagnostics?.cause);
+  }
+  {
+    const outcome = outcomes.get("reprieve");
+    const diagnostics = outcome?.instance.diagnostics;
+    const serialized = JSON.stringify(diagnostics ?? {});
+    const http = bySource(outcome, "http.error")[0];
+    check("the next ordinary document in the same page is captured again (its HTTP 500 is kept)", http?.payload.status === 500 && ["r-http", "r-http-wait"].includes(http.context.nodeId ?? ""), diagnostics?.evidence);
+    check("...while the protected document before it stays excluded and counted", (diagnostics?.summary.dropped.protected ?? 0) >= 1 && LOGIN_CANARIES.every((canary) => !serialized.includes(canary)), diagnostics?.summary);
   }
 
   console.log("\n12. Manual handoff: evidence on both sides of the pause, no cause for a pass");

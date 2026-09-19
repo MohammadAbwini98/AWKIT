@@ -33,7 +33,7 @@ function handleKey(bindingName: string): string {
 /** Deliver messages a document queued before the binding existed. Safe to evaluate in any frame. */
 export function buildUiEvidenceFlush(bindingName: string): string {
   if (!/^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/.test(bindingName)) throw new Error("invalid binding name");
-  return `(() => { const handle = window[Symbol.for("${handleKey(bindingName)}")]; if (handle) handle.flush(); })()`;
+  return `(() => { const handle = document[Symbol.for("${handleKey(bindingName)}")]; if (handle) handle.flush(); })()`;
 }
 
 export type UiEvidenceKind = "alert" | "status" | "toast" | "fieldInvalid";
@@ -58,9 +58,11 @@ export type UiEvidenceDelivery = UiEvidencePayload & { ageMs?: number };
 export function buildUiEvidenceScript(bindingName: string): string {
   if (!/^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/.test(bindingName)) throw new Error("invalid binding name");
   const limits = UI_EVIDENCE_LIMITS;
+  // Installed once per DOCUMENT, not per window: a same-origin navigation away from a popup's initial
+  // about:blank keeps the Window object, and a window-keyed flag would skip the real document.
   return `(() => {
   const flag = Symbol.for("${handleKey(bindingName)}");
-  if (window[flag]) return;
+  if (document[flag]) return;
   const MAX = ${limits.maxTextChars};
   let calls = 0;
   const ERROR = /\\b(error|errors|failed|failure|invalid|denied|unable|cannot|can't|not allowed|forbidden|rejected|declined|required|expired|conflict|incorrect|wrong|problem|unavailable|timed out|try again)\\b/i;
@@ -89,16 +91,26 @@ export function buildUiEvidenceScript(bindingName: string): string {
       queue.shift();
     }
   };
+  // A script registered before the binding's own runs first in each new document, so a queued message
+  // is retried once after the document's remaining init scripts; the collector flushes the rest.
+  let retrying = false;
   const call = (payload) => {
     flush();
     if (queue.length === 0 && deliver(payload)) return;
     if (queue.length < ${limits.maxQueued}) queue.push({ payload, at: performance.now() });
+    if (!retrying) {
+      retrying = true;
+      setTimeout(() => { retrying = false; flush(); }, 0);
+    }
   };
-  Object.defineProperty(window, flag, { value: { flush } });
+  Object.defineProperty(document, flag, { value: { flush } });
   let guardSent = false;
-  // Not rate-limited: at most two per document, and the collector's exclusion depends on them.
+  // Not rate-limited: at most two per document, and the collector's exclusion depends on them. An
+  // unguarded about:blank carries no information (a frame left guarded stays excluded until its next
+  // real document announces), so it costs no binding call.
   const announce = (isGuarded) => {
     if (isGuarded) guardSent = true;
+    else if (location.href === "about:blank") return;
     call({ kind: "document", guarded: isGuarded });
   };
   const sent = new WeakMap();

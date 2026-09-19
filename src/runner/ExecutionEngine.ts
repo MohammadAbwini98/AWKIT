@@ -1589,10 +1589,14 @@ export class ExecutionEngine {
       screenshotOnFailure: instance.config.screenshotOnFailure ?? browserConfig.artifact.screenshotOnFailure,
       sessionService: this.sessionAccess,
       manualHandoffController: this.manualHandoffController,
+      // L5a evidence attaches before the generation's first page exists, so its init script and binding
+      // ride along with that page's own initialization instead of extra round trips against a live page.
+      onBrowserContext: async ({ runtime, generation }) => {
+        await evidence?.startGeneration(runtime, generation);
+      },
       onBrowserRuntime: async ({ runtime, generation }) => {
         this.browserPool.registerRuntime(slot!, runtime, generation);
-        // Independent best-effort observers: attach together so neither waits on the other's CDP round trips.
-        await Promise.all([passiveTrace?.startGeneration(runtime, generation), evidence?.startGeneration(runtime, generation)]);
+        await passiveTrace?.startGeneration(runtime, generation);
       },
       onRuntimeClosing: async ({ generation }) => {
         this.browserPool.markExpectedClose(slot!, generation);

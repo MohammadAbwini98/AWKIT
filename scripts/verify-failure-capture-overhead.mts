@@ -37,6 +37,16 @@ import { buildDirs, cleanupRoot, installBenchGuards } from "./benchmark/engineHa
 
 installBenchGuards();
 
+/**
+ * Format stack traces as the packaged app does. tsx turns on source-mapped stacks for every script;
+ * the Electron main bundle has no source maps and nothing enables them. Playwright captures a stack for
+ * every client API call and pre-builds an error (with its stack) for every CDP command, so under tsx
+ * each one paid a source-map translation (~8 ms per call measured, 2026-09-19) that production never
+ * pays, charged to whichever mode makes more calls. `AWKIT_L5A_OVERHEAD_SOURCE_MAPS=1` keeps them on.
+ */
+const SOURCE_MAPPED_STACKS = process.env.AWKIT_L5A_OVERHEAD_SOURCE_MAPS === "1";
+if (!SOURCE_MAPPED_STACKS) process.setSourceMapsEnabled(false);
+
 /** Attribution only: time the collector's awaited lifecycle calls without changing what they do. */
 const lifecycleMs: Record<"startGeneration" | "stopGeneration", number[]> = { startGeneration: [], stopGeneration: [] };
 for (const method of ["startGeneration", "stopGeneration"] as const) {
@@ -405,7 +415,7 @@ try {
 
   console.log("\nOverhead (capture ON versus OFF)");
   const ceilings = FAILURE_CAPTURE_OVERHEAD_CEILINGS;
-  const measured: Record<string, unknown> = { rounds: ROUNDS, instancesPerWorkloadPerBatch: INSTANCES, concurrentInstances: INSTANCES * 2, host: { platform: process.platform, cpus: (await import("node:os")).cpus().length } };
+  const measured: Record<string, unknown> = { rounds: ROUNDS, instancesPerWorkloadPerBatch: INSTANCES, concurrentInstances: INSTANCES * 2, stackTraces: SOURCE_MAPPED_STACKS ? "source-mapped (tsx default)" : "plain (as packaged)", host: { platform: process.platform, cpus: (await import("node:os")).cpus().length } };
   for (const key of ["fast", "evidence"] as const) {
     const sOn = stats(all(on, key));
     const sOff = stats(all(off, key));

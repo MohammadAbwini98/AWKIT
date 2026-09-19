@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { ScenarioExecutionResult } from "@src/runner/RunnerResult";
+import { replaceFileAtomically } from "@src/storage/atomicReplace";
 import { SecretMasker } from "./SecretMasker";
 import type { ConcurrentRunReport, InstanceReport } from "./ExecutionReport";
 import { collectEvidence } from "./ExecutionReport";
@@ -78,10 +79,13 @@ export class ReportService {
     };
   }
 
+  /** Written through a temp file and an atomic rename: a reader or a crash never sees a partial report. */
   async writeReport(report: ConcurrentRunReport): Promise<string> {
     const path = join(this.reportsRoot, report.executionId, "report.json");
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, JSON.stringify(report, null, 2), "utf8");
+    const tmp = `${path}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+    await writeFile(tmp, JSON.stringify(report, null, 2), "utf8");
+    await replaceFileAtomically(tmp, path);
     return path;
   }
 }
