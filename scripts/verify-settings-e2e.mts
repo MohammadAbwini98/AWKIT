@@ -806,6 +806,9 @@ try {
   await win.getByLabel("Default run mode").selectOption("headed");
   await win.getByLabel("Screenshot on failure").uncheck();
   await win.getByLabel("Stop on error").check();
+  const hidePageText = win.getByLabel("Hide page text in failure evidence");
+  const hidePageTextDefault = await hidePageText.isChecked();
+  await hidePageText.check();
   await saveSettingsButton(win).click();
   await win.getByText("Settings saved.").waitFor({ timeout: 10_000 });
   const savedExecution = (await snapshotSettings(win)).execution;
@@ -819,6 +822,11 @@ try {
       !savedExecution.screenshotOnFailure &&
       savedExecution.stopOnError,
     JSON.stringify(savedExecution)
+  );
+  check(
+    "SET-009 the failure-evidence page-text switch is off by default and saves through the rendered form",
+    hidePageTextDefault === false && savedExecution.suppressEvidenceUiText === true,
+    JSON.stringify({ hidePageTextDefault, suppressEvidenceUiText: savedExecution.suppressEvidenceUiText })
   );
 
   // Protected-login detection: native confirmation cancel/accept, persistence across restart, secure disable.

@@ -55,7 +55,11 @@ export type UiEvidencePayload =
 /** A queued message also carries how long it waited, so its offset stays truthful. */
 export type UiEvidenceDelivery = UiEvidencePayload & { ageMs?: number };
 
-export function buildUiEvidenceScript(bindingName: string): string {
+/**
+ * `keepText: false` is the privacy policy's raw-UI-text suppression: the script still classifies tone
+ * and de-duplicates by the text, but never sends visible text (message, validation text, described-by).
+ */
+export function buildUiEvidenceScript(bindingName: string, { keepText = true }: { keepText?: boolean } = {}): string {
   if (!/^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/.test(bindingName)) throw new Error("invalid binding name");
   const limits = UI_EVIDENCE_LIMITS;
   // Installed once per DOCUMENT, not per window: a same-origin navigation away from a popup's initial
@@ -64,6 +68,7 @@ export function buildUiEvidenceScript(bindingName: string): string {
   const flag = Symbol.for("${handleKey(bindingName)}");
   if (document[flag]) return;
   const MAX = ${limits.maxTextChars};
+  const KEEP_TEXT = ${keepText ? "true" : "false"};
   let calls = 0;
   const ERROR = /\\b(error|errors|failed|failure|invalid|denied|unable|cannot|can't|not allowed|forbidden|rejected|declined|required|expired|conflict|incorrect|wrong|problem|unavailable|timed out|try again)\\b/i;
   const SUCCESS = /\\b(success|successful|successfully|saved|updated|created|completed|thank you)\\b/i;
@@ -120,6 +125,10 @@ export function buildUiEvidenceScript(bindingName: string): string {
     if (sent.get(el) === key) return;
     sent.set(el, key);
     calls += 1;
+    if (!KEEP_TEXT) {
+      payload.text = "";
+      if (payload.describedBy !== undefined) payload.describedBy = "";
+    }
     call(payload);
   };
   const report = (kind, el) => {

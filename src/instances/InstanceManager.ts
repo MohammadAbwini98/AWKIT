@@ -130,7 +130,8 @@ export class InstanceManager {
       ignoreHttpsErrorsSource: profile.instanceTemplate.ignoreHttpsErrorsSource ?? "default",
       // Left undefined when the run profile does not carry it, so the artifact-profile default still
       // governs for every caller that never set it.
-      screenshotOnFailure: profile.instanceTemplate.screenshotOnFailure
+      screenshotOnFailure: profile.instanceTemplate.screenshotOnFailure,
+      suppressEvidenceUiText: profile.instanceTemplate.suppressEvidenceUiText
     };
   }
 

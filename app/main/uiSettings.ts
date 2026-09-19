@@ -143,6 +143,12 @@ export interface UiSettings {
     defaultRunMode: "headed" | "headless";
     screenshotOnFailure: boolean;
     stopOnError: boolean;
+    /**
+     * Phase L privacy policy, raw-UI-text suppression (default OFF). When ON, run failure evidence keeps
+     * role, source, status code, counts and field identity but drops visible page text (alert, toast and
+     * status text, validation messages, error-page title and heading).
+     */
+    suppressEvidenceUiText: boolean;
   };
   /** Host concurrency caps for the browser runtime (mirror ConcurrencyConfig; applied to the engine
    *  at startup, whenever settings are saved, and at each run start). Replace the env-only defaults.
@@ -295,7 +301,8 @@ const defaultSettings: UiSettings = {
     defaultConcurrentRuns: 3,
     defaultRunMode: "headless",
     screenshotOnFailure: true,
-    stopOnError: false
+    stopOnError: false,
+    suppressEvidenceUiText: false
   },
   runtime: {
     capacityMode: "manual",
@@ -657,6 +664,7 @@ export function validateSettings(settings: UiSettings): string[] {
   }
   if (typeof e.screenshotOnFailure !== "boolean") errors.push("Screenshot on failure must be true or false.");
   if (typeof e.stopOnError !== "boolean") errors.push("Stop on error must be true or false.");
+  if (typeof e.suppressEvidenceUiText !== "boolean") errors.push("Hide page text in failure evidence must be true or false.");
 
   if (typeof settings.recorder.captureWaitTime !== "boolean") {
     errors.push("Recorder capture waiting time must be true or false.");

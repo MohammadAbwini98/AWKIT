@@ -228,13 +228,21 @@ interface Outcome {
   events: ExecutionEvidenceEvent[];
 }
 
-async function runScenarios(engine: ExecutionEngine, dirs: Awaited<ReturnType<typeof buildDirs>>["dirs"], scenarios: Scenario[], tag: string): Promise<Map<string, Outcome | undefined>> {
+async function runScenarios(
+  engine: ExecutionEngine,
+  dirs: Awaited<ReturnType<typeof buildDirs>>["dirs"],
+  scenarios: Scenario[],
+  tag: string,
+  template: Partial<ConcurrentRunProfile["instanceTemplate"]> = {}
+): Promise<Map<string, Outcome | undefined>> {
   const ids = new Map<string, string>();
   for (const scenario of scenarios) {
     const executionId = `uev-${tag}-${scenario.key}-${Date.now().toString(36)}`;
     ids.set(scenario.key, executionId);
     const flowProfile = flow(`uev-flow-${scenario.key}`, scenario.steps);
-    await engine.startRun(executionId, runProfile(executionId, `uev-scn-${scenario.key}`), [undefined], dirs, {}, scenarioProfile(`uev-scn-${scenario.key}`, flowProfile.id), [flowProfile]);
+    const profile = runProfile(executionId, `uev-scn-${scenario.key}`);
+    profile.instanceTemplate = { ...profile.instanceTemplate, ...template };
+    await engine.startRun(executionId, profile, [undefined], dirs, {}, scenarioProfile(`uev-scn-${scenario.key}`, flowProfile.id), [flowProfile]);
   }
 
   const resumed = new Set<string>();
@@ -317,12 +325,22 @@ try {
     const misattributed = all.flatMap((outcome) =>
       outcome.events.filter((event) => event.context.executionId !== outcome.report.executionId || event.context.instanceId !== outcome.instance.instanceId)
     );
-    check("every event names its own execution and instance (14 concurrent runs)", all.length === SCENARIOS.length && misattributed.length === 0, misattributed.slice(0, 2));
+    check(`every event names its own execution and instance (${SCENARIOS.length} concurrent runs)`, all.length === SCENARIOS.length && misattributed.length === 0, misattributed.slice(0, 2));
     const allIds = all.flatMap((outcome) => outcome.events.map((event) => event.id));
     check("event ids are unique within each instance", all.every((outcome) => new Set(outcome.events.map((event) => event.id)).size === outcome.events.length) && allIds.length > 0);
     const pageEvents = all.flatMap((outcome) => outcome.events.filter((event) => PAGE_SOURCES.includes(event.source)));
     check("every page-derived event carries its page id", pageEvents.length > 0 && pageEvents.every((event) => /^p\d+$/.test(event.context.pageId ?? "")));
     check("every event carries the flow and node that were running", pageEvents.every((event) => event.context.flowId?.startsWith("uev-flow-") && typeof event.context.nodeId === "string"));
+    // stepIndex is the Nth step execution in the instance: the http flow runs its Start node (1) and
+    // goto (2), then each status's click and wait (3 and 4 for 409, 5 and 6 for 422, ...).
+    const httpEvents = outcomes.get("http")?.events.filter((event) => event.source === "http.error") ?? [];
+    const expectedIndex: Record<string, number> = { "h-409": 3, "h-409-wait": 4, "h-422": 5, "h-422-wait": 6, "h-500": 7, "h-500-wait": 8, "h-503": 9, "h-503-wait": 10 };
+    check(
+      "every step-correlated event carries its step execution ordinal (stepIndex), in order",
+      all.every((outcome) => outcome.events.every((event, index, list) => event.context.nodeId === undefined || (Number.isInteger(event.context.stepIndex) && (event.context.stepIndex ?? 0) >= 1 && (index === 0 || (event.context.stepIndex ?? 0) >= (list[index - 1].context.stepIndex ?? 0))))) &&
+        httpEvents.length === 4 && httpEvents.every((event) => event.context.stepIndex === expectedIndex[event.context.nodeId ?? ""]),
+      httpEvents.map((event) => `${event.context.nodeId}#${event.context.stepIndex}`)
+    );
     check("every cause cites only evidence that exists in its own report", all.every((outcome) => (outcome.instance.diagnostics?.cause?.evidenceIds ?? []).every((id) => outcome.events.some((event) => event.id === id))));
   }
 
@@ -524,6 +542,38 @@ try {
     delete process.env.AWKIT_FAILURE_EVIDENCE;
     const outcome = off.get("toast");
     check("AWKIT_FAILURE_EVIDENCE=0: the same failing run writes no diagnostics (the pre-L5a report shape)", outcome?.instance.status === "failed" && !("diagnostics" in (outcome?.instance ?? {})), outcome?.instance.diagnostics);
+  }
+
+  // Settings › Execution › "Hide page text in failure evidence", as the execution service stamps it.
+  console.log("\nRaw-UI-text suppression (privacy switch ON)");
+  {
+    const keys = ["toast", "validation", "http", "errorpage"];
+    const hidden = await runScenarios(engine, dirs, SCENARIOS.filter((scenario) => keys.includes(scenario.key)), "hide", { suppressEvidenceUiText: true });
+    const serialized = JSON.stringify(keys.map((key) => hidden.get(key)?.instance.diagnostics ?? null));
+    const visibleTexts = ["Payment declined", "Postcode must be 5 digits.", "(HTTP 409)", "Service unavailable", "We could not load your orders"];
+    check("no visible page text reaches any report", keys.every((key) => hidden.get(key)?.instance.diagnostics) && visibleTexts.every((phrase) => !serialized.includes(phrase)), visibleTexts.filter((phrase) => serialized.includes(phrase)));
+    const toast = bySource(hidden.get("toast"), "ui.toast")[0];
+    check("a UI message keeps its source, role-derived kind and tone, with empty text", toast?.severity === "error" && toast.payload.tone === "error" && text(toast, "text") === "", toast);
+    const postcode = bySource(hidden.get("validation"), "ui.fieldInvalid").find((event) => text(event, "field") === "postcode");
+    check("a field keeps its identity and validity, without its messages", postcode?.payload.validity === "ariaInvalid" && text(postcode, "message") === "" && text(postcode, "describedBy") === "", postcode);
+    const http = bySource(hidden.get("http"), "http.error").map((event) => event.payload.status).sort();
+    const alerts = bySource(hidden.get("http"), "ui.alert");
+    check("status codes and counts stay: four HTTP errors, the textless alerts folded with a repeat count", JSON.stringify(http) === JSON.stringify([409, 422, 500, 503]) && alerts.reduce((sum, event) => sum + event.repeatCount, 0) === 4, { http, alerts });
+    const doc = bySource(hidden.get("errorpage"), "page.errorDocument")[0];
+    check("an error page keeps its status and URL, never its title or heading", doc?.payload.status === 503 && !("title" in doc.payload) && !("heading" in doc.payload), doc);
+    check("the deterministic cause is unchanged (uiErrorMessage, uiValidation, httpError, errorPage)", ["uiErrorMessage", "uiValidation", "httpError", "errorPage"].every((cause, index) => hidden.get(keys[index])?.instance.diagnostics?.cause?.cause === cause), keys.map((key) => hidden.get(key)?.instance.diagnostics?.cause?.cause));
+
+    // The switch reaches a real run only through this chain; each link is asserted as the exact wiring.
+    const source = (path: string) => readFileSync(join(ROOT, path), "utf8");
+    const links: Array<[string, boolean]> = [
+      ["Settings default is OFF", /execution: \{[^}]*suppressEvidenceUiText: false/.test(source("app/main/uiSettings.ts"))],
+      ["the execution group needs SETTINGS_EDIT", /SUBSTANTIVE_SETTINGS_KEYS = \[[^\]]*"execution"/.test(source("app/main/ipc/settings.ipc.ts"))],
+      ["the Settings page toggles execution.suppressEvidenceUiText", /checked=\{e\.suppressEvidenceUiText\}[^\n]*patch\("execution", "suppressEvidenceUiText", ev\.target\.checked\)/.test(source("app/renderer/pages/Settings.tsx"))],
+      ["the run is stamped from persisted Settings, not the request", /const \{ recorder, execution \} = await getUiSettings\(\);[\s\S]*suppressEvidenceUiText: execution\.suppressEvidenceUiText === true/.test(source("app/main/execution/ExecutionApplicationService.ts"))],
+      ["each instance inherits it", /suppressEvidenceUiText: profile\.instanceTemplate\.suppressEvidenceUiText/.test(source("src/instances/InstanceManager.ts"))],
+      ["the engine hands it to the collector", /suppressUiText: instance\.config\.suppressEvidenceUiText === true/.test(source("src/runner/ExecutionEngine.ts"))]
+    ];
+    check("the switch is wired from Settings to every instance's collector", links.every(([, ok]) => ok), links.filter(([, ok]) => !ok).map(([label]) => label));
   }
 
   console.log("\nTeardown");

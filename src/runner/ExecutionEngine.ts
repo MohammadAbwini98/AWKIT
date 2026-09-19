@@ -1481,7 +1481,8 @@ export class ExecutionEngine {
               executionId: instance.executionId,
               instanceId: instance.instanceId,
               budget: this.evidenceBudgets.get(instance.executionId) ?? new EvidenceRunBudget(),
-              captureConsole: process.env.AWKIT_FAILURE_EVIDENCE_CONSOLE !== "0"
+              captureConsole: process.env.AWKIT_FAILURE_EVIDENCE_CONSOLE !== "0",
+              suppressUiText: instance.config.suppressEvidenceUiText === true
             });
       machine.transition("running", "instance dispatched with browser slot");
       this.patchRuntime(instance.instanceId, { flowRunStatus: machine.status, browserWorkerId: slot.workerId });

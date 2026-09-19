@@ -266,7 +266,7 @@ export class ExecutionApplicationService {
     // Certificate trust is resolved ONCE here, at the top of the run, and stamped onto the instance
     // template. Precedence: run override → workflow security → application setting → false. Every context
     // the run creates (initial, retry, restart, parallel isolated) inherits this single value.
-    const { recorder } = await getUiSettings();
+    const { recorder, execution } = await getUiSettings();
     const certificateTrustSources = {
       run: request.ignoreHttpsErrors,
       workflow: workflow.security,
@@ -284,7 +284,9 @@ export class ExecutionApplicationService {
       ignoreHttpsErrorsSource: explainIgnoreHttpsErrors(certificateTrustSources),
       // Run-level failure-evidence choice. Only carried when the caller stated one, so an omitted
       // field still means "use the artifact profile's default" rather than "capture nothing".
-      screenshotOnFailure: typeof request.screenshotOnFailure === "boolean" ? request.screenshotOnFailure : undefined
+      screenshotOnFailure: typeof request.screenshotOnFailure === "boolean" ? request.screenshotOnFailure : undefined,
+      // Privacy switch: read from persisted Settings at run start, never from the renderer's request.
+      suppressEvidenceUiText: execution.suppressEvidenceUiText === true
     };
 
     if (browserLaunchSnapshot.mode === "installedChrome") {

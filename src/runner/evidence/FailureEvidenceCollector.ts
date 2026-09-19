@@ -60,6 +60,11 @@ export interface FailureEvidenceCollectorOptions {
   limits?: Partial<EvidenceLimits>;
   /** `console.error` capture. Default on (bounded). */
   captureConsole?: boolean;
+  /**
+   * Raw-UI-text suppression (privacy policy, default off): keep role, source, codes, counts and field
+   * identity, drop visible page text. The page script never sends the text at all.
+   */
+  suppressUiText?: boolean;
   now?: () => number;
 }
 
@@ -153,7 +158,11 @@ export class FailureEvidenceCollector {
   /** Error-document captures still waiting for title and heading; flushed without them at finish. */
   private readonly pendingDocuments = new Set<() => void>();
   private readonly captureConsole: boolean;
+  private readonly suppressUiText: boolean;
+  private readonly uiScript: string;
   private pageSequence = 0;
+  private stepIndex = 0;
+  private stepId: string | undefined;
   private stepStartOffsetMs: number | undefined;
   private stepType: string | undefined;
   /** A protected-login step or a manual handoff is in progress. */
@@ -168,6 +177,8 @@ export class FailureEvidenceCollector {
       now: options.now
     });
     this.captureConsole = options.captureConsole ?? true;
+    this.suppressUiText = options.suppressUiText ?? false;
+    this.uiScript = buildUiEvidenceScript(this.bindingName, { keepText: !this.suppressUiText });
   }
 
   /**
@@ -186,7 +197,7 @@ export class FailureEvidenceCollector {
     if (this.stopped) return;
     const { context } = runtime;
     try {
-      await context.addInitScript({ content: buildUiEvidenceScript(this.bindingName) });
+      await context.addInitScript({ content: this.uiScript });
     } catch {
       this.degraded += 1;
       return;
@@ -249,9 +260,13 @@ export class FailureEvidenceCollector {
     }
     if (!event.stepId) return;
     if (event.status === "running") {
+      // The Nth step execution in this instance, so each loop iteration of one node is its own window.
+      // A retry of the step already running keeps its index.
+      if (!(event.retryCount && event.stepId === this.stepId)) this.stepIndex += 1;
+      this.stepId = event.stepId;
       this.stepStartOffsetMs = this.buffer.offsetNow();
       this.stepType = event.stepType;
-      this.buffer.setStep({ flowId: event.flowId, nodeId: event.stepId });
+      this.buffer.setStep({ flowId: event.flowId, nodeId: event.stepId, stepIndex: this.stepIndex });
       this.suppressed = PROTECTED_STEP_TYPES.has(event.stepType ?? "");
       // The step's page is a login surface: what its current document produced goes too.
       if (this.suppressed) for (const page of this.detachers.keys()) this.retractDocument(page);
@@ -259,12 +274,14 @@ export class FailureEvidenceCollector {
     }
     if (event.status !== "failed" && event.status !== "cancelled") return;
     const kind = event.status === "cancelled" ? "cancelled" : runnerFailureKind(event.error, event.stepType ?? this.stepType);
+    // An assertion message quotes the page's actual text ("…" equals "…"): hidden with the rest.
+    const message = runnerFailureMessage(event.error);
     const recorded = this.add({
       source: "runner.failure",
       severity: "error",
-      payload: { kind, stepType: event.stepType ?? this.stepType ?? "", message: runnerFailureMessage(event.error) },
+      payload: { kind, stepType: event.stepType ?? this.stepType ?? "", message: this.suppressUiText ? message.replace(/"[^"]*"/g, '"[hidden]"') : message },
       dedupeFields: ["kind", "stepType", "message"],
-      context: { flowId: event.flowId, nodeId: event.stepId }
+      context: { flowId: event.flowId, nodeId: event.stepId, stepIndex: event.stepId === this.stepId ? this.stepIndex : undefined }
     });
     this.failure = {
       kind,
@@ -335,7 +352,7 @@ export class FailureEvidenceCollector {
     // `about:blank`, where injecting the large script is redundant: its first real document will
     // receive the init script, and the extra protocol command otherwise contends with navigation
     // when several instances start together.
-    if (page.url() !== "about:blank") void page.evaluate(buildUiEvidenceScript(this.bindingName)).catch(() => undefined);
+    if (page.url() !== "about:blank") void page.evaluate(this.uiScript).catch(() => undefined);
   }
 
   private detach(page: Page): void {
@@ -440,7 +457,7 @@ export class FailureEvidenceCollector {
         page,
         source: "page.errorDocument",
         severity: "error",
-        payload: details ? { status, url, title: details.title, heading: details.heading } : { status, url },
+        payload: details && !this.suppressUiText ? { status, url, title: details.title, heading: details.heading } : { status, url },
         dedupeFields: ["status", "url"],
         atOffsetMs
       });
@@ -494,7 +511,9 @@ export class FailureEvidenceCollector {
     const kind = payload.kind as UiEvidenceKind;
     if (!UI_KINDS.has(kind)) return;
     const tone = payload.tone === "error" || payload.tone === "success" ? payload.tone : "neutral";
-    const text = typeof payload.text === "string" ? payload.text : "";
+    // Suppression is enforced here too: the page is untrusted and may call the binding itself.
+    const visible = (value: unknown) => (!this.suppressUiText && typeof value === "string" ? value : "");
+    const text = visible(payload.text);
     // A message that waited in the page's queue happened `ageMs` ago (bounded; the page is untrusted).
     const age = typeof payload.ageMs === "number" && Number.isFinite(payload.ageMs) ? Math.min(Math.max(payload.ageMs, 0), 10_000) : 0;
     this.guard(() => {
@@ -508,7 +527,7 @@ export class FailureEvidenceCollector {
             field: typeof payload.field === "string" ? payload.field : "",
             validity: typeof payload.validity === "string" ? payload.validity : "",
             message: text,
-            describedBy: typeof payload.describedBy === "string" ? payload.describedBy : ""
+            describedBy: visible(payload.describedBy)
           },
           dedupeFields: ["field", "validity"],
           atOffsetMs

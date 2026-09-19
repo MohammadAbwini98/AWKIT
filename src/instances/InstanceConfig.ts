@@ -38,4 +38,10 @@ export interface InstanceConfig {
    * artifact profile's default, which is how every run behaved before this was carried.
    */
   screenshotOnFailure?: boolean;
+  /**
+   * Phase L raw-UI-text suppression, from Settings › Execution (resolved by the execution service).
+   * True: failure evidence drops visible page text and keeps role, source, codes, counts and field
+   * identity. Absent = keep text (the policy default, OFF).
+   */
+  suppressEvidenceUiText?: boolean;
 }

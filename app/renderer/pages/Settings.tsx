@@ -929,6 +929,10 @@ export function SettingsPage() {
               <input type="checkbox" checked={e.stopOnError} onChange={(ev) => patch("execution", "stopOnError", ev.target.checked)} />
               Stop on error
             </label>
+            <label className="inline-check" title="Failure evidence keeps roles, status codes, counts and field names, but not the text shown on the page.">
+              <input id="set-exec-suppressEvidenceUiText" type="checkbox" checked={e.suppressEvidenceUiText} onChange={(ev) => patch("execution", "suppressEvidenceUiText", ev.target.checked)} />
+              Hide page text in failure evidence
+            </label>
           </div>
         </section>
 
