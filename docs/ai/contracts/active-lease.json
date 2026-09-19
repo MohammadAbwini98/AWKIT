@@ -1,19 +1,50 @@
 {
   "task": "awkit-djnl-1-l1-0919",
   "contract_path": "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
-  "holder": "project-state",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl",
-    "docs/ai/routing/ROUTING_MATRIX.md"
+    "src/offline/AiModelManifest.ts"
   ],
-  "acquired_at": "2026-09-19T10:09:33.907Z",
-  "acquired_at_commit": "7f774dc890df198b720bd185f816eaf072e77d08",
+  "acquired_at": "2026-09-19T10:38:04.806Z",
+  "acquired_at_commit": "533217d3a7ead357365cc74e61a67a9d3686bdc3",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-1-l1-0919.json"
+    "app/main/ai/",
+    "app/main/ipc/ai.ipc.ts",
+    "app/main/ipc/index.ts",
+    "app/main/main.ts",
+    "app/main/preload.ts",
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-ai-autonomy-policy.mts",
+    "scripts/verify-ai-fallback.mts",
+    "scripts/verify-ai-model-pack.mts",
+    "scripts/verify-ai-permissions.mts",
+    "src/ai/AiModelPack.ts",
+    "src/ai/AiService.ts",
+    "src/ai/AiSettings.ts",
+    "src/ai/contracts/AiApi.ts",
+    "src/runner/ExecutionEngine.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "08ae1104f5a0f1b0f5142ee15b255c19e07fb59f94c0d05f7610a58eb2a3e2d0"
+    "app/main/ai/": "absent",
+    "app/main/ipc/ai.ipc.ts": "f7572a46672d7162ba850dd31524e971232963c0e639e7beffceeb311da6aac2",
+    "app/main/ipc/index.ts": "694bd7066cd2c2db685fc2ab2b12b1d2ebade4353b34bc168935361b4320d611",
+    "app/main/main.ts": "4b219d9718e4f1c27e432b2011aede1332c1a1db88c4a3bb80b8c5ff86f3b17f",
+    "app/main/preload.ts": "e78462d7c5a3ac9fef1d88b238b9009c90a81897aeb7d0af49213c13a32d1e29",
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "0643beca0b5a1475f2e610081915001a0d14e217a69d791610dd2cec27159233",
+    "package.json": "45d8f633a387bf7c68b50a635ca366a3f2a52defd86e516d019430c187e9172f",
+    "scripts/lib/verifier-classification.ts": "498ab9538898e2bdabe1ed4ee6239148bf8b81065b75e11a2248f783ff012ce5",
+    "scripts/verify-ai-autonomy-policy.mts": "41cb96868d4ef14b62a726b8db4fbb943240d534f9296fa0a6d7f263b87310e8",
+    "scripts/verify-ai-fallback.mts": "4cb80b61ff548a33e850820b4adc22f5d5f9aafd28d524e5e575f58feb77710c",
+    "scripts/verify-ai-model-pack.mts": "64b2903ec363b184800a6c8c2b8f35bc0c74acfe51a6cbb9ed9c5f3286cbd51d",
+    "scripts/verify-ai-permissions.mts": "94f500983f07dc6553a13c37902c5b6122895006b562abe7a6b5727c70eaead1",
+    "src/ai/AiModelPack.ts": "5e55877b196de10228a7e575535096439d32e1f0f93bfaa6306c62f18f1d15e5",
+    "src/ai/AiService.ts": "1edab4848d44167d11e4aa36bfa175a83f35d2a188810a92733719ecb5930526",
+    "src/ai/AiSettings.ts": "7fc4f3ea8a44e1be458a956456dd97dc82aef6b4e9a82fc1968dfdbd843f0762",
+    "src/ai/contracts/AiApi.ts": "c1746ad0fab599857712d0f3b249babeddb7e9e00753f023bb0053795cb8b515",
+    "src/runner/ExecutionEngine.ts": "69518f60de54aa82b3c7e62f4bd77876c550d4c14a2c35bcf0d498e3e90e57db"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,8 +58,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-19T10:10:50.511Z",
-  "released_reason": "ROUTING_MATRIX.md regenerated and L1 marked in_progress in e238edb",
-  "archived_at": "2026-09-19T10:10:50.513Z"
+  "violations": []
 }

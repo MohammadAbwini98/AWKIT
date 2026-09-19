@@ -43,10 +43,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "release",
       "allowed_paths": [
-        "docs/ai/routing/ROUTING_MATRIX.md",
-        ".beads/issues.jsonl"
+        "src/offline/AiModelManifest.ts"
       ]
     }
   },
