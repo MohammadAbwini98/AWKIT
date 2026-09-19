@@ -279,7 +279,8 @@
     "verify:ai-adapter": "tsx scripts/verify-ai-adapter.mts",
     "verify:ai-redaction": "tsx scripts/verify-ai-redaction.mts",
     "verify:ai-fallback": "tsx scripts/verify-ai-fallback.mts",
-    "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts"
+    "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts",
+    "verify:ai-settings-gui": "node scripts/verify-ai-settings-gui.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

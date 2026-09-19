@@ -390,6 +390,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "static-source-validation",
     why: "Degraded modes (switch off, no runtime, no/invalid model, open circuit, throwing providers) return codes with zero host calls, plus resolved-import scans proving the execution tree cannot import src/ai and the renderer cannot import the inference machinery."
   },
+  "verify:ai-settings-gui": {
+    class: "real-browser",
+    why: "Real-Electron walkthrough of Settings › Local AI on an isolated profile: AI off with no pack/runtime/audit by default, tier selectors bounded by each feature's ceiling, and the master switch and a lowered tier persisting to ai-settings.json on disk across navigation."
+  },
   "verify:ai-model-pack": {
     class: "integration",
     why: "Real temp-folder AiModelPackStore with synthetic GGUF files and an injected manifest: format/size/checksum refusals leave nothing behind, single-pass hashed import, cheap status plus once-per-session load verification catching tamper/truncate/delete, retirement, replacement sweep and removal; then checks the production AiModelManifest entries."

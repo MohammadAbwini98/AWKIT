@@ -1,10 +1,20 @@
 import { useCallback, useState } from "react";
 
-import type { SemanticAdminResponse } from "@src/semantic/contracts/SemanticApi";
+import type { SemanticReasonCode } from "@src/semantic/contracts/SemanticApi";
 
 import { semanticReasonMessage } from "./semanticMessages";
 
-type AdminCall = () => Promise<SemanticAdminResponse>;
+/** Any re-auth-gated admin response. The semantic and local-AI contracts share this shape. */
+export interface SensitiveAdminResponse {
+  code: string;
+  ok: boolean;
+  message?: string;
+}
+
+type AdminCall = () => Promise<SensitiveAdminResponse>;
+type Describe = (response: SensitiveAdminResponse) => string;
+
+const describeSemantic: Describe = (response) => semanticReasonMessage(response.code as SemanticReasonCode, response.message);
 
 /** What the caller should do with a response. Separated from React so it can be tested directly. */
 export type SensitiveOutcome =
@@ -25,9 +35,10 @@ export type SensitiveOutcome =
  * button. It is reported instead.
  */
 export function decideSensitiveOutcome(
-  response: SemanticAdminResponse,
+  response: SensitiveAdminResponse,
   isRetry: boolean,
-  successNotice: string
+  successNotice: string,
+  describe: Describe = describeSemantic
 ): SensitiveOutcome {
   if (response.code === "REAUTH_REQUIRED") {
     return isRetry
@@ -35,7 +46,7 @@ export function decideSensitiveOutcome(
       : { kind: "prompt-reauth" };
   }
   if (!response.ok) {
-    return { kind: "error", message: semanticReasonMessage(response.code, response.message) };
+    return { kind: "error", message: describe(response) };
   }
   return { kind: "success", notice: successNotice };
 }
@@ -61,7 +72,7 @@ export interface SensitiveActionState {
  * surfaces as an error instead of reopening the dialog. Without that cap the pair
  * (prompt → retry → prompt) is an unbounded loop that looks like a hung button.
  */
-export function useSensitiveSemanticAction() {
+export function useSensitiveSemanticAction(describe: Describe = describeSemantic) {
   const [state, setState] = useState<SensitiveActionState>({ busy: false, error: null, notice: null, needsReauth: false });
   const [pending, setPending] = useState<{ call: AdminCall; successNotice: string } | null>(null);
 
@@ -75,7 +86,7 @@ export function useSensitiveSemanticAction() {
     // Not wrapped in try/catch: an unexpected rejection is a fault, and swallowing it here would
     // turn a bug into a silent no-op button. It propagates to the caller's error boundary.
     const response = await call();
-    const outcome = decideSensitiveOutcome(response, isRetry, successNotice);
+    const outcome = decideSensitiveOutcome(response, isRetry, successNotice, describe);
 
     if (outcome.kind === "prompt-reauth") {
       setPending({ call, successNotice });
@@ -90,7 +101,7 @@ export function useSensitiveSemanticAction() {
       notice: outcome.kind === "success" ? outcome.notice : null,
       needsReauth: false
     });
-  }, []);
+  }, [describe]);
 
   const run = useCallback(
     (call: AdminCall, successNotice: string) => invoke(call, successNotice, false),
