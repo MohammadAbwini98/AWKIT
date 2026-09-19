@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-phase-l-l0-0919",
+    "title": "Phase L milestone L0 (awkit-djnl.2): owner audit and decision records",
+    "objective": "Close Beads milestone awkit-djnl.2 after its deliverables land: the Phase L owner audit table in docs/plans/ai-upgrade-v5/ROADMAP.md and the decision record in docs/ai/DECISIONS.md, both verified against the code. Then refresh .beads/issues.jsonl with bd export -o so the Program Status dashboard sees the close. The lease exists only because bd writes require the project-state role; the documentation, plan corrections, the Phase L in-progress flip in src/roadmap/ImplementationRoadmap.ts and the dashboard verifier pins are ordinary unleased direct-loop edits made outside this lease.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "163b8b0",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
+      "docs/ai/contracts/awkit-phase-l-l0-0919.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md",
+      "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHL0-CLOSED",
+      "description": "Milestone awkit-djnl.2 (L0) is closed with a reason naming its deliverables, and the ready set becomes the epic plus the four milestones L0 blocked: L1 awkit-djnl.1, L2 awkit-djnl.3, L4a awkit-djnl.5 and L5a awkit-djnl.7.",
+      "evidence_required": [
+        "beads-close",
+        "beads-ready-set"
+      ]
+    },
+    {
+      "id": "PHL0-EXPORT-FRESH",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with the Overview banner reading Sources agree after its tracker pins move deliberately to the measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-close",
+      "type": "inspection",
+      "required": true,
+      "command": "bd close awkit-djnl.2 --reason ... then bd show awkit-djnl.2",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd close printed 'Closed awkit-djnl.2 - L0: Phase L decisions and owner audit' with the deliverables as the reason. The first attempt was refused by the lease guard because the reason text contained a semicolon, which hasUnsafeShellSyntax treats as chaining even inside quotes (denial 1 of 3 for 'bd close'); the single retry without it succeeded."
+    },
+    {
+      "id": "beads-ready-set",
+      "type": "inspection",
+      "required": true,
+      "command": "bd ready",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Ready: 5 issues with no active blockers - the epic awkit-djnl plus awkit-djnl.1 (L1), awkit-djnl.3 (L2), awkit-djnl.5 (L4a) and awkit-djnl.7 (L5a), exactly the four milestones L0 blocked."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 302 issues to .beads/issues.jsonl'. bd stats then reported Total 302, Open 10, In Progress 0, Blocked 5, Closed 290, Ready 5."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "After the tracker pin moved from 13/289 to 12/290 outstanding/closed (total 302 and 134 edges unchanged), the final-state run printed '177/177 roadmap dashboard checks passed', including '12 outstanding / 290 closed', '134 edges are present to classify', both narrative documents agreeing with the measured 65 PASS / 2 NOT RUN / 0 BLOCKED tally, and 'the Overview banner reads \"Sources agree\"'. npm run build and verify:verifier-classification also passed on the final state."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "The bead close, ready set and export were inspected with bd close, bd ready and bd stats, and the final state passed npm run build, verify:verifier-classification (206/206 classified) and verify:roadmap-dashboard 177/177 with Sources agree. Every owner and field fact in the audit table and decision record was confirmed by reading the cited source before it was written.",
+    "qa_known_limitations": "Edits outside this contract's project-state routing were made unleased, as CLAUDE.md permits for ordinary non-Risk-3 work, and are disclosed rather than hidden: src/roadmap/ImplementationRoadmap.ts (Phase L set in-progress) and scripts/verify-roadmap-dashboard.mjs (tracker pin moved to measured values). node tools/agents/task-gate.mjs therefore reports canComplete false with 5 derived scope escapes, all traceable to those two files (the qa and software ownership domains, the implied general_engineering_change flag, and the two paths), which is why completion.status is implemented rather than complete. Several decision values are agent-chosen defaults marked as such in DECISIONS.md and open to owner override. No product code changed, so runner, mock-site and offline verifiers were NOT RUN.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-phase-l-l0-0919:project-state:2026-09-19T02:02:24.819Z",
+        "task": "awkit-phase-l-l0-0919",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-19T02:02:24.819Z",
+        "acquired_at_commit": "163b8b031a5dc50e066be7b633aeef43fa069616",
+        "released_at": "2026-09-19T02:03:04.291Z",
+        "released_reason": "L0 awkit-djnl.2 closed and export refreshed to 302 issues, 290 closed, ready set is the epic plus L1, L2, L4a and L5a",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

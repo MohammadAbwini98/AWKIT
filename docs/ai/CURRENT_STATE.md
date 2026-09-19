@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## `awkit-phase-l-l0-0919`: Phase L milestone L0 complete — owner audit and decisions recorded (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Documentation and
+tracker only; no product behavior changed and no validation case moved.
+
+L0 `awkit-djnl.2` is closed and Phase **L** is `in-progress`. The owner audit table, with every owner
+verified against the code, replaces the V5 owner list in `docs/plans/ai-upgrade-v5/ROADMAP.md`. The
+decisions are ratified in `docs/ai/DECISIONS.md` (2026-09-19):
+
+- tier ceilings: promotion T2; repair, fix ranking and parameter mapping T1; analysis, explanations
+  and summaries T0;
+- the exact five-item T3 list;
+- the `pendingUpgrade`/`locatorProvenance` shapes, both bound by `LocatorApprovalBinding`;
+- the `AiActionRecord` shape and retention;
+- the privacy policy;
+- `src/offline/AiModelManifest.ts` as the release-owned model manifest.
+
+The audit changed the plan in four places:
+
+- `PassiveCdpTrace`, missing from the owner list, already owns run-lifetime page attach, so L5a reuses
+  its generation lifecycle.
+- A promoted step's guarded locator is a revert target, not a runtime fallback, because
+  `LocatorFactory` applies a guard only to a positional primary.
+- Stale AI fields are dropped by binding at the `toFlowStep` save boundary, because unknown locator
+  keys survive every save.
+- Capture proof alone never auto-promotes, and sensitive-action steps are T3 (L3 §6 corrected).
+
+Ready now: L1 `.1`, L2 `.3`, L4a `.5` and L5a `.7`.
+
+**Evidence:** `npm run build` PASS; `verify:verifier-classification` PASS (206/206 classified);
+`verify:roadmap-dashboard` **177/177** with "Sources agree" (tracker pin moved deliberately from 13/289
+to 12/290 outstanding/closed; 302 issues and 134 edges unchanged); `git diff --check` clean. Runner,
+mock-site and offline verifiers **NOT RUN**: no runtime, fixture or packaging change.
+
 ## `awkit-phase-l-roadmap-0919`: Phase L (Local AI & Intelligent Automation) registered in order (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Planning and

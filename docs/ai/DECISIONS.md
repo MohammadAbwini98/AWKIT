@@ -1,5 +1,129 @@
 # DECISIONS
 
+### 2026-09-19 — Phase L (local AI): decisions ratified against the code (`awkit-djnl.2`, L0)
+
+- **Scope:** the owner decisions for Phase L (`docs/plans/ai-upgrade-v5/ROADMAP.md`), checked against
+  the code they touch. The owner audit table is in that ROADMAP under "Owner audit". Where this entry
+  and the plan differ, this entry wins; the plan was corrected in the same change. Values marked
+  *default* were chosen from existing precedent by the implementing agent and are open to owner override.
+- **Global decisions 1–9 (ratified):**
+  1. Locator AI is a semantic upgrade, not a rescue: guarded-positional output (saved `resolved` by
+     `buildRecordedFlow.ts`) stays authoritative until a replacement is proven.
+  2. Unproven candidates live only in `pendingUpgrade`. They never go into `alternatives`, which
+     `LocatorFactory.resolve` executes as ordinary fallbacks and digests into remembered-winner memory.
+  3. Provenance is additive (`locatorProvenance`); `resolvedBy` stays `"recorder" | "user"` and
+     `resolution` is not repurposed.
+  4. Intent guard: scope/target text equal to a bound, data-row or earlier-input value is rejected or
+     parameterized; a scope-kind change (position → text) sets `meaningChange` and cannot auto-apply.
+  5. Promotion and revert are single-writer profile saves (`ProfileLockManager`, version check,
+     deferred while the flow has unsaved editor changes), never a side effect of a run.
+  6. L5a failure capture is a new evidence owner that attaches through the existing per-generation
+     lifecycle `PassiveCdpTrace` already uses; `NetworkDiagnosticsObserver` keeps its per-action role
+     and `captureFailureEvidence` its point-in-time role.
+  7. The deterministic cause baseline always runs first; AI analysis auto-runs only where it beats
+     that baseline on the labelled set.
+  8. Privacy follows the policy below.
+  9. L4b is explanation-first: AI may only rank `safeFix` entries `FlowValidator` emitted (today
+     `normalizeEnumCasing` and `regenerateId`); a new fix kind is a deterministic owner-approved change first.
+- **Autonomy tiers:** T0 observe (a labelled interpretation), T1 suggest (one-click approval), T2
+  auto-apply with proof (audited, one-click revert), T3 forbidden. Each feature's default is also its
+  ceiling: T2 semantic locator promotion; T1 saved-locator repair, safe-fix ranking, fragment parameter
+  mapping; T0 failure analysis, validation explanation, fragment summary. Configuration may lower a
+  feature and restore it up to its ceiling, never above; the global T2 cap and the T3 list are code
+  constants. This reconciles ROADMAP "raising is capped at T2" with L3 §8, L4b and L6, which each
+  require user approval.
+  - **Promotion proof** (resolves L3 §6 against CHANGELOG M3): capture proof alone never
+    auto-promotes. T2 needs same-element replay proof on ≥ N replays spanning ≥ 2 distinct data rows;
+    a flow that never runs two distinct rows gets a T1 suggestion instead.
+  - **Self-demotion:** a T2 feature whose revert rate over the rolling window exceeds the threshold
+    (with a minimum sample size) drops to T1 with a visible reason. Re-promotion is an explicit admin
+    action, never automatic. N, the window, the threshold and the minimum sample are seeded in L1 and
+    committed in L7.
+  - **Master switch off:** no jobs and no annotations, so behavior is identical to today; existing
+    `pendingUpgrade`/`locatorProvenance` stay inert. Revert and the audit view never need the model.
+- **Exact T3 list:** hard-coded `forbidden` action classes in `AiAutonomyPolicy`, proven unreachable
+  by `verify:ai-autonomy-policy`. AI never proposes or applies:
+  1. anything on a protected-login surface: pages the protected-login detector classifies and
+     `protectedLoginHandoff`, `autoSecureLogin` and `reuseSession` steps, whose evidence never
+     reaches the model;
+  2. a locator change on a sensitive-action step (`resolveStepSafety(step).sideEffectLevel` is
+     `dangerousMutation` or `externalCommit`, the predicate `LocatorFactory` already uses), not even
+     as a T1 suggestion. The user may still edit it manually. This supersedes L3 §6 "step not
+     sensitive … otherwise T1";
+  3. a graph edit other than applying a `safeFix` entry `FlowValidator` emitted for the current graph;
+  4. run control: execution status/outcome, retry, cancellation, `onFailure`/`retry` policy, admission;
+  5. AI governance: its own tiers, the master switch, permissions and roles, the model manifest.
+
+  T0 prose may discuss these topics but can never act on them.
+- **Field names and placement.** Audited `FlowProfile.ts`, `RecorderTypes.ts`, `buildRecordedFlow.ts`,
+  `locatorApproval.ts`, `flowProfileMapping.ts` and `FlowNodePropertiesPanel.tsx`. No
+  `pendingUpgrade`, `locatorProvenance` or locator `provenance` key exists in `src/`, `app/` or
+  `scripts/`. Both are optional `StepLocator` fields on `step.locator` only; a drag `targetLocator` is
+  not an upgrade target in Phase L.
+  - `pendingUpgrade: { schemaVersion: 1, candidate: LocatorCandidate, context?: LocatorContext,
+    proof: "unprovable-now" | "capture-proven", meaningChange: boolean, binding: LocatorApprovalBinding,
+    modelId: string, createdAt: string }`. `LocatorFactory` never reads it, and replay-proof tallies
+    live in `LocatorRecoveryStore` runtime memory rather than here. It holds candidate data only, the
+    same class as `alternatives`, and never a raw fingerprint: `forwardLocatorFields` passes unknown
+    keys through `buildRecordedFlow` unhashed. Writing or clearing it is a T0 annotation through the
+    single-writer save path, not an `AiActionRecord`.
+  - `locatorProvenance: { schemaVersion: 1, source: "ai-semantic-upgrade" | "ai-repair",
+    tier: "T1" | "T2", actionId: string, modelId: string,
+    proof: "capture-proven" | "replay-proven" | "repair-proven", appliedAt: string,
+    binding: LocatorApprovalBinding, previous: StepLocator }`. Absent means recorder or user, as
+    `resolvedBy` says. `previous` is the exact pre-change locator with guard, identity and context
+    intact; it never carries `pendingUpgrade` or `locatorProvenance` itself (one level, no chain).
+  - **The replaced guarded locator is a revert target, not a runtime fallback.**
+    `LocatorFactory.resolve` applies `guard` only when the primary is positional, so a guarded locator
+    moved into `alternatives` would run positionally without its identity proof. This supersedes L3 §6
+    "keeps guarded locator as fallback".
+  - **Staleness:** each field's `binding` is `createLocatorApprovalBinding` of the finalized step it
+    describes. The save-boundary pass that already runs `invalidateStaleLocatorApproval`
+    (`flowProfileMapping.ts` `toFlowStep`) drops either field when its binding no longer matches. This
+    is required because `toFlowStep` spreads `originalStep.locator`, so unknown keys survive every
+    save, while `editLocator` clears only the fields it maps (`quality`, `identity`, `guard`,
+    `prerequisite`, `executionDecision`).
+- **`AiActionRecord`:** written for every applied change (T2 auto-apply and T1 user-approved apply).
+  T0 output, `pendingUpgrade` annotations and unapplied suggestions are not records. Shape:
+  `{ schemaVersion: 1, id, feature, actionClass, tier: "T1" | "T2", target: { kind, flowId, stepId? },
+  evidenceIds: string[], proof: { result, replays?, dataRows? }, modelId, createdAt, revertHandle,
+  reverted?: { at } }`. It holds ids, enums and counts only, never page text, locator values, prompts
+  or model output. It is stored under the runtime data root via `app/main/atomicReplace.ts`.
+  - **Retention (*default*):** the newest 5,000 records, at most 90 days old, pruned on write. This
+    mirrors the report-run cap and anomaly retention passed to `sweepRetention` in `ExecutionEngine`.
+    The self-demotion window must fit inside it.
+  - **Revert** never depends on a record: the prior value lives in `locatorProvenance.previous` or in
+    the `flowValidationService` backup. Revert is compare-and-swap: it restores `previous` only while
+    the current locator still matches `locatorProvenance.binding`; otherwise it is refused as stale,
+    so a user edit is never overwritten.
+- **Privacy policy.** Every model request and every stored AI artifact goes through the semantic
+  three-layer model: an allowlisted packet builder (as `SEMANTIC_PROJECTION_ALLOWLIST`), then
+  `SemanticRedactor` (which composes `SecretMasker`), then a `SemanticPolicyValidator` rescan. No
+  third redactor.
+  - *Never sent or persisted:* passwords, tokens, cookies, auth headers, storage/session state, private
+    keys, `secret`-source values and registered run secrets, request bodies and headers,
+    credential-bearing URLs. Protected-login surfaces are excluded entirely.
+  - *Minimized:* input values are never captured; evidence names a field by identity. Bound,
+    data-row and earlier-input values become typed placeholders (L2 markers). Emails and identifiers
+    of 6+ digits are redacted (the `SemanticRedactor` defaults). URLs are kept as origin + path
+    template with ids stripped, never query, fragment or userinfo.
+  - *Raw-UI-text suppression (*default* OFF):* one Settings switch; when ON, evidence keeps role,
+    source, code, count and field identity and drops visible text.
+  - *Index exclusion:* raw evidence, prompts and AI outputs are never semantically indexed; adding
+    any of them needs an owner decision plus an allowlist change.
+  - *Retention:* evidence and analyses live and die with their run report; analyses are
+    deletable and recomputable. Raw prompts and responses are never persisted (*default*: no debug
+    capture in Phase L). Response-body excerpts are OFF by default. Per-event/instance/run byte caps
+    are set by `verify:failure-capture-overhead` in L5a.
+- **Model manifest:** one source-controlled manifest, `src/offline/AiModelManifest.ts`, owned by the
+  release role. `src/offline/**` already routes to `release` with `offline_boundary_change`, so every
+  edit is Risk-3 and lease-gated, like `DependencyManifest.ts`. It changes only with an app release:
+  no online refresh, no user override, and a pack whose SHA-256 is not in it is refused at import. The
+  pinned llama.cpp runtime ships in the installer and belongs in the signed dependency manifest; the
+  model pack never does.
+- **Routing for new code:** `src/ai/**` has no routing-matrix owner today. L1 registers it and
+  classifies the autonomy-policy module as `authorization_change`, so T3 or ceiling edits are lease-gated.
+
 ### 2026-09-18 — Claude Code uses a direct loop for ordinary repository work
 
 - **Decision:** ordinary Claude Code tasks use one primary agent and the direct sequence: reason,

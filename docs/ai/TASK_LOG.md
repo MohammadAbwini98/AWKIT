@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-19 — `awkit-phase-l-l0-0919`: Phase L L0 owner audit and decision records (Claude)
+
+- **Task:** L0 `awkit-djnl.2`: audit every Phase L owner against the code and record the owner decisions.
+- **Files:** `docs/ai/DECISIONS.md` (Phase L entry);
+  `docs/plans/ai-upgrade-v5/{ROADMAP,L0-decisions-and-registration,L3-intelligent-locators}.md`;
+  `src/roadmap/ImplementationRoadmap.ts` (Phase L `in-progress`); `scripts/verify-roadmap-dashboard.mjs`
+  (tracker pin); `.beads/{issues,interactions}.jsonl`;
+  `docs/ai/contracts/{awkit-phase-l-l0-0919,active-lease}.json`; `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Audit findings that changed the plan:**
+  - `src/runner/observation/PassiveCdpTrace.ts` (default ON, per-generation page attach) was missing
+    from the owner list.
+  - `LocatorFactory.resolve` honors `guard` only for a positional primary, so a guarded locator in
+    `alternatives` would run unguarded.
+  - `toFlowStep` spreads `originalStep.locator`, so new locator fields outlive a user edit unless they
+    are bound.
+  - L3 §6 contradicted CHANGELOG M3 (promotion proof) and the T3 row (sensitive steps).
+  - Also: `SemanticApi.ts` lives in `src/semantic/contracts/`, `WorkloadWeights` costs browser
+    instances only, and `src/ai/**` has no routing-matrix owner.
+- **Tests run:** `npm run build` PASS; `verify:verifier-classification` PASS; `verify:roadmap-dashboard`
+  **177/177**, "Sources agree"; `git diff --check` clean. Runner, mock-site and offline **NOT RUN**
+  (docs and tracker only).
+- **Gotcha:** the lease guard's chaining check rejects `;` even inside a quoted `bd close --reason`
+  string. That cost one denial of the three allowed for that operation.
+
 ## 2026-09-19 — `awkit-phase-l-roadmap-0919`: Phase L V5 plan committed and registered in order (Claude)
 
 - **Task:** consolidate the external SpecterStudio local-AI drafts (V1–V4) into one V5 plan set, then

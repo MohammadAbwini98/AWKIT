@@ -6,18 +6,19 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Deterministic; no model 
 
 Register Phase L and record every owner decision before implementation.
 
-Tracked as Beads **`awkit-djnl.2`** (the only ready milestone) under epic `awkit-djnl`.
+Tracked as Beads **`awkit-djnl.2`** under epic `awkit-djnl`. **Complete 2026-09-19.**
 
 ## Tasks
 
-1. **Roadmap — DONE 2026-09-19 (`awkit-phase-l-roadmap-0919`).** Phase `L` is registered `pending` in
+1. **Roadmap — DONE 2026-09-19 (`awkit-phase-l-roadmap-0919`).** Phase `L` is registered in
    `src/roadmap/ImplementationRoadmap.ts` (id union widened), the dashboard parser expects `A..L`, the
    `verify:roadmap-dashboard` pins moved, and the milestones are Beads children of `awkit-djnl` with
-   `blocks` edges (IDs in `ROADMAP.md`). When L0 finishes, set Phase L to `in-progress` in the same change.
-2. **Owner audit** — one table: capability → current owner → extend/new → justification, covering recorder
+   `blocks` edges (IDs in `ROADMAP.md`). Phase L moved to `in-progress` when L0 finished.
+2. **Owner audit — DONE 2026-09-19.** `ROADMAP.md` › "Owner audit": capability → current owner → extend/new →
+   justification, covering recorder
    finalization (`buildRecordedFlow.ts`), locator resolution (`LocatorFactory.ts`), identity/guard, blueprint/recovery
    stores, failure evidence, reports/durable store/retention, permissions, concurrency, semantic host.
-3. **Decision records** (append to `docs/ai/DECISIONS.md`) for ROADMAP "Global decisions" 1–9 and:
+3. **Decision records — DONE 2026-09-19** (`docs/ai/DECISIONS.md`, Phase L entry) for ROADMAP "Global decisions" 1–9 and:
    - autonomy tiers T0–T3, per-feature defaults, cap at T2, self-demotion rule;
    - exact T3 list;
    - `pendingUpgrade` and `locatorProvenance` field names (audit `FlowProfile.ts`, `RecorderTypes.ts`,

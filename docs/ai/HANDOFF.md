@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — Phase L registered; the next session starts L0
+## HANDOFF (2026-09-19, latest) — L0 complete; L1, L2, L4a and L5a are ready
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** L0 `awkit-djnl.2` is closed. The owner audit is in `docs/plans/ai-upgrade-v5/ROADMAP.md` ›
+  "Owner audit", and the ratified decisions are in `docs/ai/DECISIONS.md` (2026-09-19). Phase L is
+  `in-progress`.
+- **Next:** any ready milestone: L1 `awkit-djnl.1` (AI foundation; it gates L3, L4b and L5b), L2 `.3`,
+  L4a `.5` or L5a `.7`. Read the DECISIONS entry first: it fixes the field shapes and supersedes L3 §6.
+- **Owner review:** these defaults were chosen by the agent and are open to override:
+  - `AiActionRecord` retention of 5,000 records / 90 days;
+  - raw-UI-text suppression OFF by default;
+  - no debug prompt capture in Phase L;
+  - the manifest at `src/offline/AiModelManifest.ts` (Risk-3, release-owned).
+
+  Two rulings tighten the plan text: a guarded locator is a revert target, not a runtime fallback, and
+  sensitive-action steps get no AI locator proposal at all (T3).
+- **Left to measurement:** promotion N and the self-demotion window, threshold and minimum sample
+  (seeded in L1, committed in L7).
+- **Traps:** the lease guard rejects `;` anywhere in a command, including inside a quoted
+  `bd close --reason`. L5a must reuse `PassiveCdpTrace`'s generation lifecycle, but never its raw
+  NDJSON as AI input.
+
+## HANDOFF (2026-09-19, superseded) — Phase L registered; the next session starts L0
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** V5 plan committed (`docs/plans/ai-upgrade-v5/`, `0d6e0fd`); Phase L registered `pending`

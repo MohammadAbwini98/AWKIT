@@ -1,7 +1,8 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **PLAN — not started; registered 2026-09-19** as roadmap Phase `L` (`pending`) and Beads epic
-`awkit-djnl`. Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
+Status: **IN PROGRESS — L0 complete 2026-09-19** (owner audit below; decisions ratified in
+`docs/ai/DECISIONS.md`). Roadmap Phase `L` (`in-progress`), Beads epic `awkit-djnl`.
+Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
 Milestone files `L0`–`L7` hold only milestone-specific tasks.
 
@@ -77,12 +78,16 @@ cancellable. The synchronous run path makes **zero** model calls.
 | T2 Auto-apply with proof | applied automatically, audited, one-click revert | semantic locator promotion (criteria in L3) |
 | T3 Forbidden | never, regardless of configuration | protected-login; sensitive-action locator changes; graph edits outside validator-emitted `safeFix`; run status, retry, cancellation, failure policy |
 
-- Admin may lower any feature tier; raising is capped at T2; T3 is unreachable by configuration (verified).
+- Admin may lower any feature and restore it up to its ceiling (its default tier); the global cap is T2; T3 is
+  unreachable by configuration (verified). Exact T3 list: `docs/ai/DECISIONS.md` (2026-09-19).
 - **Self-demotion:** if a T2 feature's revert rate (from `AiActionRecord`) exceeds a committed threshold, the policy
   demotes it to T1 and surfaces the reason.
 - Master AI switch off ⇒ every feature behaves as today.
 
 ## Global decisions (recorded in L0)
+
+Ratified 2026-09-19 in `docs/ai/DECISIONS.md`, which also records the field shapes, `AiActionRecord`,
+privacy policy and model-manifest owner, and wins wherever it refines the text below.
 
 1. **Locator AI is a semantic upgrade**, not a rescue. Guarded-positional output (`buildRecordedFlow.ts`, saved as
    `resolved`) stays runnable and authoritative until a replacement is proven.
@@ -124,21 +129,31 @@ L0 ─┬─ L1 ─────────┬─ L3 ──┐
 
 AI-dependent work (L3, L4b, L5b, AI parts of L6) starts only after the **L1 performance go/no-go PASS**.
 
-## Existing owners to reuse (§6)
+## Owner audit — existing owners to reuse (§6, L0 2026-09-19)
 
-- Host: `app/main/semantic/ZvecUtilityHostManager.ts`, `src/semantic/ZvecHostRestartPolicy.ts`,
-  `src/semantic/FakeZvecHostTransport.ts`, `SemanticApi.ts` (narrow IPC contract pattern).
-- Redaction: `src/reports/SecretMasker.ts`, `src/semantic/SemanticRedactor.ts`, `src/reports/SecurityPolicy.ts`.
-- Resources: `src/runner/concurrency/{WorkloadWeights,AdaptiveController,BackpressureController,MachineCapabilityDetector}.ts`.
-- Permissions: `src/security/authz/Permissions.ts` (`ADMINISTRATOR_PERMISSIONS` is a denylist).
-- Locators: `src/profiles/FlowProfile.ts`, `src/recorder/RecorderTypes.ts`, `src/recorder/buildRecordedFlow.ts`,
-  `src/profiles/locatorApproval.ts`, `src/runner/{LocatorFactory,LocatorBlueprintStore,LocatorRecoveryStore,locatorFingerprint}.ts`.
-- Validation: `src/validation/{FlowValidator,SafeFixApplier}.ts`, `src/reports/PreRunValidator.ts`,
-  `app/main/validation/flowValidationService.ts`.
-- Failure/reporting: `StepExecutor.captureFailureEvidence`, `src/runner/NetworkDiagnosticsObserver.ts`,
-  `src/reports/{ExecutionReport,TelemetryContracts}.ts`.
-- Profiles: `src/profiles/ProfileLockManager.ts`, `app/main/atomicReplace.ts`.
-- Roadmap: `src/roadmap/ImplementationRoadmap.ts`.
+Verified against the code at `163b8b0`. *Extend* = the owner gains the Phase L capability; *Reuse* = used
+as-is; *New* = no owner exists yet.
+
+| Capability | Current owner (verified) | Decision | Justification |
+|---|---|---|---|
+| Recorder finalization | `src/recorder/buildRecordedFlow.ts`: the single finalizer; guarded-positional saved `resolution: "resolved"`, `resolvedBy: "recorder"`; `forwardLocatorFields` passes unknown locator keys through and hashes only `identity`/`guard` | Extend (L2 quality class and upgrade context; L3 trigger) | Stays the single finalizer; `pendingUpgrade` may hold no raw fingerprint because unknown keys bypass the hashing boundary |
+| Locator schema and quality | `StepLocator`, `LocatorQuality` (`src/profiles/FlowProfile.ts`); `RecordedActionLocator` index signature (`src/recorder/RecorderTypes.ts`) | Extend (two optional fields) | Both names are unused in `src/`, `app/` and `scripts/`; the L2 class derives from `LocatorQuality` + `guard` + `identity`, with no parallel score |
+| Positional and approval predicates | `src/profiles/locatorApproval.ts`: `isPositionalLocator`, `hasPositionalIdentityGuard`, `createLocatorApprovalBinding`, `invalidateStaleLocatorApproval` | Reuse | Deliberately shared by recorder, validator, runner and executor; the binding becomes the staleness key for both new fields |
+| Editor mapping and round trip | `app/renderer/components/workflow/flowProfileMapping.ts` (`toFlowStep` spreads `originalStep.locator`, then runs the save-boundary invalidation); `FlowNodePropertiesPanel.tsx` `editLocator` | Extend (drop stale AI fields by binding at the save boundary) | Unknown keys survive every save, but `editLocator` clears only the fields it maps, so stale AI fields would outlive a user edit |
+| Locator resolution | `src/runner/LocatorFactory.ts` `resolve()`: guard first (never tries `alternatives`), closed shadow, primary + `alternatives`, remembered winner, fingerprint/blueprint recovery (non-sensitive only) | Unchanged; L3 adds a post-resolution proof hook | `alternatives` execute and feed the memory digest, so pending candidates stay out. `guard` applies only to a positional primary, so a replaced guarded locator cannot serve as a fallback |
+| Identity and guard | `ElementIdentityContract`, `LocatorGuard` (`FlowProfile.ts`); `src/runner/locatorFingerprint.ts`; `LocatorFactory.resolveGuardedPositional` (exact or ≥ 0.9 similarity plus preconditions) | Reuse as L3 proof gate C | "Same element" is already defined; no second identity model |
+| Blueprint and recovery stores | `src/runner/LocatorBlueprintStore.ts`; `src/runner/LocatorRecoveryStore.ts` (`candidatesDigest`, `winningCandidateSignature`, `source`) | Extend the recovery store (replay-proof tallies); blueprint read-only | Runtime memory with no profile write, keyed by the candidate digest that pending candidates must not change |
+| Failure evidence | `StepExecutor.captureFailureEvidence` (point-in-time); `src/runner/NetworkDiagnosticsObserver.ts` (per action); **`src/runner/observation/PassiveCdpTrace.ts`** (run lifetime, on unless `AWKIT_CDP_OBSERVATION=0`; `ExecutionEngine` drives `startGeneration`/`stopGeneration`; raw NDJSON ≤ 64 MB under `<instance root>/observation`; key-based redaction) | New L5a collector on the existing generation lifecycle | `PassiveCdpTrace` was missing from the V5 owner list. Reuse its lifecycle, not its stream: the raw trace is an env-disableable forensic artifact and never an AI input. New work: UI-error init script, step correlation, bounded masked `ExecutionEvidenceEvent`, report handoff |
+| Browser context and pages | `src/runner/BrowserContextFactory.ts`, `src/runner/browser/SharedBrowserPool.ts`; `src/runner/PlaywrightRunner.ts` (closed-shadow init script once per context; single context `"page"` observer) | Reuse | L5a installs its init script beside the closed-shadow bridge; no second browser owner |
+| Reports, durable store, retention | `src/reports/{ExecutionReport,TelemetryContracts}.ts`; `src/runner/store/{RuntimeStoreSchema,SqliteRuntimeStore}.ts`; `sweepRetention` at engine start (24 h, 5,000 runs, 14-day buckets, 90-day anomalies; env-overridable) | Extend (optional `diagnostics` report extension) | `diagnostics` is unused in `src/reports`; old reports load unchanged; evidence follows its report's retention |
+| Redaction | `src/reports/SecretMasker.ts`; `src/semantic/SemanticRedactor.ts` (composes `SecretMasker`: URLs, auth schemes, JWTs, key/value pairs, blobs, paths, emails, ids of 6+ digits, 8,000-char cap); `SEMANTIC_PROJECTION_ALLOWLIST` (`src/semantic/SemanticProjection.ts`); `src/semantic/SemanticPolicyValidator.ts` | Reuse | Allowlist → redact → rescan already exists; a third redactor is forbidden |
+| Permissions | `src/security/authz/Permissions.ts` (`ADMINISTRATOR_PERMISSIONS` is `ALL_PERMISSIONS` minus a denylist; `SENSITIVE_PERMISSIONS` re-auth) | Extend (L1.5; Risk-3, lease) | Every new permission is auto-granted to Administrator unless excluded; decide each one and assert both directions |
+| Concurrency | `src/runner/concurrency/{WorkloadWeights,AdaptiveController,BackpressureController,MachineCapabilityDetector}.ts`; `ExecutionEngine.getRuntimeStatus()` | Extend (one inference reservation) | `WorkloadWeights` costs browser instances only; inference joins the same weighted budget, with no second scheduler |
+| Out-of-process host | `app/main/semantic/ZvecUtilityHostManager.ts`; `src/semantic/{ZvecHostRestartPolicy,FakeZvecHostTransport}.ts`; `src/semantic/contracts/SemanticApi.ts` | New `AiService` built on the same pattern | Separate process and crash domain for llama.cpp; the narrow contract drops unknown properties |
+| Validation and safe fixes | `src/validation/{FlowValidator,SafeFixApplier}.ts` (applies `normalizeEnumCasing`, `regenerateId`); `src/reports/PreRunValidator.ts`; `app/main/validation/flowValidationService.ts` | Reuse | Validators stay the source of truth; `SafeFixApplier` stays the only mutation authority |
+| Profile writes | `src/profiles/ProfileLockManager.ts`, `app/main/atomicReplace.ts` | Reuse (promotion, revert, audit store) | Single writer; retry-safe tmp+rename |
+| Model manifest | none | New: `src/offline/AiModelManifest.ts` (release role, Risk-3) | Mirrors `DependencyManifest.ts`; see `docs/ai/DECISIONS.md` |
+| Autonomy policy, audit store, locator-plan compiler | none | New under `src/ai/` (L1, L3) | No owner exists; L1 registers `src/ai/**` in the routing matrix |
 
 ## Stability guarantees (global acceptance)
 

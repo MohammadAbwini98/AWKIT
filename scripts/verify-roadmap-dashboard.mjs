@@ -581,8 +581,13 @@ try {
   // required `bd export -o .beads/issues.jsonl`: `bd stats` reports Total 302, Open 11, Closed 289,
   // dependency-Blocked 9 and Ready 2 (the epic and L0 `awkit-djnl.2`), while the two status-blocked
   // Oracle items stay the only declared-blocked work. The edge pin below moves in the same move.
-    "13 outstanding / 289 closed",
-    beads.stats.outstanding === 13 && beads.stats.closed === 289,
+  // Then 12/290 of 302 on 2026-09-19: `awkit-phase-l-l0-0919` closed L0 `awkit-djnl.2` (owner audit
+  // and Phase L decision records). One bead crossed from outstanding to closed and none was filed,
+  // so total holds at 302. Measured after `bd export -o .beads/issues.jsonl`: `bd stats` reports
+  // Open 10, Closed 290, dependency-Blocked 5 and Ready 5 (the epic plus L1 `.1`, L2 `.3`, L4a `.5`
+  // and L5a `.7`). Closing removes no dependency edge, so the edge pin below stays at 134.
+    "12 outstanding / 290 closed",
+    beads.stats.outstanding === 12 && beads.stats.closed === 290,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

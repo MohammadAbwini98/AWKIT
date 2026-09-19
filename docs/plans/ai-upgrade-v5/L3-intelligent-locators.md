@@ -12,7 +12,8 @@ without ever executing an unproven candidate or changing what a step means.
 
 A job is queued when a finalized locator's L2 class is `guarded-positional` or below `acceptable-semantic`, when a
 saved locator fails at runtime and deterministic recovery finds no strong replacement, when the user asks from Element
-Spy, or by the idle **flow health sweep**. Never for strong semantic locators. The current locator stays authoritative.
+Spy, or by the idle **flow health sweep**. Never for strong semantic locators, and never for sensitive-action or
+protected-login steps (T3). The current locator stays authoritative.
 
 ## 2. Locator plan DSL → trusted compiler
 
@@ -45,11 +46,13 @@ baseline (and matches `ElementIdentityContract`/fingerprint) · D no protected-l
 
 ## 6. Promotion (autonomy policy)
 
-T2 auto-promotion requires all: capture-proven or replay-proven on ≥ N replays across ≥ 2 distinct data rows/contexts
-(N committed after baseline); no `meaningChange`; step not sensitive; feature tier T2. Otherwise → T1 suggestion.
+T2 auto-promotion requires all: replay-proven on ≥ N replays across ≥ 2 distinct data rows (N committed after
+baseline; capture proof alone never auto-promotes); no `meaningChange`; feature tier T2. Otherwise → T1 suggestion.
+Sensitive-action steps are T3: no proposal at all.
 Promotion is a **single-writer job** through the profile save path (`ProfileLockManager`, version check, skipped while
-the flow has unsaved editor changes), sets semantic primary, keeps guarded locator as fallback, writes
-`locatorProvenance` + `AiActionRecord`, one-click revert.
+the flow has unsaved editor changes), sets semantic primary, keeps the whole guarded locator in
+`locatorProvenance.previous` as the revert target (never in `alternatives`; the runner never executes it), writes
+`locatorProvenance` + `AiActionRecord`, one-click revert. Field shapes: `docs/ai/DECISIONS.md` (2026-09-19).
 
 ## 7. Attempts
 
@@ -70,7 +73,7 @@ surface a durability report. Proposals still go through §3–§6.
 
 Badges: Semantic · Guarded · AI suggestion pending proof · AI semantic (capture-/replay-proven) · Suggestion rejected ·
 Auto-promoted (revert). Evidence on demand: original quality reason, proposed scope, proof location, match count,
-identity result, retained fallback, provenance. No raw prompts or reasoning.
+identity result, retained guarded locator (revert target), provenance. No raw prompts or reasoning.
 
 ## Labelled quality set
 

@@ -1,18 +1,28 @@
 {
-  "task": "awkit-phase-l-roadmap-0919",
-  "contract_path": "docs/ai/contracts/awkit-phase-l-roadmap-0919.json",
+  "task": "awkit-phase-l-l0-0919",
+  "contract_path": "docs/ai/contracts/awkit-phase-l-l0-0919.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-19T01:28:09.213Z",
-  "acquired_at_commit": "0d6e0fd0b71960efad9e38d9c7224173f20e2d27",
+  "acquired_at": "2026-09-19T02:02:24.819Z",
+  "acquired_at_commit": "163b8b031a5dc50e066be7b633aeef43fa069616",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-phase-l-roadmap-0919.json"
+    "docs/ai/DECISIONS.md",
+    "docs/ai/contracts/awkit-phase-l-l0-0919.json",
+    "docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md",
+    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md",
+    "src/roadmap/ImplementationRoadmap.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-phase-l-roadmap-0919.json": "e30b66fde93e5c452444c33a3ff243ab969af15e84f99b26a88c88365c947661"
+    "docs/ai/DECISIONS.md": "f9bbe4e0ea080c9289e30b6719ea1e832d53cc56c0bcde392dea0d32e3f8ec50",
+    "docs/ai/contracts/awkit-phase-l-l0-0919.json": "59ec651484d085c1d2dfff81abc62d0fedbe3ef0c1ee7e3e4eae007d939f3a19",
+    "docs/plans/ai-upgrade-v5/L0-decisions-and-registration.md": "d7c670ec497a561b0821225f5ed1f4d81b4806ecac02bf5ee44bd6a97a5a60dc",
+    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md": "c7f93b9e7bc27be73fcedf903eea3872d18dcb8a36c0729a6791cdba393ebee2",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md": "909244290e4cc96a04dc331971d8028dae80d51ba656d9d5c1292a01bc52ca1e",
+    "src/roadmap/ImplementationRoadmap.ts": "9121700cefff79e3b0e21b9683730fb332a61f39ded532b5c76614eed518a3f8"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +37,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-19T01:41:56.568Z",
-  "released_reason": "Phase L epic awkit-djnl and ten ordered milestones filed with parent-child and blocks edges, export refreshed to 302 issues",
-  "archived_at": "2026-09-19T01:41:56.569Z"
+  "released_at": "2026-09-19T02:03:04.291Z",
+  "released_reason": "L0 awkit-djnl.2 closed and export refreshed to 302 issues, 290 closed, ready set is the epic plus L1, L2, L4a and L5a",
+  "archived_at": "2026-09-19T02:03:04.292Z"
 }
