@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L1 foundation built; runtime and benchmark need an owner decision
+## HANDOFF (2026-09-19, latest) — L4a verified, L5a capture evidence passes but duration gate fails, L1 waits on two owner steps
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** L4a `awkit-djnl.5` implementation is verified (authoring diagnostics 94/94; Flow Designer
+  138/138 broad + 16/16 capsule) but its tracker closeout is pending. L5a `awkit-djnl.7` has working
+  real-browser evidence (74/74), persistence, privacy and teardown proof, but its current duration gate
+  is **FAIL**: +326 ms fast vs +193.4 ms and +380 ms evidence vs +341.6 ms. It remains open. The L1
+  real host is written (`51cacba`, `9c25288`).
+- **Owner actions:**
+  1. **Do not approve the L5a overhead ceilings yet.** The measured CPU/size/cleanup checks pass, but
+     the two duration medians do not. Correct the collector/default behavior first, rerun the gate,
+     then obtain owner approval for a passing release threshold. The figures are development-host
+     measurements, not VMware ones.
+  2. **L1 acquisition**, the two PowerShell steps in `docs/plans/ai-upgrade-v5/L1-ai-foundation.md`:
+     install `node-llama-cpp@3.21.1` with `NODE_LLAMA_CPP_SKIP_DOWNLOAD=true`, and download
+     `Qwen3.5-4B-Q4_K_M.gguf` to Downloads. Then the release lease pins the runtime and the measured
+     SHA-256, and `verify:ai-model-live` and `benchmark:ai-model` run. L3, L4b and L5b wait on the go/no-go.
+- **Next agent work:** L2 `awkit-djnl.3` (deterministic Recorder and Element Spy; no model needed). The
+  L5a follow-up is the Raw-UI-text suppression Settings switch from the privacy policy (default OFF).
+- **Traps:**
+  - Windows reserves port blocks, so a fixed verifier port can fail with `EACCES`. The L5a verifiers
+    ask the OS for a free port.
+  - Never await Playwright's context `exposeBinding` on an instance's start-up path (4–5 round trips).
+  - The page script's own `<script>` source contains its fixture text, so assert on elements, never
+    on text anywhere in a DOM snapshot.
+  - `processQueue` writes the report when statuses are terminal. A `cancelled` status is set before
+    the runner unwinds, so anything written after that point needs the (now present) runner wait.
+
+## HANDOFF (2026-09-19, superseded) — L1 foundation built; runtime and benchmark need an owner decision
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (L1 `awkit-djnl.1`, `in_progress`):** the autonomy policy, the audit store and revert, the

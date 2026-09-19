@@ -1,5 +1,48 @@
 # CURRENT_STATE
 
+## `awkit-djnl-5-7-l4a-l5a-0919`: Phase L L4a verified, L5a evidence works but performance gate fails, L1 host remains model-blocked (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation
+case moved. L4a tightens authoring validation and L5a adds evidence to run reports; both are verified
+by their own suites below.
+
+- **L4a `awkit-djnl.5` — implementation and verification complete; tracker closeout pending.** `FlowValidator` owns every graph diagnostic: `incompleteBranchPair`
+  and `unguardedCycle` (errors), and six new warnings. Reachability stops at End, and
+  `FLOW_VALIDATOR_VERSION` is 4, so the next run gate performs a fresh inventory scan that grants
+  off-path-only flows their window. The Flow Designer shows only engine issues. Four verifier fixtures
+  bound `{type:"runtimeInput", value}` without a `key`; `ValueResolver` reads `key`, so they always
+  resolved to "". They now use `key`. Open follow-up: design-time data-source and secret reference
+  checks, which need library context.
+- **L5a `awkit-djnl.7` — implemented, with a current performance acceptance failure; remains open.** The
+  run-lifetime collector (`src/runner/evidence/`) writes `InstanceReport.diagnostics`: UI
+  alerts/toasts/validation, HTTP/network/page/console errors, error pages and a deterministic cause.
+  Protected-login surfaces and handoff steps are excluded by retraction. Only the init script is awaited
+  on start-up; the binding lands in the background. Skipping a redundant `about:blank` evaluation lowered
+  collector start median from 123.9 ms to 94.0 ms, but the current six-round development-host gate still
+  measured +326 ms (fast) and +380 ms (evidence) paired medians against limits of +193.4/+341.6 ms.
+  Node CPU (+122.5 ms per instance), evidence size (3.7 KB), no-AI closure, listener teardown and Chromium
+  cleanup passed. The proposed thresholds are not approved release ceilings, and neither approval nor an
+  engineering correction may be inferred from this failed gate. A cancelled
+  instance's report now reaches `report.json`: the report writer waits for unwinding runners. Mock-site:
+  `/runner-lab` › Failure evidence, `/api/transport-drop`, `/runner-lab/error-page`.
+- **L1 `awkit-djnl.1` — in progress.** The real host `native-hosts/ai/ai-host.cjs` (node-llama-cpp
+  3.21.1) and its verifiers were committed in `51cacba` and `9c25288`. **BLOCKED:** `node-llama-cpp` is
+  not installed and no GGUF pack exists on this machine (checked 2026-09-19). So `verify:ai-model-live`,
+  `benchmark:ai-model`, the manifest entry and the go/no-go are NOT RUN; L3, L4b and L5b stay gated.
+
+**Evidence (final state):** `npm run build` PASS; `validate:offline` PASS (development mode).
+L5a: `verify:ui-error-evidence` **74/74** (real engine, Chromium, mock site and `report.json`; seven
+mutations caught), `verify:failure-capture-overhead` **13 PASS / 2 FAIL** (duration medians only),
+`verify:failure-cause-baseline` **60/60**, `verify:mock-site` **200/200**, `verify:runner` **138/138**,
+`verify:failure-evidence` 35/35,
+`verify:failure-evidence-live` 17/17, `verify:run-report-compatibility` 27/27, `verify:telemetry`
+68/68, `verify:reports` 35/35 (GUI), `verify:r0-characterization` 181/181, `verify:observability`
+65/65, `verify:artifacts` 23/23. L4a: `verify:authoring-diagnostics` **94/94**, `verify:validation`
+163/163, `verify:branch-pairs` 40/40, `verify:loop-scroll-validation` 88/88, `verify:legacy-compat`
+152/152, `verify:wait-validation` 107/107, `verify:assertion-validation` 77/77, `verify:profile-store`
+74/74, `verify:random-failures` 17/17, `verify:flow-designer` **138/138 broad + 16/16 capsule**.
+`verify:verifier-classification` 221 classified.
+
 ## `awkit-djnl-1-l1-0919`: Phase L milestone L1 started — AI foundation built, runtime and benchmark blocked (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** L1 adds a

@@ -1,5 +1,29 @@
 # FEATURES
 
+## Failure evidence in run reports (Phase L L5a, 2026-09-19; deterministic, no AI)
+
+- A failed, cancelled or evidence-producing run's instance report carries `diagnostics`: what the page
+  showed and did while the run went wrong. That covers transient toasts and alerts (kept even after they
+  disappear), native and inline form validation (field identity only, never the typed value), HTTP 4xx/5xx
+  metadata, network failures, uncaught script errors, console errors, and error pages (status, title,
+  heading). Each event carries its execution, instance, flow, node and page, and repeats are folded with a count.
+- A deterministic cause names the evidence the failure most likely rests on (for example `httpError`
+  resting on a 409, with the later wait timeout cited as its consequence), or `insufficient`.
+- Privacy: masked with the semantic redactor, URLs without query strings, bounded per event, instance and
+  run. Protected-login surfaces and manual-handoff steps are excluded entirely. A clean pass adds nothing
+  to its report. `AWKIT_FAILURE_EVIDENCE=0` turns capture off, and `AWKIT_FAILURE_EVIDENCE_CONSOLE=0`
+  turns off only console capture.
+
+## Authoring diagnostics — one rule table for the designer, import and the run gate (Phase L L4a, 2026-09-19)
+
+- New flow validation rules: a lone conditional or parallel connector (`incompleteBranchPair`) and a
+  cycle with no Loop Back connector (`unguardedCycle`) are errors, because the runner already misroutes or
+  stops on them. Connectors leaving End, dead ends, incomplete conditions, empty static-list loops, tied
+  conditional priorities and incomplete value-source bindings are warnings. Steps reachable only past End
+  are unreachable (off-path, so a Legacy Compatibility grant tolerates them).
+- The Flow Designer no longer carries its own advisories; it shows the engine's issues. Validator version
+  4 triggers a fresh inventory scan that grants off-path-only flows their compatibility window.
+
 ## Local AI foundation — Settings › Local AI (Phase L L1, 2026-09-19; dormant until a runtime and pack exist)
 
 - An optional, offline-only AI subsystem that is off by default. Settings › Local AI shows its status

@@ -7,17 +7,18 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 
 | Task | State | Where |
 |---|---|---|
-| L1.1 AiService host | **Built, except the real host script.** Service, queue, protocol, utility-host manager and IPC. `native-hosts/ai/ai-host.cjs` is BLOCKED on the runtime-binding decision. | `src/ai/AiService.ts`, `src/ai/contracts/AiHostProtocol.ts`, `app/main/ai/*`, `app/main/ipc/ai.ipc.ts` |
-| L1.2 Model pack | **Built:** import, SHA-256 against the manifest, status, remove. **BLOCKED:** the llama.cpp pin, the manifest entry and the notices need the runtime and pack. | `src/ai/AiModelPack.ts`, `src/offline/AiModelManifest.ts` |
+| L1.1 AiService host | **Built.** Service, queue, protocol, utility-host manager, IPC, and the real host `native-hosts/ai/ai-host.cjs` on node-llama-cpp (`51cacba`), proven against a fake runtime (`verify:ai-host`) and in a real utility process (`verify:ai-host-electron`, `9c25288`). Running it on a real model is BLOCKED on the two owner steps below. | `src/ai/AiService.ts`, `src/ai/contracts/AiHostProtocol.ts`, `app/main/ai/*`, `app/main/ipc/ai.ipc.ts`, `native-hosts/ai/ai-host.cjs` |
+| L1.2 Model pack | **Built:** import, SHA-256 against the manifest, status, remove. **BLOCKED:** the llama.cpp pin, the manifest entry and the notices need the installed runtime and the downloaded pack (checked 2026-09-19: `node-llama-cpp` is not installed and no `.gguf` is in Downloads). | `src/ai/AiModelPack.ts`, `src/offline/AiModelManifest.ts` |
 | L1.3 Output contract | **Done.** | `src/ai/{AiPromptBuilder,AiOutputContract}.ts` |
 | L1.4 Autonomy and audit | **Done.** The policy lives in `src/security/authz` (see DECISIONS). | `src/security/authz/AiAutonomyPolicy.ts`, `src/ai/{AiActionRecord,AiActionStore,AiRevert}.ts` |
 | L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
 | L1.6 Resource integration | **Done:** yield, weighted admission, derived threads, idle unload. | `src/ai/AiAdmission.ts`, `WorkloadWeights.aiInferenceWeight`, `ExecutionEngine.getAiAdmissionView` |
 | L1.7 Fake provider | **Done.** | `src/ai/FakeAiHostTransport.ts` |
-| L1.8 Performance go/no-go | **BLOCKED:** no runtime or model. | — |
+| L1.8 Performance go/no-go | **BLOCKED:** no runtime or model. The harness `benchmark:ai-model` and its pre-registered ceilings exist. | `scripts/benchmark-ai-model.mts` |
 
-Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`. `verify:ai-model-live`
-is not written until a host exists: NOT RUN.
+Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`, `verify:ai-host` and
+`verify:ai-host-electron`. `verify:ai-model-live` and `benchmark:ai-model` exist and are NOT RUN until
+the owner installs the runtime and downloads the pack.
 
 ## Runtime decision and acquisition (2026-09-19)
 

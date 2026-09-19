@@ -1,5 +1,37 @@
 # KNOWN_ISSUES
 
+- **OPEN `awkit-djnl.7` (2026-09-19): L5a run-lifetime failure capture exceeds its proposed duration
+  gate under the current six-round, six-concurrent-instance development-host workload.** After removing
+  the redundant initial `about:blank` injection, collector start median improved from 123.9 ms to
+  94.0 ms, but paired duration medians remain +326 ms fast (limit +193.4 ms) and +380 ms evidence
+  (limit +341.6 ms). CPU (+122.5 ms), evidence size (3.7 KB), no-AI closure, listener teardown and
+  Chromium cleanup pass. The numbers are measured—not approved release ceilings—and L5a stays open
+  until a product correction or explicit default-policy decision yields a passing gate.
+
+## RESOLVED (2026-09-19) — a cancelled instance's report could be missing from `report.json`
+
+- `cancelOne` marks an instance `cancelled` synchronously while its runner is still closing the
+  browser, and `processQueue` wrote the final report as soon as every status was terminal. The
+  cancelled instance's own report (and, since L5a, its evidence) was pushed after the file was written.
+- Fixed in `ExecutionEngine.processQueue`: it waits (bounded, 30 s) for this execution's unwinding
+  runners before writing. `verify:ui-error-evidence` scenario 13 reproduces the loss when the wait is
+  removed (mutation M6: 5 failures).
+
+## OPEN (2026-09-19) — Playwright `waitFor` timeouts are classed as `locator`
+
+- `ErrorClassifier.classifyError` checks "locator" before "timeout", and Playwright words every wait
+  timeout as `locator.waitFor: Timeout N ms exceeded`. Reports therefore file a timed-out `wait` step
+  under the `selector` category. The L5a collector corrects only its own `runner.failure` kind for
+  `wait` steps (`runnerFailureKind`); the shared classifier and report categories are unchanged,
+  because moving them changes existing analytics. Decide deliberately before changing it.
+
+## OPEN (2026-09-19) — Playwright context `exposeBinding` is expensive on the start-up path
+
+- It makes four to five sequential CDP round trips (binding bootstrap, two init scripts, two
+  evaluate-in-all-frames); measured ~330 ms median per instance under start-up contention. Never await
+  it on an instance's critical path: L5a awaits only `addInitScript` and lets the page queue until the
+  binding lands (`verify:failure-capture-overhead` caught the awaited version: +568 to +1,077 ms).
+
 ## OPEN (2026-09-19) — `semantic` settings are writable by any signed-in role
 
 - `settings:update` requires SETTINGS_EDIT only for `paths`, `runtime`, `execution`,

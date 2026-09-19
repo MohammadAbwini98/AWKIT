@@ -1,5 +1,84 @@
 # DECISIONS
 
+### 2026-09-19 — Phase L L5a: run-lifetime failure evidence, protected-login exclusion, off-path binding (`awkit-djnl.7`)
+
+- **Decision:** one collector per instance (`src/runner/evidence/FailureEvidenceCollector.ts`) on the
+  per-generation lifecycle `PassiveCdpTrace` uses, writing the optional `InstanceReport.diagnostics`
+  (versioned events, summary, deterministic cause). No second browser owner; `NetworkDiagnosticsObserver`
+  and `captureFailureEvidence` keep their roles. The CDP trace and the collector now start and stop
+  concurrently: they are independent best-effort observers.
+- **Protected-login surfaces are excluded by retraction, not only at the door.** The page script
+  announces each document's state (a password or one-time-code field anywhere); network, console and
+  error events can arrive before that, so the collector retracts what the document already produced
+  (bytes returned to both budgets, counted as `dropped.protected`). Pages the runner hands off as a
+  protected login, and protected-login, secure-login, session-reuse and manual-handoff steps, are
+  excluded too. Only the runner's own failure survives. The redactor alone was not enough: a verifier
+  mutation that disabled the guard kept the canaries masked but kept the login page's 401 and console
+  error as evidence.
+- **The binding is exposed off the start-up path.** Playwright's context `exposeBinding` makes four to
+  five sequential round trips; awaited on start-up it cost ~330 ms median per instance under contention
+  and failed the overhead gate (+568 to +1,077 ms). Only `addInitScript` (one round trip) is awaited, so
+  the script still precedes the first navigation; the page queues at most 50 messages until the binding
+  lands, and they are delivered in order with their age, so offsets stay truthful.
+- **Runner failure text** keeps the diagnosis line only. Playwright's "Call log" quotes matched elements'
+  HTML (page content and attribute values) and is not a runner diagnosis.
+- **Reports:** the report writer waits (bounded, 30 s) for unwinding runners. A stopped instance turns
+  `cancelled` synchronously while its runner still unwinds, so before this the cancelled instance's
+  report could miss `report.json` entirely (reproduced by `verify:ui-error-evidence`, mutation M6).
+- **Overhead ceilings (*proposed*, owner approval pending):** capture ON may add at most max(10 %, 150 ms)
+  to the median and max(15 %, 300 ms) to the p95 instance duration, max(25 %, 40 ms) Node CPU per
+  instance, and 4 KB of evidence per passing evidence-workload instance. Measured on the development
+  host: +145/+152 ms median, +39 ms CPU. Not a VMware production claim.
+- **Not changed / deferred:** response-body excerpts stay unimplemented (off by default per policy);
+  the Raw-UI-text suppression Settings switch is not built yet (its default, OFF, is today's behavior);
+  `ErrorClassifier` still classes a Playwright `waitFor` timeout as `locator` for reports. The collector
+  corrects only its own `runner.failure` kind for `wait` steps.
+
+### 2026-09-19 — Phase L L4a: engine owns every graph diagnostic; new rules block only real runtime failures (`awkit-djnl.5`)
+
+- **Decision:** the renderer-only graph advisories (dead ends, condition completeness, empty static-list
+  loops, priority ties) and the branch-pair rule moved into `FlowValidator`. The pure detection is
+  `src/validation/BranchPairs.ts`, and `app/renderer/components/shared/branchPairs.ts` re-exports it.
+  New rules: `incompleteBranchPair` and `unguardedCycle` (errors); `connectorFromEndNode`,
+  `deadEndNode`, `incompleteCondition`, `emptyLoopValues`, `ambiguousConditionPriority` and
+  `incompleteValueSource` (warnings). Reachability no longer walks through End steps (only their
+  parallel fan-out runs). `PreRunValidator` warns when a JSON path finds nothing in a loaded file.
+  `FLOW_VALIDATOR_VERSION` is 4.
+- **Severity rule:** an error only where `FlowExecutor` already fails or misroutes. A lone branch ignores its
+  condition or runs its parallel target twice, and a cycle without a Loop Back connector throws "runtime
+  cycle" when taken. Everything else is a warning, so no flow that runs today is newly blocked except
+  through a genuine defect. Steps reachable only past End become `unreachableNode`, which is off-path and
+  grant-tolerable; the version bump re-runs the inventory scan that issues those grants.
+- **Reason:** the Flow Designer's Save-blocking branch-pair check (`connectorStructureIssues`) had no
+  caller, and imported or hand-edited flows reached the run gate with lone branches and unguarded
+  cycles that only failed mid-run. The rule table is now one source for the designer, import and the
+  run gate.
+- **Not changed:** `SafeFixApplier` gains no fix kind (still `normalizeEnumCasing`, `regenerateId`).
+  Workflow-level lone branches stay a Workflow Builder advisory, because `FlowDependencyResolver`
+  schedules by dependency and has no flow-style fallback. Design-time data-source and secret reference
+  checks are deferred: they need a library context, and the runtime already fails loudly with named errors.
+
+### 2026-09-19 — Phase L L1 runtime binding: node-llama-cpp in the utility process (`awkit-djnl.1`)
+
+- **Decision:** the inference host (`native-hosts/ai/ai-host.cjs`) runs node-llama-cpp 3.21.1, which bundles
+  llama.cpp `v0.4.0` (Qwen3.5 `qwen35` supported since February 2026), inside the existing Electron utility
+  process. It is CPU only (`gpu: false`) and never builds or downloads (`build: "never"`,
+  `skipDownload: true`). The pin string the host reports is `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`.
+  node-llama-cpp is a dev dependency, so nothing reaches `app.asar`; the runtime tree is staged beside the
+  host like the Zvec host.
+- **Reason:** it is the plan's primary shape: MessagePort only, no TCP listener, one crash domain that frees
+  the model when it dies, `AbortSignal` cancellation, and a JSON-schema grammar covering the bounded output
+  subset. The prebuilt `@node-llama-cpp/win-x64` ships every CPU variant (SSE4.2 to AVX-512) and selects at
+  run time, which suits an unknown VMware CPU. The rejected `llama-server.exe` option needs a loopback port
+  and key, and a grandchild process Windows does not kill with its parent. That is more infrastructure
+  than the plan's rule allows ("if unavoidable"). The choice does not change a ratified decision.
+- **Prompt format:** Qwen3.5 ChatML with the template's thinking-disabled branch (an empty think block).
+  Only the template pieces are tokenized with special tokens enabled; system and page text are plain, so
+  `<|im_end|>` in page text cannot close a turn.
+- **Acquisition is an owner step:** the lease guard admits no install or network command for the agent,
+  so installing the runtime and downloading the pack are the two owner steps in `L1-ai-foundation.md`.
+  The model pack pin comes only from a measured SHA-256.
+
 ### 2026-09-19 — Phase L L1 implementation choices (`awkit-djnl.1`)
 
 - **Scope:** choices made while building the L1 foundation. They refine the L0 entry below. Items
@@ -34,7 +113,8 @@
   `src/ai` (`verify:ai-fallback`). Inference threads are floor(logical CPUs / 2), clamped to 1–4.
 - **Self-demotion seeds (*default*):** a 30-day window, more than 20% reverted, and at least 10
   auto-applied actions. Demotion is persisted and cleared only by an explicit administrator restore.
-- **Runtime binding: pending an owner decision.** The protocol and manager are runtime-agnostic
+- **Runtime binding: resolved later on 2026-09-19** (node-llama-cpp; see the runtime-binding entry
+  above). The original note follows. The protocol and manager are runtime-agnostic
   (utility process, MessagePort, no TCP). The host script `native-hosts/ai/ai-host.cjs` is not
   written, because it depends on the choice:
   - an in-process binding (e.g. `node-llama-cpp`) inside the utility process: no listener, a new

@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-19 — `awkit-djnl-5-7-l4a-l5a-0919`: recover L4a/L5a closeout (Codex)
+
+- **Task:** recover the interrupted L4a authoring-diagnostics and L5a run-lifetime-evidence work,
+  obtain the missing Flow Designer terminal result, and truthfully reconcile the performance gate.
+- **Recovered implementation:** L4a's shared validation rule table, branch-pair validation, Flow
+  Designer issue display and fixtures; L5a's bounded, masked run-lifetime collector, deterministic
+  cause baseline, durable report extension, runner wiring, runner-lab fixtures and verifiers.
+- **Targeted corrections:** the Flow capsule verifier now reads durable flow JSON after saves, signs
+  back in after a renderer reload, reopens the connection drawer after graph-history changes, and
+  dispatches the verified animated SVG target without waiting indefinitely for its motion heuristic.
+  The collector skips a redundant UI-script evaluation on fresh `about:blank` pages; real documents
+  and already-loaded pages retain the same listener and init-script coverage.
+- **Tests:** `build` PASS; `verify:authoring-diagnostics` **94/94**; Flow Designer **138/138 broad +
+  16/16 capsule**; `verify:ui-error-evidence` **74/74** (14 real-engine executions); failure-cause
+  baseline **60/60**; failure evidence **35/35** and live file evidence **17/17**; report compatibility
+  **27/27**; runner **138/138**; mock-site **200/200**.
+- **Performance result:** `verify:failure-capture-overhead` is **13 PASS / 2 FAIL**. On six paired
+  development-host rounds, fast duration overhead was +326 ms versus a +193.4 ms limit and evidence
+  duration overhead +380 ms versus +341.6 ms. CPU (+122.5 ms), evidence size (3.7 KB), no-AI closure,
+  listener teardown and Chromium cleanup passed. L5a remains open; the proposed limits are measured,
+  not owner-approved release thresholds.
+- **Not run:** L1 real-model verification and constrained-CPU model benchmark remain BLOCKED by the
+  missing approved runtime/model pack. The L5a performance command was not rerun after its one
+  diagnosed corrective change, in accordance with the bounded verifier policy.
+
 ## 2026-09-19 — `awkit-djnl-1-l1-0919`: Phase L L1 foundation (Claude)
 
 - **Task:** start L1 `awkit-djnl.1`: build everything the AI foundation needs without a real model.

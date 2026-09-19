@@ -655,8 +655,29 @@ src/ai/                 Framework-agnostic core (no Electron).
 app/main/ai/            AiUtilityHostManager (utilityProcess, Zvec restart policy) + aiRuntime (lazy
                           composition, views, revert, import/remove, staged shutdown).
 app/main/ipc/ai.ipc.ts  Nine permission-gated channels; no prompt, path or process surface.
-native-hosts/ai/        NOT YET WRITTEN — the inference host awaits the runtime-binding decision.
+native-hosts/ai/        ai-host.cjs: node-llama-cpp 3.21.1 in the utility process (MessagePort, CPU-only,
+                          never builds or downloads). Needs the owner-installed runtime and pack to load.
 ```
+
+## Run-lifetime failure evidence (Phase L L5a; deterministic, no model)
+
+```text
+src/runner/evidence/
+  ExecutionEvidence.ts        Versioned ExecutionEvidenceEvent; bounded buffer: SemanticRedactor on every
+                              string, URL → origin + path template, per-field/event/source/instance caps,
+                              a per-run byte budget shared by the execution's instances, dedupe with repeat
+                              counts, retraction (protected-login) returning bytes to both budgets.
+  uiEvidenceScript.ts         Page-side init script (a string): MutationObserver on added/changed candidate
+                              nodes, native `invalid`, aria-invalid; announces each document's protected-login
+                              state; queues until the binding lands.
+  FailureEvidenceCollector.ts Per instance. ExecutionEngine starts/stops it with PassiveCdpTrace on the
+                              onBrowserRuntime / onRuntimeClosing generation lifecycle; progress events give
+                              step correlation; finish() hands InstanceReport.diagnostics to the report.
+  FailureCauseBaseline.ts     Pure precedence table → cause code + evidence ids (or `insufficient`).
+```
+
+The run path imports nothing from `src/ai` (`verify:failure-capture-overhead` walks the engine's import
+closure). Raw evidence lives only in the report; the semantic index never reads it.
 
 The engine never calls AI: `ExecutionEngine.getAiAdmissionView()` is read-only, and no module in the
 execution tree imports `src/ai` (`verify:ai-fallback`). With no runtime, no pinned build or no pack,

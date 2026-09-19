@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-5-7-l4a-l5a-0919",
+    "title": "Historical Phase L L4a/L5a recovery draft",
+    "objective": "Preserve the interrupted recovery evidence. This combined draft is not the execution gate for ordinary direct-main product work: its declared Beads-only scope cannot truthfully represent the recovered cross-layer diff. Any later protected project-state operation must use its own task-specific contract and lease. L4a evidence is complete; L5a remains open because its current duration gate fails.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "9c25288",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L5A-REAL-BROWSER",
+      "description": "The production collector, through the real ExecutionEngine, real Chromium and the real mock site, writes the captured evidence and a deterministic cause into the persisted report.json for every labelled scenario, excludes protected-login surfaces, survives cancellation and manual handoff, and releases every listener.",
+      "evidence_required": [
+        "verify:ui-error-evidence"
+      ]
+    },
+    {
+      "id": "L5A-OVERHEAD",
+      "description": "Capture ON versus OFF is measured against the proposed ceilings and the run path reaches no AI module. The current duration result does not satisfy the ceiling.",
+      "evidence_required": [
+        "verify:failure-capture-overhead"
+      ]
+    },
+    {
+      "id": "L4A-DIAGNOSTICS",
+      "description": "Every L4a family is covered by the engine rule table with Flow and Workflow parity and legacy profiles still validating.",
+      "evidence_required": [
+        "verify:authoring-diagnostics"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck and bundles pass on the final state.",
+      "evidence_required": [
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ui-error-evidence",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ui-error-evidence",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "74/74 on the final state: 14 concurrent executions through the real engine; seven mutations (collector disconnected, response listener never attached, buffer dropping UI events, report omitting diagnostics, protected-login guard disabled, report written before a cancelled runner unwinds, listeners never detached) each caught."
+    },
+    {
+      "id": "verify:failure-capture-overhead",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:failure-capture-overhead",
+      "artifact": null,
+      "result": "FAIL",
+      "observed": "13 PASS / 2 FAIL on the current six paired development-host rounds: +326 ms fast median versus a +193.4 ms limit and +380 ms evidence median versus a +341.6 ms limit. Node CPU (+122.5 ms per instance), 3.7 KB evidence, listener and Chromium cleanup, and no-AI import closure passed. Limits remain proposed and unapproved."
+    },
+    {
+      "id": "verify:authoring-diagnostics",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:authoring-diagnostics",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "94/94; verify:validation 163/163, verify:legacy-compat 152/152, verify:branch-pairs 40/40, verify:wait-validation 107/107 and verify:assertion-validation 77/77 after correcting four fixtures that bound a runtime input without a key."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build passed on the final product state."
+    },
+    {
+      "id": "verify:flow-designer",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:flow-designer",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "138/138 preserved broad GUI checks plus 16/16 focused loop-capsule checks; the focused suite completed durable reload, history and accessibility paths."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "blocked",
+    "qa_status": "FAIL",
+    "qa_basis": "L4a family, compatibility and full GUI evidence pass. L5a real-browser capture, persistence, privacy and cleanup pass, but its required duration gate is currently failing and therefore cannot be represented as complete.",
+    "qa_known_limitations": "This preserved combined draft is not used as a direct-main product-work gate. A later task-specific project-state contract is required to close a Beads item. L5a requires an engineering correction or explicit default-policy decision, a passing rerun, and then owner approval of a release ceiling. L1 real-model gates remain BLOCKED by the missing approved runtime/model pack. No independent QC review was run.",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

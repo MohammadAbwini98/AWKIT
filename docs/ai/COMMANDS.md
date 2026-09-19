@@ -403,7 +403,18 @@ npm run verify:ai-redaction       # prompt redaction, nonce-delimited injection 
 npm run verify:ai-fallback        # degraded modes make zero host calls; run path and renderer cannot reach the model (36)
 npm run verify:ai-model-pack      # GGUF/size/SHA-256 import, tamper detection, retirement, replacement (46)
 npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceiling-bounded tiers, persistence on disk (30)
-# verify:ai-model-live and the L1.8 benchmark do not exist yet: they need the runtime binding (owner decision).
+npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)
+npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
+npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
+npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings; NOT RUN without runtime + pack
+
+# ── Authoring diagnostics and failure evidence (Phase L, L4a / L5a) — no model ─────────────────────
+npm run verify:authoring-diagnostics  # L4a family matrix over FlowValidator/PreRunValidator/FlowDependencyResolver,
+                                      # legacy profile, FlowExecutor premises, one designer implementation (94)
+npm run verify:failure-cause-baseline # L5a evidence buffer (masking, caps, dedupe, retraction) + cause baseline (60)
+npm run verify:ui-error-evidence      # L5a end to end: 14 concurrent runs, real engine + Chromium + mock site,
+                                      # read back from report.json; protected-login exclusion, cancel, handoff (74)
+npm run verify:failure-capture-overhead # L5a capture ON vs OFF (ABBA), ceilings, leaks, zero-AI import closure (15)
 
 # ── Semantic index / Zvec native host ──────────────────────────────────────────────────────────
 # Reachable from NO product surface yet. `prepare:zvec-host` MUST run before any live verifier:
