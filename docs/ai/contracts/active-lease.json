@@ -2,7 +2,7 @@
   "task": "awkit-djnl.5",
   "contract_path": "docs/ai/contracts/awkit-djnl.5.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
@@ -40,5 +40,8 @@
     }
   ],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-19T15:44:01.805Z",
+  "released_reason": "terminal L4a closeout after verified authoring and Flow Designer evidence",
+  "archived_at": "2026-09-19T15:44:01.807Z"
 }
