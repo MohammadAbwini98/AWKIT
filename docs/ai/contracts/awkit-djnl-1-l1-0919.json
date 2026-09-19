@@ -130,6 +130,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-1-l1-0919:release:2026-09-19T10:38:04.806Z",
+        "task": "awkit-djnl-1-l1-0919",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "src/offline/AiModelManifest.ts"
+        ],
+        "acquired_at": "2026-09-19T10:38:04.806Z",
+        "acquired_at_commit": "533217d3a7ead357365cc74e61a67a9d3686bdc3",
+        "released_at": "2026-09-19T10:39:57.996Z",
+        "released_reason": "AiModelManifest committed in 735fa90, verify:ai-model-pack 46/46 with a caught validator mutation",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

@@ -14,6 +14,15 @@ import type {
   SemanticStatusView,
   SimilarFailureRequest
 } from "@src/semantic/contracts/SemanticApi";
+import type {
+  AiAdminResponse,
+  AiAuditView,
+  AiDiagnosticsView,
+  AiSettingsView,
+  AiStatusView
+} from "@src/ai/contracts/AiApi";
+import type { AiSettingsPatch } from "@src/ai/AiSettings";
+import type { AiFeatureId } from "@src/security/authz/AiAutonomyPolicy";
 import type { RunWorkflowRequest } from "./ipc/execution.ipc";
 import type { FlowValidationStatusDto as FlowValidationStatus } from "./ipc/validation.ipc";
 import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
@@ -374,6 +383,22 @@ const api = {
     getSettings: () => invoke("semantic:getSettings") as Promise<SemanticSettingsView>,
     updateSettings: (patch: SemanticSettingsPatch) =>
       invoke("semantic:updateSettings", patch) as Promise<SemanticAdminResponse>
+  },
+  /**
+   * Optional local AI (Phase L, L1). Status, settings, the model pack, diagnostics, the audit log and
+   * revert only: there is no channel that runs a prompt, names a model file or returns a path. Every
+   * method is authorized in main; settings, restore, import and remove also require re-authentication.
+   */
+  ai: {
+    getStatus: () => invoke("ai:getStatus") as Promise<AiStatusView>,
+    getSettings: () => invoke("ai:getSettings") as Promise<AiSettingsView>,
+    updateSettings: (patch: AiSettingsPatch) => invoke("ai:updateSettings", patch) as Promise<AiAdminResponse>,
+    restoreFeature: (feature: AiFeatureId) => invoke("ai:restoreFeature", feature) as Promise<AiAdminResponse>,
+    getDiagnostics: () => invoke("ai:getDiagnostics") as Promise<AiDiagnosticsView>,
+    listAudit: (page?: { limit?: number; offset?: number }) => invoke("ai:listAudit", page) as Promise<AiAuditView>,
+    revert: (actionId: string) => invoke("ai:revert", actionId) as Promise<AiAdminResponse>,
+    importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
+    removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>
   },
   executions: {
     list: () => invoke("execution:list") as Promise<unknown[]>,

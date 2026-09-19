@@ -13,6 +13,8 @@
  * Run: npm run verify:ai-permissions
  */
 
+import { readFile } from "node:fs/promises";
+
 import {
   ALL_PERMISSIONS,
   BUILTIN_ROLES,
@@ -87,6 +89,48 @@ console.log("\nEffective-permission computation:\n");
   const viewerGrant = effectivePermissions({ roles: ["Viewer"], grants: [Permission.AI_USE, "ai.admin", "ai.*"] });
   check("a direct grant can give a Viewer AI use", viewerGrant.has(Permission.AI_USE));
   check("unknown AI-looking permission strings are ignored", !viewerGrant.has("ai.admin" as never) && !viewerGrant.has("ai.*" as never));
+}
+
+console.log("\nEvery AI channel is gated in main, and the preload exposes exactly those channels:\n");
+{
+  // The expected gate per channel, restated here: [permissions asserted, requires re-authentication].
+  const EXPECTED_CHANNELS: Record<string, [string[], boolean]> = {
+    "ai:getStatus": [["AI_USE"], false],
+    "ai:getSettings": [["AI_MANAGE"], false],
+    "ai:updateSettings": [["AI_MANAGE"], true],
+    "ai:restoreFeature": [["AI_MANAGE"], true],
+    "ai:getDiagnostics": [["AI_AUDIT_VIEW"], false],
+    "ai:listAudit": [["AI_AUDIT_VIEW"], false],
+    "ai:revert": [["AI_AUDIT_VIEW", "WORKFLOW_EDIT"], false],
+    "ai:importModelPack": [["AI_MANAGE"], true],
+    "ai:removeModelPack": [["AI_MANAGE"], true]
+  };
+  const source = await readFile("app/main/ipc/ai.ipc.ts", "utf8");
+  // One block per handler: from its `ipcMain.handle("ai:…"` to the next one.
+  const blocks = source.split(/ipcMain\.handle\(/).slice(1).map((block) => ({ channel: /^"([^"]+)"/.exec(block)?.[1] ?? "", body: block }));
+  const channels = blocks.map((b) => b.channel).sort();
+  check("the handler file registers exactly the expected channels", channels.join() === Object.keys(EXPECTED_CHANNELS).sort().join(), channels.join());
+  for (const { channel, body } of blocks) {
+    const expected = EXPECTED_CHANNELS[channel];
+    if (!expected) continue;
+    const asserted = [...body.matchAll(/Permission\.([A-Z_]+)/g)].map((m) => m[1]).sort();
+    check(`${channel} asserts ${expected[0].join(" + ")}`, asserted.join() === [...expected[0]].sort().join(), asserted.join());
+    const sensitive = /authorize\(event, Permission\.[A-Z_]+, true\)/.test(body);
+    check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
+    const gate = body.search(/assertSenderPermission|authorize\(/);
+    const action = body.search(
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|importAiModelPack|removeAiModelPack|showOpenDialog/
+    );
+    check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
+  }
+
+  const preload = await readFile("app/main/preload.ts", "utf8");
+  const aiBlock = /\n  ai: \{([^]*?)\n  \},/.exec(preload)?.[1] ?? "";
+  const exposed = [...aiBlock.matchAll(/invoke\("(ai:[A-Za-z]+)"/g)].map((m) => m[1]).sort();
+  check("the preload has an ai namespace to inspect", aiBlock.length > 0);
+  check("the preload exposes exactly the gated channels", exposed.join() === Object.keys(EXPECTED_CHANNELS).sort().join(), exposed.join());
+  const everyAiInvoke = [...preload.matchAll(/invoke\("(ai:[A-Za-z]+)"/g)].map((m) => m[1]);
+  check("no ai channel is invoked outside that namespace", everyAiInvoke.length === exposed.length, everyAiInvoke.join());
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

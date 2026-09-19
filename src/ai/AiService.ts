@@ -35,17 +35,24 @@ import {
   type AiInferResult
 } from "./contracts/AiHostProtocol";
 
-export const AI_SERVICE_LIMITS = Object.freeze({
-  maxQueue: 16,
+export interface AiServiceLimits {
+  maxQueue: number;
   /** Times one job may be pushed back to the queue by active runs before it gives up. */
+  maxYields: number;
+  maxJobTimeoutMs: number;
+  /** How often a running job re-checks admission, i.e. the bound on how late it yields. */
+  yieldCheckMs: number;
+  /** How often held work re-checks admission. */
+  admissionRetryMs: number;
+}
+
+export const AI_SERVICE_LIMITS: Readonly<AiServiceLimits> = Object.freeze({
+  maxQueue: 16,
   maxYields: 3,
   maxJobTimeoutMs: 120_000,
-  /** How often a running job re-checks admission, i.e. the bound on how late it yields. */
   yieldCheckMs: 250,
-  /** How often held work re-checks admission. */
   admissionRetryMs: 1_000
 });
-export type AiServiceLimits = typeof AI_SERVICE_LIMITS;
 
 export type AiJobPriority = "interactive" | "background";
 
@@ -124,6 +131,8 @@ export interface AiServiceDeps {
   /** Null when the runtime is not part of this build. */
   transport: () => AiHostTransport | null;
   model: () => Promise<AiModelResolution>;
+  /** Full checksum check before a load (the model pack caches it per session). False refuses the load. */
+  verifyModel?: (model: Extract<AiModelResolution, { ok: true }>) => Promise<boolean>;
   settings: () => Promise<AiServiceSettings>;
   admission: () => AiAdmissionView;
   threads: number;
@@ -233,6 +242,13 @@ export class AiService {
   /** Re-check admission now, e.g. when a run finishes. */
   notifyAdmissionChanged(): void {
     void this.pump();
+  }
+
+  /** Unload the model now if nothing is running or queued, e.g. before its file is replaced. */
+  releaseModel(): Promise<void> {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    return this.unloadIfIdle();
   }
 
   async status(): Promise<AiServiceStatus> {
@@ -427,6 +443,10 @@ export class AiService {
     if (this.loadedModelId === model.modelId) return "ready";
     this.loading = true;
     try {
+      if (this.deps.verifyModel && !(await this.deps.verifyModel(model).catch(() => false))) {
+        this.lastError = "AI_MODEL_LOAD_FAILED";
+        return { status: "failed", code: "LOAD_FAILED", yields: 0 };
+      }
       await transport.call(
         { type: "load", modelPath: model.modelPath, contextTokens: Math.min(model.contextTokens, AI_CONTEXT_TOKENS), threads: this.deps.threads },
         AI_HOST_TIMEOUTS.loadMs

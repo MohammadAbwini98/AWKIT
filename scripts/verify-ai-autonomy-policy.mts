@@ -10,6 +10,9 @@
  * table; any T3 input that reaches observe/suggest/autoApply; any configuration value that lifts a
  * feature above its ceiling or T2; a demotion that trips below the minimum sample or on T1 records.
  *
+ * The configuration half is checked too: the dedicated AI settings store refuses a tier above a
+ * ceiling, and reads a tampered or corrupt file fail-closed.
+ *
  * Run: npm run verify:ai-autonomy-policy
  */
 
@@ -27,7 +30,12 @@ import {
   type AiPolicyConfig,
   type AiSelfDemotionFact
 } from "@src/security/authz/AiAutonomyPolicy";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { AI_ACTION_RECORD_RETENTION } from "@src/ai/AiActionRecord";
+import { AiSettingsStore, DEFAULT_AI_SETTINGS, normalizeAiSettings, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
 
 let passed = 0;
 let failed = 0;
@@ -259,6 +267,53 @@ console.log("\nSelf-demotion:\n");
   check("a feature whose ceiling is below T2 never demotes", !evaluateSelfDemotion("locatorRepair", facts(min, min, { feature: "locatorRepair" }), now).demote);
   const demotedDecision = decideAiAction("locatorSemanticUpgrade", "locatorChange", { step: SAFE_STEP, proofSatisfied: true }, config(true, "locatorSemanticUpgrade", "T2", true));
   check("a demoted T2 feature suggests instead of auto-applying", demotedDecision.decision === "suggest" && demotedDecision.tier === "T1", JSON.stringify(demotedDecision));
+}
+
+console.log("\nThe settings store can only lower a feature, and reads fail closed:\n");
+{
+  const accepts = (label: string, patch: unknown): void => check(`accepts ${label}`, sanitizeAiSettingsPatch(patch).ok);
+  const refuses = (label: string, patch: unknown): void => check(`refuses ${label}`, !sanitizeAiSettingsPatch(patch).ok);
+  accepts("lowering the T2 feature to T0", { featureTiers: { locatorSemanticUpgrade: "T0" } });
+  accepts("restoring a feature to its ceiling", { featureTiers: { locatorSemanticUpgrade: "T2", locatorRepair: "T1" } });
+  refuses("raising a T1 feature to T2", { featureTiers: { locatorRepair: "T2" } });
+  refuses("raising a T0 feature to T1", { featureTiers: { failureAnalysis: "T1" } });
+  refuses("a T3 tier", { featureTiers: { locatorSemanticUpgrade: "T3" } });
+  refuses("an unknown feature", { featureTiers: { rogueFeature: "T0" } });
+  refuses("a non-boolean switch", { enabled: "yes" });
+  refuses("an out-of-range idle unload", { idleUnloadMinutes: 241 });
+  refuses("a fractional idle unload", { idleUnloadMinutes: 1.5 });
+  const dropped = sanitizeAiSettingsPatch({ enabled: true, cloudEndpoint: "https://api.example.com" });
+  check("drops unknown keys such as a cloud endpoint", dropped.ok && !("cloudEndpoint" in dropped.value), JSON.stringify(dropped));
+
+  const defaults = normalizeAiSettings(undefined);
+  check("AI is off by default", defaults.enabled === false && JSON.stringify(defaults) === JSON.stringify({ ...DEFAULT_AI_SETTINGS, featureTiers: {} }));
+  check("yield-during-runs is on by default", defaults.yieldDuringRuns === true);
+  const tampered = normalizeAiSettings({ enabled: true, featureTiers: { locatorRepair: "T2", failureAnalysis: "banana", rogue: "T2" } });
+  check("an over-ceiling stored tier reads as T0, not the ceiling", tampered.featureTiers.locatorRepair === "T0");
+  check("a garbage stored tier reads as T0", tampered.featureTiers.failureAnalysis === "T0");
+  check("an unknown stored feature is dropped", !("rogue" in tampered.featureTiers));
+  check(
+    "so a tampered file can never auto-apply a T1 feature",
+    decideAiAction("locatorRepair", "locatorChange", { step: SAFE_STEP, proofSatisfied: true }, { enabled: true, featureTiers: tampered.featureTiers }).decision === "observe"
+  );
+
+  const dir = await mkdtemp(join(tmpdir(), "awkit-ai-settings-"));
+  try {
+    const file = join(dir, "ai", "ai-settings.json");
+    const store = new AiSettingsStore(file, () => undefined);
+    check("a missing file reads as the defaults", (await store.read()).enabled === false);
+    await store.update({ enabled: true, featureTiers: { locatorSemanticUpgrade: "T1" } });
+    const reread = await new AiSettingsStore(file, () => undefined).read();
+    check("an update persists", reread.enabled === true && reread.featureTiers.locatorSemanticUpgrade === "T1");
+    await store.update({ featureTiers: {} });
+    check("featureTiers replaces rather than merges (restoring every ceiling)", Object.keys((await store.read()).featureTiers).length === 0);
+    check("other fields survive a partial update", (await store.read()).enabled === true);
+    await writeFile(file, "{ not json", "utf8");
+    check("a corrupt file reads as AI off", (await new AiSettingsStore(file, () => undefined).read()).enabled === false);
+    check("and its bytes are preserved", (await readdir(join(dir, "ai"))).some((name) => name.includes(".corrupt-")));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

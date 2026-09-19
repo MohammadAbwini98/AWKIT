@@ -238,6 +238,20 @@ console.log("\nThe renderer cannot run a prompt:\n");
     }
   }
   check("no renderer module imports the service, host protocol, prompt builder or fake", offenders.length === 0, offenders.join("; "));
+
+  // The bridge is the renderer's only way in. It must exist (so this is not vacuous) and must offer
+  // no channel shaped like prompting, loading, spawning or naming a file.
+  const preload = await readFile(join(REPO, "app/main/preload.ts"), "utf8");
+  const aiChannels = [...preload.matchAll(/invoke\("(ai:[A-Za-z]+)"/g)].map((m) => m[1]);
+  check("the preload exposes an ai namespace to inspect", aiChannels.length >= 5, aiChannels.join(","));
+  const shaped = aiChannels.filter((channel) => /infer|prompt|submit|complete|chat|generate|load(?!Model)|spawn|exec|path|file/i.test(channel));
+  check("no ai channel can run a prompt, spawn a process or name a file", shaped.length === 0, shaped.join(","));
+  const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
+  check(
+    "only settings, a feature id, an audit page and an action id cross the bridge",
+    argumentsTaken.every((call) => /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\))$/.test(call)),
+    argumentsTaken.join(",")
+  );
 }
 
 clearInterval(keepAlive);

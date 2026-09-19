@@ -79,6 +79,7 @@ interface HarnessOptions {
   fake?: FakeAiHostOptions;
   settings?: Partial<AiServiceSettings>;
   model?: AiModelResolution;
+  verifyModel?: () => Promise<boolean>;
   expectedRuntimeBuild?: string;
   maxQueue?: number;
   maxYields?: number;
@@ -91,6 +92,7 @@ function harness(options: HarnessOptions = {}) {
   const service = new AiService({
     transport: () => fake,
     model: async () => options.model ?? { ok: true, modelId: "qwen-test", modelPath: join(ROOT, "model.gguf"), contextTokens: 8192 },
+    verifyModel: options.verifyModel,
     settings: async () => settings,
     admission: () => view,
     threads: 3,
@@ -307,6 +309,22 @@ console.log("\nCrash, restart and the circuit:\n");
   const outcome = await service.submit(job("m1"));
   check("a model path outside the model root is refused by the host", code(outcome) === "failed/LOAD_FAILED", code(outcome));
   await service.shutdown();
+}
+{
+  let checks = 0;
+  const { fake, service } = harness({
+    verifyModel: async () => {
+      checks += 1;
+      return false;
+    }
+  });
+  const outcome = await service.submit(job("sum1"));
+  check("a model failing its checksum is never loaded", code(outcome) === "failed/LOAD_FAILED" && !fake.requestTypes().includes("load"), fake.requestTypes().join(","));
+  check("the checksum was consulted before the load", checks === 1);
+  await service.shutdown();
+  const passing = harness({ verifyModel: async () => true });
+  check("a model passing its checksum loads and runs", (await passing.service.submit(job("sum2"))).status === "ok" && passing.fake.requestTypes().includes("load"));
+  await passing.service.shutdown();
 }
 
 console.log("\nYield to Playwright:\n");

@@ -7,6 +7,7 @@ import { updateUiSettings, flushSettingsWrites, getUiSettings } from "./uiSettin
 import { disposeOracleServices } from "./oracleService";
 import { disposeSecurityKernel } from "./security/securityKernel";
 import { disposeSemanticSubsystem, initializeSemanticSubsystem } from "./semantic/semanticService";
+import { disposeAiSubsystem } from "./ai/aiRuntime";
 import { initializeLicensingRuntime } from "./licensing/licenseRuntime";
 import { startLicenseEnforcementWatcher, stopLicenseEnforcementWatcher } from "./licensing/licenseEnforcementService";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
@@ -226,10 +227,15 @@ if (!gotSingleInstanceLock) {
     // mutation queue and any in-flight rebuild, and that budget belongs to whoever registered the
     // index runtime — so the ceiling lives HERE, where quitting is actually owned. Losing the race
     // leaves the semantic session marked unclean, which is exactly what makes the next startup
-    // reconcile it; that is a better outcome than an application that will not exit.
+    // reconcile it; that is a better outcome than an application that will not exit. The local-AI
+    // host (Phase L) shuts down in parallel under the same ceiling: queued work is rejected, running
+    // inference cancelled, and the utility process asked to exit, then terminated.
     const stage1 = (): Promise<unknown> => {
       const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
-      return Promise.race([disposeSemanticSubsystem().catch(() => undefined), timeout]);
+      return Promise.race([
+        Promise.all([disposeSemanticSubsystem().catch(() => undefined), disposeAiSubsystem().catch(() => undefined)]),
+        timeout
+      ]);
     };
 
     void stage1()

@@ -1,0 +1,103 @@
+/**
+ * Local-AI IPC (Phase L, L1.1 and L1.5).
+ *
+ * Every channel is authorized in the MAIN process before it touches the subsystem; the renderer's
+ * checks only decide what to render. There is deliberately no channel that runs a prompt, names a
+ * model file or returns a filesystem path: model import opens its file dialog here, in main.
+ *
+ * Read channels throw on denial (nothing for the renderer to recover); mutating channels answer with
+ * a code, because a stale re-authentication window on `ai.manage` is the ordinary case for an
+ * authorized administrator and the UI must be able to prompt and retry (the semantic IPC pattern).
+ */
+
+import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
+
+import {
+  authorizeAiAction,
+  sanitizeActionId,
+  sanitizeAuditPage,
+  sanitizeFeatureId,
+  type AiAdminResponse,
+  type AiAuditView,
+  type AiDiagnosticsView,
+  type AiSettingsView,
+  type AiStatusView
+} from "@src/ai/contracts/AiApi";
+import { Permission } from "@src/security/authz/Permissions";
+
+import { assertSenderPermission } from "../security/sessionContext";
+import {
+  aiAuditView,
+  aiDiagnosticsView,
+  aiSettingsView,
+  aiStatusView,
+  importAiModelPack,
+  removeAiModelPack,
+  restoreAiFeature,
+  revertAiActionFromAudit,
+  updateAiSettings
+} from "../ai/aiRuntime";
+
+async function authorize(event: IpcMainInvokeEvent, permission: Permission, sensitive: boolean): Promise<AiAdminResponse | null> {
+  const auth = await authorizeAiAction(() => assertSenderPermission(event, permission, { sensitive }));
+  return auth.ok ? null : { code: auth.code, ok: false, message: auth.message };
+}
+
+export function registerAiIpc(): void {
+  ipcMain.handle("ai:getStatus", async (event): Promise<AiStatusView> => {
+    await assertSenderPermission(event, Permission.AI_USE);
+    return aiStatusView();
+  });
+
+  ipcMain.handle("ai:getSettings", async (event): Promise<AiSettingsView> => {
+    await assertSenderPermission(event, Permission.AI_MANAGE);
+    return aiSettingsView();
+  });
+
+  ipcMain.handle("ai:updateSettings", async (event, patch: unknown): Promise<AiAdminResponse> => {
+    return (await authorize(event, Permission.AI_MANAGE, true)) ?? updateAiSettings(patch);
+  });
+
+  ipcMain.handle("ai:restoreFeature", async (event, feature: unknown): Promise<AiAdminResponse> => {
+    const denied = await authorize(event, Permission.AI_MANAGE, true);
+    if (denied) return denied;
+    const id = sanitizeFeatureId(feature);
+    return id ? restoreAiFeature(id) : { code: "INVALID_REQUEST", ok: false, message: "Unknown AI feature." };
+  });
+
+  ipcMain.handle("ai:getDiagnostics", async (event): Promise<AiDiagnosticsView> => {
+    await assertSenderPermission(event, Permission.AI_AUDIT_VIEW);
+    return aiDiagnosticsView();
+  });
+
+  ipcMain.handle("ai:listAudit", async (event, page: unknown): Promise<AiAuditView> => {
+    await assertSenderPermission(event, Permission.AI_AUDIT_VIEW);
+    return aiAuditView(sanitizeAuditPage(page));
+  });
+
+  // Reverting restores a saved flow, so it needs the flow-edit permission as well as the audit view.
+  ipcMain.handle("ai:revert", async (event, actionId: unknown): Promise<AiAdminResponse> => {
+    const denied = (await authorize(event, Permission.AI_AUDIT_VIEW, false)) ?? (await authorize(event, Permission.WORKFLOW_EDIT, false));
+    if (denied) return denied;
+    const id = sanitizeActionId(actionId);
+    return id ? revertAiActionFromAudit(id) : { code: "INVALID_REQUEST", ok: false, message: "Unknown AI action." };
+  });
+
+  ipcMain.handle("ai:importModelPack", async (event): Promise<AiAdminResponse> => {
+    const denied = await authorize(event, Permission.AI_MANAGE, true);
+    if (denied) return denied;
+    const owner = BrowserWindow.fromWebContents(event.sender);
+    const options: Electron.OpenDialogOptions = {
+      title: "Import AI model pack",
+      properties: ["openFile"],
+      filters: [{ name: "GGUF model pack", extensions: ["gguf"] }]
+    };
+    const picked = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+    if (picked.canceled || !picked.filePaths[0]) return { code: "IMPORT_CANCELLED", ok: false };
+    return importAiModelPack(picked.filePaths[0]);
+  });
+
+  ipcMain.handle("ai:removeModelPack", async (event): Promise<AiAdminResponse> => {
+    return (await authorize(event, Permission.AI_MANAGE, true)) ?? removeAiModelPack();
+  });
+}

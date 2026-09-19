@@ -278,7 +278,8 @@
     "verify:ai-permissions": "tsx scripts/verify-ai-permissions.mts",
     "verify:ai-adapter": "tsx scripts/verify-ai-adapter.mts",
     "verify:ai-redaction": "tsx scripts/verify-ai-redaction.mts",
-    "verify:ai-fallback": "tsx scripts/verify-ai-fallback.mts"
+    "verify:ai-fallback": "tsx scripts/verify-ai-fallback.mts",
+    "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

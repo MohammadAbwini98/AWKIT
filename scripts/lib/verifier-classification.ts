@@ -390,6 +390,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "static-source-validation",
     why: "Degraded modes (switch off, no runtime, no/invalid model, open circuit, throwing providers) return codes with zero host calls, plus resolved-import scans proving the execution tree cannot import src/ai and the renderer cannot import the inference machinery."
   },
+  "verify:ai-model-pack": {
+    class: "integration",
+    why: "Real temp-folder AiModelPackStore with synthetic GGUF files and an injected manifest: format/size/checksum refusals leave nothing behind, single-pass hashed import, cheap status plus once-per-session load verification catching tamper/truncate/delete, retirement, replacement sweep and removal; then checks the production AiModelManifest entries."
+  },
   "verify:ai-audit-revert": {
     class: "integration",
     why: "Real temp-folder AiActionStore and JsonProfileStore: record sanitization and retention, concurrent atomic appends, persisted self-demotion, and compare-and-swap revert through the flow folder lane (stale refusal, exact restore, lost-audit revert)."

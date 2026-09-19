@@ -438,6 +438,36 @@ export class ExecutionEngine {
     return this.backpressure.snapshot(active, queued, { target: this.adaptive.currentTarget, state: this.adaptive.currentState });
   }
 
+  /**
+   * Read-only view for local-AI admission (Phase L, L1.6). The engine never calls the AI service: the
+   * service reads this and yields, so no run can wait on a model. Manual-action and paused instances
+   * count as active because they still hold real browser capacity (AWKIT-RUN-007).
+   */
+  public getAiAdmissionView(): {
+    activeRuns: number;
+    queuedRuns: number;
+    pressureState: string;
+    dispatchBlocked: boolean;
+    activeWeight: number;
+    weightedBudget: number;
+    freeMemoryMb: number;
+    minFreeMemoryMb: number;
+  } {
+    const list = this.pool.list();
+    const capacity = this.getCapacitySnapshot();
+    const limits = this.browserPool.concurrencyLimits;
+    return {
+      activeRuns: list.filter((i) => ["starting", "running", "waitingForManualAction", "paused"].includes(i.status)).length,
+      queuedRuns: list.filter((i) => ["queued", "pending"].includes(i.status)).length,
+      pressureState: normalizePressureState(this.adaptive.currentState),
+      dispatchBlocked: capacity.dispatchBlocked,
+      activeWeight: this.activeWeightedCost(),
+      weightedBudget: weightedBudget(limits.maxActiveFlows, limits.workloadWeightBudgetPerFlow),
+      freeMemoryMb: capacity.freeMemoryMb,
+      minFreeMemoryMb: limits.minFreeMemoryMb
+    };
+  }
+
   /** Lock-table debug view (profile/downloadDir/origin/account counts + stale leases). */
   public getLockSnapshot(): LockDebugSnapshot {
     return buildLockDebugSnapshot(globalResourceLocks.snapshot(false));
