@@ -1,27 +1,24 @@
 {
-  "task": "awkit-djnl.3",
-  "contract_path": "docs/ai/contracts/awkit-djnl.3.json",
+  "task": "awkit-djnl.4",
+  "contract_path": "docs/ai/contracts/awkit-djnl.4.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
-    "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl.3.json",
-    "docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-djnl.4.json"
   ],
-  "acquired_at": "2026-09-19T20:19:33.494Z",
-  "acquired_at_commit": "6c28d46f8ba03c29c1058490a21105f45bce4472",
+  "acquired_at": "2026-09-19T21:15:58.266Z",
+  "acquired_at_commit": "6ba56b8189b30172294f8fb8df99b40aaaf23b5f",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl.3.json"
+    "docs/ai/contracts/awkit-djnl.4.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl.3.json": "6b5b191f4fa04baecee5f21922962e52de03d1bca9afd457cfafc18ed64b0775"
+    "docs/ai/contracts/awkit-djnl.4.json": "24bfc42344ea5a4f50ee615ceacf5f63c228f2b32a8120421ac463fc2d8accc8"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -33,22 +30,10 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789762718948.7537"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-09-19T20:21:18.282Z",
-      "added": [
-        "scripts/verify-roadmap-dashboard.mjs"
-      ],
-      "reason": "closing awkit-djnl.3 moves the hardcoded tracker pin 11/291 to 10/292",
-      "triggered_escalation": [
-        "qa"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-19T20:21:18.283Z",
-  "released_reason": "amendment added paths outside project-state's ownership (scripts/verify-roadmap-dashboard.mjs) — routing re-run requires a different specialist",
-  "archived_at": "2026-09-19T20:21:18.284Z"
+  "released_at": "2026-09-19T21:16:33.689Z",
+  "released_reason": "awkit-djnl.4-moved-to-in_progress-and-exported",
+  "archived_at": "2026-09-19T21:16:33.691Z"
 }

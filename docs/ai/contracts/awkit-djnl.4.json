@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl.4",
+    "title": "Phase L L3 tracker state: open to in_progress after sections 2-5 were built",
+    "objective": "Move awkit-djnl.4 from open to in_progress in Beads because L3 sections 2-5 are implemented and verified on main (0811804, b92d4a9, docs 6ba56b8): verify:locator-plan 53/53, verify:locator-upgrade-proof 75/75, npm run build PASS. Covers only the project-state transition; it does not close L3, whose sections 6-10 remain unbuilt and which still depends on the L1 go/no-go.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6ba56b8189b30172294f8fb8df99b40aaaf23b5f",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl.4.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-djnl.4.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L3-PROOF-REPLAY",
+      "description": "L3 sections 4-5: real-browser proof gates and pending upgrades with replay proof are implemented and verified; the saved locator is never replaced.",
+      "evidence_required": [
+        "verify:locator-upgrade-proof"
+      ]
+    },
+    {
+      "id": "L3-COMPILER",
+      "description": "L3 sections 2-3: the locator plan compiler and intent guard are implemented and verified.",
+      "evidence_required": [
+        "verify:locator-plan"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck and production bundles pass for the committed state.",
+      "evidence_required": [
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:locator-upgrade-proof",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:locator-upgrade-proof",
+      "artifact": "75/75 at b92d4a9 in real Chromium; mutations caught 71/2 and 73/2",
+      "result": "PASS"
+    },
+    {
+      "id": "verify:locator-plan",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:locator-plan",
+      "artifact": "53/53 at b92d4a9",
+      "result": "PASS"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": "tsc --noEmit and Electron/Vite production bundles passed at b92d4a9",
+      "result": "PASS"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "The status move is backed by the committed L3 sections 2-5 and their verifiers; L3 itself stays open.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl.4:project-state:2026-09-19T21:15:58.266Z",
+        "task": "awkit-djnl.4",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-djnl.4.json"
+        ],
+        "acquired_at": "2026-09-19T21:15:58.266Z",
+        "acquired_at_commit": "6ba56b8189b30172294f8fb8df99b40aaaf23b5f",
+        "released_at": "2026-09-19T21:16:33.689Z",
+        "released_reason": "awkit-djnl.4-moved-to-in_progress-and-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

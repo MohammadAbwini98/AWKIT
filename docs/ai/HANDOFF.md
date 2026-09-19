@@ -3,7 +3,10 @@
 ## HANDOFF (2026-09-20, latest) — L3 §4–§5 built (browser proof, pending upgrades, replay proof)
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
-- **Done:** see CURRENT_STATE and the L3 plan's "§4–§5 as built". `awkit-djnl.4` stays OPEN.
+- **Done:** see CURRENT_STATE and the L3 plan's "§4–§5 as built". `awkit-djnl.4` moved open → `in_progress`
+  (contract `docs/ai/contracts/awkit-djnl.4.json`); it is not closed.
+- **Trap:** the lease guard accepts only `npm run agent:lease-grant -- --task ID --holder project-state --paths
+  a,b,c`, and every rejected `npm run …` shares one denial counter (3 = terminal).
 - **Next agent work without the model:** L3 §6 promotion. This is a single-writer job through
   `JsonProfileStore.updateWith`, deferred while the flow has unsaved editor changes. It triggers on
   `evaluatePendingUpgrade(...).state === "eligible"` plus `decideAiAction(...).decision === "autoApply"`,

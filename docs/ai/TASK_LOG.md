@@ -11,7 +11,8 @@
   restored). Regression: build, typecheck:scripts, locator-plan 53, mock-site 220, runner 138, recorder 292,
   locator-guard 35, frame-chain 31, closed-shadow 23, recorder-ambiguity 74, locator-quality-class 35,
   protected-login-recorder 74, element-spy 89, ai-audit-revert 69, profile-store 74, flow-step-mapping 194.
-  NOT RUN: flow-designer GUI, validate:offline. `awkit-djnl.4` stays OPEN.
+  NOT RUN: flow-designer GUI, validate:offline. `awkit-djnl.4` moved to `in_progress` through contract
+  `awkit-djnl.4.json` and a project-state lease, with `bd export -o .beads/issues.jsonl`. It is not closed.
 
 ## 2026-09-19 — L3 locator plan compiler and intent guard; L5a methodology brief (Claude)
 
