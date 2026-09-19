@@ -1,5 +1,37 @@
 # CURRENT_STATE
 
+## L2 closed in Beads; licensing-recommendation findings reconciled, Test Lab and issuer exit contracts locked (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation
+case moved.
+
+- **L2 `awkit-djnl.3` — CLOSED** in Beads through the project-state contract
+  `docs/ai/contracts/awkit-djnl.3.json` and lease; evidence as in the section below (no L2 source changed).
+- **Licensing enforcement against queued work — already in place, re-verified:** the main-process watcher
+  applies `evaluateRunGate` on startup, every `LICENSE_REVALIDATE_INTERVAL_MS` and on window focus; a
+  `cancel-pending` disposition sweeps pending/queued instances immediately (`cancelPendingInstances`),
+  the dispatch gate re-checks before every promotion, repeated blocked passes audit once, and recovery
+  admits new runs through the normal gate. Running instances keep the allow-to-finish policy.
+  `verify:licensing` 192/192, `verify:license-dispatch-gate` 34/34.
+- **`verify:test-lab-cli-only`** now exits **0 PASS / 1 FAIL / 2 BLOCKED** (BLOCKED previously shared
+  exit 1 with FAIL), reports an unreadable bundle as BLOCKED, and reads bundles from
+  `AWKIT_TEST_LAB_BUNDLE_ROOT` (default: repository). New **`verify:test-lab-cli-only-exit`** (20/20)
+  runs it against missing, empty, stale, non-JavaScript, directory, contaminated and current fixture
+  bundles and asserts exit code and counts; the exit-0-on-BLOCKED mutation fails it 15/5.
+- **Packaged issuer spawn:** already shell-free (`process.execPath` + local tsx + argv). A failed spawn now
+  rethrows as `License issuer failed (exit N): <stderr>` with the key path replaced — Node's own error
+  echoed the full argv, key path included. `verify:issuer-key-resolution` 86/86 drives the real helper
+  with a hostile key path (raw-rethrow mutation caught, 84/86).
+- **Packaged walkthrough / clean machine — BLOCKED:** no authorized `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  on this host; L1 and L5a unchanged.
+
+**Evidence (final state):** `npm run build` PASS; `npm run typecheck:scripts` PASS (after declaring three
+capture-only locator fields in `verify-recorder-locator.mts`'s local type — it failed 4 errors before);
+`verify:test-lab-cli-only` 24/24; `verify:test-lab-cli-only-exit` 20/20; `verify:issuer-key-resolution`
+86/86; `verify:licensing` 192/192; `verify:license-dispatch-gate` 34/34; `verify:runner` 138/138;
+`verify:mock-site` 208/208; `verify:source-hygiene` 11/11; `validate:offline` PASS (dev mode);
+`verify:verifier-classification` 224 classified; `git diff --check` clean.
+
 ## Phase L L2 complete: Element Spy (independent, permission-gated) and capture-time upgrade context (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation

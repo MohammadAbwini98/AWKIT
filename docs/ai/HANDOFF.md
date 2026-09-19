@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L2 complete (Element Spy + upgrade context); L5a gate and L1 still wait on the owner
+## HANDOFF (2026-09-19, latest) — L2 closed in Beads; licensing-recommendation findings reconciled
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** `awkit-djnl.3` CLOSED through a project-state contract and lease
+  (`docs/ai/contracts/awkit-djnl.3.json`); `.beads/issues.jsonl` exported.
+- **Licensing recommendations (external `Licensing Enforcement Recommendations.txt`, not in the repo):**
+  four of its six findings were already fixed on `main` before this session and were re-verified, not
+  re-implemented: the interval/focus revalidation sweep (`licenseEnforcementService.ts`, since
+  `d2df8e3`/`56739ea`), the shell-free issuer spawn (`packaged-license.mts`), the `awkit-1cc` roadmap
+  comment and the `gui-verify-harness.mjs` whitespace. `6c28d46` closed the real remaining gaps: the Test
+  Lab artifact verifier now exits **2** on BLOCKED (was 1, same as FAIL), with a new fixture-driven exit
+  contract gate `verify:test-lab-cli-only-exit`, and a failed issuer spawn no longer leaks the key path
+  through Node's echoed argv.
+- **Owner decisions needed (unchanged):** L5a gate methodology; L1 acquisition.
+- **Not run:** packaged walkthrough and clean-machine (no authorized issuer key
+  `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` on this host, BLOCKED); Element Spy mutation run (still NOT RUN).
+- **Trap:** the lease guard refuses `<` and `>` anywhere in a shell command, so a `git commit -m`
+  attribution line must be written `(Co-Authored-By: Claude Opus 5)` without the angle-bracket address.
+
+## HANDOFF (2026-09-19, superseded) — L2 complete (Element Spy + upgrade context); L5a gate and L1 still wait on the owner
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** L2 tasks 4 and 5 (see `docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md` status).

@@ -588,8 +588,10 @@ try {
   // and L5a `.7`). Closing removes no dependency edge, so the edge pin below stays at 134.
   // Then 11/291 of 302 on 2026-09-19: L4a `awkit-djnl.5` closed with its diagnostics and complete
   // Flow Designer evidence. One bead crossed from outstanding to closed; no edge changed.
-    "11 outstanding / 291 closed",
-    beads.stats.outstanding === 11 && beads.stats.closed === 291,
+  // Then 10/292 of 302 on 2026-09-19: L2 `awkit-djnl.3` closed (Element Spy and upgrade context)
+  // through contract `awkit-djnl.3`. One bead crossed from outstanding to closed; no edge changed.
+    "10 outstanding / 292 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 292,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

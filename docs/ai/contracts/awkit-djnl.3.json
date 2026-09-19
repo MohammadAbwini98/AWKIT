@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl.3",
+    "title": "Phase L L2 tracker closeout plus licensing-findings reconciliation",
+    "objective": "Close L2's Beads item after its committed implementation (df5b487, docs 68b2263) and final evidence: verify:element-spy 89/89, verify:recorder 292/292, verify:recorder-gui 205/0/0, npm run build PASS. Record the licensing-recommendations reconciliation committed at 6c28d46 in the state documents. Covers only the project-state transition; it closes no other bead.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6c28d46f8ba03c29c1058490a21105f45bce4472",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl.3.json",
+      "docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/interactions.jsonl",
+        ".beads/issues.jsonl",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-djnl.3.json",
+        "docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md",
+        "tools/roadmap/assignments.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L2-ELEMENT-SPY",
+      "description": "Element Spy is independent, permission-gated, inspect-only, and its upgrade context is bounded and never persisted.",
+      "evidence_required": [
+        "verify:element-spy"
+      ]
+    },
+    {
+      "id": "L2-RECORDER",
+      "description": "Recorder capture, quality class and strategy chooser keep guarded-positional behavior unchanged.",
+      "evidence_required": [
+        "verify:recorder"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck and production bundles pass for the committed state.",
+      "evidence_required": [
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:element-spy",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:element-spy",
+      "artifact": "89/89 at df5b487; no Element Spy or recorder source changed since",
+      "result": "PASS"
+    },
+    {
+      "id": "verify:recorder",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder",
+      "artifact": "292/292 at df5b487; no recorder source changed since",
+      "result": "PASS"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": "tsc --noEmit and Electron/Vite production bundles passed at 6c28d46",
+      "result": "PASS"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "The committed L2 source passed every cited acceptance verifier; the Element Spy mutation test remains NOT RUN and is recorded, not claimed.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl.3:project-state:2026-09-19T20:19:33.494Z",
+        "task": "awkit-djnl.3",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/interactions.jsonl",
+          ".beads/issues.jsonl",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/active-lease.json",
+          "docs/ai/contracts/awkit-djnl.3.json",
+          "docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md",
+          "tools/roadmap/assignments.json"
+        ],
+        "acquired_at": "2026-09-19T20:19:33.494Z",
+        "acquired_at_commit": "6c28d46f8ba03c29c1058490a21105f45bce4472",
+        "released_at": "2026-09-19T20:21:18.283Z",
+        "released_reason": "amendment added paths outside project-state's ownership (scripts/verify-roadmap-dashboard.mjs) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-09-19T20:21:18.282Z",
+            "added": [
+              "scripts/verify-roadmap-dashboard.mjs"
+            ],
+            "reason": "closing awkit-djnl.3 moves the hardcoded tracker pin 11/291 to 10/292",
+            "triggered_escalation": [
+              "qa"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,23 +1,28 @@
 {
-  "task": "awkit-djnl.5",
-  "contract_path": "docs/ai/contracts/awkit-djnl.5.json",
+  "task": "awkit-djnl.3",
+  "contract_path": "docs/ai/contracts/awkit-djnl.3.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
+    "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl.5.json",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+    "docs/ai/contracts/awkit-djnl.3.json",
+    "docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md",
     "tools/roadmap/assignments.json"
   ],
-  "acquired_at": "2026-09-19T15:41:13.113Z",
-  "acquired_at_commit": "5ef5640ec810796032393e8e31ac180356edd718",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-19T20:19:33.494Z",
+  "acquired_at_commit": "6c28d46f8ba03c29c1058490a21105f45bce4472",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-djnl.3.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-djnl.3.json": "6b5b191f4fa04baecee5f21922962e52de03d1bca9afd457cfafc18ed64b0775"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -30,18 +35,20 @@
   },
   "amendments": [
     {
-      "timestamp": "2026-09-19T15:43:00.324Z",
+      "timestamp": "2026-09-19T20:21:18.282Z",
       "added": [
-        ".beads/interactions.jsonl"
+        "scripts/verify-roadmap-dashboard.mjs"
       ],
-      "reason": "bd close records the L4a close interaction beside its exported issue state",
-      "triggered_escalation": [],
+      "reason": "closing awkit-djnl.3 moves the hardcoded tracker pin 11/291 to 10/292",
+      "triggered_escalation": [
+        "qa"
+      ],
       "approved_by": "manager"
     }
   ],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-19T15:44:01.805Z",
-  "released_reason": "terminal L4a closeout after verified authoring and Flow Designer evidence",
-  "archived_at": "2026-09-19T15:44:01.807Z"
+  "released_at": "2026-09-19T20:21:18.283Z",
+  "released_reason": "amendment added paths outside project-state's ownership (scripts/verify-roadmap-dashboard.mjs) — routing re-run requires a different specialist",
+  "archived_at": "2026-09-19T20:21:18.284Z"
 }

@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-19 — L2 Beads closure and licensing-recommendation reconciliation (Claude)
+
+- **L2:** `awkit-djnl.3` closed through contract `docs/ai/contracts/awkit-djnl.3.json` and a
+  project-state lease; `bd export -o .beads/issues.jsonl`.
+- **Licensing recommendations:** the queued-work revalidation sweep, shell-free issuer spawn, stale
+  `awkit-1cc` comment and harness whitespace were already fixed on `main`; re-verified, not redone.
+- **`6c28d46`:** `verify:test-lab-cli-only` exits 2 on BLOCKED and reports unreadable bundles as BLOCKED;
+  new `verify:test-lab-cli-only-exit` (20/20, mutation caught 15/5); `mintVerificationLicense` redacts the
+  key path from issuer failures (`verify:issuer-key-resolution` 86/86, mutation caught 84/86);
+  `verify-recorder-locator.mts` local type fixed so `typecheck:scripts` passes.
+- **Files:** `scripts/verify-test-lab-cli-only.mts`, `scripts/verify-test-lab-cli-only-exit.mts` (new),
+  `scripts/helpers/packaged-license.mts`, `scripts/verify-issuer-key-resolution.mts`,
+  `scripts/verify-recorder-locator.mts`, `scripts/lib/verifier-classification.ts`, `package.json`, docs.
+- **Tests:** build, typecheck:scripts, verify:licensing 192/192, license-dispatch-gate 34/34, test-lab
+  24/24 + 20/20, issuer-key-resolution 86/86, runner 138/138, mock-site 208/208, source-hygiene 11/11,
+  validate:offline PASS, verifier-classification 224. Packaged walkthrough / clean machine BLOCKED (no
+  authorized issuer key).
+
 ## 2026-09-19 — Phase L L2 closeout: Element Spy and capture-time upgrade context (Claude)
 
 - **Recovery:** the interrupted session left uncommitted, preliminary Element Spy code (page inspect

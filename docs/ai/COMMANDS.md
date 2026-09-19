@@ -518,7 +518,7 @@ npm run verify:avatar       # tsx scripts/verify-avatar-initials.mts — initial
 npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain/RBAC/gate latch (192)
 npm run verify:roadmap-license-issuer # dashboard License Issuer page + the trusted issuer bridge (155
                             # with an authorized key present; fewer, and BLOCKED reported, without one)
-npm run verify:issuer-key-resolution  # tsx scripts/verify-issuer-key-resolution.mts (83) — awkit-uwfo:
+npm run verify:issuer-key-resolution  # tsx scripts/verify-issuer-key-resolution.mts (86) — awkit-uwfo:
                             # the ONE canonical signing-key resolver (default location, absolute
                             # SPECTER_ISSUER_KEY override, relative override refused, unresolvable
                             # profile refused, bad key ids, no cwd dependence) and all five readiness
@@ -529,6 +529,8 @@ npm run verify:issuer-key-resolution  # tsx scripts/verify-issuer-key-resolution
                             # a missing key blocking issuance while writing nothing, the renderer/IPC/
                             # history/report boundary carrying no key material, and the signed .dat
                             # imported through the production LicenseValidator/LicenseStore/LicenseService.
+                            # The packaged gate's own mintVerificationLicense must reject an issuer
+                            # refusal with the issuer's reason and without the key path.
                             # EPHEMERAL Ed25519 pair — never reads a production private key.
 npm run verify:issuer-readiness-gui   # tsx scripts/verify-issuer-readiness-gui.mts (21; needs build) —
                             # REAL Electron, two launches on isolated profiles. No key: the page must
@@ -536,6 +538,11 @@ npm run verify:issuer-readiness-gui   # tsx scripts/verify-issuer-readiness-gui.
                             # via SPECTER_ISSUER_KEY: it must render READY. Reads readiness only, never
                             # signs, and reports BLOCKED (never PASS) where no authorized key exists.
 npm run verify:license-dispatch-gate # real ExecutionEngine queue at zero concurrency + production wiring/shell guard
+npm run verify:test-lab-cli-only      # Test Lab harness absent from app/** imports, routes and the out/ bundles
+                            # (needs build). Exit 0 PASS, 1 FAIL, 2 BLOCKED (missing/empty/stale/unreadable
+                            # bundle). AWKIT_TEST_LAB_BUNDLE_ROOT overrides where out/ is read from.
+npm run verify:test-lab-cli-only-exit # (20) runs the verifier above against fixture bundles and asserts its exit
+                            # code and PASS/FAIL/BLOCKED counts for every bundle state.
 # E2E QA suites (2026-07-19 assessment — specs/e2e/*, report docs/testing/; all REAL Electron, isolated
 # fresh %LOCALAPPDATA% profiles, run AFTER `npm run build`):
 npm run verify:e2e-auth     # full auth lifecycle: first-run, create/duplicate/double-click, enumeration,
