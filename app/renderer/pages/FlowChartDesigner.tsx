@@ -182,6 +182,8 @@ function FlowChartDesignerContent() {
   const pendingLoopFitRef = useRef(false);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const pendingSnapshot = useRef(true);
+  /** Bumped by every load so the baseline recapture runs even when the document is identical. */
+  const [loadToken, setLoadToken] = useState(0);
   const [toast, setToast] = useState<ToastState | null>(null);
   const pasteOffsetRef = useRef(0);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
@@ -388,12 +390,17 @@ function FlowChartDesignerContent() {
   // Dirty only when the saveable document differs from the last saved/loaded snapshot.
   const docSnapshot = useMemo(() => serializeFlowDoc(flowProfile), [flowProfile]);
   const isDirty = savedSnapshot !== "" && docSnapshot !== savedSnapshot;
+  // `loadToken` is in the deps, not just `docSnapshot`: re-opening the flow that is ALREADY loaded
+  // produces an identical document, so an effect keyed only on the document never runs and leaves
+  // `pendingSnapshot` armed. The next real edit then became the new clean baseline, and the editor
+  // reported itself unchanged while the user's first change sat in it — which also told the L3 §6
+  // promotion guard the flow was safe to write under. Caught by verify:ai-locator-upgrade-gui.
   useEffect(() => {
     if (pendingSnapshot.current) {
       pendingSnapshot.current = false;
       setSavedSnapshot(docSnapshot);
     }
-  }, [docSnapshot]);
+  }, [docSnapshot, loadToken]);
 
   useEffect(() => {
     // Load flows + settings together so we can honor the persisted/last-opened flow
@@ -773,6 +780,7 @@ function FlowChartDesignerContent() {
       editorHistory.reset({ nodes: arrangedNodes, edges: reconcileFlowBranches(nextEdges), flowName: profile.name });
       setSaveState("Loaded profile");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded doc settles
+      setLoadToken((token) => token + 1);
       window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: profile.id } }).catch(() => undefined);
 
       // Stage 2c validate-on-load: report the SAVED flow's status (including any Legacy
@@ -808,6 +816,14 @@ function FlowChartDesignerContent() {
    * before the change and quietly undo it. Promotion is refused while this editor is dirty, so
    * reloading here discards nothing the user typed.
    */
+  /** One in-order lane for the editor-state reports above; a failed report never breaks the editor. */
+  const editorStateLane = useRef<Promise<unknown>>(Promise.resolve());
+  const reportEditorState = useCallback((state: { flowId: string; dirty: boolean } | null) => {
+    editorStateLane.current = editorStateLane.current
+      .then(() => window.playwrightFlowStudio.ai.setEditorState(state))
+      .catch(() => undefined);
+  }, []);
+
   const reloadSavedFlow = useCallback(() => {
     window.playwrightFlowStudio.flows
       .get(flowId)
@@ -1238,14 +1254,18 @@ function FlowChartDesignerContent() {
   // Tell the main process which flow is open and whether it has unsaved changes, so an AI locator
   // promotion is deferred rather than silently undone by this editor's next save (Phase L, L3 §6).
   // Only the renderer can know this, so main holds it as declared state, never as authorization.
+  //
+  // Serialized through one lane: these are independent `invoke` round trips, so firing "clean" and
+  // "dirty" back to back can land in either order, and main would keep whichever arrived last. A
+  // real-Electron run caught exactly that — the editor showed "Unsaved changes" while main still
+  // believed the flow was clean and accepted the promotion. For the same reason the claim is
+  // released only on unmount, not on every state change: a cleanup between two reports would open a
+  // window in which no flow is registered at all.
   useEffect(() => {
     if (!canSaveFlow) return;
-    const api = window.playwrightFlowStudio.ai;
-    void api.setEditorState({ flowId, dirty: isDirty }).catch(() => undefined);
-    return () => {
-      void api.setEditorState(null).catch(() => undefined);
-    };
-  }, [flowId, isDirty, canSaveFlow]);
+    reportEditorState({ flowId, dirty: isDirty });
+  }, [flowId, isDirty, canSaveFlow, reportEditorState]);
+  useEffect(() => () => reportEditorState(null), [reportEditorState]);
 
   return (
     <DesignerCanvasLayout

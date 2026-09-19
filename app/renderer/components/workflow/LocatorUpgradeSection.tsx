@@ -81,7 +81,7 @@ export function LocatorUpgradeSection({
       <strong>AI locator upgrade</strong>
       {pending ? (
         <>
-          <span data-testid="locator-upgrade-state" data-upgrade-state={upgradeStateId(pending)}>{describePending(pending)}</span>
+          <span data-testid="locator-upgrade-state" data-upgrade-state={upgradeStateId(pending, editorDirty)}>{describePending(pending, editorDirty)}</span>
           <span>
             Now: {describeCandidate(pending.current)} · Proposed: {describeCandidate(pending.proposed)}
           </span>
@@ -93,7 +93,7 @@ export function LocatorUpgradeSection({
             <button
               className="toolbar-button primary"
               data-testid="apply-locator-upgrade"
-              disabled={busy || !pending.promotable}
+              disabled={busy || !pending.promotable || editorDirty}
               type="button"
               onClick={() =>
                 void run(() => api().promoteUpgrade({ flowId, stepId, createdAt: pending.createdAt }), "Upgrade applied. You can revert it here or from Settings.")
@@ -144,15 +144,17 @@ function describeCandidate(candidate: LocatorCandidate): string {
 /**
  * A stable id for the lifecycle state, so a verifier (and a screen reader's user, via the sentence
  * beside it) reads the state rather than parsing prose. `eligible` means only that the evidence is
- * in; whether it may be applied is `promotable`, which the main process decided.
+ * in; whether the candidate itself may be applied is `promotable`, which the main process decided.
+ * Unsaved changes are read from this editor's own state rather than the fetched view, which can
+ * only ever be as fresh as its last fetch.
  */
-function upgradeStateId(pending: PendingLocatorUpgradeView): string {
+function upgradeStateId(pending: PendingLocatorUpgradeView, editorDirty: boolean): string {
   if (pending.state !== "eligible") return pending.state;
-  if (pending.promotable) return "eligible";
-  return pending.blockedReason === "EDITOR_DIRTY" ? "deferred-editor-dirty" : "blocked";
+  if (editorDirty) return "deferred-editor-dirty";
+  return pending.promotable ? "eligible" : "blocked";
 }
 
-function describePending(pending: PendingLocatorUpgradeView): string {
+function describePending(pending: PendingLocatorUpgradeView, editorDirty: boolean): string {
   if (pending.state === "stale") return "This suggestion was made for an earlier version of the step and no longer applies.";
   if (pending.state === "replay-rejected") return "A run refused this suggestion, so it will never be applied.";
   if (pending.state !== "eligible") {
@@ -160,6 +162,7 @@ function describePending(pending: PendingLocatorUpgradeView): string {
       ? "Suggested and proven once on the page. It is not applied, and runs keep using the saved locator until it is proven on more runs."
       : "Suggested but not yet proven on the page. It is not applied and is never executed.";
   }
+  if (editorDirty) return "Verified and ready, but this flow has unsaved changes. Save the flow, then apply it.";
   if (pending.promotable) return "Verified on enough runs and ready to apply.";
   switch (pending.blockedReason) {
     case "EDITOR_DIRTY":

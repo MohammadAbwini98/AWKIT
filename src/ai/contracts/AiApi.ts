@@ -94,7 +94,10 @@ export interface AiAuditView {
  * text, page text or a typed value: the candidate is a compiler-validated locator that the intent
  * guard already proved is not a bound data value, and it is already stored in the saved flow.
  * `promotable` and `blockedReason` are the main process's own answer, recomputed on every read —
- * the renderer decides what to render with them, never whether the write is allowed.
+ * the renderer decides what to render with them, never whether the write is allowed. They answer
+ * "is this candidate itself ready", NOT "may it be applied this instant": unsaved editor changes are
+ * reported separately on {@link FlowLocatorUpgradesView} because they change faster than this view
+ * can be fetched and cached, and the renderer knows its own dirty state without asking.
  */
 export interface PendingLocatorUpgradeView {
   stepId: string;
@@ -132,7 +135,10 @@ export interface FlowLocatorUpgradesView {
   flowId: string;
   pending: PendingLocatorUpgradeView[];
   applied: AppliedLocatorUpgradeView[];
-  /** A renderer reported unsaved changes for this flow, so promotion is deferred until it saves. */
+  /**
+   * Main's own view of whether some renderer has unsaved changes for this flow. Informational for a
+   * renderer (which knows its own state sooner); authoritative for anything driven from main.
+   */
   editorDirty: boolean;
 }
 

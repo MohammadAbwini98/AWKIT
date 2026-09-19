@@ -281,6 +281,7 @@
     "verify:locator-plan": "tsx scripts/verify-locator-plan.mts",
     "verify:locator-upgrade-proof": "tsx scripts/verify-locator-upgrade-proof.mts",
     "verify:ai-locator-upgrade": "tsx scripts/verify-ai-locator-upgrade.mts",
+    "verify:ai-locator-upgrade-gui": "tsx scripts/verify-ai-locator-upgrade-gui.mts",
     "verify:ai-permissions": "tsx scripts/verify-ai-permissions.mts",
     "verify:ai-adapter": "tsx scripts/verify-ai-adapter.mts",
     "verify:ai-redaction": "tsx scripts/verify-ai-redaction.mts",

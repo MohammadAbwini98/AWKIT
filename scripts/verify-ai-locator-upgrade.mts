@@ -347,7 +347,14 @@ try {
   check("...with the counts the policy asks for", archiveView.replays === 3 && archiveView.dataRows === 2 && archiveView.minReplays === 3 && archiveView.minDataRows === 2);
   check("...and both locators, so the change can be reviewed before it is applied", archiveView.current.strategy === archive.locator?.strategy && archiveView.proposed.name === "Archive");
   check("the refused candidate is shown as refused, not offered", view.pending.find((e) => e.stepId === "wrong")?.blockedReason === "REPLAY_REJECTED");
-  check("a dirty editor makes the same view defer it", (await describe(true)).pending.find((e) => e.stepId === archive.id)?.blockedReason === "EDITOR_DIRTY");
+  // Dirtiness is reported beside the candidate, never folded into it: it changes on every keystroke
+  // while this view is fetched and cached, and a cached "unsaved changes" outlives the fact.
+  const dirtyView = await describe(true);
+  check(
+    "an unsaved editor is reported separately from the candidate's own readiness",
+    dirtyView.editorDirty === true && dirtyView.pending.find((e) => e.stepId === archive.id)?.blockedReason === null,
+    JSON.stringify({ editorDirty: dirtyView.editorDirty, blocked: dirtyView.pending.find((e) => e.stepId === archive.id)?.blockedReason })
+  );
   check("the view carries no guard, fingerprint or provenance", !/fingerprint|siblingCount|candidateSelector/.test(JSON.stringify(view)));
 
   // ── The promotion itself ───────────────────────────────────────────────────────────────────────

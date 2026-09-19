@@ -142,6 +142,13 @@ export type LocatorPromotionResult = LocatorPromotionSuccess | { ok: false; code
  * `promotable`/`blockedReason` come from a DRY RUN of `promoteLocatorUpgrade` itself rather than a
  * second copy of the rules, so the badge and the write can never disagree — if the preview says
  * promotable, the write accepts it for the same reasons, and if it does not, it names the same code.
+ *
+ * The dry run deliberately runs as if the editor were CLEAN, and `editorDirty` is reported beside it
+ * instead. Dirtiness changes on every keystroke while this view is fetched over IPC and then cached,
+ * so folding it in makes a stale answer inevitable: a real-Electron run showed the panel stuck on
+ * "unsaved changes" for a flow that had been clean for twenty seconds, because the one fetch it made
+ * happened to cross the editor's own report. The renderer knows its own dirty state with no latency
+ * and combines the two; main still enforces its own view of it at the write.
  */
 export function describeFlowLocatorUpgrades(input: {
   profile: FlowProfile;
@@ -182,7 +189,7 @@ export function describeFlowLocatorUpgrades(input: {
       nowIso: provenance?.appliedAt ?? proposal.createdAt,
       replayProofs: input.replayProofs,
       policy: input.policy,
-      editorDirty: input.editorDirty,
+      editorDirty: false,
       replayPolicy
     });
     pending.push({
