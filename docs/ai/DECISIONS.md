@@ -1,5 +1,26 @@
 # DECISIONS
 
+### 2026-09-20 — Phase L L3 §4–§5: browser proof gates, pending upgrades and replay proof (`awkit-djnl.4`)
+
+- **Proof lives in the runner** (`src/runner/locatorProof.ts`) and uses the same `LocatorFactory` roots as
+  execution. It is observational and uses a factory with no recovery memory, so resolving the baseline
+  writes nothing. Same-element proof is DOM node identity; handles from different frames cannot be
+  compared, which is itself a `FRAME_CONTEXT_MISMATCH`.
+- **The protected-login check uses the Recorder's DOM-signal detector** (`detectRecorderProtectedLogin`, the
+  one Element Spy uses), not the runner's text-only pause heuristic. Any detected surface refuses the proof
+  (fail closed). One consequence: a plain sign-in page with a password field, such as the mock site's
+  `/login`, refuses AI proof.
+- **Replay counts only a passing step.** A refusal (wrong element, ambiguous, intent, scope) is tallied
+  immediately and makes that candidate `replay-rejected` for good; a new candidate or an edited step
+  starts a fresh tally (digest of candidate + binding). An `unprovable-now` replay counts nothing.
+- **Tallies are runtime memory, not profile data**: `LocatorRecoveryStore.updateReplayProof` under
+  `<locator memory>/upgrade-proofs/`, serialized per key in-process (the engine is the single writer).
+- **Eligibility thresholds are seeded, not committed:** at least 3 passing replays over at least 2 distinct
+  hashed data rows (`LOCATOR_UPGRADE_REPLAY_POLICY`); L7 commits them. `eligible` only sets
+  `proofSatisfied`; promotion stays L3 §6.
+- **The intent guard rejects rather than parameterizes** a bound value, both at capture and at every replay
+  (the replay's bound values are the current row, instance/runtime inputs and the step's value).
+
 ### 2026-09-19 — Phase L L5a collector lifecycle and L2 locator quality (`awkit-djnl.7`, `awkit-djnl.3`)
 
 - **L5a collector attaches before the first page.** New runner hook `onBrowserContext` (initial launch

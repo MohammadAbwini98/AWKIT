@@ -3,10 +3,42 @@
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go PASS and L2.
 **Source of truth for locator AI.**
 
-**Status (2026-09-19): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
+**Status (2026-09-20): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
 §2 plan DSL + trusted compiler and §3 intent guard in `src/ai/locatorPlan.ts`, proven by `verify:locator-plan`
-(53/53, pure, no model or browser). Nothing calls it yet. Not built: §4 proof gates, §5 `pendingUpgrade` and
-replay proof, §6 promotion, §8 repair, §9 sweep, §10 UX, and the `verify:ai-locator-*` verifiers.
+(53/53, pure, no model or browser). **§4 and §5 are built** (`src/runner/locatorProof.ts`,
+`src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook), proven in real Chromium by
+`verify:locator-upgrade-proof` (75/75) on `/recorder-lab/locator-upgrade`, with plan text from a deterministic
+fake provider parsed by the real output contract. No job calls the capture-time entry yet: the L3 job that asks
+`AiService` for a plan and runs `proveLocatorPlan` + `annotatePendingUpgrade` comes after the L1 go/no-go. Not
+built: §6 promotion, §7 attempt loop, §8 repair, §9 sweep, §10 UX, and `verify:ai-locator-upgrade` /
+`verify:ai-locator-repair` / `verify:ai-locator-quality-live`.
+
+§4–§5 as built:
+- **Proof result** (`LocatorProofResult`): `proven` / `rejected` / `unprovable-now`, a stable code, gates
+  policy·buildable·unique·sameElement, scope compatibility, match counts, a candidate digest, and
+  `pendingEligible`. It never carries candidate text, page text or typed values.
+- **Gate D runs first:** `AiAutonomyPolicy` T3 (sensitive step, protected-login step), then the Recorder's
+  DOM-signal protected-login detector (the one Element Spy refuses on), then an exact frame-chain + shadow scope
+  match with the step. The baseline is the step's own locator through `LocatorFactory.resolve`, which re-proves
+  a guarded position. A factory with no memory is used, so nothing is recorded or recovered. **C** is DOM
+  node identity (`a === b` in one JS context).
+- **Codes:** `unprovable-now` = `TARGET_MISSING`, `BASELINE_IDENTITY_CHANGED`, `BASELINE_UNRESOLVED`,
+  `PAGE_UNAVAILABLE`. Rejections = compiler/intent codes, `T3_*`, `FRAME_CONTEXT_MISMATCH`, `NOT_BUILDABLE`,
+  `CANDIDATE_NO_MATCH`, `CANDIDATE_NOT_UNIQUE`, `WRONG_ELEMENT`, `CONTEXT_EXPIRED` (the L2 context is past its
+  10-minute TTL), `NO_PENDING`, `STALE_PENDING`.
+- **Pending lifecycle:** proposed → compiler/intent rejected (nothing stored) → browser `rejected` (nothing
+  stored) or `capture-proven` / `unprovable-now` → `pendingUpgrade` written by `annotatePendingUpgrade`, a
+  compare-and-swap in the flow store's lane. It refuses T3, a stale binding and an older proposal
+  (`SUPERSEDED`); a newer one replaces it. The save boundary (`invalidateStaleLocatorApproval` →
+  `invalidateStaleAiLocatorFields`) drops a pending candidate or provenance whose binding no longer matches.
+- **Replay:** before a step with a pending candidate acts, `StepExecutor` re-compiles the stored candidate
+  (`planFromCandidate`), re-runs the intent guard with the run's bound values (current row, inputs, the step's
+  value), and runs gates D–C. A refusal is tallied at once. A proof counts only after the step **passes**, with
+  a hashed data-row key. The tally lives in `LocatorRecoveryStore` runtime memory (`upgrade-proofs/`), keyed by
+  candidate digest + binding digest and serialized per key.
+- **States** (`evaluatePendingUpgrade`): `none` · `stale` · `pending-replay` · `replay-rejected` (any refused
+  replay) · `eligible` (≥ 3 passing replays over ≥ 2 distinct rows; seeded values, committed in L7). `eligible`
+  is only the `proofSatisfied` input of `AiAutonomyPolicy`; nothing replaces the saved locator until §6.
 Compiler decisions: css is limited to one stable `#id` selector; XPath needs `allowXPath`; a closed-shadow target
 (`shadow.instrumented`) is refused because the bridge resolves it by its own target signature; the intent guard
 rejects any text that contains a bound value (length ≥ 2, the L2 marker rule) rather than parameterizing it; a new

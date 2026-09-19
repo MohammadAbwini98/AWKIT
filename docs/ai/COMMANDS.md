@@ -399,6 +399,8 @@ npm run verify:ai-autonomy-policy # tier matrix, T3 unreachable, ceilings/T2 cap
 npm run verify:ai-audit-revert    # AiActionRecord contract/retention, atomic store, persisted demotion,
                                   # compare-and-swap revert through the flow folder lane (69)
 npm run verify:locator-plan       # L3 plan DSL, trusted compiler and intent guard; pure, no model or browser (53)
+npm run verify:locator-upgrade-proof # L3 §4 proof gates + §5 pending upgrade/replay in real Chromium on
+                                  # /recorder-lab/locator-upgrade; fake plan provider only (75)
 npm run verify:ai-permissions     # every role both directions + the nine ai:* IPC gates and preload surface (66)
 npm run verify:ai-adapter         # AiService queue/protocol: one-at-a-time, cancel, timeout, crash/circuit,
                                   # schema rejection, yield to runs, idle unload, checksum-before-load (102)

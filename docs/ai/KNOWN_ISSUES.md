@@ -16,6 +16,17 @@
   polls) and passed on the immediate rerun with no source change; the runner code was not touched.
   Treat a single failure here as timing until it repeats; a repeat is a runner defect to diagnose.
 
+## L3 replay proof limits (2026-09-20, by design)
+
+- A step with a `pendingUpgrade` pays one extra observation before its action: a protected-login DOM
+  check, a baseline resolution and a candidate count. For a framed step whose iframe has not attached
+  yet, this can add up to `FRAME_WAIT_MS` (5 s) before the step's own waits run. Steps without a pending
+  candidate, and runners without locator memory, skip it entirely.
+- The replay proof runs **before** the step's `beforeWaits`. A target that only appears after those waits
+  is `unprovable-now` for that replay and counts nothing, which is conservative.
+- A failing step throws before the record hook. The hook's own `stepPassed` check guards the outcomes
+  that do not throw (skipped, manual handoff), and `verify:locator-upgrade-proof` tests it directly.
+
 ## Element Spy limits (2026-09-19, by design)
 
 - "Use in action" applies only a globally unique, non-positional candidate; it refuses elements in

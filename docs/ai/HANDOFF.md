@@ -1,6 +1,24 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L3 plan compiler + intent guard built; L5a decision brief written
+## HANDOFF (2026-09-20, latest) — L3 §4–§5 built (browser proof, pending upgrades, replay proof)
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** see CURRENT_STATE and the L3 plan's "§4–§5 as built". `awkit-djnl.4` stays OPEN.
+- **Next agent work without the model:** L3 §6 promotion. This is a single-writer job through
+  `JsonProfileStore.updateWith`, deferred while the flow has unsaved editor changes. It triggers on
+  `evaluatePendingUpgrade(...).state === "eligible"` plus `decideAiAction(...).decision === "autoApply"`,
+  writes `locatorProvenance` (with `previous`) plus an `AiActionRecord`, and clears the pending candidate.
+  After that: the §7 attempt loop and `verify:ai-locator-upgrade` (the spec names its concurrent-promotion and
+  unsaved-editor cases). The L3 job that calls `AiService` still waits on L1.
+- **Owner decisions (unchanged):** the L5a methodology (see the brief in the L5 plan); L1 acquisition.
+- **Traps:**
+  - The proof refuses any page the Recorder's DOM detector flags, including the mock site's `/login`
+    (it has a password field). Use a neutral page for "navigated away" fixtures.
+  - A failing step throws before `recordPendingReplay`, so a mutation of its `stepPassed` check survives
+    any test that only uses a failing step. The verifier calls the hook directly.
+  - `getByRole(..., { name })` is a substring match: "Remove" also matches "Remove all cards".
+
+## HANDOFF (2026-09-19, superseded) — L3 plan compiler + intent guard built; L5a decision brief written
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** `src/ai/locatorPlan.ts` (L3 §2–§3) with `verify:locator-plan` 53/53. `awkit-djnl.4` stays

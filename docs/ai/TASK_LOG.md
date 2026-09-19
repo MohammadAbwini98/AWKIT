@@ -1,5 +1,18 @@
 # TASK_LOG
 
+## 2026-09-20 — L3 §4–§5: real-browser proof gates, pending upgrades and replay proof (Claude)
+
+- **Built:** `src/runner/locatorProof.ts` (proof gates D/A/B/C, capture and replay entries, runner hooks),
+  `src/ai/pendingUpgrade.ts` (pending record, compare-and-swap annotation, tally merge, lifecycle
+  evaluation), `StepLocator.pendingUpgrade`, `invalidateStaleAiLocatorFields` at the save boundary,
+  `planFromCandidate`, `LocatorFactory.replayProofMemory`, `FileLocatorRecoveryStore` replay-proof tallies,
+  the `StepExecutor` replay hook, and the new `/recorder-lab/locator-upgrade` lab.
+- **Tests:** new `verify:locator-upgrade-proof` 75/75, mutation-tested twice (both caught, source
+  restored). Regression: build, typecheck:scripts, locator-plan 53, mock-site 220, runner 138, recorder 292,
+  locator-guard 35, frame-chain 31, closed-shadow 23, recorder-ambiguity 74, locator-quality-class 35,
+  protected-login-recorder 74, element-spy 89, ai-audit-revert 69, profile-store 74, flow-step-mapping 194.
+  NOT RUN: flow-designer GUI, validate:offline. `awkit-djnl.4` stays OPEN.
+
 ## 2026-09-19 — L3 locator plan compiler and intent guard; L5a methodology brief (Claude)
 
 - **L3 (model-independent core):** `src/ai/locatorPlan.ts`: the plan schema, the trusted compiler and
