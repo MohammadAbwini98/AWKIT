@@ -23,7 +23,7 @@
       "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
       "claimedAt": "2026-09-19T15:41:13.113Z",
-      "note": "write lease: .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-djnl.5.json, docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md, tools/roadmap/assignments.json"
+      "note": "write lease: .beads/interactions.jsonl, .beads/issues.jsonl, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/TASK_LOG.md, docs/ai/contracts/active-lease.json, docs/ai/contracts/awkit-djnl.5.json, docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md, tools/roadmap/assignments.json"
     }
   ]
 }
