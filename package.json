@@ -280,7 +280,11 @@
     "verify:ai-redaction": "tsx scripts/verify-ai-redaction.mts",
     "verify:ai-fallback": "tsx scripts/verify-ai-fallback.mts",
     "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts",
-    "verify:ai-settings-gui": "node scripts/verify-ai-settings-gui.mjs"
+    "verify:ai-settings-gui": "node scripts/verify-ai-settings-gui.mjs",
+    "verify:ai-host": "tsx scripts/verify-ai-host.mts",
+    "verify:ai-host-electron": "tsx scripts/verify-ai-host-electron.mts",
+    "verify:ai-model-live": "tsx scripts/verify-ai-model-live.mts",
+    "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

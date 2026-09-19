@@ -394,6 +394,18 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Real-Electron walkthrough of Settings › Local AI on an isolated profile: AI off with no pack/runtime/audit by default, tier selectors bounded by each feature's ceiling, and the master switch and a lowered tier persisting to ai-settings.json on disk across navigation."
   },
+  "verify:ai-host": {
+    class: "unit",
+    why: "Evaluates the real native-hosts/ai/ai-host.cjs source under a fake parentPort with an injected fake node-llama-cpp: envelope and prototype-safe dispatch, runtime identity, model-path confinement including a junction escape, CPU-only never-build load options, schema-to-grammar translation, the thinking-disabled template with page text kept out of special-token parsing, prompt bounds, running and queued cancellation, arrival order, one inference at a time, shutdown and no runtime-text leaks, plus source constants against the TypeScript contract; then requires twelve in-memory source mutations to fail the suite."
+  },
+  "verify:ai-host-electron": {
+    class: "real-browser",
+    why: "Launches a real Electron app directory that drives the production AiUtilityHostManager against the real ai-host.cjs in a utility process: handshake reporting whether the runtime is installed, out-of-root and damaged-GGUF refusals the host survives, the runtime kept out of the main process, a killed host detected and restarted in a new process, the circuit opening on the third crash, and disposal leaving no process. No model."
+  },
+  "verify:ai-model-live": {
+    class: "real-browser",
+    why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."
+  },
   "verify:ai-model-pack": {
     class: "integration",
     why: "Real temp-folder AiModelPackStore with synthetic GGUF files and an injected manifest: format/size/checksum refusals leave nothing behind, single-pass hashed import, cheap status plus once-per-session load verification catching tamper/truncate/delete, retirement, replacement sweep and removal; then checks the production AiModelManifest entries."

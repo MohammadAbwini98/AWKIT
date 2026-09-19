@@ -19,6 +19,44 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`. `verify:ai-model-live`
 is not written until a host exists: NOT RUN.
 
+## Runtime decision and acquisition (2026-09-19)
+
+**Runtime: `node-llama-cpp` 3.21.1 inside the existing Electron utility process.** It bundles
+llama.cpp `v0.4.0` (2026-09-04), and llama.cpp has supported the `qwen35` architecture since
+February 2026. The alternative, a pinned `llama-server.exe`, was rejected:
+
+| Contract | node-llama-cpp in the utility process | `llama-server.exe` behind the host |
+|---|---|---|
+| Listener (L1.1) | None; MessagePort only | Loopback port plus a per-session key: the plan's fallback, allowed only "if unavoidable" |
+| Crash domain | One process; a crash frees the model | Grandchild process; Windows does not kill it when the utility process dies, so it needs a job object or watchdog |
+| Cancellation | `AbortSignal`, checked between tokens and batches | Abort the HTTP request |
+| Constrained decoding | `createGrammarForJsonSchema` covers the whole bounded subset except numeric min/max, which `parseAiOutput` re-checks | `json_schema` field |
+| CPU dispatch | Prebuilt `@node-llama-cpp/win-x64` ships every variant (SSE4.2 to AVX-512) and selects at runtime | Same, in the release zip |
+| New infrastructure | A staging script, like the Zvec host's | Port allocation, key handling, orphan cleanup, process supervision |
+
+It is a dev dependency, so it never enters `app.asar`. The host's runtime tree is staged next to it,
+like the Zvec host.
+
+**Owner steps.** The lease guard allows the agent only git, `build` and `verify:`/`validate:`/`benchmark:`
+scripts, so an install or a download has to be run by the owner. Run both in PowerShell from the
+repo root:
+
+1. Runtime (exact pin; `NODE_LLAMA_CPP_SKIP_DOWNLOAD` prevents any source build). npm also installs
+   optional CUDA and Vulkan packages. They are never used or staged.
+
+   ```powershell
+   $env:NODE_LLAMA_CPP_SKIP_DOWNLOAD="true"; npm install --save-dev --save-exact node-llama-cpp@3.21.1
+   ```
+
+2. Model pack, `lmstudio-community/Qwen3.5-4B-GGUF`, file `Qwen3.5-4B-Q4_K_M.gguf`: 2,707,513,696
+   bytes, Apache-2.0, published SHA-256 `25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c`.
+   Save it to Downloads, not the OneDrive-synced repository. The manifest pins the SHA-256 measured
+   from the downloaded file; the published value is only a cross-check.
+
+   ```powershell
+   curl.exe -L -o "$env:USERPROFILE\Downloads\Qwen3.5-4B-Q4_K_M.gguf" https://huggingface.co/lmstudio-community/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf
+   ```
+
 ## Goal
 
 Build the single optional AI boundary, the autonomy/audit machinery every AI feature uses, and prove the model is
