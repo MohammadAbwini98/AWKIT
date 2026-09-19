@@ -586,8 +586,10 @@ try {
   // so total holds at 302. Measured after `bd export -o .beads/issues.jsonl`: `bd stats` reports
   // Open 10, Closed 290, dependency-Blocked 5 and Ready 5 (the epic plus L1 `.1`, L2 `.3`, L4a `.5`
   // and L5a `.7`). Closing removes no dependency edge, so the edge pin below stays at 134.
-    "12 outstanding / 290 closed",
-    beads.stats.outstanding === 12 && beads.stats.closed === 290,
+  // Then 11/291 of 302 on 2026-09-19: L4a `awkit-djnl.5` closed with its diagnostics and complete
+  // Flow Designer evidence. One bead crossed from outstanding to closed; no edge changed.
+    "11 outstanding / 291 closed",
+    beads.stats.outstanding === 11 && beads.stats.closed === 291,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
