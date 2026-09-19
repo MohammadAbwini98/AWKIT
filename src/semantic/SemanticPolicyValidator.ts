@@ -104,6 +104,14 @@ const RESIDUAL_SECRET_PATTERNS: ReadonlyArray<{ pattern: RegExp; label: string }
   { pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/, label: "private key block" }
 ];
 
+/**
+ * The independent residual-secret rescan, for any other pipeline that must refuse rather than
+ * mitigate (Phase L model prompts). Returns detector labels, never the offending text.
+ */
+export function findResidualSecrets(text: string): string[] {
+  return RESIDUAL_SECRET_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ label }) => label);
+}
+
 export interface SemanticPolicyOptions {
   /** Expected embedding width; a mismatch is rejected rather than silently stored (§9.3). */
   expectedEmbeddingDimension?: number;

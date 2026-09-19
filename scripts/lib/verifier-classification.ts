@@ -378,6 +378,18 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Every built-in role asserted in both directions for ai.use, ai.manage, ai.audit.view and recorder.elementSpy, pinned permission values, re-auth for AI management only, and deny/grant overrides; pure registry in-process."
   },
+  "verify:ai-adapter": {
+    class: "unit",
+    why: "AiService over the deterministic FakeAiHostTransport: handshake/load, one inference at a time, priority/FIFO, queue bound, cancel, timeout, crash/restart and circuit, malformed and schema-rejected output, yield to runs and its bound, idle unload, shutdown and states. In-process; no model or Electron."
+  },
+  "verify:ai-redaction": {
+    class: "unit",
+    why: "buildAiPrompt redaction, delimiter-nonce injection containment, caps, id validation and residual-secret refusal, then end to end through AiService asserting what the fake host received and that logs carry codes only."
+  },
+  "verify:ai-fallback": {
+    class: "static-source-validation",
+    why: "Degraded modes (switch off, no runtime, no/invalid model, open circuit, throwing providers) return codes with zero host calls, plus resolved-import scans proving the execution tree cannot import src/ai and the renderer cannot import the inference machinery."
+  },
   "verify:ai-audit-revert": {
     class: "integration",
     why: "Real temp-folder AiActionStore and JsonProfileStore: record sanitization and retention, concurrent atomic appends, persisted self-demotion, and compare-and-swap revert through the flow folder lane (stale refusal, exact restore, lost-audit revert)."

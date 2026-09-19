@@ -89,6 +89,12 @@ export interface WorkloadWeightConfig {
   /** Classification thresholds on the computed weight (inclusive upper bounds). */
   lightMaxWeight: number;
   mediumMaxWeight: number;
+  /**
+   * Cost of ONE local-AI inference (Phase L), admitted against the same weighted budget as browser
+   * instances. It is only ever checked before an inference starts (`src/ai/AiAdmission.ts`): an
+   * inference yields to Playwright and is never counted against instance admission.
+   */
+  aiInferenceWeight: number;
 }
 
 /**
@@ -115,7 +121,10 @@ export const DEFAULT_WORKLOAD_WEIGHT_CONFIG: WorkloadWeightConfig = {
   nodeFreeCount: 20,
   maxWeight: 5.0,
   lightMaxWeight: 1.25,
-  mediumMaxWeight: 2.5
+  mediumMaxWeight: 2.5,
+  // Seed: several CPU threads at full load for seconds, heavier than one light browser. Superseded by
+  // the L1.8 constrained-CPU benchmark like every other seed here.
+  aiInferenceWeight: 1.5
 };
 
 /** Optional run-level signals not derivable from config/flows alone (e.g. artifact profile). */
