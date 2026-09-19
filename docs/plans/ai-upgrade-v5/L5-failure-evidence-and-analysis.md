@@ -87,9 +87,32 @@ real mock site, persisted `report.json`; seven mutations caught: collector disco
 attached, buffer dropping UI events, report omitting diagnostics, protected-login guard disabled, report written
 before a cancelled runner unwinds, listeners never detached), `verify:failure-capture-overhead` **13 PASS / 2 FAIL**.
 
-**Open:** an engineering correction or explicit default-policy decision for the failed duration gate; only after a
-passing measurement can an owner approve a release ceiling. The Raw-UI-text suppression Settings switch from the
-privacy policy (default OFF) and per-step `stepIndex` stamping remain follow-ups.
+**Correction (2026-09-19, `6bfd59d`).** Profiling showed the cost in Playwright's stack capture on every client
+API call and CDP command, multiplied by the collector's per-page subscribe and close-time unsubscribe calls and by
+setting up the init script and binding on an already-live page. The collector now attaches through a runner hook,
+`onBrowserContext`, before the generation's first page; network and console listeners are context-level and are
+made inert rather than unsubscribed; the page script is keyed per document, retries a queued message once, and sends
+no `about:blank` announcement. Collector start: 94 ms → 3–4 ms median. The verifier now formats stack traces as the
+packaged app does (tsx's source-mapped stacks cost ~8 ms per Playwright call; `AWKIT_L5A_OVERHEAD_SOURCE_MAPS=1`
+restores them).
+
+| Run after the correction (development host) | Fast median Δ | Evidence median Δ | Node CPU Δ | Result |
+|---|---|---|---|---|
+| 1 (profiler attached) | +15 ms | +10 ms | +31.3 ms | 15/15 PASS |
+| 2 | +132 ms (≤ 150) | +133 ms (≤ 163.9) | +70.2 ms | 15/15 PASS |
+| 3, final state | +176 ms (> 150) | +333 ms (> 196.9) | +57.3 ms | 13 PASS / 2 FAIL |
+
+Per-round deltas span about −726 to +704 ms, run 3 hit CPU-pressure backpressure, and the gate's `stats()` takes
+the upper middle value for an even round count; six rounds cannot resolve a 150 ms ceiling on this host.
+
+**Follow-ups done (`9d5538e`):** Settings › Execution › **Hide page text in failure evidence** (default OFF,
+SETTINGS_EDIT-gated): the page script sends no visible text and the collector drops it again (untrusted page),
+including an error page's title and heading and quoted assertion values in the runner's message; role, source,
+status codes, counts and field identity stay. Every step-correlated event carries `context.stepIndex`, the Nth step
+execution in the instance (a retry keeps its index). `verify:ui-error-evidence` 85/85.
+
+**Open:** the owner decides the gate's methodology (rounds, median definition, host — ideally the VMware target),
+then a passing measurement, then an approved release ceiling. L5a stays open until then.
 
 ## L5b — Failure intelligence (T0)
 

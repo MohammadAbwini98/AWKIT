@@ -1,5 +1,30 @@
 # DECISIONS
 
+### 2026-09-19 — Phase L L5a collector lifecycle and L2 locator quality (`awkit-djnl.7`, `awkit-djnl.3`)
+
+- **L5a collector attaches before the first page.** New runner hook `onBrowserContext` (initial launch
+  and Reuse Session swap) runs as soon as a generation's context exists; the collector starts there, so
+  its init script and binding join each new page's initialization. This supersedes "the CDP trace and
+  the collector start concurrently" in the entry below: the CDP trace still starts on `onBrowserRuntime`.
+- **Context-level network and console listeners, made inert rather than removed.** Every Playwright
+  subscription change is a protocol call that captures a stack; unsubscribing from a context that is
+  closing is pure cost (and against a closed page, an error). Per-page listeners are only the
+  subscription-free events (`pageerror`, `framenavigated`, `close`).
+- **The overhead gate formats stack traces as the packaged app does.** tsx enables source-mapped stacks
+  for every script; the Electron main bundle has none. Measured ~8 ms per Playwright call, charged to
+  whichever mode makes more calls. The ceilings are unchanged; `AWKIT_L5A_OVERHEAD_SOURCE_MAPS=1` keeps
+  the old condition. Gate methodology (rounds, median definition, host) is left to the owner.
+- **Raw-UI-text suppression** is `execution.suppressEvidenceUiText` (default false) inside the
+  SETTINGS_EDIT-gated `execution` group, read from persisted Settings at run start, never from the
+  renderer's request. Enforced in the page script and again in the collector.
+- **L2 quality class is derived, not stored.** `classifyLocatorQuality` reads only what a saved locator
+  already carries and reuses the runtime's positional and guard predicates, so it cannot drift from what
+  `LocatorFactory` does. It replaces the Recorder page's own strong/medium/brittle grade (one scoring
+  system). A class never changes `resolution` or execution.
+- **L2 strategy chooser** promotes a preferred strategy only when the page proved it globally unique and
+  non-positional for the element; otherwise the adaptive choice stands with a stated warning. The
+  evidence is capture-only and stripped by both `RecorderService` and `buildRecordedFlow`.
+
 ### 2026-09-19 — Phase L L5a: run-lifetime failure evidence, protected-login exclusion, off-path binding (`awkit-djnl.7`)
 
 - **Decision:** one collector per instance (`src/runner/evidence/FailureEvidenceCollector.ts`) on the

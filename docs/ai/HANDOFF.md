@@ -1,6 +1,39 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L4a verified, L5a capture evidence passes but duration gate fails, L1 waits on two owner steps
+## HANDOFF (2026-09-19, latest) — L5a overhead root cause fixed but the gate is unstable; L2 quality class and chooser shipped; Element Spy next
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done this session (all on `origin/main`):** `6bfd59d` L5a overhead correction (collector attaches
+  before the first page, context-level listeners, atomic `report.json`, production-parity stack traces
+  in the overhead verifier); `9d5538e` raw-UI-text suppression switch and `stepIndex`; `0bcc0c8` L2
+  quality class; `d94d1a1` L2 strategy chooser.
+- **Owner decisions needed:**
+  1. **L5a gate methodology.** After the correction the gate passed twice and failed once on the final
+     state (+176/+333 ms; per-round deltas −726…+704 ms; CPU-pressure backpressure fired). The statistic
+     (`scripts/benchmark/lib.mts` `stats()`) reports the upper middle value for an even count. Decide
+     the rounds, the median definition and the host (ideally the VMware target) before approving a
+     ceiling. Do not raise the ceilings to get a pass. `AWKIT_L5A_OVERHEAD_SOURCE_MAPS=1` reproduces the
+     tsx source-mapped measurement.
+  2. **L1 acquisition** (unchanged): the two PowerShell steps in `L1-ai-foundation.md`.
+- **Next agent work:** L2 `awkit-djnl.3` task 5, the Element Spy (permission `recorder.elementSpy`
+  already exists): an inspect mode in the Recorder that reports identity, candidates with counts, the
+  quality class with reasons and frame/shadow/container context, refuses protected-login surfaces, and
+  applies a candidate only on an explicit "Use in action". Task 4 (capture-time upgrade context for L3)
+  has no consumer until L3; build it with the Spy or with L3.
+- **Beads:** unchanged. `awkit-djnl.7` stays OPEN (gate). `awkit-djnl.3` is still `open`; moving it to
+  `in_progress` needs a project-state contract and lease, not run this session.
+- **Traps:**
+  - Every Playwright subscription change (`page.on/off` of `response`, `request*`, `console`, `dialog`)
+    is a protocol call that captures a stack; prefer context-level listeners and never unsubscribe from
+    a closing page.
+  - A context init script registered BEFORE the binding runs first in each new page's documents, so a
+    page script that calls the binding at document start must queue and retry.
+  - The Recorder page script now emits `recordingCandidates` (capture-only); `RecorderService` and
+    `buildRecordedFlow` both strip it. A verifier comparing raw versus stored locators must strip it too.
+  - With a hidden duplicate in the DOM the Recorder falls back to a guarded position (see
+    `/recorder-lab/locator-quality` › Apply coupon); that is correct capture, not a classifier bug.
+
+## HANDOFF (2026-09-19, superseded) — L4a verified, L5a capture evidence passes but duration gate fails, L1 waits on two owner steps
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** L4a `awkit-djnl.5` is closed (authoring diagnostics 94/94; Flow Designer 138/138 broad +

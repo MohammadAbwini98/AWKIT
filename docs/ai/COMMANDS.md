@@ -342,6 +342,7 @@ npm run verify:smart-wait-causality # real Chromium Recorder observation → evi
 npm run verify:blueprint-recovery # tsx scripts/verify-blueprint-recovery.mts — Node-side blueprint assembly/privacy/store gate (52/52)
 npm run verify:blueprint-recovery-browser # tsx scripts/verify-blueprint-recovery-browser.mts — real Chromium capture→assembly→LocatorFactory recovery against /blueprint-recovery-lab; inserted sibling at 0.866667 succeeds, a below-0.86 control is refused, and sensitive recovery never reads blueprint storage (24/24)
 npm run verify:locator-guard # tsx scripts/verify-locator-guard.mts — real Chromium normal+sensitive guarded-positional identity plus sensitive Recorder blueprint exclusion (35/35)
+npm run verify:locator-quality-class # tsx scripts/verify-locator-quality-class.mts — Phase L L2 quality class: rule table (every reason code reachable) + real Recorder capture on /recorder-lab/locator-quality through buildRecordedFlow + unguarded negative control (35/35)
 npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — records a hover-gated click, builds the
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
                             # asserts the actionable owner (not a wrapper or hidden revealed surface), refuses positional-only

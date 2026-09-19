@@ -1,12 +1,19 @@
 # KNOWN_ISSUES
 
-- **OPEN `awkit-djnl.7` (2026-09-19): L5a run-lifetime failure capture exceeds its proposed duration
-  gate under the current six-round, six-concurrent-instance development-host workload.** After removing
-  the redundant initial `about:blank` injection, collector start median improved from 123.9 ms to
-  94.0 ms, but paired duration medians remain +326 ms fast (limit +193.4 ms) and +380 ms evidence
-  (limit +341.6 ms). CPU (+122.5 ms), evidence size (3.7 KB), no-AI closure, listener teardown and
-  Chromium cleanup pass. The numbers are measured—not approved release ceilings—and L5a stays open
-  until a product correction or explicit default-policy decision yields a passing gate.
+- **OPEN `awkit-djnl.7` (2026-09-19, updated): the L5a duration gate is unstable on the development
+  host.** Root cause of the original +326/+380 ms was found and fixed (`6bfd59d`, see CURRENT_STATE):
+  per-page subscribe/unsubscribe calls and live-page setup, each paying Playwright's stack capture, which
+  tsx's source-mapped stacks inflated to ~8 ms per call. After the fix the gate passed twice and failed
+  once on the final state (+176 ms fast vs 150, +333 ms evidence vs 196.9). Per-round deltas span about
+  −726 to +704 ms and `stats()` in `scripts/benchmark/lib.mts` returns the upper middle value for an even
+  count, so six rounds cannot resolve the ceiling. Owner decision: rounds, median definition, host.
+  Measured, not approved; never raise the ceilings to pass.
+
+## RESOLVED (2026-09-19) — `report.json` was written non-atomically
+
+- `ReportService.writeReport` used a plain `writeFile`, so a reader (the overhead verifier, surfaced
+  once runs got faster) could parse a truncated report, and a crash mid-write left one. It now writes a
+  temp file and renames it with `replaceFileAtomically` (`6bfd59d`).
 
 ## RESOLVED (2026-09-19) — a cancelled instance's report could be missing from `report.json`
 
@@ -31,6 +38,8 @@
   evaluate-in-all-frames); measured ~330 ms median per instance under start-up contention. Never await
   it on an instance's critical path: L5a awaits only `addInitScript` and lets the page queue until the
   binding lands (`verify:failure-capture-overhead` caught the awaited version: +568 to +1,077 ms).
+  Since `6bfd59d` both are registered before the generation's first page (`onBrowserContext`), where
+  they cost no round trip against a live page.
 
 ## OPEN (2026-09-19) — `semantic` settings are writable by any signed-in role
 

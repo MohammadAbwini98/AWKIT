@@ -1,5 +1,53 @@
 # CURRENT_STATE
 
+## Phase L continuation: L5a overhead root cause fixed (gate still unstable), L5a follow-ups done, L2 quality class and strategy chooser shipped (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation
+case moved.
+
+- **L5a `awkit-djnl.7` — implementation complete; the duration gate is not stably passing, so it stays
+  OPEN.** Profiling (`node:inspector`, ON versus OFF batches) put the overhead in Playwright's per-call
+  stack capture: every client API call captures a stack and every CDP command pre-builds an error, and
+  the collector made avoidable calls — three event subscriptions per page plus three unsubscriptions at
+  each page's close (against a closing page, so they also raised protocol errors), and an init script
+  and binding added to an already-live page. Fixed (`6bfd59d`): a runner hook `onBrowserContext` attaches
+  the collector before the first page, so its init script and binding join the page's own
+  initialization; network and console listeners are context-level with no unsubscribe calls; the page
+  script is keyed per document with a deferred flush and sends no `about:blank` announcement. Collector
+  start fell from 94 ms to 3–4 ms median. Also `report.json` is now written atomically (a reader could
+  see a truncated report). The overhead verifier now formats stack traces as the packaged app does
+  (no source maps; tsx turns them on and they cost ~8 ms per Playwright call).
+  Gate runs after the correction, development host: **PASS** (+15/+10 ms, profiler on), **PASS**
+  (+132 ms fast ≤ 150, +133 ms evidence ≤ 163.9), then on the final state **FAIL** (+176 ms fast vs 150,
+  +333 ms evidence vs 196.9; three batches hit CPU-pressure backpressure). Per-round deltas span about
+  −726 to +704 ms, and the gate's statistic takes the upper middle value for an even round count, so six
+  rounds cannot resolve a 150 ms ceiling here. Not a VMware figure; the ceilings stay unapproved.
+  Follow-ups done (`9d5538e`): Settings › Execution › **Hide page text in failure evidence** (default
+  off, SETTINGS_EDIT-gated) and per-step `stepIndex` stamping.
+- **L2 `awkit-djnl.3` — in progress (tracker still `open`).** Shipped: the shared quality class
+  `src/recorder/LocatorQualityClass.ts` (`0bcc0c8`; strong-semantic, acceptable-semantic,
+  guarded-positional, review-required, each with coded reasons, derived from the saved locator and the
+  runtime's own positional/guard predicates, never persisted) in the Recorder and the Flow Designer,
+  replacing the Recorder's page-local grade; the strategy chooser (`d94d1a1`; Default, Role + name,
+  Text, Test ID, XPath). Guarded-positional capture is unchanged: locator-guard 35/0, recorder-ambiguity
+  74/0. Remaining: capture-time upgrade context (task 4) and the Element Spy (task 5).
+  Mock-site: `/recorder-lab/locator-quality`.
+- **L1 `awkit-djnl.1` — BLOCKED as before.** `node-llama-cpp` is not installed and no GGUF pack exists
+  on this machine; the owner steps in `L1-ai-foundation.md` are still required. L3, L4b and L5b stay gated.
+
+**Evidence (final state):** `npm run build` PASS. L5a: `verify:ui-error-evidence` **85/85** (15
+real-engine executions; new scenarios: protected-then-ordinary document, suppression, `stepIndex`;
+mutations caught: context response listener, over-broad announcement skip, suppression wiring),
+`verify:failure-capture-overhead` **13 PASS / 2 FAIL** on the final state (see above), `verify:runner`
+138/138, `verify:run-report-compatibility` 27/27, `verify:r0-characterization` 181/181,
+`verify:settings-e2e` 181 PASS / 1 NOT RUN (SET-015 needs owner-approved OS shell launch).
+L2: `verify:locator-quality-class` **35/35** (new), `verify:recorder` **290/290** (new Part Y),
+`verify:recorder-gui` 194/0/0, `verify:settings-persistence` 6/6, `verify:locator-guard` 35/0,
+`verify:recorder-ambiguity` 74/0, `verify:recorder-competitive` 64/64, `verify:recorder-action-owner`
+11/0, `verify:frame-chain` 31/0, `verify:closed-shadow` 23/0, `verify:protected-login-recorder` 74/74,
+`verify:legacy-compat` 152/0, `verify:mock-site` **208/208**, `verify:flow-designer` **140/140 broad +
+16/16 capsule**, `verify:verifier-classification` 222 classified.
+
 ## `awkit-djnl-5-7-l4a-l5a-0919`: Phase L L4a verified, L5a evidence works but performance gate fails, L1 host remains model-blocked (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation

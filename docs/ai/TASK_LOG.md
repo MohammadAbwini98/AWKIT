@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-19 — Phase L continuation: L5a overhead correction and follow-ups, L2 quality class and chooser (Claude)
+
+- **Recovery:** the interrupted session's work was already committed and pushed (`1e26625`,
+  `575aff7`, `ade9a37`, L4a tracker closeout through `db713fa`); the tree was clean at `db713fa`.
+- **L5a overhead:** profiled the gate with `node:inspector` (ON versus OFF batches). Root cause:
+  Playwright stack capture per API call and per CDP command, multiplied by the collector's per-page
+  subscribe/unsubscribe calls and live-page setup. Fixed in `6bfd59d` (new runner hook
+  `onBrowserContext`, context-level listeners, document-keyed page script, atomic `report.json`) and
+  made the overhead verifier format stacks as packaged. Final-state gate **13 PASS / 2 FAIL**
+  (+176/+333 ms); the two runs before it passed (+15/+10, +132/+133). Methodology is an owner decision.
+- **L5a follow-ups (`9d5538e`):** Settings › Execution › Hide page text in failure evidence (default
+  off; page script and collector both drop visible text, including quoted assertion values) and per-step
+  `stepIndex`. Settings E2E SET-009 covers the rendered switch.
+- **L2 (`0bcc0c8`, `d94d1a1`):** shared locator quality class shown in the Recorder and the Flow
+  Designer; strategy chooser (Default, Role + name, Text, Test ID, XPath) with capture-only evidence;
+  new `/recorder-lab/locator-quality` and `verify:locator-quality-class`.
+- **Files:** `src/runner/{ExecutionEngine,PlaywrightRunner}.ts`, `src/runner/evidence/*`,
+  `src/reports/ReportService.ts`, `src/instances/{InstanceConfig,InstanceManager}.ts`,
+  `app/main/{uiSettings,execution/ExecutionApplicationService,ipc/recorder.ipc}.ts`,
+  `app/renderer/pages/{Settings,Recorder}.tsx`, `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`,
+  `src/recorder/{LocatorQualityClass,locatorStrategyPreference,RecorderService,RecorderTypes,recorderInitScript,buildRecordedFlow}.ts`,
+  mock-site `locator-quality-lab.html`, and the verifiers listed in CURRENT_STATE.
+- **Tests:** see CURRENT_STATE (final state). Not run: L1 real-model gates (BLOCKED, no runtime or
+  pack); `bd` status change for `awkit-djnl.3` (needs a project-state lease).
+
 ## 2026-09-19 — `awkit-djnl-5-7-l4a-l5a-0919`: recover L4a/L5a closeout (Codex)
 
 - **Task:** recover the interrupted L4a authoring-diagnostics and L5a run-lifetime-evidence work,
