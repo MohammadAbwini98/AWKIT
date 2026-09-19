@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-runtime-0919",
+    "title": "Phase L L1 (awkit-djnl.1): real inference host on node-llama-cpp, runtime pin and measured model-pack manifest entry",
+    "objective": "Complete the L1 runtime binding chosen in docs/plans/ai-upgrade-v5/L1-ai-foundation.md: write the raw utility-process host native-hosts/ai/ai-host.cjs on node-llama-cpp 3.21.1 (llama.cpp v0.4.0) behind the existing AiHostProtocol, then pin AI_RUNTIME_PIN and the first AiModelManifest entry in src/offline/AiModelManifest.ts only from values measured on the downloaded Qwen3.5-4B Q4_K_M pack. The install and the download are owner steps because the lease guard admits no install or network command. Ordinary L1 code under src/ai, app/main, scripts and docs is unleased direct-loop work, disclosed rather than hidden.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "b18c1d3",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "execution_change": true,
+    "authorization_change": true,
+    "offline_boundary_change": true,
+    "new_dependency": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "release"
+    ],
+    "expected_paths": [
+      "native-hosts/ai/ai-host.cjs",
+      "src/offline/AiModelManifest.ts"
+    ],
+    "consultants": [
+      "architect",
+      "security"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "runtime",
+      "allowed_paths": [
+        "native-hosts/ai/ai-host.cjs"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L1-HOST",
+      "description": "The raw host answers the AiHostProtocol (hello, load, infer, cancel, unload, shutdown) with stable path-free reason codes, refuses model paths outside the fork-time root, unconstrained or thinking-enabled inference and over-long prompts, and never logs or persists a prompt or a response.",
+      "evidence_required": [
+        "verify:ai-host-source",
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-host-source",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-host-source",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-runtime-0919:runtime:2026-09-19T11:47:52.451Z",
+        "task": "awkit-djnl-1-runtime-0919",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ai/ai-host.cjs"
+        ],
+        "acquired_at": "2026-09-19T11:47:52.451Z",
+        "acquired_at_commit": "b18c1d3caee319c9dd6c4b18aefc4f09ed547ff9",
+        "released_at": "2026-09-19T11:50:11.614Z",
+        "released_reason": "AI host native-hosts/ai/ai-host.cjs written and syntax-checked, runtime verification follows under unleased verifiers",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
