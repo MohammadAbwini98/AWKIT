@@ -65,7 +65,16 @@ export const Permission = {
   SEMANTIC_VIEW_FAILURE_SIMILARITY: "semantic.viewFailureSimilarity",
   SEMANTIC_MANAGE_INDEX: "semantic.manageIndex",
   SEMANTIC_MANAGE_EMBEDDINGS: "semantic.manageEmbeddings",
-  SEMANTIC_EXPORT_DIAGNOSTICS: "semantic.exportDiagnostics"
+  SEMANTIC_EXPORT_DIAGNOSTICS: "semantic.exportDiagnostics",
+  // ── Local AI (Phase L, L1.5) ────────────────────────────────────────────────
+  /** Receive AI suggestions, explanations and analyses. Applying one still needs the owning edit permission. */
+  AI_USE: "ai.use",
+  /** Master switch, model pack import/remove, per-feature tiers, and restoring a self-demoted feature. */
+  AI_MANAGE: "ai.manage",
+  /** Read the AI audit log and runtime/model diagnostics; reverting from it also needs workflow.edit. */
+  AI_AUDIT_VIEW: "ai.audit.view",
+  /** Recorder Element Spy (L2): inspect an element's locator evidence without recording a step. */
+  RECORDER_ELEMENT_SPY: "recorder.elementSpy"
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -98,7 +107,10 @@ export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission
   Permission.SESSION_POLICY_MANAGE,
   Permission.SETTINGS_BRANDING_MANAGE,
   Permission.SEMANTIC_MANAGE_INDEX,
-  Permission.SEMANTIC_MANAGE_EMBEDDINGS
+  Permission.SEMANTIC_MANAGE_EMBEDDINGS,
+  // AI governance changes what automation may do to saved flows, so it re-authenticates like
+  // index management (Phase L, 2026-09-19). Using AI and reading its audit log do not.
+  Permission.AI_MANAGE
 ]);
 
 export type RoleId = "SuperUser" | "Issuer" | "Administrator" | "Operator" | "Viewer";
@@ -140,7 +152,12 @@ const OPERATOR_PERMISSIONS: readonly Permission[] = [
   // Read-only semantic access. Failure similarity is scoped by the reports the Operator may already
   // view; it grants no new underlying data, only a different way to reach it.
   Permission.SEMANTIC_SEARCH,
-  Permission.SEMANTIC_VIEW_FAILURE_SIMILARITY
+  Permission.SEMANTIC_VIEW_FAILURE_SIMILARITY,
+  // Phase L (2026-09-19): an Operator authors flows, so it receives AI help and the Recorder's Element
+  // Spy. AI governance (AI_MANAGE) and the AI audit/diagnostics view (AI_AUDIT_VIEW) are denied by
+  // default, like Viewer's semantic access: granting later is one line, revoking later is a regression.
+  Permission.AI_USE,
+  Permission.RECORDER_ELEMENT_SPY
 ];
 
 // Administrator = everything except user administration, licensing, and workspace branding (those stay
@@ -152,6 +169,9 @@ const OPERATOR_PERMISSIONS: readonly Permission[] = [
 // to Administrator automatically unless excluded here. That is correct for the semantic permissions
 // (plan §10 assigns Administrator all four semantic capabilities), but it means adding a Super-User-only
 // permission requires editing this filter as well; forgetting to is a silent privilege grant.
+// The four Phase L permissions (AI_USE, AI_MANAGE, AI_AUDIT_VIEW, RECORDER_ELEMENT_SPY) are granted to
+// Administrator deliberately (2026-09-19): AI governance is operational control, not user
+// administration or licensing, and `verify:ai-permissions` asserts it in both directions.
 const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
   (p) =>
     p !== Permission.USER_MANAGE &&

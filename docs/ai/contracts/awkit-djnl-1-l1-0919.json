@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l1-0919",
+    "title": "Phase L milestone L1 (awkit-djnl.1): AI foundation, autonomy policy and performance go/no-go",
+    "objective": "Start L1 per docs/plans/ai-upgrade-v5/L1-ai-foundation.md. This contract covers only the Risk-3 paths L1 must touch: the autonomy policy (src/security/authz/AiAutonomyPolicy.ts, classified authorization_change so T3 and ceiling edits stay lease-gated) and the explicit AI permissions in src/security/authz/Permissions.ts (security lease), the source-controlled model manifest src/offline/AiModelManifest.ts (release lease), and the Beads and routing-matrix bookkeeping (project-state lease). Ordinary L1 code under src/ai, app/main, app/renderer, scripts and docs is unleased direct-loop work, disclosed rather than hidden.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "2dc8a0b",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "authorization_change": true,
+    "offline_boundary_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "security",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/security/authz/AiAutonomyPolicy.ts",
+      "src/security/authz/Permissions.ts",
+      "src/offline/AiModelManifest.ts",
+      ".beads/issues.jsonl",
+      "docs/ai/routing/ROUTING_MATRIX.md"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "security",
+      "allowed_paths": [
+        "src/security/authz/AiAutonomyPolicy.ts",
+        "src/security/authz/Permissions.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L1-POLICY",
+      "description": "AiAutonomyPolicy decides observe/suggest/autoApply/forbidden per the ratified table: ceilings equal defaults, configuration only lowers, the T2 cap and the exact T3 list are code constants, T3 is unreachable under every configuration, and self-demotion trips only above the threshold with a minimum sample.",
+      "evidence_required": [
+        "verify:ai-autonomy-policy"
+      ]
+    },
+    {
+      "id": "L1-BUILD",
+      "description": "The typecheck and bundles pass with the policy in place.",
+      "evidence_required": [
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-autonomy-policy",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-autonomy-policy",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
