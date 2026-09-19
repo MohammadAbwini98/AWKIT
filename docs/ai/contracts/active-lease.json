@@ -4,6 +4,7 @@
   "holder": "project-state",
   "status": "active",
   "allowed_paths": [
+    ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
@@ -27,7 +28,17 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789762718948.7537"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-19T15:43:00.324Z",
+      "added": [
+        ".beads/interactions.jsonl"
+      ],
+      "reason": "bd close records the L4a close interaction beside its exported issue state",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }
