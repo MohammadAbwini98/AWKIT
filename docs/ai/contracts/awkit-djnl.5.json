@@ -110,7 +110,7 @@
     "final_release_authorized": true
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
     "qa_basis": "The actual final source passed every cited L4a acceptance verifier; L5a's independent performance failure is documented separately and is not part of this closeout.",
     "qc_status": "NOT_REQUIRED"
