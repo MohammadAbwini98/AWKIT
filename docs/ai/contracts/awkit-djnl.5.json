@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl.5",
+    "title": "Phase L L4a tracker closeout",
+    "objective": "Close L4a's Beads item after its committed deterministic authoring-diagnostics implementation and final evidence: 94/94 authoring diagnostics, 138/138 broad Flow Designer checks, 16/16 loop-capsule checks, and a passing production build. This contract covers only the required project-state transition; it does not claim or close L5a.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ade9a3767f59a17b3059ad0a2b146e504288673d",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl.5.json",
+      "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/active-lease.json",
+        "docs/ai/contracts/awkit-djnl.5.json",
+        "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+        "tools/roadmap/assignments.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L4A-DIAGNOSTICS",
+      "description": "The deterministic matrix is implemented through the shared FlowValidator rule table, Flow and Workflow parity is covered, and legacy profiles still validate.",
+      "evidence_required": [
+        "verify:authoring-diagnostics"
+      ]
+    },
+    {
+      "id": "L4A-FLOW-DESIGNER",
+      "description": "The final Flow Designer broad and loop-capsule suites complete their full contracts.",
+      "evidence_required": [
+        "verify:flow-designer"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck and production bundles pass for the committed implementation.",
+      "evidence_required": [
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:authoring-diagnostics",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:authoring-diagnostics",
+      "artifact": "94/94 on the recovered final source",
+      "result": "PASS"
+    },
+    {
+      "id": "verify:flow-designer",
+      "type": "gui",
+      "required": true,
+      "command": "npm run verify:flow-designer",
+      "artifact": "138/138 broad GUI checks plus 16/16 focused loop-capsule checks",
+      "result": "PASS"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": "tsc --noEmit and Electron/Vite production bundles passed",
+      "result": "PASS"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "final_release_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "The actual final source passed every cited L4a acceptance verifier; L5a's independent performance failure is documented separately and is not part of this closeout.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": []
+  }
+}
