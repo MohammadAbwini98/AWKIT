@@ -602,8 +602,21 @@ try {
   await page.getByTestId("storage-delayed-confirmed").filter({ hasText: "preference stored" }).waitFor({ timeout: 5000 });
   check("...and the key only appears after the page's own confirmation", (await readStore("local", "awkit-delayed")) === "theme=dark");
 
+  console.log("Locator Quality Lab (/recorder-lab/locator-quality):");
+  await page.goto(`${BASE}/recorder-lab/locator-quality`);
+  check("the page serves its title", (await page.title()) === "Locator Quality Lab - L2 quality classes");
+  check("one test id target and one role-only target", (await page.getByTestId("lq-save-draft").count()) === 1 && (await page.getByRole("button", { name: "Publish report" }).count()) === 1);
+  check("the Edit button repeats in three invoice rows", (await page.getByRole("row").getByRole("button", { name: "Edit" }).count()) === 3);
+  check("two identical Remove twins", (await page.locator(".lq-twins button").count()) === 2 && (await page.getByRole("button", { name: "Remove" }).count()) === 2);
+  check("Apply coupon: one visible control and one hidden duplicate", (await page.locator("button", { hasText: "Apply coupon" }).count()) === 2 && (await page.getByRole("button", { name: "Apply coupon" }).count()) === 1);
+  await page.locator(".lq-twins button").nth(1).click();
+  check("each control writes only its own name (second twin)", (await page.getByTestId("lq-last").textContent()) === "twin-2");
+  await page.getByRole("row", { name: /INV-1002/ }).getByRole("button", { name: "Edit" }).click();
+  check("...and the row-scoped Edit names its row", (await page.getByTestId("lq-last").textContent()) === "edit-1002");
+
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);
+  check("index lists the Locator Quality Lab scenario", await page.getByTestId("scenario-locator-quality").isVisible());
   check("index lists the Runner Lab scenario", await page.getByTestId("scenario-runner-lab").isVisible());
   check("index lists the Iframe Lab scenario", await page.getByTestId("scenario-iframe-lab").isVisible());
   check("index lists the Drag & Drop Lab scenario", await page.getByTestId("scenario-drag").isVisible());

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Locator Quality Lab - L2 quality classes</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Locator Quality Lab</h1>
+      <p>
+        One target per L2 locator quality class. Record a click on each; the Recorder's saved locator
+        must classify as the section heading says. Every control only writes its own name into the
+        outcome line, so a replay can be checked against the recorded target.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+      <p>Last action: <output data-testid="lq-last">none</output></p>
+
+      <section data-testid="lq-strong">
+        <h2>Strong semantic</h2>
+        <button type="button" data-testid="lq-save-draft" data-lq="save-draft">Save draft</button>
+        <button type="button" data-lq="publish-report">Publish report</button>
+      </section>
+
+      <section data-testid="lq-acceptable">
+        <h2>Acceptable semantic</h2>
+        <span class="lq-chip" data-lq="weekly-digest" onclick="lq(this)">Weekly digest</span>
+        <template id="lq-coupon-template"><button type="button">Apply coupon</button></template>
+        <button type="button" hidden>Apply coupon</button>
+        <button type="button" data-lq="apply-coupon">Apply coupon</button>
+        <table aria-label="Invoices">
+          <tbody>
+            <tr><td>Invoice INV-1001</td><td><button type="button" data-lq="edit-1001">Edit</button></td></tr>
+            <tr><td>Invoice INV-1002</td><td><button type="button" data-lq="edit-1002">Edit</button></td></tr>
+            <tr><td>Invoice INV-1003</td><td><button type="button" data-lq="edit-1003">Edit</button></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section data-testid="lq-positional">
+        <h2>Guarded positional</h2>
+        <div class="lq-twins">
+          <button type="button" data-lq="twin-1">Remove</button>
+          <button type="button" data-lq="twin-2">Remove</button>
+        </div>
+      </section>
+    </main>
+    <script>
+      function lq(element) {
+        document.querySelector('[data-testid="lq-last"]').textContent = element.getAttribute("data-lq");
+      }
+      document.addEventListener("click", function (event) {
+        var target = event.target && event.target.closest ? event.target.closest("button[data-lq]") : null;
+        if (target) lq(target);
+      });
+    </script>
+  </body>
+</html>

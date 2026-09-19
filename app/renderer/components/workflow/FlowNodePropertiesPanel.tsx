@@ -10,6 +10,7 @@ import { defaultOracleNodeConfig } from "./flowDesignerTypes";
 import { locatorContainerChain, type AsyncCompletionMode, type LoaderCompletion, type OracleNodeConfig, type WaitCondition, type WaitHttpMethod } from "@src/profiles/FlowProfile";
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
 import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
+import { classifyLocatorQuality, LOCATOR_QUALITY_CLASS_LABEL } from "@src/recorder/LocatorQualityClass";
 import {
   isSensitiveInteractionStep
 } from "@src/profiles/interactionPrerequisiteDecision";
@@ -152,6 +153,7 @@ export function FlowNodePropertiesPanel({
   const sensitive = mappedStep ? isSensitiveInteractionStep(mappedStep) : false;
   const trialSupported = interactionReview?.trialSupported ?? false;
   const prerequisiteConfirmed = interactionReview?.decisionValid ?? false;
+  const locatorClassification = classifyLocatorQuality(mappedStep?.locator);
   const focusFinding = (finding: DesignerValidationFinding) => {
     const target = finding.code === "interactionPrerequisiteBlocked"
       ? prerequisiteReasonRef.current ?? recorderLinkRef.current
@@ -645,6 +647,19 @@ export function FlowNodePropertiesPanel({
                     <input type="checkbox" checked={data.locatorExact} onChange={(e) => editLocator({ locatorExact: e.target.checked })} />
                     Match exactly
                   </label>
+                ) : null}
+                {locatorClassification ? (
+                  <div
+                    className={`locator-review-state ${locatorClassification.class.endsWith("-semantic") ? "ok" : "warn"}`}
+                    data-testid="locator-quality-class"
+                    data-quality-class={locatorClassification.class}
+                    role="status"
+                  >
+                    <strong>Locator class: {LOCATOR_QUALITY_CLASS_LABEL[locatorClassification.class]}</strong>
+                    {locatorClassification.reasons.map((reason) => (
+                      <span key={reason.code}>{reason.detail}</span>
+                    ))}
+                  </div>
                 ) : null}
                 {data.locatorQuality ? (
                   <details>

@@ -140,6 +140,7 @@
     "verify:recorder-competitive": "tsx scripts/verify-recorder-competitive.mts",
     "verify:recorder-ambiguity": "tsx scripts/verify-recorder-ambiguity.mts",
     "verify:locator-guard": "tsx scripts/verify-locator-guard.mts",
+    "verify:locator-quality-class": "tsx scripts/verify-locator-quality-class.mts",
     "verify:frame-chain": "tsx scripts/verify-frame-chain.mts",
     "verify:closed-shadow": "tsx scripts/verify-closed-shadow.mts",
     "verify:blueprint-recovery": "tsx scripts/verify-blueprint-recovery.mts",

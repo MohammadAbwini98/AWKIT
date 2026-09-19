@@ -29,7 +29,7 @@ const broad = runLegacyGuiCoverage({
   root,
   script: "verify-flow-designer-gui.pre-capsule.mjs",
   supersededChecks: supersededURouteChecks,
-  expectedChecks: 138
+  expectedChecks: 140
 });
 
 console.log("\nFlow Designer: approved green dash-orbit Loop connector contract");

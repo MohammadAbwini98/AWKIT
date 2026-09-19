@@ -63,7 +63,8 @@ import type {
   LocatorRecordingMode
 } from "@src/recorder/RecorderTypes";
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
-import { locatorContainerChain } from "@src/profiles/FlowProfile";
+import { locatorContainerChain, type StepLocator } from "@src/profiles/FlowProfile";
+import { classifyLocatorQuality, LOCATOR_QUALITY_CLASS_LABEL, type LocatorQualityClass } from "@src/recorder/LocatorQualityClass";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { RECORDED_URL_SENSITIVE_QUERY_KEYS } from "@src/recorder/recordedUrlPolicy";
 
@@ -680,19 +681,19 @@ export function Recorder() {
   );
 
   const stepMix = useMemo(() => {
-    const mix = { interaction: 0, navigation: 0, wait: 0, strong: 0, medium: 0, brittle: 0 };
+    const mix = { interaction: 0, navigation: 0, wait: 0, "strong-semantic": 0, "acceptable-semantic": 0, "guarded-positional": 0, "review-required": 0 };
     for (const action of actions) {
       const tone = recorderActionTone(action.type);
       if (tone === "nav") mix.navigation += 1;
       else if (tone === "wait") mix.wait += 1;
       else mix.interaction += 1;
-      const strength = locatorStrength(action);
-      if (strength) mix[strength] += 1;
+      const locatorQuality = locatorClass(action);
+      if (locatorQuality) mix[locatorQuality] += 1;
     }
     return mix;
   }, [actions]);
-  const located = stepMix.strong + stepMix.medium + stepMix.brittle;
-  const qualityPct = located ? Math.round((stepMix.strong / located) * 100) : null;
+  const located = stepMix["strong-semantic"] + stepMix["acceptable-semantic"] + stepMix["guarded-positional"] + stepMix["review-required"];
+  const qualityPct = located ? Math.round((stepMix["strong-semantic"] / located) * 100) : null;
   const unresolved = actions.filter((action) => action.locator?.resolution === "needs-review" || action.locator?.resolution === "invalid").length;
   const riskyWaits = reviewSummary.counts.unsafe + reviewSummary.counts.incomplete;
   const sessionLinked = handoff?.sessionName ?? (actions.some((action) => action.type === "reuseSession") ? "" : null);
@@ -747,12 +748,16 @@ export function Recorder() {
           detail={`${stepMix.interaction} interaction · ${stepMix.navigation} navigation · ${stepMix.wait} wait`}
         />
         <SysMetric
-          tone={qualityPct === null ? "neutral" : stepMix.brittle > 0 ? "warning" : "success"}
+          tone={qualityPct === null ? "neutral" : stepMix["review-required"] > 0 ? "warning" : "success"}
           icon={Search}
           label="Locator quality"
           value={qualityPct ?? "—"}
           unit={qualityPct === null ? undefined : "%"}
-          detail={located ? `${stepMix.strong} strong, ${stepMix.medium} medium, ${stepMix.brittle} brittle` : "Scored as each step is captured"}
+          detail={
+            located
+              ? `${stepMix["strong-semantic"]} strong, ${stepMix["acceptable-semantic"]} acceptable, ${stepMix["guarded-positional"]} guarded, ${stepMix["review-required"]} review`
+              : "Classified as each step is captured"
+          }
         />
         <SysMetric
           tone={handoffActive ? "warning" : isRecording ? "running" : "neutral"}
@@ -1168,7 +1173,7 @@ export function Recorder() {
             <div ref={actionsListRef} className="recorder-steps-scroll">
               <SysTimeline className="recorder-timeline" label="Captured steps" aria-live="polite">
                 {actions.map((action, index) => {
-                  const strength = locatorStrength(action);
+                  const strength = locatorClass(action);
                   const waitTypes = [...(action.beforeWaits ?? []), ...(action.afterWaits ?? [])].map((wait) => wait.type);
                   const meta = [
                     action.locator && locatorContainerChain(action.locator.context).length ? formatLocatorScope(action) : "",
@@ -1182,7 +1187,7 @@ export function Recorder() {
                       tone={stepTone(action, strength)}
                       live={isRecording && index === actions.length - 1}
                       title={action.name}
-                      badge={recorderActionBadge(action) ?? (strength ? STRENGTH_LABEL[strength] : formatActionType(action.type))}
+                      badge={recorderActionBadge(action) ?? (strength ? LOCATOR_QUALITY_CLASS_LABEL[strength] : formatActionType(action.type))}
                       time={`Step ${index + 1}`}
                       sub={
                         <>
@@ -1224,13 +1229,14 @@ export function Recorder() {
       </SysPanels>
 
       <SysPanels>
-        <SysPanel icon={Search} title="Locator quality" meta="Scored as each step is captured">
+        <SysPanel icon={Search} title="Locator quality" meta="Classified as each step is captured">
           <SysBars
             label="Locator quality"
             rows={[
-              { label: "Strong · role, test id or label", raw: stepMix.strong, value: stepMix.strong, color: "var(--awkit-success)" },
-              { label: "Medium · text, placeholder or id", raw: stepMix.medium, value: stepMix.medium, color: "var(--awkit-warning)" },
-              { label: "Brittle · positional or fallback", raw: stepMix.brittle, value: stepMix.brittle, color: "var(--awkit-danger)" }
+              { label: "Strong semantic · unique test id, role, label or placeholder", raw: stepMix["strong-semantic"], value: stepMix["strong-semantic"], color: "var(--awkit-success)" },
+              { label: "Acceptable semantic · text, scoped or visibility-dependent", raw: stepMix["acceptable-semantic"], value: stepMix["acceptable-semantic"], color: "var(--awkit-info)" },
+              { label: "Guarded positional · position re-proven by identity", raw: stepMix["guarded-positional"], value: stepMix["guarded-positional"], color: "var(--awkit-warning)" },
+              { label: "Review required · unproven, structural or not unique", raw: stepMix["review-required"], value: stepMix["review-required"], color: "var(--awkit-danger)" }
             ]}
           />
         </SysPanel>
@@ -1244,10 +1250,14 @@ export function Recorder() {
               badge={unresolved ? "Review" : "Pass"}
             />
             <SysCheckRow
-              tone={stepMix.brittle ? "warning" : "success"}
-              title={stepMix.brittle ? `${stepMix.brittle} brittle locator${stepMix.brittle === 1 ? "" : "s"} remain${stepMix.brittle === 1 ? "s" : ""}` : "No brittle locators"}
-              sub="Positional and fallback locators are the first to break when the page changes"
-              badge={stepMix.brittle ? "Review" : "Pass"}
+              tone={stepMix["review-required"] ? "warning" : "success"}
+              title={
+                stepMix["review-required"]
+                  ? `${stepMix["review-required"]} locator${stepMix["review-required"] === 1 ? "" : "s"} need${stepMix["review-required"] === 1 ? "s" : ""} review`
+                  : "No locator needs review"
+              }
+              sub="Unguarded positional, structural and non-unique locators are the first to break when the page changes"
+              badge={stepMix["review-required"] ? "Review" : "Pass"}
             />
             <SysCheckRow
               tone={riskyWaits ? "warning" : "success"}
@@ -1552,29 +1562,23 @@ export function Recorder() {
   );
 }
 
-type LocatorStrength = "strong" | "medium" | "brittle";
-
-const STRENGTH_LABEL: Record<LocatorStrength, string> = {
-  strong: "Strong locator",
-  medium: "Medium locator",
-  brittle: "Brittle locator"
-};
-
-/** Recorder-time quality grade: the captured confidence when present, else the strategy family. */
-function locatorStrength(action: RecordedAction): LocatorStrength | null {
-  const locator = action.locator;
-  if (!locator) return null;
-  const confidence = locator.quality?.confidence;
-  if (confidence) return confidence === "high" ? "strong" : confidence === "medium" ? "medium" : "brittle";
-  if (["role", "testId", "label"].includes(locator.strategy)) return "strong";
-  if (["text", "placeholder", "id"].includes(locator.strategy)) return "medium";
-  return "brittle";
+/** The shared L2 quality class (src/recorder/LocatorQualityClass.ts), never a page-local grade. */
+function locatorClass(action: RecordedAction): LocatorQualityClass | null {
+  // The draft locator carries the same fields buildRecordedFlow forwards (its guard is not hashed yet).
+  return classifyLocatorQuality(action.locator as StepLocator | undefined)?.class ?? null;
 }
 
-function stepTone(action: RecordedAction, strength: LocatorStrength | null): SysTone {
+const CLASS_TONE: Record<LocatorQualityClass, SysTone> = {
+  "strong-semantic": "success",
+  "acceptable-semantic": "info",
+  "guarded-positional": "warning",
+  "review-required": "danger"
+};
+
+function stepTone(action: RecordedAction, locatorQuality: LocatorQualityClass | null): SysTone {
   if (action.locator?.resolution === "invalid") return "danger";
   if (action.locator?.resolution === "needs-review") return "warning";
-  if (strength) return strength === "strong" ? "success" : strength === "medium" ? "warning" : "danger";
+  if (locatorQuality) return CLASS_TONE[locatorQuality];
   const tone = recorderActionTone(action.type);
   return tone === "session" ? "warning" : tone === "wait" ? "neutral" : "info";
 }

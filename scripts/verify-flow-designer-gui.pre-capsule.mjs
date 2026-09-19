@@ -2098,6 +2098,12 @@ try {
   }
   const locatorReview = win.getByTestId("locator-review-state");
   check("Flow Designer displays the unresolved positional locator", /Needs element identity proof.*execution blocked/.test((await locatorReview.textContent()) ?? ""));
+  // Phase L L2: the shared locator quality class (src/recorder/LocatorQualityClass.ts) for the same step.
+  const qualityClass = win.getByTestId("locator-quality-class");
+  check(
+    "Flow Designer shows the shared L2 locator class for the unresolved positional step (review-required)",
+    (await qualityClass.getAttribute("data-quality-class")) === "review-required" && ((await qualityClass.textContent()) ?? "").includes("Locator class: Review required")
+  );
   const approveLocator = win.getByTestId("approve-locator-fallback");
   check("Flow Designer requires a reason before approval", await approveLocator.isDisabled());
   await locatorReview.getByLabel("Approval reason").fill("Reviewed: fixture is intentionally position-only.");
@@ -2105,6 +2111,10 @@ try {
   await approveLocator.focus();
   await win.keyboard.press("Enter");
   check("Flow Designer displays approved-fallback state", /User-approved fallback/.test((await locatorReview.textContent()) ?? ""));
+  check(
+    "Approval does not upgrade the class: an unguarded user-approved positional fallback stays review-required",
+    (await qualityClass.getAttribute("data-quality-class")) === "review-required" && /user-approved positional fallback/i.test((await qualityClass.textContent()) ?? "")
+  );
   await win.getByRole("button", { name: "Save", exact: true }).click();
   await win.waitForTimeout(700);
   const approvedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));
