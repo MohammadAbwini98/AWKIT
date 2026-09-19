@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## L3 model-independent core (locator plan compiler + intent guard); L5a methodology brief (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation
+case moved.
+
+- **Phase L state:** L0, L2, L4a closed. L1 `awkit-djnl.1` in progress. Every non-artifact task is built,
+  and L1.2/L1.8 are BLOCKED on the owner's two acquisition steps (`node-llama-cpp` is still not installed,
+  re-checked). L5a `awkit-djnl.7` is open on the overhead-gate methodology decision. L3, L4b and L5b depend
+  on L1. L6 depends on L4b, and L7 depends on all of them.
+- **L3 `awkit-djnl.4`: its model-independent core is built, but the task stays OPEN.** New
+  `src/ai/locatorPlan.ts` holds the versioned locator plan schema (bounded, closed objects), the trusted
+  compiler that is the only path from model output to a `LocatorCandidate` + `LocatorContext` (frame and
+  shadow scope are copied from the capture), and the intent guard (rejects bound-value text; flags
+  `meaningChange`). Nothing calls it yet. The proof gates, `pendingUpgrade`, promotion, repair, the sweep and
+  the UX are not built.
+- **L5a:** no new application bottleneck was found. The decision brief is in
+  `docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md` › "L5a gate — decision brief". On this
+  host, six rounds cannot resolve a 150 ms ceiling, the six concurrent Chromiums saturate the CPU, and
+  `stats()` takes the upper middle value for an even round count. Recommendation: odd rounds, one instance
+  per workload, run on the VMware target, with a three-way PASS/FAIL/INCONCLUSIVE verdict. The ceilings are
+  unchanged. The gate was not rerun because its inputs did not change.
+- **`AWKIT_TEST_LAB_BUNDLE_ROOT`** is referenced only by the two Test Lab verifier scripts. Nothing in
+  `src/`, `app/` or packaging reads it.
+
+**Evidence (final state):** `npm run build` PASS; `npm run typecheck:scripts` PASS; `verify:locator-plan`
+53/53; `verify:verifier-classification` PASS (225). Mutation run of `verify:locator-plan` (guard
+disabled): NOT RUN, because the session's permission classifier refused it. Packaged walkthrough and
+clean machine: BLOCKED (no issuer key).
+
 ## L2 closed in Beads; licensing-recommendation findings reconciled, Test Lab and issuer exit contracts locked (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation

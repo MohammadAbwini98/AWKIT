@@ -1,5 +1,18 @@
 # TASK_LOG
 
+## 2026-09-19 — L3 locator plan compiler and intent guard; L5a methodology brief (Claude)
+
+- **L3 (model-independent core):** `src/ai/locatorPlan.ts`: the plan schema, the trusted compiler and
+  the intent guard, with the new `verify:locator-plan` (53/53). `awkit-djnl.4` stays OPEN because it
+  depends on L1.
+- **L5a:** the decision brief is in the L5 plan. No new app bottleneck was found. Ceilings unchanged, gate
+  not rerun (its inputs did not change).
+- **L1:** unchanged. The runtime is still absent and every non-artifact task is already built.
+- **Files:** `src/ai/locatorPlan.ts`, `scripts/verify-locator-plan.mts` (both new), `package.json`,
+  `scripts/lib/verifier-classification.ts`, the L3 and L5 plans, `CURRENT_STATE`, `HANDOFF`, `COMMANDS`.
+- **Tests:** build PASS, typecheck:scripts PASS, verify:locator-plan 53/53, verifier-classification 225.
+  Mutation run NOT RUN (classifier refused it). Packaged walkthrough and clean machine BLOCKED.
+
 ## 2026-09-19 — L2 Beads closure and licensing-recommendation reconciliation (Claude)
 
 - **L2:** `awkit-djnl.3` closed through contract `docs/ai/contracts/awkit-djnl.3.json` and a

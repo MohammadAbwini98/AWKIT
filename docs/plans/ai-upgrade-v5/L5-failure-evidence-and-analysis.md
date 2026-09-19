@@ -114,6 +114,42 @@ execution in the instance (a retry keeps its index). `verify:ui-error-evidence` 
 **Open:** the owner decides the gate's methodology (rounds, median definition, host — ideally the VMware target),
 then a passing measurement, then an approved release ceiling. L5a stays open until then.
 
+### L5a gate — decision brief (2026-09-19)
+
+What the gate does today (`scripts/verify-failure-capture-overhead.mts`): one untimed warm-up, then
+`AWKIT_L5A_OVERHEAD_ROUNDS` (6) rounds, each an ON and an OFF batch in alternating order (ABBA), each batch
+`AWKIT_L5A_OVERHEAD_INSTANCES` (3) instances per workload, so 6 concurrent Chromium instances. The statistic is
+the median over rounds of (ON batch median − OFF batch median); the ceiling is max(10 % of OFF median, 150 ms).
+The method already cancels slow host drift. Its limits:
+
+1. **Resolution.** Recorded per-round deltas span about −726 to +704 ms. With six rounds the standard error of
+   the median is roughly 1.25·σ/√6. At a per-round σ of 300–400 ms that is about 150–200 ms, the same size as the
+   150 ms ceiling. On this host the gate can pass or fail on noise alone. The recorded runs show it: 15/15,
+   15/15, then 13/2 on unchanged code. The +484/+387 ms re-measurement came from the same host at 85–100 % CPU.
+2. **Saturation.** Six concurrent Chromiums plus the engine saturate this development host, which triggers
+   CPU-pressure backpressure. Backpressure then delays admission in whichever batch it hits. That adds a
+   scheduler effect to the measured collector cost.
+3. **Median definition.** `stats()` in `scripts/benchmark/lib.mts` takes `xs[floor(n/2)]`. With an even count
+   that is the upper of the two middle values, which biases the result upward.
+4. **No application cost is left to explain the spread.** With a profiler attached, the delta was +15/+10 ms,
+   and collector start measured 3–4 ms after `6bfd59d`. No further hot path has been identified. A new
+   optimization needs a profile that shows new cost, not another gate run.
+
+The options below leave the ceilings and the product unchanged. Each needs owner approval, because the
+methodology is the owner's call.
+
+| Option | Change | Cost | Effect |
+|---|---|---|---|
+| A. Quiet host | Run the unchanged gate on the VMware target | none | Less contention, same 6-round resolution |
+| B. Odd rounds | Set `AWKIT_L5A_OVERHEAD_ROUNDS=7` (or 9) | +1–3 rounds of runtime | Removes the even-count median bias without changing code |
+| C. More rounds | 15–20 rounds | about 3× runtime | Standard error falls by about √(20/6) ≈ 1.8× |
+| D. Unsaturated load | `AWKIT_L5A_OVERHEAD_INSTANCES=1` for the duration gate. Keep the saturated run as a separate informational check | none | Measures collector cost, not scheduler response to saturation |
+| E. Three-way verdict | PASS when a paired interval's upper bound ≤ ceiling, FAIL when its lower bound > ceiling, otherwise INCONCLUSIVE | a small verifier change | Stops noise from being reported as PASS or FAIL |
+
+**Recommendation:** B + D on the VMware target (A), reported with E. All of these are environment settings
+except E. Do not change the ceilings or the evidence collected. Until the owner decides, L5a stays open and its
+gate stays at the last recorded FAIL.
+
 ## L5b — Failure intelligence (T0)
 
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,

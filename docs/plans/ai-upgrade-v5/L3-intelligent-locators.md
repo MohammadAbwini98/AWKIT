@@ -3,6 +3,15 @@
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go PASS and L2.
 **Source of truth for locator AI.**
 
+**Status (2026-09-19): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
+§2 plan DSL + trusted compiler and §3 intent guard in `src/ai/locatorPlan.ts`, proven by `verify:locator-plan`
+(53/53, pure, no model or browser). Nothing calls it yet. Not built: §4 proof gates, §5 `pendingUpgrade` and
+replay proof, §6 promotion, §8 repair, §9 sweep, §10 UX, and the `verify:ai-locator-*` verifiers.
+Compiler decisions: css is limited to one stable `#id` selector; XPath needs `allowXPath`; a closed-shadow target
+(`shadow.instrumented`) is refused because the bridge resolves it by its own target signature; the intent guard
+rejects any text that contains a bound value (length ≥ 2, the L2 marker rule) rather than parameterizing it; a new
+`hasText` scope, or a text target over a positional baseline, sets `meaningChange`.
+
 ## Goal
 
 Automatically turn runnable-but-fragile locators into proven semantic locators, and repair failing saved locators,

@@ -372,6 +372,12 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     why: "Runs a real Playwright workflow alongside a large Zvec indexing batch to quantify coexistence impact."
   },
 
+  // ── Phase L (local AI) — L3 deterministic core ───────────────────────────────────────────────
+  "verify:locator-plan": {
+    class: "unit",
+    why: "Locator plan DSL, trusted compiler and intent guard: invented frames, scripts, positional and unstable selectors, XPath policy and bound-value scopes are refused and position-to-text changes flagged; pure in-process, no model or browser."
+  },
+
   // ── Phase L (local AI) — L1 foundation ───────────────────────────────────────────────────────
   "verify:ai-autonomy-policy": {
     class: "unit",

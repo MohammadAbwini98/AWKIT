@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L2 closed in Beads; licensing-recommendation findings reconciled
+## HANDOFF (2026-09-19, latest) — L3 plan compiler + intent guard built; L5a decision brief written
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** `src/ai/locatorPlan.ts` (L3 §2–§3) with `verify:locator-plan` 53/53. `awkit-djnl.4` stays
+  OPEN because it depends on L1. Beads were not touched.
+- **Owner decisions needed:** (1) the L5a methodology. The brief in the L5 plan recommends odd rounds, one
+  instance per workload, the VMware host and a three-way verdict. (2) L1 acquisition (unchanged).
+- **Next agent work without the model:** L3 §4 proof gates (A–D against the guarded baseline's element in a
+  real browser) and the §5 `pendingUpgrade` write, clear and replay-proof tally, both driven through the fake
+  provider. These should get a mock-site scenario under `/recorder-lab/`. The first caller of
+  `evaluateLocatorPlan` must feed it `boundValueSources(actions)` plus the action's own value and any
+  data-source column values.
+- **Not run:** the `verify:locator-plan` mutation run (refused by the permission classifier). Suggested
+  mutations: disable the bound-value check in `guardLocatorPlanIntent`, or the `INVENTED_FRAME` key check.
+
+## HANDOFF (2026-09-19, superseded) — L2 closed in Beads; licensing-recommendation findings reconciled
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** `awkit-djnl.3` CLOSED through a project-state contract and lease
