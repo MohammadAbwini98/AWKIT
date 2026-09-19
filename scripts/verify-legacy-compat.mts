@@ -86,7 +86,10 @@ function activePathFlow(id = "active-flow"): FlowProfile {
   return { ...base, nodes: [step("n-start", "start"), step("n-click", "click"), step("n-end", "end")] };
 }
 
-/** Casing-only enum mistakes — the safe-fix surface. */
+/**
+ * Casing-only enum mistakes — the safe-fix surface. Otherwise valid: the conditional has a standard
+ * fallback (a valid if/else), because a lone conditional is `incompleteBranchPair` (L4a).
+ */
 function fixableFlow(id = "fixable-flow"): FlowProfile {
   const base = validFlow(id);
   return {
@@ -100,7 +103,8 @@ function fixableFlow(id = "fixable-flow"): FlowProfile {
         type: "conditional",
         kind: "conditional",
         conditional: { sourceField: "Outcome" as "outcome", operator: "NotEquals" as "notEquals", expectedValue: "fail" }
-      }
+      },
+      edge("e-fallback", "n-click", "n-end")
     ]
   };
 }

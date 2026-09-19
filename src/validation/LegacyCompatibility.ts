@@ -33,10 +33,11 @@ import {
 
 /**
  * Engine + policy version. Bump when a rule is added/changed or the blocking policy shifts, so
- * grants and scan reports record which validator produced them. Version 3 = Stage 2c
- * (1 = Stage 2a engine, 2 = Stage 2b gate wiring).
+ * grants and scan reports record which validator produced them. Version 4 = Phase L L4a rules
+ * (incomplete branch pairs, unguarded cycles, End-aware reachability and five warnings); 3 = Stage
+ * 2c, 2 = Stage 2b gate wiring, 1 = Stage 2a engine.
  */
-export const FLOW_VALIDATOR_VERSION = 3;
+export const FLOW_VALIDATOR_VERSION = 4;
 
 /** How long a Legacy Compatibility grant lasts, from the moment the inventory scan issues it. */
 export const LEGACY_COMPATIBILITY_WINDOW_DAYS = 30;

@@ -425,6 +425,84 @@ try {
   check("upload result banner becomes visible", await page.getByTestId("upload-result").isVisible());
   await rm(uploadPath, { force: true });
 
+  // Fixture truth only: each control produces its one signal in a real browser. Whether the L5a
+  // collector captures it through the real engine is `verify:ui-error-evidence`.
+  console.log("Runner Lab - failure evidence fixtures (L5a):");
+  await page.goto(`${BASE}/runner-lab`);
+  check("failure-evidence section renders", await page.getByTestId("failure-evidence-section").isVisible());
+  check("no password field exists before the protected-login control is used", (await page.locator('input[type="password"]').count()) === 0);
+
+  await page.getByTestId("fe-transient-toast").click();
+  const feToast = page.getByTestId("fe-toast-host").locator(".toast");
+  await feToast.waitFor({ state: "visible", timeout: 3000 });
+  check("transient toast shows its error text", ((await feToast.textContent()) ?? "").startsWith("Payment declined"));
+  await feToast.waitFor({ state: "detached", timeout: 3000 });
+  check("transient toast removes itself", (await page.getByTestId("fe-toast-state").textContent()) === "dismissed" && (await feToast.count()) === 0);
+  check("the order confirmation never appears", await page.getByTestId("fe-order-confirmed").isHidden());
+
+  await page.getByTestId("fe-postcode").fill("ab");
+  await page.getByTestId("fe-submit").click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="fe-postcode"]').getAttribute("aria-invalid") === "true", null, { timeout: 3000 });
+  check("inline validation marks the postcode invalid and describes why", (await page.getByTestId("fe-postcode-error").textContent()) === "Postcode must be 5 digits.");
+  check("native validation leaves the required email valueMissing", await page.getByTestId("fe-email").evaluate((el) => el.validity.valueMissing));
+  check("the submit is blocked", (await page.getByTestId("fe-form-status").textContent()) === "not submitted");
+
+  for (const code of [409, 422, 500, 503]) {
+    await page.getByTestId(`fe-http-${code}`).click();
+    await page.waitForFunction((c) => document.querySelector('[data-testid="fe-http-result"]').textContent === String(c), code, { timeout: 5000 });
+    check(`fe-http-${code} gets HTTP ${code} and shows its own alert`, ((await page.getByTestId("fe-http-alert").textContent()) ?? "").endsWith(`(HTTP ${code})`));
+  }
+
+  await page.getByTestId("fe-save-order").click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="fe-save-alert"]').textContent.length > 0, null, { timeout: 5000 });
+  check("save order gets a 409 alert and never confirms", ((await page.getByTestId("fe-save-alert").textContent()) ?? "").startsWith("Could not save") && (await page.getByTestId("fe-order-saved").isHidden()));
+
+  const feDrop = page.waitForEvent("requestfailed", { predicate: (request) => request.url().includes("/api/transport-drop"), timeout: 5000 });
+  await page.getByTestId("fe-transport").click();
+  check("transport drop is a network failure, not an HTTP status", /ERR_EMPTY_RESPONSE/.test((await feDrop).failure()?.errorText ?? ""));
+  await page.waitForFunction(() => document.querySelector('[data-testid="fe-transport-result"]').textContent === "failed", null, { timeout: 5000 });
+  check("...and the page reports it", ((await page.getByTestId("fe-transport-alert").textContent()) ?? "").startsWith("Network error"));
+
+  const fePageError = page.waitForEvent("pageerror", { timeout: 3000 });
+  await page.getByTestId("fe-throw").click();
+  const feError = await fePageError;
+  check("the script-error control raises a real uncaught TypeError", feError.name === "TypeError" && /reading 'total'/.test(feError.message), feError.message);
+  check("...and the total is never calculated", (await page.getByTestId("fe-cart-total").textContent()) === "not calculated");
+
+  const feConsole = page.waitForEvent("console", { predicate: (message) => message.type() === "error", timeout: 3000 });
+  await page.getByTestId("fe-console-error").click();
+  check("the console control logs its console.error", (await feConsole).text() === "Checkout widget failed to render: missing configuration.");
+
+  await page.getByTestId("fe-burst").click();
+  const feBurstAlert = page.getByTestId("fe-burst-host").locator('[role="alert"]');
+  await feBurstAlert.waitFor({ state: "visible", timeout: 3000 });
+  const feBurstToasts = await page.getByTestId("fe-burst-host").locator(".toast").allTextContents();
+  check(
+    "the burst shows three identical toasts and one different alert",
+    feBurstToasts.length === 3 && feBurstToasts.every((value) => value === "Could not refresh prices.") && (await feBurstAlert.textContent()) === "Inventory service unavailable.",
+    JSON.stringify(feBurstToasts)
+  );
+
+  const feWarnConsole = page.waitForEvent("console", { predicate: (message) => message.type() === "error", timeout: 3000 });
+  await page.getByTestId("fe-warn").click();
+  await feWarnConsole;
+  check(
+    "the unrelated-warning action succeeds with a neutral status note",
+    (await page.getByTestId("fe-warn-result").textContent()) === "open" && (await page.getByTestId("fe-warn-status").textContent()) === "Prices refresh at midnight."
+  );
+
+  const feLogin401 = page.waitForResponse((response) => response.url().includes("/api/status?code=401"), { timeout: 5000 });
+  await page.getByTestId("fe-login-reveal").click();
+  await page.getByTestId("fe-password").waitFor({ state: "attached", timeout: 3000 });
+  check("the protected-login control inserts a password field and gets a 401", (await feLogin401).status() === 401);
+
+  const feErrorPage = await page.goto(`${BASE}/runner-lab/error-page?code=503`);
+  check(
+    "the error page answers 503 with its fixed title and heading",
+    feErrorPage?.status() === 503 && (await page.title()) === "Service unavailable" && (await page.getByTestId("error-page-heading").textContent()) === "We could not load your orders"
+  );
+  check("the error page answers 500 when asked", (await page.request.get(`${BASE}/runner-lab/error-page?code=500`)).status() === 500);
+
   console.log("Iframe Lab - frame-scoped locators:");
   await page.goto(`${BASE}/iframe-lab`);
   const frame = page.frameLocator("[data-testid='lab-frame']");

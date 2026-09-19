@@ -280,6 +280,30 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && path === "/runner-lab") return serveStatic(res, "runner-lab.html");
+  // Failure-evidence lab (Phase L L5a): an application error page. The status is allow-listed and the
+  // page is fixed text, so nothing from the request reaches the body.
+  if (req.method === "GET" && path === "/runner-lab/error-page") {
+    const code = url.searchParams.get("code") === "500" ? 500 : 503;
+    res.writeHead(code, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Service unavailable</title><link rel="stylesheet" href="/styles.css" /></head>
+  <body>
+    <main class="card">
+      <h1 data-testid="error-page-heading">We could not load your orders</h1>
+      <p data-testid="error-page-detail">The order service answered HTTP ${code}. Try again later.</p>
+      <a href="/runner-lab" data-testid="error-page-back">Back to Runner Lab</a>
+    </main>
+  </body>
+</html>`);
+    return;
+  }
+  // Failure-evidence lab: a transport failure. The socket closes with no response at all, so the
+  // browser reports a network error (net::ERR_EMPTY_RESPONSE) rather than an HTTP status.
+  if (req.method === "GET" && path === "/api/transport-drop") {
+    req.socket.destroy();
+    return;
+  }
   if (req.method === "GET" && path === "/iframe-lab") return serveStatic(res, "iframe-lab.html");
   if (req.method === "GET" && path === "/iframe-child") return serveStatic(res, "iframe-child.html");
   // Nested frame chain (main → outer → inner → leaf) for the guaranteed-unique frame-chain feature.

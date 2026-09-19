@@ -124,6 +124,8 @@ import {
 } from "./store/RuntimeStoreSchema";
 import { runStartupRecovery } from "./store/StartupRecovery";
 import { PassiveCdpTrace, type CdpObservationSnapshot } from "./observation/PassiveCdpTrace";
+import { EvidenceRunBudget } from "./evidence/ExecutionEvidence";
+import { FailureEvidenceCollector } from "./evidence/FailureEvidenceCollector";
 import {
   notifyRunCompletion,
   type RunCompletionEvent,
@@ -160,6 +162,8 @@ export class ExecutionEngine {
 
   private readonly activeRuns = new Map<string, Promise<void>>();
   private readonly runReports = new Map<string, InstanceReport[]>();
+  /** L5a: one failure-evidence byte budget per execution, shared by its instances. */
+  private readonly evidenceBudgets = new Map<string, EvidenceRunBudget>();
   private readonly runStartTimes = new Map<string, string>();
   private readonly manualHandoffController = new ManualHandoffController();
   // Kept beyond the run lifetime so "Repeat" can re-run a finished instance.
@@ -1056,6 +1060,7 @@ export class ExecutionEngine {
     }
 
     this.runReports.set(executionId, []);
+    this.evidenceBudgets.set(executionId, new EvidenceRunBudget());
     this.runStartTimes.set(executionId, new Date().toISOString());
     this.runContexts.set(executionId, { profile, flows, scenario, workflowDataSource, dataSources, dirs, runtimeInputs });
     this.watchdog.start();
@@ -1078,6 +1083,7 @@ export class ExecutionEngine {
     void runPromise.finally(() => {
       this.activeRuns.delete(executionId);
       this.runReports.delete(executionId);
+      this.evidenceBudgets.delete(executionId);
       this.runStartTimes.delete(executionId);
     }).catch(() => undefined);
   }
@@ -1152,7 +1158,19 @@ export class ExecutionEngine {
       const allTerminal = currentList.every(i => ["completed", "failed", "cancelled"].includes(i.status));
       if (allTerminal && currentList.length > 0) {
         hasMore = false;
-        
+        // A stopped instance turns "cancelled" at once, while its runner is still unwinding and has not
+        // yet handed over its instance report (with its L5a diagnostics). Let those runners settle
+        // first, bounded so a hung teardown can never withhold the report.
+        const unwinding = currentList
+          .map((i) => this.activeInstanceRunners.get(i.instanceId))
+          .filter((runner): runner is Promise<void> => runner !== undefined);
+        if (unwinding.length > 0) {
+          await Promise.race([
+            Promise.allSettled(unwinding),
+            new Promise<void>((resolve) => (setTimeout(resolve, 30_000) as { unref?: () => void }).unref?.())
+          ]);
+        }
+
         // Generate final report
         const reports = this.runReports.get(executionId) ?? [];
         const reportService = new ReportService(dirs.reports);
@@ -1435,6 +1453,7 @@ export class ExecutionEngine {
     const attempts = new NodeAttemptLog();
     let runLogger: RunLogger | undefined;
     let passiveTrace: PassiveCdpTrace | undefined;
+    let evidence: FailureEvidenceCollector | undefined;
     let runError: string | undefined;
     // AWKIT-RUN-006: hoisted so the finally can finalize the run even when SETUP threw.
     let runStartedAtIso = new Date().toISOString();
@@ -1452,6 +1471,18 @@ export class ExecutionEngine {
               scenarioId: instance.scenarioId
             });
       if (passiveTrace) this.observationTraces.set(instance.instanceId, passiveTrace);
+      // L5a run-lifetime failure evidence: bounded, masked, on the same generation lifecycle as the
+      // CDP trace. Best-effort; `AWKIT_FAILURE_EVIDENCE=0` turns it off and
+      // `AWKIT_FAILURE_EVIDENCE_CONSOLE=0` turns off only its console capture.
+      evidence =
+        process.env.AWKIT_FAILURE_EVIDENCE === "0"
+          ? undefined
+          : new FailureEvidenceCollector({
+              executionId: instance.executionId,
+              instanceId: instance.instanceId,
+              budget: this.evidenceBudgets.get(instance.executionId) ?? new EvidenceRunBudget(),
+              captureConsole: process.env.AWKIT_FAILURE_EVIDENCE_CONSOLE !== "0"
+            });
       machine.transition("running", "instance dispatched with browser slot");
       this.patchRuntime(instance.instanceId, { flowRunStatus: machine.status, browserWorkerId: slot.workerId });
       // Reporting: run-summary fields. Queue wait is measured from run enqueue (runStartTimes) to
@@ -1489,7 +1520,7 @@ export class ExecutionEngine {
         message: `Instance ${instance.instanceOrderNumber ?? 1}/${instance.totalInstances ?? 1} started.`
       });
 
-      const progress = this.createProgressReporter(instance.instanceId, flows, { runLogger, attempts, instance, slot });
+      const progress = this.createProgressReporter(instance.instanceId, flows, { runLogger, attempts, instance, slot, evidence });
 
     // Browser Resource Optimization: resolve this instance's browser runtime configuration ONCE from the
     // selected profile (env, default balanced == today's behaviour) + the workflow's static capabilities.
@@ -1560,11 +1591,12 @@ export class ExecutionEngine {
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: async ({ runtime, generation }) => {
         this.browserPool.registerRuntime(slot!, runtime, generation);
-        await passiveTrace?.startGeneration(runtime, generation);
+        // Independent best-effort observers: attach together so neither waits on the other's CDP round trips.
+        await Promise.all([passiveTrace?.startGeneration(runtime, generation), evidence?.startGeneration(runtime, generation)]);
       },
       onRuntimeClosing: async ({ generation }) => {
         this.browserPool.markExpectedClose(slot!, generation);
-        await passiveTrace?.stopGeneration(generation);
+        await Promise.all([passiveTrace?.stopGeneration(generation), evidence?.stopGeneration(generation)]);
       },
       cancellation: cancelSource.token,
       originClaims,
@@ -1636,6 +1668,9 @@ export class ExecutionEngine {
 
       const reportService = new ReportService(dirs.reports);
       const instanceReport = reportService.createInstanceReport(result, instance.currentDataRowIndex);
+      const cancelled = cancelSource.token.cancelled || current?.status === "cancelled";
+      const diagnostics = evidence?.finish(cancelled ? "cancelled" : result.status);
+      if (diagnostics) instanceReport.diagnostics = diagnostics;
       const reports = this.runReports.get(instance.executionId);
       if (reports) reports.push(instanceReport);
 
@@ -1662,6 +1697,7 @@ export class ExecutionEngine {
       // origin tracker, and stray profile locks released, state artifacts + log flush before the
       // promise settles.
       await passiveTrace?.stop().catch(() => undefined);
+      evidence?.stop();
       if (passiveTrace?.hasArtifacts()) {
         this.durableStore.recordArtifact({
           instanceId: instance.instanceId,
@@ -1824,6 +1860,7 @@ export class ExecutionEngine {
       attempts: NodeAttemptLog;
       instance: InstanceRuntimeState;
       slot: BrowserWorkerSlot;
+      evidence?: FailureEvidenceCollector;
     }
   ): RunnerProgressReporter {
     const flowNameById = new Map(flows.map((flow) => [flow.id, flow.name]));
@@ -1834,6 +1871,8 @@ export class ExecutionEngine {
     return {
       report: (event: RunnerProgressEvent) => {
         const now = event.timestamp;
+        // L5a step-window correlation. Synchronous and bounded; never throws into progress.
+        extras?.evidence?.onProgress(event);
 
         // ── Concurrency layer: heartbeat + JSONL log + node attempts ──────────
         if (extras) {

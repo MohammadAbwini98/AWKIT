@@ -42,6 +42,7 @@ import type {
   FlowStep,
   LoopConnectorConfig,
   ParallelConnectorConfig,
+  ValueSource,
   WaitCondition
 } from "../profiles/FlowProfile";
 import { connectorKind, validateConnectorStructureDetailed } from "../profiles/FlowProfile";
@@ -52,6 +53,7 @@ import {
   isValidInteractionExecutionDecision
 } from "../profiles/interactionPrerequisiteDecision";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
+import { incompleteBranchPairs } from "./BranchPairs";
 import { hasClosePopupTarget, isKnownStepType, stepRequirement } from "./StepRequirements";
 import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
 import { assertionConfigDefects, assertionStepContract, hasAssertionExpectedValue } from "./AssertionStepContract";
@@ -109,7 +111,17 @@ export type FlowValidationCode =
   | "largeLoopBounds"
   | "locatorNeedsReview"
   | "interactionPrerequisiteBlocked"
-  | "ignoredConditionValueSource";
+  | "ignoredConditionValueSource"
+  // Phase L L4a (awkit-djnl.5): families that had no engine rule. Appended so existing report
+  // ordering is unchanged. See docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md.
+  | "incompleteBranchPair"
+  | "unguardedCycle"
+  | "connectorFromEndNode"
+  | "deadEndNode"
+  | "incompleteCondition"
+  | "emptyLoopValues"
+  | "ambiguousConditionPriority"
+  | "incompleteValueSource";
 
 interface RuleSpec {
   readonly severity: FlowValidationSeverity;
@@ -147,7 +159,15 @@ export const FLOW_VALIDATION_RULES: Record<FlowValidationCode, RuleSpec> = {
   largeLoopBounds: { severity: "warning", summary: "Loop bound is large enough to make an unattended run very long." },
   locatorNeedsReview: { severity: "error", summary: "Step locator requires manual review or fallback approval before execution." },
   interactionPrerequisiteBlocked: { severity: "error", summary: "Step interaction prerequisite has no valid execution decision." },
-  ignoredConditionValueSource: { severity: "warning", summary: "A condition's bound value source is never resolved; the runner branches on the literal expression alone." }
+  ignoredConditionValueSource: { severity: "warning", summary: "A condition's bound value source is never resolved; the runner branches on the literal expression alone." },
+  incompleteBranchPair: { severity: "error", summary: "A conditional or parallel connector is its node's only way out; the runner ignores the condition or runs the branch twice." },
+  unguardedCycle: { severity: "error", summary: "Connectors form a cycle with no Loop Back connector; following it stops the run with a runtime-cycle error." },
+  connectorFromEndNode: { severity: "warning", summary: "A connector leaves an End node; the flow finishes at End, so it never runs." },
+  deadEndNode: { severity: "warning", summary: "A reachable step has no way out; the run stops there and reports success without reaching End." },
+  incompleteCondition: { severity: "warning", summary: "A condition needs a comparison value or a variable path that is not set." },
+  emptyLoopValues: { severity: "warning", summary: "A static-list loop has no values, so its body never runs." },
+  ambiguousConditionPriority: { severity: "warning", summary: "Several conditional connectors from one node share a priority; which one wins is not visible." },
+  incompleteValueSource: { severity: "warning", summary: "A bound value source is missing the key it reads; it resolves to an empty value or fails the run." }
 };
 
 const RULE_ORDER: readonly FlowValidationCode[] = Object.keys(FLOW_VALIDATION_RULES) as FlowValidationCode[];
@@ -433,10 +453,14 @@ function ambiguousStepNames(nodes: readonly FlowStep[]): ReadonlySet<string> {
  *
  * Lifted from `scripts/verify-random-generator.mts`, where the same walk has been proving the
  * generated corpus fully connected across all 9 flow patterns.
+ *
+ * An End node finishes the run (`FlowExecutor`: parallel fan-out, then `finish`), so only its
+ * parallel connectors execute; anything reachable solely through its other connectors never runs.
  */
-function reachableFrom(edges: readonly FlowEdge[], startId: string): Set<string> {
+function reachableFrom(edges: readonly FlowEdge[], startId: string, endIds: ReadonlySet<string>): Set<string> {
   const adjacency = new Map<string, string[]>();
   for (const edge of edges) {
+    if (endIds.has(edge.source) && connectorKind(edge) !== "parallel") continue;
     adjacency.set(edge.source, [...(adjacency.get(edge.source) ?? []), edge.target]);
   }
   const seen = new Set<string>([startId]);
@@ -624,6 +648,15 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
                 ? "does not say how many times to run: set an iteration count, choose Elements and give it a locator, or loop over data rows."
             : "requires a value or value source.";
       collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) ${detail}`);
+    }
+
+    // A bound source wins over the literal for every value-taking type but `condition`
+    // (`StepExecutor.resolveStepValue`), so an incomplete one is what the step actually types or reads.
+    if (requirement.requiresValue && step.type !== "condition" && step.valueSource != null) {
+      const gap = valueSourceGap(step.valueSource);
+      if (gap !== undefined) {
+        collect.node("incompleteValueSource", step.id, `Step ${labelFor(step, ambiguousNames)} is bound to a "${step.valueSource.type}" value source ${gap}`);
+      }
     }
 
     // Literal-only condition semantics, made visible.
@@ -875,6 +908,17 @@ function validateConditional(
       casingFix(`${fieldPrefix}.sourceField`, source, SOURCE_BY_ENUM_KEY, "condition source")
     );
   }
+
+  // The designer's former advisories (L4a): a comparison with nothing to compare against, and a
+  // variable read with no path, both evaluate against an empty value instead of failing.
+  if (operator !== undefined && operator in CONDITION_OPERATORS && !VALUELESS_OPERATORS.has(operator)) {
+    if (conditional.expectedValue === undefined || String(conditional.expectedValue).trim() === "") {
+      collect.edge("incompleteCondition", edge, `Connector ${edge.id} ${where} uses "${operator}" but has no expected value, so it compares against an empty value.`);
+    }
+  }
+  if ((source === "variable" || source === "dataSourceValue") && !isNonEmptyString(conditional.variableName)) {
+    collect.edge("incompleteCondition", edge, `Connector ${edge.id} ${where} reads a ${source === "variable" ? "variable" : "data source value"} but names no variable path, so it reads nothing.`);
+  }
 }
 
 function validateEdges(profile: FlowProfile, edges: readonly FlowEdge[], nodeIds: ReadonlySet<string>, collect: IssueCollector): void {
@@ -906,6 +950,9 @@ function validateEdges(profile: FlowProfile, edges: readonly FlowEdge[], nodeIds
         );
       }
       if (edge.loop.condition) validateConditional(edge.loop.condition, edge, "loop condition", collect);
+      if (mode === "staticList" && !(Array.isArray(edge.loop.staticValues) && edge.loop.staticValues.length > 0)) {
+        collect.edge("emptyLoopValues", edge, `Loop connector ${edge.id} loops over a static list with no values, so its body never runs.`);
+      }
       validateEdgeLoopBound(edge, edge.loop.maxIterations, "max iterations", collect);
     }
     validateEdgeLoopBound(edge, edge.maxLoopCount, "max loop count", collect);
@@ -981,6 +1028,198 @@ function validateDuplicateIds(nodes: readonly FlowStep[], edges: readonly FlowEd
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Graph rules (Phase L L4a, awkit-djnl.5)
+ *
+ * Each mirrors what `FlowExecutor` does with the shape, so the rule and the runtime cannot disagree:
+ *  - routing (`resolveNext`, `handleFailure`) re-entering a visited step throws a runtime-cycle
+ *    error; only a `loopBack` connector clears `visited`, a `loop` self-connector runs inside
+ *    `executeLoopConnector`, and a parallel fan-out skips an already-visited target;
+ *  - an End step finishes the run after its parallel fan-out;
+ *  - a step with no outgoing connector and no legacy `next` ends the run as passed.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Strongly connected components as node-id lists. Iterative Tarjan, so a large flow cannot exhaust
+ * the stack.
+ */
+function stronglyConnected(nodeIds: readonly string[], adjacency: ReadonlyMap<string, readonly string[]>): string[][] {
+  let counter = 0;
+  const index = new Map<string, number>();
+  const low = new Map<string, number>();
+  const onStack = new Set<string>();
+  const stack: string[] = [];
+  const components: string[][] = [];
+  const open = (node: string) => {
+    index.set(node, counter);
+    low.set(node, counter);
+    counter += 1;
+    stack.push(node);
+    onStack.add(node);
+  };
+  for (const root of nodeIds) {
+    if (index.has(root)) continue;
+    open(root);
+    const work: { node: string; next: number }[] = [{ node: root, next: 0 }];
+    while (work.length > 0) {
+      const frame = work[work.length - 1] as { node: string; next: number };
+      const successors = adjacency.get(frame.node) ?? [];
+      if (frame.next < successors.length) {
+        const successor = successors[frame.next] as string;
+        frame.next += 1;
+        if (!index.has(successor)) {
+          open(successor);
+          work.push({ node: successor, next: 0 });
+        } else if (onStack.has(successor)) {
+          low.set(frame.node, Math.min(low.get(frame.node) as number, index.get(successor) as number));
+        }
+        continue;
+      }
+      work.pop();
+      const parent = work[work.length - 1];
+      if (parent) low.set(parent.node, Math.min(low.get(parent.node) as number, low.get(frame.node) as number));
+      if (low.get(frame.node) === index.get(frame.node)) {
+        const component: string[] = [];
+        let member: string;
+        do {
+          member = stack.pop() as string;
+          onStack.delete(member);
+          component.push(member);
+        } while (member !== frame.node);
+        components.push(component);
+      }
+    }
+  }
+  return components;
+}
+
+function validateGraphRules(
+  nodes: readonly FlowStep[],
+  edges: readonly FlowEdge[],
+  nodeIds: ReadonlySet<string>,
+  endIds: ReadonlySet<string>,
+  reachable: ReadonlySet<string>,
+  reachabilityKnown: boolean,
+  collect: IssueCollector
+): void {
+  const ambiguousNames = ambiguousStepNames(nodes);
+  const byId = new Map(nodes.map((step) => [step.id, step]));
+  const order = new Map(nodes.map((step, position) => [step.id, position]));
+  const name = (id: string): string => {
+    const step = byId.get(id);
+    return step ? labelFor(step, ambiguousNames) : id;
+  };
+
+  // ── Branch pairs (the canvases' FR-2.6 rule, now also enforced for imports and the run gate) ──
+  for (const pair of incompleteBranchPairs(edges, connectorKind)) {
+    const edge = edges.find((candidate) => candidate.id === pair.edgeId) as FlowEdge;
+    const label = pair.kind === "conditional" ? "Conditional" : "Parallel";
+    const effect = pair.kind === "conditional" ? "routes to its target without evaluating the condition" : "runs its target twice";
+    collect.edge(
+      "incompleteBranchPair",
+      edge,
+      `Step ${name(pair.source)} leaves only through one ${label} connector (${edge.id}) with no fallback, so the runner ${effect}. Add the matching branch, make it a standard connector, or add a fallback connector.`
+    );
+  }
+
+  // ── Cycles the runner cannot survive ─────────────────────────────────────
+  const routed = edges.filter(
+    (edge) =>
+      nodeIds.has(edge.source) &&
+      nodeIds.has(edge.target) &&
+      !endIds.has(edge.source) &&
+      connectorKind(edge) !== "loop" &&
+      connectorKind(edge) !== "parallel"
+  );
+  const adjacency = new Map<string, string[]>();
+  for (const edge of routed) adjacency.set(edge.source, [...(adjacency.get(edge.source) ?? []), edge.target]);
+  for (const component of stronglyConnected([...nodeIds], adjacency)) {
+    const members = new Set(component);
+    const inside = routed.filter((edge) => members.has(edge.source) && members.has(edge.target));
+    if (component.length === 1 && inside.length === 0) continue;
+    // Anchor on the connector most likely to close the loop: the one into the earliest-declared
+    // member, from the latest-declared one. Deterministic for a given profile.
+    const closing = [...inside].sort(
+      (a, b) => (order.get(a.target) ?? 0) - (order.get(b.target) ?? 0) || (order.get(b.source) ?? 0) - (order.get(a.source) ?? 0)
+    )[0] as FlowEdge;
+    const path = [...component].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)).map(name).join(", ");
+    collect.edge(
+      "unguardedCycle",
+      closing,
+      `Steps ${path} form a cycle through ordinary connectors with no Loop Back connector. If execution follows connector ${closing.id}, the run stops with a runtime-cycle error at the first repeated step. For an intended retry, use a Loop Back connector with a maximum count.`
+    );
+  }
+
+  // ── End steps ────────────────────────────────────────────────────────────
+  for (const edge of edges) {
+    if (!endIds.has(edge.source) || connectorKind(edge) === "parallel") continue;
+    collect.edge("connectorFromEndNode", edge, `Connector ${edge.id} leaves End step ${name(edge.source)}. The flow finishes at End, so this connector never runs.`);
+  }
+
+  // ── Dead ends (the designer's former advisory, now visible to import and the run gate) ──
+  if (reachabilityKnown) {
+    const withExit = new Set(edges.map((edge) => edge.source));
+    for (const step of nodes) {
+      if (step.type === "end" || !reachable.has(step.id) || withExit.has(step.id)) continue;
+      if (isNonEmptyString(step.next) && nodeIds.has(step.next)) continue; // the legacy `next` still routes
+      collect.node("deadEndNode", step.id, `Step ${name(step.id)} has no outgoing connector. The run stops there and reports success without reaching an End step.`);
+    }
+  }
+
+  // ── Conditional priority ties ────────────────────────────────────────────
+  const priorities = new Map<string, number[]>();
+  for (const edge of edges) {
+    if (connectorKind(edge) !== "conditional" || !edge.conditional) continue;
+    priorities.set(edge.source, [...(priorities.get(edge.source) ?? []), edge.conditional.priority ?? 0]);
+  }
+  for (const [source, values] of priorities) {
+    if (new Set(values).size === values.length) continue;
+    collect.node(
+      "ambiguousConditionPriority",
+      source,
+      `Step ${name(source)} has conditional connectors with the same priority. When more than one matches, connector order decides, and the designer does not show that order. Give each a distinct priority.`
+    );
+  }
+}
+
+/** Operators that test presence or truthiness; every other known operator compares with `expectedValue`. */
+const VALUELESS_OPERATORS: ReadonlySet<string> = new Set(["always", "exists", "notExists", "truthy", "falsy"]);
+
+const GENERATORS: Record<NonNullable<ValueSource["generator"]>, true> = { uuid: true, timestamp: true, randomEmail: true, randomNumber: true };
+
+/**
+ * What a bound value source lacks, mirroring `ValueResolver`: the keyed sources resolve a missing
+ * key to an empty string, the others throw when the step runs. Undefined when complete.
+ */
+function valueSourceGap(source: ValueSource): string | undefined {
+  const missing = (...fields: [string, unknown][]): string[] => fields.filter(([, value]) => !isNonEmptyString(value)).map(([field]) => field);
+  const silent = (fields: string[]) => (fields.length > 0 ? `with no ${fields.join(" or ")}, so it resolves to an empty value.` : undefined);
+  const fails = (fields: string[]) => (fields.length > 0 ? `with no ${fields.join(" or ")}, so the step fails when it runs.` : undefined);
+  switch (source.type) {
+    case "runtimeInput":
+    case "instanceVariable":
+      return silent(missing(["key", source.key]));
+    case "env":
+      return silent(missing(["envKey", source.envKey]));
+    case "flowOutput":
+      return silent(missing(["flowId", source.flowId], ["outputKey", source.outputKey]));
+    case "secret":
+      return fails(missing(["secretName", source.secretName]));
+    case "json":
+      return fails(missing(["file", source.file], ["path", source.path]));
+    case "dynamic": {
+      const fields = missing(["keyName", source.keyName]);
+      if (source.dataSourceScope === "specific" && !isNonEmptyString(source.dataSourceId)) fields.push("dataSourceId");
+      if ((source.idMode ?? "explicit") === "explicit" && !isNonEmptyString(source.objectId)) fields.push("objectId");
+      return fails(fields);
+    }
+    case "generated":
+      return source.generator !== undefined && source.generator in GENERATORS ? undefined : "with no known generator, so the step fails when it runs.";
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Validate one flow definition.
  *
@@ -995,9 +1234,10 @@ export function validateFlowDefinition(profile: FlowProfile, context: FlowValida
 
   const startNodes = nodes.filter((step) => step.type === "start");
   const endNodes = nodes.filter((step) => step.type === "end");
+  const endIds: ReadonlySet<string> = new Set(endNodes.map((step) => step.id));
   const startNodeId = startNodes.length === 1 ? (startNodes[0] as FlowStep).id : undefined;
   const reachabilityKnown = startNodeId !== undefined;
-  const reachableNodeIds: ReadonlySet<string> = reachabilityKnown ? reachableFrom(edges, startNodeId) : new Set<string>();
+  const reachableNodeIds: ReadonlySet<string> = reachabilityKnown ? reachableFrom(edges, startNodeId, endIds) : new Set<string>();
 
   const collect = new IssueCollector(flowId, reachableNodeIds, reachabilityKnown);
 
@@ -1047,6 +1287,8 @@ export function validateFlowDefinition(profile: FlowProfile, context: FlowValida
       collect.node("connectorStructure", finding.sourceNodeId, finding.message);
     }
   }
+
+  validateGraphRules(nodes, edges, nodeIds, endIds, reachableNodeIds, reachabilityKnown, collect);
 
   const issues = [...collect.issues].sort(compareIssues);
   return startNodeId === undefined

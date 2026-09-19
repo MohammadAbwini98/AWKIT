@@ -50,8 +50,6 @@ import { copyDesignerNode, isTextEditingTarget, readDesignerNode } from "../comp
 import {
   flowEdgeKind,
   flowEdgeToNormal,
-  incompleteBranchPairMessage,
-  incompleteBranchPairs,
   revertLoneBranchConnectors
 } from "../components/shared/branchPairs";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
@@ -352,10 +350,9 @@ function FlowChartDesignerContent() {
   // Blocking = would the run gate reject this flow right now (active-path errors + connector
   // structure). DERIVED state only — never persisted onto the profile.
   const blockingIssues = useMemo(() => executionBlockingErrorsOf(validationReport), [validationReport]);
-  // Renderer-only advisories the engine has no rule for yet (locator uniqueness, conditional
-  // config completeness, ambiguous priorities). Additive on top of the engine — never a second
-  // implementation of an engine rule.
-  const advisories = useMemo(() => rendererAdvisories(nodes, edges), [nodes, edges]);
+  // Renderer-only advisory the engine has no rule for yet (locator uniqueness, owned by L2).
+  // Additive on top of the engine — never a second implementation of an engine rule.
+  const advisories = useMemo(() => rendererAdvisories(nodes), [nodes]);
   const validationFindings = useMemo(
     () => presentFlowValidation(validationReport, advisories),
     [validationReport, advisories]
@@ -1480,117 +1477,20 @@ export function FlowChartDesigner() {
  * The graph/step rules that used to live here (start/end counts, connectivity, required locator/
  * value, loop bounds, connector structure) are now owned by the shared engine —
  * `validateFlowDefinition` in `src/validation/FlowValidator.ts` — driven through `toFlowProfile`,
- * so the designer, run gate, library and import can never disagree. This function keeps ONLY the
- * checks the engine has no rule for, using designer-local knowledge:
- *  - locator uniqueness quality captured by the Recorder (`locatorQuality`);
- *  - conditional-connector config completeness (expected value / variable path);
- *  - static-list loop connectors with no values;
- *  - ambiguous same-priority conditional connectors;
- *  - a dead-end non-End node (reachable but with no outgoing connector) — candidate engine rule.
- * These are advisories: they never block save and never block the run gate.
+ * so the designer, run gate, library and import can never disagree. Phase L L4a moved the remaining
+ * graph advisories there too (branch pairs, dead ends, condition completeness, empty static-list
+ * loops, priority ties). This function keeps ONLY the check the engine has no rule for, using
+ * designer-local knowledge: locator uniqueness captured by the Recorder (`locatorQuality`), which
+ * belongs to L2's locator quality work. It is an advisory: it never blocks save or the run gate.
  */
-function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): DesignerValidationAdvisory[] {
-  const messages: DesignerValidationAdvisory[] = [];
-  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.data.name ?? id;
-  const outgoing = new Set(edges.map((edge) => edge.source));
-
-  nodes.forEach((node) => {
-    if (node.data.stepType !== "end" && !outgoing.has(node.id)) messages.push({ code: "deadEnd", nodeId: node.id, message: `${node.data.name} has no outgoing connector.` });
-    if (node.data.locatorQuality && node.data.locatorQuality.isUnique === false && node.data.locatorResolution !== "resolved") {
-      messages.push({ code: "locatorQuality", nodeId: node.id, message: `${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality.matchCount} elements) — it may fail in Playwright strict mode.` });
-    }
-  });
-
-  edges.forEach((edge) => {
-    const data = edge.data;
-    const edgeKind = data?.kind ?? (data?.linkType === "conditional" || data?.linkType === "outcome" ? "conditional" : data?.linkType === "parallel" ? "parallel" : data?.linkType === "loop" || data?.linkType === "loopBack" ? "loop" : "normal");
-    if (edgeKind === "conditional" && data?.conditional) {
-      const c = data.conditional;
-      const needsValue = !["always", "exists", "notExists", "truthy", "falsy"].includes(c.operator);
-      if (needsValue && (c.expectedValue === undefined || String(c.expectedValue).trim() === "")) {
-        messages.push({ code: "conditionalValue", edgeId: edge.id, message: `Conditional connector from ${nodeName(edge.source)} needs an expected value for operator "${c.operator}".` });
-      }
-      if ((c.sourceField === "variable" || c.sourceField === "dataSourceValue") && !c.variableName?.trim()) {
-        messages.push({ code: "conditionalVariable", edgeId: edge.id, message: `Conditional connector from ${nodeName(edge.source)} needs a variable/path.` });
-      }
-    }
-    if (edgeKind === "loop" && data?.loop) {
-      const l = data.loop;
-      if (l.mode === "staticList" && !(l.staticValues && l.staticValues.length)) messages.push({ code: "loopValues", edgeId: edge.id, message: `Loop connector from ${nodeName(edge.source)} (static list) needs at least one value.` });
-    }
-  });
-
-  // Ambiguous conditional connectors: same source + same priority + >1 match-capable.
-  const condBySource = new Map<string, number[]>();
-  edges.forEach((edge) => {
-    if ((edge.data?.kind ?? "") === "conditional" && edge.data?.conditional) {
-      const list = condBySource.get(edge.source) ?? [];
-      list.push(edge.data.conditional.priority ?? 0);
-      condBySource.set(edge.source, list);
-    }
-  });
-  condBySource.forEach((priorities, source) => {
-    const dupes = priorities.filter((p, i) => priorities.indexOf(p) !== i);
-    if (dupes.length) messages.push({ code: "conditionalPriority", nodeId: source, message: `${nodeName(source)} has multiple conditional connectors with the same priority — routing may be ambiguous.` });
-  });
-
-  return messages;
-}
-
-/**
- * Connector-structure rules (Points 2–5) that block Save until fixed: at most one
- * standard (non-conditional/non-parallel) outgoing connector per node, loop connectors
- * must return to the same node, additional connectors from a loop-controlled node
- * must be Conditional, and a branch connector may not be left alone without a fallback
- * (FR-2.6). Exposed separately from `validateFlow` so `saveFlow` can gate on
- * just these structural issues without also blocking on cosmetic/locator warnings.
- */
-function connectorStructureIssues(edges: FlowDesignerEdge[], nodeName: (id: string) => string): string[] {
-  const messages: string[] = [];
-  const kindOf = flowEdgeKind;
-
-  // Point 4: loop connectors must connect a node to itself only. The legacy `loopBack`
-  // edge type (Enhanced Connectors, Phase 1) is an intentional cross-node back-edge and
-  // is exempt — only the new structured `loop` kind is self-only.
-  edges.forEach((edge) => {
-    const isStructuredLoop = edge.data?.kind === "loop" || edge.data?.linkType === "loop";
-    if (isStructuredLoop && edge.source !== edge.target) {
-      messages.push(`Loop connector from ${nodeName(edge.source)} is invalid — it must return to the same node.`);
-    }
-  });
-
-  // Point 2: a node cannot have more than one non-conditional/non-parallel outgoing connector.
-  const outgoingBySource = new Map<string, FlowDesignerEdge[]>();
-  edges.forEach((edge) => {
-    const list = outgoingBySource.get(edge.source) ?? [];
-    list.push(edge);
-    outgoingBySource.set(edge.source, list);
-  });
-  outgoingBySource.forEach((sourceEdges, source) => {
-    const standard = sourceEdges.filter((edge) => kindOf(edge) !== "conditional" && kindOf(edge) !== "parallel");
-    if (standard.length > 1) {
-      messages.push(
-        `Node "${nodeName(source)}" has multiple standard outgoing connectors. Use a Conditional or Parallel connector for additional outgoing paths, or remove the extra connector.`
-      );
-    }
-  });
-
-  // Point 3: a node with a self-loop connector must route any other outgoing connector as Conditional.
-  const loopSources = new Set(edges.filter((edge) => edge.source === edge.target && kindOf(edge) === "loop").map((edge) => edge.source));
-  edges.forEach((edge) => {
-    if (!loopSources.has(edge.source) || edge.source === edge.target) return;
-    if (kindOf(edge) !== "conditional") {
-      messages.push(`Node "${nodeName(edge.source)}" has a loop connector. Additional outgoing connectors from a loop node must be Conditional.`);
-    }
-  });
-
-  // Point 5 (FR-2.6): a lone conditional/parallel connector with nothing to fall back to. Loading
-  // such a profile never rewrites it — it is reported here so the user chooses the repair.
-  incompleteBranchPairs(edges, kindOf).forEach(({ source, kind }) => {
-    messages.push(incompleteBranchPairMessage(nodeName(source), kind));
-  });
-
-  return messages;
+function rendererAdvisories(nodes: FlowDesignerNode[]): DesignerValidationAdvisory[] {
+  return nodes
+    .filter((node) => node.data.locatorQuality?.isUnique === false && node.data.locatorResolution !== "resolved")
+    .map((node) => ({
+      code: "locatorQuality",
+      nodeId: node.id,
+      message: `${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality?.matchCount} elements) — it may fail in Playwright strict mode.`
+    }));
 }
 
 // The local `toFlowProfile` that used to live here was removed during the branch merge: it

@@ -406,6 +406,22 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."
   },
+  "verify:authoring-diagnostics": {
+    class: "unit",
+    why: "Phase L L4a family matrix against the real owners: FlowValidator codes with severity, anchor and active-path class for every family (unreachable and past-End steps, connector rules, Start/End, bindings, value sources, branch pairs, unguarded cycles, malformed loops, dead ends, priority ties, stale references, retired ports) with negative controls, the PreRunValidator gate, FlowDependencyResolver workflow parity, a legacy-shaped profile, FlowExecutor source premises the rules mirror, and no second implementation left in the designer. In-process."
+  },
+  "verify:failure-cause-baseline": {
+    class: "unit",
+    why: "Phase L L5a: the real EvidenceBuffer on an injected clock (schema, ids, step context, SemanticRedactor masking incl. registered run secrets, URL path templates, field/payload/event/source/instance/run-byte caps with drop counts, de-duplication with repeat counts, protected-login retraction returning bytes to both budgets) and the real deriveFailureCause over the labelled cases (toast before timeout, native validation, 409/422/500, transport failure, page error, unrelated console error in and before the step, neutral UI, insufficient, cancelled) plus windows, grace, ordering, bounded support and determinism. In-process."
+  },
+  "verify:ui-error-evidence": {
+    class: "real-browser",
+    why: "Phase L L5a end to end: 14 concurrent executions through the real ExecutionEngine and real Chromium against the real mock site (/runner-lab failure-evidence section), read back from the report.json the real ReportService wrote. Transient toast captured after its node is gone (the failure DOM snapshot proves it), native + inline validation without the typed value, HTTP 409/422/500/503 metadata, transport failure, page error, console error outranked by the runner, error page, repeat folding, pass-with-warning (no cause), 409 then a consequential timeout, protected-login exclusion (canaries absent, exclusions counted), manual handoff resumed, user cancellation (its report reaches report.json), clean pass (no diagnostics), the off switch, cross-instance attribution and listener teardown. Seven mutations caught."
+  },
+  "verify:failure-capture-overhead": {
+    class: "real-browser",
+    why: "Phase L L5a overhead gate: alternating capture ON/OFF batches (fast and evidence-heavy passing workloads, concurrent instances) through the real ExecutionEngine and real Chromium against the real mock site; paired-round median and pooled p95 duration, Node CPU per instance, evidence bytes against committed ceilings, plus event-loop delay, Node and automation-Chromium RSS, listener and Chromium-process teardown, and a static import-closure proof that ExecutionEngine reaches no AI module. The pre-fix awaited exposeBinding failed it (+568 to +1077 ms)."
+  },
   "verify:ai-model-pack": {
     class: "integration",
     why: "Real temp-folder AiModelPackStore with synthetic GGUF files and an injected manifest: format/size/checksum refusals leave nothing behind, single-pass hashed import, cheap status plus once-per-session load verification catching tamper/truncate/delete, retirement, replacement sweep and removal; then checks the production AiModelManifest entries."

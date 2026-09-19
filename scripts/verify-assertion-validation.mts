@@ -109,7 +109,9 @@ console.log("\nExpected value: every channel the runtime reads");
   // config.expectedValue, then step.value. All three are legal.
   check("config.expectedValue satisfies the value rule (the designer's own channel)", clean({ locator: LOCATOR, config: { assertionType: "text", expectedValue: "Welcome" } }));
   check("step.value still satisfies it", clean({ locator: LOCATOR, value: "Welcome" }));
-  check("a valueSource still satisfies it", clean({ locator: LOCATOR, valueSource: { type: "runtimeInput", value: "expected" } }));
+  // `key`, not `value`: `ValueResolver` reads a runtime input by `key`, so `{value}` alone resolves to
+  // "" and is FlowValidator `incompleteValueSource` (L4a).
+  check("a valueSource still satisfies it", clean({ locator: LOCATOR, valueSource: { type: "runtimeInput", key: "expected" } }));
 
   // The reported defect itself.
   check(
@@ -202,7 +204,7 @@ console.log("\nConfiguration literals");
   // A dynamic value cannot be judged statically, so it must not be guessed at.
   check(
     "greaterThan bound to a valueSource is NOT reported (it resolves at run time)",
-    clean({ locator: LOCATOR, config: { assertionType: "count", comparisonOperator: "greaterThan" }, valueSource: { type: "runtimeInput", value: "n" } })
+    clean({ locator: LOCATOR, config: { assertionType: "count", comparisonOperator: "greaterThan" }, valueSource: { type: "runtimeInput", key: "n" } })
   );
   check("contains against a non-numeric literal is fine (no numeric coercion)", clean({ locator: LOCATOR, config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "many" } }));
 

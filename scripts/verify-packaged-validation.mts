@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 
 import { portableExePath as resolvePortableExePath } from "./helpers/packaged-artifacts.mjs";
+import { FLOW_VALIDATOR_VERSION } from "../src/validation/LegacyCompatibility";
 
 const requireFromHere = createRequire(import.meta.url);
 // @electron/asar is CJS (ships with electron-builder's dependency tree). Same access pattern as
@@ -661,12 +662,12 @@ try {
     // All ten validation:* channels must answer through the packaged preload.
     console.log("\n  Packaged preload — all ten validation:* channels");
     const meta = await api.meta(t);
-    check("authorized: validation:meta", meta?.validatorVersion === 3 && meta?.windowDays === 30, JSON.stringify(meta));
+    check("authorized: validation:meta", meta?.validatorVersion === FLOW_VALIDATOR_VERSION && meta?.windowDays === 30, JSON.stringify(meta));
     check("authorized: validation:statusAll (empty library)", Array.isArray(await api.statusAll(t)));
     check("authorized: validation:status (missing flow → null)", (await api.status(t, "nope")) === null);
     check("authorized: validation:grants", Array.isArray(await api.grants(t)));
     const scan0 = await api.runInventoryScan(t);
-    check("authorized: validation:runInventoryScan", scan0?.validatorVersion === 3 && scan0?.digestAlgorithm === "sha256", JSON.stringify(scan0?.counts));
+    check("authorized: validation:runInventoryScan", scan0?.validatorVersion === FLOW_VALIDATOR_VERSION && scan0?.digestAlgorithm === "sha256", JSON.stringify(scan0?.counts));
     check("authorized: validation:latestScan", (await api.latestScan(t))?.id === scan0?.id);
     check("authorized: validation:migrations (none yet)", Array.isArray(await api.migrations(t, "pv-fixable")));
 

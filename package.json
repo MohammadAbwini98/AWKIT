@@ -284,7 +284,11 @@
     "verify:ai-host": "tsx scripts/verify-ai-host.mts",
     "verify:ai-host-electron": "tsx scripts/verify-ai-host-electron.mts",
     "verify:ai-model-live": "tsx scripts/verify-ai-model-live.mts",
-    "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts"
+    "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts",
+    "verify:authoring-diagnostics": "tsx scripts/verify-authoring-diagnostics.mts",
+    "verify:failure-cause-baseline": "tsx scripts/verify-failure-cause-baseline.mts",
+    "verify:ui-error-evidence": "node scripts/benchmark/run.mjs scripts/verify-ui-error-evidence.mts",
+    "verify:failure-capture-overhead": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

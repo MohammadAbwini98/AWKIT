@@ -1,4 +1,5 @@
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
+import type { InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 import type { ScenarioExecutionResult } from "@src/runner/RunnerResult";
 
 export interface InstanceReport {
@@ -10,6 +11,11 @@ export interface InstanceReport {
   screenshots: string[];
   downloadedFiles: string[];
   scenarioResult?: ScenarioExecutionResult;
+  /**
+   * Phase L L5a run-lifetime failure evidence and its deterministic cause baseline. Optional: absent
+   * on reports written before L5a, on clean passed runs, and when `AWKIT_FAILURE_EVIDENCE=0`.
+   */
+  diagnostics?: InstanceDiagnostics;
 }
 
 export interface ConcurrentRunReport {

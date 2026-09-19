@@ -75,6 +75,85 @@
         <p>Uploaded name: <span data-testid="upload-filename"></span></p>
         <p>Uploaded size: <span data-testid="upload-size"></span></p>
       </section>
+
+      <!-- ── Failure evidence (Phase L L5a run-lifetime collector) ─────────── -->
+      <section data-testid="failure-evidence-section">
+        <h2>Failure evidence</h2>
+        <p>
+          Each control produces one kind of evidence a run can fail on: a transient toast, form
+          validation, HTTP errors, a transport failure, an uncaught script error, a console error, a
+          burst of repeated messages, an unrelated warning on a passing action, and a protected-login
+          surface whose evidence must never be kept. Every outcome is deterministic.
+        </p>
+
+        <h3>Transient toast</h3>
+        <button type="button" data-testid="fe-transient-toast">Place order</button>
+        <p>Toast state: <span data-testid="fe-toast-state">idle</span></p>
+        <div id="feToastHost" data-testid="fe-toast-host"></div>
+        <p data-testid="fe-order-confirmed" hidden>Order confirmed</p>
+
+        <h3>Form validation</h3>
+        <form id="feForm" data-testid="fe-form">
+          <p>
+            <label for="feEmail">Email</label>
+            <input id="feEmail" name="email" type="email" required data-testid="fe-email" />
+          </p>
+          <p>
+            <label for="fePostcode">Postcode</label>
+            <input id="fePostcode" name="postcode" type="text" aria-describedby="fePostcodeError" data-testid="fe-postcode" />
+            <span id="fePostcodeError" data-testid="fe-postcode-error"></span>
+          </p>
+          <button type="submit" data-testid="fe-submit">Submit details</button>
+        </form>
+        <p>Form status: <span data-testid="fe-form-status">not submitted</span></p>
+
+        <h3>HTTP errors</h3>
+        <button type="button" data-testid="fe-http-409">Update order (409)</button>
+        <button type="button" data-testid="fe-http-422">Validate address (422)</button>
+        <button type="button" data-testid="fe-http-500">Load invoices (500)</button>
+        <button type="button" data-testid="fe-http-503">Check stock (503)</button>
+        <p role="alert" data-testid="fe-http-alert"></p>
+        <p>HTTP result: <span data-testid="fe-http-result">idle</span></p>
+
+        <h3>Save order, then wait for its confirmation</h3>
+        <button type="button" data-testid="fe-save-order">Save order</button>
+        <p role="alert" data-testid="fe-save-alert"></p>
+        <p data-testid="fe-order-saved" hidden>Order saved</p>
+
+        <h3>Transport failure</h3>
+        <button type="button" data-testid="fe-transport">Sync cart</button>
+        <p role="alert" data-testid="fe-transport-alert"></p>
+        <p>Sync result: <span data-testid="fe-transport-result">idle</span></p>
+
+        <h3>Uncaught script error</h3>
+        <button type="button" data-testid="fe-throw">Calculate total</button>
+        <p>Cart total: <span data-testid="fe-cart-total">not calculated</span></p>
+
+        <h3>Console error</h3>
+        <button type="button" data-testid="fe-console-error">Render checkout widget</button>
+        <p>Widget: <span data-testid="fe-console-result">idle</span></p>
+
+        <h3>Repeated and simultaneous errors</h3>
+        <button type="button" data-testid="fe-burst">Refresh prices</button>
+        <div id="feBurstHost" data-testid="fe-burst-host"></div>
+        <p>Prices: <span data-testid="fe-burst-result">idle</span></p>
+
+        <h3>Unrelated warning on a passing action</h3>
+        <button type="button" data-testid="fe-warn">Open price list</button>
+        <p role="status" data-testid="fe-warn-status"></p>
+        <p>Price list: <span data-testid="fe-warn-result">closed</span></p>
+
+        <h3>Protected-login surface</h3>
+        <p>
+          Reveals a password field, then fails to sign in with an alert, a console error and an HTTP
+          401. Evidence from a protected-login surface is excluded entirely.
+        </p>
+        <button type="button" data-testid="fe-login-reveal">Sign in to continue</button>
+        <div id="feLoginHost" data-testid="fe-login-host"></div>
+        <p>Sign-in: <span data-testid="fe-login-result">not signed in</span></p>
+
+        <p><a href="/runner-lab/error-page?code=503" data-testid="fe-error-page-link">Open order history (error page, HTTP 503)</a></p>
+      </section>
     </main>
 
     <script>
@@ -137,6 +216,115 @@
         } else {
           text("upload-status", `upload failed: ${body.message}`);
         }
+      });
+
+      // ── Failure evidence (Phase L L5a) ─────────────────────────────────────
+      const byTestId = (testId) => document.querySelector(`[data-testid="${testId}"]`);
+      const onClick = (testId, handler) => byTestId(testId).addEventListener("click", handler);
+      const addToast = (host, message) => {
+        const node = document.createElement("div");
+        node.className = "toast toast-error";
+        node.textContent = message;
+        host.appendChild(node);
+        return node;
+      };
+
+      // Shown for 600 ms, then removed: gone from the DOM long before a later step times out.
+      onClick("fe-transient-toast", () => {
+        const node = addToast(byTestId("fe-toast-host"), "Payment declined: the card on file has expired.");
+        text("fe-toast-state", "shown");
+        setTimeout(() => {
+          node.remove();
+          text("fe-toast-state", "dismissed");
+        }, 600);
+      });
+
+      // Inline validation runs on click; the browser's own `required` check then blocks the submit.
+      onClick("fe-submit", () => {
+        const postcode = byTestId("fe-postcode");
+        const valid = /^\d{5}$/.test(postcode.value);
+        postcode.setAttribute("aria-invalid", String(!valid));
+        text("fe-postcode-error", valid ? "" : "Postcode must be 5 digits.");
+      });
+      byTestId("fe-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (byTestId("fe-postcode").getAttribute("aria-invalid") !== "true") text("fe-form-status", "submitted");
+      });
+
+      const HTTP_MESSAGES = {
+        409: "Could not update the order: it was changed by someone else.",
+        422: "The address could not be validated: the street name is required.",
+        500: "Invoices are unavailable: the server hit an unexpected error.",
+        503: "Stock levels are unavailable: the service is down for maintenance."
+      };
+      for (const code of [409, 422, 500, 503]) {
+        onClick(`fe-http-${code}`, async () => {
+          text("fe-http-result", "calling...");
+          const response = await fetch(`/api/status?code=${code}`);
+          if (!response.ok) text("fe-http-alert", `${HTTP_MESSAGES[code]} (HTTP ${response.status})`);
+          text("fe-http-result", String(response.status));
+        });
+      }
+
+      onClick("fe-save-order", async () => {
+        const response = await fetch("/api/status?code=409");
+        if (response.ok) byTestId("fe-order-saved").hidden = false;
+        else text("fe-save-alert", "Could not save the order: it was changed by someone else. Reload and try again.");
+      });
+
+      onClick("fe-transport", async () => {
+        text("fe-transport-result", "syncing...");
+        try {
+          await fetch("/api/transport-drop");
+          text("fe-transport-result", "synced");
+        } catch {
+          text("fe-transport-alert", "Network error: the cart could not be synchronised.");
+          text("fe-transport-result", "failed");
+        }
+      });
+
+      // A real uncaught TypeError from a timer, not a thrown literal.
+      onClick("fe-throw", () => {
+        setTimeout(() => {
+          const order = window.__feMissingOrder;
+          text("fe-cart-total", order.total.toFixed(2));
+        }, 0);
+      });
+
+      onClick("fe-console-error", () => {
+        console.error("Checkout widget failed to render: missing configuration.");
+        text("fe-console-result", "unavailable");
+      });
+
+      // Three identical toasts (one repeated message) and one different alert, in one tick.
+      onClick("fe-burst", () => {
+        const host = byTestId("fe-burst-host");
+        for (let i = 0; i < 3; i += 1) addToast(host, "Could not refresh prices.");
+        const alert = document.createElement("div");
+        alert.setAttribute("role", "alert");
+        alert.textContent = "Inventory service unavailable.";
+        host.appendChild(alert);
+        text("fe-burst-result", "stale");
+      });
+
+      onClick("fe-warn", () => {
+        text("fe-warn-status", "Prices refresh at midnight.");
+        console.error("Analytics beacon could not be sent.");
+        text("fe-warn-result", "open");
+      });
+
+      // Inserted on demand, never present at load: a password field anywhere makes the whole
+      // document a protected-login surface, which would change every other scenario on this page.
+      onClick("fe-login-reveal", async () => {
+        const host = byTestId("fe-login-host");
+        host.innerHTML = '<label for="fePassword">Password</label> <input id="fePassword" type="password" autocomplete="current-password" data-testid="fe-password" />';
+        console.error("Sign-in failed for canary.user@example.com (session FE-LOGIN-CANARY).");
+        const alert = document.createElement("p");
+        alert.setAttribute("role", "alert");
+        alert.textContent = "Invalid password for canary.user@example.com.";
+        host.appendChild(alert);
+        await fetch("/api/status?code=401");
+        text("fe-login-result", "sign-in failed");
       });
     </script>
   </body>

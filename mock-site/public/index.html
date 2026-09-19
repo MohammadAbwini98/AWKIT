@@ -95,12 +95,12 @@
 
         <article data-testid="scenario-runner-lab">
           <h2><a href="/runner-lab">Runner Lab</a></h2>
-          <p>Attachment downloads, controlled HTTP failures with Retry-After, a fail-twice-then-succeed endpoint, and multipart upload.</p>
+          <p>Attachment downloads, controlled HTTP failures with Retry-After, a fail-twice-then-succeed endpoint, multipart upload, and a failure-evidence section (transient toast, form validation, HTTP 409/422/500/503, transport failure, script and console errors, a repeated-error burst, an unrelated warning, a protected-login surface, and an error page).</p>
           <dl class="scenario-meta">
             <dt>Expected</dt>
-            <dd>Download links raise a real download event; failure buttons report the exact status; the flaky endpoint fails twice then succeeds; upload echoes name, size, and a content preview.</dd>
+            <dd>Download links raise a real download event; failure buttons report the exact status; the flaky endpoint fails twice then succeeds; upload echoes name, size, and a content preview; each failure-evidence control produces exactly its one kind of evidence.</dd>
             <dt>Related feature</dt>
-            <dd>downloadFile and uploadFile nodes, retry policy, error handling.</dd>
+            <dd>downloadFile and uploadFile nodes, retry policy, error handling, run-lifetime failure evidence (L5a).</dd>
             <dt>Stable URL</dt>
             <dd><code>/runner-lab</code></dd>
           </dl>

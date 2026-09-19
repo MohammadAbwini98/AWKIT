@@ -182,7 +182,18 @@ export class PreRunValidator {
 
         if (step.valueSource?.type === "json" && input.jsonData && step.valueSource.file && step.valueSource.path) {
           try {
-            resolveJsonPath(input.jsonData[step.valueSource.file], step.valueSource.path);
+            const resolved = resolveJsonPath(input.jsonData[step.valueSource.file], step.valueSource.path);
+            // Only a malformed path throws; a path to a missing key resolves to nothing and the step
+            // silently gets an empty value (L4a). Judged only when the file itself was loaded, because
+            // `ValueResolver` reads an unloaded file from disk at run time.
+            if (resolved === undefined && step.valueSource.file in input.jsonData) {
+              issues.push({
+                key: `json.${step.id}`,
+                severity: "warning",
+                blocking: false,
+                message: `JSON path ${step.valueSource.path} finds nothing in ${step.valueSource.file} for ${step.name}, so the step uses an empty value.`
+              });
+            }
           } catch (error) {
             issues.push({
               key: `json.${step.id}`,

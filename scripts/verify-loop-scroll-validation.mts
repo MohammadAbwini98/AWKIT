@@ -101,7 +101,9 @@ console.log("\nScroll: the distance lives in config, not in value");
   check("a scroll configured the way the designer writes it is valid", clean({ type: "scroll", config: { scrollDirection: "down", scrollAmount: 300 } }));
   check("…and specifically reports no missingRequiredValue", !has({ type: "scroll", config: { scrollDirection: "down", scrollAmount: 300 } }, "missingRequiredValue"));
   check("a scroll carrying its distance as a literal value is valid", clean({ type: "scroll", value: "300" }));
-  check("a scroll bound to a value source is valid", clean({ type: "scroll", valueSource: { type: "runtimeInput", value: "px" } }));
+  // `key`, not `value`: `ValueResolver` reads a runtime input by `key`, so `{value}` alone resolves to
+  // "" and is FlowValidator `incompleteValueSource` (L4a).
+  check("a scroll bound to a value source is valid", clean({ type: "scroll", valueSource: { type: "runtimeInput", key: "px" } }));
   // A scroll-to-element ignores the distance entirely, so the locator alone completes it.
   check("a scroll-to-element needs no distance", clean({ type: "scroll", locator: LOCATOR, config: { scrollTarget: "element" } }));
 
@@ -170,7 +172,7 @@ console.log("\nLoop: the iteration source lives in config, and a missing target 
   // Action-specific inputs the runner reads.
   check("a fill loop with no value is invalid", has({ type: "loop", locator: LOCATOR, config: { loopType: "elements", loopActionType: "fill" } }, "missingRequiredValue"));
   check("a fill loop with a value is clean", clean({ type: "loop", locator: LOCATOR, value: "text", config: { loopType: "elements", loopActionType: "fill" } }));
-  check("a fill loop bound to a value source is clean", clean({ type: "loop", locator: LOCATOR, valueSource: { type: "runtimeInput", value: "v" }, config: { loopType: "elements", loopActionType: "fill" } }));
+  check("a fill loop bound to a value source is clean", clean({ type: "loop", locator: LOCATOR, valueSource: { type: "runtimeInput", key: "v" }, config: { loopType: "elements", loopActionType: "fill" } }));
   check("a customFlow loop naming no flow is invalid", has({ type: "loop", config: { loopType: "fixedCount", iterationCount: 2, loopActionType: "customFlow" } }, "missingRequiredValue"));
 
   const unknownLoopType = stepWithRawConfig({ type: "loop", locator: LOCATOR, config: { iterationCount: 2 } }, "loopType", "sideways");

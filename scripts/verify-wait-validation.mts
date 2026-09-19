@@ -79,9 +79,11 @@ console.log("\nFixed time waits");
   // `executeWait` defaults an absent `config.waitType` to "time", so a bare wait node must too.
   check("a wait with no explicit waitType and a duration is valid (default subtype)", clean({ timeoutMs: 2000 }));
   check("a Fixed time wait whose duration is a literal value is valid", clean({ config: { waitType: "time" }, value: "2000" }));
+  // `key`, not `value`: `ValueResolver` reads a runtime input by `key`, so `{value}` alone resolves to
+  // "" and is FlowValidator `incompleteValueSource` (L4a).
   check(
     "a Fixed time wait bound to a value source is valid (duration resolves at run time)",
-    clean({ config: { waitType: "time" }, valueSource: { type: "runtimeInput", value: "delay" } })
+    clean({ config: { waitType: "time" }, valueSource: { type: "runtimeInput", key: "delay" } })
   );
 
   // Negative controls — meaningful validation must survive the fix.
@@ -131,7 +133,7 @@ console.log("\nOther wait subtypes stay strict");
   );
   check(
     "a Text visible wait bound to a value source is valid",
-    clean({ config: { waitType: "textVisible" }, valueSource: { type: "runtimeInput", value: "toast" } })
+    clean({ config: { waitType: "textVisible" }, valueSource: { type: "runtimeInput", key: "toast" } })
   );
 
   // `waitForLoadState` takes no step input at all; demanding one was a pure false positive.

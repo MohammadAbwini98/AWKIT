@@ -171,7 +171,10 @@ function valueSourceFor(type: StepType, value: string, ctx: ConfigurationContext
       source = { type: "instanceVariable", key: rng.pick(SAFE_INSTANCE_VARIABLES) };
       break;
     case "flowOutput":
-      source = { type: "flowOutput", outputKey: rng.pick(SAFE_OUTPUT_KEYS) };
+      // `ValueResolver` reads `flowOutputs["<flowId>.<outputKey>"]`, so a source without `flowId`
+      // resolves to "" (FlowValidator `incompleteValueSource`). A fixed literal adds no RNG draw,
+      // so seeded campaigns keep their shape.
+      source = { type: "flowOutput", flowId: "lab-flow-01", outputKey: rng.pick(SAFE_OUTPUT_KEYS) };
       break;
     case "generated":
       source = { type: "generated", generator: rng.pick(["uuid", "timestamp", "randomEmail", "randomNumber"] as const) };

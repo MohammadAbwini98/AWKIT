@@ -5,6 +5,11 @@ import type { FlowConnectionData } from "../workflow/ConnectionPropertiesPanel";
 import type { ScenarioLinkData } from "../scenario/scenarioDesignerTypes";
 import { connectorKind } from "@src/profiles/FlowProfile";
 import type { ConnectorKind } from "@src/profiles/FlowProfile";
+import { BRANCH_KINDS, outgoingBySource, type BranchConnectorKind, type BranchPairEdge } from "@src/validation/BranchPairs";
+
+// Detection is the engine's (`@src/validation/BranchPairs`), so `FlowValidator`, the run gate and
+// both canvases share one implementation. Re-exported for the existing canvas and verifier imports.
+export { incompleteBranchPairs, type BranchConnectorKind, type BranchPairEdge, type IncompleteBranchPair } from "@src/validation/BranchPairs";
 
 /**
  * Branch-connector (conditional / parallel) pair semantics, shared by the Flow Designer and the
@@ -38,18 +43,6 @@ import type { ConnectorKind } from "@src/profiles/FlowProfile";
 
 export type ScenarioDesignerEdge = CanvasEdge<ScenarioLinkData>;
 
-/** The two connector kinds that must exist as a pair. */
-export type BranchConnectorKind = "conditional" | "parallel";
-
-const BRANCH_KINDS: readonly BranchConnectorKind[] = ["conditional", "parallel"];
-
-/** Minimal edge shape the pair rules read (both canvases' edges satisfy it). */
-export interface BranchPairEdge {
-  id: string;
-  source: string;
-  target: string;
-}
-
 /** Structured kind of a Flow Designer edge (`data.kind`, or derived from its legacy `linkType`). */
 export function flowEdgeKind(edge: FlowDesignerEdge): ConnectorKind {
   return edge.data?.kind ?? connectorKind({ type: edge.data?.linkType ?? "success" });
@@ -58,26 +51,6 @@ export function flowEdgeKind(edge: FlowDesignerEdge): ConnectorKind {
 /** Structured kind of a Workflow Builder link (derived from its `type` — it has no `kind` field). */
 export function scenarioEdgeKind(linkType: ScenarioLinkData["linkType"] | undefined): ConnectorKind {
   return connectorKind({ type: linkType ?? "success" });
-}
-
-/**
- * Outgoing edges per source node, excluding self-loops — a `loop` connector returns to its own
- * node and is never half of a branch pair.
- */
-function outgoingBySource<E extends BranchPairEdge>(edges: E[]): Map<string, E[]> {
-  const bySource = new Map<string, E[]>();
-  edges.forEach((edge) => {
-    if (edge.source === edge.target) return;
-    const list = bySource.get(edge.source) ?? [];
-    list.push(edge);
-    bySource.set(edge.source, list);
-  });
-  return bySource;
-}
-
-/** Whether a node keeps a usable route when its branch connectors are ignored. */
-function hasFallbackConnector<E extends BranchPairEdge>(outgoing: E[], kindOf: (edge: E) => string): boolean {
-  return outgoing.some((edge) => !(BRANCH_KINDS as readonly string[]).includes(kindOf(edge)));
 }
 
 /**
@@ -117,36 +90,6 @@ export function revertLoneBranchConnectors<E extends BranchPairEdge>(
 
   if (!replaced.size) return edges;
   return edges.map((edge) => replaced.get(edge.id) ?? edge);
-}
-
-/** A source node left holding one half of a branch pair with nothing to fall back to. */
-export interface IncompleteBranchPair {
-  source: string;
-  kind: BranchConnectorKind;
-  edgeId: string;
-}
-
-/**
- * Find branch connectors that are alone AND unrecoverable, for save-blocking validation.
- *
- * A node carrying a single conditional/parallel connector **plus** a standard connector is
- * deliberately NOT reported: at run time that evaluates as a correct if/else — the branch is taken
- * when it matches, and `FlowExecutor`'s `success → always` fallback catches every other case. Only
- * a lone branch with no fallback misbehaves, so only that is blocked.
- */
-export function incompleteBranchPairs<E extends BranchPairEdge>(edges: E[], kindOf: (edge: E) => string): IncompleteBranchPair[] {
-  const issues: IncompleteBranchPair[] = [];
-  // A loop node's sole Conditional sibling is its required exit, not half of an if/else pair.
-  const loopSources = new Set(edges.filter((edge) => edge.source === edge.target && kindOf(edge) === "loop").map((edge) => edge.source));
-  outgoingBySource(edges).forEach((outgoing, source) => {
-    if (loopSources.has(source)) return;
-    if (hasFallbackConnector(outgoing, kindOf)) return;
-    BRANCH_KINDS.forEach((kind) => {
-      const kindEdges = outgoing.filter((edge) => kindOf(edge) === kind);
-      if (kindEdges.length === 1) issues.push({ source, kind, edgeId: kindEdges[0].id });
-    });
-  });
-  return issues;
 }
 
 /** Save-blocking message for one incomplete pair, shared so both editors read identically. */
