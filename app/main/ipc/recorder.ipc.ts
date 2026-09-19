@@ -5,7 +5,7 @@ import { BundledBrowserResolver } from "@src/offline/BundledBrowserResolver";
 import { createFlowProfileStore } from "../profileStores";
 import { getResourcesRoot, getRuntimeDataRoot, getRuntimePaths, isProductionOffline } from "../appPaths";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
-import type { RecordedAction } from "@src/recorder/RecorderTypes";
+import { isLocatorRecordingMode, LOCATOR_RECORDING_MODES, type RecordedAction } from "@src/recorder/RecorderTypes";
 import { FileLocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { getSessionService } from "./session.ipc";
 import { getUiSettings, type LocatorRecordingMode } from "../uiSettings";
@@ -74,8 +74,8 @@ export function registerRecorderIpc(): void {
 
   ipcMain.handle("recorder:setLocatorRecordingMode", async (event, mode: LocatorRecordingMode) => {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
-    if (mode !== "default" && mode !== "xpath") {
-      throw new Error("Recorder locator recording mode must be default or xpath.");
+    if (!isLocatorRecordingMode(mode)) {
+      throw new Error(`Recorder locator recording mode must be one of ${LOCATOR_RECORDING_MODES.join(", ")}.`);
     }
     recorderService.setLocatorRecordingMode(mode);
     return { mode };

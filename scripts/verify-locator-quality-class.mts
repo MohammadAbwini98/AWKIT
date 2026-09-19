@@ -158,6 +158,12 @@ try {
   const flow = buildRecordedFlow("L2 locator quality", clickIndexes.map((index) => actions[index]));
   const clickSteps = flow.nodes.filter((step) => step.type === "click");
   check("buildRecordedFlow finalized every captured click", clickSteps.length === TARGETS.length, clickSteps.length);
+  const rawCarriedEvidence = clickIndexes.some((index) => Array.isArray(actions[index]?.locator?.recordingCandidates));
+  check(
+    "capture-only evidence never survives the finalizer, even when RecorderService is bypassed (the raw capture did carry it)",
+    rawCarriedEvidence && !JSON.stringify(flow).includes("recordingCandidates") && !JSON.stringify(flow).includes("recordingXPath"),
+    { rawCarriedEvidence }
+  );
   TARGETS.forEach((target, index) => {
     const step = clickSteps[index];
     const result = classifyLocatorQuality(step?.locator);

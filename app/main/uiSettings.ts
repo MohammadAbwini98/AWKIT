@@ -15,6 +15,7 @@ import {
   type RecorderSecuritySettings
 } from "@src/security/browser/CertificateTrust";
 import { SEMANTIC_DEFAULT_TOP_K, SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
+import { isLocatorRecordingMode, LOCATOR_RECORDING_MODES, type LocatorRecordingMode } from "@src/recorder/RecorderTypes";
 import {
   DEFAULT_SESSION_INACTIVITY_MINUTES,
   MAX_SESSION_INACTIVITY_MINUTES,
@@ -39,7 +40,7 @@ export interface TableState {
 export type AppearanceMode = "light" | "dark" | "system";
 
 /** Locator generator used for element actions captured after the preference is applied. */
-export type LocatorRecordingMode = "default" | "xpath";
+export type { LocatorRecordingMode } from "@src/recorder/RecorderTypes";
 
 export interface UiSettings {
   // ── Core layout (existing flat fields, kept for backward compatibility) ──────
@@ -426,6 +427,8 @@ function sanitizeAccent(value: unknown): AccentSettings {
 }
 
 /** Merge a parsed/partial object over defaults so new fields always exist. */
+const recordingModeOf = (value: unknown): LocatorRecordingMode => (isLocatorRecordingMode(value) ? value : "default");
+
 function hydrate(parsed: Partial<UiSettings>): UiSettings {
   const merged: UiSettings = {
     ...defaultSettings,
@@ -434,7 +437,7 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     recorder: {
       ...defaultSettings.recorder,
       ...parsed.recorder,
-      locatorRecordingMode: parsed.recorder?.locatorRecordingMode === "xpath" ? "xpath" : "default",
+      locatorRecordingMode: recordingModeOf(parsed.recorder?.locatorRecordingMode),
       // `security` is nested one level deeper than the other recorder keys, so it needs its own
       // normalization: a settings file predating this feature has no `security` key at all, and a
       // hand-edited/corrupt one must fall back to validation-ON rather than inheriting a junk value.
@@ -672,8 +675,8 @@ export function validateSettings(settings: UiSettings): string[] {
   if (typeof settings.recorder.captureSmartWaits !== "boolean") {
     errors.push("Recorder Smart Wait capture must be true or false.");
   }
-  if (!["default", "xpath"].includes(settings.recorder.locatorRecordingMode)) {
-    errors.push("Recorder locator recording mode must be default or xpath.");
+  if (!isLocatorRecordingMode(settings.recorder.locatorRecordingMode)) {
+    errors.push(`Recorder locator recording mode must be one of ${LOCATOR_RECORDING_MODES.join(", ")}.`);
   }
   if (typeof settings.recorder.ignoreProtectedLoginDetection !== "boolean") {
     errors.push("Protected login detection override must be true or false.");

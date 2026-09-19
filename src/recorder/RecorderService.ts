@@ -15,6 +15,7 @@ import type {
 import { RECORDED_URL_SENSITIVE_QUERY_KEYS as SENSITIVE_QUERY_KEYS } from "./recordedUrlPolicy";
 import { removeRecordedAction } from "./recordedActionMutations";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
+import { applyPreferredLocatorStrategy } from "./locatorStrategyPreference";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
 import { detectRecorderProtectedLogin } from "../security/ProtectedLoginDetector";
 import { buildChromiumHardeningArgs } from "../runner/ChromiumHardening";
@@ -1733,11 +1734,17 @@ export class RecorderService {
     if (!locator) return;
     const xpath = locator.recordingXPath;
     delete locator.recordingXPath;
+    const preferenceCandidates = locator.recordingCandidates;
+    delete locator.recordingCandidates;
 
     const hoverContainer = locator.interaction?.hoverContainer as RecordedActionLocator | undefined;
     if (hoverContainer) this.applyLocatorRecordingMode(hoverContainer);
 
     if (this.locatorRecordingMode === "default") return;
+    if (this.locatorRecordingMode !== "xpath") {
+      applyPreferredLocatorStrategy(locator, preferenceCandidates, this.locatorRecordingMode);
+      return;
+    }
 
     locator.strategy = "xpath";
     locator.value = xpath?.value ?? "";

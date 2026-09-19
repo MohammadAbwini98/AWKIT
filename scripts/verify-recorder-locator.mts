@@ -444,8 +444,14 @@ async function main() {
     bindingRecorder.setLocatorRecordingMode("default");
     const action = await capture(`<button data-testid="default-mode" onclick="window.__hit='default'">Default mode</button>`, (p) => p.getByTestId("default-mode").click());
     const rawLocator = JSON.parse(JSON.stringify(rawRecorded.at(-1)?.locator ?? null)) as Record<string, unknown> | null;
-    if (rawLocator) delete rawLocator.recordingXPath;
+    // Both are internal capture-only evidence (XPath candidate, L2 chooser candidates) that every mode strips.
+    if (rawLocator) {
+      delete rawLocator.recordingXPath;
+      delete rawLocator.recordingCandidates;
+    }
     check("locator mode: Default keeps the existing preferred strategy", action?.locator?.strategy === "testId", JSON.stringify(action?.locator));
+    check("locator mode: the page really sent chooser evidence (so the strip above is not vacuous)", Array.isArray(rawRecorded.at(-1)?.locator?.recordingCandidates) && (rawRecorded.at(-1)?.locator?.recordingCandidates?.length ?? 0) > 0, JSON.stringify(rawRecorded.at(-1)?.locator));
+    check("locator mode: Default persists no internal chooser evidence", !JSON.stringify(action).includes("recordingCandidates"), JSON.stringify(action));
     check("locator mode: Default preserves the complete pre-change locator payload", JSON.stringify(action?.locator) === JSON.stringify(rawLocator), JSON.stringify({ rawLocator, stored: action?.locator }));
     check("locator mode: Default persists no internal XPath candidate", !JSON.stringify(action).includes("recordingXPath"), JSON.stringify(action));
   }
@@ -547,6 +553,59 @@ async function main() {
     const sessionActions = (bindingRecorder as RecorderService).getActions().filter((entry) => entry.type === "click");
     check("mode switching: Default → XPath → Default is prospective", sessionActions.length === 3 && sessionActions[0].locator?.strategy === "testId" && sessionActions[1].locator?.strategy === "xpath" && sessionActions[2].locator?.strategy === "testId", JSON.stringify(sessionActions.map((entry) => entry.locator)));
     check("mode switching: earlier Default action is not rewritten", sessionActions[0].locator?.value === "mode-a", JSON.stringify(sessionActions[0]));
+  }
+
+  console.log("Part Y — L2 strategy chooser: Role + name, Text, Test ID");
+  {
+    const both = `<button data-testid="save-order" onclick="window.__hit='save'">Save order</button><button data-testid="other">Other</button>`;
+    const chooserCases: Array<{ mode: "role" | "text" | "testId"; expectStrategy: string; expectName?: string; expectValue: string }> = [
+      { mode: "role", expectStrategy: "role", expectName: "Save order", expectValue: "button" },
+      { mode: "text", expectStrategy: "text", expectValue: "Save order" },
+      { mode: "testId", expectStrategy: "testId", expectValue: "save-order" }
+    ];
+    for (const chooser of chooserCases) {
+      bindingRecorder.setLocatorRecordingMode(chooser.mode);
+      const action = await capture(both, (p) => p.getByTestId("save-order").click());
+      const locator = action?.locator;
+      check(
+        `chooser ${chooser.mode}: the preferred strategy becomes primary`,
+        locator?.strategy === chooser.expectStrategy && locator.value === chooser.expectValue && (chooser.expectName === undefined || locator.name === chooser.expectName),
+        JSON.stringify(locator)
+      );
+      check(
+        `chooser ${chooser.mode}: proven unique, resolved, and no internal evidence persisted`,
+        locator?.quality?.isUnique === true && locator.quality.matchCount === 1 && locator.quality.strategy === chooser.expectStrategy && (locator.resolution ?? "resolved") === "resolved" && !JSON.stringify(action).includes("recordingCandidates"),
+        JSON.stringify(locator)
+      );
+      if (chooser.mode !== "testId") {
+        check(`chooser ${chooser.mode}: the default choice (test id) is kept as the first fallback`, locator?.alternatives?.[0]?.strategy === "testId" && locator.alternatives[0].value === "save-order", JSON.stringify(locator?.alternatives));
+      }
+      const flow = action ? buildRecordedFlow(`Chooser ${chooser.mode}`, [{ ...action, id: `chooser-${chooser.mode}` } as any]) : undefined;
+      const saved = flow?.nodes.find((node) => node.type === "click");
+      check(`chooser ${chooser.mode}: finalized step keeps the preferred primary`, saved?.locator?.strategy === chooser.expectStrategy, JSON.stringify(saved?.locator));
+      const replay = saved ? await run(both, saved) : undefined;
+      check(`chooser ${chooser.mode}: replay clicks the recorded element`, replay?.status === "passed" && replay.hit === "save", JSON.stringify(replay));
+    }
+
+    bindingRecorder.setLocatorRecordingMode("testId");
+    const noTestId = await capture(`<button onclick="window.__hit='plain'">Plain action</button>`, (p) => p.getByRole("button", { name: "Plain action" }).click());
+    check(
+      "chooser testId without a test id: the default choice stands, with a stated reason",
+      noTestId?.locator?.strategy === "role" && /No unique test id locator/.test(noTestId.locator.quality?.warning ?? ""),
+      JSON.stringify(noTestId?.locator)
+    );
+
+    bindingRecorder.setLocatorRecordingMode("role");
+    const twins = await capture(
+      `<div id="twins"><button onclick="window.__hit='t1'">Remove</button><button onclick="window.__hit='t2'">Remove</button></div>`,
+      (p) => p.locator("#twins button").nth(1).click()
+    );
+    check(
+      "chooser role never displaces a positional capture: identical twins stay positional with their guard",
+      twins?.locator?.quality?.disambiguation === "positional" && Boolean(twins.locator.guard) && twins.locator.strategy === "css",
+      JSON.stringify(twins?.locator)
+    );
+    bindingRecorder.setLocatorRecordingMode("default");
   }
 
   {

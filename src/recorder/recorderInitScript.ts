@@ -1434,6 +1434,28 @@ export function installRecorderCapture(): void {
     if (chosen.name) locator.name = chosen.name;
     if (chosen.exact) locator.exact = true;
 
+    // L2 strategy chooser evidence: the element's OTHER globally unique, non-positional candidates in a
+    // strategy the user can prefer. RecorderService promotes the preferred one and removes this field in
+    // every mode, so it is never persisted. A container-scoped or positional choice has none by
+    // construction, which is what keeps a preference from displacing guarded-positional capture.
+    if (!containerScoped) {
+      const preferable: Array<Record<string, unknown>> = [];
+      for (let i = 0; i < candidates.length && preferable.length < 4; i += 1) {
+        const c = candidates[i];
+        if (c === chosen || c.count !== 1 || c.fallback) continue;
+        if (c.strategy !== "role" && c.strategy !== "text" && c.strategy !== "testId") continue;
+        const entry: Record<string, unknown> = {
+          strategy: c.strategy,
+          value: c.value,
+          visibleMatchCount: activeQueryRoots.reduce((count, root) => count + candidateElementsIn(root, c).filter(isVisibleMatch).length, 0)
+        };
+        if (c.name) entry.name = c.name;
+        if (c.exact) entry.exact = true;
+        preferable.push(entry);
+      }
+      if (preferable.length) locator.recordingCandidates = preferable;
+    }
+
     const alternatives = buildAlternatives(candidates, chosen);
     if (alternatives.length) locator.alternatives = alternatives;
 

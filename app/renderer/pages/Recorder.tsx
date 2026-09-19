@@ -54,13 +54,15 @@ import {
   SysTimelineRow,
   type SysTone
 } from "../components/system/SystemUI";
-import type {
-  RecordedAction,
-  RecordedUrl,
-  RecorderHandoffInfo,
-  AmbiguityState,
-  AmbiguityResolutionChoice,
-  LocatorRecordingMode
+import {
+  isLocatorRecordingMode,
+  LOCATOR_RECORDING_MODES,
+  type RecordedAction,
+  type RecordedUrl,
+  type RecorderHandoffInfo,
+  type AmbiguityState,
+  type AmbiguityResolutionChoice,
+  type LocatorRecordingMode
 } from "@src/recorder/RecorderTypes";
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
 import { locatorContainerChain, type StepLocator } from "@src/profiles/FlowProfile";
@@ -295,7 +297,8 @@ export function Recorder() {
       .then((settings) => {
         setCaptureWaitTime(settings.recorder?.captureWaitTime ?? false);
         setCaptureSmartWaits(settings.recorder?.captureSmartWaits ?? true);
-        setLocatorRecordingMode(settings.recorder?.locatorRecordingMode === "xpath" ? "xpath" : "default");
+        const mode = settings.recorder?.locatorRecordingMode;
+        setLocatorRecordingMode(isLocatorRecordingMode(mode) ? mode : "default");
       })
       .catch(() => undefined);
   }, []);
@@ -952,7 +955,7 @@ export function Recorder() {
             <fieldset className="recorder-locator-mode" data-testid="recorder-locator-mode">
               <legend>Locator Recording</legend>
               <div className="recorder-locator-mode-options">
-                {(["default", "xpath"] as const).map((mode) => (
+                {LOCATOR_RECORDING_MODES.map((mode) => (
                   <label key={mode} className={`recorder-locator-mode-option${locatorRecordingMode === mode ? " is-active" : ""}`}>
                     <input
                       type="radio"
@@ -962,14 +965,12 @@ export function Recorder() {
                       disabled={locatorModeBusy}
                       onChange={() => void changeLocatorRecordingMode(mode)}
                     />
-                    <span>{mode === "default" ? "Default" : "XPath"}</span>
+                    <span>{LOCATOR_MODE_LABEL[mode]}</span>
                   </label>
                 ))}
               </div>
               <p className="recorder-locator-mode-help" aria-live="polite">
-                {locatorRecordingMode === "default"
-                  ? "Uses AWKIT's existing resilient locator generation."
-                  : "Records element locators as XPath. Existing actions keep their recorded strategy."}
+                {LOCATOR_MODE_HELP[locatorRecordingMode]}
               </p>
             </fieldset>
 
@@ -1561,6 +1562,22 @@ export function Recorder() {
     </SysPage>
   );
 }
+
+const LOCATOR_MODE_LABEL: Record<LocatorRecordingMode, string> = {
+  default: "Default",
+  role: "Role + name",
+  text: "Text",
+  testId: "Test ID",
+  xpath: "XPath"
+};
+
+const LOCATOR_MODE_HELP: Record<LocatorRecordingMode, string> = {
+  default: "Uses AWKIT's existing resilient locator generation.",
+  role: "Prefers a unique role and accessible name; keeps the default choice when there is none.",
+  text: "Prefers unique visible text; keeps the default choice when there is none.",
+  testId: "Prefers a unique test id; keeps the default choice when there is none.",
+  xpath: "Records element locators as XPath (low durability). Existing actions keep their recorded strategy."
+};
 
 /** The shared L2 quality class (src/recorder/LocatorQualityClass.ts), never a page-local grade. */
 function locatorClass(action: RecordedAction): LocatorQualityClass | null {

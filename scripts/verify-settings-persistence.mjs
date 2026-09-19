@@ -29,7 +29,10 @@ function check(name, pass, detail) {
   check(
     "Recorder locator mode defaults to Default when no persisted field exists",
     /recorder:\s*\{[\s\S]{0,200}?locatorRecordingMode:\s*"default"/.test(source) &&
-      /locatorRecordingMode:\s*parsed\.recorder\?\.locatorRecordingMode\s*===\s*"xpath"\s*\?\s*"xpath"\s*:\s*"default"/.test(source)
+      // L2 widened the modes (default, role, text, testId, xpath): hydration keeps a known mode and
+      // falls back to Default for an absent or unknown one.
+      /locatorRecordingMode:\s*recordingModeOf\(parsed\.recorder\?\.locatorRecordingMode\)/.test(source) &&
+      /const recordingModeOf = \(value: unknown\): LocatorRecordingMode => \(isLocatorRecordingMode\(value\) \? value : "default"\);/.test(source)
   );
 }
 

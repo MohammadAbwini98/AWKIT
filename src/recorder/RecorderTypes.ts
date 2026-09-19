@@ -2,7 +2,22 @@ import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDe
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
-export type LocatorRecordingMode = "default" | "xpath";
+/**
+ * Locator strategy chooser (Phase L L2). `default` is the adaptive ranking; `role`, `text` and `testId`
+ * promote that strategy when it is unique for the element, else keep the adaptive choice; `xpath` is the
+ * explicit low-durability opt-in.
+ */
+export const LOCATOR_RECORDING_MODES = ["default", "role", "text", "testId", "xpath"] as const;
+export type LocatorRecordingMode = (typeof LOCATOR_RECORDING_MODES)[number];
+
+export function isLocatorRecordingMode(value: unknown): value is LocatorRecordingMode {
+  return typeof value === "string" && (LOCATOR_RECORDING_MODES as readonly string[]).includes(value);
+}
+
+/** Page-side evidence for the chooser: the element's other globally unique, non-positional candidates. */
+export interface RecordedPreferenceCandidate extends LocatorCandidate {
+  visibleMatchCount?: number;
+}
 
 /** Page-side XPath candidate consumed by RecorderService before an action enters the draft. */
 export interface RecordedXPathCapture {
@@ -26,6 +41,8 @@ export interface RecordedActionLocator {
   exact?: boolean;
   /** Internal capture candidate. RecorderService removes this before persistence in every mode. */
   recordingXPath?: RecordedXPathCapture;
+  /** Internal chooser evidence. RecorderService removes this before persistence in every mode. */
+  recordingCandidates?: RecordedPreferenceCandidate[];
   /** Uniqueness/quality metadata computed at record time. */
   quality?: LocatorQuality;
   /** Ranked fallback candidates the runner can try when the primary is ambiguous. */
