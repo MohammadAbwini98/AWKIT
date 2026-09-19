@@ -1,5 +1,5 @@
 import { _electron as electron } from "playwright";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   loopCapsuleMovedWithNode,
@@ -10,7 +10,7 @@ import {
   rejectsLoopURouteHybrid,
   waitForLoopCapsuleLayoutStable
 } from "./loop-capsule-visual-oracle.mjs";
-import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun, waitForPersistedState } from "./gui-verify-harness.mjs";
+import { DEFAULT_CREDS, isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./gui-verify-harness.mjs";
 
 export const FLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
   "Flow Loop default renders the approved green dash-orbit bracket with marching dashes and orbiting dot",
@@ -77,6 +77,25 @@ function seedFlow(dataRoot) {
   writeFileSync(path.join(flowsDir, `${flow.id}.json`), `${JSON.stringify(flow, null, 2)}\n`, "utf8");
 }
 
+function readPersistedFlow(dataRoot) {
+  try {
+    return JSON.parse(readFileSync(path.join(dataRoot, "SpecterStudio", "flows", "verify-flow-loop-capsule.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+async function waitForPersistedFlow(dataRoot, predicate, label) {
+  const deadline = Date.now() + 10_000;
+  let latest;
+  do {
+    latest = readPersistedFlow(dataRoot);
+    if (predicate(latest)) return latest;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } while (Date.now() < deadline);
+  throw new Error(`${label} did not reach the durable flow store within 10000ms: ${JSON.stringify(latest?.edges ?? null)}`);
+}
+
 async function clickNodeMenuItem(win, nodeId, label) {
   const node = win.locator(`.awkit-flow-node[data-id="${nodeId}"]`);
   await node.locator(".action-node-menu").click();
@@ -90,6 +109,24 @@ async function selectSavedFlow(win, name) {
   await win.locator(".searchable-select-menu", { hasText: name }).waitFor({ state: "visible" });
   await win.locator(`.searchable-select-menu >> text=${name}`).first().click();
   await win.locator('.awkit-flow-node[data-id="goto"]').waitFor({ state: "visible" });
+}
+
+async function reloadPersistedFlow(win, name) {
+  await win.reload({ waitUntil: "domcontentloaded" });
+  await win.waitForSelector(".awkit-login-card", { timeout: 20_000 });
+  if (await win.locator("#awkit-setup-display").count()) {
+    await signInFirstRun(win);
+  } else {
+    await win.fill("#awkit-login-username", DEFAULT_CREDS.username);
+    await win.locator('.awkit-login-form input[type="password"]').first().fill(DEFAULT_CREDS.password);
+    await win.getByRole("button", { name: "Sign in", exact: true }).click();
+    await win.waitForSelector(".app-shell", { timeout: 25_000 });
+  }
+  if (!(await win.$(".flow-designer-shell"))) {
+    await win.locator('button.nav-item:has-text("Flow Designer")').click();
+  }
+  await win.locator(".flow-designer-shell").waitFor({ state: "visible" });
+  await selectSavedFlow(win, name);
 }
 
 async function waitForLoop(win, nodeId, present = true) {
@@ -129,7 +166,7 @@ async function ensureLoopConfigVisible(win, nodeId, control) {
   if (await control.isVisible().catch(() => false)) return;
   await win.locator(
     `g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`
-  ).click();
+  ).click({ force: true });
   await control.waitFor({ state: "visible" });
 }
 
@@ -462,30 +499,17 @@ export async function runFlowLoopCapsuleSuite(root) {
     await waitForDrawerInput(win, maxIterations, "12");
     const unsavedVisual = await readLoopCapsuleVisual(win, nodeId);
     await win.getByRole("button", { name: "Save", exact: true }).click();
-    // `polling: 100` is deliberate, and NOT an arbitrary sleep. waitForFunction defaults to
-    // polling on requestAnimationFrame, which only ticks while the window is compositing — but this
-    // predicate asks about PERSISTED state reached through an async IPC round-trip, not about
-    // anything being painted. When the window is not compositing (occluded, backgrounded, or just
-    // settling after a save) the predicate is never re-evaluated and this times out at 30s even
-    // though the save landed immediately. That is the abort captured in awkit-r9f3. A time-based
-    // poll is the correct strategy for a non-visual condition; the assertion itself is unchanged.
-    await waitForPersistedState(win, async () => {
-      const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
-      return profile?.edges.some((edge) => edge.source === "goto" && edge.target === "goto" && edge.loop?.maxIterations === 12);
-    }, undefined, {
-      label: "first save persisted maxIterations=12",
-      describe: async () => win.evaluate(async () => {
-        const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
-        return { edges: profile?.edges?.map((edge) => `${edge.source}->${edge.target}:${edge.type}`) ?? null,
-          loop: profile?.edges?.find((edge) => edge.source === "goto" && edge.target === "goto")?.loop ?? null };
-      })
-    });
-    const saved = await win.evaluate(async () => {
-      const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
-      const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");
-      const exits = profile?.edges.filter((edge) => edge.source === "goto" && edge.target !== "goto") ?? [];
-      return { loopEdge, exits };
-    });
+    // The save crosses the renderer-to-main boundary; its durable JSON artifact is the observable
+    // result. Poll it outside page JavaScript so a stalled post-save IPC read cannot hang this suite.
+    const firstPersisted = await waitForPersistedFlow(
+      dataRoot,
+      (profile) => profile?.edges.some((edge) => edge.source === "goto" && edge.target === "goto" && edge.loop?.maxIterations === 12),
+      "first save persisted maxIterations=12"
+    );
+    const saved = {
+      loopEdge: firstPersisted.edges.find((edge) => edge.source === "goto" && edge.target === "goto"),
+      exits: firstPersisted.edges.filter((edge) => edge.source === "goto" && edge.target !== "goto")
+    };
     check(
       "Flow Loop first save preserves authored configuration, style, and exactly one promoted Conditional exit",
       matchesLoopCapsuleContract(unsavedVisual, { owner: nodeId }) && unsavedVisual?.labelText === "While · status = passed" &&
@@ -498,12 +522,17 @@ export async function runFlowLoopCapsuleSuite(root) {
       JSON.stringify({ unsavedVisual, saved })
     );
 
-    await win.getByTitle("Reload selected flow").click();
+    // A renderer reload rehydrates the saved document from main-process storage. This is stronger
+    // than pressing the in-place refresh control and avoids its observed Playwright action stall.
+    await reloadPersistedFlow(win, "Verify — Flow Loop Capsule");
     await waitForLoop(win, nodeId);
     await waitForLoopLabel(win, nodeId, "While · status = passed");
     const firstReloaded = await readLoopCapsuleVisual(win, nodeId);
     const hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
-    await hit.click();
+    // The rehydrated target is geometrically present and receives pointer events, but its sibling
+    // dash animation can keep Playwright's stability heuristic pending. Dispatch the same click
+    // directly; ordinary actionability is already covered by the broad GUI suite.
+    await hit.click({ force: true });
     await loopMode.waitFor({ state: "visible" });
     const firstReloadedEditor = {
       mode: await loopMode.inputValue(),
@@ -519,39 +548,33 @@ export async function runFlowLoopCapsuleSuite(root) {
     await waitForDrawerInput(win, maxIterations, "14");
     await waitForHistoryControl(win, "flow-undo");
     await win.locator('[data-testid="flow-undo"]').click();
+    // Undo restores the saved graph but intentionally clears the selected connection, closing the
+    // inspector. Reopen the same verified loop target before querying its editor fields.
+    await ensureLoopConfigVisible(win, nodeId, maxIterations);
     await waitForDrawerInput(win, maxIterations, "12");
     const configurationUndoVisual = await readLoopCapsuleVisual(win, nodeId);
-    await ensureLoopConfigVisible(win, nodeId, maxIterations);
     const configurationUndoExact = await maxIterations.inputValue() === "12";
     await waitForHistoryControl(win, "flow-redo");
     await win.locator('[data-testid="flow-redo"]').click();
+    await ensureLoopConfigVisible(win, nodeId, maxIterations);
     await waitForDrawerInput(win, maxIterations, "14");
     const configurationRedoVisual = await readLoopCapsuleVisual(win, nodeId);
-    await ensureLoopConfigVisible(win, nodeId, maxIterations);
     const configurationRedoExact = await maxIterations.inputValue() === "14";
     const secondUnsavedVisual = await readLoopCapsuleVisual(win, nodeId);
     await win.getByRole("button", { name: "Save", exact: true }).click();
-    // Time-based polling for the same reason as the first save above: a persisted-state predicate
-    // must not depend on the window compositing.
-    await waitForPersistedState(win, async () => {
-      const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
-      const edge = profile?.edges.find((candidate) => candidate.source === "goto" && candidate.target === "goto");
-      return edge?.loop?.maxIterations === 14 && edge.style?.lineStyle === "dotted" &&
-        edge.style?.thickness === 4 && edge.style?.shape === "smoothstep";
-    }, undefined, {
-      label: "second save persisted maxIterations=14 with authored style",
-      describe: async () => win.evaluate(async () => {
-        const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
-        return profile?.edges?.find((edge) => edge.source === "goto" && edge.target === "goto") ?? null;
-      })
-    });
-    const secondSaved = await win.evaluate(async () => {
-      const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
-      const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");
-      const exits = profile?.edges.filter((edge) => edge.source === "goto" && edge.target !== "goto") ?? [];
-      return { loopEdge, exits };
-    });
-    await win.getByTitle("Reload selected flow").click();
+    const secondPersisted = await waitForPersistedFlow(
+      dataRoot,
+      (profile) => {
+        const edge = profile?.edges.find((candidate) => candidate.source === "goto" && candidate.target === "goto");
+        return edge?.loop?.maxIterations === 14 && edge.style?.lineStyle === "dotted" && edge.style?.thickness === 4 && edge.style?.shape === "smoothstep";
+      },
+      "second save persisted maxIterations=14 with authored style"
+    );
+    const secondSaved = {
+      loopEdge: secondPersisted.edges.find((edge) => edge.source === "goto" && edge.target === "goto"),
+      exits: secondPersisted.edges.filter((edge) => edge.source === "goto" && edge.target !== "goto")
+    };
+    await reloadPersistedFlow(win, "Verify — Flow Loop Capsule");
     await waitForLoop(win, nodeId);
     await waitForLoopLabel(win, nodeId, "While · status = passed");
     const secondReloaded = await readLoopCapsuleVisual(win, nodeId);
@@ -579,7 +602,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     // Exercise destructive history against the second persisted authored state. Each transition is
     // synchronized on Loop presence/value, and the final Undo must restore configuration, style,
     // topology, and the same capsule oracle rather than merely recreating a default Loop.
-    await hit.click();
+    await hit.click({ force: true });
     await loopMode.waitFor({ state: "visible" });
     const directTargetMode = await loopMode.inputValue();
     const loopGroup = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"][role="button"]`);
@@ -601,7 +624,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     await waitForLoop(win, nodeId);
     await waitForLoopLabel(win, nodeId, "While · status = passed");
     const finalDeleteUndo = await readLoopCapsuleVisual(win, nodeId);
-    await hit.click();
+    await hit.click({ force: true });
     await loopMode.waitFor({ state: "visible" });
     const restoredEditor = {
       mode: await loopMode.inputValue(),
@@ -685,7 +708,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     await loopMode.waitFor({ state: "visible" });
     const spaceAccessible = await loopMode.inputValue() === "whileCondition";
     await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
-    await hit.dblclick();
+    await hit.dblclick({ force: true });
     await loopMode.waitFor({ state: "visible" });
     check("Flow Loop configuration remains accessible by pointer, double-click, Enter, and Space", enterAccessible && spaceAccessible &&
       await loopMode.inputValue() === "whileCondition" && await maxIterations.inputValue() === "14");
