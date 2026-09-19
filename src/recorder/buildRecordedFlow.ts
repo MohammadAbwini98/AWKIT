@@ -51,7 +51,7 @@ function hashIdentity(draft: ElementIdentityContract, locator: RecordedActionLoc
 function forwardLocatorFields(locator: RecordedActionLocator): Partial<StepLocator> {
   const forward = { ...locator } as Record<string, unknown>;
   for (const key of [
-    "strategy", "value", "name", "exact", "recordingXPath", "recordingCandidates", "quality", "alternatives", "context",
+    "strategy", "value", "name", "exact", "recordingXPath", "recordingCandidates", "upgradeContext", "quality", "alternatives", "context",
     "interaction", "identity", "prerequisite", "executionDecision", "resolution", "resolvedBy",
     "approvedFallbackReason", "approvedFallbackBinding", "reviewReason", "guard", "blueprintCapture"
   ]) delete forward[key];

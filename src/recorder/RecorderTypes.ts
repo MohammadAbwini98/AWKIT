@@ -1,4 +1,5 @@
-import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
+import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, LocatorFrameContext, StepLocator, WaitCondition } from "../profiles/FlowProfile";
+import type { UpgradeContext } from "./upgradeContext";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -12,6 +13,43 @@ export type LocatorRecordingMode = (typeof LOCATOR_RECORDING_MODES)[number];
 
 export function isLocatorRecordingMode(value: unknown): value is LocatorRecordingMode {
   return typeof value === "string" && (LOCATOR_RECORDING_MODES as readonly string[]).includes(value);
+}
+
+/** One locator candidate the Element Spy found for an inspected element, with its live match count. */
+export interface ElementInspectionCandidate extends LocatorCandidate {
+  count: number;
+  /** Visible matches in the inspected document, when the page could measure them. */
+  visibleCount?: number;
+  /** A positional/structural last resort; never offered to "Use in action". */
+  fallback: boolean;
+}
+
+/**
+ * Element Spy result (Phase L L2). Memory-only in RecorderService with a short TTL; never persisted.
+ * `locator` is the Recorder's own choice for the element, exactly as a recorded click would carry it.
+ */
+export interface ElementInspection {
+  schemaVersion: 1;
+  inspectedAt: string;
+  pageAlias: string;
+  topDocument: boolean;
+  owner: { tag: string; role: string; name: string; type: string };
+  locator: StepLocator;
+  candidates: ElementInspectionCandidate[];
+  /** Frame-graph chain of a child-frame element, built by the main process (never the page's claim). */
+  frameChain?: LocatorFrameContext[];
+  /** Bounded semantic neighbourhood (L2 task 4) with bound-value markers. */
+  upgradeContext?: UpgradeContext;
+}
+
+export interface ElementInspectionState {
+  /** Clicks in the Recorder browser are being inspected instead of performed. */
+  inspecting: boolean;
+  /** An inspect-only browser session (no recording) is open. */
+  session: boolean;
+  inspection: ElementInspection | null;
+  /** Set when protected-login detection disabled inspection and cleared the result. */
+  refused?: "protected-login";
 }
 
 /** Page-side evidence for the chooser: the element's other globally unique, non-positional candidates. */
@@ -43,6 +81,8 @@ export interface RecordedActionLocator {
   recordingXPath?: RecordedXPathCapture;
   /** Internal chooser evidence. RecorderService removes this before persistence in every mode. */
   recordingCandidates?: RecordedPreferenceCandidate[];
+  /** Internal L2 upgrade context (raw page data). RecorderService moves it to a memory-only store. */
+  upgradeContext?: unknown;
   /** Uniqueness/quality metadata computed at record time. */
   quality?: LocatorQuality;
   /** Ranked fallback candidates the runner can try when the primary is ambiguous. */

@@ -1725,6 +1725,65 @@ try {
     }
   }
 
+  // ── Phase L L2 — Element Spy panel (real Electron, permitted first-run user) ───────────
+  console.log("\nL2 — Element Spy panel");
+  await waitIdle(win);
+  await navClick(win, "Flows");
+  await navClick(win, "Recorder");
+  await win.waitForSelector(".recorder-page", { timeout: 20_000 });
+  const spyPanel = win.getByTestId("element-spy");
+  check("L2 the Element Spy panel is shown to a permitted user", await spyPanel.isVisible());
+  const spyUrl = urlField(win);
+  await spyUrl.fill(`${baseUrl}/recorder-lab/element-spy`);
+  await spyUrl.blur();
+  await win.getByTestId("element-spy-start").click();
+  const spyOpened = await poll(
+    "Element Spy session",
+    async () => {
+      const state = await win!.evaluate(() => window.playwrightFlowStudio.recorder.getInspection());
+      return state.session && state.inspecting ? state : null;
+    },
+    60_000,
+    200
+  ).catch(() => null);
+  check("L2 Open Element Spy starts an inspect-only session without recording", Boolean(spyOpened) && (await recorderState(win)).isRecording === false, JSON.stringify(spyOpened));
+  const spyStatus = win.getByTestId("element-spy-status");
+  const announced = await poll("Spy status", async () => (/Inspecting/.test((await spyStatus.textContent()) ?? "") ? true : null), 10_000, 150).catch(() => false);
+  check("L2 the panel announces the inspecting state through role=status", announced === true && (await spyStatus.getAttribute("role")) === "status", (await spyStatus.textContent()) ?? "");
+  const spyToggle = win.getByTestId("element-spy-toggle");
+  check("L2 the inspect toggle exposes its pressed state", (await spyToggle.getAttribute("aria-pressed")) === "true");
+  await spyToggle.click();
+  const paused = await poll("Spy paused", async () => ((await spyToggle.getAttribute("aria-pressed")) === "false" ? true : null), 10_000, 150).catch(() => false);
+  check(
+    "L2 pausing inspection updates the service and the toggle",
+    paused === true && (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspecting === false
+  );
+  await spyToggle.focus();
+  await win.keyboard.press("Enter");
+  const resumed = await poll("Spy resumed by keyboard", async () => ((await spyToggle.getAttribute("aria-pressed")) === "true" ? true : null), 10_000, 150).catch(() => false);
+  check("L2 the inspect toggle works from the keyboard", resumed === true);
+  check("L2 Start Recording stays available beside the independent Spy", await startButton(win).isEnabled());
+  for (const theme of ["light", "dark"] as const) {
+    await win.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+    await win.setViewportSize({ width: 1024, height: 768 });
+    check(`L2 the Element Spy panel stays inside the ${theme} narrow layout`, await win.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
+    await spyPanel.screenshot({ path: join(evidenceDir, `element-spy-${theme}-narrow.png`) });
+  }
+  await win.setViewportSize({ width: 1440, height: 900 });
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await win.getByTestId("element-spy-stop").click();
+  const closed = await poll(
+    "Element Spy closed",
+    async () => {
+      const state = await win!.evaluate(() => window.playwrightFlowStudio.recorder.getInspection());
+      return !state.session && !state.inspecting && state.inspection === null ? true : null;
+    },
+    20_000,
+    200
+  ).catch(() => false);
+  check("L2 Close Spy ends the session and clears the inspection", closed === true);
+  check("L2 the Spy button returns to Open Element Spy", await win.getByTestId("element-spy-start").isVisible());
+
   // ── REC-024 — no orphan browser is left behind ─────────────────────────────
   await waitIdle(win);
   const orphan = await win.evaluate(() => window.playwrightFlowStudio.recorder.getStatus());

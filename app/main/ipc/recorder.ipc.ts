@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
 import { recorderService } from "@src/recorder/RecorderService";
 import { BundledBrowserResolver } from "@src/offline/BundledBrowserResolver";
@@ -30,12 +30,13 @@ export function registerRecorderIpc(): void {
   // renderer-supplied claim. Hiding the Recorder nav entry is a UI affordance, never the boundary:
   // before this, any sender — including one with no session at all — could start a browser, persist
   // URL history, and create flows. Same class of gap as AWKIT-REP-001 and AWKIT-SET-001.
-  ipcMain.handle("recorder:start", async (event, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
+  /** Authorize the sender and resolve the Recorder browser (installed Chrome, bundled Chromium, or dev). */
+  const resolveRecorderBrowser = async (event: IpcMainInvokeEvent, channel: string) => {
     const settings = await getUiSettings();
     const installedChrome = settings.superUser.chrome.mode === "installedChrome";
     if (installedChrome) {
       await assertSenderSuperUser(event, Permission.PAGE_RECORDER, {
-        audit: { eventType: "INSTALLED_CHROME_RECORDER_DENIED", channel: "recorder:start" }
+        audit: { eventType: "INSTALLED_CHROME_RECORDER_DENIED", channel }
       });
     } else {
       await assertSenderPermission(event, Permission.PAGE_RECORDER);
@@ -55,6 +56,11 @@ export function registerRecorderIpc(): void {
       executablePath = bundled.executablePath;
       console.log(`[offline] Recorder using bundled Chromium: ${executablePath}`);
     }
+    return { settings, executablePath, userDataDir };
+  };
+
+  ipcMain.handle("recorder:start", async (event, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
+    const { settings, executablePath, userDataDir } = await resolveRecorderBrowser(event, "recorder:start");
     // The protected-login ignore flag is read from persisted Settings (single source of truth) so it
     // is always current regardless of when the Recorder page loaded it. Certificate trust is likewise
     // read from Settings at launch time (never from the renderer), so a Recorder session always reflects
@@ -79,6 +85,42 @@ export function registerRecorderIpc(): void {
     }
     recorderService.setLocatorRecordingMode(mode);
     return { mode };
+  });
+
+  // Element Spy (Phase L L2): its own permission on top of the Recorder page permission.
+  // The independent session: the Recorder browser opens with inspect mode on and recording off.
+  ipcMain.handle("recorder:startInspection", async (event, url: unknown) => {
+    const { settings, executablePath, userDataDir } = await resolveRecorderBrowser(event, "recorder:startInspection");
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    if (typeof url !== "string") throw new Error("Element Spy: a target URL is required.");
+    return recorderService.startInspection(url, {
+      executablePath,
+      userDataDir,
+      ignoreHttpsErrors: resolveIgnoreHttpsErrors({ app: settings.recorder.security })
+    });
+  });
+  ipcMain.handle("recorder:stopInspection", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    return recorderService.stopInspection();
+  });
+  ipcMain.handle("recorder:setInspectMode", async (event, on: unknown) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    return recorderService.setInspectMode(on === true);
+  });
+  ipcMain.handle("recorder:getInspection", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    return recorderService.getInspectionState();
+  });
+  ipcMain.handle("recorder:applyInspection", async (event, actionId: unknown, candidateIndex: unknown) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    if (typeof actionId !== "string" || !Number.isInteger(candidateIndex)) {
+      throw new Error("Element Spy: an action id and a candidate index are required.");
+    }
+    return recorderService.applyInspection(actionId, candidateIndex as number);
   });
 
   ipcMain.handle("recorder:stop", async (event) => {

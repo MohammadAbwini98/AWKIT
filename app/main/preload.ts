@@ -503,6 +503,15 @@ const api = {
       invoke("recorder:start", url, options) as Promise<RecorderStatus>,
     setLocatorRecordingMode: (mode: LocatorRecordingMode) =>
       invoke("recorder:setLocatorRecordingMode", mode) as Promise<{ mode: LocatorRecordingMode }>,
+    // Element Spy (Phase L L2), gated by recorder.elementSpy in the main process.
+    startInspection: (url: string) =>
+      invoke("recorder:startInspection", url) as Promise<import("@src/recorder/RecorderTypes").ElementInspectionState>,
+    stopInspection: () => invoke("recorder:stopInspection") as Promise<import("@src/recorder/RecorderTypes").ElementInspectionState>,
+    setInspectMode: (on: boolean) =>
+      invoke("recorder:setInspectMode", on) as Promise<import("@src/recorder/RecorderTypes").ElementInspectionState>,
+    getInspection: () => invoke("recorder:getInspection") as Promise<import("@src/recorder/RecorderTypes").ElementInspectionState>,
+    applyInspection: (actionId: string, candidateIndex: number) =>
+      invoke("recorder:applyInspection", actionId, candidateIndex) as Promise<{ ok: true; actions: import("@src/recorder/RecorderTypes").RecordedAction[] } | { ok: false; reason: string }>,
     stop: () => invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => invoke("recorder:cancel") as Promise<{ success: boolean }>,
     getActions: () => invoke("recorder:getActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,

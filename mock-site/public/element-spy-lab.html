@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Element Spy Lab - L2 inspect mode</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Element Spy Lab</h1>
+      <p>
+        Inspect each target with the Recorder's Element Spy. While inspecting, a click is examined and never performed:
+        every control here records its own click in <code>spy-clicks</code>, and the order form would navigate away, so a
+        performed click is always visible.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+      <p>Clicks performed: <output data-testid="spy-clicks">0</output> · last: <output data-testid="spy-last">none</output></p>
+
+      <section data-testid="spy-unique" aria-labelledby="spy-unique-title">
+        <h2 id="spy-unique-title">Account settings</h2>
+        <button type="button" data-testid="spy-save-profile" data-spy="save-profile">Save profile</button>
+        <label>Display name <input type="text" data-testid="spy-display-name" data-spy="display-name" /></label>
+      </section>
+
+      <section data-testid="spy-duplicates">
+        <h2>Invoices</h2>
+        <table aria-label="Invoices">
+          <tbody>
+            <tr><td>Invoice INV-2001</td><td><button type="button" data-spy="edit-2001">Edit</button> <button type="button" data-spy="void-2001">Void</button></td></tr>
+            <tr><td>Invoice INV-2002</td><td><button type="button" data-spy="edit-2002">Edit</button> <button type="button" data-spy="void-2002">Void</button></td></tr>
+            <tr data-testid="spy-row-2003"><td>Invoice INV-2003</td><td><button type="button" data-spy="archive-2003" onclick="this.closest('tr').remove()">Archive</button></td></tr>
+          </tbody>
+        </table>
+        <div class="spy-twins">
+          <button type="button" data-spy="twin-1">Remove</button>
+          <button type="button" data-spy="twin-2">Remove</button>
+        </div>
+      </section>
+
+      <dialog open data-testid="spy-dialog" aria-label="Confirm discount" style="position: static; margin: 0">
+
+        <h3>Apply discount</h3>
+        <button type="button" data-spy="dialog-apply" onclick="this.closest('dialog').close()">Apply</button>
+        <button type="button" data-spy="dialog-keep">Keep</button>
+      </dialog>
+
+      <section data-testid="spy-form">
+        <h2>Order</h2>
+        <form action="/recorder-lab/element-spy?submitted=1" method="get" data-testid="spy-order-form">
+          <button type="submit" data-testid="spy-submit-order" data-spy="submit-order">Place order</button>
+        </form>
+        <a href="/recorder-lab/element-spy/next" data-testid="spy-next-link" data-spy="next-link">Next page</a>
+        <button type="button" data-testid="spy-open-popup" data-spy="open-popup" onclick="window.open('/recorder-lab/element-spy/next', 'spy-popup')">Open popup</button>
+        <a href="/mock/protected-login" data-testid="spy-protected-link">Protected sign-in</a>
+      </section>
+
+      <section data-testid="spy-shadow">
+        <h2>Shadow widget</h2>
+        <spy-widget data-testid="spy-shadow-host"></spy-widget>
+      </section>
+
+      <section data-testid="spy-frame-section">
+        <h2>Embedded frame</h2>
+        <iframe title="Spy frame" name="spy-frame" data-testid="spy-frame" src="/recorder-lab/element-spy/frame"></iframe>
+      </section>
+    </main>
+    <script>
+      function spyClick(name) {
+        var clicks = document.querySelector('[data-testid="spy-clicks"]');
+        clicks.textContent = String(Number(clicks.textContent) + 1);
+        document.querySelector('[data-testid="spy-last"]').textContent = name;
+      }
+      document.addEventListener("click", function (event) {
+        var target = event.target && event.target.closest ? event.target.closest("[data-spy]") : null;
+        if (target) spyClick(target.getAttribute("data-spy"));
+      });
+      customElements.define(
+        "spy-widget",
+        class extends HTMLElement {
+          connectedCallback() {
+            if (this.shadowRoot) return;
+            var root = this.attachShadow({ mode: "open" });
+            root.innerHTML = '<button type="button" data-testid="spy-shadow-button">Shadow action</button>';
+            root.querySelector("button").addEventListener("click", function () {
+              spyClick("shadow-action");
+            });
+          }
+        }
+      );
+    </script>
+  </body>
+</html>

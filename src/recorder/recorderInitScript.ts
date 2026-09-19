@@ -1318,7 +1318,7 @@ export function installRecorderCapture(): void {
     includeContext?: boolean;
   }
 
-  const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string; traversalComplete: boolean } => {
+  const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string; traversalComplete: boolean; candidates: Candidate[] } => {
     activeQueryRoots = collectOpenRoots(options.root ?? document);
     const traversalComplete = !activeQueryTruncated;
     const candidates = buildCandidates(el, options.allowPositional !== false);
@@ -1475,7 +1475,7 @@ export function installRecorderCapture(): void {
       if (guard) locator.guard = guard;
     }
 
-    return { locator, quality, accessibleName: accessibleName(el), traversalComplete };
+    return { locator, quality, accessibleName: accessibleName(el), traversalComplete, candidates };
   };
 
   /**
@@ -1729,6 +1729,60 @@ export function installRecorderCapture(): void {
     };
   };
 
+  // L2 capture-time upgrade context: the exact target's bounded semantic neighbourhood, read while it
+  // still exists. Capture-only: RecorderService moves it into a memory-only TTL store and it never
+  // reaches the draft or a profile. It never reads a form value, and a secret-bearing control yields none.
+  const UPGRADE_CONTAINERS: Array<[string, string]> = [
+    ["dialog", 'dialog,[role="dialog"],[role="alertdialog"]'],
+    ["row", 'tr,[role="row"]'],
+    ["card", 'article,[role="article"],[data-testid*="card" i],[class*="card" i]'],
+    ["listItem", 'li,[role="listitem"]'],
+    ["form", 'form,[role="form"]'],
+    ["landmark", 'nav,main,header,footer,aside,section,[role="navigation"],[role="main"],[role="region"],[role="banner"],[role="contentinfo"],[role="complementary"]']
+  ];
+  const buildUpgradeContext = (target: Element, generated: ReturnType<typeof generate>): Record<string, unknown> | undefined => {
+    const type = attr(target, "type");
+    if (/^(password|hidden)$/i.test(type) || /password|one-time-code/i.test(attr(target, "autocomplete"))) return undefined;
+    const clip = (value: string | null | undefined, max: number): string => norm(value).slice(0, max);
+    const nameOf = (el: Element): string => clip(attr(el, "aria-label") || accessibleName(el), 80);
+    const parent = target.parentElement;
+    const containers: Array<Record<string, string>> = [];
+    for (const [kind, selector] of UPGRADE_CONTAINERS) {
+      const node = parent ? parent.closest(selector) : null;
+      if (node) containers.push({ kind, tag: tagOf(node), role: roleOf(node) || "", name: nameOf(node) });
+    }
+    const scope = (parent && parent.closest('dialog,[role="dialog"],[role="alertdialog"],article,section,main,form')) || document.body;
+    let heading = "";
+    if (scope) {
+      const headings = Array.from(scope.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"]')).slice(0, 50);
+      for (const h of headings) {
+        if (h.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING) heading = clip(h.textContent, 80);
+        else break;
+      }
+    }
+    const group = parent ? parent.closest('tr,[role="row"],li,article,dialog,[role="dialog"],fieldset,[role="toolbar"],[role="group"],form') || parent : null;
+    const siblingActions = group
+      ? Array.from(group.querySelectorAll('button,a[href],[role="button"],[role="link"],[role="menuitem"],[role="tab"]'))
+          .filter((node) => node !== target && !node.contains(target))
+          .slice(0, 12)
+          .map(nameOf)
+          .filter(Boolean)
+          .slice(0, 6)
+      : [];
+    const identity = generated.locator.identity as Record<string, unknown> | undefined;
+    const root = target.getRootNode();
+    return {
+      target: { tag: tagOf(target), role: roleOf(target) || "", name: clip(generated.accessibleName, 80), type },
+      candidates: generated.candidates.slice(0, 5).map((c) => ({ strategy: c.strategy, value: c.value, name: c.name, count: c.count, fallback: Boolean(c.fallback) })),
+      containers,
+      heading,
+      siblingActions,
+      pageKey: location.origin === "null" ? "" : location.origin + location.pathname,
+      shadow: root instanceof ShadowRoot ? "open" : "none",
+      fingerprint: identity ? identity.fingerprint : undefined
+    };
+  };
+
   const generateForEvent = (event: Event, interactive: boolean): { target: Element; generated: ReturnType<typeof generate>; shadow: ShadowCapture } | null => {
     const raw = firstPathElement(event);
     if (!raw) return null;
@@ -1809,6 +1863,10 @@ export function installRecorderCapture(): void {
     }
     activeQueryRoots = collectOpenRoots(document);
     attachIdentity(target, generated, false);
+    if (shadow.boundary !== "closed") {
+      const upgradeContext = buildUpgradeContext(target, generated);
+      if (upgradeContext) generated.locator.upgradeContext = upgradeContext;
+    }
     return { target, generated, shadow };
   };
 
@@ -3108,6 +3166,125 @@ export function installRecorderCapture(): void {
       capturedAtUrl: blueprint.url
     };
   };
+
+  // ── Element Spy (Phase L L2) ─────────────────────────────────────────────────
+  // Inspect mode: a click is examined, never performed and never recorded. These window capture-phase
+  // blockers are registered before the recorder's own listeners below and before any page script, so
+  // neither the recorder nor the page sees the gesture. RecorderService owns the mode: each document
+  // asks for it once and the service pushes changes through the Symbol-keyed setter. A document with a
+  // password or one-time-code field is a protected-login surface and is never inspected.
+  let inspecting = false;
+  try {
+    Object.defineProperty(window, Symbol.for("awkit.recorder.inspect"), {
+      value: (on: unknown) => {
+        inspecting = on === true;
+        if (!inspecting) placeOutline(null, "");
+      },
+      configurable: true
+    });
+  } catch {
+    /* a non-configurable leftover from an earlier document in this window */
+  }
+  const inspectModeQuery = (window as unknown as Record<string, unknown>).__awtkit_inspectMode;
+  if (typeof inspectModeQuery === "function") {
+    Promise.resolve((inspectModeQuery as () => unknown)())
+      .then((on) => {
+        inspecting = on === true;
+      })
+      .catch(() => undefined);
+  }
+  const INSPECT_PROTECTED = 'input[type="password"],input[autocomplete="one-time-code"],input[autocomplete="current-password"],input[autocomplete="new-password"]';
+  const blockWhileInspecting = (event: Event): void => {
+    if (!inspecting || !event.isTrusted) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  ["pointerdown", "mousedown", "pointerup", "mouseup", "dblclick", "auxclick", "contextmenu"].forEach((type) =>
+    window.addEventListener(type, blockWhileInspecting, true)
+  );
+  window.addEventListener(
+    "click",
+    (event: Event): void => {
+      if (!inspecting || !event.isTrusted) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const report = (window as unknown as Record<string, unknown>).__awtkit_inspectElement;
+      if (typeof report !== "function") return;
+      const send = report as (payload: unknown) => void;
+      if (document.querySelector(INSPECT_PROTECTED)) {
+        send({ refused: "protected-login" });
+        return;
+      }
+      const captured = generateForEvent(event, true);
+      if (!captured) return;
+      const { target, generated, shadow } = captured;
+      const locator = generated.locator;
+      flashInspected(target);
+      // A closed root's internals stay encapsulated: its candidates would carry internal text.
+      const candidates = shadow.boundary === "closed" ? [] : generated.candidates.slice(0, 8);
+      send({
+        owner: {
+          tag: tagOf(target),
+          role: roleOf(target) || "",
+          name: String(generated.accessibleName || "").slice(0, 120),
+          type: attr(target, "type")
+        },
+        locator: {
+          strategy: locator.strategy,
+          value: locator.value,
+          name: locator.name,
+          exact: locator.exact,
+          quality: locator.quality,
+          context: locator.context,
+          alternatives: locator.alternatives,
+          guard: locator.guard
+        },
+        candidates: candidates.map((c) => ({
+          strategy: c.strategy,
+          value: c.value,
+          name: c.name,
+          exact: c.exact,
+          count: c.count,
+          visibleCount: activeQueryRoots.reduce((n, root) => n + candidateElementsIn(root, c).filter(isVisibleMatch).length, 0),
+          fallback: Boolean(c.fallback)
+        })),
+        upgradeContext: locator.upgradeContext
+      });
+    },
+    true
+  );
+  // Selection affordance: a pointer-transparent outline follows the hovered element while inspecting.
+  let inspectOutline: HTMLElement | null = null;
+  const placeOutline = (el: Element | null, color: string): void => {
+    if (!el || !inspecting) {
+      if (inspectOutline) inspectOutline.style.display = "none";
+      return;
+    }
+    if (!inspectOutline || !inspectOutline.isConnected) {
+      inspectOutline = document.createElement("div");
+      inspectOutline.setAttribute("data-awkit-inspect-outline", "");
+      inspectOutline.setAttribute("aria-hidden", "true");
+      inspectOutline.style.cssText = "position:fixed;z-index:2147483647;pointer-events:none;box-sizing:border-box;border-radius:2px;";
+      (document.body || document.documentElement).appendChild(inspectOutline);
+    }
+    const rect = el.getBoundingClientRect();
+    inspectOutline.style.display = "block";
+    inspectOutline.style.border = "2px solid " + color;
+    inspectOutline.style.left = rect.left + "px";
+    inspectOutline.style.top = rect.top + "px";
+    inspectOutline.style.width = rect.width + "px";
+    inspectOutline.style.height = rect.height + "px";
+  };
+  const flashInspected = (el: Element): void => placeOutline(el, "#16a34a");
+  window.addEventListener(
+    "mouseover",
+    (event: Event): void => {
+      if (!inspecting || !event.isTrusted) return;
+      const el = firstPathElement(event);
+      if (el && el !== inspectOutline) placeOutline(el, "#7c3aed");
+    },
+    true
+  );
 
   // A recognized pointer-emulated drag ends with a synthetic `click` on the common ancestor of the
   // press/release targets (browsers fire it whenever mousedown and mouseup differ). That click is part

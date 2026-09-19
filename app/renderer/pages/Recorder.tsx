@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Clock,
   Copy,
+  Crosshair,
   CornerDownLeft,
   ExternalLink,
   Eye,
@@ -54,9 +55,13 @@ import {
   SysTimelineRow,
   type SysTone
 } from "../components/system/SystemUI";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import {
   isLocatorRecordingMode,
   LOCATOR_RECORDING_MODES,
+  type ElementInspection,
+  type ElementInspectionState,
   type RecordedAction,
   type RecordedUrl,
   type RecorderHandoffInfo,
@@ -77,6 +82,14 @@ export function Recorder() {
   const [captureSmartWaits, setCaptureSmartWaits] = useState(true);
   const [locatorRecordingMode, setLocatorRecordingMode] = useState<LocatorRecordingMode>("default");
   const [locatorModeBusy, setLocatorModeBusy] = useState(false);
+  // Element Spy (Phase L L2): permission-gated inspect mode; the inspection itself stays in main memory.
+  const { can } = usePermissions();
+  const canSpy = can(Permission.RECORDER_ELEMENT_SPY);
+  const [spy, setSpy] = useState<ElementInspectionState | null>(null);
+  const [spyCandidate, setSpyCandidate] = useState(-1);
+  const [spyActionId, setSpyActionId] = useState("");
+  const [spyMessage, setSpyMessage] = useState("");
+  const [spyBusy, setSpyBusy] = useState(false);
   const [instrumentationError, setInstrumentationError] = useState("");
   /** True while the live Recorder session is running with HTTPS certificate validation disabled. */
   const [ignoreHttpsErrors, setIgnoreHttpsErrors] = useState(false);
@@ -280,11 +293,16 @@ export function Recorder() {
           setInstrumentationError(status.instrumentationError ?? "");
         })
         .catch(() => undefined);
+      if (canSpy) {
+        window.playwrightFlowStudio.recorder.getInspection()
+          .then(applySpyState)
+          .catch(() => undefined);
+      }
     };
     poll();
     const interval = setInterval(poll, 800);
     return () => clearInterval(interval);
-  }, []);
+  }, [canSpy]);
 
   useEffect(() => {
     window.playwrightFlowStudio.recorder.getStatus()
@@ -336,6 +354,57 @@ export function Recorder() {
       setToast({ tone: "error", message: "Could not change the locator recording mode." });
     } finally {
       setLocatorModeBusy(false);
+    }
+  };
+
+  // ── Element Spy (Phase L L2) ──────────────────────────────────────────────────────────────────
+  const applySpyState = (next: ElementInspectionState) => {
+    setSpy((previous) => {
+      // A new inspection resets the selection to its first eligible candidate.
+      if (next.inspection && next.inspection.inspectedAt !== previous?.inspection?.inspectedAt) {
+        setSpyCandidate(next.inspection.candidates.findIndex((candidate) => candidate.count === 1 && !candidate.fallback));
+      }
+      return next;
+    });
+  };
+
+  const runSpy = async (operation: () => Promise<ElementInspectionState>, success: string) => {
+    if (spyBusy) return;
+    setSpyBusy(true);
+    try {
+      applySpyState(await operation());
+      setSpyMessage(success);
+    } catch (error: any) {
+      setSpyMessage(`Element Spy: ${error?.message ?? error}`);
+    } finally {
+      setSpyBusy(false);
+    }
+  };
+
+  const startSpySession = () =>
+    runSpy(() => window.playwrightFlowStudio.recorder.startInspection(url), "Element Spy opened. Click an element in the Recorder browser to inspect it; the click is not performed and nothing is recorded.");
+  const stopSpySession = () => runSpy(() => window.playwrightFlowStudio.recorder.stopInspection(), "Element Spy closed.");
+  const toggleSpyInspect = () =>
+    runSpy(
+      () => window.playwrightFlowStudio.recorder.setInspectMode(!spy?.inspecting),
+      spy?.inspecting ? "Inspect mode off. Clicks are performed and recorded again." : "Inspect mode on. Clicks are inspected, not performed or recorded."
+    );
+
+  const useSpyCandidate = async () => {
+    if (spyBusy || spyCandidate < 0 || !spyActionId) return;
+    setSpyBusy(true);
+    try {
+      const result = await window.playwrightFlowStudio.recorder.applyInspection(spyActionId, spyCandidate);
+      if (result.ok) {
+        setActions(result.actions);
+        setSpyMessage("Locator applied to the selected step. Its frame, interaction and execution guards were kept.");
+      } else {
+        setSpyMessage(`Not applied: ${result.reason}`);
+      }
+    } catch (error: any) {
+      setSpyMessage(`Not applied: ${error?.message ?? error}`);
+    } finally {
+      setSpyBusy(false);
     }
   };
 
@@ -991,6 +1060,71 @@ export function Recorder() {
         </SysPanel>
       </SysPanels>
 
+      {canSpy ? (
+        <SysPanels min={640}>
+          <SysPanel
+            wide
+            icon={Crosshair}
+            tone={spy?.refused ? "warning" : spy?.inspecting ? "running" : "neutral"}
+            title="Element Spy"
+            meta="Inspect any element's identity and locator candidates without recording it"
+            className="recorder-spy"
+            data-testid="element-spy"
+            actions={
+              <div className="recorder-panel-actions">
+                {isRecording ? (
+                  <SysButton kind="small" icon={Crosshair} aria-pressed={Boolean(spy?.inspecting)} data-testid="element-spy-toggle" disabled={spyBusy || handoffActive} onClick={() => void toggleSpyInspect()}>
+                    {spy?.inspecting ? "Stop inspecting" : "Inspect"}
+                  </SysButton>
+                ) : spy?.session ? (
+                  <>
+                    <SysButton kind="small" icon={Crosshair} aria-pressed={Boolean(spy.inspecting)} data-testid="element-spy-toggle" disabled={spyBusy} onClick={() => void toggleSpyInspect()}>
+                      {spy.inspecting ? "Pause inspecting" : "Resume inspecting"}
+                    </SysButton>
+                    <SysButton kind="smallDanger" icon={XCircle} data-testid="element-spy-stop" disabled={spyBusy} onClick={() => void stopSpySession()}>
+                      Close Spy
+                    </SysButton>
+                  </>
+                ) : (
+                  <SysButton kind="small" icon={Crosshair} data-testid="element-spy-start" disabled={spyBusy || handoffActive || !url.trim()} onClick={() => void startSpySession()} title={url.trim() ? "Open the Target URL in an inspect-only browser" : "Enter a Target URL first"}>
+                    Open Element Spy
+                  </SysButton>
+                )}
+              </div>
+            }
+          >
+            <p className="recorder-spy-status" role="status" data-testid="element-spy-status">
+              {spy?.refused
+                ? "Inspection stopped: a protected login surface was detected. The Element Spy never examines login, MFA, OTP or CAPTCHA pages."
+                : spy?.inspecting
+                  ? "Inspecting — click an element in the Recorder browser. The click is not performed and not recorded."
+                  : spy?.session
+                    ? "Inspect-only session open. Inspecting is paused."
+                    : isRecording
+                      ? "Turn on Inspect to examine elements in the recording browser."
+                      : "Open the Target URL in an inspect-only browser. Nothing is recorded."}
+            </p>
+            {spy?.inspection ? (
+              <ElementSpyResult
+                inspection={spy.inspection}
+                candidate={spyCandidate}
+                onCandidate={setSpyCandidate}
+                actions={actions}
+                actionId={spyActionId}
+                onAction={setSpyActionId}
+                busy={spyBusy}
+                onApply={() => void useSpyCandidate()}
+              />
+            ) : null}
+            {spyMessage ? (
+              <p className="recorder-spy-message" role="status" data-testid="element-spy-message">
+                {spyMessage}
+              </p>
+            ) : null}
+          </SysPanel>
+        </SysPanels>
+      ) : null}
+
       {ambiguity ? (
         <div className="modal-overlay" data-testid="ambiguity-resolution-overlay">
           <section
@@ -1622,6 +1756,134 @@ function recorderActionBadge(action: RecordedAction): string | null {
   if (action.opensPopup) return "Opens popup";
   if (action.pageAlias && action.pageAlias !== "main") return action.pageAlias;
   return null;
+}
+
+/** Element Spy result: identity, quality class with reasons, context, candidates and "Use in action". */
+export function ElementSpyResult({
+  inspection,
+  candidate,
+  onCandidate,
+  actions,
+  actionId,
+  onAction,
+  busy,
+  onApply
+}: {
+  inspection: ElementInspection;
+  candidate: number;
+  onCandidate: (index: number) => void;
+  actions: RecordedAction[];
+  actionId: string;
+  onAction: (id: string) => void;
+  busy: boolean;
+  onApply: () => void;
+}) {
+  const classification = classifyLocatorQuality(inspection.locator);
+  const context = inspection.upgradeContext;
+  const shadow = inspection.locator.context?.shadow?.boundary;
+  const containers = locatorContainerChain(inspection.locator.context);
+  const elementSteps = actions.map((action, index) => ({ action, index })).filter(({ action }) => action.locator && !action.targetLocator);
+  const selected = inspection.candidates[candidate];
+  const eligible = Boolean(selected && selected.count === 1 && !selected.fallback);
+  return (
+    <div className="recorder-spy-result" data-testid="element-spy-result">
+      <dl className="recorder-spy-identity" aria-label="Inspected element">
+        <div><dt>Tag</dt><dd data-testid="element-spy-tag">{inspection.owner.tag || "—"}</dd></div>
+        <div><dt>Role</dt><dd data-testid="element-spy-role">{inspection.owner.role || "—"}</dd></div>
+        <div><dt>Accessible name</dt><dd data-testid="element-spy-name">{inspection.owner.name || "—"}</dd></div>
+        <div><dt>Type</dt><dd>{inspection.owner.type || "—"}</dd></div>
+        <div><dt>Page</dt><dd>{inspection.pageAlias}</dd></div>
+        <div>
+          <dt>Frame</dt>
+          <dd data-testid="element-spy-frame">{inspection.frameChain?.length ? `child frame · depth ${inspection.frameChain.length}` : "top document"}</dd>
+        </div>
+        <div><dt>Shadow</dt><dd data-testid="element-spy-shadow">{shadow && shadow !== "none" ? `${shadow} shadow root` : "none"}</dd></div>
+      </dl>
+
+      <div className="recorder-spy-primary">
+        <strong>Recorder's choice</strong>
+        <code data-testid="element-spy-primary">
+          {inspection.locator.strategy}: {inspection.locator.value}
+          {inspection.locator.name ? ` (${inspection.locator.name})` : ""}
+        </code>
+        {classification ? (
+          <>
+            <span className={`recorder-spy-class is-${classification.class}`} data-testid="element-spy-class">
+              {LOCATOR_QUALITY_CLASS_LABEL[classification.class]}
+            </span>
+            <ul className="recorder-spy-reasons" aria-label="Quality reasons" data-testid="element-spy-reasons">
+              {classification.reasons.map((reason) => (
+                <li key={reason.code}>{reason.detail}</li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </div>
+
+      {containers.length || context?.heading || context?.containers.length || context?.siblingActions.length ? (
+        <dl className="recorder-spy-context" aria-label="Element context" data-testid="element-spy-context">
+          {containers.length ? (
+            <div><dt>Locator scope</dt><dd>{containers.map((entry) => `${entry.type} ${entry.strategy}:${entry.value}`).join(" → ")}</dd></div>
+          ) : null}
+          {context?.containers.length ? (
+            <div><dt>Containers</dt><dd>{context.containers.map((entry) => `${entry.kind}${entry.name ? ` “${entry.name}”` : ""}`).join(" → ")}</dd></div>
+          ) : null}
+          {context?.heading ? <div><dt>Heading</dt><dd>{context.heading}</dd></div> : null}
+          {context?.siblingActions.length ? <div><dt>Nearby actions</dt><dd>{context.siblingActions.join(", ")}</dd></div> : null}
+          {context?.boundValues.length ? (
+            <div>
+              <dt>Bound values</dt>
+              <dd data-testid="element-spy-bound">{context.boundValues.map((marker) => `${marker.field} (${marker.source === "earlier-input" ? "typed earlier" : "this step's value"})`).join(", ")}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+
+      {inspection.candidates.length ? (
+        <fieldset className="recorder-spy-candidates" data-testid="element-spy-candidates">
+          <legend>Locator candidates</legend>
+          {inspection.candidates.map((entry, index) => {
+            const usable = entry.count === 1 && !entry.fallback;
+            const status = entry.fallback ? "Positional" : entry.count === 1 ? "Unique" : `${entry.count} matches`;
+            return (
+              <label key={`${entry.strategy}:${entry.value}:${index}`} className={`recorder-spy-candidate${usable ? "" : " is-ineligible"}`} data-testid={`element-spy-candidate-${index}`}>
+                <input type="radio" name="element-spy-candidate" checked={candidate === index} disabled={!usable} onChange={() => onCandidate(index)} />
+                <code>
+                  {entry.strategy}: {entry.value}
+                  {entry.name ? ` (${entry.name})` : ""}
+                </code>
+                <span className="recorder-spy-count">
+                  {status}
+                  {typeof entry.visibleCount === "number" ? ` · ${entry.visibleCount} visible` : ""}
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+      ) : (
+        <p className="recorder-spy-note">No candidates are shown for this element (closed shadow roots stay encapsulated).</p>
+      )}
+
+      <div className="recorder-spy-apply">
+        <SysField label="Use in step" className="recorder-spy-step">
+          <select value={actionId} onChange={(event) => onAction(event.target.value)} data-testid="element-spy-action">
+            <option value="">Choose a recorded element step…</option>
+            {elementSteps.map(({ action, index }) => (
+              <option key={action.id} value={action.id}>
+                Step {index + 1}: {action.name}
+              </option>
+            ))}
+          </select>
+        </SysField>
+        <SysButton kind="primary" icon={Crosshair} data-testid="element-spy-use" disabled={busy || !eligible || !actionId} onClick={onApply}>
+          Use in action
+        </SysButton>
+      </div>
+      {!eligible && inspection.candidates.length ? (
+        <p className="recorder-spy-note">Choose a unique, non-positional candidate. Positional and ambiguous candidates are shown for review only.</p>
+      ) : null}
+    </div>
+  );
 }
 
 function formatLocatorScope(action: RecordedAction): string {

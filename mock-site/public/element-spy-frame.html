@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Element Spy Lab - frame</title>
+  </head>
+  <body>
+    <p>Frame clicks: <output data-testid="spy-frame-clicks">0</output></p>
+    <button type="button" data-testid="spy-frame-approve" onclick="var o = document.querySelector('[data-testid=spy-frame-clicks]'); o.textContent = String(Number(o.textContent) + 1);">Approve in frame</button>
+  </body>
+</html>

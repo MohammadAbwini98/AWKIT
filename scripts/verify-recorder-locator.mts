@@ -444,11 +444,15 @@ async function main() {
     bindingRecorder.setLocatorRecordingMode("default");
     const action = await capture(`<button data-testid="default-mode" onclick="window.__hit='default'">Default mode</button>`, (p) => p.getByTestId("default-mode").click());
     const rawLocator = JSON.parse(JSON.stringify(rawRecorded.at(-1)?.locator ?? null)) as Record<string, unknown> | null;
-    // Both are internal capture-only evidence (XPath candidate, L2 chooser candidates) that every mode strips.
+    // Internal capture-only evidence (XPath candidate, L2 chooser candidates, L2 upgrade context) that
+    // every mode strips; the upgrade context moves to RecorderService's memory-only store.
     if (rawLocator) {
       delete rawLocator.recordingXPath;
       delete rawLocator.recordingCandidates;
+      delete rawLocator.upgradeContext;
     }
+    check("locator mode: the page really sent upgrade context (so its strip is not vacuous)", Boolean(rawRecorded.at(-1)?.locator?.upgradeContext), JSON.stringify(Object.keys(rawRecorded.at(-1)?.locator ?? {})));
+    check("locator mode: no mode persists the upgrade context on the action", !JSON.stringify(action).includes("upgradeContext"), JSON.stringify(action));
     check("locator mode: Default keeps the existing preferred strategy", action?.locator?.strategy === "testId", JSON.stringify(action?.locator));
     check("locator mode: the page really sent chooser evidence (so the strip above is not vacuous)", Array.isArray(rawRecorded.at(-1)?.locator?.recordingCandidates) && (rawRecorded.at(-1)?.locator?.recordingCandidates?.length ?? 0) > 0, JSON.stringify(rawRecorded.at(-1)?.locator));
     check("locator mode: Default persists no internal chooser evidence", !JSON.stringify(action).includes("recordingCandidates"), JSON.stringify(action));

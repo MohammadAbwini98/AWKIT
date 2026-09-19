@@ -10,12 +10,24 @@ import type {
   RecorderHandoffInfo, 
   AmbiguityState, 
   AmbiguityResolutionChoice, 
-  AmbiguityResolutionPayload 
+  AmbiguityResolutionPayload,
+  ElementInspection,
+  ElementInspectionState
 } from "./RecorderTypes";
 import { RECORDED_URL_SENSITIVE_QUERY_KEYS as SENSITIVE_QUERY_KEYS } from "./recordedUrlPolicy";
 import { removeRecordedAction } from "./recordedActionMutations";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
 import { applyPreferredLocatorStrategy } from "./locatorStrategyPreference";
+import { ELEMENT_INSPECTION_TTL_MS, inspectionApplyBlocker, locatorFromInspection, sanitizeInspection } from "./elementInspection";
+import {
+  UPGRADE_CONTEXT_MAX_ENTRIES,
+  UPGRADE_CONTEXT_TTL_MS,
+  boundValueSources,
+  markBoundValues,
+  sanitizeUpgradeContext,
+  takeUpgradeContext,
+  type UpgradeContext
+} from "./upgradeContext";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
 import { detectRecorderProtectedLogin } from "../security/ProtectedLoginDetector";
 import { buildChromiumHardeningArgs } from "../runner/ChromiumHardening";
@@ -109,6 +121,16 @@ export class RecorderService {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
+  /** Element Spy (Phase L L2): inspect mode and the latest inspection, memory-only with a short TTL. */
+  private inspectMode = false;
+  private inspection: ElementInspection | null = null;
+  private inspectionRefused = false;
+  /** An inspect-only browser session: the Recorder browser is open but nothing is recorded. */
+  private inspectSession = false;
+  /** Pages whose current document protected-login detection flagged; never inspected. */
+  private protectedPages = new WeakSet<Page>();
+  /** L2 capture-time upgrade context per recorded action id: memory-only, TTL-bounded, never persisted. */
+  private upgradeContexts = new Map<string, { context: UpgradeContext; at: number }>();
   private actions: RecordedAction[] = [];
   private isRecording = false;
   /** The page the last recorded action came from, used to detect tab/URL switches. */
@@ -425,6 +447,8 @@ export class RecorderService {
   /** Debounced write of the current in-memory session to the draft file. */
   private scheduleDraftPersist(): void {
     if (!this.draftPath) return;
+    // An inspect-only session records nothing, so it never rewrites the draft (which may not be loaded yet).
+    if (this.inspectSession && !this.isRecording) return;
     if (this.draftTimer) clearTimeout(this.draftTimer);
     this.draftTimer = setTimeout(() => {
       this.draftTimer = null;
@@ -588,6 +612,11 @@ export class RecorderService {
     this.browser = null;
     this.context = null;
     this.page = null;
+    this.inspectMode = false;
+    this.inspection = null;
+    this.inspectionRefused = false;
+    this.inspectSession = false;
+    this.protectedPages = new WeakSet<Page>();
   }
 
   /**
@@ -624,6 +653,14 @@ export class RecorderService {
 
   private attachLivenessWatch(browser: Browser | null, context: BrowserContext | null, page: Page): void {
     const onUnexpectedDeath = (): void => {
+      // An inspect-only session has nothing to preserve: its browser going away just ends the session.
+      if (this.inspectSession && !this.isRecording) {
+        if (this.page === page || (browser !== null && this.browser === browser) || (context !== null && this.context === context)) {
+          this.popupPages.clear();
+          void this.closeBrowser().catch(() => undefined);
+        }
+        return;
+      }
       // Every SUPPORTED teardown (stop, cancel, handoff) sets isRecording=false *before* closing
       // anything, so this guard is what makes the handler fire only on an unexpected death —
       // EXCEPT the protected-detection pause (AWKIT-REC-037): that pause also clears isRecording
@@ -688,10 +725,93 @@ export class RecorderService {
     await this.closeBrowser();
   }
 
+  /**
+   * Launch the AWKIT-owned Recorder browser and return its first page. Shared by recording and the
+   * inspect-only Element Spy session so both get the same offline, hardened, certificate-scoped browser.
+   */
+  private async launchRecorderBrowser(options: StartRecordingOptions): Promise<Page> {
+    // In packaged/offline mode the caller passes the bundled Chromium path so the
+    // recorder never attempts to download or locate a globally installed browser.
+    // buildChromiumHardeningArgs: no-egress hardening for the AWKIT-owned recorder browser
+    // (never applied to the user's real Chrome in SessionCaptureService).
+    const launchOptions = {
+      headless: false,
+      executablePath: options.executablePath,
+      args: buildChromiumHardeningArgs()
+    };
+    // Installed Chrome uses only the AWKIT-owned directory supplied by trusted main. The user's
+    // daily profile is never inspected or referenced, and no fallback occurs if this launch fails.
+    if (options.userDataDir) {
+      await mkdir(options.userDataDir, { recursive: true });
+      this.browser = null;
+      this.context = await chromium.launchPersistentContext(options.userDataDir, {
+        ...launchOptions,
+        ...buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
+      });
+    } else {
+      this.browser = await chromium.launch(launchOptions);
+      // Certificate trust is applied at CONTEXT creation, BEFORE any page exists or navigates below —
+      // never by automating Chromium's interstitial ("Advanced" / "Proceed" / the hidden bypass phrase).
+      this.context = await this.browser.newContext(
+        buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
+      );
+    }
+    this.logCertificateTrustBypass();
+    return this.context.pages()[0] ?? await this.context.newPage();
+  }
+
+  /**
+   * Element Spy, independent of recording (Phase L L2): open the Recorder browser on `url` with inspect
+   * mode on and recording off. Every capture binding early-returns while `isRecording` is false, so no
+   * action, signal, URL or popup step is recorded, and the recorded draft is untouched — an inspected
+   * candidate can then be applied explicitly to a step of the last recording.
+   */
+  public async startInspection(url: string, options: StartRecordingOptions = {}): Promise<ElementInspectionState> {
+    if (this.isRecording) throw new Error("A recording is in progress. Use Inspect in the recording instead.");
+    if (this.handoff?.active) throw new Error("Finish or cancel the protected-login handoff first.");
+    if (this.inspectSession) return this.getInspectionState();
+    const target = RecorderService.normalizeUrl(url);
+    if (!target) throw new Error("Enter a target URL before starting the Element Spy.");
+    await this.closeBrowser();
+    this.popupCounter = 0;
+    this.popupPages = new Map<string, Page>();
+    this.popupRegistrations = new Map<Page, Promise<string>>();
+    this.popupOpeners = new Map<Page, Page>();
+    this.popupSources = new WeakSet<Page>();
+    this.dialogSources = new WeakSet<Page>();
+    this.ignoreHttpsErrors = options.ignoreHttpsErrors ?? false;
+    this.inspectSession = true;
+    this.inspectMode = true;
+    try {
+      this.page = await this.launchRecorderBrowser(options);
+      this.attachProtectedDetection(this.page, "main");
+      this.attachLivenessWatch(this.browser, this.context, this.page);
+      await this.wireContext(this.context!);
+      await this.page.goto(target);
+    } catch (error) {
+      await this.closeBrowser();
+      if (!this.ignoreHttpsErrors && isCertificateError(error)) throw new Error(describeCertificateError(error, this.ignoreHttpsErrors));
+      throw error;
+    }
+    return this.getInspectionState();
+  }
+
+  /** End the inspect-only session: close its browser and clear every inspection. */
+  public async stopInspection(): Promise<ElementInspectionState> {
+    if (this.inspectSession && !this.isRecording) {
+      this.popupPages.clear();
+      await this.closeBrowser();
+    }
+    return this.getInspectionState();
+  }
+
   public async startRecording(url: string, options: StartRecordingOptions = {}): Promise<void> {
     if (this.isRecording) {
       throw new Error("Recording is already in progress.");
     }
+    // A recording owns the browser; an open inspect-only session ends first.
+    if (this.inspectSession) await this.stopInspection();
+    this.upgradeContexts.clear();
 
     // The reusable URL history must be loaded before we start appending this session's URLs.
     await this.ensureUrlHistoryLoaded();
@@ -752,34 +872,7 @@ export class RecorderService {
     this.scheduleDraftPersist();
 
     try {
-    // In packaged/offline mode the caller passes the bundled Chromium path so the
-    // recorder never attempts to download or locate a globally installed browser.
-    // buildChromiumHardeningArgs: no-egress hardening for the AWKIT-owned recorder browser
-    // (never applied to the user's real Chrome in SessionCaptureService).
-    const launchOptions = {
-      headless: false,
-      executablePath: options.executablePath,
-      args: buildChromiumHardeningArgs()
-    };
-    // Installed Chrome uses only the AWKIT-owned directory supplied by trusted main. The user's
-    // daily profile is never inspected or referenced, and no fallback occurs if this launch fails.
-    if (options.userDataDir) {
-      await mkdir(options.userDataDir, { recursive: true });
-      this.browser = null;
-      this.context = await chromium.launchPersistentContext(options.userDataDir, {
-        ...launchOptions,
-        ...buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
-      });
-    } else {
-      this.browser = await chromium.launch(launchOptions);
-      // Certificate trust is applied at CONTEXT creation, BEFORE any page exists or navigates below —
-      // never by automating Chromium's interstitial ("Advanced" / "Proceed" / the hidden bypass phrase).
-      this.context = await this.browser.newContext(
-        buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
-      );
-    }
-    this.logCertificateTrustBypass();
-    this.page = this.context.pages()[0] ?? await this.context.newPage();
+    this.page = await this.launchRecorderBrowser(options);
 
     // Capture URLs visited during recording (initial page + any tab the site opens).
     this.attachUrlCapture(this.page);
@@ -789,7 +882,7 @@ export class RecorderService {
     this.attachLivenessWatch(this.browser, this.context, this.page);
 
     // Wire popup handling + capture bindings + the init script onto the context.
-    await this.wireContext(this.context);
+    await this.wireContext(this.context!);
 
     this.lastActionPage = this.page;
     if (target) {
@@ -862,6 +955,13 @@ export class RecorderService {
     // metadata is stored (method + URL path, selectors, short text) — never headers/bodies/secrets.
     await context.exposeBinding("__awtkit_recordSignal", (source: { page?: Page }, raw: RecordedSignal) => {
       this.recordSignalFromPage(source.page, raw);
+    });
+
+    // Element Spy: each new document asks for the mode once; an inspected click reports here instead
+    // of being recorded. The report is untrusted page data and is sanitized before it is kept.
+    await context.exposeBinding("__awtkit_inspectMode", () => this.inspectMode && this.inspectionAllowed());
+    await context.exposeBinding("__awtkit_inspectElement", async (source: { page?: Page; frame?: Frame }, raw: unknown) => {
+      await this.recordInspection(source.page, source.frame, raw);
     });
 
     // Inject the shared capture script. It generates ranked, uniqueness-validated
@@ -1219,6 +1319,10 @@ export class RecorderService {
   }
 
   private async detectAndMaybeHandoff(page: Page, alias: string): Promise<void> {
+    if (this.inspectSession && !this.isRecording) {
+      await this.detectForInspection(page);
+      return;
+    }
     if (!this.isRecording || this.handoff?.active || this.detecting) return;
     this.detecting = true;
     try {
@@ -1249,6 +1353,25 @@ export class RecorderService {
   }
 
   /**
+   * Inspect-only session: there is no recording to pause or hand off, so a protected surface simply
+   * turns inspection off, clears the result and marks the page. The ignore settings do not apply —
+   * the Element Spy never examines a protected login, MFA, OTP or CAPTCHA surface.
+   */
+  private async detectForInspection(page: Page): Promise<void> {
+    try {
+      const detection = await detectRecorderProtectedLogin(page);
+      if (detection.detected && detection.recommendedAction === "pause") {
+        this.protectedPages.add(page);
+        await this.refuseInspection();
+      } else {
+        this.protectedPages.delete(page);
+      }
+    } catch {
+      /* page not ready / navigated away — re-checked on the next load */
+    }
+  }
+
+  /**
    * Enter the protected-login handoff: stop recording new actions, preserve the draft, store safe
    * handoff metadata, and leave the automation browser open but inert so a false positive can resume
    * in place. Never automates the protected page and never captures passwords/OTPs/CAPTCHA
@@ -1270,6 +1393,8 @@ export class RecorderService {
     // positive. It is closed only when the user chooses manual handoff ("Continue using normal
     // browser") or cancels. Nothing on the protected page is ever recorded (guards above).
     this.isRecording = false;
+    // The Element Spy never runs on a protected surface: off, and its result is cleared.
+    if (this.inspectMode || this.inspection) await this.refuseInspection();
     // Preserve the current recorder draft before showing the handoff.
     if (this.draftTimer) {
       clearTimeout(this.draftTimer);
@@ -1713,6 +1838,7 @@ export class RecorderService {
       /* best-effort */
     }
     this.handoff = null;
+    this.upgradeContexts.clear();
     await this.discardDraft();
     await this.closeBrowser();
     this.ignoreProtectedDetectionSession = false;
@@ -1722,6 +1848,122 @@ export class RecorderService {
   /** Change only the strategy used for element locators captured after this call. */
   public setLocatorRecordingMode(mode: LocatorRecordingMode): void {
     this.locatorRecordingMode = mode;
+  }
+
+  // ── Element Spy (Phase L L2) ───────────────────────────────────────────────────────────────────
+
+  /** Inspect mode may be on only in a live Recorder browser that is not paused for a protected login. */
+  private inspectionAllowed(): boolean {
+    return (this.isRecording || this.inspectSession) && !this.handoff?.active && this.context !== null;
+  }
+
+  /** Push the current mode to every open document (new documents ask for it through the binding). */
+  private async pushInspectMode(): Promise<void> {
+    const expression = `(() => { const set = window[Symbol.for("awkit.recorder.inspect")]; if (typeof set === "function") set(${this.inspectMode}); })()`;
+    for (const page of this.context?.pages() ?? []) {
+      for (const frame of page.frames()) await frame.evaluate(expression).catch(() => undefined);
+    }
+  }
+
+  /** Protected login: inspection stops, the result is cleared, and the UI is told why. */
+  private async refuseInspection(): Promise<void> {
+    this.inspectMode = false;
+    this.inspection = null;
+    this.inspectionRefused = true;
+    await this.pushInspectMode();
+  }
+
+  /**
+   * Turn inspect mode on or off in every open document — during a recording or in the inspect-only
+   * session, never during a protected-login pause. While on, clicks are inspected, not performed.
+   */
+  public async setInspectMode(on: boolean): Promise<ElementInspectionState> {
+    this.inspectMode = on && this.inspectionAllowed();
+    if (this.inspectMode) this.inspectionRefused = false;
+    await this.pushInspectMode();
+    return this.getInspectionState();
+  }
+
+  /** The current inspection, if it is younger than the TTL. Never persisted. */
+  public getInspectionState(): ElementInspectionState {
+    if (this.inspection && Date.now() - Date.parse(this.inspection.inspectedAt) > ELEMENT_INSPECTION_TTL_MS) this.inspection = null;
+    return {
+      inspecting: this.inspectMode,
+      session: this.inspectSession,
+      inspection: this.inspectionRefused ? null : this.inspection,
+      ...(this.inspectionRefused ? { refused: "protected-login" as const } : {})
+    };
+  }
+
+  /** "Use in action": explicitly replace one recorded step's locator with a unique inspected candidate. */
+  public async applyInspection(actionId: string, candidateIndex: number): Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }> {
+    const inspection = this.getInspectionState().inspection;
+    if (!inspection) return { ok: false, reason: "No current inspection, or it expired. Inspect the element again." };
+    await this.ensureDraftLoaded();
+    const action = this.actions.find((candidate) => candidate.id === actionId);
+    const blocker = inspectionApplyBlocker(action, inspection, candidateIndex);
+    if (blocker || !action) return { ok: false, reason: blocker ?? "Choose a recorded element step." };
+    action.locator = locatorFromInspection(action, inspection, candidateIndex);
+    // The previous target's upgrade context no longer describes this step.
+    this.upgradeContexts.delete(action.id);
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
+    return { ok: true, actions: this.actions };
+  }
+
+  private async recordInspection(sourcePage: Page | undefined, sourceFrame: Frame | undefined, raw: unknown): Promise<void> {
+    if (!this.inspectMode || !this.inspectionAllowed() || !sourcePage) return;
+    if (this.protectedPages.has(sourcePage)) {
+      await this.refuseInspection();
+      return;
+    }
+    let pageAlias = "main";
+    for (const [alias, page] of this.popupPages) if (page === sourcePage) pageAlias = alias;
+    // Frame identity comes from Playwright's Frame graph (trusted), never from the page's claim.
+    const frameChain = sourceFrame && sourceFrame !== sourcePage.mainFrame() ? (await buildFrameChain(sourceFrame).catch(() => undefined)) ?? [] : [];
+    if (sourceFrame && sourceFrame !== sourcePage.mainFrame() && frameChain.length === 0) return;
+    const rawContext = (raw as { upgradeContext?: unknown } | null)?.upgradeContext;
+    const context = sanitizeUpgradeContext(rawContext, { pageAlias, frameDepth: frameChain.length });
+    const result = sanitizeInspection(raw, {
+      pageAlias,
+      frameChain,
+      ...(context ? { upgradeContext: markBoundValues(context, boundValueSources(this.actions)) } : {})
+    });
+    if (!result || !this.inspectMode) return;
+    if ("refused" in result) {
+      await this.refuseInspection();
+      return;
+    }
+    this.inspection = result;
+    this.inspectionRefused = false;
+  }
+
+  /** L2 upgrade context for a recorded action, while it is younger than the TTL (L3 reads this). */
+  public getUpgradeContext(actionId: string): UpgradeContext | undefined {
+    const entry = this.upgradeContexts.get(actionId);
+    if (!entry) return undefined;
+    if (Date.now() - entry.at > UPGRADE_CONTEXT_TTL_MS) {
+      this.upgradeContexts.delete(actionId);
+      return undefined;
+    }
+    return entry.context;
+  }
+
+  private storeUpgradeContext(action: RecordedAction, raw: unknown, sourcePage: Page, sourceFrame: Frame | undefined, pageAlias: string, earlierInputs: string[]): void {
+    const frameDepth = sourceFrame && sourceFrame !== sourcePage.mainFrame() ? Math.max(1, action.locator?.context?.frameChain?.length ?? 1) : 0;
+    const context = sanitizeUpgradeContext(raw, { pageAlias, frameDepth });
+    if (!context) return;
+    const actionValue = typeof action.valueSource?.value === "string" ? action.valueSource.value : undefined;
+    this.upgradeContexts.set(action.id, { context: markBoundValues(context, earlierInputs, actionValue), at: Date.now() });
+    // Bounded: the oldest entry goes first (Map keeps insertion order).
+    while (this.upgradeContexts.size > UPGRADE_CONTEXT_MAX_ENTRIES) {
+      const oldest = this.upgradeContexts.keys().next().value;
+      if (oldest === undefined) break;
+      this.upgradeContexts.delete(oldest);
+    }
   }
 
   /**
@@ -1736,6 +1978,7 @@ export class RecorderService {
     delete locator.recordingXPath;
     const preferenceCandidates = locator.recordingCandidates;
     delete locator.recordingCandidates;
+    delete locator.upgradeContext;
 
     const hoverContainer = locator.interaction?.hoverContainer as RecordedActionLocator | undefined;
     if (hoverContainer) this.applyLocatorRecordingMode(hoverContainer);
@@ -1899,6 +2142,8 @@ export class RecorderService {
     // the automation browser may stay open during the "detected" phase, so the guard — not just a
     // closed browser — is what guarantees nothing on a protected page is ever recorded.
     if (!this.isRecording) return;
+    // L2 upgrade context leaves the action here, before anything can persist or compare it.
+    const rawUpgradeContext = takeUpgradeContext(action);
     this.applyActionLocatorRecordingMode(action);
     const now = Date.now();
     // Causal evidence for the next navigation on this page: if the URL changes after this, the
@@ -2086,6 +2331,9 @@ export class RecorderService {
     // identity for normal/sensitive actions, or flag the rare
     // unrepresentable target for review) is owned by `buildRecordedFlow`, the single pure builder used
     // by BOTH this live session and the test harness, so both paths finalize identically.
+    if (rawUpgradeContext !== undefined) {
+      this.storeUpgradeContext(taggedAction, rawUpgradeContext, sourcePage, sourceFrame, pageAlias, boundValueSources(this.actions));
+    }
     this.actions.push(taggedAction);
     // A dialog that arrived before this action's binding landed belongs to it.
     const pendingDialog = this.pendingDialogs.get(sourcePage);
