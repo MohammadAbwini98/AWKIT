@@ -9,6 +9,20 @@
   count, so six rounds cannot resolve the ceiling. Owner decision: rounds, median definition, host.
   Measured, not approved; never raise the ceilings to pass.
 
+## OPEN (2026-09-19) — `verify:runner` "protected login capture ignores navigation timeout" is timing-sensitive
+
+- The case drives a `goto` with `timeoutMs: 25` to a data-URL protected page and expects the
+  protected-login capture to take over. It failed once (`page.goto: Timeout 25ms exceeded`, zero
+  polls) and passed on the immediate rerun with no source change; the runner code was not touched.
+  Treat a single failure here as timing until it repeats; a repeat is a runner defect to diagnose.
+
+## Element Spy limits (2026-09-19, by design)
+
+- "Use in action" applies only a globally unique, non-positional candidate; it refuses elements in
+  shadow roots (a page-wide candidate cannot express the host chain) and candidates from another frame
+  chain or page. Closed-shadow internals show no candidates. A page with a password/OTP field, or one
+  the protected-login detector flags, is never inspected, in either mode.
+
 ## RESOLVED (2026-09-19) — `report.json` was written non-atomically
 
 - `ReportService.writeReport` used a plain `writeFile`, so a reader (the overhead verifier, surfaced

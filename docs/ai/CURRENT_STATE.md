@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Phase L L2 complete: Element Spy (independent, permission-gated) and capture-time upgrade context (2026-09-19)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation
+case moved.
+
+- **L2 `awkit-djnl.3` — all five tasks done; tracker closure BLOCKED** (the write-lease guard refuses
+  `bd close` without a project-state contract and lease, so Beads still reads `open`). Task 4: `src/recorder/upgradeContext.ts` — bounded,
+  memory-only (10 min TTL, 500 entries) capture-time context per recorded action with bound-value
+  markers, read by `RecorderService.getUpgradeContext`; never persisted. Task 5: the Recorder's
+  **Element Spy** panel — an inspect-only session (`startInspection`, same hardened browser, nothing
+  recorded) or an Inspect toggle during a recording; identity, candidates with match/visible counts,
+  quality class with reasons, frame/shadow/container context; explicit **Use in action** with frame,
+  interaction and execution-guard preservation; protected-login refusal in both modes. Five IPC
+  channels, each gated in main on `page.recorder` + `recorder.elementSpy`. Guarded-positional capture
+  and runtime unchanged. Mock-site: `/recorder-lab/element-spy` (+ `/frame`, `/next`).
+- **L5a `awkit-djnl.7` — unchanged, OPEN.** Re-measured after L2 on the development host (L2 does not
+  touch the runner): `verify:failure-capture-overhead` **13 PASS / 2 FAIL** (median overhead +484 ms fast
+  vs 273.7, +387 ms evidence vs 355.8; host CPU 85–100 % with backpressure during rounds). Owner
+  methodology decision still pending; ceilings unchanged.
+- **L1 `awkit-djnl.1` — BLOCKED as before** (checked 2026-09-19: no `node-llama-cpp`, no `.gguf` in
+  Downloads). L3, L4b, L5b stay gated. L4a unchanged (no Flow Designer regression: 140/140 + 16/16).
+
+**Evidence (final state):** `npm run build` PASS; `verify:element-spy` **89/89** (new);
+`verify:recorder` **292/292**; `verify:recorder-gui` **205/0/0**; `verify:recorder-ambiguity` 74/0;
+`verify:recorder-competitive` 64/64; `verify:recorder-action-owner` 11/0; `verify:locator-guard` 35/0;
+`verify:locator-quality-class` 35/35; `verify:frame-chain` 31/0; `verify:closed-shadow` 23/0;
+`verify:protected-login-recorder` 74/74; `verify:legacy-compat` 152/0; `verify:mock-site` 208/208;
+`verify:flow-designer` 140/140 + 16/16; `verify:runner` 138/138 (first run 137/1 on the 25 ms
+navigation-timeout check, a timing case in runner code this change does not touch; passed on the one
+rerun); `verify:design-tokens` 35/35; `verify:verifier-classification` 223 classified. Mutation run of
+`verify:element-spy` **NOT RUN** (the session's permission classifier refused running tests against
+deliberately broken product code); the verifier carries a paused-mode negative control instead.
+
 ## Phase L continuation: L5a overhead root cause fixed (gate still unstable), L5a follow-ups done, L2 quality class and strategy chooser shipped (2026-09-19)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation

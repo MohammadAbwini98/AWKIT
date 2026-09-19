@@ -39,7 +39,17 @@ data-bound row text, protected-login exclusion. Run `verify:recorder`, `verify:r
 - Quality class visible and tested; context captured early, bounded, not persisted.
 - Element Spy works independently and is permission-gated.
 
-## Status (2026-09-19, `awkit-djnl.3`): tasks 1–3 done, 4–5 open
+## Status (2026-09-19, `awkit-djnl.3`): tasks 1–5 done — L2 complete
+
+| Task | State | Where |
+|---|---|---|
+| 4 Upgrade context capture | Done | `src/recorder/upgradeContext.ts`. The page script builds it inside `generateForEvent` from the exact target (role/name/tag/type, 5 candidate summaries with counts, dialog/row/card/list-item/form/landmark containers, nearest heading, up to 6 sibling action names, page key without query, open-shadow flag, in-page fingerprint); secret-bearing controls yield none and no form value is read. `RecorderService.recordActionFromPage` takes it off the action first, bounds it, adds the trusted frame depth and **bound-value markers** (field names whose text contains this step's value or an earlier fill/select value — never the value), and keeps it in a memory-only map (10 min TTL, 500 entries) read by `getUpgradeContext(actionId)`. Stripped again by `applyLocatorRecordingMode` and excluded by `buildRecordedFlow`; never in the draft, a profile, a log or a report. |
+| 5 Element Spy | Done | Recorder › **Element Spy** panel (`recorder.elementSpy`, every IPC channel gated in main). Independent: **Open Element Spy** launches the same hardened Recorder browser with inspect on and recording off (`startInspection`; every capture binding early-returns, the draft is never rewritten); during a recording **Inspect** toggles the same mode. A window capture-phase blocker swallows the gesture, so the click/submit/link/popup never happens and is never recorded. Reports identity, the Recorder's own choice with its quality class and reasons, candidates with match and visible counts, container/frame (Frame-graph, trusted)/shadow context and the upgrade context. **Use in action** is explicit: only a unique, non-positional candidate, same page alias, same frame chain, outside shadow roots, on a single-target element step; the step keeps its frame chain, interaction, prerequisite and execution decision; a refusal names its reason. Protected login (page password/OTP fields, or the detector in either mode) turns inspection off, clears the result and marks the page. Result TTL 5 min. "Find stronger locator with AI" waits for L3. |
+
+Verifiers: `verify:element-spy` **89/89** (new; real RecorderService browser on `/recorder-lab/element-spy`, IPC wiring, SSR panel,
+paused-mode negative control), `verify:recorder-gui` **205/0/0** (new L2 section), `verify:recorder` **292/292**.
+
+### Earlier status (tasks 1–3)
 
 | Task | State | Where |
 |---|---|---|

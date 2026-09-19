@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-19, latest) — L5a overhead root cause fixed but the gate is unstable; L2 quality class and chooser shipped; Element Spy next
+## HANDOFF (2026-09-19, latest) — L2 complete (Element Spy + upgrade context); L5a gate and L1 still wait on the owner
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** L2 tasks 4 and 5 (see `docs/plans/ai-upgrade-v5/L2-recorder-and-element-spy.md` status).
+  Every L2 acceptance item is met and verified.
+- **Beads — BLOCKED:** `bd close awkit-djnl.3` is refused by the write-lease guard without a
+  project-state task contract and lease (`npm run agent:lease-grant -- --task …`). The tracker therefore
+  still reads `open`; the next project-state holder should close it with the evidence in CURRENT_STATE,
+  then `bd export -o .beads/issues.jsonl` and `npm run verify:roadmap-dashboard`.
+- **Owner decisions needed (unchanged):** L5a gate methodology (re-measured 13 PASS / 2 FAIL on the dev
+  host, CPU 85–100 %); L1 acquisition (the two PowerShell steps in `L1-ai-foundation.md`).
+- **Next agent work:** none unblocked in Phase L beyond owner steps. L3 consumes
+  `RecorderService.getUpgradeContext(actionId)` and the Spy's `ElementInspection.upgradeContext`; the
+  Spy's "Find stronger locator with AI" button belongs to L3.
+- **Not run:** a deliberate-mutation run of `verify:element-spy` (refused by the session's permission
+  classifier). Suggested mutations: drop `preventDefault`/`stopImmediatePropagation` in the Spy click
+  listener (`recorderInitScript.ts`), or the frame-chain comparison in `inspectionApplyBlocker`.
+- **Traps:**
+  - The page script now also emits `locator.upgradeContext` (capture-only). `RecorderService` removes
+    it first in `recordActionFromPage` and again in `applyLocatorRecordingMode`; `buildRecordedFlow`
+    excludes it. A verifier comparing raw versus stored locators must strip it too.
+  - An inspect-only session must never rewrite the draft: `scheduleDraftPersist` is a no-op while
+    `inspectSession && !isRecording`, because the draft may not be loaded yet.
+  - The Spy's frame identity comes from `buildFrameChain(source.frame)` in main, never from the page;
+    a child-frame report whose chain cannot be built is dropped.
+  - Ports in some ranges are excluded on this Windows host (`listen EACCES` on 4473); pick a port
+    another verifier already uses.
+
+## HANDOFF (2026-09-19, superseded) — L5a overhead root cause fixed but the gate is unstable; L2 quality class and chooser shipped; Element Spy next
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done this session (all on `origin/main`):** `6bfd59d` L5a overhead correction (collector attaches

@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-19 — Phase L L2 closeout: Element Spy and capture-time upgrade context (Claude)
+
+- **Recovery:** the interrupted session left uncommitted, preliminary Element Spy code (page inspect
+  mode, sanitizer, service state, three IPC channels, preload, Recorder state stubs) on top of
+  `7228a2b`; all of it was kept and completed, nothing reset or stashed.
+- **Element Spy:** made independent of recording (`startInspection`/`stopInspection` reuse the
+  Recorder's browser launch through the extracted `launchRecorderBrowser`; nothing is recorded and the
+  draft is never rewritten); trusted frame identity from `buildFrameChain`; protected-login refusal in
+  the inspect-only session (detector + per-page mark) and in `beginHandoff`; apply keeps the step's frame
+  chain, interaction, prerequisite and execution decision and refuses other pages, other frames, shadow
+  roots, non-unique/positional candidates, non-element steps and expired results; Recorder panel with
+  identity, class and reasons, candidates with counts, context and **Use in action**; two new IPC
+  channels, all five gated in main.
+- **Upgrade context (task 4):** new `src/recorder/upgradeContext.ts`; page capture in
+  `generateForEvent`; memory-only TTL store with bound-value markers; stripped before persistence.
+- **Files:** `src/recorder/{upgradeContext,elementInspection,RecorderService,RecorderTypes,recorderInitScript,buildRecordedFlow}.ts`,
+  `app/main/{preload,ipc/recorder.ipc}.ts`, `app/renderer/pages/Recorder.tsx`,
+  `app/renderer/styles/global.css`, mock-site `element-spy-{lab,frame,next}.html` + `server.mjs` +
+  index, `scripts/verify-element-spy.mts` (new), `scripts/verify-recorder-gui.mts` (L2 section),
+  `scripts/verify-recorder-locator.mts` (strip the new capture-only field, with non-vacuity checks),
+  `scripts/lib/verifier-classification.ts`, `package.json`, docs.
+- **Tests:** see CURRENT_STATE (final state). Not run: a deliberate-mutation run of
+  `verify:element-spy` (refused by the session's permission classifier); L1 real-model gates (BLOCKED).
+
 ## 2026-09-19 — Phase L continuation: L5a overhead correction and follow-ups, L2 quality class and chooser (Claude)
 
 - **Recovery:** the interrupted session's work was already committed and pushed (`1e26625`,
