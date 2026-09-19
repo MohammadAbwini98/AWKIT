@@ -394,6 +394,27 @@ export interface StepLocator extends LocatorCandidate {
   blueprintId?: string;
   /** Present only on a locator an AI feature changed (Phase L). The runner never reads it. */
   locatorProvenance?: LocatorProvenance;
+  /**
+   * An unpromoted AI locator candidate (Phase L L3 §5). `LocatorFactory` never reads it and it never
+   * enters `alternatives` or remembered-winner memory; the runner only re-proves it observationally.
+   */
+  pendingUpgrade?: PendingLocatorUpgrade;
+}
+
+/**
+ * Candidate data only, the same class as `alternatives`: no fingerprint, page text or typed value
+ * (docs/ai/DECISIONS.md 2026-09-19). Replay-proof tallies live in runtime memory, not here.
+ */
+export interface PendingLocatorUpgrade {
+  schemaVersion: 1;
+  candidate: LocatorCandidate;
+  context?: LocatorContext;
+  proof: "unprovable-now" | "capture-proven";
+  meaningChange: boolean;
+  /** `createLocatorApprovalBinding` of the step it describes; dropped at save once it stops matching. */
+  binding: LocatorApprovalBinding;
+  modelId: string;
+  createdAt: string;
 }
 
 /**

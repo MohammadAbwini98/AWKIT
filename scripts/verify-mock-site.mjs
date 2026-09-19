@@ -614,8 +614,27 @@ try {
   await page.getByRole("row", { name: /INV-1002/ }).getByRole("button", { name: "Edit" }).click();
   check("...and the row-scoped Edit names its row", (await page.getByTestId("lq-last").textContent()) === "edit-1002");
 
+  console.log("Locator Upgrade Lab (/recorder-lab/locator-upgrade):");
+  await page.goto(`${BASE}/recorder-lab/locator-upgrade`);
+  check("the page serves its title", (await page.title()) === "Locator Upgrade Lab - L3 proof and replay");
+  check("Archive: one visible control and one hidden duplicate", (await page.locator("button", { hasText: "Archive" }).count()) === 2 && (await page.getByRole("button", { name: "Archive" }).count()) === 1);
+  check("two identical Remove twins", (await page.getByRole("button", { name: "Remove", exact: true }).count()) === 2);
+  check("three cards, one Open Beta", (await page.locator(".lu-card").count()) === 3 && (await page.getByRole("button", { name: "Open Beta", exact: true }).count()) === 1);
+  check("the frame test id exists in both the parent and the frame", (await page.getByTestId("lu-frame-confirm").count()) === 1 && (await page.frameLocator('iframe[name="lu-frame"]').getByTestId("lu-frame-confirm").count()) === 1);
+  check("the open shadow save button is reachable", (await page.getByTestId("lu-shadow-host").getByRole("button", { name: "Shadow save" }).count()) === 1);
+  check("the closed shadow button is not reachable", (await page.getByRole("button", { name: "Closed save" }).count()) === 0);
+  await page.getByRole("button", { name: "Open Beta", exact: true }).click();
+  check("each control writes only its own name (Beta)", (await page.getByTestId("lu-result").textContent()) === "open-beta");
+  await page.getByTestId("lu-add-beta-twin").click();
+  check("adding a second Beta makes the name ambiguous", (await page.getByRole("button", { name: "Open Beta", exact: true }).count()) === 2);
+  await page.getByTestId("lu-swap-twins").click();
+  check("swapping moves the second twin first", (await page.locator(".lu-twins button").first().getAttribute("data-lu")) === "twin-second");
+  await page.getByTestId("lu-clear-cards").click();
+  check("removing all cards leaves no card", (await page.locator(".lu-card").count()) === 0);
+
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);
+  check("index lists the Locator Upgrade Lab scenario", await page.getByTestId("scenario-locator-upgrade").isVisible());
   check("index lists the Locator Quality Lab scenario", await page.getByTestId("scenario-locator-quality").isVisible());
   check("index lists the Runner Lab scenario", await page.getByTestId("scenario-runner-lab").isVisible());
   check("index lists the Iframe Lab scenario", await page.getByTestId("scenario-iframe-lab").isVisible());

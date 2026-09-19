@@ -209,6 +209,8 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path.startsWith("/smart-waits/shorts/")) return serveStatic(res, "smart-waits.html");
   if (req.method === "GET" && path === "/recorder-lab") return serveStatic(res, "recorder-lab.html");
   if (req.method === "GET" && path === "/recorder-lab/locator-quality") return serveStatic(res, "locator-quality-lab.html");
+  if (req.method === "GET" && path === "/recorder-lab/locator-upgrade") return serveStatic(res, "locator-upgrade-lab.html");
+  if (req.method === "GET" && path === "/recorder-lab/locator-upgrade/frame") return serveStatic(res, "locator-upgrade-frame.html");
   if (req.method === "GET" && path === "/recorder-lab/element-spy") return serveStatic(res, "element-spy-lab.html");
   if (req.method === "GET" && path === "/recorder-lab/element-spy/frame") return serveStatic(res, "element-spy-frame.html");
   if (req.method === "GET" && path === "/recorder-lab/element-spy/next") return serveStatic(res, "element-spy-next.html");

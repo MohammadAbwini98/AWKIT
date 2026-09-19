@@ -114,6 +114,15 @@ export class LocatorFactory {
     private readonly options: LocatorFactoryOptions = {}
   ) {}
 
+  /**
+   * Where the runner keeps L3 replay-proof tallies for `step` (the same runtime memory and scope key as
+   * winner memory). The factory itself never reads `pendingUpgrade`; undefined without a store or scope.
+   */
+  replayProofMemory(step: FlowStep): { store: LocatorRecoveryStore; scopeKey: string } | undefined {
+    const scopeKey = this.scopeKey(step);
+    return scopeKey && this.options.recoveryStore ? { store: this.options.recoveryStore, scopeKey } : undefined;
+  }
+
   /** Redirect locator creation to a different page (used by Route Change). */
   setPage(page: Page): void {
     this.page = page;

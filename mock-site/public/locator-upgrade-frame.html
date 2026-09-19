@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Locator Upgrade Lab - frame</title>
+  </head>
+  <body>
+    <button type="button" id="confirm" data-testid="lu-frame-confirm">Confirm</button>
+    <output data-testid="lu-frame-result">none</output>
+    <script>
+      document.getElementById("confirm").addEventListener("click", function () {
+        document.querySelector('[data-testid="lu-frame-result"]').textContent = "frame-confirm";
+      });
+    </script>
+  </body>
+</html>

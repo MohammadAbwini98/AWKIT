@@ -248,6 +248,30 @@ export function guardLocatorPlanIntent(compiled: CompiledLocatorPlan, input: Loc
   return { ok: true, meaningChange };
 }
 
+/**
+ * The plan a stored candidate (a `pendingUpgrade`) corresponds to, so replay re-enters through the same
+ * compiler instead of trusting saved data. Frame and shadow are deliberately not carried: they come from
+ * the step's captured context, and a stored context that disagrees is refused before this is called.
+ */
+export function planFromCandidate(candidate: LocatorCandidate, context?: LocatorContext): unknown {
+  const pick = (c: LocatorCandidate) => ({
+    strategy: c.strategy,
+    value: c.value,
+    ...(c.name !== undefined ? { name: c.name } : {}),
+    ...(c.exact !== undefined ? { exact: c.exact } : {})
+  });
+  return {
+    version: LOCATOR_PLAN_VERSION,
+    target: pick(candidate),
+    scopes: locatorContainerChain(context).map((c) => ({
+      kind: c.type,
+      ...pick(c),
+      ...(c.hasText !== undefined ? { hasText: c.hasText } : {}),
+      ...(c.visibleOnly !== undefined ? { visibleOnly: c.visibleOnly } : {})
+    }))
+  };
+}
+
 /** Compile, then guard: the single entry an L3 job calls per synthesis attempt. */
 export function evaluateLocatorPlan(
   plan: unknown,

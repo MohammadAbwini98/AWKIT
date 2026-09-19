@@ -106,8 +106,26 @@ export function hasPositionalIdentityGuard(step: Pick<FlowStep, "locator">): boo
   );
 }
 
+/**
+ * Drop an AI `pendingUpgrade` or `locatorProvenance` whose binding no longer describes the step
+ * (docs/ai/DECISIONS.md 2026-09-19): the editor spreads unknown locator keys through every save, so
+ * without this a candidate proposed for an older target would survive an edit that retargeted it.
+ */
+export function invalidateStaleAiLocatorFields(step: FlowStep): FlowStep {
+  const locator = step.locator;
+  if (!locator) return step;
+  const stalePending = locator.pendingUpgrade !== undefined && !locatorBindingMatches(locator.pendingUpgrade.binding, step);
+  const staleProvenance = locator.locatorProvenance !== undefined && !locatorBindingMatches(locator.locatorProvenance.binding, step);
+  if (!stalePending && !staleProvenance) return step;
+  const next: StepLocator = { ...locator };
+  if (stalePending) delete next.pendingUpgrade;
+  if (staleProvenance) delete next.locatorProvenance;
+  return { ...step, locator: next };
+}
+
 /** Save-boundary guard for every editor/import projection that can materially retarget a locator. */
 export function invalidateStaleLocatorApproval(step: FlowStep): FlowStep {
+  step = invalidateStaleAiLocatorFields(step);
   if (step.locator?.resolution !== "user-approved-fallback" || isValidLocatorFallbackApproval(step)) return step;
   const { approvedFallbackReason: _reason, approvedFallbackBinding: _binding, ...locator } = step.locator;
   return {

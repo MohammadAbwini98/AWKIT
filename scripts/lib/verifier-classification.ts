@@ -377,6 +377,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Locator plan DSL, trusted compiler and intent guard: invented frames, scripts, positional and unstable selectors, XPath policy and bound-value scopes are refused and position-to-text changes flagged; pure in-process, no model or browser."
   },
+  "verify:locator-upgrade-proof": {
+    class: "real-browser",
+    why: "L3 proof gates and pending-upgrade replay in real Chromium on the mock-site Locator Upgrade Lab: Recorder-captured guarded baselines, same-element identity, wrong/ambiguous/frame/shadow/bound-data/T3 refusals, observational proof, StepExecutor replays counted only on a passing step, persistence and staleness through JsonProfileStore and the Flow Designer save mapping."
+  },
 
   // ── Phase L (local AI) — L1 foundation ───────────────────────────────────────────────────────
   "verify:ai-autonomy-policy": {

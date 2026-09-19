@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
+import type { LocatorReplayProofRecord } from "@src/ai/pendingUpgrade";
 
 // The fingerprint shape now lives with the flow schema (it is persisted inside `LocatorGuard`).
 // Re-exported here so existing runner imports (`from "./LocatorRecoveryStore"`) keep resolving.
@@ -29,6 +30,10 @@ export interface LocatorRecoveryStore {
    * unreadable — the same tolerance `get` already applies per key.
    */
   list(limit?: number): Promise<LocatorRecoveryRecord[]>;
+  /** Phase L L3 §5 replay-proof tally for a step's pending candidate (runtime memory, never the profile). */
+  getReplayProof?(scopeKey: string): Promise<LocatorReplayProofRecord | undefined>;
+  /** Read-modify-write of one tally, serialized per key so concurrent replays never lose an update. */
+  updateReplayProof?(scopeKey: string, change: (previous: LocatorReplayProofRecord | undefined) => LocatorReplayProofRecord): Promise<LocatorReplayProofRecord>;
 }
 
 /** Durable, offline-only locator memory. One hashed file per step avoids cross-run file contention. */
@@ -96,6 +101,60 @@ export class FileLocatorRecoveryStore implements LocatorRecoveryStore {
       }
     }
     return records;
+  }
+
+  async getReplayProof(scopeKey: string): Promise<LocatorReplayProofRecord | undefined> {
+    try {
+      const parsed = JSON.parse(await readFile(this.proofPathFor(scopeKey), "utf8")) as Partial<LocatorReplayProofRecord>;
+      if (
+        parsed.version !== 1 ||
+        parsed.scopeKey !== scopeKey ||
+        typeof parsed.candidateDigest !== "string" ||
+        typeof parsed.bindingDigest !== "string" ||
+        !Number.isInteger(parsed.proven) ||
+        !Number.isInteger(parsed.rejected) ||
+        !Array.isArray(parsed.dataRowKeys)
+      ) {
+        return undefined;
+      }
+      return parsed as LocatorReplayProofRecord;
+    } catch {
+      return undefined;
+    }
+  }
+
+  updateReplayProof(
+    scopeKey: string,
+    change: (previous: LocatorReplayProofRecord | undefined) => LocatorReplayProofRecord
+  ): Promise<LocatorReplayProofRecord> {
+    // ponytail: in-process serialization only; the engine is the single writer of this folder.
+    const run = (this.proofLanes.get(scopeKey) ?? Promise.resolve()).then(async () => {
+      const next = change(await this.getReplayProof(scopeKey));
+      const target = this.proofPathFor(scopeKey);
+      await mkdir(join(this.folder, "upgrade-proofs"), { recursive: true });
+      const temp = `${target}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+      await writeFile(temp, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+      try {
+        await rename(temp, target);
+      } catch (error) {
+        await rm(temp, { force: true }).catch(() => undefined);
+        throw error;
+      }
+      return next;
+    });
+    const lane = run.catch(() => undefined);
+    this.proofLanes.set(scopeKey, lane);
+    void lane.then(() => {
+      if (this.proofLanes.get(scopeKey) === lane) this.proofLanes.delete(scopeKey);
+    });
+    return run;
+  }
+
+  private readonly proofLanes = new Map<string, Promise<unknown>>();
+
+  private proofPathFor(scopeKey: string): string {
+    const digest = createHash("sha256").update(scopeKey).digest("hex");
+    return join(this.folder, "upgrade-proofs", `${digest}.json`);
   }
 
   private pathFor(scopeKey: string): string {

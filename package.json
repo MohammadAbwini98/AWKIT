@@ -279,6 +279,7 @@
     "verify:ai-autonomy-policy": "tsx scripts/verify-ai-autonomy-policy.mts",
     "verify:ai-audit-revert": "tsx scripts/verify-ai-audit-revert.mts",
     "verify:locator-plan": "tsx scripts/verify-locator-plan.mts",
+    "verify:locator-upgrade-proof": "tsx scripts/verify-locator-upgrade-proof.mts",
     "verify:ai-permissions": "tsx scripts/verify-ai-permissions.mts",
     "verify:ai-adapter": "tsx scripts/verify-ai-adapter.mts",
     "verify:ai-redaction": "tsx scripts/verify-ai-redaction.mts",

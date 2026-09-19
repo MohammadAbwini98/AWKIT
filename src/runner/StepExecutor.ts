@@ -6,6 +6,7 @@ import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
 import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
 import { LocatorFactory } from "./LocatorFactory";
+import { observePendingReplay, recordPendingReplay, type PendingReplayObservation } from "./locatorProof";
 import { ManualHandoffController, type ManualHandoffResumeAction } from "./ManualHandoffController";
 import type { LiveStepStatus, RunnerProgressReporter } from "./RunnerProgress";
 import type { FlowExecutionResult, RunnerLogger, StepEvidenceRef, StepExecutionResult } from "./RunnerResult";
@@ -354,7 +355,11 @@ export class StepExecutor {
       await this.assertActivePageAlive(`before step ${step.name}`);
       this.guardInteractionPrerequisiteDecision(step);
       this.guardLocatorQuality(step);
+      const pendingReplay = await this.observePendingUpgrade(step);
       const result = await this.runStepWithWaits(step, outputs);
+      if (pendingReplay) {
+        await recordPendingReplay(pendingReplay, result.status === "passed").catch(() => undefined);
+      }
 
       // Auto protected-login detection after navigation-type steps (never bypasses — only pauses).
       if (result.status === "passed" && PROTECTED_LOGIN_AUTODETECT_STEPS.has(step.type)) {
@@ -430,6 +435,25 @@ export class StepExecutor {
         tracePath,
         error: userMessage
       };
+    }
+  }
+
+  /**
+   * Phase L L3 §5: observationally re-prove the step's pending AI locator candidate against the element
+   * its own locator resolves to. Never throws and never changes what the step acts on; a step without a
+   * pending candidate, or a runner without locator memory, skips it entirely.
+   */
+  private async observePendingUpgrade(step: FlowStep): Promise<PendingReplayObservation | undefined> {
+    if (!step.locator?.pendingUpgrade) return undefined;
+    const memory = this.locatorFactory.replayProofMemory(step);
+    if (!memory) return undefined;
+    try {
+      const observation = await observePendingReplay(await this.resolveStepPage(step), step, this.context, memory);
+      if (observation) this.log("info", step, `[locator:pending-upgrade] replay proof ${observation.result.outcome} (${observation.result.code})`);
+      return observation;
+    } catch {
+      this.log("info", step, "[locator:pending-upgrade] replay proof skipped");
+      return undefined;
     }
   }
 

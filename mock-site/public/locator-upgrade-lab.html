@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Locator Upgrade Lab - L3 proof and replay</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Locator Upgrade Lab</h1>
+      <p>
+        Targets for Phase L L3 browser proof and pending-upgrade replay. Every control with
+        <code>data-lu</code> writes only its own name into the outcome line, so a replay proves which
+        element was acted on. The mutation buttons change the page the way a later release would.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+      <p>Last action: <output data-testid="lu-result">none</output></p>
+
+      <section data-testid="lu-guarded">
+        <h2>Guarded baselines</h2>
+        <p>Archive has a hidden duplicate, so the Recorder falls back to a guarded position; the twins are identical.</p>
+        <button type="button" hidden>Archive</button>
+        <button type="button" data-lu="archive">Archive</button>
+        <div class="lu-twins">
+          <button type="button" data-lu="twin-first" data-item-key="first">Remove</button>
+          <button type="button" data-lu="twin-second" data-item-key="second">Remove</button>
+        </div>
+        <button type="button" data-testid="lu-swap-twins" onclick="luSwapTwins()">Swap twins</button>
+      </section>
+
+      <section data-testid="lu-cards">
+        <h2>Cards</h2>
+        <div class="lu-card-list">
+          <div class="lu-card"><h3>Alpha</h3><button type="button" class="lu-open" data-lu="open-alpha">Open</button></div>
+          <div class="lu-card"><h3>Beta</h3><button type="button" class="lu-open" data-lu="open-beta" aria-label="Open Beta">Open</button></div>
+          <div class="lu-card"><h3>Gamma</h3><button type="button" class="lu-open" data-lu="open-gamma" data-testid="lu-open-gamma">Open</button></div>
+        </div>
+        <button type="button" data-testid="lu-add-beta-twin" onclick="luAddBetaTwin()">Add a second Beta</button>
+        <button type="button" data-testid="lu-rename-beta" onclick="luRenameBeta()">Rename Beta</button>
+        <button type="button" data-testid="lu-disable-beta" onclick="luDisableBeta()">Disable Beta</button>
+        <button type="button" data-testid="lu-clear-cards" onclick="luClearCards()">Remove all cards</button>
+      </section>
+
+      <section data-testid="lu-orders">
+        <h2>Orders (row text is data)</h2>
+        <table aria-label="Orders">
+          <tbody>
+            <tr><td>Alice Smith</td><td><button type="button" data-lu="delete-alice">Delete</button></td></tr>
+            <tr><td>Bob Jones</td><td><button type="button" data-lu="delete-bob">Delete</button></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section data-testid="lu-frames">
+        <h2>Frame scope</h2>
+        <button type="button" data-testid="lu-frame-confirm" data-lu="parent-confirm">Confirm (parent)</button>
+        <iframe title="Upgrade frame" name="lu-frame" data-testid="lu-frame" src="/recorder-lab/locator-upgrade/frame"></iframe>
+      </section>
+
+      <section data-testid="lu-shadow">
+        <h2>Shadow scope</h2>
+        <div data-testid="lu-shadow-host"></div>
+        <div data-testid="lu-closed-host"></div>
+      </section>
+    </main>
+    <script>
+      var result = document.querySelector('[data-testid="lu-result"]');
+      document.addEventListener("click", function (event) {
+        var target = event.target && event.target.closest ? event.target.closest("button[data-lu]") : null;
+        if (target) result.textContent = target.getAttribute("data-lu");
+      });
+      function luSwapTwins() {
+        var twins = document.querySelector(".lu-twins");
+        twins.insertBefore(twins.lastElementChild, twins.firstElementChild);
+      }
+      function luAddBetaTwin() {
+        var card = document.createElement("div");
+        card.className = "lu-card";
+        card.innerHTML = '<h3>Beta (copy)</h3><button type="button" class="lu-open" data-lu="open-beta-copy" aria-label="Open Beta">Open</button>';
+        document.querySelector(".lu-card-list").appendChild(card);
+      }
+      function luRenameBeta() {
+        document.querySelector('[data-lu="open-beta"]').setAttribute("aria-label", "Launch Beta");
+      }
+      function luDisableBeta() {
+        document.querySelector('[data-lu="open-beta"]').disabled = true;
+      }
+      function luClearCards() {
+        document.querySelector(".lu-card-list").innerHTML = "";
+      }
+      var open = document.querySelector('[data-testid="lu-shadow-host"]').attachShadow({ mode: "open" });
+      open.innerHTML = '<button type="button" class="save">Shadow save</button>';
+      open.querySelector("button").addEventListener("click", function () { result.textContent = "shadow-save"; });
+      var closed = document.querySelector('[data-testid="lu-closed-host"]').attachShadow({ mode: "closed" });
+      closed.innerHTML = '<button type="button">Closed save</button>';
+      closed.querySelector("button").addEventListener("click", function () { result.textContent = "closed-save"; });
+    </script>
+  </body>
+</html>
