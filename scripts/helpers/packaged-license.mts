@@ -202,11 +202,22 @@ export async function mintVerificationLicense(input: {
   // The key path travels on argv to the issuer only. The issuer's own environment is the parent's,
   // which is fine — it is the process that is *supposed* to read the key — but the packaged app is
   // launched with `sanitizeAppEnv`, so it never inherits it.
-  await execFileAsync(
-    process.execPath,
-    [join(input.repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), issuerScript, ...issuerArgs],
-    { cwd: input.repoRoot, windowsHide: true }
-  );
+  //
+  // No shell: `process.execPath` + the local tsx entry point + an argv array, so a key path with
+  // spaces or `&|%"` is one argument and never a command. A failure stays a failure, but Node's own
+  // error message echoes the whole command line — the key path included — so it is rebuilt with the
+  // path replaced before it can reach a gate record or a CI log.
+  try {
+    await execFileAsync(
+      process.execPath,
+      [join(input.repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), issuerScript, ...issuerArgs],
+      { cwd: input.repoRoot, windowsHide: true, shell: false }
+    );
+  } catch (error) {
+    const failure = error as { code?: unknown; stderr?: unknown };
+    const stderr = String(failure.stderr ?? "").split(input.keyPath).join("<issuer key>").trim();
+    throw new Error(`License issuer failed (exit ${String(failure.code ?? "unknown")})${stderr ? `: ${stderr}` : "."}`);
+  }
 
   const produced = readdirSync(outDir).filter((name) => name.endsWith(".dat"));
   if (produced.length !== 1) {

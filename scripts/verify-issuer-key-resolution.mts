@@ -52,6 +52,7 @@ import {
   LicenseIssuerService,
   classifyKeyReadError
 } from "../src/licensing/issuer/LicenseIssuerService";
+import { mintVerificationLicense } from "./helpers/packaged-license.mts";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -510,10 +511,38 @@ try {
     cliSpawnDetail
   );
 
+  // The packaged gate's OWN helper, not a re-statement of its argv: same hostile key path, and the
+  // ephemeral key is not the trusted one, so the issuer must refuse. The refusal has to surface as a
+  // rejection (never a silent success) and must not carry the key path into the gate's record.
+  let helperError = "";
+  let helperResolved = false;
+  try {
+    await mintVerificationLicense({
+      repoRoot: REPO_ROOT,
+      keyPath: hostileKeyPath,
+      activationRequest: activationRequest(),
+      workDir: join(sandbox, "helper work & (dir)")
+    });
+    helperResolved = true;
+  } catch (error) {
+    helperError = error instanceof Error ? error.message : String(error);
+  }
+  check("an issuer refusal rejects mintVerificationLicense instead of resolving", !helperResolved && helperError.length > 0);
+  check(
+    "the helper surfaces the issuer's own refusal reason (argv reached the issuer intact)",
+    helperError.startsWith("License issuer failed") && helperError.includes("ISSUER_KEY_MISMATCH"),
+    helperError.slice(0, 300)
+  );
+  check(
+    "the helper's failure message never contains the issuer key path",
+    !helperError.includes(hostileKeyPath) && !helperError.includes(HOSTILE_DIR_NAME),
+    helperError.slice(0, 300)
+  );
+
   const noShell = (...segments: string[]): boolean => !/shell:\s*true/.test(source(...segments));
   check("the packaged-license helper spawns the issuer without a shell", noShell("scripts", "helpers", "packaged-license.mts"));
   check("the packaged-license helper spawns process.execPath with fixed argv",
-    source("scripts", "helpers", "packaged-license.mts").includes("execFileAsync(\n    process.execPath,"));
+    /execFileAsync\(\s*process\.execPath,\s*\[/.test(source("scripts", "helpers", "packaged-license.mts")));
   check("the dashboard bridge caller spawns the issuer without a shell", noShell("tools", "roadmap", "lib", "license-issuer.mjs"));
   check(
     "the packaged-license helper refuses a relative configured key path",

@@ -45,7 +45,7 @@ function check(label: string, condition: unknown, detail?: string) {
 interface RecordedAction {
   type: string;
   name: string;
-  locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
+  locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string; guard?: any; upgradeContext?: any; recordingCandidates?: any[] };
   targetLocator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
   valueSource?: { type: string; value: string };
   beforeWaits?: WaitCondition[];

@@ -36,6 +36,9 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
+// Where the production bundles are read from. Defaults to the repository; `verify:test-lab-cli-only-exit`
+// points it at fixture bundles to prove the exit contract. Sources are always read from the repository.
+const bundleRoot = process.env.AWKIT_TEST_LAB_BUNDLE_ROOT || root;
 
 let passed = 0;
 let failed = 0;
@@ -58,15 +61,15 @@ const block = (name: string, reason: string): void => {
 const read = (rel: string): string => readFileSync(join(root, rel), "utf8");
 
 /** Every file under `dir` matching `test`, as repo-relative paths. */
-function walk(dir: string, test: (name: string) => boolean): string[] {
+function walk(dir: string, test: (name: string) => boolean, base = root): string[] {
   const out: string[] = [];
-  const absolute = join(root, dir);
+  const absolute = join(base, dir);
   if (!existsSync(absolute)) return out;
   const visit = (current: string): void => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const full = join(current, entry.name);
       if (entry.isDirectory()) visit(full);
-      else if (test(entry.name)) out.push(relative(root, full).split(sep).join("/"));
+      else if (test(entry.name)) out.push(relative(base, full).split(sep).join("/"));
     }
   };
   visit(absolute);
@@ -138,31 +141,37 @@ const newestSource = Math.max(
 );
 
 for (const target of PRODUCTION_BUNDLE_GLOBS) {
-  const absolute = join(root, target);
+  const absolute = join(bundleRoot, target);
   if (!existsSync(absolute)) {
     block(`${target} scanned for harness symbols`, "no build present — run `npm run build`");
     continue;
   }
   const files = statSync(absolute).isDirectory()
-    ? walk(target, (name) => /\.(js|mjs|cjs)$/.test(name))
+    ? walk(target, (name) => /\.(js|mjs|cjs)$/.test(name), bundleRoot)
     : [target];
   if (files.length === 0) {
     block(`${target} scanned for harness symbols`, "build directory contains no JavaScript");
     continue;
   }
-  if (files.some((rel) => statSync(join(root, rel)).size === 0)) {
+  if (files.some((rel) => statSync(join(bundleRoot, rel)).size === 0)) {
     block(`${target} scanned for harness symbols`, "bundle contains an empty JavaScript file");
     continue;
   }
   // A stale bundle is a sound check applied to the wrong artifact: it would clear a harness that the
   // current sources do wire in. Refuse rather than report a pass against yesterday's output.
-  const oldest = Math.min(...files.map((rel) => statSync(join(root, rel)).mtimeMs));
+  const oldest = Math.min(...files.map((rel) => statSync(join(bundleRoot, rel)).mtimeMs));
   if (oldest < newestSource) {
     block(`${target} scanned for harness symbols`, "bundle is older than its sources — rebuild first");
     continue;
   }
+  let text: string;
+  try {
+    text = files.map((rel) => readFileSync(join(bundleRoot, rel), "utf8")).join("\n");
+  } catch (error) {
+    block(`${target} scanned for harness symbols`, `bundle is unreadable (${(error as NodeJS.ErrnoException).code ?? "unknown"})`);
+    continue;
+  }
   inspectedBundleTargets += 1;
-  const text = files.map((rel) => read(rel)).join("\n");
   for (const symbol of TEST_LAB_HARNESS_SYMBOLS) {
     if (new RegExp(`\\b${symbol}\\b`).test(text)) bundleSymbols.push([target, symbol] as const);
   }
@@ -225,4 +234,6 @@ if (inspectedBundleTargets !== PRODUCTION_BUNDLE_GLOBS.length) {
 console.log(
   `\n${passed} PASS / ${failed} FAIL${blocked ? ` / ${blocked} BLOCKED` : ""} — Test Lab CLI-only boundary`
 );
-if (failed > 0 || blocked > 0) process.exitCode = 1;
+// PASS → 0, any FAIL → 1, otherwise any BLOCKED → 2 (the repository's BLOCKED convention). BLOCKED
+// is never success: an uninspected bundle proves nothing about what ships.
+process.exitCode = failed > 0 ? 1 : blocked > 0 ? 2 : 0;

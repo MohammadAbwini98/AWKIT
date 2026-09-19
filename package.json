@@ -94,6 +94,7 @@
     "verify:failure-evidence-live": "tsx scripts/verify-failure-evidence-live.mts",
     "verify:verifier-classification": "tsx scripts/verify-verifier-classification.mts",
     "verify:test-lab-cli-only": "tsx scripts/verify-test-lab-cli-only.mts",
+    "verify:test-lab-cli-only-exit": "tsx scripts/verify-test-lab-cli-only-exit.mts",
     "verify:clean-machine-policy": "tsx scripts/verify-clean-machine-policy.mts",
     "verify:nsis-per-user-install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-nsis-per-user-install.ps1",
     "verify:avatar": "tsx scripts/verify-avatar-initials.mts",
