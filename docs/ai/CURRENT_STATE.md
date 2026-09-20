@@ -1,6 +1,65 @@
 # CURRENT_STATE
 
-## Task contracts can finally be retired, and 16 closed ones were (2026-09-20, current)
+## L1 is still owner-blocked, and two AI boundary guards had silently gone red (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
+moved. This is verifier-correctness work on the L1 boundary; no product behaviour changed.
+
+**L1 remains BLOCKED on the same two owner artifacts, re-checked against this machine rather than
+inherited from the plan.** `node-llama-cpp` is in neither `package.json` nor `node_modules/`, and there is
+no `.gguf` anywhere in `Downloads` (readable, 59,082 files) or under `%LOCALAPPDATA%/SpecterStudio`.
+`verify:ai-model-live` reports `NOT RUN` naming owner step 1, and `verify:ai-model-pack` still ends
+`0 pinned pack(s); runtime build not pinned`. **No live-model acceptance was produced or implied.**
+
+**Two guards of the "AI is optional" invariant were failing, and neither failure was recorded anywhere.**
+Both were introduced by the L3 locator work, which legitimately put pure modules under `src/ai/` and added
+three IPC channels; neither L3 session re-ran these two suites.
+
+- `verify:ai-fallback` was **34/2** against a documented 36/36. It banned *any* execution-tree import of
+  `src/ai`, so `src/runner/locatorProof.ts` and `src/runner/LocatorRecoveryStore.ts` tripped it, and its
+  preload roster still listed only four channels against the current seven.
+- `verify:failure-capture-overhead`'s structural check was red, flagging `pendingUpgrade.ts`,
+  `locatorPlan.ts`, `AiOutputContract.ts` and `AiAutonomyPolicy.ts` — the last purely because it is
+  named `Ai*`.
+
+**The source was correct; the assertions encoded a superseded architecture.** Verified by inspection, not
+assumed: `locatorPlan` imports only `FlowProfile` and `AiOutputContract` (which has **zero** imports), and
+`pendingUpgrade` adds only `node:crypto`, `locatorApproval` and `AiAutonomyPolicy`. The chain terminates in
+pure data, schema and policy — **no transport**. The three new channels are each permission-gated and
+sanitized (`ai:listUpgrades` AI_USE+WORKFLOW_VIEW, `ai:promoteUpgrade` AI_USE+WORKFLOW_EDIT,
+`ai:setEditorState` WORKFLOW_EDIT, which can only make promotion *stricter*), independently confirmed by
+`verify:ai-permissions` 75/75.
+
+**Both checks were made stronger, not relaxed.** The boundary is now *reachability to the model* — the
+service, prompt builder, fake transport, host protocol and host — instead of a folder or `Ai*` name.
+`verify:ai-fallback` now walks the **whole transitive closure** from the execution tree (162 modules from
+122 files) and reports the offending chain; the old one-hop scan could not see a model reached through an
+intermediate module **at all**. A missing cardinality pin was also added: the preload roster used
+`.every()` with nothing asserting the list was non-empty, so it would have passed vacuously the moment its
+regex stopped matching.
+
+**Mutation-tested, with each contract written after running the mutation.** Direct reach
+(`locatorProof` → `AiService`) caught; **two-hop** reach (`LocatorFactory` → `locatorApproval` →
+`AiService`) caught, which is precisely the case the old check was blind to; a smuggled
+`ai:describeThing` channel caught by both the roster and the new cardinality pin;
+`FailureEvidenceCollector` → `AiService` caught by the capture verifier. All four reverted; `git status`
+confirmed only the two verifiers and the docs changed.
+
+**Evidence:** `build` PASS · `typecheck:scripts` PASS · `verify:ai-fallback` **38/38** (was 34/2) ·
+`verify:ai-model-pack` 46/46 · `verify:ai-host` 135/135 with 12/12 mutations · `verify:ai-adapter` 102/102 ·
+`verify:ai-permissions` 75/75 · `verify:ai-autonomy-policy` 62/62 · `verify:ai-audit-revert` 69/69 ·
+`verify:ai-redaction` 52/52 · `verify:source-hygiene` 11/11 · `verify:verifier-classification` 233 ·
+`git diff --check` clean. `verify:ai-model-live` **NOT RUN** (no runtime).
+
+**`verify:failure-capture-overhead` is FAIL, and not because of this change.** Its structural check is now
+green (`[]`); the failure is the known L5a overhead gate. It flapped **three times in one session on
+identical code**: `fast median 46 ms / evidence median 70 ms` PASS, then `evidence median 392 ms` and
+`p95 1064 ms` FAIL, then `fast median 170 ms` FAIL (ceiling 150 ms) with every other ceiling green. Three
+runs, three different verdicts. That is fresh first-hand evidence for the **outstanding owner methodology
+decision** in `docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md`. **No ceiling was changed**,
+and L5a stays open.
+
+## Task contracts can finally be retired, and 16 closed ones were (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved. This is agent-governance and repository-retention work; no product behaviour changed.

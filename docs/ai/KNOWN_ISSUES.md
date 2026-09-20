@@ -1,5 +1,32 @@
 # KNOWN_ISSUES
 
+## A boundary verifier that names a FOLDER instead of the capability goes red the moment the architecture moves (2026-09-20, RESOLVED for the two known instances — the pattern is the lesson)
+
+- **What happened.** `verify:ai-fallback` (34/2 against a documented 36/36) and the structural check in
+  `verify:failure-capture-overhead` were both red, and **neither failure was recorded anywhere**. The L3
+  locator work put pure modules under `src/ai/` and added three `ai:*` IPC channels; the sessions that did
+  it never re-ran these two suites, so the red sat there across several commits.
+- **Both assertions encoded a superseded architecture, and the product was correct.** The invariant is
+  *"nothing on the run path can call the model."* Both verifiers approximated it with a **folder or name
+  proxy** — "imports `src/ai`", plus `/Ai[A-Z]\w*\.ts$/`, which condemned `AiAutonomyPolicy.ts` for its
+  name alone. `locatorPlan`, `pendingUpgrade` and `AiOutputContract` are pure data, schema and policy and
+  hold no transport, and the run path depends on them deliberately.
+- **The proxy was also weaker than it looked.** `verify:ai-fallback` scanned only execution-tree files for
+  a *direct* `src/ai` import, so a model reached through an intermediate module outside those trees was
+  **invisible to it**. Fixing the false positive and closing that hole are the same edit: assert
+  reachability to the named model-bearing modules over the whole transitive closure. The two-hop mutation
+  (`LocatorFactory → locatorApproval → AiService`) is the proof — the old check could not catch it.
+- **The rule.** When a check guards a *capability*, name the capability's modules, not the folder they
+  happen to sit in today, and walk the closure rather than one hop. A folder is a naming convention; the
+  invariant is about what can be called.
+- **Also fixed here, and worth grepping for elsewhere:** the preload roster used `.every()` over a list
+  built by a regex with **nothing asserting the list was non-empty**, so it would have passed vacuously the
+  instant the pattern stopped matching. A cardinality pin was added. (Same shape as the `.every()` and
+  `.length === 0 ||` traps already recorded in this file.)
+- **Standing consequence:** a verifier is only evidence against the tree it was *run* on. Both of these
+  were listed as passing in `CURRENT_STATE.md` and `COMMANDS.md` while red. If a change touches a module
+  another suite makes structural claims about, re-run that suite even when it looks unrelated.
+
 ## An agent cannot delete its own temporary diagnostic artifacts, and no policy says it may (2026-09-20, OPEN — needs an owner policy decision, not code)
 
 - The contract-retention gap below is fixed, but it was fixed **narrowly and on purpose**:

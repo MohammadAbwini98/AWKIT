@@ -135,6 +135,22 @@ The method already cancels slow host drift. Its limits:
    and collector start measured 3–4 ms after `6bfd59d`. No further hot path has been identified. A new
    optimization needs a profile that shows new cost, not another gate run.
 
+**Further evidence, 2026-09-20 (development host, 12 logical CPUs).** The gate was run three times in one
+session on effectively identical code — the only change between runs was a type-only import added and then
+removed for a mutation test, which cannot affect runtime cost. It returned three different verdicts:
+
+| Run | `fast` median | `evidence` median | `evidence` p95 | Verdict |
+|---|---|---|---|---|
+| 1 | 46 ms ≤ 150 ms PASS | 70 ms ≤ 204.9 ms PASS | −916 ms PASS | all ceilings green |
+| 2 | −200 ms PASS | **392 ms > 290.1 ms FAIL** | **1064 ms > 511.7 ms FAIL** | two red |
+| 3 | **170 ms > 150 ms FAIL** | 132 ms ≤ 171.8 ms PASS | 49 ms PASS | one red, a different one |
+
+Note the ceilings themselves move between runs (204.9 → 290.1 → 171.8 ms), because they are derived from
+the measured OFF baseline, so both the measurement and its threshold drift with host contention. This is
+first-hand confirmation that the gate cannot currently separate signal from noise on a saturated
+development host, and it strengthens the case for B + D reported with E. **No ceiling was changed and no
+option was adopted** — this entry is evidence only.
+
 The options below leave the ceilings and the product unchanged. Each needs owner approval, because the
 methodology is the owner's call.
 

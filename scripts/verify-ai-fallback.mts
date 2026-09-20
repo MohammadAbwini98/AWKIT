@@ -208,22 +208,88 @@ async function importTargets(file: string): Promise<string[]> {
   return targets;
 }
 
+/** Resolve a repo-relative import target to the source file it actually names, if any. */
+const moduleFileCache = new Map<string, string | null>();
+async function resolveModule(target: string): Promise<string | null> {
+  const cached = moduleFileCache.get(target);
+  if (cached !== undefined) return cached;
+  let found: string | null = null;
+  for (const suffix of [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", "/index.ts", "/index.tsx"]) {
+    const candidate = `${target}${suffix}`;
+    try {
+      await readFile(join(REPO, candidate), "utf8");
+      found = candidate;
+      break;
+    } catch {
+      // Not this extension.
+    }
+  }
+  moduleFileCache.set(target, found);
+  return found;
+}
+
+/**
+ * The modules that actually speak to the model: the service that owns the transport, the prompt
+ * builder, the wire protocol, the fake, and the main-process host manager. Everything else under
+ * `src/ai` is pure — the locator plan compiler and the pending-upgrade record are data and policy,
+ * and L3 has the runner compile and persist against them deliberately.
+ */
+const MODEL_BEARING = [
+  "src/ai/AiService",
+  "src/ai/AiPromptBuilder",
+  "src/ai/FakeAiHostTransport",
+  "src/ai/contracts/AiHostProtocol",
+  "app/main/ai",
+];
+const isModelBearing = (target: string): boolean =>
+  MODEL_BEARING.some((m) => target === m || target.startsWith(`${m}/`) || target.startsWith(`${m}.`));
+
 console.log("\nThe execution tree cannot reach the model:\n");
 {
   const trees = ["src/runner", "src/recorder", "src/orchestrator", "src/instances", "src/session"];
   const files = (await Promise.all(trees.map((tree) => sourceFiles(join(REPO, tree))))).flat();
   check("the execution tree was actually scanned", files.length >= 100, String(files.length));
-  const offenders: string[] = [];
+
   let imports = 0;
-  for (const file of files) {
-    for (const target of await importTargets(file)) {
-      imports += 1;
-      if (target === "src/ai" || target.startsWith("src/ai/")) offenders.push(`${relative(REPO, file)} -> ${target}`);
-    }
-  }
+  for (const file of files) imports += (await importTargets(file)).length;
   // Floor measured at 336 resolved imports on 2026-09-19; a large drop means the scan stopped seeing them.
   check("its imports were resolved", imports >= 300, String(imports));
-  check("no runner, recorder, orchestrator, instance or session module imports src/ai", offenders.length === 0, offenders.join("; "));
+
+  // Reachability, not adjacency. A one-hop "does it import src/ai" ban is blind to a model reached
+  // through an intermediate module, and it also condemns the pure plan/pending-upgrade modules the
+  // runner legitimately depends on. Walk the whole closure instead and judge only the real thing.
+  const start = files.map((f) => relative(REPO, f).replace(/\\/g, "/"));
+  const seen = new Set<string>(start);
+  const cameFrom = new Map<string, string>();
+  const queue = [...start];
+  const offenders: string[] = [];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    for (const target of await importTargets(join(REPO, current))) {
+      if (isModelBearing(target)) {
+        const chain = [current];
+        for (let at = current; cameFrom.has(at); ) {
+          at = cameFrom.get(at) as string;
+          chain.unshift(at);
+        }
+        offenders.push(`${chain.join(" -> ")} -> ${target}`);
+        continue;
+      }
+      const resolved = await resolveModule(target);
+      if (!resolved || seen.has(resolved)) continue;
+      seen.add(resolved);
+      cameFrom.set(resolved, current);
+      queue.push(resolved);
+    }
+  }
+  // Floor measured at 162 modules from 122 files on 2026-09-20. It must stay wider than the trees it
+  // started from, or the walk collapsed to its own seed and proves nothing.
+  check(
+    "the closure was actually walked",
+    seen.size >= 150 && seen.size > files.length,
+    `${seen.size} modules from ${files.length} files`
+  );
+  check("no module the execution tree can reach, at any depth, reaches the model", offenders.length === 0, offenders.join("; "));
 }
 
 console.log("\nThe renderer cannot run a prompt:\n");
@@ -246,10 +312,18 @@ console.log("\nThe renderer cannot run a prompt:\n");
   check("the preload exposes an ai namespace to inspect", aiChannels.length >= 5, aiChannels.join(","));
   const shaped = aiChannels.filter((channel) => /infer|prompt|submit|complete|chat|generate|load(?!Model)|spawn|exec|path|file/i.test(channel));
   check("no ai channel can run a prompt, spawn a process or name a file", shaped.length === 0, shaped.join(","));
+  // An exact roster, so a new channel has to be admitted here deliberately rather than inherited.
+  // `request` and `state` are structured, and neither is trusted: `ai:promoteUpgrade` runs
+  // `sanitizePromotionRequest` behind AI_USE plus WORKFLOW_EDIT, and `ai:setEditorState` runs
+  // `sanitizeFlowEditorState` behind WORKFLOW_EDIT and can only ever make promotion stricter.
   const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
+  // Without this the .every() below passes on an empty list the moment the pattern stops matching.
+  check("the bridge's arguments were actually read", argumentsTaken.length === 7, argumentsTaken.join(","));
   check(
-    "only settings, a feature id, an audit page and an action id cross the bridge",
-    argumentsTaken.every((call) => /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\))$/.test(call)),
+    "only settings, a feature id, an audit page, an action id, a flow id, a promotion and editor state cross the bridge",
+    argumentsTaken.every((call) =>
+      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\))$/.test(call)
+    ),
     argumentsTaken.join(",")
   );
 }

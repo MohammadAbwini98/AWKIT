@@ -676,12 +676,19 @@ src/runner/evidence/
   FailureCauseBaseline.ts     Pure precedence table → cause code + evidence ids (or `insufficient`).
 ```
 
-The run path imports nothing from `src/ai` (`verify:failure-capture-overhead` walks the engine's import
-closure). Raw evidence lives only in the report; the semantic index never reads it.
+Nothing the run path can reach speaks to the model (`verify:failure-capture-overhead` walks the engine's
+import closure). Raw evidence lives only in the report; the semantic index never reads it.
 
-The engine never calls AI: `ExecutionEngine.getAiAdmissionView()` is read-only, and no module in the
-execution tree imports `src/ai` (`verify:ai-fallback`). With no runtime, no pinned build or no pack,
-every AI entry point answers with a code and the app is unchanged.
+The engine never calls AI: `ExecutionEngine.getAiAdmissionView()` is read-only, and nothing the execution
+tree reaches — at any depth — reaches the AI service, prompt builder, fake transport, host protocol or
+host (`verify:ai-fallback`). With no runtime, no pinned build or no pack, every AI entry point answers
+with a code and the app is unchanged.
+
+The boundary is **reachability to the model, not the `src/ai` folder**. Since L3 the run path compiles
+and persists AI locator candidates through `src/ai/locatorPlan.ts`, `src/ai/pendingUpgrade.ts` and
+`src/ai/AiOutputContract.ts`, which are pure data, schema and policy and hold no transport. Both
+verifiers name the model-bearing modules explicitly; a folder- or `Ai*`-name proxy would condemn those
+three and, being one hop deep, would miss a model reached through an intermediate module entirely.
 
 ## Semantic index (separate process boundary)
 

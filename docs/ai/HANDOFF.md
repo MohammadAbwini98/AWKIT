@@ -1,6 +1,36 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — task contracts can be retired now, and 16 closed ones were
+## HANDOFF (2026-09-20, latest) — L1 is still owner-blocked; two AI boundary guards were silently red
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
+  This is verifier-correctness work on the L1 boundary; no product behaviour changed.
+- **L1's two owner artifacts are still absent, re-checked on this machine rather than inherited.**
+  `node-llama-cpp` is in neither `package.json` nor `node_modules/`; no `.gguf` exists in `Downloads`
+  (readable, 59,082 files) or under `%LOCALAPPDATA%/SpecterStudio`. `verify:ai-model-live` reports
+  `NOT RUN`. **Outcome B: no live-model acceptance was produced or implied.** The two commands are
+  unchanged and are quoted verbatim in `docs/plans/ai-upgrade-v5/L1-ai-foundation.md` § "Owner steps".
+- **Found and fixed: `verify:ai-fallback` was 34/2 (documented 36/36) and
+  `verify:failure-capture-overhead`'s structural check was red.** Both regressed when L3 put pure modules
+  under `src/ai/` and added three IPC channels, and neither L3 session re-ran them. **Nothing in the
+  product was wrong** — verified by inspection: `locatorPlan` → `FlowProfile` + `AiOutputContract` (zero
+  imports); `pendingUpgrade` → `node:crypto`, `locatorApproval`, `AiAutonomyPolicy`. No transport anywhere
+  in the chain. The three channels are permission-gated and sanitized (`verify:ai-permissions` 75/75).
+- **The guards were strengthened, not relaxed.** The boundary is now *reachability to the model* rather
+  than a folder or `Ai*` name. `verify:ai-fallback` walks the full transitive closure (162 modules from
+  122 files) and prints the offending chain; the old one-hop scan **could not see a two-hop reach at all**.
+  A vacuity hole was also closed — the preload roster's `.every()` had no cardinality pin.
+- **Mutation-tested four ways, each contract written after running the mutation:** direct reach, two-hop
+  reach (the case the old check missed), a smuggled `ai:describeThing` channel, and a collector → service
+  reach. All caught, all reverted.
+- **`verify:failure-capture-overhead` is still FAIL — the L5a gate, not this change.** Its structural
+  check is green. The overhead ceilings flapped **three times on identical code in one session**: all
+  green, then `evidence median 392 ms` + `p95 1064 ms` red, then `fast median 170 ms` red (ceiling 150 ms).
+  **This is fresh evidence for the outstanding owner methodology decision** — no ceiling was touched.
+- **Next agent work without the model: still none.** L3 §8/§9, L4b, L5b and L6 Intelligence all need the
+  L1 go/no-go. L5a's methodology remains an **owner decision**, not engineering. The model-independent
+  surface of Phase L is exhausted.
+
+## HANDOFF (2026-09-20) — task contracts can be retired now, and 16 closed ones were
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
   This is agent-governance and repository-retention work; no product behaviour changed.

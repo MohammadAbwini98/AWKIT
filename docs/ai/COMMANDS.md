@@ -447,7 +447,8 @@ npm run verify:ai-permissions     # every role both directions + the twelve ai:*
 npm run verify:ai-adapter         # AiService queue/protocol: one-at-a-time, cancel, timeout, crash/circuit,
                                   # schema rejection, yield to runs, idle unload, checksum-before-load (102)
 npm run verify:ai-redaction       # prompt redaction, nonce-delimited injection containment, caps, rescan refusal (52)
-npm run verify:ai-fallback        # degraded modes make zero host calls; run path and renderer cannot reach the model (36)
+npm run verify:ai-fallback        # degraded modes make zero host calls; nothing the run path reaches at ANY
+                                  # depth reaches the model, and the renderer's bridge roster is exact (38)
 npm run verify:ai-model-pack      # GGUF/size/SHA-256 import, tamper detection, retirement, replacement (46)
 npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceiling-bounded tiers, persistence on disk (30)
 npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)

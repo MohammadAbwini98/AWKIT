@@ -1,5 +1,46 @@
 # TASK_LOG
 
+## 2026-09-20 — L1 re-check (still owner-blocked) and two silently-red AI boundary guards (Claude)
+
+- **Task:** resume Phase L and advance L1 as far as the approved artifacts permit. Outcome B — both owner
+  artifacts are still missing, so no live-model work was possible; the actionable work found instead was
+  two failing guards of L1's "AI is optional" invariant. Ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED.
+- **L1 prerequisites re-checked on this machine, not inherited.** `node-llama-cpp` in neither
+  `package.json` nor `node_modules/`; no `.gguf` in `Downloads` (readable, 59,082 files) or under
+  `%LOCALAPPDATA%/SpecterStudio`. `verify:ai-model-live` → `NOT RUN`; `verify:ai-model-pack` ends
+  `0 pinned pack(s); runtime build not pinned`. No live-model acceptance produced or implied.
+- **Defect found:** `verify:ai-fallback` **34/2** against a documented 36/36, and
+  `verify:failure-capture-overhead`'s structural check red. Both regressed when L3 placed pure modules
+  under `src/ai/` and added three IPC channels; neither L3 session re-ran them, and neither failure was
+  recorded anywhere.
+- **Diagnosis: the source was right, the assertions were stale.** `locatorPlan` imports only
+  `FlowProfile` + `AiOutputContract` (zero imports); `pendingUpgrade` adds `node:crypto`,
+  `locatorApproval`, `AiAutonomyPolicy`. The chain ends in pure data/schema/policy with no transport.
+  `AiAutonomyPolicy.ts` was flagged purely for being named `Ai*`. The three channels are permission-gated
+  and sanitized; `verify:ai-permissions` 75/75 independently confirms each authorizes before acting.
+- **Fix — stronger, not relaxed.** Both verifiers now test *reachability to the model* (service, prompt
+  builder, fake, host protocol, host) instead of a folder or name. `verify:ai-fallback` walks the whole
+  transitive closure (162 modules from 122 files) and reports the offending chain; the previous one-hop
+  scan could not detect a two-hop reach at all. Added the missing cardinality pin on the preload roster,
+  whose `.every()` would otherwise have passed vacuously on an empty list.
+- **Mutations (contract written after each run, not predicted):** direct reach caught; two-hop reach
+  `LocatorFactory → locatorApproval → AiService` caught; smuggled `ai:describeThing` caught by both the
+  roster and the new pin; `FailureEvidenceCollector → AiService` caught. All reverted; `git status`
+  confirmed only the two verifiers and docs remained changed.
+- **Files:** `scripts/verify-ai-fallback.mts`, `scripts/verify-failure-capture-overhead.mts`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,COMMANDS,ARCHITECTURE}.md`.
+- **Tests:** `build` PASS · `typecheck:scripts` PASS · `verify:ai-fallback` 38/38 · `verify:ai-model-pack`
+  46/46 · `verify:ai-host` 135/135 (12/12 mutations) · `verify:ai-adapter` 102/102 ·
+  `verify:ai-permissions` 75/75 · `verify:ai-autonomy-policy` 62/62 · `verify:ai-audit-revert` 69/69 ·
+  `verify:ai-redaction` 52/52 · `verify:source-hygiene` 11/11 · `verify:verifier-classification` 233 ·
+  `git diff --check` clean. `verify:ai-model-live` NOT RUN. `verify:failure-capture-overhead` **FAIL** on
+  the L5a overhead ceilings only (structural check green) — it produced three different verdicts on
+  identical code in one session, which is recorded as evidence for the owner's L5a methodology decision.
+  No ceiling was changed.
+- **Result:** L1 stays `in_progress` and owner-blocked. L3 §8/§9, L4b, L5b and L6 Intelligence stay gated.
+  The model-independent surface of Phase L is exhausted.
+
 ## 2026-09-20 — Contract retention: gave the guard its one deletion verb and retired 16 closed contracts (Claude)
 
 - **Task:** make the documented contract-retention rule executable, then apply it to the closed L6

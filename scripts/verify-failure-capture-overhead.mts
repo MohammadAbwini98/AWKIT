@@ -341,13 +341,18 @@ try {
   {
     const engineFile = join(ROOT, "src", "runner", "ExecutionEngine.ts");
     const closure = [...importClosure(engineFile)].map((file) => relative(ROOT, file).replace(/\\/g, "/"));
-    const ai = closure.filter((file) => /^(src\/ai\/|app\/main\/ai\/|native-hosts\/ai\/)/.test(file) || /(^|\/)Ai[A-Z]\w*\.ts$/.test(file));
+    // The modules that actually speak to the model. Everything else under `src/ai` is pure: the locator
+    // plan compiler, the pending-upgrade record and the output contract are data and policy that L3 has
+    // the run path depend on deliberately. A directory- or `Ai*`-name proxy condemns those too, which is
+    // a naming coincidence rather than a model call. Kept in step with `verify:ai-fallback`.
+    const modelBearing = /^(?:app\/main\/ai\/|native-hosts\/ai\/|src\/ai\/contracts\/|src\/ai\/(?:AiService|AiPromptBuilder|FakeAiHostTransport)\.ts$)/;
+    const ai = closure.filter((file) => modelBearing.test(file));
     check(
       "the closure walk is real: it reaches the runner, the collector and the evidence buffer",
       closure.length > 100 && ["src/runner/PlaywrightRunner.ts", "src/runner/evidence/FailureEvidenceCollector.ts", "src/runner/evidence/ExecutionEvidence.ts"].every((file) => closure.includes(file)),
       `${closure.length} modules`
     );
-    check("no AI module (src/ai, app/main/ai, native-hosts/ai, Ai*.ts) is reachable from ExecutionEngine", ai.length === 0, ai.slice(0, 5));
+    check("no module that can call the model (the service, prompt builder, fake, host protocol or host) is reachable from ExecutionEngine", ai.length === 0, ai.slice(0, 5));
   }
 
   console.log("\nPreconditions");

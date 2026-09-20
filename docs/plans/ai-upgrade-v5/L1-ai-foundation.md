@@ -20,6 +20,18 @@ Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`, `veri
 `verify:ai-host-electron`. `verify:ai-model-live` and `benchmark:ai-model` exist and are NOT RUN until
 the owner installs the runtime and downloads the pack.
 
+**Re-checked 2026-09-20.** Both owner artifacts are still absent on the development machine:
+`node-llama-cpp` is in neither `package.json` nor `node_modules/`, and no `.gguf` exists in `Downloads`
+(readable, 59,082 files) or under `%LOCALAPPDATA%/SpecterStudio`. `verify:ai-model-live` reports `NOT RUN`
+naming owner step 1, and `verify:ai-model-pack` (46/46) ends `0 pinned pack(s); runtime build not pinned`.
+The two owner commands below are unchanged.
+
+That pass also found `verify:ai-fallback` at **34/2** and the structural check in
+`verify:failure-capture-overhead` red — both regressed by L3, both stale assertions rather than product
+defects, and both now assert *reachability to the model* over the full import closure instead of naming
+the `src/ai` folder. `verify:ai-fallback` is now **38/38**. See `KNOWN_ISSUES.md` for why a folder proxy
+was simultaneously too broad and too weak.
+
 ## Runtime decision and acquisition (2026-09-19)
 
 **Runtime: `node-llama-cpp` 3.21.1 inside the existing Electron utility process.** It bundles
