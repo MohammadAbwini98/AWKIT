@@ -482,6 +482,11 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."
   },
+  "verify:ai-inference-profile": {
+    class: "real-browser",
+    why: "Diagnostic gate on the owner-installed runtime and pack (NOT RUN without them): runs the harness in profile mode under the same constrained CPU mask as benchmark:ai-model and drives node-llama-cpp directly, so the cost of one inference splits into prompt evaluation, decode, JSON-grammar overhead and thread scaling — the split the host cannot report, because it returns timings only on completion and refuses unconstrained generation. It asserts measurements exist, never ceilings; benchmark:ai-model judges the numbers.",
+    guards: ["native-hosts/ai/ai-host.cjs"]
+  },
   "verify:authoring-diagnostics": {
     class: "unit",
     why: "Phase L L4a family matrix against the real owners: FlowValidator codes with severity, anchor and active-path class for every family (unreachable and past-End steps, connector rules, Start/End, bindings, value sources, branch pairs, unguarded cycles, malformed loops, dead ends, priority ties, stale references, retired ports) with negative controls, the PreRunValidator gate, FlowDependencyResolver workflow parity, a legacy-shaped profile, FlowExecutor source premises the rules mirror, and no second implementation left in the designer. In-process."

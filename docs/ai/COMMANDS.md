@@ -455,6 +455,10 @@ npm run verify:ai-host            # the real host source under a fake parentPort
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
 npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
 npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings; NOT RUN without runtime + pack
+npm run verify:ai-inference-profile
+                                  # DIAGNOSTIC counterpart to the benchmark: splits one inference into prompt
+                                  # evaluation, decode and JSON-grammar cost so a missed ceiling says WHY. Asserts
+                                  # that measurements exist, never that they meet a ceiling. NOT RUN without pack (14)
 npm run verify:verifier-classification
                                   # FR-I1: every verify:/validate: script classified, per-class counts, and the
                                   # STRUCTURAL COVERAGE index — "edit this path, run these gates". Declared

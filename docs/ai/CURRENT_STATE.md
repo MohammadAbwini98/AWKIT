@@ -1,6 +1,59 @@
 # CURRENT_STATE
 
-## L1.2 is COMPLETE and pinned; L1.8 FAILS on measured inference throughput (2026-09-20, current)
+## L1.8 isolated: the grammar hypothesis is REFUTED; the blocker is raw throughput (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-inference-profile`, like `verify:ai-model-live`, is a
+Phase L gate, not a ledger case.
+
+**The split the previous section recorded as "still NOT isolated" is now measured.** New
+`verify:ai-inference-profile` (PASS, 14/0) drives node-llama-cpp directly under the same `0x3F` mask
+and 3 threads and varies exactly one thing — the JSON grammar — across two probes sharing an
+identical ~146-token prompt. Evidence: `docs/plans/ai-upgrade-v5/evidence/L1.8-inference-profile.json`.
+
+| probe | prompt eval | decode | TTFT |
+|---|---|---|---|
+| no grammar | 1.43 tok/s | 0.73 tok/s | 114,914 ms |
+| **locatorUpgrade grammar** | 1.58 tok/s | 0.75 tok/s | 101,617 ms |
+
+**The grammar-constrained probe is marginally FASTER** (`grammarDecodeSlowdown` 0.97,
+`grammarTtftDeltaMs` −9,968 ms); grammar construction is 5–29 ms and cached. The GBNF-sampling
+hypothesis is **refuted** — its effect is below the host's own run-to-run spread, which reached **2×**
+on repeated identical probes. The vocabulary is 248,320 tokens, not the ~151k previously assumed.
+Storage is also cleared: the pack maps at ~183 MB/s and loads warm in 7.5 s.
+
+**The bottleneck is raw throughput, and prompt evaluation is the larger half** — 1.4–2.2 tok/s, about
+half a decode step per prompt token, when prefill should be an order of magnitude cheaper. Decode is
+0.64–1.10 tok/s. Projected from the measured rates:
+
+| | budget | projected | over by |
+|---|---|---|---|
+| L1.8 packet (2,000 in / 192 out) | 180,000 ms | **1,654,601 ms** | 9.2× |
+| — its 192-token output cap **alone**, free prompt | 180,000 ms | **256,000 ms** | 1.4× |
+| Product call, `LOCATOR_ATTEMPT_LIMITS` (3,000 chars / 512 out) | **30,000 ms** | **1,242,107 ms** | 41× |
+
+**No AWKIT-layer change closes this, so no code fix was attempted.** The output cap alone exceeds the
+ceiling with a free prompt, so trimming the prompt cannot help; the grammar is free, so no
+decoding-strategy change helps; the runtime is a pinned offline prebuilt. `native-hosts/ai/ai-host.cjs`
+was inspected and is **not** implicated — **no runtime lease was taken, because nothing in the host
+needed changing.** No ceiling was moved and no timeout was raised.
+
+**Two real harness defects WERE fixed** in `scripts/ai-harness/harnessMain.ts`, and they were what
+blocked the previous session's isolation attempt. A step's return value becomes its report `detail`,
+and `LlamaModel.fileInsights` carries a cycle, so `JSON.stringify` threw from `step()`'s own `finally`
+— in Electron an uncaught main-process error raises a **modal dialog**, so the harness stopped
+answering and its launcher killed it 9 minutes later with no report. That reads exactly like "the
+model never loaded", and cost four full runs before the dialog was seen. `writeReport` now serializes
+defensively (ancestor-tracking, so shared-but-acyclic values are untouched) and an
+`uncaughtException` handler records and exits instead of blocking.
+
+**Open owner decision — unchanged in kind, but now quantified.** Re-scope the model, the ceilings, or
+the qualifying hardware. Worth confirming first: mask `0x3F` selects logical CPUs 0–5, which on a
+6-core/12-thread part is **3 physical cores**, not 6 — the harness has never verified that topology,
+so the "6 logical CPU envelope" may be measuring half the intended machine. L1 stays `in_progress`;
+L3 §8, L4b, L5b and L6 Intelligence stay gated.
+
+## L1.2 is COMPLETE and pinned; L1.8 FAILS on measured inference throughput (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-model-live` is a Phase L gate, not a ledger case.

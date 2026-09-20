@@ -1,5 +1,34 @@
 # KNOWN_ISSUES
 
+## An Electron harness that throws in `writeReport` looks exactly like the workload being slow (2026-09-20, FIXED — the pattern is the lesson)
+
+- **What happened.** `step()` stores whatever its function returns as the report's `detail`, and the
+  new `profile` mode returned the loaded `LlamaModel`. `LlamaModel.fileInsights` is a `GgufInsights`
+  whose `_configurationResolver` points back at it, so `JSON.stringify` threw *"Converting circular
+  structure to JSON"* — from `step()`'s own `finally`, from the heartbeat timer, and again from
+  `finish()`. **In Electron an uncaught main-process error raises a modal dialog**, and nothing will
+  ever click it, so the process stopped answering and its launcher killed it 540 s later.
+- **Why it was so expensive.** The surviving evidence said `inFlight: "profile: load the model"` and
+  nothing else — a *perfect* imitation of a model that never finishes loading. Four full 9-minute
+  runs were spent "diagnosing a slow load" that had actually completed in 7.5 s each time. The dialog
+  was only seen because a human looked at the screen.
+- **The rules.** (1) A report serializer must never be able to throw: use ancestor tracking, not a
+  seen-set, so shared-but-acyclic values in existing reports are untouched. (2) Register
+  `process.on("uncaughtException")` in any Electron harness — it converts a silent modal wedge into a
+  recorded failure. (3) Never return a runtime object from a step; return a plain summary and hold the
+  object in a closure. (4) When a long step produces nothing, suspect the **instrument** before the
+  workload: a heartbeat that never ticks means the event loop is blocked, not that the work is slow.
+- **Related measurement trap, same session.** `getLlama({maxThreads})` is documented as a cap, but it
+  is not inert: raising it to 6 while every context still asked for 3 made an identical probe run 3×
+  slower (TTFT 102 s → 313 s, decode 1.10 → 0.23 tok/s). Measure the shipped configuration by setting
+  it the way the host sets it. And it is never `0` — inside an affinity-masked process `os.cpus()`
+  still reports every logical CPU on the machine.
+- **And: this host's throughput is not stable enough to trust a single sample.** Under sustained load
+  the *same* CPU-bound grammar build went 5 ms → 55 ms, a warm model load 7.5 s → 36.7 s, and an
+  identical inference probe 124.8 s → 482.8 s. Any benchmark number taken after a long run is
+  confounded; `verify:ai-inference-profile` reports `hostVarianceRatio` so the spread is visible
+  beside the effect being claimed.
+
 ## A harness that reports only at the end turns every timeout into "no evidence" (2026-09-20, FIXED — the pattern is the lesson)
 
 - **What happened.** `scripts/ai-harness/harnessMain.ts` wrote its JSON report exclusively in

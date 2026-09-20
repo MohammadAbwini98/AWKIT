@@ -14,6 +14,10 @@
  *     text, the thinking-disabled template, special-token literalness, truncation, cancellation,
  *     deadline, yield to runs, crash recovery with reload, and shutdown.
  *   - bench: the L1.8 measurements (scripts/ai-harness/bench.ts).
+ *   - profile: the L1.8 inference diagnosis (scripts/ai-harness/profile.ts). The one mode that
+ *     drives the runtime directly in this process rather than through the host, because the split
+ *     it measures (grammar vs decode vs prefill) is unobservable through a host that returns its
+ *     timings only on completion and refuses unconstrained generation at all.
  *
  * The report is JSON at AWKIT_HARNESS_REPORT. It holds codes, counts and timings, never model text.
  */
@@ -34,6 +38,7 @@ import {
 } from "@src/ai/contracts/AiHostProtocol";
 
 import { runBench } from "./bench";
+import { runProfile } from "./profile";
 
 export interface Step {
   label: string;
@@ -73,9 +78,37 @@ function writeReport(complete: boolean): boolean {
       ...extra
     };
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, JSON.stringify(report, null, 2), "utf8");
+    fs.writeFileSync(target, serialize(report), "utf8");
   }
   return ok;
+}
+
+/**
+ * Serialize defensively. A step's return value becomes its `detail`, and a runtime object can carry
+ * a cycle: `LlamaModel.fileInsights` is a `GgufInsights` whose resolver points back at it. A bare
+ * `JSON.stringify` then throws — from `step()`'s own `finally`, from `flush()`'s timer and again
+ * from `finish()`. In Electron an uncaught main-process error raises a MODAL dialog, so the harness
+ * stops answering and its launcher kills it 9 minutes later with no report: a broken instrument that
+ * reads exactly like "the model never loaded". A cycle in one detail must cost that detail, nothing
+ * more.
+ */
+function serialize(report: unknown): string {
+  // Ancestors, not "every object already seen": a value that merely appears twice in a report is not
+  // a cycle, and replacing it would quietly corrupt reports that are serializing perfectly well today.
+  const ancestors: unknown[] = [];
+  return JSON.stringify(
+    report,
+    function replacer(this: unknown, _key: string, value: unknown) {
+      if (typeof value === "bigint") return `${value}n`;
+      if (typeof value === "function") return `[function ${value.name || "anonymous"}]`;
+      if (typeof value !== "object" || value === null) return value;
+      while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop();
+      if (ancestors.includes(value)) return "[circular]";
+      ancestors.push(value);
+      return value;
+    },
+    2
+  );
 }
 
 export async function step<T>(label: string, fn: () => Promise<T> | T): Promise<T | undefined> {
@@ -110,6 +143,15 @@ async function expectReason(label: string, fn: () => Promise<unknown>, reason: s
 
 export function record(key: string, value: unknown): void {
   extra[key] = value;
+}
+
+/**
+ * Persist what has been recorded so far, mid-step. `step()` already writes at every boundary, but a
+ * long step that gets killed (a model load, an inference at the ceiling) would otherwise lose every
+ * intermediate measurement it took — which is exactly when those measurements are worth having.
+ */
+export function flush(): void {
+  writeReport(false);
 }
 
 export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -529,12 +571,21 @@ async function run(): Promise<void> {
     if (mode === "protocol") await protocolMode();
     else if (mode === "live") await liveMode();
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });
+    else if (mode === "profile") await runProfile({ step, record, flush });
     else await step(`unknown mode ${mode}`, () => Promise.reject(new Error("unknown mode")));
   } catch (error) {
     steps.push({ label: "harness aborted", ok: false, durationMs: 0, error: String((error as Error)?.stack ?? error) });
   }
   finish();
 }
+
+// An uncaught main-process error otherwise raises a modal dialog that nothing will ever click, so
+// the harness stops answering and its launcher kills it with no report — indistinguishable from the
+// workload under test being slow. Record it and exit instead.
+process.on("uncaughtException", (error) => {
+  steps.push({ label: "harness crashed", ok: false, durationMs: 0, error: String(error?.stack ?? error) });
+  finish();
+});
 
 app.whenReady().then(run, (error) => {
   steps.push({ label: "app ready", ok: false, durationMs: 0, error: String(error) });

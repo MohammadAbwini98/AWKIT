@@ -296,6 +296,7 @@
     "verify:ai-host": "tsx scripts/verify-ai-host.mts",
     "verify:ai-host-electron": "tsx scripts/verify-ai-host-electron.mts",
     "verify:ai-model-live": "tsx scripts/verify-ai-model-live.mts",
+    "verify:ai-inference-profile": "tsx scripts/verify-ai-inference-profile.mts",
     "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts",
     "verify:authoring-diagnostics": "tsx scripts/verify-authoring-diagnostics.mts",
     "verify:failure-cause-baseline": "tsx scripts/verify-failure-cause-baseline.mts",

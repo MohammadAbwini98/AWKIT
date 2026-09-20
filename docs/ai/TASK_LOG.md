@@ -1,5 +1,56 @@
 # TASK_LOG
 
+## 2026-09-20 — L1.8 isolated: the grammar hypothesis REFUTED, the blocker quantified (Claude)
+
+- **Task:** fix the `locatorUpgrade` inference timeout so real Electron inference completes inside
+  180 s. Outcome: **no code fix is possible in AWKIT's layer**; the blocker is raw model/runtime
+  throughput on this host, now measured rather than hypothesised. Ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **New diagnostic `verify:ai-inference-profile`** (`scripts/verify-ai-inference-profile.mts` +
+  `scripts/ai-harness/profile.ts`, harness mode `profile`). It drives node-llama-cpp **directly**,
+  because the split is unobservable through the product host: the host returns its timings only on
+  completion, and it refuses unconstrained generation (`AI_SCHEMA_REQUIRED`) by design, so no request
+  through the product path can ever measure what the grammar costs. It asserts measurements exist,
+  never ceilings — `benchmark:ai-model` alone judges the numbers. **PASS 14/0.**
+- **Grammar hypothesis REFUTED, by a controlled A/B in one process** (identical ~146-token prompt,
+  same mask, same 3 threads, only the grammar differs): no grammar 1.43 tok/s prompt / 0.73 tok/s
+  decode / TTFT 114,914 ms; **with** grammar 1.58 / 0.75 / 101,617 ms. The constrained probe is
+  *faster* (`grammarDecodeSlowdown` 0.97, `grammarTtftDeltaMs` −9,968); grammar construction is
+  5–29 ms and cached. Host run-to-run spread reached **2×** on identical probes, which is larger than
+  any grammar effect. Vocabulary is 248,320 tokens, not the ~151k assumed. Storage cleared too: the
+  pack maps at ~183 MB/s, warm load 7.5 s.
+- **The bottleneck is raw throughput; prompt evaluation is the larger half** — 1.4–2.2 tok/s, about
+  half a decode step per prompt token. Projected: L1.8 packet **1,654,601 ms** vs a 180,000 ms ceiling
+  (9.2×); its 192-token output cap **alone with a free prompt** is **256,000 ms** (1.4× over); the
+  product's own per-call budget (`LOCATOR_ATTEMPT_LIMITS`: 30 s, 3,000 chars, 512 out) projects to
+  **1,242,107 ms** — **41×** over. Because the output cap alone breaches the ceiling, no prompt
+  trimming can close it; because the grammar is free, no decoding change can.
+- **Two harness defects fixed** (`scripts/ai-harness/harnessMain.ts`) — they were what blocked the
+  previous session's isolation attempt. A step's return value becomes its report `detail`, and
+  `LlamaModel.fileInsights` carries a cycle, so `JSON.stringify` threw from `step()`'s own `finally`;
+  in Electron an uncaught main-process error raises a **modal dialog**, so the harness stopped
+  answering and the launcher killed it 9 minutes later with no report — indistinguishable from "the
+  model never loaded", and it cost four full runs before the dialog was seen. `writeReport` now
+  serializes with ancestor tracking (shared-but-acyclic values untouched), and an `uncaughtException`
+  handler records and exits. `profile.ts` also returns a plain summary instead of the model.
+- **No runtime lease was taken.** `native-hosts/ai/ai-host.cjs` was inspected and is not implicated;
+  nothing in it needed changing, so the Risk-3 boundary was never approached. No ceiling was moved and
+  no timeout was raised.
+- **Files:** `scripts/ai-harness/profile.ts` (new), `scripts/verify-ai-inference-profile.mts` (new),
+  `scripts/ai-harness/harnessMain.ts`, `scripts/lib/verifier-classification.ts`, `package.json`,
+  `docs/plans/ai-upgrade-v5/L1-ai-foundation.md`,
+  `docs/plans/ai-upgrade-v5/evidence/L1.8-inference-profile.json` (new), `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`, `docs/ai/KNOWN_ISSUES.md`.
+- **Checks:** `verify:ai-inference-profile` **PASS 14/0**; `verify:ai-host-electron` **PASS 20/0**;
+  `verify:verifier-classification` **PASS**, 234 classified, 24 guards paths across 7 verifiers;
+  `npm run build` **PASS**; `typecheck:scripts` **PASS**; `verify:roadmap-dashboard` — see below.
+  `benchmark:ai-model` **NOT RERUN**: its inputs did not change and its `locatorUpgrade` scenario is
+  the failure being diagnosed.
+- **Remaining blocker (external, owner decision):** re-scope the model, the ceilings, or the
+  qualifying hardware. Confirm the measurement scope first — mask `0x3F` selects logical CPUs 0–5,
+  which on a 6-core/12-thread part is **3 physical cores**, not 6, and the harness has never verified
+  that topology.
+
 ## 2026-09-20 — L1.2 pinned and committed; L1.8 measured and FAILED on throughput (Claude)
 
 - **Task:** resume the interrupted L1 session, confirm the security boundary, finish L1.2, and diagnose

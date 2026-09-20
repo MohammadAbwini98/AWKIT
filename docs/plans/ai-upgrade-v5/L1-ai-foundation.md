@@ -178,12 +178,46 @@ load ≈ 54 MB/s; a 2.7 GB import at ≈ 31 MB/s) was **overturned** by the reso
 Not thrashing; not thread starvation. *Caveat:* Electron `percentCPUUsage` normalization is ambiguous —
 the evidence is the flat line and the 3:1 ratio, not the absolute number.
 
-**Not yet isolated:** prefill vs constrained decode. The host returns `promptMs`/`firstTokenMs`/
-`generationMs` only on completion, and no timed-out run completes. Leading hypothesis — **not a
-finding** — is JSON-schema GBNF sampling over Qwen3.5's ~151k vocabulary, applied to every token
-because `AI_SCHEMA_REQUIRED` refuses unconstrained generation.
+#### Isolated (2026-09-20): the grammar hypothesis is REFUTED. Evidence: `evidence/L1.8-inference-profile.json`
 
-**Per the rule above, L3 §8 / L4b / L5b are BLOCKED pending a model/runtime decision.** The owner must
+The split the section above could not reach is now measured by `verify:ai-inference-profile`, which
+drives node-llama-cpp directly under the same `0x3F` mask and the same 3 threads, and varies **one
+thing**: the JSON grammar. Both probes send the identical ~146-token prompt.
+
+| probe | prompt eval | decode | TTFT |
+|---|---|---|---|
+| A — no grammar | 1.43 tok/s | 0.73 tok/s | 114,914 ms |
+| B — **locatorUpgrade grammar** | 1.58 tok/s | 0.75 tok/s | 101,617 ms |
+
+**The grammar-constrained probe is marginally FASTER** (`grammarDecodeSlowdown` 0.97,
+`grammarTtftDeltaMs` −9,968). Grammar construction itself is 5–29 ms and cached. The prior leading
+hypothesis — GBNF sampling over the vocabulary (which is 248,320 tokens, not ~151k) — is refuted:
+its effect is smaller than the host's own run-to-run spread, which reached **2×** on repeated
+identical probes. Storage is also cleared: the pack maps at ~183 MB/s and loads warm in 7.5 s.
+
+**The bottleneck is raw throughput, and prompt evaluation is the larger half.** Prefill runs at
+1.4–2.2 tok/s — roughly *half a decode step per prompt token*, when it should be an order of
+magnitude cheaper. Decode is 0.64–1.10 tok/s. Projected from the measured rates:
+
+| | budget | projected | over by |
+|---|---|---|---|
+| L1.8 packet (2,000 in / 192 out) | 180,000 ms | **1,654,601 ms** | 9.2× |
+| — its 192-token output cap **alone**, free prompt | 180,000 ms | **256,000 ms** | 1.4× |
+| Product call, `LOCATOR_ATTEMPT_LIMITS` (3,000 chars / 512 out) | **30,000 ms** | **1,242,107 ms** | 41× |
+
+**No AWKIT-layer change closes this.** The output cap alone exceeds the ceiling with a free prompt,
+so no prompt trimming helps; the grammar is free, so no decoding-strategy change helps; and the
+runtime is a pinned offline prebuilt that cannot be rebuilt here. `native-hosts/ai/ai-host.cjs` was
+inspected and is **not** implicated — no runtime lease was taken, because nothing in the host needed
+changing.
+
+**L3 §8 / L4b / L5b stay BLOCKED — now on a quantified hardware/model decision, not an open
+question.** Remedy (2) from the list below is closed. The owner chooses between re-scoping the model
+(a smaller or non-hybrid one), the ceilings, or the qualifying hardware. Note the measurement scope
+itself is worth confirming: mask `0x3F` selects logical CPUs 0–5, which on a 6-core/12-thread part is
+**3 physical cores**, not 6 — the harness has never verified that topology.
+
+**Superseded remedy list (kept for the record).** The owner must
 choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
 grammar-off probe) and separate prefill from decode; then (2) if constrained decode dominates, revisit
 the decoding strategy; **or** (3) accept that a 4B Q4_K_M on a 2018 6-core mobile CPU is below the bar
@@ -196,6 +230,11 @@ was raised to hide throughput.
 `verify:ai-autonomy-policy` (tier matrix, T3 unreachable, cap, self-demotion), `verify:ai-audit-revert`;
 live: `verify:ai-model-live` (`NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
+
+`verify:ai-inference-profile` (`NOT RUN` without pack) is the **diagnostic** counterpart to
+`benchmark:ai-model`: it splits one inference into prompt evaluation, decode and grammar cost, so a
+missed ceiling says *why*. It asserts that measurements exist, never that they meet a ceiling —
+`benchmark:ai-model` alone judges the numbers.
 
 ## Acceptance
 
