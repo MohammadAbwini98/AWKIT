@@ -5499,6 +5499,173 @@ th {
   border-color: var(--awkit-danger);
 }
 
+/* ── L6 reusable fragments (Flow Designer) ──────────────────────────────────── */
+.modal-dialog.fragment-dialog {
+  max-width: 34rem;
+  max-height: calc(100dvh - var(--space-5) * 2);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.fragment-dialog-body {
+  display: grid;
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.fragment-step-picker {
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+}
+
+.fragment-step-picker legend {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-sm);
+  padding-inline: var(--space-2);
+}
+
+.fragment-step-list,
+.fragment-library,
+.fragment-findings,
+.fragment-inputs ul {
+  display: grid;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fragment-step-option {
+  align-items: center;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+.fragment-step-option:hover {
+  background: var(--awkit-surface-soft);
+}
+
+.fragment-step-name {
+  flex: 1;
+  font-size: var(--text-sm);
+}
+
+.fragment-step-type {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+}
+
+.fragment-library-row {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  width: 100%;
+}
+
+.fragment-library-row:hover {
+  border-color: var(--awkit-border-strong);
+}
+
+.fragment-library-row.selected {
+  background: var(--awkit-accent-muted);
+  border-color: var(--awkit-accent);
+}
+
+.fragment-library-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.fragment-library-meta,
+.fragment-library-description,
+.fragment-inputs-note {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-sm);
+}
+
+.fragment-detail {
+  border-top: 1px solid var(--awkit-border);
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+}
+
+.fragment-detail h3 {
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.fragment-detail-label {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.fragment-inputs {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fragment-inputs code {
+  font-size: var(--text-xs);
+}
+
+.fragment-finding {
+  border-radius: var(--radius-xs);
+  display: flex;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  line-height: var(--leading-sm);
+  padding: var(--space-2);
+}
+
+.fragment-finding.blocking {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger-text);
+}
+
+.fragment-finding.advisory {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning-text);
+}
+
+.fragment-finding-tag {
+  flex-shrink: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.fragment-findings-empty {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.fragment-blocked-note {
+  align-items: center;
+  background: var(--awkit-warning-soft);
+  border-radius: var(--radius-xs);
+  color: var(--awkit-warning-text);
+  display: flex;
+  font-size: var(--text-sm);
+  gap: var(--space-2);
+  line-height: var(--leading-sm);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
 /* ── Settings screen ────────────────────────────────────────────────────────── */
 .settings-stack {
   display: grid;

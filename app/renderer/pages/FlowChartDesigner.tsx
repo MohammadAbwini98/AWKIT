@@ -13,7 +13,7 @@ import {
   type EdgeTypes,
   type Viewport
 } from "../components/canvas";
-import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
+import { Blocks, Bookmark, FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
@@ -55,6 +55,9 @@ import {
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { InsertFragmentDialog, SaveFragmentDialog } from "../components/workflow/FragmentDialogs";
+import { applyFragment } from "@src/fragments/fragmentOperations";
+import { blockingFindings, type FlowFragment } from "@src/fragments/FlowFragment";
 import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
 import { usePageChrome } from "../state/pageChrome";
 import { usePermissions } from "../security/usePermissions";
@@ -133,6 +136,16 @@ function styledNode(node: FlowDesignerNode): FlowDesignerNode {
 }
 
 /**
+ * A readable, collision-resistant fragment id. `fragments:capture` goes through the store's
+ * `create`, which REFUSES an id that already exists, so the timestamp suffix is what keeps saving
+ * two fragments with the same name from failing rather than silently overwriting the first.
+ */
+function fragmentIdFor(name: string): string {
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+  return `${slug === "" ? "fragment" : slug}-${Date.now().toString(36)}`;
+}
+
+/**
  * Order-independent serialization of the saveable flow document. Used to detect
  * real unsaved changes (vs transient UI state like selection, zoom, or React
  * Flow node-measurement/elevation reordering).
@@ -164,6 +177,8 @@ function FlowChartDesignerContent() {
   // AWKIT-A11Y-001: the conditional fix-preview dialog carries the modal focus contract via the
   // shared hook; `active` gates it because this host component always renders.
   const { dialogRef: fixPreviewRef } = useModalFocusContract(() => setFixPreview(null), fixPreview !== null);
+  /** Which fragment surface is open (L6). Only one at a time; both are modal. */
+  const [fragmentDialog, setFragmentDialog] = useState<"save" | "insert" | null>(null);
   /** The most recent migration, so the user can undo it while the flow is still untouched. */
   const [lastMigration, setLastMigration] = useState<{ flowId: string; migrationId: string; backupPath: string } | null>(null);
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
@@ -733,6 +748,133 @@ function FlowChartDesignerContent() {
       setToast({ tone: "error", message: `Failed to save changes. ${error instanceof Error ? error.message : ""}`.trim() });
     }
   }, [flowProfile]);
+
+  /* ── L6 reusable fragments ─────────────────────────────────────────────────
+   * Two different write paths, deliberately.
+   *
+   * CAPTURE goes through `fragments:capture`, which reads the flow from the store and creates the
+   * fragment in main. That is the only way a fragment is created — there is no blind-write import
+   * channel — so the audit that refuses a protected-login step or a resolved secret cannot be
+   * skipped by a renderer.
+   *
+   * INSERT does NOT go through `fragments:apply`. That channel writes the stored flow, which would
+   * bypass this editor: an insertion the user could not undo, that would be silently overwritten by
+   * the next save of an already-dirty document. Insertion here is an ordinary editor transaction
+   * built by the SAME pure `applyFragment`, so undo/redo, dirty state and Save are the existing
+   * ones, and the user's unsaved work is never touched. `fragments:apply` remains the audited
+   * store-write path for callers that are not the editor.
+   */
+  const fragmentCandidateSteps = useMemo(
+    () =>
+      nodes
+        .filter((node) => node.data.stepType !== "start" && node.data.stepType !== "end")
+        .map((node) => ({ id: node.id, name: node.data.name, stepType: node.data.stepType })),
+    [nodes]
+  );
+
+  const captureSelectionAsFragment = useCallback(
+    async (input: { nodeIds: string[]; name: string; description?: string }) => {
+      try {
+        const result = await window.playwrightFlowStudio.fragments.capture({
+          flowId,
+          id: fragmentIdFor(input.name),
+          name: input.name,
+          nodeIds: input.nodeIds,
+          ...(input.description === undefined ? {} : { description: input.description })
+        });
+        if (!result.ok) {
+          const blocking = blockingFindings(result.findings);
+          setToast({
+            tone: "error",
+            message: `This selection cannot be saved as a fragment. ${blocking[0]?.message ?? "The audit refused it."}`
+          });
+          return;
+        }
+        setFragmentDialog(null);
+        const advisories = result.findings.length;
+        setToast({
+          tone: "success",
+          message: `Saved fragment “${input.name}”.${advisories > 0 ? ` ${advisories} advisory note${advisories === 1 ? "" : "s"} — connectors crossing the selection were not captured.` : ""}`
+        });
+      } catch (error) {
+        setToast({ tone: "error", message: error instanceof Error ? error.message : "The fragment could not be saved." });
+      }
+    },
+    [flowId]
+  );
+
+  const insertFragment = useCallback(
+    (fragment: FlowFragment) => {
+      // Built against the LIVE graph at click time, never against a render-time snapshot or the
+      // state the dialog audited against, so a refusal here is the authoritative one.
+      const currentNodes = nodesLiveRef.current;
+      const currentEdges = edgesLiveRef.current;
+      const result = applyFragment({
+        flow: toFlowProfile(currentNodes, currentEdges, flowId, flowName, flowMeta),
+        fragment,
+        referenceableFlowIds: new Set(savedFlows.map((profile) => profile.id))
+      });
+      if (!result.ok) {
+        setFragmentDialog(null);
+        const blocking = blockingFindings(result.findings);
+        setToast({
+          tone: "error",
+          message: `“${fragment.name}” was not inserted. ${blocking[0]?.message ?? "The audit refused it."}`
+        });
+        return;
+      }
+
+      // Identify what was added by id rather than by position, so this does not depend on
+      // `applyFragment` appending in any particular order.
+      const existingNodeIds = new Set(currentNodes.map((node) => node.id));
+      const existingEdgeIds = new Set(currentEdges.map((edge) => edge.id));
+      const insertedNodes = result.value.flow.nodes
+        .filter((step) => !existingNodeIds.has(step.id))
+        .map((step) =>
+          styledNode({
+            id: step.id,
+            type: "actionNode",
+            position: step.position ?? { x: 640, y: 180 },
+            data: fromFlowStep(step)
+          })
+        );
+      const insertedEdges = result.value.flow.edges
+        .filter((edge) => !existingEdgeIds.has(edge.id))
+        .map((edge) =>
+          createEdge(
+            edge.source,
+            edge.target,
+            edge.type,
+            edge.label,
+            edge.condition?.expression,
+            edge.style,
+            edge.maxLoopCount,
+            { kind: edge.kind, conditional: edge.conditional, parallel: edge.parallel, loop: edge.loop },
+            edge.id
+          )
+        );
+
+      insertAndArrangeNodes(insertedNodes, reconcileFlowBranches([...currentEdges, ...insertedEdges]));
+      setSelectedNodeId(insertedNodes[0]?.id ?? null);
+      setSelectedEdgeId(null);
+      setSaveState("Unsaved changes");
+      setFragmentDialog(null);
+      setToast({
+        tone: "success",
+        message: `Inserted ${insertedNodes.length} step${insertedNodes.length === 1 ? "" : "s"} from “${fragment.name}”. They arrive unconnected — wire them into the flow, then save.`
+      });
+    },
+    [flowId, flowMeta, flowName, insertAndArrangeNodes, savedFlows]
+  );
+
+  const deleteFragment = useCallback(async (fragment: FlowFragment) => {
+    try {
+      await window.playwrightFlowStudio.fragments.delete(fragment.id);
+      setToast({ tone: "success", message: `Deleted fragment “${fragment.name}”.` });
+    } catch (error) {
+      setToast({ tone: "error", message: error instanceof Error ? error.message : "The fragment could not be deleted." });
+    }
+  }, []);
 
   const loadProfile = useCallback(
     (profile: FlowProfile) => {
@@ -1379,6 +1521,32 @@ function FlowChartDesignerContent() {
               <FolderOpen size={15} aria-hidden="true" />
             </EditorIconButton>
           </EditorCommandGroup>
+          {/* L6: both controls are permission-gated and always execute a real operation. The save
+              control stays enabled with nothing selected — the dialog is where a selection is made. */}
+          <EditorCommandGroup label="Fragments">
+            <button
+              className="toolbar-button"
+              data-testid="fragment-save-open"
+              disabled={!can(Permission.WORKFLOW_CREATE)}
+              onClick={() => setFragmentDialog("save")}
+              title="Save the selected steps as a reusable fragment"
+              type="button"
+            >
+              <Bookmark size={15} aria-hidden="true" />
+              Save as fragment
+            </button>
+            <button
+              className="toolbar-button"
+              data-testid="fragment-insert-open"
+              disabled={!canSaveFlow}
+              onClick={() => setFragmentDialog("insert")}
+              title="Insert a saved fragment into this flow"
+              type="button"
+            >
+              <Blocks size={15} aria-hidden="true" />
+              Insert fragment
+            </button>
+          </EditorCommandGroup>
           <EditorCommandGroup label="Layout & history" className="editor-command-utilities">
             <EditorIconButton onClick={autoArrange} title="Auto-arrange steps" aria-label="Auto-arrange steps">
               <LayoutGrid size={15} aria-hidden="true" />
@@ -1511,6 +1679,24 @@ function FlowChartDesignerContent() {
           icon="connect"
           onConfirm={confirmConnect}
           onCancel={() => setConnectPrompt(null)}
+        />
+      ) : null}
+      {fragmentDialog === "save" ? (
+        <SaveFragmentDialog
+          editorDirty={isDirty}
+          flowName={flowName}
+          onCancel={() => setFragmentDialog(null)}
+          onCapture={captureSelectionAsFragment}
+          seedStepIds={selectedNodeId !== null && fragmentCandidateSteps.some((step) => step.id === selectedNodeId) ? [selectedNodeId] : []}
+          steps={fragmentCandidateSteps}
+        />
+      ) : null}
+      {fragmentDialog === "insert" ? (
+        <InsertFragmentDialog
+          flowId={flowId}
+          onCancel={() => setFragmentDialog(null)}
+          onDelete={deleteFragment}
+          onInsert={insertFragment}
         />
       ) : null}
     </DesignerCanvasLayout>
