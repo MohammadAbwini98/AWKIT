@@ -1,7 +1,8 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **IN PROGRESS — L0 complete 2026-09-19; L1 foundation built, runtime binding and benchmark
-blocked on an owner decision** (owner audit below; decisions ratified in `docs/ai/DECISIONS.md`).
+Status: **IN PROGRESS — L0 complete 2026-09-19; L1 built and pinned but its live-inference gate FAILS;
+development continues under a conditional authorization that closes no milestone** (owner audit below;
+decisions ratified in `docs/ai/DECISIONS.md`).
 Roadmap Phase `L` (`in-progress`), Beads epic `awkit-djnl`.
 Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
@@ -128,7 +129,10 @@ L0 ─┬─ L1 ─────────┬─ L3 ──┐
     └─ L5a ── L5b (needs L1) ──────┘
 ```
 
-AI-dependent work (L3, L4b, L5b, AI parts of L6) starts only after the **L1 performance go/no-go PASS**.
+AI-dependent work (L3, L4b, L5b, AI parts of L6) may be **implemented** against the deterministic
+providers under the conditional development authorization of 2026-09-20
+(`L1-ai-foundation.md` › *L1 status: PARTIAL PASS*), but no such milestone **closes** before the
+**L1 performance go/no-go PASS**. The `blocks` edges L1 → L3 / L4b / L5b encode acceptance and stay.
 
 ## Owner audit — existing owners to reuse (§6, L0 2026-09-19)
 

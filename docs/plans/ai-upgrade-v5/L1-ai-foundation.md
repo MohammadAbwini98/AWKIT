@@ -224,6 +224,51 @@ the decoding strategy; **or** (3) accept that a 4B Q4_K_M on a 2018 6-core mobil
 and re-scope the model, the ceilings, or the qualifying hardware. No ceiling was moved and no timeout
 was raised to hide throughput.
 
+## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
+
+The owner has read the NO-GO above and decided that Phase L **development** continues without waiting
+for it. This section records what that authorization does and does not cover. **It changes no measured
+number, no ceiling and no gate result.** `evidence/L1.8-benchmark.json` and
+`evidence/L1.8-inference-profile.json` are unchanged, `benchmark:ai-model`'s `locatorUpgrade` scenario
+is still a **FAIL**, and nothing below reclassifies it.
+
+| L1 task | State | Counts toward |
+|---|---|---|
+| L1.1 AiService host | PASS — `verify:ai-host` 135/0 + 12/12 mutations; `verify:ai-host-electron` 20/0 (`7f441a38`) | development + release |
+| L1.2 Model pack, manifest and runtime pin | PASS — `verify:ai-model-pack` 46/46, 1 pinned pack (`a28050c7`) | development + release |
+| L1.3 Output contract | PASS — `verify:ai-adapter` 102/0, `verify:ai-redaction` 52/0 | development + release |
+| L1.4 Autonomy policy, audit, revert | PASS — `verify:ai-autonomy-policy` 62/0, `verify:ai-audit-revert` 69/0 | development + release |
+| L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
+| L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
+| L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
+| **L1.8 live inference latency** | **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s | **release only — unmet** |
+
+**What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
+*Intelligence* section — against the **deterministic providers that already exist**
+(`FakeAiHostTransport`, the scripted plan fixtures L3 §4–§7 use). Those features are structurally
+independent of inference throughput: the contract, the compiler, the intent guard, the proof gates, the
+policy and the audit trail are all deterministic, and L3 §2–§7 and §10 were already built this way while
+L1 stayed open. Building them now is what makes the eventual model decision a *swap*, not a rewrite.
+
+**What it does NOT permit, and what an agent must not do with it.**
+
+1. **No milestone closes on it.** `awkit-djnl.1` stays `in_progress`. The `blocks` edges L1 → L3, L1 →
+   L4b and L1 → L5b are **correct and stay**, because they encode *acceptance*, not *permission to type*.
+   A milestone whose acceptance criteria name live-model behavior cannot be closed while L1.8 fails.
+2. **No ceiling moves and no gate is relabelled.** The 180,000 ms background-job ceiling, the 30,000 ms
+   `LOCATOR_ATTEMPT_LIMITS.timeoutMs` and the recorded measurements stay exactly as they are. A `FAIL`
+   is never rewritten as `BLOCKED`, `INCONCLUSIVE` or `PASS`.
+3. **No production feature may require a model to behave correctly.** Every AI path keeps its existing
+   guarantee: no model, a disabled model, a timeout or a crash leaves behavior identical to today. A
+   deterministic provider is a **test** substitute, never a shipped one.
+4. **No release claim.** The live gates `verify:ai-model-live`, `benchmark:ai-model` and
+   `verify:ai-locator-quality-live` remain the only evidence that would satisfy L1.8, and none of them
+   passes. L7 cannot be entered on this authorization.
+
+**Still outstanding for L1 acceptance** (unchanged): the owner's choice between re-scoping the model, the
+ceilings, or the qualifying hardware — and, before that choice, confirming the measurement scope, since
+mask `0x3F` selects logical CPUs 0–5, which on a 6-core/12-thread part is 3 **physical** cores.
+
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,

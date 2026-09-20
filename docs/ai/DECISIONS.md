@@ -1,5 +1,30 @@
 # DECISIONS
 
+### 2026-09-20 — Phase L continues under a conditional development authorization; L1 is a PARTIAL PASS (`awkit-djnl.1`)
+
+- **The owner separated permission to develop from permission to accept.** L1.8's `locatorUpgrade` ceiling
+  is measurably unmet (>240,000 ms against 180,000 ms; the product path times out at 120 s) and no
+  AWKIT-layer change closes it. Rather than idle the phase behind a hardware/model decision, the owner
+  authorized implementation of the AI-dependent milestones against the deterministic providers, on the
+  explicit condition that **no milestone whose acceptance criteria name live-model behavior may close.**
+- **The dependency edges are the mechanism, so they stay.** `bd` keeps L1 → L3, L1 → L4b and L1 → L5b as
+  `blocks`. Deleting them would have made `bd ready` list work whose acceptance is unmet, which is exactly
+  the confusion between progress and readiness this decision exists to prevent. The authorization is
+  recorded as a **note on each affected item**, not as a graph edit. `bd ready` therefore still shows only
+  L5a and the epic, and that is the correct answer.
+- **A FAIL is never relabelled.** `evidence/L1.8-benchmark.json` and `L1.8-inference-profile.json` are
+  frozen; the ceilings in `scripts/benchmark-ai-model.mts` and `LOCATOR_ATTEMPT_LIMITS` are unchanged. The
+  alternative — softening a threshold so the gate reports green — would destroy the only measurement that
+  makes the model decision answerable.
+- **Deterministic providers are a test substitute and never a shipped one.** Every AI feature keeps the L1
+  stability guarantee: no model, disabled, timed out or crashed ⇒ behavior identical to today. A feature
+  that needed `FakeAiHostTransport` at runtime would be a product defect, not a development shortcut.
+- **Why this is safe to build now.** The value in L3–L6 is overwhelmingly in the deterministic half — the
+  plan DSL, the trusted compiler, the intent guard, the proof gates, the autonomy policy, the audit trail
+  and the UX. L3 §2–§7 and §10 were already built this way while L1 stayed open, and that precedent held:
+  none of it needed rewriting when the runtime finally landed. Whatever model the owner chooses later is a
+  provider swap behind `AiService`.
+
 ### 2026-09-20 — Phase L L3 §10: the Intelligent Locator status vocabulary (`awkit-djnl.4`)
 
 - **One table, not a component's opinion.** `src/ai/locatorStatus.ts` is the single mapping from authoritative

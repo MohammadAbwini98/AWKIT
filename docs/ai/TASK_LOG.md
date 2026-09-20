@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-21 — L1 recorded as a PARTIAL PASS; Phase L resumes under a conditional authorization (Claude)
+
+- **Task:** record the owner's decision to continue Phase L development without waiting for the L1.8
+  inference-performance resolution, in a way that cannot later be read as acceptance. Ledger unchanged
+  at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **The failed evidence is preserved verbatim.** `evidence/L1.8-benchmark.json` and
+  `L1.8-inference-profile.json` are untouched, no ceiling in `scripts/benchmark-ai-model.mts` or
+  `LOCATOR_ATTEMPT_LIMITS` moved, and `benchmark:ai-model` was **NOT RERUN** — its inputs did not change
+  and its failing scenario is what is being recorded. L1.8 is still a **FAIL**.
+- **The distinction that makes this safe is permission-to-develop versus permission-to-close**, and it is
+  carried by the dependency graph rather than by prose: the `blocks` edges L1 → L3 / L4b / L5b **stay**,
+  so `bd ready` still lists only L5a and the epic. Deleting them would have made the tracker advertise
+  work whose acceptance is unmet, which is the exact confusion the decision exists to prevent.
+- **Files:** `docs/plans/ai-upgrade-v5/L1-ai-foundation.md` (new *L1 status: PARTIAL PASS* section with
+  the per-task PASS/FAIL table), `docs/plans/ai-upgrade-v5/ROADMAP.md` (the gating sentence now
+  distinguishes implement from close), `docs/ai/DECISIONS.md`, `docs/ai/CURRENT_STATE.md`, this file.
+- **One gate BLOCKED, structurally.** The authorization could not be written as a `bd` note:
+  `isAllowedUnleasedShellCommand` (`tools/agents/lease-guard.mjs:474`) composes `isReadOnlyShellCommand`,
+  `isCommonWriterCommand`, `isManagerWriterCommand`, `isUnleasedGitCommand` and the two lease commands,
+  and deliberately omits `isProjectStateCommand` — the one that admits `bd create|update|close` and
+  `bd export -o .beads/issues.jsonl`. Every mutating `bd` verb is therefore unreachable in the direct
+  loop and needs a routed `project-state` lease. Three attempts reached the guard's terminal denial; no
+  variant was tried afterwards. Tracker untouched at 10 outstanding / 292 closed.
+
 ## 2026-09-20 — L1.8 isolated: the grammar hypothesis REFUTED, the blocker quantified (Claude)
 
 - **Task:** fix the `locatorUpgrade` inference timeout so real Electron inference completes inside

@@ -1,6 +1,40 @@
 # CURRENT_STATE
 
-## L1.8 isolated: the grammar hypothesis is REFUTED; the blocker is raw throughput (2026-09-20, current)
+## L1 recorded as a PARTIAL PASS; Phase L development resumes under a conditional authorization (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: this is a plan/decision record plus the Phase L gates, which are
+not ledger cases.
+
+**The owner separated permission to develop from permission to accept.** L1.8's measured FAIL stands
+exactly as recorded in the section below — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling,
+the product path returning `TIMEOUT` at 120 s, and both evidence files untouched. Nothing was
+relabelled, no ceiling moved, and `benchmark:ai-model` was NOT rerun, because its inputs did not change
+and its failing scenario is the thing being recorded rather than re-litigated.
+
+| L1 | State |
+|---|---|
+| L1.1–L1.7 (host, model pack and pin, output contract, autonomy/audit/revert, permissions, resources, fake provider) | **PASS** |
+| L1.8 live inference latency | **FAIL — release-blocking, unchanged** |
+| Production / release acceptance | **NOT APPROVED** |
+
+**What the authorization permits:** implementing L3 §8/§9, L4b, L5b and the L6 *Intelligence* section
+against the deterministic providers that already exist. **What it does not permit:** closing any of
+them. `awkit-djnl.1` stays `in_progress` and its `blocks` edges to `awkit-djnl.4`, `.6` and `.8` stay,
+because they encode acceptance rather than permission to type. `bd ready` therefore still lists only
+L5a and the epic, which is the correct answer.
+
+**One gate is BLOCKED and it is structural, not correctable.** The conditional authorization could not
+be written into the tracker as a `bd` note: `isAllowedUnleasedShellCommand` in
+`tools/agents/lease-guard.mjs` composes `isReadOnlyShellCommand`, `isCommonWriterCommand`,
+`isManagerWriterCommand`, `isUnleasedGitCommand` and the two lease commands — and deliberately **not**
+`isProjectStateCommand`, which is the function that admits `bd create|update|close` and
+`bd export -o .beads/issues.jsonl`. So every mutating `bd` verb is unavailable in the direct loop and
+is reachable only by a `project-state` specialist under a routed lease. Three attempts hit the guard's
+terminal denial. The decision therefore lives in `DECISIONS.md`, the L1 plan and here; the tracker is
+untouched at **10 outstanding / 292 closed**, which is also the state the decision calls for.
+
+## L1.8 isolated: the grammar hypothesis is REFUTED; the blocker is raw throughput (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-inference-profile`, like `verify:ai-model-live`, is a
