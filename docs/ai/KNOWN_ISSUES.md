@@ -1,5 +1,36 @@
 # KNOWN_ISSUES
 
+## A harness that reports only at the end turns every timeout into "no evidence" (2026-09-20, FIXED — the pattern is the lesson)
+
+- **What happened.** `scripts/ai-harness/harnessMain.ts` wrote its JSON report exclusively in
+  `finish()`. When the launcher killed it at its timeout, `finish()` never ran, so `runAiHarness`
+  returned `null` and `verify:ai-model-live` printed a single line: *"no report: Electron never reached
+  `app.whenReady()` or timed out"*. **Two 480-second runs produced one bit of information**, and every
+  step that had already PASSED and every timing already measured were discarded.
+- **Why it matters beyond this gate.** "The model is too slow" and "Electron never started" became
+  literally the same observation. An expensive instrument that can only answer *worked* or *nothing*
+  cannot diagnose anything — this is the same fail-open shape as a check that passes vacuously, just
+  pointed at evidence instead of assertions.
+- **The rules.** A long-running harness writes its report **after every step**, and before each step
+  records the in-flight label so a killed run names where it died. Guard the pass: `ok` must require
+  `complete`, so a truncated report can never be read as a short list of passes — and surface
+  `complete: false` as an explicit **FAILED** check, never as silence.
+- **Second defect, same path: a fire-and-forget kill races the cleanup.** `killTree` was a bare
+  `spawn("taskkill"…)` that returned before `taskkill` had run, so the caller deleted the staged model
+  root while Electron still had the 2.7 GB `.gguf` memory-mapped. On Windows that is `EPERM` on
+  `unlink`: it crashed the verifier *after* its results printed and leaked a full model copy plus a
+  live utility host **per timed-out run**. Now `execFileSync` plus a 2 s settle, because Windows
+  releases a mapped section slightly *after* the process itself is gone. **If you kill a process tree
+  and then delete files it had open, the kill must be synchronous and then some.**
+- **Third: a resource sample kept only on success.** The bench recorded CPU and working set only when
+  an inference returned — so a packet that blew its ceiling reported *that* it was slow with no
+  evidence of *why*. The sample is the most valuable exactly when the step fails. It is kept on failure
+  now, and the per-infer timeout was set below the launcher's kill (240 s, still above the 180 s
+  ceiling) so the scenario **returns** a recordable timeout instead of the harness being killed.
+- **It immediately paid for itself and overturned a wrong reading.** The 50 s cold model load looked
+  like slow storage; the recovered sample showed a flat, pinned CPU line at ~3× the load-time value
+  with the model resident — compute-bound, not thrashing. The first diagnosis would have been wrong.
+
 ## A truncated download keeps the right filename, and a failed command in a chain still reports exit 0 (2026-09-20, RESOLVED here — the pattern is the lesson)
 
 - **What happened.** `curl.exe … ; echo …; ls -l …` — the download died at 1,084,225,386 of

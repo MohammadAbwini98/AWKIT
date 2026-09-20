@@ -156,6 +156,40 @@ tokens/s, TTFT, cancellation latency, CPU, Recorder responsiveness, Playwright i
 Record per-feature budgets from results. If unacceptable after tuning, mark L3/L4b/L5b **BLOCKED pending model/runtime
 decision**.
 
+#### Result (2026-09-20): NO-GO. Evidence: `evidence/L1.8-benchmark.json`
+
+Host: Intel i7-8750H, 12 logical CPUs, 16 GB, Windows 10 — constrained to 6 CPUs (mask `0x3F`),
+3 inference threads. Runtime `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`, pack `25082a7d…1418c`.
+
+| Criterion | Ceiling | Measured | |
+|---|---|---|---|
+| Cold model load | 60,000 ms | 50,101 ms (warm 10,488 ms) | PASS |
+| Host peak working set | 6,144 MB | 3,550 MB | PASS |
+| Main-loop delay p99 | 100 ms | 21 ms | PASS |
+| `locatorUpgrade` background job | 180,000 ms | >240,000 ms ×2, no answer | **FAIL** |
+
+Through the production `AiService`, with the model already loaded, a ~250-token prompt capped at 128
+output tokens returns `TIMEOUT` at 120 s — under ~1 token/s.
+
+**Bottleneck: compute, with the model fully resident.** An initial slow-storage reading (50 s cold
+load ≈ 54 MB/s; a 2.7 GB import at ≈ 31 MB/s) was **overturned** by the resource sample — warm load is
+10,488 ms, the working set stays at 3,550 MB, and CPU holds a *flat* line (avg 25 / max 26) across
+240 s at ~3× the 8 observed during the single-threaded load, matching the 3 configured threads.
+Not thrashing; not thread starvation. *Caveat:* Electron `percentCPUUsage` normalization is ambiguous —
+the evidence is the flat line and the 3:1 ratio, not the absolute number.
+
+**Not yet isolated:** prefill vs constrained decode. The host returns `promptMs`/`firstTokenMs`/
+`generationMs` only on completion, and no timed-out run completes. Leading hypothesis — **not a
+finding** — is JSON-schema GBNF sampling over Qwen3.5's ~151k vocabulary, applied to every token
+because `AI_SCHEMA_REQUIRED` refuses unconstrained generation.
+
+**Per the rule above, L3 §8 / L4b / L5b are BLOCKED pending a model/runtime decision.** The owner must
+choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
+grammar-off probe) and separate prefill from decode; then (2) if constrained decode dominates, revisit
+the decoding strategy; **or** (3) accept that a 4B Q4_K_M on a 2018 6-core mobile CPU is below the bar
+and re-scope the model, the ceilings, or the qualifying hardware. No ceiling was moved and no timeout
+was raised to hide throughput.
+
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,

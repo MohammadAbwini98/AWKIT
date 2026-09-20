@@ -1,5 +1,54 @@
 # TASK_LOG
 
+## 2026-09-20 — L1.2 pinned and committed; L1.8 measured and FAILED on throughput (Claude)
+
+- **Task:** resume the interrupted L1 session, confirm the security boundary, finish L1.2, and diagnose
+  the live-inference failure. Outcome **B**: L1.2 complete and committed, L1.8 truthfully FAILED.
+  Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **Security boundary first.** `.claude/settings.json` is byte-identical to the committed version with
+  the full `Edit|Write|NotebookEdit|Bash|PowerShell` matcher, and it was proven *active* by blocking
+  this session's own commands. `tools/agents/lease-guard.mjs` and `scripts/ai-harness/` carried no
+  uncommitted modifications. **The guard was never narrowed or bypassed in this session.**
+- **L1.2 (`a28050c7`).** Every manifest field measured from the artifact, not a model card: size
+  2,707,513,696, SHA-256 `25082a7d…1418c`, and `GGUF v3` / `qwen35` / `context_length 262144` / 426
+  tensors read from the header. `AI_RUNTIME_PIN.build` moved from `null` to
+  `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`. `verify:ai-model-pack` **46/46, `1 pinned pack(s)`**;
+  pack/pins 3/3 and the real `AiModelPackStore` import 3/3 inside `verify:ai-model-live`.
+- **The instrument had to be fixed before anything could be diagnosed (`8eca0eee`).** `harnessMain`
+  wrote its report only at the very end, so a harness killed by the launcher timeout left **no report
+  at all** — "the model is slow" and "Electron never started" were the same observation, and two 480 s
+  runs produced one line. The report is now written after every step with the in-flight label, `ok`
+  requires `complete` so a truncated run can never read as a pass, and `printSteps` turns truncation
+  into an explicit FAILED check. `killTree` was a bare `spawn` that returned before `taskkill` ran, so
+  cleanup deleted the model root while Electron still had the 2.7 GB `.gguf` mapped — EPERM, a crashed
+  verifier and a leaked model copy plus a live host per timed-out run; now `execFileSync` + a 2 s
+  settle. The bench kept its resource sample only on success; it now keeps it on failure too.
+- **L1.8 measured (i7-8750H, 12 logical CPUs, 16 GB; 6 CPUs / 3 threads).** Cold load 50,101 ms and
+  warm 10,488 ms (ceiling 60,000) PASS; peak working set 3,550 MB (6,144) PASS; main-loop p99 21 ms
+  (100) PASS; `locatorUpgrade` **FAIL** — >240,000 ms against a 180,000 ms ceiling, twice, without
+  producing 192 tokens. Through `AiService` a ~250-token prompt capped at 128 tokens does not finish in
+  120 s (under ~1 token/s).
+- **Root cause narrowed, and one early reading overturned.** The 50 s cold load suggested slow storage
+  (~54 MB/s, corroborated by a 2.7 GB import at ~31 MB/s), but the resource sample refuted it: warm
+  load is 10,488 ms, the working set stays resident at 3,550 MB, and CPU is a **flat** line (avg 25 /
+  max 26) across 240 s at ~3× the 8 of the single-threaded load — the 3 configured threads, saturated.
+  **Compute-bound with the model resident; not thrashing, not thread starvation.** Caveat recorded:
+  Electron `percentCPUUsage` normalization is ambiguous, so the flat line and the 3:1 ratio are the
+  evidence, not the absolute number.
+- **Not isolated:** prefill vs constrained decode — the host reports timings only on completion.
+  Leading hypothesis is JSON-schema GBNF sampling over a ~151k vocabulary on every token, stated as a
+  hypothesis. Testing it needs `native-hosts/**`, which is `runtime`-owned Risk-3 and not authorized by
+  this contract.
+- **Files:** `src/offline/AiModelManifest.ts`, `resources/THIRD_PARTY_NOTICES.md`, `package.json`,
+  `package-lock.json`, `scripts/ai-harness/{harnessMain.ts,launch.mts,bench.ts}`,
+  `docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`.
+- **Checks:** build PASS, typecheck:scripts PASS, verify:ai-model-pack 46/46, verify:ai-host-electron
+  20/20, verify:ai-model-live **FAIL** (truthfully — 6 pack/import checks pass, the live harness fails),
+  benchmark:ai-model load PASS / locatorUpgrade FAIL. Characterising the 238 lockfile deletions line by
+  line is **BLOCKED**: the guard grammar refuses pipes and redirects and the third denial is terminal.
+- **Result:** L1.2 done, L1.8 FAILED, L1 stays `in_progress`; L3 §8, L4b, L5b, L6 Intelligence stay
+  gated. No ceiling moved, no timeout raised, no acceptance implied.
+
 ## 2026-09-20 — Acquisition executed: pack verified, runtime blocked on the Node version (Claude)
 
 - **Task:** run both L1 acquisition commands under explicit owner instruction, then complete L1.2/L1.8.

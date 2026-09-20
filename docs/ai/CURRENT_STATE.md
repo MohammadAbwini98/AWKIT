@@ -1,6 +1,57 @@
 # CURRENT_STATE
 
-## Model pack ACQUIRED and verified; the runtime is blocked on Node 18.16 vs a required ≥20 (2026-09-20, current)
+## L1.2 is COMPLETE and pinned; L1.8 FAILS on measured inference throughput (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-model-live` is a Phase L gate, not a ledger case.
+
+**The Node blocker from the previous section is RESOLVED and L1.2 is done.** The runtime installed
+(portable Node 22 was used for the install only; system Node is still 18.16 and the product does not
+depend on either), and `@node-llama-cpp/win-x64/bins/win-x64/llama-addon.node` is now really present
+rather than silently skipped. `AI_MODEL_MANIFEST` pins one measured pack and `AI_RUNTIME_PIN.build`
+pins `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`. Committed in `a28050c7`.
+**`verify:ai-model-pack` 46/46, now ending `1 pinned pack(s)` where it ended `0`.** Inside
+`verify:ai-model-live` the pack-and-pins section is 3/3 and the real `AiModelPackStore` import is 3/3
+— the pack imports, stores under its checksum, and re-hashes and verifies for load.
+
+**L1.8 is NOT accepted. The approved model and runtime cannot meet the pre-registered latency ceiling
+on this host.** Measured, not inherited (`docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json`):
+
+| Criterion | Ceiling | Measured | |
+|---|---|---|---|
+| Cold model load | 60,000 ms | **50,101 ms** (warm 10,488 ms) | PASS |
+| Host peak working set | 6,144 MB | **3,550 MB** | PASS |
+| Main-loop delay p99 | 100 ms | **21 ms** | PASS |
+| `locatorUpgrade` background job | 180,000 ms | **>240,000 ms, no answer** | **FAIL** |
+
+Through the production `AiService` the failure is a clean `TIMEOUT`: with the model already loaded, a
+~250-token prompt capped at 128 output tokens does not finish in 120 s — under ~1 token/s.
+
+**The bottleneck is COMPUTE, with the model fully resident — not storage and not thread starvation.**
+The 50 s cold load first suggested slow disk (~54 MB/s), and that reading was **overturned** by the
+resource sample: during 240 s of inference the host's CPU is a *flat* line (avg 25, max 26) at about
+**3×** the 8 it shows during the single-threaded load, matching the 3 configured inference threads
+exactly, while the working set stays resident at 3,550 MB. Caveat kept rather than hidden: Electron's
+`percentCPUUsage` normalization is ambiguous, so the defensible signal is the flat, pinned line and
+the 3:1 ratio, not the absolute number.
+
+**Still NOT isolated: the split between prompt prefill and constrained decode.** The host returns its
+`promptMs`/`firstTokenMs`/`generationMs` only on completion, and no timed-out run completes. The
+leading remaining hypothesis is JSON-schema GBNF constrained sampling over Qwen3.5's ~151k vocabulary,
+which AWKIT mandates on every token (`AI_SCHEMA_REQUIRED` refuses unconstrained generation) — it is a
+CPU cost and fits a saturated-but-crawling profile. **It is a hypothesis, not a finding.**
+
+**Open owner decision — this is what L1 now waits on.** The candidate remedies all sit behind a
+`runtime`-owned Risk-3 boundary (`native-hosts/**`) that this task's contract does not authorize, and
+one of them changes the host's memory profile on a 16 GB target:
+1. measure prefill vs decode (needs the host to report timings on timeout, or a grammar-off probe);
+2. if decode under grammar dominates, revisit the constrained-decoding strategy;
+3. or accept that a 4B Q4_K_M on a 2018 6-core mobile CPU is below the bar and re-scope the model,
+   the ceilings, or the qualifying hardware.
+**No ceiling was moved, no timeout was raised to hide throughput, and no acceptance was claimed.**
+L1 stays `in_progress`; L3 §8, L4b, L5b and L6 Intelligence stay gated behind it.
+
+## Model pack ACQUIRED and verified; the runtime is blocked on Node 18.16 vs a required ≥20 (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved, and no product source changed. Both acquisition commands were executed under explicit owner

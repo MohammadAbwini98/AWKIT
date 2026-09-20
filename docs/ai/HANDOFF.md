@@ -1,6 +1,39 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — model pack acquired and verified; runtime blocked on Node 18.16 vs ≥20
+## HANDOFF (2026-09-20, latest) — L1.2 pinned and committed; L1.8 FAILS on measured throughput
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `verify:ai-model-live`
+  is a Phase L gate, not a ledger case, so nothing moved.
+- **Commits:** `a28050c7` (L1.2 pin) and `8eca0eee` (harness evidence + L1.8 measurements). Pushed.
+- **The Node blocker is GONE and L1.2 is COMPLETE.** The prebuilt `llama-addon.node` is really present.
+  `verify:ai-model-pack` **46/46, `1 pinned pack(s)`**; inside `verify:ai-model-live` the pack/pins 3/3
+  and the real `AiModelPackStore` import 3/3 both PASS. Portable Node 22 was used for the *install
+  only* — system Node is still 18.16 and the product depends on neither.
+- **L1.8 is NOT accepted, and this is the live blocker.** Load 50,101 ms (ceiling 60,000), peak working
+  set 3,550 MB (ceiling 6,144), main-loop p99 21 ms (ceiling 100) all PASS; the `locatorUpgrade`
+  background job **FAILS 180,000 ms**, taking >240,000 ms without producing 192 tokens. Through
+  `AiService`, a ~250-token prompt capped at 128 tokens does not finish in 120 s — under ~1 token/s.
+- **Compute-bound with the model resident — NOT disk, NOT threads.** The 50 s cold load suggested slow
+  storage (~54 MB/s); the resource sample **overturned** that. Across 240 s of inference CPU is a flat
+  line (avg 25 / max 26) at ~3× the 8 seen during the single-threaded load — exactly the 3 configured
+  threads — with the working set resident at 3,550 MB. Warm load is 10,488 ms, so storage is a
+  cold-start cost only. *Caveat:* Electron `percentCPUUsage` normalization is ambiguous; trust the flat
+  line and the 3:1 ratio, not the absolute value.
+- **Do NOT re-run the long benchmark to reproduce this.** It is recorded in
+  `docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json` and the bench resumes per scenario.
+- **The one thing still not isolated: prefill vs constrained decode.** The host returns timings only on
+  completion and these runs never complete. Leading hypothesis is JSON-schema GBNF sampling over a
+  ~151k vocabulary on every token; **hypothesis, not a finding.** Testing it means touching
+  `native-hosts/**`, which is `runtime`-owned Risk-3 and **not** authorized by this task's contract.
+- **Next agent work:** the owner decision below. Nothing in Phase L that depends on L1 is eligible, and
+  fake-provider tests must never be presented as live acceptance.
+- **Owner decision required:** (1) authorize a `runtime`-routed change to report host timings on
+  timeout or add a grammar-off probe, so prefill vs decode can be separated; then (2) if constrained
+  decode dominates, revisit the decoding strategy; **or** (3) accept that a 4B Q4_K_M on a 2018 6-core
+  mobile CPU is below the bar and re-scope the model, the ceilings, or the qualifying hardware.
+  **No ceiling was moved and no timeout was raised to hide throughput.**
+
+## HANDOFF (2026-09-20) — model pack acquired and verified; runtime blocked on Node 18.16 vs ≥20
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No product source changed.
 - **Model pack DONE.** `%USERPROFILE%\Downloads\Qwen3.5-4B-Q4_K_M.gguf`, **2,707,513,696 bytes** and
