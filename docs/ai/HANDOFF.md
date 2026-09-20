@@ -1,6 +1,54 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L6 deterministic core AND the Flow Designer fragment UI, committed
+## HANDOFF (2026-09-20, latest) — L6 deterministic acceptance end to end, and the protected-login consolidation
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
+- **Done:** `verify:flow-fragments-e2e` (52/52, `real-browser`) — capture in the real Flow Designer,
+  insert, wire with the canvas's own drag-to-connect, save, reopen, edit, re-save, then **run for real**
+  through `execution:runWorkflow` with the bundled Chromium against the Feature Test Lab. The previous
+  section's one explicit `NOT RUN` ("end-to-end execution of an inserted fragment through the real
+  runner") is now executed and passing.
+- **Also done, and both were product fixes, not test fixes:**
+  - `SearchableSelect` re-opened itself on every selection because `EditorIdentityField` wraps it in a
+    `<label>`, whose activation behavior re-dispatches a synthetic click onto the trigger. Live in all
+    five places the control is mounted. One `preventDefault` on the popup.
+  - `ExecutionApplicationService` now refuses a real run whose declared required runtime inputs are
+    unsupplied, instead of letting `ValueResolver` substitute `""`.
+  - `GET /api/submissions` on the mock site, because `/success?id=` renders an empty record for an
+    unknown id and the counter starts at `SUB-1001` — so the old "nothing was submitted" check was
+    vacuous.
+  - `PROTECTED_LOGIN_STEP_TYPES` consolidated: `AiAutonomyPolicy.ts` and `FailureEvidenceCollector.ts`
+    import the canonical set. Membership unchanged. The `verify:flow-fragments` §12 drift guard was
+    retargeted at the wiring plus real `decideAiAction` behaviour.
+- **`awkit-djnl.9` is still open and `in_progress`, and its `blocks` edges are untouched.** L6's
+  Intelligence section is unbuilt and L1-gated. **Next agent work without the model: still none in L6.**
+- **Independent QC is now DONE: `APPROVED_WITH_FINDINGS`, zero blocking findings.** An independent
+  `awkit-qc-reviewer` reviewed the consolidation and confirmed membership is identical at all three
+  consumption sites, the `ReadonlySet<string>` widening is compile-time only (`Set.prototype.has` does
+  not consult types, so the matched values are byte-identical), nothing was broadened or weakened, and
+  `src/profiles/FlowProfile.ts` has **zero imports** so it cannot cycle back into `src/security/**`. Two
+  findings were acted on in this session: the competing-copy scan now asserts that neither consumer
+  **names** any member at all (construct-independent, mutation-tested against an array-literal copy that
+  the old `new Set([...])`-only scan would have missed), and the `failure-evidence` evidence note was
+  corrected — that suite never exercises the suppression path; `verify:ui-error-evidence` (85/85, §11)
+  does. One accepted residual: only the security consumer is pinned by BEHAVIOUR, so a change to
+  `FailureEvidenceCollector.ts:278` that consulted a different list while keeping the alias would still
+  pass §12. Full verdict on the contract's `qc_review` block.
+- **BLOCKED, and it needs one owner command.** The staged index spans four ownership domains plus one
+  protected path, and the guard's only two commit routes each require a single-lease or
+  zero-protected-path index. There is no unstage in the grammar. Run
+  `git restore --staged -- src/security/authz/AiAutonomyPolicy.ts` (or just commit from your own
+  terminal). Full reasoning in `KNOWN_ISSUES.md`. **Nothing is lost** — every change is preserved in the
+  index and working tree.
+- **Also blocked:** `l6-e2e-openflow-failure.png` (inspected, synthetic fixture data only, no secrets) is
+  the sole remaining scope escape on the contract's completion gate, and `rm` is not in the guard's
+  grammar at all. Run `rm l6-e2e-openflow-failure.png`.
+- **Two traps worth carrying forward** (both written up in `KNOWN_ISSUES.md`): `agent:lease-amend` on a
+  path outside the holder's ownership **REROUTES and releases the lease** rather than widening it; and a
+  single `MutationObserver` callback's live attribute read hides a `true`→`false` pair inside one
+  microtask — iterate `records`.
+
+## HANDOFF (2026-09-20) — L6 deterministic core AND the Flow Designer fragment UI, committed
 
 - **The previously-uncommitted work is committed and nothing was lost.** The "TERMINAL `git add`" blocker
   recorded by the previous session **was not an authorization wall — it was a command-form error**, and it

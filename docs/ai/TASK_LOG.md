@@ -1,5 +1,133 @@
 # TASK_LOG
 
+## 2026-09-20 — L6 security closeout: independent QC, the real cause of the commit refusal, and two guard gaps (Claude)
+
+- **Independent QC obtained and recorded: `APPROVED_WITH_FINDINGS`, zero blocking.** An independent
+  `awkit-qc-reviewer` reviewed the protected-login consolidation. Confirmed: membership identical at all
+  three consumption sites (`FlowProfile.ts:65-69` is the single literal; `AiAutonomyPolicy.ts:92` and
+  `FailureEvidenceCollector.ts:83` are plain aliases of that same object; `FlowFragment.ts:330` reads it
+  directly); the `ReadonlySet<string>` widening is compile-time only because `Set.prototype.has` does not
+  consult TypeScript types, so matched values are byte-identical; nothing broadened or weakened across
+  T3 refusal, the fragment audit and evidence suppression; and `src/profiles/FlowProfile.ts` has **zero
+  import statements**, so it is a leaf module and cannot cycle back into `src/security/**`. Verdict and
+  all seven answers are on the contract's `qc_review` block.
+- **Two QC findings acted on.** (1) The competing-copy scan matched only `new Set([...])` literals, so an
+  array plus `.includes`, an `||` chain or a `switch` would have passed. It now asserts that neither
+  consumer **names** any canonical member at all — strictly stronger and construct-independent — and was
+  mutation-tested with an array-literal copy, which it caught (102/103) where the old scan would not
+  have. (2) The `failure-evidence` evidence note overclaimed: that suite drives `executeWithRetry` for
+  FR-B2 and never touches the suppression path. Corrected on the contract, and `verify:ui-error-evidence`
+  (85/85, §11 "A protected-login surface is excluded entirely") added as the suite that does.
+- **Accepted residual, recorded not hidden:** only the security consumer is pinned by BEHAVIOUR. A change
+  to `FailureEvidenceCollector.ts:278` consulting a different list while keeping the alias would still
+  pass §12. Pinning it needs a page-driven test, because `add()` deliberately exempts `runner.failure`
+  from the protected drop, so there is no page-free observable.
+- **The commit refusal was diagnosed from the guard's source, not from its messages.** Two routes exist:
+  `isUnleasedGitCommand` (`lease-guard.mjs:351`) requires every staged path to be non-protected;
+  `isManagerGitCommand` (line 308), available to the root primary agent since its actor canonicalizes to
+  `manager` (line 429), requires every staged path to be inside the one active lease, a
+  `SYSTEM_BOOKKEEPING_PATHS` entry, or this task's contract. The staged index spans four ownership
+  domains — security, runtime, persistence, qa — so no single lease can bound it, and
+  `routing-matrix.mjs:1512` says so outright: *"a multi-domain task is a SEQUENCE of leases, not a
+  committee."* There is no unstage anywhere in the grammar. **The earlier session's reading — that this
+  was an authorization wall — was wrong; it is an index shape the guard cannot undo.** No further
+  commit variants were attempted.
+- **Contract made valid and honest.** `baseline_commit` was still `18d47911`, so the completion gate was
+  diffing already-committed work and reported 32 scope escapes; corrected to `1ad73dee`, which reduced
+  the changed set to exactly the uncommitted work. Classification and routing were then filled in from
+  the validator's own stated violations rather than guessed (one guess made it worse, 4 → 5, and was
+  reverted). The contract now validates; the **only** remaining scope escape is the debug screenshot.
+- **`l6-e2e-openflow-failure.png` inspected:** Flow Designer showing the seeded `L6 e2e source` fixture
+  and the seeded Super User — synthetic data only, no credentials or secrets. Not test evidence, must not
+  be committed, and `rm` is not in the guard's grammar at all so it cannot be removed by the agent.
+- **Files:** `scripts/verify-flow-fragments.mts`,
+  `docs/ai/contracts/awkit-djnl-9-protected-login-0920.json`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`.
+- **Checks executed THIS session against the current source:** `build` PASS · `typecheck:scripts` PASS ·
+  `verify:flow-fragments` 103/103 · `verify:ai-autonomy-policy` 62/62 · `verify:failure-evidence` 35/35 ·
+  `verify:ui-error-evidence` 85/85 · `verify:protected-login` 26/26 ·
+  `verify:protected-login-recorder` 74/74 · `verify:runner` 138/138. Mutation run and restored: an
+  array-literal copy in `FailureEvidenceCollector.ts` failed the hardened scan at 102/103.
+- **BLOCKED:** the commit, on a cross-domain staged index the guard cannot unstage — one owner command
+  (`git restore --staged -- src/security/authz/AiAutonomyPolicy.ts`, or commit from their own terminal).
+  **BLOCKED:** removing the screenshot (`rm l6-e2e-openflow-failure.png`). No work was lost; everything
+  is preserved in the index and working tree.
+- **Result:** L6 deterministic acceptance stands. `awkit-djnl.9` remains open and `in_progress`, edges
+  untouched, Intelligence section unbuilt and L1-gated.
+
+## 2026-09-20 — L6 deterministic acceptance end to end, two product defects it exposed, and the protected-login consolidation (Claude)
+
+- **Resumed an interrupted session at its exact failure.** The working tree held a 25 PASS / 1 FAIL
+  `scripts/verify-flow-fragments-e2e.mts` plus the runtime-input validation edits, all preserved and
+  none recreated. The failure was `getByRole('option', { name: 'L6 e2e destination' })` timing out on
+  reopening a saved flow.
+- **The failure was a real product defect, two calls downstream of where it surfaced.**
+  `EditorIdentityField` renders a `<label>`, and a label's activation behavior re-dispatches a synthetic
+  click onto its first labelable descendant — the `SearchableSelect` **trigger**. Choosing an option
+  closed the menu and immediately re-opened it; the NEXT `openFlow` then toggled it shut and reported a
+  missing option. Clicking into the popup's search box closed the menu outright. Live in all five places
+  the control is mounted (both command bars, three properties panels). Four readings of the source were
+  wrong; it was settled by a page-side event log (`pointerdown`/`mousedown`/`click`/`dblclick` + a
+  `MutationObserver` on `aria-expanded`, accumulated across calls) that showed a second `click` with
+  `detail: 0` — a synthetic activation — landing on the button after the option click. Fixed with one
+  `preventDefault` on the popup container; focus comes from `mousedown`, so the search field still
+  focuses.
+- **Second product defect, in the Feature Test Lab.** `/success?id=` renders an empty record for an id it
+  has never seen, and the submission counter starts at 1000 (`SUB-1001`). Section 7 was fetching `SUB-1`
+  and section 8 was asserting `SUB-2` is empty — the first failed for the right reason, the second passed
+  for the wrong one, since an unknown id always renders empty. Added `GET /api/submissions` returning
+  `{ count, submissions[] }`, and both sections now assert real cardinality and real values.
+- **Absence needs a clock you can trust.** "The refused run wrote no report / submitted nothing" was
+  first strengthened from a 1.5s sleep to twice the measured real-run duration; under mutation the
+  admitted run still had not reached the form after 7s and both checks passed **with the defect
+  present**. They now issue a valid **control run** and wait for that run's own report matched by
+  `executionId` — waiting for merely "a new report" would be satisfied first by the report the refused
+  run was not supposed to write.
+- **Verifier completed and made deterministic.** `openFlow` replaces its sleep with observable sync on
+  the trigger's rendered label (`loadProfile` sets `flowId` and the canvas nodes in one commit, so the
+  label updating means the graph is in the DOM), asserts the control is closed before clicking a toggle,
+  and asserts the popup is detached after choosing. `saveFlow` waits for `updatedAt` to change **on
+  disk** rather than for a clock. Final: 52 PASS / 0 FAIL.
+- **Runtime-input refusal reviewed and kept.** `ExecutionApplicationService` validates the workflow's own
+  `runtimeInputs` against the values THIS request supplied, on the real-run path only, so
+  `execution:validate` and dry-run semantics are untouched. `validateRuntimeValues` is typed on the three
+  fields it reads (`key`, `label`, `required`) because a workflow's inputs carry a wider `type`
+  vocabulary (`password`); narrowing would have forced a cast at the run boundary. No input value reaches
+  any diagnostic — the issue carries the key and the existing message.
+- **Protected-login consolidation completed under a routed Risk-3 lease.** `AiAutonomyPolicy.ts` and
+  `FailureEvidenceCollector.ts` now import `PROTECTED_LOGIN_STEP_TYPES` from `FlowProfile.ts`; each
+  widens only the STATIC type via a one-line alias, because both look it up from an arbitrary string.
+  Membership unchanged. The §12 drift guard was retargeted rather than deleted: comparing three literals
+  would now compare one literal with itself. It asserts the imports, the absence of a competing set
+  literal **under any name**, and the real behaviour of `decideAiAction` for every canonical member with
+  an ordinary step as the negative control.
+- **Lease-routing finding:** `agent:lease-amend` with a path outside the holder's ownership **REROUTES** —
+  it releases the lease and names the next writer — so the Risk-3 file was leased alone, released, and
+  the ordinary paths edited unleased.
+- **Mutations run and restored (3):** removing the `preventDefault` fails at the first `openFlow`
+  (0 PASS / 1 FAIL); emptying the runtime-input declaration admits the run and fails both refusal
+  assertions (50/2); restoring the private literal set in `FailureEvidenceCollector.ts` fails exactly the
+  competing-set check (102/103). The working tree carries no mutation.
+- **Files:** `scripts/verify-flow-fragments-e2e.mts` (new), `scripts/verify-flow-fragments.mts`,
+  `scripts/verify-mock-site.mjs`, `scripts/lib/verifier-classification.ts`, `package.json`,
+  `app/main/execution/ExecutionApplicationService.ts`, `src/data/RuntimeInputDefinition.ts`,
+  `app/renderer/components/shared/SearchableSelect.tsx`, `src/security/authz/AiAutonomyPolicy.ts`,
+  `src/runner/evidence/FailureEvidenceCollector.ts`, `src/profiles/FlowProfile.ts`,
+  `mock-site/server.mjs`, `mock-site/README.md`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,COMMANDS}.md`,
+  `docs/ai/contracts/awkit-djnl-9-protected-login-0920.json`.
+- **Checks (all against the final source):** `build` PASS · `typecheck:scripts` PASS ·
+  `verify:flow-fragments-e2e` 52/52 · `verify:flow-fragments` 103/103 · `verify:flow-fragments-gui` 53/53 ·
+  `verify:flow-designer` 140 observed / 0 unexpected · `verify:runner` 138/138 · `verify:mock-site` 222/222 ·
+  `verify:validation` 163/163 · `verify:profile-store` 74/74 · `verify:ipc-contract` 10/10 ·
+  `verify:source-hygiene` 11/11 · `verify:design-tokens` 35/35 · `verify:ai-autonomy-policy` 62/62 ·
+  `verify:failure-evidence` 35/35 · `verify:verifier-classification` 233 classified, real-browser 92 ·
+  `verify:roadmap-dashboard` 177/177 "Sources agree" · `git diff --check` clean.
+- **NOT RUN / outstanding:** independent QC review of the Risk-3 consolidation (`qc_status: pending` on
+  the contract); the packaged-EXE and clean-machine gates, unchanged by this work.
+- **Result:** L6's deterministic section is accepted end to end. `awkit-djnl.9` stays open and
+  `in_progress`, and its `blocks` edges on `awkit-djnl.6` (L4b) and `awkit-djnl.3` (L2) are untouched —
+  the Intelligence section is unbuilt and L1-gated.
+
 ## 2026-09-20 — L6 Flow Designer fragment UI, its real-Electron verifier, and recovery of the previous session's uncommitted work (Claude)
 
 - **Recovered first, built second.** The working tree still held the entire L6 deterministic core, 16

@@ -246,7 +246,10 @@ npm run verify:flow-fragments # tsx scripts/verify-flow-fragments.mts — L6 reu
                             # audit matrix asserted by cardinality over all 16 codes AND by severity per
                             # code, a negative control per rule, capture/apply over real FlowProfile
                             # fixtures, and create/reload/edit/re-save/tamper against a real
-                            # JsonProfileStore in a temp dir. No AI, no Electron, no browser. (97)
+                            # JsonProfileStore in a temp dir, plus the protected-login consolidation guard:
+                            # both consumers import the canonical set, neither declares a competing set
+                            # literal under any name, and decideAiAction really forbids every member at
+                            # T3. No AI model, no Electron, no browser. (103)
 npm run verify:flow-fragments-gui # tsx scripts/verify-flow-fragments-gui.mts — the SAME L6 surfaces in the
                             # real Electron app: both command-bar controls, capture over permission-gated
                             # IPC landing a file read back OFF DISK, the dirty-editor refusal, Escape +
@@ -255,6 +258,15 @@ npm run verify:flow-fragments-gui # tsx scripts/verify-flow-fragments-gui.mts �
                             # runtimeInput + failure policy surviving insert→save→disk, and §9 driving
                             # fragments:apply/capture over DIRECT IPC to prove main refuses and writes
                             # nothing. Requires build. (53)
+npm run verify:flow-fragments-e2e # tsx scripts/verify-flow-fragments-e2e.mts — one fragment's WHOLE life in
+                            # real Electron: capture from a real flow, insert into an empty destination,
+                            # wire it in with the canvas's own drag-to-connect, save, close, reopen, edit,
+                            # re-save, then RUN it through execution:runWorkflow with dryRun:false and the
+                            # bundled Chromium against the Feature Test Lab. Read back from three
+                            # independent places — the flow JSON on disk, the engine's run report, and the
+                            # mock site's own /api/submissions — plus the refusal when a declared required
+                            # runtime input is unsupplied, and the fragment IPC boundary with no dialog in
+                            # the way. Requires build. (52)
 npm run verify:r0-characterization # tsx scripts/verify-r0-characterization.mts through the maintained
                             # benchmark Electron composition — mutation-backed R0 guard for the exact
                             # ExecutionEngine→Electron-main edges, real same-folder store overlap/stale

@@ -1,6 +1,57 @@
 # CURRENT_STATE
 
-## L6 deterministic core AND the Flow Designer fragment UI (2026-09-20, current)
+## L6 deterministic acceptance: a fragment's whole life, ending in a real run (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
+moved; this closes the evidence gap the previous section recorded as `NOT RUN`.
+
+**The end-to-end execution of an inserted fragment through the real runner is no longer NOT RUN.** New
+`verify:flow-fragments-e2e` (52/52, classified `real-browser`) drives one fragment through its entire
+life in real Electron: captured from a real flow over the permission-gated IPC, inserted into an empty
+destination through the real Flow Designer, wired in with the canvas's **own drag-to-connect** gesture,
+saved, closed, reopened, edited, re-saved, and then **executed for real** through
+`execution:runWorkflow` with `dryRun: false` and the bundled Chromium against the Feature Test Lab. The
+outcome is read back from three places that are not the app's opinion of itself: the flow JSON on disk,
+the run report the engine wrote, and the mock site's own stored submission.
+
+- **The run report names the INSERTED step ids and never the fragment's own**, every inserted step is
+  recorded `passed`, and the workflow's runtime input reaches the live page through the inserted step —
+  proven by the target application echoing it, not by the app agreeing with itself.
+- **A real run missing a declared required input is now refused before anything starts.**
+  `ExecutionApplicationService` validates the workflow's own `runtimeInputs` against the values THIS
+  request supplied, on the real-run path only. `validateWorkflow` cannot judge that and must not: it
+  answers "is this workflow runnable", which has to stay true before the user has typed anything, and it
+  is also what `execution:validate` and every dry run return. Without this check `ValueResolver`
+  substitutes `""` for an unsupplied required input and the run proceeds on an empty value.
+  Mutation-tested: removing it admits the run (`"started"`) and fails both refusal assertions.
+- **Two real product defects were found by the acceptance suite and fixed in the product.** A `<label>`
+  wrapper made every `SearchableSelect` re-open itself on every selection, in all five places it is
+  mounted; and the mock site could not distinguish "never submitted" from "submitted empty". Both are
+  written up in `KNOWN_ISSUES.md` with how they were diagnosed.
+- **The protected-login classification is consolidated, and independently QC-approved.**
+  `AiAutonomyPolicy.ts` and `FailureEvidenceCollector.ts` no longer keep private copies of the
+  protected-login step types; both import the canonical set from `FlowProfile.ts`. Membership is
+  unchanged and nothing was broadened to make the imports tidy. The `verify:flow-fragments` §12 drift
+  guard was **retargeted, not deleted** — comparing three literals would now compare one literal with
+  itself — and now asserts that neither consumer **names** any member at all, which no array, `||`
+  chain or `switch` can evade. Independent verdict: `APPROVED_WITH_FINDINGS`, **zero blocking**.
+- **Not yet committed.** The consolidation and these records are preserved in the index and working
+  tree. The staged set spans four ownership domains plus one protected path, and the guard's two commit
+  routes each need a single-lease or zero-protected-path index, with no unstage in the grammar. One
+  owner command clears it — see `KNOWN_ISSUES.md`.
+- **`awkit-djnl.9` stays open and `in_progress`.** L6's Intelligence section is unbuilt and L1-gated, and
+  the `blocks` edges on `awkit-djnl.6` (L4b) and `awkit-djnl.3` (L2) are untouched. This records that the
+  deterministic section is accepted end to end, not that L6 is done.
+
+Checks, all against the final source: `build` PASS · `typecheck:scripts` PASS ·
+`verify:flow-fragments-e2e` 52/52 · `verify:flow-fragments` 103/103 · `verify:flow-fragments-gui` 53/53 ·
+`verify:flow-designer` 140 observed, 0 unexpected · `verify:runner` 138/138 · `verify:mock-site` 222/222 ·
+`verify:validation` 163/163 · `verify:profile-store` 74/74 · `verify:ipc-contract` 10/10 ·
+`verify:source-hygiene` 11/11 · `verify:design-tokens` 35/35 · `verify:ai-autonomy-policy` 62/62 ·
+`verify:failure-evidence` 35/35 · `verify:verifier-classification` 233 classified, real-browser now 92 ·
+`verify:roadmap-dashboard` 177/177 "Sources agree".
+
+## L6 deterministic core AND the Flow Designer fragment UI (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved; this is implementation and verifier work inside the open `awkit-djnl.9`.

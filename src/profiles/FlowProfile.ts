@@ -56,11 +56,11 @@ export type StepType =
  * T3), "may failure evidence be collected here?" (L5a) or "may this be captured into a reusable
  * fragment?" (L6). Exported so a fourth consumer never has to restate it.
  *
- * Two private copies predate this one — `PROTECTED_LOGIN_STEP_TYPES` in
+ * Two private copies predated this one — `PROTECTED_LOGIN_STEP_TYPES` in
  * `src/security/authz/AiAutonomyPolicy.ts` and `PROTECTED_STEP_TYPES` in
- * `src/runner/evidence/FailureEvidenceCollector.ts`. Both must be collapsed onto this constant;
- * the first is a Risk-3 path and its edit is lease-gated. Until then a drift guard is the only
- * thing keeping the three in agreement — see `verify:flow-fragments`.
+ * `src/runner/evidence/FailureEvidenceCollector.ts`. Both were collapsed onto this constant on
+ * 2026-09-20; each now imports it, and `verify:flow-fragments` §12 asserts that wiring rather than
+ * comparing three literals. A fourth consumer imports this set — it does not restate it.
  */
 export const PROTECTED_LOGIN_STEP_TYPES: ReadonlySet<StepType> = new Set<StepType>([
   "protectedLoginHandoff",

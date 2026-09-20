@@ -1,5 +1,104 @@
 # KNOWN_ISSUES
 
+## A cross-domain staged index cannot be committed, and the guard offers no way back (2026-09-20, OPEN — needs one owner command)
+
+- **The guard is not refusing authority; it is refusing an index shape.** `tools/agents/lease-guard.mjs`
+  has exactly two commit routes. `isUnleasedGitCommand` (line 351) requires **every** staged path to be
+  non-protected. `isManagerGitCommand` (line 308) — available to the ROOT primary agent, whose actor
+  canonicalizes to `manager` (line 429) — requires **every** staged path to satisfy `boundedStagePath`,
+  i.e. inside the one active lease, a `SYSTEM_BOOKKEEPING_PATHS` entry, or this task's own contract.
+- **So a commit needs either zero protected paths staged, or one lease that covers all of them.** The
+  index left by the previous session has `src/security/authz/AiAutonomyPolicy.ts` (security, protected),
+  `src/runner/evidence/FailureEvidenceCollector.ts` (runtime), `src/profiles/FlowProfile.ts`
+  (persistence) and `scripts/verify-flow-fragments.mts` (qa). Four owners, so no single lease can bound
+  them — `routing-matrix.mjs:1512` states the model outright: *"a multi-domain task is a SEQUENCE of
+  leases, not a committee."* The design expects stage-and-commit **per lease**; staging across domains
+  first is what cannot be undone.
+- **There is no unstage anywhere in the grammar.** `isReadOnlyShellCommand` allows only
+  `git status|diff|log|show|rev-parse|ls-files`; the write routes are `git add -- <paths>`,
+  `git commit -m`, `git fetch origin`, `git push origin main`. No `restore`, `reset` or `rm`. The
+  lease CLI has `status|grant|amend|release|handoff|finalize`, and `finalize` stages only
+  `active-lease.json`, the contract and `assignments.json` and **fails closed if any other path is
+  staged**. Nothing recovers a cross-domain index.
+- **Required intervention — one command, from the owner's own terminal:**
+  `git restore --staged -- src/security/authz/AiAutonomyPolicy.ts`
+  Then the remaining paths commit unleased, and the security file commits on its own under a
+  `security` lease (grant, `git add --`, `git commit -m`, release). Or the owner simply commits the
+  whole index themselves; the hook intercepts this agent's calls, not theirs.
+- **Do NOT "fix" this by reverting the protected file to HEAD to drop it out of `git diff --cached`.**
+  It would work, and it is exactly the evasion the guard exists to prevent — the Risk-3 change would be
+  committed outside the lease that is supposed to authorize it.
+- **Rule for next time:** commit each domain before staging the next. `git add -- <paths>` is bounded by
+  the active lease precisely so the index cannot drift across owners unnoticed.
+
+## The lease guard blocks ALL shell for subagents, so a QC subagent cannot run a verifier (2026-09-20, by design — plan around it)
+
+- `isAllowedUnleasedShellCommand` starts with `if (!isRootPrimaryIdentity(agentType, agentId)) return false;`
+  (`tools/agents/lease-guard.mjs:450`), and a spawned subagent always carries an `agent_type`. So a
+  subagent gets **no** shell at all — not even `git diff` or a read-only verifier.
+- Consequence for independent review: a QC subagent can only read source. It cannot diff against history,
+  so it cannot confirm what a change *replaced*, and it cannot execute the gate it is reviewing. Brief it
+  to review from source reads, give it the file list, and run the verifiers yourself as the root agent.
+- It also burns turns discovering this. Say it in the brief.
+
+## `l6-e2e-openflow-failure.png` is an undeletable debug artifact in the repo root (2026-09-20, OPEN — needs one owner command)
+
+- A Playwright screenshot the interrupted session wrote from a diagnostic branch of
+  `verify:flow-fragments-e2e` that no longer exists. **Inspected: it shows the Flow Designer with the
+  seeded `L6 e2e source` fixture and the seeded first-run Super User. Synthetic test data only — no
+  credentials, secrets, tokens or user data.** It is safe, but it is not test evidence and must not be
+  committed.
+- It is now the **only** remaining blocker on the contract completion gate for
+  `awkit-djnl-9-protected-login-0920`: `node tools/agents/task-gate.mjs` reports exactly two scope
+  escapes for it, `unmapped` (no `PATH_DOMAINS` entry owns a root-level `.png`, so no specialist is
+  answerable for it) and outside `routing.expected_paths`.
+- **Deletion is impossible for the agent, and no lease helps:** `rm` and `Remove-Item` are not in the
+  guard's command grammar at all, so the refusal is about the command form, not the path or the
+  authority. The active-lease command sets do not include file removal either.
+- **Required intervention:** `rm l6-e2e-openflow-failure.png` from the owner's own terminal.
+- Do not add a root `*.png` ignore to work around it — that would mask real assets.
+
+## A `<label>` around a custom popup re-opens it on every selection (2026-09-20, resolved)
+
+- `EditorIdentityField` renders a `<label>`, and every `SearchableSelect` in the app is mounted inside
+  one (both command bars and three properties panels). A label's activation behavior re-dispatches a
+  synthetic click onto its first labelable descendant — the select's **trigger button**. So clicking an
+  option closed the menu and then immediately re-opened it, and clicking into the popup's search box
+  closed the menu outright. Both were live, user-visible, in every one of those five places.
+- **What it looked like:** not a stuck menu, but a *later* failure. The dropdown was left open, so the
+  NEXT click on the trigger toggled it shut and the option that click was aiming for "did not exist".
+  `verify:flow-fragments-e2e` timed out on `getByRole('option')` two calls after the real defect.
+- **How it was actually found**, after four wrong readings from the source: a page-side listener log of
+  `pointerdown`/`mousedown`/`click`/`dblclick` on the trigger plus a `MutationObserver` on
+  `aria-expanded`, accumulated across calls rather than reset per call. That showed one real click
+  (`detail: 1`) on the inner `<span>`, `aria-expanded` → `true`, → `false` on the option click, then a
+  **second `click` with `detail: 0` on the BUTTON itself** and `aria-expanded` → `true` again. `detail: 0`
+  is the signature of a synthetic activation. **Do not read a single MutationObserver callback's live
+  attribute value** — records batch, so a `true` → `false` pair inside one microtask is one callback and
+  looks like a lone `false`; iterate `records`.
+- **The fix** is one `onClick={(event) => event.preventDefault()}` on the popup container. Cancelling the
+  click's default action cancels the label's activation behavior. Focus comes from `mousedown`, not
+  `click`, so the search field still focuses. It lives in `SearchableSelect` because the popup is what is
+  being mis-activated, so it is correct wherever the control is mounted.
+- **Guard:** `verify:flow-fragments-e2e`'s `openFlow` asserts `aria-expanded="false"` before clicking the
+  trigger and waits for the listbox to be **detached** after choosing. Mutation-tested: removing the
+  `preventDefault` fails at the very first `openFlow` instead of two calls later.
+
+## `/success?id=` renders an empty record for an unknown id, so "nothing was submitted" is unprovable (2026-09-20, resolved)
+
+- The mock site's `/success` falls back to `{ firstName: "", … }` for an id it has never seen, and the
+  submission counter **starts at 1000** (`SUB-1001`, not `SUB-1`). A verifier that fetched a guessed id
+  and looked for an empty field therefore asserted nothing: it passed identically whether the run
+  submitted an empty form or never reached the form at all. One such check was failing for the right
+  reason and its sibling "the refused run submitted nothing" was passing for the wrong one.
+- **Fix:** `GET /api/submissions` returns `{ count, submissions[] }` — what the server actually holds —
+  so a check can assert real cardinality and real values. Covered by `verify:mock-site` (222/222).
+- **Absence needs a clock you can trust.** "The refused run wrote no report / submitted nothing" was
+  first strengthened to sleep for twice a measured real run; under mutation the admitted run *still* had
+  not reached the form after 7s, so both checks passed with the defect present. They now issue a **valid
+  control run** afterwards and wait for **that run's own report, matched by `executionId`** — waiting for
+  merely "a new report" would be satisfied first by the report the refused run was not supposed to write.
+
 ## A lease-guard denial reads like an authorization wall when it is a command-form error (2026-09-20, resolved — read before reporting BLOCKED)
 
 - **This cost a full session's closeout.** A previous session reported `git add` as **TERMINAL** and
@@ -28,24 +127,32 @@
 - **Rule:** read the grammar before recording a gate as BLOCKED. A denial is evidence about the command
   string, not about your authority.
 
-## `PROTECTED_LOGIN_STEP_TYPES` exists in three places (2026-09-20, OPEN — guarded, not consolidated)
+## `PROTECTED_LOGIN_STEP_TYPES` existed in three places (2026-09-20, RESOLVED — consolidated)
 
 - The canonical exported set is `src/profiles/FlowProfile.ts`, beside the `StepType` union that defines
   those names. `src/security/authz/AiAutonomyPolicy.ts` and
-  `src/runner/evidence/FailureEvidenceCollector.ts` (as `PROTECTED_STEP_TYPES`) still hold private copies.
-- **Why it is not urgent:** `verify:flow-fragments` §12 reads both files and fails if either stops
-  agreeing with the canonical set, so a silent divergence is caught. The duplication is a maintenance
-  cost, not a correctness hole.
-- **Why it is still open:** `src/security/**` is Risk 3, so collapsing the first copy needs a routed
-  `security` lease. That lease is obtainable (see the entry above); it was not taken in this session
-  because the consolidation is mechanical, the drift guard already holds the invariant, and spending a
-  Risk-3 lease on a rename was not worth the blast radius mid-task.
-- **Workarounds that are NOT acceptable:** adding a fourth copy, or reading the answer out of
-  `decideAiAction` by passing `enabled: true` to a policy question that is not being asked.
-- **To clear it:** write `docs/ai/contracts/<task>.json`, run
-  `npm run agent:lease-grant -- --task <task> --holder security --paths src/security/authz/AiAutonomyPolicy.ts`,
-  replace the private copies with imports of the canonical set, then **keep** the drift guard pointing at
-  whatever remains and re-run `verify:flow-fragments`.
+  `src/runner/evidence/FailureEvidenceCollector.ts` (as `PROTECTED_STEP_TYPES`) both now import it.
+  Membership is unchanged — `protectedLoginHandoff`, `autoSecureLogin`, `reuseSession` — and no
+  protected-login restriction was broadened or relaxed to make the imports tidy.
+- **Each consumer widens only the STATIC type**, `ReadonlySet<StepType>` to `ReadonlySet<string>`, via a
+  one-line local alias. Both look the type up from an arbitrary string (`AiActionContext.step.type`, a
+  runner event's `stepType`), and asserting that string into `StepType` to satisfy the lookup would
+  claim something about the value that nothing has checked.
+- **The drift guard had to be retargeted, not deleted.** Comparing three literals now compares one
+  literal with itself and passes vacuously. `verify:flow-fragments` §12 instead asserts that each
+  consumer imports the canonical set, that neither declares a competing set literal **whatever it is
+  named** (it looks for the MEMBERS, since a re-introduced copy need not reuse the old name), and that
+  `decideAiAction` really does forbid every canonical member at T3 with an ordinary step as the negative
+  control — a source scan cannot tell whether the imported set is the one the decision consults.
+  Mutation-tested: restoring the private literal in `FailureEvidenceCollector.ts` failed exactly the
+  competing-set check (102/103).
+- **The lease route is worth knowing:** `security` owns only `src/security/**`, so a lease covering the
+  other two files is not an amendment — `agent:lease-amend` **REROUTES**, releasing the security lease
+  and naming the next writer (`runtime` → `qa`) rather than widening it. Take the Risk-3 lease for the
+  security file alone, release it, then edit the ordinary paths unleased. Granting also re-validates the
+  whole contract: `activated_agents` must be in the roster's canonical order, every routed reviewer and
+  consultant must be listed, `risk_level >= 2` mandates `qa` and `qc`, and evidence `result` uses the
+  ledger vocabulary in lower case (`pending`), not `PENDING`.
 
 ## A renderer view cached per FLOW, reset per STEP, goes permanently empty (2026-09-20, resolved)
 

@@ -26,6 +26,7 @@ import { randomBytes } from "node:crypto";
 
 import type { BrowserContext, ConsoleMessage, Frame, Page, Request, Response } from "playwright";
 
+import { PROTECTED_LOGIN_STEP_TYPES } from "../../profiles/FlowProfile";
 import { classifyError } from "../runtime/ErrorClassifier";
 import type { RunnerProgressEvent } from "../RunnerProgress";
 import {
@@ -71,8 +72,15 @@ export interface FailureEvidenceCollectorOptions {
 /** Resource types whose failure can explain a run. Images, fonts and media are also what lean routing blocks. */
 const RELEVANT_RESOURCES = new Set(["document", "xhr", "fetch", "script", "eventsource", "websocket"]);
 const UI_KINDS: ReadonlySet<UiEvidenceKind> = new Set(["alert", "status", "toast", "fieldInvalid"]);
-/** Steps that act on a protected-login surface: nothing page-derived is kept while one runs. */
-const PROTECTED_STEP_TYPES: ReadonlySet<string> = new Set(["protectedLoginHandoff", "autoSecureLogin", "reuseSession"]);
+/**
+ * Steps that act on a protected-login surface: nothing page-derived is kept while one runs. The
+ * membership comes from `FlowProfile`, beside the `StepType` union that defines those names — this
+ * module used to restate it under a different name, so a type added to the surface could have gone on
+ * being collected here while the vocabulary already called it protected. Only the STATIC type is
+ * widened: a runner event's `stepType` is an arbitrary string, and asserting it into `StepType` to
+ * satisfy the lookup would claim something about the value that nothing has checked.
+ */
+const PROTECTED_STEP_TYPES: ReadonlySet<string> = PROTECTED_LOGIN_STEP_TYPES;
 const ERROR_DOCUMENT_EXPRESSION = `(() => ({
   title: document.title || "",
   heading: ((document.querySelector("h1") || {}).innerText || "").slice(0, 200),

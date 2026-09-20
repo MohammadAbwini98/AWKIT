@@ -49,6 +49,7 @@ import {
   type FragmentAuditSeverity
 } from "@src/fragments/FlowFragment";
 import { applyFragment, captureFragment } from "@src/fragments/fragmentOperations";
+import { decideAiAction } from "@src/security/authz/AiAutonomyPolicy";
 
 const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -554,26 +555,47 @@ check(
 );
 
 /**
- * Drift guard for the two copies that predate the canonical set. Collapsing them is lease-gated on
- * `src/security/authz/**`, so until that happens the only thing keeping the three in agreement is
- * this check — and a silent disagreement is exactly how a protected-login step ends up reusable in
- * one layer and excluded in another.
+ * The two copies that predated the canonical set were collapsed onto it on 2026-09-20, so this is no
+ * longer a three-way literal comparison — that comparison would now pass vacuously, with one literal
+ * compared against itself. What has to hold instead is that each consumer still READS the canonical
+ * set and has not quietly grown a replacement: a silent disagreement is how a protected-login step
+ * ends up excluded in one layer and reusable in another.
  */
-const canonical = [...PROTECTED_LOGIN_STEP_TYPES].sort().join(",");
-for (const [relative, symbol] of [
-  ["src/security/authz/AiAutonomyPolicy.ts", "PROTECTED_LOGIN_STEP_TYPES"],
-  ["src/runner/evidence/FailureEvidenceCollector.ts", "PROTECTED_STEP_TYPES"]
-] as const) {
+for (const relative of ["src/security/authz/AiAutonomyPolicy.ts", "src/runner/evidence/FailureEvidenceCollector.ts"] as const) {
   const text = await readFile(join(REPO_ROOT, relative), "utf8");
-  const declaration = new RegExp(`${symbol}[^=]*=\\s*new Set\\(\\[([^\\]]*)\\]`).exec(text);
-  const members = (declaration?.[1] ?? "")
-    .split(",")
-    .map((entry) => entry.trim().replace(/^"|"$/g, ""))
-    .filter((entry) => entry.length > 0)
-    .sort()
-    .join(",");
-  check(`${relative} still agrees with the canonical protected-login set`, members === canonical, `${members} vs ${canonical}`);
+  check(
+    `${relative} imports the canonical protected-login set`,
+    /import\s*\{[^}]*\bPROTECTED_LOGIN_STEP_TYPES\b[^}]*\}\s*from\s*"[^"]*profiles\/FlowProfile"/.test(text),
+    "no import of PROTECTED_LOGIN_STEP_TYPES from profiles/FlowProfile"
+  );
+  // A re-introduced copy is the failure this guard exists for, and it would not have to reuse the old
+  // NAME — or even a `new Set([...])` — to do the damage: an array plus `.includes`, an `||` chain or a
+  // `switch` would all re-create it. Scanning set literals only would miss every one of those. Since a
+  // consumer that imports the canonical set has no reason to NAME a member at all, the check is simply
+  // that it does not: strictly stronger, and it cannot be evaded by choosing a different construct.
+  const named = [...PROTECTED_LOGIN_STEP_TYPES].filter((type) => new RegExp(`["'\`]${type}["'\`]`).test(text));
+  check(
+    `${relative} names no protected-login step type of its own (it imports the set instead)`,
+    named.length === 0,
+    named.join(",")
+  );
 }
+
+// …and the security consumer is asserted by BEHAVIOUR, not by its source text: every canonical member
+// must be forbidden at T3 by the real decision function, and an ordinary step must not be. A source
+// scan cannot tell whether the imported set is the one the decision actually consults.
+for (const type of PROTECTED_LOGIN_STEP_TYPES) {
+  const decision = decideAiAction("failureAnalysis", "interpretation", { step: { type } }, { enabled: true });
+  check(
+    `decideAiAction forbids "${type}" at T3 through the canonical set`,
+    decision.decision === "forbidden" && decision.reason === "T3_PROTECTED_LOGIN",
+    JSON.stringify(decision)
+  );
+}
+check(
+  "an ordinary step is NOT refused as protected login (the policy did not simply refuse everything)",
+  decideAiAction("failureAnalysis", "interpretation", { step: { type: "click" } }, { enabled: true }).reason !== "T3_PROTECTED_LOGIN"
+);
 
 /* ── 13. Cardinality: no rule may be unreachable ──────────────────────────────────────────────── */
 
