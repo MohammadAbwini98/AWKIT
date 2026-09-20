@@ -1,6 +1,82 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L3 §10 built (Intelligent Locator status vocabulary + evidence on demand)
+## HANDOFF (2026-09-20, latest) — L6 deterministic core AND the Flow Designer fragment UI, committed
+
+- **The previously-uncommitted work is committed and nothing was lost.** The "TERMINAL `git add`" blocker
+  recorded by the previous session **was not an authorization wall — it was a command-form error**, and it
+  cost that session its entire closeout. The unleased grammar in `tools/agents/lease-guard.mjs`
+  (`isUnleasedGitCommand`) accepts exactly `git add -- <paths>`: the literal `--` separator is required,
+  and every path must be non-Risk-3. `git add -A` and `git add <path>` both fail that shape and are
+  refused with a message about leases, which reads like an authorization denial and is not one. None of
+  the 16 L6 paths is Risk-3 (`packaging_change` is deliberately NOT in `RISK_3_FLAGS`, so even
+  `package.json` is ordinary). **Read the guard's grammar before believing a denial.**
+- **Also available unleased, and the previous session concluded otherwise:** `npm run agent:lease-grant --
+  --task <id> --holder <holder> --paths <paths>` IS in the unleased allowlist (`isLeaseGrantCommand`), as
+  is writing a task contract under `docs/ai/contracts/`. What is refused is the *other* spelling,
+  `node tools/agents/lease-cli.mjs …`. So a Risk-3 lease **can** be obtained from a direct-work session.
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** the L6 audit-first matrix, deterministic features 1–3, and the Flow Designer surfaces.
+  `src/fragments/FlowFragment.ts`, `src/fragments/fragmentOperations.ts`, `app/main/ipc/fragment.ipc.ts`,
+  `app/renderer/components/workflow/FragmentDialogs.tsx`, `verify:flow-fragments` (97/97, `integration`)
+  and `verify:flow-fragments-gui` (53/53, `real-browser`). Its blocks edge on `awkit-djnl.6` (L4b) is
+  untouched and it is **not** closed.
+- **`awkit-djnl.9` tracker status:** see the note at the end of this section for what was and was not
+  moved. Mutating `bd` needs a `project-state` lease, which IS obtainable (see the second bullet above).
+- **Why L6 at all, when `bd ready` does not list it.** L6 is blocked by L4b → L1 → the owner's model
+  acquisition. The *deterministic* features need only L2 (closed) and L4a (closed); the ROADMAP's gating
+  sentence is scoped to "**AI parts of** L6". Same precedent as L3. The full boundary argument is in the
+  L6 plan — read it before touching the dependency graph.
+- **Next agent work without the model: none in L6.** Everything left in L6 is the *Intelligence* section
+  (semantic fragment discovery, T0 summary, T1 parameter mapping, the passive hint), which is L1-gated.
+  Across Phase L the model-independent surface is now: **L5a's gate methodology, which is an OWNER
+  decision, not engineering** (options A–E are recorded in the L5 plan; the brief states plainly that "a
+  new optimization needs a profile that shows new cost, not another gate run"). L3 §8/§9, L4b and L5b all
+  need the L1 go/no-go.
+- **Where L6 stops now.** The UI exists and is proven in the real app: **Save as fragment** and **Insert
+  fragment** in the Flow Designer command bar, `verify:flow-fragments-gui` **53/53**. What remains in L6
+  is the entire *Intelligence* section, which is L1-gated. `awkit-djnl.9` stays **open**.
+- **The two write paths are different ON PURPOSE — do not "unify" them.** Capture goes through
+  `fragments:capture` (created in main, from the stored flow, via `create`, which refuses a duplicate id;
+  there is no blind-write import channel). Insert deliberately does **not** call `fragments:apply`:
+  that channel writes the *stored* flow, which bypasses the editor and yields an insertion the user
+  cannot undo and that the next save of an already-dirty document silently overwrites. Insertion is an
+  editor transaction built by the same pure `applyFragment`, so undo/redo, dirty state and Save are the
+  existing mechanisms. `fragments:apply` remains the audited store-write path for non-editor callers, and
+  `verify:flow-fragments-gui` §9 proves it refuses over direct IPC and writes nothing when it does.
+- **The designer's selection model is single-node (`selectedNodeId`), not a set.** The save dialog seeds
+  from it and then lets the user check steps. Do not add marquee multi-select to "fix" this without an
+  explicit canvas decision — the brief that produced this work forbade redesigning the canvas.
+- **Required inputs are shown, never remapped.** `runtimeInputs` live on the WORKFLOW profile, not on a
+  flow, so there is no flow-level declaration to map onto; a mapping UI here would invent one, and
+  rebinding would be exactly the silent substitution the audit exists to prevent.
+- **Traps found here:**
+  - **A lease denial is not proof that the operation is forbidden — read the grammar.** The single most
+    expensive finding of these two sessions: `git add` and `agent:lease-grant` were both available the
+    whole time, in one exact spelling each, and a previous session reported them TERMINAL and stopped.
+    `tools/agents/lease-guard.mjs` is ~760 lines and every allowed form is a readable regex or token
+    check. Reading it once costs less than one wrong "BLOCKED" in a handoff.
+  - **`bd`, `git` and `npm run` work through Bash; `sed`, `grep`, `head`, `tail`, `node` and `npx` do
+    not.** Use the native Read/Grep/Glob tools, and register a new verifier in `package.json` before
+    trying to run it, because `npx tsx …` is refused while `npm run verify:…` is allowed. **Compound
+    commands are refused outright** — `hasUnsafeShellSyntax` rejects `;  &  |  >  <  backtick  newline
+    $(  ${  ^`, so one bounded command per call, and a commit message cannot contain any of them
+    (which is why this repo's `Co-Authored-By` trailer is inline in parentheses rather than a real
+    trailer line).
+  - **A new toolbar control can break a layout contract two verifiers away.** Two labelled buttons added
+    to the Flow Designer command bar overflowed it at 1024px, which `verify:flow-designer` catches as an
+    escaped control. Fixed in the product (icon buttons, accessible name on `aria-label`), not by
+    relaxing the assertion. Its group count is hardcoded and EXACT — a new `EditorCommandGroup` must be
+    reflected there.
+  - **A finding's CODE being reported is not the same as it BLOCKING.** A mutation moving
+    `resolvedSecretValue` out of the blocking set survived a 94/0 suite untouched, because every secret
+    assertion checked the code and none checked the severity. Assert severity per code against a declared
+    table, not per case.
+  - **`boundaryEdgeDropped` is raised by `captureFragment`, not by `auditFragment`.** A cardinality gate
+    that watches only the audit reports it unreachable. Record findings from every producer.
+  - **`JsonProfileStore.import` overwrites; `create` refuses a duplicate id.** Any new "import a
+    document" channel inherits the overwrite unless it goes through `create`.
+
+## HANDOFF (2026-09-20) — L3 §10 built (Intelligent Locator status vocabulary + evidence on demand)
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** see CURRENT_STATE and the L3 plan's "§10 as built". `awkit-djnl.4` stays `in_progress`; Beads and

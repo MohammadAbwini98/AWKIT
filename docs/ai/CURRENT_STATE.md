@@ -1,6 +1,92 @@
 # CURRENT_STATE
 
-## L3 §10 built: the Intelligent Locator status vocabulary and evidence on demand (2026-09-20, current)
+## L6 deterministic core AND the Flow Designer fragment UI (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
+moved; this is implementation and verifier work inside the open `awkit-djnl.9`.
+
+**The previous session's "TERMINAL `git add`" blocker was a command-form error, not an authorization
+wall.** Everything it had written was preserved and is now committed. The unleased Git grammar in
+`tools/agents/lease-guard.mjs` accepts exactly `git add -- <paths>` with the literal `--` separator and
+non-Risk-3 paths; `git add -A` fails that shape and is refused with a lease-flavoured message that reads
+like a denial of authority. `npm run agent:lease-grant -- …` is likewise permitted unleased — only the
+`node tools/agents/lease-cli.mjs` spelling is refused. **A lease denial is not evidence that the
+operation is forbidden.**
+
+- **The dependency boundary was established from the tracker and the plan before anything was written.**
+  `awkit-djnl.9` (L6) is blocked by `awkit-djnl.3` (L2, **closed**) and `awkit-djnl.6` (**L4b, open**), and
+  L4b is blocked by L1, which is blocked on the owner's model acquisition. `bd ready` therefore does not
+  list L6. **That edge was not touched and `awkit-djnl.9` is not closed.** What is independent is the
+  plan's *Deterministic features* section: it needs L2's locator metadata (closed) and L4a's
+  `FlowValidator` (closed) and nothing from L4b, and the ROADMAP's gating sentence is scoped to
+  "AI-dependent work … **AI parts of** L6". This is the precedent L3 set — model-independent sections
+  built while the bead stays `in_progress` behind L1. Full reasoning and the matrix:
+  `docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md`.
+- **The spec's blocking audit ran first.** It is a reconnaissance matrix — existing capability / reusable
+  owner / real gap / proposed change / verifier — over the seven capabilities the plan names, verified
+  against the code rather than assumed. Two findings changed the design: `JsonProfileStore.import`
+  overwrites unconditionally while `create` refuses a duplicate id (so fragments are created **only** by
+  capture, through `create`, and no blind-write import channel exists), and `FlowValidator` validates a
+  *runnable flow*, so every fragment would fail it for non-defects — a fragment needs a subgraph-scoped
+  audit of its own, while the **applied** flow keeps going through the existing validator.
+- **A fragment is a subgraph, and the audit is the only authority on it.** `src/fragments/FlowFragment.ts`
+  holds 16 codes, 12 blocking and 4 advisory. Blocking: shape, empty, duplicate node/edge id, an edge
+  endpoint outside the fragment, a `start`/`end` step, a protected-login step, a resolved secret literal,
+  an undeclared or duplicated input, and — only when a destination is supplied — recursive expansion and
+  an unresolved `runFlow` target. Advisory: a dropped boundary connector, an unused declared input, an
+  environment-specific binding, a mutating step.
+- **Fail-closed in main, not in the renderer.** `app/main/ipc/fragment.ipc.ts` re-runs the audit on every
+  capture and apply; `fragments:apply` re-audits the fragment **loaded from disk**, because the fragment
+  folder is ordinary user-writable JSON and "it passed once" says nothing about the bytes being read now.
+  `applyFragment` is pure and builds the whole next profile before returning, and the write is one
+  `updateWith` compare-and-swap, so a blocking finding writes nothing at all — there is no partial state.
+- **Nothing is reinvented.** Required inputs are `RuntimeInputDefinition`s derived from the `runtimeInput`
+  bindings the steps already carry (no second parameter system); persistence is `JsonProfileStore`;
+  insertion produces exactly the shape `FlowChartDesigner.insertAndArrangeNodes` already takes, so canvas
+  layout, history and undo are the existing ones.
+- **Secrets are safe by construction, and the audit guards the one hole.** A `secret` `ValueSource` stores
+  only `secretName`, so a verbatim copy never carries a value; what blocks is a resolved literal sitting
+  beside it. Bindings are found by **shape**, not by a field list, because an Oracle node's binds live at
+  `config.oracle.binds[i].valueSource` and any field-enumerating walk misses them.
+- **Still dependency-blocked and NOT built:** the entire *Intelligence* section — semantic discovery of
+  fragments (no `fragment` document kind exists; `node-template` is a node-TYPE catalog keyed by
+  `nodeType`), the T0 summary, the T1 parameter-mapping suggestion and the passive "similar fragment
+  exists" hint. `AiAutonomyPolicy` already registers `fragmentSummary` and `fragmentParameterMapping`
+  with their ceilings, so no policy work is owed — only the feature, after the L1 go/no-go.
+- **The Flow Designer can now reach all of it.** `app/renderer/components/workflow/FragmentDialogs.tsx`
+  adds **Save as fragment** and **Insert fragment** to the command bar, both permission-gated
+  (`WORKFLOW_CREATE` / `WORKFLOW_EDIT`). **The two write paths are deliberately different:** capture goes
+  through `fragments:capture` so the fragment is created in main from the *stored* flow via `create`,
+  and the dialog therefore refuses while the editor is dirty rather than capturing a graph the user is
+  not looking at; insertion deliberately does **not** call `fragments:apply`, because that channel writes
+  the stored flow, bypassing the editor and producing an insertion the user cannot undo that the next
+  save of a dirty document would overwrite. Insertion is an ordinary editor transaction built by the same
+  pure `applyFragment`, so undo/redo, dirty state and Save are the existing mechanisms; `fragments:apply`
+  remains the audited store-write path for non-editor callers.
+- **Two shapes the UI does not invent.** The designer's selection model is single-node
+  (`selectedNodeId`), so the dialog seeds from it and lets the user check steps rather than adding
+  marquee multi-select to a canvas the brief forbade redesigning. And required runtime inputs are
+  *shown*, not remapped: `runtimeInputs` live on the WORKFLOW profile, so a flow-level mapping UI would
+  invent a declaration this layer does not have, and rebinding would be the silent substitution the
+  audit exists to prevent.
+- **Checks (all run against the final state):** `npm run build` PASS, `typecheck:scripts` PASS,
+  `verify:flow-fragments` **97/97** (new, `integration`), `verify:flow-fragments-gui` **53/53** (new,
+  `real-browser`), `verify:flow-designer` **140 checks observed, 0 unexpected failures**,
+  `verify:design-tokens` **35/35**, `verify:source-hygiene` **11/11**, `verify:ipc-contract` **10/10**
+  (235 exposed channels — the six fragment channels are gated), `verify:runner` **138/138**,
+  `verify:verifier-classification` **232 classified** (`real-browser` 91).
+- **`verify:flow-designer` caught a REAL regression from this change** and it was fixed in the product:
+  two labelled fragment buttons overflowed the command bar at 1024px, so they became `EditorIconButton`s
+  with the accessible name on `aria-label`, matching the utilities group. Its hardcoded group count moved
+  3 → 4 for the legitimate new group and remains an exact count.
+- **Mutation-tested.** `freshId` returning the base id failed "the inserted steps did NOT reuse the
+  fragment's own ids" (29/31, and the second insertion then correctly added nothing); dropping the
+  `blocked` term from the dialog's `canInsert` failed exactly one check (46/47). That second mutation
+  exposed a gap — the suite only proved the *disabled control* — so §9 was added to drive
+  `fragments:apply`/`fragments:capture` over direct IPC with no dialog open and assert the refusal comes
+  from main and writes nothing. Both mutations were reverted and the final source re-verified.
+
+## L3 §10 built: the Intelligent Locator status vocabulary and evidence on demand (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved; §10 is implementation and verifier work inside the open `awkit-djnl.4`.

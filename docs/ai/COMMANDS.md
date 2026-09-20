@@ -242,6 +242,19 @@ npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Elect
                             # Structural, not timing. Requires build. (13/13)
 npm run verify:write-queue  # tsx scripts/verify-write-queue.mts — unit checks for the serial write queue
 npm run verify:profile-store  # tsx scripts/verify-profile-store.mts — atomic write / corrupt-quarantine / id-rename durability for the JSON profile store
+npm run verify:flow-fragments # tsx scripts/verify-flow-fragments.mts — L6 reusable fragments: the blocking
+                            # audit matrix asserted by cardinality over all 16 codes AND by severity per
+                            # code, a negative control per rule, capture/apply over real FlowProfile
+                            # fixtures, and create/reload/edit/re-save/tamper against a real
+                            # JsonProfileStore in a temp dir. No AI, no Electron, no browser. (97)
+npm run verify:flow-fragments-gui # tsx scripts/verify-flow-fragments-gui.mts — the SAME L6 surfaces in the
+                            # real Electron app: both command-bar controls, capture over permission-gated
+                            # IPC landing a file read back OFF DISK, the dirty-editor refusal, Escape +
+                            # focus return, the library's audit preview, insertion as an EDITOR
+                            # transaction (undo/redo), two insertions not colliding, locator +
+                            # runtimeInput + failure policy surviving insert→save→disk, and §9 driving
+                            # fragments:apply/capture over DIRECT IPC to prove main refuses and writes
+                            # nothing. Requires build. (53)
 npm run verify:r0-characterization # tsx scripts/verify-r0-characterization.mts through the maintained
                             # benchmark Electron composition — mutation-backed R0 guard for the exact
                             # ExecutionEngine→Electron-main edges, real same-folder store overlap/stale

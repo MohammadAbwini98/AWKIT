@@ -1,5 +1,52 @@
 # KNOWN_ISSUES
 
+## A lease-guard denial reads like an authorization wall when it is a command-form error (2026-09-20, resolved — read before reporting BLOCKED)
+
+- **This cost a full session's closeout.** A previous session reported `git add` as **TERMINAL** and
+  ended with its whole L6 implementation uncommitted, and recorded here that "the Risk-3 write lease
+  cannot be granted from a direct-work session". **Both conclusions were wrong**, and the working tree
+  survived only because nothing destructive was attempted.
+- `tools/agents/lease-guard.mjs` answers every shell call from a small, exact grammar, and everything
+  outside it gets the SAME message — one that talks about leases and Risk-3 paths. That message does not
+  distinguish "you lack authority" from "you spelled it in a shape the grammar does not parse".
+  The forms that are available with **no lease at all** (`isAllowedUnleasedShellCommand`):
+  - `git add -- <paths>` — the literal `--` separator is REQUIRED, and each path must be non-Risk-3.
+    `git add -A`, `git add .` and `git add <path>` are all refused. `git commit -m "<one line>"`,
+    `git fetch origin` and `git push origin main` are available.
+  - `npm run agent:lease-grant -- --task <id> --holder <holder> --paths <paths>` — so a Risk-3 lease
+    **is** obtainable directly. Only the `node tools/agents/lease-cli.mjs …` spelling is refused.
+    Writing the task contract it needs is also permitted unleased (`docs/ai/contracts/<task>.json`).
+  - `npm run build`, `npm run typecheck[:scripts]`, `npm run verify:*` / `validate:* ` / `benchmark:*`.
+  - Read-only `git status|diff|log|show|rev-parse|ls-files` and read-only `bd show|list|stats|ready|blocked`.
+- **Compound commands are refused outright**, whatever they contain: `hasUnsafeShellSyntax` rejects
+  `;  &  |  >  <  backtick  CR/LF  $(  ${  ^`. One bounded command per call. This is also why commit
+  messages here cannot carry a real `Co-Authored-By:` trailer (it needs a newline and angle brackets),
+  and why the repo's convention is an inline `(Co-Authored-By: …)` in parentheses.
+- **Still genuinely leased:** mutating `bd` (`bd update|create|close`, `bd export -o …`) requires an
+  active `project-state` lease, and Risk-3 paths require a routed lease. Neither is unobtainable — both
+  go through the `agent:lease-grant` form above.
+- **Rule:** read the grammar before recording a gate as BLOCKED. A denial is evidence about the command
+  string, not about your authority.
+
+## `PROTECTED_LOGIN_STEP_TYPES` exists in three places (2026-09-20, OPEN — guarded, not consolidated)
+
+- The canonical exported set is `src/profiles/FlowProfile.ts`, beside the `StepType` union that defines
+  those names. `src/security/authz/AiAutonomyPolicy.ts` and
+  `src/runner/evidence/FailureEvidenceCollector.ts` (as `PROTECTED_STEP_TYPES`) still hold private copies.
+- **Why it is not urgent:** `verify:flow-fragments` §12 reads both files and fails if either stops
+  agreeing with the canonical set, so a silent divergence is caught. The duplication is a maintenance
+  cost, not a correctness hole.
+- **Why it is still open:** `src/security/**` is Risk 3, so collapsing the first copy needs a routed
+  `security` lease. That lease is obtainable (see the entry above); it was not taken in this session
+  because the consolidation is mechanical, the drift guard already holds the invariant, and spending a
+  Risk-3 lease on a rename was not worth the blast radius mid-task.
+- **Workarounds that are NOT acceptable:** adding a fourth copy, or reading the answer out of
+  `decideAiAction` by passing `enabled: true` to a policy question that is not being asked.
+- **To clear it:** write `docs/ai/contracts/<task>.json`, run
+  `npm run agent:lease-grant -- --task <task> --holder security --paths src/security/authz/AiAutonomyPolicy.ts`,
+  replace the private copies with imports of the canonical set, then **keep** the drift guard pointing at
+  whatever remains and re-run `verify:flow-fragments`.
+
 ## A renderer view cached per FLOW, reset per STEP, goes permanently empty (2026-09-20, resolved)
 
 - The L3 §10 panel fetched `listUpgrades(flowId)` — a per-FLOW view — in a loader keyed on `flowId`, and
