@@ -1,6 +1,7 @@
 import { registerDataSourceIpc } from "./dataSource.ipc";
 import { registerExecutionIpc } from "./execution.ipc";
 import { registerFlowIpc } from "./flow.ipc";
+import { registerFragmentIpc } from "./fragment.ipc";
 import { registerInstanceIpc } from "./instance.ipc";
 import { registerOfflineRuntimeIpc } from "./offlineRuntime.ipc";
 import { registerReportIpc } from "./report.ipc";
@@ -54,6 +55,7 @@ export function registerIpcHandlers(): void {
   registerAuthIpc();
   registerRecorderIpc();
   registerFlowIpc();
+  registerFragmentIpc();
   registerScenarioIpc();
   registerExecutionIpc();
   registerInstanceIpc();

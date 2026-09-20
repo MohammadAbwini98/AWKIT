@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import { toDisplayableIpcError } from "./ipcErrorMessage";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
+import type { FlowFragment, FragmentAuditFinding } from "@src/fragments/FlowFragment";
+import type { CaptureFragmentInput, FragmentOperationResult } from "./ipc/fragment.ipc";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
@@ -309,6 +311,22 @@ const api = {
         profile: FlowProfile;
         validation: { issues: unknown[]; errorCount: number; warningCount: number; blockingCount: number; runnable: boolean };
       }>
+  },
+  /**
+   * Reusable fragments and action templates (L6). Every call is audited in main; `audit` is the
+   * read-only preview of the same findings `apply` acts on, so the editor can show a refusal
+   * before the user commits to it rather than after.
+   */
+  fragments: {
+    list: () => invoke("fragments:list") as Promise<FlowFragment[]>,
+    get: (id: string) => invoke("fragments:get", id) as Promise<FlowFragment | null>,
+    audit: (fragmentId: string, flowId?: string) =>
+      invoke("fragments:audit", fragmentId, flowId) as Promise<FragmentAuditFinding[]>,
+    capture: (input: CaptureFragmentInput) =>
+      invoke("fragments:capture", input) as Promise<FragmentOperationResult<FlowFragment>>,
+    apply: (flowId: string, fragmentId: string) =>
+      invoke("fragments:apply", flowId, fragmentId) as Promise<FragmentOperationResult<{ insertedNodeIds: string[] }>>,
+    delete: (id: string) => invoke("fragments:delete", id) as Promise<void>
   },
   /**
    * Flow validation + Legacy Compatibility (Stage 2c). Every status here is DERIVED on demand;

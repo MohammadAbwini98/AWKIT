@@ -1,6 +1,9 @@
+import { join } from "node:path";
+
 import { getRuntimePaths } from "./appPaths";
 import { getConfiguredPaths } from "./storagePaths";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
+import type { FlowFragment } from "@src/fragments/FlowFragment";
 import type { RuntimeInputDefinition } from "@src/data/RuntimeInputDefinition";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
@@ -29,6 +32,17 @@ export function createFlowProfileStore(): JsonProfileStore<FlowProfile> {
       name: `${profile.name} Copy`
     })
   });
+}
+
+/**
+ * Reusable fragments and action templates (L6).
+ *
+ * Under the runtime root rather than `getConfiguredPaths()` because fragments have no Settings
+ * path of their own; `JsonProfileStore` creates the folder on demand, so nothing has to be
+ * registered at start-up for this to work on a machine that has never had one.
+ */
+export function createFlowFragmentStore(): JsonProfileStore<FlowFragment> {
+  return new JsonProfileStore<FlowFragment>({ folder: join(getRuntimePaths().root, "fragments") });
 }
 
 export function createWorkflowProfileStore(): JsonProfileStore<WorkflowProfile> {

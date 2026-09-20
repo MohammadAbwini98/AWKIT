@@ -48,6 +48,26 @@ export type StepType =
   | "oracle"
   | "end";
 
+/**
+ * The step types that ARE the protected-login surface.
+ *
+ * Canonical because it belongs to the step-type vocabulary above, not to any one consumer: these
+ * names are the same fact whether the question is "may the model see this?" (L1 autonomy policy,
+ * T3), "may failure evidence be collected here?" (L5a) or "may this be captured into a reusable
+ * fragment?" (L6). Exported so a fourth consumer never has to restate it.
+ *
+ * Two private copies predate this one — `PROTECTED_LOGIN_STEP_TYPES` in
+ * `src/security/authz/AiAutonomyPolicy.ts` and `PROTECTED_STEP_TYPES` in
+ * `src/runner/evidence/FailureEvidenceCollector.ts`. Both must be collapsed onto this constant;
+ * the first is a Risk-3 path and its edit is lease-gated. Until then a drift guard is the only
+ * thing keeping the three in agreement — see `verify:flow-fragments`.
+ */
+export const PROTECTED_LOGIN_STEP_TYPES: ReadonlySet<StepType> = new Set<StepType>([
+  "protectedLoginHandoff",
+  "autoSecureLogin",
+  "reuseSession"
+]);
+
 export type LocatorStrategy = "role" | "label" | "placeholder" | "text" | "testId" | "id" | "css" | "xpath" | "tagName";
 
 /**
