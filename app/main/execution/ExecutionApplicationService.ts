@@ -4,6 +4,7 @@ import { isAbsolute, join } from "node:path";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
+import { validateRuntimeValues } from "@src/data/RuntimeInputDefinition";
 import { getFlowValidationService } from "../validation";
 import type { CompatibilityGrant } from "@src/validation/LegacyCompatibility";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
@@ -133,6 +134,33 @@ export class ExecutionApplicationService {
         executionId: randomUUID(),
         validation,
         message: "Workflow validation passed. Browser execution is available when dryRun=false."
+      };
+    }
+
+    // A real run must satisfy the workflow's OWN declared required inputs, against the values THIS run
+    // supplied. `validateWorkflow` cannot judge that and must not: it answers "is this workflow runnable",
+    // which has to stay true before the user has typed anything, and it is also what `execution:validate`
+    // and every dry run return. So the check belongs here, on the real-run path only, where the values
+    // finally exist. Without it `ValueResolver` substitutes "" for an unsupplied required input and the
+    // run proceeds on an empty value — the silent substitution the pre-run gate already knows how to
+    // refuse, through this same `validateRuntimeValues`, everywhere except here.
+    const unsatisfiedInputs = validateRuntimeValues(validation.workflow.runtimeInputs ?? [], request.runtimeInputs ?? {});
+    if (unsatisfiedInputs.length > 0) {
+      return {
+        status: "validationFailed",
+        validation: {
+          ...validation,
+          valid: false,
+          issues: [
+            ...validation.issues,
+            ...unsatisfiedInputs.map((issue) => ({
+              key: `runtime.${issue.key}`,
+              severity: "error" as const,
+              blocking: true,
+              message: issue.message
+            }))
+          ]
+        }
       };
     }
 

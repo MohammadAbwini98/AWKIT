@@ -520,6 +520,16 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // `/success` renders an empty record for an id it has never seen, so a verifier cannot tell "nothing
+  // was submitted" from "something was submitted with empty fields" by fetching a guessed id — an
+  // assertion written that way passes whether or not the run reached the form. This lists what the
+  // server actually holds, so a check can assert the real cardinality and the real values.
+  if (req.method === "GET" && path === "/api/submissions") {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ count: submissions.size, submissions: [...submissions.values()] }));
+    return;
+  }
+
   if (req.method === "GET" && path === "/success") {
     const id = url.searchParams.get("id") ?? "";
     const submission = submissions.get(id) ?? { id, firstName: "", lastName: "", email: "", country: "", accountType: "" };

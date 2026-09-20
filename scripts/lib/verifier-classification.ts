@@ -147,6 +147,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "L6 fragment surfaces in the real Electron app: capture over permission-gated IPC landing a file on disk, the dirty-editor refusal, the library's audit preview, insertion as an editor transaction with undo/redo, two insertions not colliding, and locator/data-binding survival through insert → save → disk."
   },
+  "verify:flow-fragments-e2e": {
+    class: "real-browser",
+    why: "L6 fragment lifecycle end to end: capture in the real Flow Designer, insert into another flow, wire it in with the canvas's own drag-to-connect, save, reopen, edit, re-save, then run it for real through execution:runWorkflow with the bundled Chromium against the Feature Test Lab — asserting the flow JSON on disk, the engine's run report, and the mock site's own submitted state, plus the refusal when a declared required runtime input is unsupplied."
+  },
   "verify:flow-fragments": {
     class: "integration",
     why: "L6 reusable fragments: the blocking audit matrix asserted by cardinality over every declared code with a negative control per rule, capture and apply over real FlowProfile fixtures, and the create/reload/edit/re-save/tamper round trip against a real JsonProfileStore in a temp dir."

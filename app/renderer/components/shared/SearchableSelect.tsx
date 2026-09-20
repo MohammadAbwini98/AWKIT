@@ -74,7 +74,17 @@ export function SearchableSelect({ value, options, onChange, placeholder = "Sele
         <ChevronDown size={14} />
       </button>
       {open ? (
-        <div className="searchable-select-menu" role="listbox">
+        <div
+          className="searchable-select-menu"
+          role="listbox"
+          // Every caller places this control inside a <label> (the properties panels and both command
+          // bars all do), and a label's activation behavior re-dispatches a synthetic click onto its
+          // first labelable descendant — which is the trigger above. So choosing an option closed the
+          // menu and then immediately re-opened it, and a click into the search box closed it outright.
+          // Cancelling the click's default action inside the popup cancels that forwarding; focus comes
+          // from mousedown, so the search field still focuses normally.
+          onClick={(event) => event.preventDefault()}
+        >
           <div className="searchable-select-search">
             <Search size={13} />
             <input

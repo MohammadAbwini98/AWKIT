@@ -353,6 +353,25 @@ try {
   const sseText = await (await page.request.get(`${BASE}/api/events?ms=0`)).text();
   check("/api/events emits a deterministic finite SSE status event", /event: status/.test(sseText) && /\"state\":\"complete\"/.test(sseText));
 
+  // `/api/submissions` exists because `/success` renders an empty record for an id it has never seen,
+  // so a run verifier cannot otherwise tell "never submitted" from "submitted empty". It must report a
+  // COUNT that moves with real submissions, and echo the values it stored.
+  const before = await (await page.request.get(`${BASE}/api/submissions`)).json();
+  await page.request.post(`${BASE}/submit`, {
+    form: { firstName: "MockProbe", lastName: "Submissions", email: "probe@example.com", country: "uk", accountType: "personal" }
+  });
+  const after = await (await page.request.get(`${BASE}/api/submissions`)).json();
+  check(
+    "/api/submissions counts a real submission rather than reporting a guessed id",
+    after.count === before.count + 1,
+    `${before.count} → ${after.count}`
+  );
+  check(
+    "/api/submissions echoes the values the server stored",
+    after.submissions.at(-1)?.firstName === "MockProbe" && after.submissions.at(-1)?.lastName === "Submissions",
+    JSON.stringify(after.submissions.at(-1))
+  );
+
   // 202 → poll-to-terminal job (awkit-4km C1): first two polls are 202 "processing", third is a
   // terminal 200 "succeeded", then the counter resets so the scenario is repeatable.
   const jobId = `verify-${Date.now()}`;
