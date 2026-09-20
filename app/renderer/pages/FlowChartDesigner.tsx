@@ -1522,30 +1522,29 @@ function FlowChartDesignerContent() {
             </EditorIconButton>
           </EditorCommandGroup>
           {/* L6: both controls are permission-gated and always execute a real operation. The save
-              control stays enabled with nothing selected — the dialog is where a selection is made. */}
-          <EditorCommandGroup label="Fragments">
-            <button
-              className="toolbar-button"
+              control stays enabled with nothing selected — the dialog is where a selection is made.
+              Icon buttons, like the utilities group: two labelled buttons overflowed the command bar
+              at 1024px, which verify:flow-designer catches as an escaped control. The accessible
+              name is on aria-label, so this is compact without being unlabelled. */}
+          <EditorCommandGroup label="Fragments" className="editor-command-utilities">
+            <EditorIconButton
               data-testid="fragment-save-open"
+              aria-label="Save selection as fragment"
+              title="Save the selected steps as a reusable fragment"
               disabled={!can(Permission.WORKFLOW_CREATE)}
               onClick={() => setFragmentDialog("save")}
-              title="Save the selected steps as a reusable fragment"
-              type="button"
             >
               <Bookmark size={15} aria-hidden="true" />
-              Save as fragment
-            </button>
-            <button
-              className="toolbar-button"
+            </EditorIconButton>
+            <EditorIconButton
               data-testid="fragment-insert-open"
+              aria-label="Insert fragment"
+              title="Insert a saved fragment into this flow"
               disabled={!canSaveFlow}
               onClick={() => setFragmentDialog("insert")}
-              title="Insert a saved fragment into this flow"
-              type="button"
             >
               <Blocks size={15} aria-hidden="true" />
-              Insert fragment
-            </button>
+            </EditorIconButton>
           </EditorCommandGroup>
           <EditorCommandGroup label="Layout & history" className="editor-command-utilities">
             <EditorIconButton onClick={autoArrange} title="Auto-arrange steps" aria-label="Auto-arrange steps">

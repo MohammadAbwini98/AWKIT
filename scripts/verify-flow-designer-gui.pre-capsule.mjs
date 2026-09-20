@@ -927,7 +927,9 @@ try {
   });
   check(
     "Flow Designer command bar is compact and does not scroll horizontally",
-    commandBar && commandBar.scrollWidth <= commandBar.clientWidth + 1 && commandBar.overflowX === "visible" && commandBar.groups === 3 && commandBar.compactHistory,
+    // Four groups since L6 added Fragments (identity, step creation, fragments, layout & history).
+    // Still an EXACT count, not a relaxed one: a group appearing or vanishing must fail here.
+    commandBar && commandBar.scrollWidth <= commandBar.clientWidth + 1 && commandBar.overflowX === "visible" && commandBar.groups === 4 && commandBar.compactHistory,
     commandBar ? JSON.stringify(commandBar) : "command bar not found"
   );
   const responsiveCommandBar = [];

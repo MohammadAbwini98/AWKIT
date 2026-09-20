@@ -109,6 +109,7 @@
     "verify:ipc-error-message": "tsx scripts/verify-ipc-error-message.mts",
     "verify:run-report-compatibility": "tsx scripts/verify-run-report-compatibility.mts",
     "verify:flow-fragments": "tsx scripts/verify-flow-fragments.mts",
+    "verify:flow-fragments-gui": "tsx scripts/verify-flow-fragments-gui.mts",
     "verify:validation": "tsx scripts/verify-validation.mts",
     "verify:condition-semantics": "tsx scripts/verify-condition-semantics.mts",
     "verify:wait-validation": "tsx scripts/verify-wait-validation.mts",

@@ -143,6 +143,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:stress:artifacts": { class: "integration", why: "Artifact stress writing real artifact files." },
   "verify:locks": { class: "integration", why: "Real lock manager + real BrowserContextFactory lock path + fs (no browser launched)." },
   "verify:profile-store": { class: "integration", why: "Real atomic fs writes / corrupt-quarantine / id-rename in a temp dir." },
+  "verify:flow-fragments-gui": {
+    class: "real-browser",
+    why: "L6 fragment surfaces in the real Electron app: capture over permission-gated IPC landing a file on disk, the dirty-editor refusal, the library's audit preview, insertion as an editor transaction with undo/redo, two insertions not colliding, and locator/data-binding survival through insert → save → disk."
+  },
   "verify:flow-fragments": {
     class: "integration",
     why: "L6 reusable fragments: the blocking audit matrix asserted by cardinality over every declared code with a negative control per rule, capture and apply over real FlowProfile fixtures, and the create/reload/edit/re-save/tamper round trip against a real JsonProfileStore in a temp dir."
