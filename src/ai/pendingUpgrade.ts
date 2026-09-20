@@ -16,7 +16,7 @@
  */
 import { createHash } from "node:crypto";
 
-import type { FlowProfile, FlowStep, LocatorCandidate, LocatorContext, PendingLocatorUpgrade } from "../profiles/FlowProfile";
+import type { FlowProfile, FlowStep, LocatorCandidate, LocatorContext, PendingLocatorUpgrade, PendingProofEvidence } from "../profiles/FlowProfile";
 import { createLocatorApprovalBinding, locatorBindingMatches } from "../profiles/locatorApproval";
 import { decideAiAction, type AiPolicyReason } from "../security/authz/AiAutonomyPolicy";
 import type { CompiledLocatorPlan } from "./locatorPlan";
@@ -80,6 +80,11 @@ export function createPendingUpgrade(input: {
   compiled: CompiledLocatorPlan;
   meaningChange: boolean;
   proof: PendingLocatorUpgrade["proof"];
+  /**
+   * What the proof established, for L3 §10 evidence-on-demand. Omitted when no proof ran; the
+   * field is then absent from the stored candidate, which reads as unavailable rather than passed.
+   */
+  proofEvidence?: PendingProofEvidence;
   modelId: string;
   now: Date;
 }): PendingLocatorUpgrade | undefined {
@@ -90,6 +95,7 @@ export function createPendingUpgrade(input: {
     candidate: { ...input.compiled.candidate },
     ...(input.compiled.context ? { context: structuredClone(input.compiled.context) } : {}),
     proof: input.proof,
+    ...(input.proofEvidence ? { proofEvidence: { ...input.proofEvidence } } : {}),
     meaningChange: input.meaningChange,
     binding,
     modelId: input.modelId,

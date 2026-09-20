@@ -38,6 +38,7 @@ import type {
 } from "./contracts/AiApi";
 import type { FlowProfile, LocatorCandidate, LocatorProvenance, StepLocator } from "../profiles/FlowProfile";
 import { createLocatorApprovalBinding, locatorBindingMatches } from "../profiles/locatorApproval";
+import { classifyLocatorQuality } from "../recorder/LocatorQualityClass";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyReason } from "../security/authz/AiAutonomyPolicy";
 
 /**
@@ -166,6 +167,9 @@ export function describeFlowLocatorUpgrades(input: {
     if (!locator) continue;
     const provenance = locator.locatorProvenance;
     if (provenance) {
+      // The whole previous locator stays in main: only its class and whether it kept an identity
+      // guard cross to the renderer, which is what L3 §10 shows for the revert target.
+      const previousClass = classifyLocatorQuality(provenance.previous);
       applied.push({
         stepId: step.id,
         stepName: step.name,
@@ -173,7 +177,12 @@ export function describeFlowLocatorUpgrades(input: {
         tier: provenance.tier,
         appliedAt: provenance.appliedAt,
         revertable: locatorBindingMatches(provenance.binding, step),
-        previous: candidateOf(provenance.previous)
+        previous: candidateOf(provenance.previous),
+        ...(previousClass ? { previousQualityClass: previousClass.class } : {}),
+        previousGuarded: provenance.previous.guard !== undefined,
+        source: provenance.source,
+        proof: provenance.proof,
+        modelId: provenance.modelId
       });
     }
     const proposal = locator.pendingUpgrade;
@@ -206,6 +215,8 @@ export function describeFlowLocatorUpgrades(input: {
       modelId: proposal.modelId,
       current: candidateOf(locator),
       proposed: { ...proposal.candidate },
+      ...(proposal.context ? { proposedContext: structuredClone(proposal.context) } : {}),
+      ...(proposal.proofEvidence ? { proofEvidence: { ...proposal.proofEvidence } } : {}),
       promotable: dryRun.ok,
       blockedReason: dryRun.ok ? null : dryRun.code
     });

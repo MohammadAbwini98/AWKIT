@@ -1961,6 +1961,125 @@ div.validation-issue-row {
   color: var(--awkit-warning);
 }
 
+/* ── Intelligent Locator status (Phase L, L3 §10) ──────────────────────────────────────────────
+   One badge per step plus one evidence disclosure. Every colour is a token, so the panel follows
+   the theme and the user's accent; the badge id and its label carry the meaning, so nothing here
+   depends on colour alone. Long diagnostic text wraps rather than widening the properties panel. */
+.locator-status {
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.locator-status-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.locator-status-badge {
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+  padding: var(--space-1) var(--space-2);
+}
+
+.locator-status-badge.tone-ok {
+  background: var(--awkit-success-soft);
+  border-color: var(--awkit-success-muted);
+  color: var(--awkit-success-text);
+}
+
+.locator-status-badge.tone-warn {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning-text);
+}
+
+.locator-status-badge.tone-danger {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+  color: var(--awkit-danger-text);
+}
+
+.locator-status-badge.tone-info {
+  background: var(--awkit-info-soft);
+  border-color: var(--awkit-info-muted);
+  color: var(--awkit-info-text);
+}
+
+.locator-status-badge.tone-muted {
+  background: var(--awkit-surface);
+  color: var(--awkit-text-muted);
+}
+
+.locator-status-loading,
+.locator-status-ai,
+.locator-status-applied,
+.locator-status-compare,
+.locator-status-headline {
+  color: var(--awkit-text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.locator-status-headline {
+  color: var(--awkit-text);
+}
+
+.locator-status-evidence > summary {
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--awkit-text-muted);
+  padding: var(--space-1) 0;
+}
+
+.locator-status-evidence > summary:focus-visible {
+  box-shadow: var(--awkit-focus-ring);
+  outline: 2px solid var(--awkit-accent);
+  outline-offset: 2px;
+}
+
+.locator-evidence-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+}
+
+.locator-evidence-row {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.locator-evidence-row > dt {
+  color: var(--awkit-text-muted);
+  font-weight: 600;
+}
+
+.locator-evidence-row > dd {
+  color: var(--awkit-text);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.locator-evidence-row[data-unavailable="true"] > dd {
+  color: var(--awkit-text-muted);
+}
+
+.locator-evidence-missing {
+  font-style: italic;
+}
+
 .locator-alternative-list {
   display: grid;
   gap: var(--space-1);

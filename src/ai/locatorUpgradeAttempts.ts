@@ -361,6 +361,14 @@ export async function runLocatorUpgradeAttempts(
       compiled: evaluated,
       meaningChange: evaluated.meaningChange,
       proof: proof.outcome === "proven" ? "capture-proven" : "unprovable-now",
+      // L3 §10 evidence-on-demand: gate verdicts, counts and the code, nothing the proof saw.
+      proofEvidence: {
+        code: proof.code,
+        ...(proof.candidateMatchCount !== undefined ? { candidateMatchCount: proof.candidateMatchCount } : {}),
+        ...(proof.baselineMatchCount !== undefined ? { baselineMatchCount: proof.baselineMatchCount } : {}),
+        sameElement: proof.gates.sameElement,
+        scope: proof.scope
+      },
       modelId: outcome.modelId,
       now: now()
     });

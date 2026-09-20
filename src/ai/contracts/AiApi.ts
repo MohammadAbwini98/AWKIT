@@ -13,7 +13,8 @@
  */
 
 import { authorizeSemanticAction } from "../../semantic/contracts/SemanticApi";
-import type { LocatorCandidate } from "../../profiles/FlowProfile";
+import type { LocatorCandidate, LocatorContext, PendingProofEvidence } from "../../profiles/FlowProfile";
+import type { LocatorQualityClass } from "../../recorder/LocatorQualityClass";
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
 import type { AiActionRecord } from "../AiActionRecord";
 import type { LocatorPromotionRefusal } from "../locatorPromotion";
@@ -115,6 +116,17 @@ export interface PendingLocatorUpgradeView {
   current: LocatorCandidate;
   /** The proposed replacement. */
   proposed: LocatorCandidate;
+  /**
+   * The scope the candidate was compiled and proven under (L3 §10 "proposed scope" and "proof
+   * location"). Containers, frame chain and shadow boundary only — the same structure the runner
+   * resolves, carrying no page text beyond the container `hasText` the compiler already validated.
+   */
+  proposedContext?: LocatorContext;
+  /**
+   * What the capture-time proof established. Optional by design: absent means the fact was never
+   * recorded, which the UI must render as unavailable rather than as a gate that passed.
+   */
+  proofEvidence?: PendingProofEvidence;
   promotable: boolean;
   blockedReason: LocatorPromotionRefusal | null;
 }
@@ -129,6 +141,17 @@ export interface AppliedLocatorUpgradeView {
   /** False once the promoted locator was edited: revert is refused rather than overwriting that edit. */
   revertable: boolean;
   previous: LocatorCandidate;
+  /**
+   * The retained locator's L2 class and whether it kept a positional identity guard (L3 §10 names the
+   * revert target as "the retained guarded locator"). Classified in the main process, which holds the
+   * whole previous locator; only the class and the flag cross, never its identity or capture evidence.
+   */
+  previousQualityClass?: LocatorQualityClass;
+  previousGuarded: boolean;
+  /** Provenance of the applied change. Codes and ids only; no prompt and no model output. */
+  source: "ai-semantic-upgrade" | "ai-repair";
+  proof: "capture-proven" | "replay-proven" | "repair-proven";
+  modelId: string;
 }
 
 export interface FlowLocatorUpgradesView {

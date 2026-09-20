@@ -10,7 +10,7 @@ import { defaultOracleNodeConfig } from "./flowDesignerTypes";
 import { locatorContainerChain, type AsyncCompletionMode, type LoaderCompletion, type OracleNodeConfig, type WaitCondition, type WaitHttpMethod } from "@src/profiles/FlowProfile";
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
 import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
-import { classifyLocatorQuality, LOCATOR_QUALITY_CLASS_LABEL } from "@src/recorder/LocatorQualityClass";
+import { classifyLocatorQuality } from "@src/recorder/LocatorQualityClass";
 import {
   isSensitiveInteractionStep
 } from "@src/profiles/interactionPrerequisiteDecision";
@@ -658,23 +658,17 @@ export function FlowNodePropertiesPanel({
                     Match exactly
                   </label>
                 ) : null}
-                {locatorClassification ? (
-                  <div
-                    className={`locator-review-state ${locatorClassification.class.endsWith("-semantic") ? "ok" : "warn"}`}
-                    data-testid="locator-quality-class"
-                    data-quality-class={locatorClassification.class}
-                    role="status"
-                  >
-                    <strong>Locator class: {LOCATOR_QUALITY_CLASS_LABEL[locatorClassification.class]}</strong>
-                    {locatorClassification.reasons.map((reason) => (
-                      <span key={reason.code}>{reason.detail}</span>
-                    ))}
-                  </div>
-                ) : null}
+                {/*
+                  L3 §10: the locator's quality class and its AI upgrade lifecycle are ONE badge with
+                  one evidence disclosure. They used to be two blocks that could disagree — a step
+                  could read "Guarded positional" beside an applied AI semantic upgrade — so the class
+                  is now an input to the status table rather than a second opinion beside it.
+                */}
                 {selectedNode ? (
                   <LocatorUpgradeSection
                     editorDirty={editorDirty}
                     flowId={flowId}
+                    quality={locatorClassification}
                     stepId={selectedNode.id}
                     onApplied={onSavedFlowChanged}
                   />

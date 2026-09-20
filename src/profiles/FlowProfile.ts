@@ -405,11 +405,34 @@ export interface StepLocator extends LocatorCandidate {
  * Candidate data only, the same class as `alternatives`: no fingerprint, page text or typed value
  * (docs/ai/DECISIONS.md 2026-09-19). Replay-proof tallies live in runtime memory, not here.
  */
+/**
+ * What the capture-time proof established, kept so the Flow Designer can show it on demand
+ * (Phase L, L3 §10) without re-proving anything. Codes, gate verdicts and counts only: never a
+ * candidate value, page text, a typed value, a prompt or model output.
+ *
+ * Absent means the evidence is UNAVAILABLE — no browser proof ran, or the candidate was stored
+ * before this field existed. It never means a gate passed.
+ */
+export interface PendingProofEvidence {
+  /** Stable proof code (`PROVEN`, `TARGET_MISSING`, …), as `LocatorProofResult.code`. */
+  code: string;
+  /** Elements the proposed candidate matched under its own scope. */
+  candidateMatchCount?: number;
+  /** Elements the step's saved locator matched when it was used as the identity baseline. */
+  baselineMatchCount?: number;
+  /** Gate C: the candidate resolved to the same DOM node as the identity-proven baseline. */
+  sameElement: "pass" | "fail" | "not-run";
+  /** Whether the candidate's frame/shadow scope matched the step's. */
+  scope: "compatible" | "mismatch" | "not-checked";
+}
+
 export interface PendingLocatorUpgrade {
   schemaVersion: 1;
   candidate: LocatorCandidate;
   context?: LocatorContext;
   proof: "unprovable-now" | "capture-proven";
+  /** Non-sensitive facts from the capture-time proof. Absent ⇒ unavailable, never ⇒ passed. */
+  proofEvidence?: PendingProofEvidence;
   meaningChange: boolean;
   /** `createLocatorApprovalBinding` of the step it describes; dropped at save once it stops matching. */
   binding: LocatorApprovalBinding;
