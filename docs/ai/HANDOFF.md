@@ -1,6 +1,32 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L3 §7 built (bounded attempt loop); both standing verifier failures fixed
+## HANDOFF (2026-09-20, latest) — L3 §10 built (Intelligent Locator status vocabulary + evidence on demand)
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** see CURRENT_STATE and the L3 plan's "§10 as built". `awkit-djnl.4` stays `in_progress`; Beads and
+  the roadmap tracker pin (10 outstanding / 292 closed) were NOT touched, because no work item opened or
+  closed. New: `src/ai/locatorStatus.ts` and `verify:ai-locator-status` (85/85, `unit`).
+  `verify:ai-locator-upgrade-gui` extended 24/24 → 65/65.
+- **Next agent work without the model: none in L3.** §8 repair and §9 sweep both need a real job, and
+  therefore the L1 go/no-go, which is BLOCKED on the owner's model acquisition. §2–§7 and §10 are the whole
+  model-independent surface. Do **not** close `awkit-djnl.4`: §8, §9, `verify:ai-locator-repair`,
+  `verify:ai-locator-quality-live` and the live-model acceptance all remain.
+- **Where §10 stops:** the surface is complete and verified against SEEDED profiles. Nothing in production
+  queues an upgrade job, so no user will see a pending candidate until L1 lands. Nothing about §10 implies
+  live inference has been exercised.
+- **Traps found here:**
+  - **The panel's fetched view is per FLOW; its loader only re-runs when the flow changes.** Clearing the
+    view on a STEP change therefore leaves it null forever, and a proposal on a flow's second step silently
+    reads as "no AI suggestion". Keep the two resets scoped separately.
+  - **A step's `safety`/name makes it T3 by keyword.** `resolveStepSafety` → `isDangerousMutationStep` reads
+    the step NAME, so a fixture called "Delete row" is `T3_SENSITIVE_STEP` and will never be promotable. That
+    is the product working; name non-T3 fixtures accordingly, and assert the precondition with
+    `decideAiAction` before asserting anything it gates.
+  - **`verify:flow-designer`'s broad suite reads the locator panel's prose.** Consolidating the L2 class block
+    into the §10 badge moved the reason text behind the disclosure; two assertions there now open it.
+  - **The docs NUL is recurrent.** See KNOWN_ISSUES: it had reappeared in three files at `ef7fa81`.
+
+## HANDOFF (2026-09-20) — L3 §7 built (bounded attempt loop); both standing verifier failures fixed
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** see CURRENT_STATE and the L3 plan's "§7 as built". `awkit-djnl.4` stays `in_progress`; Beads and

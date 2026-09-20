@@ -1,5 +1,43 @@
 # DECISIONS
 
+### 2026-09-20 — Phase L L3 §10: the Intelligent Locator status vocabulary (`awkit-djnl.4`)
+
+- **One table, not a component's opinion.** `src/ai/locatorStatus.ts` is the single mapping from authoritative
+  facts to the six §10 badges; the Flow Designer renders what it returns. A pure module can be exhaustively
+  verified without Electron, and a second surface later (Recorder, Element Spy, a health report) reads the
+  same table instead of re-deriving prose that would drift.
+- **Four axes stay apart: quality, lifecycle, availability, authorization.** Collapsing any two is precisely
+  how a UI comes to claim something the product never established. So: a proposal is never "verified" because
+  it compiled; capture proof is not replay eligibility; replay eligibility is not authorization (the editor's
+  dirty state and the autonomy policy are separate gates); and a missing model is its own line, never a
+  locator, Recorder or Runner fault. The badge vocabulary is §10's six terms; the eleven lifecycle STATES
+  behind them carry the finer distinctions rather than inventing badges the spec does not define.
+- **The L2 class is an INPUT to the badge, not a second badge beside it.** The Flow Designer used to render
+  `classifyLocatorQuality` in its own block and the §6 upgrade panel in another, so a step could read
+  "Guarded positional" beside an applied AI semantic upgrade. One badge now answers "what is this locator",
+  with the class as its label when no proposal exists.
+- **T3 outranks the proposal lifecycle in the UI, mirroring §6's "T3 first and unconditionally".** A
+  sensitive or protected-login step reports `forbidden` whatever the proposal's proof state. Reporting such a
+  step as merely "not proven yet" would imply that more replays would eventually make it applicable, which is
+  false by design. Reachable in practice because a step can be renamed into sensitivity after a candidate was
+  stored.
+- **Apply is hidden for "never" and disabled for "not yet".** A disabled control on a T3 step advertises an
+  action the product refuses by design; a disabled control on an under-proven candidate is honest, because
+  the action exists and the sentence beside it says what would make it possible. Neither is the guarantee:
+  `promoteLocatorUpgrade` re-derives every precondition and refuses a renderer that calls the IPC directly,
+  which the GUI verifier proves for both the unproven and the T3 case.
+- **Evidence is persisted at proof time or reported as unavailable.** `PendingLocatorUpgrade.proofEvidence` is
+  additive and optional: the proof already computed the match counts and the gate-C identity verdict and was
+  discarding them, and §10 requires both. An absent record renders as *not recorded* — never as a passed gate,
+  which is the failure mode that would make the panel actively misleading rather than merely incomplete.
+- **Privacy by source choice, as in the Zvec projections.** The view carries the two locators being compared
+  (compiler-validated, intent-guarded, and already in the user's saved flow), stable codes, counts, and the
+  retained locator's CLASS rather than the locator itself. It never carries a prompt, model text, page text, a
+  typed value, a named secret or a data-row key — asserted against a fixture that holds all of them.
+- **The disclosure is read-only.** Opening it performs no navigation, no AI call, no run and no write; the
+  verifier asserts the audit total and the flow file are unchanged across the toggle. Evidence-on-demand must
+  never become evidence-on-generation.
+
 ### 2026-09-20 — Phase L L3 §7: the bounded attempt loop (`awkit-djnl.4`)
 
 - **The budget is finite by construction, not by a counter that has to be right.** Every iteration of

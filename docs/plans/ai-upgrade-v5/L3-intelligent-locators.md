@@ -13,9 +13,10 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go P
 from a deterministic fake provider parsed by the real output contract. §7 completes the model-independent
 chain — a job now runs eligibility → provider → contract → compiler → intent → proof → pending — but **nothing
 in production queues one**: the caller that hands it a live page and a capture context is the L1-gated piece,
-so in practice a pending candidate still only exists in a verifier. Not built: §8 repair, §9 sweep, §10 UX
-(§6 ships the minimum panel that makes an approved promotion reachable and an applied one revertible — the
-full badge vocabulary stays §10), and `verify:ai-locator-repair` / `verify:ai-locator-quality-live`.
+so in practice a pending candidate still only exists in a verifier. **§10 UX is built** (`src/ai/locatorStatus.ts`,
+the Flow Designer's `LocatorUpgradeSection`), proven by `verify:ai-locator-status` (85/85, pure) and in real
+Electron by `verify:ai-locator-upgrade-gui` (65/65). Not built: §8 repair, §9 sweep, and
+`verify:ai-locator-repair` / `verify:ai-locator-quality-live`.
 
 §7 as built:
 - **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
@@ -178,6 +179,34 @@ surface a durability report. Proposals still go through §3–§6.
 Badges: Semantic · Guarded · AI suggestion pending proof · AI semantic (capture-/replay-proven) · Suggestion rejected ·
 Auto-promoted (revert). Evidence on demand: original quality reason, proposed scope, proof location, match count,
 identity result, retained guarded locator (revert target), provenance. No raw prompts or reasoning.
+Built: `src/ai/locatorStatus.ts` + `LocatorUpgradeSection`, `verify:ai-locator-status` (85/85),
+`verify:ai-locator-upgrade-gui` (65/65).
+
+§10 as built:
+- **One table, four axes kept apart.** `resolveLocatorStatus` maps locator **quality** (L2's
+  `classifyLocatorQuality`), upgrade **lifecycle**, AI runtime **availability** and **authorization** onto the
+  six badges. Collapsing any two is how a badge comes to claim what the product never established, so each is
+  derived separately: a proposal is never "verified" because it compiled, capture proof is not replay
+  eligibility, replay eligibility is not authorization, and AI absence is never a locator or Runner fault.
+- **Eleven states behind six badges,** so the finer distinctions stay legible without inventing badges:
+  `no-upgrade` · `proposed-unproven` · `capture-proven` · `replay-partial` · `replay-rejected` · `stale` ·
+  `eligible` · `deferred-editor-dirty` · `blocked` · `applied` · `forbidden`. Every one is reachable from a
+  real profile, which the verifier asserts by cardinality rather than by example.
+- **T3 first, as in §6.** A sensitive or protected-login step reports `forbidden` ahead of anything about the
+  proposal, because no amount of proof makes it applicable. Apply is **hidden** for a "never" refusal (T3,
+  rejected, stale) and shown **disabled** for a "not yet" (more replays, dirty editor, policy off). The
+  disabled control is never the guarantee: main refuses a direct IPC call for the same reasons.
+- **Evidence has a source or says it has none.** `PendingLocatorUpgrade.proofEvidence` (optional, additive)
+  persists the proof's code, candidate/baseline match counts, the gate-C identity verdict and scope
+  compatibility. Absent ⇒ rendered *not recorded*, never as a passed gate. The disclosure is read-only: no
+  navigation, no AI call, no run, no write.
+- **Privacy by source choice.** The view carries the two locators being compared (compiler-validated, already
+  in the saved flow), codes, counts and hashed-row *counts* — never a prompt, model text, page text, a typed
+  value, a named secret or a data-row key. The verifier asserts each of those absences on a fixture that
+  carries them.
+- **Async identity.** The fetched view is per FLOW and the loader re-runs per flow, so a flow change discards
+  the view and any in-flight response (monotonic request token) while a step change resets only transient UI.
+  Clearing the view on a step change instead left it null forever — a real defect the GUI verifier caught.
 
 ## Labelled quality set
 
@@ -195,6 +224,12 @@ promotions ⇒ one write; unsaved editor ⇒ promotion deferred. `verify:ai-loca
 covers the same deferral and the one-click revert in real Electron. `verify:ai-locator-attempts` (built, 87/87)
 covers §7: the budget, repeats, every refusal stage, protected login, expired context, cancellation,
 supersession, concurrency, and runs that pass unchanged with the provider timed out, crashed or absent.
+`verify:ai-locator-status` (built, 85/85, pure) covers §10: every badge and lifecycle state reachable from a
+real profile through `describeFlowLocatorUpgrades`, T3 outranking proof, absent evidence rendered unavailable,
+each refusal keeping its own sentence, and no typed value, secret, prompt or data-row key in a view.
+`verify:ai-locator-upgrade-gui` (extended to 65/65) covers it in real Electron: the badge for a step with no
+proposal, the collapsed keyboard-operable disclosure, an unproven candidate, a forbidden step, step and flow
+switching, light/dark token resolution, and the AI-unavailable line.
 Still to build:
 `verify:ai-locator-repair`, live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
