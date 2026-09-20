@@ -389,6 +389,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Drives the real Electron Flow Designer: the locator-upgrade panel renders the lifecycle state, the Apply control is offered only when the main process says the promotion is permitted, an unsaved editor defers it, and the applied upgrade's one-click revert restores the saved locator on disk."
   },
+  "verify:ai-locator-status": {
+    class: "unit",
+    why: "L3 §10 Intelligent Locator status vocabulary: every badge and lifecycle state derived from real FlowProfile fixtures through the same describeFlowLocatorUpgrades the IPC channel calls, asserting that a proposal is never reported as applied, capture proof is not replay eligibility and replay eligibility is not authorization, one refused replay is terminal, a stale or T3 or policy refusal keeps its own sentence rather than a shared fallback, absent proof evidence renders as unavailable rather than as a passed gate, an applied upgrade names its tier, proof, model and retained revert target, and no typed value, named secret, prompt text or data-row key reaches a view or an evidence row."
+  },
   "verify:ai-locator-attempts": {
     class: "real-browser",
     why: "L3 §7 bounded synthesis attempts in real Chromium on the mock-site Locator Upgrade Lab: the real AiService over the deterministic fake transport, a budget of two attempts consumed only by real rejections, a repeated candidate neither refreshing the budget nor being re-proven, malformed/compiler/intent refusals kept off the page, wrong-element and ambiguous candidates rejected by the browser gates, protected-login and expired-context refusals terminating the job, cancellation cancelling on the host without storing a late answer, superseded and concurrent proposals resolved by the flow store's compare-and-swap, and runs that pass unchanged while the provider times out, crashes or is absent."

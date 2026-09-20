@@ -46,7 +46,9 @@ const appData = path.join(dataRoot, "SpecterStudio");
 
 let passed = 0;
 let failed = 0;
-function check(label: string, condition: unknown, detail?: string): void {
+// `detail` accepts null so a failing `getAttribute` can report "it was absent" rather than needing
+// a `?? undefined` at every call site — the absent case is exactly what a failure wants to say.
+function check(label: string, condition: unknown, detail?: string | null): void {
   if (condition) {
     passed += 1;
     console.log(`  ✓ ${label}`);
@@ -93,6 +95,85 @@ const seededFlow: FlowProfile = {
   edges: []
 };
 
+// ── A second flow for the L3 §10 status surface ────────────────────────────────────────────────
+// Two steps in one flow, so switching BETWEEN steps is exercised as a user does it: one locator
+// with no AI proposal at all (the badge must still say what the locator is), and one with a
+// candidate no browser proof ever ran for (it must never read as proven).
+const STATUS_FLOW_ID = "l3-status-gui";
+const PLAIN_STEP_ID = "step-plain";
+const UNPROVEN_STEP_ID = "step-unproven";
+const statusFlowFile = path.join(appData, "flows", `${STATUS_FLOW_ID}.json`);
+
+const plainStep: FlowStep = {
+  id: PLAIN_STEP_ID,
+  type: "click",
+  name: "Open settings",
+  position: { x: 120, y: 120 },
+  locator: {
+    strategy: "testId",
+    value: "open-settings",
+    resolution: "resolved",
+    resolvedBy: "recorder",
+    quality: { strategy: "testId", isUnique: true, matchCount: 1, confidence: "high" }
+  }
+};
+
+const unprovenBase: FlowStep = {
+  id: UNPROVEN_STEP_ID,
+  type: "click",
+  // Deliberately NOT a destructive name: the step-safety keyword rule makes "Delete row" a sensitive
+  // step, which is T3, which is a different §10 case entirely (the forbidden step seeded below).
+  name: "Archive row",
+  position: { x: 120, y: 280 },
+  locator: { strategy: "css", value: "#lu-archive-row", resolution: "resolved", resolvedBy: "recorder", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "medium" } }
+};
+const unprovenCompiled = compileLocatorPlan({ version: 1, target: { strategy: "role", value: "button", name: "Delete", exact: true }, scopes: [] }, unprovenBase.locator?.context);
+if (!unprovenCompiled.ok) throw new Error(`the unproven plan did not compile: ${unprovenCompiled.code}`);
+const unprovenPending = createPendingUpgrade({
+  step: unprovenBase,
+  compiled: unprovenCompiled,
+  meaningChange: false,
+  // No browser proof ran: §10 must show "pending proof", and its evidence must read as unavailable.
+  proof: "unprovable-now",
+  modelId: "seeded-provider",
+  now: new Date("2026-09-20T10:05:00.000Z")
+});
+if (!unprovenPending) throw new Error("the unproven step produced no pending candidate");
+const unprovenStep: FlowStep = { ...unprovenBase, locator: { ...unprovenBase.locator!, pendingUpgrade: unprovenPending } };
+
+// A step AI must never touch, carrying a candidate anyway — the state a rename produces when a
+// proposal already exists. §10 must report it as refused outright, not as "not proven yet".
+const FORBIDDEN_STEP_ID = "step-forbidden";
+const forbiddenBase: FlowStep = {
+  id: FORBIDDEN_STEP_ID,
+  type: "click",
+  name: "Delete account permanently",
+  position: { x: 120, y: 440 },
+  safety: { sideEffectLevel: "dangerousMutation", retryable: false },
+  locator: { strategy: "css", value: "#lu-delete-account", resolution: "resolved", resolvedBy: "recorder", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "medium" } }
+};
+const forbiddenCompiled = compileLocatorPlan({ version: 1, target: { strategy: "role", value: "button", name: "Delete", exact: true }, scopes: [] }, forbiddenBase.locator?.context);
+if (!forbiddenCompiled.ok) throw new Error(`the forbidden plan did not compile: ${forbiddenCompiled.code}`);
+const forbiddenPending = createPendingUpgrade({
+  step: forbiddenBase,
+  compiled: forbiddenCompiled,
+  meaningChange: false,
+  proof: "capture-proven",
+  modelId: "seeded-provider",
+  now: new Date("2026-09-20T10:06:00.000Z")
+});
+if (!forbiddenPending) throw new Error("the forbidden step produced no pending candidate");
+const forbiddenStep: FlowStep = { ...forbiddenBase, locator: { ...forbiddenBase.locator!, pendingUpgrade: forbiddenPending } };
+
+const statusFlow: FlowProfile = {
+  id: STATUS_FLOW_ID,
+  name: "L3 status GUI",
+  description: "Seeded for the L3 §10 status surface",
+  version: 1,
+  nodes: [plainStep, unprovenStep, forbiddenStep],
+  edges: []
+};
+
 const digests = pendingUpgradeDigests(seededStep);
 if (!digests) throw new Error("the seeded step produced no digests");
 // Any scenario id: a tally is matched by its flow and step, and by the digests above.
@@ -106,6 +187,7 @@ mkdirSync(path.join(appData, "flows"), { recursive: true });
 mkdirSync(path.join(appData, "ai"), { recursive: true });
 mkdirSync(path.join(appData, "locator-recovery", "upgrade-proofs"), { recursive: true });
 writeFileSync(flowFile, `${JSON.stringify(seededFlow, null, 2)}\n`, "utf8");
+writeFileSync(statusFlowFile, `${JSON.stringify(statusFlow, null, 2)}\n`, "utf8");
 writeFileSync(
   path.join(appData, "ai", "ai-settings.json"),
   `${JSON.stringify({ enabled: true, yieldDuringRuns: true, idleUnloadMinutes: 10, featureTiers: {} }, null, 2)}\n`,
@@ -146,6 +228,33 @@ async function diagnose(win: Page, label: string): Promise<void> {
   const saveState = await win.locator(".editor-command-save-state").first().textContent().catch(() => "(none)");
   const descriptionValue = await win.locator(".properties-body").getByRole("textbox", { name: "Description" }).inputValue().catch(() => "(none)");
   console.log(`    [diagnose ${label}] mainDirty=${fromMain} chip=${chip} panel=${panel} saveState=${saveState} description=${JSON.stringify(descriptionValue)}`);
+}
+
+/**
+ * Select a step the way a user does — by clicking its node on the canvas — rather than by driving
+ * the designer's own selection state, so the properties panel is reached through the real path.
+ */
+async function selectStep(win: Page, stepName: string): Promise<void> {
+  const node = win.locator(".action-flow-node", { hasText: stepName }).first();
+  try {
+    await node.waitFor({ state: "visible", timeout: 20_000 });
+  } catch {
+    const titles = await win.locator(".action-node-title").allInnerTexts();
+    throw new Error(`no canvas node named ${JSON.stringify(stepName)}; the canvas shows ${JSON.stringify(titles)}`);
+  }
+  await node.click();
+  await win.getByTestId("locator-upgrade-section").waitFor({ state: "visible", timeout: 20_000 });
+}
+
+/** Wait for the §10 badge, then let the assertion report whatever it actually settled on. */
+async function badgeSettles(win: Page, expected: string, timeout = 20_000): Promise<void> {
+  await win
+    .waitForFunction(
+      (want) => document.querySelector('[data-testid="locator-quality-class"]')?.getAttribute("data-locator-badge") === want,
+      expected,
+      { timeout }
+    )
+    .catch(() => undefined);
 }
 
 /** Wait for the panel's lifecycle state, then let the assertion report whatever it actually settled on. */
@@ -239,6 +348,136 @@ try {
     const view = await window.playwrightFlowStudio.ai.listAudit({ limit: 10 });
     return view.records.length === 1 && view.records[0].reverted !== undefined;
   }));
+
+  // ── L3 §10: the status vocabulary and evidence-on-demand, in the running app ─────────────────
+  console.log("\n§10 — a step with no AI proposal still reports what its locator is");
+  console_.setLabel("l3 status surface");
+  await win.getByRole("button", { name: "Saved flow" }).click();
+  await win.getByRole("option", { name: "L3 status GUI" }).click();
+  await selectStep(win, "Open settings");
+  await section.waitFor({ state: "visible", timeout: 20_000 });
+  const badge = win.getByTestId("locator-quality-class");
+  await badgeSettles(win, "semantic");
+  check("the panel renders for a step with no suggestion at all", (await section.count()) === 1);
+  check("...badged Semantic from the locator's own class", (await badge.getAttribute("data-locator-badge")) === "semantic", await badge.getAttribute("data-locator-badge"));
+  check("...in the no-upgrade state", (await state.getAttribute("data-upgrade-state")) === "no-upgrade", await state.getAttribute("data-upgrade-state"));
+  check("...offering neither Apply nor Revert", (await win.getByTestId("apply-locator-upgrade").count()) === 0 && (await win.getByTestId("revert-locator-upgrade").count()) === 0);
+  check("...and not stuck on a loading indicator", (await win.getByTestId("locator-status-loading").count()) === 0);
+
+  console.log("\n§10 — evidence is on demand, collapsed until asked for, and read-only");
+  const evidence = win.getByTestId("locator-evidence");
+  const evidenceToggle = win.getByTestId("locator-evidence-toggle");
+  check("the evidence disclosure starts collapsed", (await evidence.evaluate((node) => (node as HTMLDetailsElement).open)) === false);
+  check("...and its toggle is keyboard-focusable", await evidenceToggle.evaluate((node) => {
+    (node as HTMLElement).focus();
+    return document.activeElement === node;
+  }));
+  await evidenceToggle.press("Enter");
+  check("...opening with the keyboard alone", (await evidence.evaluate((node) => (node as HTMLDetailsElement).open)) === true);
+  const auditBefore = await win.evaluate(async () => (await window.playwrightFlowStudio.ai.listAudit({ limit: 50 })).total);
+  const plainEvidence = await evidence.innerText();
+  check("...listing the locator's class and the reason for it", /Strong semantic/.test(plainEvidence) && /Why/.test(plainEvidence), plainEvidence.slice(0, 200));
+  check("...and no proposal rows, because there is no proposal", !/Proposed locator/.test(plainEvidence));
+  check("opening the evidence changed nothing on disk", (JSON.parse(readFileSync(statusFlowFile, "utf8")) as FlowProfile).nodes[0].locator?.value === "open-settings");
+  check("...and asked the AI for nothing", (await win.evaluate(async () => (await window.playwrightFlowStudio.ai.listAudit({ limit: 50 })).total)) === auditBefore);
+  await evidenceToggle.press("Enter");
+  check("...and closing again with the keyboard", (await evidence.evaluate((node) => (node as HTMLDetailsElement).open)) === false);
+
+  console.log("\n§10 — a candidate with no browser proof never reads as proven");
+  await selectStep(win, "Archive row");
+  // Precondition first: if main never reports the candidate, the badge below would be asserting the
+  // absence of a proposal rather than the handling of an unproven one.
+  const statusView = await win.evaluate((id) => window.playwrightFlowStudio.ai.listUpgrades(id), STATUS_FLOW_ID);
+  check(
+    "main reports the seeded unproven candidate for this step",
+    statusView.pending.some((entry) => entry.stepId === UNPROVEN_STEP_ID && entry.proof === "unprovable-now"),
+    JSON.stringify(statusView).slice(0, 500)
+  );
+  await badgeSettles(win, "pending-proof");
+  check("the unproven candidate is badged as pending proof", (await badge.getAttribute("data-locator-badge")) === "pending-proof", await badge.getAttribute("data-locator-badge"));
+  check("...in the proposed-unproven state", (await state.getAttribute("data-upgrade-state")) === "proposed-unproven", await state.getAttribute("data-upgrade-state"));
+  check("...saying it is never executed", /never executed/i.test(await state.innerText()), await state.innerText());
+  // "Not yet proven" keeps a disabled Apply, because the action exists and the sentence says what
+  // would make it possible. The disabled button is not the guarantee: main refuses it regardless,
+  // which is what the direct IPC call below proves.
+  const unprovenApply = win.getByTestId("apply-locator-upgrade");
+  check("...with Apply present but disabled", (await unprovenApply.count()) === 1 && (await unprovenApply.isDisabled()));
+  const refusedUnproven = await win.evaluate(
+    ([flowId, stepId, createdAt]) => window.playwrightFlowStudio.ai.promoteUpgrade({ flowId, stepId, createdAt }),
+    [STATUS_FLOW_ID, UNPROVEN_STEP_ID, unprovenPending.createdAt]
+  );
+  check(
+    "...and main refuses it for want of proof even when the IPC is called directly",
+    refusedUnproven.ok === false && refusedUnproven.detail === "PROOF_NOT_SATISFIED",
+    JSON.stringify(refusedUnproven)
+  );
+  check(
+    "...leaving the unproven candidate unpromoted on disk",
+    (JSON.parse(readFileSync(statusFlowFile, "utf8")) as FlowProfile).nodes[1].locator?.locatorProvenance === undefined
+  );
+  await evidenceToggle.press("Enter");
+  const unprovenEvidence = await evidence.innerText();
+  check("its match count is reported as unavailable, not as a match", /Match count[\s\S]*not available/i.test(unprovenEvidence), unprovenEvidence.slice(0, 400));
+  check("...and so is the identity result", (await evidence.locator('[data-evidence="identity"][data-unavailable="true"]').count()) === 1);
+  check("...and nothing claims it reached the same element", !/same element as the saved one/.test(unprovenEvidence));
+  check("switching steps replaced the previous step's evidence entirely", !/open-settings/.test(unprovenEvidence) && /#lu-archive-row/.test(unprovenEvidence), unprovenEvidence.slice(0, 300));
+
+  console.log("\n§10 — a step AI must never change is refused outright, however proven");
+  await selectStep(win, "Delete account permanently");
+  await badgeSettles(win, "rejected");
+  check("the sensitive step's candidate is badged as rejected", (await badge.getAttribute("data-locator-badge")) === "rejected", await badge.getAttribute("data-locator-badge"));
+  check("...in the forbidden state, not merely unproven", (await state.getAttribute("data-upgrade-state")) === "forbidden", await state.getAttribute("data-upgrade-state"));
+  check("...saying AI never changes this kind of step", /never changes the locator of a sensitive action/.test(await state.innerText()), await state.innerText());
+  check("...with no Apply control at all, disabled or otherwise", (await win.getByTestId("apply-locator-upgrade").count()) === 0);
+  const refusedForbidden = await win.evaluate(
+    ([flowId, stepId, createdAt]) => window.playwrightFlowStudio.ai.promoteUpgrade({ flowId, stepId, createdAt }),
+    [STATUS_FLOW_ID, FORBIDDEN_STEP_ID, forbiddenPending.createdAt]
+  );
+  check("...and main refuses it as T3 even when the IPC is called directly", refusedForbidden.ok === false && refusedForbidden.detail === "T3_SENSITIVE_STEP", JSON.stringify(refusedForbidden));
+  check("...leaving the sensitive step's locator untouched", (JSON.parse(readFileSync(statusFlowFile, "utf8")) as FlowProfile).nodes[2].locator?.value === "#lu-delete-account");
+
+  console.log("\n§10 — switching flows never shows the previous flow's evidence");
+  await win.getByRole("button", { name: "Saved flow" }).click();
+  await win.getByRole("option", { name: "L3 upgrade GUI" }).click();
+  await selectStep(win, "Archive item");
+  await badgeSettles(win, "guarded");
+  const afterSwitch = await section.innerText();
+  check("the first flow's step is back to its own badge", (await badge.getAttribute("data-locator-badge")) === "guarded", await badge.getAttribute("data-locator-badge"));
+  check("...with no trace of the other flow's step", !/Delete row|#lu-delete-row|open-settings/.test(afterSwitch), afterSwitch.slice(0, 300));
+  check("...and the panel settled rather than loading forever", (await win.getByTestId("locator-status-loading").count()) === 0);
+
+  console.log("\n§10 — the badge is themed, not hardcoded, in light and dark");
+  for (const theme of ["light", "dark"] as const) {
+    await win.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+    const paint = await badge.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { color: style.color, background: style.backgroundColor, border: style.borderTopColor };
+    });
+    // A tone class that never matched would leave the badge painted exactly like the panel around
+    // it: same background, inherited text colour. Asserting they DIFFER is what proves the rule is
+    // live rather than dead under a later cascade block.
+    const panel = await section.evaluate((node) => getComputedStyle(node).backgroundColor);
+    check(`in ${theme}, the badge resolves its own colours from tokens`, paint.background !== panel && paint.background !== "rgba(0, 0, 0, 0)", `${theme}: badge=${paint.background} panel=${panel} text=${paint.color}`);
+    check(`...and its text is not transparent in ${theme}`, paint.color !== "rgba(0, 0, 0, 0)" && paint.color !== paint.background, `${theme}: ${paint.color}`);
+  }
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+
+  console.log("\n§10 — a missing AI runtime changes the badge's AI line, never the locator");
+  // The seeded profile has AI enabled with no model pack, which is exactly the shipped state while
+  // L1 is pending. The panel must say so without turning a healthy locator into a fault.
+  const aiLine = win.getByTestId("locator-ai-availability");
+  const aiState = await win.evaluate(async () => {
+    const view = await window.playwrightFlowStudio.ai.getStatus();
+    return { enabled: view.enabled, state: view.state, pack: view.modelPack.status };
+  });
+  check("the app reports no model pack, as L1 is still pending", aiState.pack !== "installed", JSON.stringify(aiState));
+  if (aiState.enabled && aiState.state !== "unavailable" && aiState.state !== "error") {
+    check("...and the panel shows no availability warning, because the provider is not reporting one", (await aiLine.count()) === 0, JSON.stringify(aiState));
+  } else {
+    check("...and the panel says so on its own line", (await aiLine.count()) === 1, JSON.stringify(aiState));
+    check("...saying recording and running are unaffected", /Recording and\s+running this flow are unaffected/.test(await aiLine.innerText()), await aiLine.innerText());
+    check("...while the locator keeps its own badge", (await badge.getAttribute("data-locator-badge")) === "guarded", await badge.getAttribute("data-locator-badge"));
+  }
 
   const errors = console_.errors ?? [];
   check("no renderer error was logged across the journey", errors.length === 0, JSON.stringify(errors).slice(0, 400));

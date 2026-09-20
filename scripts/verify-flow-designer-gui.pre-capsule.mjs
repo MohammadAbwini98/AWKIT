@@ -2099,10 +2099,21 @@ try {
   const locatorReview = win.getByTestId("locator-review-state");
   check("Flow Designer displays the unresolved positional locator", /Needs element identity proof.*execution blocked/.test((await locatorReview.textContent()) ?? ""));
   // Phase L L2: the shared locator quality class (src/recorder/LocatorQualityClass.ts) for the same step.
+  // L3 §10 made this the Intelligent Locator badge: the class is the badge's own label, and the
+  // deciding reasons moved behind the "Why this status" disclosure beside it.
   const qualityClass = win.getByTestId("locator-quality-class");
+  const locatorEvidence = win.getByTestId("locator-evidence");
+  const openLocatorEvidence = async () => {
+    if (!(await locatorEvidence.evaluate((node) => node.open))) {
+      await win.getByTestId("locator-evidence-toggle").click();
+    }
+    return (await locatorEvidence.textContent()) ?? "";
+  };
   check(
     "Flow Designer shows the shared L2 locator class for the unresolved positional step (review-required)",
-    (await qualityClass.getAttribute("data-quality-class")) === "review-required" && ((await qualityClass.textContent()) ?? "").includes("Locator class: Review required")
+    (await qualityClass.getAttribute("data-quality-class")) === "review-required" &&
+      ((await qualityClass.textContent()) ?? "").includes("Review required") &&
+      (await openLocatorEvidence()).includes("Review required")
   );
   const approveLocator = win.getByTestId("approve-locator-fallback");
   check("Flow Designer requires a reason before approval", await approveLocator.isDisabled());
@@ -2113,7 +2124,9 @@ try {
   check("Flow Designer displays approved-fallback state", /User-approved fallback/.test((await locatorReview.textContent()) ?? ""));
   check(
     "Approval does not upgrade the class: an unguarded user-approved positional fallback stays review-required",
-    (await qualityClass.getAttribute("data-quality-class")) === "review-required" && /user-approved positional fallback/i.test((await qualityClass.textContent()) ?? "")
+    // The class must be unchanged AND the REASON must be the approval, so this cannot pass merely
+    // because the step was review-required for its original, different reason.
+    (await qualityClass.getAttribute("data-quality-class")) === "review-required" && /user-approved positional fallback/i.test(await openLocatorEvidence())
   );
   await win.getByRole("button", { name: "Save", exact: true }).click();
   await win.waitForTimeout(700);
