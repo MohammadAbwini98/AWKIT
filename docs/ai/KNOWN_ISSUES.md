@@ -1,6 +1,33 @@
 # KNOWN_ISSUES
 
-## A cross-domain staged index cannot be committed, and the guard offers no way back (2026-09-20, OPEN — needs one owner command)
+## No agent can execute the contract retention rule, because nothing in the guard deletes a file (2026-09-20, OPEN — systemic)
+
+- `docs/ai/contracts/README.md` says that when a task closes its contract is **deleted**, its durable
+  record being the Beads issue, the `TASK_LOG.md` entry and the commits. **No agent can do that.** The
+  lease guard's grammar has no file-removal form anywhere: not in `isReadOnlyShellCommand`,
+  `isCommonWriterCommand`, `isReleaseCommand`, `isProjectStateCommand`, `isManagerWriterCommand`,
+  `isUnleasedGitCommand`, `isManagerGitCommand` or the lease lifecycle. `rm`, `Remove-Item` and `git rm`
+  are all refused as command FORMS, so **no lease grants it** and none ever will.
+- **`agent:lease-finalize` is not the answer**, though its name suggests it. `terminalPaths`
+  (`tools/agents/lease.mjs:643`) *requires* `docs/ai/contracts/<task>.json` to exist — "final release may
+  only archive history into its own task contract" — so finalize **writes** the contract, never removes
+  it. It also refuses unless `git.final_release_authorized` is true, the lease is still active or in the
+  exact released state it prepared, and HEAD's subject is already
+  `docs(leases): finalize <task> closeout`.
+- **Consequence, visible in the repo:** ~70 contracts for long-closed tasks are still in
+  `docs/ai/contracts/`. The retention rule has never actually been applied, because the only actor who
+  can apply it is the human.
+- **Required intervention, per contract:** `rm docs/ai/contracts/<task>.json` from the owner's terminal,
+  then an agent can `git add -- <that path>` (staging the deletion) and commit it normally.
+- Deleting a closed contract is safe: nothing reads it. Every `docs/ai/contracts/**` reference in
+  `scripts/verify-agent-routing.mjs` is a temp-directory fixture, `verify:roadmap-dashboard` reads only
+  `active-lease.json`, and the guard's contract-control-plane allowance is computed from the task id
+  rather than from the file existing. A released lease pointing at a deleted contract is the expected
+  steady state — the README says a released record is overwritten by the next grant, not archived.
+- **Same root gap as the debug screenshot earlier this session.** One missing verb in the grammar blocks
+  two unrelated cleanup duties. Worth fixing in the guard rather than paying it per task.
+
+## A cross-domain staged index cannot be committed, and the guard offers no way back (2026-09-20, RESOLVED for this task — one owner command)
 
 - **The guard is not refusing authority; it is refusing an index shape.** `tools/agents/lease-guard.mjs`
   has exactly two commit routes. `isUnleasedGitCommand` (line 351) requires **every** staged path to be
@@ -20,11 +47,13 @@
   lease CLI has `status|grant|amend|release|handoff|finalize`, and `finalize` stages only
   `active-lease.json`, the contract and `assignments.json` and **fails closed if any other path is
   staged**. Nothing recovers a cross-domain index.
-- **Required intervention — one command, from the owner's own terminal:**
+- **Resolved on 2026-09-20 by one owner command:**
   `git restore --staged -- src/security/authz/AiAutonomyPolicy.ts`
-  Then the remaining paths commit unleased, and the security file commits on its own under a
-  `security` lease (grant, `git add --`, `git commit -m`, release). Or the owner simply commits the
-  whole index themselves; the hook intercepts this agent's calls, not theirs.
+  The remaining paths then committed unleased (`2202e933`) and the protected file on its own under a
+  `security` lease (`9fc159a8`: grant, `git add --`, `git commit -m`, release). **Note the consequence
+  of splitting one atomic change:** §12 of `verify:flow-fragments` is legitimately RED at `2202e933`
+  and green again at `9fc159a8`. No split avoids that — say so in the commit message rather than
+  hiding it.
 - **Do NOT "fix" this by reverting the protected file to HEAD to drop it out of `git diff --cached`.**
   It would work, and it is exactly the evasion the guard exists to prevent — the Risk-3 change would be
   committed outside the lease that is supposed to authorize it.
