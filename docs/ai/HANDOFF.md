@@ -1,6 +1,42 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L6 deterministic acceptance end to end, and the protected-login consolidation
+## HANDOFF (2026-09-20, latest) — task contracts can be retired now, and 16 closed ones were
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
+  This is agent-governance and repository-retention work; no product behaviour changed.
+- **Root cause fixed, not worked around.** `docs/ai/contracts/README.md` has always said a closed task's
+  contract is DELETED, and nothing could ever do it, so ~70 accumulated. The lease guard's shell grammar
+  is a closed allowlist of command FORMS with **no deletion verb in it**, so `rm`, `Remove-Item` and
+  `git rm` were refused as *forms* — no lease granted deletion and none ever would.
+  `agent:lease-finalize` could not serve: its terminal paths REQUIRE the contract to exist.
+- **New: `node tools/agents/contract-cleanup.mjs --task <id>` (also `--all`, `--dry-run`).** It is the
+  guard's only deletion verb and can only ever remove a task contract. It takes a bare task id, never a
+  path. Eligibility comes only from trusted repository state — `complete`, the **shared** task gate, a
+  `task.id` matching the filename, no active lease naming it, and a `closed_at_commit` that is an
+  ancestor of `HEAD`. Anything unverifiable is REFUSED and kept. It touches the working tree only; the
+  guard's existing `git add --`/`git commit -m` forms already record the deletion, so no Git grammar was
+  widened.
+- **Done: 16 removed, 54 refused**, each independently gated, including this task's stated goal
+  `awkit-djnl-9-protected-login-0920`. Every in-flight Phase L contract was correctly **kept**
+  (`awkit-djnl-9-l6-ui-0920`, `awkit-phase-l-l0-0919`, `awkit-phase-l-roadmap-0919`,
+  `awkit-djnl-1-l1-0919`, `awkit-djnl-1-runtime-0919`). **A retained contract is not a blocker**, and a
+  released `active-lease.json` pointing at a deleted contract is the expected steady state — confirmed by
+  running `agent:lease`, not assumed.
+- **`awkit-djnl.9` is still open and `in_progress`, and its `blocks` edges are untouched.** Nothing about
+  L6's status changed here. L6's Intelligence section remains unbuilt and L1-gated. **Next agent work
+  without the model: still none in L6.**
+- **Not done, deliberately: no temporary-artifact cleanup.** The repository has no policy authorizing an
+  agent to delete anything other than a task contract. Rather than grant broad removal rights, the
+  missing policy decision is recorded in `KNOWN_ISSUES.md` for an owner to decide. No such artifact
+  currently exists in the tree.
+- **Checks:** `build` PASS · `typecheck:scripts` PASS · `verify:agent-routing` 1140/1140 (pin re-pinned
+  1111 → 1139 for 28 new checks) · `verify:source-hygiene` 11/11 · `verify:verifier-classification` 233 ·
+  `verify:roadmap-dashboard` 177/177 "Sources agree" · `git diff --check` clean. Mutation-tested three
+  ways (completion check, task-id scope guard, command form), each caught, all restored.
+- **Nothing is blocked.** The previous section's "BLOCKED, and it needs one owner command" was resolved
+  in the prior session by the two-commit split (`2202e933`, `9fc159a8`, closeout `b7d80020`).
+
+## HANDOFF (2026-09-20) — L6 deterministic acceptance end to end, and the protected-login consolidation
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
 - **Done:** `verify:flow-fragments-e2e` (52/52, `real-browser`) — capture in the real Flow Designer,
@@ -33,7 +69,9 @@
   corrected — that suite never exercises the suppression path; `verify:ui-error-evidence` (85/85, §11)
   does. One accepted residual: only the security consumer is pinned by BEHAVIOUR, so a change to
   `FailureEvidenceCollector.ts:278` that consulted a different list while keeping the alias would still
-  pass §12. Full verdict on the contract's `qc_review` block.
+  pass §12. The full verdict was recorded on the contract's `qc_review` block; that contract has since
+  been retired under the retention rule, so it now lives in history —
+  `git show b341536f:docs/ai/contracts/awkit-djnl-9-protected-login-0920.json`.
 - **BLOCKED, and it needs one owner command.** The staged index spans four ownership domains plus one
   protected path, and the guard's only two commit routes each require a single-lease or
   zero-protected-path index. There is no unstage in the grammar. Run

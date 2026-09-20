@@ -1,6 +1,37 @@
 # KNOWN_ISSUES
 
-## No agent can execute the contract retention rule, because nothing in the guard deletes a file (2026-09-20, OPEN — systemic)
+## An agent cannot delete its own temporary diagnostic artifacts, and no policy says it may (2026-09-20, OPEN — needs an owner policy decision, not code)
+
+- The contract-retention gap below is fixed, but it was fixed **narrowly and on purpose**:
+  `tools/agents/contract-cleanup.mjs` can remove a task contract and nothing else. The guard still has no
+  way for an agent to delete any other file it created — the debug screenshot earlier in that session
+  being the motivating case.
+- **This is deliberately left open, because it is a policy question and not a missing function.** Task
+  contracts have a written retention rule with machine-checkable conditions (`docs/ai/contracts/README.md`
+  § Retention), which is exactly what made a fail-closed eligibility test possible. There is **no
+  equivalent policy for agent-generated artifacts**: nothing defines what counts as agent-generated, what
+  provenance proves it, where such files may live, or when they may go. Without that, any mechanism would
+  have to trust the agent's own claim about a file's origin — which is precisely the "client manufactures
+  eligibility" shape the contract cleanup refuses.
+- **Do not solve it by widening contract cleanup.** Extending retention privileges to arbitrary paths, or
+  adding a generic `rm`/`Remove-Item`/`git rm` allowance, would discard the property that makes the
+  current mechanism safe: it takes a task id rather than a path, so targets outside
+  `docs/ai/contracts/` are unrepresentable rather than filtered.
+- **Current workaround, unchanged:** the owner deletes the file, then an agent stages and commits the
+  removal normally with `git add -- <path>` — the guard's Git forms already accept a staged deletion.
+- **Owner decision needed:** a written provenance-and-scope rule (e.g. an agent scratch directory whose
+  contents are always removable, or a manifest an agent must declare a file in *before* creating it).
+  Once that exists, the same fail-closed pattern applies. No such artifact is in the tree today.
+
+## No agent can execute the contract retention rule, because nothing in the guard deletes a file (2026-09-20, RESOLVED — `tools/agents/contract-cleanup.mjs`)
+
+**Resolved the same day.** The guard now has exactly one deletion verb, and it can only ever remove an
+eligible closed task contract: it takes a bare task id (never a path), derives eligibility only from
+trusted repository state, and refuses anything it cannot verify. 16 of the ~70 accumulated contracts were
+removed under it and 54 were kept, each independently gated. `rm`, `Remove-Item` and `git rm` remain
+refused as command forms. The "required intervention, per contract" below is obsolete — that is now
+`node tools/agents/contract-cleanup.mjs --task <id>`. The diagnosis is kept because it explains *why* the
+fix took the shape it did, and the last bullet's second duty is still open — see the entry above.
 
 - `docs/ai/contracts/README.md` says that when a task closes its contract is **deleted**, its durable
   record being the Beads issue, the `TASK_LOG.md` entry and the commits. **No agent can do that.** The

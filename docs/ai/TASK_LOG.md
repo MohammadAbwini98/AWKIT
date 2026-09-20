@@ -1,5 +1,48 @@
 # TASK_LOG
 
+## 2026-09-20 — Contract retention: gave the guard its one deletion verb and retired 16 closed contracts (Claude)
+
+- **Task:** make the documented contract-retention rule executable, then apply it to the closed L6
+  protected-login contract. No product behaviour changed; validation ledger unchanged at 65 PASS /
+  2 NOT RUN / 0 BLOCKED.
+- **Root cause.** `docs/ai/contracts/README.md` says a closed task's contract is DELETED, and nothing
+  could ever do it, so ~70 accumulated. Not an authorization level: the lease guard's shell grammar is a
+  closed allowlist of command FORMS with **no deletion verb in it at all**, so `rm`, `Remove-Item` and
+  `git rm` are refused as *forms* — no lease granted deletion and none ever would.
+  `agent:lease-finalize` could not serve, because its `terminalPaths` REQUIRE the contract to exist
+  (final release archives lease history *into* it).
+- **Key finding that kept the fix small:** the Git half already worked. `docs/ai/contracts/` is not a
+  Risk-3 domain, so the guard's existing `git add --` / `git commit -m` forms already stage and commit a
+  deletion once the file is gone. Only the working-tree verb was missing, so only that was added.
+- **Implemented:** `tools/agents/contract-cleanup.mjs` (`--task <id>` | `--all`, `+ --dry-run`), admitted
+  by one exact form in `isManagerWriterCommand`. It takes a bare task id, never a path, so targeting
+  outside the contracts directory is unrepresentable rather than filtered; `active-lease.json` and the
+  schema are excluded by name. Eligibility is derived only from trusted state — `complete`, the
+  **shared** `evaluateTaskGate` (reused, not restated), `task.id` matching the filename, no active lease
+  naming it, and a `closed_at_commit` that is an ancestor of `HEAD`. Idempotent; everything unverifiable
+  is REFUSED with reasons and kept. Authorization stays manager-only and is refused while another
+  specialist holds the lease.
+- **Applied:** 16 contracts removed, 54 refused and kept, each independently gated — including the stated
+  goal `awkit-djnl-9-protected-login-0920`. Every in-flight Phase L contract was correctly retained. A
+  released `active-lease.json` pointing at a deleted contract was confirmed to be a working steady state
+  by running `agent:lease`, not assumed.
+- **Files:** `tools/agents/contract-cleanup.mjs` (new), `tools/agents/lease-guard.mjs`,
+  `scripts/verify-agent-routing.mjs`, `docs/ai/contracts/README.md`, `docs/ai/COMMANDS.md`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`, and 16 deleted contracts.
+- **Tests run:** `verify:agent-routing` 1140/1140 (28 new checks; cardinality pin re-pinned 1111 → 1139
+  deliberately), `build` PASS, `typecheck:scripts` PASS, `verify:source-hygiene` 11/11,
+  `verify:verifier-classification` 233 classified, `verify:roadmap-dashboard` 177/177 "Sources agree",
+  `git diff --check` clean. All new coverage runs against **disposable git repositories**; no production
+  contract is ever a fixture. Mutation-tested three ways — dropping the completion check failed 2/1140
+  (one proving an OPEN task's contract would otherwise be deleted), relaxing the task-id scope guard
+  failed 1/1140, collapsing the command form failed 1/1140 — all restored and green.
+- **Not run, and why:** the Flow Designer, Recorder, Runner and mock-site matrices. This task changed only
+  agent governance and repository retention and touched no product source; the prior session's L6 results
+  (`verify:flow-fragments-e2e` 52/52, `verify:flow-fragments` 103/103, `verify:flow-fragments-gui` 53/53)
+  stand against unchanged inputs.
+- **Result:** complete. Left open deliberately: agent temporary-artifact cleanup needs an owner **policy**
+  decision, not code — recorded in `KNOWN_ISSUES.md` rather than solved by widening deletion rights.
+
 ## 2026-09-20 — L6 security closeout: independent QC, the real cause of the commit refusal, and two guard gaps (Claude)
 
 - **Independent QC obtained and recorded: `APPROVED_WITH_FINDINGS`, zero blocking.** An independent

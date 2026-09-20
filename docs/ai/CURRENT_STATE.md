@@ -1,6 +1,54 @@
 # CURRENT_STATE
 
-## L6 deterministic acceptance: a fragment's whole life, ending in a real run (2026-09-20, current)
+## Task contracts can finally be retired, and 16 closed ones were (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
+moved. This is agent-governance and repository-retention work; no product behaviour changed.
+
+**The retention rule in `docs/ai/contracts/README.md` was unenforceable for its whole life.** It says a
+contract is DELETED when its task closes, because its durable record is the Beads issue, the `TASK_LOG.md`
+entry and the commits. Nothing could apply it, so ~70 contracts for long-closed tasks accumulated. The
+cause was **not** an authorization level: the lease guard's shell grammar is a closed allowlist of command
+FORMS and had **no deletion verb at all**, so `rm`, `Remove-Item` and `git rm` were refused as *forms* —
+meaning no lease granted deletion and none ever would. `agent:lease-finalize` is not the answer despite
+its name: its terminal paths REQUIRE the contract file to exist, because final release archives lease
+history *into* it.
+
+- **The guard now has exactly one deletion verb, and it can only remove a task contract.**
+  `node tools/agents/contract-cleanup.mjs --task <id>` takes a bare task id, never a path, so aiming it
+  outside `docs/ai/contracts/` is *unrepresentable* rather than filtered; `active-lease.json` and the
+  schema are excluded by name. `rm`, `Remove-Item` and `git rm` remain refused.
+- **Eligibility is derived only from trusted repository state**, so no argument can assert completion. A
+  contract goes only when it is `complete`, passes the **shared** task gate (reused, not restated, so it
+  cannot drift from the gate the task itself had to satisfy), declares a `task.id` matching its filename,
+  is named by no active lease, and records a `closed_at_commit` that is an **ancestor of `HEAD`** — the
+  rule that makes the trade honest, since it proves the commits really are in this history before the
+  file is given up for them. Everything unverifiable is REFUSED with reasons and kept.
+- **The Git half needed no new grammar.** `docs/ai/contracts/` is not a Risk-3 domain, so the guard's
+  existing `git add --` / `git commit -m` forms already stage and commit a deletion once the file is
+  gone. Only the working-tree verb was missing.
+- **16 of 70 contracts were removed; 54 were refused and kept**, each independently gated. Every
+  in-flight Phase L contract was correctly retained — `awkit-djnl-9-l6-ui-0920`, `awkit-phase-l-l0-0919`,
+  `awkit-phase-l-roadmap-0919`, `awkit-djnl-1-l1-0919` and `awkit-djnl-1-runtime-0919` all still record
+  an unrecorded closure. A retained contract is **not** an implementation blocker.
+- **`awkit-djnl-9-protected-login-0920` is cleaned up**, which was this task's stated goal. Its lease was
+  released, its gate reported zero blockers, and its closing commit `9fc159a8` is an ancestor of `HEAD`.
+  A released `active-lease.json` pointing at a deleted contract is the expected steady state, and
+  `agent:lease` was run against it to confirm rather than assume.
+- **Correction to the section below:** it says the protected-login consolidation was "Not yet committed".
+  That is stale — it landed as `2202e933` and `9fc159a8`, with the closeout at `b7d80020`.
+- **No temporary-artifact cleanup was added.** The repository has no policy authorizing an agent to
+  delete files other than task contracts, and none was invented; the missing policy decision is recorded
+  in `KNOWN_ISSUES.md` instead.
+
+Checks, all against the final source: `build` PASS · `typecheck:scripts` PASS · `verify:agent-routing`
+1140/1140 (cardinality pin re-pinned 1111 → 1139 for 28 new checks) · `verify:source-hygiene` 11/11 ·
+`verify:verifier-classification` 233 classified · `verify:roadmap-dashboard` 177/177 "Sources agree" ·
+`git diff --check` clean. Mutation-tested three ways: dropping the completion check failed 2/1140,
+relaxing the task-id scope guard failed 1/1140, and collapsing the command form failed 1/1140 — all
+restored and green.
+
+## L6 deterministic acceptance: a fragment's whole life, ending in a real run (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved; this closes the evidence gap the previous section recorded as `NOT RUN`.
