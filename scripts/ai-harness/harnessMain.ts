@@ -46,9 +46,42 @@ export interface Step {
 const steps: Step[] = [];
 const logLines: string[] = [];
 const extra: Record<string, unknown> = {};
+/** The step being run right now, so a report written after a kill names where the run died. */
+let inFlight: string | null = null;
+
+/**
+ * Written after every step, not only at the end.
+ *
+ * A harness killed by its launcher's timeout used to leave no report at all, so "the model is slow"
+ * and "Electron never started" were the same observation, and every timing already measured was
+ * discarded. `complete` is false in those incremental writes, so a truncated run can never be read
+ * as a pass: `ok` requires `complete`.
+ */
+function writeReport(complete: boolean): boolean {
+  const ok = complete && steps.length > 0 && steps.every((s) => s.ok);
+  const target = process.env.AWKIT_HARNESS_REPORT;
+  if (target) {
+    const report = {
+      mode: process.env.AWKIT_HARNESS_MODE ?? "protocol",
+      electron: process.versions.electron,
+      node: process.versions.node,
+      ok,
+      complete,
+      inFlight,
+      steps,
+      log: logLines,
+      ...extra
+    };
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, JSON.stringify(report, null, 2), "utf8");
+  }
+  return ok;
+}
 
 export async function step<T>(label: string, fn: () => Promise<T> | T): Promise<T | undefined> {
   const started = Date.now();
+  inFlight = label;
+  writeReport(false);
   try {
     const result = await fn();
     steps.push({ label, ok: true, durationMs: Date.now() - started, detail: result });
@@ -56,6 +89,9 @@ export async function step<T>(label: string, fn: () => Promise<T> | T): Promise<
   } catch (error) {
     steps.push({ label, ok: false, durationMs: Date.now() - started, error: error instanceof AiHostCallError ? error.reason : String((error as Error)?.message ?? error) });
     return undefined;
+  } finally {
+    inFlight = null;
+    writeReport(false);
   }
 }
 
@@ -98,21 +134,7 @@ function isAlive(pid: number | null): boolean {
 }
 
 function finish(): void {
-  const report = {
-    mode: process.env.AWKIT_HARNESS_MODE ?? "protocol",
-    electron: process.versions.electron,
-    node: process.versions.node,
-    ok: steps.length > 0 && steps.every((s) => s.ok),
-    steps,
-    log: logLines,
-    ...extra
-  };
-  const target = process.env.AWKIT_HARNESS_REPORT;
-  if (target) {
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, JSON.stringify(report, null, 2), "utf8");
-  }
-  app.exit(report.ok ? 0 : 1);
+  app.exit(writeReport(true) ? 0 : 1);
 }
 
 function required(name: string): string {

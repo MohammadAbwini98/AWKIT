@@ -251,7 +251,10 @@ function infer(manager: AiUtilityHostManager, jobId: string, packet: { system: s
       temperature: 0,
       seed: 0
     },
-    600_000
+    // Above the 180 s `backgroundJobAtCapMs` ceiling, so no run that could still pass is cut off,
+    // but below the launcher's 540 s kill: a packet that misses its ceiling now RETURNS a timeout
+    // the scenario can record, instead of the whole Electron harness being killed with no evidence.
+    240_000
   );
 }
 
@@ -291,12 +294,26 @@ async function scenarioPackets(api: BenchApi, threads: number, iterations: numbe
       await api.step(`packets: ${packet.name} #${i}`, async () => {
         const sampler = sample(() => manager.status().pid);
         const started = Date.now();
-        const result = await infer(manager, `${packet.name}-${i}#1`, prompt, packet.schema, packet.maxOutputTokens);
-        const wallMs = Date.now() - started;
-        const measured = { ...rates(result, wallMs), ...sampler.stop(), maxOutputTokens: packet.maxOutputTokens };
-        JSON.parse(result.text);
-        results[packet.name].push(measured);
-        return measured;
+        try {
+          const result = await infer(manager, `${packet.name}-${i}#1`, prompt, packet.schema, packet.maxOutputTokens);
+          const wallMs = Date.now() - started;
+          const measured = { ...rates(result, wallMs), ...sampler.stop(), maxOutputTokens: packet.maxOutputTokens };
+          JSON.parse(result.text);
+          results[packet.name].push(measured);
+          return measured;
+        } catch (error) {
+          // Keep the resource sample when the inference does NOT return. A packet that blows its
+          // ceiling is exactly when host CPU and working set are worth having, and discarding them
+          // leaves a failure that says it was slow without any evidence of why.
+          const measured = {
+            failed: true,
+            failedAfterMs: Date.now() - started,
+            ...sampler.stop(),
+            maxOutputTokens: packet.maxOutputTokens
+          };
+          results[packet.name].push(measured);
+          throw error;
+        }
       });
     }
   }

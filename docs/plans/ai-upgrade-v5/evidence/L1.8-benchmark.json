@@ -1,0 +1,116 @@
+{
+  "fingerprint": {
+    "runtimeBuild": "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
+    "packSha256": "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c",
+    "cpuModel": "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz",
+    "affinityMask": "3F",
+    "logicalCpus": 6,
+    "threads": 3
+  },
+  "machine": {
+    "cpuModel": "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz",
+    "logicalCpus": 12,
+    "totalMemoryGb": 16,
+    "os": "Windows_NT 10.0.19045"
+  },
+  "ceilings": {
+    "coldLoadMs": 60000,
+    "hostPeakWorkingSetMb": 6144,
+    "backgroundJobAtCapMs": 180000,
+    "explanationAtCapMs": 120000,
+    "cancelLatencyMs": 3000,
+    "mainLoopDelayP99Ms": 100,
+    "playwrightSlowdownWithYield": 1.15
+  },
+  "scenarios": {
+    "load": {
+      "completedAt": "2026-09-20T16:15:44.894Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "load: cold fork, handshake and model load",
+          "ok": true,
+          "durationMs": 53278,
+          "detail": {
+            "forkAndHelloMs": 792,
+            "hostLoadMs": 50101,
+            "loadWallMs": 50122,
+            "hostPeakWorkingSetMb": 3251,
+            "hostMaxWorkingSetMb": 3251,
+            "hostCpuAvgPct": 8,
+            "hostCpuMaxPct": 15,
+            "mainLoopDelayP99Ms": 23,
+            "mainLoopDelayMaxMs": 32
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 3,
+        "load": {
+          "forkAndHelloMs": 792,
+          "hostLoadMs": 50101,
+          "loadWallMs": 50122,
+          "hostPeakWorkingSetMb": 3251,
+          "hostMaxWorkingSetMb": 3251,
+          "hostCpuAvgPct": 8,
+          "hostCpuMaxPct": 15,
+          "mainLoopDelayP99Ms": 23,
+          "mainLoopDelayMaxMs": 32
+        }
+      }
+    },
+    "packets:locatorUpgrade": {
+      "completedAt": "2026-09-20T16:35:56.026Z",
+      "ok": false,
+      "steps": [
+        {
+          "label": "packets: locatorUpgrade #1",
+          "ok": false,
+          "durationMs": 240022,
+          "error": "AI_HOST_TIMEOUT"
+        },
+        {
+          "label": "packets: locatorUpgrade #2",
+          "ok": false,
+          "durationMs": 240013,
+          "error": "AI_HOST_TIMEOUT"
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 3,
+        "packets:locatorUpgrade": {
+          "threads": 3,
+          "loadMs": 10488,
+          "iterations": [
+            {
+              "failed": true,
+              "failedAfterMs": 240017,
+              "hostPeakWorkingSetMb": 3550,
+              "hostMaxWorkingSetMb": 3550,
+              "hostCpuAvgPct": 25,
+              "hostCpuMaxPct": 26,
+              "mainLoopDelayP99Ms": 21,
+              "mainLoopDelayMaxMs": 33,
+              "maxOutputTokens": 192
+            },
+            {
+              "failed": true,
+              "failedAfterMs": 240009,
+              "hostPeakWorkingSetMb": 3550,
+              "hostMaxWorkingSetMb": 1387,
+              "hostCpuAvgPct": 25,
+              "hostCpuMaxPct": 25,
+              "mainLoopDelayP99Ms": 21,
+              "mainLoopDelayMaxMs": 31,
+              "maxOutputTokens": 192
+            }
+          ]
+        }
+      }
+    }
+  }
+}

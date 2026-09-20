@@ -9,7 +9,7 @@
  * reports through a file.
  */
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { build } from "esbuild";
 import fs from "node:fs";
@@ -56,9 +56,19 @@ export async function buildAiHarness(): Promise<string> {
   return dir;
 }
 
+/**
+ * Synchronous on purpose. As a bare `spawn` this returned before `taskkill` had even run, so the
+ * caller's cleanup deleted the staged model root while Electron still had the .gguf memory-mapped:
+ * on Windows that is an EPERM on unlink, which crashed the verifier and leaked a 2.7 GB copy plus a
+ * live utility host holding the model. The kill has to be finished before the file can be released.
+ */
 function killTree(pid: number | undefined): void {
   if (!pid) return;
-  spawn("taskkill", ["/T", "/F", "/PID", String(pid)], { stdio: "ignore", windowsHide: true });
+  try {
+    execFileSync("taskkill", ["/T", "/F", "/PID", String(pid)], { stdio: "ignore", windowsHide: true });
+  } catch {
+    /* already gone, or never started */
+  }
 }
 
 /**
@@ -88,6 +98,10 @@ export async function runAiHarness(
   if (timedOut) {
     killTree(child.pid);
     await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 5_000))]);
+    // Windows releases a process's memory-mapped .gguf slightly AFTER the process itself is gone,
+    // and the caller deletes the staged model root as soon as this returns. Without this settle the
+    // delete races the unmap and fails with EPERM, leaking a 2.7 GB copy per timed-out run.
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
   if (!fs.existsSync(reportPath)) return null;
   return JSON.parse(fs.readFileSync(reportPath, "utf8")) as HarnessReport;
@@ -176,4 +190,9 @@ export function machine(): { cpuModel: string; logicalCpus: number; totalMemoryG
 
 export function printSteps(report: HarnessReport, check: (label: string, ok: boolean, detail?: string) => void): void {
   for (const s of report.steps) check(`${s.label} (${s.durationMs} ms)`, s.ok, s.error);
+  // A truncated run is a FAILED check, never a short list of passes: the harness now writes its
+  // report after every step, so `complete: false` means it was killed mid-run rather than finished.
+  if (report.complete === false) {
+    check("the harness ran to completion", false, `killed while running: ${String(report.inFlight ?? "unknown")}`);
+  }
 }
