@@ -20,10 +20,11 @@
  *  5. An interpretation is always observe. T0 observes, T1 suggests, T2 auto-applies only with the
  *     feature's proof satisfied and no meaning change, otherwise it suggests.
  *
- * Pure and renderer-safe: the only import is the step-safety predicate `LocatorFactory` also uses.
+ * Pure and renderer-safe: it imports only the step-safety predicate `LocatorFactory` also uses and the
+ * canonical protected-login step-type set from the profile vocabulary.
  */
 
-import type { StepSafetyPolicy } from "../../profiles/FlowProfile";
+import { PROTECTED_LOGIN_STEP_TYPES as CANONICAL_PROTECTED_LOGIN_STEP_TYPES, type StepSafetyPolicy } from "../../profiles/FlowProfile";
 import { resolveStepSafety } from "../../runner/runtime/StepSafetyPolicy";
 
 export type AiTier = "T0" | "T1" | "T2";
@@ -79,8 +80,16 @@ const FEATURE_ACTIONS: Readonly<Record<AiFeatureId, readonly AiActionClass[]>> =
   fragmentSummary: ["interpretation"]
 });
 
-/** Step types that ARE the protected-login surface. Their evidence never reaches the model. */
-const PROTECTED_LOGIN_STEP_TYPES: ReadonlySet<string> = new Set(["protectedLoginHandoff", "autoSecureLogin", "reuseSession"]);
+/**
+ * The step types that ARE the protected-login surface, whose evidence never reaches the model. The
+ * membership comes from `FlowProfile`, beside the `StepType` union that defines those names — this
+ * module used to restate it, which made the T3 list a copy that could silently stop matching the
+ * vocabulary it is about. Importing it does not widen what T3 forbids: the same three types, and this
+ * module still decides on its own what to do with them. Only the STATIC type is widened here, because
+ * `AiActionContext.step.type` is an arbitrary string from an untrusted caller; asserting it into
+ * `StepType` to satisfy the lookup would claim something about the value that nothing has checked.
+ */
+const PROTECTED_LOGIN_STEP_TYPES: ReadonlySet<string> = CANONICAL_PROTECTED_LOGIN_STEP_TYPES;
 
 export function isAiFeatureId(value: unknown): value is AiFeatureId {
   return typeof value === "string" && (AI_FEATURE_IDS as readonly string[]).includes(value);
