@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-9-l6-ui-0920",
+    "title": "Record L6 deterministic progress on the tracker",
+    "objective": "Move awkit-djnl.9 (L6) from open to in_progress and refresh the JSONL export, so the tracker stops understating work that is built, verified and committed. The bead is NOT closed: L6's Intelligence section is unbuilt and its blocks edge on awkit-djnl.6 (L4b) is untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "627ca8bd",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.9 reads in_progress, the JSONL export is refreshed from the database, and the dashboard still reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', re-run after `bd update` and `bd export -o .beads/issues.jsonl`. Tracker totals are unchanged at 10 outstanding / 292 closed because in_progress is still outstanding; the dashboard's ordering check confirms in_progress normalises to active and stays in the queue."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-9-l6-ui-0920:project-state:2026-09-20T09:06:27.869Z",
+        "task": "awkit-djnl-9-l6-ui-0920",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-20T09:06:27.869Z",
+        "acquired_at_commit": "627ca8bd739e3ca6dd83a2627b9b441f62a61741",
+        "released_at": "2026-09-20T09:07:47.141Z",
+        "released_reason": "tracker status recorded and export refreshed, roadmap dashboard re-verified 177/177 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
