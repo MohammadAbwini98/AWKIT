@@ -61,6 +61,22 @@ How AI agents should work in this repository.
   Workflow Builder, run `npm run mock-site` + `npm run seed:mock-fixtures` first (test-only Mock —
   flows/workflows/data source). Report anything you could not run (e.g. the clean-machine GUI
   walkthrough).
+- **Structural verifiers are selected by PATH, not by name.** Some gates parse or walk source that has
+  nothing to do with their title: `verify:ai-fallback` and `verify:failure-capture-overhead` both assert
+  over `src/runner/**`. Before finishing, run `npm run verify:verifier-classification` and read its
+  **Structural coverage** index — "edit a path on the left, run the gates on the right" — then run any
+  gate listed for a path you touched. The map lives in `scripts/lib/verifier-classification.ts` under
+  each entry's `guards`, and a declared path that stops existing fails that gate, so it cannot silently
+  go stale. **Add a `guards` entry whenever you write a verifier that reads source as data.**
+  *Why this exists:* both of those verifiers sat RED across several L3 commits because nothing connected
+  an edit in the runner to a verifier named after *fallback* or *overhead*, and both were listed as
+  passing in `CURRENT_STATE.md` while failing (2026-09-20).
+- **Still manual, and deliberately so.** The index tells you which gates to run; nothing runs them for
+  you. Automatic impact-based selection — diff `HEAD`, match changed paths against `guards`, run exactly
+  that set — is a **separate, unscheduled roadmap item**, not part of Phase L. Its precise requirement:
+  *given a set of changed paths, resolve the transitive set of verifiers whose `guards` prefixes match,
+  report the selection with its reason, and fail if a matched gate was not executed.* Do not build it
+  inside an L-series task, and do not create a second registry for it — `guards` is the source of truth.
 - For a long or resumed task, record executed verification with
   `node tools/agents/compaction-checkpoint.mjs record --task <id> --command "<cmd>" --result <PASS|FAIL|BLOCKED|NOT RUN>`
   so a continuation reuses evidence instead of rerunning it.

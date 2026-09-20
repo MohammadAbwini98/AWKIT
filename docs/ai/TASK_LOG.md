@@ -1,5 +1,45 @@
 # TASK_LOG
 
+## 2026-09-20 — L1 artifacts re-checked; structural verifier coverage declared and enforced (Claude)
+
+- **Task:** complete L1.2 manifest pinning and the L1.8 live-model gate. Both remain **BLOCKED** on the
+  owner artifacts, so the delivered work is §8 of the goal — regression-selection discipline. Ledger
+  unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **Artifact re-check (once, against this machine):** `node-llama-cpp` absent from `package.json`,
+  `node_modules/` **and the npm cache** (so no offline install path); no `.gguf` in `Downloads`,
+  `%LOCALAPPDATA%/SpecterStudio` or any staging dir. `verify:ai-model-live` **NOT RUN**;
+  `verify:ai-model-pack` 46/46 still `0 pinned pack(s)`. **No manifest entry written** — its required
+  fields (size, SHA-256, compatibility) must come from the real artifact.
+- **Finding:** the classification registry carried only `class` + `why`, and the agent routing matrix maps
+  paths to *agents*, not verifiers — so **no mechanism existed** to answer "which structural gate reads
+  this file?". That is why two gates sat red across several L3 commits.
+- **Built (existing registry, existing gate — no second registry, no orchestration framework):**
+  `VerifierClassification.guards`, the repo-relative paths a verifier reads *as data*. Declared for six
+  verifiers whose scan targets were confirmed **by reading their source**: `ai-fallback`,
+  `failure-capture-overhead`, `ai-host`, `ai-permissions`, `ipc-contract`, `flow-fragments` — 23 paths
+  spanning AI runtime/host, runner/execution paths, shared AI contracts, preload/AI IPC, failure-evidence
+  and AI fallback. `verify:verifier-classification` fails on a path that stops existing, enforces a
+  non-vacuity floor, refuses `guards` on classes that never read source, and prints a **Structural
+  coverage** index.
+- **Also fixed:** two `why` strings still describing pre-fix semantics ("cannot import src/ai", "reaches
+  no AI module"), stale since the commit that fixed those checks.
+- **Deliberately not built:** diff-driven automatic selection. Requirement written into
+  `DEVELOPMENT_WORKFLOW.md` § 4 as a separate unscheduled roadmap item that must reuse `guards`. No bead
+  filed — that is an owner call and would move tracker baselines for unscheduled work.
+- **Mutations (contract written after each run):** renamed guards path (`src/runner` → `src/runners`)
+  caught; coverage map collapsed 6 → 2 caught by the floor. Both reverted.
+- **Files:** `scripts/lib/verifier-classification.ts`, `scripts/verify-verifier-classification.mts`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,COMMANDS,DEVELOPMENT_WORKFLOW}.md`.
+- **Tests:** `build` PASS · `typecheck:scripts` PASS · `verify:ai-model-pack` 46/46 · `verify:ai-host`
+  135/135 (12/12 mutations) · `verify:ai-adapter` 102/102 · `verify:ai-fallback` 38/38 ·
+  `verify:ai-permissions` 75/75 · `verify:ai-autonomy-policy` 62/62 · `verify:ai-audit-revert` 69/69 ·
+  `verify:ai-redaction` 52/52 · `verify:source-hygiene` 11/11 · `validate:offline` PASS ·
+  `verify:verifier-classification` 233 + 23 guards paths · `verify:roadmap-dashboard` 177/177 Sources
+  agree · `git diff --check` clean · `verify:ai-model-live` **NOT RUN** ·
+  `verify:failure-capture-overhead` **not re-run** (inputs unchanged; L5a status carried forward).
+- **Result:** L1 stays `in_progress` and owner-blocked; L3 §8/§9, L4b, L5b and L6 Intelligence stay gated.
+  Tracker untouched at 10 outstanding / 292 closed.
+
 ## 2026-09-20 — L1 re-check (still owner-blocked) and two silently-red AI boundary guards (Claude)
 
 - **Task:** resume Phase L and advance L1 as far as the approved artifacts permit. Outcome B — both owner

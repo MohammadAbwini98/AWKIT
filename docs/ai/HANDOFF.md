@@ -1,6 +1,38 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L1 is still owner-blocked; two AI boundary guards were silently red
+## HANDOFF (2026-09-20, latest) — L1 artifacts still absent; structural coverage is now declared and enforced
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
+- **L1.2 and L1.8 are still BLOCKED, re-checked on this machine.** `node-llama-cpp` is absent from
+  `package.json`, `node_modules/` **and the npm cache**, so there is no offline install path either; no
+  `.gguf` exists in `Downloads`, `%LOCALAPPDATA%/SpecterStudio` or any staging location.
+  `verify:ai-model-live` → **NOT RUN**. **No live-model inference ran; no live acceptance is claimed.**
+  No manifest entry was written — every field it needs (size, SHA-256, compatibility) must come from the
+  real artifact, and inventing them is what the model-pack contract exists to refuse.
+- **Built: `guards` — structural coverage on the EXISTING registry, enforced by the EXISTING gate.**
+  `VerifierClassification.guards` lists the repo-relative paths a verifier reads *as data* (not what it
+  exercises — that is `class`). Declared for the six verifiers whose scan targets I confirmed **by
+  reading their source**: `ai-fallback`, `failure-capture-overhead`, `ai-host`, `ai-permissions`,
+  `ipc-contract`, `flow-fragments` (23 paths). `verify:verifier-classification` now fails if a declared
+  path stops existing, and prints a **Structural coverage** index — *edit a path on the left, run the
+  gates on the right*. `src/runner` now resolves to exactly the two gates that had been red.
+- **Two stale `why` strings fixed.** Both still described the pre-fix semantics; they went stale in the
+  same commit that fixed the checks.
+- **Deliberately NOT built: automatic impact-based selection.** The index tells you what to run; nothing
+  runs it for you. The precise requirement for diff-driven auto-selection is written into
+  `DEVELOPMENT_WORKFLOW.md` § 4 as a **separate, unscheduled roadmap item** — it must reuse `guards`, and
+  it does not belong inside an L-series task. **Promoting it to a tracked bead is an owner call**; I did
+  not file one, because that moves tracker baselines for work nobody has scheduled.
+- **Mutations (contracts written after the runs):** a renamed guards path caught; a collapsed coverage
+  map caught by the non-vacuity floor. Both reverted.
+- **L5a unchanged.** No owner methodology decision exists, so ceilings, rounds and evidence are untouched
+  and L5a stays open. `verify:failure-capture-overhead` was **not re-run** — its inputs did not change and
+  the previous session already recorded three verdicts on identical code.
+- **Next agent work without the model: still none in Phase L.** L3 §8/§9, L4b, L5b and L6 Intelligence all
+  need the L1 go/no-go. The two owner commands are unchanged in
+  `docs/plans/ai-upgrade-v5/L1-ai-foundation.md` § "Owner steps".
+
+## HANDOFF (2026-09-20) — L1 is still owner-blocked; two AI boundary guards were silently red
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
   This is verifier-correctness work on the L1 boundary; no product behaviour changed.

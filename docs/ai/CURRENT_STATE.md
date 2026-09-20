@@ -1,6 +1,63 @@
 # CURRENT_STATE
 
-## L1 is still owner-blocked, and two AI boundary guards had silently gone red (2026-09-20, current)
+## L1 artifacts re-checked (still absent); structural verifier coverage is now declared and enforced (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
+moved. No product behaviour changed.
+
+**L1.2 and L1.8 remain BLOCKED on the same two owner artifacts.** Re-checked against this machine, not
+inherited from the previous session: `node-llama-cpp` is in neither `package.json` nor `node_modules/`,
+**and is not in the npm cache either**, so no offline install is possible; no `.gguf` exists in
+`Downloads`, under `%LOCALAPPDATA%/SpecterStudio`, or in any staging location. `verify:ai-model-live`
+reports **NOT RUN**; `verify:ai-model-pack` (46/46) still ends `0 pinned pack(s); runtime build not
+pinned`. **No live-model inference was executed and no live acceptance is claimed.** No manifest entry
+was written, because every field it requires (size, SHA-256, compatibility) must come from the real
+artifact and inventing them is exactly what the model-pack contract refuses.
+
+**Built instead: structural verifier coverage, using the existing registry and the existing gate.** The
+previous session found two gates red across several L3 commits and recorded the cause but built no
+mechanism. The gap was that some verifiers assert over source they are not named after —
+`verify:ai-fallback` and `verify:failure-capture-overhead` both parse `src/runner/**` — so nothing
+connected an edit to the gate with an opinion about it.
+
+- `VerifierClassification` gains an optional **`guards`**: the repo-relative paths a verifier reads **as
+  data**. It is explicitly *not* what the verifier exercises (that is `class`); it answers the inverse
+  question, *"I am editing this file — which structural gate cares?"*
+- Declared for the six verifiers whose scan targets were **confirmed by reading their source**, not
+  guessed: `ai-fallback`, `failure-capture-overhead`, `ai-host`, `ai-permissions`, `ipc-contract`,
+  `flow-fragments` — 23 paths covering AI runtime/host, runner and execution paths, shared AI contracts,
+  preload and AI IPC, failure-evidence collection, and AI fallback.
+- `verify:verifier-classification` now **fails when a declared path stops existing**, so the map cannot
+  rot into a typo while still looking authoritative, and prints a **Structural coverage** index —
+  "edit a path on the left, run the gates on the right". `src/runner` now resolves to exactly the two
+  gates that were red.
+- **Two stale `why` entries were corrected.** Both still described the pre-fix semantics ("cannot import
+  src/ai", "reaches no AI module") — they went stale in the very commit that fixed the checks.
+
+**Deliberately NOT built: automatic impact-based selection.** The index tells you which gates to run;
+nothing runs them for you. Diffing `HEAD` and auto-running the matched set is a **separate, unscheduled
+roadmap item** whose precise requirement is written into `DEVELOPMENT_WORKFLOW.md` § 4. Building it
+inside an L-series task would be scope creep, and it must reuse `guards` rather than add a second
+registry.
+
+**Mutation-tested, contracts written after the runs:** a renamed guards path (`src/runner` →
+`src/runners`) caught; a collapsed coverage map (6 verifiers → 2) caught by the non-vacuity floor. Both
+reverted.
+
+**Evidence:** `build` PASS · `typecheck:scripts` PASS · `verify:ai-model-pack` 46/46 · `verify:ai-host`
+135/135 (12/12 mutations) · `verify:ai-adapter` 102/102 · `verify:ai-fallback` 38/38 ·
+`verify:ai-permissions` 75/75 · `verify:ai-autonomy-policy` 62/62 · `verify:ai-audit-revert` 69/69 ·
+`verify:ai-redaction` 52/52 · `verify:source-hygiene` 11/11 · `validate:offline` PASS ·
+`verify:verifier-classification` 233 classified, 23 guards paths across 6 verifiers ·
+`verify:roadmap-dashboard` 177/177 "Sources agree" · `git diff --check` clean ·
+`verify:ai-model-live` **NOT RUN**.
+
+**L5a unchanged and still an owner decision.** No methodology has been approved since the previous
+session, so the ceilings, round count and evidence are untouched and L5a stays open.
+`verify:failure-capture-overhead` was not re-run this session: its inputs did not change, and the
+previous session already recorded three different verdicts on identical code.
+
+## L1 is still owner-blocked, and two AI boundary guards had silently gone red (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved. This is verifier-correctness work on the L1 boundary; no product behaviour changed.

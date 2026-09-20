@@ -43,6 +43,24 @@ export interface VerifierClassification {
   class: VerifierClass;
   /** What the script actually exercises — the basis for its class. */
   why: string;
+  /**
+   * Repo-relative paths this verifier makes **structural source claims** about: files it parses,
+   * scans, or walks an import closure over, whose *contents* can fail it even when the edit looks
+   * unrelated to the verifier's own subject.
+   *
+   * This is deliberately NOT "what it exercises" — that is `class`. It answers the opposite
+   * question: *"I am editing this file; which structural gate has an opinion about it?"*
+   *
+   * Why it exists (2026-09-20): `verify:ai-fallback` and `verify:failure-capture-overhead` both
+   * assert over `src/runner/**`, and both sat RED across several L3 commits because nothing
+   * connected an edit in the runner to a verifier named after *fallback* or *overhead*. Nobody
+   * looked, because nothing said to look. `verify:verifier-classification` prints these grouped by
+   * path, and fails if a declared path no longer exists — so the map cannot rot into a typo.
+   *
+   * Only declare a path when the verifier reads that source **as data**. A verifier that merely
+   * imports a module to run it is covered by `class`, not here.
+   */
+  guards?: string[];
 }
 
 /**
@@ -153,7 +171,8 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:flow-fragments": {
     class: "integration",
-    why: "L6 reusable fragments: the blocking audit matrix asserted by cardinality over every declared code with a negative control per rule, capture and apply over real FlowProfile fixtures, and the create/reload/edit/re-save/tamper round trip against a real JsonProfileStore in a temp dir."
+    why: "L6 reusable fragments: the blocking audit matrix asserted by cardinality over every declared code with a negative control per rule, capture and apply over real FlowProfile fixtures, the create/reload/edit/re-save/tamper round trip against a real JsonProfileStore in a temp dir, and (§12) a construct-independent drift guard that neither AI-policy nor failure-evidence consumer restates the canonical PROTECTED_LOGIN_STEP_TYPES.",
+    guards: ["src/security/authz/AiAutonomyPolicy.ts", "src/runner/evidence/FailureEvidenceCollector.ts", "src/profiles/FlowProfile.ts"]
   },
   "verify:r0-characterization": { class: "integration", why: "R0 refactoring baseline: AST-resolved production dependency/license-checkpoint guards plus real same-folder JsonProfileStore atomic-write overlap/failure behavior and the real ExecutionEngine lifecycle, coordinator, browser-pool, backpressure and capacity planner without launching a browser." },
   "verify:machine-profile": { class: "integration", why: "Machine-profile atomic fs round-trip + recalibration on hardware change." },
@@ -279,7 +298,11 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:test-lab-cli-only": { class: "static-source-validation", why: "Proves the Randomized Test Lab harness is absent from app/** imports, the production bundles, and the route registration files (owner decision 2026-07-29, awkit-wza.8)." },
   "verify:test-lab-cli-only-exit": { class: "static-source-validation", why: "Runs the unmodified verify:test-lab-cli-only against fixture bundles (missing, empty, stale, non-JavaScript, contaminated, current) and asserts its exit code and PASS/FAIL/BLOCKED counts: BLOCKED exits 2, FAIL exits 1, only a fully inspected clean bundle exits 0." },
   "verify:secret-storage-seam": { class: "real-browser", why: "Launches the real Electron app from the production entry point AND the test composition root to prove SET-013's unavailable-keystore behaviour, plus the source/packaging hygiene that keeps the substitution out of shipped builds (awkit-8ri)." },
-  "verify:ipc-contract": { class: "static-source-validation", why: "Statically parses app/main/ipc + preload for channel-contract drift." },
+  "verify:ipc-contract": {
+    class: "static-source-validation",
+    why: "Statically parses app/main/ipc + preload for channel-contract drift.",
+    guards: ["app/main/ipc", "app/main/preload.ts"]
+  },
   "verify:oracle-offline-bundle": { class: "static-source-validation", why: "Audits Oracle offline-bundle integrity over fixtures (no packaged app run)." },
   "verify:oracle-packaging": { class: "static-source-validation", why: "Checks Oracle packaging + path-resolution config." },
   "verify:roadmap-license-issuer": { class: "integration", why: "Starts the real dashboard server on an ephemeral port and drives the License Issuer routes over HTTP, spawning the real tsx issuer bridge process; then issues real Ed25519-signed licenses through LicenseIssuerService and imports them through LicenseStore/LicenseService. No browser or Electron." },
@@ -417,7 +440,8 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-permissions": {
     class: "unit",
-    why: "Every built-in role asserted in both directions for ai.use, ai.manage, ai.audit.view and recorder.elementSpy, pinned permission values, re-auth for AI management only, and deny/grant overrides; pure registry in-process."
+    why: "Every built-in role asserted in both directions for ai.use, ai.manage, ai.audit.view and recorder.elementSpy, pinned permission values, re-auth for AI management only, and deny/grant overrides; then parses the ai.ipc handler source so every ai:* channel is gated, authorizes BEFORE acting, and the preload exposes exactly the gated set.",
+    guards: ["src/security/authz/Permissions.ts", "app/main/ipc/ai.ipc.ts", "app/main/preload.ts"]
   },
   "verify:ai-adapter": {
     class: "unit",
@@ -429,7 +453,17 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-fallback": {
     class: "static-source-validation",
-    why: "Degraded modes (switch off, no runtime, no/invalid model, open circuit, throwing providers) return codes with zero host calls, plus resolved-import scans proving the execution tree cannot import src/ai and the renderer cannot import the inference machinery."
+    why: "Degraded modes (switch off, no runtime, no/invalid model, open circuit, throwing providers) return codes with zero host calls, plus a resolved-import TRANSITIVE CLOSURE walk proving nothing the execution tree reaches — at any depth — reaches the model (service, prompt builder, fake transport, host protocol, host), that the renderer cannot import the inference machinery, and that the preload's ai:* roster is exactly the seven admitted channels.",
+    guards: [
+      "src/runner",
+      "src/recorder",
+      "src/orchestrator",
+      "src/instances",
+      "src/session",
+      "app/renderer",
+      "app/main/preload.ts",
+      "src/ai"
+    ]
   },
   "verify:ai-settings-gui": {
     class: "real-browser",
@@ -437,7 +471,8 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-host": {
     class: "unit",
-    why: "Evaluates the real native-hosts/ai/ai-host.cjs source under a fake parentPort with an injected fake node-llama-cpp: envelope and prototype-safe dispatch, runtime identity, model-path confinement including a junction escape, CPU-only never-build load options, schema-to-grammar translation, the thinking-disabled template with page text kept out of special-token parsing, prompt bounds, running and queued cancellation, arrival order, one inference at a time, shutdown and no runtime-text leaks, plus source constants against the TypeScript contract; then requires twelve in-memory source mutations to fail the suite."
+    why: "Evaluates the real native-hosts/ai/ai-host.cjs source under a fake parentPort with an injected fake node-llama-cpp: envelope and prototype-safe dispatch, runtime identity, model-path confinement including a junction escape, CPU-only never-build load options, schema-to-grammar translation, the thinking-disabled template with page text kept out of special-token parsing, prompt bounds, running and queued cancellation, arrival order, one inference at a time, shutdown and no runtime-text leaks, plus source constants against the TypeScript contract; then requires twelve in-memory source mutations to fail the suite.",
+    guards: ["native-hosts/ai/ai-host.cjs", "src/ai/contracts/AiHostProtocol.ts", "src/ai/AiOutputContract.ts"]
   },
   "verify:ai-host-electron": {
     class: "real-browser",
@@ -461,7 +496,8 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:failure-capture-overhead": {
     class: "real-browser",
-    why: "Phase L L5a overhead gate: alternating capture ON/OFF batches (fast and evidence-heavy passing workloads, concurrent instances) through the real ExecutionEngine and real Chromium against the real mock site; paired-round median and pooled p95 duration, Node CPU per instance, evidence bytes against committed ceilings, plus event-loop delay, Node and automation-Chromium RSS, listener and Chromium-process teardown, and a static import-closure proof that ExecutionEngine reaches no AI module. The pre-fix awaited exposeBinding failed it (+568 to +1077 ms)."
+    why: "Phase L L5a overhead gate: alternating capture ON/OFF batches (fast and evidence-heavy passing workloads, concurrent instances) through the real ExecutionEngine and real Chromium against the real mock site; paired-round median and pooled p95 duration, Node CPU per instance, evidence bytes against committed ceilings, plus event-loop delay, Node and automation-Chromium RSS, listener and Chromium-process teardown, and a static import-closure proof that ExecutionEngine reaches no module able to CALL the model (pure src/ai data/schema/policy is allowed). The pre-fix awaited exposeBinding failed it (+568 to +1077 ms).",
+    guards: ["src/runner", "src/ai", "app/main/ai", "native-hosts/ai"]
   },
   "verify:ai-model-pack": {
     class: "integration",

@@ -455,6 +455,11 @@ npm run verify:ai-host            # the real host source under a fake parentPort
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
 npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
 npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings; NOT RUN without runtime + pack
+npm run verify:verifier-classification
+                                  # FR-I1: every verify:/validate: script classified, per-class counts, and the
+                                  # STRUCTURAL COVERAGE index — "edit this path, run these gates". Declared
+                                  # coverage lives in scripts/lib/verifier-classification.ts (`guards`); a path
+                                  # that stops existing fails the gate, so the map cannot rot into a typo.
 
 # ── Authoring diagnostics and failure evidence (Phase L, L4a / L5a) — no model ─────────────────────
 npm run verify:authoring-diagnostics  # L4a family matrix over FlowValidator/PreRunValidator/FlowDependencyResolver,

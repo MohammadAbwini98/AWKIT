@@ -26,6 +26,20 @@
 - **Standing consequence:** a verifier is only evidence against the tree it was *run* on. Both of these
   were listed as passing in `CURRENT_STATE.md` and `COMMANDS.md` while red. If a change touches a module
   another suite makes structural claims about, re-run that suite even when it looks unrelated.
+- **Update (2026-09-20): the discoverability half is now fixed.** Verifiers that read source as data
+  declare it in `scripts/lib/verifier-classification.ts` under `guards`, and
+  `verify:verifier-classification` prints a **Structural coverage** index (*edit a path on the left, run
+  the gates on the right*) and **fails when a declared path stops existing**, so the map cannot rot.
+  `src/runner` now resolves to `verify:ai-fallback` + `verify:failure-capture-overhead` — the exact pair
+  that was red. **Declare `guards` on any new verifier that parses or walks source.**
+- **Still OPEN, deliberately: nothing runs the selected gates for you.** Diff-driven automatic selection
+  — match changed paths against `guards`, run that set, fail if a matched gate was not executed — is a
+  separate, unscheduled roadmap item; the precise requirement is in `DEVELOPMENT_WORKFLOW.md` § 4. It was
+  not built here because it does not belong inside an L-series task, and **not filed as a bead** because
+  scheduling it is an owner call. When it is built it must reuse `guards`, never add a second registry.
+- **Coverage is currently partial, and that is visible rather than assumed.** Six verifiers declare
+  `guards`; every other source-reading verifier is still undeclared, so the index is a floor on structural
+  coverage, not a complete map. Treat an absent path as "not yet declared", never as "nothing guards it".
 
 ## An agent cannot delete its own temporary diagnostic artifacts, and no policy says it may (2026-09-20, OPEN — needs an owner policy decision, not code)
 

@@ -13,7 +13,7 @@
  *
  * Run: npx tsx scripts/verify-verifier-classification.mts
  */
-import { readFileSync, readdirSync, type Dirent } from "node:fs";
+import { existsSync, readFileSync, readdirSync, type Dirent } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { VERIFIER_CLASSES, VERIFIER_CLASSIFICATION, type VerifierClass } from "./lib/verifier-classification";
@@ -105,6 +105,40 @@ const staleAllowlist = Object.keys(UNREGISTERED_VERIFIER_ALLOWLIST).filter(
 if (staleAllowlist.length) fail(`stale/unjustified allowlist entries: ${staleAllowlist.join(", ")}`);
 else pass("the non-command-helper allowlist is justified and current");
 
+// Structural coverage (`guards`). Answers "I am editing this file — which structural gate has an
+// opinion about it?", which is the question nobody could answer when verify:ai-fallback and
+// verify:failure-capture-overhead sat RED across several L3 commits: both assert over src/runner,
+// and neither is NAMED after the runner. A declared path that no longer exists fails here, so the
+// map cannot quietly rot into a typo while still looking authoritative.
+const REPO_ROOT = join(here, "..");
+const guarded = Object.entries(VERIFIER_CLASSIFICATION).filter(([, v]) => v.guards?.length);
+const missingGuardPaths: string[] = [];
+let declaredPaths = 0;
+for (const [script, entry] of guarded) {
+  for (const p of entry.guards ?? []) {
+    declaredPaths += 1;
+    if (!existsSync(join(REPO_ROOT, p))) missingGuardPaths.push(`${script} -> ${p}`);
+  }
+}
+if (missingGuardPaths.length) fail(`guards paths that no longer exist: ${missingGuardPaths.join(", ")}`);
+else pass(`every declared guards path exists (${declaredPaths} across ${guarded.length} verifiers)`);
+
+// Non-vacuity: an emptied map would satisfy the existence check above trivially. Floors measured
+// 2026-09-20 at 6 verifiers / 23 paths; raise them DELIBERATELY as coverage is declared.
+if (guarded.length < 6 || declaredPaths < 20) {
+  fail(`structural coverage collapsed: ${guarded.length} verifiers / ${declaredPaths} paths (floor 6 / 20)`);
+} else {
+  pass("structural coverage is declared, not empty");
+}
+
+// A guards entry is only useful if the verifier can actually read source. A real-browser or unit
+// verifier may well also parse source (verify:ai-permissions does), so this is not a class
+// restriction — but a packaged/clean-machine gate does not scan the tree, and declaring paths there
+// would be a category error.
+const wrongClass = guarded.filter(([, v]) => v.class === "packaged-application" || v.class === "clean-machine-acceptance");
+if (wrongClass.length) fail(`guards declared on a class that does not read source: ${wrongClass.map(([k]) => k).join(", ")}`);
+else pass("no guards entry sits on a class that never reads source");
+
 // I1.3 — per-class counts over the scripts that actually exist. Never a single total alone.
 const counts = new Map<VerifierClass, number>(VERIFIER_CLASSES.map((c) => [c, 0]));
 for (const s of scripts) {
@@ -139,6 +173,18 @@ for (const c of VERIFIER_CLASSES) {
   console.log(`  ${String(n).padStart(3)}  ${c}`);
 }
 console.log(`  ${String(total).padStart(3)}  (sum — meaningful ONLY beside the per-class breakdown above)`);
+
+// The selection aid itself: source area → the structural gates that read it. Printed by a command
+// that already runs in every verification pass, so "which checks cover what I touched?" has an
+// answer without a second registry or an impact-analysis framework.
+const byPath = new Map<string, string[]>();
+for (const [script, entry] of guarded) {
+  for (const p of entry.guards ?? []) byPath.set(p, [...(byPath.get(p) ?? []), script]);
+}
+console.log("\nStructural coverage — edit a path on the left, run the gates on the right:");
+for (const p of [...byPath.keys()].sort()) {
+  console.log(`  ${p}\n      ${(byPath.get(p) ?? []).sort().join("  ")}`);
+}
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`);
