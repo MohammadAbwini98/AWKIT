@@ -444,13 +444,28 @@ export interface PendingProofEvidence {
   sameElement: "pass" | "fail" | "not-run";
   /** Whether the candidate's frame/shadow scope matched the step's. */
   scope: "compatible" | "mismatch" | "not-checked";
+  /**
+   * L3 §8 only. A repair has no live baseline to compare against — that is what failed — so gate C
+   * compares the candidate's own hashed fingerprint with a SAVED identity. This names which saved
+   * identity was used and how closely it matched, so the user approving the repair can see what
+   * "same element" was decided against. Absent on a §4 capture proof, which uses DOM node identity.
+   */
+  identityAnchor?: "guard" | "blueprint" | "recovery-memory";
+  /** Fingerprint similarity against that anchor, 0–1. `1` for an exact-confidence equality match. */
+  identityScore?: number;
 }
 
 export interface PendingLocatorUpgrade {
   schemaVersion: 1;
   candidate: LocatorCandidate;
   context?: LocatorContext;
-  proof: "unprovable-now" | "capture-proven";
+  /**
+   * `capture-proven` / `unprovable-now` are L3 §4–§5 semantic upgrades over a baseline that still
+   * resolves. `repair-proven` is L3 §8: the saved locator was observed FAILING and the candidate was
+   * proven against a saved identity instead. A repair is never stored unproven — replay cannot help
+   * it, because replay proves against a baseline that by definition no longer resolves.
+   */
+  proof: "unprovable-now" | "capture-proven" | "repair-proven";
   /** Non-sensitive facts from the capture-time proof. Absent ⇒ unavailable, never ⇒ passed. */
   proofEvidence?: PendingProofEvidence;
   meaningChange: boolean;

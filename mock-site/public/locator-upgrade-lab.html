@@ -52,6 +52,23 @@
         </table>
       </section>
 
+      <section data-testid="lu-repair">
+        <h2>Repair (L3 §8: the saved locator breaks, the element does not)</h2>
+        <p>
+          <strong>Break the saved locator</strong> strips the <code>id</code> and
+          <code>data-testid</code> off Save draft, so a recorded test-id locator matches nothing while
+          the button itself stays on the page with its accessible name, text and ancestry intact. That
+          is the only state a repair may act in: the locator is broken, the target is not.
+          <em>Discard draft</em> is the look-alike a repair must refuse — unique and buildable, but a
+          different element.
+        </p>
+        <div class="lu-repair-list">
+          <button type="button" id="lu-repair-save" data-testid="lu-repair-save" data-lu="repair-save">Save draft</button>
+          <button type="button" id="lu-repair-other" data-testid="lu-repair-other" data-lu="repair-other">Discard draft</button>
+        </div>
+        <button type="button" data-testid="lu-repair-break" onclick="luBreakRepairTarget()">Break the saved locator</button>
+      </section>
+
       <section data-testid="lu-frames">
         <h2>Frame scope</h2>
         <button type="button" data-testid="lu-frame-confirm" data-lu="parent-confirm">Confirm (parent)</button>
@@ -88,6 +105,11 @@
       }
       function luClearCards() {
         document.querySelector(".lu-card-list").innerHTML = "";
+      }
+      function luBreakRepairTarget() {
+        var save = document.querySelector('[data-lu="repair-save"]');
+        save.removeAttribute("id");
+        save.removeAttribute("data-testid");
       }
       var open = document.querySelector('[data-testid="lu-shadow-host"]').attachShadow({ mode: "open" });
       open.innerHTML = '<button type="button" class="save">Shadow save</button>';

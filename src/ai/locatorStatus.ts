@@ -112,6 +112,13 @@ export interface LocatorStatus {
   applyVisible: boolean;
 }
 
+/** Which recorded identity an L3 §8 repair proof compared against, in the user's terms. */
+const ANCHOR_LABEL: Readonly<Record<NonNullable<PendingProofEvidence["identityAnchor"]>, string>> = Object.freeze({
+  guard: "identity recorded with the step",
+  blueprint: "identity recorded in the page model",
+  "recovery-memory": "identity of the element that last resolved"
+});
+
 const BADGE_LABEL: Readonly<Record<LocatorBadgeId, string>> = Object.freeze({
   semantic: "Semantic",
   guarded: "Guarded",
@@ -194,15 +201,23 @@ export function resolveLocatorStatus(input: {
       };
     }
     if (pending.state === "eligible") {
+      // A repair (L3 §8) reaches `eligible` on its own browser proof, never on replays, so it must not
+      // borrow the replay wording. Saying "verified on enough runs" for a candidate that has never run
+      // is precisely the claim-what-was-not-established failure the four axes exist to prevent.
+      const repair = pending.proof === "repair-proven";
+      const label = repair ? "AI semantic (repair-proven)" : "AI semantic (replay-proven)";
+      const verified = repair
+        ? "The saved locator was found broken and this replacement was proven to reach the original element"
+        : "Verified on enough runs";
       // Evidence is in. Whether it may be applied is a separate question, answered by main
       // (`promotable`) and by this editor's own unsaved changes — never by the evidence itself.
       if (input.editorDirty) {
         return {
           badge: "ai-semantic",
-          label: "AI semantic (replay-proven)",
+          label,
           tone: "warn",
           state: "deferred-editor-dirty",
-          headline: "Verified on enough runs, but this flow has unsaved changes. Save the flow, then apply it.",
+          headline: `${verified}, but this flow has unsaved changes. Save the flow, then apply it.`,
           applyOffered: false,
           applyVisible: true
         };
@@ -210,17 +225,17 @@ export function resolveLocatorStatus(input: {
       if (pending.promotable) {
         return {
           badge: "ai-semantic",
-          label: "AI semantic (replay-proven)",
+          label,
           tone: "ok",
           state: "eligible",
-          headline: "Verified on enough runs and ready to apply. The saved locator is still the one that runs until you apply it.",
+          headline: `${verified} and ready to apply. The saved locator is still the one that runs until you apply it.`,
           applyOffered: true,
           applyVisible: true
         };
       }
       return {
         badge: "ai-semantic",
-        label: "AI semantic (replay-proven)",
+        label,
         tone: "warn",
         state: "blocked",
         headline: blockedHeadline(pending.blockedReason),
@@ -362,9 +377,14 @@ export function pendingEvidence(pending: PendingLocatorUpgradeView): LocatorEvid
     id: "replay",
     label: "Replay verification",
     value:
-      pending.state === "replay-rejected"
-        ? `Refused on a run after ${pending.replays} passing ${plural(pending.replays, "replay", "replays")}.`
-        : `${pending.replays} of ${pending.minReplays} passing ${plural(pending.minReplays, "replay", "replays")}, across ${pending.dataRows} of ${pending.minDataRows} distinct data ${plural(pending.minDataRows, "row", "rows")}.`
+      // A repair has no replay threshold to report against, and printing "0 of 3" would read as an
+      // unmet requirement rather than an inapplicable one: replay proves a candidate against the
+      // element the saved locator resolves to, which for a repair is nothing.
+      pending.proof === "repair-proven"
+        ? "Not applicable — a repair is proven against the recorded target identity, because the saved locator no longer resolves."
+        : pending.state === "replay-rejected"
+          ? `Refused on a run after ${pending.replays} passing ${plural(pending.replays, "replay", "replays")}.`
+          : `${pending.replays} of ${pending.minReplays} passing ${plural(pending.minReplays, "replay", "replays")}, across ${pending.dataRows} of ${pending.minDataRows} distinct data ${plural(pending.minDataRows, "row", "rows")}.`
   });
   if (pending.meaningChange) {
     rows.push({ id: "meaning-change", label: "Meaning change", value: "This changes how the step identifies its target, so it is never applied without your approval." });
@@ -392,7 +412,9 @@ function proofGateEvidence(evidence: PendingProofEvidence | undefined, proof: Pe
         value:
           proof === "capture-proven"
             ? "Proven on the page when it was suggested; the detailed gate record was not kept."
-            : "The target could not be checked on the page when this was suggested.",
+            : proof === "repair-proven"
+              ? "Proven on the page while the saved locator was failing; the detailed gate record was not kept."
+              : "The target could not be checked on the page when this was suggested.",
         unavailable: true
       },
       { id: "match-count", label: "Match count", value: "Not recorded.", unavailable: true },
@@ -400,7 +422,16 @@ function proofGateEvidence(evidence: PendingProofEvidence | undefined, proof: Pe
     ];
   }
   const rows: LocatorEvidenceRow[] = [
-    { id: "proof-outcome", label: "Browser proof", value: proof === "capture-proven" ? `Proven on the page (${evidence.code}).` : `Not checked on the page (${evidence.code}).` }
+    {
+      id: "proof-outcome",
+      label: "Browser proof",
+      value:
+        proof === "capture-proven"
+          ? `Proven on the page (${evidence.code}).`
+          : proof === "repair-proven"
+            ? `Proven on the page while the saved locator was failing (${evidence.code}).`
+            : `Not checked on the page (${evidence.code}).`
+    }
   ];
   rows.push(
     evidence.candidateMatchCount === undefined
@@ -418,9 +449,15 @@ function proofGateEvidence(evidence: PendingProofEvidence | undefined, proof: Pe
     label: "Original-target identity",
     value:
       evidence.sameElement === "pass"
-        ? "The proposed locator reached the same element as the saved one."
+        ? // A repair has no live baseline to have reached, so saying it did would be false. What it
+          // matched is the recorded identity, and the row names which record that was.
+          evidence.identityAnchor
+          ? `The proposed locator matched the ${ANCHOR_LABEL[evidence.identityAnchor]}${evidence.identityScore === undefined ? "" : ` (similarity ${evidence.identityScore})`}.`
+          : "The proposed locator reached the same element as the saved one."
         : evidence.sameElement === "fail"
-          ? "The proposed locator reached a different element."
+          ? evidence.identityAnchor
+            ? `The proposed locator did not match the ${ANCHOR_LABEL[evidence.identityAnchor]}${evidence.identityScore === undefined ? "" : ` (similarity ${evidence.identityScore})`}.`
+            : "The proposed locator reached a different element."
           : "Not checked.",
     ...(evidence.sameElement === "not-run" ? { unavailable: true } : {})
   });

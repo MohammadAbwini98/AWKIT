@@ -35,7 +35,7 @@ import { createPendingUpgrade, locatorCandidateDigest, type PendingUpgradeRefusa
 import type { FlowStep, PendingLocatorUpgrade } from "../profiles/FlowProfile";
 import { classifyLocatorQuality, type LocatorQualityClass } from "../recorder/LocatorQualityClass";
 import { UPGRADE_CONTEXT_TTL_MS, type UpgradeContext } from "../recorder/upgradeContext";
-import { decideAiAction } from "../security/authz/AiAutonomyPolicy";
+import { decideAiAction, type AiFeatureId } from "../security/authz/AiAutonomyPolicy";
 import type { LocatorProofResult } from "../runner/locatorProof";
 
 /** Bounds a single job. `maxAttempts` mirrors L3 §7; the rest keep one job's cost predictable. */
@@ -52,6 +52,42 @@ export const LOCATOR_ATTEMPT_LIMITS = Object.freeze({
 /** L3 §1: only a weak finalized locator is queued on its own. Stronger classes are left alone. */
 const WEAK_CLASSES: ReadonlySet<LocatorQualityClass> = new Set(["guarded-positional", "review-required"]);
 
+/**
+ * Which L3 job this is. The loop, the budget, the duplicate guard, the feedback and the write are
+ * identical; these four facts are the whole difference, so `repair` is a parameter rather than a
+ * second copy of a bounded loop whose boundedness had to be re-proven.
+ *
+ * - `upgrade` (§7): a still-working but fragile locator. Proof compares against the live baseline,
+ *   and `unprovable-now` is stored for replay to settle later.
+ * - `repair` (§8): a locator observed FAILING. Proof compares against a saved identity, ceiling is
+ *   T1, and only a proven candidate is stored — replay cannot settle a baseline that never resolves.
+ */
+export type LocatorJobMode = "upgrade" | "repair";
+
+const MODES = Object.freeze({
+  upgrade: {
+    feature: "locatorSemanticUpgrade",
+    instructions:
+      "You propose one replacement locator for a web element whose current locator is fragile. " +
+      "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
+      "three semantic scopes. Prefer role with an accessible name, label, placeholder or a test id. " +
+      "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
+      "value the flow fills in. Scope by stable page structure, never by row content. " +
+      "If a previous attempt was refused, the refusal names the field and the rule it broke: fix that field."
+  },
+  repair: {
+    feature: "locatorRepair",
+    instructions:
+      "You propose one replacement locator for a web element whose saved locator no longer matches it. " +
+      "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
+      "three semantic scopes. Prefer role with an accessible name, label, placeholder or a test id. " +
+      "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
+      "value the flow fills in. Scope by stable page structure, never by row content. " +
+      "The replacement must be the SAME element the step always acted on, not a similar one nearby. " +
+      "If a previous attempt was refused, the refusal names the field and the rule it broke: fix that field."
+  }
+} as const satisfies Record<LocatorJobMode, { feature: AiFeatureId; instructions: string }>);
+
 export type LocatorAttemptStage = "provider" | "compiler" | "intent" | "duplicate" | "proof";
 
 export type LocatorAttemptOutcome =
@@ -61,6 +97,12 @@ export type LocatorAttemptOutcome =
   | "forbidden"
   | "provider-unavailable"
   | "attempts-exhausted"
+  /**
+   * The candidate was not refused, but nothing could be stored. §8 only: a repair whose proof came
+   * back `unprovable-now` (page gone, identity unreadable) has no replay route to resolve it later,
+   * so the job ends rather than leaving a proposal that can never be settled.
+   */
+  | "unprovable"
   | "cancelled"
   | "superseded"
   | "context-expired"
@@ -108,6 +150,8 @@ export interface LocatorUpgradeAttemptDeps {
 export interface LocatorUpgradeAttemptInput {
   /** Correlation and cancel key. Each attempt submits `${requestId}.a${attempt}`. */
   requestId: string;
+  /** §7 semantic upgrade (default) or §8 runtime repair. See {@link LocatorJobMode}. */
+  mode?: LocatorJobMode;
   step: FlowStep;
   /** Texts the candidate must never be scoped by (L2 markers, the run's row, the step's own value). */
   boundValues: readonly string[];
@@ -141,6 +185,27 @@ export function isLocatorUpgradeEligible(step: FlowStep, options: { userRequeste
   return { eligible: true, quality };
 }
 
+/**
+ * L3 §8 eligibility. Deliberately NOT the §1 weakness gate: a strong semantic locator breaks too,
+ * and that is precisely the case repair exists for.
+ *
+ * What it does check is T3 first and unconditionally, and that the baseline is an authoritative
+ * locator — a `needs-review` or `invalid` locator is not something to repair into place, it is
+ * something the user has not accepted yet.
+ *
+ * What it deliberately does NOT check is whether the locator is actually failing. A caller asserting
+ * that would be a caller the job has to trust; instead `proveRepairCandidate` re-observes it on the
+ * page (gate E, `BASELINE_HEALTHY`), where it cannot be claimed, only measured.
+ */
+export function isLocatorRepairEligible(step: FlowStep): LocatorUpgradeEligibility {
+  const policy = decideAiAction("locatorRepair", "locatorChange", { step }, { enabled: true });
+  if (policy.decision === "forbidden") return { eligible: false, code: policy.reason };
+  const locator = step.locator;
+  if (!locator) return { eligible: false, code: "NO_BASELINE" };
+  if (locator.resolution !== undefined && locator.resolution !== "resolved") return { eligible: false, code: "BASELINE_NOT_PROMOTABLE" };
+  return { eligible: true, quality: classifyLocatorQuality(locator)?.class ?? "unknown" };
+}
+
 /** False once the L2 context is past its TTL. An expired context is never rebuilt from run data. */
 export function upgradeContextUsable(context: UpgradeContext | undefined, now: Date): boolean {
   if (!context) return true;
@@ -149,14 +214,6 @@ export function upgradeContextUsable(context: UpgradeContext | undefined, now: D
 }
 
 // ── Prompt (L3 §7) ──────────────────────────────────────────────────────────────────────────────
-
-const INSTRUCTIONS =
-  "You propose one replacement locator for a web element whose current locator is fragile. " +
-  "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
-  "three semantic scopes. Prefer role with an accessible name, label, placeholder or a test id. " +
-  "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
-  "value the flow fills in. Scope by stable page structure, never by row content. " +
-  "If a previous attempt was refused, the refusal names the field and the rule it broke: fix that field.";
 
 /** Short, product-authored correction per refusal code. Deterministic: same code, same sentence. */
 const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, string>>> = Object.freeze({
@@ -175,7 +232,11 @@ const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, strin
   CANDIDATE_NOT_UNIQUE: "it matched more than one element",
   WRONG_ELEMENT: "it matched a different element than the step acts on",
   FRAME_CONTEXT_MISMATCH: "it left the element's frame or shadow scope",
-  DUPLICATE_CANDIDATE: "that is the same plan as a previous attempt, which was already refused"
+  DUPLICATE_CANDIDATE: "that is the same plan as a previous attempt, which was already refused",
+  // L3 §8 repair codes.
+  BASELINE_HEALTHY: "the saved locator resolves fine, so there is nothing to repair",
+  NO_IDENTITY_ANCHOR: "no saved identity exists for this step, so nothing can be proven against it",
+  TARGET_UNFINGERPRINTABLE: "the matched element's identity could not be read"
 });
 
 const line = (label: string, value: string): string => (value ? `${label}: ${value}\n` : "");
@@ -223,7 +284,7 @@ function buildPrompt(input: LocatorUpgradeAttemptInput, records: readonly Locato
   const baseline = input.step.locator;
   const quality = classifyLocatorQuality(baseline)?.class;
   return {
-    instructions: INSTRUCTIONS,
+    instructions: MODES[input.mode ?? "upgrade"].instructions,
     maxDataChars: LOCATOR_ATTEMPT_LIMITS.maxDataChars,
     fields: [
       // Strategy and quality only: the baseline's VALUE is the fragile string we are replacing and
@@ -241,13 +302,15 @@ function buildPrompt(input: LocatorUpgradeAttemptInput, records: readonly Locato
 const SYNTHESIS_FAILURES: ReadonlySet<string> = new Set(["MALFORMED_OUTPUT", "SCHEMA_REJECTED"]);
 
 /**
- * Run one bounded upgrade job. Never throws: every path ends in a {@link LocatorAttemptResult}, so a
- * caller on the Recorder's or the runner's path can ignore it entirely.
+ * Run one bounded upgrade (§7) or repair (§8) job. Never throws: every path ends in a
+ * {@link LocatorAttemptResult}, so a caller on the Recorder's or the runner's path can ignore it
+ * entirely.
  */
 export async function runLocatorUpgradeAttempts(
   input: LocatorUpgradeAttemptInput,
   deps: LocatorUpgradeAttemptDeps
 ): Promise<LocatorAttemptResult> {
+  const mode = input.mode ?? "upgrade";
   const now = input.now ?? (() => new Date());
   const maxAttempts = Math.max(1, Math.min(input.maxAttempts ?? LOCATOR_ATTEMPT_LIMITS.maxAttempts, LOCATOR_ATTEMPT_LIMITS.maxAttempts));
   const records: LocatorAttemptRecord[] = [];
@@ -263,7 +326,8 @@ export async function runLocatorUpgradeAttempts(
   });
   const cancelled = (): boolean => input.signal?.aborted === true;
 
-  const eligibility = isLocatorUpgradeEligible(input.step, { userRequested: input.userRequested });
+  const eligibility =
+    mode === "repair" ? isLocatorRepairEligible(input.step) : isLocatorUpgradeEligible(input.step, { userRequested: input.userRequested });
   if (!eligibility.eligible) return done("not-eligible", eligibility.code);
   // Checked before the first call, and again before the write: an expired capture context must end the
   // job, never be reconstructed from whatever the page or the run happens to hold now.
@@ -284,7 +348,7 @@ export async function runLocatorUpgradeAttempts(
     try {
       outcome = await deps.ai.submit({
         requestId,
-        feature: "locatorSemanticUpgrade",
+        feature: MODES[mode].feature,
         priority: input.priority ?? "background",
         prompt: buildPrompt(input, records),
         schema: LOCATOR_PLAN_SCHEMA,
@@ -350,24 +414,36 @@ export async function runLocatorUpgradeAttempts(
       // mid-flight — the answer to that is never another proposal.
       if (proof.code.startsWith("T3_")) return done("forbidden", proof.code);
       if (proof.code === "CONTEXT_EXPIRED") return done("context-expired", proof.code);
+      // §8: neither of these is about the candidate, so a better candidate cannot answer them. A
+      // healthy baseline means there is nothing to repair, and a missing anchor means there is
+      // nothing to prove against. Both end the job.
+      if (proof.code === "BASELINE_HEALTHY" || proof.code === "NO_IDENTITY_ANCHOR") return done("not-eligible", proof.code);
       if (exhausted) return exhausted;
       continue;
     }
 
-    // `proven` or `unprovable-now`: both are storable (L3 §5). Neither promotes anything.
+    // What is storable differs by mode, and `pendingEligible` is the proof's own answer.
+    //
+    // §7: `proven` or `unprovable-now` are both stored — replay settles the second later (L3 §5).
+    // §8: only `proven` is stored. Replay proves a candidate against the baseline's element, and a
+    // repair's baseline does not resolve, so an unproven repair has no route to ever becoming proven;
+    // storing it would leave a proposal the product can never either confirm or retire.
+    if (!proof.pendingEligible) return done("unprovable", proof.code);
     if (!upgradeContextUsable(input.upgradeContext, now())) return done("context-expired", "CONTEXT_EXPIRED");
     const pending = createPendingUpgrade({
       step: input.step,
       compiled: evaluated,
       meaningChange: evaluated.meaningChange,
-      proof: proof.outcome === "proven" ? "capture-proven" : "unprovable-now",
+      proof: mode === "repair" ? "repair-proven" : proof.outcome === "proven" ? "capture-proven" : "unprovable-now",
       // L3 §10 evidence-on-demand: gate verdicts, counts and the code, nothing the proof saw.
       proofEvidence: {
         code: proof.code,
         ...(proof.candidateMatchCount !== undefined ? { candidateMatchCount: proof.candidateMatchCount } : {}),
         ...(proof.baselineMatchCount !== undefined ? { baselineMatchCount: proof.baselineMatchCount } : {}),
         sameElement: proof.gates.sameElement,
-        scope: proof.scope
+        scope: proof.scope,
+        ...(proof.identityAnchor !== undefined ? { identityAnchor: proof.identityAnchor } : {}),
+        ...(proof.identityScore !== undefined ? { identityScore: proof.identityScore } : {})
       },
       modelId: outcome.modelId,
       now: now()

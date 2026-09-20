@@ -15,8 +15,12 @@ chain — a job now runs eligibility → provider → contract → compiler → 
 in production queues one**: the caller that hands it a live page and a capture context is the L1-gated piece,
 so in practice a pending candidate still only exists in a verifier. **§10 UX is built** (`src/ai/locatorStatus.ts`,
 the Flow Designer's `LocatorUpgradeSection`), proven by `verify:ai-locator-status` (85/85, pure) and in real
-Electron by `verify:ai-locator-upgrade-gui` (65/65). Not built: §8 repair, §9 sweep, and
-`verify:ai-locator-repair` / `verify:ai-locator-quality-live`.
+Electron by `verify:ai-locator-upgrade-gui` (65/65). **§8 runtime repair is built** (2026-09-21):
+`resolveRepairAnchor`/`proveRepairCandidate`/`proveRepairPlan` in `src/runner/locatorProof.ts`,
+`isLocatorRepairEligible` and `mode: "repair"` on the §7 loop, and the repair branch of
+`promoteLocatorUpgrade`, proven in real Chromium by `verify:ai-locator-repair` (85/85, four mutations
+caught) on the new `lu-repair` mock-site fixture. Not built: §9 sweep and
+`verify:ai-locator-quality-live`.
 
 §7 as built:
 - **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
@@ -168,6 +172,60 @@ Built: `src/ai/locatorUpgradeAttempts.ts`, `verify:ai-locator-attempts` (87/87).
 
 Saved locator fails → existing deterministic recovery → if weak, same DSL/compiler/guard/proof against saved
 identity/blueprint → before/after evidence → user approval → save/undo path → revalidate.
+Built: `proveRepairCandidate` / `proveRepairPlan` / `resolveRepairAnchor` in `src/runner/locatorProof.ts`,
+`isLocatorRepairEligible` and `mode: "repair"` in `src/ai/locatorUpgradeAttempts.ts`, the repair branch of
+`promoteLocatorUpgrade`, and `verify:ai-locator-repair` (85/85, real Chromium). See "§8 as built" below.
+
+### §8 as built (2026-09-21)
+
+- **Two gates are the whole difference from §7, and both are measured rather than claimed.**
+  - **Gate E — the baseline must be observed FAILING.** A "repair" of a locator that still resolves
+    uniquely is an unproven replacement of working behavior, so it is refused `BASELINE_HEALTHY`. The
+    observation runs on the page through a memoryless `LocatorFactory`, so no caller can assert it.
+  - **Gate C — identity, not DOM node equality.** There is no live baseline to compare against; that is
+    the premise. The candidate's single match is re-fingerprinted through `LocatorFactory.fingerprintOne`
+    and compared with a SAVED identity at `LocatorFactory.GUARD_MATCH_THRESHOLD`. Both were made public
+    rather than copied: a second definition of "same element" would let a repair accept an element the
+    guarded-positional path refuses.
+- **The identity anchor is chosen, never invented.** `resolveRepairAnchor` takes the step's positional
+  `guard` first (capture-time, in the profile, with its own `exact`/`high` confidence), then a
+  caller-supplied blueprint element, then the runtime recovery memory's fingerprint. With none of them
+  the repair is refused `NO_IDENTITY_ANCHOR` — terminal, because waiting does not create one. The
+  blueprint is passed in rather than looked up because the deterministic recovery that §8 runs *after*
+  has already resolved the page key, frame and document fingerprint to find it.
+- **`mode: "repair"` is a parameter on the §7 loop, not a second loop.** The budget, the duplicate
+  digest guard, the structured feedback, the cancellation handling and the compare-and-swap write are
+  identical; a fork would have meant re-proving that a second loop terminates. What the parameter
+  changes: the feature id (`locatorRepair`, so the audit and the policy tier are attributed correctly),
+  the prompt's one sentence, the eligibility rule and what may be stored.
+- **Eligibility is deliberately NOT §1's weakness gate.** A *strong* semantic locator breaks too, and
+  that is the case repair exists for. T3 is still first and unconditional, and a `needs-review` baseline
+  is still refused — a locator the user has not accepted is not something to repair into place.
+- **Only a proven repair is stored.** §7 stores `unprovable-now` and lets replay settle it. §8 must not:
+  replay proves a candidate against the element the saved locator resolves to, and a repair exists
+  precisely because it resolves to nothing, so a parked repair could never be confirmed or retired. A
+  new terminal outcome, `unprovable`, says so instead of pretending an attempt was refused.
+- **Promotion takes the repair proof as its evidence and asks for no replay tally**, which would be
+  unsatisfiable by construction. It stays safe because the proof it does require is stricter where it
+  matters: gate E plus a saved-identity match. `locatorRepair`'s T1 ceiling means `mode: "auto"` can
+  never be granted, so a repair is always a person's decision; the audit record carries
+  `feature: "locatorRepair"`, `proof.result: "repair-proven"` and **no replay counts** — reporting `0`
+  would read as an unmet threshold rather than an inapplicable one. Provenance is
+  `source: "ai-repair"`, `proof: "repair-proven"`, and the whole previous locator is the revert target.
+- **§10 reports what happened.** The badge reads *AI semantic (repair-proven)* and the sentence names
+  the broken locator instead of borrowing "verified on enough runs"; the replay row reads *Not
+  applicable* with the reason; the identity row names which recorded identity matched and its measured
+  similarity, rather than claiming the candidate "reached the same element as the saved one".
+- **Mutation-tested, four for four:** removing gate E → 80/83; weakening gate C's threshold to 0.5 →
+  79/83; treating a repair as a semantic upgrade in promotion → 64/69; storing an unprovable repair →
+  83/85. The third mutation *shortened* the run (the promotion block sits behind `if (promotion.ok)`),
+  which reads as "mostly fine" rather than as a failure — so the suite now asserts that the promotion
+  and revert sections were reached at all.
+- **Still not built: the production trigger,** and it is gated by an architectural decision rather than
+  by effort. `verify:ai-fallback` proves that *no module the execution tree can reach, at any depth,
+  reaches the model*; `AiService` lives in the main process and the runner has no handle on it. Wiring a
+  repair job into `StepExecutor`'s failure path would break that green guard, which is the same L1-gated
+  boundary §7 recorded. `runLocatorUpgradeAttempts` still has no production caller in either mode.
 
 ## 9. Flow health sweep
 
@@ -230,8 +288,13 @@ each refusal keeping its own sentence, and no typed value, secret, prompt or dat
 `verify:ai-locator-upgrade-gui` (extended to 65/65) covers it in real Electron: the badge for a step with no
 proposal, the collapsed keyboard-operable disclosure, an unproven candidate, a forbidden step, step and flow
 switching, light/dark token resolution, and the AI-unavailable line.
-Still to build:
-`verify:ai-locator-repair`, live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
+`verify:ai-locator-repair` (built, 85/85, `real-browser`) covers §8: gate E refusing a healthy baseline,
+gate C proving against a saved identity written by a REAL run, a unique buildable look-alike refused as
+the wrong element, a missing anchor refused rather than guessed, only a proven repair stored, promotion
+refused for `auto` and accepted for a user with an empty replay tally, the audit attributed to
+`locatorRepair`, the promoted locator passing a run on the page that broke it, revert, and the §10
+wording. Still to build:
+live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 
 ## Acceptance

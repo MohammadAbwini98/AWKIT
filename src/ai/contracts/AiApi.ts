@@ -104,7 +104,8 @@ export interface PendingLocatorUpgradeView {
   stepId: string;
   stepName: string;
   state: PendingUpgradeState;
-  proof: "unprovable-now" | "capture-proven";
+  /** `repair-proven` is L3 §8: proven against a saved identity while the baseline was failing. */
+  proof: "unprovable-now" | "capture-proven" | "repair-proven";
   meaningChange: boolean;
   replays: number;
   dataRows: number;

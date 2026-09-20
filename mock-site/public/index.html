@@ -108,12 +108,12 @@
 
         <article data-testid="scenario-locator-upgrade">
           <h2><a href="/recorder-lab/locator-upgrade">Locator Upgrade Lab</a></h2>
-          <p>Guarded baselines (a control with a hidden duplicate, identical twins), cards whose buttons can be renamed, disabled, duplicated or removed, orders whose row text is data, a same-origin frame with a same-test-id twin in the parent, and open and closed shadow roots.</p>
+          <p>Guarded baselines (a control with a hidden duplicate, identical twins), cards whose buttons can be renamed, disabled, duplicated or removed, orders whose row text is data, a same-origin frame with a same-test-id twin in the parent, open and closed shadow roots, and a repair target whose <code>id</code> and <code>data-testid</code> can be stripped so its saved locator breaks while the button itself stays put.</p>
           <dl class="scenario-meta">
             <dt>Expected</dt>
-            <dd>An AI locator candidate is proven only when it resolves to exactly the element the step's own locator acts on, in the same frame and shadow scope; a pending candidate never executes, and a replay counts only when the step then writes its own name into <code>lu-result</code>.</dd>
+            <dd>An AI locator candidate is proven only when it resolves to exactly the element the step's own locator acts on, in the same frame and shadow scope; a pending candidate never executes, and a replay counts only when the step then writes its own name into <code>lu-result</code>. A repair is proven against the recorded target identity instead, and only while the saved locator is observed failing.</dd>
             <dt>Feature</dt>
-            <dd>Intelligent locators: browser proof gates and pending-upgrade replay proof (Phase L L3 §4–§5).</dd>
+            <dd>Intelligent locators: browser proof gates, pending-upgrade replay proof and runtime repair (Phase L L3 §4–§5, §8).</dd>
             <dt>Stable URL</dt>
             <dd><code>/recorder-lab/locator-upgrade</code></dd>
           </dl>

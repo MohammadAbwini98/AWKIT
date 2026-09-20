@@ -1,6 +1,45 @@
 # CURRENT_STATE
 
-## L1 recorded as a PARTIAL PASS; Phase L development resumes under a conditional authorization (2026-09-21, current)
+## L3 §8 runtime locator repair is built and proven in real Chromium (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-locator-repair` is a Phase L gate, not a ledger case.
+
+**§8 is the first AI-dependent work built under the conditional development authorization recorded in
+the section below.** It closes the last locator capability L3 owed apart from the §9 idle sweep.
+
+| Check | Result |
+|---|---|
+| `verify:ai-locator-repair` (new, `real-browser`) | **85/85**, four mutations caught |
+| `verify:ai-locator-attempts` (the §7 loop, now parameterized) | 87/87 |
+| `verify:locator-upgrade-proof` · `verify:ai-locator-upgrade` · `verify:ai-locator-status` | 75/75 · 78/78 · 85/85 |
+| `verify:ai-fallback` — the execution tree still cannot reach the model | 38/38 |
+| `verify:mock-site` (new `lu-repair` fixture) | 228/228 |
+| `verify:verifier-classification` | 235 classified, 24 guards paths across 7 verifiers |
+| `npm run build` · `typecheck:scripts` · `verify:roadmap-dashboard` | PASS · PASS · 177/177 Sources agree |
+
+**Two gates are the whole difference from §7, and both are measured rather than claimed.** Gate **E**
+refuses `BASELINE_HEALTHY` unless the saved locator is observed failing *on the page*, through a
+memoryless `LocatorFactory` — the caller cannot assert it. Gate **C** compares the candidate's
+re-derived fingerprint with a SAVED identity (positional `guard`, else a caller-supplied blueprint
+element, else the runtime recovery memory) using `LocatorFactory`'s own pipeline and its own 0.9
+threshold, both made public rather than copied so a repair can never accept an element the
+guarded-positional path refuses. With no recorded identity the repair is refused `NO_IDENTITY_ANCHOR`.
+
+**Only a proven repair is stored** — the opposite of §5's rule, because replay proves a candidate
+against the element the saved locator resolves to, and a repair's resolves to nothing, so a parked
+repair could never be confirmed or retired. **Promotion asks a repair for no replay tally**, which would
+be unsatisfiable by construction; `locatorRepair`'s T1 ceiling makes `mode: "auto"` unreachable, so a
+person always decides, and the audit records `feature: "locatorRepair"` / `proof: "repair-proven"` with
+no replay counts.
+
+**Still not built, and it is an architectural boundary rather than a gap:** the production trigger.
+`verify:ai-fallback` proves the execution tree cannot reach the model at any import depth, so wiring a
+repair job into `StepExecutor`'s failure path would break a green guard. It waits on the same L1 gate
+§7's caller waits on. **L3 (`awkit-djnl.4`) stays `in_progress`** — §9 is unbuilt, and the milestone
+cannot close under the conditional authorization anyway.
+
+## L1 recorded as a PARTIAL PASS; Phase L development resumes under a conditional authorization (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: this is a plan/decision record plus the Phase L gates, which are

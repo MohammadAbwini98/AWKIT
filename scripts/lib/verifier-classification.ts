@@ -432,6 +432,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "L3 §7 bounded synthesis attempts in real Chromium on the mock-site Locator Upgrade Lab: the real AiService over the deterministic fake transport, a budget of two attempts consumed only by real rejections, a repeated candidate neither refreshing the budget nor being re-proven, malformed/compiler/intent refusals kept off the page, wrong-element and ambiguous candidates rejected by the browser gates, protected-login and expired-context refusals terminating the job, cancellation cancelling on the host without storing a late answer, superseded and concurrent proposals resolved by the flow store's compare-and-swap, and runs that pass unchanged while the provider times out, crashes or is absent."
   },
+  "verify:ai-locator-repair": {
+    class: "real-browser",
+    why: "L3 §8 runtime locator repair in real Chromium on the mock-site Locator Upgrade Lab: gate E refusing BASELINE_HEALTHY while the saved locator still resolves, gate C proving a candidate against the step's SAVED identity (a real fingerprint written by a real run, never seeded) at LocatorFactory's own 0.9 threshold so a unique buildable look-alike is still refused WRONG_ELEMENT, a missing identity anchor refused rather than guessed, the compiler and intent guard still running before the page, protected-login terminating the job, only a proven repair stored (never unprovable-now, which replay could never settle for a baseline that does not resolve), promotion refused for mode auto because locatorRepair's ceiling is T1 and accepted for a user with an EMPTY replay tally, the audit record attributed to locatorRepair with proof repair-proven and no replay counts, the promoted locator actually passing a run on the page that broke it, one-click revert restoring the exact previous locator, and the §10 badge reading repair-proven with the replay threshold reported as not applicable."
+  },
 
   // ── Phase L (local AI) — L1 foundation ───────────────────────────────────────────────────────
   "verify:ai-autonomy-policy": {

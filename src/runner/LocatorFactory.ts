@@ -270,7 +270,13 @@ export class LocatorFactory {
     throw new Error(LocatorFactory.formatFailure(step, pass.diagnostics));
   }
 
-  private static readonly GUARD_MATCH_THRESHOLD = 0.9;
+  /**
+   * How close a re-derived fingerprint must be to a recorded one to count as the same element, when
+   * the recorded confidence is not `exact`. Public because L3 §8's repair proof anchors on the SAME
+   * definition of identity: a second threshold would let a repair accept an element the guarded path
+   * would have refused.
+   */
+  static readonly GUARD_MATCH_THRESHOLD = 0.9;
 
   /**
    * Resolve a guarded-positional locator by INDEPENDENTLY re-proving the recorded
@@ -609,7 +615,12 @@ export class LocatorFactory {
     return index > 0 ? [ranked[index], ...ranked.slice(0, index), ...ranked.slice(index + 1)] : ranked;
   }
 
-  private static async fingerprintOne(locator: Locator): Promise<LocatorElementFingerprint | undefined> {
+  /**
+   * The one way an element's identity is read. Public so L3 §8's repair proof re-derives identity
+   * through exactly this pipeline (page fingerprint, then `hashFingerprint`) rather than a second
+   * copy that could drift from what `resolveGuardedPositional` and `recoverLocally` compare against.
+   */
+  static async fingerprintOne(locator: Locator): Promise<LocatorElementFingerprint | undefined> {
     try {
       return hashFingerprint(await locator.evaluate(createPageFingerprint));
     } catch {

@@ -650,6 +650,17 @@ try {
   check("swapping moves the second twin first", (await page.locator(".lu-twins button").first().getAttribute("data-lu")) === "twin-second");
   await page.getByTestId("lu-clear-cards").click();
   check("removing all cards leaves no card", (await page.locator(".lu-card").count()) === 0);
+  // L3 §8 repair fixture. The whole point is that ONE of these two changes and the other does not:
+  // the test-id locator stops matching, the button stays exactly where it was. Asserted here, on the
+  // page's own invariants, so the fixture cannot quietly stop being what the repair suite names it.
+  check("the repair target and its look-alike are two distinct controls", (await page.getByTestId("lu-repair-save").count()) === 1 && (await page.getByTestId("lu-repair-other").count()) === 1);
+  await page.getByTestId("lu-repair-break").click();
+  check("breaking the repair target retires its test id", (await page.getByTestId("lu-repair-save").count()) === 0);
+  check("...and its id", (await page.locator("#lu-repair-save").count()) === 0);
+  check("...while the button itself is still present and named", (await page.getByRole("button", { name: "Save draft", exact: true }).count()) === 1);
+  check("...and the look-alike is untouched", (await page.getByTestId("lu-repair-other").count()) === 1);
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  check("...and the broken target still reports only its own name", (await page.getByTestId("lu-result").textContent()) === "repair-save");
 
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);

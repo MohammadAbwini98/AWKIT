@@ -26,14 +26,15 @@ import {
   sha256Hex as sha256,
   type LocatorReplayProofRecord
 } from "@src/ai/pendingUpgrade";
-import { locatorFrameChain, type FlowStep, type LocatorContext } from "@src/profiles/FlowProfile";
+import { locatorFrameChain, type FlowStep, type LocatorContext, type LocatorGuard, type PendingProofEvidence } from "@src/profiles/FlowProfile";
 import { locatorBindingMatches } from "@src/profiles/locatorApproval";
 import { UPGRADE_CONTEXT_TTL_MS, type UpgradeContext } from "@src/recorder/upgradeContext";
 import { decideAiAction } from "@src/security/authz/AiAutonomyPolicy";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { LocatorFactory } from "./LocatorFactory";
-import type { LocatorRecoveryStore } from "./LocatorRecoveryStore";
+import { fingerprintsEqual, similarity } from "./locatorFingerprint";
+import type { LocatorElementFingerprint, LocatorRecoveryStore } from "./LocatorRecoveryStore";
 
 export type LocatorProofOutcome = "proven" | "rejected" | "unprovable-now";
 export type ProofGate = "pass" | "fail" | "not-run";
@@ -54,6 +55,9 @@ export interface LocatorProofResult {
   scope: "compatible" | "mismatch" | "not-checked";
   baselineMatchCount?: number;
   candidateMatchCount?: number;
+  /** L3 §8 only: which saved identity gate C compared against, and how closely it matched. */
+  identityAnchor?: PendingProofEvidence["identityAnchor"];
+  identityScore?: number;
   /** Whether the candidate may be stored as `pendingUpgrade` (proven now, or unprovable now). */
   pendingEligible: boolean;
 }
@@ -181,6 +185,189 @@ export async function proveCompiledCandidate(
     await baselineHandle?.dispose().catch(() => undefined);
     await candidateHandle?.dispose().catch(() => undefined);
   }
+}
+
+// ── L3 §8: runtime repair ───────────────────────────────────────────────────────────────────────
+
+/**
+ * The saved identity a repair candidate is proven against.
+ *
+ * §4's gate C asks "is this the same DOM node the baseline resolves to". A repair cannot: the
+ * baseline failing is the whole premise. So gate C becomes "does this element's re-derived
+ * fingerprint match an identity the product already recorded for this step", using
+ * `LocatorFactory`'s own threshold and its own fingerprint pipeline — never a second definition of
+ * sameness, which is how a repair would come to accept an element the guarded path refuses.
+ */
+export interface RepairIdentityAnchor {
+  fingerprint: LocatorElementFingerprint;
+  /** `exact` demands equality; anything else accepts `similarity >= GUARD_MATCH_THRESHOLD`. */
+  confidence: LocatorGuard["confidence"];
+  source: NonNullable<PendingProofEvidence["identityAnchor"]>;
+}
+
+/**
+ * Pick the saved identity to prove against, most authoritative first.
+ *
+ * 1. The step's own positional `guard` — capture-time identity, in the profile, with its confidence.
+ * 2. A caller-supplied blueprint element — capture-time identity from the page model. It is passed
+ *    in rather than looked up here because the deterministic recovery §8 runs *first* has already
+ *    resolved the page key, the frame and the document fingerprint to find it; re-deriving that
+ *    probe would be a second copy of `LocatorFactory.recoverFromBlueprint`'s preamble.
+ * 3. The runtime recovery memory — the identity of the element that last resolved successfully.
+ *
+ * Undefined when the product recorded no identity for this step at all. A repair then has nothing to
+ * prove against, and guessing is exactly what L3 forbids.
+ */
+export function resolveRepairAnchor(
+  step: FlowStep,
+  sources: { blueprint?: { fingerprint: LocatorElementFingerprint }; recovery?: { fingerprint?: LocatorElementFingerprint } } = {}
+): RepairIdentityAnchor | undefined {
+  const guard = step.locator?.guard;
+  if (guard?.fingerprint) return { fingerprint: guard.fingerprint, confidence: guard.confidence, source: "guard" };
+  if (sources.blueprint) return { fingerprint: sources.blueprint.fingerprint, confidence: "high", source: "blueprint" };
+  if (sources.recovery?.fingerprint) return { fingerprint: sources.recovery.fingerprint, confidence: "high", source: "recovery-memory" };
+  return undefined;
+}
+
+/** Whether a re-derived fingerprint is the anchored element, by `LocatorFactory`'s own rule. */
+function identityMatch(anchor: RepairIdentityAnchor, observed: LocatorElementFingerprint): { same: boolean; score: number } {
+  if (anchor.confidence === "exact") {
+    const same = fingerprintsEqual(observed, anchor.fingerprint);
+    return { same, score: same ? 1 : similarity(anchor.fingerprint, observed) };
+  }
+  const score = similarity(anchor.fingerprint, observed);
+  return { same: score >= LocatorFactory.GUARD_MATCH_THRESHOLD, score };
+}
+
+/**
+ * Gates for a repair candidate (L3 §8). Same D/A/B as §4, with two differences that matter:
+ *
+ *   E  the step's saved locator must be OBSERVED FAILING right now. A "repair" of a locator that
+ *      still resolves uniquely is not a repair — it is an unproven replacement of working behavior,
+ *      so it is refused outright (`BASELINE_HEALTHY`) rather than stored for later.
+ *   C  identity against {@link RepairIdentityAnchor} instead of DOM node identity with the baseline.
+ *
+ * Observational only: counts, one fingerprint read, no click, type, navigation or write.
+ */
+export async function proveRepairCandidate(
+  page: Page,
+  step: FlowStep,
+  compiled: CompiledLocatorPlan,
+  anchor: RepairIdentityAnchor | undefined,
+  meta: { meaningChange: boolean }
+): Promise<LocatorProofResult> {
+  const base: Partial<LocatorProofResult> = {
+    compiled: true,
+    intent: "passed",
+    meaningChange: meta.meaningChange,
+    candidateDigest: locatorCandidateDigest(compiled.candidate, compiled.context)
+  };
+  const gates = { ...NOT_RUN } as LocatorProofResult["gates"];
+  // A repair is storable ONLY when it is proven. `unprovable-now` is deferral, and deferral is what
+  // replay resolves — but replay proves against a baseline that, here, by definition does not
+  // resolve. So an unproven repair has no route to ever becoming proven and is never written.
+  const done = (outcome: LocatorProofOutcome, code: string, extra: Partial<LocatorProofResult> = {}): LocatorProofResult => ({
+    ...result(outcome, code, { ...base, gates: { ...gates }, ...extra }),
+    pendingEligible: outcome === "proven"
+  });
+
+  // D — policy, before the page is touched. `locatorRepair` has its own feature id, but T3 is a
+  // property of the STEP, so a sensitive or protected-login step is refused here exactly as in §4.
+  const policy = decideAiAction("locatorRepair", "locatorChange", { step }, { enabled: true });
+  if (policy.decision === "forbidden") {
+    gates.policy = "fail";
+    return done("rejected", policy.reason);
+  }
+  if (!step.locator) {
+    gates.policy = "fail";
+    return done("rejected", "NO_BASELINE");
+  }
+  if (scopeOf(compiled.context) !== scopeOf(step.locator.context)) {
+    gates.policy = "fail";
+    return done("rejected", "FRAME_CONTEXT_MISMATCH", { scope: "mismatch" });
+  }
+  // No anchor means the product never recorded an identity for this step. Terminal, not deferred:
+  // waiting does not create one, and proving against the candidate's own say-so is not a proof.
+  if (!anchor) {
+    gates.policy = "fail";
+    return done("rejected", "NO_IDENTITY_ANCHOR", { scope: "compatible" });
+  }
+  if (page.isClosed()) return done("unprovable-now", "PAGE_UNAVAILABLE", { scope: "compatible" });
+  const detection = await detectRecorderProtectedLogin(page).catch(() => null);
+  if (detection?.detected) {
+    gates.policy = "fail";
+    return done("rejected", "T3_PROTECTED_LOGIN", { scope: "compatible" });
+  }
+  gates.policy = "pass";
+
+  // E — the baseline really is broken. A fresh factory with no memory, so this observation neither
+  // records a winner nor consumes the recovery path the runner already tried.
+  const factory = new LocatorFactory(page);
+  let baselineMatchCount = 0;
+  try {
+    baselineMatchCount = await (await factory.resolve(step)).count().catch(() => 0);
+  } catch {
+    // Unresolvable is the expected state for a repair: leave the count at 0 and continue.
+    baselineMatchCount = 0;
+  }
+  if (baselineMatchCount === 1) {
+    return done("rejected", "BASELINE_HEALTHY", { scope: "compatible", baselineMatchCount });
+  }
+
+  // A — buildable through the same frame/shadow/container root.
+  let candidate: Locator;
+  try {
+    candidate = await factory.locateCandidate(compiled.candidate, compiled.context);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    gates.buildable = "fail";
+    return done("rejected", /did not resolve strictly/.test(message) ? "CANDIDATE_NOT_UNIQUE" : "NOT_BUILDABLE", { scope: "compatible", baselineMatchCount });
+  }
+  gates.buildable = "pass";
+
+  // B — exactly one element.
+  const candidateMatchCount = await candidate.count().catch(() => 0);
+  if (candidateMatchCount !== 1) {
+    gates.unique = "fail";
+    return done("rejected", candidateMatchCount === 0 ? "CANDIDATE_NO_MATCH" : "CANDIDATE_NOT_UNIQUE", { scope: "compatible", baselineMatchCount, candidateMatchCount });
+  }
+  gates.unique = "pass";
+
+  // C — identity against the saved anchor, through LocatorFactory's own fingerprint pipeline.
+  const observed = await LocatorFactory.fingerprintOne(candidate);
+  if (!observed) {
+    return done("unprovable-now", "TARGET_UNFINGERPRINTABLE", { scope: "compatible", baselineMatchCount, candidateMatchCount });
+  }
+  const identity = identityMatch(anchor, observed);
+  gates.sameElement = identity.same ? "pass" : "fail";
+  return done(identity.same ? "proven" : "rejected", identity.same ? "REPAIR_PROVEN" : "WRONG_ELEMENT", {
+    scope: "compatible",
+    baselineMatchCount,
+    candidateMatchCount,
+    identityAnchor: anchor.source,
+    identityScore: Math.round(identity.score * 1000) / 1000
+  });
+}
+
+/** Raw-plan entry for a repair job: compile and intent-guard, then run the repair gates. */
+export async function proveRepairPlan(
+  page: Page,
+  step: FlowStep,
+  plan: unknown,
+  input: { boundValues: readonly string[]; anchor?: RepairIdentityAnchor; policy?: LocatorPlanPolicy }
+): Promise<LocatorProofResult> {
+  if (!step.locator) return result("rejected", "NO_BASELINE");
+  const evaluated = evaluateLocatorPlan(plan, {
+    boundValues: input.boundValues,
+    baseline: step.locator,
+    captured: step.locator.context,
+    policy: input.policy
+  });
+  if (!evaluated.ok) {
+    const intent = evaluated.code === "INTENT_BOUND_VALUE";
+    return result("rejected", evaluated.code, { field: evaluated.field, compiled: intent, intent: intent ? "rejected" : "not-run" });
+  }
+  return proveRepairCandidate(page, step, evaluated, input.anchor, { meaningChange: evaluated.meaningChange });
 }
 
 /**

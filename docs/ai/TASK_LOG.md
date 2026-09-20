@@ -1,5 +1,49 @@
 # TASK_LOG
 
+## 2026-09-21 — L3 §8: runtime locator repair, proven against a saved identity (Claude)
+
+- **Task:** build L3 §8 under the conditional development authorization. Ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **Two gates carry it, and both are observed rather than asserted.** Gate **E** (`BASELINE_HEALTHY`)
+  refuses a repair whose saved locator still resolves uniquely, measured on the page through a
+  memoryless `LocatorFactory` so the caller — the party that benefits from claiming a failure — cannot
+  supply the answer. Gate **C** compares the candidate's re-derived fingerprint with a saved identity
+  (`guard` → caller-supplied blueprint → recovery memory) through `LocatorFactory.fingerprintOne` and
+  `GUARD_MATCH_THRESHOLD`, both made public rather than copied: a second definition of "same element"
+  would let a repair accept what the guarded-positional path refuses.
+- **`mode: "repair"` is a parameter on the §7 loop, not a fork.** §7's boundedness is a property of its
+  shape, and re-establishing it in a second loop would have doubled the surface on which "no loops" must
+  hold. The parameter changes four things: feature id, one prompt sentence, the eligibility rule, and
+  what may be stored.
+- **Only a proven repair is stored** (the opposite of §5) because replay proves against the element the
+  saved locator resolves to, and a repair's resolves to nothing — a parked repair could never be
+  confirmed or retired. New terminal outcome `unprovable` says so rather than faking a refused attempt.
+- **Promotion asks a repair for no replay tally**, which would be unsatisfiable by construction; safety
+  is gate E plus the identity match plus `locatorRepair`'s T1 ceiling, which makes `mode: "auto"`
+  unreachable. Audit: `feature: "locatorRepair"`, `proof: "repair-proven"`, no replay counts.
+- **Files:** `src/runner/locatorProof.ts` (anchor + repair gates), `src/runner/LocatorFactory.ts` (two
+  members made public), `src/ai/locatorUpgradeAttempts.ts` (mode, `isLocatorRepairEligible`),
+  `src/ai/locatorPromotion.ts`, `src/ai/locatorStatus.ts`, `src/ai/contracts/AiApi.ts`,
+  `src/profiles/FlowProfile.ts`, `mock-site/public/locator-upgrade-lab.html` + `index.html` + `README.md`,
+  `scripts/verify-ai-locator-repair.mts` (new), `scripts/verify-mock-site.mjs`,
+  `scripts/lib/verifier-classification.ts`, `package.json`, plan/decision docs.
+- **Checks:** `verify:ai-locator-repair` **85/85**; `verify:ai-locator-attempts` 87/87;
+  `verify:locator-upgrade-proof` 75/75; `verify:ai-locator-upgrade` 78/78; `verify:ai-locator-status`
+  85/85; `verify:ai-fallback` 38/38; `verify:mock-site` 228/228; `verify:verifier-classification` 235
+  classified / 24 guards paths; `npm run build` PASS; `typecheck:scripts` PASS;
+  `verify:roadmap-dashboard` 177/177 Sources agree. `verify:ai-locator-upgrade-gui` **NOT RUN** — the
+  Electron GUI suite's inputs (`LocatorUpgradeSection`) did not change; only the pure status table did,
+  and `verify:ai-locator-status` covers it.
+- **Mutation-tested four for four:** gate E removed → 80/83; gate C threshold 0.9 → 0.5 → 79/83;
+  promotion treating a repair as a semantic upgrade → 64/69; storing an unprovable repair → 83/85. The
+  third also **shortened** the run, because the promotion block sits behind `if (promotion.ok)` — 64/69
+  reads as "mostly fine" rather than as a failure. The suite now asserts the promotion and revert
+  sections were reached at all. Source restored; final state re-run clean.
+- **Not built, by architecture rather than effort:** the production trigger. `verify:ai-fallback` proves
+  the execution tree cannot reach the model at any import depth, and `AiService` lives in the main
+  process, so wiring a repair into `StepExecutor`'s failure path would break that green guard. It waits
+  on the same L1 gate §7's caller waits on. L3 stays `in_progress`.
+
 ## 2026-09-21 — L1 recorded as a PARTIAL PASS; Phase L resumes under a conditional authorization (Claude)
 
 - **Task:** record the owner's decision to continue Phase L development without waiting for the L1.8

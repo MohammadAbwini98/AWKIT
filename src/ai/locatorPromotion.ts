@@ -188,9 +188,14 @@ export function describeFlowLocatorUpgrades(input: {
     const proposal = locator.pendingUpgrade;
     if (!proposal) continue;
     const digests = pendingUpgradeDigests(step);
-    const evaluation = digests
-      ? evaluatePendingUpgrade(step, selectReplayEvidence(input.replayProofs, input.profile.id, step.id, digests, replayPolicy), digests, replayPolicy)
-      : { state: "stale" as const, proofSatisfied: false, meaningChange: proposal.meaningChange, replays: 0, dataRows: 0 };
+    // A repair (L3 §8) is evaluated as the promotion path evaluates it: its browser proof is the
+    // evidence, so it reports `eligible` rather than the `pending-replay` a replay tally lookup would
+    // produce — which would show a user "0 of 3 replays" for a threshold that can never apply.
+    const evaluation: PendingUpgradeEvaluation = !digests
+      ? { state: "stale", proofSatisfied: false, meaningChange: proposal.meaningChange, replays: 0, dataRows: 0 }
+      : proposal.proof === "repair-proven" && locatorBindingMatches(proposal.binding, step)
+        ? { state: "eligible", proofSatisfied: true, meaningChange: proposal.meaningChange, replays: 0, dataRows: 0 }
+        : evaluatePendingUpgrade(step, selectReplayEvidence(input.replayProofs, input.profile.id, step.id, digests, replayPolicy), digests, replayPolicy);
     const dryRun = promoteLocatorUpgrade(input.profile, step.id, {
       createdAt: proposal.createdAt,
       mode: "user-approved",
@@ -270,14 +275,27 @@ export function promoteLocatorUpgrade(profile: FlowProfile, stepId: string, inpu
   const digests = pendingUpgradeDigests(step);
   if (!digests) return { ok: false, code: "NO_PENDING" };
   const replayPolicy = input.replayPolicy ?? LOCATOR_UPGRADE_REPLAY_POLICY;
-  const tally = selectReplayEvidence(input.replayProofs, profile.id, stepId, digests, replayPolicy);
-  const evaluation = evaluatePendingUpgrade(step, tally, digests, replayPolicy);
-  if (evaluation.state === "replay-rejected") return { ok: false, code: "REPLAY_REJECTED" };
-  if (evaluation.state !== "eligible" || !evaluation.proofSatisfied) return { ok: false, code: "PROOF_NOT_SATISFIED" };
+
+  // L3 §8: a repair's evidence is its own browser proof, not a replay tally. Asking for replays here
+  // would be unsatisfiable by construction — a replay proves the candidate against the element the
+  // baseline resolves to, and a repair exists precisely because the baseline resolves to nothing. The
+  // proof that was required instead is stricter in the one way that matters: `proveRepairCandidate`
+  // refuses a baseline that still works (`BASELINE_HEALTHY`) and matches the candidate against a
+  // SAVED identity, so a repair can never quietly retarget a locator that was fine.
+  const repair = pending.proof === "repair-proven";
+  const evaluation: PendingUpgradeEvaluation = repair
+    ? { state: "eligible", proofSatisfied: true, meaningChange: pending.meaningChange, replays: 0, dataRows: 0 }
+    : evaluatePendingUpgrade(step, selectReplayEvidence(input.replayProofs, profile.id, stepId, digests, replayPolicy), digests, replayPolicy);
+  if (!repair) {
+    if (evaluation.state === "replay-rejected") return { ok: false, code: "REPLAY_REJECTED" };
+    if (evaluation.state !== "eligible" || !evaluation.proofSatisfied) return { ok: false, code: "PROOF_NOT_SATISFIED" };
+  }
 
   // T3 is evaluated against the step as it is now, not as it was when the candidate was proposed.
+  // The feature is the one that produced the candidate, so a repair is decided against
+  // `locatorRepair`'s T1 ceiling and can therefore never return `autoApply`.
   const decision = decideAiAction(
-    "locatorSemanticUpgrade",
+    repair ? "locatorRepair" : "locatorSemanticUpgrade",
     "locatorChange",
     { step, meaningChange: evaluation.meaningChange, proofSatisfied: evaluation.proofSatisfied },
     input.policy
@@ -317,11 +335,11 @@ export function promoteLocatorUpgrade(profile: FlowProfile, stepId: string, inpu
   };
   const provenance: LocatorProvenance = {
     schemaVersion: 1,
-    source: "ai-semantic-upgrade",
+    source: repair ? "ai-repair" : "ai-semantic-upgrade",
     tier,
     actionId: input.actionId,
     modelId: pending.modelId,
-    proof: "replay-proven",
+    proof: repair ? "repair-proven" : "replay-proven",
     appliedAt: input.nowIso,
     // Bound to the step AS APPLIED, so revert is refused once the user edits the promoted locator.
     binding: createLocatorApprovalBinding({ ...step, locator: promoted })!,
@@ -337,13 +355,15 @@ export function promoteLocatorUpgrade(profile: FlowProfile, stepId: string, inpu
     record: {
       schemaVersion: 1,
       id: input.actionId,
-      feature: "locatorSemanticUpgrade",
+      feature: repair ? "locatorRepair" : "locatorSemanticUpgrade",
       actionClass: "locatorChange",
       tier,
       target: { kind: "stepLocator", flowId: profile.id, stepId },
       // Digests only: they identify the proven candidate and the step revision without carrying either.
       evidenceIds: [`candidate:${digests.candidateDigest}`, `binding:${digests.bindingDigest}`],
-      proof: { result: "replay-proven", replays: evaluation.replays, dataRows: evaluation.dataRows },
+      // A repair reports no replay counts rather than zeroes for them: it never ran any, and "0 of 3"
+      // would read as an unmet threshold instead of an inapplicable one.
+      proof: repair ? { result: "repair-proven" } : { result: "replay-proven", replays: evaluation.replays, dataRows: evaluation.dataRows },
       modelId: pending.modelId,
       createdAt: input.nowIso,
       revertHandle: { kind: "locatorProvenance" }

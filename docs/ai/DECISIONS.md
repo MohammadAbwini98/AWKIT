@@ -1,5 +1,39 @@
 # DECISIONS
 
+### 2026-09-21 — Phase L L3 §8: what a repair may prove, and against what (`awkit-djnl.4`)
+
+- **A repair's gate C is identity, not DOM node equality, because the baseline failing is the premise.**
+  §4 proves "this candidate is the element the baseline resolves to". A repair has no such element. So the
+  candidate's re-derived fingerprint is compared with an identity the product already RECORDED, through
+  `LocatorFactory.fingerprintOne` and `LocatorFactory.GUARD_MATCH_THRESHOLD` — both made public rather
+  than copied. A second definition of "same element" is how a repair would come to accept an element the
+  guarded-positional path refuses, and the two must not be able to disagree.
+- **Gate E exists because a repair is a licence to replace a locator, and that licence must be earned on
+  the page.** `BASELINE_HEALTHY` refuses a repair whose saved locator still resolves uniquely. It is
+  observed through a memoryless `LocatorFactory` rather than taken from the caller, precisely because the
+  caller is the party that benefits from claiming a failure.
+- **The identity anchor is ordered by provenance and never invented:** the step's own positional `guard`,
+  then a caller-supplied blueprint element, then the runtime recovery memory. `NO_IDENTITY_ANCHOR` is
+  terminal, not deferred — waiting does not produce a record that was never written.
+- **Only a proven repair is stored, which is the opposite of §5's rule, for a reason.** §5 parks
+  `unprovable-now` because replay can settle it later. Replay proves a candidate against the element the
+  saved locator resolves to; a repair's saved locator resolves to nothing, so a parked repair could never
+  be confirmed *or* retired and would sit in the UI forever. The job reports a new terminal `unprovable`
+  outcome instead of dressing it up as a refused attempt.
+- **Promotion asks a repair for no replay tally.** Requiring one would be unsatisfiable by construction,
+  and a requirement that can never be met is not a safeguard — it is a feature that silently does
+  nothing. Safety comes from elsewhere: gate E, the saved-identity match, and `locatorRepair`'s T1
+  ceiling, which makes `mode: "auto"` unreachable so a person always decides. The audit says
+  `feature: "locatorRepair"`, `proof: "repair-proven"` and omits replay counts rather than writing `0`,
+  which would read as an unmet threshold instead of an inapplicable one.
+- **`mode: "repair"` is a parameter on the §7 loop, not a second loop.** §7's boundedness is a property of
+  its shape — every iteration returns or spends exactly one attempt — and that property is worth reusing
+  rather than re-establishing. A fork would have doubled the surface on which "no loops" has to be true.
+- **The production trigger is still not built, and that is an architectural boundary rather than a gap.**
+  `verify:ai-fallback` proves the execution tree cannot reach the model at any import depth. Wiring a
+  repair job into `StepExecutor`'s failure path would break that guard, so it waits for the same L1 gate
+  §7's caller waits for.
+
 ### 2026-09-20 — Phase L continues under a conditional development authorization; L1 is a PARTIAL PASS (`awkit-djnl.1`)
 
 - **The owner separated permission to develop from permission to accept.** L1.8's `locatorUpgrade` ceiling
