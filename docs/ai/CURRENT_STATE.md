@@ -1,6 +1,49 @@
 # CURRENT_STATE
 
-## L1 artifacts re-checked (still absent); structural verifier coverage is now declared and enforced (2026-09-20, current)
+## Model pack ACQUIRED and verified; the runtime is blocked on Node 18.16 vs a required ≥20 (2026-09-20, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
+moved, and no product source changed. Both acquisition commands were executed under explicit owner
+instruction.
+
+**Artifact 2 of 2 is now ACQUIRED and its identity is VERIFIED.**
+`%USERPROFILE%\Downloads\Qwen3.5-4B-Q4_K_M.gguf` — **2,707,513,696 bytes** (exact) and SHA-256
+**`25082a7d…1418c`** (exact match to the published value). Metadata was read out of the file rather than
+assumed: `GGUF v3`, `general.architecture = qwen35`, `qwen35.context_length = 262144`, 426 tensors.
+
+**The first download attempt failed and left a booby trap worth knowing about.** It died at
+1,084,225,386 bytes with `curl: (56)` yet the surrounding shell still exited 0, because `ls` was the
+last command in the chain — so the *task* reported success while the download had not. The fragment kept
+the correct file name, which is precisely the shape that makes the `Downloads\*.gguf` existence check
+every prior session ran report "present" for a broken artifact. Resumed with `-C - --retry 5`. **Verify
+size and checksum, never presence.**
+
+**Artifact 1 of 2 CANNOT be installed on this machine, and this is a new prerequisite the plan never
+recorded: `node-llama-cpp@3.21.1` declares `engines.node >= 20.0.0`; this machine runs Node v18.16.0.**
+Its postinstall crashes outright (`import … with { type: 'json' }` → `SyntaxError: Unexpected token
+'with'`). `--ignore-scripts` is **not** a workaround: the JS installs, but all 13 platform prebuilts —
+including `@node-llama-cpp/win-x64`, which carries the native binary — are optional dependencies that
+*also* require Node ≥20, so npm silently skips every one and `node_modules/@node-llama-cpp/` is left
+**empty**. `verify:ai-model-live` correctly still reports **NOT RUN**: it tests for the prebuilt, not
+merely the package, so the half-install did not make it fail open.
+
+**The attempt was reverted to zero diff.** The raw install had rewritten `package-lock.json` by 2059
+lines including **238 deletions** (npm 9.5.1 reformatting unrelated entries); `npm uninstall` restored
+both `package.json` and `package-lock.json` exactly. A dependency that cannot produce a working runtime
+is not recorded as present.
+
+**L1.2 is therefore still incomplete and `AI_MODEL_MANIFEST` is still EMPTY by design.** The pack half
+is now measurable, but the entry was deliberately **not** written: `src/offline/**` is the Risk-3 offline
+boundary owned by the release role, L1.2 also requires the llama.cpp runtime pin (impossible without the
+runtime) and the third-party notices, and a pack entry cannot be validated end to end while no runtime
+can load it. **L1.8 remains NOT RUN.**
+
+**Open owner decision: upgrade Node to 20/22 LTS, or not.** It is a toolchain change, not part of the
+acquisition — the 233 verifiers, the `tsx` harnesses and `electron-builder` all pass on 18.16 today and
+the repository declares no `engines` field. Upgrading unblocks a single complete, validated L1.2 + L1.8
+pass; not upgrading leaves L1 blocked with the pack ready.
+
+## L1 artifacts re-checked (still absent); structural verifier coverage is now declared and enforced (2026-09-20)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No validation case
 moved. No product behaviour changed.

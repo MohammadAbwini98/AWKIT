@@ -1,5 +1,27 @@
 # KNOWN_ISSUES
 
+## A truncated download keeps the right filename, and a failed command in a chain still reports exit 0 (2026-09-20, RESOLVED here — the pattern is the lesson)
+
+- **What happened.** `curl.exe … ; echo …; ls -l …` — the download died at 1,084,225,386 of
+  2,707,513,696 bytes with `curl: (56)` (receive failure), but the **task reported exit code 0**, because
+  the chain's exit status is the *last* command's and `ls` succeeded. The background-task notification
+  said "completed (exit code 0)". The download had failed.
+- **The fragment is the dangerous part.** It kept the exact expected filename, so
+  `Downloads\*.gguf` — the presence check every prior session used to decide whether the model had been
+  acquired — would have reported **"model present"** for a 40% file. The product itself would have
+  refused it (`SIZE_NOT_IN_MANIFEST`), but an *agent* would have reported acquisition complete.
+- **The rules.** Put the command whose exit code matters **last**, or run it alone. Never infer
+  acquisition from a filename: **verify size and checksum**. Use `curl -C - --retry 5
+  --retry-all-errors` for anything large, so a dropped connection resumes instead of truncating.
+- **Related, same session:** `npm install --ignore-scripts` on a package whose native binaries ship as
+  **optional dependencies** yields a silently binary-less install — npm skips optional deps that fail an
+  engine check and says nothing. `node_modules/@node-llama-cpp/` was left empty with no error.
+  `verify:ai-model-live` caught it only because it tests for the **prebuilt**, not the package; a check
+  written as "is the package installed?" would have passed on a runtime that cannot run.
+- **Credit where due:** the repository's own `verify:ai-model-pack` refusals (`SIZE_NOT_IN_MANIFEST`,
+  `NOT_IN_MANIFEST`, truncation → `SIZE_MISMATCH`) are exactly the defence that makes a truncated pack a
+  non-event for the product. Identity is the checksum, never the name.
+
 ## A boundary verifier that names a FOLDER instead of the capability goes red the moment the architecture moves (2026-09-20, RESOLVED for the two known instances — the pattern is the lesson)
 
 - **What happened.** `verify:ai-fallback` (34/2 against a documented 36/36) and the structural check in

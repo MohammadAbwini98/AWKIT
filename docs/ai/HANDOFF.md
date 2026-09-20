@@ -1,6 +1,33 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L1 artifacts still absent; structural coverage is now declared and enforced
+## HANDOFF (2026-09-20, latest) — model pack acquired and verified; runtime blocked on Node 18.16 vs ≥20
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No product source changed.
+- **Model pack DONE.** `%USERPROFILE%\Downloads\Qwen3.5-4B-Q4_K_M.gguf`, **2,707,513,696 bytes** and
+  SHA-256 **`25082a7d…1418c`**, both exact. Read from the file, not assumed: `GGUF v3`,
+  `general.architecture = qwen35`, `qwen35.context_length = 262144`, 426 tensors.
+- **Runtime IMPOSSIBLE on this machine.** `node-llama-cpp@3.21.1` declares `engines.node >= 20.0.0`;
+  Node here is **v18.16.0**. Postinstall crashes on import attributes. `--ignore-scripts` does NOT help:
+  all 13 platform prebuilts (incl. `@node-llama-cpp/win-x64`, the native binary) are optional deps that
+  also need Node ≥20, so npm skips them silently and `node_modules/@node-llama-cpp/` ends up **empty**.
+  Reverted to zero diff via `npm uninstall` (the raw install had churned `package-lock.json` by 2059
+  lines / 238 deletions under npm 9.5.1).
+- **Two traps worth carrying forward.** (1) A failed `curl` inside a command chain still reported task
+  **exit 0** because `ls` ran last — the download had actually died at 1.08 GB with `curl: (56)`, leaving
+  a **truncated fragment under the correct filename**, which is exactly what a `Downloads\*.gguf`
+  existence check calls "present". Verify size *and* checksum. (2) `verify:ai-model-live` did **not**
+  fail open on the half-install — it checks for the prebuilt, not the package.
+- **L1.2 deliberately NOT written.** The pack half is measurable now, but `src/offline/**` is the Risk-3
+  offline boundary owned by the release role; L1.2 also needs the llama.cpp runtime pin (impossible
+  without a runtime) and the third-party notices; and no entry can be validated end to end while nothing
+  can load the model. `AI_MODEL_MANIFEST` stays empty, `AI_RUNTIME_PIN.build` stays null. **L1.8 NOT RUN.**
+- **One decision blocks everything: upgrade Node to 20/22 LTS, or not.** That is a toolchain change, not
+  part of the acquisition — 233 verifiers, the `tsx` harnesses and `electron-builder` all pass on 18.16
+  today, and the repo declares no `engines` field. Upgrading enables one complete, validated
+  L1.2 + L1.8 pass. **Do not upgrade Node on an agent's own initiative.**
+- **Next agent work without the runtime: still none in Phase L.**
+
+## HANDOFF (2026-09-20) — L1 artifacts still absent; structural coverage is now declared and enforced
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No validation case moved.
 - **L1.2 and L1.8 are still BLOCKED, re-checked on this machine.** `node-llama-cpp` is absent from

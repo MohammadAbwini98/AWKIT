@@ -8,7 +8,7 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 | Task | State | Where |
 |---|---|---|
 | L1.1 AiService host | **Built.** Service, queue, protocol, utility-host manager, IPC, and the real host `native-hosts/ai/ai-host.cjs` on node-llama-cpp (`51cacba`), proven against a fake runtime (`verify:ai-host`) and in a real utility process (`verify:ai-host-electron`, `9c25288`). Running it on a real model is BLOCKED on the two owner steps below. | `src/ai/AiService.ts`, `src/ai/contracts/AiHostProtocol.ts`, `app/main/ai/*`, `app/main/ipc/ai.ipc.ts`, `native-hosts/ai/ai-host.cjs` |
-| L1.2 Model pack | **Built:** import, SHA-256 against the manifest, status, remove. **BLOCKED:** the llama.cpp pin, the manifest entry and the notices need the installed runtime and the downloaded pack (checked 2026-09-19: `node-llama-cpp` is not installed and no `.gguf` is in Downloads). | `src/ai/AiModelPack.ts`, `src/offline/AiModelManifest.ts` |
+| L1.2 Model pack | **Built:** import, SHA-256 against the manifest, status, remove. **PACK ACQUIRED AND VERIFIED 2026-09-20** (size + SHA-256 exact, metadata read from the file). **STILL BLOCKED:** the llama.cpp runtime pin and the third-party notices need the installed runtime, which cannot be installed on Node 18.16 — so `AI_MODEL_MANIFEST` is still empty and `AI_RUNTIME_PIN.build` is still null. | `src/ai/AiModelPack.ts`, `src/offline/AiModelManifest.ts` |
 | L1.3 Output contract | **Done.** | `src/ai/{AiPromptBuilder,AiOutputContract}.ts` |
 | L1.4 Autonomy and audit | **Done.** The policy lives in `src/security/authz` (see DECISIONS). | `src/security/authz/AiAutonomyPolicy.ts`, `src/ai/{AiActionRecord,AiActionStore,AiRevert}.ts` |
 | L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
@@ -50,9 +50,22 @@ February 2026. The alternative, a pinned `llama-server.exe`, was rejected:
 It is a dev dependency, so it never enters `app.asar`. The host's runtime tree is staged next to it,
 like the Zvec host.
 
-**Owner steps.** The lease guard allows the agent only git, `build` and `verify:`/`validate:`/`benchmark:`
-scripts, so an install or a download has to be run by the owner. Run both in PowerShell from the
-repo root:
+> **PREREQUISITE FOUND 2026-09-20, and it is not optional: `node-llama-cpp@3.21.1` requires Node
+> `>=20.0.0`. This machine runs Node v18.16.0, so step 1 CANNOT succeed here.** The package declares
+> that engine, and its postinstall crashes outright on Node 18 (`import … with { type: 'json' }` →
+> `SyntaxError: Unexpected token 'with'`). Installing with `--ignore-scripts` is **not** a workaround:
+> the JS lands, but every one of the 13 platform prebuilts — including `@node-llama-cpp/win-x64`,
+> which carries the actual native binary — is an optional dependency that also requires Node ≥20, so
+> npm **silently skips all of them** and `node_modules/@node-llama-cpp/` is left empty. There is then
+> no runtime at all, and `verify:ai-model-live` correctly still reports `NOT RUN` (it tests for the
+> prebuilt, not just the package, so it does not fail open). The attempt was reverted; `npm uninstall`
+> restored `package.json` and `package-lock.json` to zero diff. **Upgrading Node is a toolchain
+> decision for the owner**, not a step an agent should take: the 233 verifiers, the `tsx` harnesses and
+> `electron-builder` all currently pass on 18.16, and the repository declares no `engines` field.
+
+**Owner steps.** The lease guard's grammar has no install or download verb at all — not an
+authorization level, a missing command *form* — so neither step can be run by an agent under any
+lease. Run both in PowerShell from the repo root:
 
 1. Runtime (exact pin; `NODE_LLAMA_CPP_SKIP_DOWNLOAD` prevents any source build). npm also installs
    optional CUDA and Vulkan packages. They are never used or staged.
@@ -67,8 +80,20 @@ repo root:
    from the downloaded file; the published value is only a cross-check.
 
    ```powershell
-   curl.exe -L -o "$env:USERPROFILE\Downloads\Qwen3.5-4B-Q4_K_M.gguf" https://huggingface.co/lmstudio-community/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf
+   curl.exe -L -C - --retry 5 --retry-all-errors -o "$env:USERPROFILE\Downloads\Qwen3.5-4B-Q4_K_M.gguf" https://huggingface.co/lmstudio-community/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf
    ```
+
+   **DONE 2026-09-20 — the pack is downloaded and its identity is verified.** It sits at
+   `%USERPROFILE%\Downloads\Qwen3.5-4B-Q4_K_M.gguf`, measures **2,707,513,696 bytes** (exact match) and
+   hashes to **`25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c`** (exact match to the
+   published value, via `certutil -hashfile … SHA256`). Metadata read from the file itself rather than
+   assumed: `GGUF version 3`, `general.architecture = qwen35`, `qwen35.context_length = 262144`,
+   `general.name = Qwen_Qwen3.5 4B`, 426 tensors.
+
+   **Use `-C -` and `--retry`.** The first attempt died at 1,084,225,386 bytes with
+   `curl: (56)` (receive failure) and left a **truncated fragment under the correct file name** — the
+   exact shape that makes a `Downloads\*.gguf` existence check report success for a broken artifact.
+   Verify size **and** checksum, never presence.
 
 ## Goal
 
