@@ -49,6 +49,38 @@ design-time data-source/secret reference checks (needs a library context like `r
 
 ## L4b — AI explanations (T0) and fix ranking (T1)
 
+**Status (2026-09-21): the contract is BUILT** — `src/ai/authoringExplanation.ts`, proven by
+`verify:ai-authoring` (55/55, three mutations caught) over the real `FlowValidator`, the real
+`AiService` and the real output contract with a deterministic transport. `awkit-djnl.6` stays open:
+the renderer surface and the live quality gate are not built, and the milestone cannot close under the
+conditional development authorization.
+
+### L4b as built
+
+- **The two rules L4b turns on are structural, not checks that could be forgotten.**
+  - *AI cannot invent a fix kind* — the answer schema has **no `kind` field at all**. A ranking is a
+    subset of issue **ids** the validator already emitted a `safeFix` for, so the most a model can do is
+    reorder work `SafeFixApplier` was already willing to perform. A new fix kind stays what the spec
+    says it is: a deterministic owner-approved change to `FlowValidator` and `SafeFixApplier` first.
+  - *AI cannot name something outside the report* — issue ids are a closed `enum` in the decoding
+    grammar, built from that report, and `parseAuthoringAnswer` re-checks them after decoding, because
+    a grammar is one layer and L1.3 requires runtime validation as well.
+- **The ranking enum is narrower than the explanation enum**, so an unfixable issue cannot even be
+  decoded into a ranking; `FIX_NOT_EMITTED` is the second line for a caller that bypasses the grammar.
+- **What crosses to the model:** issue codes, severities, active-path flags, generated anchor ids, the
+  rule's own one-line summary from `FLOW_VALIDATION_RULES`, and each emitted fix's `kind` and `field`.
+  **Never** the validator's `message` — a mutation proved it embeds the step name — and never
+  `safeFix.from`/`to`, which are withheld although they are *usually* enum casing, because "usually" is
+  not a contract.
+- **Ids are positional (`i0`, `i1`, …) within ONE report snapshot**, and the request returns its own
+  id→issue map, so a caller maps an answer back through the request rather than re-validating and
+  risking drift.
+- **Mutation-tested three for three:** allowing a ranking of an unemitted fix → 54/55; widening the
+  ranking enum to every issue id → 54/55; sending the validator message instead of the rule summary →
+  51/55 (caught by four separate privacy assertions).
+- **Not built:** the renderer surface (§UX below) and `verify:ai-authoring-quality-live`. There is also
+  no production caller, for the same L1-gated reason as L3 §7–§9.
+
 - Input: violation codes, affected IDs with safe labels, bounded neighborhood, rule text, the `safeFix` kinds the
   validator emitted for this graph.
 - Output: explanation (T0, labelled AI) and optional ranking/selection among **emitted** `safeFix` entries (T1).

@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-21 — L4b: authoring explanations (T0) and safe-fix ranking (T1) (Claude)
+
+- **Task:** build the L4b contract under the conditional development authorization. Ledger unchanged
+  at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **Both of L4b's rules are made structural rather than checked.** The answer schema has **no `kind`
+  field**, so "AI never adds a fix kind" is not a guard that could be removed — there is nowhere to put
+  one. A ranking is a subset of issue ids the validator already emitted a `safeFix` for, and that id
+  set is a closed `enum` in the decoding grammar, narrower than the explanation enum.
+- **`parseAuthoringAnswer` re-checks everything the grammar already narrowed**, because L1.3 asks for
+  runtime validation after decoding and a grammar is one layer. It also enforces what a grammar cannot
+  express: no duplicates, and `FIX_NOT_EMITTED` for anything ranked that the validator did not offer.
+- **Privacy came from a source choice, and a mutation proved the choice mattered.** The prompt carries
+  the rule's own summary from `FLOW_VALIDATION_RULES`, never the validator's `message`: substituting
+  the message failed four separate assertions, because it embeds the step name.
+- **Files:** `src/ai/authoringExplanation.ts` (new), `scripts/verify-ai-authoring.mts` (new),
+  `package.json`, `scripts/lib/verifier-classification.ts`, plan/state docs.
+- **Checks:** `verify:ai-authoring` **55/55** (real `FlowValidator` on a real broken profile, real
+  `AiService` over `FakeAiHostTransport`, real output contract); `npm run build` PASS;
+  `typecheck:scripts` PASS; `verify:roadmap-dashboard` 177/177 Sources agree.
+- **Mutation-tested three for three:** allowing a ranking of an unemitted fix → 54/55; widening the
+  ranking enum to every issue id → 54/55; sending the validator message instead of the rule summary →
+  51/55.
+- **Not built:** the renderer surface, `verify:ai-authoring-quality-live`, and the production caller
+  (the same L1-gated boundary as L3 §7–§9). `awkit-djnl.6` stays open.
+
 ## 2026-09-21 — L3 §9: the idle flow health sweep and its durability audit (Claude)
 
 - **Task:** build L3 §9. Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.

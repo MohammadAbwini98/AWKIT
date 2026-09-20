@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## L3 §9 flow health sweep: the durability audit is free, the job queue is gated (2026-09-21, current)
+## L4b authoring explanations and safe-fix ranking: the contract is built (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-authoring` is a Phase L gate, not a ledger case.
+
+**`src/ai/authoringExplanation.ts` makes L4b's two rules structural rather than checked.**
+
+- *AI cannot invent a fix kind*: the answer schema has **no `kind` field at all**. A ranking is a
+  subset of issue **ids** the validator already emitted a `safeFix` for, so the most a model can do is
+  reorder work `SafeFixApplier` was already willing to perform.
+- *AI cannot name something outside the report*: issue ids are a closed `enum` built from that report
+  into the decoding grammar, and re-checked after decoding — a grammar is one layer, and L1.3 asks for
+  runtime validation too. The ranking enum is narrower still: only the emitted-fix ids.
+
+**What crosses to the model** is codes, severities, active-path flags, generated anchor ids, the rule's
+own summary from `FLOW_VALIDATION_RULES`, and each emitted fix's `kind` and `field`. **Never the
+validator's `message`** — a mutation proved it embeds the step name — and never `safeFix.from`/`to`.
+
+| Check | Result |
+|---|---|
+| `verify:ai-authoring` (new, `integration`) | **55/55**, three mutations caught |
+| `npm run build` · `typecheck:scripts` · `verify:roadmap-dashboard` | PASS · PASS · 177/177 Sources agree |
+
+**`awkit-djnl.6` stays open:** the renderer surface and `verify:ai-authoring-quality-live` are not
+built, there is no production caller (the same L1-gated boundary as L3 §7–§9), and the milestone cannot
+close under the conditional authorization in any case.
+
+## L3 §9 flow health sweep: the durability audit is free, the job queue is gated (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-locator-sweep` is a Phase L gate, not a ledger case.
