@@ -176,6 +176,41 @@
         ],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-1-l1-0919:release:2026-09-20T15:56:38.232Z",
+        "task": "awkit-djnl-1-l1-0919",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package-lock.json",
+          "package.json",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "src/offline/AiModelManifest.ts"
+        ],
+        "acquired_at": "2026-09-20T15:56:38.232Z",
+        "acquired_at_commit": "527e955669658189b196e4644eb0ab91e6359a58",
+        "released_at": "2026-09-20T15:58:55.222Z",
+        "released_reason": "L1.2 manifest pin and runtime pin and notices and dependency committed in a28050c7 with verify:ai-model-pack 46/46 at 1 pinned pack and build and typecheck:scripts PASS",
+        "amendments": [
+          {
+            "timestamp": "2026-09-20T15:57:33.258Z",
+            "added": [
+              "resources/THIRD_PARTY_NOTICES.md",
+              "package.json",
+              "package-lock.json"
+            ],
+            "reason": "the manifest pin names the runtime added in package.json and its licence notice so they are one release change",
+            "triggered_escalation": [
+              "architect",
+              "qa",
+              "qc"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
