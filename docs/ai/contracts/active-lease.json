@@ -6,34 +6,12 @@
   "allowed_paths": [
     "src/security/authz/AiAutonomyPolicy.ts"
   ],
-  "acquired_at": "2026-09-20T10:42:37.671Z",
-  "acquired_at_commit": "1ad73deeb05693473bf941cc864da9001615dfc4",
+  "acquired_at": "2026-09-20T11:11:20.483Z",
+  "acquired_at_commit": "2202e93301f14790dc0ae407e761248ca92894bd",
   "baseline_dirty": [
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-9-protected-login-0920.json",
-    "l6-e2e-openflow-failure.png",
-    "scripts/verify-flow-fragments.mts",
-    "src/profiles/FlowProfile.ts",
-    "src/runner/evidence/FailureEvidenceCollector.ts",
     "src/security/authz/AiAutonomyPolicy.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "e3a91eec1d0cb93be0f7414a6f5f4e007f65b542472f489215a02de24479d5fa",
-    "docs/ai/CURRENT_STATE.md": "b043226490dfa9edda661eb2d33e3aa1c02f199b3a5e1dac904fe38c06f2270f",
-    "docs/ai/HANDOFF.md": "fe416f2c79e42540c429f887e3996dea447a7fa677eae57d696799103e91cd63",
-    "docs/ai/KNOWN_ISSUES.md": "9ecda10bc4b24dd72579d97276b4de7828c8c3c139a40a27568df59a6f29e8a7",
-    "docs/ai/TASK_LOG.md": "015d4a5a6a67d0362f96ecd7405fb7631bb89d36515209f8cbbcb18aec15b0f8",
-    "docs/ai/contracts/active-lease.json": "a8e9c0e3b3ff1d2a62b30a3aa4091d85f9f5790f2e6f877b8115fdd97773f625",
-    "docs/ai/contracts/awkit-djnl-9-protected-login-0920.json": "a5753e85e589d4c87f024bb912cc34b65708e49c4f24155054f255b70dfa9287",
-    "l6-e2e-openflow-failure.png": "0a2e535936a9c26e92a50c8306c43d5dadcd0ee9acb05f03bbad24f119a5ae14",
-    "scripts/verify-flow-fragments.mts": "e4ba79c8d199310c4a021f9aa011a5ad2634bbd31f9f2eae6bc1e97d543203cf",
-    "src/profiles/FlowProfile.ts": "5b672cfa41ec05240467b01ca5fa3b39b337d34851955a81715b0098f4d9b1ae",
-    "src/runner/evidence/FailureEvidenceCollector.ts": "2772b40f8cf382ff29d7c65ae7d0b88de89bcf1e83eb3f04f8dbfd793ff73153",
     "src/security/authz/AiAutonomyPolicy.ts": "a0682da2092692818a1d6d4a55a6cabb9e1fb885377e9dc86788426e86a8229c"
   },
   "baseline_watched_ignored": {
@@ -49,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-20T10:43:10.940Z",
-  "released_reason": "consolidation complete and staged, committing on main outside the lease because a held lease scopes shell commands to that role",
-  "archived_at": "2026-09-20T10:43:10.941Z"
+  "released_at": "2026-09-20T11:11:49.684Z",
+  "released_reason": "protected-login consolidation committed in full, QC APPROVED_WITH_FINDINGS with zero blocking, verify:flow-fragments 103/103 green again on the final tree",
+  "archived_at": "2026-09-20T11:11:49.686Z"
 }

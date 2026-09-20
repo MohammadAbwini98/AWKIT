@@ -165,9 +165,11 @@
     ]
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "APPROVED"
+    "qc_status": "APPROVED",
+    "closed_at_commit": "9fc159a8",
+    "note": "Committed as ONE atomic change across two commits because it spans four ownership domains while the lease guard can only commit a single-lease or zero-protected-path index: 2202e933 carries the runner/profile/guard/doc half unleased, 9fc159a8 carries the protected AiAutonomyPolicy half under this contract's security lease. Section 12 of verify:flow-fragments is transiently red at 2202e933 by design and green again at 9fc159a8."
   },
   "write_lease": {
     "history": [
@@ -246,6 +248,22 @@
         "acquired_at_commit": "1ad73deeb05693473bf941cc864da9001615dfc4",
         "released_at": "2026-09-20T10:43:10.940Z",
         "released_reason": "consolidation complete and staged, committing on main outside the lease because a held lease scopes shell commands to that role",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-9-protected-login-0920:security:2026-09-20T11:11:20.483Z",
+        "task": "awkit-djnl-9-protected-login-0920",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/authz/AiAutonomyPolicy.ts"
+        ],
+        "acquired_at": "2026-09-20T11:11:20.483Z",
+        "acquired_at_commit": "2202e93301f14790dc0ae407e761248ca92894bd",
+        "released_at": "2026-09-20T11:11:49.684Z",
+        "released_reason": "protected-login consolidation committed in full, QC APPROVED_WITH_FINDINGS with zero blocking, verify:flow-fragments 103/103 green again on the final tree",
         "amendments": [],
         "overrides": [],
         "violations": []
