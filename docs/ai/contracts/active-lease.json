@@ -1,18 +1,31 @@
 {
-  "task": "awkit-djnl-9-protected-login-0920",
-  "contract_path": "docs/ai/contracts/awkit-djnl-9-protected-login-0920.json",
-  "holder": "security",
-  "status": "released",
+  "task": "awkit-djnl-1-l1-0919",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    "src/security/authz/AiAutonomyPolicy.ts"
+    "package-lock.json",
+    "package.json",
+    "resources/THIRD_PARTY_NOTICES.md",
+    "src/offline/AiModelManifest.ts"
   ],
-  "acquired_at": "2026-09-20T11:11:20.483Z",
-  "acquired_at_commit": "2202e93301f14790dc0ae407e761248ca92894bd",
+  "acquired_at": "2026-09-20T15:56:38.232Z",
+  "acquired_at_commit": "527e955669658189b196e4644eb0ab91e6359a58",
   "baseline_dirty": [
-    "src/security/authz/AiAutonomyPolicy.ts"
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
+    "package-lock.json",
+    "package.json",
+    "resources/THIRD_PARTY_NOTICES.md",
+    "src/offline/AiModelManifest.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "src/security/authz/AiAutonomyPolicy.ts": "a0682da2092692818a1d6d4a55a6cabb9e1fb885377e9dc86788426e86a8229c"
+    "docs/ai/contracts/active-lease.json": "dae54c366c1f772ab92aa76a33ce7758aae95231b5899a29e530061c6c69b46c",
+    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "52f278e324809bd7e0de4e3e1cffc5cb8681d8e91aa77846496abbaaacb1c650",
+    "package-lock.json": "4fada01c38692ec581a903613d084fcb8d2170cc8ca0578efcd25113c5155aac",
+    "package.json": "d8c0e3627105a2e45f426a96bc79e9b796050520b6ff63e93269c5714fe91805",
+    "resources/THIRD_PARTY_NOTICES.md": "417143612d28a205dc5f11e0b365fa1bfba2621f0e862b988060353743fb04a6",
+    "src/offline/AiModelManifest.ts": "4ca1a57185fcacb5ee267bb98565dbdf671cf29c6b026f9d40f829845b427492"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,10 +37,23 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789762718948.7537"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-09-20T15:57:33.258Z",
+      "added": [
+        "resources/THIRD_PARTY_NOTICES.md",
+        "package.json",
+        "package-lock.json"
+      ],
+      "reason": "the manifest pin names the runtime added in package.json and its licence notice so they are one release change",
+      "triggered_escalation": [
+        "architect",
+        "qa",
+        "qc"
+      ],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-20T11:11:49.684Z",
-  "released_reason": "protected-login consolidation committed in full, QC APPROVED_WITH_FINDINGS with zero blocking, verify:flow-fragments 103/103 green again on the final tree",
-  "archived_at": "2026-09-20T11:11:49.686Z"
+  "violations": []
 }

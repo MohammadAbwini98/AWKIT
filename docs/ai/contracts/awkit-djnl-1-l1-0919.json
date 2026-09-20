@@ -150,6 +150,32 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-1-l1-0919:release:2026-09-20T13:54:09.194Z",
+        "task": "awkit-djnl-1-l1-0919",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "src/offline/AiModelManifest.ts"
+        ],
+        "acquired_at": "2026-09-20T13:54:09.194Z",
+        "acquired_at_commit": "527e955669658189b196e4644eb0ab91e6359a58",
+        "released_at": "2026-09-20T15:50:27.448Z",
+        "released_reason": "amendment added paths outside release's ownership (scripts/ai-harness/harnessMain.ts) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-09-20T15:50:27.445Z",
+            "added": [
+              "scripts/ai-harness/harnessMain.ts"
+            ],
+            "reason": "a timed out live harness currently writes no report so L1.8 cannot be diagnosed at all",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

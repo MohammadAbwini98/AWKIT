@@ -7,10 +7,12 @@
  * (docs/ai/DECISIONS.md, 2026-09-19). The model pack never ships in the installer and never enters
  * the signed dependency manifest; the pinned llama.cpp runtime will, when it ships.
  *
- * EMPTY BY DESIGN until the owner pins a real pack. A checksum cannot be written down for a file
- * nobody has measured, and a guessed entry would make the import check pass for the wrong reason.
- * With no entry every import is refused and the app behaves exactly as it did before Phase L. The
- * same holds for `AI_RUNTIME_PIN.build`: while it is null, no host is started even if one is present.
+ * It was EMPTY BY DESIGN until 2026-09-20, because a checksum cannot be written down for a file
+ * nobody has measured and a guessed entry would make the import check pass for the wrong reason.
+ * The pack has now been downloaded and measured, and the runtime installed, so both the entry and
+ * `AI_RUNTIME_PIN.build` are pinned from real artifacts. If either is ever emptied again the app
+ * returns to its pre-Phase-L behaviour: every import is refused, and while `build` is null no host
+ * is started even if one is present.
  */
 
 export interface AiModelManifestEntry {
@@ -32,12 +34,42 @@ export interface AiModelManifestEntry {
   capabilities: { jsonSchemaGrammar: boolean; thinkingToggle: boolean };
 }
 
-export const AI_MODEL_MANIFEST: readonly AiModelManifestEntry[] = Object.freeze([]);
+/**
+ * Pinned 2026-09-20. Every field below was MEASURED from the downloaded artifact, not copied from a
+ * model card: the size and SHA-256 from the file on disk (`certutil -hashfile … SHA256`), and the
+ * identity fields from the GGUF header itself — `GGUF v3`, `general.architecture = qwen35`,
+ * `qwen35.context_length = 262144`, `general.name = Qwen_Qwen3.5 4B`, 426 tensors. The published
+ * checksum agreed with the measured one exactly, which is a cross-check rather than the source.
+ */
+export const AI_MODEL_MANIFEST: readonly AiModelManifestEntry[] = Object.freeze([
+  Object.freeze({
+    id: "qwen3.5-4b-q4-k-m",
+    displayName: "Qwen3.5 4B (Q4_K_M)",
+    fileName: "Qwen3.5-4B-Q4_K_M.gguf",
+    sizeBytes: 2_707_513_696,
+    sha256: "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c",
+    format: "gguf",
+    // The model's own context length. Every request is still capped at AI_CONTEXT_TOKENS (4K).
+    contextTokens: 262_144,
+    quantization: "Q4_K_M",
+    license: { spdx: "Apache-2.0", notice: "resources/THIRD_PARTY_NOTICES.md" },
+    // Constrained decoding is mandatory. Qwen3.5 is a hybrid reasoning model, so thinking is a real
+    // toggle — the host closes it by pre-filling an empty think block on the assistant turn.
+    capabilities: { jsonSchemaGrammar: true, thinkingToggle: true }
+  })
+]);
 
-/** The llama.cpp build the host must report in its handshake. Null until a runtime ships. */
+/**
+ * The llama.cpp build the host must report in its handshake.
+ *
+ * Measured, not assumed: the host composes this as
+ * `${RUNTIME_PACKAGE}@${pkg.version}+llama.cpp@${release.release}`, read from the installed
+ * `node_modules/node-llama-cpp/package.json` and its `llama/binariesGithubRelease.json`. A handshake
+ * reporting anything else is refused as incompatible and no model is loaded.
+ */
 export const AI_RUNTIME_PIN: Readonly<{ name: "llama.cpp"; build: string | null }> = Object.freeze({
   name: "llama.cpp",
-  build: null
+  build: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0"
 });
 
 const MAX_PACK_BYTES = 64 * 1024 ** 3;

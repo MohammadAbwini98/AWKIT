@@ -324,6 +324,7 @@
     "electron": "33.4.11",
     "electron-builder": "25.1.8",
     "electron-vite": "^2.3.0",
+    "node-llama-cpp": "3.21.1",
     "png-to-ico": "2.1.0",
     "sharp": "0.32.6",
     "tsx": "4.22.4",
