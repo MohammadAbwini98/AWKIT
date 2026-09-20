@@ -19,8 +19,10 @@ Electron by `verify:ai-locator-upgrade-gui` (65/65). **§8 runtime repair is bui
 `resolveRepairAnchor`/`proveRepairCandidate`/`proveRepairPlan` in `src/runner/locatorProof.ts`,
 `isLocatorRepairEligible` and `mode: "repair"` on the §7 loop, and the repair branch of
 `promoteLocatorUpgrade`, proven in real Chromium by `verify:ai-locator-repair` (85/85, four mutations
-caught) on the new `lu-repair` mock-site fixture. Not built: §9 sweep and
-`verify:ai-locator-quality-live`.
+caught) on the new `lu-repair` mock-site fixture. **§9 flow health sweep is built** (`src/ai/locatorSweep.ts`,
+`verify:ai-locator-sweep` 60/60 pure, three mutations caught): the durability audit and the bounded,
+idle-gated job queue. Not built: `verify:ai-locator-quality-live`, and the production callers of §7/§8/§9,
+which all need the AI caller L1 gates.
 
 §7 as built:
 - **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
@@ -231,6 +233,39 @@ Built: `proveRepairCandidate` / `proveRepairPlan` / `resolveRepairAnchor` in `sr
 
 Idle-only, yields immediately to runs: scan saved flows for weak locators, queue upgrade jobs (capped per sweep),
 surface a durability report. Proposals still go through §3–§6.
+Built: `src/ai/locatorSweep.ts` (`planFlowHealthSweep`), `verify:ai-locator-sweep` (60/60, pure).
+
+### §9 as built (2026-09-21)
+
+- **Two answers with different costs, kept apart.** The **durability report** is free — it is
+  `classifyLocatorQuality` over saved profiles plus the upgrade lifecycle already on each step, with no
+  model, browser, page or admission needed. The **queue** is what would cost a model call, so it alone
+  is gated and capped. Collapsing them would make "how durable are my flows" depend on how many jobs
+  happened to fit, which is a different question with a worse answer.
+- **Idleness is `decideAiAdmission`, not a second notion of "quiet".** The sweep runs only when one
+  inference would be admitted right now, so an active *or queued* run holds it at `RUNS_ACTIVE` — a
+  queued run matters because the sweep must not race a run that is about to start. Host pressure, a
+  dispatch refusal, low memory and no weighted headroom hold it too. No second scheduler exists.
+- **T3 first, and counted twice on purpose.** A sensitive or protected-login step is excluded before
+  weakness, before the lifecycle and before the cap, because it is excluded for what it *is*. The report
+  counts it as **both** `forbidden` and `weak`: counting it only as forbidden would understate the flow's
+  fragility, and counting it only as weak would imply AI will eventually get to it.
+- **A stale proposal does not shield a step.** A pending candidate whose binding no longer matches will
+  be dropped at the next save, so the step is genuinely unproposed; treating it as in-flight would leave
+  it permanently unswept behind a candidate that can never apply.
+- **The cap bounds the queue, never the audit.** `LOCATOR_SWEEP_MAX_JOBS` is 5 — a sweep is background
+  work behind locators that already run, and one job costs a model call per attempt, so a large flow
+  must not turn an idle-time courtesy into a workload. A caller may lower the cap but never raise it.
+  `deferred` reports exactly what the cap left behind, which is the number that says whether sweeping
+  again would find more.
+- **Mutation-tested three for three:** un-clamping the cap → 59/60; removing the T3 exclusion → 54/60;
+  treating any pending candidate as in-flight → 58/60.
+- **A real fixture defect the suite caught on its first run.** `resolveStepSafety`'s keyword fallback
+  treats "approve" as a dangerous mutation, so steps innocently named "Approve row" were T3 and five
+  sections were asserting nothing. §0 now audits every fixture name against `decideAiAction` in both
+  directions, so a name that quietly becomes sensitive fails loudly instead of voiding a section.
+- **Not built: the scheduler that calls it on idle,** and the job queueing itself — both need the
+  production AI caller that L1 gates (see §8).
 
 ## 10. UX
 
@@ -293,7 +328,10 @@ gate C proving against a saved identity written by a REAL run, a unique buildabl
 the wrong element, a missing anchor refused rather than guessed, only a proven repair stored, promotion
 refused for `auto` and accepted for a user with an empty replay tally, the audit attributed to
 `locatorRepair`, the promoted locator passing a run on the page that broke it, revert, and the §10
-wording. Still to build:
+wording. `verify:ai-locator-sweep` (built, 60/60, `unit`) covers §9: the sweep held by an active or
+queued run and by every other admission hold, the durability report complete for every scanned step,
+T3 counted as both forbidden and weak, the lifecycle exclusions, and the cap bounding the queue without
+truncating the audit. Still to build:
 live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 

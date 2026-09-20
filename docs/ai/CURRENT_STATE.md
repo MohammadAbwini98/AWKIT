@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## L3 §8 runtime locator repair is built and proven in real Chromium (2026-09-21, current)
+## L3 §9 flow health sweep: the durability audit is free, the job queue is gated (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-locator-sweep` is a Phase L gate, not a ledger case.
+
+**§9 completes L3's model-independent surface.** `src/ai/locatorSweep.ts` is pure — no Electron, no
+filesystem, no Playwright — and produces two answers that are deliberately kept apart:
+
+- **The durability report is free** and runs for every scanned step regardless of the job cap:
+  `classifyLocatorQuality` over saved profiles plus the upgrade lifecycle already on each step. It
+  answers "how fragile are my flows" whether or not local AI exists on the machine.
+- **The queue costs a model call, so it alone is gated.** Idleness is `decideAiAdmission` — the same
+  rule one inference obeys, so an active *or queued* run holds the sweep at `RUNS_ACTIVE` and it never
+  races a run about to start. `LOCATOR_SWEEP_MAX_JOBS` is 5, lowerable by a caller but never raisable.
+
+**T3 steps are excluded before weakness, before the lifecycle and before the cap, and counted as BOTH
+forbidden and weak** — counting them only as forbidden would understate a flow's fragility, and only as
+weak would imply AI will eventually get to them. A pending candidate whose binding no longer matches
+does *not* shield a step, since the next save drops it.
+
+| Check | Result |
+|---|---|
+| `verify:ai-locator-sweep` (new, `unit`) | **60/60**, three mutations caught |
+| `verify:ai-fallback` — the execution tree still cannot reach the model | 38/38 |
+| `npm run build` · `verify:roadmap-dashboard` | PASS · 177/177 Sources agree |
+
+**A real fixture defect the suite caught on its first run:** `resolveStepSafety`'s keyword fallback
+treats "approve" as a dangerous mutation, so steps named "Approve row" were T3 and five sections were
+asserting nothing. §0 now audits every fixture name against `decideAiAction` in both directions.
+
+**L3 (`awkit-djnl.4`) stays `in_progress`.** Every section §1–§10 now has its model-independent
+implementation, but the production callers of §7, §8 and §9 all need the AI caller that L1 gates, and
+`verify:ai-locator-quality-live` is a live gate. The milestone cannot close under the conditional
+authorization in any case.
+
+## L3 §8 runtime locator repair is built and proven in real Chromium (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-locator-repair` is a Phase L gate, not a ledger case.

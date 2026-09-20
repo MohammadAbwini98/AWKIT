@@ -1,5 +1,33 @@
 # TASK_LOG
 
+## 2026-09-21 — L3 §9: the idle flow health sweep and its durability audit (Claude)
+
+- **Task:** build L3 §9. Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **The design decision is that §9 has two answers with different costs, and they stay apart.** The
+  durability report is free (`classifyLocatorQuality` over saved profiles plus each step's upgrade
+  lifecycle) and is produced for every scanned step regardless of the cap; the queue is what would cost
+  a model call, so it alone is idle-gated and capped. Collapsing them would make "how durable are my
+  flows" depend on how many jobs happened to fit.
+- **Idleness is `decideAiAdmission`, reused rather than reinvented**, so an active *or queued* run holds
+  the sweep — a queued run matters because the sweep must not race a run about to start.
+- **T3 is counted twice on purpose:** a forbidden step is reported as both `forbidden` and `weak`.
+  Either count alone misleads — one understates the flow's fragility, the other implies AI will
+  eventually reach it.
+- **Files:** `src/ai/locatorSweep.ts` (new), `scripts/verify-ai-locator-sweep.mts` (new),
+  `package.json`, `scripts/lib/verifier-classification.ts`, plan/state docs.
+- **Checks:** `verify:ai-locator-sweep` **60/60**; `verify:ai-fallback` 38/38 (the new module does not
+  widen what the execution tree can reach); `npm run build` PASS; `verify:roadmap-dashboard` 177/177
+  Sources agree.
+- **Mutation-tested three for three:** un-clamping the cap → 59/60; removing the T3 exclusion → 54/60;
+  treating any pending candidate as in-flight rather than checking its binding → 58/60.
+- **A real fixture defect, caught by the suite's first run rather than by review.**
+  `resolveStepSafety`'s keyword fallback treats "approve" as a dangerous mutation, so steps innocently
+  named "Approve row" were T3 and five sections were asserting nothing while reporting green. §0 now
+  audits every fixture name against `decideAiAction` in both directions — ordinary names must not be
+  forbidden, sensitive ones must be — so a name that quietly becomes sensitive fails loudly.
+- **Not built:** the scheduler that calls the sweep on idle, and the queueing itself — both need the
+  production AI caller L1 gates. L3 stays `in_progress`.
+
 ## 2026-09-21 — L3 §8: runtime locator repair, proven against a saved identity (Claude)
 
 - **Task:** build L3 §8 under the conditional development authorization. Ledger unchanged at
