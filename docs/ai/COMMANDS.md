@@ -406,6 +406,10 @@ npm run verify:ai-locator-upgrade # L3 §6 promotion, audit and revert in real C
                                   # surviving reload, concurrency, and revert without overwriting (78)
 npm run verify:ai-locator-upgrade-gui # L3 §6 in real Electron: the Flow Designer's upgrade panel, the
                                   # dirty-editor deferral (panel AND main), Apply, and one-click revert (24)
+npm run verify:ai-locator-attempts # L3 §7 bounded synthesis attempts in real Chromium over the real
+                                  # AiService + fake transport: the 2-attempt budget, repeats, every refusal
+                                  # stage, protected login, expired context, cancellation, supersession,
+                                  # concurrency, and runs unaffected by a dead provider (87)
 npm run verify:ai-permissions     # every role both directions + the twelve ai:* IPC gates and preload surface (75)
 npm run verify:ai-adapter         # AiService queue/protocol: one-at-a-time, cancel, timeout, crash/circuit,
                                   # schema rejection, yield to runs, idle unload, checksum-before-load (102)

@@ -1,5 +1,43 @@
 # DECISIONS
 
+### 2026-09-20 — Phase L L3 §7: the bounded attempt loop (`awkit-djnl.4`)
+
+- **The budget is finite by construction, not by a counter that has to be right.** Every iteration of
+  `runLocatorUpgradeAttempts` either returns or consumes exactly one attempt. There is no code path that asks
+  the provider again without spending budget, so "no loops" is a property of the shape rather than of a guard
+  that could be edited away. The guard is still there and still mutation-tested, but it is the second line.
+- **An attempt is a SYNTHESIS attempt.** §7 spends one only on a real rejection: a malformed or schema-refused
+  answer, a compiler or intent refusal, a browser rejection, or a repeat of a candidate already refused.
+  A disabled provider, a missing runtime, a timeout, a host crash and a cancellation produced nothing to
+  judge, so they are terminal and spend nothing — counting them would let an unrelated outage burn the
+  budget, and retrying them would be a poll, not a proposal. `unprovable-now` is likewise not a rejection
+  (§5): the candidate is stored for replay proof and the job ends.
+- **Two refusals spend the attempt and still end the job.** A `T3_*` proof refusal means the page is a
+  protected-login surface: §1 forbids proposing there at all, so "ask again with structured feedback" would
+  be the exact retry the policy exists to prevent. A capture context that expired mid-flight ends the job for
+  the same reason the expired-before-the-first-call case does — the answer to an expired context is never
+  another proposal, and never a context rebuilt from whatever the run happens to hold now.
+- **A repeated plan is a rejection, not a free attempt.** The orchestrator compiles each answer itself,
+  through the same `evaluateLocatorPlan` the proof re-runs, purely to obtain the candidate digest. A digest
+  already seen spends the attempt and never reaches the browser a second time. Without this a provider that
+  repeats itself would consume browser round trips to re-derive a refusal it had already been given.
+- **Bound data is omitted from the prompt, not caught after it.** The intent guard is the backstop, not the
+  boundary: `contextFields` drops every L2 capture field the marker pass flagged and sends the flagged field
+  PATHS as ids, so the model is told which slots are data-bound without being shown the data. The baseline's
+  own value is the fragile string being replaced and is never sent — only its strategy and quality class.
+- **A check that no mutation can kill is deleted, not documented.** The cancellation re-check immediately
+  after the provider call survived its mutation with every assertion green, because `AiService` already
+  returns `cancelled` for any abort it owns and any later one is caught after the proof, which is always
+  awaited before a write. It was removed and the reason written where the code was, rather than left as an
+  untested guard that future readers would assume is load-bearing. The post-proof re-check IS load-bearing
+  and now has a test that drives an abort from inside the proof.
+- **The verifier resolves ONE level of gate indirection, by structure, not by name.** `verify:ipc-contract`
+  reported `recorder:start` as ungated because its entire gate lives in `resolveRecorderBrowser`. The fix is
+  not an allowlist entry: the authz scan now classifies a handler as permission-gated when it calls a helper
+  declared in the same file whose own balanced body carries a permission token. Delete the assert from the
+  helper and every channel relying on it fails again. A cardinality check fails if no channel resolves that
+  way, so the new path cannot silently become dead code.
+
 ### 2026-09-20 — Phase L L3 §6: controlled locator promotion, audit and revert (`awkit-djnl.4`)
 
 - **One trusted operation, re-deriving everything.** `promoteLocatorUpgrade` (`src/ai/locatorPromotion.ts`) is

@@ -167,6 +167,40 @@ const AUTHZ_REGISTRY: Record<string, { level: "NONE" | "TRUSTED"; reason: string
   // host-discovery handlers. Treating it as ungated made the verifier report two secured handlers as
   // contract violations while the production code correctly denied non-superusers.
   const PERM_TOKENS = ["assertSenderPermission(", "assertSenderSuperUser(", "authorize("];
+
+  /**
+   * The balanced `{...}` body of the declaration starting at `from`, or "" when it cannot be located.
+   * Returning "" is the fail-closed answer: a helper whose body cannot be read never counts as a gate.
+   */
+  const declarationBody = (src: string, from: number): string => {
+    const arrow = src.indexOf("=>", from);
+    const paren = src.indexOf("(", from);
+    // Arrow bodies open after `=>`; a `function name(...)` body after its parameter list.
+    const cursor = arrow >= 0 && (paren < 0 || arrow < src.indexOf("{", paren)) ? arrow : paren;
+    if (cursor < 0) return "";
+    const open = src.indexOf("{", cursor);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i += 1) {
+      if (src[i] === "{") depth += 1;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+
+  /**
+   * Same-file helpers that enforce a permission themselves. `recorder:start` delegates its ENTIRE gate
+   * to `resolveRecorderBrowser`, which asserts `PAGE_RECORDER` (or Super User for installed Chrome)
+   * before it resolves a browser — so a token scan of the handler body alone reported a correctly
+   * secured channel as a contract violation.
+   *
+   * Exactly one level of indirection, resolved by name within the same file, and only while the
+   * helper's own balanced body still carries a permission token: remove the assert from the helper and
+   * every channel that relies on it returns to failing this check. It is not a whitelist of channels.
+   */
+  const DECL_RE = /(?:(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=|function\s+([A-Za-z_$][\w$]*)\s*\()/g;
+  const gateHelpers = new Map<string, Set<string>>();
+
   const handlerSlices: Array<{ channel: string; file: string; body: string }> = [];
   const HANDLE_RE = /ipcMain\.handle\(\s*"([^"]+)"/g;
   for (const file of readdirSync(IPC_DIR).filter((f) => f.endsWith(".ts"))) {
@@ -176,6 +210,16 @@ const AUTHZ_REGISTRY: Record<string, { level: "NONE" | "TRUSTED"; reason: string
       const end = i + 1 < positions.length ? positions[i + 1].idx : src.length;
       handlerSlices.push({ channel: positions[i].name, file, body: src.slice(positions[i].idx, end) });
     }
+
+    const helpers = new Set<string>();
+    for (const match of src.matchAll(DECL_RE)) {
+      const name = match[1] ?? match[2];
+      // The `registerXxxIpc` wrapper encloses every handler, so counting it would gate the whole file.
+      if (!name || /^register[A-Z]/.test(name)) continue;
+      const body = declarationBody(src, match.index + match[0].length - 1);
+      if (body && PERM_TOKENS.some((token) => body.includes(token))) helpers.add(name);
+    }
+    gateHelpers.set(file, helpers);
   }
 
   const cardinalityFloor = 150;
@@ -184,15 +228,31 @@ const AUTHZ_REGISTRY: Record<string, { level: "NONE" | "TRUSTED"; reason: string
   // "NONE" belongs in the return type: it is one of the two levels `AUTHZ_REGISTRY` can declare, and
   // the check below reads "declares NONE/TRUSTED or enforces a permission". Omitting it made the
   // annotation contradict both the registry and the assertion it feeds.
-  const classify = ({ channel, body }: { channel: string; body: string }): "PERMISSION" | "TRUSTED" | "NONE" | undefined => {
+  const viaHelper = ({ file, body }: { file: string; body: string }): boolean =>
+    [...(gateHelpers.get(file) ?? [])].some((name) => body.includes(`${name}(`));
+
+  const classify = ({ channel, file, body }: { channel: string; file: string; body: string }): "PERMISSION" | "TRUSTED" | "NONE" | undefined => {
     if (PERM_TOKENS.some((t) => body.includes(t))) return "PERMISSION";
+    if (viaHelper({ file, body })) return "PERMISSION";
     // An explicit trusted-sender check IS a declared TRUSTED level.
     if (body.includes("assertTrustedSender")) return "TRUSTED";
     return AUTHZ_REGISTRY[channel]?.level;
   };
 
+  // Without this the helper resolution above could be silently dead — the check would go green again
+  // only because every channel it was written for had regained a direct token.
+  const helperGated = handlerSlices
+    .filter((slice) => !PERM_TOKENS.some((t) => slice.body.includes(t)) && viaHelper(slice))
+    .map(({ channel }) => channel)
+    .sort();
+  check(
+    "the same-file gate-helper resolution is live (a channel is gated only through a helper)",
+    helperGated.length > 0,
+    helperGated.join(", ") || "no channel resolved through a gate helper"
+  );
+
   const ungatedUndeclared = handlerSlices
-    .filter(({ channel, body }) => classify({ channel, body }) === undefined)
+    .filter((slice) => classify(slice) === undefined)
     .map(({ channel }) => channel)
     .sort();
 

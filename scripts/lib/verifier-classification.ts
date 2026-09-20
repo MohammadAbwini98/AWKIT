@@ -389,6 +389,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Drives the real Electron Flow Designer: the locator-upgrade panel renders the lifecycle state, the Apply control is offered only when the main process says the promotion is permitted, an unsaved editor defers it, and the applied upgrade's one-click revert restores the saved locator on disk."
   },
+  "verify:ai-locator-attempts": {
+    class: "real-browser",
+    why: "L3 §7 bounded synthesis attempts in real Chromium on the mock-site Locator Upgrade Lab: the real AiService over the deterministic fake transport, a budget of two attempts consumed only by real rejections, a repeated candidate neither refreshing the budget nor being re-proven, malformed/compiler/intent refusals kept off the page, wrong-element and ambiguous candidates rejected by the browser gates, protected-login and expired-context refusals terminating the job, cancellation cancelling on the host without storing a late answer, superseded and concurrent proposals resolved by the flow store's compare-and-swap, and runs that pass unchanged while the provider times out, crashes or is absent."
+  },
 
   // ── Phase L (local AI) — L1 foundation ───────────────────────────────────────────────────────
   "verify:ai-autonomy-policy": {

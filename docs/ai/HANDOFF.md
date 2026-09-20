@@ -1,6 +1,41 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L3 §6 built (promotion, audit, one-click revert)
+## HANDOFF (2026-09-20, latest) — L3 §7 built (bounded attempt loop); both standing verifier failures fixed
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** see CURRENT_STATE and the L3 plan's "§7 as built". `awkit-djnl.4` stays `in_progress`; Beads and
+  the roadmap tracker pin (10 outstanding / 292 closed) were NOT touched, because no work item opened or
+  closed. New: `src/ai/locatorUpgradeAttempts.ts` and `verify:ai-locator-attempts` (87/87). Fixed:
+  `verify:ipc-contract` (now 10/10) and `verify:source-hygiene` (now 11/11) — the two failures the previous
+  handoff listed as unfixable here were both fixable.
+- **Next agent work without the model:** **§10 UX** (the full badge vocabulary: Semantic · Guarded · AI
+  suggestion pending proof · AI semantic capture-/replay-proven · Suggestion rejected · Auto-promoted with
+  revert, plus evidence on demand). It is independent of L1 and §6 deliberately shipped only the minimum
+  panel. §8 repair and §9 sweep both need a real job and therefore the L1 go/no-go.
+- **Where §7 stops:** it is a complete, bounded orchestration with no production trigger. Nothing calls
+  `runLocatorUpgradeAttempts`; the caller that supplies a live `Page` and an `UpgradeContext` is the L1-gated
+  piece. Its integration contract is three injected dependencies — `ai` (any `AiService`), `prove` (a closure
+  over `proveLocatorPlan(page, step, …)`) and `annotate` (a closure over `annotatePendingUpgrade(flows, …)`).
+- **Traps:**
+  - **`#` is reserved in an `AiService` request id.** `AiService` appends `#` itself to build the HOST job id,
+    and its own `REQUEST_ID` pattern refuses it, so a per-attempt id suffixed `…#1` comes back
+    `rejected/INVALID_REQUEST` — which looks exactly like "the provider is unavailable". Attempts use
+    `…​.a1`.
+  - **The plan schema is closed, so it catches things the compiler is also written to catch.** An unoffered
+    strategy and a top-level `frame` key both come back `SCHEMA_REJECTED` from `AiOutputContract`, never
+    `UNSUPPORTED`/`INVENTED_FRAME`. Assert the compiler's own guards directly or they can go dead unnoticed
+    behind the outer layer.
+  - **A step's `value` is not part of its approval binding.** `createLocatorApprovalBinding` is step type,
+    step name and the locator's strategy/value — so a fixture that "edits the step" by changing `value` does
+    NOT produce a `STALE` refusal. Rename it, or retarget it.
+  - **The Recorder already records a `role`+name alternative for the Archive target**, which is the same
+    candidate the §7 fixture proposes. "The candidate is not in `alternatives`" is therefore false for a
+    reason that has nothing to do with §7; assert that the write ADDS nothing there instead.
+  - **`verify:profile-store`'s block-7 harness precondition is host-load sensitive.** It measured 1.9x (FAIL)
+    while Chromium verifiers were running and 17.5x (PASS) on an idle host. Run it when the machine is quiet
+    before treating it as a defect. See KNOWN_ISSUES.
+
+## HANDOFF (2026-09-20, superseded) — L3 §6 built (promotion, audit, one-click revert)
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** see CURRENT_STATE and the L3 plan's "§6 as built". `awkit-djnl.4` stays `in_progress`; Beads and

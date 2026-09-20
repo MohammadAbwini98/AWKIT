@@ -5,16 +5,46 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go P
 
 **Status (2026-09-20): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
 §2 plan DSL + trusted compiler and §3 intent guard in `src/ai/locatorPlan.ts`, proven by `verify:locator-plan`
-(53/53, pure, no model or browser). **§4, §5 and §6 are built** (`src/runner/locatorProof.ts`,
-`src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook, `src/ai/locatorPromotion.ts`), proven in real
-Chromium by `verify:locator-upgrade-proof` (75/75) and `verify:ai-locator-upgrade` (78/78) on
+(53/53, pure, no model or browser). **§4, §5, §6 and §7 are built** (`src/runner/locatorProof.ts`,
+`src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook, `src/ai/locatorPromotion.ts`,
+`src/ai/locatorUpgradeAttempts.ts`), proven in real Chromium by `verify:locator-upgrade-proof` (75/75),
+`verify:ai-locator-upgrade` (78/78) and `verify:ai-locator-attempts` (87/87) on
 `/recorder-lab/locator-upgrade` and in real Electron by `verify:ai-locator-upgrade-gui` (24/24), with plan text
-from a deterministic fake provider parsed by the real output contract. No job calls the capture-time entry yet:
-the L3 job that asks `AiService` for a plan and runs `proveLocatorPlan` + `annotatePendingUpgrade` comes after
-the L1 go/no-go, so in practice a pending candidate only reaches §6 once that job exists. Not built: §7 attempt
-loop, §8 repair, §9 sweep, §10 UX (§6 ships the minimum panel that makes an approved promotion reachable and an
-applied one revertible — the full badge vocabulary stays §10), and `verify:ai-locator-repair` /
-`verify:ai-locator-quality-live`.
+from a deterministic fake provider parsed by the real output contract. §7 completes the model-independent
+chain — a job now runs eligibility → provider → contract → compiler → intent → proof → pending — but **nothing
+in production queues one**: the caller that hands it a live page and a capture context is the L1-gated piece,
+so in practice a pending candidate still only exists in a verifier. Not built: §8 repair, §9 sweep, §10 UX
+(§6 ships the minimum panel that makes an approved promotion reachable and an applied one revertible — the
+full badge vocabulary stays §10), and `verify:ai-locator-repair` / `verify:ai-locator-quality-live`.
+
+§7 as built:
+- **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
+  consumes exactly one attempt, so the budget is finite by construction — there is no path that asks the
+  provider again without spending it. It never throws: every outcome is a `LocatorAttemptResult`.
+- **What consumes an attempt** is only a real rejection: a malformed or schema-refused answer, a compiler or
+  intent refusal, a browser rejection, or a repeat of a candidate already refused. What produced no candidate
+  does not: a disabled provider, a missing runtime, a timeout, a host crash, a cancellation. Those are
+  terminal — retrying them is not synthesis. `unprovable-now` is not a rejection either (§5): it is stored.
+- **Two refusals are terminal even though they spend the attempt.** A `T3_*` proof refusal (a protected-login
+  surface) ends the job rather than earning another proposal, and so does a capture context that expired
+  mid-flight. "Ask again with feedback" is exactly the retry §1 forbids.
+- **Feedback is structured and deterministic:** stage, code and the compiler's field PATH, plus one
+  product-authored sentence per code. No page text, model text, candidate value or typed value, ever.
+- **A repeat cannot buy a second opinion.** The orchestrator compiles each answer itself (through the same
+  `evaluateLocatorPlan` the proof re-runs) to get the candidate digest: a digest already seen spends the
+  attempt and never reaches the browser again.
+- **Bound data is dropped before the prompt, not caught after it.** `contextFields` omits every L2 capture
+  field the marker pass flagged, and sends the flagged field PATHS as ids so the model knows which slots are
+  data-bound without being shown the data. The baseline's own fragile value is never sent — only its
+  strategy and quality class.
+- **Eligibility (§1)** is `isLocatorUpgradeEligible`: T3 first and unconditionally, then a locator whose L2
+  class is `guarded-positional` or `review-required`. An explicit user request (Element Spy) is its own
+  trigger and skips only the weakness gate — it can never lift T3.
+- **Mutation-tested.** Removing the budget cap, the duplicate guard, the post-proof cancellation re-check or
+  the T3-terminal return each failed the verifier (78/85, 83/85, 85/87, 85/87). A fifth mutation — deleting
+  the cancellation re-check that sat immediately after the provider call — was NOT caught, and the check was
+  deleted rather than papered over: any abort `AiService` owns returns `cancelled` itself, and any later one
+  is caught after the proof, which is always awaited before a write.
 
 §6 as built:
 - **One authorized path.** `promoteLocatorUpgrade` is the only way a `pendingUpgrade` becomes the saved
@@ -131,6 +161,7 @@ the flow has unsaved editor changes), sets semantic primary, keeps the whole gua
 
 Max 2 synthesis attempts per job, consumed only by real rejections (malformed, unsupported, non-unique, wrong identity,
 safety, intent). Structured deterministic feedback between attempts; no page dumps; no loops.
+Built: `src/ai/locatorUpgradeAttempts.ts`, `verify:ai-locator-attempts` (87/87). See "§7 as built" above.
 
 ## 8. Runtime repair (T1)
 
@@ -161,7 +192,10 @@ Metrics: upgrade rate, capture/replay proof rates, rejection reasons, latency, a
 `verify:ai-locator-upgrade` (built, 78/78; fake provider) covers all four required cases: pending present +
 primary misses ⇒ pending never tried (in `verify:locator-upgrade-proof`); data-bound scope rejected; concurrent
 promotions ⇒ one write; unsaved editor ⇒ promotion deferred. `verify:ai-locator-upgrade-gui` (built, 24/24)
-covers the same deferral and the one-click revert in real Electron. Still to build:
+covers the same deferral and the one-click revert in real Electron. `verify:ai-locator-attempts` (built, 87/87)
+covers §7: the budget, repeats, every refusal stage, protected login, expired context, cancellation,
+supersession, concurrency, and runs that pass unchanged with the provider timed out, crashed or absent.
+Still to build:
 `verify:ai-locator-repair`, live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 
