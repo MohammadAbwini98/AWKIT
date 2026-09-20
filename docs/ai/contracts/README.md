@@ -67,6 +67,36 @@ directory does not repeat that.
 - A contract stays here while its task is open.
 - When the task closes, the contract is **deleted**. Its durable record is the Beads issue, the
   `TASK_LOG.md` entry, and the commits — three places that already outlive it.
+
+Deleting it is an authorized operation, not a manual chore:
+
+```bash
+node tools/agents/contract-cleanup.mjs --task awkit-xyz
+```
+
+Until 2026-09-20 nothing could apply this rule, and ~70 contracts for long-closed tasks
+accumulated. The cause was not an authorization level: the lease guard's shell grammar is a closed
+allowlist of command FORMS with no deletion verb in it, so `rm`, `Remove-Item` and `git rm` were
+refused as forms and **no lease granted deletion or ever would**. `agent:lease-finalize` is not the
+answer despite its name — its terminal paths REQUIRE the contract file to exist, because final
+release archives lease history *into* it.
+
+So the guard gained exactly one deletion verb, and it can only ever remove a task contract. It
+takes a bare task id rather than a path, so targeting anything outside this directory is
+unrepresentable rather than filtered, and `active-lease.json` and the schema are excluded by name.
+Eligibility is derived from trusted repository state — the contract on disk, the active lease and
+git history — so no argument can assert completion. A contract is removed only when it is
+`complete`, satisfies the same task gate the task itself had to pass, declares a `task.id` matching
+its filename, is named by no active lease, and records a `closed_at_commit` that is an ancestor of
+`HEAD`; that last rule is what makes the trade honest, since it proves the commits really are in
+this history before the file is given up for them. Everything else is REFUSED with its reasons, so
+an unverifiable contract is kept rather than removed. It touches the working tree only — stage the
+removal with the ordinary `git add -- <path>` and commit it. `--all` gates every contract
+independently and prints a refusal report; `--dry-run` changes nothing.
+
+Retention cleanup covers task contracts and nothing else. The repository has **no** policy
+authorizing an agent to delete other files, including its own temporary diagnostic artifacts, and
+this mechanism deliberately does not grant one — see `KNOWN_ISSUES.md`.
 - `active-lease.json` is never deleted; releasing sets its `status` away from `active`, which the
   guard treats as no lease. It persists because the dashboard registers it as a source and asserts
   every source is readable. A released lease is not history worth keeping, so it is overwritten by

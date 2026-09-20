@@ -801,6 +801,24 @@ node tools/agents/lease-cli.mjs finalize --task awkit-xyz --lease-id "awkit-xyz:
 > contract and cleared roadmap assignment after revalidating the task gate. It is neither a broad
 > no-lease `git` exemption nor a substitute for the normal lease lifecycle.
 ```bash
+node tools/agents/contract-cleanup.mjs --all --dry-run   # which closed contracts are eligible
+```
+```bash
+node tools/agents/contract-cleanup.mjs --task awkit-xyz  # remove ONE eligible closed contract
+```
+> Applies the retention rule in `docs/ai/contracts/README.md`: when a task closes, its contract is
+> deleted, because its durable record is the Beads issue, the `TASK_LOG.md` entry and the commits.
+> This is the guard's **only** deletion verb — `rm`, `Remove-Item` and `git rm` remain refused as
+> command forms, and this one can only ever remove a task contract. It takes a bare task id, never a
+> path, so it cannot be aimed outside `docs/ai/contracts/`. Eligibility is read from the contract,
+> the active lease and git history — there is no flag that asserts completion — and a contract is
+> removed only when it is `complete`, passes the shared task gate (required evidence PASS,
+> acceptance proven, qa PASS, qc APPROVED where qc is a reviewer, no unresolved scope escapes), is
+> named by no active lease, and records a `closed_at_commit` that is an ancestor of `HEAD`. Anything
+> unverifiable is REFUSED with its reasons, so an unclear contract is kept. It deletes only from the
+> working tree; stage the removal with the ordinary `git add -- <path>` and commit it. `--all` gates
+> every contract independently and prints a refusal report; `--dry-run` changes nothing.
+```bash
 npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 16 .claude/agents/*.md role
                             # definitions, and the Codex + Gemini adapter skills
 ```

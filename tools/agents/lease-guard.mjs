@@ -394,11 +394,36 @@ function isProjectStateCommand(command) {
   return value === "node tools/agents/render-docs.mjs --write";
 }
 
+/**
+ * Exact contract-retention cleanup form — the guard's ONLY deletion verb.
+ *
+ * The grammar had none at all, which is why `rm`, `Remove-Item` and `git rm` were refused as
+ * command FORMS and no lease could ever grant deletion. Rather than open a generic removal
+ * allowance, this admits one tool that can only ever delete an eligible CLOSED task contract:
+ * it takes a bare task id (never a path, so traversal is unrepresentable), and refuses anything
+ * whose closure it cannot verify from the contract, the active lease and git history.
+ *
+ * `--dry-run` is accepted only as the final token, so the allowed form stays exact.
+ */
+export function isContractCleanupCommand(command) {
+  if (hasUnsafeShellSyntax(command)) return false;
+  const tokens = shellTokens(command.trim());
+  if (!tokens || tokens.length < 3) return false;
+  if (tokens[0] !== "node" || tokens[1].replace(/\\/g, "/") !== "tools/agents/contract-cleanup.mjs") {
+    return false;
+  }
+  const rest = tokens.slice(2);
+  const args = rest[rest.length - 1] === "--dry-run" ? rest.slice(0, -1) : rest;
+  if (args.length === 1 && args[0] === "--all") return true;
+  return args.length === 2 && args[0] === "--task" && /^[a-z0-9][a-z0-9._-]*$/i.test(args[1]);
+}
+
 function isManagerWriterCommand(command) {
   if (hasUnsafeShellSyntax(command)) return false;
   const value = command.trim().replace(/\\/g, "/");
   return (
     value === "node tools/agents/render-platform-agents.mjs --write" ||
+    isContractCleanupCommand(command) ||
     /^npm\s+run\s+agent:check-agents\s*$/i.test(value)
   );
 }

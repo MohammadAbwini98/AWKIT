@@ -119,6 +119,12 @@ import {
   pushAuthorizedForLease,
   targetPathOf
 } from "../tools/agents/lease-guard.mjs";
+import {
+  NEVER_CLEANED,
+  cleanupBlockers,
+  cleanupContracts,
+  resolveContractTarget
+} from "../tools/agents/contract-cleanup.mjs";
 import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "../tools/agents/guard-denials.mjs";
 
 /**
@@ -165,7 +171,9 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
 // combined settings assertion. The resulting six checks are represented by the 1,108 baseline.
 // +3 (2026-09-19, awkit-djnl.1): the Phase L `src/ai/**` software domain adds one ownsPaths
 // resolution, one domain-inside-ownsPaths and one expected-path activation check.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1111;
+// +28 (2026-09-20): the contract retention cleanup section — the removal lifecycle, the durable
+// record surviving it, idempotency, ten refusal shapes and the manager-only authorization boundary.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1139;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -4461,6 +4469,448 @@ try {
         )
     );
   }
+  /* ── Contract retention cleanup ──────────────────────────────────────────────────────────────
+     What regression makes this fail?
+       - an ELIGIBLE closed contract stops being removable, restoring the original defect: the
+         guard's shell grammar had NO deletion verb at all, so `rm`, `Remove-Item` and `git rm`
+         were refused as command FORMS and no lease could ever grant deletion;
+       - an INELIGIBLE one becomes removable — an open task, a failed gate, a live lease, or a
+         closure whose commits are not actually in this history;
+       - cleanup can be aimed outside docs/ai/contracts/, or at control-plane state;
+       - the authorization boundary widens beyond the manager/direct-loop actor;
+       - the staged-deletion Git lifecycle stops working, which would leave an agent able to remove
+         a contract from the working tree but unable to record it.
+
+     Every destructive check runs against a disposable git repository created here. No production
+     task contract is ever used as a fixture, so a bug in this suite cannot delete repository
+     history. */
+  {
+    const cleanupGit = (cwd) => (...args) => execFileSync("git", args, { cwd, stdio: "ignore" });
+    const revParse = (cwd, ref = "HEAD") =>
+      execFileSync("git", ["rev-parse", ref], { cwd, encoding: "utf8" }).trim();
+
+    /**
+     * A disposable repository holding ONE closed, eligible contract.
+     *
+     * Three commits, because the eligibility rules read all of them: `baseline` is the contract's
+     * declared baseline, `closeCommit` is the task's actual work and its `closed_at_commit`, and a
+     * third commit records the contract itself so a later deletion can be proven not to destroy
+     * the history that the retention rule trades the file for.
+     */
+    const cleanupFixture = (label, patch = {}) => {
+      const cwd = mkdtempSync(join(tmpdir(), `awkit-cleanup-${label}-`));
+      tempDirs.push(cwd);
+      const git = cleanupGit(cwd);
+      mkdirSync(join(cwd, "docs", "ai", "contracts"), { recursive: true });
+      mkdirSync(join(cwd, "tools", "roadmap"), { recursive: true });
+      writeFileSync(join(cwd, "package.json"), "{}\n", "utf8");
+      git("init", "--initial-branch=main");
+      git("config", "user.name", "AWKIT Routing Verifier");
+      git("config", "user.email", "routing-verifier@example.invalid");
+      git("add", "package.json");
+      git("commit", "-m", "baseline");
+      const baseline = revParse(cwd);
+
+      writeJson(join(cwd, "tools", "roadmap", "assignments.json"), { claims: [] });
+      git("add", "tools/roadmap/assignments.json");
+      git("commit", "-m", "the task's work");
+      const closeCommit = revParse(cwd);
+
+      const task = `awkit-cleanup-${label}`;
+      const relative = `docs/ai/contracts/${task}.json`;
+      const expectedPaths = ["tools/roadmap/assignments.json", relative].sort();
+      const declared = { project_state_change: true, cross_layer_count: 1 };
+      const routing = route(normalizeClassification(declared).classification, {
+        expectedPaths,
+        taskMode: "change"
+      });
+      const contract = validContract();
+      contract.task = {
+        id: task,
+        title: "Cleanup fixture",
+        objective: "Exercise authorized contract retention cleanup.",
+        risk_level: 1,
+        mode: "change"
+      };
+      contract.repository = {
+        branch: "main",
+        baseline_commit: baseline,
+        working_tree_expected: "clean",
+        preserved_paths: []
+      };
+      contract.classification = declared;
+      contract.routing = {
+        manager: "manager",
+        activated_agents: routing.activated,
+        expected_paths: expectedPaths,
+        consultants: routing.consultants,
+        writer: { agent_id: "project-state", allowed_paths: [...expectedPaths] },
+        reviewers: routing.reviewers
+      };
+      contract.acceptance = [
+        { id: "CLOSED", description: "The task closed.", evidence_required: ["gate"] }
+      ];
+      contract.evidence = [
+        { id: "gate", type: "verifier", command: "fixture", required: true, result: "PASS" }
+      ];
+      contract.git = {
+        direct_main: true,
+        commit_policy: "coherent",
+        force_push: false,
+        destructive_reset: false,
+        push_authorized: true
+      };
+      contract.completion = {
+        status: "complete",
+        qa_status: "PASS",
+        qc_status: "NOT_REQUIRED",
+        closed_at_commit: closeCommit
+      };
+      patch(contract, { cwd, git, baseline, closeCommit });
+      const absolute = join(cwd, "docs", "ai", "contracts", `${task}.json`);
+      writeJson(absolute, contract);
+      git("add", relative);
+      git("commit", "-m", "record the contract");
+      return { cwd, git, task, relative, absolute, baseline, closeCommit, contract };
+    };
+
+    const eligible = cleanupFixture("eligible", () => {});
+
+    check(
+      "a fixture is a DISPOSABLE repository, never the AWKIT working tree",
+      eligible.cwd !== process.cwd() && !eligible.cwd.startsWith(process.cwd())
+    );
+
+    // Precondition: the thing every positive check below is gated on must really hold first.
+    const eligibleBlockers = cleanupBlockers(
+      resolveContractTarget(eligible.task, eligible.cwd),
+      { cwd: eligible.cwd, lease: null }
+    );
+    check(
+      "a complete contract with a verified closing commit has NO blockers",
+      eligibleBlockers.absent === false && eligibleBlockers.blockers.length === 0,
+      eligibleBlockers.blockers.join("; ")
+    );
+
+    const dryRun = cleanupContracts({
+      tasks: [eligible.task],
+      dryRun: true,
+      cwd: eligible.cwd,
+      lease: null
+    });
+    check(
+      "--dry-run reports the contract as eligible but leaves it on disk",
+      dryRun.removed.length === 1 &&
+        dryRun.removed[0].path === eligible.relative &&
+        dryRun.dryRun === true &&
+        existsSync(eligible.absolute)
+    );
+
+    const removal = cleanupContracts({ tasks: [eligible.task], cwd: eligible.cwd, lease: null });
+    check(
+      "an eligible closed contract is removed from the working tree",
+      removal.removed.length === 1 &&
+        removal.refused.length === 0 &&
+        !existsSync(eligible.absolute)
+    );
+
+    // The retention rule trades the file for its durable record. Deleting the file must not touch
+    // that record: the closing commit and the committed contract blob both survive.
+    const closingCommitSurvives = (() => {
+      try {
+        execFileSync("git", ["cat-file", "-e", `${eligible.closeCommit}^{commit}`], {
+          cwd: eligible.cwd,
+          stdio: ["ignore", "pipe", "pipe"]
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    const committedContract = (() => {
+      try {
+        return execFileSync("git", ["show", `HEAD:${eligible.relative}`], {
+          cwd: eligible.cwd,
+          encoding: "utf8"
+        });
+      } catch {
+        return "";
+      }
+    })();
+    check(
+      "the durable record survives cleanup: the closing commit and the committed contract remain",
+      closingCommitSurvives && committedContract.includes(`"${eligible.task}"`)
+    );
+
+    // The Git half of the lifecycle. The guard has no `git rm`, and it never needed one: with the
+    // file gone, its EXISTING add/commit forms already record the deletion.
+    check(
+      "the guard's existing staging form accepts a contract path, so the deletion can be staged",
+      isAllowedUnleasedShellCommand(`git add -- ${eligible.relative}`) &&
+        isAllowedUnleasedShellCommand("git commit -m retention", {
+          stagedPaths: [eligible.relative]
+        })
+    );
+    eligible.git("add", "--", eligible.relative);
+    const stagedDeletion = execFileSync(
+      "git",
+      ["diff", "--cached", "--name-status"],
+      { cwd: eligible.cwd, encoding: "utf8" }
+    );
+    check(
+      "staging a removed contract records a DELETION, not an untracked no-op",
+      /^D\s/m.test(stagedDeletion) && stagedDeletion.includes(eligible.relative),
+      stagedDeletion.trim()
+    );
+    eligible.git("commit", "-m", "retention: remove the closed contract");
+    check(
+      "the committed tree no longer carries the contract, while history still does",
+      execFileSync("git", ["ls-files", "--", eligible.relative], {
+        cwd: eligible.cwd,
+        encoding: "utf8"
+      }).trim() === "" &&
+        execFileSync("git", ["show", `HEAD~1:${eligible.relative}`], {
+          cwd: eligible.cwd,
+          encoding: "utf8"
+        }).includes(`"${eligible.task}"`)
+    );
+
+    // Idempotency: a repeat is a no-op, never an error and never a second "deletion".
+    const repeat = cleanupContracts({ tasks: [eligible.task], cwd: eligible.cwd, lease: null });
+    check(
+      "a repeated cleanup reports ALREADY ABSENT rather than removing or failing again",
+      repeat.removed.length === 0 &&
+        repeat.refused.length === 0 &&
+        repeat.absent.length === 1 &&
+        repeat.absent[0] === eligible.relative
+    );
+
+    /* ── Refusals ─────────────────────────────────────────────────────────────────────────── */
+    const refusalReasons = (fixture, options = {}) =>
+      cleanupBlockers(resolveContractTarget(fixture.task, fixture.cwd), {
+        cwd: fixture.cwd,
+        lease: null,
+        ...options
+      }).blockers.join(" | ");
+
+    const open = cleanupFixture("open", (contract) => {
+      contract.completion.status = "in-progress";
+    });
+    check(
+      "an OPEN task keeps its contract",
+      /not "complete"/.test(refusalReasons(open)) &&
+        cleanupContracts({ tasks: [open.task], cwd: open.cwd, lease: null }).refused.length === 1 &&
+        existsSync(open.absolute)
+    );
+
+    // One gate blocker proves the delegation: cleanup calls the SHARED completion gate, so qa, qc,
+    // required evidence, acceptance and recorded escapes are all judged by the same rules the task
+    // itself had to satisfy, rather than by a second copy that could drift.
+    const failedQa = cleanupFixture("qa", (contract) => {
+      contract.completion.qa_status = "FAIL";
+    });
+    check(
+      "a contract whose QA did not pass is refused BY THE SHARED TASK GATE",
+      /task gate: qa_status is "FAIL"/.test(refusalReasons(failedQa)) && existsSync(failedQa.absolute)
+    );
+
+    const escaped = cleanupFixture("escape", (contract) => {
+      contract.scope_escapes = [
+        { kind: "path", subject: "src/unreviewed.ts", detail: "never reviewed", resolved: false }
+      ];
+    });
+    check(
+      "a contract with an unresolved scope escape is refused (audit retention)",
+      /task gate:.*scope escape/.test(refusalReasons(escaped)) && existsSync(escaped.absolute)
+    );
+
+    const noClosure = cleanupFixture("unclosed", (contract) => {
+      contract.completion.closed_at_commit = null;
+    });
+    check(
+      "a closure with no recorded commit is refused — the durable record does not exist",
+      /not a full 40-character commit id/.test(refusalReasons(noClosure)) &&
+        existsSync(noClosure.absolute)
+    );
+
+    const divergent = cleanupFixture("divergent", (contract, { cwd, git }) => {
+      git("checkout", "-b", "divergent");
+      writeFileSync(join(cwd, "elsewhere.txt"), "divergent\n", "utf8");
+      git("add", "elsewhere.txt");
+      git("commit", "-m", "work on another branch");
+      contract.completion.closed_at_commit = revParse(cwd);
+      git("checkout", "main");
+    });
+    check(
+      "a closing commit that is NOT an ancestor of HEAD is refused",
+      /is not an ancestor of HEAD/.test(refusalReasons(divergent)) && existsSync(divergent.absolute)
+    );
+
+    const leased = cleanupFixture("leased", () => {});
+    check(
+      "a contract named by an ACTIVE lease is refused",
+      /an active security lease still names this task/.test(
+        refusalReasons(leased, { lease: { task: leased.task, holder: "security", status: "active" } })
+      ) && existsSync(leased.absolute)
+    );
+
+    // The FILE NAME does not establish which task a contract is; its own declared id does. Without
+    // this, renaming any contract onto an eligible task's filename would make it deletable.
+    const renamed = cleanupFixture("renamed", (contract) => {
+      contract.task.id = "awkit-some-other-task";
+    });
+    check(
+      "a contract whose declared task id disagrees with its filename is refused",
+      /declares task id "awkit-some-other-task"/.test(refusalReasons(renamed)) &&
+        existsSync(renamed.absolute)
+    );
+
+    const notAFile = cleanupFixture("notafile", () => {});
+    rmSync(notAFile.absolute, { force: true });
+    mkdirSync(notAFile.absolute, { recursive: true });
+    check(
+      "a non-regular entry is refused rather than removed (the branch that also refuses symlinks)",
+      /is not a regular file/.test(refusalReasons(notAFile))
+    );
+
+    const corrupt = cleanupFixture("corrupt", () => {});
+    writeFileSync(corrupt.absolute, "{ not json", "utf8");
+    check(
+      "an unparseable contract is refused rather than assumed closed",
+      /not parseable JSON/.test(refusalReasons(corrupt)) && existsSync(corrupt.absolute)
+    );
+
+    // Cleanup takes a task ID, never a path, so escaping the contracts directory is not merely
+    // filtered — it is unrepresentable.
+    check(
+      "every path-shaped target is rejected outright, so traversal cannot be expressed",
+      [
+        "../../src/licensing/LicenseVerifier",
+        "../active-lease",
+        "docs/ai/contracts/x",
+        "/etc/passwd",
+        "C:/Windows/system32/config",
+        "..\\..\\secrets",
+        "*",
+        "a/b",
+        ".hidden",
+        "",
+        "-rf"
+      ].every((candidate) => {
+        try {
+          resolveContractTarget(candidate, eligible.cwd);
+          return false;
+        } catch {
+          return true;
+        }
+      })
+    );
+
+    check(
+      "control-plane state in the same directory is never a cleanup target",
+      NEVER_CLEANED.length === 2 &&
+        ["active-lease", "task_contract.schema"].every((name) => {
+          try {
+            resolveContractTarget(name, eligible.cwd);
+            return false;
+          } catch {
+            return true;
+          }
+        })
+    );
+
+    /* ── Batch ────────────────────────────────────────────────────────────────────────────── */
+    const batch = cleanupFixture("batch", () => {});
+    const strandedTask = "awkit-cleanup-batch-open";
+    const strandedRelative = `docs/ai/contracts/${strandedTask}.json`;
+    const strandedContract = JSON.parse(JSON.stringify(batch.contract));
+    strandedContract.task.id = strandedTask;
+    strandedContract.completion.status = "in-progress";
+    writeJson(join(batch.cwd, "docs", "ai", "contracts", `${strandedTask}.json`), strandedContract);
+    writeJson(join(batch.cwd, "docs", "ai", "contracts", "active-lease.json"), {
+      task: "unrelated",
+      status: "released"
+    });
+    const batchResult = cleanupContracts({ all: true, cwd: batch.cwd, lease: null });
+    check(
+      "--all gates every contract INDEPENDENTLY: the eligible one goes, the open one is refused",
+      batchResult.removed.length === 1 &&
+        batchResult.removed[0].path === batch.relative &&
+        batchResult.refused.length === 1 &&
+        batchResult.refused[0].path === strandedRelative &&
+        batchResult.refused[0].reasons.some((reason) => /not "complete"/.test(reason)) &&
+        existsSync(join(batch.cwd, "docs", "ai", "contracts", `${strandedTask}.json`))
+    );
+    check(
+      "--all never touches active-lease.json, which the retention rule says is never deleted",
+      existsSync(join(batch.cwd, "docs", "ai", "contracts", "active-lease.json"))
+    );
+
+    /* ── Authorization boundary ───────────────────────────────────────────────────────────── */
+    check(
+      "the direct-loop root actor may run the exact cleanup form",
+      isAllowedUnleasedShellCommand("node tools/agents/contract-cleanup.mjs --task awkit-abc") &&
+        isAllowedUnleasedShellCommand("node tools/agents/contract-cleanup.mjs --all") &&
+        isAllowedUnleasedShellCommand("node tools/agents/contract-cleanup.mjs --all --dry-run")
+    );
+    check(
+      "no generic deletion verb was opened alongside it",
+      [
+        "rm docs/ai/contracts/awkit-abc.json",
+        "rm -rf docs/ai/contracts",
+        "git rm docs/ai/contracts/awkit-abc.json",
+        "Remove-Item docs/ai/contracts/awkit-abc.json",
+        "del docs/ai/contracts/awkit-abc.json"
+      ].every((command) => !isAllowedUnleasedShellCommand(command))
+    );
+    check(
+      "only the exact cleanup form is admitted, and it cannot carry a second operation",
+      [
+        "node tools/agents/contract-cleanup.mjs",
+        "node tools/agents/contract-cleanup.mjs --task",
+        "node tools/agents/contract-cleanup.mjs --task ../../etc/passwd",
+        "node tools/agents/contract-cleanup.mjs --task a/b",
+        "node tools/agents/contract-cleanup.mjs --all --task awkit-abc",
+        "node tools/agents/contract-cleanup.mjs --dry-run --all",
+        "node tools/agents/contract-cleanup.mjs --task awkit-abc --force",
+        "node tools/agents/contract-cleanup.mjs --task awkit-abc && rm -rf .",
+        "node tools/agents/other-tool.mjs --all",
+        "node ../contract-cleanup.mjs --all"
+      ].every((command) => !isAllowedUnleasedShellCommand(command))
+    );
+    const subagentCleanup = "node tools/agents/contract-cleanup.mjs --all";
+    check(
+      "a subagent identity cannot run cleanup even on the direct loop",
+      !isAllowedUnleasedShellCommand(subagentCleanup, {
+        agentType: qaAgentType,
+        agentId: "instance-qa"
+      })
+    );
+    const securityLease = {
+      task: "awkit-other",
+      holder: "security",
+      status: "active",
+      allowed_paths: ["src/security/authz/AiAutonomyPolicy.ts"],
+      amendments: [],
+      overrides: [],
+      violations: []
+    };
+    check(
+      "cleanup is refused while another specialist holds the write lease",
+      !isAllowedActiveShellCommand(subagentCleanup, securityLease, {
+        agentType: undefined,
+        agentId: undefined
+      })
+    );
+    check(
+      "cleanup is available under a manager-held lease",
+      isAllowedActiveShellCommand(subagentCleanup, { ...securityLease, holder: "manager" }, {
+        agentType: undefined,
+        agentId: undefined
+      })
+    );
+  }
+
 } finally {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }
