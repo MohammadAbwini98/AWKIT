@@ -10,7 +10,7 @@
   },
   "repository": {
     "branch": "main",
-    "baseline_commit": "1ad73dee",
+    "baseline_commit": "1ad73deeb05693473bf941cc864da9001615dfc4",
     "working_tree_expected": "clean",
     "preserved_paths": []
   },
@@ -168,7 +168,7 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "closed_at_commit": "9fc159a8",
+    "closed_at_commit": "9fc159a8a03c196752d5edfb0d6fed38eccbf3df",
     "note": "Committed as ONE atomic change across two commits because it spans four ownership domains while the lease guard can only commit a single-lease or zero-protected-path index: 2202e933 carries the runner/profile/guard/doc half unleased, 9fc159a8 carries the protected AiAutonomyPolicy half under this contract's security lease. Section 12 of verify:flow-fragments is transiently red at 2202e933 by design and green again at 9fc159a8."
   },
   "write_lease": {
