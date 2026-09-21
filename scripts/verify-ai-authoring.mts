@@ -36,11 +36,12 @@ import {
   type AuthoringRequest
 } from "@src/ai/authoringExplanation";
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
+import { parseAiOutput } from "@src/ai/AiOutputContract";
 import { AI_ASSIST_MAX_NODES } from "@src/ai/contracts/AiApi";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
-import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
+import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
 import { cancelAssist, explainFlowValidation, type AiAssistDeps } from "../app/main/ai/aiAssist";
 
@@ -138,7 +139,7 @@ if (!request) throw new Error("the broken fixture produced no request");
 const ids = request.issues.map((ref) => ref.id);
 const fixableId = request.fixableIds[0];
 const unfixableId = request.issues.find((ref) => !ref.fixable)!.id;
-check("every issue in the report is addressable by id", request.issues.length === Math.min(report.issues.length, AUTHORING_LIMITS.maxIssues));
+check("every issue sent, up to the cap, is addressable by id", request.issues.length === Math.min(report.issues.length, AUTHORING_LIMITS.maxIssues));
 check("the fixable ids are exactly the issues the validator emitted a fix for", request.fixableIds.length === emitted.length, `${request.fixableIds.length} vs ${emitted.length}`);
 
 // ── 1. The prompt carries ids, enums and rule text — nothing from the profile ───────────────────
@@ -152,7 +153,39 @@ check("the locator value never reaches the prompt", !promptText.includes(SECRET_
 check("no validator message reaches the prompt", !report.issues.some((issue) => promptText.includes(issue.message)));
 check("the rule summary DOES, because it is a product-authored constant", promptText.includes("Step type requires a locator and has none."));
 check("...as do the issue codes", promptText.includes("missingRequiredLocator"));
-check("...and the anchors, which are generated ids", promptText.includes("n-click"));
+check("...and each anchor's KIND, so the model knows where an issue sits", promptText.includes("at a node") && promptText.includes("at a connector"));
+// An anchor id is the user's (a recorded step's is a UUID, dozens of prompt tokens), and nothing maps
+// an answer back through it: `request.issues` does.
+const anchorIds = [...brokenFlow.nodes, ...(brokenFlow.edges ?? [])].map(({ id }) => id);
+check("...but never an anchor ID", !anchorIds.some((id) => new RegExp(`\\b${id}\\b`).test(promptText)), anchorIds.filter((id) => new RegExp(`\\b${id}\\b`).test(promptText)).join(", "));
+check("the issues travel in ONE data block: each costs two nonce delimiters in prompt tokens", (rendered.user.match(/<<<DATA /g) ?? []).length === 1, String((rendered.user.match(/<<<DATA /g) ?? []).length));
+
+/**
+ * The model may explain an id only when it saw that issue: every id the grammar offers must have its
+ * whole line in the prompt. The builder's 1,200-character default cap used to cut the issue list while
+ * the grammar still offered all 24 ids, so a model could explain issues it was never shown.
+ */
+function seesEveryOfferedIssue(req: AuthoringRequest): boolean {
+  const built = buildAiPrompt(req.prompt, new SemanticRedactor(), "0123456789abcdef");
+  if (!built.ok || built.omittedFields.length > 0) return false;
+  const lines = built.user.split("\n");
+  return req.issues.every((ref) => lines.some((line) => line.startsWith(`${ref.id}: ${ref.issue.code} `) && line.endsWith(FLOW_VALIDATION_RULES[ref.issue.code].summary)));
+}
+check("every id the grammar offers has its whole line in the prompt", seesEveryOfferedIssue(request));
+
+// The same flow as a recording would produce it: every node and connector id a UUID.
+const uuidOf = new Map(brokenFlow.nodes.map((node, i) => [node.id, `3f2b8c1e-9a4d-4e7b-8c2a-1d5e6f7a8b${String(i).padStart(2, "0")}`]));
+const recordedFlow = {
+  ...brokenFlow,
+  nodes: brokenFlow.nodes.map((node) => ({ ...node, id: uuidOf.get(node.id)! })),
+  edges: (brokenFlow.edges ?? []).map((edge) => ({ ...edge, id: `7c9e6679-7425-40de-944b-e07fc1f90a${edge.id}`, source: uuidOf.get(edge.source)!, target: uuidOf.get(edge.target)! }))
+} as FlowProfile;
+const recordedRequest = buildAuthoringRequest(validateFlowDefinition(recordedFlow));
+const recordedPrompt = recordedRequest && buildAiPrompt(recordedRequest.prompt, new SemanticRedactor(), "0123456789abcdef");
+check(
+  "UUID anchors leave the prompt byte-identical, so its size never grows with the user's ids",
+  recordedPrompt?.ok === true && recordedPrompt.system === rendered.system && recordedPrompt.user === rendered.user
+);
 // `safeFix.from`/`to` are withheld even though they are usually enum casing: "usually" is not a contract.
 check("a fix's from/to literals are withheld", emitted.every((issue) => !promptText.includes(`${issue.safeFix!.from}"`)), JSON.stringify(emitted.map((i) => i.safeFix!.from)));
 check("the fix KIND and field are sent, so the model knows what is repairable", promptText.includes(emitted[0].safeFix!.kind) && promptText.includes(emitted[0].safeFix!.field));
@@ -170,7 +203,7 @@ check("the answer schema has no field through which a fix KIND could be returned
 console.log("\n3 — a valid answer, decoded by the real output contract");
 const good = JSON.stringify({
   version: 1,
-  explanations: ids.slice(0, 3).map((id) => ({ issueId: id, text: `This step cannot run as configured (${id}).` })),
+  explanations: ids.map((id) => ({ issueId: id, text: `This step cannot run as configured (${id}).` })),
   ranking: [fixableId]
 });
 const h = harness([good]);
@@ -187,7 +220,7 @@ check("the job completes", outcome.status === "ok", JSON.stringify(outcome));
 const parsed = outcome.status === "ok" ? parseAuthoringAnswer(outcome.value, request) : undefined;
 check("the answer parses", parsed?.ok === true, JSON.stringify(parsed));
 if (parsed?.ok) {
-  check("...with one explanation per named issue", parsed.explanations.length === 3);
+  check("...with one explanation per sent issue", parsed.explanations.length === request.issues.length && request.issues.length === AUTHORING_LIMITS.maxIssues, String(parsed.explanations.length));
   check("...each carrying the validator's own issue, not a re-derived one", parsed.explanations.every((e, i) => e.issue === request.issues[i].issue));
   check("...and the ranking is the emitted-fix id", JSON.stringify(parsed.ranking) === JSON.stringify([fixableId]));
 }
@@ -260,7 +293,8 @@ check("no refusal echoes model text back to the caller", refusals.every(([, valu
 
 // ── 5. A fix kind the model invents cannot even decode ──────────────────────────────────────────
 console.log("\n5 — a model that tries to propose a repair of its own");
-const invented = harness(['{"version":1,"explanations":[],"ranking":[],"newFix":{"kind":"reconnectOrphan","nodeId":"n-click"}}']);
+// Otherwise valid, so the invented field is the ONLY thing the output contract can refuse it for.
+const invented = harness([JSON.stringify({ ...JSON.parse(good), newFix: { kind: "reconnectOrphan", nodeId: "n-click" } })]);
 const inventedOutcome = await invented.service.submit({
   requestId: "l4b-invented",
   feature: "validationExplanation",
@@ -323,8 +357,44 @@ const capped = buildAuthoringRequest(bigReport) as AuthoringRequest;
 check("a large report is capped", capped.issues.length === AUTHORING_LIMITS.maxIssues, String(capped.issues.length));
 check("...and says how many it left out, so a UI never implies the list was complete", capped.truncated === bigReport.issues.length - AUTHORING_LIMITS.maxIssues, String(capped.truncated));
 check("...and its id enum matches what it actually sent", (capped.schema as { properties: Record<string, { items?: { properties?: Record<string, { enum?: string[] }> } }> }).properties.explanations.items!.properties!.issueId.enum!.length === AUTHORING_LIMITS.maxIssues);
-const lowerCap = buildAuthoringRequest(bigReport, { maxIssues: 3 }) as AuthoringRequest;
-check("a caller may ask for fewer", lowerCap.issues.length === 3);
+check("...and the model saw every one of those issues in full", seesEveryOfferedIssue(capped));
+const cappedProperties = (capped.schema as { properties: Record<string, { minItems?: number; maxItems?: number }> }).properties;
+check("every sent issue must be explained: the grammar asks for exactly one explanation each", cappedProperties.explanations.minItems === capped.issues.length && cappedProperties.explanations.maxItems === capped.issues.length);
+const skipped = parseAiOutput(JSON.stringify({ version: 1, explanations: [{ issueId: capped.issues[0].id, text: "Only one." }] }), capped.schema);
+check("...so an answer that skips one is refused by the output contract", !skipped.ok && skipped.code === "SCHEMA_REJECTED", JSON.stringify(skipped));
+check("with nothing fixable there is no ranking to decode at all, not a placeholder id", capped.fixableIds.length === 0 && !("ranking" in cappedProperties), JSON.stringify(Object.keys(cappedProperties)));
+const placeholder = parseAiOutput(JSON.stringify({ version: 1, explanations: capped.issues.map((ref) => ({ issueId: ref.id, text: "Unreachable." })), ranking: ["none"] }), capped.schema);
+check("...so the old placeholder ranking is refused by the output contract", !placeholder.ok && placeholder.code === "SCHEMA_REJECTED", JSON.stringify(placeholder));
+
+// With room for two, the issue that stops the run must not lose its place to orphans that sort first.
+const buried = validateFlowDefinition({
+  id: "flow-buried",
+  name: "Buried",
+  version: 1,
+  nodes: [
+    { id: "s", type: "start", name: "Start" },
+    { id: "n-live", type: "click", name: "Live click" },
+    ...Array.from({ length: 3 }, (_, i) => ({ id: `n-orphan-${i}`, type: "click", name: `Orphan ${i}`, locator: { strategy: "testId", value: `orphan-${i}` } })),
+    { id: "e", type: "end", name: "End" }
+  ],
+  edges: [
+    { id: "x1", source: "s", target: "n-live" },
+    { id: "x2", source: "n-live", target: "e" }
+  ]
+} as FlowProfile);
+const blockingAt = buried.issues.findIndex(isExecutionBlocking);
+check(
+  "(precondition) the one blocking issue comes after more non-blocking ones than the cap",
+  buried.issues.filter(isExecutionBlocking).length === 1 && blockingAt >= AUTHORING_LIMITS.maxIssues,
+  JSON.stringify(buried.issues.map((i) => `${i.code}@${i.nodeId}`))
+);
+const buriedRequest = buildAuthoringRequest(buried) as AuthoringRequest;
+check("the blocking issue is sent first", buriedRequest.issues[0].issue === buried.issues[blockingAt], JSON.stringify(buriedRequest.issues.map((ref) => ref.issue.code)));
+check("...then the rest in report order", buriedRequest.issues[1].issue === buried.issues[0]);
+check("...and the rest are counted, not lost", buriedRequest.truncated === buried.issues.length - AUTHORING_LIMITS.maxIssues);
+
+const lowerCap = buildAuthoringRequest(bigReport, { maxIssues: 1 }) as AuthoringRequest;
+check("a caller may ask for fewer", lowerCap.issues.length === 1);
 const raisedCap = buildAuthoringRequest(bigReport, { maxIssues: 500 }) as AuthoringRequest;
 check("...but never more than the documented maximum", raisedCap.issues.length === AUTHORING_LIMITS.maxIssues);
 
@@ -354,7 +424,7 @@ const view = await explainFlowValidation(WINDOW, { requestId: "ui-1", profile: r
 check("a renderer request is answered", view.ok && view.code === "OK", JSON.stringify(view).slice(0, 300));
 check(
   "...each explanation attached to the validator's own issue",
-  view.explanations.length === 3 && view.explanations.every((e, i) => e.issue.code === request.issues[i].issue.code && e.issue.message === request.issues[i].issue.message)
+  view.explanations.length === request.issues.length && view.explanations.every((e, i) => e.issue.code === request.issues[i].issue.code && e.issue.message === request.issues[i].issue.message)
 );
 check("...the ranking is the validator-emitted fix, as an issue the UI can place", view.ranking.length === 1 && view.ranking[0].safeFix !== undefined, JSON.stringify(view.ranking));
 check("...and the model is named", view.modelId === "fake-l4b-model");
@@ -367,7 +437,7 @@ await viaIpc.service.shutdown();
 // Ranking lowered to T0 by an administrator: explanations still arrive, the fix order does not.
 const lowRank = harness([good]);
 const lowView = await explainFlowValidation(WINDOW, { requestId: "ui-2", profile: brokenFlow }, assistDeps(lowRank.service, { enabled: true, featureTiers: { safeFixRanking: "T0" } }));
-check("with ranking lowered to T0 the explanations still arrive", lowView.ok && lowView.explanations.length === 3, JSON.stringify(lowView).slice(0, 200));
+check("with ranking lowered to T0 the explanations still arrive", lowView.ok && lowView.explanations.length === request.issues.length, JSON.stringify(lowView).slice(0, 200));
 check("...but the fix order is withheld, not shown as a plain interpretation", lowView.ranking.length === 0);
 await lowRank.service.shutdown();
 
@@ -396,8 +466,9 @@ for (const [label, input] of malformed) {
 check("...and none of them reached the model", strict.calls() === 0, String(strict.calls()));
 await strict.service.shutdown();
 
-// A model answer that overreaches is discarded whole, and its text never reaches the renderer.
-const overreach = harness([JSON.stringify({ version: 1, explanations: [{ issueId: ids[0], text: "MODEL-SAYS-Zebra" }], ranking: [unfixableId] })]);
+// A model answer that overreaches is discarded whole, and its text never reaches the renderer. Every
+// issue is explained, so the ranking is the only thing it can be refused for.
+const overreach = harness([JSON.stringify({ version: 1, explanations: ids.map((id) => ({ issueId: id, text: "MODEL-SAYS-Zebra" })), ranking: [unfixableId] })]);
 const overView = await explainFlowValidation(WINDOW, { requestId: "ui-7", profile: brokenFlow }, assistDeps(overreach.service));
 check("an answer ranking an unfixable issue is refused as OUTPUT_REJECTED", !overView.ok && overView.code === "OUTPUT_REJECTED", JSON.stringify(overView));
 check("...with nothing from it shown, not even the valid-looking explanation", overView.explanations.length === 0 && !JSON.stringify(overView).includes("MODEL-SAYS"));

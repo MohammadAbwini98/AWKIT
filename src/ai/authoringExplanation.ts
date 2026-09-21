@@ -14,10 +14,12 @@
  *     decoding grammar, and `parseAuthoringAnswer` re-checks every id against the report afterwards,
  *     because a grammar is one layer and L1.3 requires runtime validation after decoding.
  *
- * What crosses to the model: issue codes, severities, active-path flags, anchor ids, node types, rule
- * summaries (product-authored constants) and the `kind`/`field` of each emitted fix. Never a validator
- * message, a locator value, a typed value, a step name or any profile literal — `safeFix.from`/`to` are
- * deliberately withheld even though they are usually enum casing, because "usually" is not a contract.
+ * What crosses to the model: issue codes, severities, active-path flags, the anchor's KIND (node,
+ * connector or flow), rule summaries (product-authored constants) and the `kind`/`field` of each emitted
+ * fix. Never an anchor id, a validator message, a locator value, a typed value, a step name or any
+ * profile literal — `safeFix.from`/`to` are deliberately withheld even though they are usually enum
+ * casing, because "usually" is not a contract. So the prompt's size is a function of product constants
+ * alone, which is what lets L1.8 bound its worst case.
  *
  * Pure: no Electron, no filesystem, no clock, no Playwright, no model.
  */
@@ -26,6 +28,7 @@ import type { AiPromptSpec } from "./AiPromptBuilder";
 import type { AiOutputSchema } from "./AiOutputContract";
 import {
   FLOW_VALIDATION_RULES,
+  isExecutionBlocking,
   type FlowValidationIssue,
   type FlowValidationReport,
   type SafeFixKind
@@ -36,18 +39,28 @@ export const AUTHORING_ANSWER_VERSION = 1;
 
 /** One job's bounds. An authoring explanation is interactive help, not a batch. */
 export const AUTHORING_LIMITS = Object.freeze({
-  /** Issues sent in one request. A report with more is truncated, and the request says so. */
-  maxIssues: 24,
-  /** Characters per explanation. Enough for two sentences; a longer answer is a malformed one. */
-  maxExplanationChars: 400,
+  /**
+   * Issues sent in one request: as many as one answer explains. A sent issue costs its whole line in
+   * prompt evaluation, the larger half of the wait on a CPU-only host (L1.8). A report with more is
+   * truncated, and the request says so.
+   */
+  maxIssues: 2,
+  /** Characters per explanation. Enough for two plain sentences; a longer answer is a malformed one. */
+  maxExplanationChars: 160,
   timeoutMs: 30_000,
-  maxOutputTokens: 512,
+  /**
+   * The L1.8 budget for this feature (≤192 out). The runtime's grammar lets a model indent its JSON, and
+   * Qwen3.5-0.8B does: 151 tokens for two explanations of 116 characters, ~90 of them structure (L1.8).
+   * Two at `maxExplanationChars` plus a full ranking still fit, which matters because an answer cut off
+   * at the cap is invalid JSON and is discarded whole.
+   */
+  maxOutputTokens: 192,
   maxDataChars: 3_000
 });
 
 /** An issue as this request refers to it. `id` is positional within ONE report snapshot. */
 export interface AuthoringIssueRef {
-  /** `i0`, `i1`, … in the report's own deterministic order. Short, and it can leak nothing. */
+  /** `i0`, `i1`, … in the order sent. Short, and it can leak nothing. */
   id: string;
   issue: FlowValidationIssue;
   /** The validator emitted a `safeFix` for this issue, so it may appear in a ranking. */
@@ -57,7 +70,7 @@ export interface AuthoringIssueRef {
 export interface AuthoringRequest {
   prompt: AiPromptSpec;
   schema: AiOutputSchema;
-  /** Every issue sent, in report order. The caller maps an answer back through this, never by re-validating. */
+  /** Every issue sent, blocking ones first. The caller maps an answer back through this, never by re-validating. */
   issues: AuthoringIssueRef[];
   /** Ids of the issues the validator emitted a fix for. The ONLY ids a ranking may contain. */
   fixableIds: string[];
@@ -106,12 +119,12 @@ export interface AuthoringRejection {
 
 const INSTRUCTIONS =
   "You explain why an automation flow failed validation, for the person editing it. " +
-  "You are given a list of validation issues by id, each with its rule code, severity and the rule's " +
-  "own one-line summary. For each issue, write at most two plain sentences saying what is wrong and " +
+  "You are given validation issues by id, each with its rule code, severity, where it is and the rule's " +
+  "own one-line summary. For each issue, write one or two plain sentences saying what is wrong and " +
   "what the person should look at. Do not invent issues, ids, rules or fixes. " +
-  "Some issues have a repair the application already knows how to perform safely; those ids are listed " +
-  "separately. You may put those ids in order of which is most worth doing first. " +
-  "You may not describe a repair of your own, and you may not rank an id that is not in that list.";
+  "An issue marked fixable has a repair the application already knows how to perform safely; " +
+  "you may put those ids in order of which is most worth doing first. " +
+  "You may not describe a repair of your own, and you may not rank an id that is not marked fixable.";
 
 /** Product-authored, one line per kind. The model is told what a fix IS; it never chooses one. */
 const FIX_KIND_SUMMARY: Readonly<Record<SafeFixKind, string>> = Object.freeze({
@@ -132,34 +145,32 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
   const limit = Math.max(1, Math.min(options.maxIssues ?? AUTHORING_LIMITS.maxIssues, AUTHORING_LIMITS.maxIssues));
   const all = report.issues;
   if (all.length === 0) return undefined;
-  const sent = all.slice(0, limit);
+  // With room for only a few, the issues that stop the flow from running go first, each group in the
+  // report's own deterministic order.
+  const sent = [...all.filter(isExecutionBlocking), ...all.filter((issue) => !isExecutionBlocking(issue))].slice(0, limit);
   const issues: AuthoringIssueRef[] = sent.map((issue, index) => ({ id: `i${index}`, issue, fixable: issue.safeFix !== undefined }));
   const fixableIds = issues.filter((ref) => ref.fixable).map((ref) => ref.id);
   const ids = issues.map((ref) => ref.id);
 
-  // Anchors are generated ids and a step TYPE — never a step name, a locator or a validator message,
-  // any of which can carry a profile literal the user typed.
+  // Only the anchor's kind, never its id: an id is the user's (a recorded step's is a UUID, dozens of
+  // prompt tokens the model cannot use), and an answer is mapped back through `issues`, not through it.
+  // Never a step name, a locator or a validator message, which can carry a profile literal either.
   const issueLines = issues
     .map((ref) => {
       const { issue } = ref;
-      const anchor = issue.nodeId ? `node=${issue.nodeId}` : issue.edgeId ? `connector=${issue.edgeId}` : "scope=flow";
-      const fix = issue.safeFix ? ` fixable=${issue.safeFix.kind} at ${issue.safeFix.field}` : "";
-      return `${ref.id}: ${issue.code} (${issue.severity}, ${issue.onActivePath ? "on the run path" : "off the run path"}) ${anchor}${fix} — ${FLOW_VALIDATION_RULES[issue.code].summary}`;
+      const anchor = issue.nodeId ? "at a node" : issue.edgeId ? "at a connector" : "flow-wide";
+      const fix = issue.safeFix ? ` fixable=${issue.safeFix.kind} at ${issue.safeFix.field} (${FIX_KIND_SUMMARY[issue.safeFix.kind]})` : "";
+      return `${ref.id}: ${issue.code} (${issue.severity}, ${issue.onActivePath ? "on the run path" : "off the run path"}, ${anchor})${fix} — ${FLOW_VALIDATION_RULES[issue.code].summary}`;
     })
-    .join("\n");
-  const kinds = [...new Set(issues.map((ref) => ref.issue.safeFix?.kind).filter((kind): kind is SafeFixKind => kind !== undefined))]
-    .map((kind) => `${kind}: ${FIX_KIND_SUMMARY[kind]}`)
     .join("\n");
 
   return {
     prompt: {
       instructions: INSTRUCTIONS,
       maxDataChars: AUTHORING_LIMITS.maxDataChars,
-      fields: [
-        { name: "Issues", text: issueLines },
-        { name: "RepairableIssueIds", ids: fixableIds.length ? fixableIds : ["none"] },
-        ...(kinds ? [{ name: "RepairKinds" as const, text: kinds }] : [])
-      ]
+      // One DATA block: each costs two nonce delimiters in prompt tokens, and a fixable issue is already
+      // marked on its own line.
+      fields: [{ name: "Issues", text: issueLines }]
     },
     schema: {
       type: "object",
@@ -169,6 +180,8 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
         version: { type: "integer", minimum: AUTHORING_ANSWER_VERSION, maximum: AUTHORING_ANSWER_VERSION },
         explanations: {
           type: "array",
+          // Every sent issue is explained. Allowed to skip them, Qwen3.5-0.8B skipped them all (L1.8).
+          minItems: issues.length,
           maxItems: issues.length,
           items: {
             type: "object",
@@ -181,12 +194,9 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
             }
           }
         },
-        ranking: {
-          type: "array",
-          maxItems: Math.max(1, fixableIds.length),
-          // Likewise closed, and narrower: only ids the validator emitted a fix for.
-          items: { type: "string", enum: fixableIds.length ? fixableIds : ["none"] }
-        }
+        // Likewise closed, and narrower: only ids the validator emitted a fix for. With none there is
+        // nothing to rank, so there is no ranking, rather than a placeholder id the parser must refuse.
+        ...(fixableIds.length > 0 ? { ranking: { type: "array" as const, maxItems: fixableIds.length, items: { type: "string" as const, enum: fixableIds } } } : {})
       }
     },
     issues,
