@@ -47,7 +47,13 @@ export const AUTHORING_LIMITS = Object.freeze({
   maxIssues: 2,
   /** Characters per explanation. Enough for two plain sentences; a longer answer is a malformed one. */
   maxExplanationChars: 160,
-  timeoutMs: 30_000,
+  /**
+   * This feature's own deadline: its L1.8 ceiling, 120 s at the output cap (`explanationAtCapMs` in
+   * `benchmark:ai-model`), plus 5 s over the overhead measured beside it — under 0.1 s of dispatch and
+   * main-loop delay. Qwen3.5-0.8B's answers took 52–76 s on the qualifying host (88 s at the cap), so
+   * the shared 30 s cancelled every real explanation. The other features keep 30 s.
+   */
+  timeoutMs: 125_000,
   /**
    * The L1.8 budget for this feature (≤192 out). The runtime's grammar lets a model indent its JSON, and
    * Qwen3.5-0.8B does: 151 tokens for two explanations of 116 characters, ~90 of them structure (L1.8).

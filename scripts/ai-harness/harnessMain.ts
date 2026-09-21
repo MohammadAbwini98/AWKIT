@@ -14,6 +14,8 @@
  *     text, the thinking-disabled template, special-token literalness, truncation, cancellation,
  *     deadline, yield to runs, crash recovery with reload, and shutdown.
  *   - bench: the L1.8 measurements (scripts/ai-harness/bench.ts).
+ *   - explain: the product's validation explanation on the real model, through exactly what
+ *     `ai:explainValidation` runs, under the explanation's own deadline.
  *   - profile: the L1.8 inference diagnosis (scripts/ai-harness/profile.ts). The one mode that
  *     drives the runtime directly in this process rather than through the host, because the split
  *     it measures (grammar vs decode vs prefill) is unobservable through a host that returns its
@@ -26,8 +28,11 @@ import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 
+import { cancelAssist, explainFlowValidation, type AiAssistDeps } from "@main/ai/aiAssist";
 import { AiUtilityHostManager } from "@main/ai/AiUtilityHostManager";
 import { AiService, type AiJobOutcome, type AiJobRequest } from "@src/ai/AiService";
+import { AUTHORING_LIMITS, buildAuthoringRequest } from "@src/ai/authoringExplanation";
+import { validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
 import {
@@ -40,6 +45,7 @@ import {
 
 import { runBench } from "./bench";
 import { runProfile } from "./profile";
+import { FLOW as EXPLANATION_FLOW } from "./validationExplanationPacket";
 
 export interface Step {
   label: string;
@@ -651,6 +657,95 @@ async function liveMode(): Promise<void> {
   record("counters", (await service.status()).counters);
 }
 
+// ── explain ──────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The product's validation explanation on the real model, through what `ai:explainValidation` runs:
+ * `explainFlowValidation`, the production AiService with `AUTHORING_LIMITS.timeoutMs`, this manager and
+ * the real host. Over the L1.8 benchmark's flow, so its time compares with that measurement.
+ */
+async function explainMode(): Promise<void> {
+  const { manager, service } = makeLiveContext();
+  // The deadline each inference was actually given, read where the manager applies it.
+  const deadlines: number[] = [];
+  const call = manager.call.bind(manager);
+  manager.call = ((request: Parameters<typeof call>[0], timeoutMs: number) => {
+    if (request.type === "infer") deadlines.push(timeoutMs);
+    return call(request, timeoutMs);
+  }) as typeof manager.call;
+  let outcome: AiJobOutcome | undefined;
+  const deps: AiAssistDeps = {
+    submit: async (job) => (outcome = await service.submit(job)),
+    policy: async () => ({ enabled: true, featureTiers: {} }),
+    savedFlowIds: async () => []
+  };
+  const job = buildAuthoringRequest(validateFlowDefinition(EXPLANATION_FLOW));
+  if (!job) throw new Error("the benchmark flow produced no validation issues");
+  const explain = async (requestId: string) => {
+    const started = Date.now();
+    outcome = undefined;
+    const view = await explainFlowValidation(1, { requestId, profile: EXPLANATION_FLOW }, deps);
+    const usage = outcome?.status === "ok" ? outcome.usage : null;
+    return {
+      code: view.code,
+      sent: job.issues.length,
+      explained: view.explanations.length,
+      textChars: view.explanations.map((e) => e.text.length),
+      elapsedMs: Date.now() - started,
+      hostDeadlineMs: deadlines[deadlines.length - 1] ?? null,
+      inferMs: usage ? usage.firstTokenMs + usage.generationMs : null,
+      usage
+    };
+  };
+  const delivered = (result: Awaited<ReturnType<typeof explain>>) => {
+    if (result.code !== "OK" || result.explained !== result.sent) throw new Error(JSON.stringify(result));
+    if (result.hostDeadlineMs !== AUTHORING_LIMITS.timeoutMs) throw new Error(`the inference was given ${result.hostDeadlineMs} ms, not ${AUTHORING_LIMITS.timeoutMs}`);
+    return result;
+  };
+  record("deadlineMs", AUTHORING_LIMITS.timeoutMs);
+
+  await step("the host reports a compatible runtime", async () => {
+    const hello = await manager.call<AiHostHello>(HELLO, 15_000);
+    if (!hello.compatible) throw new Error(`incompatible: ${JSON.stringify(hello.runtime)}`);
+    return hello.runtime;
+  });
+  await step("a real explanation is delivered under its own deadline (after the model load)", async () => delivered(await explain("live-explain-1")));
+  await step("a user cancel after the old 30 s deadline settles within the 3 s ceiling", async () => {
+    const pid = manager.status().pid;
+    const pending = explain("live-explain-cancel");
+    await sleep(35_000);
+    const cancelledAt = Date.now();
+    const cancel = cancelAssist(1, "live-explain-cancel", (id) => service.cancel(id));
+    if (!cancel.ok) throw new Error(`cancel answered ${cancel.code}: the explanation had already ended`);
+    const result = await pending;
+    const latencyMs = Date.now() - cancelledAt;
+    if (result.code !== "CANCELLED") throw new Error(`answered ${result.code}`);
+    if (latencyMs > 3_000) throw new Error(`cancel took ${latencyMs} ms`);
+    return { latencyMs, settledBy: manager.status().pid === pid ? "host" : "kill" };
+  });
+  await step("a deadline in prompt evaluation kills the host; the next explanation reloads and is delivered", async () => {
+    const timedOut = await service.submit({
+      requestId: "live-explain-deadline",
+      feature: "validationExplanation",
+      priority: "interactive",
+      prompt: job.prompt,
+      schema: job.schema,
+      maxOutputTokens: AUTHORING_LIMITS.maxOutputTokens,
+      timeoutMs: 5_000
+    });
+    const host = manager.status();
+    const modelAfter = (await service.status()).loadedModelId;
+    if (timedOut.status !== "failed" || timedOut.code !== "TIMEOUT") throw new Error(JSON.stringify(timedOut));
+    if (host.state !== "stopped" || host.unexpectedExits !== 0 || modelAfter !== null) throw new Error(`not killed as an intentional exit: ${JSON.stringify({ host, modelAfter })}`);
+    const next = delivered(await explain("live-explain-after-kill"));
+    const reloaded = manager.status();
+    if (!reloaded.pid || reloaded.state !== "ready" || (await service.status()).loadedModelId === null) throw new Error(`not reloaded: ${JSON.stringify(reloaded)}`);
+    return { timedOut: timedOut.code, strikes: reloaded.unexpectedExits, next };
+  });
+  await service.shutdown();
+  record("counters", (await service.status()).counters);
+}
+
 // ── entry ────────────────────────────────────────────────────────────────────────────────────────
 
 async function run(): Promise<void> {
@@ -658,6 +753,7 @@ async function run(): Promise<void> {
   try {
     if (mode === "protocol") await protocolMode();
     else if (mode === "live") await liveMode();
+    else if (mode === "explain") await explainMode();
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });
     else if (mode === "profile") await runProfile({ step, record, flush });
     else await step(`unknown mode ${mode}`, () => Promise.reject(new Error("unknown mode")));

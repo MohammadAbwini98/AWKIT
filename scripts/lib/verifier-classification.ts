@@ -506,6 +506,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."
   },
+  "verify:ai-explanation-live": {
+    class: "real-browser",
+    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that sends the product's validation explanation through explainFlowValidation, the production AiService with AUTHORING_LIMITS.timeoutMs, AiUtilityHostManager and the real ai-host.cjs over the L1.8 benchmark's flow — a real explanation delivered under its own deadline, a user cancel after 30 s settling within 3 s, and a deadline in prompt evaluation killing the host before a reloaded explanation is delivered."
+  },
   "verify:ai-inference-profile": {
     class: "real-browser",
     why: "Diagnostic gate on the owner-installed runtime and pack (NOT RUN without them): runs the harness in profile mode under the same constrained CPU mask as benchmark:ai-model and drives node-llama-cpp directly, so the cost of one inference splits into prompt evaluation, decode, JSON-grammar overhead and thread scaling — the split the host cannot report, because it returns timings only on completion and refuses unconstrained generation. It asserts measurements exist, never ceilings; benchmark:ai-model judges the numbers.",

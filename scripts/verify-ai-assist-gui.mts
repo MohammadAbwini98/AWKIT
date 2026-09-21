@@ -237,6 +237,23 @@ async function stateSettles(win: Page, testId: string, want: string, timeout = 2
   return win.getByTestId(testId).getAttribute("data-assist-state");
 }
 
+/** Findings whose explanation is missing or not under that finding's own row. */
+async function misplacedExplanations(win: Page): Promise<string[]> {
+  const placement = await win.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="ai-explanation"]')].map((node) => {
+      let row = node.previousElementSibling;
+      while (row && !row.classList.contains("validation-issue-row")) row = row.previousElementSibling;
+      return { text: node.textContent ?? "", row: row?.textContent ?? "" };
+    })
+  );
+  return expected!.issues
+    .filter((ref) => {
+      const entry = placement.find((p) => p.text.includes(`EXPL-${ref.id}:`));
+      return !entry || !entry.row.includes(ref.issue.message);
+    })
+    .map((ref) => ref.id);
+}
+
 const bar = (win: Page) => win.getByTestId("ai-assist-bar");
 async function assistSettles(win: Page, want: string, timeout = 20_000): Promise<string | null> {
   await win
@@ -279,18 +296,8 @@ try {
   const explanations = win.getByTestId("ai-explanation");
   check("one explanation per finding", (await explanations.count()) === ids.length, String(await explanations.count()));
   check("each is labelled as an AI interpretation", (await explanations.allInnerTexts()).every((text) => text.startsWith("AI interpretation")));
-  const placement = await win.evaluate(() =>
-    [...document.querySelectorAll('[data-testid="ai-explanation"]')].map((node) => {
-      let row = node.previousElementSibling;
-      while (row && !row.classList.contains("validation-issue-row")) row = row.previousElementSibling;
-      return { text: node.textContent ?? "", row: row?.textContent ?? "" };
-    })
-  );
-  const misplaced = expected.issues.filter((ref) => {
-    const entry = placement.find((p) => p.text.includes(`EXPL-${ref.id}:`));
-    return !entry || !entry.row.includes(ref.issue.message);
-  });
-  check("...and sits under the row of the validator issue it names", misplaced.length === 0, JSON.stringify(misplaced.map((m) => m.id)));
+  const misplaced = await misplacedExplanations(win);
+  check("...and sits under the row of the validator issue it names", misplaced.length === 0, JSON.stringify(misplaced));
   const ranks = win.getByTestId("ai-fix-rank");
   check("the suggested fix order marks exactly the validator-fixable findings", (await ranks.count()) === expected.fixableIds.length, String(await ranks.count()));
   check("...and says nothing changes until the user confirms", /Nothing is changed until you review and confirm/.test(await win.getByTestId("ai-assist-ranking").innerText()));
@@ -316,6 +323,26 @@ try {
   check("...but fixes cannot be reviewed until it is saved", (await review.isDisabled()) && /Save the flow first/.test(await win.getByTestId("ai-assist-ranking").innerText()));
   check("the unsaved edit reached neither the saved flow nor anything else on disk", fileDigest() === seededDigest);
 
+  console.log("\nAn answer slower than the old 30 s deadline is delivered and rendered");
+  // Qwen3.5-0.8B answers in 70–76 s (L1.8). 31 s is past the deadline every feature used to share, so
+  // a regression to it ends this request TIMEOUT instead.
+  const SLOW_ANSWER_MS = 31_000;
+  provide({ text: goodAnswer, delayMs: SLOW_ANSWER_MS });
+  const slowStarted = Date.now();
+  await win.getByTestId("ai-assist-explain").click();
+  check("(precondition) the slow answer is pending", (await assistSettles(win, "loading")) === "loading");
+  const slowSettled = await assistSettles(win, "done", SLOW_ANSWER_MS + 30_000);
+  const slowMs = Date.now() - slowStarted;
+  check(
+    "an answer that takes longer than 30 s completes",
+    slowSettled === "done" && slowMs >= SLOW_ANSWER_MS,
+    `${slowSettled} after ${slowMs} ms — ${await win.getByTestId("ai-assist-message").innerText().catch(() => "")}`
+  );
+  check("...with one labelled explanation per finding", (await explanations.count()) === ids.length && (await explanations.allInnerTexts()).every((text) => text.startsWith("AI interpretation")), String(await explanations.count()));
+  const slowMisplaced = await misplacedExplanations(win);
+  check("...each under the finding it explains", slowMisplaced.length === 0, JSON.stringify(slowMisplaced));
+  check("...and the bar reports them", new RegExp(`AI explained ${ids.length} finding`).test(await win.getByTestId("ai-assist-message").innerText()));
+
   console.log("\nCancellation reaches main");
   provide({ hang: true });
   await win.getByTestId("ai-assist-explain").click();
@@ -335,7 +362,7 @@ try {
     released = now.state !== "busy" && now.queueDepth === 0;
     if (!released) await win.waitForTimeout(100);
   }
-  check("...and main let the job go well before its 30 s timeout", released);
+  check("...and main let the job go at once, not at its deadline", released);
 
   console.log("\nA refused answer is a refusal, never partial text");
   provide({ text: JSON.stringify({ version: 1, explanations: [{ issueId: "i99", text: "MODEL-TEXT-MUST-NOT-RENDER" }] }) });

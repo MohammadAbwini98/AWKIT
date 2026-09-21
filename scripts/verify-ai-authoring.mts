@@ -17,6 +17,8 @@
  * Also asserted: the validator stays the source of truth (no issue is invented, dropped or
  * re-severitied by the AI path), explanations are T0 whatever the configuration, ranking is refused
  * when the feature is off, and no prompt carries a validator message, step name, locator or typed value.
+ * Section 10 holds the explanation to its OWN deadline on a virtual clock: an answer past the old
+ * shared 30 s is delivered, one past `AUTHORING_LIMITS.timeoutMs` is not, and other features keep 30 s.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -25,8 +27,13 @@ import { tmpdir } from "node:os";
 import { join, resolve as resolvePath } from "node:path";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
-import { AiService, type AiServiceSettings } from "@src/ai/AiService";
+import { AI_SERVICE_LIMITS, AiService, type AiServiceLimits, type AiServiceSettings } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
+import { AI_HOST_TIMEOUTS } from "@src/ai/contracts/AiHostProtocol";
+import { FAILURE_ANALYSIS_LIMITS } from "@src/ai/failureAnalysis";
+import { FRAGMENT_ASSIST_LIMITS } from "@src/ai/fragmentAssist";
+import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
+import type { FlowFragment } from "@src/fragments/FlowFragment";
 import {
   AUTHORING_LIMITS,
   authoringExplanationDecision,
@@ -37,13 +44,13 @@ import {
 } from "@src/ai/authoringExplanation";
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
 import { parseAiOutput } from "@src/ai/AiOutputContract";
-import { AI_ASSIST_MAX_NODES } from "@src/ai/contracts/AiApi";
+import { AI_ASSIST_MAX_NODES, type AuthoringAssistView } from "@src/ai/contracts/AiApi";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
 import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
-import { cancelAssist, explainFlowValidation, type AiAssistDeps } from "../app/main/ai/aiAssist";
+import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
 
 let passed = 0;
 let failed = 0;
@@ -71,7 +78,7 @@ const IDLE: AiAdmissionView = {
 };
 const POLICY = { enabled: true, featureTiers: {} } as const;
 
-function harness(script: Array<FakeInferStep | string>, options: { settings?: Partial<AiServiceSettings> } = {}) {
+function harness(script: Array<FakeInferStep | string>, options: { settings?: Partial<AiServiceSettings>; limits?: Partial<AiServiceLimits> } = {}) {
   let served = 0;
   const fake = new FakeAiHostTransport({
     modelRoot: MODEL_ROOT,
@@ -86,7 +93,7 @@ function harness(script: Array<FakeInferStep | string>, options: { settings?: Pa
     settings: async () => ({ enabled: true, yieldDuringRuns: true, idleUnloadMs: 0, minFreeMemoryMb: 0, ...options.settings }),
     admission: () => IDLE,
     threads: 2,
-    limits: { yieldCheckMs: 5, admissionRetryMs: 10 },
+    limits: { yieldCheckMs: 5, admissionRetryMs: 10, ...options.limits },
     nonce: () => "0123456789abcdef"
   });
   return { fake, service, calls: () => served };
@@ -508,6 +515,202 @@ const failing = harness([{ fail: "AI_HOST_EXITED" }]);
 const failView = await explainFlowValidation(WINDOW, { requestId: "ui-11", profile: brokenFlow }, assistDeps(failing.service));
 check("a host failure answers FAILED with a product sentence", !failView.ok && failView.code === "FAILED" && !/AI_HOST/.test(JSON.stringify(failView)), JSON.stringify(failView));
 await failing.service.shutdown();
+
+// ── 10. The explanation's own deadline ──────────────────────────────────────────────────────────
+// Qwen3.5-0.8B answers the product's request in 70–76 s (L1.8), and the shared 30 s deadline cancelled
+// every answer. Driven through `explainFlowValidation` with the production AiService and its production
+// limits; the fake transport applies each call's deadline as the manager does. On a virtual clock, so
+// the timeline is the real one and a 125 s deadline costs milliseconds.
+console.log("\n10 — the explanation's own deadline, on a virtual clock");
+
+type VirtualTimer = { at: number; fn: () => void; every?: number };
+/**
+ * Swaps the global timers for virtual ones. `run` fires them in time order and lets every promise
+ * chain settle between firings, which is sound here because nothing on these paths does I/O: each
+ * await is a timer or a promise.
+ */
+function virtualClock() {
+  const real = { setTimeout, clearTimeout, setInterval, clearInterval };
+  const timers = new Map<number, VirtualTimer>();
+  let now = 0;
+  let sequence = 0;
+  const add = (fn: () => void, ms: unknown, every?: number) => {
+    const id = (sequence += 1);
+    timers.set(id, { at: now + Math.max(0, Number(ms) || 0), fn, every });
+    return { id, unref() { return this; }, ref() { return this; } };
+  };
+  const clear = (handle: unknown) => void timers.delete((handle as { id?: number } | undefined)?.id ?? -1);
+  return {
+    now: () => now,
+    install: () =>
+      Object.assign(globalThis, {
+        setTimeout: (fn: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => add(() => fn(...args), ms),
+        setInterval: (fn: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => add(() => fn(...args), ms, Math.max(1, Number(ms) || 1)),
+        clearTimeout: clear,
+        clearInterval: clear
+      }),
+    uninstall: () => {
+      Object.assign(globalThis, real);
+      timers.clear();
+    },
+    /** Fire timers in order until `done()` holds or virtual time reaches `untilMs`. */
+    async run(untilMs: number, done: () => boolean = () => false): Promise<void> {
+      for (;;) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (done()) return;
+        let next: [number, VirtualTimer] | undefined;
+        for (const entry of timers) if (!next || entry[1].at < next[1].at) next = entry;
+        if (!next || next[1].at > untilMs) {
+          now = Math.max(now, untilMs);
+          return;
+        }
+        const [id, timer] = next;
+        now = timer.at;
+        if (timer.every === undefined) timers.delete(id);
+        else timer.at = now + timer.every;
+        timer.fn();
+      }
+    }
+  };
+}
+const clock = virtualClock();
+/** The value and the virtual time it settled at, or undefined when it did not settle within the budget. */
+async function settle<T>(promise: Promise<T>, budgetMs: number): Promise<{ value: T; atMs: number } | undefined> {
+  let result: { value: T; atMs: number } | undefined;
+  void promise.then((value) => {
+    result = { value, atMs: clock.now() };
+  });
+  await clock.run(clock.now() + budgetMs, () => result !== undefined);
+  return result;
+}
+
+/** `explanationAtCapMs` in scripts/benchmark-ai-model.mts: this feature's worst case at the output cap. */
+const CEILING_MS = 120_000;
+/** Measured beside the product's request (L1.8): wall minus prompt and generation ≤ 41 ms, main-loop delay ≤ 61 ms. */
+const MEASURED_OVERHEAD_MS = 41 + 61;
+const OLD_DEADLINE_MS = 30_000;
+const DEADLINE = AUTHORING_LIMITS.timeoutMs;
+/** Far past any deadline here, so a wrong deadline shows as a wrong outcome, never as work left pending. */
+const BUDGET_MS = 10 * 60_000;
+const PRODUCTION = { limits: AI_SERVICE_LIMITS };
+const explainWith = (h: ReturnType<typeof harness>, requestId: string) => explainFlowValidation(WINDOW, { requestId, profile: brokenFlow }, assistDeps(h.service));
+const countersOf = async (h: ReturnType<typeof harness>) => (await h.service.status()).counters;
+/** Shutdown waits on timers too: off the clock it would never return. */
+const stop = (h: ReturnType<typeof harness>) => settle(h.service.shutdown(), BUDGET_MS);
+const brief = (value: unknown) => JSON.stringify(value)?.slice(0, 200);
+
+check("the explanation has its own deadline: the L1.8 ceiling plus a 5 s allowance", DEADLINE === CEILING_MS + 5_000, String(DEADLINE));
+check("...which the service accepts, where a longer one is refused as an invalid request", DEADLINE <= AI_SERVICE_LIMITS.maxJobTimeoutMs, `${DEADLINE} vs ${AI_SERVICE_LIMITS.maxJobTimeoutMs}`);
+const otherDeadlines = { fragmentSummary: FRAGMENT_ASSIST_LIMITS.timeoutMs, failureAnalysis: FAILURE_ANALYSIS_LIMITS.timeoutMs, locatorAttempt: LOCATOR_ATTEMPT_LIMITS.timeoutMs };
+check("every other feature keeps its 30 s", Object.values(otherDeadlines).every((ms) => ms === OLD_DEADLINE_MS), JSON.stringify(otherDeadlines));
+
+clock.install();
+try {
+  const late = harness([{ text: good, delayMs: OLD_DEADLINE_MS + 1_000 }], PRODUCTION);
+  const lateStarted = clock.now();
+  const lateView = await settle(explainWith(late, "dl-late"), BUDGET_MS);
+  check("an answer arriving after the old 30 s deadline is delivered", lateView?.value.ok === true && lateView.value.code === "OK", brief(lateView?.value));
+  check("...when it arrived, 31 s in: the clock really ran", (lateView?.atMs ?? 0) - lateStarted >= OLD_DEADLINE_MS + 1_000, String((lateView?.atMs ?? 0) - lateStarted));
+  check(
+    "...with every explanation attached to its validator issue",
+    lateView?.value.explanations.length === request.issues.length && lateView.value.explanations.every((e, i) => e.issue.code === request.issues[i].issue.code)
+  );
+  check("...from exactly one model call", late.calls() === 1, String(late.calls()));
+  await stop(late);
+
+  const edge = harness([{ text: good, delayMs: CEILING_MS + MEASURED_OVERHEAD_MS }], PRODUCTION);
+  const edgeView = await settle(explainWith(edge, "dl-edge"), BUDGET_MS);
+  check("an answer at the 120 s ceiling plus the measured overhead is delivered", edgeView?.value.code === "OK", brief(edgeView?.value));
+  await stop(edge);
+
+  const stuck = harness([{ hang: true }], PRODUCTION);
+  const stuckStarted = clock.now();
+  const stuckView = await settle(explainWith(stuck, "dl-hang"), BUDGET_MS);
+  const stuckMs = (stuckView?.atMs ?? 0) - stuckStarted;
+  check("an answer that never comes fails TIMEOUT", stuckView?.value.code === "TIMEOUT" && !stuckView.value.ok, brief(stuckView?.value));
+  check("...at the explanation's own deadline, not the old 30 s", stuckMs >= DEADLINE && stuckMs <= DEADLINE + AI_HOST_TIMEOUTS.cancelMs, `${stuckMs} ms`);
+  check("...saying so in a product sentence, never runtime text", stuckView?.value.message === "Local AI took too long to answer." && !/AI_HOST/.test(JSON.stringify(stuckView?.value)));
+  check("...and the inference it gave up on is cancelled on the host", stuck.fake.requests.some((r) => r.type === "cancel" && r.jobId.startsWith(`${assistJobId(WINDOW, "dl-hang")}#`)));
+  await stop(stuck);
+
+  // A user cancel after the old deadline, before the new one.
+  const waiting = harness([{ hang: true }], PRODUCTION);
+  let waitingView: AuthoringAssistView | undefined;
+  const waitingPending = explainWith(waiting, "dl-cancel").then((view) => (waitingView = view));
+  await clock.run(clock.now() + 2 * OLD_DEADLINE_MS);
+  check(
+    "(precondition) 60 s in, the explanation is still running rather than timed out",
+    waitingView === undefined && waiting.calls() === 1 && (await waiting.service.status()).state.kind === "busy",
+    brief(waitingView)
+  );
+  const cancelledAt = clock.now();
+  check("the asking window cancels it", cancelAssist(WINDOW, "dl-cancel", (id) => waiting.service.cancel(id)).ok);
+  const cancelled = await settle(waitingPending, BUDGET_MS);
+  check("...and it answers CANCELLED, not TIMEOUT", cancelled?.value.code === "CANCELLED", brief(cancelled?.value));
+  check("...promptly", cancelled !== undefined && cancelled.atMs - cancelledAt <= AI_HOST_TIMEOUTS.cancelMs, String(cancelled && cancelled.atMs - cancelledAt));
+  await clock.run(clock.now() + DEADLINE);
+  const waitingCounters = await countersOf(waiting);
+  check("...counted once as a cancel; its deadline passing later adds nothing", waitingCounters.cancelled === 1 && waitingCounters.failed === 0 && waitingCounters.completed === 0, JSON.stringify(waitingCounters));
+  await stop(waiting);
+
+  // An answer that lands after the deadline must not complete anything, then or later.
+  const STALE = JSON.stringify({ version: 1, explanations: ids.map((id) => ({ issueId: id, text: `STALE-${id}` })) });
+  const overdue = harness([{ text: STALE, delayMs: DEADLINE + 5_000 }, good], PRODUCTION);
+  const overdueView = await settle(explainWith(overdue, "dl-overdue"), BUDGET_MS);
+  check("an answer due after the deadline is not waited for: TIMEOUT", overdueView?.value.code === "TIMEOUT", brief(overdueView?.value));
+  await clock.run(clock.now() + 30_000);
+  const overdueCounters = await countersOf(overdue);
+  check("...counted once, as a failure: nothing completes when its answer was due", overdueCounters.failed === 1 && overdueCounters.completed === 0 && overdueCounters.cancelled === 0, JSON.stringify(overdueCounters));
+  check("...and the request is gone, so a cancel for it finds nothing", cancelAssist(WINDOW, "dl-overdue", (id) => overdue.service.cancel(id)).code === "NOT_FOUND");
+  const nextView = await settle(explainWith(overdue, "dl-after-overdue"), BUDGET_MS);
+  check(
+    "the next explanation gets its own answer, never the late one",
+    nextView?.value.code === "OK" && nextView.value.explanations.length === ids.length && !JSON.stringify(nextView.value).includes("STALE-"),
+    brief(nextView?.value)
+  );
+  await stop(overdue);
+
+  // Stuck in prompt evaluation at the deadline: the cancel cannot be honoured, so the host is killed.
+  const killed = harness([{ hang: true, killOnCancel: true }, good], PRODUCTION);
+  const killedView = await settle(explainWith(killed, "dl-kill"), BUDGET_MS);
+  check("a model stuck in prompt evaluation at the deadline still ends TIMEOUT", killedView?.value.code === "TIMEOUT", brief(killedView?.value));
+  check("(precondition) the host was killed to free it, not crashed", killed.fake.kills === 1 && killed.fake.crashes === 0, `kills ${killed.fake.kills}, crashes ${killed.fake.crashes}`);
+  const reloadedView = await settle(explainWith(killed, "dl-kill-next"), BUDGET_MS);
+  check("the next explanation is answered", reloadedView?.value.code === "OK" && reloadedView.value.explanations.length === ids.length, brief(reloadedView?.value));
+  check("...after a fresh handshake and model reload", killed.fake.requestTypes().join(",") === "hello,load,infer,cancel,hello,load,infer", killed.fake.requestTypes().join(","));
+  const killedCounters = await countersOf(killed);
+  check("...one timeout and one completion, nothing counted twice", killedCounters.failed === 1 && killedCounters.completed === 1 && killedCounters.cancelled === 0, JSON.stringify(killedCounters));
+  await stop(killed);
+
+  // Another feature through the same module and service: still its own 30 s.
+  const fragment = {
+    id: "frag-deadline",
+    name: "Fill then click",
+    kind: "fragment",
+    version: 1,
+    nodes: [
+      { id: "fa", type: "fill", name: "Fill", value: "x", locator: { strategy: "css", value: "#x" } },
+      { id: "fb", type: "click", name: "Go", locator: { strategy: "testId", value: "go" } }
+    ],
+    edges: [{ id: "fe", source: "fa", target: "fb", type: "success" }],
+    inputs: []
+  } as unknown as FlowFragment;
+  const slowSummary = harness([{ text: JSON.stringify({ version: 1, summary: "Fills a field and clicks to continue." }), delayMs: OLD_DEADLINE_MS + 1_000 }], PRODUCTION);
+  const summaryStarted = clock.now();
+  const summaryView = await settle(
+    summarizeFragment(WINDOW, { requestId: "dl-fragment", fragmentId: fragment.id }, { submit: (job) => slowSummary.service.submit(job), policy: async () => POLICY, fragment: async () => fragment }),
+    BUDGET_MS
+  );
+  const summaryMs = (summaryView?.atMs ?? 0) - summaryStarted;
+  check(
+    "a fragment summary slower than 30 s still times out at its own 30 s",
+    summaryView?.value.code === "TIMEOUT" && summaryMs >= FRAGMENT_ASSIST_LIMITS.timeoutMs && summaryMs <= FRAGMENT_ASSIST_LIMITS.timeoutMs + AI_HOST_TIMEOUTS.cancelMs,
+    `${summaryView?.value.code} after ${summaryMs} ms`
+  );
+  await stop(slowSummary);
+} finally {
+  clock.uninstall();
+}
 
 console.log(`\nL4b authoring explanations and fix ranking: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

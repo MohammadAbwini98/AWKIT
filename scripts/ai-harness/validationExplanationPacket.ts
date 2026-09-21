@@ -28,7 +28,8 @@ import { validateFlowDefinition, type FlowValidationCode } from "@src/validation
 const NONCE = "0f1e2d3c4b5a6978";
 
 const casingMistakes = { sourceField: "Outcome", operator: "NotEquals", expectedValue: "rejected" };
-const FLOW = {
+/** Also sent through the product path by `verify:ai-explanation-live`, so its time compares with this one. */
+export const FLOW = {
   id: "bench-order-approval",
   name: "Order approval",
   version: 1,
