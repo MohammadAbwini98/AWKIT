@@ -12,7 +12,8 @@
  *  - a model path outside the model root is refused;
  *  - every call honours its timeout like the manager, and a timed-out inference keeps running until
  *    it is cancelled, as a real runtime does;
- *  - `cancel` resolves the pending inference with `stopReason: "cancelled"`.
+ *  - `cancel` resolves the pending inference with `stopReason: "cancelled"`, unless the step is
+ *    `killOnCancel`, where the manager kills the host instead (awkit-g555).
  * `crash()` simulates the host process dying; one crash more than the restart policy allows opens the
  * circuit for the session, as it does for the real manager.
  *
@@ -45,6 +46,12 @@ export interface FakeInferStep {
   hang?: boolean;
   /** The host process dies partway through this inference. */
   crash?: boolean;
+  /**
+   * Stuck in prompt evaluation: a cancel is not honoured, so the manager kills the host after its
+   * grace period (awkit-g555). The inference and the cancel reject with AI_HOST_KILLED_ON_CANCEL, the
+   * restarted host has no model, and no restart strike is recorded.
+   */
+  killOnCancel?: boolean;
 }
 
 export interface FakeAiHostOptions {
@@ -59,6 +66,7 @@ export interface FakeAiHostOptions {
 interface PendingInference {
   resolve: (result: AiInferResult) => void;
   reject: (error: Error) => void;
+  killOnCancel?: boolean;
 }
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,6 +76,8 @@ export class FakeAiHostTransport implements AiHostTransport {
   readonly modelRoot: string;
   loadedPath: string | null = null;
   crashes = 0;
+  /** Hosts killed to honour a cancel; never a restart strike. */
+  kills = 0;
   maxConcurrentInferences = 0;
   private active = 0;
   private inferIndex = 0;
@@ -156,6 +166,14 @@ export class FakeAiHostTransport implements AiHostTransport {
         const pending = this.pending.get(request.jobId);
         if (!pending) return { cancelled: false };
         this.pending.delete(request.jobId);
+        if (pending.killOnCancel) {
+          // The manager's grace period, shortened: the host is killed, not crashed.
+          await delay(20);
+          this.kills += 1;
+          this.loadedPath = null;
+          pending.reject(new AiHostCallError("AI_HOST_KILLED_ON_CANCEL"));
+          throw new AiHostCallError("AI_HOST_KILLED_ON_CANCEL");
+        }
         pending.resolve({
           text: "",
           promptTokens: 0,
@@ -190,7 +208,7 @@ export class FakeAiHostTransport implements AiHostTransport {
     this.maxConcurrentInferences = Math.max(this.maxConcurrentInferences, this.active);
     try {
       return await new Promise<AiInferResult>((resolve, reject) => {
-        this.pending.set(request.jobId, { resolve, reject });
+        this.pending.set(request.jobId, { resolve, reject, killOnCancel: step.killOnCancel });
         const delayMs = step.delayMs ?? 5;
         if (step.crash) {
           setTimeout(() => this.crash(), delayMs);

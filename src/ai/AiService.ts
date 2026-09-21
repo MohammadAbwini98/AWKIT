@@ -411,7 +411,11 @@ export class AiService {
 
   private cancelOnHost(hostJobId: string): Promise<unknown> {
     const transport = this.deps.transport();
-    return transport ? transport.call({ type: "cancel", jobId: hostJobId }, AI_HOST_TIMEOUTS.cancelMs).catch(() => undefined) : Promise.resolve();
+    if (!transport) return Promise.resolve();
+    return transport.call({ type: "cancel", jobId: hostJobId }, AI_HOST_TIMEOUTS.cancelMs).catch((error: unknown) => {
+      // The host was killed to free it (awkit-g555), or went away meanwhile: the model went with it.
+      if (error instanceof AiHostCallError && (error.reason === "AI_HOST_KILLED_ON_CANCEL" || error.reason === "AI_HOST_EXITED")) this.forgetHost();
+    });
   }
 
   private forgetHost(): void {
@@ -518,8 +522,23 @@ export class AiService {
         job.hostJobId = null;
       }
 
+      // Whatever else happened, a host that exited or was killed no longer holds the model.
+      if (failure === "AI_HOST_EXITED" || failure === "AI_MODEL_NOT_LOADED" || failure === "AI_HOST_KILLED_ON_CANCEL") this.forgetHost();
       if (job.userCancelled) {
         this.finish(job, { status: "cancelled", yields: job.yields });
+        return;
+      }
+      // A host the manager killed to honour a cancel the runtime could not (awkit-g555) ends the job
+      // exactly as a cooperative cancel does.
+      if (failure === "AI_HOST_KILLED_ON_CANCEL" || result?.stopReason === "cancelled") {
+        if (!yielded) {
+          this.finish(job, { status: "failed", code: "HOST_ERROR", yields: job.yields });
+          return;
+        }
+        job.yields += 1;
+        this.counters.yielded += 1;
+        if (job.yields > this.limits.maxYields) this.finish(job, { status: "failed", code: "YIELD_LIMIT", yields: job.yields });
+        else this.enqueue(job, true);
         return;
       }
       if (failure || !result) {
@@ -530,20 +549,8 @@ export class AiService {
           this.finish(job, { status: "failed", code: "TIMEOUT", yields: job.yields });
           return;
         }
-        if (failure === "AI_HOST_EXITED" || failure === "AI_MODEL_NOT_LOADED") this.forgetHost();
         this.lastError = failure ?? "AI_HOST_INTERNAL_ERROR";
         this.finish(job, { status: "failed", code: "HOST_ERROR", yields: job.yields });
-        return;
-      }
-      if (result.stopReason === "cancelled") {
-        if (!yielded) {
-          this.finish(job, { status: "failed", code: "HOST_ERROR", yields: job.yields });
-          return;
-        }
-        job.yields += 1;
-        this.counters.yielded += 1;
-        if (job.yields > this.limits.maxYields) this.finish(job, { status: "failed", code: "YIELD_LIMIT", yields: job.yields });
-        else this.enqueue(job, true);
         return;
       }
       // A job asked to yield that finished first keeps its result: the work is already done.

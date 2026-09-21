@@ -25,7 +25,7 @@ import { buildAiPrompt, type AiPromptSpec } from "@src/ai/AiPromptBuilder";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
 import type { AiUtilityHostManager } from "@main/ai/AiUtilityHostManager";
 import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
-import { AI_HOST_PROTOCOL_VERSION, type AiInferResult } from "@src/ai/contracts/AiHostProtocol";
+import { AI_HOST_PROTOCOL_VERSION, AiHostCallError, type AiInferResult } from "@src/ai/contracts/AiHostProtocol";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
 import type { LiveContext } from "./harnessMain";
@@ -322,26 +322,47 @@ async function scenarioPackets(api: BenchApi, threads: number, iterations: numbe
 }
 
 async function scenarioCancel(api: BenchApi, threads: number): Promise<void> {
-  const { manager } = await loadedManager(api, threads);
   const [failure] = packets().filter((p) => p.name === "failureAnalysis");
   const longPrompt = built(failure.spec);
   const shortPrompt = built({ instructions: failure.spec.instructions, fields: [{ name: "run", text: prose(300, 41) }], maxDataChars: 9_000 });
   const result: Record<string, unknown> = {};
-  const measure = async (label: string, jobId: string, packet: { system: string; user: string }, afterMs: number) =>
+  // Each probe gets its own loaded host: a cancel the runtime cannot honour kills it (awkit-g555),
+  // and the restarted host has no model. Latency runs from the cancel to the inference settling,
+  // whether the host stopped it or the manager killed the host.
+  const measure = (label: string, jobId: string, packet: { system: string; user: string }, cancelAfter: (manager: AiUtilityHostManager) => Promise<number>) =>
     api.step(label, async () => {
-      const pending = infer(manager, jobId, packet, failure.schema, 256);
-      await sleep(afterMs);
-      const cancelledAt = Date.now();
-      await manager.call({ type: "cancel", jobId }, 5_000);
-      const answer = await pending;
-      const latencyMs = Date.now() - cancelledAt;
-      if (answer.stopReason !== "cancelled") throw new Error(`finished before the cancel (${answer.stopReason})`);
-      return { latencyMs, outputTokensBeforeCancel: answer.outputTokens };
+      const { manager } = await loadedManager(api, threads);
+      try {
+        const cancelAfterMs = await cancelAfter(manager);
+        const pending = infer(manager, jobId, packet, failure.schema, 256).then((answer) => answer, (error: unknown) => error);
+        await sleep(cancelAfterMs);
+        const cancelledAt = Date.now();
+        const killed = await manager.call({ type: "cancel", jobId }, 5_000).then(
+          () => false,
+          (error: unknown) => error instanceof AiHostCallError && error.reason === "AI_HOST_KILLED_ON_CANCEL"
+        );
+        const answer = await pending;
+        const latencyMs = Date.now() - cancelledAt;
+        if (killed) {
+          if (!(answer instanceof AiHostCallError && answer.reason === "AI_HOST_KILLED_ON_CANCEL")) throw new Error("the host was killed but the inference did not report it");
+          return { latencyMs, cancelAfterMs, settledBy: "kill", outputTokensBeforeCancel: null };
+        }
+        if (answer instanceof Error) throw answer;
+        const settled = answer as AiInferResult;
+        if (settled.stopReason !== "cancelled") throw new Error(`finished before the cancel (${settled.stopReason})`);
+        return { latencyMs, cancelAfterMs, settledBy: "host", outputTokensBeforeCancel: settled.outputTokens };
+      } finally {
+        await manager.dispose();
+      }
     });
-  result.duringPrompt = await measure("cancel: during prompt processing", "cancel-prompt#1", longPrompt, 1_000);
-  result.duringGeneration = await measure("cancel: during generation", "cancel-generation#1", shortPrompt, 6_000);
+  result.duringPrompt = await measure("cancel: during prompt processing", "cancel-prompt#1", longPrompt, async () => 1_000);
+  // A fixed wait landed inside prompt evaluation on a slow host, so generation-phase cancel was never
+  // measured. Time the first token of this exact prompt with a 1-token run, then cancel 2 s after it.
+  result.duringGeneration = await measure("cancel: during generation (2 s after the measured first token)", "cancel-generation#1", shortPrompt, async (manager) => {
+    const timing = await infer(manager, "cancel-first-token#1", shortPrompt, failure.schema, 1);
+    return timing.timings.firstTokenMs + 2_000;
+  });
   api.record("cancel", result);
-  await manager.dispose();
 }
 
 function heavyHtml(round: number): string {

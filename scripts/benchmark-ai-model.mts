@@ -31,6 +31,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
+import { AI_HOST_TIMEOUTS } from "../src/ai/contracts/AiHostProtocol";
 import {
   HOST_PATH,
   MODEL_FILE_NAME,
@@ -137,7 +138,9 @@ if (measured.sizeBytes !== pack.sizeBytes || measured.sha256 !== pack.sha256) {
   process.exit(1);
 }
 const threads = deriveInferenceThreads(host.logicalCpus);
-const fingerprint = { runtimeBuild: runtime.build, packSha256: measured.sha256, cpuModel: host.cpuModel, affinityMask: null, logicalCpus: host.logicalCpus, threads };
+// The cancel grace is part of the host behaviour measured here (awkit-g555 kill-and-restart), so a
+// change to it starts the results over rather than mixing two behaviours in one verdict.
+const fingerprint = { runtimeBuild: runtime.build, packSha256: measured.sha256, cpuModel: host.cpuModel, affinityMask: null, logicalCpus: host.logicalCpus, threads, cancelGraceMs: AI_HOST_TIMEOUTS.cancelGraceMs };
 
 let results: Results | null = null;
 try {

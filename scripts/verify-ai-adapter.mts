@@ -241,6 +241,53 @@ console.log("\nCancellation and timeout:\n");
   await service.shutdown();
 }
 
+console.log("\nA cancel the host cannot honour kills and restarts it (awkit-g555):\n");
+// The fake's `killOnCancel` stands in for an inference stuck in prompt evaluation: the manager kills
+// the host, so the model is gone. Each case asserts the next job re-handshakes AND reloads, because
+// a service that believed the model was still loaded would send it to a host that has none.
+const stuckFirst = () => {
+  let first = true;
+  return () => (first ? ((first = false), { hang: true, killOnCancel: true }) : GOOD);
+};
+{
+  const { fake, service } = harness({ fake: { respond: stuckFirst() } });
+  const running = service.submit(job("g-user"));
+  check("(precondition) the stuck job reaches the host", await until(() => fake.inferRequests().length === 1));
+  check("cancel finds it", service.cancel("g-user"));
+  check("a user cancel ends cancelled even though the host had to be killed", (await running).status === "cancelled");
+  check("(precondition) the host was killed, not crashed", fake.kills === 1 && fake.crashes === 0, `kills ${fake.kills}, crashes ${fake.crashes}`);
+  const next = await service.submit(job("g-user-next"));
+  check("the next job runs on the restarted host", next.status === "ok", code(next));
+  check("...after a fresh handshake and model load", fake.requestTypes().join(",") === "hello,load,infer,cancel,hello,load,infer", fake.requestTypes().join(","));
+  await service.shutdown();
+}
+{
+  const { fake, service, setView } = harness({ fake: { respond: stuckFirst() } });
+  const pending = service.submit(job("g-yield"));
+  check("(precondition) the stuck job reaches the host", await until(() => fake.inferRequests().length === 1));
+  setView({ activeRuns: 1 });
+  check("a run starting kills the stuck host", await until(() => fake.kills === 1));
+  await sleep(30);
+  const held = await service.status();
+  check("the job is requeued as a yield, not failed", held.queueDepth === 1 && held.holdReason === "RUNS_ACTIVE", JSON.stringify(held));
+  setView({ activeRuns: 0 });
+  service.notifyAdmissionChanged();
+  const outcome = await pending;
+  check("it completes once the run ends, counting one yield", outcome.status === "ok" && outcome.yields === 1, code(outcome));
+  check("...on a re-handshaken host with the model reloaded", fake.requestTypes().filter((type) => type === "load").length === 2, fake.requestTypes().join(","));
+  await service.shutdown();
+}
+{
+  const { fake, service } = harness({ fake: { respond: stuckFirst() } });
+  const timedOut = await service.submit(job("g-late", { timeoutMs: 40 }));
+  check("a stuck job still fails with TIMEOUT", code(timedOut) === "failed/TIMEOUT", code(timedOut));
+  check("(precondition) the cancel after the deadline killed the host", fake.kills === 1, String(fake.kills));
+  const next = await service.submit(job("g-late-next"));
+  check("the next job runs on the restarted host after a reload", next.status === "ok" && fake.requestTypes().filter((type) => type === "load").length === 2, `${code(next)} ${fake.requestTypes().join(",")}`);
+  check("...and never overlapped the killed one", fake.maxConcurrentInferences === 1, String(fake.maxConcurrentInferences));
+  await service.shutdown();
+}
+
 console.log("\nOutput contract:\n");
 {
   const cases: Array<[string, string, string]> = [

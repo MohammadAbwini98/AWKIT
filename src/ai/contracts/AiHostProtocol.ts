@@ -32,6 +32,8 @@ export type AiHostReason =
   | "AI_HOST_INTERNAL_ERROR"
   // ── raised by the manager, never by the host ──
   | "AI_HOST_EXITED"
+  /** A cancel the host did not honour within `cancelGraceMs`, so the manager killed it (the model is gone). */
+  | "AI_HOST_KILLED_ON_CANCEL"
   | "AI_HOST_TIMEOUT"
   | "AI_HOST_UNAVAILABLE"
   | "AI_RUNTIME_INCOMPATIBLE"
@@ -123,6 +125,13 @@ export const AI_HOST_TIMEOUTS = {
   /** A 4B Q4 model loads in seconds from a warm cache; a cold disk is slower. */
   loadMs: 120_000,
   cancelMs: 2_000,
+  /**
+   * How long a cancelled inference may keep the host before the manager kills and lazily restarts
+   * it (awkit-g555). The runtime did not observe an abort until prompt evaluation ended: 74 s,
+   * measured. Kept under the 3 s L1.8 cancel ceiling with room for the kill. A cancel the host
+   * honours inside it costs no reload.
+   */
+  cancelGraceMs: 1_000,
   unloadMs: 5_000,
   gracefulShutdownMs: 2_000,
   terminateGraceMs: 250

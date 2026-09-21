@@ -32,6 +32,7 @@ import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
 import {
   AI_HOST_PROTOCOL_VERSION,
+  AI_HOST_TIMEOUTS,
   AiHostCallError,
   type AiHostHello,
   type AiInferResult
@@ -313,6 +314,93 @@ async function protocolMode(): Promise<void> {
     return { state: fresh.status().state };
   });
   await expectReason("a disposed manager refuses calls", () => fresh.call(HELLO, 15_000), "AI_DISPOSED");
+
+  await killOnCancelSteps(modelRoot);
+}
+
+/**
+ * awkit-g555. The runtime ignores an abort during prompt evaluation, which needs a model to
+ * reproduce, so a stub host stands in for it: its inference never answers and its cancel is not
+ * honoured, except for a job whose id starts with "honour", which answers "cancelled" at once. Only
+ * the production manager is under test here, and the stub speaks its real protocol.
+ */
+const STUB_HOST = `
+const port = process.parentPort;
+const running = new Map();
+const answer = (id, value) => port.postMessage({ version: 1, id, ok: true, value });
+port.on("message", ({ data: m }) => {
+  if (m.type === "hello") answer(m.id, { protocolVersion: 1, compatible: true, runtime: { name: "stub", build: "stub" }, platform: process.platform, arch: process.arch });
+  else if (m.type === "infer") running.set(m.jobId, m.id);
+  else if (m.type === "cancel") {
+    const inferId = running.get(m.jobId);
+    if (inferId && m.jobId.startsWith("honour")) {
+      running.delete(m.jobId);
+      answer(inferId, { text: "", promptTokens: 1, outputTokens: 0, stopReason: "cancelled", timings: { promptMs: 0, generationMs: 0, firstTokenMs: 0 } });
+    }
+    answer(m.id, { cancelled: Boolean(inferId) });
+  } else if (m.type === "shutdown") {
+    answer(m.id, {});
+    setTimeout(() => process.exit(0), 10);
+  } else port.postMessage({ version: 1, id: m.id, ok: false, reason: "AI_UNKNOWN_REQUEST", retryable: false });
+});
+port.postMessage({ version: 1, type: "ready", pid: process.pid });
+`;
+
+async function killOnCancelSteps(modelRoot: string): Promise<void> {
+  const stubPath = path.join(path.dirname(modelRoot), "stub-ai-host.cjs");
+  fs.writeFileSync(stubPath, STUB_HOST);
+  const stuck = new AiUtilityHostManager({ hostPath: stubPath, modelRoot, log: (level, message) => logLines.push(`${level}: ${message}`) });
+  const reasonOf = (promise: Promise<unknown>) => promise.then(() => "settled", (error: unknown) => (error instanceof AiHostCallError ? error.reason : String(error)));
+  const infer = (jobId: string, timeoutMs = 60_000) =>
+    stuck.call<AiInferResult>(
+      { type: "infer", jobId, system: "s", user: "u", jsonSchema: { type: "boolean" }, maxPromptTokens: 64, maxOutputTokens: 4, thinking: false, temperature: 0, seed: 0 },
+      timeoutMs
+    );
+  const cancel = (jobId: string) => stuck.call({ type: "cancel", jobId }, AI_HOST_TIMEOUTS.cancelMs);
+
+  await step("(precondition) the stuck stub host starts", () => stuck.call<AiHostHello>(HELLO, 15_000));
+  const stuckPid = stuck.status().pid;
+  await step("a cancel the host cannot honour kills it within the 3 s ceiling", async () => {
+    const running = reasonOf(infer("stuck#1"));
+    await sleep(300);
+    const cancelledAt = Date.now();
+    const cancelled = await reasonOf(cancel("stuck#1"));
+    const inference = await running;
+    const latencyMs = Date.now() - cancelledAt;
+    if (inference !== "AI_HOST_KILLED_ON_CANCEL" || cancelled !== "AI_HOST_KILLED_ON_CANCEL") throw new Error(`inference ${inference}, cancel ${cancelled}`);
+    if (latencyMs < AI_HOST_TIMEOUTS.cancelGraceMs || latencyMs > 3_000) throw new Error(`settled after ${latencyMs} ms`);
+    if (isAlive(stuckPid)) throw new Error("the stuck host is still running");
+    return { latencyMs };
+  });
+  await step("...as an intentional exit: no restart strike, circuit closed", () => {
+    const status = stuck.status();
+    if (status.unexpectedExits !== 0 || status.circuitOpen || status.state !== "stopped") throw new Error(JSON.stringify(status));
+    return status;
+  });
+  await step("the next call starts a fresh host", async () => {
+    await stuck.call<AiHostHello>(HELLO, 15_000);
+    const status = stuck.status();
+    if (!status.pid || status.pid === stuckPid || status.state !== "ready") throw new Error(JSON.stringify(status));
+    return status;
+  });
+  await step("a cancel the host honours in time kills nothing", async () => {
+    const pid = stuck.status().pid;
+    const running = infer("honour#1");
+    await sleep(100);
+    await cancel("honour#1");
+    const result = await running;
+    await sleep(AI_HOST_TIMEOUTS.cancelGraceMs + 500);
+    if (result.stopReason !== "cancelled" || stuck.status().pid !== pid || !isAlive(pid)) throw new Error(`stop ${result.stopReason}, pid ${stuck.status().pid} vs ${pid}`);
+    return { pid };
+  });
+  await step("a cancel after its caller timed out still frees the host", async () => {
+    const pid = stuck.status().pid;
+    const timedOut = await reasonOf(infer("late#1", 200));
+    const cancelled = await reasonOf(cancel("late#1"));
+    if (timedOut !== "AI_HOST_TIMEOUT" || cancelled !== "AI_HOST_KILLED_ON_CANCEL" || isAlive(pid)) throw new Error(`timeout ${timedOut}, cancel ${cancelled}, alive ${isAlive(pid)}`);
+    return { cancelled };
+  });
+  await stuck.dispose();
 }
 
 // ── live ─────────────────────────────────────────────────────────────────────────────────────────
