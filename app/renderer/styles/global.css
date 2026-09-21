@@ -1583,6 +1583,65 @@ div.validation-issue-row {
   color: var(--awkit-info);
 }
 
+/* L4b: local-AI explanations inside the validation panel. Always labelled, never a validator message. */
+.validation-issue-badge.ai {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-info-text);
+  margin-left: auto;
+}
+
+.ai-assist-bar {
+  align-items: center;
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-2);
+}
+
+.ai-assist-label {
+  align-items: center;
+  color: var(--awkit-info-text);
+  display: inline-flex;
+  font-weight: var(--weight-semibold);
+  gap: var(--space-1);
+}
+
+.ai-assist-message,
+.ai-assist-note {
+  color: var(--awkit-text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-assist-message.error {
+  color: var(--awkit-danger);
+}
+
+.ai-assist-fixes {
+  align-items: center;
+  color: var(--awkit-text);
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ai-explanation {
+  border-left: 2px solid var(--awkit-info-muted);
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  margin: 0 var(--space-2) var(--space-1) var(--space-4);
+  overflow-wrap: anywhere;
+  padding: var(--space-1) var(--space-2);
+}
+
+.ai-explanation-label {
+  color: var(--awkit-info-text);
+  font-weight: var(--weight-semibold);
+}
+
 /* Stage 2c: validate-on-load banner (Flow Designer) + safe-fix preview dialog. */
 .validation-load-banner {
   align-items: center;

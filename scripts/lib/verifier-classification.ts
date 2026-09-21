@@ -424,6 +424,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Drives the real Electron Flow Designer: the locator-upgrade panel renders the lifecycle state, the Apply control is offered only when the main process says the promotion is permitted, an unsaved editor defers it, and the applied upgrade's one-click revert restores the saved locator on disk."
   },
+  "verify:ai-assist-gui": {
+    class: "real-browser",
+    why: "Drives the real Electron Flow Designer through the L4b authoring assist with the deterministic test provider (AWKIT_TEST_AI_PROVIDER, non-packaged builds only): the open flow crosses real IPC, main re-validates it and answers through the production AiService, each labelled explanation renders under the validator finding it names, the fix order marks only validator-fixable findings and applying still opens the deterministic preview, an edit withholds the stale answer, cancel releases the job in main, a refused answer renders none of its text, AI switched off disables the control while every finding still lists and navigates, and the saved flow stays byte-identical throughout. Says nothing about live-model quality or latency."
+  },
   "verify:ai-locator-status": {
     class: "unit",
     why: "L3 §10 Intelligent Locator status vocabulary: every badge and lifecycle state derived from real FlowProfile fixtures through the same describeFlowLocatorUpgrades the IPC channel calls, asserting that a proposal is never reported as applied, capture proof is not replay eligibility and replay eligibility is not authorization, one refused replay is terminal, a stale or T3 or policy refusal keeps its own sentence rather than a shared fallback, absent proof evidence renders as unavailable rather than as a passed gate, an applied upgrade names its tier, proof, model and retained revert target, and no typed value, named secret, prompt text or data-row key reaches a view or an evidence row."

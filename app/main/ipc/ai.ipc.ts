@@ -2,8 +2,9 @@
  * Local-AI IPC (Phase L, L1.1 and L1.5).
  *
  * Every channel is authorized in the MAIN process before it touches the subsystem; the renderer's
- * checks only decide what to render. There is deliberately no channel that runs a prompt, names a
- * model file or returns a filesystem path: model import opens its file dialog here, in main.
+ * checks only decide what to render. There is deliberately no channel that carries prompt text, names
+ * a model file or returns a filesystem path: an assist job names data that main re-validates and
+ * builds its own prompt from, and model import opens its file dialog here, in main.
  *
  * Read channels throw on denial (nothing for the renderer to recover); mutating channels answer with
  * a code, because a stale re-authentication window on `ai.manage` is the ordinary case for an
@@ -25,16 +26,21 @@ import {
   type AiDiagnosticsView,
   type AiSettingsView,
   type AiStatusView,
+  type AuthoringAssistView,
   type FlowLocatorUpgradesView
 } from "@src/ai/contracts/AiApi";
 import { Permission } from "@src/security/authz/Permissions";
 
+import { createFlowProfileStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
+import { cancelAssist, explainFlowValidation, type AiAssistDeps } from "../ai/aiAssist";
 import {
   aiAuditView,
   aiDiagnosticsView,
+  aiPolicyConfig,
   aiSettingsView,
   aiStatusView,
+  getAiService,
   importAiModelPack,
   removeAiModelPack,
   restoreAiFeature,
@@ -46,6 +52,14 @@ import { clearFlowEditorState, flowLocatorUpgrades, promoteFlowLocatorUpgrade, s
 async function authorize(event: IpcMainInvokeEvent, permission: Permission, sensitive: boolean): Promise<AiAdminResponse | null> {
   const auth = await authorizeAiAction(() => assertSenderPermission(event, permission, { sensitive }));
   return auth.ok ? null : { code: auth.code, ok: false, message: auth.message };
+}
+
+function assistDeps(): AiAssistDeps {
+  return {
+    submit: (job) => getAiService().submit(job),
+    policy: aiPolicyConfig,
+    savedFlowIds: async () => (await createFlowProfileStore().list()).map((flow) => flow.id)
+  };
 }
 
 export function registerAiIpc(): void {
@@ -114,6 +128,24 @@ export function registerAiIpc(): void {
     // A window that closes while it still claims a dirty flow would block promotion for ever.
     if (parsed) sender.once("destroyed", () => clearFlowEditorState(sender.id));
     return { code: "OK", ok: true };
+  });
+
+  // L4b. The renderer sends the flow it has open (saved or not); main re-validates it and builds the
+  // prompt itself, so no renderer string becomes prompt text. It reads, never writes: AI_USE plus
+  // WORKFLOW_VIEW, the same pair as listing upgrades. Applying a ranked fix stays validation IPC.
+  ipcMain.handle("ai:explainValidation", async (event, request: unknown): Promise<AuthoringAssistView> => {
+    const denied = (await authorize(event, Permission.AI_USE, false)) ?? (await authorize(event, Permission.WORKFLOW_VIEW, false));
+    if (denied) {
+      const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
+      return { code, ok: false, message: denied.message, explanations: [], ranking: [], truncated: 0 };
+    }
+    return explainFlowValidation(event.sender.id, request, assistDeps());
+  });
+
+  // Cancels only the asking window's own job: main prefixes the id with the sender's id.
+  ipcMain.handle("ai:cancelAssist", async (event, requestId: unknown): Promise<AiAdminResponse> => {
+    await assertSenderPermission(event, Permission.AI_USE);
+    return cancelAssist(event.sender.id, requestId, (jobId) => getAiService().cancel(jobId));
   });
 
   ipcMain.handle("ai:importModelPack", async (event): Promise<AiAdminResponse> => {

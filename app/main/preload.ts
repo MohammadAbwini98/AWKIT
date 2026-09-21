@@ -22,6 +22,8 @@ import type {
   AiDiagnosticsView,
   AiSettingsView,
   AiStatusView,
+  AuthoringAssistRequest,
+  AuthoringAssistView,
   FlowLocatorUpgradesView,
   LocatorPromotionRequest
 } from "@src/ai/contracts/AiApi";
@@ -405,8 +407,8 @@ const api = {
       invoke("semantic:updateSettings", patch) as Promise<SemanticAdminResponse>
   },
   /**
-   * Optional local AI (Phase L, L1). Status, settings, the model pack, diagnostics, the audit log and
-   * revert only: there is no channel that runs a prompt, names a model file or returns a path. Every
+   * Optional local AI (Phase L, L1). Status, settings, the model pack, diagnostics, the audit log,
+   * revert and named assist jobs: no channel carries prompt text, names a model file or returns a path. Every
    * method is authorized in main; settings, restore, import and remove also require re-authentication.
    */
   ai: {
@@ -422,6 +424,9 @@ const api = {
     listUpgrades: (flowId: string) => invoke("ai:listUpgrades", flowId) as Promise<FlowLocatorUpgradesView>,
     promoteUpgrade: (request: LocatorPromotionRequest) => invoke("ai:promoteUpgrade", request) as Promise<AiAdminResponse>,
     setEditorState: (state: { flowId: string; dirty: boolean } | null) => invoke("ai:setEditorState", state) as Promise<AiAdminResponse>,
+    // L4b. Names the open flow; main re-validates it and builds the prompt. Cancel reaches only this window's jobs.
+    explainValidation: (request: AuthoringAssistRequest) => invoke("ai:explainValidation", request) as Promise<AuthoringAssistView>,
+    cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>
   },

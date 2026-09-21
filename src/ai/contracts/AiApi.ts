@@ -5,17 +5,19 @@
  * handlers and their verifiers apply identical rules (the `SemanticApi.ts` pattern: unknown
  * properties are dropped, present-but-malformed values are errors, codes not messages).
  *
- * The renderer gets status, settings, the model pack, diagnostics, the audit log and revert. It never
- * gets a channel that runs a prompt, names a model file, starts a process or returns a path: model
- * import picks its file in the main process.
+ * The renderer gets status, settings, the model pack, diagnostics, the audit log and revert, plus
+ * named assist jobs (L4b). It never gets a channel that carries prompt text, names a model file,
+ * starts a process or returns a path: an assist request names data main re-validates and builds the
+ * prompt from itself, and model import picks its file in the main process.
  *
  * Framework-agnostic and renderer-safe: types and pure functions only.
  */
 
 import { authorizeSemanticAction } from "../../semantic/contracts/SemanticApi";
-import type { LocatorCandidate, LocatorContext, PendingProofEvidence } from "../../profiles/FlowProfile";
+import type { FlowProfile, LocatorCandidate, LocatorContext, PendingProofEvidence } from "../../profiles/FlowProfile";
 import type { LocatorQualityClass } from "../../recorder/LocatorQualityClass";
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
+import type { FlowValidationIssue } from "../../validation/FlowValidator";
 import type { AiActionRecord } from "../AiActionRecord";
 import type { LocatorPromotionRefusal } from "../locatorPromotion";
 import type { PendingUpgradeState } from "../pendingUpgrade";
@@ -216,6 +218,77 @@ export function sanitizeFlowEditorState(input: unknown): { flowId: string; dirty
   const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
   const flowId = raw ? sanitizeProfileId(raw.flowId) : null;
   return flowId && typeof raw?.dirty === "boolean" ? { flowId, dirty: raw.dirty } : null;
+}
+
+/**
+ * Outcome of one user-requested AI assist job (L4b now; L5b and L6 reuse it). Codes only: when the
+ * model's answer is refused the renderer learns `OUTPUT_REJECTED`, never what the answer said.
+ */
+export type AiAssistCode =
+  | "OK"
+  /** The validator found nothing, so there is nothing to ask. */
+  | "NOTHING_TO_ASK"
+  /** The feature's policy forbids it (a tier or a demotion), with the master switch on. */
+  | "FORBIDDEN"
+  | "DISABLED"
+  | "UNAVAILABLE"
+  /** The queue is full, or active runs kept the job waiting past its yield limit. */
+  | "BUSY"
+  | "CANCELLED"
+  | "TIMEOUT"
+  | "FAILED"
+  | "OUTPUT_REJECTED"
+  | "INVALID_REQUEST"
+  | "REAUTH_REQUIRED"
+  | "NOT_AUTHORIZED";
+
+export interface AiAssistStatus {
+  code: AiAssistCode;
+  ok: boolean;
+  /** Short, product-authored sentence; never model or runtime text. */
+  message?: string;
+  modelId?: string;
+}
+
+/** L4b: explain the validation report of the flow the renderer has open, saved or not. */
+export interface AuthoringAssistRequest {
+  /** The renderer's cancellation key. Main scopes it to the asking window. */
+  requestId: string;
+  /** Validated again in main; it only NAMES what to validate, it is never prompt text. */
+  profile: FlowProfile;
+}
+
+export interface AuthoringAssistView extends AiAssistStatus {
+  /** T0 prose, each attached to the validator's own issue. Always shown labelled as AI. */
+  explanations: Array<{ issue: FlowValidationIssue; text: string }>;
+  /** T1: validator-emitted safe-fix issues in the suggested order. Empty unless the tier permits suggesting. */
+  ranking: FlowValidationIssue[];
+  /** Issues beyond the per-request cap that were not sent, so the UI never implies completeness. */
+  truncated: number;
+}
+
+export const AI_ASSIST_MAX_NODES = 2_000;
+const ASSIST_REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
+
+export function sanitizeAssistRequestId(input: unknown): string | null {
+  return typeof input === "string" && ASSIST_REQUEST_ID.test(input) ? input : null;
+}
+
+/**
+ * Rebuild an L4b request from its known fields. Shape only: nothing here trusts the profile, which
+ * main validates with the real `FlowValidator` and never persists.
+ */
+export function sanitizeAuthoringAssistRequest(input: unknown): AuthoringAssistRequest | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
+  const profile = raw && typeof raw.profile === "object" && raw.profile !== null ? (raw.profile as Record<string, unknown>) : null;
+  if (!requestId || !profile) return null;
+  const id = sanitizeProfileId(profile.id);
+  const nodes = profile.nodes;
+  const edges = profile.edges ?? [];
+  if (!id || !Array.isArray(nodes) || !Array.isArray(edges)) return null;
+  if (nodes.length > AI_ASSIST_MAX_NODES || edges.length > AI_ASSIST_MAX_NODES * 2) return null;
+  return { requestId, profile: { ...(profile as unknown as FlowProfile), id, nodes, edges } };
 }
 
 /**

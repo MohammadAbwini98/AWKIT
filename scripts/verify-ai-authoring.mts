@@ -36,9 +36,13 @@ import {
   type AuthoringRequest
 } from "@src/ai/authoringExplanation";
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
+import { AI_ASSIST_MAX_NODES } from "@src/ai/contracts/AiApi";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
+import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
 import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
+
+import { cancelAssist, explainFlowValidation, type AiAssistDeps } from "../app/main/ai/aiAssist";
 
 let passed = 0;
 let failed = 0;
@@ -330,6 +334,109 @@ const afterAll = validateFlowDefinition(brokenFlow);
 check("re-validating the same profile gives the same issue codes", JSON.stringify(afterAll.issues.map((i) => i.code)) === JSON.stringify(report.issues.map((i) => i.code)));
 check("...the same severities", JSON.stringify(afterAll.issues.map((i) => i.severity)) === JSON.stringify(report.issues.map((i) => i.severity)));
 check("...and the same emitted fixes", JSON.stringify(afterAll.issues.map((i) => i.safeFix?.kind ?? null)) === JSON.stringify(report.issues.map((i) => i.safeFix?.kind ?? null)));
+
+// ── 9. The main-process adapter behind ai:explainValidation ─────────────────────────────────────
+// `app/main/ai/aiAssist.ts` is what the IPC channel calls. Driven here with the real AiService over
+// the deterministic transport, so every negative control below is the production decision.
+console.log("\n9 — the main-process adapter behind ai:explainValidation");
+const WINDOW = 7;
+const OTHER_WINDOW = 8;
+const assistDeps = (service: AiService, policy: AiPolicyConfig = POLICY, savedFlowIds: string[] = []): AiAssistDeps => ({
+  submit: (job) => service.submit(job),
+  policy: async () => policy,
+  savedFlowIds: async () => savedFlowIds
+});
+
+const viaIpc = harness([good]);
+const rendererProfile = structuredClone(brokenFlow);
+const rendererBefore = JSON.stringify(rendererProfile);
+const view = await explainFlowValidation(WINDOW, { requestId: "ui-1", profile: rendererProfile }, assistDeps(viaIpc.service));
+check("a renderer request is answered", view.ok && view.code === "OK", JSON.stringify(view).slice(0, 300));
+check(
+  "...each explanation attached to the validator's own issue",
+  view.explanations.length === 3 && view.explanations.every((e, i) => e.issue.code === request.issues[i].issue.code && e.issue.message === request.issues[i].issue.message)
+);
+check("...the ranking is the validator-emitted fix, as an issue the UI can place", view.ranking.length === 1 && view.ranking[0].safeFix !== undefined, JSON.stringify(view.ranking));
+check("...and the model is named", view.modelId === "fake-l4b-model");
+check("the renderer's profile is never modified", JSON.stringify(rendererProfile) === rendererBefore);
+const ipcPrompt = viaIpc.fake.inferRequests().map((r) => `${r.system}\n${r.user}`).join("\n");
+check("exactly one model call was made", viaIpc.calls() === 1, String(viaIpc.calls()));
+check("the IPC path sends no step name, typed value or locator either", ![SECRET_NAME, SECRET_VALUE, SECRET_LOCATOR].some((s) => ipcPrompt.includes(s)));
+await viaIpc.service.shutdown();
+
+// Ranking lowered to T0 by an administrator: explanations still arrive, the fix order does not.
+const lowRank = harness([good]);
+const lowView = await explainFlowValidation(WINDOW, { requestId: "ui-2", profile: brokenFlow }, assistDeps(lowRank.service, { enabled: true, featureTiers: { safeFixRanking: "T0" } }));
+check("with ranking lowered to T0 the explanations still arrive", lowView.ok && lowView.explanations.length === 3, JSON.stringify(lowView).slice(0, 200));
+check("...but the fix order is withheld, not shown as a plain interpretation", lowView.ranking.length === 0);
+await lowRank.service.shutdown();
+
+// The master switch refuses before the model is asked.
+const switchedOff = harness([good]);
+const offView = await explainFlowValidation(WINDOW, { requestId: "ui-3", profile: brokenFlow }, assistDeps(switchedOff.service, { enabled: false }));
+check("AI switched off answers DISABLED", !offView.ok && offView.code === "DISABLED", JSON.stringify(offView));
+check("...without asking the model", switchedOff.calls() === 0);
+await switchedOff.service.shutdown();
+
+// Malformed requests are refused before validation, and never reach the model.
+const strict = harness([good]);
+const malformed: Array<[string, unknown]> = [
+  ["a non-object request", "flow-l4b"],
+  ["a missing request id", { profile: brokenFlow }],
+  ["a request id with a path separator", { requestId: "../x", profile: brokenFlow }],
+  ["an over-long request id", { requestId: "r".repeat(65), profile: brokenFlow }],
+  ["a profile id with a path separator", { requestId: "ui-4", profile: { ...brokenFlow, id: "a/b" } }],
+  ["a profile without a node list", { requestId: "ui-5", profile: { ...brokenFlow, nodes: "all" } }],
+  ["a profile over the node bound", { requestId: "ui-6", profile: { ...brokenFlow, nodes: Array.from({ length: AI_ASSIST_MAX_NODES + 1 }, (_, i) => ({ id: `n${i}`, type: "click", name: "x" })) } }]
+];
+for (const [label, input] of malformed) {
+  const refused = await explainFlowValidation(WINDOW, input, assistDeps(strict.service));
+  check(`${label} is refused as INVALID_REQUEST`, !refused.ok && refused.code === "INVALID_REQUEST", JSON.stringify(refused).slice(0, 200));
+}
+check("...and none of them reached the model", strict.calls() === 0, String(strict.calls()));
+await strict.service.shutdown();
+
+// A model answer that overreaches is discarded whole, and its text never reaches the renderer.
+const overreach = harness([JSON.stringify({ version: 1, explanations: [{ issueId: ids[0], text: "MODEL-SAYS-Zebra" }], ranking: [unfixableId] })]);
+const overView = await explainFlowValidation(WINDOW, { requestId: "ui-7", profile: brokenFlow }, assistDeps(overreach.service));
+check("an answer ranking an unfixable issue is refused as OUTPUT_REJECTED", !overView.ok && overView.code === "OUTPUT_REJECTED", JSON.stringify(overView));
+check("...with nothing from it shown, not even the valid-looking explanation", overView.explanations.length === 0 && !JSON.stringify(overView).includes("MODEL-SAYS"));
+await overreach.service.shutdown();
+
+// Nothing to ask about.
+const idle = harness([good]);
+const cleanProfile = { id: "flow-clean", name: "Clean", version: 1, nodes: [{ id: "s", type: "start", name: "Start" }, { id: "c", type: "click", name: "Click ok", locator: { strategy: "testId", value: "ok" } }, { id: "e", type: "end", name: "End" }], edges: [{ id: "a", source: "s", target: "c" }, { id: "b", source: "c", target: "e" }] };
+const cleanView = await explainFlowValidation(WINDOW, { requestId: "ui-8", profile: cleanProfile }, assistDeps(idle.service));
+check("a clean flow answers NOTHING_TO_ASK without a model call", cleanView.code === "NOTHING_TO_ASK" && idle.calls() === 0, JSON.stringify(cleanView));
+
+// Main validates with the saved library, exactly like the designer: a reference to a saved flow is not a finding.
+const refProfile = { ...cleanProfile, id: "flow-ref", nodes: [...cleanProfile.nodes.slice(0, 2), { id: "r", type: "runFlow", name: "Run child", flowId: "child-flow" }, cleanProfile.nodes[2]], edges: [{ id: "a", source: "s", target: "c" }, { id: "b", source: "c", target: "r" }, { id: "d", source: "r", target: "e" }] };
+const refUnknown = await explainFlowValidation(WINDOW, { requestId: "ui-9", profile: refProfile }, assistDeps(idle.service, POLICY, []));
+check("a run-flow target that is not saved is a finding to explain", refUnknown.code !== "NOTHING_TO_ASK", JSON.stringify(refUnknown).slice(0, 200));
+const refKnown = await explainFlowValidation(WINDOW, { requestId: "ui-10", profile: refProfile }, assistDeps(idle.service, POLICY, ["child-flow"]));
+check("...and with that flow saved there is nothing to ask", refKnown.code === "NOTHING_TO_ASK", JSON.stringify(refKnown).slice(0, 200));
+await idle.service.shutdown();
+
+// Cancellation reaches only the asking window's own job.
+const slow = harness([{ hang: true }]);
+const pendingView = explainFlowValidation(WINDOW, { requestId: "ui-hang", profile: brokenFlow }, assistDeps(slow.service));
+const hangDeadline = Date.now() + 5_000;
+while (slow.calls() === 0 && Date.now() < hangDeadline) await new Promise((r) => setTimeout(r, 10));
+check("the hanging job reached the model (precondition for the cancel checks)", slow.calls() === 1);
+const foreign = cancelAssist(OTHER_WINDOW, "ui-hang", (id) => slow.service.cancel(id));
+check("another window cannot cancel it", !foreign.ok && foreign.code === "NOT_FOUND", JSON.stringify(foreign));
+check("a malformed cancel id is refused", cancelAssist(WINDOW, "../ui-hang", (id) => slow.service.cancel(id)).code === "INVALID_REQUEST");
+const own = cancelAssist(WINDOW, "ui-hang", (id) => slow.service.cancel(id));
+check("the asking window can", own.ok, JSON.stringify(own));
+const cancelledView = await pendingView;
+check("...and the request answers CANCELLED", cancelledView.code === "CANCELLED" && cancelledView.explanations.length === 0, JSON.stringify(cancelledView));
+await slow.service.shutdown();
+
+// A timeout and a host failure are codes, never runtime text.
+const failing = harness([{ fail: "AI_HOST_EXITED" }]);
+const failView = await explainFlowValidation(WINDOW, { requestId: "ui-11", profile: brokenFlow }, assistDeps(failing.service));
+check("a host failure answers FAILED with a product sentence", !failView.ok && failView.code === "FAILED" && !/AI_HOST/.test(JSON.stringify(failView)), JSON.stringify(failView));
+await failing.service.shutdown();
 
 console.log(`\nL4b authoring explanations and fix ranking: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

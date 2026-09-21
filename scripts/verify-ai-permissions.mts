@@ -107,6 +107,9 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     "ai:listUpgrades": [["AI_USE", "WORKFLOW_VIEW"], false],
     "ai:promoteUpgrade": [["AI_USE", "WORKFLOW_EDIT"], false],
     "ai:setEditorState": [["WORKFLOW_EDIT"], false],
+    // L4b: an explanation reads a flow and writes nothing; cancel reaches only the caller's own job.
+    "ai:explainValidation": [["AI_USE", "WORKFLOW_VIEW"], false],
+    "ai:cancelAssist": [["AI_USE"], false],
     "ai:importModelPack": [["AI_MANAGE"], true],
     "ai:removeModelPack": [["AI_MANAGE"], true]
   };
@@ -124,7 +127,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|importAiModelPack|removeAiModelPack|showOpenDialog/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }
@@ -136,6 +139,22 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
   check("the preload exposes exactly the gated channels", exposed.join() === Object.keys(EXPECTED_CHANNELS).sort().join(), exposed.join());
   const everyAiInvoke = [...preload.matchAll(/invoke\("(ai:[A-Za-z]+)"/g)].map((m) => m[1]);
   check("no ai channel is invoked outside that namespace", everyAiInvoke.length === exposed.length, everyAiInvoke.join());
+}
+
+console.log("\nThe test AI provider cannot be reached from a packaged build:\n");
+{
+  // AWKIT_TEST_AI_PROVIDER swaps the model transport for a scripted one so GUI verifiers can drive
+  // the real app. A shipped build must never read it: the packaged check has to come first, and the
+  // variable must be read nowhere else. Static, like verify:security's SEC-006 gate check, because
+  // no verifier here can run a packaged build.
+  const runtime = await readFile("app/main/ai/aiRuntime.ts", "utf8");
+  const body = /function testProviderDeps\([^]*?\n\}/.exec(runtime)?.[0] ?? "";
+  check("the test provider has one reader to inspect", body.length > 0);
+  const gate = body.indexOf("if (app.isPackaged) return null;");
+  const read = body.indexOf("process.env[TEST_PROVIDER_ENV]");
+  check("it returns before reading the variable in a packaged build", gate >= 0 && read > gate, `gate@${gate} read@${read}`);
+  const readers = [...runtime.matchAll(/TEST_PROVIDER_ENV\]|AWKIT_TEST_AI_PROVIDER/g)].length;
+  check("...and the variable is read nowhere else", readers === 2, String(readers));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -17,7 +17,8 @@ import { deriveInferenceThreads } from "@src/ai/AiAdmission";
 import { AiActionStore, type AiAppendResult } from "@src/ai/AiActionStore";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
-import { AiService } from "@src/ai/AiService";
+import { AiService, type AiServiceDeps } from "@src/ai/AiService";
+import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
 import type {
   AiAdminResponse,
@@ -81,7 +82,41 @@ function transport(): AiUtilityHostManager | null {
 
 const inferenceThreads = (): number => deriveInferenceThreads(detectMachineCapabilities("local").logicalCpuCount);
 
+/**
+ * Test-only deterministic provider for the real-Electron GUI verifiers — the `AWKIT_TEST_LICENSE_BYPASS`
+ * pattern. The variable names a JSON file holding ONE `FakeInferStep`, re-read on every inference so a
+ * verifier can script the next answer. `app.isPackaged` is checked first, so a shipped build never even
+ * reads the variable, and no setting, flag or IPC call reaches it. It replaces the transport and the
+ * model pack only: the queue, admission, prompt builder and output contract stay the production ones.
+ */
+const TEST_PROVIDER_ENV = "AWKIT_TEST_AI_PROVIDER";
+
+function testProviderDeps(): Pick<AiServiceDeps, "transport" | "model" | "verifyModel" | "expectedRuntimeBuild"> | null {
+  if (app.isPackaged) return null;
+  const script = process.env[TEST_PROVIDER_ENV];
+  if (!script) return null;
+  const modelRoot = join(aiRoot(), "test-provider");
+  const fake = new FakeAiHostTransport({
+    modelRoot,
+    respond: (): FakeInferStep => {
+      try {
+        return JSON.parse(fs.readFileSync(script, "utf8")) as FakeInferStep;
+      } catch {
+        return { text: "{}" };
+      }
+    }
+  });
+  logAi("warn", "test AI provider active (non-packaged build)");
+  return {
+    transport: () => fake,
+    model: async () => ({ ok: true, modelId: "test-deterministic-provider", modelPath: join(modelRoot, "test.gguf"), contextTokens: 4096 }),
+    verifyModel: async () => true,
+    expectedRuntimeBuild: undefined
+  };
+}
+
 export function getAiService(): AiService {
+  const testProvider = service ? null : testProviderDeps();
   service ??= new AiService({
     transport,
     model: async () => {
@@ -111,7 +146,8 @@ export function getAiService(): AiService {
     admission: () => executionEngine.getAiAdmissionView(),
     threads: inferenceThreads(),
     expectedRuntimeBuild: AI_RUNTIME_PIN.build ?? undefined,
-    log: logAi
+    log: logAi,
+    ...testProvider
   });
   return service;
 }

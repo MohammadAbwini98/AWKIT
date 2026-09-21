@@ -14,8 +14,9 @@ import {
   type Viewport
 } from "../components/canvas";
 import { Blocks, Bookmark, FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
+import { AuthoringAssistBar, useAuthoringAssist } from "../components/workflow/AuthoringAssist";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
 import { buildConnectorVisual } from "../components/shared/connectorStyle";
 import { useModalFocusContract } from "../components/shared/useModalFocusContract";
@@ -405,6 +406,8 @@ function FlowChartDesignerContent() {
   // Dirty only when the saveable document differs from the last saved/loaded snapshot.
   const docSnapshot = useMemo(() => serializeFlowDoc(flowProfile), [flowProfile]);
   const isDirty = savedSnapshot !== "" && docSnapshot !== savedSnapshot;
+  // L4b: AI explanations of the findings, tied to this exact document snapshot.
+  const authoringAssist = useAuthoringAssist(flowId, flowProfile, docSnapshot);
   // `loadToken` is in the deps, not just `docSnapshot`: re-opening the flow that is ALREADY loaded
   // produces an identical document, so an effect keyed only on the document never runs and leaves
   // `pendingSnapshot` armed. The next real edit then became the new clean baseline, and the editor
@@ -1585,21 +1588,41 @@ function FlowChartDesignerContent() {
 
         {issuesOpen && validationFindings.length > 0 ? (
           <div className="validation-issues-panel" data-testid="flow-validation-panel">
-            {validationFindings.map((issue) => (
-              <button
-                key={issue.key}
-                type="button"
-                className={`validation-issue-row ${issue.severity}`}
-                onClick={() => navigateToIssue(issue)}
-                title={issue.nodeId ? "Select the affected node" : issue.edgeId ? "Select the affected connector" : "Flow-level finding"}
-              >
-                <span className={`validation-issue-badge ${issue.severity}${issue.severity === "error" && !issue.blocking ? " offpath" : ""}`}>
-                  {issue.blocking ? "blocks run" : issue.severity === "warning" ? "warning" : "off-path"}
-                </span>
-                <span>{issue.message}</span>
-                <strong>{issue.actionLabel}</strong>
-              </button>
-            ))}
+            <AuthoringAssistBar
+              assist={authoringAssist}
+              canReviewFixes={canSaveFlow && !isDirty && savedFlows.some((profile) => profile.id === flowId)}
+              reviewBlockedReason={isDirty ? "Save the flow first — safe fixes apply to the saved version." : null}
+              onReviewFixes={() => void openFixPreview()}
+            />
+            {validationFindings.map((issue) => {
+              const rank = authoringAssist.rankOf(issue.key);
+              return (
+                <Fragment key={issue.key}>
+                  <button
+                    type="button"
+                    className={`validation-issue-row ${issue.severity}`}
+                    onClick={() => navigateToIssue(issue)}
+                    title={issue.nodeId ? "Select the affected node" : issue.edgeId ? "Select the affected connector" : "Flow-level finding"}
+                  >
+                    <span className={`validation-issue-badge ${issue.severity}${issue.severity === "error" && !issue.blocking ? " offpath" : ""}`}>
+                      {issue.blocking ? "blocks run" : issue.severity === "warning" ? "warning" : "off-path"}
+                    </span>
+                    <span>{issue.message}</span>
+                    <strong>{issue.actionLabel}</strong>
+                    {rank ? (
+                      <span className="validation-issue-badge ai" data-testid="ai-fix-rank">
+                        AI fix order {rank}
+                      </span>
+                    ) : null}
+                  </button>
+                  {authoringAssist.explanationsFor(issue.key).map((text, index) => (
+                    <p key={index} className="ai-explanation" data-testid="ai-explanation" data-finding-key={issue.key}>
+                      <span className="ai-explanation-label">AI interpretation</span> {text}
+                    </p>
+                  ))}
+                </Fragment>
+              );
+            })}
           </div>
         ) : null}
 

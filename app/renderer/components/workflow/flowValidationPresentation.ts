@@ -19,6 +19,16 @@ export interface DesignerValidationFinding extends DesignerValidationAdvisory {
 
 const LOCATOR_CODES = new Set(["missingRequiredLocator", "locatorNeedsReview", "locatorQuality"]);
 
+/**
+ * The finding row an issue renders under. Quality, unresolved review and a missing target describe
+ * one locator repair; other codes keep their message in the key, since two invalid waits on one step
+ * may need separate repairs. Also how an AI explanation finds its row (L4b).
+ */
+export function validationFindingKey(issue: DesignerValidationAdvisory): string {
+  const root = LOCATOR_CODES.has(issue.code) ? "locator" : `${issue.code}:${issue.message}`;
+  return `${issue.nodeId ?? issue.edgeId ?? "flow"}:${root}`;
+}
+
 /** Presentation only: the complete engine report remains the authority for execution. */
 export function presentFlowValidation(
   report: FlowValidationReport,
@@ -26,10 +36,7 @@ export function presentFlowValidation(
 ): DesignerValidationFinding[] {
   const findings = new Map<string, DesignerValidationFinding>();
   const add = (issue: DesignerValidationAdvisory, severity: "error" | "warning", blocking: boolean) => {
-    // Quality, unresolved review and a missing target describe one locator repair. Other codes
-    // retain their message in the key: two invalid waits on one step may need separate repairs.
-    const root = LOCATOR_CODES.has(issue.code) ? "locator" : `${issue.code}:${issue.message}`;
-    const key = `${issue.nodeId ?? issue.edgeId ?? "flow"}:${root}`;
+    const key = validationFindingKey(issue);
     if (findings.has(key)) return;
     findings.set(key, {
       ...issue,

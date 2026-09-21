@@ -316,13 +316,16 @@ console.log("\nThe renderer cannot run a prompt:\n");
   // `request` and `state` are structured, and neither is trusted: `ai:promoteUpgrade` runs
   // `sanitizePromotionRequest` behind AI_USE plus WORKFLOW_EDIT, and `ai:setEditorState` runs
   // `sanitizeFlowEditorState` behind WORKFLOW_EDIT and can only ever make promotion stricter.
+  // L4b: `ai:explainValidation` takes a request id and a flow profile, which main runs through
+  // `sanitizeAuthoringAssistRequest` and the real FlowValidator and never turns into prompt text;
+  // `ai:cancelAssist` takes a request id that main scopes to the asking window.
   const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
   // Without this the .every() below passes on an empty list the moment the pattern stops matching.
-  check("the bridge's arguments were actually read", argumentsTaken.length === 7, argumentsTaken.join(","));
+  check("the bridge's arguments were actually read", argumentsTaken.length === 9, argumentsTaken.join(","));
   check(
-    "only settings, a feature id, an audit page, an action id, a flow id, a promotion and editor state cross the bridge",
+    "only settings, a feature id, an audit page, an action id, a flow id, a promotion, editor state and named assist jobs cross the bridge",
     argumentsTaken.every((call) =>
-      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\))$/.test(call)
+      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|cancelAssist\(requestId\))$/.test(call)
     ),
     argumentsTaken.join(",")
   );
