@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — L5b analyses are saved with their run report; no model-independent Phase L work remains
+## HANDOFF (2026-09-21, latest) — the L5a rescan is regression-verified; still no independently eligible Phase L work
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:**
+  - `verify:runner` ran, 138/0.
+  - `summary.residualSecrets` now counts only stored replacements. Dropped and retracted occurrences
+    had been counted.
+  - L5b now has proof that a pre-rescan report carrying a residual is refused before the model.
+  - CURRENT_STATE has the numbers.
+- **Re-checked against the tracker and the L3/L4b/L5b/L6 plans:** `bd ready` offers only the epic and
+  L5a, and L5a's one open criterion is the overhead gate. Everything else is as the superseded handoff
+  below says: L1-gated, deliberately declined (L6 mapping review), or blocked by those (L7).
+- **Owner decisions needed (unchanged):**
+  1. **L1.8:** re-scope the model, the ceilings or the qualifying hardware.
+  2. **L5a:** pick a host without the batch stall, remove its cause, or accept INCONCLUSIVE. Any
+     approved run now measures a capture path two changes newer than `a2125084`.
+- **Trap:** this session's permission classifier refused to run a verifier against a temporarily
+  weakened `AiPromptBuilder` rescan. Pin a refusal with a precondition that calls the real layer
+  instead of mutating a security check.
+
+## HANDOFF (2026-09-21, superseded) — L5b analyses are saved with their run report; no model-independent Phase L work remains
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** `626d92fe` built the L5b `diagnostics` persistence extension. It was the last

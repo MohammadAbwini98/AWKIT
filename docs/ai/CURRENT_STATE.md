@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## L5a evidence gets the residual-secret rescan (2026-09-21, current)
+## L5a rescan regression-verified; `summary.residualSecrets` now counts only what is stored (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **`verify:runner` ran:** 138/0, at the rescan commit and again at the final state.
+- **Defect fixed:** the count was kept in `sanitize()`, which runs before the caps and was never
+  undone by `retract()`. So an occurrence a cap dropped, and a protected-login event retracted later,
+  both still counted as stored replacements. It is now derived from the stored events (flagged fields ×
+  `repeatCount`). What is stored is unchanged: the `[redacted]` replacement itself did not move.
+- **Coverage gap closed:** a report written before `80a135fe` can hold evidence text the redactor
+  left, and nothing re-sanitizes stored evidence. `verify:ai-error-analysis` now proves that report
+  is refused as `FAILED` before the model: zero calls, nothing shown, nothing saved. A precondition pins
+  the refusal to the prompt's `RESIDUAL_SECRET` rescan. A clean report whose summary has no
+  `residualSecrets` is still analysed and saved.
+- **L5a gate: NOT RUN, on purpose.** The capture path changed again, so its evidence (`a2125084`)
+  predates two changes. L5a stays INCONCLUSIVE. **Unchanged:** L1.8 FAILS, **L7 cannot be entered**,
+  nothing on the tracker moved, and no independently eligible Phase L work remains (HANDOFF).
+
+| Check (final state) | Result |
+|---|---|
+| `verify:runner` | 138/0 |
+| `verify:failure-cause-baseline` | 71/71 (was 68). Red first at 69/71 on the two count checks |
+| `verify:ui-error-evidence` (real engine and browser) | 85/85 |
+| `verify:ai-error-analysis` | 140/140 (was 131) |
+| `verify:ai-fallback` (execution-tree import guard) | 38/38 |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:source-hygiene` · `verify:verifier-classification` · `verify:roadmap-dashboard` | 11/11 · 241 classified · 177/177, "Sources agree" |
+| Mutation of the prompt rescan for the new L5b checks | NOT RUN (refused by the session's permission classifier; the precondition above attributes the refusal instead) |
+| `verify:failure-capture-overhead` | NOT RUN (owner: run once; no new run approved) |
+
+## L5a evidence gets the residual-secret rescan (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

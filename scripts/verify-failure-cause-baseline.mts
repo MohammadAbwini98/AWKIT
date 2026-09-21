@@ -130,6 +130,14 @@ section("Residual-secret rescan (the independent second layer)");
   const capped = buffer({ limits: { maxFieldChars: 20 } });
   const cut = capped.at(1, consoleError(`${"a".repeat(30)} ${PEM}`));
   check("text beyond the field cap is cut rather than turned into a replacement", cut.payload.text === "a".repeat(20) && cut.truncated && capped.buf.summary().residualSecrets === 0, cut.payload);
+  // The count describes what is STORED: an occurrence a cap drops, or a protected event retracted
+  // after the fact, replaced nothing in the report.
+  const full = buffer({ limits: { maxEventsPerSource: 1 } });
+  full.at(1, { source: "page.error", severity: "error", payload: { name: "Error", message: "first" } });
+  check("(precondition) the per-source cap drops the flagged occurrence", full.buf.add(leak) === null && full.buf.summary().dropped.perSource === 1);
+  check("...so it is not counted as a replacement", full.buf.summary().residualSecrets === 0, full.buf.summary());
+  buf.retract((event) => event.id === flagged.id);
+  check("retracting a flagged event removes every occurrence it counted", buf.summary().residualSecrets === 0 && buf.summary().dropped.protected === 2, buf.summary());
   // Informational, not a check: the rescan's cost on a field at the cap, to size it against L5a.
   const field = `${"x".repeat(468)} ${PEM}`;
   const started = performance.now();

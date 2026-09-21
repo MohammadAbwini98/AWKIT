@@ -1,5 +1,25 @@
 # TASK_LOG
 
+## 2026-09-21 — L5a rescan: regression verification, stored-only count, pre-rescan report proof (Claude)
+
+- **Task:** finish the L5a rescan's verification (`verify:runner`, report compatibility, the downstream
+  AI path), then look for eligible Phase L work.
+- **Files:**
+  - `src/runner/evidence/ExecutionEvidence.ts`: `residualSecrets` is now derived from stored events.
+    It had counted cap-dropped and retracted occurrences.
+  - `scripts/verify-failure-cause-baseline.mts`: 3 checks, red first at 69/71.
+  - `scripts/verify-ai-error-analysis.mts`: a 9-check section for pre-rescan reports.
+  - The L5 plan, CURRENT_STATE, HANDOFF.
+- **Checks:**
+  - `verify:runner` 138/0, run twice: at `80a135fe` and at the final state.
+  - `verify:failure-cause-baseline` 71/71 · `verify:ui-error-evidence` 85/85.
+  - `verify:ai-error-analysis` 140/140 · `verify:ai-fallback` 38/38.
+  - build PASS · `typecheck:scripts` PASS.
+  - The mutation run of the prompt rescan was NOT RUN: the permission classifier refused it and the
+    source was restored. `verify:failure-capture-overhead` NOT RUN (owner).
+- **Result:** no independently eligible Phase L work remains. L1.8 FAIL and L5a INCONCLUSIVE await the
+  owner, and nothing on the tracker moved.
+
 ## 2026-09-21 — L5a evidence: residual-secret rescan in `EvidenceBuffer` (Claude)
 
 - **Task:** add the independent rescan to the L5a evidence buffer, the one redaction pipeline that

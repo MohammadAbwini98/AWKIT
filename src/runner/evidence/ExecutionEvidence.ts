@@ -144,8 +144,9 @@ export interface EvidenceSummary {
   dropped: { perSource: number; perInstance: number; instanceBytes: number; runBytes: number; eventBytes: number; protected: number };
   bytes: number;
   /**
-   * String fields replaced whole because the rescan still matched after redaction, counted per
-   * occurrence (repeats included). Absent on reports written before the rescan existed (2026-09-21).
+   * String fields replaced whole because the rescan still matched after redaction, counted over the
+   * stored events per occurrence (repeats included; dropped and retracted events count nothing).
+   * Absent on reports written before the rescan existed (2026-09-21).
    */
   residualSecrets?: number;
 }
@@ -220,7 +221,8 @@ export class EvidenceBuffer {
   private bytes = 0;
   private repeats = 0;
   private truncatedEvents = 0;
-  private residualSecrets = 0;
+  /** Stored event id → string fields the rescan replaced in its payload. */
+  private readonly residualFields = new Map<string, number>();
   private readonly dropped ={ perSource: 0, perInstance: 0, instanceBytes: 0, runBytes: 0, eventBytes: 0, protected: 0 };
 
   constructor(
@@ -245,7 +247,7 @@ export class EvidenceBuffer {
   }
 
   add(input: EvidenceInput): ExecutionEvidenceEvent | null {
-    const { payload, truncated } = this.sanitize(input.payload);
+    const { payload, truncated, residuals } = this.sanitize(input.payload);
     const dedupeFields = input.dedupeFields ?? Object.keys(payload).filter((field) => !TIMING_FIELD.test(field));
     const dedupeKey = [input.source, input.severity, ...dedupeFields.map((field) => `${field}=${String(payload[field] ?? "")}`)].join("|");
     const now = this.offsetNow();
@@ -301,6 +303,7 @@ export class EvidenceBuffer {
     this.perSource.set(input.source, count + 1);
     this.bytes += eventBytes;
     if (truncated) this.truncatedEvents += 1;
+    if (residuals > 0) this.residualFields.set(event.id, residuals);
     return event;
   }
 
@@ -343,14 +346,16 @@ export class EvidenceBuffer {
       truncatedEvents: this.truncatedEvents,
       dropped: { ...this.dropped },
       bytes: this.bytes,
-      residualSecrets: this.residualSecrets
+      // Derived from what is stored, so a dropped occurrence or a retracted event counts nothing.
+      residualSecrets: this.events.reduce((sum, event) => sum + (this.residualFields.get(event.id) ?? 0) * event.repeatCount, 0)
     };
   }
 
   /** Flat, bounded, masked payload: known scalar types only, URL fields as templates, strings redacted, capped and rescanned. */
-  private sanitize(raw: Record<string, unknown>): { payload: Record<string, EvidenceValue>; truncated: boolean } {
+  private sanitize(raw: Record<string, unknown>): { payload: Record<string, EvidenceValue>; truncated: boolean; residuals: number } {
     const payload: Record<string, EvidenceValue> = {};
     let truncated = false;
+    let residuals = 0;
     for (const [field, value] of Object.entries(raw)) {
       if (Object.keys(payload).length >= this.limits.maxPayloadFields) {
         truncated = true;
@@ -367,13 +372,13 @@ export class EvidenceBuffer {
         // Rescan what would be STORED, after the cap: that is the text a report keeps.
         const stored = clean.slice(0, this.limits.maxFieldChars);
         if (findResidualSecrets(stored).length > 0) {
-          this.residualSecrets += 1;
+          residuals += 1;
           payload[field] = REDACTED;
         } else {
           payload[field] = stored;
         }
       }
     }
-    return { payload, truncated };
+    return { payload, truncated, residuals };
   }
 }

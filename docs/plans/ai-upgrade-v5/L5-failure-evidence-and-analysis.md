@@ -58,10 +58,13 @@ direct HTTP/network/page/UI error before a runner timeout/assertion wins; output
   string is rescanned with `findResidualSecrets`, the same independent check used for model prompts
   and stored L5b analyses. A flagged string is replaced whole by `[redacted]`. The event is kept with
   its source, status and step correlation, because the cause baseline rests on them. The replacement
-  is counted per occurrence in the new optional `summary.residualSecrets`. Proven by
-  `verify:failure-cause-baseline` (68/68, mutation-tested 2/2). **The L5a overhead gate was not
-  re-run:** its three runs, the latest at `a2125084`, predate this change to the capture path. In an
-  informational loop the rescan's cost could not be told apart from run-to-run variation.
+  is counted per occurrence in the new optional `summary.residualSecrets`, over stored events only.
+  A cap-dropped or retracted occurrence counts nothing (corrected the same day). Proven by
+  `verify:failure-cause-baseline` (71/71; the rescan mutation-tested 2/2, the count red-first at
+  69/71). A report written before the rescan is refused before the model, proven by
+  `verify:ai-error-analysis` (140/140). **The L5a overhead gate was not re-run:** its three runs, the
+  latest at `a2125084`, predate this change to the capture path. In an informational loop the
+  rescan's cost could not be told apart from run-to-run variation.
 - **Runner messages** keep the diagnosis line only: Playwright's colour codes and "Call log" (which quotes matched
   elements' HTML) are dropped. A `wait` step that ran out of time is `timeout` even though Playwright words it as a
   locator error.

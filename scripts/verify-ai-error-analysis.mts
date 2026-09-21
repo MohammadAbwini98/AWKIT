@@ -41,7 +41,7 @@ import {
   type FailureBatchEntry
 } from "@src/ai/failureAnalysis";
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
-import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
+import { REDACTED, SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { EvidenceBuffer, EvidenceRunBudget, type ExecutionEvidenceEvent } from "@src/runner/evidence/ExecutionEvidence";
 import { deriveFailureCause } from "@src/runner/evidence/FailureCauseBaseline";
 import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
@@ -597,6 +597,58 @@ check("a missing report is NOT_FOUND, and is not created", (await deleteFailureA
 const withFuture = { ...storedRun, diagnostics: { analyses: [{ ...onDisk[0]!, instanceIds: ["run-d"] }], futureField: 7 } } as unknown as ConcurrentRunReport;
 check("an unknown extension field survives deleting the last analysis", JSON.stringify(withoutStoredFailureAnalysis(withFuture, "run-d")?.diagnostics) === JSON.stringify({ futureField: 7 }));
 check("a malformed saved entry reads as none", storedFailureAnalysisFor({ diagnostics: { analyses: [{ ...onDisk[0]!, analysis: { insufficient: "no" } }] } }, "run-d") === null);
+
+// ── A report written before L5a's rescan (80a135fe) ─────────────────────────────────────────────
+// Such a report can hold evidence text the redactor left, and nothing re-sanitizes stored evidence,
+// so the prompt's own rescan is the one layer left: the model must never see it. Its summary has no
+// `residualSecrets`, and a clean report of that shape must still be analysed normally.
+console.log("\nmain — a report written before the evidence rescan");
+const legacyText = `config dump ${pemHeader} failed`;
+const today = new EvidenceBuffer({ executionId: "exec-today", instanceId: "i" }, new EvidenceRunBudget());
+check("(precondition) today's buffer would store that text as the redaction marker", today.add({ source: "console.error", severity: "error", payload: { message: legacyText } })?.payload.message === REDACTED);
+const legacyEntry = instanceFailure({ instanceId: "run-legacy", nodeId: "n-legacy", stepIndex: 2, url: ROW_URL(40), status: 500, extra: [{ source: "console.error", payload: { message: "config dump failed" } }] });
+const leakedEvents = legacyEntry.events.map((event) => (event.payload.message === "config dump failed" ? { ...event, payload: { ...event.payload, message: legacyText } } : event));
+const legacyJob = buildFailureAnalysisRequest({ signature: failureSignature(legacyEntry), instanceIds: ["run-legacy"], count: 1, representative: { ...legacyEntry, events: leakedEvents }, analyse: true });
+check("(precondition) the header is in the evidence the request offers the model", Boolean(legacyJob?.prompt.fields.some((field) => field.text?.includes("PRIVATE KEY"))));
+const legacyPrompt = legacyJob && buildAiPrompt(legacyJob.prompt, new SemanticRedactor(), "0123456789abcdef");
+check("(precondition) it survives the prompt's redactor, so only the rescan refuses it", legacyPrompt?.ok === false && legacyPrompt.code === "RESIDUAL_SECRET", JSON.stringify(legacyPrompt).slice(0, 200));
+const legacyReport = async (executionId: string, evidence: ExecutionEvidenceEvent[]): Promise<string> => {
+  const report: ConcurrentRunReport = {
+    ...storedRun,
+    executionId,
+    instances: [
+      {
+        ...asInstance(legacyEntry),
+        diagnostics: {
+          schemaVersion: INSTANCE_DIAGNOSTICS_SCHEMA_VERSION,
+          evidence,
+          // The summary exactly as a pre-rescan buffer wrote it: no `residualSecrets`.
+          summary: { accepted: evidence.length, repeats: 0, truncatedEvents: 0, dropped: { perSource: 0, perInstance: 0, instanceBytes: 0, runBytes: 0, eventBytes: 0, protected: 0 }, bytes: 0 },
+          cause: legacyEntry.baseline
+        }
+      }
+    ]
+  };
+  await reportStore.create({ ...report, id: executionId });
+  return JSON.stringify(await reportStore.get(executionId));
+};
+const legacyAnswer = citing([primaryOf(legacyEntry)]);
+
+const cleanBefore = await legacyReport("exec-legacy-clean", [...legacyEntry.events]);
+const cleanHost = harness([legacyAnswer]);
+const cleanView = await analyzeFailure(4, { requestId: "legacy-1", executionId: "exec-legacy-clean", instanceId: "run-legacy" }, reportDeps(cleanHost.service));
+check("a clean report without summary.residualSecrets is analysed and saved as before", cleanView.ok && cleanView.stored === true && cleanHost.fake.inferRequests().length === 1, JSON.stringify(cleanView).slice(0, 200));
+check("...its evidence left as the run wrote it", withoutExtension((await reportStore.get("exec-legacy-clean"))!) === withoutExtension(JSON.parse(cleanBefore)));
+await cleanHost.service.shutdown();
+
+const leakedBefore = await legacyReport("exec-legacy", leakedEvents);
+const leakedHost = harness([legacyAnswer]);
+const leakedView = await analyzeFailure(4, { requestId: "legacy-2", executionId: "exec-legacy", instanceId: "run-legacy" }, reportDeps(leakedHost.service));
+check("stored evidence the rescan flags is refused before the model", leakedView.code === "FAILED" && leakedView.analysis === null, JSON.stringify(leakedView));
+check("...the model is never called", leakedHost.fake.inferRequests().length === 0, String(leakedHost.fake.inferRequests().length));
+check("...none of the header reaches the renderer", !JSON.stringify(leakedView).includes("PRIVATE KEY"));
+check("...and the report is left exactly as it was, with nothing saved", JSON.stringify(await reportStore.get("exec-legacy")) === leakedBefore);
+await leakedHost.service.shutdown();
 
 console.log(`\nL5b failure intelligence: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);
