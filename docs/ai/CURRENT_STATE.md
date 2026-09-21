@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## `validationExplanation` gets its own 125 s deadline; a real 0.8B explanation is delivered in the product (2026-09-21, current)
+## Failure analysis and locator upgrade measured through the product: own 185 s deadlines set, and both exceed their ceiling at their own output cap (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Measured through the product on the real 0.8B.** Each feature's own request, sent by its own code:
+  - `analyzeFailure` over a typical and the largest L5a failure;
+  - `runLocatorUpgradeAttempts` over a typical and the largest L2 context. Nothing queues that job yet.
+  - At the old shared 30 s, all four ended TIMEOUT.
+- **The fix (`d71ee244`):** both deadlines are **185,000 ms**, the 180 s background ceiling plus 5 s,
+  per attempt for the locator job. `AI_SERVICE_LIMITS.maxJobTimeoutMs` is also 185,000. The explanation
+  keeps 125 s and the fragment summary 30 s.
+- **Under it:**
+  - Failure analysis took 97–160 s in normal runs. On a hot CPU, back to back, the largest (and once
+    the typical) still hit 185 s.
+  - Locator attempts took 76–130 s, and every job was accepted.
+- **Still open, owner decisions:**
+  - At their own 512-token output caps, both requests project to 181–300 s, against the 180 s ceiling.
+    The benchmark measured stand-ins at 192- and 256-token caps.
+  - Every real failure analysis was refused by its answer contract (`CONTRADICTORY`: `insufficient`
+    true, with a conclusion). A separate task is flagged.
+  - L1 stays `in_progress`, and **L7 cannot be entered**.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-deadlines` (new) | 41/41, mutation-tested 4/4 |
+| `verify:ai-failure-analysis-live` · `verify:ai-locator-upgrade-live` (new, real 0.8B) | 4/4 · 4/4; both red at the old 30 s |
+| `verify:ai-explanation-live` (after the launcher change) | 5/5 |
+| `verify:ai-authoring` · `verify:ai-assist-gui` (real Electron) | 125/125 · 97/0 |
+| `verify:ai-locator-attempts` · `verify:ai-locator-repair` | 87/87 · 85/85 |
+| `verify:ai-error-analysis` · `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-host-electron` | 140/140 · 117/117 · 38/38 · 26/0 |
+| `verify:verifier-classification` | reconciled, 245 scripts |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:failure-capture-overhead` · `verify:ai-locator-sweep` | NOT RUN: no import under `src/ai` changed, and `locatorSweep.ts` changed only a comment |
+
+## `validationExplanation` gets its own 125 s deadline; a real 0.8B explanation is delivered in the product (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

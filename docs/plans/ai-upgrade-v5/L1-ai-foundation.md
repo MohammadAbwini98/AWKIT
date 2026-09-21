@@ -545,7 +545,85 @@ fixed nonce.
 **Not changed, and a risk:** `locatorUpgrade` and `failureAnalysis` still get 30 s. Their benchmark
 packets take 80–105 s on this host, so they may time out in the product the same way. Those packets are
 synthetic stand-ins, as the explanation's once was. That risk was not measured through the product, and
-was out of this task's scope.
+was out of this task's scope. *(Measured and fixed the next day; see the next section.)*
+
+#### `failureAnalysis` and `locatorUpgrade` measured through the product (2026-09-22): own deadlines set; both exceed their ceiling at their own output cap. Evidence: `verify:ai-failure-analysis-live` and `verify:ai-locator-upgrade-live` at `d71ee244`
+
+**What was measured.** Each feature's own request on the real 0.8B, sent by the product's own code
+through the production `AiService`, `AiUtilityHostManager` and `ai-host.cjs`:
+
+- **`failureAnalysis`** through `analyzeFailure`, the function behind `ai:analyzeFailure`. Two failures,
+  both built by L5a's real evidence buffer and cause baseline: a typical one (a server error, then the
+  runner's assertion) and the largest the request sends (15 events, 12 offered; every offered line fits
+  the prompt).
+- **`locatorUpgrade`** through `runLocatorUpgradeAttempts`, the L3 §7 job. Two capture contexts, bounded
+  by L2's `sanitizeUpgradeContext`: the Feature Test Lab's, and one with every field at L2's caps.
+  - **Nothing in the product queues this job yet.** `locatorUpgradeService.ts` keeps it unwired until
+    L1's go/no-go, so its new deadline takes effect when it is wired.
+  - The browser proof is stubbed as "page unavailable". It runs after the model answers, outside any
+    deadline.
+
+**At the old shared 30 s** (the observed "before" run): all four requests ended TIMEOUT at 30 s, with
+nothing analysed and no plan.
+
+**The policy (owner instruction, 2026-09-22), the same rule as the explanation's:**
+
+- Each feature's L1.8 ceiling, `backgroundJobAtCapMs` 180,000 ms at the output cap, plus 5,000 ms:
+  - `FAILURE_ANALYSIS_LIMITS.timeoutMs` 30,000 → **185,000 ms**;
+  - `LOCATOR_ATTEMPT_LIMITS.timeoutMs` 30,000 → **185,000 ms per attempt** (a job makes at most 2).
+- `AI_SERVICE_LIMITS.maxJobTimeoutMs` 125,000 → **185,000 ms**, the longest per-feature deadline.
+- **Unchanged:** the explanation's 125,000 ms, the fragment summary's 30,000 ms, the ceilings, the
+  model, the output budgets, the manifest, and the benchmark and its evidence.
+
+**Measured under the new deadlines** (inference time; prompt and output tokens in brackets):
+
+| Run | `failureAnalysis` typical | `failureAnalysis` largest | `locatorUpgrade` typical | `locatorUpgrade` largest |
+|---|---|---|---|---|
+| A | 117.4 s (499 / 271) | 152.9 s (853 / 301) | 75.8 s (541 / 95), accepted | 113.2 s (887 / 59), accepted |
+| B | 152.3 s (489 / 171) | **TIMEOUT at 185 s** | 85.6 s (513 / 94), accepted | 129.8 s, refused `UNSUPPORTED`; retry 124.9 s (971 / 66), accepted |
+| C | **TIMEOUT at 185 s** | **TIMEOUT at 185 s** | — | — |
+| D | 97.0 s (509 / 126) | 159.9 s (893 / 204) | — | — |
+
+- **Host variance is large.** Runs B and C followed A back to back, and prompt evaluation fell from
+  10.7–12.0 to 5.9 tokens/s. Run D came after about 20 minutes without inference, with the CPU 18% busy
+  beforehand. The explanation's own request, re-run the same day, took 85.1 s where it had taken 51.5 s
+  the day before.
+- **The deadline holds the ceiling. The requests do not fit it:**
+  - At the 512-token output cap both features use, every measured answer projects to 181–293 s
+    (`failureAnalysis`) and 233–300 s (`locatorUpgrade`), against 180 s.
+  - The benchmark measured stand-ins for both, at 256- and 192-token caps, which is why it passed.
+    This is the gap the explanation had before `d2a81262`.
+  - Real locator plans are short (59–100 tokens), so they fit with room to spare.
+  - Real analyses run 126–301 tokens, and the largest analysis still hit 185 s on a hot CPU.
+- **Every real failure analysis was refused by the answer contract.** The recorded refusals (runs B and
+  D) are all `CONTRADICTORY`: the model set `insufficient: true` and still wrote a conclusion. The
+  grammar allows that shape and the parser refuses it. This is flagged as its own task; it is not a
+  deadline issue, and it was not changed here.
+
+**Owner decisions this leaves:**
+
+1. Bring both requests inside their ceiling, as `d2a81262` did for the explanation: output budgets at
+   the L1.8 figures, and, for failure analysis, a smaller answer, since its measured answers exceed 256
+   tokens. Or re-scope the ceilings.
+2. Re-point the benchmark's two packets at the product's requests, as `7f0e931e` did for the
+   explanation.
+
+**Regression suites:**
+
+- **New `verify:ai-deadlines`, 41/41** on a shared virtual clock (`scripts/lib/virtual-clock.mts`):
+  - a table of every feature's deadline against its ceiling and the service limit;
+  - `analyzeFailure`: answers after 31 s and at the ceiling plus overhead are delivered and saved; a
+    hang ends TIMEOUT at exactly 185 s with nothing saved; a cancel at 60 s ends CANCELLED; a late answer
+    is never saved and never reaches the next request; a kill at the deadline is followed by a reload;
+  - `runLocatorUpgradeAttempts`: the same cases, plus a second attempt that gets a full deadline of its
+    own.
+- **Mutation-tested 4/4:** failure analysis at 30 s fails 9 checks; the locator at 30 s fails 7; the
+  service limit left at 125 s fails 32; and a limit raised past every feature fails 1.
+- **`verify:ai-assist-gui`, 97/0.** The run-detail analysis now arrives after 31 s, and is still shown
+  labelled, cited and saved with the report.
+- **`verify:ai-locator-attempts`, 87/87.** Its two timeout tests no longer wait out the real 185 s. The
+  transport reports the deadline at once, or the host dies 2 s in; the exact deadline is proven in
+  `verify:ai-deadlines`.
 
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
@@ -564,7 +642,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`) | **release only — unmet** until the pin and live gates |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`), but their product requests exceed the 180 s ceiling at their 512-token caps | **release only — unmet** until the pin and live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -580,7 +658,9 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
    A milestone whose acceptance criteria name live-model behavior cannot be closed while L1.8 fails.
 2. **No ceiling moves and no gate is relabelled.** The 180,000 ms background-job ceiling, the 30,000 ms
    `LOCATOR_ATTEMPT_LIMITS.timeoutMs` and the recorded measurements stay exactly as they are. A `FAIL`
-   is never rewritten as `BLOCKED`, `INCONCLUSIVE` or `PASS`.
+   is never rewritten as `BLOCKED`, `INCONCLUSIVE` or `PASS`. *(2026-09-22: the owner instructed that
+   `LOCATOR_ATTEMPT_LIMITS.timeoutMs` be measured through the product and fixed. It is now 185,000 ms,
+   the unchanged 180 s ceiling plus 5 s. The ceiling and every recorded measurement still stand.)*
 3. **No production feature may require a model to behave correctly.** Every AI path keeps its existing
    guarantee: no model, a disabled model, a timeout or a crash leaves behavior identical to today. A
    deterministic provider is a **test** substitute, never a shipped one.
@@ -594,16 +674,20 @@ host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The c
 `awkit-g555` is fixed and closed. The 0.8B's benchmark is **GO on all 8** since the product's
 explanation request was fixed (88.3 s against 120 s; see "`validationExplanation` fixed in the
 product"). It still owes the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live`,
-the live quality gates, and timeouts for the other features. The explanation's own is set (`d2f5feb2`;
-see "`validationExplanation` gets its own deadline"). So L1 is not accepted. The 2B is NOT RUN because
-it is not downloaded.
+and the live quality gates. Every feature now has its own deadline (`d2f5feb2`, `d71ee244`). But
+failure analysis and locator upgrade exceed their 180 s ceiling at their own 512-token output caps, and
+every real failure analysis was refused by its answer contract (see "`failureAnalysis` and
+`locatorUpgrade` measured through the product"). So L1 is not accepted. The 2B is NOT RUN because it is
+not downloaded.
 
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,
 `verify:ai-autonomy-policy` (tier matrix, T3 unreachable, cap, self-demotion), `verify:ai-audit-revert`;
-live: `verify:ai-model-live` (`NOT RUN` without pack) and `verify:ai-explanation-live` (the product's explanation
-on the 0.8B under its own deadline; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
+`verify:ai-deadlines` (every feature's own deadline, on a virtual clock);
+live: `verify:ai-model-live` (`NOT RUN` without pack), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
+and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline; `NOT RUN` without
+pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
 
 `verify:ai-inference-profile` (`NOT RUN` without pack) is the **diagnostic** counterpart to

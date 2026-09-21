@@ -1,5 +1,26 @@
 # DECISIONS
 
+### 2026-09-22 — Phase L L1.8: failure analysis and locator upgrade get their own deadlines (`awkit-djnl.1`)
+
+- **Owner instruction, in session:** measure `locatorUpgrade` and `failureAnalysis` through the product
+  and fix their timeouts. This supersedes clause 2 of the L1 status section for
+  `LOCATOR_ATTEMPT_LIMITS.timeoutMs` only; the 180 s ceiling itself stays.
+- **Implementer's choices within it:**
+  - **The explanation's rule, unchanged:** each feature's L1.8 ceiling plus 5 s, so 185,000 ms for both.
+    `maxJobTimeoutMs` becomes 185,000, the longest per-feature deadline.
+    - The measurement showed that both requests exceed the ceiling at their own 512-token caps. A
+      deadline above the ceiling would have hidden that, which the L1 plan forbids ("no timeout raised to
+      hide throughput").
+    - So the requests' size is left to the owner.
+  - **The locator deadline stays per attempt.** A job makes at most 2 attempts. Each is one model call,
+    and the ceiling is per answer.
+  - **"Through the product" means each feature's own code.** That is `analyzeFailure`, and
+    `runLocatorUpgradeAttempts`, which nothing queues yet. The locator's browser proof is stubbed,
+    because it runs after the model and is not part of any deadline.
+  - **Deadline tests run on a virtual clock** (`verify:ai-deadlines`), and the §7 suite's timeout tests
+    no longer wait out the real deadline.
+- **Not decided here:** the output budgets of both features, and the failure-analysis answer contract.
+
 ### 2026-09-21 (latest) — Phase L L1.8/L4b: the validation explanation gets its own deadline (`awkit-djnl.1`)
 
 - **Owner instruction, in session:** give `validationExplanation` a feature-specific timeout that

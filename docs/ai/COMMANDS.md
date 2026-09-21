@@ -468,6 +468,15 @@ npm run verify:ai-explanation-live
                                   # production path (explainFlowValidation → AiService → AiUtilityHostManager →
                                   # ai-host.cjs) under its own 125 s deadline: delivered, a cancel after 30 s
                                   # within 3 s, a deadline kill then a reload. NOT RUN without runtime + pack (5)
+npm run verify:ai-failure-analysis-live
+npm run verify:ai-locator-upgrade-live
+                                  # the same launcher (--feature): analyzeFailure / runLocatorUpgradeAttempts on
+                                  # the real 0.8B, a typical and the largest request each, answered before the
+                                  # feature's own 185 s deadline, with tokens, timings, worst case at the output
+                                  # cap and the host's CPU load. NOT RUN without runtime + pack (4 each)
+npm run verify:ai-deadlines       # every AI feature's own deadline on a virtual clock through its product entry
+                                  # point: delivered past 30 s, TIMEOUT at exactly its deadline, cancel, late
+                                  # answer, kill and reload; the deadline table against the service limit (41)
 npm run verify:ai-inference-profile
                                   # DIAGNOSTIC counterpart to the benchmark: splits one inference into prompt
                                   # evaluation, decode and JSON-grammar cost so a missed ceiling says WHY. Asserts

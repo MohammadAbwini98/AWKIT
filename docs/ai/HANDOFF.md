@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — the explanation has its own 125 s deadline and is delivered on the real 0.8B
+## HANDOFF (2026-09-22, latest) — failure analysis and locator upgrade have their own 185 s deadlines; their requests still exceed the ceiling at their own cap
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`d71ee244`):**
+  - Both features measured through the product on the real 0.8B. Both deadlines 30 s → 185 s (per
+    attempt for the locator job), and `maxJobTimeoutMs` 125 s → 185 s.
+  - New gates: `verify:ai-deadlines` (virtual clock), `verify:ai-failure-analysis-live` and
+    `verify:ai-locator-upgrade-live`.
+  - Details are in the L1 plan › "`failureAnalysis` and `locatorUpgrade` measured through the product".
+- **Not done, and owner decisions:**
+  - Both requests exceed the 180 s ceiling at their own 512-token output caps (181–300 s projected).
+    Either bring them inside it, as `d2a81262` did for the explanation, or re-scope the ceiling. Then
+    re-point the benchmark's two packets at the product's requests.
+  - Every real failure analysis was refused as `CONTRADICTORY`. That task is flagged separately.
+  - The pin, license notice, `verify:ai-model-pack`, `verify:ai-model-live` and the live quality gates
+    are still owed. L1 stays `in_progress`. **L7 cannot be entered.**
+- **Do not:**
+  - raise a deadline past its feature's L1.8 ceiling plus 5 s to hide a slow request;
+  - raise a feature's `timeoutMs` above `maxJobTimeoutMs`;
+  - wire the locator job before L1's go/no-go;
+  - run live gates back to back and read the slowest run as the model's speed. This laptop slows by
+    about 1.6× when hot.
+
+## HANDOFF (2026-09-21, superseded) — the explanation has its own 125 s deadline and is delivered on the real 0.8B
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`d2f5feb2`):**

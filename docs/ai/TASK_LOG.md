@@ -1,5 +1,39 @@
 # TASK_LOG
 
+## 2026-09-22 — failure analysis and locator upgrade measured through the product; own 185 s deadlines (Claude)
+
+- **Task:** measure `locatorUpgrade` and `failureAnalysis` through the product, and fix their timeouts.
+- **Found:**
+  - At the shared 30 s, all four real requests ended TIMEOUT on the 0.8B.
+  - Under 185 s: failure analysis took 97–160 s (above 185 s on a hot CPU), and locator attempts took
+    76–130 s, every job accepted.
+  - At the 512-token caps both features use, answers project to 181–300 s, against the 180 s ceiling.
+  - Every real failure analysis was refused as `CONTRADICTORY`.
+- **Files:**
+  - Commit `d71ee244`:
+    - `src/ai/failureAnalysis.ts` and `src/ai/locatorUpgradeAttempts.ts` (185,000 ms each),
+      `src/ai/AiService.ts` (limit 185,000), and the comment in `src/ai/locatorSweep.ts`;
+    - new `scripts/verify-ai-deadlines.mts` and `scripts/lib/virtual-clock.mts` (moved from
+      `verify-ai-authoring.mts`);
+    - new `scripts/ai-harness/featureLive.ts`, wired into `harnessMain.ts`, and
+      `verify-ai-explanation-live.mts` generalized with `--feature`;
+    - `verify-ai-assist-gui.mts` (a 31 s analysis) and `verify-ai-locator-attempts.mts` (two timeout
+      tests);
+    - `package.json` and `scripts/lib/verifier-classification.ts` (three new scripts).
+  - Then the L1 plan, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF and COMMANDS. No `.beads` change.
+- **Checks:**
+  - `verify:ai-deadlines` 41/41, mutation-tested 4/4 (fails 9, 7, 32 and 1).
+  - `verify:ai-failure-analysis-live` 4/4 and `verify:ai-locator-upgrade-live` 4/4 on the real 0.8B.
+    Both failed at the old 30 s; failure analysis failed twice more on a hot CPU.
+  - `verify:ai-explanation-live` 5/5 · `verify:ai-authoring` 125/125 · `verify:ai-assist-gui` 97/0.
+  - `verify:ai-locator-attempts` 87/87 · `verify:ai-locator-repair` 85/85 · `verify:ai-error-analysis`
+    140/140 · `verify:ai-adapter` 117/117 · `verify:ai-fallback` 38/38 · `verify:ai-host-electron` 26/0.
+  - `verify:verifier-classification` reconciled (245) · build PASS · `typecheck:scripts` PASS.
+  - NOT RUN: `verify:failure-capture-overhead` and `verify:ai-locator-sweep` (no import changed; comment
+    only).
+- **Result:** both features have their own deadlines. Their requests' size and the answer contract are
+  owner decisions. L1 is not accepted.
+
 ## 2026-09-21 — `validationExplanation` gets its own 125 s deadline; delivered on the real 0.8B (Claude)
 
 - **Task:** fix the production timeout gap. The 0.8B's explanation takes 52–76 s, and the product

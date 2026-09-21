@@ -1,5 +1,27 @@
 # KNOWN_ISSUES
 
+## Failure analysis and locator upgrade exceed their 180 s ceiling at their own output cap (2026-09-22, OPEN — deadlines fixed at `d71ee244`)
+
+- **Fixed:** both were still on the shared 30 s, and through the product on the real 0.8B every request
+  ended TIMEOUT. Both now get 185 s: the 180 s ceiling plus 5 s, per attempt for the locator job.
+- **Still open:**
+  - **Output caps.** Both requests use a 512-token output cap. At it, every measured answer projects to
+    181–300 s, against the 180 s ceiling. The benchmark passed on stand-ins at 192 and 256 tokens.
+  - **Host speed.** On a hot CPU, back to back, the largest failure analysis (and once the typical one)
+    still reached 185 s. The remedy is the request's size, an owner decision, as with `d2a81262`.
+  - **Answer contract.** Every real failure analysis was refused as `CONTRADICTORY`: `insufficient`
+    true, with a conclusion. The grammar allows that shape and the parser refuses it. A task is flagged.
+  - **Locator job not wired.** Nothing queues it yet, so its new deadline takes effect only once it is
+    wired, after L1.
+- **The lessons (pattern):**
+  - **Measure each feature through its own code.** A benchmark packet built by hand, or at a smaller
+    output cap, misses the product's own request. This is the second time: the explanation was the first.
+  - **This laptop's speed moves ~1.6× with heat.** Prompt evaluation fell from 12 to 5.9 tokens/s across
+    back-to-back runs. Record the CPU's load beside every live timing (`verify:ai-*-live` now does), and
+    do not read the slowest run as the model's speed.
+  - **A test that waits out a real deadline grows with it.** Two §7 tests would have waited 185 s each.
+    Have the transport report the deadline, and prove its exact value on a virtual clock.
+
 ## Every real validation explanation was cancelled at 30 s (2026-09-21, FIXED — `d2f5feb2`)
 
 - **Symptom:** the benchmark was GO at 88 s against 120 s, yet the product's explanation on the 0.8B
@@ -19,7 +41,8 @@
     top-level await), and the remaining checks never print. Use a fixed, generous budget, and run
     shutdown under the clock.
 - **Still open:** `locatorUpgrade` and `failureAnalysis` still get 30 s, while their benchmark packets
-  take 80–105 s on this host. Not measured through the product.
+  take 80–105 s on this host. Not measured through the product. *(Measured and fixed at `d71ee244`;
+  see the entry above.)*
 
 ## The L1.8 explanation packet was a stand-in, and the product's own request got no answer (2026-09-21, FIXED — harness `7f0e931e`, product `d2a81262`)
 
