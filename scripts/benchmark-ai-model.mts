@@ -45,6 +45,7 @@ import {
   runtimeInstalled,
   stageModelRoot
 } from "./ai-harness/launch.mts";
+import { validationExplanationPacket } from "./ai-harness/validationExplanationPacket";
 
 const EVIDENCE = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence");
 /**
@@ -156,7 +157,15 @@ const save = () => {
   fs.writeFileSync(RESULTS, `${JSON.stringify(results, null, 2)}\n`, "utf8");
 };
 
-const pending = SCENARIOS.filter((scenario) => !results!.scenarios[scenario]?.ok);
+/**
+ * A packet built by product code changes whenever the product's request does. Its old numbers then
+ * belong to a request the product no longer makes, so the scenario is measured again.
+ */
+const PACKET_IDENTITY: Partial<Record<Scenario, string>> = { "packets:validationExplanation": validationExplanationPacket().identity };
+const current = (scenario: Scenario) =>
+  results!.scenarios[scenario]?.ok === true &&
+  (results!.scenarios[scenario]?.data[scenario] as { packetIdentity?: string } | undefined)?.packetIdentity === PACKET_IDENTITY[scenario];
+const pending = SCENARIOS.filter((scenario) => !current(scenario));
 console.log(`  host: ${host.cpuModel}, ${host.logicalCpus} logical CPUs, ${host.totalMemoryGb} GB`);
 console.log(`  unconstrained: all ${host.logicalCpus} logical CPUs, ${threads} inference threads (derived by the product)`);
 console.log(`  runtime ${runtime.build}, pack ${packName} ${measured.sha256.slice(0, 16)}…`);
@@ -196,11 +205,15 @@ if (pending.length > 0) {
       console.error(`\n  scenario "${scenario}" FAILED; it will be retried on the next run`);
       process.exit(1);
     }
+    if (!current(scenario)) {
+      console.error(`\n  scenario "${scenario}" measured a different packet than this checkout builds`);
+      process.exit(1);
+    }
   } finally {
     fs.rmSync(harnessDir, { recursive: true, force: true });
     fs.rmSync(staged.root, { recursive: true, force: true });
   }
-  const left = SCENARIOS.length - SCENARIOS.filter((s) => results!.scenarios[s]?.ok).length;
+  const left = SCENARIOS.filter((s) => !current(s)).length;
   if (left > 0) {
     console.log(`\n  ${left} scenario(s) left: run npm run benchmark:ai-model again`);
     process.exit(0);

@@ -12,8 +12,8 @@
  *   playwright a Chromium workload alone, beside a running inference, and with inference yielding
  *   batch      a coalesced burst through AiService: queue cap, drain time, hold while runs are active
  *
- * Everything recorded is a count, a code or a timing. Prompts are synthetic and model text is never
- * recorded.
+ * Everything recorded is a count, a code or a timing. Prompts are synthetic (the validation
+ * explanation's is the product's own request over a synthetic flow) and model text is never recorded.
  */
 
 import { app } from "electron";
@@ -29,6 +29,7 @@ import { AI_HOST_PROTOCOL_VERSION, AiHostCallError, type AiInferResult } from "@
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
 import type { LiveContext } from "./harnessMain";
+import { validationExplanationPacket } from "./validationExplanationPacket";
 
 export interface BenchApi {
   step: <T>(label: string, fn: () => Promise<T> | T) => Promise<T | undefined>;
@@ -69,11 +70,16 @@ interface Packet {
   spec: AiPromptSpec;
   schema: AiOutputSchema;
   maxOutputTokens: number;
+  /** Defaults to the harness NONCE. */
+  nonce?: string;
+  /** Recorded with the scenario, so the launcher can tell when the product's request has changed. */
+  identity?: string;
+  /** The product's own verdict on a decoded answer; `accepted: false` fails the step. */
+  assess?: (value: unknown) => Record<string, unknown>;
 }
 
 function packets(): Packet[] {
   const candidates = ids("cand", 8);
-  const issues = ids("issue", 6);
   const steps = ids("step", 12);
   return [
     {
@@ -104,38 +110,7 @@ function packets(): Packet[] {
       },
       maxOutputTokens: 192
     },
-    {
-      name: "validationExplanation",
-      spec: {
-        instructions:
-          "Explain each validation issue in plain words for the flow author: what is wrong and what to check. Refer to " +
-          "issues only by the ids offered.",
-        fields: [
-          { name: "issues", ids: issues },
-          { name: "messages", text: prose(1_800, 17) },
-          { name: "flow", text: prose(3_600, 23) }
-        ],
-        maxDataChars: 9_000
-      },
-      schema: {
-        type: "object",
-        properties: {
-          explanations: {
-            type: "array",
-            maxItems: 3,
-            items: {
-              type: "object",
-              properties: { issue: { type: "string", enum: issues }, text: { type: "string", maxLength: 220 } },
-              required: ["issue", "text"],
-              additionalProperties: false
-            }
-          }
-        },
-        required: ["explanations"],
-        additionalProperties: false
-      },
-      maxOutputTokens: 192
-    },
+    validationExplanationPacket(),
     {
       name: "failureAnalysis",
       spec: {
@@ -166,8 +141,8 @@ function packets(): Packet[] {
   ];
 }
 
-function built(spec: AiPromptSpec): { system: string; user: string } {
-  const prompt = buildAiPrompt(spec, new SemanticRedactor(), NONCE);
+function built(spec: AiPromptSpec, nonce = NONCE): { system: string; user: string } {
+  const prompt = buildAiPrompt(spec, new SemanticRedactor(), nonce);
   if (!prompt.ok) throw new Error(`synthetic packet refused by the prompt builder: ${prompt.code}`);
   return { system: prompt.system, user: prompt.user };
 }
@@ -305,7 +280,7 @@ async function scenarioPackets(api: BenchApi, threads: number, iterations: numbe
   const { manager, loadMs } = await loadedManager(api, threads);
   const results: Record<string, unknown[]> = {};
   for (const packet of selected) {
-    const prompt = built(packet.spec);
+    const prompt = built(packet.spec, packet.nonce);
     results[packet.name] = [];
     for (let i = 1; i <= iterations; i += 1) {
       await api.step(`packets: ${packet.name} #${i}`, async () => {
@@ -314,27 +289,26 @@ async function scenarioPackets(api: BenchApi, threads: number, iterations: numbe
         try {
           const result = await infer(manager, `${packet.name}-${i}#1`, prompt, packet.schema, packet.maxOutputTokens);
           const wallMs = Date.now() - started;
-          const measured = { ...rates(result, wallMs), ...sampler.stop(), maxOutputTokens: packet.maxOutputTokens };
-          JSON.parse(result.text);
+          const measured: Record<string, unknown> = { ...rates(result, wallMs), ...sampler.stop(), maxOutputTokens: packet.maxOutputTokens };
+          const value: unknown = JSON.parse(result.text);
+          if (packet.assess) measured.answer = packet.assess(value);
           results[packet.name].push(measured);
+          // An answer the product would discard is no explanation. Its timings stay recorded above.
+          if (packet.assess && (measured.answer as { accepted?: unknown }).accepted !== true) throw new Error(`the product refused the answer: ${JSON.stringify(measured.answer)}`);
           return measured;
         } catch (error) {
           // Keep the resource sample when the inference does NOT return. A packet that blows its
           // ceiling is exactly when host CPU and working set are worth having, and discarding them
           // leaves a failure that says it was slow without any evidence of why.
-          const measured = {
-            failed: true,
-            failedAfterMs: Date.now() - started,
-            ...sampler.stop(),
-            maxOutputTokens: packet.maxOutputTokens
-          };
-          results[packet.name].push(measured);
+          if (results[packet.name].length < i) {
+            results[packet.name].push({ failed: true, failedAfterMs: Date.now() - started, ...sampler.stop(), maxOutputTokens: packet.maxOutputTokens });
+          }
           throw error;
         }
       });
     }
   }
-  api.record(`packets:${only}`, { threads, loadMs, iterations: results[only] });
+  api.record(`packets:${only}`, { threads, loadMs, ...(selected[0].identity ? { packetIdentity: selected[0].identity } : {}), iterations: results[only] });
   await manager.dispose();
 }
 
