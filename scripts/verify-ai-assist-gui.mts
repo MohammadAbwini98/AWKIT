@@ -1,12 +1,14 @@
 /**
- * verify:ai-assist-gui — the L4b authoring assist in the REAL Electron app.
+ * verify:ai-assist-gui — the L4b authoring assist and the L6 fragment surfaces in the REAL Electron app.
  *
- * `verify:ai-authoring` proves the contract and the main-process adapter in Node; this proves the
- * parts that only exist once the app runs: the Flow Designer sending its open flow over real IPC, main
- * re-validating it and answering through the production `AiService`, the answer rendered labelled
- * under the finding it belongs to, a stale answer withheld after an edit, cancellation reaching main,
- * a refused answer shown as a refusal, AI switched off leaving validation intact, and the saved flow
- * never touched by any of it.
+ * `verify:ai-authoring` and `verify:ai-fragment-assist` prove the contracts and the main-process
+ * adapters in Node; this proves the parts that only exist once the app runs: the Flow Designer sending
+ * its open flow over real IPC, main re-validating it and answering through the production `AiService`,
+ * the answer rendered labelled under the finding it belongs to, a stale answer withheld after an edit,
+ * cancellation reaching main, a refused answer shown as a refusal, AI switched off leaving validation
+ * intact, the insert dialog describing a STORED fragment on demand, the save dialog's no-model
+ * similarity hint following the selection with AI off, and no flow or fragment on disk touched by any
+ * of it.
  *
  * The provider is the DETERMINISTIC one: `AWKIT_TEST_AI_PROVIDER` names a file holding the next
  * scripted answer, read only by a non-packaged build (the `AWKIT_TEST_LICENSE_BYPASS` pattern). It
@@ -23,6 +25,7 @@ import { _electron as electron, type Page } from "playwright";
 
 import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FakeInferStep } from "@src/ai/FakeAiHostTransport";
+import { auditFragment, type FlowFragment } from "@src/fragments/FlowFragment";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
@@ -104,8 +107,38 @@ const goodAnswer = JSON.stringify({
 });
 provide({ text: goodAnswer });
 
-const fileDigest = () => createHash("sha256").update(readFileSync(flowFile)).digest("hex");
+// L6: one stored fragment with the same step SHAPE (fill + click) as two of the flow's steps.
+const FRAGMENT_ID = "l6-fill-click";
+const FRAGMENT_NAME = "Fill then click";
+const fragmentFile = path.join(appData, "fragments", `${FRAGMENT_ID}.json`);
+const seededFragment: FlowFragment = {
+  id: FRAGMENT_ID,
+  name: FRAGMENT_NAME,
+  kind: "fragment",
+  version: 1,
+  nodes: [
+    { id: "fa", type: "fill", name: "Wombat-Fragment-Step", value: "Wombat-Fragment-Typed", locator: { strategy: "css", value: "#wombat" } },
+    { id: "fb", type: "click", name: "Go", locator: { strategy: "testId", value: "go" } }
+  ],
+  edges: [{ id: "fe", source: "fa", target: "fb" }],
+  inputs: []
+} as FlowFragment;
+const fragmentBlocking = auditFragment(seededFragment).filter((finding) => finding.severity === "blocking");
+if (fragmentBlocking.length) throw new Error(`the seeded fragment is not storable: ${fragmentBlocking.map((f) => f.code).join(",")}`);
+mkdirSync(path.dirname(fragmentFile), { recursive: true });
+writeFileSync(fragmentFile, `${JSON.stringify(seededFragment, null, 2)}\n`, "utf8");
+
+const digestOf = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+const fileDigest = () => digestOf(flowFile);
 const seededDigest = fileDigest();
+const seededFragmentDigest = digestOf(fragmentFile);
+
+async function stateSettles(win: Page, testId: string, want: string, timeout = 20_000): Promise<string | null> {
+  await win
+    .waitForFunction(([id, value]) => document.querySelector(`[data-testid="${id}"]`)?.getAttribute("data-assist-state") === value, [testId, want], { timeout })
+    .catch(() => undefined);
+  return win.getByTestId(testId).getAttribute("data-assist-state");
+}
 
 const bar = (win: Page) => win.getByTestId("ai-assist-bar");
 async function assistSettles(win: Page, want: string, timeout = 20_000): Promise<string | null> {
@@ -220,6 +253,31 @@ try {
   const foreignCancel = await win.evaluate(() => window.playwrightFlowStudio.ai.cancelAssist("never-started"));
   check("cancelling a job this window does not have is NOT_FOUND", foreignCancel.code === "NOT_FOUND", JSON.stringify(foreignCancel));
 
+  console.log("\nL6 — a saved fragment is described on demand, labelled, and nothing changes");
+  const summaryBox = win.getByTestId("fragment-ai-summary");
+  provide({ text: JSON.stringify({ version: 1, summary: "Fills a field and clicks to continue." }) });
+  await win.getByTestId("fragment-insert-open").click();
+  await win.getByTestId(`fragment-row-${FRAGMENT_ID}`).click();
+  await summaryBox.waitFor({ state: "visible", timeout: 20_000 });
+  check("the insert dialog offers a description for the selected fragment", (await stateSettles(win, "fragment-ai-summary", "idle")) === "idle");
+  check("...and shows none before it is asked for", (await win.getByTestId("fragment-ai-summary-text").count()) === 0);
+  await win.getByTestId("fragment-ai-summarize").click();
+  check("describing completes through real IPC", (await stateSettles(win, "fragment-ai-summary", "done")) === "done", await win.getByTestId("fragment-ai-message").innerText().catch(() => ""));
+  const summaryText = await win.getByTestId("fragment-ai-summary-text").innerText();
+  check("...labelled as an AI interpretation", summaryText.startsWith("AI interpretation") && summaryText.includes("Fills a field and clicks to continue."), summaryText);
+  check("describing changed neither the fragment nor the flow on disk", digestOf(fragmentFile) === seededFragmentDigest && fileDigest() === seededDigest);
+  provide({ hang: true });
+  await win.getByTestId("fragment-ai-summarize").click();
+  check("a slow description can be cancelled", (await stateSettles(win, "fragment-ai-summary", "loading")) === "loading");
+  await win.getByTestId("fragment-ai-cancel").click();
+  check("...and reports it cancelled", (await stateSettles(win, "fragment-ai-summary", "cancelled")) === "cancelled");
+  provide({ text: JSON.stringify({ version: 1, summary: "   " }) });
+  await win.getByTestId("fragment-ai-summarize").click();
+  check("an empty description is refused, not shown", (await stateSettles(win, "fragment-ai-summary", "failed")) === "failed" && (await win.getByTestId("fragment-ai-summary-text").count()) === 0);
+  const forgedSummary = await win.evaluate((id) => window.playwrightFlowStudio.ai.summarizeFragment({ requestId: "../x", fragmentId: id }), FRAGMENT_ID);
+  check("main refuses a malformed summary request directly", forgedSummary.code === "INVALID_REQUEST", JSON.stringify(forgedSummary));
+  await win.getByTestId("fragment-insert-cancel").click();
+
   console.log("\nAI switched off: the bar says so, validation is untouched");
   aiSettings(false);
   provide({ text: goodAnswer });
@@ -238,6 +296,29 @@ try {
   const clickFinding = expected.issues.find((ref) => ref.issue.nodeId === "click")!.issue.message;
   await findingRows.filter({ hasText: clickFinding }).first().click();
   check("...and a finding still navigates to its step", (await description.inputValue()) === "Edited after the explanation", await description.inputValue());
+
+  console.log("\nL6 with AI off — Describe is disabled, and the no-model similarity hint still works");
+  await win.getByTestId("fragment-insert-open").click();
+  await win.getByTestId(`fragment-row-${FRAGMENT_ID}`).click();
+  check("the fragment description reports local AI unavailable", (await stateSettles(win, "fragment-ai-summary", "unavailable")) === "unavailable");
+  check("...with Describe disabled", await win.getByTestId("fragment-ai-summarize").isDisabled());
+  await win.getByTestId("fragment-insert-cancel").click();
+  await win.getByTestId("fragment-save-open").click();
+  const setBox = async (id: string, want: boolean) => {
+    const box = win.getByTestId(id);
+    if ((await box.isChecked()) !== want) await box.click();
+  };
+  await setBox("fragment-step-fill", true);
+  await setBox("fragment-step-click", false);
+  const hint = win.getByTestId("fragment-similar-hint");
+  check("(precondition) exactly the fill step is selected", (await win.getByTestId("fragment-step-fill").isChecked()) && !(await win.getByTestId("fragment-step-click").isChecked()));
+  check("one matching step of two is not similar enough for a hint", (await hint.count()) === 0);
+  await setBox("fragment-step-click", true);
+  await hint.waitFor({ state: "visible", timeout: 5_000 }).catch(() => undefined);
+  check("selecting the same shape as a saved fragment shows the hint, with AI off", (await hint.count()) === 1 && (await hint.innerText()).includes(FRAGMENT_NAME), await hint.innerText().catch(() => ""));
+  check("...saying it was compared without AI", /without AI/.test(await hint.innerText().catch(() => "")));
+  await win.getByTestId("fragment-save-cancel").click();
+  check("the fragment on disk is untouched", digestOf(fragmentFile) === seededFragmentDigest);
 
   console.log("\nAccessibility and theme");
   // Navigating to a finding closes the issue list, as it always has; reopen it.

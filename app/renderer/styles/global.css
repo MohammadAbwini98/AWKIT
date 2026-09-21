@@ -1642,6 +1642,37 @@ div.validation-issue-row {
   font-weight: var(--weight-semibold);
 }
 
+/* L6: the fragment summary sits inside the insert dialog's detail, so the bar drops its divider. */
+.fragment-ai-summary {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fragment-ai-summary .ai-assist-bar {
+  border-bottom: none;
+  padding: 0;
+}
+
+.fragment-ai-summary .ai-explanation {
+  margin: 0;
+}
+
+.fragment-similar-hint {
+  background: var(--awkit-info-soft);
+  border: 1px solid var(--awkit-info-muted);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text);
+  display: grid;
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+}
+
+.fragment-similar-hint ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
 /* Stage 2c: validate-on-load banner (Flow Designer) + safe-fix preview dialog. */
 .validation-load-banner {
   align-items: center;

@@ -37,6 +37,9 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { auditFragment, type FlowFragment } from "@src/fragments/FlowFragment";
 import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
 import type { WorkflowRuntimeInput } from "@src/profiles/WorkflowProfile";
+import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
+
+import { summarizeFragment, type FragmentAssistDeps } from "../app/main/ai/aiAssist";
 
 let passed = 0;
 let failed = 0;
@@ -301,6 +304,49 @@ check("configuration cannot raise the summary above observe", fragmentSummaryDec
 check("the master switch off forbids both", fragmentSummaryDecision({ enabled: false }).decision === "forbidden" && parameterMappingDecision({ enabled: false }).decision === "forbidden");
 // Discovery is the one piece that must keep working with no AI at all.
 check("but discovery still works with AI switched off, because it never needed a model", findSimilarFragments(loginNodes, library).length > 0);
+
+// ── The main-process adapter behind ai:summarizeFragment ────────────────────────────────────────
+// `app/main/ai/aiAssist.ts#summarizeFragment` is what the IPC channel calls: the renderer names a
+// fragment, main reads the STORED one and asks the real AiService. Every negative below is production.
+console.log("\nmain — the adapter behind ai:summarizeFragment");
+const store = new Map([[loginFragment.id, loginFragment]]);
+const fragmentDeps = (service: AiService, policy: AiPolicyConfig = POLICY): FragmentAssistDeps => ({
+  submit: (job) => service.submit(job),
+  policy: async () => policy,
+  fragment: async (id) => store.get(id) ?? null
+});
+const good = harness(['{"version":1,"summary":"Fills two fields and continues."}']);
+const summaryView = await summarizeFragment(3, { requestId: "ui-1", fragmentId: loginFragment.id }, fragmentDeps(good.service));
+check("a named fragment is summarized", summaryView.ok && summaryView.summary === "Fills two fields and continues.", JSON.stringify(summaryView));
+check("...for the fragment that was named", summaryView.fragmentId === loginFragment.id);
+const sentText = good.fake.inferRequests().map((r) => `${r.system}\n${r.user}`).join("\n");
+check("the IPC path sends no step name, typed value or locator", ![SECRET_NAME, SECRET_VALUE, SECRET_LOCATOR].some((s) => sentText.includes(s)));
+check("...but does send the step types it describes", sentText.includes("fill") && sentText.includes("click"));
+// A renderer that sends its own fragment body is ignored: only the id is read, and the store answers.
+const forged = await summarizeFragment(3, { requestId: "ui-2", fragmentId: loginFragment.id, fragment: { nodes: [step("z", "upload", { name: SECRET_NAME })] } }, fragmentDeps(good.service));
+check("a fragment body sent by the renderer is never used", forged.ok && !good.fake.inferRequests().some((r) => r.user.includes("upload")));
+await good.service.shutdown();
+
+const quiet = harness(['{"version":1,"summary":"x"}']);
+const calls = () => quiet.fake.inferRequests().length;
+check("AI switched off answers DISABLED", (await summarizeFragment(3, { requestId: "ui-3", fragmentId: loginFragment.id }, fragmentDeps(quiet.service, { enabled: false }))).code === "DISABLED");
+check("a fragment that no longer exists answers NOT_FOUND", (await summarizeFragment(3, { requestId: "ui-4", fragmentId: "frag-gone" }, fragmentDeps(quiet.service))).code === "NOT_FOUND");
+for (const [label, input] of [
+  ["a non-object request", "frag-login"],
+  ["a missing request id", { fragmentId: loginFragment.id }],
+  ["a fragment id with a path separator", { requestId: "ui-5", fragmentId: "..\\frag-login" }],
+  ["a request id with a path separator", { requestId: "a/b", fragmentId: loginFragment.id }]
+] as Array<[string, unknown]>) {
+  check(`${label} is refused as INVALID_REQUEST`, (await summarizeFragment(3, input, fragmentDeps(quiet.service))).code === "INVALID_REQUEST");
+}
+check("...and none of those refusals reached the model", calls() === 0, String(calls()));
+await quiet.service.shutdown();
+
+const unsafe = harness([`{"version":1,"summary":"MODEL-TEXT${String.fromCharCode(7)}here"}`]);
+const unsafeView = await summarizeFragment(3, { requestId: "ui-6", fragmentId: loginFragment.id }, fragmentDeps(unsafe.service));
+check("a summary with control characters is OUTPUT_REJECTED", !unsafeView.ok && unsafeView.code === "OUTPUT_REJECTED" && unsafeView.summary === null, JSON.stringify(unsafeView));
+check("...and none of its text reaches the renderer", !JSON.stringify(unsafeView).includes("MODEL-TEXT"));
+await unsafe.service.shutdown();
 
 console.log(`\nL6 fragment intelligence: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

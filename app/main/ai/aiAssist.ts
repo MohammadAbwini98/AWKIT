@@ -1,5 +1,5 @@
 /**
- * User-requested AI assists in the main process (Phase L, L4b).
+ * User-requested AI assists in the main process (Phase L: L4b explanations, L6 fragment summaries).
  *
  * The renderer names data; this module decides everything else. For L4b it re-validates the flow the
  * renderer has open with the real `FlowValidator`, builds the request with `buildAuthoringRequest`,
@@ -22,11 +22,15 @@ import {
 import {
   sanitizeAssistRequestId,
   sanitizeAuthoringAssistRequest,
+  sanitizeFragmentSummaryRequest,
   type AiAdminResponse,
   type AiAssistCode,
   type AiAssistStatus,
-  type AuthoringAssistView
+  type AuthoringAssistView,
+  type FragmentSummaryView
 } from "@src/ai/contracts/AiApi";
+import { FRAGMENT_ASSIST_LIMITS, buildFragmentSummaryRequest, fragmentSummaryDecision, parseFragmentSummary } from "@src/ai/fragmentAssist";
+import type { FlowFragment } from "@src/fragments/FlowFragment";
 import type { AiPolicyConfig, AiPolicyDecision } from "@src/security/authz/AiAutonomyPolicy";
 import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
@@ -39,7 +43,7 @@ export interface AiAssistDeps {
 
 const MESSAGES: Readonly<Record<AiAssistCode, string>> = Object.freeze({
   OK: "",
-  NOTHING_TO_ASK: "There are no validation findings to explain.",
+  NOTHING_TO_ASK: "There is nothing here for local AI to explain.",
   FORBIDDEN: "This AI feature is turned off in Local AI settings.",
   DISABLED: "Local AI is turned off.",
   UNAVAILABLE: "Local AI is not available on this machine right now.",
@@ -49,6 +53,7 @@ const MESSAGES: Readonly<Record<AiAssistCode, string>> = Object.freeze({
   FAILED: "Local AI could not answer this request.",
   OUTPUT_REJECTED: "The AI answer did not match this flow's findings, so it was discarded.",
   INVALID_REQUEST: "The request could not be read.",
+  NOT_FOUND: "It no longer exists.",
   REAUTH_REQUIRED: "Confirm your password to continue.",
   NOT_AUTHORIZED: "You are not authorized to use local AI."
 });
@@ -123,6 +128,41 @@ export async function explainFlowValidation(senderId: number, input: unknown, de
     ranking: ranked.map((id) => issueById.get(id)!),
     truncated: job.truncated
   };
+}
+
+export interface FragmentAssistDeps extends Pick<AiAssistDeps, "submit" | "policy"> {
+  /** The STORED fragment: the renderer names it, and its copy is never trusted. */
+  fragment: (id: string) => Promise<FlowFragment | null | undefined>;
+}
+
+/**
+ * L6 T0 summary. The core sends step TYPES and input KEYS only, never a step name, locator or typed
+ * value, and main reads the fragment from the store itself, so a renderer cannot put words in it.
+ */
+export async function summarizeFragment(senderId: number, input: unknown, deps: FragmentAssistDeps): Promise<FragmentSummaryView> {
+  const request = sanitizeFragmentSummaryRequest(input);
+  const view = (code: AiAssistCode): FragmentSummaryView => ({ ...assistStatus(code), fragmentId: request?.fragmentId ?? "", summary: null });
+  if (!request) return view("INVALID_REQUEST");
+  const refused = policyCode(fragmentSummaryDecision(await deps.policy()));
+  if (refused) return view(refused);
+  const fragment = await deps.fragment(request.fragmentId).catch(() => null);
+  if (!fragment) return view("NOT_FOUND");
+  const job = buildFragmentSummaryRequest(fragment);
+  if (!job) return view("NOTHING_TO_ASK");
+
+  const outcome = await deps.submit({
+    requestId: assistJobId(senderId, request.requestId),
+    feature: "fragmentSummary",
+    priority: "interactive",
+    prompt: job.prompt,
+    schema: job.schema,
+    maxOutputTokens: FRAGMENT_ASSIST_LIMITS.maxOutputTokens,
+    timeoutMs: FRAGMENT_ASSIST_LIMITS.timeoutMs
+  });
+  if (outcome.status !== "ok") return view(outcomeCode(outcome));
+  const answer = parseFragmentSummary(outcome.value);
+  if (!answer.ok) return view("OUTPUT_REJECTED");
+  return { ...assistStatus("OK", outcome.modelId), fragmentId: fragment.id, summary: answer.summary };
 }
 
 export function cancelAssist(senderId: number, input: unknown, cancel: (jobId: string) => boolean): AiAdminResponse {

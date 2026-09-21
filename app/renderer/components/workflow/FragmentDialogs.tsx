@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Blocks, Bookmark, TriangleAlert } from "lucide-react";
+import { AlertTriangle, Blocks, Bookmark, Sparkles, TriangleAlert, X } from "lucide-react";
 
 import { useModalFocusContract } from "../shared/useModalFocusContract";
+import { aiUnavailableSentence, useAiAssistJob } from "../shared/useAiAssistJob";
+import type { FragmentSummaryView } from "@src/ai/contracts/AiApi";
+import { findSimilarFragments } from "@src/ai/fragmentAssist";
 import type { FlowFragment, FragmentAuditFinding } from "@src/fragments/FlowFragment";
-import type { StepType } from "@src/profiles/FlowProfile";
+import type { FlowStep, StepType } from "@src/profiles/FlowProfile";
 
 /**
  * L6 — the two Flow Designer fragment surfaces: save a selection as a fragment, and insert a saved
@@ -89,6 +92,23 @@ export function SaveFragmentDialog({ flowName, steps, seedStepIds, editorDirty, 
   const chosen = steps.filter((step) => selected.has(step.id));
   const canSave = !editorDirty && !busy && chosen.length > 0 && name.trim().length > 0;
 
+  // L6 passive hint: step SHAPE only, computed here with no model and no index, so it works with AI
+  // off. An unreadable library just means no hint — it never blocks saving.
+  const [library, setLibrary] = useState<FlowFragment[]>([]);
+  useEffect(() => {
+    let live = true;
+    window.playwrightFlowStudio.fragments
+      .list()
+      .then((list) => {
+        if (live) setLibrary(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const similar = findSimilarFragments(chosen.map((step) => ({ id: step.id, name: step.name, type: step.stepType }) as FlowStep), library);
+
   const submit = useCallback(async () => {
     if (!canSave) return;
     setBusy(true);
@@ -159,6 +179,20 @@ export function SaveFragmentDialog({ flowName, steps, seedStepIds, editorDirty, 
             )}
           </fieldset>
 
+          {similar.length ? (
+            <div className="fragment-similar-hint" role="status" data-testid="fragment-similar-hint">
+              <span>A similar fragment already exists:</span>
+              <ul>
+                {similar.map((hint) => (
+                  <li key={hint.fragmentId} data-testid="fragment-similar-item">
+                    <strong>{hint.fragmentName}</strong> — {hint.sharedSteps} matching step{hint.sharedSteps === 1 ? "" : "s"}
+                  </li>
+                ))}
+              </ul>
+              <span className="fragment-inputs-note">Compared by step types only, without AI. You can still save this one.</span>
+            </div>
+          ) : null}
+
           <label className="modal-field" htmlFor={nameId}>
             <span>Fragment name</span>
             <input
@@ -202,6 +236,65 @@ export function SaveFragmentDialog({ flowName, steps, seedStepIds, editorDirty, 
 /* ────────────────────────────────────────────────────────────────────────────────────────────────
  * Insert fragment
  * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * L6 T0: an on-demand description of the selected fragment, labelled as AI. Main reads the stored
+ * fragment and sends step types and input keys only; the summary changes nothing and inserting never
+ * waits for it. Selecting another fragment abandons the request.
+ */
+function FragmentAiSummary({ fragmentId }: { fragmentId: string }) {
+  const job = useAiAssistJob<FragmentSummaryView>(fragmentId);
+  if (!job.visible) return null;
+  const { phase } = job;
+  const unavailable = aiUnavailableSentence(job.status, "Inserting fragments works without it.");
+  const refused = phase.kind === "failed" && phase.view.code !== "CANCELLED";
+  const done = phase.kind === "done" && phase.subject === fragmentId ? phase.view : null;
+  const state = unavailable ? "unavailable" : phase.kind === "failed" && !refused ? "cancelled" : phase.kind;
+  const message =
+    unavailable ??
+    (phase.kind === "loading"
+      ? "Asking local AI to describe this fragment…"
+      : phase.kind === "failed"
+        ? (phase.view.message ?? "Local AI could not answer this request.")
+        : done
+          ? "An interpretation from its step types — check the steps before relying on it."
+          : null);
+
+  return (
+    <div className="fragment-ai-summary" data-testid="fragment-ai-summary" data-assist-state={state}>
+      <div className="ai-assist-bar">
+        <span className="ai-assist-label">
+          <Sparkles size={13} aria-hidden="true" />
+          Local AI
+        </span>
+        {phase.kind === "loading" ? (
+          <button className="toolbar-button" data-testid="fragment-ai-cancel" onClick={job.cancel} type="button">
+            <X size={13} aria-hidden="true" />
+            Cancel
+          </button>
+        ) : (
+          <button
+            className="toolbar-button"
+            data-testid="fragment-ai-summarize"
+            disabled={Boolean(unavailable)}
+            onClick={() => job.start("l6", fragmentId, (requestId) => window.playwrightFlowStudio.ai.summarizeFragment({ requestId, fragmentId }))}
+            type="button"
+          >
+            {done ? "Describe again" : "Describe with AI"}
+          </button>
+        )}
+        <span className={`ai-assist-message${refused ? " error" : ""}`} role="status" data-testid="fragment-ai-message">
+          {refused ? <AlertTriangle size={12} aria-hidden="true" /> : null} {message}
+        </span>
+      </div>
+      {done?.summary ? (
+        <p className="ai-explanation" data-testid="fragment-ai-summary-text">
+          <span className="ai-explanation-label">AI interpretation</span> {done.summary}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export interface InsertFragmentDialogProps {
   /** The flow being edited, so the audit can answer the destination-dependent rules. */
@@ -353,6 +446,7 @@ export function InsertFragmentDialog({ flowId, onCancel, onInsert, onDelete }: I
                   </p>
                 </div>
               ) : null}
+              <FragmentAiSummary fragmentId={selected.id} />
               {findings === null ? (
                 <p className="fragment-findings-empty" data-testid="fragment-audit-pending">
                   Checking this fragment against the flow…

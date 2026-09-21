@@ -25,6 +25,8 @@ import type {
   AuthoringAssistRequest,
   AuthoringAssistView,
   FlowLocatorUpgradesView,
+  FragmentSummaryAssistRequest,
+  FragmentSummaryView,
   LocatorPromotionRequest
 } from "@src/ai/contracts/AiApi";
 import type { AiSettingsPatch } from "@src/ai/AiSettings";
@@ -426,6 +428,8 @@ const api = {
     setEditorState: (state: { flowId: string; dirty: boolean } | null) => invoke("ai:setEditorState", state) as Promise<AiAdminResponse>,
     // L4b. Names the open flow; main re-validates it and builds the prompt. Cancel reaches only this window's jobs.
     explainValidation: (request: AuthoringAssistRequest) => invoke("ai:explainValidation", request) as Promise<AuthoringAssistView>,
+    // L6. Names a stored fragment; main reads it and sends step types and input keys only.
+    summarizeFragment: (request: FragmentSummaryAssistRequest) => invoke("ai:summarizeFragment", request) as Promise<FragmentSummaryView>,
     cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>

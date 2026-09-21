@@ -27,13 +27,14 @@ import {
   type AiSettingsView,
   type AiStatusView,
   type AuthoringAssistView,
-  type FlowLocatorUpgradesView
+  type FlowLocatorUpgradesView,
+  type FragmentSummaryView
 } from "@src/ai/contracts/AiApi";
 import { Permission } from "@src/security/authz/Permissions";
 
-import { createFlowProfileStore } from "../profileStores";
+import { createFlowFragmentStore, createFlowProfileStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
-import { cancelAssist, explainFlowValidation, type AiAssistDeps } from "../ai/aiAssist";
+import { cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../ai/aiAssist";
 import {
   aiAuditView,
   aiDiagnosticsView,
@@ -140,6 +141,17 @@ export function registerAiIpc(): void {
       return { code, ok: false, message: denied.message, explanations: [], ranking: [], truncated: 0 };
     }
     return explainFlowValidation(event.sender.id, request, assistDeps());
+  });
+
+  // L6 T0. Names a stored fragment; main reads it from the store. The library needs PAGE_FLOWS.
+  ipcMain.handle("ai:summarizeFragment", async (event, request: unknown): Promise<FragmentSummaryView> => {
+    const denied = (await authorize(event, Permission.AI_USE, false)) ?? (await authorize(event, Permission.PAGE_FLOWS, false));
+    if (denied) {
+      const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
+      return { code, ok: false, message: denied.message, fragmentId: "", summary: null };
+    }
+    const fragments = createFlowFragmentStore();
+    return summarizeFragment(event.sender.id, request, { ...assistDeps(), fragment: (id) => fragments.get(id) });
   });
 
   // Cancels only the asking window's own job: main prefixes the id with the sender's id.

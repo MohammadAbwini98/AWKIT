@@ -239,6 +239,8 @@ export type AiAssistCode =
   | "FAILED"
   | "OUTPUT_REJECTED"
   | "INVALID_REQUEST"
+  /** The named subject (a fragment) no longer exists. */
+  | "NOT_FOUND"
   | "REAUTH_REQUIRED"
   | "NOT_AUTHORIZED";
 
@@ -265,6 +267,25 @@ export interface AuthoringAssistView extends AiAssistStatus {
   ranking: FlowValidationIssue[];
   /** Issues beyond the per-request cap that were not sent, so the UI never implies completeness. */
   truncated: number;
+}
+
+/** L6: describe a saved fragment. It names the fragment; main reads it from the store. */
+export interface FragmentSummaryAssistRequest {
+  requestId: string;
+  fragmentId: string;
+}
+
+export interface FragmentSummaryView extends AiAssistStatus {
+  fragmentId: string;
+  /** T0 prose, always shown labelled as AI. Null unless `ok`. */
+  summary: string | null;
+}
+
+export function sanitizeFragmentSummaryRequest(input: unknown): FragmentSummaryAssistRequest | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
+  const fragmentId = raw ? sanitizeProfileId(raw.fragmentId) : null;
+  return requestId && fragmentId ? { requestId, fragmentId } : null;
 }
 
 export const AI_ASSIST_MAX_NODES = 2_000;

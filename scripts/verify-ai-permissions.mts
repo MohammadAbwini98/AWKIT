@@ -110,6 +110,8 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     // L4b: an explanation reads a flow and writes nothing; cancel reaches only the caller's own job.
     "ai:explainValidation": [["AI_USE", "WORKFLOW_VIEW"], false],
     "ai:cancelAssist": [["AI_USE"], false],
+    // L6: a fragment summary reads the fragment library, which PAGE_FLOWS already guards.
+    "ai:summarizeFragment": [["AI_USE", "PAGE_FLOWS"], false],
     "ai:importModelPack": [["AI_MANAGE"], true],
     "ai:removeModelPack": [["AI_MANAGE"], true]
   };
@@ -127,7 +129,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }
