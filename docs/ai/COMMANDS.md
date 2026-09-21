@@ -435,6 +435,12 @@ npm run verify:ai-locator-upgrade-gui # L3 §6 + §10 in real Electron: the Flow
                                   # keyboard-operable evidence disclosure, an unproven candidate, a
                                   # forbidden (T3) step, step and flow switching, light/dark token
                                   # resolution, and the AI-unavailable line (65)
+npm run verify:ai-assist-gui      # L4b + L5b + L6 user-facing AI in real Electron, via the NON-PACKAGED
+                                  # test provider (AWKIT_TEST_AI_PROVIDER names a file holding the next
+                                  # scripted FakeInferStep): explain/cancel/stale/refused/AI-off in the
+                                  # validation panel, fragment Describe + the no-model similarity hint, and
+                                  # the run-detail drawer's cause/evidence/on-demand analysis. Needs
+                                  # `npm run build` first. Says nothing about live-model quality (76)
 npm run verify:ai-locator-attempts # L3 §7 bounded synthesis attempts in real Chromium over the real
                                   # AiService + fake transport: the 2-attempt budget, repeats, every refusal
                                   # stage, protected login, expired context, cancellation, supersession,

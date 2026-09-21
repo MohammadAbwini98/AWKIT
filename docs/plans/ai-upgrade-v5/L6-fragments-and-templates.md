@@ -166,9 +166,10 @@ assertion was not relaxed. That verifier's group count is hardcoded and exact, a
 ## The Intelligence section as built (2026-09-21)
 
 Built under the conditional development authorization: `src/ai/fragmentAssist.ts`, proven by
-`verify:ai-fragment-assist` (59/59, three mutations caught). `awkit-djnl.9` **stays open** — the
-renderer surface is not built, there is no production caller, and the milestone cannot close under
-that authorization in any case.
+`verify:ai-fragment-assist` (59/59, three mutations caught). `awkit-djnl.9` **stays open** — the hint
+and summary surfaces were built the same day (see "The Intelligence renderer surfaces as built"), the
+mapping review is not built, there is no production caller, and the milestone cannot close under that
+authorization in any case.
 
 - **Discovery is deterministic, and the plan's semantic-index route was not taken.** The spec reaches
   for the Zvec index and a new `fragment` document kind; the audit above had already recorded that no
@@ -197,5 +198,22 @@ that authorization in any case.
   rule and it went untested. The fixture now declares two same-typed inputs so each duplicate rule
   fails alone.
 
-**Still unbuilt:** the renderer surface for the hint, the summary and the mapping review, and the
-production caller (the same L1-gated boundary as L3 §7–§9, L4b and L5b).
+**Still unbuilt:** the mapping review (below) and the production caller (the same L1-gated boundary as
+L3 §7–§9, L4b and L5b).
+
+### The Intelligence renderer surfaces as built (2026-09-21, `63d0a3cb`)
+
+Deterministic provider only; `awkit-djnl.9` stays `in_progress` and cannot close.
+
+- **The hint** is in the save dialog: `findSimilarFragments` over the **checked** steps' types against the
+  stored library, computed in the renderer with no model, no index and no new IPC. It works with AI off;
+  an unreadable library means no hint, never a blocked save.
+- **The summary** is on-demand in the insert dialog (*Describe with AI*), through `ai:summarizeFragment`
+  (AI_USE + PAGE_FLOWS). The renderer names the fragment; main reads the **stored** one, so a body sent by
+  the renderer is never used. Labelled, cancellable, abandoned when another fragment is selected.
+- **The mapping review is deliberately NOT built.** §"Required inputs are shown, never remapped" above
+  still holds: runtime inputs live on workflows, so a Flow Designer mapping UI would invent a flow-level
+  declaration. Its host is a workflow-side insertion surface that does not exist yet.
+- **Verifiers:** `verify:ai-fragment-assist` 73/73 (a 14-check adapter section), `verify:ai-assist-gui` in
+  real Electron, `verify:flow-fragments-gui` 53/53 as the dialogs' regression; mutations caught: the
+  summary ignoring the AI policy, the hint computed from every step instead of the checked ones.

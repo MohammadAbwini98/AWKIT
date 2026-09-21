@@ -170,8 +170,9 @@ gate stays at the last recorded FAIL.
 
 **Status (2026-09-21): coalescing and the analysis contract are BUILT** — `src/ai/failureAnalysis.ts`,
 proven by `verify:ai-error-analysis` (76/76, three mutations caught) over L5a's real `EvidenceBuffer`
-and real `deriveFailureCause`. `awkit-djnl.8` stays open: the `diagnostics` persistence extension, the
-reports UX and the live quality gate are not built, and the milestone cannot close under the
+and real `deriveFailureCause`. **The on-demand reports UX was built the same day** (see "L5b on-demand
+surface as built"). `awkit-djnl.8` is `in_progress`: the automatic analysis, the `diagnostics`
+persistence extension and the live quality gate are not built, and the milestone cannot close under the
 conditional development authorization.
 
 ### L5b as built
@@ -206,6 +207,28 @@ conditional development authorization.
 - **Mutation-tested three for three:** adding the instance id to the signature → 63/76 (coalescing
   collapses entirely); allowing an unsupported conclusion → 75/76; removing the per-batch budget →
   71/76.
+
+### L5b on-demand surface as built (2026-09-21, `cf9bbb32`)
+
+Deterministic provider only; `awkit-djnl.8` is `in_progress` and cannot close.
+
+- **Where:** the run-detail drawer that Failure Analytics already opens (`FailureEvidenceSection.tsx`),
+  backed by `app/main/ai/aiAssist.ts#analyzeFailure` behind `ai:analyzeFailure` (AI_USE + PAGE_REPORTS).
+- **Reports UX, three sections never merged:** *Deterministic cause* (L5a's own), *Captured evidence*
+  (every event exactly as persisted, read through the existing PAGE_REPORTS-gated `reports:get`), and
+  *AI analysis* — on demand, labelled, with `insufficient` as a first-class answer, the coalesced count,
+  and each cited event marked in the evidence list so a citation can be checked. With AI off the first two
+  still show.
+- **The renderer names a run and an instance; main reads the stored report.** Coalescing decides what the
+  answer covers; the **named** instance is analysed, so every cited id is one the user can see beside it.
+- **Decision recorded:** the per-batch budget governs the AUTOMATIC post-run analysis, which is **not
+  built** (it needs the live quality gate). An explicit click on one failure is one deliberate call, so a
+  failure past that budget is still answered. An insufficient baseline is still never analysed.
+- **Not built:** the automatic analysis, the `diagnostics` persistence extension (analyses are recomputed
+  on demand, never stored), `verify:ai-error-quality-live`.
+- **Verifiers:** `verify:ai-error-analysis` 100/100 (a 24-check adapter section), `verify:ai-assist-gui` in
+  real Electron (seeded through the real `SqliteRuntimeStore`); mutations caught: analysing the group's
+  first member, ignoring the coalesced count, dropping the citation marker.
 
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).

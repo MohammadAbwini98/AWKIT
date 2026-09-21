@@ -1,31 +1,22 @@
 {
-  "task": "awkit-djnl-1-l1-0919",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
-  "holder": "release",
+  "task": "awkit-djnl-phase-l-ui-0921",
+  "contract_path": "docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "package-lock.json",
-    "package.json",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "src/offline/AiModelManifest.ts"
+    ".beads/**"
   ],
-  "acquired_at": "2026-09-20T15:56:38.232Z",
-  "acquired_at_commit": "527e955669658189b196e4644eb0ab91e6359a58",
+  "acquired_at": "2026-09-21T07:58:31.106Z",
+  "acquired_at_commit": "cf9bbb32f1f827985fa7508bf13f7332b7da7c21",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-1-l1-0919.json",
-    "package-lock.json",
-    "package.json",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "src/offline/AiModelManifest.ts"
+    "docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json",
+    "scripts/ai-harness/locatorUpgradePacket.ts",
+    "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "dae54c366c1f772ab92aa76a33ce7758aae95231b5899a29e530061c6c69b46c",
-    "docs/ai/contracts/awkit-djnl-1-l1-0919.json": "52f278e324809bd7e0de4e3e1cffc5cb8681d8e91aa77846496abbaaacb1c650",
-    "package-lock.json": "4fada01c38692ec581a903613d084fcb8d2170cc8ca0578efcd25113c5155aac",
-    "package.json": "d8c0e3627105a2e45f426a96bc79e9b796050520b6ff63e93269c5714fe91805",
-    "resources/THIRD_PARTY_NOTICES.md": "417143612d28a205dc5f11e0b365fa1bfba2621f0e862b988060353743fb04a6",
-    "src/offline/AiModelManifest.ts": "4ca1a57185fcacb5ee267bb98565dbdf671cf29c6b026f9d40f829845b427492"
+    "docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json": "37214da27fedac68cbeddefe43135a99dc3a2e8c90bd1dfe3919ba30a5fbee10",
+    "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
+    "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -37,26 +28,10 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1789762718948.7537"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-09-20T15:57:33.258Z",
-      "added": [
-        "resources/THIRD_PARTY_NOTICES.md",
-        "package.json",
-        "package-lock.json"
-      ],
-      "reason": "the manifest pin names the runtime added in package.json and its licence notice so they are one release change",
-      "triggered_escalation": [
-        "architect",
-        "qa",
-        "qc"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-20T15:58:55.222Z",
-  "released_reason": "L1.2 manifest pin and runtime pin and notices and dependency committed in a28050c7 with verify:ai-model-pack 46/46 at 1 pinned pack and build and typecheck:scripts PASS",
-  "archived_at": "2026-09-20T15:58:55.227Z"
+  "released_at": "2026-09-21T07:59:37.216Z",
+  "released_reason": "tracker notes recorded for djnl.1 .6 .8 .9, .6 and .8 moved to in_progress, nothing closed, export refreshed",
+  "archived_at": "2026-09-21T07:59:37.217Z"
 }

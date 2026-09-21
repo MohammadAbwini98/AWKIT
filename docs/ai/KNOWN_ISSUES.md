@@ -303,7 +303,9 @@ fix took the shape it did, and the last bullet's second duty is still open — s
 - **Compound commands are refused outright**, whatever they contain: `hasUnsafeShellSyntax` rejects
   `;  &  |  >  <  backtick  CR/LF  $(  ${  ^`. One bounded command per call. This is also why commit
   messages here cannot carry a real `Co-Authored-By:` trailer (it needs a newline and angle brackets),
-  and why the repo's convention is an inline `(Co-Authored-By: …)` in parentheses.
+  and why the repo's convention is an inline `(Co-Authored-By: …)` in parentheses. **The check reads the
+  whole command, quoted text included:** a `;` inside a `bd update --notes "…"` string is refused
+  (2026-09-21, twice), and each refusal counts toward the shared 3-denial limit — write notes with commas.
 - **Still genuinely leased:** mutating `bd` (`bd update|create|close`, `bd export -o …`) requires an
   active `project-state` lease, and Risk-3 paths require a routed lease. Neither is unobtainable — both
   go through the `agent:lease-grant` form above.

@@ -51,9 +51,10 @@ design-time data-source/secret reference checks (needs a library context like `r
 
 **Status (2026-09-21): the contract is BUILT** — `src/ai/authoringExplanation.ts`, proven by
 `verify:ai-authoring` (55/55, three mutations caught) over the real `FlowValidator`, the real
-`AiService` and the real output contract with a deterministic transport. `awkit-djnl.6` stays open:
-the renderer surface and the live quality gate are not built, and the milestone cannot close under the
-conditional development authorization.
+`AiService` and the real output contract with a deterministic transport. **The renderer surface was built
+the same day** (see "L4b renderer surface as built"). `awkit-djnl.6` is `in_progress`: the live quality
+gate and a live-model caller are not built, and the milestone cannot close under the conditional
+development authorization.
 
 ### L4b as built
 
@@ -78,8 +79,29 @@ conditional development authorization.
 - **Mutation-tested three for three:** allowing a ranking of an unemitted fix → 54/55; widening the
   ranking enum to every issue id → 54/55; sending the validator message instead of the rule summary →
   51/55 (caught by four separate privacy assertions).
-- **Not built:** the renderer surface (§UX below) and `verify:ai-authoring-quality-live`. There is also
-  no production caller, for the same L1-gated reason as L3 §7–§9.
+- **Not built:** `verify:ai-authoring-quality-live`, and a live-model caller, for the same L1-gated reason
+  as L3 §7–§9. (The renderer surface was built on 2026-09-21 — below.)
+
+### L4b renderer surface as built (2026-09-21, `8ee425a1`)
+
+Deterministic provider only; `awkit-djnl.6` is `in_progress` and cannot close under the conditional
+authorization.
+
+- **Where:** the Flow Designer's validation panel (`AuthoringAssist.tsx`), backed by
+  `app/main/ai/aiAssist.ts#explainFlowValidation` behind `ai:explainValidation` (AI_USE + WORKFLOW_VIEW).
+- **The renderer sends the open flow; main re-validates it** with the real `FlowValidator` against the
+  saved library, exactly as the designer does, then reuses `buildAuthoringRequest`/`parseAuthoringAnswer`.
+  No renderer string becomes prompt text.
+- **States:** availability (off / unavailable), loading with Cancel (window-scoped `ai:cancelAssist`),
+  **stale** (any edit withholds the answer — it is tied to the document snapshot it was asked about),
+  refused (`OUTPUT_REJECTED`, none of the text shown) and AI-off (validation and fixes unaffected).
+- **UX mapping:** violated rule and its row (existing) · AI explanation labelled *AI interpretation*
+  under the exact finding row · available safe fix marked with its AI fix order · **Apply** is the
+  unchanged preview → confirm → `SafeFixApplier` path, refused while the editor is dirty · Show on Canvas
+  is the existing row navigation · Dismiss is closing the panel. The fix order shows only where the policy
+  says *suggest* (T1); an administrator lowering ranking to T0 withholds it.
+- **Verifiers:** `verify:ai-authoring` 85/85 (a 30-check adapter section), `verify:ai-assist-gui` in real
+  Electron; mutations caught: unscoped cancel ids, ranking shown at T0, the stale guard removed.
 
 - Input: violation codes, affected IDs with safe labels, bounded neighborhood, rule text, the `safeFix` kinds the
   validator emitted for this graph.

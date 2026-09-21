@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-phase-l-ui-0921",
+    "title": "Record the Phase L user-facing AI surfaces on the tracker, and the conditional authorization on L1",
+    "objective": "Move awkit-djnl.6 (L4b) and awkit-djnl.8 (L5b) from open to in_progress and note on them and on awkit-djnl.9 (L6) which user-facing surfaces are built (commits 8ee425a1, 63d0a3cb, cf9bbb32) and what is not; add the owner's conditional development authorization note to awkit-djnl.1 (L1), whose L1.8 FAIL is unchanged. Refresh the JSONL export. NOTHING is closed and no dependency edge is added or removed: every AI-dependent milestone stays blocked on L1.8 and none may close under the conditional authorization.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "cf9bbb32",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.6 and .8 read in_progress with notes naming what is built and what is not, .9 and .1 carry their notes, nothing is closed, every blocks edge is unchanged, the JSONL export is refreshed from the database, and the dashboard still reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', run once against the final state after `bd update` x4, `bd export -o .beads/issues.jsonl` and the state-document updates. Tracker totals unchanged at 10 outstanding / 292 closed (in_progress stays outstanding), and both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-phase-l-ui-0921:project-state:2026-09-21T07:58:31.106Z",
+        "task": "awkit-djnl-phase-l-ui-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T07:58:31.106Z",
+        "acquired_at_commit": "cf9bbb32f1f827985fa7508bf13f7332b7da7c21",
+        "released_at": "2026-09-21T07:59:37.216Z",
+        "released_reason": "tracker notes recorded for djnl.1 .6 .8 .9, .6 and .8 moved to in_progress, nothing closed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

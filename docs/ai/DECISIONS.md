@@ -1,5 +1,25 @@
 # DECISIONS
 
+### 2026-09-21 — Phase L user-facing AI: one assist boundary, a non-packaged test provider, and on-demand is not automatic (`awkit-djnl.6`, `.8`, `.9`)
+
+- **One boundary for every user-requested assist.** `app/main/ai/aiAssist.ts` is Electron-free and sits
+  behind named channels. The renderer names data (an open flow, a stored fragment, a stored run and
+  instance); main re-validates or re-reads it and reuses the milestone's own request builder and parser.
+  No channel carries prompt text. Cancellation ids are prefixed with the sender's id.
+- **The real-Electron test provider is `AWKIT_TEST_AI_PROVIDER`, non-packaged only.** It follows the
+  `AWKIT_TEST_LICENSE_BYPASS`/SEC-006 pattern: `app.isPackaged` is checked before the variable is read, it
+  replaces only the transport and model pack (with the existing `FakeAiHostTransport`), and
+  `verify:ai-permissions` proves the gate statically because no verifier here can run a packaged build.
+  A pass through it says nothing about live-model quality or latency.
+- **On demand is not automatic.** L5b's per-batch budget bounds the automatic post-run analysis, which is
+  not built (it needs the live quality gate). An explicit request for one failure is one deliberate call,
+  so a failure past that budget is still answered; coalescing still decides what the answer covers, and
+  the **named** instance is analysed so every cited id is one the user can see. An insufficient baseline
+  is never analysed.
+- **L6's mapping review stays unbuilt** for the reason §"Required inputs are shown, never remapped"
+  already gives: runtime inputs live on workflows, and a Flow Designer mapping UI would invent a
+  flow-level declaration.
+
 ### 2026-09-21 — Phase L L3 §8: what a repair may prove, and against what (`awkit-djnl.4`)
 
 - **A repair's gate C is identity, not DOM node equality, because the baseline failing is the premise.**

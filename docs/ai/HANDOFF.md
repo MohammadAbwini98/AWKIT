@@ -1,6 +1,41 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — Phase L's AI-dependent cores are BUILT under a conditional authorization; L1.8 still FAILS
+## HANDOFF (2026-09-21, latest) — Phase L's L4b, L5b and L6 surfaces are in the app; L1.8 still FAILS
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Read this first:** everything below is proven with the **deterministic provider only**, under the
+  owner's conditional development authorization. L1.8's FAIL is unchanged, L5a's methodology is still the
+  owner's call, and **nothing may close**. Do not describe any of it as live-model acceptance.
+- **Commits, all pushed to `main`:** `8ee425a1` (L4b in the Flow Designer + the shared IPC boundary +
+  the test provider seam), `63d0a3cb` (L6 fragment dialogs + the shared `useAiAssistJob` hook),
+  `cf9bbb32` (L5b in the run-detail drawer), then the state commit.
+- **The boundary:** `app/main/ai/aiAssist.ts` behind `ai:explainValidation`, `ai:summarizeFragment`,
+  `ai:analyzeFailure` and `ai:cancelAssist`. The renderer names data, main re-reads or re-validates it and
+  reuses each milestone's own request builder and parser. A new assist feature should add ONE function
+  there and ONE channel, and must be admitted deliberately in the exact rosters of
+  `verify:ai-permissions` and `verify:ai-fallback` (both fail on an unlisted channel — by design).
+- **The test seam:** `AWKIT_TEST_AI_PROVIDER=<file>` makes a NON-PACKAGED build use `FakeAiHostTransport`,
+  re-reading the file for every inference (write the next `FakeInferStep` before each UI action).
+  `verify:ai-assist-gui` is the worked example, including seeding a failed run through the real
+  `SqliteRuntimeStore`.
+- **Deliberately not built:** L6's T1 parameter-mapping review (runtime inputs live on workflows — a Flow
+  Designer mapping UI would invent a flow-level declaration); L5b's automatic post-run analysis and the
+  diagnostics persistence extension; every `*-quality-live` gate; every production (live-model) caller.
+- **Tracker:** `awkit-djnl.6` and `.8` are now `in_progress` with notes; `.9` and `.1` gained notes. Done
+  through contract `docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json` and a released `project-state`
+  lease. Still 10 outstanding / 292 closed.
+- **Traps met this session:**
+  - The lease guard refuses a `;` anywhere in a shell command, **including inside a quoted `bd --notes`
+    string** — reword with commas. Two such refusals count toward the shared 3-denial limit.
+  - Leaving the Flow Designer with unsaved edits raises the unsaved-changes guard, so a GUI suite that
+    navigated away silently stayed on the designer until it clicked *Discard Changes*.
+  - Identical coalesced failures carry identical evidence ids, so "the named instance was analysed" is
+    only testable when that instance has an event the group's first member lacks.
+- **Next eligible work, in order:** (1) the L5a overhead-gate methodology, once the owner decides;
+  (2) the production callers and `*-quality-live` gates, after the owner resolves L1.8. **L7 cannot be
+  entered** — every confirmation it asks for depends on L1.8 or the L5a gate.
+
+## HANDOFF (2026-09-21, superseded) — Phase L's AI-dependent cores are BUILT under a conditional authorization; L1.8 still FAILS
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Every new gate is a
   Phase L gate, not a comprehensive-validation case, so nothing moved.

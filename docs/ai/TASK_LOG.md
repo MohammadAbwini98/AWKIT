@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-09-21 — Phase L user-facing AI: L4b, L5b and L6 surfaces through one IPC boundary (Claude)
+
+- **Task:** continue Phase L under the conditional development authorization: L4b's renderer workflow
+  first, then the eligible L5b and L6 surfaces, reusing the built cores. Ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED. Deterministic provider only; L1.8 still FAILS; nothing closed.
+- **Commits:** `8ee425a1` (L4b + `app/main/ai/aiAssist.ts` + `ai:explainValidation`/`ai:cancelAssist` +
+  the `AWKIT_TEST_AI_PROVIDER` seam), `63d0a3cb` (L6 hint + `ai:summarizeFragment` + shared
+  `useAiAssistJob`), `cf9bbb32` (L5b drawer + `ai:analyzeFailure`), then this state commit.
+- **Files:** `app/main/ai/{aiAssist,aiRuntime}.ts`, `app/main/ipc/ai.ipc.ts`, `app/main/preload.ts`,
+  `src/ai/contracts/AiApi.ts`, `app/renderer/components/{shared/useAiAssistJob.ts,
+  workflow/AuthoringAssist.tsx, workflow/FragmentDialogs.tsx, workflow/flowValidationPresentation.ts,
+  reports/FailureEvidenceSection.tsx, reports/RunDetailDrawer.tsx}`, `FlowChartDesigner.tsx`,
+  `global.css`; verifiers `verify-ai-{authoring,fragment-assist,error-analysis,permissions,fallback,
+  assist-gui}` and the classification; plan/state docs; `.beads/issues.jsonl`; contract
+  `awkit-djnl-phase-l-ui-0921.json`.
+- **Checks (final state):** `verify:ai-assist-gui` **76/76** (new, real Electron); `verify:ai-authoring`
+  85/85; `verify:ai-fragment-assist` 73/73; `verify:ai-error-analysis` 100/100; `verify:ai-permissions`
+  90/90; `verify:ai-fallback` 38/38; `verify:ipc-contract` 10/10; `verify:flow-designer` 140/140 + 16/16;
+  `verify:flow-fragments-gui` 53/53; `verify:reports-populated-gui` 173 PASS / 0 FAIL / 3 NOT RUN
+  (pre-existing); `verify:source-hygiene` 11/11; `verify:verifier-classification` 240; build PASS.
+  `verify:failure-capture-overhead` **NOT RUN** (L5a methodology is the owner's pending decision; no
+  capture or run-path code changed).
+- **Mutation-tested nine for nine:** unscoped cancel ids 84/85; ranking shown at T0 84/85; test-provider
+  packaged gate removed 83/84; L4b stale guard removed 38/40 (GUI); fragment summary ignoring policy
+  71/73; hint from every step 55/56 (GUI); analysing the group's first member 99/100; ignoring the
+  coalesced count 99/100; citation marker dropped 75/76 (GUI). Final bundles byte-identical to the
+  green GUI runs (renderer hash compared).
+- **Defects found in my own work, before commit:** the permission gate's "authorizes first" check matched
+  the channel NAME `ai:cancelAssist` as the action (fixed to match the call); a weak L5b check —
+  identical failures carry identical evidence ids, so the fixture now gives the named instance an event
+  the first member lacks; and a GUI sequencing gap — leaving a dirty designer raises the unsaved-changes
+  guard, which the suite now asserts and discards.
+- **Deliberately not built:** L6's mapping review (no workflow-side host; a Flow Designer UI would invent
+  a flow-level declaration), L5b's automatic analysis and persistence extension, every `*-quality-live`
+  gate and live-model caller.
+- **Tracker:** `.6`/`.8` open → `in_progress` with notes, `.9`/`.1` notes, via a released `project-state`
+  lease. 10 outstanding / 292 closed.
+
 ## 2026-09-21 — L6 Intelligence: fragment discovery, summary and parameter mapping (Claude)
 
 - **Task:** build the L6 *Intelligence* section under the conditional development authorization. This

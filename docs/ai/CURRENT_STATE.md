@@ -1,6 +1,52 @@
 # CURRENT_STATE
 
-## L6 Intelligence: discovery needs no model, and the mapping binds nothing (2026-09-21, current)
+## Phase L user-facing AI: L4b, L5b and L6 surfaces reach the app through one IPC boundary (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: every new check is a Phase L gate, not a ledger case.
+
+**Built under the conditional development authorization, proven with the deterministic provider only.**
+L1.8 still FAILS, the L5a methodology is still undecided, and production/release acceptance is NOT
+APPROVED. Nothing here is a live-model claim.
+
+- **One boundary, reused cores.** `app/main/ai/aiAssist.ts` (Electron-free) sits behind four named
+  channels: `ai:explainValidation` (AI_USE + WORKFLOW_VIEW), `ai:summarizeFragment` (AI_USE + PAGE_FLOWS),
+  `ai:analyzeFailure` (AI_USE + PAGE_REPORTS) and `ai:cancelAssist` (AI_USE). The renderer NAMES data;
+  main re-validates or re-reads it (flow via the real `FlowValidator`, fragment and report from their
+  stores), builds the prompt with the existing L4b/L5b/L6 core, submits to the one `AiService`, and
+  parses with the core's parser. Job ids are prefixed with the sender's id, so one window can never
+  cancel another's job. Every outcome crosses as a code with a product sentence; a refused answer shows
+  none of its text.
+- **L4b (Flow Designer validation panel):** explain, loading/cancel, stale (an edit withholds the
+  answer), refused and AI-off states; labelled explanations under the exact finding row; the T1 fix order
+  only where the policy says *suggest*; applying is still only the existing preview → confirm →
+  `SafeFixApplier` path, refused while the editor is dirty.
+- **L6 (fragment dialogs):** the save dialog's no-model similarity hint, computed in the renderer over
+  the CHECKED steps and working with AI off; the insert dialog's on-demand T0 *Describe with AI* of the
+  STORED fragment. The T1 mapping review is deliberately not built: runtime inputs live on workflows, and a
+  Flow Designer mapping UI would invent a flow-level declaration.
+- **L5b (run-detail drawer, opened from Failure Analytics):** deterministic cause, every captured L5a
+  event, and a separate labelled on-demand analysis that reports the coalesced count and marks the
+  evidence it cites. The named instance is analysed. The per-batch budget governs the *automatic*
+  analysis, which is not built (it needs the live quality gate).
+- **Test seam:** `AWKIT_TEST_AI_PROVIDER` swaps the transport and model pack for the existing
+  `FakeAiHostTransport` in NON-PACKAGED builds only (the `AWKIT_TEST_LICENSE_BYPASS` pattern);
+  `verify:ai-permissions` proves statically that a packaged build returns before reading it.
+
+| Check | Result |
+|---|---|
+| `verify:ai-assist-gui` (new, `real-browser`, real Electron) | **76/76**, 3 renderer mutations caught (stale guard, hint selection, citation marker) |
+| `verify:ai-authoring` · `verify:ai-fragment-assist` · `verify:ai-error-analysis` | **85/85 · 73/73 · 100/100**, 5 adapter mutations caught |
+| `verify:ai-permissions` static packaged-gate check | caught its mutation (gate removed → 83/84) |
+| `verify:ai-permissions` · `verify:ai-fallback` · `verify:ipc-contract` | 90/90 · 38/38 · 10/10 |
+| `verify:flow-designer` · `verify:flow-fragments-gui` · `verify:reports-populated-gui` | 140/140 + 16/16 · 53/53 · 173 PASS / 0 FAIL / 3 NOT RUN (pre-existing) |
+| `npm run build` · `verify:source-hygiene` · `verify:verifier-classification` | PASS · 11/11 · 240 classified |
+| `verify:failure-capture-overhead` | **NOT RUN** — the L5a benchmark whose methodology is the pending owner decision; no capture or run-path code changed |
+
+**Tracker:** `awkit-djnl.6` and `.8` moved open → `in_progress` with notes; `.9` and `.1` gained notes
+(the conditional authorization). Nothing closed, no edge changed: 10 outstanding / 292 closed.
+
+## L6 Intelligence: discovery needs no model, and the mapping binds nothing (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-fragment-assist` is a Phase L gate, not a ledger case.
