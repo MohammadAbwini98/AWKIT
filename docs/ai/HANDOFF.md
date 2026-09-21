@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — L1.8 re-scoped to this machine unconstrained, and still NO-GO
+## HANDOFF (2026-09-21, latest) — L1.8 re-scoped to smaller models; waiting on the owner's two downloads
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** the owner re-scoped L1.8 to a smaller model and chose to measure Qwen3.5-2B and
+  Qwen3.5-0.8B separately. Each has a named script with its own evidence file and a published-identity
+  check. The details are in the L1 plan › "Re-scoped to a smaller model".
+- **Next, in order:**
+  1. **Owner:** run the two `curl.exe` commands in that section.
+  2. `npm run benchmark:ai-model-0.8b`, then `npm run benchmark:ai-model-2b`. Each needs one call per
+     scenario, 7 in all, and stops at the first failed scenario. Measure each pack once, and never
+     rerun a failed scenario.
+  3. **A GO** needs every scenario to pass. It would then owe the manifest pin, the license notice,
+     `verify:ai-model-pack`, `verify:ai-model-live` and the live quality gates before L1 can close.
+     **A NO-GO for both** leaves only the ceilings.
+- **Do not:**
+  - pin either pack before it is measured;
+  - pass arguments to `npm run benchmark:ai-model` (the guard refuses it; use the named scripts);
+  - rerun the 4B.
+- **Also untested:** the unknown-pack and not-downloaded refusals. Running a named script BEFORE its
+  pack is downloaded exercises the second one: it is plain `npm run`, and it stops before any model
+  loads.
+
+## HANDOFF (2026-09-21, superseded) — L1.8 re-scoped to this machine unconstrained, and still NO-GO
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**

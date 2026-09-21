@@ -1,5 +1,22 @@
 # TASK_LOG
 
+## 2026-09-21 — L1.8 re-scoped to smaller models: Qwen3.5-2B and 0.8B prepared, NOT RUN (Claude)
+
+- **Task:** apply the owner's decision to re-scope L1.8 to a smaller model. The owner chose to measure
+  both smaller Qwen3.5 packs separately.
+- **Files:**
+  - `scripts/benchmark-ai-model.mts`: `--pack`, per-pack evidence file, published-identity refusal.
+  - `package.json`: `benchmark:ai-model-2b` and `benchmark:ai-model-0.8b`.
+  - The L1 plan, DECISIONS, COMMANDS, KNOWN_ISSUES (guard command forms), CURRENT_STATE, HANDOFF.
+  - A note on `awkit-djnl.1`.
+- **Checks:**
+  - `typecheck:scripts` PASS.
+  - The two refusal paths: BLOCKED, because the guard refuses `npm run … -- <args>` (terminal this
+    session).
+  - Both benchmarks: NOT RUN, pending the owner's downloads.
+  - `verify:roadmap-dashboard` 177/177.
+- **Result:** L1.8 is still unaccepted. The next step is the owner downloading the two packs.
+
 ## 2026-09-21 — L1.8 re-scoped to the qualifying host and measured once: NO-GO (Claude)
 
 - **Task:** apply the owner's decision "re-scope L1.8 to the qualifying hardware". The owner chose this

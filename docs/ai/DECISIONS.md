@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — Phase L L1.8: the qualifying host is this development machine, unconstrained (`awkit-djnl.1`)
+### 2026-09-21 (latest) — Phase L L1.8: re-scoped to a smaller model, both smaller Qwen3.5 packs measured separately (`awkit-djnl.1`)
+
+- **Owner decision, in session:** re-scope L1.8 to a smaller model. Of the offered options the owner
+  chose to measure **both** Qwen3.5-2B and Qwen3.5-0.8B (lmstudio-community Q4_K_M, Apache-2.0),
+  rather than one of them.
+- **Why these two:** they are the family's only smaller sizes. They keep the host's ChatML template
+  with thinking pre-closed and the runtime's `qwen35` support, so the model is the only variable. A
+  non-hybrid model would change more than size and was not what the owner chose.
+- **Unchanged:** the qualifying host, every ceiling, the thread derivation, the 4B's evidence, and the
+  pinned manifest. Nothing is pinned before a measured download passes.
+- **Harness:** `benchmark:ai-model-2b` and `benchmark:ai-model-0.8b` each measure one pack into its own
+  evidence file. A pack whose size or SHA-256 differs from its published identity is refused.
+- **State:** both are NOT RUN until the owner downloads them. The download is an owner step, because the
+  lease guard has no download verb.
+
+### 2026-09-21 (later) — Phase L L1.8: the qualifying host is this development machine, unconstrained (`awkit-djnl.1`)
 
 - **Owner decision, in session:** re-scope L1.8 to the qualifying hardware. Of the offered options,
   the owner chose **this laptop with all 12 logical CPUs**. The alternatives were the roadmap's VMware

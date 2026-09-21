@@ -14,7 +14,7 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 | L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
 | L1.6 Resource integration | **Done:** yield, weighted admission, derived threads, idle unload. | `src/ai/AiAdmission.ts`, `WorkloadWeights.aiInferenceWeight`, `ExecutionEngine.getAiAdmissionView` |
 | L1.7 Fake provider | **Done.** | `src/ai/FakeAiHostTransport.ts` |
-| L1.8 Performance go/no-go | **FAIL on the qualifying host** (owner re-scope 2026-09-21: this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. See "Re-scoped to the qualifying host" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host.json` |
+| L1.8 Performance go/no-go | **FAIL for the 4B on the qualifying host** (this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. **Re-scoped to a smaller model (owner, 2026-09-21):** Qwen3.5-2B and Qwen3.5-0.8B are prepared and **NOT RUN** until the owner downloads them. See "Re-scoped to a smaller model" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host*.json` |
 
 Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`, `verify:ai-host` and
 `verify:ai-host-electron`. `verify:ai-model-live` and `benchmark:ai-model` exist and are NOT RUN until
@@ -248,7 +248,53 @@ mask, 2.9 s of margin.
 
 **L1.8 FAILS on the qualifying host.** L1 stays `in_progress`, the conditional development
 authorization stands, and L3 §8/§9, L4b, L5b and the L6 AI parts stay L1-gated. The remaining owner
-options are the model or the ceilings.
+options were the model or the ceilings. The owner then chose the model (next section).
+
+#### Re-scoped to a smaller model (2026-09-21): both candidates prepared, NOT RUN until downloaded
+
+**Owner decision:** re-scope L1.8 to a smaller model, and measure **both** smaller Qwen3.5 packs
+separately. The qualifying host, the ceilings, the thread derivation and the 4B's evidence are all
+unchanged. Both packs stay in the Qwen3.5 family, so the host's ChatML template with the thinking
+block pre-closed applies as-is, and no host or runtime change is needed.
+
+| Pack (lmstudio-community, Q4_K_M, Apache-2.0) | Bytes | Published SHA-256 | Evidence file | Command |
+|---|---|---|---|---|
+| `Qwen3.5-2B-Q4_K_M.gguf` | 1,270,808,032 | `0bfe35afc9f05b7fac3fa04925e051ac7939a42a8a17ea11afc99701bea826cc` | `L1.8-benchmark-full-host-Qwen3.5-2B-Q4_K_M.json` | `npm run benchmark:ai-model-2b` |
+| `Qwen3.5-0.8B-Q4_K_M.gguf` | 527,502,816 | `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec` | `L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json` | `npm run benchmark:ai-model-0.8b` |
+
+Each SHA-256 was read twice, from the Hugging Face tree API and from the file's own page, and the two
+agree. The harness refuses a download whose size or SHA-256 differs, so a truncated file under the
+right name is never measured. As with the 4B, the manifest will pin the value **measured** from the
+downloaded file. The published value is only a cross-check.
+
+**Owner step (the lease guard has no download verb).** Run both commands in PowerShell. `-C -` and
+`--retry` are there because the 4B's first attempt died mid-file:
+
+```powershell
+curl.exe -L -C - --retry 5 --retry-all-errors -o "$env:USERPROFILE\Downloads\Qwen3.5-2B-Q4_K_M.gguf" https://huggingface.co/lmstudio-community/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf
+curl.exe -L -C - --retry 5 --retry-all-errors -o "$env:USERPROFILE\Downloads\Qwen3.5-0.8B-Q4_K_M.gguf" https://huggingface.co/lmstudio-community/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf
+```
+
+**Projection, not evidence.** Scaling the measured 4B rates by parameter count, and assuming the fourth
+thread helps linearly (both optimistic), puts the L1.8 packet at about 620,000 ms for the 2B (3.4× over
+180 s) and about 250,000 ms for the 0.8B (1.4× over). Small models spend a larger share of each token in
+the vocabulary-sized output head (248,320 entries on the 4B), which that scaling ignores. Only the
+measurement decides.
+
+**After a pack is measured:**
+
+- **A GO** means every scenario passes, not just `locatorUpgrade`. Five scenarios have never run on any
+  host. It would still owe:
+  - pinning the measured pack in `AI_MODEL_MANIFEST`, with its license in the third-party notices;
+  - `verify:ai-model-pack` and `verify:ai-model-live` on it;
+  - the live quality gates. A smaller model is the likelier to fail on answer quality.
+- **A NO-GO for both** leaves only the ceilings. Changing to a non-hybrid model would be a new owner
+  decision.
+
+**Not yet run:** the two harness refusals for an unknown pack and for a pack not yet downloaded. Both
+stop before any model loads. They were BLOCKED in this session, because the lease guard refuses
+`npm run <script> -- <args>` and marked that denial terminal. The named scripts exist so that no
+arguments are needed.
 
 **Superseded remedy list (kept for the record).** The owner must
 choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
@@ -299,8 +345,9 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
    passes. L7 cannot be entered on this authorization.
 
 **Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
-machine with all 12 logical CPUs, and L1.8 still FAILS there (see "Re-scoped to the qualifying host").
-What remains is the owner's choice between re-scoping the model and re-scoping the ceilings.
+machine with all 12 logical CPUs, and the 4B still FAILS there (see "Re-scoped to the qualifying
+host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. Both are **NOT RUN** until
+the owner downloads them (see "Re-scoped to a smaller model").
 
 ## Verifiers
 

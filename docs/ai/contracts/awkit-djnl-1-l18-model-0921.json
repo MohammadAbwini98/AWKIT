@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l18-model-0921",
+    "title": "Record the L1.8 smaller-model re-scope on the tracker",
+    "objective": "The owner re-scoped L1.8 to a smaller model on 2026-09-21 and chose to measure both Qwen3.5-2B and Qwen3.5-0.8B (lmstudio-community Q4_K_M, Apache-2.0) separately, with the qualifying host, the ceilings and the 4B's evidence unchanged. Append a note to awkit-djnl.1 naming the two packs, their published identity, the named benchmark scripts and that both are NOT RUN until the owner downloads them. Refresh the JSONL export. NOTHING is closed and no dependency edge is added or removed: L1 stays in_progress. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "13cab173",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.1 stays in_progress with a note naming the owner's smaller-model re-scope, both packs and their NOT RUN state, nothing is closed, every blocks edge is unchanged, the JSONL export is refreshed from the database, and the dashboard still reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', run once against the final state after `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl`, the two named benchmark scripts in package.json and the state-document updates. Tracker totals unchanged at 9 outstanding / 293 closed, edges 134, and both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED. verify:verifier-classification also reconciled at 241 after the package.json change."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l18-model-0921:project-state:2026-09-21T13:25:25.116Z",
+        "task": "awkit-djnl-1-l18-model-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T13:25:25.116Z",
+        "acquired_at_commit": "13cab17331951d9c83582511614da1a3f39b2473",
+        "released_at": "2026-09-21T13:25:55.112Z",
+        "released_reason": "L1.8 smaller-model re-scope noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

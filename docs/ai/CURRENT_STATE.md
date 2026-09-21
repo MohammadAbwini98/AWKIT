@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## L1.8 re-scoped to the qualifying host (this machine, all 12 logical CPUs): still NO-GO (2026-09-21, current)
+## L1.8 re-scoped to a smaller model: Qwen3.5-2B and 0.8B prepared, NOT RUN until downloaded (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **Owner decision:** re-scope L1.8 to a smaller model, measuring **both** Qwen3.5-2B and
+  Qwen3.5-0.8B (Q4_K_M, Apache-2.0) separately. The qualifying host, the ceilings and the 4B's
+  evidence are unchanged.
+- **Built:** `benchmark:ai-model-2b` and `benchmark:ai-model-0.8b`. Each measures one pack into its own
+  evidence file and refuses a download that isn't the published file. The published SHA-256 was read
+  twice, from two Hugging Face sources.
+- **NOT RUN:** neither pack is downloaded, and the download is an owner step (commands in the L1 plan ›
+  "Re-scoped to a smaller model"). By a rough projection both stay over 180 s, the 0.8B at about
+  1.4×. Only the measurement decides.
+- **Unchanged:** L1 stays `in_progress` (note added), the 4B FAILS on the qualifying host, **L7
+  cannot be entered**, and nothing new is eligible.
+
+| Check (final state) | Result |
+|---|---|
+| `typecheck:scripts` | PASS |
+| Pack-refusal paths (unknown pack, pack not downloaded) | BLOCKED: the guard refuses `npm run … -- <args>` and marked it terminal this session |
+| `benchmark:ai-model-2b` · `benchmark:ai-model-0.8b` | NOT RUN (owner download pending) |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+## L1.8 re-scoped to the qualifying host (this machine, all 12 logical CPUs): still NO-GO (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

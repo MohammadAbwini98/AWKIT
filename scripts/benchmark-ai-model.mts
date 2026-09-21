@@ -6,28 +6,34 @@
  * constrained to 6 logical CPUs by `start /affinity 3F` (3 physical cores), FAILED and stays on record
  * in docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json; this harness never writes that file.
  *
+ * Owner decision, later the same day: L1.8 is re-scoped to a smaller model, and both smaller Qwen3.5
+ * packs are measured separately. `--pack <file>` picks one of PACKS (default: the pinned 4B). A pack
+ * whose size or SHA-256 differs from its published identity is refused, never measured, because a
+ * truncated download keeps the right file name.
+ *
  * Inference uses the threads the product derives for the host's logical CPUs. Scenarios run one per
- * invocation, because the tool running this has a 10-minute limit. Results persist in
- * L1.8-benchmark-full-host.json, keyed by a fingerprint (runtime build, pack SHA-256, CPU, threads);
- * a different fingerprint starts over. Any other machine is NOT RUN, so it can neither overwrite nor
- * stand in for the qualifying host. Run it until it reports every scenario complete, then it
- * evaluates the ceilings below.
+ * invocation, because the tool running this has a 10-minute limit. Each pack keeps its own results
+ * file, keyed by a fingerprint (runtime build, pack SHA-256, CPU, threads); a different fingerprint
+ * starts over. Any other machine is NOT RUN, so it can neither overwrite nor stand in for the
+ * qualifying host. Run it until it reports every scenario complete, then it evaluates the ceilings.
+ *
+ * Run: npm run benchmark:ai-model | benchmark:ai-model-2b | benchmark:ai-model-0.8b   (repeat until complete)
  *
  * The ceilings were committed BEFORE the first measurement, so the verdict is not fitted to the
  * numbers. They are product requirements for the target envelope, not observations.
  *
  * NOT RUN (exit 0 with a NOT RUN line) without the runtime or the pack, like verify:ai-model-live.
- *
- * Run: npm run benchmark:ai-model   (repeat until complete)
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
 import {
   HOST_PATH,
   MODEL_FILE_NAME,
+  PUBLISHED_PACK,
   ROOT,
   buildAiHarness,
   locateModelCandidate,
@@ -38,7 +44,29 @@ import {
   stageModelRoot
 } from "./ai-harness/launch.mts";
 
-const RESULTS = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence", "L1.8-benchmark-full-host.json");
+const EVIDENCE = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence");
+/**
+ * The packs L1.8 may measure: the pinned 4B, and the two smaller ones of the owner's model re-scope
+ * (same publisher, family and chat template, Apache-2.0). Size and SHA-256 are the published LFS
+ * identity, read from both the tree API and the file page.
+ */
+const PACKS: Readonly<Record<string, { source: string; sizeBytes: number; sha256: string; results: string }>> = Object.freeze({
+  [MODEL_FILE_NAME]: { ...PUBLISHED_PACK, results: "L1.8-benchmark-full-host.json" },
+  "Qwen3.5-2B-Q4_K_M.gguf": {
+    source: "https://huggingface.co/lmstudio-community/Qwen3.5-2B-GGUF",
+    sizeBytes: 1_270_808_032,
+    sha256: "0bfe35afc9f05b7fac3fa04925e051ac7939a42a8a17ea11afc99701bea826cc",
+    results: "L1.8-benchmark-full-host-Qwen3.5-2B-Q4_K_M.json"
+  },
+  "Qwen3.5-0.8B-Q4_K_M.gguf": {
+    source: "https://huggingface.co/lmstudio-community/Qwen3.5-0.8B-GGUF",
+    sizeBytes: 527_502_816,
+    sha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
+    results: "L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json"
+  }
+});
+const packFlag = process.argv.indexOf("--pack");
+const packName = packFlag >= 0 ? (process.argv[packFlag + 1] ?? "") : MODEL_FILE_NAME;
 /** The machine the owner qualified (2026-09-21), as `os.cpus()` reports it. */
 const QUALIFYING_HOST = Object.freeze({ cpuModel: "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz", logicalCpus: 12 });
 const SCENARIOS = [
@@ -84,11 +112,18 @@ if (!runtime.installed) {
   console.log("NOT RUN: node-llama-cpp and its Windows CPU prebuilt are not installed (owner step 1 in L1-ai-foundation.md).");
   process.exit(0);
 }
-const candidate = locateModelCandidate();
-if (!candidate) {
-  console.log(`NOT RUN: no model pack at ~/Downloads/${MODEL_FILE_NAME} or AWKIT_AI_LIVE_MODEL (owner step 2 in L1-ai-foundation.md).`);
+const pack = PACKS[packName];
+if (!pack) {
+  console.log(`NOT RUN: unknown pack "${packName}"; this gate measures only ${Object.keys(PACKS).join(", ")}.`);
   process.exit(0);
 }
+const inDownloads = path.join(os.homedir(), "Downloads", packName);
+const candidate = packName === MODEL_FILE_NAME ? locateModelCandidate() : fs.existsSync(inDownloads) ? inDownloads : null;
+if (!candidate) {
+  console.log(`NOT RUN: no model pack at ~/Downloads/${packName} (owner download step in L1-ai-foundation.md).`);
+  process.exit(0);
+}
+const RESULTS = path.join(EVIDENCE, pack.results);
 const host = machine();
 if (host.cpuModel !== QUALIFYING_HOST.cpuModel || host.logicalCpus !== QUALIFYING_HOST.logicalCpus) {
   console.log(`NOT RUN: this host (${host.cpuModel}, ${host.logicalCpus} logical CPUs) is not the qualifying host (${QUALIFYING_HOST.cpuModel}, ${QUALIFYING_HOST.logicalCpus}).`);
@@ -96,6 +131,10 @@ if (host.cpuModel !== QUALIFYING_HOST.cpuModel || host.logicalCpus !== QUALIFYIN
 }
 
 const measured = await measurePack(candidate);
+if (measured.sizeBytes !== pack.sizeBytes || measured.sha256 !== pack.sha256) {
+  console.error(`REFUSED: ${candidate} is not the published ${packName} (${measured.sizeBytes} bytes, sha256 ${measured.sha256}); download it again.`);
+  process.exit(1);
+}
 const threads = deriveInferenceThreads(host.logicalCpus);
 const fingerprint = { runtimeBuild: runtime.build, packSha256: measured.sha256, cpuModel: host.cpuModel, affinityMask: null, logicalCpus: host.logicalCpus, threads };
 
@@ -116,7 +155,7 @@ const save = () => {
 const pending = SCENARIOS.filter((scenario) => !results!.scenarios[scenario]?.ok);
 console.log(`  host: ${host.cpuModel}, ${host.logicalCpus} logical CPUs, ${host.totalMemoryGb} GB`);
 console.log(`  unconstrained: all ${host.logicalCpus} logical CPUs, ${threads} inference threads (derived by the product)`);
-console.log(`  runtime ${runtime.build}, pack ${measured.sha256.slice(0, 16)}…`);
+console.log(`  runtime ${runtime.build}, pack ${packName} ${measured.sha256.slice(0, 16)}…`);
 console.log(`  completed: ${SCENARIOS.length - pending.length}/${SCENARIOS.length}\n`);
 
 if (pending.length > 0) {
