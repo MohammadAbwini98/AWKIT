@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-09-21 — L5a closed on the owner's acceptance of INCONCLUSIVE (Claude)
+
+- **Task:** record the owner's decision "Accept L5a as INCONCLUSIVE", and continue with any eligible
+  work.
+- **Files:**
+  - `.beads/issues.jsonl`: `awkit-djnl.7` got a note and was closed, then the export was refreshed.
+  - `docs/ai/contracts/awkit-djnl-7-l5a-accept-0921.json`.
+  - `scripts/verify-roadmap-dashboard.mjs`: the tracker pin moved 10/292 → 9/293.
+  - The L5 plan ("L5a acceptance"), DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF.
+- **Checks:** `verify:roadmap-dashboard` 177/177, "Sources agree". The first run was 176/177 on the
+  stale pin. No product code changed, so the product verifiers were not rerun. The L5a gate was not
+  rerun.
+- **Result:** L5a is closed and the gate is still INCONCLUSIVE, not PASS. Nothing new became eligible.
+  L1.8 is the one remaining owner decision.
+
 ## 2026-09-21 — L5a rescan: regression verification, stored-only count, pre-rescan report proof (Claude)
 
 - **Task:** finish the L5a rescan's verification (`verify:runner`, report compatibility, the downstream

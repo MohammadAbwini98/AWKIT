@@ -26,7 +26,11 @@
   - `SecretMasker` already masks `"password": "…"`, so a quoted-key fixture passes on the wrong layer.
     Test rule 4 with an unquoted key outside SecretMasker's list.
 
-## The L5a overhead gate cannot reach a verdict on the development host: a batch-level stall is larger than the ceiling (2026-09-21, OPEN — owner decision, not code)
+## The L5a overhead gate cannot reach a verdict on the development host: a batch-level stall is larger than the ceiling (2026-09-21, ACCEPTED — the owner accepted INCONCLUSIVE and L5a closed; the stall itself is unresolved)
+
+- **Status:** on 2026-09-21 the owner accepted the INCONCLUSIVE result, and `awkit-djnl.7` was closed
+  on it. The gate is still not PASS, and the stall's cause is still unknown. Everything below still
+  applies to any future gate run on this host.
 
 - **Symptom:** `verify:failure-capture-overhead` has exited 2 (INCONCLUSIVE) on all three approved runs,
   at 7, 7 and 21 rounds. There was never a FAIL, and every point estimate sits near or below zero.
@@ -433,8 +437,9 @@ fix took the shape it did, and the last bullet's second duty is still open — s
   `SETTINGS_EDIT`. **A handler whose gate is two calls away, or in another file, is still invisible** — keep
   the assert in the handler or in a helper beside it.
 
-- **OPEN `awkit-djnl.7` (2026-09-19, updated): the L5a duration gate is unstable on the development
-  host.** Root cause of the original +326/+380 ms was found and fixed (`6bfd59d`, see CURRENT_STATE):
+- **SUPERSEDED `awkit-djnl.7` (2026-09-19, updated; closed 2026-09-21 on the owner's acceptance of
+  INCONCLUSIVE, see the 2026-09-21 L5a entry near the top): the L5a duration gate is unstable on the
+  development host.** Root cause of the original +326/+380 ms was found and fixed (`6bfd59d`, see CURRENT_STATE):
   per-page subscribe/unsubscribe calls and live-page setup, each paying Playwright's stack capture, which
   tsx's source-mapped stacks inflated to ~8 ms per call. After the fix the gate passed twice and failed
   once on the final state (+176 ms fast vs 150, +333 ms evidence vs 196.9). Per-round deltas span about

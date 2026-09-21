@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## L5a rescan regression-verified; `summary.residualSecrets` now counts only what is stored (2026-09-21, current)
+## L5a closed on the owner's acceptance of INCONCLUSIVE (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **Owner decision:** "Accept L5a as INCONCLUSIVE." `awkit-djnl.7` is **closed** with that reason,
+  through contract `awkit-djnl-7-l5a-accept-0921` and a released `project-state` lease. The tracker is
+  now 9 outstanding / 293 closed, and no edge changed.
+- **Not a PASS:** the overhead gate stays INCONCLUSIVE, and "overhead within the approved threshold"
+  was never established. The accepted evidence is option C run 3 at `a2125084`. It predates the rescan
+  (`80a135fe`) and the stored-only count (`90bbb412`), and neither was gate-measured. The other three
+  criteria are green at `90bbb412` (`verify:ui-error-evidence` 85/85 with its listener teardown,
+  `verify:failure-cause-baseline` 71/71).
+- **Nothing new is eligible.** L5b now depends only on L1, and its unbuilt parts need a live model.
+  `bd ready` offers only the epic.
+- **Unchanged:** L1.8 FAILS, the conditional authorization stands, **L7 cannot be entered**, and
+  production and release acceptance are NOT APPROVED.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+| `verify:failure-capture-overhead` | NOT RUN (the owner accepted the recorded INCONCLUSIVE) |
+| Product verifiers | NOT RUN: no code changed since `90bbb412`, where they were green |
+
+## L5a rescan regression-verified; `summary.residualSecrets` now counts only what is stored (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

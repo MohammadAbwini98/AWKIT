@@ -122,8 +122,10 @@ including an error page's title and heading and quoted assertion values in the r
 status codes, counts and field identity stay. Every step-correlated event carries `context.stepIndex`, the Nth step
 execution in the instance (a retry keeps its index). `verify:ui-error-evidence` 85/85.
 
-**Open:** the methodology was decided on 2026-09-21 and extended to option C the same day (see the two "L5a
-gate" sections below). All three approved runs were INCONCLUSIVE with no FAIL, so L5a stays open.
+**Closed on the owner's acceptance of INCONCLUSIVE (2026-09-21).** The methodology was decided on
+2026-09-21 and extended to option C the same day (see the two "L5a gate" sections below). All three
+approved runs were INCONCLUSIVE with no FAIL, and the owner accepted that as this machine's result. The
+overhead ceiling was **not established** and is not claimed PASS (see "L5a acceptance" below).
 
 ### L5a gate — decision brief (2026-09-19)
 
@@ -337,7 +339,8 @@ capture cost:
 Its cause is not established, and it is outside the capture code: it hits OFF batches, which run with
 the collector disabled. **No product performance defect was demonstrated, so nothing was optimized.**
 
-**L5a acceptance status: OPEN, INCONCLUSIVE.** Across the three approved runs (7, 7 and 21 rounds):
+**L5a acceptance status: CLOSED on the owner's acceptance; the overhead gate stays INCONCLUSIVE.**
+Across the three approved runs (7, 7 and 21 rounds):
 
 - 0 FAIL on any ceiling;
 - both p95 ceilings PASS where binding, and bytes PASS every time;
@@ -355,6 +358,26 @@ and L5a is not marked complete.
 
 At 21 rounds, one bimodal round no longer decides the verdict. It still cannot pass while about 40 %
 of the batches carry a ±400–800 ms step.
+
+### L5a acceptance (owner decision, 2026-09-21)
+
+The owner took the third option above: **INCONCLUSIVE is accepted as this machine's result**, and
+`awkit-djnl.7` is closed on it.
+
+- **Not established:** "overhead within the approved threshold". The gate stays INCONCLUSIVE, is not
+  PASS, and no ceiling, method or evidence changed.
+- **What the acceptance rests on:** option C run 3 at `a2125084` (15 PASS, 0 FAIL, 3 INCONCLUSIVE). No
+  gate run measured the two later capture-path changes: the rescan at `80a135fe` and the stored-only
+  count at `90bbb412`. In an informational loop the rescan's cost was within run-to-run variation. That
+  loop is not gate evidence.
+- **The other three criteria are green at `90bbb412`:**
+  - transient failures are captured before post-failure screenshots miss them
+    (`verify:ui-error-evidence` 85/85, real engine);
+  - listeners are leak-free (the same suite's teardown releases every page listener and generation
+    binding);
+  - the baseline cause is measured (`verify:failure-cause-baseline` 71/71).
+- **What it does not change:** L5b still needs the L1 go/no-go, L1.8 still FAILS, and L7 still cannot
+  be entered. A later owner-approved gate run on a quiet host would replace this outcome, not add to it.
 
 ## L5b — Failure intelligence (T0)
 

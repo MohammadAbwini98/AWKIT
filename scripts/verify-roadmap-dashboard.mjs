@@ -590,8 +590,11 @@ try {
   // Flow Designer evidence. One bead crossed from outstanding to closed; no edge changed.
   // Then 10/292 of 302 on 2026-09-19: L2 `awkit-djnl.3` closed (Element Spy and upgrade context)
   // through contract `awkit-djnl.3`. One bead crossed from outstanding to closed; no edge changed.
-    "10 outstanding / 292 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 292,
+  // Then 9/293 of 302 on 2026-09-21: L5a `awkit-djnl.7` closed on the owner's acceptance of its
+  // INCONCLUSIVE overhead gate, through contract `awkit-djnl-7-l5a-accept-0921`. One bead crossed
+  // from outstanding to closed; no edge changed, so the edge pin below stays at 134.
+    "9 outstanding / 293 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 293,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-7-l5a-accept-0921",
+    "title": "Close L5a on the owner's acceptance of the INCONCLUSIVE overhead gate",
+    "objective": "The owner accepted L5a as INCONCLUSIVE on 2026-09-21, the option the L5 plan names as accepting INCONCLUSIVE as the development machine's result. Append a note to awkit-djnl.7 recording that decision and close it with a reason that says the overhead ceiling was NOT established and is not claimed PASS: the accepted evidence is run 3 at a2125084 (15 PASS, 0 FAIL, 3 INCONCLUSIVE), which predates the rescan (80a135fe) and the stored-only count (90bbb412), while the other three criteria are green at the current state (verify:ui-error-evidence 85/85, teardown releases every listener, verify:failure-cause-baseline 71/71). Refresh the JSONL export. No dependency edge is added or removed. L5b (awkit-djnl.8) stays in_progress because it still needs the L1 go/no-go, L1 stays in_progress with L1.8 FAIL, and L7 stays open. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "90bbb412",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.7 is closed with a note and reason naming the owner's acceptance and stating the overhead ceiling was not established, every blocks edge is unchanged, awkit-djnl.8, awkit-djnl.1 and awkit-djnl.10 are not closed, the JSONL export is refreshed from the database, and the dashboard still reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', against the final state after `bd update awkit-djnl.7 --append-notes`, `bd close awkit-djnl.7`, `bd export -o .beads/issues.jsonl` and the state-document updates. The first run was 176/177: the verifier's hardcoded tracker pin still read 10 outstanding / 292 closed. The pin was moved to the real 9 / 293 in scripts/verify-roadmap-dashboard.mjs with its history comment, and the second run passed. Edges unchanged at 134, and both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-7-l5a-accept-0921:project-state:2026-09-21T12:50:15.850Z",
+        "task": "awkit-djnl-7-l5a-accept-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T12:50:15.850Z",
+        "acquired_at_commit": "90bbb4125ea458998b55f98730a1c6b5fb5233d1",
+        "released_at": "2026-09-21T12:51:14.639Z",
+        "released_reason": "L5a closed on the owner's acceptance of INCONCLUSIVE, note appended, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

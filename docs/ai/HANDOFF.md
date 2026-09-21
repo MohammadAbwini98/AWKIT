@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — the L5a rescan is regression-verified; still no independently eligible Phase L work
+## HANDOFF (2026-09-21, latest) — L5a closed on the owner's acceptance of INCONCLUSIVE; only L1.8 remains to decide
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:**
+  - The owner accepted L5a as INCONCLUSIVE, and `awkit-djnl.7` is closed on it. Tracker: 9
+    outstanding / 293 closed.
+  - The gate is NOT PASS, and the acceptance does not cover the two later capture-path changes. DECISIONS
+    and the L5 plan's "L5a acceptance" section say so.
+- **Still nothing eligible.** L5b depends only on L1 now. Its automatic analysis and
+  `verify:ai-error-quality-live` need a live model, like every other remaining L3/L4b/L5b/L6 item. L7
+  is blocked by all of them.
+- **One owner decision left:** **L1.8.** Re-scope the model, the ceilings or the qualifying hardware.
+  Check first: mask `0x3F` is 3 physical cores on a 6-core/12-thread part.
+- **Do not** re-run the L5a gate to "upgrade" the result without a new owner decision. A later approved
+  run on a quiet host would replace the accepted outcome.
+
+## HANDOFF (2026-09-21, superseded) — the L5a rescan is regression-verified; still no independently eligible Phase L work
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**

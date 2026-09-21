@@ -1,6 +1,19 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — Phase L L5a: evidence gets the residual-secret rescan, replacing the field, not the event
+### 2026-09-21 (latest) — Phase L L5a: the owner accepts the INCONCLUSIVE overhead gate, and L5a closes (`awkit-djnl.7`)
+
+- **Owner decision, in session:** "Accept L5a as INCONCLUSIVE." This is the third option the L5 plan
+  offered: accept INCONCLUSIVE as the development machine's result. The other two were a host without
+  the batch stall, or removing the stall's cause.
+- **What it is not:** a PASS. "Overhead within the approved threshold" was never established. No
+  ceiling, method or evidence changed, and the gate's result stays INCONCLUSIVE.
+- **Scope:** it covers option C run 3 at `a2125084`. The two later capture-path changes (`80a135fe`,
+  `90bbb412`) were not gate-measured. The owner was told that before deciding. The other three
+  criteria are green at `90bbb412`.
+- **Consequence:** `awkit-djnl.7` is closed with that reason. L5b still depends on L1, so nothing new
+  becomes eligible. The full record is in the L5 plan › "L5a acceptance".
+
+### 2026-09-21 (later) — Phase L L5a: evidence gets the residual-secret rescan, replacing the field, not the event
 
 - **Decision:** `EvidenceBuffer` rescans every stored string with `findResidualSecrets`, after
   redaction and the field cap. A flagged string is replaced whole by `[redacted]` and counted in
