@@ -1,0 +1,651 @@
+{
+  "fingerprint": {
+    "runtimeBuild": "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
+    "packSha256": "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
+    "cpuModel": "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz",
+    "affinityMask": null,
+    "logicalCpus": 12,
+    "threads": 4
+  },
+  "machine": {
+    "cpuModel": "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz",
+    "logicalCpus": 12,
+    "totalMemoryGb": 16,
+    "os": "Windows_NT 10.0.19045"
+  },
+  "ceilings": {
+    "coldLoadMs": 60000,
+    "hostPeakWorkingSetMb": 6144,
+    "backgroundJobAtCapMs": 180000,
+    "explanationAtCapMs": 120000,
+    "cancelLatencyMs": 3000,
+    "mainLoopDelayP99Ms": 100,
+    "playwrightSlowdownWithYield": 1.15
+  },
+  "scenarios": {
+    "load": {
+      "completedAt": "2026-09-21T16:10:01.138Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "load: cold fork, handshake and model load",
+          "ok": true,
+          "durationMs": 8759,
+          "detail": {
+            "forkAndHelloMs": 170,
+            "hostLoadMs": 7445,
+            "loadWallMs": 7449,
+            "hostPeakWorkingSetMb": 668,
+            "hostMaxWorkingSetMb": 650,
+            "hostCpuAvgPct": 8,
+            "hostCpuMaxPct": 10,
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 31
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "load": {
+          "forkAndHelloMs": 170,
+          "hostLoadMs": 7445,
+          "loadWallMs": 7449,
+          "hostPeakWorkingSetMb": 668,
+          "hostMaxWorkingSetMb": 650,
+          "hostCpuAvgPct": 8,
+          "hostCpuMaxPct": 10,
+          "mainLoopDelayP99Ms": 30,
+          "mainLoopDelayMaxMs": 31
+        }
+      }
+    },
+    "packets:locatorUpgrade": {
+      "completedAt": "2026-09-21T16:14:27.964Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "packets: locatorUpgrade #1",
+          "ok": true,
+          "durationMs": 124642,
+          "detail": {
+            "promptTokens": 956,
+            "outputTokens": 105,
+            "stopReason": "stop",
+            "promptMs": 93059,
+            "firstTokenMs": 93059,
+            "generationMs": 31562,
+            "wallMs": 124633,
+            "promptTokensPerSec": 10.3,
+            "generationTokensPerSec": 3.3,
+            "hostPeakWorkingSetMb": 689,
+            "hostMaxWorkingSetMb": 670,
+            "hostCpuAvgPct": 32,
+            "hostCpuMaxPct": 35,
+            "mainLoopDelayP99Ms": 31,
+            "mainLoopDelayMaxMs": 67,
+            "maxOutputTokens": 192
+          }
+        },
+        {
+          "label": "packets: locatorUpgrade #2",
+          "ok": true,
+          "durationMs": 121900,
+          "detail": {
+            "promptTokens": 956,
+            "outputTokens": 105,
+            "stopReason": "stop",
+            "promptMs": 89990,
+            "firstTokenMs": 89990,
+            "generationMs": 31874,
+            "wallMs": 121898,
+            "promptTokensPerSec": 10.6,
+            "generationTokensPerSec": 3.26,
+            "hostPeakWorkingSetMb": 689,
+            "hostMaxWorkingSetMb": 651,
+            "hostCpuAvgPct": 32,
+            "hostCpuMaxPct": 33,
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 38,
+            "maxOutputTokens": 192
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "packets:locatorUpgrade": {
+          "threads": 4,
+          "loadMs": 9079,
+          "iterations": [
+            {
+              "promptTokens": 956,
+              "outputTokens": 105,
+              "stopReason": "stop",
+              "promptMs": 93059,
+              "firstTokenMs": 93059,
+              "generationMs": 31562,
+              "wallMs": 124633,
+              "promptTokensPerSec": 10.3,
+              "generationTokensPerSec": 3.3,
+              "hostPeakWorkingSetMb": 689,
+              "hostMaxWorkingSetMb": 670,
+              "hostCpuAvgPct": 32,
+              "hostCpuMaxPct": 35,
+              "mainLoopDelayP99Ms": 31,
+              "mainLoopDelayMaxMs": 67,
+              "maxOutputTokens": 192
+            },
+            {
+              "promptTokens": 956,
+              "outputTokens": 105,
+              "stopReason": "stop",
+              "promptMs": 89990,
+              "firstTokenMs": 89990,
+              "generationMs": 31874,
+              "wallMs": 121898,
+              "promptTokensPerSec": 10.6,
+              "generationTokensPerSec": 3.26,
+              "hostPeakWorkingSetMb": 689,
+              "hostMaxWorkingSetMb": 651,
+              "hostCpuAvgPct": 32,
+              "hostCpuMaxPct": 33,
+              "mainLoopDelayP99Ms": 30,
+              "mainLoopDelayMaxMs": 38,
+              "maxOutputTokens": 192
+            }
+          ]
+        }
+      }
+    },
+    "packets:validationExplanation": {
+      "completedAt": "2026-09-21T16:17:13.097Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "packets: validationExplanation #1",
+          "ok": true,
+          "durationMs": 73204,
+          "detail": {
+            "promptTokens": 697,
+            "outputTokens": 23,
+            "stopReason": "stop",
+            "promptMs": 65140,
+            "firstTokenMs": 65140,
+            "generationMs": 8056,
+            "wallMs": 73200,
+            "promptTokensPerSec": 10.7,
+            "generationTokensPerSec": 2.73,
+            "hostPeakWorkingSetMb": 1037,
+            "hostMaxWorkingSetMb": 1026,
+            "hostCpuAvgPct": 32,
+            "hostCpuMaxPct": 35,
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 40,
+            "maxOutputTokens": 192
+          }
+        },
+        {
+          "label": "packets: validationExplanation #2",
+          "ok": true,
+          "durationMs": 71820,
+          "detail": {
+            "promptTokens": 697,
+            "outputTokens": 23,
+            "stopReason": "stop",
+            "promptMs": 63191,
+            "firstTokenMs": 63191,
+            "generationMs": 8626,
+            "wallMs": 71818,
+            "promptTokensPerSec": 11,
+            "generationTokensPerSec": 2.55,
+            "hostPeakWorkingSetMb": 1037,
+            "hostMaxWorkingSetMb": 999,
+            "hostCpuAvgPct": 32,
+            "hostCpuMaxPct": 33,
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 41,
+            "maxOutputTokens": 192
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "packets:validationExplanation": {
+          "threads": 4,
+          "loadMs": 8902,
+          "iterations": [
+            {
+              "promptTokens": 697,
+              "outputTokens": 23,
+              "stopReason": "stop",
+              "promptMs": 65140,
+              "firstTokenMs": 65140,
+              "generationMs": 8056,
+              "wallMs": 73200,
+              "promptTokensPerSec": 10.7,
+              "generationTokensPerSec": 2.73,
+              "hostPeakWorkingSetMb": 1037,
+              "hostMaxWorkingSetMb": 1026,
+              "hostCpuAvgPct": 32,
+              "hostCpuMaxPct": 35,
+              "mainLoopDelayP99Ms": 30,
+              "mainLoopDelayMaxMs": 40,
+              "maxOutputTokens": 192
+            },
+            {
+              "promptTokens": 697,
+              "outputTokens": 23,
+              "stopReason": "stop",
+              "promptMs": 63191,
+              "firstTokenMs": 63191,
+              "generationMs": 8626,
+              "wallMs": 71818,
+              "promptTokensPerSec": 11,
+              "generationTokensPerSec": 2.55,
+              "hostPeakWorkingSetMb": 1037,
+              "hostMaxWorkingSetMb": 999,
+              "hostCpuAvgPct": 32,
+              "hostCpuMaxPct": 33,
+              "mainLoopDelayP99Ms": 30,
+              "mainLoopDelayMaxMs": 41,
+              "maxOutputTokens": 192
+            }
+          ]
+        }
+      }
+    },
+    "packets:failureAnalysis": {
+      "completedAt": "2026-09-21T16:21:30.112Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "packets: failureAnalysis #1",
+          "ok": true,
+          "durationMs": 125008,
+          "detail": {
+            "promptTokens": 829,
+            "outputTokens": 128,
+            "stopReason": "stop",
+            "promptMs": 86104,
+            "firstTokenMs": 86104,
+            "generationMs": 38892,
+            "wallMs": 125002,
+            "promptTokensPerSec": 9.6,
+            "generationTokensPerSec": 3.27,
+            "hostPeakWorkingSetMb": 1040,
+            "hostMaxWorkingSetMb": 1031,
+            "hostCpuAvgPct": 31,
+            "hostCpuMaxPct": 33,
+            "mainLoopDelayP99Ms": 36,
+            "mainLoopDelayMaxMs": 76,
+            "maxOutputTokens": 256
+          }
+        },
+        {
+          "label": "packets: failureAnalysis #2",
+          "ok": true,
+          "durationMs": 113438,
+          "detail": {
+            "promptTokens": 829,
+            "outputTokens": 128,
+            "stopReason": "stop",
+            "promptMs": 76269,
+            "firstTokenMs": 76269,
+            "generationMs": 37130,
+            "wallMs": 113436,
+            "promptTokensPerSec": 10.9,
+            "generationTokensPerSec": 3.42,
+            "hostPeakWorkingSetMb": 1040,
+            "hostMaxWorkingSetMb": 639,
+            "hostCpuAvgPct": 32,
+            "hostCpuMaxPct": 33,
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 39,
+            "maxOutputTokens": 256
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "packets:failureAnalysis": {
+          "threads": 4,
+          "loadMs": 10097,
+          "iterations": [
+            {
+              "promptTokens": 829,
+              "outputTokens": 128,
+              "stopReason": "stop",
+              "promptMs": 86104,
+              "firstTokenMs": 86104,
+              "generationMs": 38892,
+              "wallMs": 125002,
+              "promptTokensPerSec": 9.6,
+              "generationTokensPerSec": 3.27,
+              "hostPeakWorkingSetMb": 1040,
+              "hostMaxWorkingSetMb": 1031,
+              "hostCpuAvgPct": 31,
+              "hostCpuMaxPct": 33,
+              "mainLoopDelayP99Ms": 36,
+              "mainLoopDelayMaxMs": 76,
+              "maxOutputTokens": 256
+            },
+            {
+              "promptTokens": 829,
+              "outputTokens": 128,
+              "stopReason": "stop",
+              "promptMs": 76269,
+              "firstTokenMs": 76269,
+              "generationMs": 37130,
+              "wallMs": 113436,
+              "promptTokensPerSec": 10.9,
+              "generationTokensPerSec": 3.42,
+              "hostPeakWorkingSetMb": 1040,
+              "hostMaxWorkingSetMb": 639,
+              "hostCpuAvgPct": 32,
+              "hostCpuMaxPct": 33,
+              "mainLoopDelayP99Ms": 30,
+              "mainLoopDelayMaxMs": 39,
+              "maxOutputTokens": 256
+            }
+          ]
+        }
+      }
+    },
+    "cancel": {
+      "completedAt": "2026-09-21T16:23:21.273Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "cancel: during prompt processing",
+          "ok": true,
+          "durationMs": 75503,
+          "detail": {
+            "latencyMs": 74490,
+            "outputTokensBeforeCancel": 0
+          }
+        },
+        {
+          "label": "cancel: during generation",
+          "ok": true,
+          "durationMs": 18467,
+          "detail": {
+            "latencyMs": 12456,
+            "outputTokensBeforeCancel": 0
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "cancel": {
+          "duringPrompt": {
+            "latencyMs": 74490,
+            "outputTokensBeforeCancel": 0
+          },
+          "duringGeneration": {
+            "latencyMs": 12456,
+            "outputTokensBeforeCancel": 0
+          }
+        }
+      }
+    },
+    "playwright": {
+      "completedAt": "2026-09-21T16:29:59.731Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "playwright: workload alone (3 runs)",
+          "ok": true,
+          "durationMs": 30477,
+          "detail": {
+            "runs": [
+              10142,
+              10086,
+              9964
+            ],
+            "medianMs": 10086
+          }
+        },
+        {
+          "label": "playwright: workload beside a running inference (yield off)",
+          "ok": true,
+          "durationMs": 219386,
+          "detail": {
+            "runs": [
+              10182,
+              10482,
+              10930
+            ],
+            "medianMs": 10482
+          }
+        },
+        {
+          "label": "playwright: workload while inference yields to the run",
+          "ok": true,
+          "durationMs": 118853,
+          "detail": {
+            "runs": [
+              10147,
+              10374,
+              10340
+            ],
+            "medianMs": 10340,
+            "holdReason": "RUNS_ACTIVE",
+            "completedWhileRunning": 0,
+            "jobAfterRelease": "ok",
+            "jobMsAfterRelease": 87703
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "playwright": {
+          "rounds": 40,
+          "alone": {
+            "runs": [
+              10142,
+              10086,
+              9964
+            ],
+            "medianMs": 10086
+          },
+          "besideInference": {
+            "runs": [
+              10182,
+              10482,
+              10930
+            ],
+            "medianMs": 10482
+          },
+          "withYield": {
+            "runs": [
+              10147,
+              10374,
+              10340
+            ],
+            "medianMs": 10340,
+            "holdReason": "RUNS_ACTIVE",
+            "completedWhileRunning": 0,
+            "jobAfterRelease": "ok",
+            "jobMsAfterRelease": 87703
+          },
+          "slowdownBesideInference": 1.04,
+          "slowdownWithYield": 1.03
+        }
+      }
+    },
+    "batch": {
+      "completedAt": "2026-09-21T16:37:08.007Z",
+      "ok": true,
+      "steps": [
+        {
+          "label": "batch: 20 concurrent failures against the 16-job queue",
+          "ok": true,
+          "durationMs": 366193,
+          "detail": {
+            "accepted": 16,
+            "queueFull": 4,
+            "completed": 16,
+            "drainMs": 366191,
+            "firstCompletionMs": 27277,
+            "p50CompletionMs": 207044,
+            "lastCompletionMs": 366191
+          }
+        },
+        {
+          "label": "batch: queued work holds while runs are active, then drains",
+          "ok": true,
+          "durationMs": 52907,
+          "detail": {
+            "heldForMs": 5000,
+            "completedAfterRelease": 2,
+            "drainAfterReleaseMs": 47894
+          }
+        }
+      ],
+      "data": {
+        "complete": true,
+        "inFlight": null,
+        "benchThreads": 4,
+        "batch": {
+          "burst": {
+            "accepted": 16,
+            "queueFull": 4,
+            "completed": 16,
+            "drainMs": 366191,
+            "firstCompletionMs": 27277,
+            "p50CompletionMs": 207044,
+            "lastCompletionMs": 366191
+          },
+          "hold": {
+            "heldForMs": 5000,
+            "completedAfterRelease": 2,
+            "drainAfterReleaseMs": 47894
+          }
+        }
+      }
+    }
+  },
+  "verdict": {
+    "evaluatedAt": "2026-09-21T16:37:08.014Z",
+    "decision": "NO-GO",
+    "criteria": [
+      {
+        "id": "coldLoad",
+        "measured": 7449,
+        "ceiling": 60000,
+        "pass": true
+      },
+      {
+        "id": "hostMemory",
+        "measured": 1040,
+        "ceiling": 6144,
+        "pass": true
+      },
+      {
+        "id": "locatorUpgradeAtCap",
+        "measured": 151241,
+        "ceiling": 180000,
+        "pass": true
+      },
+      {
+        "id": "failureAnalysisAtCap",
+        "measured": 164391,
+        "ceiling": 180000,
+        "pass": true
+      },
+      {
+        "id": "validationExplanationAtCap",
+        "measured": 138485,
+        "ceiling": 120000,
+        "pass": false
+      },
+      {
+        "id": "cancelLatency",
+        "measured": 74490,
+        "ceiling": 3000,
+        "pass": false
+      },
+      {
+        "id": "mainLoopDelay",
+        "measured": 36,
+        "ceiling": 100,
+        "pass": true
+      },
+      {
+        "id": "playwrightWithYield",
+        "measured": 1.03,
+        "ceiling": 1.15,
+        "pass": true
+      }
+    ],
+    "packets": {
+      "locatorUpgrade": {
+        "runs": 2,
+        "promptTokens": 956,
+        "promptTokensPerSec": 10.6,
+        "generationTokensPerSec": 3.3,
+        "firstTokenMsMedian": 93059,
+        "wallMsMedian": 124633,
+        "wallMsMax": 124633,
+        "atOutputCapMs": 151241,
+        "hostPeakWorkingSetMb": 689,
+        "mainLoopDelayP99Ms": 31
+      },
+      "validationExplanation": {
+        "runs": 2,
+        "promptTokens": 697,
+        "promptTokensPerSec": 11,
+        "generationTokensPerSec": 2.73,
+        "firstTokenMsMedian": 65140,
+        "wallMsMedian": 73200,
+        "wallMsMax": 73200,
+        "atOutputCapMs": 138485,
+        "hostPeakWorkingSetMb": 1037,
+        "mainLoopDelayP99Ms": 30
+      },
+      "failureAnalysis": {
+        "runs": 2,
+        "promptTokens": 829,
+        "promptTokensPerSec": 10.9,
+        "generationTokensPerSec": 3.42,
+        "firstTokenMsMedian": 86104,
+        "wallMsMedian": 125002,
+        "wallMsMax": 125002,
+        "atOutputCapMs": 164391,
+        "hostPeakWorkingSetMb": 1040,
+        "mainLoopDelayP99Ms": 36
+      }
+    },
+    "informational": {
+      "playwrightSlowdownBesideInference": 1.04,
+      "batch": {
+        "burst": {
+          "accepted": 16,
+          "queueFull": 4,
+          "completed": 16,
+          "drainMs": 366191,
+          "firstCompletionMs": 27277,
+          "p50CompletionMs": 207044,
+          "lastCompletionMs": 366191
+        },
+        "hold": {
+          "heldForMs": 5000,
+          "completedAfterRelease": 2,
+          "drainAfterReleaseMs": 47894
+        }
+      }
+    },
+    "scope": "The qualifying host (owner, 2026-09-21): this development machine, all logical CPUs, no affinity mask. Not a measurement of the production VMware server."
+  }
+}
