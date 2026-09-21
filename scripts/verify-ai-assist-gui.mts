@@ -129,7 +129,7 @@ const seededFragment: FlowFragment = {
     { id: "fa", type: "fill", name: "Wombat-Fragment-Step", value: "Wombat-Fragment-Typed", locator: { strategy: "css", value: "#wombat" } },
     { id: "fb", type: "click", name: "Go", locator: { strategy: "testId", value: "go" } }
   ],
-  edges: [{ id: "fe", source: "fa", target: "fb" }],
+  edges: [{ id: "fe", source: "fa", target: "fb", type: "success" }],
   inputs: []
 } as FlowFragment;
 const fragmentBlocking = auditFragment(seededFragment).filter((finding) => finding.severity === "blocking");
