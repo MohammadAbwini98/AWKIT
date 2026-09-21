@@ -27,14 +27,15 @@ import {
   type AiSettingsView,
   type AiStatusView,
   type AuthoringAssistView,
+  type FailureAnalysisView,
   type FlowLocatorUpgradesView,
   type FragmentSummaryView
 } from "@src/ai/contracts/AiApi";
 import { Permission } from "@src/security/authz/Permissions";
 
-import { createFlowFragmentStore, createFlowProfileStore } from "../profileStores";
+import { createFlowFragmentStore, createFlowProfileStore, createReportStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
-import { cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../ai/aiAssist";
+import { analyzeFailure, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../ai/aiAssist";
 import {
   aiAuditView,
   aiDiagnosticsView,
@@ -152,6 +153,20 @@ export function registerAiIpc(): void {
     }
     const fragments = createFlowFragmentStore();
     return summarizeFragment(event.sender.id, request, { ...assistDeps(), fragment: (id) => fragments.get(id) });
+  });
+
+  // L5b T0 on demand. Names a stored run and one of its instances; main reads the report's own L5a
+  // evidence. Run reports are behind PAGE_REPORTS.
+  ipcMain.handle("ai:analyzeFailure", async (event, request: unknown): Promise<FailureAnalysisView> => {
+    const denied = (await authorize(event, Permission.AI_USE, false)) ?? (await authorize(event, Permission.PAGE_REPORTS, false));
+    if (denied) {
+      const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
+      return { code, ok: false, message: denied.message, instanceId: "", coalescedCount: 0, analysis: null };
+    }
+    const reports = createReportStore();
+    const report = async (executionId: string) =>
+      (await reports.get(executionId)) ?? (await reports.list()).find((stored) => stored.executionId === executionId) ?? null;
+    return analyzeFailure(event.sender.id, request, { ...assistDeps(), report });
   });
 
   // Cancels only the asking window's own job: main prefixes the id with the sender's id.

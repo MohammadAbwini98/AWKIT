@@ -24,6 +24,8 @@ import type {
   AiStatusView,
   AuthoringAssistRequest,
   AuthoringAssistView,
+  FailureAnalysisAssistRequest,
+  FailureAnalysisView,
   FlowLocatorUpgradesView,
   FragmentSummaryAssistRequest,
   FragmentSummaryView,
@@ -430,6 +432,8 @@ const api = {
     explainValidation: (request: AuthoringAssistRequest) => invoke("ai:explainValidation", request) as Promise<AuthoringAssistView>,
     // L6. Names a stored fragment; main reads it and sends step types and input keys only.
     summarizeFragment: (request: FragmentSummaryAssistRequest) => invoke("ai:summarizeFragment", request) as Promise<FragmentSummaryView>,
+    // L5b. Names a stored run and instance; main reads that report's own evidence.
+    analyzeFailure: (request: FailureAnalysisAssistRequest) => invoke("ai:analyzeFailure", request) as Promise<FailureAnalysisView>,
     cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>

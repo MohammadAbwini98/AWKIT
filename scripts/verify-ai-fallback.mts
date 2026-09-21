@@ -320,14 +320,15 @@ console.log("\nThe renderer cannot run a prompt:\n");
   // `sanitizeAuthoringAssistRequest` and the real FlowValidator and never turns into prompt text;
   // `ai:cancelAssist` takes a request id that main scopes to the asking window. L6:
   // `ai:summarizeFragment` names a stored fragment through `sanitizeFragmentSummaryRequest`; main
-  // reads the fragment itself and sends step types and input keys only.
+  // reads the fragment itself and sends step types and input keys only. L5b: `ai:analyzeFailure`
+  // names a stored run and instance through `sanitizeFailureAnalysisRequest`; main reads the report.
   const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
   // Without this the .every() below passes on an empty list the moment the pattern stops matching.
-  check("the bridge's arguments were actually read", argumentsTaken.length === 10, argumentsTaken.join(","));
+  check("the bridge's arguments were actually read", argumentsTaken.length === 11, argumentsTaken.join(","));
   check(
     "only settings, a feature id, an audit page, an action id, a flow id, a promotion, editor state and named assist jobs cross the bridge",
     argumentsTaken.every((call) =>
-      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|summarizeFragment\(request\)|cancelAssist\(requestId\))$/.test(call)
+      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|summarizeFragment\(request\)|analyzeFailure\(request\)|cancelAssist\(requestId\))$/.test(call)
     ),
     argumentsTaken.join(",")
   );

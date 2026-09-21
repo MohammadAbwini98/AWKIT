@@ -288,6 +288,36 @@ export function sanitizeFragmentSummaryRequest(input: unknown): FragmentSummaryA
   return requestId && fragmentId ? { requestId, fragmentId } : null;
 }
 
+/** L5b: interpret one failed instance of a stored run. It names the run and the instance; main reads the report. */
+export interface FailureAnalysisAssistRequest {
+  requestId: string;
+  executionId: string;
+  instanceId: string;
+}
+
+export interface FailureAnalysisView extends AiAssistStatus {
+  instanceId: string;
+  /** Failed instances in this run sharing the failure's signature. The interpretation applies to all of them. */
+  coalescedCount: number;
+  /** T0. Evidence ids refer to the named instance's own captured evidence. Null unless `ok`. */
+  analysis: {
+    insufficient: boolean;
+    category: string;
+    explanation: string;
+    primaryEvidenceIds: string[];
+    secondaryEvidenceIds: string[];
+    investigationSteps: string[];
+  } | null;
+}
+
+export function sanitizeFailureAnalysisRequest(input: unknown): FailureAnalysisAssistRequest | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
+  const executionId = raw ? sanitizeProfileId(raw.executionId) : null;
+  const instanceId = raw ? sanitizeProfileId(raw.instanceId) : null;
+  return requestId && executionId && instanceId ? { requestId, executionId, instanceId } : null;
+}
+
 export const AI_ASSIST_MAX_NODES = 2_000;
 const ASSIST_REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
 

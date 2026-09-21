@@ -41,6 +41,11 @@ import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { EvidenceBuffer, EvidenceRunBudget, type ExecutionEvidenceEvent } from "@src/runner/evidence/ExecutionEvidence";
 import { deriveFailureCause } from "@src/runner/evidence/FailureCauseBaseline";
+import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
+import type { ConcurrentRunReport, InstanceReport } from "@src/reports/ExecutionReport";
+import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
+
+import { analyzeFailure, failureBatch, type FailureAssistDeps } from "../app/main/ai/aiAssist";
 
 let passed = 0;
 let failed = 0;
@@ -367,6 +372,120 @@ check("...and no analyses", none.stats.analyses === 0 && none.stats.failures ===
 
 const events: readonly ExecutionEvidenceEvent[] = sample.events;
 check("the evidence this suite reasoned over was real, not empty", events.length > 0 && events.every((e) => typeof e.id === "string" && e.id.length > 0));
+
+// ── The main-process adapter behind ai:analyzeFailure ───────────────────────────────────────────
+// `app/main/ai/aiAssist.ts#analyzeFailure` is what the IPC channel calls: the renderer names a stored
+// run and one instance, main reads that report's own L5a diagnostics. Every negative is production.
+console.log("\nmain — the adapter behind ai:analyzeFailure (on demand)");
+const asInstance = (entry: FailureBatchEntry): InstanceReport => ({
+  instanceId: entry.instanceId,
+  status: "failed",
+  durationMs: 1_500,
+  screenshots: [],
+  downloadedFiles: [],
+  diagnostics: { schemaVersion: INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, evidence: [...entry.events], cause: entry.baseline } as InstanceDiagnostics
+});
+const sameA = instanceFailure({ instanceId: "run-a", nodeId: "n-submit", stepIndex: 3, url: ROW_URL(11), status: 500 });
+// Same signature as run-a, plus one event run-a lacks: what makes "the NAMED instance is analysed,
+// not the group's first member" observable, since identical failures otherwise carry identical ids.
+const sameB = instanceFailure({
+  instanceId: "run-b",
+  nodeId: "n-submit",
+  stepIndex: 3,
+  url: ROW_URL(12),
+  status: 500,
+  extra: [{ source: "console.error", payload: { message: "Inventory lookup unavailable" } }]
+});
+const sameC = instanceFailure({ instanceId: "run-c", nodeId: "n-submit", stepIndex: 3, url: ROW_URL(13), status: 500 });
+const different = instanceFailure({ instanceId: "run-d", nodeId: "n-submit", stepIndex: 3, url: ROW_URL(14), status: 422 });
+const insufficientEntry: FailureBatchEntry = { instanceId: "run-e", baseline: deriveFailureCause([], { kind: "other", failedAtOffsetMs: 10 }), events: [] };
+check("(precondition) the empty-evidence fixture really is an insufficient baseline", insufficientEntry.baseline.cause === "insufficient", insufficientEntry.baseline.cause);
+// Six more distinct signatures, so the automatic batch budget (5) is exhausted before `run-z`.
+const crowd = Array.from({ length: 6 }, (_, i) => instanceFailure({ instanceId: `crowd-${i}`, nodeId: `n-crowd-${i}`, stepIndex: i, url: ROW_URL(20 + i), status: 500 }));
+const lastSignature = instanceFailure({ instanceId: "run-z", nodeId: "n-last", stepIndex: 9, url: ROW_URL(30), status: 503 });
+const storedRun: ConcurrentRunReport = {
+  executionId: "exec-main",
+  scenarioId: "wf",
+  scenarioName: "Workflow",
+  runMode: "dataDrivenConcurrent",
+  maxConcurrentInstances: 4,
+  status: "failed",
+  startedAt: "2026-09-21T10:00:00.000Z",
+  endedAt: "2026-09-21T10:01:00.000Z",
+  durationMs: 60_000,
+  passedFlows: 1,
+  failedFlows: 12,
+  skippedFlows: 0,
+  instances: [
+    ...[sameA, sameB, sameC, different, insufficientEntry, ...crowd, lastSignature].map(asInstance),
+    { instanceId: "run-passed", status: "passed", durationMs: 900, screenshots: [], downloadedFiles: [] }
+  ],
+  runtimeInputs: {}
+};
+const auto = coalesceFailures(failureBatch(storedRun));
+check("(precondition) the automatic batch would NOT analyse run-z's signature", auto.groups.find((g) => g.instanceIds.includes("run-z"))?.analyse === false);
+const reportDeps = (service: AiService, policy: AiPolicyConfig = POLICY): FailureAssistDeps => ({
+  submit: (job) => service.submit(job),
+  policy: async () => policy,
+  report: async (id) => (id === storedRun.executionId ? storedRun : null)
+});
+const citing = (ids: string[]) => JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: "The submit request returned 500.", primaryEvidenceIds: ids, investigationSteps: ["Check the order service logs."] });
+const primaryOf = (entry: FailureBatchEntry) => entry.baseline.evidenceIds[0];
+
+const onDemand = harness([citing([primaryOf(sameB)])]);
+const view = await analyzeFailure(4, { requestId: "ui-1", executionId: "exec-main", instanceId: "run-b" }, reportDeps(onDemand.service));
+check("a named failed instance is analysed", view.ok && view.analysis?.explanation === "The submit request returned 500.", JSON.stringify(view).slice(0, 300));
+check("...covering every instance with the same signature", view.coalescedCount === 3, String(view.coalescedCount));
+check("(precondition) run-b really shares run-a's signature", failureSignature(sameA) === failureSignature(sameB));
+const sent = onDemand.fake.inferRequests().map((r) => `${r.system}\n${r.user}`).join("\n");
+check("...analysing the NAMED instance's evidence, not the group's first member", sent.includes("Inventory lookup unavailable"));
+check("exactly one model call", onDemand.fake.inferRequests().length === 1);
+check("the prompt carries no query secret, row id or instance id", !/abc123secret|4001[1-4]|run-b|exec-main/.test(sent));
+await onDemand.service.shutdown();
+
+const distinct = harness([citing([primaryOf(different)])]);
+check("a different status is its own failure, covering one instance", (await analyzeFailure(4, { requestId: "ui-2", executionId: "exec-main", instanceId: "run-d" }, reportDeps(distinct.service))).coalescedCount === 1);
+await distinct.service.shutdown();
+
+const explicit = harness([citing([primaryOf(lastSignature)])]);
+const lastView = await analyzeFailure(4, { requestId: "ui-3", executionId: "exec-main", instanceId: "run-z" }, reportDeps(explicit.service));
+check("an explicit request past the AUTOMATIC budget is still answered — the budget governs the batch, not a user's click", lastView.ok, JSON.stringify(lastView));
+await explicit.service.shutdown();
+
+const silent = harness([citing([primaryOf(sameA)])]);
+const silentCalls = () => silent.fake.inferRequests().length;
+check("an insufficient baseline is never analysed", (await analyzeFailure(4, { requestId: "ui-4", executionId: "exec-main", instanceId: "run-e" }, reportDeps(silent.service))).code === "NOTHING_TO_ASK");
+check("a passing instance has nothing to ask", (await analyzeFailure(4, { requestId: "ui-5", executionId: "exec-main", instanceId: "run-passed" }, reportDeps(silent.service))).code === "NOTHING_TO_ASK");
+check("an instance not in the run is NOT_FOUND", (await analyzeFailure(4, { requestId: "ui-6", executionId: "exec-main", instanceId: "run-nope" }, reportDeps(silent.service))).code === "NOT_FOUND");
+check("a run that is not stored is NOT_FOUND", (await analyzeFailure(4, { requestId: "ui-7", executionId: "exec-gone", instanceId: "run-a" }, reportDeps(silent.service))).code === "NOT_FOUND");
+check("AI switched off answers DISABLED", (await analyzeFailure(4, { requestId: "ui-8", executionId: "exec-main", instanceId: "run-a" }, reportDeps(silent.service, { enabled: false }))).code === "DISABLED");
+for (const [label, input] of [
+  ["a non-object request", "run-a"],
+  ["a missing execution id", { requestId: "ui-9", instanceId: "run-a" }],
+  ["an execution id with a path separator", { requestId: "ui-10", executionId: "../exec-main", instanceId: "run-a" }],
+  ["a request id with a path separator", { requestId: "a\\b", executionId: "exec-main", instanceId: "run-a" }]
+] as Array<[string, unknown]>) {
+  check(`${label} is refused as INVALID_REQUEST`, (await analyzeFailure(4, input, reportDeps(silent.service))).code === "INVALID_REQUEST");
+}
+// Evidence the renderer sends along is dropped by the sanitizer; only the stored report is read.
+await analyzeFailure(4, { requestId: "ui-11", executionId: "exec-main", instanceId: "run-e", evidence: [{ id: "x", payload: { note: "FORGED-EVIDENCE" } }] }, reportDeps(silent.service));
+check("...and none of those reached the model, forged evidence included", silentCalls() === 0, String(silentCalls()));
+await silent.service.shutdown();
+
+const guess = harness([JSON.stringify({ version: 1, insufficient: false, category: "guess", explanation: "MODEL-GUESS-TEXT" })]);
+const guessView = await analyzeFailure(4, { requestId: "ui-12", executionId: "exec-main", instanceId: "run-a" }, reportDeps(guess.service));
+check("a conclusion citing no evidence is OUTPUT_REJECTED", guessView.code === "OUTPUT_REJECTED" && guessView.analysis === null, JSON.stringify(guessView));
+check("...and none of its text reaches the renderer", !JSON.stringify(guessView).includes("MODEL-GUESS-TEXT"));
+await guess.service.shutdown();
+
+const unknownCite = harness([citing(["ev-999"])]);
+check("citing evidence the run did not capture is OUTPUT_REJECTED", (await analyzeFailure(4, { requestId: "ui-13", executionId: "exec-main", instanceId: "run-a" }, reportDeps(unknownCite.service))).code === "OUTPUT_REJECTED");
+await unknownCite.service.shutdown();
+
+const declines = harness([JSON.stringify({ version: 1, insufficient: true })]);
+const declineView = await analyzeFailure(4, { requestId: "ui-14", executionId: "exec-main", instanceId: "run-a" }, reportDeps(declines.service));
+check("'insufficient' is a first-class answer, shown as such", declineView.ok && declineView.analysis?.insufficient === true, JSON.stringify(declineView));
+await declines.service.shutdown();
 
 console.log(`\nL5b failure intelligence: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

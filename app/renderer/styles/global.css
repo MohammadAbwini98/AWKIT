@@ -1673,6 +1673,75 @@ div.validation-issue-row {
   padding-left: var(--space-4);
 }
 
+/* L5: the run-detail drawer's failure evidence. Cause, evidence and AI stay three separate sections. */
+.failure-cause {
+  font-size: var(--text-xs);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.failure-evidence-list {
+  display: grid;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.failure-evidence-row {
+  align-items: baseline;
+  border-left: 2px solid var(--awkit-border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+.failure-evidence-row.severity-error {
+  border-left-color: var(--awkit-danger);
+}
+
+.failure-evidence-row.severity-warning {
+  border-left-color: var(--awkit-warning);
+}
+
+.failure-evidence-row[data-ai-cited] {
+  background: var(--awkit-info-soft);
+}
+
+.failure-evidence-source {
+  font-weight: var(--weight-semibold);
+}
+
+.failure-evidence-fields {
+  color: var(--awkit-text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.failure-evidence-tag {
+  background: var(--awkit-surface-soft);
+  border-radius: var(--radius-pill);
+  color: var(--awkit-text-muted);
+  padding: 0 var(--space-2);
+}
+
+.failure-evidence-tag.ai {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-info-text);
+}
+
+[data-testid="failure-ai-analysis"] .ai-assist-bar {
+  border-bottom: none;
+  padding: 0;
+}
+
+.failure-ai-steps {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+
 /* Stage 2c: validate-on-load banner (Flow Designer) + safe-fix preview dialog. */
 .validation-load-banner {
   align-items: center;

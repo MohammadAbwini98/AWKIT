@@ -1,5 +1,6 @@
 /**
- * verify:ai-assist-gui — the L4b authoring assist and the L6 fragment surfaces in the REAL Electron app.
+ * verify:ai-assist-gui — the L4b authoring assist, the L5b failure analysis and the L6 fragment
+ * surfaces in the REAL Electron app.
  *
  * `verify:ai-authoring` and `verify:ai-fragment-assist` prove the contracts and the main-process
  * adapters in Node; this proves the parts that only exist once the app runs: the Flow Designer sending
@@ -7,8 +8,9 @@
  * the answer rendered labelled under the finding it belongs to, a stale answer withheld after an edit,
  * cancellation reaching main, a refused answer shown as a refusal, AI switched off leaving validation
  * intact, the insert dialog describing a STORED fragment on demand, the save dialog's no-model
- * similarity hint following the selection with AI off, and no flow or fragment on disk touched by any
- * of it.
+ * similarity hint following the selection with AI off, a seeded failed run's evidence, deterministic
+ * cause and on-demand analysis in the run-detail drawer, and no flow, fragment or report on disk
+ * touched by any of it.
  *
  * The provider is the DETERMINISTIC one: `AWKIT_TEST_AI_PROVIDER` names a file holding the next
  * scripted answer, read only by a non-packaged build (the `AWKIT_TEST_LICENSE_BYPASS` pattern). It
@@ -27,6 +29,13 @@ import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import { auditFragment, type FlowFragment } from "@src/fragments/FlowFragment";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
+import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
+import { EvidenceBuffer, EvidenceRunBudget } from "@src/runner/evidence/ExecutionEvidence";
+import { deriveFailureCause } from "@src/runner/evidence/FailureCauseBaseline";
+import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
+import type { DurableRunRecord } from "@src/runner/store/RuntimeStoreSchema";
+import { SqliteRuntimeStore } from "@src/runner/store/SqliteRuntimeStore";
+import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
 import {
@@ -127,6 +136,93 @@ const fragmentBlocking = auditFragment(seededFragment).filter((finding) => findi
 if (fragmentBlocking.length) throw new Error(`the seeded fragment is not storable: ${fragmentBlocking.map((f) => f.code).join(",")}`);
 mkdirSync(path.dirname(fragmentFile), { recursive: true });
 writeFileSync(fragmentFile, `${JSON.stringify(seededFragment, null, 2)}\n`, "utf8");
+
+// L5b: one stored failed run whose diagnostics come from L5a's REAL buffer and REAL cause baseline,
+// plus a second instance failing the same way, and the durable history row the drawer opens from.
+const RUN_EXEC = "exec-l5b-gui";
+const RUN_ID = "run-l5b-gui";
+function capturedFailure(instanceId: string): InstanceDiagnostics {
+  let clock = 0;
+  const buffer = new EvidenceBuffer({ executionId: RUN_EXEC, instanceId }, new EvidenceRunBudget(), { redactor: new SemanticRedactor(), now: () => clock });
+  const step = { flowId: "flow-l5b-gui", nodeId: "n-submit", stepIndex: 2 };
+  clock = 1_000;
+  buffer.add({ source: "http.error", severity: "error", context: step, payload: { method: "POST", url: "https://shop.example/orders/40001/submit?token=gui-secret-token", status: 500, resourceType: "xhr" } });
+  clock = 1_500;
+  buffer.add({ source: "runner.failure", severity: "error", context: step, payload: { kind: "assertion", message: "The order confirmation did not appear." } });
+  const evidence = [...buffer.list()];
+  const runnerEvent = evidence.find((event) => event.source === "runner.failure");
+  const cause = deriveFailureCause(evidence, { kind: "assertion", stepStartOffsetMs: 500, failedAtOffsetMs: 1_500, ...(runnerEvent ? { evidenceId: runnerEvent.id } : {}) });
+  return { schemaVersion: INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, evidence, summary: buffer.summary(), cause };
+}
+const runDiagnostics = capturedFailure(RUN_ID);
+if (!runDiagnostics.cause || runDiagnostics.cause.evidenceIds.length === 0) throw new Error("the seeded failure has no evidenced cause");
+const reportFile = path.join(appData, "reports", `${RUN_EXEC}.json`);
+const failedAt = Date.now() - 10 * 60_000;
+const storedRun: ConcurrentRunReport & { id: string } = {
+  id: RUN_EXEC,
+  executionId: RUN_EXEC,
+  scenarioId: "wf-l5b-gui",
+  scenarioName: "L5b GUI workflow",
+  runMode: "dataDrivenConcurrent",
+  maxConcurrentInstances: 2,
+  status: "failed",
+  startedAt: new Date(failedAt).toISOString(),
+  endedAt: new Date(failedAt + 3_000).toISOString(),
+  durationMs: 3_000,
+  passedFlows: 0,
+  failedFlows: 2,
+  skippedFlows: 0,
+  instances: [RUN_ID, `${RUN_ID}-row2`].map((instanceId) => ({
+    instanceId,
+    status: "failed" as const,
+    durationMs: 1_500,
+    error: "The order confirmation did not appear.",
+    screenshots: [],
+    downloadedFiles: [],
+    diagnostics: instanceId === RUN_ID ? runDiagnostics : capturedFailure(instanceId)
+  })),
+  runtimeInputs: {}
+};
+mkdirSync(path.dirname(reportFile), { recursive: true });
+writeFileSync(reportFile, `${JSON.stringify(storedRun, null, 2)}\n`, "utf8");
+mkdirSync(path.join(appData, "runtime"), { recursive: true });
+{
+  const runtime = await SqliteRuntimeStore.open(path.join(appData, "runtime", "runtime.sqlite"), () => undefined);
+  const iso = (ms: number) => new Date(ms).toISOString();
+  runtime.upsertRun({
+    instanceId: RUN_ID,
+    executionId: RUN_EXEC,
+    scenarioId: "wf-l5b-gui",
+    scenarioName: "L5b GUI workflow",
+    triggerType: "manual",
+    status: "failed",
+    flowRunStatus: "failed",
+    startedAt: iso(failedAt),
+    endedAt: iso(failedAt + 1_500),
+    updatedAt: iso(failedAt + 1_500),
+    durationMs: 1_500,
+    queueWaitMs: 10,
+    retryCount: 0,
+    reportCategory: "assertion",
+    errorClass: "assertion",
+    error: "The order confirmation did not appear.",
+    machineId: "fixture-machine",
+    logicalCpuCount: 8,
+    totalMemoryMb: 8192,
+    executionMode: "auto",
+    browserPoolMode: "shared",
+    configuredConcurrency: 2,
+    observedPeakConcurrency: 2,
+    workloadClass: "light",
+    headed: false,
+    resourceProfile: "balanced",
+    isolationClass: "SHARED_CONTEXT",
+    workloadWeight: 1,
+    pressureStateAtRun: "healthy"
+  } as Partial<DurableRunRecord> as DurableRunRecord);
+  await runtime.persistNow();
+  await runtime.close();
+}
 
 const digestOf = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const fileDigest = () => digestOf(flowFile);
@@ -330,6 +426,84 @@ try {
   const paint = await bar(win).evaluate((node) => getComputedStyle(node.querySelector(".ai-assist-label")!).color);
   check("the AI label resolves a real colour from tokens in dark theme", paint !== "rgba(0, 0, 0, 0)" && paint !== "", paint);
   await win.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+
+  console.log("\nL5b — a failed run shows its evidence and deterministic cause, and AI interprets it on demand");
+  const reportDigest = digestOf(reportFile);
+  const primaryId = runDiagnostics.cause!.evidenceIds[0];
+  provide({
+    text: JSON.stringify({
+      version: 1,
+      insufficient: false,
+      category: "server error",
+      explanation: "The order submit request failed with a server error before the confirmation could appear.",
+      primaryEvidenceIds: [primaryId],
+      investigationSteps: ["Check the order service at the time of the run."]
+    })
+  });
+  const seededDetail = await win.evaluate((id) => window.playwrightFlowStudio.telemetry.runDetail(id), RUN_ID);
+  check("(precondition) main's durable history holds the seeded failed run", seededDetail.run?.executionId === RUN_EXEC, JSON.stringify(seededDetail.run ?? null).slice(0, 200));
+  const failuresView = await win.evaluate(() => window.playwrightFlowStudio.telemetry.failures("24h"));
+  check(
+    "(precondition) Failure Analytics' own query lists the seeded run",
+    failuresView.recent.some((row) => row.instanceId === RUN_ID),
+    JSON.stringify({ total: failuresView.total, recent: failuresView.recent.map((row) => row.instanceId) })
+  );
+  // The designer still holds the unsaved edit made for the stale-answer check, so leaving it must
+  // raise the unsaved-changes guard. Discard it: the saved flow must stay exactly as seeded.
+  if ((await win.locator("button.nav-item", { hasText: "Failure Analytics" }).count()) === 0) await navClick(win, "Reports");
+  await navClick(win, "Failure Analytics");
+  const discard = win.getByRole("button", { name: "Discard Changes" });
+  await discard.waitFor({ state: "visible", timeout: 5_000 }).catch(() => undefined);
+  check("leaving the designer with an unsaved edit raises the unsaved-changes guard", (await discard.count()) === 1);
+  if ((await discard.count()) === 1) await discard.click();
+  const openDrawer = async () => {
+    // Reports is a collapsible nav group; its pages are only clickable once it is open.
+    if ((await win.locator("button.nav-item", { hasText: "Failure Analytics" }).count()) === 0) await navClick(win, "Reports");
+    await navClick(win, "Failure Analytics");
+    const open = win.getByTestId(`failure-evidence-open-${RUN_ID}`);
+    await open.waitFor({ state: "visible", timeout: 15_000 }).catch(async () => {
+      const page = await win.evaluate(() => (document.querySelector("main") ?? document.body).innerText.slice(0, 400));
+      const nav = await win.locator("button.nav-item").allInnerTexts();
+      throw new Error(`no evidence control for ${RUN_ID}; nav=${JSON.stringify(nav)} page=${JSON.stringify(page)}`);
+    });
+    await open.click();
+    const drawer = win.getByRole("dialog", { name: "Run detail" });
+    await drawer.waitFor({ state: "visible", timeout: 15_000 });
+    await drawer.getByTestId("failure-evidence-section").waitFor({ state: "visible", timeout: 15_000 });
+    return drawer;
+  };
+  let drawer = await openDrawer();
+  check("the drawer shows the run's captured failure evidence", (await drawer.getByTestId("failure-evidence-section").getAttribute("data-evidence-state")) === "captured");
+  check("...its deterministic cause, as L5a concluded it", (await drawer.getByTestId("failure-cause").getAttribute("data-cause")) === runDiagnostics.cause!.cause, await drawer.getByTestId("failure-cause").innerText());
+  check("...and every captured event", (await drawer.getByTestId("failure-evidence-event").count()) === runDiagnostics.evidence.length, String(await drawer.getByTestId("failure-evidence-event").count()));
+  const drawerText = await drawer.innerText();
+  check("no query secret or row id L5a stripped reaches the drawer", !drawerText.includes("gui-secret-token") && !drawerText.includes("40001"));
+  check("AI analysis waits to be asked", (await stateSettles(win, "failure-ai-analysis", "idle")) === "idle" && (await drawer.getByTestId("failure-ai-result").count()) === 0);
+  await drawer.getByTestId("failure-ai-analyze").click();
+  check("analysis completes through real IPC", (await stateSettles(win, "failure-ai-analysis", "done")) === "done", await drawer.getByTestId("failure-ai-message").innerText().catch(() => ""));
+  const resultText = await drawer.getByTestId("failure-ai-result").innerText();
+  check("...labelled as an AI interpretation, in its own section", resultText.startsWith("AI interpretation") && resultText.includes("server error"), resultText);
+  check("...saying it covers both instances that failed the same way", /covers 2 failed instances/.test(await drawer.getByTestId("failure-ai-message").innerText()));
+  check(
+    "...and the evidence it cites is marked in the list, so the citation can be checked",
+    (await drawer.locator(`[data-testid="failure-evidence-event"][data-evidence-id="${primaryId}"]`).getAttribute("data-ai-cited")) === "primary"
+  );
+  check("...while the deterministic cause is unchanged", (await drawer.getByTestId("failure-cause").getAttribute("data-cause")) === runDiagnostics.cause!.cause);
+  check("analysing changed nothing in the stored report", digestOf(reportFile) === reportDigest);
+  provide({ text: JSON.stringify({ version: 1, insufficient: false, category: "guess", explanation: "L5B-MODEL-GUESS", primaryEvidenceIds: ["ev-999"] }) });
+  await drawer.getByTestId("failure-ai-analyze").click();
+  check("an answer citing evidence the run never captured is refused", (await stateSettles(win, "failure-ai-analysis", "failed")) === "failed");
+  check("...and none of its text reaches the page", !(await win.locator("body").innerText()).includes("L5B-MODEL-GUESS"));
+  const forgedAnalysis = await win.evaluate((id) => window.playwrightFlowStudio.ai.analyzeFailure({ requestId: "ok-id", executionId: "../x", instanceId: id }), RUN_ID);
+  check("main refuses a malformed analysis request directly", forgedAnalysis.code === "INVALID_REQUEST", JSON.stringify(forgedAnalysis));
+  await win.keyboard.press("Escape");
+
+  aiSettings(false);
+  drawer = await openDrawer();
+  check("with AI off, the analysis control reports local AI unavailable", (await stateSettles(win, "failure-ai-analysis", "unavailable")) === "unavailable");
+  check("...and is disabled", await drawer.getByTestId("failure-ai-analyze").isDisabled());
+  check("...while the evidence and deterministic cause still show without it", (await drawer.getByTestId("failure-cause").count()) === 1 && (await drawer.getByTestId("failure-evidence-event").count()) === runDiagnostics.evidence.length);
+  await win.keyboard.press("Escape");
 
   check("the saved flow is byte-for-byte what was seeded", fileDigest() === seededDigest);
   const errors = console_.errors ?? [];

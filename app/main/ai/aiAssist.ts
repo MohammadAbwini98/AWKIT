@@ -1,5 +1,6 @@
 /**
- * User-requested AI assists in the main process (Phase L: L4b explanations, L6 fragment summaries).
+ * User-requested AI assists in the main process (Phase L: L4b explanations, L5b failure analysis on
+ * demand, L6 fragment summaries).
  *
  * The renderer names data; this module decides everything else. For L4b it re-validates the flow the
  * renderer has open with the real `FlowValidator`, builds the request with `buildAuthoringRequest`,
@@ -22,15 +23,27 @@ import {
 import {
   sanitizeAssistRequestId,
   sanitizeAuthoringAssistRequest,
+  sanitizeFailureAnalysisRequest,
   sanitizeFragmentSummaryRequest,
   type AiAdminResponse,
   type AiAssistCode,
   type AiAssistStatus,
   type AuthoringAssistView,
+  type FailureAnalysisView,
   type FragmentSummaryView
 } from "@src/ai/contracts/AiApi";
+import {
+  FAILURE_ANALYSIS_LIMITS,
+  buildFailureAnalysisRequest,
+  coalesceFailures,
+  failureAnalysisDecision,
+  failureSignature,
+  parseFailureAnalysis,
+  type FailureBatchEntry
+} from "@src/ai/failureAnalysis";
 import { FRAGMENT_ASSIST_LIMITS, buildFragmentSummaryRequest, fragmentSummaryDecision, parseFragmentSummary } from "@src/ai/fragmentAssist";
 import type { FlowFragment } from "@src/fragments/FlowFragment";
+import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import type { AiPolicyConfig, AiPolicyDecision } from "@src/security/authz/AiAutonomyPolicy";
 import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
@@ -163,6 +176,84 @@ export async function summarizeFragment(senderId: number, input: unknown, deps: 
   const answer = parseFragmentSummary(outcome.value);
   if (!answer.ok) return view("OUTPUT_REJECTED");
   return { ...assistStatus("OK", outcome.modelId), fragmentId: fragment.id, summary: answer.summary };
+}
+
+export interface FailureAssistDeps extends Pick<AiAssistDeps, "submit" | "policy"> {
+  /** The STORED run report. The renderer names it; its own copy of the evidence is never trusted. */
+  report: (executionId: string) => Promise<ConcurrentRunReport | null | undefined>;
+}
+
+/**
+ * A run's failures as L5b's batch: every instance whose L5a diagnostics carry a deterministic cause.
+ * Flow, node and step come from the cause's primary event, which is where L5a recorded them.
+ */
+export function failureBatch(report: ConcurrentRunReport): FailureBatchEntry[] {
+  return report.instances.flatMap((instance) => {
+    const cause = instance.diagnostics?.cause;
+    if (!cause) return [];
+    const events = instance.diagnostics?.evidence ?? [];
+    const context = events.find((event) => event.id === cause.evidenceIds[0])?.context;
+    return [{ instanceId: instance.instanceId, flowId: context?.flowId, nodeId: context?.nodeId, stepIndex: context?.stepIndex, baseline: cause, events }];
+  });
+}
+
+/**
+ * L5b on demand: interpret one failed instance, T0, after the run.
+ *
+ * Coalescing still decides what the answer covers — the same signature across the run is one failure,
+ * and the view says how many instances share it. The per-batch budget governs the AUTOMATIC analysis,
+ * which is not built (it needs the live quality gate); here each call is one explicit request for one
+ * failure, so the NAMED instance is analysed, which also keeps every cited evidence id one the user can
+ * see beside it. An insufficient baseline is still never analysed: there is nothing to reason over.
+ */
+export async function analyzeFailure(senderId: number, input: unknown, deps: FailureAssistDeps): Promise<FailureAnalysisView> {
+  const request = sanitizeFailureAnalysisRequest(input);
+  const view = (code: AiAssistCode, coalescedCount = 0): FailureAnalysisView => ({
+    ...assistStatus(code),
+    instanceId: request?.instanceId ?? "",
+    coalescedCount,
+    analysis: null
+  });
+  if (!request) return view("INVALID_REQUEST");
+  const refused = policyCode(failureAnalysisDecision(await deps.policy()));
+  if (refused) return view(refused);
+  const report = await deps.report(request.executionId).catch(() => null);
+  if (!report || !report.instances.some((instance) => instance.instanceId === request.instanceId)) return view("NOT_FOUND");
+
+  const batch = failureBatch(report);
+  const entry = batch.find((candidate) => candidate.instanceId === request.instanceId);
+  if (!entry) return view("NOTHING_TO_ASK");
+  const signature = failureSignature(entry);
+  const group = coalesceFailures(batch).groups.find((candidate) => candidate.signature === signature);
+  const coalescedCount = group?.count ?? 1;
+  const job = buildFailureAnalysisRequest({
+    signature,
+    instanceIds: group?.instanceIds ?? [entry.instanceId],
+    count: coalescedCount,
+    representative: entry,
+    analyse: entry.baseline.cause !== "insufficient" && entry.baseline.evidenceIds.length > 0
+  });
+  if (!job) return view("NOTHING_TO_ASK", coalescedCount);
+
+  const outcome = await deps.submit({
+    requestId: assistJobId(senderId, request.requestId),
+    feature: "failureAnalysis",
+    priority: "interactive",
+    prompt: job.prompt,
+    schema: job.schema,
+    maxOutputTokens: FAILURE_ANALYSIS_LIMITS.maxOutputTokens,
+    timeoutMs: FAILURE_ANALYSIS_LIMITS.timeoutMs
+  });
+  if (outcome.status !== "ok") return view(outcomeCode(outcome), coalescedCount);
+  const answer = parseFailureAnalysis(outcome.value, job);
+  if (!answer.ok) return view("OUTPUT_REJECTED", coalescedCount);
+  const { insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps } = answer;
+  return {
+    ...assistStatus("OK", outcome.modelId),
+    instanceId: entry.instanceId,
+    coalescedCount,
+    analysis: { insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps }
+  };
 }
 
 export function cancelAssist(senderId: number, input: unknown, cancel: (jobId: string) => boolean): AiAdminResponse {
