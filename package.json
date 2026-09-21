@@ -308,6 +308,7 @@
     "verify:failure-cause-baseline": "tsx scripts/verify-failure-cause-baseline.mts",
     "verify:ui-error-evidence": "node scripts/benchmark/run.mjs scripts/verify-ui-error-evidence.mts",
     "verify:failure-capture-overhead": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts",
+    "verify:failure-capture-gate-stats": "tsx scripts/verify-failure-capture-gate-stats.mts",
     "benchmark:failure-capture-saturated": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts --saturated"
   },
   "dependencies": {

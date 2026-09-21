@@ -16,22 +16,24 @@
  * machine (2026-09-19). They are a development-host gate, not a VMware production latency claim; the
  * owner approves them in the L5 plan, and if capture ever fails them the default changes (L5 plan).
  *
- * Methodology approved by the owner 2026-09-21 (L5 plan, "L5a gate — owner decision"), on the
- * development machine, ceilings unchanged:
- *   B — 7 rounds, so the median is a true middle value.
+ * Methodology approved by the owner 2026-09-21 (L5 plan, "L5a gate — owner decision"). It runs on
+ * the development machine, and the ceilings are unchanged:
+ *   C — 21 rounds (odd, as B required). This superseded B's 7 rounds the same day.
  *   D — 1 instance per workload for the gate (unsaturated). `--saturated` (3 per workload) is a
  *       separate INFORMATIONAL run: its duration and CPU verdicts never decide the exit code.
- *   E — duration and CPU verdicts are three-way over a distribution-free 95 % interval for the median
- *       of the paired deltas: PASS when its upper bound ≤ ceiling, FAIL when its lower bound > ceiling,
- *       otherwise INCONCLUSIVE (exit 2).
- *   p95 is reported but only binds once each mode has ≥ 21 samples (below that it is the maximum).
- * Each run writes its raw per-round evidence to docs/plans/ai-upgrade-v5/evidence/.
+ *   E — duration and CPU verdicts are three-way over the distribution-free 95 % interval for the
+ *       median of the paired deltas: PASS when its upper bound ≤ ceiling, FAIL when its lower bound >
+ *       ceiling, otherwise INCONCLUSIVE (exit 2). The interval method is owner-approved policy.
+ *   p95 binds (the existing yes/no check) once each mode has ≥ 21 samples. Below that it only informs.
+ * Any other rounds/instances configuration exits 2 as "gate NOT RUN". Each run appends its raw
+ * per-batch evidence under docs/plans/ai-upgrade-v5/evidence/. The rules live in
+ * scripts/lib/failure-capture-gate.mts, and `verify:failure-capture-gate-stats` proves them.
  *
  * Run: npm run verify:failure-capture-overhead   (node scripts/benchmark/run.mjs → tsx + electron stub)
  *      npm run benchmark:failure-capture-saturated   (informational, 3 instances per workload)
  */
 import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { createServer } from "node:net";
 import { dirname, join, relative, resolve } from "node:path";
@@ -45,6 +47,7 @@ import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import { FailureEvidenceCollector, liveEvidenceAttachments } from "@src/runner/evidence/FailureEvidenceCollector";
 import { stats, type Stats } from "./benchmark/lib.mts";
+import { APPROVED_GATE, appendEvidenceRun, gateConfiguration, gateExitCode, judgePaired, p95IsBinding, P95_MIN_SAMPLES } from "./lib/failure-capture-gate.mts";
 import { buildDirs, cleanupRoot, installBenchGuards } from "./benchmark/engineHarness.mts";
 
 installBenchGuards();
@@ -92,12 +95,9 @@ export const FAILURE_CAPTURE_OVERHEAD_CEILINGS = Object.freeze({
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SATURATED = process.argv.includes("--saturated");
-const ROUNDS = envInt("AWKIT_L5A_OVERHEAD_ROUNDS", 7);
-const INSTANCES = envInt("AWKIT_L5A_OVERHEAD_INSTANCES", SATURATED ? 3 : 1);
-/** Option D: duration and CPU overhead bind only on the unsaturated configuration. */
-const GATING = INSTANCES === 1;
-/** Below this many samples per mode, `stats().p95` is the maximum sample, so p95 only informs. */
-const P95_MIN_SAMPLES = 21;
+const ROUNDS = envInt("AWKIT_L5A_OVERHEAD_ROUNDS", APPROVED_GATE.rounds);
+const INSTANCES = envInt("AWKIT_L5A_OVERHEAD_INSTANCES", SATURATED ? 3 : APPROVED_GATE.instances);
+const { gating: GATING, gateNotRun: GATE_NOT_RUN } = gateConfiguration(ROUNDS, INSTANCES, SATURATED);
 
 function envInt(name: string, fallback: number): number {
   const parsed = Number.parseInt(process.env[name] ?? "", 10);
@@ -117,40 +117,13 @@ function check(label: string, condition: unknown, detail?: unknown): boolean {
   return Boolean(condition);
 }
 
-/**
- * Option E: distribution-free 95 % interval for a median — order statistics x(k) and x(n+1−k), k the
- * largest with P(Binomial(n, ½) ≤ k−1) ≤ 2.5 %. For 7 rounds that is [min, max] (98.4 %); fewer than
- * 6 values admit no 95 % interval at all.
- */
-function medianInterval(values: number[]): { low: number; high: number; coverage: number } | undefined {
-  const xs = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
-  const n = xs.length;
-  let k = 0;
-  let cdf = 0;
-  let term = 0.5 ** n; // P(X = 0)
-  while (cdf + term <= 0.025) {
-    cdf += term;
-    k += 1;
-    term = (term * (n - k + 1)) / k; // P(X = k)
-  }
-  return k === 0 ? undefined : { low: xs[k - 1], high: xs[n - k], coverage: 1 - 2 * cdf };
-}
-
-type Verdict = "PASS" | "FAIL" | "INCONCLUSIVE";
-function threeWayVerdict(interval: { low: number; high: number } | undefined, limit: number): Verdict {
-  if (!interval) return "INCONCLUSIVE";
-  if (interval.high <= limit) return "PASS";
-  return interval.low > limit ? "FAIL" : "INCONCLUSIVE";
-}
-
 let inconclusive = 0;
 let informational = 0;
 const verdicts: Record<string, unknown> = {};
 /** A ceiling judged three-way; a missing round is a harness failure, never noise. */
 function judge(label: string, deltas: number[], limit: number, binding: boolean): void {
-  if (!check(`${label}: every one of ${ROUNDS} rounds produced a paired delta`, deltas.filter((delta) => Number.isFinite(delta)).length === ROUNDS)) return;
-  const interval = medianInterval(deltas);
-  const verdict = threeWayVerdict(interval, limit);
+  const { verdict, interval } = judgePaired(deltas, ROUNDS, limit);
+  if (!check(`${label}: every one of ${ROUNDS} rounds produced a paired delta`, verdict !== "INCOMPLETE")) return;
   const median = stats(deltas)?.median;
   const detail = `median ${round1(median)} ms, 95 % interval [${round1(interval?.low)}, ${round1(interval?.high)}] ms, ceiling ${round1(limit)} ms`;
   verdicts[label] = { verdict, binding, median: round1(median), interval: interval && { low: round1(interval.low), high: round1(interval.high), coverage: round1(interval.coverage * 100) }, ceiling: round1(limit) };
@@ -164,7 +137,7 @@ function judge(label: string, deltas: number[], limit: number, binding: boolean)
     check(`${label} — ${verdict}`, verdict === "PASS", detail);
   }
 }
-const sleep =(ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
 // ── Zero AI calls on the run path: the engine's import closure reaches no AI module ────────────────
 
@@ -402,20 +375,7 @@ const describe = (s: Stats | undefined) => (s ? { n: s.n, median: round1(s.media
 let mockSite: ChildProcess | undefined;
 const { dirs, root } = await buildDirs("awkit-l5a-overhead-");
 try {
-  console.log("Methodology self-check (option E's interval and verdict)");
-  {
-    const seven = medianInterval([70, 10, 40, 20, 60, 30, 50]);
-    check("7 values: the 95 % median interval is [min, max] at 98.4 % coverage", seven?.low === 10 && seven.high === 70 && Math.abs(seven.coverage - 126 / 128) < 1e-9, seven);
-    const twentyOne = medianInterval(Array.from({ length: 21 }, (_, i) => 21 - i));
-    check("21 values: the interval narrows to the 6th and 16th order statistics", twentyOne?.low === 6 && twentyOne.high === 16, twentyOne);
-    check("5 values admit no 95 % interval, so the verdict is INCONCLUSIVE", medianInterval([1, 2, 3, 4, 5]) === undefined && threeWayVerdict(undefined, 150) === "INCONCLUSIVE");
-    check(
-      "PASS needs the upper bound ≤ ceiling, FAIL the lower bound > ceiling, anything straddling is INCONCLUSIVE",
-      threeWayVerdict({ low: -40, high: 150 }, 150) === "PASS" && threeWayVerdict({ low: 151, high: 400 }, 150) === "FAIL" && threeWayVerdict({ low: 100, high: 151 }, 150) === "INCONCLUSIVE"
-    );
-  }
-
-  console.log("\nZero AI calls on the run path");
+  console.log("Zero AI calls on the run path");
   {
     const engineFile = join(ROOT, "src", "runner", "ExecutionEngine.ts");
     const closure = [...importClosure(engineFile)].map((file) => relative(ROOT, file).replace(/\\/g, "/"));
@@ -496,7 +456,7 @@ try {
     console.log("  ~ no automation Chromium process outlives its batch — NOT RUN: process attribution is Windows-only");
   }
 
-  console.log(`\nOverhead (capture ON versus OFF) — ${GATING ? "gate: B + D + E, development host, not a VMware claim" : "INFORMATIONAL saturated run: duration and CPU verdicts do not decide the exit code"}`);
+  console.log(`\nOverhead (capture ON versus OFF) — ${GATING ? `gate: C + D + E (${ROUNDS} rounds × ${INSTANCES} instance), development host, not a VMware claim` : SATURATED ? "INFORMATIONAL saturated run: duration and CPU verdicts do not decide the exit code" : `gate NOT RUN: ${ROUNDS} rounds × ${INSTANCES} instances is not the approved ${APPROVED_GATE.rounds} × ${APPROVED_GATE.instances}, so every verdict below is informational`}`);
   const ceilings = FAILURE_CAPTURE_OVERHEAD_CEILINGS;
   const measured: Record<string, unknown> = { rounds: ROUNDS, instancesPerWorkloadPerBatch: INSTANCES, concurrentInstances: INSTANCES * 2, gating: GATING, stackTraces: SOURCE_MAPPED_STACKS ? "source-mapped (tsx default)" : "plain (as packaged)", host: { platform: process.platform, cpus: (await import("node:os")).cpus().length } };
   for (const key of ["fast", "evidence"] as const) {
@@ -514,12 +474,13 @@ try {
     judge(`${key}: median duration overhead (paired rounds)`, deltas, medianLimit, GATING);
     const p95Label = `${key}: p95 duration overhead ${round1(sOn.p95 - sOff.p95)} ms ≤ ${round1(p95Limit)} ms`;
     const p95Within = sOn.p95 - sOff.p95 <= p95Limit;
-    if (GATING && sOn.n >= P95_MIN_SAMPLES && sOff.n >= P95_MIN_SAMPLES) {
-      check(p95Label, p95Within, { on: round1(sOn.p95), off: round1(sOff.p95) });
+    const p95Binding = p95IsBinding(GATING, sOn.n, sOff.n);
+    verdicts[`${key}: p95 duration overhead`] = { verdict: p95Binding ? (p95Within ? "PASS" : "FAIL") : p95Within ? "within" : "over", binding: p95Binding, on: round1(sOn.p95), off: round1(sOff.p95), ceiling: round1(p95Limit), samplesPerMode: [sOn.n, sOff.n] };
+    if (p95Binding) {
+      check(p95Label, p95Within, { on: round1(sOn.p95), off: round1(sOff.p95), samplesPerMode: [sOn.n, sOff.n] });
     } else {
       informational += 1;
-      verdicts[`${key}: p95 duration overhead`] = { verdict: p95Within ? "within" : "over", binding: false, samplesPerMode: [sOn.n, sOff.n] };
-      console.log(`  ~ ${p95Label} — ${p95Within ? "within" : "over"} (informational: ${GATING ? `${sOn.n}/${sOff.n} samples per mode < ${P95_MIN_SAMPLES}` : "saturated run"})`);
+      console.log(`  ~ ${p95Label} — ${p95Within ? "within" : "over"} (informational: ${GATING ? `${sOn.n}/${sOff.n} samples per mode < ${P95_MIN_SAMPLES}` : SATURATED ? "saturated run" : "gate NOT RUN"})`);
     }
   }
   const cpuOn = perInstance(on, (batch) => batch.nodeCpuMs);
@@ -547,20 +508,24 @@ try {
       return "unknown";
     }
   };
-  const evidencePath = join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence", GATING ? "L5a-overhead-gate.json" : "L5a-overhead-saturated.json");
+  const evidencePath = join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence", SATURATED ? "L5a-overhead-saturated.json" : "L5a-overhead-gate.json");
   const record = {
     recordedAt: new Date().toISOString(),
     commit: git("rev-parse", "HEAD"),
     uncommittedMeasuredSources: git("status", "--porcelain", "--", "src", "app", "scripts") !== "",
-    methodology: GATING ? "owner-approved 2026-09-21: B (odd rounds) + D (1 instance per workload) + E (three-way, distribution-free 95 % median interval); p95 informational below 21 samples per mode; ceilings unchanged; development host, not a VMware claim" : "informational saturated run (option D's separate check); never decides the gate",
+    methodology: GATING
+      ? "owner-approved 2026-09-21: C (21 rounds) + D (1 instance per workload) + E (three-way over the owner-approved distribution-free 95 % median interval); p95 binding (yes/no) at >= 21 samples per mode; ceilings unchanged; development host, not a VMware claim"
+      : SATURATED
+        ? "informational saturated run (option D's separate check); never decides the gate"
+        : `gate NOT RUN: ${ROUNDS} rounds x ${INSTANCES} instances is not the approved configuration; informational only`,
+    gating: GATING,
+    gateNotRun: GATE_NOT_RUN,
     counts: { passed, failed, inconclusive, informational },
     verdicts,
     measured,
     batches: batches.map((batch) => ({ mode: batch.mode, durationsMs: batch.durations, nodeCpuMs: round1(batch.nodeCpuMs), wallMs: batch.wallMs, events: batch.events, eventLoopDelayP99Ms: batch.eventLoopDelayP99Ms }))
   };
-  const previousRuns: unknown[] = existsSync(evidencePath) ? (JSON.parse(readFileSync(evidencePath, "utf8")) as { runs: unknown[] }).runs : [];
-  writeFileSync(evidencePath, `${JSON.stringify({ runs: [...previousRuns, record] }, null, 2)}\n`, "utf8");
-  console.log(`\nRaw evidence: ${relative(ROOT, evidencePath)}`);
+  console.log(`\nRaw evidence: ${relative(ROOT, evidencePath)} (run ${appendEvidenceRun(evidencePath, record)})`);
 
   await engine.drainIdleSharedBrowsers().catch(() => undefined);
 } catch (error) {
@@ -570,8 +535,6 @@ try {
   await cleanupRoot(root);
 }
 
-/** An env override away from the approved configuration makes every verdict informational: that is not a gate PASS. */
-const gateNotRun = !SATURATED && !GATING;
-if (gateNotRun) console.log(`\n  ~ gate NOT RUN: the approved configuration is 1 instance per workload, not ${INSTANCES}`);
+if (GATE_NOT_RUN) console.log(`\n  ~ gate NOT RUN: the approved configuration is ${APPROVED_GATE.rounds} rounds × ${APPROVED_GATE.instances} instance, not ${ROUNDS} × ${INSTANCES}`);
 console.log(`\n${passed} passed, ${failed} failed, ${inconclusive} inconclusive, ${informational} informational`);
-process.exit(failed > 0 || passed === 0 ? 1 : inconclusive > 0 || gateNotRun ? 2 : 0);
+process.exit(gateExitCode({ passed, failed, inconclusive, gateNotRun: GATE_NOT_RUN }));
