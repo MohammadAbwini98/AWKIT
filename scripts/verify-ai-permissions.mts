@@ -114,6 +114,8 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     "ai:summarizeFragment": [["AI_USE", "PAGE_FLOWS"], false],
     // L5b: a failure analysis reads a stored run report, which PAGE_REPORTS already guards.
     "ai:analyzeFailure": [["AI_USE", "PAGE_REPORTS"], false],
+    // ...and deleting the analysis it saved into that report needs exactly the pair that can create it.
+    "ai:deleteFailureAnalysis": [["AI_USE", "PAGE_REPORTS"], false],
     "ai:importModelPack": [["AI_MANAGE"], true],
     "ai:removeModelPack": [["AI_MANAGE"], true]
   };
@@ -131,7 +133,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }

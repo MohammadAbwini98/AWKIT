@@ -16,6 +16,7 @@
 import { authorizeSemanticAction } from "../../semantic/contracts/SemanticApi";
 import type { FlowProfile, LocatorCandidate, LocatorContext, PendingProofEvidence } from "../../profiles/FlowProfile";
 import type { LocatorQualityClass } from "../../recorder/LocatorQualityClass";
+import type { FailureAnalysisBody, StoredFailureAnalysis } from "../../reports/ExecutionReport";
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
 import type { FlowValidationIssue } from "../../validation/FlowValidator";
 import type { AiActionRecord } from "../AiActionRecord";
@@ -300,22 +301,51 @@ export interface FailureAnalysisView extends AiAssistStatus {
   /** Failed instances in this run sharing the failure's signature. The interpretation applies to all of them. */
   coalescedCount: number;
   /** T0. Evidence ids refer to the named instance's own captured evidence. Null unless `ok`. */
-  analysis: {
-    insufficient: boolean;
-    category: string;
-    explanation: string;
-    primaryEvidenceIds: string[];
-    secondaryEvidenceIds: string[];
-    investigationSteps: string[];
-  } | null;
+  analysis: FailureAnalysisBody | null;
+  /** True when the answer was saved with the run's report; false when it could only be shown. */
+  stored?: boolean;
+}
+
+/** The stored analysis to delete: the one covering this instance of this run. */
+export type FailureAnalysisTarget = Omit<FailureAnalysisAssistRequest, "requestId">;
+
+export function sanitizeFailureAnalysisTarget(input: unknown): FailureAnalysisTarget | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const executionId = raw ? sanitizeProfileId(raw.executionId) : null;
+  const instanceId = raw ? sanitizeProfileId(raw.instanceId) : null;
+  return executionId && instanceId ? { executionId, instanceId } : null;
 }
 
 export function sanitizeFailureAnalysisRequest(input: unknown): FailureAnalysisAssistRequest | null {
   const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
   const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
-  const executionId = raw ? sanitizeProfileId(raw.executionId) : null;
-  const instanceId = raw ? sanitizeProfileId(raw.instanceId) : null;
-  return requestId && executionId && instanceId ? { requestId, executionId, instanceId } : null;
+  const target = sanitizeFailureAnalysisTarget(input);
+  return requestId && target ? { requestId, ...target } : null;
+}
+
+const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+
+/**
+ * The stored L5b analysis covering `instanceId` — its own, or a coalesced member's — from a run report
+ * read back from disk. Shape-checked, because a report file is data: a malformed entry reads as none.
+ */
+export function storedFailureAnalysisFor(report: unknown, instanceId: string): StoredFailureAnalysis | null {
+  const analyses = (report as { diagnostics?: { analyses?: unknown } } | null)?.diagnostics?.analyses;
+  if (!Array.isArray(analyses)) return null;
+  const entry = analyses.find((item) => isStringList(item?.instanceIds) && item.instanceIds.includes(instanceId)) as Record<string, unknown> | undefined;
+  const body = entry?.analysis as Record<string, unknown> | undefined;
+  const valid =
+    entry?.version === 1 &&
+    typeof entry.signature === "string" &&
+    typeof entry.instanceId === "string" &&
+    typeof entry.createdAt === "string" &&
+    typeof body?.insufficient === "boolean" &&
+    typeof body.category === "string" &&
+    typeof body.explanation === "string" &&
+    isStringList(body.primaryEvidenceIds) &&
+    isStringList(body.secondaryEvidenceIds) &&
+    isStringList(body.investigationSteps);
+  return valid ? (entry as unknown as StoredFailureAnalysis) : null;
 }
 
 export const AI_ASSIST_MAX_NODES = 2_000;

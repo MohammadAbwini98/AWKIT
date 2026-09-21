@@ -9,8 +9,9 @@
  * cancellation reaching main, a refused answer shown as a refusal, AI switched off leaving validation
  * intact, the insert dialog describing a STORED fragment on demand, the save dialog's no-model
  * similarity hint following the selection with AI off, a seeded failed run's evidence, deterministic
- * cause and on-demand analysis in the run-detail drawer, and no flow, fragment or report on disk
- * touched by any of it.
+ * cause and on-demand analysis in the run-detail drawer — saved with the run's report, shown again on
+ * reopening, and deletable with AI off back to the report the run wrote — and no flow or fragment on
+ * disk touched by any of it.
  *
  * The provider is the DETERMINISTIC one: `AWKIT_TEST_AI_PROVIDER` names a file holding the next
  * scripted answer, read only by a non-packaged build (the `AWKIT_TEST_LICENSE_BYPASS` pattern). It
@@ -489,13 +490,36 @@ try {
     (await drawer.locator(`[data-testid="failure-evidence-event"][data-evidence-id="${primaryId}"]`).getAttribute("data-ai-cited")) === "primary"
   );
   check("...while the deterministic cause is unchanged", (await drawer.getByTestId("failure-cause").getAttribute("data-cause")) === runDiagnostics.cause!.cause);
-  check("analysing changed nothing in the stored report", digestOf(reportFile) === reportDigest);
+  // The report gains ONE thing, the optional diagnostics extension; everything the run wrote stays.
+  check("...and says it was saved with the run's report", /Saved with this run's report/.test(await drawer.getByTestId("failure-ai-message").innerText()));
+  const afterSave = JSON.parse(readFileSync(reportFile, "utf8")) as ConcurrentRunReport & { id: string };
+  const { diagnostics: savedExtension, ...runAsWritten } = afterSave;
+  check("the report on disk holds one saved analysis", savedExtension?.analyses?.length === 1 && savedExtension.analyses[0].instanceId === RUN_ID, JSON.stringify(savedExtension).slice(0, 300));
+  check("...referencing both instances that failed the same way", JSON.stringify([...(savedExtension?.analyses[0]?.instanceIds ?? [])].sort()) === JSON.stringify([RUN_ID, `${RUN_ID}-row2`].sort()));
+  check("...while everything the run wrote, evidence and cause included, is untouched", JSON.stringify(runAsWritten) === JSON.stringify(storedRun));
+  const deleteButton = drawer.getByRole("button", { name: "Delete saved analysis" });
+  await deleteButton.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
+  check("a saved analysis offers a named Delete control", (await deleteButton.count()) === 1);
+  const savedDigest = digestOf(reportFile);
   provide({ text: JSON.stringify({ version: 1, insufficient: false, category: "guess", explanation: "L5B-MODEL-GUESS", primaryEvidenceIds: ["ev-999"] }) });
   await drawer.getByTestId("failure-ai-analyze").click();
   check("an answer citing evidence the run never captured is refused", (await stateSettles(win, "failure-ai-analysis", "failed")) === "failed");
   check("...and none of its text reaches the page", !(await win.locator("body").innerText()).includes("L5B-MODEL-GUESS"));
+  check("...nor the report on disk, whose saved analysis is untouched", digestOf(reportFile) === savedDigest);
   const forgedAnalysis = await win.evaluate((id) => window.playwrightFlowStudio.ai.analyzeFailure({ requestId: "ok-id", executionId: "../x", instanceId: id }), RUN_ID);
   check("main refuses a malformed analysis request directly", forgedAnalysis.code === "INVALID_REQUEST", JSON.stringify(forgedAnalysis));
+  const forgedDelete = await win.evaluate((id) => window.playwrightFlowStudio.ai.deleteFailureAnalysis({ executionId: "../x", instanceId: id }), RUN_ID);
+  check("...and a malformed delete request, deleting nothing", forgedDelete.code === "INVALID_REQUEST" && digestOf(reportFile) === savedDigest, JSON.stringify(forgedDelete));
+  await win.keyboard.press("Escape");
+
+  drawer = await openDrawer();
+  check("reopening the drawer shows the saved analysis without asking again", (await stateSettles(win, "failure-ai-analysis", "stored")) === "stored");
+  check("...its text", /server error/.test(await drawer.getByTestId("failure-ai-result").innerText().catch(() => "")));
+  check("...labelled with when it was saved", /^Saved /.test(await drawer.getByTestId("failure-ai-stored").innerText().catch(() => "")));
+  check(
+    "...and its citation still marked, because it was made for this instance",
+    (await drawer.locator(`[data-testid="failure-evidence-event"][data-evidence-id="${primaryId}"]`).getAttribute("data-ai-cited")) === "primary"
+  );
   await win.keyboard.press("Escape");
 
   aiSettings(false);
@@ -503,6 +527,19 @@ try {
   check("with AI off, the analysis control reports local AI unavailable", (await stateSettles(win, "failure-ai-analysis", "unavailable")) === "unavailable");
   check("...and is disabled", await drawer.getByTestId("failure-ai-analyze").isDisabled());
   check("...while the evidence and deterministic cause still show without it", (await drawer.getByTestId("failure-cause").count()) === 1 && (await drawer.getByTestId("failure-evidence-event").count()) === runDiagnostics.evidence.length);
+  check("...and so does the saved analysis", (await drawer.getByTestId("failure-ai-result").count()) === 1);
+  const offDelete = drawer.getByRole("button", { name: "Delete saved analysis" });
+  check("...which can still be deleted with AI off", (await offDelete.count()) === 1 && (await offDelete.isEnabled()));
+  await offDelete.focus();
+  await win.keyboard.press("Enter");
+  await drawer.getByTestId("failure-ai-result").waitFor({ state: "detached", timeout: 10_000 }).catch(() => undefined);
+  check("deleting removes it from the drawer", (await drawer.getByTestId("failure-ai-result").count()) === 0 && (await offDelete.count()) === 0);
+  check("...announces it in the live status region", /deleted/.test(await drawer.getByTestId("failure-ai-message").innerText()));
+  check(
+    "...keeps keyboard focus inside the AI section rather than dropping it to the page",
+    await win.evaluate(() => Boolean(document.activeElement && document.activeElement !== document.body && document.querySelector('[data-testid="failure-ai-analysis"]')?.contains(document.activeElement)))
+  );
+  check("...and returns the report on disk to what the run wrote, byte for byte", digestOf(reportFile) === reportDigest);
   await win.keyboard.press("Escape");
 
   check("the saved flow is byte-for-byte what was seeded", fileDigest() === seededDigest);

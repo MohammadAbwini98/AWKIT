@@ -18,6 +18,33 @@ export interface InstanceReport {
   diagnostics?: InstanceDiagnostics;
 }
 
+/** A T0 failure interpretation, as shown and as stored. Evidence ids name the analysed instance's own events. */
+export interface FailureAnalysisBody {
+  insufficient: boolean;
+  category: string;
+  explanation: string;
+  primaryEvidenceIds: string[];
+  secondaryEvidenceIds: string[];
+  investigationSteps: string[];
+}
+
+/**
+ * Phase L L5b: one stored AI interpretation per failure signature. Kept apart from every instance's L5a
+ * evidence and baseline, which it never changes; it lives and dies with this report, and is deletable
+ * and recomputable (DECISIONS, 2026-09-19 privacy policy). Its text was redacted and rescanned first.
+ */
+export interface StoredFailureAnalysis {
+  version: 1;
+  signature: string;
+  /** The instance analysed: the evidence ids refer to ITS captured events. */
+  instanceId: string;
+  /** Coalesced references: every failed instance in the run sharing the signature when it was analysed. */
+  instanceIds: string[];
+  createdAt: string;
+  modelId?: string;
+  analysis: FailureAnalysisBody;
+}
+
 export interface ConcurrentRunReport {
   executionId: string;
   scenarioId: string;
@@ -34,6 +61,8 @@ export interface ConcurrentRunReport {
   instances: InstanceReport[];
   runtimeInputs: Record<string, unknown>;
   offlineRuntimeStatus?: OfflineRuntimeStatus;
+  /** Phase L L5b stored analyses. Optional: absent on every report nobody asked AI about. */
+  diagnostics?: { analyses: StoredFailureAnalysis[] };
   /**
    * Security posture this run executed under. Recorded so a report reader can tell whether HTTPS
    * certificate validation was in force — a passing run against an untrusted certificate must not look

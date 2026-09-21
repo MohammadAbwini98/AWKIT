@@ -24,6 +24,7 @@ import {
   sanitizeAssistRequestId,
   sanitizeAuthoringAssistRequest,
   sanitizeFailureAnalysisRequest,
+  sanitizeFailureAnalysisTarget,
   sanitizeFragmentSummaryRequest,
   type AiAdminResponse,
   type AiAssistCode,
@@ -39,11 +40,15 @@ import {
   failureAnalysisDecision,
   failureSignature,
   parseFailureAnalysis,
+  redactFailureAnalysis,
+  withStoredFailureAnalysis,
+  withoutStoredFailureAnalysis,
   type FailureBatchEntry
 } from "@src/ai/failureAnalysis";
 import { FRAGMENT_ASSIST_LIMITS, buildFragmentSummaryRequest, fragmentSummaryDecision, parseFragmentSummary } from "@src/ai/fragmentAssist";
 import type { FlowFragment } from "@src/fragments/FlowFragment";
-import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
+import type { ConcurrentRunReport, StoredFailureAnalysis } from "@src/reports/ExecutionReport";
+import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { AiPolicyConfig, AiPolicyDecision } from "@src/security/authz/AiAutonomyPolicy";
 import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
@@ -178,10 +183,18 @@ export async function summarizeFragment(senderId: number, input: unknown, deps: 
   return { ...assistStatus("OK", outcome.modelId), fragmentId: fragment.id, summary: answer.summary };
 }
 
-export interface FailureAssistDeps extends Pick<AiAssistDeps, "submit" | "policy"> {
+export interface FailureReportAccess {
   /** The STORED run report. The renderer names it; its own copy of the evidence is never trusted. */
   report: (executionId: string) => Promise<ConcurrentRunReport | null | undefined>;
+  /**
+   * Read-modify-write of that same stored report inside its folder lane (`JsonProfileStore.updateWith`):
+   * `change` sees the report as it is NOW — null once deleted — and returns the next one, or `undefined`
+   * to write nothing. That is what stops a late answer resurrecting a report deleted meanwhile.
+   */
+  updateReport: (executionId: string, change: (current: ConcurrentRunReport | null) => ConcurrentRunReport | undefined) => Promise<unknown>;
 }
+
+export interface FailureAssistDeps extends Pick<AiAssistDeps, "submit" | "policy">, FailureReportAccess {}
 
 /**
  * A run's failures as L5b's batch: every instance whose L5a diagnostics carry a deterministic cause.
@@ -205,6 +218,9 @@ export function failureBatch(report: ConcurrentRunReport): FailureBatchEntry[] {
  * which is not built (it needs the live quality gate); here each call is one explicit request for one
  * failure, so the NAMED instance is analysed, which also keeps every cited evidence id one the user can
  * see beside it. An insufficient baseline is still never analysed: there is nothing to reason over.
+ *
+ * The answer is saved into the report's optional `diagnostics` extension, one per signature, so a slow
+ * CPU-only answer is not lost when the drawer closes; asking again replaces it.
  */
 export async function analyzeFailure(senderId: number, input: unknown, deps: FailureAssistDeps): Promise<FailureAnalysisView> {
   const request = sanitizeFailureAnalysisRequest(input);
@@ -248,12 +264,52 @@ export async function analyzeFailure(senderId: number, input: unknown, deps: Fai
   const answer = parseFailureAnalysis(outcome.value, job);
   if (!answer.ok) return view("OUTPUT_REJECTED", coalescedCount);
   const { insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps } = answer;
-  return {
-    ...assistStatus("OK", outcome.modelId),
+  // What is shown is what is stored: redacted and rescanned like every stored AI artifact. A residual
+  // secret shape the redactor could not remove refuses the answer, as a malformed one is refused.
+  const analysis = redactFailureAnalysis({ insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps }, new SemanticRedactor());
+  if (!analysis) return view("OUTPUT_REJECTED", coalescedCount);
+
+  const record: StoredFailureAnalysis = {
+    version: 1,
+    signature,
     instanceId: entry.instanceId,
-    coalescedCount,
-    analysis: { insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps }
+    instanceIds: group?.instanceIds ?? [entry.instanceId],
+    createdAt: new Date().toISOString(),
+    ...(outcome.modelId ? { modelId: outcome.modelId } : {}),
+    analysis
   };
+  // Saving is best-effort: a failed write still shows the answer, and says it was not saved.
+  let stored = false;
+  await deps
+    .updateReport(request.executionId, (current) => {
+      if (!current?.instances.some((instance) => instance.instanceId === entry.instanceId)) return undefined;
+      stored = true;
+      return withStoredFailureAnalysis(current, record);
+    })
+    .catch(() => {
+      stored = false;
+    });
+  return { ...assistStatus("OK", outcome.modelId), instanceId: entry.instanceId, coalescedCount, analysis, stored };
+}
+
+/**
+ * Delete the stored analysis covering one instance. Deliberately no policy check: removing a stored AI
+ * answer must work with local AI switched off. The permission gate is the one that can create it.
+ */
+export async function deleteFailureAnalysis(input: unknown, deps: Pick<FailureReportAccess, "updateReport">): Promise<AiAdminResponse> {
+  const target = sanitizeFailureAnalysisTarget(input);
+  if (!target) return { code: "INVALID_REQUEST", ok: false, message: "Unknown run or instance." };
+  let removed = false;
+  try {
+    await deps.updateReport(target.executionId, (current) => {
+      const next = current ? withoutStoredFailureAnalysis(current, target.instanceId) : undefined;
+      removed = next !== undefined;
+      return next;
+    });
+  } catch {
+    return { code: "NOT_FOUND", ok: false, message: "The saved analysis could not be deleted." };
+  }
+  return removed ? { code: "OK", ok: true } : { code: "NOT_FOUND", ok: false, message: "There is no saved analysis for this failure." };
 }
 
 export function cancelAssist(senderId: number, input: unknown, cancel: (jobId: string) => boolean): AiAdminResponse {

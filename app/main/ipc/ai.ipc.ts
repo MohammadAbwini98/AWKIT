@@ -35,7 +35,15 @@ import { Permission } from "@src/security/authz/Permissions";
 
 import { createFlowFragmentStore, createFlowProfileStore, createReportStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
-import { analyzeFailure, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../ai/aiAssist";
+import {
+  analyzeFailure,
+  cancelAssist,
+  deleteFailureAnalysis,
+  explainFlowValidation,
+  summarizeFragment,
+  type AiAssistDeps,
+  type FailureReportAccess
+} from "../ai/aiAssist";
 import {
   aiAuditView,
   aiDiagnosticsView,
@@ -61,6 +69,27 @@ function assistDeps(): AiAssistDeps {
     submit: (job) => getAiService().submit(job),
     policy: aiPolicyConfig,
     savedFlowIds: async () => (await createFlowProfileStore().list()).map((flow) => flow.id)
+  };
+}
+
+/** A run report by execution id: the report's own id, else the stored report carrying that execution id. */
+function reportAccess(): FailureReportAccess {
+  const reports = createReportStore();
+  const storedId = async (executionId: string) =>
+    (await reports.get(executionId))?.id ?? (await reports.list()).find((stored) => stored.executionId === executionId)?.id ?? null;
+  return {
+    report: async (executionId) => {
+      const id = await storedId(executionId);
+      return id ? reports.get(id) : null;
+    },
+    updateReport: async (executionId, change) => {
+      const id = await storedId(executionId);
+      if (!id) return change(null);
+      return reports.updateWith(id, (current) => {
+        const next = change(current);
+        return next && { ...next, id };
+      });
+    }
   };
 }
 
@@ -163,10 +192,14 @@ export function registerAiIpc(): void {
       const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
       return { code, ok: false, message: denied.message, instanceId: "", coalescedCount: 0, analysis: null };
     }
-    const reports = createReportStore();
-    const report = async (executionId: string) =>
-      (await reports.get(executionId)) ?? (await reports.list()).find((stored) => stored.executionId === executionId) ?? null;
-    return analyzeFailure(event.sender.id, request, { ...assistDeps(), report });
+    return analyzeFailure(event.sender.id, request, { ...assistDeps(), ...reportAccess() });
+  });
+
+  // L5b. Deletes the stored analysis covering one instance: the same pair that can create one. No
+  // policy check, so a stored AI answer can be removed with local AI switched off.
+  ipcMain.handle("ai:deleteFailureAnalysis", async (event, target: unknown): Promise<AiAdminResponse> => {
+    const denied = (await authorize(event, Permission.AI_USE, false)) ?? (await authorize(event, Permission.PAGE_REPORTS, false));
+    return denied ?? deleteFailureAnalysis(target, reportAccess());
   });
 
   // Cancels only the asking window's own job: main prefixes the id with the sender's id.

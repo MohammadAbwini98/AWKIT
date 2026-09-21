@@ -17,6 +17,9 @@
  *   - **A conclusion must cite evidence**, `insufficient` is a first-class answer, and an answer that
  *     does both is refused rather than half-believed.
  *   - **Nothing can change the run.** The schema has no field for a status, retry, policy or edit.
+ *   - **An answer is saved with its run report** (a real `JsonProfileStore`): one per signature,
+ *     redacted and rescanned first, never resurrecting a report deleted meanwhile, and deletable
+ *     through any coalesced member back to the report the run wrote, byte for byte.
  *
  * Run: npm run verify:ai-error-analysis
  */
@@ -45,7 +48,11 @@ import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@
 import type { ConcurrentRunReport, InstanceReport } from "@src/reports/ExecutionReport";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
 
-import { analyzeFailure, failureBatch, type FailureAssistDeps } from "../app/main/ai/aiAssist";
+import { storedFailureAnalysisFor } from "@src/ai/contracts/AiApi";
+import { redactFailureAnalysis, withoutStoredFailureAnalysis } from "@src/ai/failureAnalysis";
+import { JsonProfileStore } from "@src/storage/ProfileStore";
+
+import { analyzeFailure, deleteFailureAnalysis, failureBatch, type FailureAssistDeps, type FailureReportAccess } from "../app/main/ai/aiAssist";
 
 let passed = 0;
 let failed = 0;
@@ -424,10 +431,24 @@ const storedRun: ConcurrentRunReport = {
 };
 const auto = coalesceFailures(failureBatch(storedRun));
 check("(precondition) the automatic batch would NOT analyse run-z's signature", auto.groups.find((g) => g.instanceIds.includes("run-z"))?.analyse === false);
+// A REAL report store in a temp folder: saving goes through the production folder lane, `updateWith`
+// and the atomic replace, exactly as `ai.ipc.ts` wires it.
+type StoredRun = ConcurrentRunReport & { id: string };
+const reportStore = new JsonProfileStore<StoredRun>({ folder: join(work, "reports") });
+const seedJson = JSON.stringify({ ...storedRun, id: storedRun.executionId });
+await reportStore.create(JSON.parse(seedJson));
+const reportAccess: FailureReportAccess = {
+  report: (id) => reportStore.get(id),
+  updateReport: (id, change) =>
+    reportStore.updateWith(id, (current) => {
+      const next = change(current);
+      return next && { ...next, id };
+    })
+};
 const reportDeps = (service: AiService, policy: AiPolicyConfig = POLICY): FailureAssistDeps => ({
   submit: (job) => service.submit(job),
   policy: async () => policy,
-  report: async (id) => (id === storedRun.executionId ? storedRun : null)
+  ...reportAccess
 });
 const citing = (ids: string[]) => JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: "The submit request returned 500.", primaryEvidenceIds: ids, investigationSteps: ["Check the order service logs."] });
 const primaryOf = (entry: FailureBatchEntry) => entry.baseline.evidenceIds[0];
@@ -486,6 +507,93 @@ const declines = harness([JSON.stringify({ version: 1, insufficient: true })]);
 const declineView = await analyzeFailure(4, { requestId: "ui-14", executionId: "exec-main", instanceId: "run-a" }, reportDeps(declines.service));
 check("'insufficient' is a first-class answer, shown as such", declineView.ok && declineView.analysis?.insufficient === true, JSON.stringify(declineView));
 await declines.service.shutdown();
+
+// ── Persistence: the optional run-report `diagnostics` extension ────────────────────────────────
+// DECISIONS 2026-09-19: analyses live and die with their run report, and are deletable and
+// recomputable; every stored AI artifact is redacted and rescanned first.
+console.log("\nmain — the analysis is saved with its run report, deletable and recomputable");
+const exec = storedRun.executionId;
+const reseed = () => reportStore.update(exec, JSON.parse(seedJson));
+const readBack = async () => (await reportStore.get(exec))!;
+const analysesOnDisk = async () => (await readBack()).diagnostics?.analyses ?? [];
+const withoutExtension = (report: ConcurrentRunReport) => {
+  const { diagnostics: _extension, ...rest } = report;
+  return JSON.stringify(rest);
+};
+const ask = async (answer: string, instanceId: string, requestId: string, deps?: (service: AiService) => FailureAssistDeps) => {
+  const run = harness([answer]);
+  const result = await analyzeFailure(4, { requestId, executionId: exec, instanceId }, (deps ?? reportDeps)(run.service));
+  await run.service.shutdown();
+  return result;
+};
+await reseed();
+check("(precondition) the reseeded report carries no saved analysis", (await analysesOnDisk()).length === 0);
+
+const savedView = await ask(citing([primaryOf(sameB)]), "run-b", "p-1");
+let onDisk = await analysesOnDisk();
+check("a successful answer is saved with the run's report", savedView.ok && savedView.stored === true && onDisk.length === 1, JSON.stringify(savedView).slice(0, 300));
+check("...keyed by its coalescing signature, naming the instance analysed", onDisk[0]?.signature === failureSignature(sameB) && onDisk[0]?.instanceId === "run-b");
+check("...with a coalesced reference for each instance that failed the same way", JSON.stringify([...(onDisk[0]?.instanceIds ?? [])].sort()) === JSON.stringify(["run-a", "run-b", "run-c"]), JSON.stringify(onDisk[0]?.instanceIds));
+check("...holding exactly what the renderer was shown", JSON.stringify(onDisk[0]?.analysis) === JSON.stringify(savedView.analysis));
+check("...with the model that wrote it and when", onDisk[0]?.modelId === "fake-l5b-model" && !Number.isNaN(Date.parse(onDisk[0]?.createdAt ?? "")));
+check("the run's evidence and baselines are untouched: only the extension was added", withoutExtension(await readBack()) === withoutExtension(JSON.parse(seedJson)));
+check("a coalesced member reads the saved analysis through its reference", storedFailureAnalysisFor(await readBack(), "run-a")?.instanceId === "run-b");
+check("...and a different failure does not", storedFailureAnalysisFor(await readBack(), "run-d") === null);
+
+await ask(JSON.stringify({ version: 1, insufficient: true }), "run-a", "p-2");
+onDisk = await analysesOnDisk();
+check("asking again replaces the saved analysis rather than adding one", onDisk.length === 1 && onDisk[0]?.instanceId === "run-a" && onDisk[0]?.analysis.insufficient === true, JSON.stringify(onDisk).slice(0, 300));
+await ask(citing([primaryOf(different)]), "run-d", "p-3");
+check("a different signature is saved beside it", (await analysesOnDisk()).length === 2);
+
+const beforeRefusal = JSON.stringify(await readBack());
+check("(precondition) an answer citing uncaptured evidence is refused", (await ask(citing(["ev-999"]), "run-a", "p-4")).code === "OUTPUT_REJECTED");
+check("...and leaves the saved analyses exactly as they were", JSON.stringify(await readBack()) === beforeRefusal);
+
+// Redaction. The e-mail and the 7-digit id are what SemanticRedactor removes; `password: {…}` is a
+// shape it misses (its value class excludes `{`) and only the independent rescan catches.
+const leak = (text: string) => JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: text, primaryEvidenceIds: [primaryOf(sameB)], investigationSteps: [text] });
+const leakyView = await ask(leak("Order 4001123 for ops@shop.example failed."), "run-b", "p-5");
+const leakyStored = storedFailureAnalysisFor(await readBack(), "run-b");
+check("an e-mail or long id in the answer is redacted before it is shown", leakyView.ok && !/ops@shop|4001123/.test(JSON.stringify(leakyView)), JSON.stringify(leakyView.analysis));
+check("...and before it is stored", Boolean(leakyStored?.analysis.explanation.includes("[redacted]")) && !/ops@shop|4001123/.test(JSON.stringify(leakyStored)), JSON.stringify(leakyStored?.analysis));
+check("(precondition) the redactor really misses the brace-valued shape", new SemanticRedactor().redactText("password: {hunter2}").includes("hunter2"));
+const beforeResidual = JSON.stringify(await readBack());
+const residualView = await ask(leak("The form rejected password: {hunter2} as invalid."), "run-b", "p-6");
+check("an answer the rescan still flags is refused", residualView.code === "OUTPUT_REJECTED" && residualView.analysis === null, JSON.stringify(residualView));
+check("...none of its text reaches the renderer", !JSON.stringify(residualView).includes("hunter2"));
+check("...and nothing of it is stored", JSON.stringify(await readBack()) === beforeResidual);
+check("(pure) a clean answer passes the rescan", redactFailureAnalysis({ insufficient: true, category: "", explanation: "", primaryEvidenceIds: [], secondaryEvidenceIds: [], investigationSteps: [] }, new SemanticRedactor()) !== null);
+
+// A report deleted while the model was answering must not come back.
+const vanishing: (service: AiService) => FailureAssistDeps = (service) => ({
+  ...reportDeps(service),
+  report: async (id) => {
+    const report = await reportStore.get(id);
+    await reportStore.delete(id);
+    return report;
+  }
+});
+const lateView = await ask(citing([primaryOf(sameB)]), "run-b", "p-7", vanishing);
+check("an answer for a report deleted meanwhile is still shown", lateView.ok && lateView.analysis !== null, JSON.stringify(lateView).slice(0, 200));
+check("...says it was not saved", lateView.stored === false);
+check("...and does NOT resurrect the deleted report", (await reportStore.get(exec)) === null);
+await reportStore.import(JSON.parse(seedJson));
+
+// Delete. Needs no policy: it must work with AI switched off, and its deps carry none.
+await ask(citing([primaryOf(sameB)]), "run-b", "p-8");
+await ask(citing([primaryOf(different)]), "run-d", "p-9");
+check("(precondition) two analyses are saved", (await analysesOnDisk()).length === 2);
+const byMember = await deleteFailureAnalysis({ executionId: exec, instanceId: "run-c" }, reportAccess);
+onDisk = await analysesOnDisk();
+check("deleting through a coalesced member removes the shared analysis", byMember.ok && onDisk.length === 1 && onDisk[0]?.instanceId === "run-d", JSON.stringify(byMember));
+check("...and deleting it again is NOT_FOUND", (await deleteFailureAnalysis({ executionId: exec, instanceId: "run-b" }, reportAccess)).code === "NOT_FOUND");
+check("deleting the last one restores the report the run wrote, byte for byte", (await deleteFailureAnalysis({ executionId: exec, instanceId: "run-d" }, reportAccess)).ok && JSON.stringify(await readBack()) === seedJson);
+check("a malformed target is INVALID_REQUEST", (await deleteFailureAnalysis({ executionId: "../x", instanceId: "run-a" }, reportAccess)).code === "INVALID_REQUEST");
+check("a missing report is NOT_FOUND, and is not created", (await deleteFailureAnalysis({ executionId: "exec-gone", instanceId: "run-a" }, reportAccess)).code === "NOT_FOUND" && (await reportStore.get("exec-gone")) === null);
+const withFuture = { ...storedRun, diagnostics: { analyses: [{ ...onDisk[0]!, instanceIds: ["run-d"] }], futureField: 7 } } as unknown as ConcurrentRunReport;
+check("an unknown extension field survives deleting the last analysis", JSON.stringify(withoutStoredFailureAnalysis(withFuture, "run-d")?.diagnostics) === JSON.stringify({ futureField: 7 }));
+check("a malformed saved entry reads as none", storedFailureAnalysisFor({ diagnostics: { analyses: [{ ...onDisk[0]!, analysis: { insufficient: "no" } }] } }, "run-d") === null);
 
 console.log(`\nL5b failure intelligence: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

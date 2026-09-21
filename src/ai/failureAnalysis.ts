@@ -26,9 +26,12 @@
 
 import type { AiPromptSpec } from "./AiPromptBuilder";
 import type { AiOutputSchema } from "./AiOutputContract";
+import type { ConcurrentRunReport, FailureAnalysisBody, StoredFailureAnalysis } from "../reports/ExecutionReport";
 import type { ExecutionEvidenceEvent } from "../runner/evidence/ExecutionEvidence";
 import type { FailureCauseBaseline } from "../runner/evidence/FailureCauseBaseline";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "../security/authz/AiAutonomyPolicy";
+import { findResidualSecrets } from "../semantic/SemanticPolicyValidator";
+import type { SemanticRedactor } from "../semantic/SemanticRedactor";
 
 export const FAILURE_ANALYSIS_VERSION = 1;
 
@@ -403,6 +406,43 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
     secondaryEvidenceIds: secondary,
     investigationSteps: steps
   };
+}
+
+// ── Persistence (the optional run-report `diagnostics` extension) ─────────────────────────────────
+
+/**
+ * An answer as it may be shown and stored: every string through `SemanticRedactor`, then the
+ * independent residual-secret rescan, as the L0 privacy policy requires of a stored AI artifact.
+ * Null when the rescan still fires: such an answer is refused, never shown and never persisted.
+ */
+export function redactFailureAnalysis(analysis: FailureAnalysisBody, redactor: Pick<SemanticRedactor, "redactText">): FailureAnalysisBody | null {
+  const clean = (text: string) => redactor.redactText(text);
+  const out = { ...analysis, category: clean(analysis.category), explanation: clean(analysis.explanation), investigationSteps: analysis.investigationSteps.map(clean) };
+  return findResidualSecrets([out.category, out.explanation, ...out.investigationSteps].join("\n")).length ? null : out;
+}
+
+const storedAnalyses = (report: ConcurrentRunReport): StoredFailureAnalysis[] =>
+  Array.isArray(report.diagnostics?.analyses) ? report.diagnostics.analyses : [];
+
+/** The report with `stored` saved: one analysis per signature, so recomputing replaces rather than accumulates. */
+export function withStoredFailureAnalysis(report: ConcurrentRunReport, stored: StoredFailureAnalysis): ConcurrentRunReport {
+  const others = storedAnalyses(report).filter((entry) => entry.signature !== stored.signature);
+  return { ...report, diagnostics: { ...report.diagnostics, analyses: [...others, stored] } };
+}
+
+/**
+ * The report without the analysis covering `instanceId` (its own or a coalesced member's), or
+ * `undefined` when there is none — write nothing. An emptied extension is removed, so a report whose
+ * only analysis was deleted is the report the run wrote; fields it does not know are kept.
+ */
+export function withoutStoredFailureAnalysis(report: ConcurrentRunReport, instanceId: string): ConcurrentRunReport | undefined {
+  const analyses = storedAnalyses(report);
+  const kept = analyses.filter((entry) => !(Array.isArray(entry?.instanceIds) && entry.instanceIds.includes(instanceId)));
+  if (kept.length === analyses.length) return undefined;
+  const { diagnostics, ...rest } = report;
+  const { analyses: _removed, ...unknownFields } = diagnostics!;
+  if (kept.length) return { ...report, diagnostics: { ...unknownFields, analyses: kept } };
+  return Object.keys(unknownFields).length ? { ...report, diagnostics: unknownFields as ConcurrentRunReport["diagnostics"] } : rest;
 }
 
 /**

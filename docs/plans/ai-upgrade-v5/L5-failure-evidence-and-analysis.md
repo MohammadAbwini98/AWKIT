@@ -350,9 +350,10 @@ of the batches carry a ±400–800 ms step.
 **Status (2026-09-21): coalescing and the analysis contract are BUILT** — `src/ai/failureAnalysis.ts`,
 proven by `verify:ai-error-analysis` (76/76, three mutations caught) over L5a's real `EvidenceBuffer`
 and real `deriveFailureCause`. **The on-demand reports UX was built the same day** (see "L5b on-demand
-surface as built"). `awkit-djnl.8` is `in_progress`: the automatic analysis, the `diagnostics`
-persistence extension and the live quality gate are not built, and the milestone cannot close under the
-conditional development authorization.
+surface as built"). **The `diagnostics` persistence extension was built on 2026-09-21** (see "L5b
+analysis persistence as built"). `awkit-djnl.8` is `in_progress`: the automatic analysis and the live
+quality gate are not built, and the milestone cannot close under the conditional development
+authorization.
 
 ### L5b as built
 
@@ -403,11 +404,53 @@ Deterministic provider only; `awkit-djnl.8` is `in_progress` and cannot close.
 - **Decision recorded:** the per-batch budget governs the AUTOMATIC post-run analysis, which is **not
   built** (it needs the live quality gate). An explicit click on one failure is one deliberate call, so a
   failure past that budget is still answered. An insufficient baseline is still never analysed.
-- **Not built:** the automatic analysis, the `diagnostics` persistence extension (analyses are recomputed
-  on demand, never stored), `verify:ai-error-quality-live`.
+- **Not built:** the automatic analysis, `verify:ai-error-quality-live`. (The `diagnostics` persistence
+  extension, listed here when this section was written, was built later the same day; see below.)
 - **Verifiers:** `verify:ai-error-analysis` 100/100 (a 24-check adapter section), `verify:ai-assist-gui` in
   real Electron (seeded through the real `SqliteRuntimeStore`); mutations caught: analysing the group's
   first member, ignoring the coalesced count, dropping the citation marker.
+
+### L5b analysis persistence as built (2026-09-21)
+
+Deterministic provider only; model-independent; built under the conditional development
+authorization. `awkit-djnl.8` stays `in_progress` and cannot close. Implements the ratified policy
+(DECISIONS, 2026-09-19): *analyses live and die with their run report, and are deletable and
+recomputable*.
+
+- **Shape.** `ConcurrentRunReport.diagnostics?: { analyses: StoredFailureAnalysis[] }` in
+  `src/reports/ExecutionReport.ts`, kept apart from every instance's L5a `diagnostics` (evidence and
+  baseline), which it never changes. One entry per coalescing **signature**, naming the instance
+  analysed (its evidence ids are the ones cited) and `instanceIds`, the **coalesced references** to
+  every instance that failed the same way. Old reports load unchanged; the field is absent until
+  someone asks.
+- **Write path.** `app/main/ai/aiAssist.ts#analyzeFailure` saves through the report store's
+  `updateWith` inside the folder lane, so `change` sees the file as it is *now*: a report deleted
+  while the model was answering is never resurrected, and the answer is still shown, saying it was not
+  saved. Asking again replaces the entry for that signature. Saving is best-effort and never fails the
+  answer.
+- **What is shown is what is stored.** Every string passes `SemanticRedactor` and then the independent
+  `findResidualSecrets` rescan — the L0 policy for a stored AI artifact. A residual the redactor could
+  not remove **refuses the answer** (`OUTPUT_REJECTED`) rather than showing it; measured:
+  `password: {hunter2}` survives `SemanticRedactor` and only the rescan catches it.
+- **Delete.** New `ai:deleteFailureAnalysis` (AI_USE + PAGE_REPORTS, the pair that can create one; no
+  re-auth). No policy check on purpose: a stored AI answer can be removed with local AI switched off.
+  It deletes the entry covering the named instance through any coalesced member; removing the last
+  entry drops the extension, so the report is byte-for-byte what the run wrote (unknown extension
+  fields are kept).
+- **Drawer.** Reopening shows the saved analysis without a model call (state `stored`, "Saved <time>"),
+  with AI off too; citations are marked only when the entry was made for the instance on screen,
+  otherwise the note names the instance it was made for. *Delete saved analysis* moves focus to the
+  section heading so it does not fall to `<body>`, and the result is announced in the live status.
+- **Verifiers.** `verify:ai-error-analysis` 131/131 (was 100; a new persistence section over a REAL
+  `JsonProfileStore`), mutation-tested 4/4: recompute accumulates → 128; stale-read write resurrects →
+  129; redaction skipped → 129; delete ignores coalesced references → 128. `verify:ai-assist-gui` 92/92
+  in real Electron (was 76); two renderer mutations, run together in one build, both caught → 90/92,
+  each failing only its own check (focus not moved after delete; citations never marked on a saved
+  entry). `verify:ai-permissions` 93/93 and
+  `verify:ai-fallback` 38/38 with the new channel admitted to both exact rosters.
+- **Superseded assertion.** The GUI suite's "analysing changed nothing in the stored report" encoded
+  the pre-persistence contract. It now asserts the intent across both representations: everything the
+  run wrote is unchanged, exactly one analysis is added, and deleting it restores the original bytes.
 
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).

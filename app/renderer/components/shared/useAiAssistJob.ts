@@ -80,7 +80,13 @@ export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
     setPhase({ kind: "failed", view: { code: "CANCELLED", ok: false, message: "Cancelled." } });
   }, [abandon]);
 
-  return { visible, status, phase, start, cancel };
+  /** Forget the last answer, e.g. once its saved copy was deleted. */
+  const clear = useCallback(() => {
+    abandon();
+    setPhase({ kind: "idle" });
+  }, [abandon]);
+
+  return { visible, status, phase, start, cancel, clear };
 }
 
 /** Why the control is disabled, or null when local AI can be asked. */
