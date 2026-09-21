@@ -9,7 +9,8 @@
 - **Cause:** rule 4 (structured key/value) had the value class `[^"\s,;}{&]+`. A value that STARTED with
   an excluded character matched nothing, and a quoted value stopped at its first space.
 - **Why it mattered:**
-  - L5a evidence (`EvidenceBuffer`) relies on this redactor alone, with no rescan behind it.
+  - L5a evidence (`EvidenceBuffer`) relied on this redactor alone. It gained the rescan later the same
+    day.
   - The quoted-space leak left no key behind, so even the independent rescan could not see it.
   - Prompts and stored L5b analyses were safe only because their rescan refused the brace shape.
 - **Fix:** rule 4's value is now, in order:

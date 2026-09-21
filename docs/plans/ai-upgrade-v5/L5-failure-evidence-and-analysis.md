@@ -54,6 +54,14 @@ direct HTTP/network/page/UI error before a runner timeout/assertion wins; output
   one-time-code field is excluded and whatever it already produced is retracted (bytes returned, counted as
   `dropped.protected`). A page the runner hands off as a protected login, and every `protectedLoginHandoff`,
   `autoSecureLogin`, `reuseSession` or manual-handoff step, is excluded too. Only the runner's own failure survives.
+- **Residual-secret rescan (added 2026-09-21).** After redaction and the field cap, every stored
+  string is rescanned with `findResidualSecrets`, the same independent check used for model prompts
+  and stored L5b analyses. A flagged string is replaced whole by `[redacted]`. The event is kept with
+  its source, status and step correlation, because the cause baseline rests on them. The replacement
+  is counted per occurrence in the new optional `summary.residualSecrets`. Proven by
+  `verify:failure-cause-baseline` (68/68, mutation-tested 2/2). **The L5a overhead gate was not
+  re-run:** its three runs, the latest at `a2125084`, predate this change to the capture path. In an
+  informational loop the rescan's cost could not be told apart from run-to-run variation.
 - **Runner messages** keep the diagnosis line only: Playwright's colour codes and "Call log" (which quotes matched
   elements' HTML) are dropped. A `wait` step that ran out of time is `timeout` even though Playwright words it as a
   locator error.

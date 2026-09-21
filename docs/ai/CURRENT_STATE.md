@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## SemanticRedactor: key/value values led by a brace, quoted space or punctuation are now redacted (2026-09-21, current)
+## L5a evidence gets the residual-secret rescan (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **The change:** `EvidenceBuffer` rescans every stored string with `findResidualSecrets` after
+  redaction and the field cap. It is now the second layer that prompts and stored L5b analyses already
+  had.
+- **On a hit:** that string is replaced whole by `[redacted]`. The event stays, so the deterministic
+  cause is unchanged, and the replacement is counted in the new optional `summary.residualSecrets`.
+  Why the field and not the event is recorded in DECISIONS.
+- **L5a gate: NOT RUN, on purpose.** Its three runs, the latest at `a2125084`, predate this change to
+  the capture path. The owner said run once, and no new run is approved. In an informational loop of
+  10,000 events the rescan's cost could not be told apart from run-to-run variation (239–296 ms). L5a
+  stays INCONCLUSIVE.
+- **Unchanged:** L1.8 FAILS, **L7 cannot be entered**, and nothing on the tracker moved.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:failure-cause-baseline` | 68/68 (was 60), mutation-tested 2/2 (no rescan → 64, rescan before the cap → 67) |
+| `verify:ui-error-evidence` (real engine and browser) | 85/85 |
+| `verify:ai-error-analysis` · `verify:ai-fallback` (execution-tree import guard) | 131/131 · 38/38 |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:failure-capture-overhead` | NOT RUN (owner: run once; the gate's evidence predates this change) |
+| `verify:runner` | NOT RUN (the proportional runtime gate is `verify:ui-error-evidence`, which drives the real engine) |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+## SemanticRedactor: key/value values led by a brace, quoted space or punctuation are now redacted (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

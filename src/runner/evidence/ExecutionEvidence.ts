@@ -4,7 +4,10 @@
  *
  * Evidence is hostile page data. Every event passes through the same layers as the semantic index
  * (docs/ai/DECISIONS.md, Phase L privacy policy): a fixed payload shape from the collector, then
- * `SemanticRedactor` (which composes `SecretMasker`) on every string, then hard caps. URLs are kept
+ * `SemanticRedactor` (which composes `SecretMasker`) on every string, then hard caps, then the
+ * independent `findResidualSecrets` rescan of what would be stored. A string the rescan still flags
+ * is replaced whole by the redaction marker: the event, its source, status and step stay, because the
+ * cause baseline rests on them, and only the text the redactor failed on is lost. URLs are kept
  * only as origin plus a path template with identifiers stripped, never query, fragment or userinfo.
  * Input values are never captured: a field is named by its identity, never its content.
  *
@@ -15,7 +18,8 @@
  * Framework-agnostic and synchronous: no Playwright, no filesystem, no clock of its own.
  */
 
-import { SemanticRedactor } from "../../semantic/SemanticRedactor";
+import { findResidualSecrets } from "../../semantic/SemanticPolicyValidator";
+import { REDACTED, SemanticRedactor } from "../../semantic/SemanticRedactor";
 
 export const EVIDENCE_SCHEMA_VERSION = 1;
 
@@ -139,6 +143,11 @@ export interface EvidenceSummary {
   /** `protected`: occurrences excluded or retracted because they came from a protected-login surface. */
   dropped: { perSource: number; perInstance: number; instanceBytes: number; runBytes: number; eventBytes: number; protected: number };
   bytes: number;
+  /**
+   * String fields replaced whole because the rescan still matched after redaction, counted per
+   * occurrence (repeats included). Absent on reports written before the rescan existed (2026-09-21).
+   */
+  residualSecrets?: number;
 }
 
 export interface EvidenceInput {
@@ -211,7 +220,8 @@ export class EvidenceBuffer {
   private bytes = 0;
   private repeats = 0;
   private truncatedEvents = 0;
-  private readonly dropped = { perSource: 0, perInstance: 0, instanceBytes: 0, runBytes: 0, eventBytes: 0, protected: 0 };
+  private residualSecrets = 0;
+  private readonly dropped ={ perSource: 0, perInstance: 0, instanceBytes: 0, runBytes: 0, eventBytes: 0, protected: 0 };
 
   constructor(
     private readonly identity: { executionId: string; instanceId: string },
@@ -327,10 +337,17 @@ export class EvidenceBuffer {
   }
 
   summary(): EvidenceSummary {
-    return { accepted: this.events.length, repeats: this.repeats, truncatedEvents: this.truncatedEvents, dropped: { ...this.dropped }, bytes: this.bytes };
+    return {
+      accepted: this.events.length,
+      repeats: this.repeats,
+      truncatedEvents: this.truncatedEvents,
+      dropped: { ...this.dropped },
+      bytes: this.bytes,
+      residualSecrets: this.residualSecrets
+    };
   }
 
-  /** Flat, bounded, masked payload: known scalar types only, URL fields as templates, strings redacted and capped. */
+  /** Flat, bounded, masked payload: known scalar types only, URL fields as templates, strings redacted, capped and rescanned. */
   private sanitize(raw: Record<string, unknown>): { payload: Record<string, EvidenceValue>; truncated: boolean } {
     const payload: Record<string, EvidenceValue> = {};
     let truncated = false;
@@ -347,7 +364,14 @@ export class EvidenceBuffer {
       } else if (typeof value === "string") {
         const clean = URL_FIELD.test(field) ? urlPathTemplate(value, this.redactor) : this.redactor.redactText(value);
         if (clean.length > this.limits.maxFieldChars) truncated = true;
-        payload[field] = clean.slice(0, this.limits.maxFieldChars);
+        // Rescan what would be STORED, after the cap: that is the text a report keeps.
+        const stored = clean.slice(0, this.limits.maxFieldChars);
+        if (findResidualSecrets(stored).length > 0) {
+          this.residualSecrets += 1;
+          payload[field] = REDACTED;
+        } else {
+          payload[field] = stored;
+        }
       }
     }
     return { payload, truncated };

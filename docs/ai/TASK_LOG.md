@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-21 — L5a evidence: residual-secret rescan in `EvidenceBuffer` (Claude)
+
+- **Task:** add the independent rescan to the L5a evidence buffer, the one redaction pipeline that
+  lacked it.
+- **Files:**
+  - `src/runner/evidence/ExecutionEvidence.ts` (rescan in `sanitize`, `summary.residualSecrets`).
+  - `scripts/verify-failure-cause-baseline.mts` (new section, 8 checks plus an informational timing).
+  - The L5 plan, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF.
+- **Checks:**
+  - `verify:failure-cause-baseline` 68/68, mutation-tested 2/2: no rescan → 64, rescan before the cap →
+    67.
+  - `verify:ui-error-evidence` 85/85 · `verify:ai-error-analysis` 131/131 · `verify:ai-fallback` 38/38.
+  - build PASS · `typecheck:scripts` PASS · `verify:roadmap-dashboard` 177/177.
+  - `verify:failure-capture-overhead` NOT RUN (owner: run once) · `verify:runner` NOT RUN (the
+    real-engine suite above is the proportional gate).
+- **Note:** the capture path changed after the L5a gate's last run (`a2125084`), so that evidence does
+  not measure the current code. L5a stays INCONCLUSIVE.
+
 ## 2026-09-21 — SemanticRedactor: fix the key/value value gap found during L5b (Claude)
 
 - **Task:** fix the gap recorded in KNOWN_ISSUES earlier the same day.

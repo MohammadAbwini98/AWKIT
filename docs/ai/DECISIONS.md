@@ -1,6 +1,19 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — Phase L L5b: how a stored failure analysis is kept, shown and deleted (`awkit-djnl.8`)
+### 2026-09-21 (latest) — Phase L L5a: evidence gets the residual-secret rescan, replacing the field, not the event
+
+- **Decision:** `EvidenceBuffer` rescans every stored string with `findResidualSecrets`, after
+  redaction and the field cap. A flagged string is replaced whole by `[redacted]` and counted in
+  `summary.residualSecrets`.
+- **Why the field and not the event:** the event's source, severity, status and step correlation are
+  what `deriveFailureCause` ranks, and none of them is text. Dropping the event would change a run's
+  deterministic cause over a string it never needed. Prompts and stored analyses refuse outright
+  instead, because there the text IS the payload.
+- **Why after the cap:** the rescan checks what a report keeps. Text beyond the cap is never stored,
+  so flagging it would erase a field over data that was already gone.
+- An implementation choice within the 2026-09-19 privacy policy, not an owner ruling.
+
+### 2026-09-21 (later still) — Phase L L5b: how a stored failure analysis is kept, shown and deleted (`awkit-djnl.8`)
 
 These are implementation choices within the 2026-09-19 privacy policy ("analyses live and die with
 their run report; deletable and recomputable"). They were made by the implementer, not by an owner

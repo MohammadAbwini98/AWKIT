@@ -107,6 +107,36 @@ section("Masking and minimization");
   check("nested values, NaN and invalid field names are dropped", JSON.stringify(Object.keys(shaped.payload).sort()) === JSON.stringify(["name", "ok"]));
 }
 
+section("Residual-secret rescan (the independent second layer)");
+{
+  // A PEM private-key header is a shape SemanticRedactor has no rule for; only the rescan catches it.
+  const PEM = "-----BEGIN RSA PRIVATE KEY-----";
+  check("(precondition) the redactor alone leaves the PEM header", new SemanticRedactor().redactText(`dump ${PEM}`).includes("PRIVATE KEY"));
+  const leak: EvidenceInput = { source: "page.error", severity: "error", payload: { name: "Error", message: `config dump ${PEM} failed`, line: 12 } };
+  const { buf, at } = buffer();
+  const flagged = at(1_100, leak);
+  check("a string the rescan still flags is replaced whole by the redaction marker", flagged.payload.message === "[redacted]", flagged.payload);
+  check("...while the event and its other fields are kept", flagged.source === "page.error" && flagged.payload.name === "Error" && flagged.payload.line === 12, flagged.payload);
+  check("...and the replacement is counted", buf.summary().residualSecrets === 1, buf.summary());
+  const again = at(1_150, leak);
+  check("a repeat folds into the same event and is counted per occurrence", again.id === flagged.id && again.repeatCount === 2 && buf.summary().residualSecrets === 2, buf.summary());
+  const clean = at(1_200, consoleError("The order confirmation did not appear."));
+  check("a clean string is kept as redacted text, not replaced", clean.payload.text === "The order confirmation did not appear." && buf.summary().residualSecrets === 2);
+  check(
+    "the cause baseline still rests on the event whose text was replaced",
+    cause(buf.list(), { kind: "timeout", stepStartOffsetMs: 1_000, failedAtOffsetMs: 6_000 }).cause === "scriptError"
+  );
+  // What is rescanned is what is STORED: text past the field cap is never kept, so it is not flagged.
+  const capped = buffer({ limits: { maxFieldChars: 20 } });
+  const cut = capped.at(1, consoleError(`${"a".repeat(30)} ${PEM}`));
+  check("text beyond the field cap is cut rather than turned into a replacement", cut.payload.text === "a".repeat(20) && cut.truncated && capped.buf.summary().residualSecrets === 0, cut.payload);
+  // Informational, not a check: the rescan's cost on a field at the cap, to size it against L5a.
+  const field = `${"x".repeat(468)} ${PEM}`;
+  const started = performance.now();
+  for (let i = 0; i < 10_000; i += 1) buffer().buf.add({ ...leak, payload: { ...leak.payload, message: field } });
+  console.log(`  (info) 10,000 buffered events with a flagged 500-char field: ${(performance.now() - started).toFixed(0)} ms in total`);
+}
+
 section("Bounds and truncation");
 {
   const { at } = buffer();
