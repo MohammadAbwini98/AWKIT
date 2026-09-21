@@ -1,5 +1,39 @@
 # TASK_LOG
 
+## 2026-09-21 — L5b: failure analyses saved with their run report, deletable (Claude)
+
+- **Task:** continue Phase L after the L5a measurement with the next model-independent item. That was
+  L5b's `diagnostics` persistence extension. It was listed as not built, and it implements the ratified
+  policy: analyses live and die with their run report, and are deletable and recomputable. L5a was not
+  re-run.
+- **Commits:** `626d92fe` (code and verifiers), then the state and tracker commit.
+- **Files:**
+  - `src/reports/ExecutionReport.ts`, `src/ai/contracts/AiApi.ts`, `src/ai/failureAnalysis.ts`.
+  - `app/main/ai/aiAssist.ts`, `app/main/ipc/ai.ipc.ts`, `app/main/preload.ts`.
+  - `app/renderer/components/reports/FailureEvidenceSection.tsx`,
+    `app/renderer/components/shared/useAiAssistJob.ts`.
+  - The four verifiers named below.
+  - The L5 plan, CURRENT_STATE, HANDOFF, DECISIONS, KNOWN_ISSUES.
+  - `.beads/issues.jsonl` and contract `awkit-djnl-8-l5b-persist-0921.json`.
+- **Checks:**
+  - `verify:ai-error-analysis` 131/131, now over a real `JsonProfileStore`. Mutation-tested 4/4:
+    - recompute accumulates → 128;
+    - a stale-read write resurrects the report → 129;
+    - redaction skipped → 129;
+    - delete ignores coalesced references → 128.
+  - `verify:ai-assist-gui` 92/92 in real Electron. Two renderer mutations, run together, were both
+    caught → 90/92. The superseded "report unchanged" assertion now checks the intent across both
+    representations.
+  - `verify:ai-permissions` 93/93 · `verify:ai-fallback` 38/38 · `verify:ipc-contract` 10/10.
+  - `verify:source-hygiene` 11/11 · build PASS · `typecheck:scripts` PASS.
+  - `verify:roadmap-dashboard` 177/177 "Sources agree".
+  - `verify:failure-capture-overhead` NOT RUN (no capture change, and the owner said run once).
+- **Finding:** `SemanticRedactor` leaves `password: {value}` intact because rule 4's value class
+  excludes `{`. Stored analyses refuse it through the rescan. L5a evidence has no rescan, so it is
+  recorded in KNOWN_ISSUES and filed as a follow-up task.
+- **Result:** L5b's model-independent scope is complete. `awkit-djnl.8` stays `in_progress`, and
+  nothing closed.
+
 ## 2026-09-21 — L5a option C: gate rules unit-proven, one 21-round run, INCONCLUSIVE (Claude)
 
 - **Task:** resolve the L5a verification gaps and find out whether the approved gate can conclude. The

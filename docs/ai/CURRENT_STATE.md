@@ -1,6 +1,45 @@
 # CURRENT_STATE
 
-## L5a overhead gate: option C approved, the gate rules are unit-proven, and the single 21-round run is INCONCLUSIVE (2026-09-21, current)
+## L5b: the on-demand failure analysis is saved with its run report and deletable (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved. This is Phase L work, not a ledger case.
+
+**Built under the conditional development authorization, deterministic provider only.** It is the
+L5b `diagnostics` persistence extension, the one remaining model-independent L5b item. It implements
+the ratified policy: analyses live and die with their run report, and are deletable and recomputable.
+
+- **Shape.** `ConcurrentRunReport.diagnostics?.analyses` holds one entry per coalescing signature. Each
+  entry names the instance analysed, plus a coalesced reference for every instance that failed the
+  same way. Each instance's L5a evidence and baseline are never changed.
+- **Saving.** Saves go through the report store's `updateWith`, so a report deleted mid-answer is never
+  resurrected. Asking again replaces the entry, and a failed save still shows the answer.
+- **Privacy.** What is shown is what is stored: `SemanticRedactor`, then the `findResidualSecrets`
+  rescan. A residual refuses the answer.
+- **Delete.** New channel `ai:deleteFailureAnalysis`, gated on AI_USE + PAGE_REPORTS with no re-auth
+  and no policy check, so it works with AI off. Deleting the last entry restores the report byte for
+  byte.
+- **Drawer.** The saved analysis is shown again on reopening, with AI off too, without a model call.
+  Delete keeps keyboard focus in the section.
+- **Finding, not fixed here:** `SemanticRedactor` leaves `password: {value}` intact. Only the rescan
+  catches it, and L5a evidence has no rescan (KNOWN_ISSUES; a follow-up task was filed).
+- **Unchanged:**
+  - L1.8 still FAILS, and L5a stays OPEN and INCONCLUSIVE. It was **not** re-run.
+  - The conditional authorization stands, and **L7 cannot be entered**.
+  - Production and release acceptance are NOT APPROVED.
+  - `awkit-djnl.8` stays `in_progress`: the automatic analysis and `verify:ai-error-quality-live` are
+    still not built. It gained a note. Nothing closed, no edge changed: 10 outstanding / 292 closed.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-error-analysis` | 131/131 (was 100), mutation-tested 4/4 |
+| `verify:ai-assist-gui` (real Electron) | 92/92 (was 76), 2 renderer mutations caught (90/92) |
+| `verify:ai-permissions` · `verify:ai-fallback` · `verify:ipc-contract` | 93/93 · 38/38 · 10/10 |
+| `npm run build` · `typecheck:scripts` · `verify:source-hygiene` | PASS · PASS · 11/11 |
+| `verify:failure-capture-overhead` | NOT RUN — no capture or run-path code changed, and the owner said run once |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+## L5a overhead gate: option C approved, the gate rules are unit-proven, and the single 21-round run is INCONCLUSIVE (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved. This is a Phase L gate, not a ledger case.

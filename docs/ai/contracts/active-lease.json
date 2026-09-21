@@ -1,40 +1,22 @@
 {
-  "task": "awkit-djnl-7-l5a-gate-c-0921",
-  "contract_path": "docs/ai/contracts/awkit-djnl-7-l5a-gate-c-0921.json",
+  "task": "awkit-djnl-8-l5b-persist-0921",
+  "contract_path": "docs/ai/contracts/awkit-djnl-8-l5b-persist-0921.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-21T10:04:52.951Z",
-  "acquired_at_commit": "a2125084724e2bb1b03a55d529619db0c2107b2f",
+  "acquired_at": "2026-09-21T10:43:15.335Z",
+  "acquired_at_commit": "626d92fefcce9b7c769a0f6a9c3d8620019a35df",
   "baseline_dirty": [
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/DECISIONS.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-7-l5a-gate-c-0921.json",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "docs/ai/contracts/awkit-djnl-8-l5b-persist-0921.json",
     "scripts/ai-harness/locatorUpgradePacket.ts",
-    "scripts/offline-benchmark/",
-    "scripts/verify-failure-capture-overhead.mts"
+    "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "d67795a55d185b11b9aa2ec7a37f086ba44a0be499568f38845fc026886c6441",
-    "docs/ai/CURRENT_STATE.md": "363a02aca703114718169973f994ea0fad49b617f782f72edd30f5722bf51e82",
-    "docs/ai/DECISIONS.md": "de93d4ad33edac3725cd65bbf6440a9bb45a4c51eed3e4d03cc4965fbd8ba875",
-    "docs/ai/HANDOFF.md": "2844d8bb16ddbf3480f45ce6b6e8cb6d64b8a5ab9a137a1b7fae5688e48130e8",
-    "docs/ai/KNOWN_ISSUES.md": "e022469eb2e02751a02a28f9b0ee661c05c45c622fed01c424f47cac7238af50",
-    "docs/ai/TASK_LOG.md": "fdebacb44f85d00acff27ee38c8a4b66f8f2b846e54d799df71761ecf099001f",
-    "docs/ai/contracts/awkit-djnl-7-l5a-gate-c-0921.json": "dca8403bb8e8cc48b1a2dd57185a48a7542d150e989acef30e73938726d802f6",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "c5124ea81e852742845d7198997592cbf6d0858b240698c16a1df04e895c7311",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "d5415bc7dd3bc769336d022950a709804a0d3f61866d781b1088545ed3628dc4",
+    "docs/ai/contracts/awkit-djnl-8-l5b-persist-0921.json": "c2aa08cab9091924b63ab11bd6d89bb50b3680b0af7d119de33d7257643c4659",
     "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
-    "scripts/offline-benchmark/": "absent",
-    "scripts/verify-failure-capture-overhead.mts": "3ca383072b198cceafa2a05f4bac8575715f3c50b1c37829c59c566986651cf0"
+    "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -49,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-21T10:05:21.590Z",
-  "released_reason": "option C note appended on awkit-djnl.7, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-21T10:05:21.591Z"
+  "released_at": "2026-09-21T10:43:35.971Z",
+  "released_reason": "persistence note appended on awkit-djnl.8, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-21T10:43:35.972Z"
 }

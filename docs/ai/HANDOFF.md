@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — L5a Option C ran once and is INCONCLUSIVE; the gate rules are unit-proven; L1.8 still FAILS
+## HANDOFF (2026-09-21, latest) — L5b analyses are saved with their run report; no model-independent Phase L work remains
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** `626d92fe` built the L5b `diagnostics` persistence extension. It was the last
+  model-independent item in L3, L4b, L5b or L6. The L5 plan's "L5b analysis persistence as built"
+  section has the detail.
+- **A new assist that stores an AI answer should reuse this pattern:**
+  - store the answer where its subject lives;
+  - make what is shown what is stored (`SemanticRedactor` + `findResidualSecrets`, refuse on a
+    residual);
+  - write through `updateWith`, so a deleted subject is never resurrected;
+  - add delete with the creating permissions and no policy check.
+- **Nothing else is eligible without an owner decision.** What remains:
+  - L3 production callers (§7/§8/§9), the idle scheduler, L4b/L5b live callers, L5b's automatic
+    analysis and every `*-quality-live` gate all need the L1 go/no-go.
+  - L6's T1 mapping review was deliberately declined: it would invent a flow-level input declaration.
+  - **L7 cannot be entered.**
+- **Owner decisions needed:**
+  1. **L1.8.** Re-scope the model, the ceilings or the qualifying hardware. Check first: mask `0x3F`
+     is 3 physical cores on a 6-core/12-thread part.
+  2. **L5a.** Pick a host without the batch stall, remove the stall's cause, or accept INCONCLUSIVE.
+     Do NOT re-run the gate.
+- **Open follow-up:** `SemanticRedactor` misses `password: {value}` (KNOWN_ISSUES). A separate task was
+  filed for it.
+- **Tracker:** `awkit-djnl.8` has a note, added through contract `awkit-djnl-8-l5b-persist-0921` and a
+  released `project-state` lease. 10 outstanding / 292 closed.
+- **Trap:** the guard refuses newlines and `<` `>` in `git commit -m`. Attribution goes inline, as
+  `(Co-Authored-By: Claude Opus 5)`, like earlier commits.
+
+## HANDOFF (2026-09-21, superseded) — L5a Option C ran once and is INCONCLUSIVE; the gate rules are unit-proven; L1.8 still FAILS
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Owner decisions, recorded in DECISIONS and the L5 plan:**

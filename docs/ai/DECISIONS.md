@@ -1,5 +1,23 @@
 # DECISIONS
 
+### 2026-09-21 (latest) — Phase L L5b: how a stored failure analysis is kept, shown and deleted (`awkit-djnl.8`)
+
+These are implementation choices within the 2026-09-19 privacy policy ("analyses live and die with
+their run report; deletable and recomputable"). They were made by the implementer, not by an owner
+ruling.
+
+- **Stored in the report, per signature.** The entry lives in `ConcurrentRunReport.diagnostics.analyses`,
+  one per coalescing signature, with `instanceIds` as the coalesced references. Deleting the report
+  therefore deletes its analyses, and no second store or retention rule exists.
+- **What is shown is what is stored.** The text is redacted, then rescanned. A residual refuses the
+  answer rather than showing text the store would not accept.
+- **Saves never resurrect.** Writes use `updateWith` against the file as it is now. A save is
+  best-effort and never fails the answer.
+- **Delete uses the creating gate and ignores policy.** It needs AI_USE + PAGE_REPORTS and no re-auth,
+  so a stored AI answer can be removed with local AI switched off.
+- **Saved analyses stay visible with AI off**, labelled and dated, to users with AI_USE (the section is
+  gated on it). They are historical report content. Hiding them would also hide the Delete control.
+
 ### 2026-09-21 (later) — Phase L L5a: option C approved, p95 binding at 21 samples, and the median interval is owner policy (`awkit-djnl.7`)
 
 - **Owner decisions, in session, each explicit:**

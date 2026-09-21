@@ -1,5 +1,21 @@
 # KNOWN_ISSUES
 
+## `SemanticRedactor` misses a brace-valued secret such as `password: {value}` (2026-09-21, OPEN)
+
+- **Symptom:** `new SemanticRedactor().redactText("password: {hunter2}")` returns the input unchanged.
+  This was measured while building L5b analysis persistence.
+- **Cause:** rule 4 (structured key/value) has the value class `[^"\s,;}{&]+`, which excludes `{`, so
+  a value that STARTS with `{` never matches. Rule 5 covers only the `=` form. Rule 6 needs `-`, `_` or
+  a space directly after the key.
+- **Where it matters:**
+  - Model prompts and stored L5b analyses are safe. Both run the independent `findResidualSecrets`
+    rescan and refuse on a hit.
+  - L5a evidence (`EvidenceBuffer`) redacts with the same redactor and has no rescan. A console, UI or
+    page error of that shape could therefore persist in `InstanceReport.diagnostics.evidence`.
+- **Next:** fix the rule and add regression checks. A separate task was filed for this.
+  `verify:ai-error-analysis` has a precondition check that pins the current miss. It will fail by
+  design once the rule is fixed; replace its fixture then.
+
 ## The L5a overhead gate cannot reach a verdict on the development host: a batch-level stall is larger than the ceiling (2026-09-21, OPEN — owner decision, not code)
 
 - **Symptom:** `verify:failure-capture-overhead` has exited 2 (INCONCLUSIVE) on all three approved runs,
