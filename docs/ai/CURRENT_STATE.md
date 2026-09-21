@@ -1,6 +1,39 @@
 # CURRENT_STATE
 
-## L5b failure intelligence: 500 identical failures cost one analysis (2026-09-21, current)
+## L6 Intelligence: discovery needs no model, and the mapping binds nothing (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-fragment-assist` is a Phase L gate, not a ledger case.
+
+**This completes every AI-dependent Phase L milestone's model-independent core** (L3 §8/§9, L4b, L5b,
+L6 Intelligence), all built under the conditional development authorization.
+
+- **Discovery took the deterministic route, and the plan's semantic-index route was declined.** L6
+  reaches for a Zvec `fragment` document kind; L6's own audit had already recorded that none exists and
+  that inventing one with no consumer would be speculative. It is also unnecessary — a fragment library
+  is a bounded handful, not a corpus — so the passive "a similar fragment already exists" hint, which
+  L6 explicitly marks **(no model)**, is structural similarity computed in-process. It therefore works
+  with AI switched off and with no model pack installed.
+- **Similarity compares step SHAPE, never the user's words**, so a reordered `fill` pair still matches
+  and renaming every step changes nothing.
+- **The T1 mapping binds nothing and never sees a credential.** A password-typed workflow input is
+  excluded from the request, the prompt and the grammar's key enum, and `CREDENTIAL_TARGET` still
+  refuses it at the parse. Two fragment inputs can never be aliased onto one workflow input, and type
+  compatibility is decided by the declarations rather than by the model's confidence.
+
+| Check | Result |
+|---|---|
+| `verify:ai-fragment-assist` (new, `integration`) | **59/59**, three mutations caught |
+| `npm run build` · `typecheck:scripts` · `verify:roadmap-dashboard` | PASS · PASS · 177/177 Sources agree |
+
+**A fixture weakness the mutation run exposed:** with only one text input, "two inputs aliased onto one
+workflow input" was *also* a type mismatch, so the type rule shadowed the alias rule and it went
+untested. The fixture now declares two same-typed inputs so each duplicate rule fails alone.
+
+**`awkit-djnl.9` stays open**, as do `.4`, `.6` and `.8`: none has a renderer surface or a production
+caller, and none can close under the conditional authorization.
+
+## L5b failure intelligence: 500 identical failures cost one analysis (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-error-analysis` is a Phase L gate, not a ledger case.

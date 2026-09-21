@@ -290,6 +290,7 @@
     "verify:ai-locator-sweep": "tsx scripts/verify-ai-locator-sweep.mts",
     "verify:ai-authoring": "tsx scripts/verify-ai-authoring.mts",
     "verify:ai-error-analysis": "tsx scripts/verify-ai-error-analysis.mts",
+    "verify:ai-fragment-assist": "tsx scripts/verify-ai-fragment-assist.mts",
     "verify:ai-locator-status": "tsx scripts/verify-ai-locator-status.mts",
     "verify:ai-permissions": "tsx scripts/verify-ai-permissions.mts",
     "verify:ai-adapter": "tsx scripts/verify-ai-adapter.mts",

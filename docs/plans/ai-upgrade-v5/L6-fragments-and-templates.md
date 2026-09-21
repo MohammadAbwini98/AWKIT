@@ -163,4 +163,39 @@ overflowed it at 1024px; `verify:flow-designer` caught the escaped control. They
 `EditorIconButton`s with the accessible name on `aria-label`, matching the utilities group — the
 assertion was not relaxed. That verifier's group count is hardcoded and exact, and moved 3 → 4.
 
-**Still L1-gated and unbuilt:** the entire *Intelligence* section. `awkit-djnl.9` stays open.
+## The Intelligence section as built (2026-09-21)
+
+Built under the conditional development authorization: `src/ai/fragmentAssist.ts`, proven by
+`verify:ai-fragment-assist` (59/59, three mutations caught). `awkit-djnl.9` **stays open** — the
+renderer surface is not built, there is no production caller, and the milestone cannot close under
+that authorization in any case.
+
+- **Discovery is deterministic, and the plan's semantic-index route was not taken.** The spec reaches
+  for the Zvec index and a new `fragment` document kind; the audit above had already recorded that no
+  such kind exists and that inventing one with no consumer would be speculative. It is also not needed:
+  a user's fragment library is a bounded, user-authored handful, not a corpus, so the passive
+  "a similar fragment already exists" hint — which L6 explicitly marks **(no model)** — is structural
+  similarity computed in-process. That is what lets the hint work with AI switched off and with no
+  model pack installed, which is what *passive* ought to mean.
+- **Similarity compares step SHAPE, not the user's words.** Multiset overlap of step types, so two
+  authors who order a `fill` pair differently still match, and renaming every step changes nothing.
+  Comparing names or locator values would make the hint depend on two people writing the same prose.
+  Capped at three and stably ordered, because a hint that reshuffles while it is read is worse than none.
+- **The T0 summary sends step types and input keys only.** A fragment is captured verbatim from a real
+  flow, so its step names, locator values and typed values are the user's own business content and a
+  summary is not worth sending them.
+- **The T1 mapping proposes key pairs and binds nothing.** A password-typed workflow input is excluded
+  from the request, from the prompt and from the grammar's key enum — the model is never shown a
+  credential and cannot propose one — and `CREDENTIAL_TARGET` still refuses it at the parse, because a
+  request is not the only way to reach a parse. Two fragment inputs can never be aliased onto one
+  workflow input (that would silently make two distinct values one), and **type compatibility is
+  decided by the declarations, never by how confident the answer sounds**.
+- **Mutation-tested three for three:** accepting a type mismatch → 58/59; allowing the alias → 58/59;
+  offering password inputs as targets → 54/59, with the second line of defence correctly firing
+  `CREDENTIAL_TARGET` instead. The alias mutation also exposed a **fixture weakness**: with only one
+  text input, the alias case was simultaneously a type mismatch, so the type rule shadowed the alias
+  rule and it went untested. The fixture now declares two same-typed inputs so each duplicate rule
+  fails alone.
+
+**Still unbuilt:** the renderer surface for the hint, the summary and the mapping review, and the
+production caller (the same L1-gated boundary as L3 §7–§9, L4b and L5b).

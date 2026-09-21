@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-09-21 — L6 Intelligence: fragment discovery, summary and parameter mapping (Claude)
+
+- **Task:** build the L6 *Intelligence* section under the conditional development authorization. This
+  completes the model-independent core of every AI-dependent Phase L milestone. Ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **Discovery deliberately did NOT take the plan's semantic-index route.** L6 reaches for a Zvec
+  `fragment` document kind; L6's own audit had already recorded that none exists and that inventing one
+  with no consumer would be speculative. It is also unnecessary: a fragment library is a bounded,
+  user-authored handful, not a corpus. So the passive hint — which L6 explicitly marks **(no model)** —
+  is structural similarity computed in-process, which is what lets it work with AI off and no pack
+  installed.
+- **Similarity compares step SHAPE, not names or values.** Multiset overlap of step types: a reordered
+  `fill` pair still matches, and renaming every step changes nothing. Comparing names would make the
+  hint depend on two people writing the same prose.
+- **The T1 mapping binds nothing and never sees a credential.** Password-typed workflow inputs are
+  excluded from the request, the prompt and the grammar's key enum, with `CREDENTIAL_TARGET` still
+  refusing at the parse because a request is not the only way to reach one. Two fragment inputs can
+  never be aliased onto one workflow input, and type compatibility is decided by the declarations.
+- **Files:** `src/ai/fragmentAssist.ts` (new), `scripts/verify-ai-fragment-assist.mts` (new),
+  `package.json`, `scripts/lib/verifier-classification.ts`, plan/state docs.
+- **Checks:** `verify:ai-fragment-assist` **59/59**; `npm run build` PASS; `typecheck:scripts` PASS;
+  `verify:roadmap-dashboard` 177/177 Sources agree.
+- **Mutation-tested three for three:** accepting a type mismatch → 58/59; allowing the alias → 58/59;
+  offering password inputs as targets → 54/59 (the second line of defence correctly fired
+  `CREDENTIAL_TARGET`).
+- **A fixture weakness the mutation run exposed, and the transferable lesson.** With only one text
+  input, "two inputs aliased onto one workflow input" was *also* a type mismatch, so the earlier rule
+  shadowed the later one and the alias check went untested while reporting green. **When two rules can
+  both reject the same input, the fixture for the later one must be clean under the earlier one.** The
+  fixture now declares two same-typed inputs so each duplicate rule fails alone.
+- **Not built:** the renderer surface and the production caller. `awkit-djnl.9` stays open.
+
 ## 2026-09-21 — L5b: failure-analysis coalescing and its answer contract (Claude)
 
 - **Task:** build the L5b core under the conditional development authorization. Ledger unchanged at
