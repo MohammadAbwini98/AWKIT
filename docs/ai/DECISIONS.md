@@ -1,5 +1,25 @@
 # DECISIONS
 
+### 2026-09-21 — Phase L L5a: the overhead gate's methodology is B + D + E on the development machine (`awkit-djnl.7`)
+
+- **Owner decision, in session.** The duration gate runs on the development machine. VMware validation
+  is not required for L5a, and development-machine figures are never quoted as VMware performance.
+  Approved methodology:
+  - **B:** 7 rounds.
+  - **D:** 1 instance per workload for the gate. The 3-instance saturated run is kept as the separate
+    informational `benchmark:failure-capture-saturated`.
+  - **E:** a three-way verdict. INCONCLUSIVE exits 2 and is never shown as PASS.
+  - **p95** is reported but binds only at ≥ 21 samples per mode.
+  - The median, CPU and byte ceilings stay binding, and **no threshold is raised**.
+- **Interval choice (the implementer's, recorded so it can be challenged).** Option E did not name an
+  interval. The gate uses the distribution-free binomial order-statistic interval for a median at ≥ 95 %
+  because it assumes nothing about the delta distribution, which is visibly skewed and bimodal on this
+  host. A t-interval would assume normality. The consequence is stated plainly: at 7 rounds the interval
+  is [min, max], so PASS requires every round under the ceiling.
+- **Result:** two gate runs were INCONCLUSIVE and none FAILED. L5a stays open. Whether to add rounds
+  (C) or accept INCONCLUSIVE is the next owner decision, and it is not adopted here. The full record is
+  in `docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md` › "L5a gate — owner decision".
+
 ### 2026-09-21 — Phase L user-facing AI: one assist boundary, a non-packaged test provider, and on-demand is not automatic (`awkit-djnl.6`, `.8`, `.9`)
 
 - **One boundary for every user-requested assist.** `app/main/ai/aiAssist.ts` is Electron-free and sits

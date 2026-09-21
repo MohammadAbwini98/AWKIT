@@ -111,8 +111,8 @@ including an error page's title and heading and quoted assertion values in the r
 status codes, counts and field identity stay. Every step-correlated event carries `context.stepIndex`, the Nth step
 execution in the instance (a retry keeps its index). `verify:ui-error-evidence` 85/85.
 
-**Open:** the owner decides the gate's methodology (rounds, median definition, host — ideally the VMware target),
-then a passing measurement, then an approved release ceiling. L5a stays open until then.
+**Open:** the methodology was decided on 2026-09-21 (see "L5a gate — owner decision" below). Both runs under
+it were INCONCLUSIVE, so L5a stays open until a run passes or the owner changes the method again.
 
 ### L5a gate — decision brief (2026-09-19)
 
@@ -165,6 +165,79 @@ methodology is the owner's call.
 **Recommendation:** B + D on the VMware target (A), reported with E. All of these are environment settings
 except E. Do not change the ceilings or the evidence collected. Until the owner decides, L5a stays open and its
 gate stays at the last recorded FAIL.
+
+### L5a gate — owner decision and measured result (2026-09-21)
+
+**Decision (the owner, in session, 2026-09-21).** Run the duration gate **on the development machine**.
+VMware validation is not required for L5a. Development-machine figures are **not** evidence of VMware
+performance. Adopt **B + D + E**, and make **p95 informational until each mode has ≥ 21 samples**.
+The median, CPU and byte ceilings stay binding, and **no ceiling is raised**.
+
+**A finding the brief did not have: the "p95" check compared maximums, and it was not paired.**
+`stats()` computes p95 as `xs[floor(0.95·n)]`, which is the largest sample whenever n ≤ 20. The old gate
+pooled 18 samples per mode (6 rounds × 3 instances) and compared max(ON) with max(OFF). Those were two
+independent maximums, with none of the ABBA drift cancellation the median gets. That is why evidence
+p95 swung −916 → +1064 → +49 ms on identical code. The same holds under B + D (7 samples per mode). The
+full set of reasons the old procedure disagreed with itself:
+
+1. Real cost below the noise. The profiler measured +10–15 ms, while per-round deltas spread about
+   ±700 ms, so the median's standard error was as large as the 150 ms ceiling.
+2. A saturated host. With 6 Chromiums, CPU-pressure backpressure added scheduler delay to whichever
+   batch it hit.
+3. The even-count median returned the upper middle value.
+4. The p95 compared a maximum with a maximum, unpaired (above).
+5. The ceiling moves with the contended OFF baseline, so it drifted 204.9 → 290.1 → 171.8 ms.
+
+**As implemented** (`scripts/verify-failure-capture-overhead.mts`, ceilings untouched):
+
+- The defaults are now 7 rounds and 1 instance per workload.
+- The duration and CPU ceilings are judged over a **distribution-free 95 % interval for the median of
+  the paired deltas**, using order statistics x(k) and x(n+1−k), where k is the largest value with
+  P(Bin(n,½) ≤ k−1) ≤ 2.5 %.
+  - PASS when the upper bound ≤ ceiling.
+  - FAIL when the lower bound > ceiling.
+  - INCONCLUSIVE otherwise, with exit code 2.
+- With 7 rounds the interval is **[min, max]** (98.4 %), so PASS needs every round under the ceiling.
+- A self-check pins the interval, including n = 7, n = 21 and n = 5 (for which no 95 % interval
+  exists), and pins every verdict boundary.
+- Evidence bytes stay a hard cap. p95 prints as informational below 21 samples per mode.
+- `npm run benchmark:failure-capture-saturated` (3 per workload) is option D's separate informational
+  run. Its duration and CPU verdicts never decide an exit code.
+- An env override away from 1 instance exits 2 as "gate NOT RUN", never 0.
+- Each run appends its raw per-batch data to `evidence/L5a-overhead-gate.json` or
+  `evidence/L5a-overhead-saturated.json`.
+
+**Measured (development host, 12 logical CPUs, Windows, plain stacks as packaged).**
+
+| Run | fast median Δ, 95 % interval | evidence median Δ, 95 % interval | Node CPU/instance Δ, 95 % interval | bytes | Verdict |
+|---|---|---|---|---|---|
+| Gate 1 | −10 ms, [−162, 190] vs 150 → INCONCLUSIVE | −9 ms, [−181, 45] vs 150 → **PASS** | −31 ms, [−78.5, 78] vs 70.6 → INCONCLUSIVE | 3,826 ≤ 4,096 PASS | **INCONCLUSIVE** (18 PASS, 0 FAIL, 2 INCONCLUSIVE) |
+| Gate 2 (final verifier state) | +174 ms, [−312, 417] vs 150 → INCONCLUSIVE | +117 ms, [−457, 407] vs 150 → INCONCLUSIVE | −62 ms, [−273.5, 187] vs 96 → INCONCLUSIVE | 3,826 PASS | **INCONCLUSIVE** (17 PASS, 0 FAIL, 3 INCONCLUSIVE) |
+| Saturated, informational | +130 ms, [−280, 358] vs 150 | +104 ms, [−257, 510] vs 162.7 | +7.7 ms, [−72.8, 57.7] vs 90.9 → within | 3,826 PASS | informational (17 PASS, 0 FAIL) |
+
+In every run, all instances passed, ON batches produced events and OFF batches none, and a clean
+fast run never grew its report. Every listener and binding was released and no automation Chromium
+outlived its batch. The import closure reaches no model. Collector `startGeneration` median was
+2.6 ms, 3.9 ms and 3.0 ms.
+
+**Application cost versus measurement variability.** No run shows a cost the collector could explain.
+Every gate point estimate is within ±175 ms of zero, with negative and positive signs, and collector
+start is ≤ 4 ms. Gate 2's spread comes from the host. Its batch wall times split into about 1,050 ms
+and about 1,570 ms groups, affecting OFF batches (3 of 7) as well as ON (4 of 7), and gate 1 had none.
+The saturated run hit CPU-pressure backpressure in round 7. Its single-snapshot Chromium RSS read ON
+964 MB against OFF 763 MB (median). No ceiling applies to it, and the unsaturated gate shows ON 212 / 205 MB
+against OFF 210 / 212 MB (median). **No bottleneck was found, so nothing was optimized.**
+
+**Status: L5a stays OPEN.** Its acceptance needs "overhead within the approved threshold", and neither
+approved run established it. There was no FAIL either, and INCONCLUSIVE is not relabelled. Before
+gate 2 ran, it was recorded that a mixed result would not close L5a in the same session.
+
+**Next owner decision (not adopted).** With 7 single-instance rounds, the 95 % interval is [min, max].
+On this host a single round's delta spreads 150–450 ms, so the approved gate can only PASS when every
+round lands under a 150 ms ceiling. The documented lever that narrows it is **C**: at 21 rounds the
+interval becomes [x(6), x(16)] (97.3 %), and p95 also becomes binding under the approved rule, at about
+3× the runtime. The owner may also accept INCONCLUSIVE as the development-host outcome. Neither is
+assumed here.
 
 ## L5b — Failure intelligence (T0)
 

@@ -1,5 +1,35 @@
 # TASK_LOG
 
+## 2026-09-21 — L5a overhead gate: owner-approved B + D + E, measured INCONCLUSIVE (Claude)
+
+- **Task:** resolve the L5a overhead gate without weakening it. No methodology decision was recorded, so
+  the owner was asked in session and approved B + D + E on the development machine, with p95
+  informational below 21 samples per mode, ceilings unchanged and no VMware claim.
+- **Root cause of the inconsistent verdicts:** a real cost below the noise (profiler +10–15 ms, rounds
+  spreading about ±700 ms), saturation-driven backpressure, the upper-middle even-count median, a
+  drifting OFF-derived ceiling, and one the brief did not have: **"p95" was max(ON) − max(OFF)**,
+  unpaired, because `stats()` returns the largest sample for p95 at n ≤ 20.
+- **Files:** `scripts/verify-failure-capture-overhead.mts` (defaults 7×1, three-way median-interval
+  verdicts with a self-check, informational saturated mode, env-override exits 2, appended raw
+  evidence); `package.json` (`benchmark:failure-capture-saturated`); new
+  `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-{gate,saturated}.json`;
+  `scripts/verify-ai-assist-gui.mts` (a pre-existing `typecheck:scripts` error, fixed by adding the
+  fragment edge's required `type`); verifier classification text; L5 plan, DECISIONS, CURRENT_STATE,
+  HANDOFF, COMMANDS; `.beads/issues.jsonl`; contract `awkit-djnl-7-l5a-gate-0921.json`.
+- **Checks:** `verify:failure-capture-overhead` **INCONCLUSIVE twice**, both with 0 FAIL:
+  - Run 1: 18 PASS / 2 INCONCLUSIVE, with evidence median PASS.
+  - Run 2, at the final verifier state: 17 PASS / 3 INCONCLUSIVE.
+  - `benchmark:failure-capture-saturated` informational, 17 PASS / 0 FAIL.
+  - `verify:ai-assist-gui` 76/76.
+  - `typecheck:scripts` PASS (it FAILED on arrival) and `npm run build` PASS.
+  - Source hygiene, classification and dashboard results are in CURRENT_STATE.
+- **No optimization:** no application bottleneck was found. Point estimates straddle zero and collector
+  start is ≤ 4 ms.
+- **Not mutation-tested by a separate mutated run:** the new verdict logic is pinned by its own
+  self-check, and the real runs exercised PASS, INCONCLUSIVE, informational and exit 2.
+- **Tracker:** a note on `awkit-djnl.7` via a released `project-state` lease. Nothing closed, no edge
+  changed.
+
 ## 2026-09-21 — Phase L user-facing AI: L4b, L5b and L6 surfaces through one IPC boundary (Claude)
 
 - **Task:** continue Phase L under the conditional development authorization: L4b's renderer workflow

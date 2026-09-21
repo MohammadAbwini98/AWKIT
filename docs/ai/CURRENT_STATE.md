@@ -1,6 +1,66 @@
 # CURRENT_STATE
 
-## Phase L user-facing AI: L4b, L5b and L6 surfaces reach the app through one IPC boundary (2026-09-21, current)
+## L5a overhead gate: owner-approved B + D + E on the development machine, measured INCONCLUSIVE (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved. This is a Phase L gate, not a ledger case.
+
+**Owner decision (in session):**
+- The duration gate runs on the **development machine**. VMware validation is not required, and no
+  VMware claim is made.
+- **B** 7 rounds, **D** 1 instance per workload with the saturated run kept as an informational
+  check, and **E** a three-way verdict.
+- p95 is informational below 21 samples per mode.
+- **Ceilings unchanged.**
+
+Full record: L5 plan › "L5a gate — owner decision and measured result". Decision: DECISIONS.md.
+
+- **A root cause not in the earlier brief.** The gate's "p95" was max(ON) − max(OFF), unpaired, because
+  `stats()` returns the largest sample for p95 when n ≤ 20. Together with a real cost below the noise,
+  saturation backpressure, the upper-middle even-count median and a ceiling derived from the drifting OFF
+  baseline, this explains three verdicts on identical code.
+- **`verify:failure-capture-overhead`** now defaults to 7 × 1.
+  - Duration and CPU are judged over a distribution-free 95 % interval for the median of the paired
+    deltas: PASS, FAIL, or INCONCLUSIVE with exit 2.
+  - A self-check pins the interval and verdict boundaries.
+  - An env override away from 1 instance exits 2 as "gate NOT RUN".
+  - Raw per-batch evidence is appended to `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`.
+- **`benchmark:failure-capture-saturated`** is the informational 3-instance run. It writes
+  `evidence/L5a-overhead-saturated.json` and never decides the gate.
+- **Result: INCONCLUSIVE twice, no FAIL.**
+  - Gate 1:
+    - evidence median −9 ms [−181, 45] **PASS**
+    - fast −10 ms [−162, 190] INCONCLUSIVE
+    - CPU −31 ms [−78.5, 78] vs 70.6 INCONCLUSIVE
+  - Gate 2, at the final verifier state:
+    - fast +174 ms [−312, 417] INCONCLUSIVE
+    - evidence +117 ms [−457, 407] INCONCLUSIVE
+    - CPU −62 ms [−273.5, 187] INCONCLUSIVE
+  - Bytes 3,826 ≤ 4,096 PASS in every run.
+  - All correctness checks green: instances passed, listeners and bindings released, no leftover
+    Chromium, and no model reachable from the engine.
+- **No application bottleneck.** Point estimates straddle zero and collector start is 2.6–3.9 ms. Gate
+  2's spread was host-side: its batches split into about 1,050 and about 1,570 ms groups, in OFF as well
+  as ON. Nothing was optimized.
+- **L5a stays OPEN** (`awkit-djnl.7`, note added). The next owner decision is not adopted: add rounds
+  (option C, 21 rounds → interval [x(6), x(16)] and a binding p95) or accept INCONCLUSIVE as the
+  development-host outcome.
+- **Unchanged:** L1.8 still FAILS, the conditional development authorization stands, and L4b/L5b/L6 stay
+  open. **L7 cannot be entered.** Production and release acceptance are NOT APPROVED.
+- **Fixed in passing:** `typecheck:scripts` was FAILING on arrival.
+  `scripts/verify-ai-assist-gui.mts`'s seeded fragment edge lacked the required `type`, and adding
+  `"success"` fixed it. `verify:ai-assist-gui` re-ran 76/76.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:failure-capture-overhead` | **INCONCLUSIVE** — run 1: 18 PASS / 0 FAIL / 2 INCONCLUSIVE; run 2: 17 PASS / 0 FAIL / 3 INCONCLUSIVE |
+| `benchmark:failure-capture-saturated` (informational) | 17 PASS / 0 FAIL, 5 informational verdicts |
+| `verify:ai-assist-gui` | 76/76 |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:source-hygiene` · `verify:verifier-classification` | 11/11 · 240 classified |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+## Phase L user-facing AI: L4b, L5b and L6 surfaces reach the app through one IPC boundary (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: every new check is a Phase L gate, not a ledger case.

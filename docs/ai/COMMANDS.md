@@ -477,7 +477,8 @@ npm run verify:authoring-diagnostics  # L4a family matrix over FlowValidator/Pre
 npm run verify:failure-cause-baseline # L5a evidence buffer (masking, caps, dedupe, retraction) + cause baseline (60)
 npm run verify:ui-error-evidence      # L5a end to end: 14 concurrent runs, real engine + Chromium + mock site,
                                       # read back from report.json; protected-login exclusion, cancel, handoff (74)
-npm run verify:failure-capture-overhead # L5a capture ON vs OFF (ABBA), ceilings, leaks, zero-AI import closure (15)
+npm run verify:failure-capture-overhead # L5a gate (owner-approved B+D+E): 7 rounds x 1 instance, three-way median-interval verdict; exit 2 = INCONCLUSIVE
+npm run benchmark:failure-capture-saturated # L5a informational saturated run (3 per workload); never decides the gate
 
 # ── Semantic index / Zvec native host ──────────────────────────────────────────────────────────
 # Reachable from NO product surface yet. `prepare:zvec-host` MUST run before any live verifier:

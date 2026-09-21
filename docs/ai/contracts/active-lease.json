@@ -1,22 +1,32 @@
 {
-  "task": "awkit-djnl-phase-l-ui-0921",
-  "contract_path": "docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json",
+  "task": "awkit-djnl-7-l5a-gate-0921",
+  "contract_path": "docs/ai/contracts/awkit-djnl-7-l5a-gate-0921.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-21T07:58:31.106Z",
-  "acquired_at_commit": "cf9bbb32f1f827985fa7508bf13f7332b7da7c21",
+  "acquired_at": "2026-09-21T09:20:42.443Z",
+  "acquired_at_commit": "7656ab2b2aab05b04570ef7ad38309a0514e7b94",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json",
+    "docs/ai/contracts/awkit-djnl-7-l5a-gate-0921.json",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-saturated.json",
+    "package.json",
     "scripts/ai-harness/locatorUpgradePacket.ts",
-    "scripts/offline-benchmark/"
+    "scripts/offline-benchmark/",
+    "scripts/verify-ai-assist-gui.mts",
+    "scripts/verify-failure-capture-overhead.mts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-phase-l-ui-0921.json": "37214da27fedac68cbeddefe43135a99dc3a2e8c90bd1dfe3919ba30a5fbee10",
+    "docs/ai/contracts/awkit-djnl-7-l5a-gate-0921.json": "001cf29c887178d37b3ccf2ae5cb7240681ba3a3ba6d436f9ae10a13651617d5",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "f79961a6a8776095b099ab0fa346631b65e45ddee6ba0731d7cc72bac4d941e3",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-saturated.json": "9a2bebf40dd69637379df89a270b05bb8495aa7f142499dbab5c6d32ecc0ce0d",
+    "package.json": "3cb079d57c2478d6fd2d4ba242d8be0a345f9c1c0435f2ec74d4736f5ce66a43",
     "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
-    "scripts/offline-benchmark/": "absent"
+    "scripts/offline-benchmark/": "absent",
+    "scripts/verify-ai-assist-gui.mts": "91f698beb8ba41b0f9775939b0039f78d4360e40fddca7ff5967e8b029ef97b4",
+    "scripts/verify-failure-capture-overhead.mts": "0231fb108aeaf6c8687da71980c9fb983e863287c90b8dc08f725d4cba34f967"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +41,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-21T07:59:37.216Z",
-  "released_reason": "tracker notes recorded for djnl.1 .6 .8 .9, .6 and .8 moved to in_progress, nothing closed, export refreshed",
-  "archived_at": "2026-09-21T07:59:37.217Z"
+  "released_at": "2026-09-21T09:21:06.781Z",
+  "released_reason": "L5a note recorded on awkit-djnl.7, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-21T09:21:06.782Z"
 }

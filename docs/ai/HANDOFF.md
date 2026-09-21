@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — Phase L's L4b, L5b and L6 surfaces are in the app; L1.8 still FAILS
+## HANDOFF (2026-09-21, latest) — L5a's gate methodology is decided and measured INCONCLUSIVE; L1.8 still FAILS
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Owner decision, recorded in DECISIONS and the L5 plan:**
+  - L5a's duration gate is **B + D + E on the development machine**.
+  - p95 is informational below 21 samples per mode.
+  - Ceilings are unchanged.
+  - VMware is not required for L5a, and no VMware claim is made.
+- **Measured: INCONCLUSIVE twice, no FAIL, no bottleneck. L5a stays open.** Do not re-run the gate
+  hoping for a PASS. At 7 rounds the 95 % interval is [min, max], so one noisy round decides, and a
+  re-run adds no information. Change the method only on a new owner decision.
+- **Next owner decision:** option C (21 rounds, about 3× the runtime, which makes the interval
+  [x(6), x(16)] and p95 binding) or accept INCONCLUSIVE as the development-host outcome. Neither is
+  adopted.
+- **How the gate reads now:** `npm run verify:failure-capture-overhead` exits 0 on PASS, 1 on FAIL and 2
+  on INCONCLUSIVE, or when an env override leaves the approved 1-instance configuration.
+  `npm run benchmark:failure-capture-saturated` is informational only. Both append raw runs under
+  `docs/plans/ai-upgrade-v5/evidence/`.
+- **Traps met this session:**
+  - The lease guard refuses `tail`, `where`, `npx tsx -e`, env-prefixed commands, background commands,
+    and `npm run verify:x -- <args>`. Only bare `npm run verify:*` and `npm run benchmark:*` pass, which
+    is why the saturated mode has its own npm script.
+  - An unquoted `.beads/**` in `agent:lease-grant` is expanded by bash into file names. Quote it.
+  - A task contract's `working_tree_expected` accepts only `clean` or `preserved_changes`, and every
+    preserved entry needs a git status and a SHA-256.
+- **Unchanged from the previous handoff:** L1.8 FAILS, the conditional development authorization
+  stands, L4b/L5b/L6 stay open, and **L7 cannot be entered**. Still 10 outstanding / 292 closed.
+
+## HANDOFF (2026-09-21, superseded) — Phase L's L4b, L5b and L6 surfaces are in the app; L1.8 still FAILS
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Read this first:** everything below is proven with the **deterministic provider only**, under the
