@@ -168,6 +168,45 @@ gate stays at the last recorded FAIL.
 
 ## L5b — Failure intelligence (T0)
 
+**Status (2026-09-21): coalescing and the analysis contract are BUILT** — `src/ai/failureAnalysis.ts`,
+proven by `verify:ai-error-analysis` (76/76, three mutations caught) over L5a's real `EvidenceBuffer`
+and real `deriveFailureCause`. `awkit-djnl.8` stays open: the `diagnostics` persistence extension, the
+reports UX and the live quality gate are not built, and the milestone cannot close under the
+conditional development authorization.
+
+### L5b as built
+
+- **The hard problem is not the prompt, it is the 500-row run.** A data-driven run that fails the same
+  way 500 times must cost **one** analysis. The signature is the baseline's cause code, the primary
+  evidence source, the status or error kind, the path template and the flow/node/step — and
+  deliberately **not** the instance, the data row, any offset or any repeat count, which is exactly
+  what differs between those 500. Measured: 500 → one group, one planned call.
+- **Distinct failures stay distinct.** A 409 and a 422 on the same route are separate analyses, because
+  the discriminator is the status itself; so are the same status on two routes, and the same failure at
+  two steps. The labelled set depends on all three.
+- **The budget is a budget, and a declined group is visible.** Past `maxAnalyses` a group keeps its
+  deterministic baseline and reports `skipped: "BATCH_BUDGET"`; past `maxSignatures` the batch counts
+  an `overflow`. Groups are ordered by impact (most instances first, then signature), so the budget
+  buys the most and the plan is deterministic. `buildFailureAnalysisRequest` returns `undefined` for a
+  declined group, so a caller cannot analyse past the budget by accident.
+- **An `insufficient` baseline is never analysed at all** — there is nothing to reason over, and a
+  model asked to explain nothing will invent something.
+- **Three rules decide whether the answer is trustworthy:** evidence ids are a closed `enum` and
+  re-checked after decoding; a conclusion with no cited evidence is refused as a guess
+  (`UNSUPPORTED_CONCLUSION`); and `insufficient` is a first-class answer, with an answer that both
+  declines and concludes refused as `CONTRADICTORY` rather than half-believed.
+- **L5b cannot change the run, and not because it is told not to.** The schema has no field for a
+  status, a retry, a policy or an edit — a model that emits one is refused by `AiOutputContract`
+  before this module sees it.
+- **One design constraint worth recording:** `AiPromptBuilder` redacts every DATA string, and its
+  first rule replaces any whole URL — including a route template L5a had already stripped of query,
+  userinfo and ids. That is correct defence in depth and was not weakened; the route travels through
+  the `ids` channel instead, which is unredacted but still rescanned for residual secrets. Without it
+  the model would be told a request failed and never told which one.
+- **Mutation-tested three for three:** adding the instance id to the signature → 63/76 (coalescing
+  collapses entirely); allowing an unsupported conclusion → 75/76; removing the per-batch budget →
+  71/76.
+
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
   Never before terminal outcome.

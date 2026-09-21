@@ -1,5 +1,36 @@
 # TASK_LOG
 
+## 2026-09-21 — L5b: failure-analysis coalescing and its answer contract (Claude)
+
+- **Task:** build the L5b core under the conditional development authorization. Ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **The design is in what the coalescing signature EXCLUDES.** Instance, data row, offsets and repeat
+  counts are all left out, because they are exactly what differs between the 500 identical failures
+  the feature exists to collapse. What is included — cause code, primary evidence source, status or
+  error kind, path template, flow/node/step — keeps a 409 and a 422 on one route apart, which the
+  labelled set requires. Measured: 500 failures → one group → one planned model call.
+- **A declined group stays visible.** Past the per-batch budget a group keeps its deterministic
+  baseline and reports `BATCH_BUDGET`; past the signature cap the batch counts an `overflow`. Groups
+  are ordered by impact so the budget buys the most, and `buildFailureAnalysisRequest` returns
+  `undefined` for a declined group so a caller cannot spend past it by accident.
+- **Three rules make the answer trustworthy:** closed evidence-id enum re-checked after decoding; a
+  conclusion with no cited evidence refused as a guess; and `insufficient` as a first-class answer,
+  with "both decline and conclude" refused rather than half-believed.
+- **L5b cannot change a run by construction** — no schema field for a status, retry, policy or edit.
+- **A real constraint found while building:** `AiPromptBuilder` redacts every DATA string and its first
+  rule replaces any whole URL, including a route template L5a had already stripped. Correct defence in
+  depth, so it was not weakened; the route now travels through the `ids` channel, which is unredacted
+  but still rescanned. Without the change the model was told a request failed and never which one.
+- **Files:** `src/ai/failureAnalysis.ts` (new), `scripts/verify-ai-error-analysis.mts` (new),
+  `package.json`, `scripts/lib/verifier-classification.ts`, plan/state docs.
+- **Checks:** `verify:ai-error-analysis` **76/76**; `npm run build` PASS; `typecheck:scripts` PASS;
+  `verify:roadmap-dashboard` 177/177 Sources agree.
+- **Mutation-tested three for three:** adding the instance id to the signature → 63/76 (coalescing
+  collapses entirely); allowing an unsupported conclusion → 75/76; removing the per-batch budget →
+  71/76.
+- **Not built:** the `diagnostics` persistence extension, the reports UX, the live quality gate and the
+  production caller. `awkit-djnl.8` stays open.
+
 ## 2026-09-21 — L4b: authoring explanations (T0) and safe-fix ranking (T1) (Claude)
 
 - **Task:** build the L4b contract under the conditional development authorization. Ledger unchanged

@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## L4b authoring explanations and safe-fix ranking: the contract is built (2026-09-21, current)
+## L5b failure intelligence: 500 identical failures cost one analysis (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved: `verify:ai-error-analysis` is a Phase L gate, not a ledger case.
+
+**L5b's hard problem is coalescing, not prompting**, and `src/ai/failureAnalysis.ts` solves it by what
+the signature *excludes*: the instance, the data row, every offset and every repeat count. What it
+includes is the baseline's cause code, the primary evidence source, the status or error kind, the path
+template and the flow/node/step. Measured on L5a's real buffer and real cause baseline: **500 identical
+row failures → one group, one planned model call.** A 409 and a 422 on the same route stay separate, as
+do the same status on two routes and the same failure at two steps.
+
+**Three rules decide whether the answer is trustworthy:** evidence ids are a closed `enum` re-checked
+after decoding; a conclusion citing no evidence is refused as a guess; and `insufficient` is a
+first-class answer, with an answer that both declines and concludes refused as contradictory. L5b
+**cannot** change a run — the schema has no field for a status, retry, policy or edit, so a model that
+emits one is refused by `AiOutputContract` before the module sees it.
+
+| Check | Result |
+|---|---|
+| `verify:ai-error-analysis` (new, `integration`) | **76/76**, three mutations caught |
+| `npm run build` · `typecheck:scripts` · `verify:roadmap-dashboard` | PASS · PASS · 177/177 Sources agree |
+
+**One design constraint worth carrying forward:** `AiPromptBuilder` redacts every DATA string and its
+first rule replaces any whole URL — including a route template L5a had already stripped. That is
+correct defence in depth and was not weakened; the route travels through the `ids` channel instead,
+which is unredacted but still rescanned for residual secrets.
+
+**`awkit-djnl.8` stays open:** the `diagnostics` persistence extension, the reports UX and
+`verify:ai-error-quality-live` are not built, and there is no production caller.
+
+## L4b authoring explanations and safe-fix ranking: the contract is built (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved: `verify:ai-authoring` is a Phase L gate, not a ledger case.
