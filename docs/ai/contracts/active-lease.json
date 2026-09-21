@@ -1,20 +1,34 @@
 {
-  "task": "awkit-g555-kill-restart-0921",
-  "contract_path": "docs/ai/contracts/awkit-g555-kill-restart-0921.json",
+  "task": "awkit-djnl-1-l18-explanation-0921",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-explanation-0921.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-21T17:31:00.781Z",
-  "acquired_at_commit": "d8162f86fe45c026f608a301976a75f745400992",
+  "acquired_at": "2026-09-21T18:39:49.694Z",
+  "acquired_at_commit": "f58cf28f8d6caf577b6a738f1daf94be26fdb6cb",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-g555-kill-restart-0921.json",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/DECISIONS.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/awkit-djnl-1-l18-explanation-0921.json",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
     "scripts/ai-harness/locatorUpgradePacket.ts",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-g555-kill-restart-0921.json": "6c3ad2f05f8f6d56bd7aca58bf0556946ea1b1426e7ce6b110ca72b935afa9c0",
+    "docs/ai/CURRENT_STATE.md": "c3815d8e74ade8a868dce50221c209b3cd5ef539ed9c82d63066893769c0c813",
+    "docs/ai/DECISIONS.md": "e9e5a3d00d45ec78cb5e9927b74e0140f0c80f6226cf47492128c0fbec5b3b04",
+    "docs/ai/HANDOFF.md": "3b7e1b45b5f6055c010ef6a8c668be00deabfe8f3dc592d552be230579523796",
+    "docs/ai/KNOWN_ISSUES.md": "1591c9ab417bb39dcce0eb05c60ac1f2dbb3fd6b8141644a43712777cd4ae591",
+    "docs/ai/TASK_LOG.md": "60684f581660205bda5ee3e74ae1c41f9bdeeff61e74afb167892a199c53d231",
+    "docs/ai/contracts/awkit-djnl-1-l18-explanation-0921.json": "96ec52ca092d66f7c1cd2b184f78ddce2d792bca5313268d116bffe73574604c",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "1778af348c798ec9daddc149847fa4727fcb09a65cf1c2560a2587a52b7993ec",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "b3f02ef27480d6345ecfb79508037d3256b69c21839563777675a6424620f105",
     "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
     "scripts/offline-benchmark/": "absent"
   },
@@ -31,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-21T17:31:23.385Z",
-  "released_reason": "awkit-g555 closed on the measured fix, 0.8B re-measurement noted on awkit-djnl.1, no edge changed, export refreshed",
-  "archived_at": "2026-09-21T17:31:23.386Z"
+  "released_at": "2026-09-21T18:40:30.635Z",
+  "released_reason": "L1.8 validationExplanation GO noted on awkit-djnl.1 and the request change on awkit-djnl.6, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-21T18:40:30.636Z"
 }

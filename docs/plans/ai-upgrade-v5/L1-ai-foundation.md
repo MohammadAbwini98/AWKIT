@@ -392,6 +392,81 @@ The fingerprint now includes `cancelGraceMs`, so all seven scenarios ran again.
 **L1.8 is still NO-GO on the 0.8B,** on `validationExplanation` alone. It is plain throughput: about
 700 prompt tokens at ~11 tokens/s, plus a 192-token cap at under 3 tokens/s.
 
+#### `validationExplanation` fixed in the product (2026-09-21): GO on all 8. Evidence: same file, at `f58cf28f` (the unchanged product request at `7f0e931e`)
+
+**Root cause: the measured packet was never the product's request, and the product's request was
+worse.**
+
+- **A stand-in.** The packet was written with the harness (`9c252885`), before L4b built the feature
+  (`510bdbe2`). Two of its three DATA blocks were validator messages and flow text, which
+  `buildAuthoringRequest` is designed never to send. Its nonce was 32 hex; `AiService` generates 16.
+- **The product's own request**, measured once through the unchanged builder at `7f0e931e`, sent 552
+  prompt tokens with a 512-token output cap: **222,036 ms at cap**. And the real 0.8B explained **none**
+  of the 5 issues in either run, because the grammar let it skip them all.
+- **Where the time goes** (two runs each; wall time minus prompt and generation was 1–41 ms per run,
+  so scheduling and grammar setup are negligible):
+
+| Request | Prompt tokens | Prompt evaluation | Output | At cap |
+|---|---|---|---|---|
+| Synthetic stand-in (`d8162f86`) | 697 | 57,973–64,932 ms, 10.7–12 tok/s | 23 tokens; cap 192 at 2.85–3.11 tok/s | 132,300 ms |
+| Product request, unchanged (`7f0e931e`) | 552 | 32,638–58,979 ms, 9.4–16.9 tok/s | 53 tokens, **0 explanations**; cap 512 | 222,036 ms |
+| **Product request, fixed (`f58cf28f`)** | **334** | **24,275–29,929 ms, 11.2–13.8 tok/s** | **151 tokens, 2 of 2 explained**; cap 192 at 3.29 tok/s | **88,288 ms** |
+
+**The harness change (`7f0e931e`).** The packet is now built the way `explainFlowValidation` builds its
+job: the real `FlowValidator` over a flow with casing mistakes on two conditional connectors, so every
+line sent carries a fix marker, the longest line the builder writes. It lives in the Electron-free
+`scripts/ai-harness/validationExplanationPacket.ts`. The launcher records a SHA-256 identity of the
+built prompt, schema and cap, and a packet scenario whose identity no longer matches the checkout is
+measured again. Each answer is checked by the product's own `parseAuthoringAnswer` and recorded as
+counts, never text. A refused answer fails the step.
+
+**The fix (`d2a81262`, `src/ai/authoringExplanation.ts`):**
+
+- **Send what one answer explains.** `maxIssues` 24 → 2. Blocking issues go first, and the rest are
+  counted in `truncated`, which the designer already reports.
+- **One DATA block.** Each block costs two nonce delimiters. `RepairableIssueIds` repeated the per-line
+  `fixable=` marker, so it is gone, and each fix kind's product-authored summary rides on its line.
+- **The anchor's kind, not its id.** A recorded step's id is a UUID the model cannot use, and an answer
+  maps back through `request.issues`. The prompt's size is now a function of product constants alone,
+  so the benchmark's worst case is the product's.
+- **Every issue sent is explained.** `minItems` equals the number sent.
+- **No placeholder ranking.** With nothing fixable, the schema has no `ranking`. The old `["none"]`
+  enum decoded into an id that `parseAuthoringAnswer` refuses, which discarded the whole answer.
+- **Output budget.** `maxOutputTokens` 512 → 192, this feature's L1.8 budget, and `maxExplanationChars`
+  400 → 160. The runtime's JSON grammar allows indentation, and the 0.8B uses it: 151 tokens for
+  2 × 116 characters, about 90 of them structure. Two explanations at the limit plus a full ranking
+  still fit, which matters because an answer cut off at the cap is invalid JSON and is discarded whole.
+- **A fabrication path closed.** The prompt builder's 1,200-character default field cap cut the Issues
+  list while the grammar still offered all 24 ids, so a model could explain an issue it never saw.
+
+**Explanation quality, measured on the real 0.8B (both runs):**
+
+- The product accepted both answers. Ids come from the report, with no duplicates, no empty or
+  over-long text, and no control characters.
+- 2 of 2 sent issues were explained, and both texts name their issue's subject.
+- 116 characters each, 0 residual secrets, nothing ranked (the ranking is optional).
+- `stop` at 151 of 192 tokens: the answer ended by itself, not at the cap.
+- **Limit of this evidence:** model text is never recorded, so "actionable" rests on these proxies,
+  not on a person reading the answers. `verify:ai-authoring-quality-live` is still not built.
+
+**Margin.** 88,288 ms is 26 % under the ceiling. *Projection, not evidence:* at the slowest rates this
+host has shown for this pack (prompt 9.4 tok/s, decode 2.55 tok/s), 334 tokens plus the 192-token cap
+come to about 110.8 s, still under.
+
+**Unchanged:** the 120,000 ms ceiling, the pack, the fingerprint, and the other six scenarios'
+`d8162f86` results. An intermediate run at `maxExplanationChars` 180, before it was lowered to 160,
+measured 87,095 ms with the same counts and was not committed.
+
+**Still open:**
+
+- **The product timeout.** `AUTHORING_LIMITS.timeoutMs` is 30,000 ms, and the fixed request takes
+  70–76 s here, so a real explanation still times out in the product. Setting per-feature budgets from
+  these results belongs with the pin, and it is an owner decision.
+- **The other two packets** still carry the harness's 32-hex nonce. That only overstates them, and they
+  pass.
+- **A GO still owes** the pin in `AI_MODEL_MANIFEST` with its license notice, `verify:ai-model-pack`
+  and `verify:ai-model-live` on the 0.8B, and the live quality gates.
+
 **Superseded remedy list (kept for the record).** The owner must
 choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
 grammar-off probe) and separate prefill from decode; then (2) if constrained decode dominates, revisit
@@ -416,7 +491,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s | **release only — unmet** |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned | **release only — unmet** until the pin and live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -443,9 +518,11 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
 **Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
 machine with all 12 logical CPUs, and the 4B still FAILS there (see "Re-scoped to the qualifying
 host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The cancel defect
-`awkit-g555` is fixed and closed. The 0.8B is now NO-GO on one criterion, `validationExplanation` at
-cap (132.3 s against 120 s). The 2B is NOT RUN because it is not downloaded (see "Qwen3.5-0.8B after
-the cancel fix").
+`awkit-g555` is fixed and closed. The 0.8B's benchmark is **GO on all 8** since the product's
+explanation request was fixed (88.3 s against 120 s; see "`validationExplanation` fixed in the
+product"). It still owes the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live`,
+the live quality gates and per-feature timeouts, so L1 is not accepted. The 2B is NOT RUN because it
+is not downloaded.
 
 ## Verifiers
 

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l18-explanation-0921",
+    "title": "Record the fixed validationExplanation request and the 0.8B benchmark GO on L1 and L4b",
+    "objective": "The product's validation explanation request was fixed at d2a81262 and re-measured on Qwen3.5-0.8B at f58cf28f: 88288 ms at cap against the unchanged 120000 ms ceiling, so the 0.8B benchmark passes all 8 L1.8 criteria, with the product's own request measured at 7f0e931e as 222036 ms before the fix. Append a note to awkit-djnl.1 giving the result and what L1 acceptance still owes (the pin, its license notice, verify:ai-model-pack and verify:ai-model-live on the 0.8B, the live quality gates, per-feature timeouts). Append a note to awkit-djnl.6 that its request changed (2 issues, blocking first, anchor kind not id, minItems, 160 characters, 192 tokens, no placeholder ranking). Refresh the JSONL export. Nothing closes: awkit-djnl.1 and awkit-djnl.6 stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f58cf28f",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.1 and awkit-djnl.6 stay in_progress, each with a note naming the fix and measurement commits and the measured 88288 ms, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, against the state after `bd update awkit-djnl.1 --append-notes`, `bd update awkit-djnl.6 --append-notes`, `bd export -o .beads/issues.jsonl` and the state-document updates. Round 2 ran once against the final documents, after a table row was added to CURRENT_STATE (one of the dashboard's sources), and was again 177/177 'Sources agree'. The tracker measured 9 outstanding / 294 closed with 135 edges, unchanged, so the hardcoded tracker pin did not move. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l18-explanation-0921:project-state:2026-09-21T18:39:49.694Z",
+        "task": "awkit-djnl-1-l18-explanation-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T18:39:49.694Z",
+        "acquired_at_commit": "f58cf28f8d6caf577b6a738f1daf94be26fdb6cb",
+        "released_at": "2026-09-21T18:40:30.635Z",
+        "released_reason": "L1.8 validationExplanation GO noted on awkit-djnl.1 and the request change on awkit-djnl.6, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

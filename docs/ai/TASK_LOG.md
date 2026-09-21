@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-09-21 — `validationExplanation` fixed in the product; 0.8B benchmark GO on all 8 (Claude)
+
+- **Task:** resolve the last L1.8 failure on Qwen3.5-0.8B, `validationExplanation` at 132,300 ms
+  against a 120,000 ms ceiling.
+- **Root cause:**
+  - The benchmark measured a synthetic stand-in, not the product's request.
+  - The product's own request, measured through the unchanged builder, was 552 prompt tokens with a
+    512-token cap: 222,036 ms at cap, and 0 of 5 issues explained.
+  - Scheduling overhead was 1–41 ms per run.
+- **Files:**
+  - Commit `7f0e931e`: `scripts/ai-harness/validationExplanationPacket.ts` (new),
+    `scripts/ai-harness/bench.ts` and `scripts/benchmark-ai-model.mts` (packet identity), with the
+    before-measurement.
+  - Commit `d2a81262`: `src/ai/authoringExplanation.ts` and `scripts/verify-ai-authoring.mts`.
+  - Commit `f58cf28f`: the 0.8B evidence file.
+  - Then the L1 and L4 plans, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF, and `.beads/` (notes on
+    `awkit-djnl.1` and `awkit-djnl.6`, contract `awkit-djnl-1-l18-explanation-0921`).
+- **Checks:**
+  - `verify:ai-authoring` 98/98 (was 85), mutation-tested 4/4 · `verify:ai-assist-gui` 92/0.
+  - `verify:ai-adapter` 117/117 · `verify:ai-host` 135/0 (12/12) · `verify:ai-host-electron` 26/0 ·
+    `verify:ai-fallback` 38/38 · `verify:ai-redaction` 52/52.
+  - build PASS · `typecheck:scripts` PASS.
+  - `benchmark:ai-model-0-8b` GO: 88,288 ms at cap with 334 prompt tokens, and 2 of 2 explained.
+- **Result:** the 0.8B benchmark passes all 8 criteria. L1 is not accepted until the pin and the live
+  gates. `d2a81262`'s message says "up from 55"; the true baseline is 85.
+
 ## 2026-09-21 — `awkit-g555` fixed by kill-and-restart; 0.8B re-measured at 7 of 8 (Claude)
 
 - **Task:** apply the owner's choice of kill-and-restart for `awkit-g555`, then continue.

@@ -1,5 +1,37 @@
 # KNOWN_ISSUES
 
+## The L1.8 explanation packet was a stand-in, and the product's own request got no answer (2026-09-21, FIXED — harness `7f0e931e`, product `d2a81262`)
+
+- **Symptom:** `validationExplanation` missed its 120,000 ms ceiling at 132,300 ms, measured on a
+  synthetic packet.
+- **What was actually wrong:**
+  1. **The packet was a stand-in** written before the feature. It sent validator messages and flow
+     text, which the feature never sends, and a 32-hex nonce where production uses 16.
+  2. **The product's own request was worse:** 552 prompt tokens with a 512-token cap, 222,036 ms at cap.
+  3. **The model explained nothing.** The grammar allowed an empty `explanations`, and the 0.8B took
+     it: 0 of 5, in both runs.
+  4. **Two latent contract defects:**
+     - The Issues list was cut at the prompt builder's 1,200-character default while all 24 ids stayed
+       offered, so a model could explain an issue it never saw.
+     - With nothing fixable, the ranking enum was `["none"]`. That decodes into an id the parser
+       refuses, which discards the whole answer.
+- **Fixed:** 88,288 ms at cap, 2 of 2 explained. Details are in the L1 plan.
+- **The lessons (pattern):**
+  - **A benchmark packet written before its feature measures a guess.** Build it with the product's
+    own request builder, and key its results to what was built, so a changed request is measured again
+    rather than inheriting old numbers.
+  - **A grammar that permits an empty answer will get one from a small model.** Put `minItems` on
+    whatever must be answered.
+  - **Bound an enum and the text it indexes together.** Offering ids whose lines a field cap cut off
+    lets a model answer about data it never saw, so assert that every offered id's line survives
+    rendering.
+  - **The runtime's grammar allows indented JSON** (node-llama-cpp `getGbnfGrammarForGbnfJsonSchema`:
+    4-space scopes, then a forced `\n\n\n\n`), and the 0.8B uses it, at ~45 structure tokens per
+    explanation. Budget output tokens for it, or an answer that reaches the cap is discarded whole.
+- **Still open:**
+  - `AUTHORING_LIMITS.timeoutMs` is 30 s, against a 70–76 s real answer on this host.
+  - The other two L1.8 packets still carry the harness's 32-hex nonce. That only overstates them.
+
 ## An AI job cancelled during prompt evaluation keeps the CPU until evaluation ends (2026-09-21, FIXED — `awkit-g555`, kill-and-restart at `6ca6297a`)
 
 - **Fixed:** the manager kills the host when a cancelled inference is still running after 1,000 ms,

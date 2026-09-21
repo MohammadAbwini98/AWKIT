@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## `awkit-g555` fixed by kill-and-restart; Qwen3.5-0.8B now NO-GO on 1 of 8 (2026-09-21, current)
+## `validationExplanation` fixed in the product; Qwen3.5-0.8B benchmark GO on all 8 (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Root cause:** the benchmark measured a stand-in written before L4b existed (`9c252885`). The
+  product's own request was worse. Measured at `7f0e931e` through the unchanged builder, it sent 552
+  prompt tokens with a 512-token cap, **222,036 ms at cap**, and the 0.8B explained **none** of the 5
+  issues, because the grammar let it skip them.
+- **The fix (`d2a81262`, `buildAuthoringRequest`):**
+  - It sends 2 issues, blocking ones first, in one DATA block, with the anchor's kind and never its id.
+  - The grammar requires one explanation per issue sent, each at most 160 characters, within 192
+    output tokens. There is no placeholder ranking.
+  - It also closes a fabrication path: the Issues list was cut at 1,200 characters while all 24 ids
+    stayed offered.
+- **Measured (`f58cf28f`):** 334 prompt tokens and **88,288 ms at cap against 120,000: PASS**, so all
+  8 criteria pass. The product accepted both answers: 2 of 2 explained, on subject, 116 characters,
+  0 residual secrets, and `stop` at 151 of 192 tokens.
+- **Harness (`7f0e931e`):** the packet is the product's request. A changed request re-measures its
+  scenario, and each answer is checked by `parseAuthoringAnswer`.
+- **Not accepted yet:** L1 stays `in_progress`, and **L7 cannot be entered**. It still owes the pin,
+  its license notice, `verify:ai-model-pack`, `verify:ai-model-live`, the live quality gates, and a
+  product timeout. `AUTHORING_LIMITS.timeoutMs` is still 30 s against a 70–76 s real answer.
+- **Record correction:** `d2a81262`'s message says `verify:ai-authoring` went up from 55. It went up
+  from **85**; 55 was its size at `510bdbe2`.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 98/98 (was 85), mutation-tested 4/4 |
+| `verify:ai-assist-gui` (real Electron) | 92/0 |
+| `verify:ai-adapter` · `verify:ai-host-electron` (kill-and-restart) | 117/117 · 26/0 |
+| `verify:ai-host` · `verify:ai-fallback` · `verify:ai-redaction` | 135/0 (12/12 mutations) · 38/38 · 52/52 |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `benchmark:ai-model-0-8b` | GO, 8 PASS; `validationExplanation` re-measured, the other six at `d8162f86` |
+| `verify:ai-model-live` | NOT RUN: the live gate is pinned to the 4B |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" (tracker 9 outstanding / 294 closed, edges 135, unchanged) |
+
+## `awkit-g555` fixed by kill-and-restart; Qwen3.5-0.8B now NO-GO on 1 of 8 (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

@@ -1,6 +1,31 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — AI host cancellation: kill-and-restart after a grace period (`awkit-g555`)
+### 2026-09-21 (latest) — Phase L L1.8/L4b: the validation explanation request is sized to what one answer explains (`awkit-djnl.1`, `awkit-djnl.6`)
+
+- **Owner instruction, in session:** resolve `validationExplanation` within the unchanged 120,000 ms
+  ceiling. Remove redundant prompt context first, and shorten the answer only if quality holds. No
+  benchmark-only shortcut and no model change.
+- **Implementer's choices within it:**
+  - **The benchmark measures the product's request** (`7f0e931e`), not a stand-in, and re-measures a
+    packet scenario when the request it builds changes. The stand-in predated the feature and sent
+    what the feature never sends.
+  - **2 issues per request, blocking ones first.** 192 output tokens hold two indented explanations,
+    and a third would not fit: the 0.8B spends ~45 tokens of structure on each. An issue the answer
+    cannot reach costs its whole line in prompt time. The rest are counted and shown as not sent.
+  - **The anchor's kind, never its id.** Ids are the user's and unbounded (a recorded step's is a
+    UUID), and an answer maps back through `request.issues`. This also makes the prompt's worst case a
+    product constant.
+  - **`minItems` equals the issues sent.** Allowed to skip, the 0.8B explained 0 of 5.
+  - **160 characters within 192 tokens.** 192 is L1.8's pre-registered budget for this feature. 160
+    keeps two explanations and a full ranking under the cap with indentation; the measured answers
+    were 116.
+  - **No `ranking` when nothing is fixable,** instead of a `["none"]` placeholder the parser refuses.
+- **Not decided here:** the product timeout. `AUTHORING_LIMITS.timeoutMs` is 30 s, against a 70–76 s
+  real answer. It is a per-feature budget for the owner, with the pin.
+- **Cost:** fewer issues explained per request (2, with the rest listed as not sent), and shorter
+  explanations (160 characters, down from 400).
+
+### 2026-09-21 (later) — AI host cancellation: kill-and-restart after a grace period (`awkit-g555`)
 
 - **Owner decision, in session:** fix `awkit-g555` with kill-and-restart, rather than by evaluating the
   prompt in checked chunks.

@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — the cancel defect is fixed; Qwen3.5-0.8B misses only `validationExplanation`
+## HANDOFF (2026-09-21, latest) — `validationExplanation` fixed in the product; the 0.8B benchmark is GO on all 8
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:**
+  - The benchmark packet is now the product's own request (`7f0e931e`). Unchanged, that request
+    measured 222 s at cap, and the model explained nothing.
+  - The request was fixed (`d2a81262`) and re-measured at **88.3 s against 120 s** (`f58cf28f`), with
+    2 of 2 issues explained.
+  - Details are in the L1 plan › "`validationExplanation` fixed in the product".
+- **Not done, and owner decisions:**
+  - Pin the 0.8B (`AI_MODEL_MANIFEST` plus the license notice), then run `verify:ai-model-pack` and
+    `verify:ai-model-live` on it, and build the live quality gates.
+  - Set per-feature timeouts from these results. `AUTHORING_LIMITS.timeoutMs` is 30 s, and a real
+    answer takes 70–76 s here.
+  - L1 stays `in_progress`. **L7 cannot be entered.** The 2B is NOT RUN.
+- **Do not:**
+  - raise `maxIssues`, `maxExplanationChars` or `maxOutputTokens` without re-measuring. The 0.8B writes
+    indented JSON (~90 structure tokens for two explanations), and an answer cut off at the cap is
+    discarded whole;
+  - put anchor ids back in the prompt;
+  - cancel an inference outside `AiUtilityHostManager`.
+
+## HANDOFF (2026-09-21, superseded) — the cancel defect is fixed; Qwen3.5-0.8B misses only `validationExplanation`
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**

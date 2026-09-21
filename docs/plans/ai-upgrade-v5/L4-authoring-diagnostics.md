@@ -68,11 +68,16 @@ development authorization.
     a grammar is one layer and L1.3 requires runtime validation as well.
 - **The ranking enum is narrower than the explanation enum**, so an unfixable issue cannot even be
   decoded into a ranking; `FIX_NOT_EMITTED` is the second line for a caller that bypasses the grammar.
-- **What crosses to the model:** issue codes, severities, active-path flags, generated anchor ids, the
-  rule's own one-line summary from `FLOW_VALIDATION_RULES`, and each emitted fix's `kind` and `field`.
-  **Never** the validator's `message` — a mutation proved it embeds the step name — and never
-  `safeFix.from`/`to`, which are withheld although they are *usually* enum casing, because "usually" is
-  not a contract.
+- **What crosses to the model:** issue codes, severities, active-path flags, the anchor's kind (node,
+  connector or flow — since `d2a81262` never its id), the rule's own one-line summary from
+  `FLOW_VALIDATION_RULES`, and each emitted fix's `kind` and `field`. **Never** the validator's
+  `message` — a mutation proved it embeds the step name — and never `safeFix.from`/`to`, which are
+  withheld although they are *usually* enum casing, because "usually" is not a contract.
+- **Budget (since `d2a81262`, from L1.8 on Qwen3.5-0.8B):** at most 2 issues per request, blocking ones
+  first, in one DATA block. The grammar requires one explanation per issue sent, each at most 160
+  characters, within 192 output tokens. There is no `ranking` when nothing is fixable. Measured
+  88,288 ms at cap against 120,000; the evidence is in `L1-ai-foundation.md` ›
+  "`validationExplanation` fixed in the product".
 - **Ids are positional (`i0`, `i1`, …) within ONE report snapshot**, and the request returns its own
   id→issue map, so a caller maps an answer back through the request rather than re-validating and
   risking drift.
