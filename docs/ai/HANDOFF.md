@@ -1,6 +1,50 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-20, latest) — L1.2 pinned and committed; L1.8 FAILS on measured throughput
+## HANDOFF (2026-09-21, latest) — Phase L's AI-dependent cores are BUILT under a conditional authorization; L1.8 still FAILS
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Every new gate is a
+  Phase L gate, not a comprehensive-validation case, so nothing moved.
+- **Read this first:** the owner separated *permission to develop* from *permission to accept*
+  (`docs/ai/DECISIONS.md`, 2026-09-21; `L1-ai-foundation.md` › *L1 status: PARTIAL PASS*). L1.8's FAIL
+  is unchanged and unsoftened. Every AI-dependent milestone was built against the **deterministic
+  providers**, and **none of them may close**.
+- **Commits, all pushed to `main`:** `694bc6f0` (L1 partial-pass record), `387d9a37` (L3 §8 repair),
+  `3b9dc30f` (L3 §9 sweep), `510bdbe2` (L4b), `eacfb88c` (L5b), `3054e7e5` (L6 Intelligence).
+- **What is now built** — the model-independent core of every AI-dependent milestone:
+
+  | Milestone | New module | Gate |
+  |---|---|---|
+  | L3 §8 runtime repair | `src/runner/locatorProof.ts` (repair gates), `mode: "repair"` | `verify:ai-locator-repair` 85/85 |
+  | L3 §9 health sweep | `src/ai/locatorSweep.ts` | `verify:ai-locator-sweep` 60/60 |
+  | L4b authoring | `src/ai/authoringExplanation.ts` | `verify:ai-authoring` 55/55 |
+  | L5b failure intelligence | `src/ai/failureAnalysis.ts` | `verify:ai-error-analysis` 76/76 |
+  | L6 Intelligence | `src/ai/fragmentAssist.ts` | `verify:ai-fragment-assist` 59/59 |
+
+  Each was mutation-tested (3–4 mutations each, all caught) and each has its "as built" section in its
+  plan file.
+- **The one thing none of them has is a production caller, and that is ARCHITECTURAL.**
+  `verify:ai-fallback` proves *no module the execution tree can reach, at any depth, reaches the model*,
+  and `AiService` lives in the main process. Wiring any of these into the runner or the Recorder would
+  break that green guard. It is the same L1-gated boundary L3 §7 recorded, and it is the **first thing
+  to build once the model decision lands** — not a gap to patch around.
+- **Do not re-run the long benchmark.** L1.8 is recorded in
+  `docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json` and `L1.8-inference-profile.json`.
+- **Owner decisions still required, unchanged in kind:**
+  1. **L1.8** — re-scope the model, the ceilings, or the qualifying hardware. Worth confirming first:
+     mask `0x3F` selects logical CPUs 0–5, which on a 6-core/12-thread part is **3 physical cores**.
+  2. **L5a's overhead gate** — the methodology (rounds, median definition, host). Recommendation B+D on
+     the VMware target, reported with E (`L5-failure-evidence-and-analysis.md`). L5a stays open on it.
+- **One gate is BLOCKED and it is structural.** `isAllowedUnleasedShellCommand`
+  (`tools/agents/lease-guard.mjs:474`) omits `isProjectStateCommand`, so **every mutating `bd` verb is
+  unreachable in the direct loop** and needs a routed `project-state` lease. The tracker is therefore
+  untouched at **10 outstanding / 292 closed** — which is also the state the decision calls for, since
+  nothing may close. A `project-state` agent should add the authorization note to `awkit-djnl.1`.
+- **Next eligible work, in order:** (1) the L5a overhead-gate methodology, once the owner decides;
+  (2) renderer surfaces for L4b, L5b and L6 Intelligence, which are model-independent and were left out
+  only for scope; (3) the production callers, after L1.8 resolves. **L7 cannot be entered** — every
+  confirmation it asks for depends on L1.8 or the L5a gate.
+
+## HANDOFF (2026-09-20) — L1.2 pinned and committed; L1.8 FAILS on measured throughput
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `verify:ai-model-live`
   is a Phase L gate, not a ledger case, so nothing moved.
