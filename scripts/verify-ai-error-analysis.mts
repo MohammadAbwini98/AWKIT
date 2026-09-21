@@ -550,18 +550,21 @@ const beforeRefusal = JSON.stringify(await readBack());
 check("(precondition) an answer citing uncaptured evidence is refused", (await ask(citing(["ev-999"]), "run-a", "p-4")).code === "OUTPUT_REJECTED");
 check("...and leaves the saved analyses exactly as they were", JSON.stringify(await readBack()) === beforeRefusal);
 
-// Redaction. The e-mail and the 7-digit id are what SemanticRedactor removes; `password: {…}` is a
-// shape it misses (its value class excludes `{`) and only the independent rescan catches.
+// Redaction. The e-mail and the 7-digit id are what SemanticRedactor removes; a PEM private-key
+// header is a shape it leaves (no rule names it) and only the independent rescan catches. Single
+// line on purpose: the parser refuses control characters, a newline included, before the rescan.
+// (`password: {…}` served here until 2026-09-21, when the redactor learned to remove it.)
 const leak = (text: string) => JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: text, primaryEvidenceIds: [primaryOf(sameB)], investigationSteps: [text] });
 const leakyView = await ask(leak("Order 4001123 for ops@shop.example failed."), "run-b", "p-5");
 const leakyStored = storedFailureAnalysisFor(await readBack(), "run-b");
 check("an e-mail or long id in the answer is redacted before it is shown", leakyView.ok && !/ops@shop|4001123/.test(JSON.stringify(leakyView)), JSON.stringify(leakyView.analysis));
 check("...and before it is stored", Boolean(leakyStored?.analysis.explanation.includes("[redacted]")) && !/ops@shop|4001123/.test(JSON.stringify(leakyStored)), JSON.stringify(leakyStored?.analysis));
-check("(precondition) the redactor really misses the brace-valued shape", new SemanticRedactor().redactText("password: {hunter2}").includes("hunter2"));
+const pemHeader = "-----BEGIN RSA PRIVATE KEY-----";
+check("(precondition) the redactor really leaves a PEM header", new SemanticRedactor().redactText(pemHeader).includes("PRIVATE KEY"));
 const beforeResidual = JSON.stringify(await readBack());
-const residualView = await ask(leak("The form rejected password: {hunter2} as invalid."), "run-b", "p-6");
+const residualView = await ask(leak(`The page printed ${pemHeader} in an error.`), "run-b", "p-6");
 check("an answer the rescan still flags is refused", residualView.code === "OUTPUT_REJECTED" && residualView.analysis === null, JSON.stringify(residualView));
-check("...none of its text reaches the renderer", !JSON.stringify(residualView).includes("hunter2"));
+check("...none of its text reaches the renderer", !JSON.stringify(residualView).includes("PRIVATE KEY"));
 check("...and nothing of it is stored", JSON.stringify(await readBack()) === beforeResidual);
 check("(pure) a clean answer passes the rescan", redactFailureAnalysis({ insufficient: true, category: "", explanation: "", primaryEvidenceIds: [], secondaryEvidenceIds: [], investigationSteps: [] }, new SemanticRedactor()) !== null);
 

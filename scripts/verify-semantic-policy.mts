@@ -29,6 +29,7 @@ import {
 } from "@src/semantic/SemanticProjection";
 import { REDACTED, SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import {
+  findResidualSecrets,
   projectAndValidate,
   validateSemanticDocument,
   SEMANTIC_MAX_CONTENT_LENGTH
@@ -195,6 +196,31 @@ console.log("\nRedaction — shapes SecretMasker does NOT handle:\n");
   const rec = redactor.redactRecord({ a: "token-LEAKME", nested: { b: ["password=LEAKTOO"] } });
   check("redactRecord recurses through objects and arrays", !JSON.stringify(rec).includes("LEAKME") && !JSON.stringify(rec).includes("LEAKTOO"));
   check("redactRecord preserves non-string values", redactor.redactRecord({ n: 5, b: true }).n === 5);
+}
+
+console.log("\nRedaction — a key/value whose value starts with a brace, bracket, quote or punctuation:\n");
+{
+  // All but the bracket case passed straight through (or lost only their first word) before
+  // 2026-09-21; the bracket case already worked and guards the rewrite. L5a failure evidence is
+  // redacted by this class with no rescan behind it, so the redactor alone must catch them. The quoted
+  // case uses an UNQUOTED key outside SecretMasker's list, which masks `"password": "…"` on its own.
+  const cases: Array<[string, string, string]> = [
+    ["a brace-valued secret", "The form rejected password: {BraceSecret1} as invalid.", "BraceSecret1"],
+    ["a bracket-valued secret", "token: [BracketSecret2]", "BracketSecret2"],
+    ["a quoted value containing a space", 'session: "two SpacedSecret3"', "SpacedSecret3"],
+    ["a JSON object as the value", '{"credential": {"user": "a", "pass": "NestedSecret4"}}', "NestedSecret4"],
+    ["an unclosed brace", "secret: {OpenBraceSecret5", "OpenBraceSecret5"],
+    ["a value led by other punctuation", "api_key: ,CommaLedSecret6", "CommaLedSecret6"]
+  ];
+  for (const [label, input, secret] of cases) {
+    const out = redactor.redactText(input);
+    check(`${label} is redacted`, !out.includes(secret), `${input} → ${out}`);
+    check(`...and the independent rescan finds nothing left in it`, findResidualSecrets(out).length === 0, `${out} → ${findResidualSecrets(out).join(",")}`);
+  }
+  // Negative controls: the fix must stop at the value, not swallow the line.
+  check("text after a closed brace value survives", redactor.redactText("password: {x1} then the rest").endsWith("then the rest"));
+  check("the next JSON field survives a quoted value", redactor.redactText('{"password": "x y", "user": "bob"}').includes('"user": "bob"'));
+  check("a brace value under an ordinary key is untouched", redactor.redactText('{"status": {"code": 500}}') === '{"status": {"code": 500}}');
 }
 
 console.log("\nPolicy validator (independent re-scan):\n");

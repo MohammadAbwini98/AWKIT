@@ -82,8 +82,14 @@ const RULES: ReadonlyArray<{ pattern: RegExp; replace: string; note: string }> =
     note: "jwt"
   },
   // 4. JSON / YAML style: "token": "value"  |  token: value
+  //
+  //    The value is, in order: a whole quoted string (spaces included), a braced or bracketed value,
+  //    the plain token, and finally ANY non-space token. Without the first three, a value that starts
+  //    with `{`, `[` or a quoted space matched nothing, so `password: {hunter2}` survived intact and
+  //    `"password": "two words"` lost only its first word. The last resort keeps a value that starts
+  //    with other punctuation from slipping through the same way.
   {
-    pattern: new RegExp(`("?)\\b${SENSITIVE_KEY}\\1\\s*[:=]\\s*"?[^"\\s,;}{&]+"?`, "gi"),
+    pattern: new RegExp(`("?)\\b${SENSITIVE_KEY}\\1\\s*[:=]\\s*(?:"[^"\\r\\n]*"|\\{[^}\\r\\n]*\\}|\\[[^\\]\\r\\n]*\\]|"?[^"\\s,;}{&]+"?|\\S+)`, "gi"),
     replace: REDACTED,
     note: "structured key/value"
   },

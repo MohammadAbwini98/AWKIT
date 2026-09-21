@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-21 — SemanticRedactor: fix the key/value value gap found during L5b (Claude)
+
+- **Task:** fix the gap recorded in KNOWN_ISSUES earlier the same day.
+- **Files:**
+  - `src/semantic/SemanticRedactor.ts` (rule 4's value alternatives).
+  - `scripts/verify-semantic-policy.mts` (new section, 15 checks).
+  - `scripts/verify-ai-error-analysis.mts` (its residual fixture is now a PEM header).
+  - KNOWN_ISSUES, CURRENT_STATE, HANDOFF.
+- **Checks:**
+  - `verify:semantic-policy` 156/156, mutation-tested 2/2: the old rule gives 148, a greedy quote 155.
+  - `verify:ui-error-evidence` 85/85 · `verify:failure-cause-baseline` 60/60.
+  - `verify:ai-error-analysis` 131/131 · `verify:ai-redaction` 52/52.
+  - `verify:ai-authoring` 85/85 · `verify:ai-fragment-assist` 73/73 · `verify:semantic-rebuild` 64/64.
+  - build PASS · `typecheck:scripts` PASS · `verify:roadmap-dashboard` 177/177.
+- **Finding:** the quoted-space case was a real leak that the rescan could not see. The first fixture
+  for it passed under the OLD rule, because `SecretMasker` masks `"password": "…"` itself, so it was
+  replaced with an unquoted key before it counted as evidence.
+
 ## 2026-09-21 — L5b: failure analyses saved with their run report, deletable (Claude)
 
 - **Task:** continue Phase L after the L5a measurement with the next model-independent item. That was

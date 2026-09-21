@@ -22,8 +22,9 @@
      is 3 physical cores on a 6-core/12-thread part.
   2. **L5a.** Pick a host without the batch stall, remove the stall's cause, or accept INCONCLUSIVE.
      Do NOT re-run the gate.
-- **Open follow-up:** `SemanticRedactor` misses `password: {value}` (KNOWN_ISSUES). A separate task was
-  filed for it.
+- **Follow-up, done the same day:** the `SemanticRedactor` gap for `password: {value}`, quoted values
+  with spaces and nested object values is FIXED (KNOWN_ISSUES, CURRENT_STATE). The only residual shape
+  that `verify:ai-error-analysis` still relies on is a single-line PEM header.
 - **Tracker:** `awkit-djnl.8` has a note, added through contract `awkit-djnl-8-l5b-persist-0921` and a
   released `project-state` lease. 10 outstanding / 292 closed.
 - **Trap:** the guard refuses newlines and `<` `>` in `git commit -m`. Attribution goes inline, as

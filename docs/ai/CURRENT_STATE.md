@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## L5b: the on-demand failure analysis is saved with its run report and deletable (2026-09-21, current)
+## SemanticRedactor: key/value values led by a brace, quoted space or punctuation are now redacted (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **The gap:** rule 4 of `src/semantic/SemanticRedactor.ts` let three shapes through:
+  - `password: {x}`, which passed intact;
+  - `session: "two words"`, which lost only its first word;
+  - a nested object value, which was kept whole.
+- **Why it mattered:** L5a failure evidence is redacted by this class alone, with no rescan. The
+  quoted-space leak was invisible even to the rescan.
+- **The fix:** the value may now be a whole quoted string, a braced or bracketed value, the plain token,
+  or any non-space token. Negative controls prove that the next JSON field, the text after the value
+  and ordinary-key braces all survive.
+- **Unchanged:** L1.8 FAILS, L5a stays INCONCLUSIVE and was not re-run, **L7 cannot be entered**, and
+  nothing on the tracker moved.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:semantic-policy` | 156/156 (was 141), mutation-tested 2/2 (old rule → 148, greedy quote → 155) |
+| `verify:ui-error-evidence` (real browser, L5a) · `verify:failure-cause-baseline` | 85/85 · 60/60 |
+| `verify:ai-error-analysis` (residual fixture moved to a PEM header) · `verify:ai-redaction` | 131/131 · 52/52 |
+| `verify:ai-authoring` · `verify:ai-fragment-assist` · `verify:semantic-rebuild` | 85/85 · 73/73 · 64/64 |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+## L5b: the on-demand failure analysis is saved with its run report and deletable (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved. This is Phase L work, not a ledger case.

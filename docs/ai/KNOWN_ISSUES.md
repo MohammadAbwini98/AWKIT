@@ -1,20 +1,29 @@
 # KNOWN_ISSUES
 
-## `SemanticRedactor` misses a brace-valued secret such as `password: {value}` (2026-09-21, OPEN)
+## `SemanticRedactor` missed a key/value whose value starts with `{`, a quoted space or punctuation (2026-09-21, FIXED — the pattern is the lesson)
 
-- **Symptom:** `new SemanticRedactor().redactText("password: {hunter2}")` returns the input unchanged.
-  This was measured while building L5b analysis persistence.
-- **Cause:** rule 4 (structured key/value) has the value class `[^"\s,;}{&]+`, which excludes `{`, so
-  a value that STARTS with `{` never matches. Rule 5 covers only the `=` form. Rule 6 needs `-`, `_` or
-  a space directly after the key.
-- **Where it matters:**
-  - Model prompts and stored L5b analyses are safe. Both run the independent `findResidualSecrets`
-    rescan and refuse on a hit.
-  - L5a evidence (`EvidenceBuffer`) redacts with the same redactor and has no rescan. A console, UI or
-    page error of that shape could therefore persist in `InstanceReport.diagnostics.evidence`.
-- **Next:** fix the rule and add regression checks. A separate task was filed for this.
-  `verify:ai-error-analysis` has a precondition check that pins the current miss. It will fail by
-  design once the rule is fixed; replace its fixture then.
+- **Symptom (before the fix):**
+  - `password: {hunter2}` came back unchanged.
+  - `session: "two words"` lost only `two`.
+  - `{"credential": {…}}` kept its whole nested object.
+- **Cause:** rule 4 (structured key/value) had the value class `[^"\s,;}{&]+`. A value that STARTED with
+  an excluded character matched nothing, and a quoted value stopped at its first space.
+- **Why it mattered:**
+  - L5a evidence (`EvidenceBuffer`) relies on this redactor alone, with no rescan behind it.
+  - The quoted-space leak left no key behind, so even the independent rescan could not see it.
+  - Prompts and stored L5b analyses were safe only because their rescan refused the brace shape.
+- **Fix:** rule 4's value is now, in order:
+  1. a whole quoted string;
+  2. a braced or bracketed value;
+  3. the plain token;
+  4. any non-space token.
+- **Regression checks:** the new section of `verify:semantic-policy` (156/156), mutation-tested 2/2.
+  The old rule gives 148/156, and a greedy quoted match that swallows the next field gives 155/156.
+- **The lesson:**
+  - A second layer (the rescan) hides a first-layer gap only for the pipelines that have it.
+  - Check a redaction gap in every consumer, not only in the one that found it.
+  - `SecretMasker` already masks `"password": "…"`, so a quoted-key fixture passes on the wrong layer.
+    Test rule 4 with an unquoted key outside SecretMasker's list.
 
 ## The L5a overhead gate cannot reach a verdict on the development host: a batch-level stall is larger than the ceiling (2026-09-21, OPEN — owner decision, not code)
 
