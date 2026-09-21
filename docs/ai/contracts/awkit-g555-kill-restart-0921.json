@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-g555-kill-restart-0921",
+    "title": "Close awkit-g555 on the measured kill-and-restart fix and record the 0.8B re-measurement on L1",
+    "objective": "The owner chose kill-and-restart for awkit-g555. It is built at 6ca6297a and proven by verify:ai-adapter 117/117 and verify:ai-host-electron 26/0, both mutation-tested, and measured on Qwen3.5-0.8B at d8162f86: cancel latency 1020 ms under the 3000 ms ceiling, settled by the kill during prompt evaluation, and 62 ms settled by the host itself during generation. Append a note and close awkit-g555 with that evidence. Append a note to awkit-djnl.1 that the 0.8B now passes 7 of 8 criteria and is still NO-GO on validationExplanation at cap, 132300 ms against 120000. Refresh the JSONL export. awkit-djnl.1 stays in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d8162f86",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-g555 is closed with a note and reason naming the fix commit, the verifiers and the measured 1020 ms, awkit-djnl.1 stays in_progress with a note giving the 0.8B re-measurement, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree once its tracker pin names the new totals.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', against the final state after `bd update awkit-g555 --append-notes`, `bd close awkit-g555`, `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl` and the state-document updates. Round 1 was 176/177 on the hardcoded tracker pin, which measured 9 outstanding / 294 closed with edges unchanged at 135. The pin was moved to those measured values with its history comment, and round 2 passed. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-g555-kill-restart-0921:project-state:2026-09-21T17:31:00.781Z",
+        "task": "awkit-g555-kill-restart-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T17:31:00.781Z",
+        "acquired_at_commit": "d8162f86fe45c026f608a301976a75f745400992",
+        "released_at": "2026-09-21T17:31:23.385Z",
+        "released_reason": "awkit-g555 closed on the measured fix, 0.8B re-measurement noted on awkit-djnl.1, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

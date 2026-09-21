@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## L1.8 on Qwen3.5-0.8B: every scenario ran, NO-GO on 2 of 8, and the cancel failure blocks any model (2026-09-21, current)
+## `awkit-g555` fixed by kill-and-restart; Qwen3.5-0.8B now NO-GO on 1 of 8 (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **The fix (`6ca6297a`, the owner's choice):**
+  - If a cancelled inference is still running after 1,000 ms, `AiUtilityHostManager` kills the host.
+    It counts as an intentional exit, so no strike, and the next call gets a fresh host.
+  - A cancel returns once the CPU is free.
+  - `AiService` treats a kill as a cancel and reloads the model. DECISIONS has the reasons.
+- **Measured on the 0.8B (`d8162f86`):** cancel latency is **1,020 ms, under 3,000**. The kill
+  settled a cancel during prompt evaluation, and the host itself stopped a generation-phase cancel in
+  62 ms. That is the first time the generation phase was measured.
+  - 7 of 8 criteria PASS.
+  - **Still NO-GO:** `validationExplanation` at cap, 132,300 ms against 120,000 (1.10×, throughput).
+- **Tracker:** `awkit-g555` closed, and L1 is noted and stays `in_progress`. 9 outstanding / 294
+  closed, edges 135. **L7 cannot be entered.**
+- **Owner decision left:** that ceiling, that feature's prompt or output budget, or a faster model.
+  The 2B would be slower.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-adapter` | 117/117 (was 102), mutation-tested 2/2 |
+| `verify:ai-host-electron` (real utility process) | 26/0 (was 20), mutation-tested 2/2 |
+| `verify:ai-host` · `verify:ai-fallback` · `verify:ai-redaction` · `verify:ai-error-analysis` | 135/0 (12/12 mutations) · 38/38 · 52/52 · 140/140 |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `benchmark:ai-model-0-8b` | NO-GO: 7 PASS, 1 FAIL (`validationExplanation`). The playwright scenario failed twice on a harness defect, once of those as my accidental retry, before its one corrected run passed |
+| `verify:ai-model-live` · `verify:ai-assist-gui` | NOT RUN: the live gate is on the 4B, and the service's cancel paths are covered by the benchmark's real-model yield and cancel scenarios |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" (pin moved to 9/294) |
+
+## L1.8 on Qwen3.5-0.8B: every scenario ran, NO-GO on 2 of 8, and the cancel failure blocks any model (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

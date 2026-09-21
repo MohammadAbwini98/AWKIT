@@ -1,20 +1,20 @@
 {
-  "task": "awkit-djnl-1-l18-cancel-0921",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-cancel-0921.json",
+  "task": "awkit-g555-kill-restart-0921",
+  "contract_path": "docs/ai/contracts/awkit-g555-kill-restart-0921.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-21T16:39:04.838Z",
-  "acquired_at_commit": "e391115e0c4774e9b77d5f8a806d6df3f204ade7",
+  "acquired_at": "2026-09-21T17:31:00.781Z",
+  "acquired_at_commit": "d8162f86fe45c026f608a301976a75f745400992",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-1-l18-cancel-0921.json",
+    "docs/ai/contracts/awkit-g555-kill-restart-0921.json",
     "scripts/ai-harness/locatorUpgradePacket.ts",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-1-l18-cancel-0921.json": "b5c7b78a0dfd7185489df6787a99e9d29737a60f565735aebc6bcbe8c578dfac",
+    "docs/ai/contracts/awkit-g555-kill-restart-0921.json": "6c3ad2f05f8f6d56bd7aca58bf0556946ea1b1426e7ce6b110ca72b935afa9c0",
     "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
     "scripts/offline-benchmark/": "absent"
   },
@@ -31,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-21T16:39:38.721Z",
-  "released_reason": "0.8B result noted on awkit-djnl.1 and cancel defect filed as awkit-g555 blocking it, nothing closed, export refreshed",
-  "archived_at": "2026-09-21T16:39:38.722Z"
+  "released_at": "2026-09-21T17:31:23.385Z",
+  "released_reason": "awkit-g555 closed on the measured fix, 0.8B re-measurement noted on awkit-djnl.1, no edge changed, export refreshed",
+  "archived_at": "2026-09-21T17:31:23.386Z"
 }

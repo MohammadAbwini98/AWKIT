@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — Qwen3.5-0.8B is NO-GO on 2 of 8; the cancel defect blocks every model
+## HANDOFF (2026-09-21, latest) — the cancel defect is fixed; Qwen3.5-0.8B misses only `validationExplanation`
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:**
+  - `awkit-g555` is fixed by kill-and-restart (`6ca6297a`), proven by two mutation-tested suites and
+    closed.
+  - The 0.8B was re-measured (`d8162f86`): cancel latency 1,020 ms, 7 of 8 PASS.
+  - Details are in the L1 plan › "Qwen3.5-0.8B after the cancel fix".
+- **L1.8 is still NO-GO,** on `validationExplanation` at cap: 132.3 s against 120 s. L1 stays
+  `in_progress`, and **L7 cannot be entered**.
+- **Owner decision:** raise that one ceiling, shrink that feature's prompt or its 192-token output
+  cap, or use a faster model. The 2B would be slower.
+  - Changing the ceiling or the budget means a new benchmark run on the 0.8B.
+  - A GO also still owes the manifest pin, the license notice, `verify:ai-model-pack`,
+    `verify:ai-model-live` and the live quality gates.
+- **Do not:**
+  - cancel an inference outside `AiUtilityHostManager`, which would bring the defect back;
+  - call a cancel "done" when it resolves. It now also resolves, or rejects, once the CPU is free.
+
+## HANDOFF (2026-09-21, superseded) — Qwen3.5-0.8B is NO-GO on 2 of 8; the cancel defect blocks every model
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** the 0.8B was measured once, across all 7 scenarios. Six criteria PASS, including

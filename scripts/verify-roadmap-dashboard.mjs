@@ -597,8 +597,10 @@ try {
   // Then 10/293 of 303 later on 2026-09-21: the Qwen3.5-0.8B L1.8 run exposed a model-independent
   // cancel defect, filed OPEN as `awkit-g555` through contract `awkit-djnl-1-l18-cancel-0921`. One
   // bead entered outstanding and none closed; its `blocks` edge on `awkit-djnl.1` moves the edge pin.
-    "10 outstanding / 293 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 293,
+  // Then 9/294 of 303, the same day: `awkit-g555` closed on its measured kill-and-restart fix, through
+  // contract `awkit-g555-kill-restart-0921`. Closing removes no edge, so the edge pin stays at 135.
+    "9 outstanding / 294 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 294,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

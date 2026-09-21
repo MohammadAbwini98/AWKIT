@@ -1,6 +1,18 @@
 # KNOWN_ISSUES
 
-## An AI job cancelled during prompt evaluation keeps the CPU until evaluation ends (2026-09-21, OPEN — `awkit-g555`)
+## An AI job cancelled during prompt evaluation keeps the CPU until evaluation ends (2026-09-21, FIXED — `awkit-g555`, kill-and-restart at `6ca6297a`)
+
+- **Fixed:** the manager kills the host when a cancelled inference is still running after 1,000 ms,
+  as an intentional exit. The next call gets a fresh host, and `AiService` reloads the model.
+- **Measured on the 0.8B:** a cancel during prompt evaluation now settles by the kill in 1,020 ms. A
+  cancel during generation settles by the host itself in 62 ms.
+- **Still true:** the runtime itself does not observe an abort during prompt evaluation. Any code
+  that cancels an inference directly, rather than through `AiUtilityHostManager`, has the old problem.
+- **Harness lesson:** a call whose contract changes (a cancel can now reject) breaks every caller that
+  awaited the old one. The bench's contention loop was the second such caller, and it failed twice
+  before it was found. Grep every call site when a result contract changes.
+
+**Original entry:**
 
 - **Symptom:** `benchmark:ai-model-0-8b` measured cancel latency at **74,490 ms** against a 3,000 ms
   ceiling. The cancel came 1 s into an 829-token prompt, and the job stopped only when prompt

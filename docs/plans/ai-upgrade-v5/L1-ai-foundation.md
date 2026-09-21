@@ -14,7 +14,7 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 | L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
 | L1.6 Resource integration | **Done:** yield, weighted admission, derived threads, idle unload. | `src/ai/AiAdmission.ts`, `WorkloadWeights.aiInferenceWeight`, `ExecutionEngine.getAiAdmissionView` |
 | L1.7 Fake provider | **Done.** | `src/ai/FakeAiHostTransport.ts` |
-| L1.8 Performance go/no-go | **FAIL for the 4B on the qualifying host** (this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. **Re-scoped to a smaller model (owner, 2026-09-21):** Qwen3.5-0.8B is **NO-GO** on 2 of 8 criteria (`validationExplanation` at cap, and cancel latency, `awkit-g555`), and Qwen3.5-2B is **NOT RUN** (not downloaded). See "Qwen3.5-0.8B measured" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host*.json` |
+| L1.8 Performance go/no-go | **FAIL for the 4B on the qualifying host** (this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. **Re-scoped to a smaller model (owner, 2026-09-21):** Qwen3.5-0.8B is **NO-GO on 1 of 8** after the `awkit-g555` kill-and-restart fix: only `validationExplanation` at cap still fails, 132,300 ms against 120,000. Qwen3.5-2B is **NOT RUN** (not downloaded). See "Qwen3.5-0.8B after the cancel fix" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host*.json` |
 
 Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`, `verify:ai-host` and
 `verify:ai-host-electron`. `verify:ai-model-live` and `benchmark:ai-model` exist and are NOT RUN until
@@ -339,6 +339,59 @@ plus its 192-token cap at 2.73 tokens/s. That comes to 138.5 s against 120 s.
 
 **Qwen3.5-2B: NOT RUN.** Its pack is not on disk.
 
+#### Qwen3.5-0.8B after the cancel fix (2026-09-21): NO-GO on 1 of 8. Evidence: same file, at `d8162f86` (pre-fix run at `e391115e`)
+
+**The fix (owner's choice, kill-and-restart, `6ca6297a`):**
+
+- **The kill:** `AiUtilityHostManager` tracks each inference until the host answers it. If a
+  cancelled inference is still running after `AI_HOST_TIMEOUTS.cancelGraceMs` (1,000 ms), the
+  manager kills the host.
+- **After the kill:** it is an intentional exit, so no restart strike. The next call starts a fresh
+  host, and both the inference and the cancel reject with the new manager-raised
+  `AI_HOST_KILLED_ON_CANCEL`.
+- **When a cancel returns:** only once its inference has left the host. `AiService` needs that so a
+  timed-out job's successor cannot land on a host about to be killed.
+- **The service side:** `AiService` treats a kill as a cancel. A yield is requeued and a user cancel
+  ends cancelled. In both cases it forgets the loaded model, so the next job re-handshakes and
+  reloads.
+
+**Proven by:**
+
+- `verify:ai-adapter`: 117/117, mutation-tested 2/2.
+- `verify:ai-host-electron`: 26/0, mutation-tested 2/2. That is the production manager against a stub
+  host whose inference ignores cancels, including a negative control that a cooperative cancel kills
+  nothing.
+
+The fingerprint now includes `cancelGraceMs`, so all seven scenarios ran again.
+
+| Criterion | Ceiling | Measured | |
+|---|---|---|---|
+| Cold model load | 60,000 ms | 7,183 ms | PASS |
+| Host peak working set | 6,144 MB | 1,051 MB | PASS |
+| `locatorUpgrade` at cap | 180,000 ms | 120,499 ms | PASS |
+| `failureAnalysis` at cap | 180,000 ms | 139,615 ms | PASS |
+| `validationExplanation` at cap | 120,000 ms | 132,300 ms (1.10× over) | **FAIL** |
+| Cancel latency | 3,000 ms | 1,020 ms | **PASS** (was 74,490) |
+| Main-loop delay p99 | 100 ms | 40 ms | PASS |
+| Playwright slowdown, yield on | 1.15 | 0.99 (1.03 with yield off) | PASS |
+
+- **Cancel during prompt evaluation:** settled by the kill in 1,020 ms, which is the grace plus a 20 ms
+  exit.
+- **Cancel during generation:** measured for the first time. The probe now cancels 2 s after this
+  prompt's measured first token. It was settled **by the host itself in 62 ms**, with 10 output tokens
+  and no kill, so a cancel mid-answer costs no reload.
+- **Playwright contention:** 3 kills and reloads, while the slowdown stayed within the ceiling.
+- **Packet numbers vary between runs:** `locatorUpgrade` at cap was 151 s before and 120 s now. The fix
+  touches only the cancel paths, so read these as run-to-run variance.
+- **A harness defect, and a sequencing mistake:**
+  - The `playwright` scenario's contention loop awaited a cancel that now correctly rejects, and after
+    a kill it would have run its next workload beside a host with no model. It failed twice.
+  - The second failure was my accidental retry at an unchanged state.
+  - The loop now accepts the kill and reloads, and the scenario passed on its one corrected run.
+
+**L1.8 is still NO-GO on the 0.8B,** on `validationExplanation` alone. It is plain throughput: about
+700 prompt tokens at ~11 tokens/s, plus a 192-token cap at under 3 tokens/s.
+
 **Superseded remedy list (kept for the record).** The owner must
 choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
 grammar-off probe) and separate prefill from decode; then (2) if constrained decode dominates, revisit
@@ -389,9 +442,10 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
 
 **Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
 machine with all 12 logical CPUs, and the 4B still FAILS there (see "Re-scoped to the qualifying
-host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The 0.8B is NO-GO on 2 of 8
-criteria, and its cancel failure (`awkit-g555`) blocks L1 for any model. The 2B is NOT RUN because it
-is not downloaded (see "Qwen3.5-0.8B measured").
+host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The cancel defect
+`awkit-g555` is fixed and closed. The 0.8B is now NO-GO on one criterion, `validationExplanation` at
+cap (132.3 s against 120 s). The 2B is NOT RUN because it is not downloaded (see "Qwen3.5-0.8B after
+the cancel fix").
 
 ## Verifiers
 

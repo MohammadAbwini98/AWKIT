@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — Phase L L1.8: re-scoped to a smaller model, both smaller Qwen3.5 packs measured separately (`awkit-djnl.1`)
+### 2026-09-21 (latest) — AI host cancellation: kill-and-restart after a grace period (`awkit-g555`)
+
+- **Owner decision, in session:** fix `awkit-g555` with kill-and-restart, rather than by evaluating the
+  prompt in checked chunks.
+- **Implementer's choices within it:**
+  - **Where it lives:** in `AiUtilityHostManager`, not the host. The host cannot kill itself out of a
+    native evaluation it is blocked in, and the manager already owns the process, its restarts and
+    its circuit.
+  - **Grace of 1,000 ms** (`AI_HOST_TIMEOUTS.cancelGraceMs`): under the 3,000 ms ceiling with room for
+    the exit. Measured: a kill settles in 1,020 ms, and a cooperative cancel during generation in
+    62 ms, well inside the grace.
+  - **The kill is an intentional exit.** Honouring a user's cancel must not count toward opening the
+    circuit that disables local AI for the session.
+  - **A cancel returns only once its inference has left the host,** and rejects with
+    `AI_HOST_KILLED_ON_CANCEL` when a kill was needed. That is what lets `AiService`'s timeout path
+    know the model is gone, and start the next job only on a host that is free.
+  - **A kill is a cancel, not a crash, to `AiService`.** Yields are requeued, user cancels end
+    cancelled, and the model is reloaded next time.
+- **Cost:** a reload after a kill (7.2 s cold for the 0.8B). It is paid only when the runtime could not
+  stop on its own.
+
+### 2026-09-21 (later still) — Phase L L1.8: re-scoped to a smaller model, both smaller Qwen3.5 packs measured separately (`awkit-djnl.1`)
 
 - **Owner decision, in session:** re-scope L1.8 to a smaller model. Of the offered options the owner
   chose to measure **both** Qwen3.5-2B and Qwen3.5-0.8B (lmstudio-community Q4_K_M, Apache-2.0),

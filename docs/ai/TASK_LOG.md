@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-21 — `awkit-g555` fixed by kill-and-restart; 0.8B re-measured at 7 of 8 (Claude)
+
+- **Task:** apply the owner's choice of kill-and-restart for `awkit-g555`, then continue.
+- **Files:**
+  - `app/main/ai/AiUtilityHostManager.ts`, `src/ai/contracts/AiHostProtocol.ts`,
+    `src/ai/AiService.ts`, `src/ai/FakeAiHostTransport.ts`.
+  - `scripts/verify-ai-adapter.mts`, `scripts/ai-harness/harnessMain.ts` (stub-host steps),
+    `scripts/ai-harness/bench.ts` (cancel probe, contention loop), `scripts/benchmark-ai-model.mts`
+    (fingerprint), `scripts/verify-roadmap-dashboard.mjs` (pin).
+  - The 0.8B evidence file, and `.beads/` (`awkit-g555` closed, a note on `awkit-djnl.1`, contract
+    `awkit-g555-kill-restart-0921`).
+  - The L1 plan, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF.
+- **Checks:**
+  - `verify:ai-adapter` 117/117 and `verify:ai-host-electron` 26/0, each mutation-tested 2/2.
+  - `verify:ai-host` 135/0 · `verify:ai-fallback` 38/38 · `verify:ai-redaction` 52/52 ·
+    `verify:ai-error-analysis` 140/140.
+  - build PASS · `typecheck:scripts` PASS · `verify:roadmap-dashboard` 177/177.
+  - `benchmark:ai-model-0-8b`: 7 PASS, 1 FAIL, with cancel at 1,020 ms. The playwright scenario
+    failed twice on a harness defect, once of those as my accidental retry, before one corrected run.
+- **Result:** the cancel defect is fixed and measured. L1.8 is NO-GO only on `validationExplanation`
+  at cap (1.10×).
+
 ## 2026-09-21 — L1.8 measured on Qwen3.5-0.8B: NO-GO on 2 of 8; cancel defect filed (Claude)
 
 - **Task:** measure the smaller packs the owner downloaded. Only the 0.8B was on disk.
