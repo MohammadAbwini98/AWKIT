@@ -228,13 +228,30 @@ function rates(result: AiInferResult, wallMs: number) {
 
 async function loadedManager(api: BenchApi, threads: number): Promise<{ manager: AiUtilityHostManager; loadMs: number; wallMs: number }> {
   const manager = api.makeManager();
-  await manager.call(HELLO, 15_000);
   const started = Date.now();
+  const loadMs = await loadModel(manager, threads);
+  return { manager, loadMs, wallMs: Date.now() - started };
+}
+
+/** Handshake and load; also what a host restarted by a kill-on-cancel (awkit-g555) needs again. */
+async function loadModel(manager: AiUtilityHostManager, threads: number): Promise<number> {
+  await manager.call(HELLO, 15_000);
   const load = await manager.call<{ loadMs: number }>(
     { type: "load", modelPath: process.env.AWKIT_HARNESS_MODEL_PATH ?? "", contextTokens: 4096, threads },
     300_000
   );
-  return { manager, loadMs: load.loadMs, wallMs: Date.now() - started };
+  return load.loadMs;
+}
+
+/** Cancel a job; true when its host had to be killed, so the restarted host has no model. */
+function cancelJob(manager: AiUtilityHostManager, jobId: string): Promise<boolean> {
+  return manager.call({ type: "cancel", jobId }, 5_000).then(
+    () => false,
+    (error: unknown) => {
+      if (error instanceof AiHostCallError && error.reason === "AI_HOST_KILLED_ON_CANCEL") return true;
+      throw error;
+    }
+  );
 }
 
 function infer(manager: AiUtilityHostManager, jobId: string, packet: { system: string; user: string }, schema: AiOutputSchema, maxOutputTokens: number) {
@@ -337,10 +354,7 @@ async function scenarioCancel(api: BenchApi, threads: number): Promise<void> {
         const pending = infer(manager, jobId, packet, failure.schema, 256).then((answer) => answer, (error: unknown) => error);
         await sleep(cancelAfterMs);
         const cancelledAt = Date.now();
-        const killed = await manager.call({ type: "cancel", jobId }, 5_000).then(
-          () => false,
-          (error: unknown) => error instanceof AiHostCallError && error.reason === "AI_HOST_KILLED_ON_CANCEL"
-        );
+        const killed = await cancelJob(manager, jobId);
         const answer = await pending;
         const latencyMs = Date.now() - cancelledAt;
         if (killed) {
@@ -404,14 +418,20 @@ async function scenarioPlaywright(api: BenchApi, threads: number): Promise<void>
     const prompt = built(failure.spec);
     const beside = await api.step("playwright: workload beside a running inference (yield off)", async () => {
       const runs: number[] = [];
+      let kills = 0;
       for (let i = 0; i < 3; i += 1) {
         const pending = infer(manager, `contend-${i}#1`, prompt, failure.schema, 256);
         await sleep(300);
         runs.push(await workload());
-        await manager.call({ type: "cancel", jobId: `contend-${i}#1` }, 5_000);
+        const killed = await cancelJob(manager, `contend-${i}#1`);
         await pending.catch(() => undefined);
+        // Otherwise the next workload would run beside a host with no model, and measure nothing.
+        if (killed) {
+          kills += 1;
+          await loadModel(manager, threads);
+        }
       }
-      return { runs, medianMs: median(runs) };
+      return { runs, medianMs: median(runs), kills };
     });
     result.besideInference = beside;
     await manager.dispose();
