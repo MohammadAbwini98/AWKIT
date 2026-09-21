@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — `validationExplanation` fixed in the product; the 0.8B benchmark is GO on all 8
+## HANDOFF (2026-09-21, latest) — the explanation has its own 125 s deadline and is delivered on the real 0.8B
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`d2f5feb2`):**
+  - `AUTHORING_LIMITS.timeoutMs` 30 s → 125 s, and `AI_SERVICE_LIMITS.maxJobTimeoutMs` 120 s → 125 s.
+    Without the second change every explanation would be refused.
+  - A real explanation is now delivered through the production path, after 51.5 s and 62.7 s of
+    inference, and cancel, kill and reload still work.
+  - New live gate: `npm run verify:ai-explanation-live`.
+  - Details are in the L1 plan › "`validationExplanation` gets its own deadline".
+- **Not done, and owner decisions:**
+  - Pin the 0.8B (`AI_MODEL_MANIFEST` plus the license notice), then run `verify:ai-model-pack` and
+    `verify:ai-model-live` on it, and build the live quality gates.
+  - Timeouts for `locatorUpgrade` and `failureAnalysis`: still 30 s, while their benchmark packets
+    take 80–105 s here. Measure them through the product the way `verify:ai-explanation-live` does
+    before setting anything.
+  - L1 stays `in_progress`. **L7 cannot be entered.** The 2B is NOT RUN.
+- **Do not:**
+  - raise a feature's `timeoutMs` above `AI_SERVICE_LIMITS.maxJobTimeoutMs`. It is refused as
+    `INVALID_REQUEST`, and the UI shows only "could not answer";
+  - raise `maxIssues`, `maxExplanationChars` or `maxOutputTokens` without re-measuring;
+  - cancel an inference outside `AiUtilityHostManager`.
+
+## HANDOFF (2026-09-21, superseded) — `validationExplanation` fixed in the product; the 0.8B benchmark is GO on all 8
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**

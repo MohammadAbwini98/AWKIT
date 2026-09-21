@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-09-21 — `validationExplanation` gets its own 125 s deadline; delivered on the real 0.8B (Claude)
+
+- **Task:** fix the production timeout gap. The 0.8B's explanation takes 52–76 s, and the product
+  cancelled it at 30 s.
+- **Root cause:**
+  - `AUTHORING_LIMITS.timeoutMs` was 30 s, like every feature's. The benchmark calls the host under
+    its own 240 s deadline.
+  - `AI_SERVICE_LIMITS.maxJobTimeoutMs` (120 s) refuses any longer job.
+  - Observed on the real 0.8B through the production path: TIMEOUT at 30 s, 0 of 2 explained.
+- **Files:**
+  - Commit `d2f5feb2`:
+    - `src/ai/authoringExplanation.ts` (125,000 ms) and `src/ai/AiService.ts` (cap 125,000);
+    - `scripts/verify-ai-authoring.mts` (§10, virtual clock) and `scripts/verify-ai-assist-gui.mts`
+      (a 31 s answer in real Electron);
+    - new `scripts/verify-ai-explanation-live.mts`, with the harness's `explain` mode in
+      `scripts/ai-harness/harnessMain.ts`;
+    - `validationExplanationPacket.ts` (exports its flow), `package.json`, and
+      `scripts/lib/verifier-classification.ts`.
+  - Then the L1 plan, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF and COMMANDS. No `.beads`
+    change: L1's status did not move.
+- **Checks:**
+  - `verify:ai-authoring` 125/125 (was 98), mutation-tested 3/3 (fails 9, 35 and 2).
+  - `verify:ai-assist-gui` 97/0 (was 92); 4 fail with the old value.
+  - `verify:ai-explanation-live` 5/5 on the real 0.8B; 3 of 5 fail with the old value.
+  - `verify:ai-adapter` 117/117 · `verify:ai-host` 135/0 (12/12) · `verify:ai-host-electron` 26/0 ·
+    `verify:ai-fallback` 38/38 · `verify:ai-fragment-assist` 73/73 · `verify:ai-error-analysis`
+    140/140 · `verify:verifier-classification` reconciled (242).
+  - build PASS · `typecheck:scripts` PASS.
+  - `verify:failure-capture-overhead` NOT RUN: no import under `src/ai` changed.
+- **Result:** the product now delivers a real explanation (51.5 s and 62.7 s of inference). L1 is not
+  accepted. `locatorUpgrade` and `failureAnalysis` still get 30 s.
+
 ## 2026-09-21 — `validationExplanation` fixed in the product; 0.8B benchmark GO on all 8 (Claude)
 
 - **Task:** resolve the last L1.8 failure on Qwen3.5-0.8B, `validationExplanation` at 132,300 ms

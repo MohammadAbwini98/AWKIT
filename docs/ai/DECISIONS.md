@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — Phase L L1.8/L4b: the validation explanation request is sized to what one answer explains (`awkit-djnl.1`, `awkit-djnl.6`)
+### 2026-09-21 (latest) — Phase L L1.8/L4b: the validation explanation gets its own deadline (`awkit-djnl.1`)
+
+- **Owner instruction, in session:** give `validationExplanation` a feature-specific timeout that
+  accommodates the existing 120 s acceptance ceiling and the normal measured overhead. Keep every
+  other feature's timeout, and do not weaken cancellation. The ceiling, model, output budget, manifest
+  and packaging stay as they are.
+- **Implementer's choices within it:**
+  - **125,000 ms:** the ceiling plus 5 s. The overhead measured beside the request is under 0.1 s
+    (wall minus prompt and generation ≤ 41 ms, main-loop delay ≤ 61 ms). The allowance is kept small,
+    because a stuck model holds the one inference slot until its deadline.
+  - **`maxJobTimeoutMs` raised to the same 125,000,** not higher. It is a literal in `AiService`,
+    because the generic service does not import a feature module. `verify:ai-authoring` asserts the
+    service accepts the feature's deadline.
+  - **The deadline stays per inference attempt.** It starts after the handshake and model load, and a
+    yield re-arms it. That is the same span the benchmark times, so the ceiling compares
+    like-for-like.
+  - **A live gate over the product path** (`verify:ai-explanation-live`), because the benchmark calls
+    the host directly and could not see the product's deadline.
+- **Not decided here:** `locatorUpgrade` and `failureAnalysis` keep 30 s. Their deadlines are the
+  owner's once each is measured through the product.
+
+### 2026-09-21 (later) — Phase L L1.8/L4b: the validation explanation request is sized to what one answer explains (`awkit-djnl.1`, `awkit-djnl.6`)
 
 - **Owner instruction, in session:** resolve `validationExplanation` within the unchanged 120,000 ms
   ceiling. Remove redundant prompt context first, and shorten the answer only if quality holds. No
@@ -21,7 +42,8 @@
     were 116.
   - **No `ranking` when nothing is fixable,** instead of a `["none"]` placeholder the parser refuses.
 - **Not decided here:** the product timeout. `AUTHORING_LIMITS.timeoutMs` is 30 s, against a 70–76 s
-  real answer. It is a per-feature budget for the owner, with the pin.
+  real answer. It is a per-feature budget for the owner, with the pin. *(Decided the same day: see the
+  entry above.)*
 - **Cost:** fewer issues explained per request (2, with the rest listed as not sent), and shorter
   explanations (160 characters, down from 400).
 

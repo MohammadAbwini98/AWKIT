@@ -459,9 +459,7 @@ measured 87,095 ms with the same counts and was not committed.
 
 **Still open:**
 
-- **The product timeout.** `AUTHORING_LIMITS.timeoutMs` is 30,000 ms, and the fixed request takes
-  70–76 s here, so a real explanation still times out in the product. Setting per-feature budgets from
-  these results belongs with the pin, and it is an owner decision.
+- ~~**The product timeout.**~~ Fixed the same day; see the next section.
 - **The other two packets** still carry the harness's 32-hex nonce. That only overstates them, and they
   pass.
 - **A GO still owes** the pin in `AI_MODEL_MANIFEST` with its license notice, `verify:ai-model-pack`
@@ -473,6 +471,81 @@ grammar-off probe) and separate prefill from decode; then (2) if constrained dec
 the decoding strategy; **or** (3) accept that a 4B Q4_K_M on a 2018 6-core mobile CPU is below the bar
 and re-scope the model, the ceilings, or the qualifying hardware. No ceiling was moved and no timeout
 was raised to hide throughput.
+
+#### `validationExplanation` gets its own deadline (2026-09-21): delivered on the real 0.8B. Evidence: `verify:ai-explanation-live` at `d2f5feb2`
+
+**Root cause: the benchmark and the product applied different deadlines.**
+
+- **The benchmark** calls the host directly, with a 240 s harness deadline. It could not see the
+  product's deadline.
+- **The product** gives each inference its job's `timeoutMs`. `AUTHORING_LIMITS.timeoutMs` was 30,000
+  ms, the same as every other feature, so every real explanation was cancelled. Observed on the 0.8B
+  through the production path with the old value: **TIMEOUT at 30 s, 0 of 2 explained, both times.**
+- **A second boundary sat behind it.** `AI_SERVICE_LIMITS.maxJobTimeoutMs` (120,000 ms) refuses any
+  longer job as `INVALID_REQUEST`, which the designer shows as "could not answer". Raising only the
+  feature's timeout would have broken every explanation (mutation below).
+
+**The trace.** One deadline covers an explanation, and it is armed in one place:
+
+1. `explainFlowValidation` submits `AUTHORING_LIMITS.timeoutMs`.
+2. `AiService.submit` refuses a value above `maxJobTimeoutMs`, and `execute` passes it to the infer call.
+3. `AiUtilityHostManager.call` arms the timer when it posts the infer. The handshake and model load come
+   first, under their own `helloMs` and `loadMs`, and queue time is not counted. A yield re-arms it on
+   the next attempt.
+4. On expiry `AiService` cancels on the host (`cancelMs`, 2 s). A cancel the runtime cannot honour kills
+   the host after `cancelGraceMs` (1 s). The job ends TIMEOUT.
+
+The host and the renderer apply no deadline of their own.
+
+**The policy (owner instruction, 2026-09-21):**
+
+- `AUTHORING_LIMITS.timeoutMs` 30,000 → **125,000 ms**: this feature's L1.8 ceiling, 120,000 ms at
+  the output cap, plus 5,000 ms over the overhead measured beside it. That overhead is under 0.1 s:
+  wall minus prompt and generation ≤ 41 ms, main-loop delay ≤ 61 ms.
+- `AI_SERVICE_LIMITS.maxJobTimeoutMs` 120,000 → **125,000 ms**, the longest per-feature deadline.
+- **Unchanged:**
+  - fragment summary, failure analysis and locator attempts keep 30,000 ms;
+  - the ceiling, the model, the output budget (192 tokens, 160 characters) and the manifest;
+  - the benchmark's packet identity and fingerprint. Neither includes a timeout, so its evidence
+    stands.
+
+**Real-model evidence.** `verify:ai-explanation-live`, 5/5: the production path in a real Electron
+utility process, over the benchmark's own flow.
+
+| Step | Result |
+|---|---|
+| Cold explanation (the model load comes before the deadline) | OK, 2 of 2 explained. 51,509 ms of inference (prompt 18,605, generation 32,904; 328 prompt and 157 output tokens), 58,726 ms with the load. The host call carried 125,000 ms. |
+| User cancel 35 s in | CANCELLED in 443 ms, settled by the host, no kill |
+| A 5 s deadline in prompt evaluation | TIMEOUT. The host was killed as an intentional exit (0 strikes), and the model forgotten. |
+| The next explanation | Reloaded. OK, 2 of 2 explained, 62,704 ms of inference (26,642 + 36,062), 71,442 ms with the reload. |
+
+With `timeoutMs` back at 30,000 the same run fails 3 of 5: both explanations end TIMEOUT with 0
+explained, and the 35 s cancel finds the job already gone.
+
+This run was faster than the benchmark's (51–63 s of inference against 70–76 s). Read that as
+run-to-run variance: the prompt is the same request, 328 tokens here against 334 with the benchmark's
+fixed nonce.
+
+**Regression suites:**
+
+- **`verify:ai-authoring` §10, 125/125 (was 98).** It runs on a virtual clock, with the production
+  `AiService` limits and the fake transport applying deadlines as the manager does:
+  - an answer at 31 s is delivered, and so is one at the ceiling plus the measured overhead;
+  - a hang ends TIMEOUT exactly at 125 s, and the inference is cancelled on the host;
+  - a user cancel at 60 s ends CANCELLED, counted once;
+  - an answer due after the deadline completes nothing, then or later, and never reaches the next job;
+  - a prompt evaluation stuck at the deadline ends TIMEOUT by a kill, and the next explanation
+    re-handshakes and reloads;
+  - a fragment summary still times out at its own 30 s.
+- **Mutation-tested 3/3:** the old 30 s fails 9 checks, the old 120 s cap fails 35, and a fragment
+  summary raised to 125 s fails 2.
+- **`verify:ai-assist-gui`, 97/0 (was 92).** In real Electron, an answer arriving after 31 s is
+  delivered and rendered under the findings it explains. With the old value those 4 checks fail.
+
+**Not changed, and a risk:** `locatorUpgrade` and `failureAnalysis` still get 30 s. Their benchmark
+packets take 80–105 s on this host, so they may time out in the product the same way. Those packets are
+synthetic stand-ins, as the explanation's once was. That risk was not measured through the product, and
+was out of this task's scope.
 
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
@@ -491,7 +564,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned | **release only — unmet** until the pin and live gates |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`) | **release only — unmet** until the pin and live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -521,14 +594,16 @@ host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The c
 `awkit-g555` is fixed and closed. The 0.8B's benchmark is **GO on all 8** since the product's
 explanation request was fixed (88.3 s against 120 s; see "`validationExplanation` fixed in the
 product"). It still owes the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live`,
-the live quality gates and per-feature timeouts, so L1 is not accepted. The 2B is NOT RUN because it
-is not downloaded.
+the live quality gates, and timeouts for the other features. The explanation's own is set (`d2f5feb2`;
+see "`validationExplanation` gets its own deadline"). So L1 is not accepted. The 2B is NOT RUN because
+it is not downloaded.
 
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,
 `verify:ai-autonomy-policy` (tier matrix, T3 unreachable, cap, self-demotion), `verify:ai-audit-revert`;
-live: `verify:ai-model-live` (`NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
+live: `verify:ai-model-live` (`NOT RUN` without pack) and `verify:ai-explanation-live` (the product's explanation
+on the 0.8B under its own deadline; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
 
 `verify:ai-inference-profile` (`NOT RUN` without pack) is the **diagnostic** counterpart to

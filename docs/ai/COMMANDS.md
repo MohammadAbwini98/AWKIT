@@ -463,6 +463,11 @@ npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-
 npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings, on the qualifying host (this dev machine, all logical CPUs); NOT RUN without runtime + pack or on any other host
 npm run benchmark:ai-model-2b     # the same gate on Qwen3.5-2B-Q4_K_M.gguf from ~/Downloads (own evidence file; refuses a pack that is not the published file)
 npm run benchmark:ai-model-0-8b   # the same gate on Qwen3.5-0.8B-Q4_K_M.gguf from ~/Downloads (no dot in the name: the lease guard refuses one)
+npm run verify:ai-explanation-live
+                                  # the product's validation explanation on the real Qwen3.5-0.8B through the
+                                  # production path (explainFlowValidation → AiService → AiUtilityHostManager →
+                                  # ai-host.cjs) under its own 125 s deadline: delivered, a cancel after 30 s
+                                  # within 3 s, a deadline kill then a reload. NOT RUN without runtime + pack (5)
 npm run verify:ai-inference-profile
                                   # DIAGNOSTIC counterpart to the benchmark: splits one inference into prompt
                                   # evaluation, decode and JSON-grammar cost so a missed ceiling says WHY. Asserts

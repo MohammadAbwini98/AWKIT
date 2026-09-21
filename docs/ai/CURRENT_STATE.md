@@ -1,6 +1,45 @@
 # CURRENT_STATE
 
-## `validationExplanation` fixed in the product; Qwen3.5-0.8B benchmark GO on all 8 (2026-09-21, current)
+## `validationExplanation` gets its own 125 s deadline; a real 0.8B explanation is delivered in the product (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Root cause:** the product gave every AI feature a 30 s deadline, and the 0.8B answers the
+  explanation in 52–76 s.
+  - Observed on the real 0.8B through the production path with the old value: **TIMEOUT at 30 s, 0 of 2
+    explained**.
+  - The benchmark could not see this, because it calls the host under its own 240 s deadline.
+  - A second limit, `AI_SERVICE_LIMITS.maxJobTimeoutMs` (120 s), would have refused any longer
+    deadline as `INVALID_REQUEST`.
+- **The fix (`d2f5feb2`):**
+  - `AUTHORING_LIMITS.timeoutMs` is 125,000 ms: the L1.8 ceiling of 120 s at the cap, plus 5 s over
+    the measured overhead of under 0.1 s.
+  - `maxJobTimeoutMs` is also 125,000.
+  - The other features keep 30 s. Cancellation, yield, kill-and-restart and reload are unchanged.
+- **Measured on the real 0.8B (`verify:ai-explanation-live`, 5/5):**
+  - A cold explanation was delivered after **51.5 s** of inference, 2 of 2 explained.
+  - A cancel 35 s in settled in 443 ms.
+  - A deadline in prompt evaluation killed the host with no strike, and the reloaded explanation was
+    delivered after **62.7 s**.
+- **Still owed for L1:** the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live`,
+  the live quality gates, and timeouts for the other features. `locatorUpgrade` and `failureAnalysis`
+  still get 30 s, and their benchmark packets take 80–105 s here. L1 stays `in_progress`, and **L7
+  cannot be entered**.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 125/125 (was 98), mutation-tested 3/3 |
+| `verify:ai-assist-gui` (real Electron) | 97/0 (was 92); red at 4 with the old value |
+| `verify:ai-explanation-live` (real 0.8B, new) | 5/5; red at 3 with the old value |
+| `verify:ai-adapter` · `verify:ai-host` · `verify:ai-host-electron` · `verify:ai-fallback` | 117/117 · 135/0 (12/12 mutations) · 26/0 · 38/38 |
+| `verify:ai-fragment-assist` · `verify:ai-error-analysis` | 73/73 · 140/140 |
+| `verify:verifier-classification` | reconciled, 242 scripts |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:failure-capture-overhead` | NOT RUN: it guards `src/ai` by import closure only, and no import changed |
+| `verify:ai-model-live` | NOT RUN: the live gate is pinned to the 4B |
+
+## `validationExplanation` fixed in the product; Qwen3.5-0.8B benchmark GO on all 8 (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

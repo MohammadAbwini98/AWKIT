@@ -1,5 +1,26 @@
 # KNOWN_ISSUES
 
+## Every real validation explanation was cancelled at 30 s (2026-09-21, FIXED — `d2f5feb2`)
+
+- **Symptom:** the benchmark was GO at 88 s against 120 s, yet the product's explanation on the 0.8B
+  ended TIMEOUT with 0 of 2 explained. Observed through the production path with the old value.
+- **Cause:** `AUTHORING_LIMITS.timeoutMs` was 30 s, like every feature's. The benchmark calls the host
+  under its own 240 s deadline, so it never saw this.
+- **Fixed:** the explanation has its own 125,000 ms deadline, and `AI_SERVICE_LIMITS.maxJobTimeoutMs`
+  was raised to match. A real explanation is delivered after 51–63 s of inference.
+- **The lessons (pattern):**
+  - **A latency benchmark does not prove the product waits that long.** Check the measurement against
+    the product's own deadline, through the product's own path (`verify:ai-explanation-live`).
+  - **A feature's deadline has a second limit.** `AiService` refuses a `timeoutMs` above
+    `maxJobTimeoutMs` as `INVALID_REQUEST`, and the UI shows only "could not answer". Raising one
+    without the other breaks the feature completely, which is mutation-tested in `verify:ai-authoring`.
+  - **Virtual-clock tests can truncate instead of fail.** A settle budget derived from the value under
+    test, or a `shutdown()` awaited off the clock, leaves work pending. Node then exits 13 (unfinished
+    top-level await), and the remaining checks never print. Use a fixed, generous budget, and run
+    shutdown under the clock.
+- **Still open:** `locatorUpgrade` and `failureAnalysis` still get 30 s, while their benchmark packets
+  take 80–105 s on this host. Not measured through the product.
+
 ## The L1.8 explanation packet was a stand-in, and the product's own request got no answer (2026-09-21, FIXED — harness `7f0e931e`, product `d2a81262`)
 
 - **Symptom:** `validationExplanation` missed its 120,000 ms ceiling at 132,300 ms, measured on a
@@ -29,7 +50,8 @@
     4-space scopes, then a forced `\n\n\n\n`), and the 0.8B uses it, at ~45 structure tokens per
     explanation. Budget output tokens for it, or an answer that reaches the cap is discarded whole.
 - **Still open:**
-  - `AUTHORING_LIMITS.timeoutMs` is 30 s, against a 70–76 s real answer on this host.
+  - ~~`AUTHORING_LIMITS.timeoutMs` is 30 s, against a 70–76 s real answer on this host.~~ Fixed at
+    `d2f5feb2`; see the entry above.
   - The other two L1.8 packets still carry the harness's 32-hex nonce. That only overstates them.
 
 ## An AI job cancelled during prompt evaluation keeps the CPU until evaluation ends (2026-09-21, FIXED — `awkit-g555`, kill-and-restart at `6ca6297a`)
