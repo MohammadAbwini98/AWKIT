@@ -49,8 +49,8 @@ export interface AiServiceLimits {
 export const AI_SERVICE_LIMITS: Readonly<AiServiceLimits> = Object.freeze({
   maxQueue: 16,
   maxYields: 3,
-  /** The longest per-feature deadline, validationExplanation's (`AUTHORING_LIMITS.timeoutMs`); above it a job is refused. */
-  maxJobTimeoutMs: 125_000,
+  /** The longest per-feature deadline (failure analysis and locator attempts, 185 s); above it a job is refused. */
+  maxJobTimeoutMs: 185_000,
   yieldCheckMs: 250,
   admissionRetryMs: 1_000
 });

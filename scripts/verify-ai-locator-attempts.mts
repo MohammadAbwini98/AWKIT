@@ -452,8 +452,10 @@ try {
   // ── 12. Provider timeout, crash and refusal all terminate safely ────────────────────────────────
   console.log("\n12 — provider failure terminates without spending synthesis attempts");
   await seedFlow(FLOW_ID);
-  const timedOut = await job(undefined, [{ hang: true }], { maxAttempts: 2 });
-  check("a provider that never answers times out", timedOut.result.outcome === "provider-unavailable" && timedOut.result.code === "TIMEOUT", JSON.stringify(timedOut.result));
+  // The transport reports the manager's deadline at once: waiting out the real 185 s here would add
+  // minutes and prove nothing more. That the deadline fires at exactly 185 s is verify:ai-deadlines.
+  const timedOut = await job(undefined, [{ fail: "AI_HOST_TIMEOUT" }], { maxAttempts: 2 });
+  check("a provider call that times out ends the job", timedOut.result.outcome === "provider-unavailable" && timedOut.result.code === "TIMEOUT", JSON.stringify(timedOut.result));
   check("...spending no synthesis attempt, because nothing was synthesized", timedOut.result.attemptsUsed === 0 && timedOut.result.calls === 1);
 
   const crashed = await job(undefined, [{ crash: true }]);
@@ -485,7 +487,9 @@ try {
 
   await seedFlow(FLOW_ID);
   page = await freshPage();
-  const [failingJob, duringRun] = await Promise.all([job(undefined, [{ hang: true }]), runStep(archive, page)]);
+  // In flight while the step runs, then failing: a host that dies 2 s in. A hang would hold the test for
+  // the whole 185 s deadline.
+  const [failingJob, duringRun] = await Promise.all([job(undefined, [{ crash: true, delayMs: 2_000 }]), runStep(archive, page)]);
   check("a step runs normally while an AI job is failing beside it", duringRun.status === "passed", duringRun.error);
   check("...and acts on the element its OWN locator names", (await page.getByTestId("lu-result").textContent()) === "archive");
   check("...and the failed job changed nothing about the step", failingJob.result.outcome === "provider-unavailable" && (await savedPending()) === undefined);

@@ -1,20 +1,24 @@
 /**
- * verify:ai-explanation-live — the product's validation explanation on the real Qwen3.5-0.8B, through
- * the production path and under its own deadline (Phase L, L1.8 follow-up).
+ * verify:ai-explanation-live, verify:ai-failure-analysis-live, verify:ai-locator-upgrade-live — one
+ * product AI feature's own request on the real Qwen3.5-0.8B, through the production path and under that
+ * feature's own deadline (Phase L, L1.8 follow-up). `--feature` picks it; the explanation is the default.
  *
- * `benchmark:ai-model-0-8b` measures this request on the host directly, under a 240 s harness deadline,
- * so it could not see that the product gave every real explanation 30 s. This drives what
- * `ai:explainValidation` runs — `explainFlowValidation`, the production `AiService` with
- * `AUTHORING_LIMITS.timeoutMs`, `AiUtilityHostManager` and the real `ai-host.cjs` in a utility process —
- * over the benchmark's flow: a real explanation is delivered, a user cancel after 30 s still settles
- * within the 3 s ceiling, and a deadline that kills the host is followed by a reload and a delivered
- * explanation. It records counts and timings, never model text.
+ * `benchmark:ai-model-0-8b` measures stand-in requests on the host directly, under a 240 s harness
+ * deadline, so it could not see that the product gave every real answer 30 s. Each feature is driven
+ * through the product's own code, the production `AiService` with that feature's limits,
+ * `AiUtilityHostManager` and the real `ai-host.cjs` in a utility process:
+ *   - validationExplanation: `explainFlowValidation` over the benchmark's flow. A real explanation is
+ *     delivered, a user cancel after 30 s settles within the 3 s ceiling, and a deadline that kills the
+ *     host is followed by a reload and a delivered explanation.
+ *   - failureAnalysis: `analyzeFailure` over a typical and the largest L5a failure it sends.
+ *   - locatorUpgrade: `runLocatorUpgradeAttempts` over a typical and the largest L2 capture context.
+ * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
  *
  * NOT RUN (exit 0) without the runtime or the pack at ~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf. A pack that
  * is not the published object is refused. The pack is unpinned, so it is staged into a scratch model
  * root; `AI_MODEL_MANIFEST` is not touched.
  *
- * Run: npm run verify:ai-explanation-live
+ * Run: npm run verify:ai-explanation-live | verify:ai-failure-analysis-live | verify:ai-locator-upgrade-live
  */
 
 import fs from "node:fs";
@@ -31,6 +35,20 @@ const PACK = Object.freeze({
   sha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec"
 });
 
+/** Harness mode, its step count, and a launcher budget under the 10-minute limit of the tool running it. */
+const FEATURES = Object.freeze({
+  validationExplanation: { mode: "explain", steps: 4, timeoutMs: 480_000 },
+  failureAnalysis: { mode: "failureAnalysis", steps: 3, timeoutMs: 560_000 },
+  locatorUpgrade: { mode: "locatorUpgrade", steps: 3, timeoutMs: 560_000 }
+});
+const featureFlag = process.argv.indexOf("--feature");
+const featureName = featureFlag >= 0 ? (process.argv[featureFlag + 1] ?? "") : "validationExplanation";
+const feature = FEATURES[featureName as keyof typeof FEATURES];
+if (!feature) {
+  console.error(`unknown --feature "${featureName}"; one of ${Object.keys(FEATURES).join(", ")}`);
+  process.exit(1);
+}
+
 let passed = 0;
 let failed = 0;
 function check(label: string, ok: boolean, detail?: string): void {
@@ -43,7 +61,7 @@ function check(label: string, ok: boolean, detail?: string): void {
   }
 }
 
-console.log("verify:ai-explanation-live — the product's explanation on the real 0.8B, production path, own deadline\n");
+console.log(`${featureName} on the real 0.8B — the product's own request, production path, its own deadline\n`);
 const runtime = runtimeInstalled();
 if (!runtime.installed) {
   console.log("NOT RUN: node-llama-cpp and its Windows CPU prebuilt are not installed (owner step 1 in L1-ai-foundation.md).");
@@ -68,7 +86,7 @@ try {
   const report = await runAiHarness(
     harnessDir,
     {
-      AWKIT_HARNESS_MODE: "explain",
+      AWKIT_HARNESS_MODE: feature.mode,
       AWKIT_HARNESS_HOST_PATH: HOST_PATH,
       AWKIT_HARNESS_MODEL_ROOT: staged.modelRoot,
       AWKIT_HARNESS_MODEL_PATH: staged.modelPath,
@@ -76,13 +94,13 @@ try {
       AWKIT_HARNESS_THREADS: String(threads),
       AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? ""
     },
-    { timeoutMs: 480_000 }
+    { timeoutMs: feature.timeoutMs }
   );
   if (!report) {
     check("the harness wrote a report", false, "no report: Electron never reached app.whenReady() or timed out");
   } else {
     printSteps(report, check);
-    check("the harness ran every step", report.steps.length === 4, `${report.steps.length} steps`);
+    check("the harness ran every step", report.steps.length === feature.steps, `${report.steps.length} steps`);
     // Counts, codes and timings only: the harness never records model text.
     for (const s of report.steps) if (s.detail) console.log(`    ${s.label}: ${JSON.stringify(s.detail)}`);
   }

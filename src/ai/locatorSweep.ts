@@ -28,9 +28,10 @@ import { decideAiAction, type AiPolicyConfig } from "../security/authz/AiAutonom
 /**
  * How many upgrade jobs one sweep may queue.
  *
- * Small on purpose. A sweep is background work behind a locator that already runs, and the measured
- * cost of one job is a model call with `LOCATOR_ATTEMPT_LIMITS.timeoutMs` (30 s) per attempt. Queueing
- * a hundred of them because a flow is large would turn an idle-time courtesy into a workload.
+ * Small on purpose. A sweep is background work behind a locator that already runs, and one job costs up
+ * to `LOCATOR_ATTEMPT_LIMITS.maxAttempts` model calls, each bounded by its `timeoutMs` (185 s) and measured
+ * at 76–130 s on Qwen3.5-0.8B. Queueing a hundred of them because a flow is large would turn an idle-time
+ * courtesy into a workload.
  */
 export const LOCATOR_SWEEP_MAX_JOBS = 5;
 

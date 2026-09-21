@@ -66,7 +66,12 @@ export const FAILURE_ANALYSIS_LIMITS: Readonly<FailureAnalysisLimits> = Object.f
   maxExplanationChars: 600,
   maxStepChars: 200,
   maxSteps: 4,
-  timeoutMs: 30_000,
+  /**
+   * This feature's own deadline: its L1.8 ceiling, 180 s at the output cap (`backgroundJobAtCapMs` in
+   * `benchmark:ai-model`), plus the same 5 s over measured overhead as `AUTHORING_LIMITS.timeoutMs`. The
+   * shared 30 s cancelled every real analysis on Qwen3.5-0.8B (`verify:ai-failure-analysis-live`).
+   */
+  timeoutMs: 185_000,
   maxOutputTokens: 512,
   maxDataChars: 3_000
 });

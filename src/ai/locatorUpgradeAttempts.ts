@@ -41,8 +41,13 @@ import type { LocatorProofResult } from "../runner/locatorProof";
 /** Bounds a single job. `maxAttempts` mirrors L3 §7; the rest keep one job's cost predictable. */
 export const LOCATOR_ATTEMPT_LIMITS = Object.freeze({
   maxAttempts: LOCATOR_PLAN_MAX_ATTEMPTS,
-  /** Per provider call. A job is interactive work behind a weak locator, not a batch. */
-  timeoutMs: 30_000,
+  /**
+   * Per provider call, so a job may take `maxAttempts` of these. This feature's L1.8 ceiling, 180 s at
+   * the output cap (`backgroundJobAtCapMs` in `benchmark:ai-model`), plus the same 5 s over measured
+   * overhead as `AUTHORING_LIMITS.timeoutMs`. The shared 30 s ended every real attempt on Qwen3.5-0.8B
+   * (`verify:ai-locator-upgrade-live`).
+   */
+  timeoutMs: 185_000,
   /** The plan grammar is small; a longer answer is a malformed one. */
   maxOutputTokens: 512,
   /** Delimited context handed to the model, before `AiPromptBuilder`'s own global cap. */

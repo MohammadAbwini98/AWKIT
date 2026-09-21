@@ -458,6 +458,9 @@ try {
   console.log("\nL5b — a failed run shows its evidence and deterministic cause, and AI interprets it on demand");
   const reportDigest = digestOf(reportFile);
   const primaryId = runDiagnostics.cause!.evidenceIds[0];
+  // Arriving after 31 s, past the 30 s every feature used to share: Qwen3.5-0.8B's real analyses took
+  // 97–160 s on this host, longer when it ran hot, so everything below also proves a slow answer is
+  // shown and saved.
   provide({
     text: JSON.stringify({
       version: 1,
@@ -466,7 +469,8 @@ try {
       explanation: "The order submit request failed with a server error before the confirmation could appear.",
       primaryEvidenceIds: [primaryId],
       investigationSteps: ["Check the order service at the time of the run."]
-    })
+    }),
+    delayMs: SLOW_ANSWER_MS
   });
   const seededDetail = await win.evaluate((id) => window.playwrightFlowStudio.telemetry.runDetail(id), RUN_ID);
   check("(precondition) main's durable history holds the seeded failed run", seededDetail.run?.executionId === RUN_EXEC, JSON.stringify(seededDetail.run ?? null).slice(0, 200));
@@ -507,8 +511,15 @@ try {
   const drawerText = await drawer.innerText();
   check("no query secret or row id L5a stripped reaches the drawer", !drawerText.includes("gui-secret-token") && !drawerText.includes("40001"));
   check("AI analysis waits to be asked", (await stateSettles(win, "failure-ai-analysis", "idle")) === "idle" && (await drawer.getByTestId("failure-ai-result").count()) === 0);
+  const analysisStarted = Date.now();
   await drawer.getByTestId("failure-ai-analyze").click();
-  check("analysis completes through real IPC", (await stateSettles(win, "failure-ai-analysis", "done")) === "done", await drawer.getByTestId("failure-ai-message").innerText().catch(() => ""));
+  const analysisState = await stateSettles(win, "failure-ai-analysis", "done", SLOW_ANSWER_MS + 30_000);
+  const analysisMs = Date.now() - analysisStarted;
+  check(
+    "an analysis that takes longer than 30 s completes through real IPC",
+    analysisState === "done" && analysisMs >= SLOW_ANSWER_MS,
+    `${analysisState} after ${analysisMs} ms — ${await drawer.getByTestId("failure-ai-message").innerText().catch(() => "")}`
+  );
   const resultText = await drawer.getByTestId("failure-ai-result").innerText();
   check("...labelled as an AI interpretation, in its own section", resultText.startsWith("AI interpretation") && resultText.includes("server error"), resultText);
   check("...saying it covers both instances that failed the same way", /covers 2 failed instances/.test(await drawer.getByTestId("failure-ai-message").innerText()));

@@ -18,7 +18,8 @@
  * re-severitied by the AI path), explanations are T0 whatever the configuration, ranking is refused
  * when the feature is off, and no prompt carries a validator message, step name, locator or typed value.
  * Section 10 holds the explanation to its OWN deadline on a virtual clock: an answer past the old
- * shared 30 s is delivered, one past `AUTHORING_LIMITS.timeoutMs` is not, and other features keep 30 s.
+ * shared 30 s is delivered, one past `AUTHORING_LIMITS.timeoutMs` is not, and the fragment summary keeps
+ * 30 s. Every feature's deadline side by side is `verify:ai-deadlines`.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -30,9 +31,7 @@ import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { AI_SERVICE_LIMITS, AiService, type AiServiceLimits, type AiServiceSettings } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import { AI_HOST_TIMEOUTS } from "@src/ai/contracts/AiHostProtocol";
-import { FAILURE_ANALYSIS_LIMITS } from "@src/ai/failureAnalysis";
 import { FRAGMENT_ASSIST_LIMITS } from "@src/ai/fragmentAssist";
-import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
 import type { FlowFragment } from "@src/fragments/FlowFragment";
 import {
   AUTHORING_LIMITS,
@@ -51,6 +50,7 @@ import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
 import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
 import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
+import { virtualClock } from "./lib/virtual-clock.mts";
 
 let passed = 0;
 let failed = 0;
@@ -523,66 +523,8 @@ await failing.service.shutdown();
 // the timeline is the real one and a 125 s deadline costs milliseconds.
 console.log("\n10 — the explanation's own deadline, on a virtual clock");
 
-type VirtualTimer = { at: number; fn: () => void; every?: number };
-/**
- * Swaps the global timers for virtual ones. `run` fires them in time order and lets every promise
- * chain settle between firings, which is sound here because nothing on these paths does I/O: each
- * await is a timer or a promise.
- */
-function virtualClock() {
-  const real = { setTimeout, clearTimeout, setInterval, clearInterval };
-  const timers = new Map<number, VirtualTimer>();
-  let now = 0;
-  let sequence = 0;
-  const add = (fn: () => void, ms: unknown, every?: number) => {
-    const id = (sequence += 1);
-    timers.set(id, { at: now + Math.max(0, Number(ms) || 0), fn, every });
-    return { id, unref() { return this; }, ref() { return this; } };
-  };
-  const clear = (handle: unknown) => void timers.delete((handle as { id?: number } | undefined)?.id ?? -1);
-  return {
-    now: () => now,
-    install: () =>
-      Object.assign(globalThis, {
-        setTimeout: (fn: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => add(() => fn(...args), ms),
-        setInterval: (fn: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => add(() => fn(...args), ms, Math.max(1, Number(ms) || 1)),
-        clearTimeout: clear,
-        clearInterval: clear
-      }),
-    uninstall: () => {
-      Object.assign(globalThis, real);
-      timers.clear();
-    },
-    /** Fire timers in order until `done()` holds or virtual time reaches `untilMs`. */
-    async run(untilMs: number, done: () => boolean = () => false): Promise<void> {
-      for (;;) {
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        if (done()) return;
-        let next: [number, VirtualTimer] | undefined;
-        for (const entry of timers) if (!next || entry[1].at < next[1].at) next = entry;
-        if (!next || next[1].at > untilMs) {
-          now = Math.max(now, untilMs);
-          return;
-        }
-        const [id, timer] = next;
-        now = timer.at;
-        if (timer.every === undefined) timers.delete(id);
-        else timer.at = now + timer.every;
-        timer.fn();
-      }
-    }
-  };
-}
 const clock = virtualClock();
-/** The value and the virtual time it settled at, or undefined when it did not settle within the budget. */
-async function settle<T>(promise: Promise<T>, budgetMs: number): Promise<{ value: T; atMs: number } | undefined> {
-  let result: { value: T; atMs: number } | undefined;
-  void promise.then((value) => {
-    result = { value, atMs: clock.now() };
-  });
-  await clock.run(clock.now() + budgetMs, () => result !== undefined);
-  return result;
-}
+const { settle } = clock;
 
 /** `explanationAtCapMs` in scripts/benchmark-ai-model.mts: this feature's worst case at the output cap. */
 const CEILING_MS = 120_000;
@@ -601,8 +543,9 @@ const brief = (value: unknown) => JSON.stringify(value)?.slice(0, 200);
 
 check("the explanation has its own deadline: the L1.8 ceiling plus a 5 s allowance", DEADLINE === CEILING_MS + 5_000, String(DEADLINE));
 check("...which the service accepts, where a longer one is refused as an invalid request", DEADLINE <= AI_SERVICE_LIMITS.maxJobTimeoutMs, `${DEADLINE} vs ${AI_SERVICE_LIMITS.maxJobTimeoutMs}`);
-const otherDeadlines = { fragmentSummary: FRAGMENT_ASSIST_LIMITS.timeoutMs, failureAnalysis: FAILURE_ANALYSIS_LIMITS.timeoutMs, locatorAttempt: LOCATOR_ATTEMPT_LIMITS.timeoutMs };
-check("every other feature keeps its 30 s", Object.values(otherDeadlines).every((ms) => ms === OLD_DEADLINE_MS), JSON.stringify(otherDeadlines));
+// Failure analysis and locator attempts now have deadlines of their own (verify:ai-deadlines); the
+// fragment summary still shares the old 30 s, so it is the one this deadline must not have touched.
+check("the fragment summary keeps its 30 s", FRAGMENT_ASSIST_LIMITS.timeoutMs === OLD_DEADLINE_MS, String(FRAGMENT_ASSIST_LIMITS.timeoutMs));
 
 clock.install();
 try {
