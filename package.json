@@ -307,7 +307,8 @@
     "verify:authoring-diagnostics": "tsx scripts/verify-authoring-diagnostics.mts",
     "verify:failure-cause-baseline": "tsx scripts/verify-failure-cause-baseline.mts",
     "verify:ui-error-evidence": "node scripts/benchmark/run.mjs scripts/verify-ui-error-evidence.mts",
-    "verify:failure-capture-overhead": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts"
+    "verify:failure-capture-overhead": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts",
+    "benchmark:failure-capture-saturated": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts --saturated"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

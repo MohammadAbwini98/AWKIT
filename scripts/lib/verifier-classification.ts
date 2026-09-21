@@ -525,7 +525,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:failure-capture-overhead": {
     class: "real-browser",
-    why: "Phase L L5a overhead gate: alternating capture ON/OFF batches (fast and evidence-heavy passing workloads, concurrent instances) through the real ExecutionEngine and real Chromium against the real mock site; paired-round median and pooled p95 duration, Node CPU per instance, evidence bytes against committed ceilings, plus event-loop delay, Node and automation-Chromium RSS, listener and Chromium-process teardown, and a static import-closure proof that ExecutionEngine reaches no module able to CALL the model (pure src/ai data/schema/policy is allowed). The pre-fix awaited exposeBinding failed it (+568 to +1077 ms).",
+    why: "Phase L L5a overhead gate, owner-approved B+D+E (2026-09-21): 7 alternating capture ON/OFF rounds (fast and evidence-heavy passing workloads, 1 instance each; --saturated is the informational 3-instance run) through the real ExecutionEngine and real Chromium against the real mock site; paired-round median duration and Node CPU per instance judged three-way over a distribution-free 95% median interval (INCONCLUSIVE exits 2), p95 informational below 21 samples per mode, evidence bytes as a hard cap, all against the unchanged committed ceilings, plus event-loop delay, Node and automation-Chromium RSS, listener and Chromium-process teardown, and a static import-closure proof that ExecutionEngine reaches no module able to CALL the model (pure src/ai data/schema/policy is allowed). The pre-fix awaited exposeBinding failed it (+568 to +1077 ms).",
     guards: ["src/runner", "src/ai", "app/main/ai", "native-hosts/ai"]
   },
   "verify:ai-model-pack": {
