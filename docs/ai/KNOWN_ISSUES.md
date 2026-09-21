@@ -1,5 +1,20 @@
 # KNOWN_ISSUES
 
+## An AI job cancelled during prompt evaluation keeps the CPU until evaluation ends (2026-09-21, OPEN — `awkit-g555`)
+
+- **Symptom:** `benchmark:ai-model-0-8b` measured cancel latency at **74,490 ms** against a 3,000 ms
+  ceiling. The cancel came 1 s into an 829-token prompt, and the job stopped only when prompt
+  evaluation was over, with 0 output tokens. That is later than the 512-token batch boundary.
+- **Scope:** it is model-independent. Any prompt that takes over 3 s to evaluate fails the ceiling on
+  this host, so L1.8 cannot pass with any model until this is fixed.
+- **Where:** `native-hosts/ai/ai-host.cjs` hands node-llama-cpp an `AbortController` signal
+  (`stopOnAbortSignal: false`, `batchSize` up to 512). The abort is observed only after evaluation.
+- **Also a harness gap:** `scenarioCancel`'s "during generation" probe cancels after a fixed 6 s, which
+  on this host is still prompt evaluation. It must wait for the first output token.
+- **Do not:** raise the ceiling, or relabel the probe as passing. The fix (checked chunked evaluation,
+  or kill-and-restart with a grace period) is an owner or architect choice, and it touches the
+  runtime host.
+
 ## The lease guard's direct-work allowlist is narrower than it looks, and three refusals end the gate (2026-09-21, OPEN — know the forms)
 
 - **Refused in direct work (no lease):**

@@ -131,7 +131,8 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("302 issues parse", beads.stats.total === 302, `got ${beads.stats.total}`);
+  // 303 since 2026-09-21: bug `awkit-g555` (L1.8 cancel during prompt evaluation) was filed.
+  check("303 issues parse", beads.stats.total === 303, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -593,8 +594,11 @@ try {
   // Then 9/293 of 302 on 2026-09-21: L5a `awkit-djnl.7` closed on the owner's acceptance of its
   // INCONCLUSIVE overhead gate, through contract `awkit-djnl-7-l5a-accept-0921`. One bead crossed
   // from outstanding to closed; no edge changed, so the edge pin below stays at 134.
-    "9 outstanding / 293 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 293,
+  // Then 10/293 of 303 later on 2026-09-21: the Qwen3.5-0.8B L1.8 run exposed a model-independent
+  // cancel defect, filed OPEN as `awkit-g555` through contract `awkit-djnl-1-l18-cancel-0921`. One
+  // bead entered outstanding and none closed; its `blocks` edge on `awkit-djnl.1` moves the edge pin.
+    "10 outstanding / 293 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 293,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -660,9 +664,11 @@ try {
   // `parent-child` links (one per milestone) and sixteen `blocks` edges encoding the plan order
   // (L0 before L1, L2, L4a and L5a; L1 and L2 before L3; L1 and L4a before L4b; L1 and L5a before
   // L5b; L2 and L4b before L6; L3, L4b, L5b and L6 before L7). Measured at 134, not derived.
+  // Then 135 on 2026-09-21: `awkit-g555` was filed with one `blocks` edge on `awkit-djnl.1` (L1),
+  // because L1.8's cancel ceiling cannot pass until it is fixed. One edge added, none removed.
   check(
-    "134 edges are present to classify",
-    beads.stats.edges === 134,
+    "135 edges are present to classify",
+    beads.stats.edges === 135,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

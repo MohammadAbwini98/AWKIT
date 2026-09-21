@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-21 — L1.8 measured on Qwen3.5-0.8B: NO-GO on 2 of 8; cancel defect filed (Claude)
+
+- **Task:** measure the smaller packs the owner downloaded. Only the 0.8B was on disk.
+- **Files:**
+  - `docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json`
+    (`e391115e`).
+  - `.beads/`: bug `awkit-g555` blocking `awkit-djnl.1`, plus a note on `awkit-djnl.1`, through
+    contract `awkit-djnl-1-l18-cancel-0921`.
+  - `scripts/verify-roadmap-dashboard.mjs`: tracker pins.
+  - The L1 plan, KNOWN_ISSUES, CURRENT_STATE, HANDOFF.
+- **Checks:**
+  - `benchmark:ai-model-0-8b`, each scenario once: 6 PASS, 2 FAIL (`validationExplanation` at cap,
+    138,485 ms against 120,000; cancel, 74,490 ms against 3,000).
+  - `benchmark:ai-model-2b`: NOT RUN, pack absent.
+  - `verify:roadmap-dashboard` 177/177.
+- **Result:** L1.8 is NO-GO on the 0.8B. The cancel failure is a model-independent host defect, now
+  tracked and blocking L1.
+
 ## 2026-09-21 — L1.8 smaller packs: not on disk; 0.8B script renamed for the guard (Claude)
 
 - **Task:** measure both smaller packs, which the owner reported as downloaded.

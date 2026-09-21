@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l18-cancel-0921",
+    "title": "Record the Qwen3.5-0.8B L1.8 result and file the cancel-latency defect it exposed",
+    "objective": "Qwen3.5-0.8B was measured once on the qualifying host at e391115e: NO-GO with 6 of 8 criteria PASS, validationExplanation at cap 138485 ms against 120000 FAIL, cancel latency 74490 ms against 3000 FAIL. Both cancel probes landed during prompt evaluation with 0 output tokens, and the cancel was honored only when prompt evaluation ended, which fails the ceiling for any model on this host. File one bug bead for that defect that blocks awkit-djnl.1, because L1.8's cancel ceiling cannot pass until it is fixed, and append a note to awkit-djnl.1 with the 0.8B result. Refresh the JSONL export. NOTHING is closed. The one added edge is the new bead blocking awkit-djnl.1. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "e391115e",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "One new bug bead names the cancel-during-prompt-evaluation defect with its measurement and blocks awkit-djnl.1, awkit-djnl.1 stays in_progress with a note giving the 0.8B result, nothing is closed, no other edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree once its tracker pins name the new totals.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', against the final state after `bd create` of awkit-g555 with `--deps blocks:awkit-djnl.1`, `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl` and the state-document updates. Round 1 was 174/177 on the three hardcoded tracker pins, which measured 303 issues, 10 outstanding / 293 closed and 135 edges. The pins were moved to those measured values with their history comments in scripts/verify-roadmap-dashboard.mjs, and round 2 passed. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l18-cancel-0921:project-state:2026-09-21T16:39:04.838Z",
+        "task": "awkit-djnl-1-l18-cancel-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T16:39:04.838Z",
+        "acquired_at_commit": "e391115e0c4774e9b77d5f8a806d6df3f204ade7",
+        "released_at": "2026-09-21T16:39:38.721Z",
+        "released_reason": "0.8B result noted on awkit-djnl.1 and cancel defect filed as awkit-g555 blocking it, nothing closed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

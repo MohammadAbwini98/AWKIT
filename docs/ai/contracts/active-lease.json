@@ -1,39 +1,21 @@
 {
-  "task": "awkit-djnl-1-l18-model-0921",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-model-0921.json",
+  "task": "awkit-djnl-1-l18-cancel-0921",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-cancel-0921.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-21T13:25:25.116Z",
-  "acquired_at_commit": "13cab17331951d9c83582511614da1a3f39b2473",
+  "acquired_at": "2026-09-21T16:39:04.838Z",
+  "acquired_at_commit": "e391115e0c4774e9b77d5f8a806d6df3f204ade7",
   "baseline_dirty": [
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/DECISIONS.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-1-l18-model-0921.json",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "package.json",
+    "docs/ai/contracts/awkit-djnl-1-l18-cancel-0921.json",
     "scripts/ai-harness/locatorUpgradePacket.ts",
-    "scripts/benchmark-ai-model.mts",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "d5d5e13136429e582b06a948fa8969a563637beef44f2f9cd698744cf1e0b833",
-    "docs/ai/CURRENT_STATE.md": "c43008683cf7ca5639bab6ca40b1b401296302a8c5c377bdef8c78fabd94a2ec",
-    "docs/ai/DECISIONS.md": "1be5678175bddb49fbd56754c7de8a77b54a9d355e0ae195b773803835321420",
-    "docs/ai/HANDOFF.md": "a073577dab99e8ae8d36901d0daf6930b265c8e03c5b889032397fcfecb02e55",
-    "docs/ai/KNOWN_ISSUES.md": "46093121fe44b2f0ccddcf18df48804cf904ba6bbff94a05ea1ce6279034a668",
-    "docs/ai/TASK_LOG.md": "86a820051d8672dfc5909f8c4a5dd9e6a5c34c9cc7bbc9a3111df4b098cbdaec",
-    "docs/ai/contracts/awkit-djnl-1-l18-model-0921.json": "466d1b12e2664abdde4678b1ceeebbfddccd84e0090fd501c34989faa9b1b203",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "5168161ca0a0a67902e6a2d74b0ad491214fc18578b6697bcf82d21dc6aabd54",
-    "package.json": "aa65bbdbbe99a96ff80f7eb2af1426ff2c5fda14bfb87cb507ba9b2f16217a14",
+    "docs/ai/contracts/awkit-djnl-1-l18-cancel-0921.json": "b5c7b78a0dfd7185489df6787a99e9d29737a60f565735aebc6bcbe8c578dfac",
     "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
-    "scripts/benchmark-ai-model.mts": "4ae1c768759c21b0fddd02560e9dd95b6fffe91a2c3a44a042b6952a28b89871",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -49,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-21T13:25:55.112Z",
-  "released_reason": "L1.8 smaller-model re-scope noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-21T13:25:55.113Z"
+  "released_at": "2026-09-21T16:39:38.721Z",
+  "released_reason": "0.8B result noted on awkit-djnl.1 and cancel defect filed as awkit-g555 blocking it, nothing closed, export refreshed",
+  "archived_at": "2026-09-21T16:39:38.722Z"
 }

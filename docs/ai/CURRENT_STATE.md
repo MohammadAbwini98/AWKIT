@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## L1.8 smaller-model gate: the two packs are not on disk; the 0.8B script renamed to fit the guard (2026-09-21, current)
+## L1.8 on Qwen3.5-0.8B: every scenario ran, NO-GO on 2 of 8, and the cancel failure blocks any model (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **Measured once (`e391115e`).** It is the first pack to finish all 7 scenarios, after its identity
+  check passed.
+  - **PASS:** load 7,449 ms, memory 1,040 MB, `locatorUpgrade` at cap 151,241 ms, `failureAnalysis`
+    at cap 164,391 ms, main-loop p99 36 ms, Playwright slowdown 1.03.
+  - **FAIL:** `validationExplanation` at cap, 138,485 ms against 120,000. Cancel latency, 74,490 ms
+    against 3,000.
+- **The cancel failure is a host defect, not a model limit.** A cancel is honored only when prompt
+  evaluation ends. It is filed as **`awkit-g555`**, which blocks `awkit-djnl.1`, and in KNOWN_ISSUES.
+  The fix is an owner or architect choice, so it was not made here.
+- **Qwen3.5-2B: NOT RUN.** It is not on disk.
+- **Tracker:** 10 outstanding / 293 closed, and edges 134 → 135 for the new `blocks` edge. L1 stays
+  `in_progress`, and **L7 cannot be entered**.
+
+| Check (final state) | Result |
+|---|---|
+| `benchmark:ai-model-0-8b` | NO-GO: 6 PASS, 2 FAIL, all 7 scenarios run |
+| `benchmark:ai-model-2b` | NOT RUN (pack absent) |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" (tracker pins moved to 10/293 and 135 edges) |
+
+## L1.8 smaller-model gate: the two packs are not on disk; the 0.8B script renamed to fit the guard (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

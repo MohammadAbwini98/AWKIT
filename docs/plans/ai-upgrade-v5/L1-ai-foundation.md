@@ -14,7 +14,7 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 | L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
 | L1.6 Resource integration | **Done:** yield, weighted admission, derived threads, idle unload. | `src/ai/AiAdmission.ts`, `WorkloadWeights.aiInferenceWeight`, `ExecutionEngine.getAiAdmissionView` |
 | L1.7 Fake provider | **Done.** | `src/ai/FakeAiHostTransport.ts` |
-| L1.8 Performance go/no-go | **FAIL for the 4B on the qualifying host** (this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. **Re-scoped to a smaller model (owner, 2026-09-21):** Qwen3.5-2B and Qwen3.5-0.8B are prepared and **NOT RUN** until the owner downloads them. See "Re-scoped to a smaller model" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host*.json` |
+| L1.8 Performance go/no-go | **FAIL for the 4B on the qualifying host** (this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. **Re-scoped to a smaller model (owner, 2026-09-21):** Qwen3.5-0.8B is **NO-GO** on 2 of 8 criteria (`validationExplanation` at cap, and cancel latency, `awkit-g555`), and Qwen3.5-2B is **NOT RUN** (not downloaded). See "Qwen3.5-0.8B measured" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host*.json` |
 
 Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`, `verify:ai-host` and
 `verify:ai-host-electron`. `verify:ai-model-live` and `benchmark:ai-model` exist and are NOT RUN until
@@ -294,7 +294,50 @@ measurement decides.
 **Not yet run:** the two harness refusals for an unknown pack and for a pack not yet downloaded. Both
 stop before any model loads. They were BLOCKED in this session, because the lease guard refuses
 `npm run <script> -- <args>` and marked that denial terminal. The named scripts exist so that no
-arguments are needed.
+arguments are needed. *Later the same day:* the not-downloaded refusal ran (`benchmark:ai-model-2b`
+before its pack existed) and behaved correctly. The 0.8B script was renamed `benchmark:ai-model-0-8b`,
+because the guard refuses a dot in a script name.
+
+#### Qwen3.5-0.8B measured (2026-09-21): NO-GO on 2 of 8. Evidence: `evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json`
+
+The pack matched its published size and SHA-256 before any measurement. It is the **first pack to
+complete all seven scenarios**, each run once, at `e391115e`.
+
+| Criterion | Ceiling | Measured | |
+|---|---|---|---|
+| Cold model load | 60,000 ms | 7,449 ms | PASS |
+| Host peak working set | 6,144 MB | 1,040 MB | PASS |
+| `locatorUpgrade` at the 192-token cap | 180,000 ms | 151,241 ms (real answers in 121.9 / 124.6 s) | PASS |
+| `failureAnalysis` at cap | 180,000 ms | 164,391 ms | PASS |
+| `validationExplanation` at cap | 120,000 ms | 138,485 ms (1.15× over) | **FAIL** |
+| Cancel latency | 3,000 ms | 74,490 ms | **FAIL** |
+| Main-loop delay p99 | 100 ms | 36 ms | PASS |
+| Playwright slowdown, yield on | 1.15 | 1.03 (1.04 with yield off) | PASS |
+
+Prompt evaluation ran at 9.6–11 tokens/s and decode at 2.55–3.42 tokens/s.
+
+**The cancel failure is not about the model.**
+
+- **Both probes landed in prompt evaluation.** Each produced 0 output tokens before the cancel took
+  effect.
+- **The long probe:** it cancelled 1 s into an 829-token prompt and returned after 74,490 ms. That is
+  the whole remaining evaluation at ~10.5 tokens/s. It is not the 512-token batch boundary, which
+  would have come at ~49 s.
+- **The "during generation" probe:** its fixed 6 s wait is shorter than this host's prompt time, so it
+  also measured prompt evaluation (12,456 ms). Generation-phase cancel has never been measured.
+- **Consequence:** any prompt that takes more than 3 s to evaluate fails this ceiling on this host,
+  whatever the model. L1.8 cannot pass until cancellation frees the CPU during prompt evaluation.
+- **Tracking:** filed as **`awkit-g555`** (bug, P2), which **blocks `awkit-djnl.1`**.
+- **Fix options, an owner or architect decision:**
+  - evaluate the prompt in checked chunks;
+  - or hard-kill and restart the host after a short grace period, at the cost of a reload (7.4 s for
+    the 0.8B).
+  - Either way, fix the probe to wait for the first output token, then re-measure.
+
+**`validationExplanation` is plain throughput.** Its worst case is 697 prompt tokens at ~11 tokens/s,
+plus its 192-token cap at 2.73 tokens/s. That comes to 138.5 s against 120 s.
+
+**Qwen3.5-2B: NOT RUN.** Its pack is not on disk.
 
 **Superseded remedy list (kept for the record).** The owner must
 choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
@@ -346,8 +389,9 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
 
 **Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
 machine with all 12 logical CPUs, and the 4B still FAILS there (see "Re-scoped to the qualifying
-host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. Both are **NOT RUN** until
-the owner downloads them (see "Re-scoped to a smaller model").
+host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The 0.8B is NO-GO on 2 of 8
+criteria, and its cancel failure (`awkit-g555`) blocks L1 for any model. The 2B is NOT RUN because it
+is not downloaded (see "Qwen3.5-0.8B measured").
 
 ## Verifiers
 

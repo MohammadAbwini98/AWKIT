@@ -1,6 +1,24 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — the two smaller packs are not on disk yet; nothing was measured
+## HANDOFF (2026-09-21, latest) — Qwen3.5-0.8B is NO-GO on 2 of 8; the cancel defect blocks every model
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** the 0.8B was measured once, across all 7 scenarios. Six criteria PASS, including
+  `locatorUpgrade`, the job that failed on the 4B. Two FAIL:
+  - `validationExplanation` at cap: 138.5 s against 120 s (throughput);
+  - cancel latency: 74.5 s against 3 s (a **host defect, `awkit-g555`**, now blocking L1).
+- **Owner decisions needed:**
+  1. **`awkit-g555`:** choose how cancellation frees the CPU during prompt evaluation. The options are
+     checked chunked evaluation, or kill-and-restart with a grace period. This is a runtime-host change
+     (`native-hosts/ai/ai-host.cjs`, gates `verify:ai-host` and `verify:ai-inference-profile`).
+     Fix the harness probe to wait for the first output token, then re-measure the cancel scenario.
+  2. **`validationExplanation`:** 1.15× over on the 0.8B. Options are the 2B (it will be slower), the
+     ceiling, or that feature's prompt or output budget.
+  3. **2B:** download it if it should still be measured
+     (`npm run benchmark:ai-model-2b`, commands in the L1 plan).
+- **Do not:** rerun the 0.8B, raise either ceiling, or call L1.8 passed on 6 of 8.
+
+## HANDOFF (2026-09-21, superseded) — the two smaller packs are not on disk yet; nothing was measured
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Found:** the owner reported both packs downloaded, but neither file is in
