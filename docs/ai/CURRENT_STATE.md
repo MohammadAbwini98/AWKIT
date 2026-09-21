@@ -1,6 +1,57 @@
 # CURRENT_STATE
 
-## L5a overhead gate: owner-approved B + D + E on the development machine, measured INCONCLUSIVE (2026-09-21, current)
+## L5a overhead gate: option C approved, the gate rules are unit-proven, and the single 21-round run is INCONCLUSIVE (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
+comprehensive-validation case moved. This is a Phase L gate, not a ledger case.
+
+**Owner decisions (in session, explicit):**
+- **Option C:** 21 rounds × 1 instance on the development machine, run once.
+- **p95** is judged by the existing binding yes/no check once each mode has 21 samples.
+- **The order-statistic median interval** is owner policy, no longer only the implementer's choice.
+  Its assumptions are documented in the L5 plan: independent rounds, a continuous distribution, the
+  ceiling treated as fixed, and no multiplicity correction.
+
+**Other facts:**
+- **Ceilings unchanged. No VMware claim.**
+- **Gate rules are unit-proven.** `scripts/lib/failure-capture-gate.mts` holds the gate's rules, and new
+  `verify:failure-capture-gate-stats` (unit) proves them 47/47:
+  - the interval against an exact BigInt binomial for n 0–80;
+  - every verdict boundary, with negative controls;
+  - p95 eligibility, and unsupported instance and round counts (gate NOT RUN, exit 2);
+  - evidence appends that never overwrite;
+  - all 9 recorded binding verdicts, re-derived from the raw evidence.
+  - Mutation-tested 5/5.
+- **Run 3: INCONCLUSIVE.** It was the single approved Option C run, measured at `a2125084`: 15 PASS, 0
+  FAIL, 3 INCONCLUSIVE.
+  - fast median −53 ms [−314, 214] vs 150
+  - evidence median −52 ms [−302, 300] vs 150
+  - CPU −47.5 ms [−86, 86] vs 81.6
+  - p95 fast −43 ms and evidence +16 ms, both **PASS** (≤ 300, binding at 21/21 samples)
+  - bytes 3,826 ≤ 4,096 **PASS**
+  - All correctness checks green: 84 instances passed, listeners released, no leftover Chromium, no model
+    reachable.
+- **No product defect.** A batch-level host stall hit 17 of 42 batches (11 OFF, 6 ON) and made the
+  spread. Collector start is 2.4 ms and every point estimate is negative. Nothing was optimized.
+- **L5a stays OPEN, INCONCLUSIVE**, on `awkit-djnl.7`: 3 approved runs, 0 FAIL, and no run established
+  every binding ceiling. Next is an owner decision: a host without the stall, removing the stall's cause,
+  or accepting INCONCLUSIVE.
+- **Unchanged:** L1.8 still FAILS, the conditional development authorization stands, L4b/L5b/L6 stay
+  open, **L7 cannot be entered**, and production and release acceptance are NOT APPROVED.
+- **Metadata fix:** run 3 recorded `uncommittedMeasuredSources: true` at a clean commit, because the flag
+  counted the owner's untracked `scripts/` files. The value stays as recorded, and the flag now counts
+  tracked files only.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:failure-capture-overhead` (Option C, one run) | **INCONCLUSIVE** — 15 PASS / 0 FAIL / 3 INCONCLUSIVE |
+| `verify:failure-capture-gate-stats` (new) | 47/47, mutation-tested 5/5 |
+| `benchmark:failure-capture-saturated` | NOT RUN — informational only, it decides nothing |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:source-hygiene` · `verify:verifier-classification` | 11/11 · 241 classified |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+## L5a overhead gate: owner-approved B + D + E on the development machine, measured INCONCLUSIVE (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No
 comprehensive-validation case moved. This is a Phase L gate, not a ledger case.

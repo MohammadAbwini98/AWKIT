@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-7-l5a-gate-c-0921",
+    "title": "Record the owner-approved option C L5a gate run and its INCONCLUSIVE result on the tracker",
+    "objective": "Add a note to awkit-djnl.7 (L5a) recording the owner's option C approval (21 rounds x 1 instance, run once), the binding p95 check at 21 samples, the median interval approved as policy, the new unit verifier, and the single run's INCONCLUSIVE result with no FAIL. Refresh the JSONL export. NOTHING is closed and no dependency edge is added or removed: L5a's acceptance needs overhead within the approved threshold, which no approved run established. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "a2125084",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.7 stays open with a note naming option C, the p95 and interval decisions and the INCONCLUSIVE run, nothing is closed, every blocks edge is unchanged, the JSONL export is refreshed from the database, and the dashboard still reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', run once against the final state after `bd update awkit-djnl.7 --append-notes`, `bd export -o .beads/issues.jsonl` and the state-document updates. Tracker totals unchanged at 10 outstanding / 292 closed, and both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-7-l5a-gate-c-0921:project-state:2026-09-21T10:04:52.951Z",
+        "task": "awkit-djnl-7-l5a-gate-c-0921",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-21T10:04:52.951Z",
+        "acquired_at_commit": "a2125084724e2bb1b03a55d529619db0c2107b2f",
+        "released_at": "2026-09-21T10:05:21.590Z",
+        "released_reason": "option C note appended on awkit-djnl.7, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

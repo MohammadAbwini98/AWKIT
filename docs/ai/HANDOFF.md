@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — L5a's gate methodology is decided and measured INCONCLUSIVE; L1.8 still FAILS
+## HANDOFF (2026-09-21, latest) — L5a Option C ran once and is INCONCLUSIVE; the gate rules are unit-proven; L1.8 still FAILS
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Owner decisions, recorded in DECISIONS and the L5 plan:**
+  - Option C: 21 × 1 on the development machine, run once.
+  - p95 is a binding yes/no check at 21 samples.
+  - The order-statistic median interval is policy.
+  - Ceilings unchanged, no VMware claim.
+- **Result:** the single run is **INCONCLUSIVE** (0 FAIL, both p95 PASS, bytes PASS), and there is no
+  product defect. **L5a stays open. Do NOT re-run the gate**: the owner said run once, and a batch-level
+  host stall (17 of 42 batches, both modes) keeps the 21-round interval at about ±300 ms against a 150 ms
+  ceiling. The KNOWN_ISSUES entry lists what not to do.
+- **Next owner decision:** a host without the stall, the stall's cause removed, or accepting
+  INCONCLUSIVE. None is adopted.
+- **Tooling:**
+  - The gate rules live in `scripts/lib/failure-capture-gate.mts` and are proven by
+    `npm run verify:failure-capture-gate-stats` (unit, 47/47).
+  - `verify:failure-capture-overhead` only gates at 21 × 1. Anything else is gate NOT RUN (exit 2).
+  - Raw runs append to `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`, now 3 runs.
+- **Unchanged:** L1.8 FAILS, the conditional development authorization stands, L4b/L5b/L6 stay open, and
+  **L7 cannot be entered**. Still 10 outstanding / 292 closed.
+
+## HANDOFF (2026-09-21, superseded) — L5a's gate methodology is decided and measured INCONCLUSIVE; L1.8 still FAILS
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Owner decision, recorded in DECISIONS and the L5 plan:**

@@ -111,8 +111,8 @@ including an error page's title and heading and quoted assertion values in the r
 status codes, counts and field identity stay. Every step-correlated event carries `context.stepIndex`, the Nth step
 execution in the instance (a retry keeps its index). `verify:ui-error-evidence` 85/85.
 
-**Open:** the methodology was decided on 2026-09-21 (see "L5a gate — owner decision" below). Both runs under
-it were INCONCLUSIVE, so L5a stays open until a run passes or the owner changes the method again.
+**Open:** the methodology was decided on 2026-09-21 and extended to option C the same day (see the two "L5a
+gate" sections below). All three approved runs were INCONCLUSIVE with no FAIL, so L5a stays open.
 
 ### L5a gate — decision brief (2026-09-19)
 
@@ -238,6 +238,112 @@ round lands under a 150 ms ceiling. The documented lever that narrows it is **C*
 interval becomes [x(6), x(16)] (97.3 %), and p95 also becomes binding under the approved rule, at about
 3× the runtime. The owner may also accept INCONCLUSIVE as the development-host outcome. Neither is
 assumed here.
+
+### L5a gate — option C and the interval method (2026-09-21, later the same day)
+
+**Owner decisions (in session, all explicit):**
+
+1. **Option C is approved:** 21 rounds × 1 instance on the development machine. The workloads,
+   ceilings, controls and three-way verdict are unchanged. It is run **once**, with no re-runs.
+2. **p95 at 21 samples per mode** is judged by the existing binding yes/no check: ON p95 − OFF p95 ≤
+   max(15 % of OFF p95, 300 ms), unpaired. At 21 samples, `stats().p95` is the second-largest sample.
+   A distribution-free interval for p95 is not available at this size: its lowest finite upper bound needs
+   at least 72 samples.
+3. **The median interval is approved as policy.** It was first chosen by the implementer and recorded as
+   such. The owner has now approved it explicitly, so it is no longer only an implementation choice.
+
+**The interval method and its assumptions.** For the n paired per-round deltas, the interval is
+[x(k), x(n+1−k)], where k is the largest integer with P(Bin(n, ½) ≤ k − 1) ≤ 2.5 %. Its exact coverage
+is 1 − 2·P(Bin(n, ½) ≤ k − 1): 98.4 % at n = 7 ([min, max]) and 97.3 % at n = 21 ([x(6), x(16)]). No
+interval exists for n ≤ 5. It assumes:
+
+- **Independent rounds, identically distributed.** ABBA ordering cancels linear drift, but a host whose
+  state changes in steps across the run violates this.
+- **A continuous distribution**, so ties have probability zero.
+- **The target is the median of the per-round delta.** With 1 instance per workload, each delta is one
+  ON run minus one OFF run.
+- **No normality or symmetry is assumed.** That is why the method suits skewed or bimodal deltas.
+- **The ceiling is treated as fixed,** although it is derived from the measured OFF median. Its own
+  sampling error is not propagated.
+- **No multiplicity correction** across the three binding interval verdicts. Each is a separate 95 %
+  statement.
+
+**How it is proven** (`verify:failure-capture-gate-stats`, a unit verifier, 47/47):
+
+- The rules live in `scripts/lib/failure-capture-gate.mts`.
+- The interval is checked against an independent exact BigInt binomial for every n from 0 to 80.
+- Every PASS / FAIL / INCONCLUSIVE boundary is covered, with negative controls:
+  - a low median with a wide spread is not a PASS;
+  - a high median with a wide spread is not a FAIL;
+  - a lower bound equal to the ceiling is not a FAIL;
+  - a missing or non-finite round is INCOMPLETE.
+- p95 eligibility is grounded in `stats()`, which returns the maximum at 20 samples.
+- Unsupported configurations are gate NOT RUN (exit 2): 2, 3 or 6 instances, the superseded 7
+  rounds, or more rounds than approved. The saturated run is never a gate.
+- Evidence appends keep earlier runs and refuse an unreadable file, leaving it untouched.
+- Every recorded binding verdict (9) is re-derived from the committed raw per-round deltas.
+- Mutation-tested five for five: a strict PASS boundary gave 46/47, 90 % coverage 42/47, rounds
+  ignored 45/47, unreadable evidence overwritten 43/47, and p95 binding at 20 samples 45/47.
+
+**Option C result: gate run 3, the single approved run (development host, 12 logical CPUs, measured
+at `a2125084`).**
+
+| Ceiling | Measured | 95 % interval / check | Verdict |
+|---|---|---|---|
+| fast median duration | −53 ms | [−314, 214] vs 150 ms | INCONCLUSIVE |
+| evidence median duration | −52 ms | [−302, 300] vs 150 ms | INCONCLUSIVE |
+| Node CPU per instance | −47.5 ms | [−86, 86] vs 81.6 ms | INCONCLUSIVE |
+| fast p95 (binding, 21/21 samples) | ON 896 / OFF 939 ms, −43 ms | ≤ 300 ms | **PASS** |
+| evidence p95 (binding, 21/21 samples) | ON 1,165 / OFF 1,149 ms, +16 ms | ≤ 300 ms | **PASS** |
+| evidence bytes per instance | max 3,826 B | ≤ 4,096 B | **PASS** |
+
+**Verdict: INCONCLUSIVE** (15 PASS, 0 FAIL, 3 INCONCLUSIVE, exit 2). Every correctness check passed:
+
+- all 84 measured instances passed, and every one of the 21 ON batches produced 7 events;
+- OFF batches wrote no diagnostics, and a clean fast run never grew its report;
+- every listener and binding was released, and no automation Chromium outlived its batch;
+- the import closure (135 modules) reaches no model.
+
+Collector `startGeneration` median was 2.4 ms. The per-round deltas, ON/OFF durations, CPU and wall time
+for all 42 batches are in `evidence/L5a-overhead-gate.json` › run 3.
+
+The run's `uncommittedMeasuredSources: true` is a metadata artefact. The tracked tree was clean at
+`a2125084`, but the flag also counted the owner's untracked `scripts/ai-harness/locatorUpgradePacket.ts`
+and `scripts/offline-benchmark/`, which the gate never imports. The recorded value is left as written.
+The flag now counts tracked files only.
+
+**Application cost versus host variability.** The spread is a batch-level stall on this host, not
+capture cost:
+
+- **Two wall-time groups:** batches split into about 1,030 ms and about 1,570 ms. 17 of 42 batches
+  (40 %) are in the slow group.
+- **Common-mode:** a stall slows both workloads of its batch together. The fast and evidence deltas move
+  in step round by round (+466/+611, −373/−388, −803/−799, +424/+530).
+- **Both modes are hit, OFF more often:** 11 of 21 OFF batches stalled against 6 of 21 ON batches. The
+  fast deltas are positive in 8 rounds and negative in 13, and every point estimate is negative. The
+  imbalance makes capture look slightly *cheaper* than it is, never costlier.
+
+Its cause is not established, and it is outside the capture code: it hits OFF batches, which run with
+the collector disabled. **No product performance defect was demonstrated, so nothing was optimized.**
+
+**L5a acceptance status: OPEN, INCONCLUSIVE.** Across the three approved runs (7, 7 and 21 rounds):
+
+- 0 FAIL on any ceiling;
+- both p95 ceilings PASS where binding, and bytes PASS every time;
+- the evidence median PASSED once (run 1);
+- no run established every binding ceiling, so "overhead within the approved threshold" is not met.
+
+Per the owner's instruction, this INCONCLUSIVE result stands. No other methodology is substituted,
+and L5a is not marked complete.
+
+**What would make the gate conclusive** (owner decisions, none adopted):
+
+- measure on a host without the batch-level stall (the VMware target or another quiet machine);
+- find and remove the stall's environmental cause on this host;
+- or accept INCONCLUSIVE as this machine's result.
+
+At 21 rounds, one bimodal round no longer decides the verdict. It still cannot pass while about 40 %
+of the batches carry a ±400–800 ms step.
 
 ## L5b — Failure intelligence (T0)
 

@@ -1,5 +1,21 @@
 # DECISIONS
 
+### 2026-09-21 (later) — Phase L L5a: option C approved, p95 binding at 21 samples, and the median interval is owner policy (`awkit-djnl.7`)
+
+- **Owner decisions, in session, each explicit:**
+  - **Option C:** the gate is **21 rounds × 1 instance** on the development machine, run **once**.
+    Workloads, ceilings, controls and the three-way verdict are unchanged. This supersedes B's 7 rounds,
+    and any other rounds/instances configuration is now gate NOT RUN (exit 2).
+  - **p95 at ≥ 21 samples per mode** is judged by the **existing binding yes/no check** (unpaired, ≤
+    max(15 %, 300 ms)). An interval was not chosen: a distribution-free upper bound for p95 needs at
+    least 72 samples.
+  - **The order-statistic median interval is approved as policy.** The entry below recorded it as the
+    implementer's choice. The owner has now approved it explicitly, and its assumptions are documented
+    in the L5 plan.
+- **Result:** run 3 is INCONCLUSIVE, with 0 FAIL, p95 PASS and bytes PASS. L5a stays open, and no
+  other methodology is substituted. A conclusive result needs a host without the batch-level stall, or
+  the owner accepting INCONCLUSIVE. Neither is adopted.
+
 ### 2026-09-21 — Phase L L5a: the overhead gate's methodology is B + D + E on the development machine (`awkit-djnl.7`)
 
 - **Owner decision, in session.** The duration gate runs on the development machine. VMware validation
@@ -11,7 +27,8 @@
   - **E:** a three-way verdict. INCONCLUSIVE exits 2 and is never shown as PASS.
   - **p95** is reported but binds only at ≥ 21 samples per mode.
   - The median, CPU and byte ceilings stay binding, and **no threshold is raised**.
-- **Interval choice (the implementer's, recorded so it can be challenged).** Option E did not name an
+- **Interval choice (the implementer's, recorded so it can be challenged; the owner approved it as
+  policy later the same day, see the entry above).** Option E did not name an
   interval. The gate uses the distribution-free binomial order-statistic interval for a median at ≥ 95 %
   because it assumes nothing about the delta distribution, which is visibly skewed and bimodal on this
   host. A t-interval would assume normality. The consequence is stated plainly: at 7 rounds the interval

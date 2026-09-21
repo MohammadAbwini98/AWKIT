@@ -477,7 +477,8 @@ npm run verify:authoring-diagnostics  # L4a family matrix over FlowValidator/Pre
 npm run verify:failure-cause-baseline # L5a evidence buffer (masking, caps, dedupe, retraction) + cause baseline (60)
 npm run verify:ui-error-evidence      # L5a end to end: 14 concurrent runs, real engine + Chromium + mock site,
                                       # read back from report.json; protected-login exclusion, cancel, handoff (74)
-npm run verify:failure-capture-overhead # L5a gate (owner-approved B+D+E): 7 rounds x 1 instance, three-way median-interval verdict; exit 2 = INCONCLUSIVE
+npm run verify:failure-capture-overhead # L5a gate (owner-approved C+D+E): 21 rounds x 1 instance, three-way median-interval verdict, binding p95; exit 2 = INCONCLUSIVE or gate NOT RUN. One run takes about 5 minutes
+npm run verify:failure-capture-gate-stats # L5a gate rules, in-process (interval vs exact binomial, verdict boundaries, p95 eligibility, configurations, evidence appends, re-derived recorded verdicts)
 npm run benchmark:failure-capture-saturated # L5a informational saturated run (3 per workload); never decides the gate
 
 # ── Semantic index / Zvec native host ──────────────────────────────────────────────────────────

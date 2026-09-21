@@ -1,5 +1,24 @@
 # KNOWN_ISSUES
 
+## The L5a overhead gate cannot reach a verdict on the development host: a batch-level stall is larger than the ceiling (2026-09-21, OPEN — owner decision, not code)
+
+- **Symptom:** `verify:failure-capture-overhead` has exited 2 (INCONCLUSIVE) on all three approved runs,
+  at 7, 7 and 21 rounds. There was never a FAIL, and every point estimate sits near or below zero.
+- **Cause:** about 40 % of batches take about 500 ms longer.
+  - It is common-mode: both workloads in a batch slow together.
+  - It hits OFF batches, which run with capture disabled, so it is not capture cost. In run 3 it hit 11
+    OFF batches and 6 ON.
+  - Each round's delta is therefore ±300–800 ms whenever one side stalls. The 97 % median interval at 21
+    rounds, [x(6), x(16)], still spans roughly ±300 ms against a 150 ms ceiling.
+  - Its host-side cause is not established.
+- **Do not:** re-run the gate hoping for a favourable draw, or pool runs, drop "stalled" batches or
+  switch to a mean. Each is a methodology change, and the methodology is the owner's decision. Do not
+  optimize the collector either: it starts in 2–4 ms and no cost has been shown.
+- **Watch for this pattern:** a statistic that is sound can still be unable to decide. Report it as
+  INCONCLUSIVE, and never force PASS or FAIL.
+- **Also:** `stats().p95` in `scripts/benchmark/lib.mts` is the MAXIMUM sample whenever n ≤ 20. Any
+  "p95" ceiling on fewer samples is a max-vs-max comparison.
+
 ## An Electron harness that throws in `writeReport` looks exactly like the workload being slow (2026-09-20, FIXED — the pattern is the lesson)
 
 - **What happened.** `step()` stores whatever its function returns as the report's `detail`, and the

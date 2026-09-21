@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-09-21 — L5a option C: gate rules unit-proven, one 21-round run, INCONCLUSIVE (Claude)
+
+- **Task:** resolve the L5a verification gaps and find out whether the approved gate can conclude. The
+  owner approved, in session: option C (21 × 1, run once), p95 as a binding yes/no check at 21 samples,
+  and the order-statistic median interval as policy. Ceilings unchanged.
+- **Commits:**
+  - `a2125084`: the rules module, the unit verifier and the gate adopting C, committed before measuring
+    so the evidence names the measured commit.
+  - Then the evidence, docs and tracker commit.
+- **Files:**
+  - `scripts/lib/failure-capture-gate.mts` (new), `scripts/verify-failure-capture-gate-stats.mts` (new).
+  - `scripts/verify-failure-capture-overhead.mts`: default 21 × 1, rules from the module, p95 verdicts
+    recorded, and tracked-only uncommitted flag.
+  - `package.json` and the classification.
+  - `evidence/L5a-overhead-gate.json` (run 3).
+  - The L5 plan, DECISIONS, CURRENT_STATE, HANDOFF, KNOWN_ISSUES and COMMANDS.
+  - `.beads/issues.jsonl` and contract `awkit-djnl-7-l5a-gate-c-0921.json`.
+- **Checks:**
+  - `verify:failure-capture-gate-stats` 47/47. Mutation-tested 5/5: strict PASS boundary 46/47, 90 %
+    coverage 42/47, rounds ignored 45/47, unreadable evidence overwritten 43/47, p95 binding at 20
+    samples 45/47.
+  - `verify:failure-capture-overhead` run 3 **INCONCLUSIVE**: 15 PASS / 0 FAIL / 3 INCONCLUSIVE.
+  - build PASS and `typecheck:scripts` PASS. Source hygiene, classification and dashboard results are
+    in CURRENT_STATE.
+  - `benchmark:failure-capture-saturated` NOT RUN (informational only).
+- **Finding:**
+  - A common-mode batch stall of about 500 ms hit 17 of 42 batches, 11 OFF and 6 ON. Its cause is not
+    established, and it is not in the capture path. No optimization was made.
+  - Run 3's `uncommittedMeasuredSources: true` came from the owner's untracked `scripts/` files. The value
+    is left as recorded, and the flag now counts tracked files only.
+- **Tracker:** a note on `awkit-djnl.7` via a released `project-state` lease. Nothing closed.
+
 ## 2026-09-21 — L5a overhead gate: owner-approved B + D + E, measured INCONCLUSIVE (Claude)
 
 - **Task:** resolve the L5a overhead gate without weakening it. No methodology decision was recorded, so
