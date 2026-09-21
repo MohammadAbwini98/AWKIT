@@ -512,7 +512,10 @@ try {
   const record = {
     recordedAt: new Date().toISOString(),
     commit: git("rev-parse", "HEAD"),
-    uncommittedMeasuredSources: git("status", "--porcelain", "--", "src", "app", "scripts") !== "",
+    // Tracked files only: untracked files the gate never imports (the owner's own work in progress) made
+    // run 3 read `true` at a clean commit. ponytail: an untracked module the engine DID import would be
+    // missed; check the import closure if that ever happens.
+    uncommittedMeasuredSources: git("status", "--porcelain", "--untracked-files=no", "--", "src", "app", "scripts") !== "",
     methodology: GATING
       ? "owner-approved 2026-09-21: C (21 rounds) + D (1 instance per workload) + E (three-way over the owner-approved distribution-free 95 % median interval); p95 binding (yes/no) at >= 21 samples per mode; ceilings unchanged; development host, not a VMware claim"
       : SATURATED
