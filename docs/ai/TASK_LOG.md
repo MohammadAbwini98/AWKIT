@@ -1,5 +1,22 @@
 # TASK_LOG
 
+## 2026-09-21 — L1.8 re-scoped to the qualifying host and measured once: NO-GO (Claude)
+
+- **Task:** apply the owner's decision "re-scope L1.8 to the qualifying hardware". The owner chose this
+  laptop with all 12 logical CPUs. Measure once, then continue with any eligible work.
+- **Files:**
+  - `scripts/benchmark-ai-model.mts`: no affinity mask, threads derived from the host (4), a new
+    evidence file, NOT RUN on other machines.
+  - `docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark-full-host.json` (new).
+  - `.beads/issues.jsonl`: a note on `awkit-djnl.1`, plus contract `awkit-djnl-1-l18-host-0921`.
+  - The L1 plan, DECISIONS, COMMANDS, CURRENT_STATE, HANDOFF.
+- **Checks:**
+  - `benchmark:ai-model`: load 57,041 ms, memory 3,823 MB and main-loop p99 24 ms PASS.
+    `locatorUpgrade` >240 s ×2 against 180 s FAIL. Five scenarios NOT RUN.
+  - `typecheck:scripts` PASS · `verify:roadmap-dashboard` 177/177.
+- **Result:** L1.8 FAILS on the qualifying host, and L1 stays `in_progress`. Nothing new is eligible.
+  The owner's remaining choice is the model or the ceilings.
+
 ## 2026-09-21 — L5a closed on the owner's acceptance of INCONCLUSIVE (Claude)
 
 - **Task:** record the owner's decision "Accept L5a as INCONCLUSIVE", and continue with any eligible

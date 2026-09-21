@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — L5a closed on the owner's acceptance of INCONCLUSIVE; only L1.8 remains to decide
+## HANDOFF (2026-09-21, latest) — L1.8 re-scoped to this machine unconstrained, and still NO-GO
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:**
+  - The owner made this development machine, with all 12 logical CPUs, the qualifying host for L1.8.
+  - `benchmark:ai-model` was re-scoped (`8e788187`) and run once.
+  - Result: `locatorUpgrade` timed out at 240 s twice against the 180 s ceiling, so **FAIL**. Load,
+    memory and main-loop delay PASS.
+  - Evidence is in `L1.8-benchmark-full-host.json`. The 6-CPU FAIL is untouched in
+    `L1.8-benchmark.json`. `awkit-djnl.1` has a note through contract `awkit-djnl-1-l18-host-0921`.
+- **Still nothing eligible.** Every remaining L3/L4b/L5b/L6 item needs L1, and L7 needs all of them.
+- **One owner decision left, narrower now:** re-scope the **model** or the **ceilings**. The hardware
+  option is used up.
+- **Do not:**
+  - rerun `benchmark:ai-model` hoping for a different draw;
+  - raise `deriveInferenceThreads`' cap to "use the machine", which is a product change;
+  - raise the 240 s host timeout.
+- **Trap:** the harness stops at the first failed scenario. So `validationExplanation`,
+  `failureAnalysis`, `cancel`, `playwright` and `batch` have never run on any host, and a future GO
+  needs every one of them.
+
+## HANDOFF (2026-09-21, superseded) — L5a closed on the owner's acceptance of INCONCLUSIVE; only L1.8 remains to decide
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**

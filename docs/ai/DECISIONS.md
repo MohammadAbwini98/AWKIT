@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-09-21 (latest) — Phase L L5a: the owner accepts the INCONCLUSIVE overhead gate, and L5a closes (`awkit-djnl.7`)
+### 2026-09-21 (latest) — Phase L L1.8: the qualifying host is this development machine, unconstrained (`awkit-djnl.1`)
+
+- **Owner decision, in session:** re-scope L1.8 to the qualifying hardware. Of the offered options,
+  the owner chose **this laptop with all 12 logical CPUs**. The alternatives were the roadmap's VMware
+  target and this laptop pinned to 6 physical cores.
+- **Unchanged:** the model, every pre-registered ceiling, and the product's thread derivation.
+  `deriveInferenceThreads(12)` = 4 is used as the product would use it. Raising it would be a product
+  change, not a hardware re-scope.
+- **Evidence handling:** the new run writes `L1.8-benchmark-full-host.json`, and the 6-CPU FAIL in
+  `L1.8-benchmark.json` stays on record. The harness answers NOT RUN on any other machine, so a
+  different host cannot overwrite or stand in for the qualifying one.
+- **Result, measured once:** NO-GO. `locatorUpgrade` timed out at 240 s twice against the 180 s
+  ceiling, while load, memory and main-loop delay passed. L1 stays `in_progress`. The remaining owner
+  options are the model or the ceilings.
+
+### 2026-09-21 (later) — Phase L L5a: the owner accepts the INCONCLUSIVE overhead gate, and L5a closes (`awkit-djnl.7`)
 
 - **Owner decision, in session:** "Accept L5a as INCONCLUSIVE." This is the third option the L5 plan
   offered: accept INCONCLUSIVE as the development machine's result. The other two were a host without

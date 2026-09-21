@@ -14,7 +14,7 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 | L1.5 Permissions and Settings | **Done.** | `Permissions.ts`, `src/ai/AiSettings.ts`, Settings › Local AI |
 | L1.6 Resource integration | **Done:** yield, weighted admission, derived threads, idle unload. | `src/ai/AiAdmission.ts`, `WorkloadWeights.aiInferenceWeight`, `ExecutionEngine.getAiAdmissionView` |
 | L1.7 Fake provider | **Done.** | `src/ai/FakeAiHostTransport.ts` |
-| L1.8 Performance go/no-go | **BLOCKED:** no runtime or model. The harness `benchmark:ai-model` and its pre-registered ceilings exist. | `scripts/benchmark-ai-model.mts` |
+| L1.8 Performance go/no-go | **FAIL on the qualifying host** (owner re-scope 2026-09-21: this development machine, all 12 logical CPUs): `locatorUpgrade` times out at 240 s against a 180 s ceiling, as it did on 6 CPUs. See "Re-scoped to the qualifying host" below. | `scripts/benchmark-ai-model.mts`, `evidence/L1.8-benchmark-full-host.json` |
 
 Verifiers: all listed below exist and pass, plus `verify:ai-settings-gui`, `verify:ai-host` and
 `verify:ai-host-electron`. `verify:ai-model-live` and `benchmark:ai-model` exist and are NOT RUN until
@@ -145,7 +145,8 @@ viable on constrained CPU **before** any AI feature is built.
 - Deterministic fake transport (pattern: `FakeZvecHostTransport`) scripted per test; all normal verifiers use it.
 
 ### L1.8 Performance go/no-go
-Constrained 6-logical-CPU harness (not a VMware claim). Measure load time, RSS/peak, prompt tokens/s, generation
+Originally a constrained 6-logical-CPU harness; since 2026-09-21 the qualifying host is this development machine
+with all logical CPUs (owner re-scope, below). Neither is a VMware claim. Measure load time, RSS/peak, prompt tokens/s, generation
 tokens/s, TTFT, cancellation latency, CPU, Recorder responsiveness, Playwright impact (queued/active/yielded) for:
 1. locator semantic-upgrade job (≤~2K in / ≤192 out, ≤2 attempts);
 2. replay-proof path (no model — confirms zero cost);
@@ -217,6 +218,38 @@ question.** Remedy (2) from the list below is closed. The owner chooses between 
 itself is worth confirming: mask `0x3F` selects logical CPUs 0–5, which on a 6-core/12-thread part is
 **3 physical cores**, not 6 — the harness has never verified that topology.
 
+#### Re-scoped to the qualifying host (2026-09-21): still NO-GO. Evidence: `evidence/L1.8-benchmark-full-host.json`
+
+**Owner decision:** L1.8 is re-scoped to the qualifying hardware, and the qualifying host is **this
+development machine with all 12 logical CPUs and no affinity mask**. The model and every ceiling are
+unchanged. `benchmark:ai-model` (`8e788187`) now:
+
+- drops `start /affinity 3F`;
+- derives inference threads from the host as the product does: `deriveInferenceThreads(12)` = **4**;
+- writes a new evidence file, so the 6-CPU FAIL above stays on record untouched;
+- answers NOT RUN on any other machine, so no host can overwrite or stand in for this one.
+
+Measured once, host Intel i7-8750H, 12 logical CPUs, 16 GB:
+
+| Criterion | Ceiling | Measured | |
+|---|---|---|---|
+| Cold model load | 60,000 ms | 57,041 ms (warm 10,503 ms) | PASS |
+| Host peak working set | 6,144 MB | 3,823 MB | PASS |
+| Main-loop delay p99 | 100 ms | 24 ms | PASS |
+| `locatorUpgrade` background job | 180,000 ms | >240,000 ms ×2 (`AI_HOST_TIMEOUT`), no answer | **FAIL** |
+| The five later scenarios | — | NOT RUN: the harness stops at the first failed scenario, as the 6-CPU run did | — |
+
+Host CPU held a flat 30–31 % across both 240 s attempts (the same `percentCPUUsage` normalization
+caveat as above applies, so the evidence is the flat line, not the absolute figure). Unconstraining the
+machine did not change the outcome. The measured
+gap (9.2× on the L1.8 packet, 1.4× from the 192-token output cap alone) was never within reach of the
+extra cores. Cold load also moved closer to its ceiling: 57,041 ms here against 50,101 ms under the
+mask, 2.9 s of margin.
+
+**L1.8 FAILS on the qualifying host.** L1 stays `in_progress`, the conditional development
+authorization stands, and L3 §8/§9, L4b, L5b and the L6 AI parts stay L1-gated. The remaining owner
+options are the model or the ceilings.
+
 **Superseded remedy list (kept for the record).** The owner must
 choose: (1) authorize a `runtime`-routed change so the host reports timings on timeout (or add a
 grammar-off probe) and separate prefill from decode; then (2) if constrained decode dominates, revisit
@@ -265,9 +298,9 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
    `verify:ai-locator-quality-live` remain the only evidence that would satisfy L1.8, and none of them
    passes. L7 cannot be entered on this authorization.
 
-**Still outstanding for L1 acceptance** (unchanged): the owner's choice between re-scoping the model, the
-ceilings, or the qualifying hardware — and, before that choice, confirming the measurement scope, since
-mask `0x3F` selects logical CPUs 0–5, which on a 6-core/12-thread part is 3 **physical** cores.
+**Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
+machine with all 12 logical CPUs, and L1.8 still FAILS there (see "Re-scoped to the qualifying host").
+What remains is the owner's choice between re-scoping the model and re-scoping the ceilings.
 
 ## Verifiers
 

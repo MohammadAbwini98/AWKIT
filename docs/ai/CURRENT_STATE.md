@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## L5a closed on the owner's acceptance of INCONCLUSIVE (2026-09-21, current)
+## L1.8 re-scoped to the qualifying host (this machine, all 12 logical CPUs): still NO-GO (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **Owner decision:** the qualifying host for L1.8 is this development machine with no CPU mask. The
+  model and ceilings are unchanged. `benchmark:ai-model` (`8e788187`):
+  - derives 4 inference threads from the host, as the product does;
+  - writes `L1.8-benchmark-full-host.json`, leaving the 6-CPU FAIL on record;
+  - reports NOT RUN on any other machine.
+- **Measured once: NO-GO.** Load 57,041 ms, memory 3,823 MB and main-loop p99 24 ms PASS.
+  `locatorUpgrade` timed out at 240 s twice against 180 s: **FAIL**. The five later scenarios are NOT
+  RUN, because the harness stops at the first failure.
+- **Consequence:** L1 stays `in_progress` (note added, nothing closed, 9 outstanding / 293 closed).
+  L3 §8/§9, L4b, L5b and the L6 AI parts stay L1-gated, and **L7 cannot be entered**. Nothing new is
+  eligible.
+- **Remaining owner decision:** re-scope the model or the ceilings.
+
+| Check (final state) | Result |
+|---|---|
+| `benchmark:ai-model` (qualifying host) | NO-GO: 3 criteria PASS, `locatorUpgrade` FAIL, 5 scenarios NOT RUN |
+| `typecheck:scripts` | PASS |
+| `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+| `npm run build` | NOT RUN: no app code changed (the harness is a script) |
+
+## L5a closed on the owner's acceptance of INCONCLUSIVE (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

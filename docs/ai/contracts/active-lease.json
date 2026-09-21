@@ -1,20 +1,20 @@
 {
-  "task": "awkit-djnl-7-l5a-accept-0921",
-  "contract_path": "docs/ai/contracts/awkit-djnl-7-l5a-accept-0921.json",
+  "task": "awkit-djnl-1-l18-host-0921",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-host-0921.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-21T12:50:15.850Z",
-  "acquired_at_commit": "90bbb4125ea458998b55f98730a1c6b5fb5233d1",
+  "acquired_at": "2026-09-21T13:10:17.474Z",
+  "acquired_at_commit": "8e788187305a23675d34f192fd4898254eaf056e",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-7-l5a-accept-0921.json",
+    "docs/ai/contracts/awkit-djnl-1-l18-host-0921.json",
     "scripts/ai-harness/locatorUpgradePacket.ts",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-7-l5a-accept-0921.json": "a656c490f31040c64f9f50cf2a01d8e8b5d7d709af729c22abb73cc16fcdeeff",
+    "docs/ai/contracts/awkit-djnl-1-l18-host-0921.json": "47749f42600b590aa863df3f556b26736770c66a0e2949f6e83837821e0b2d2f",
     "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
     "scripts/offline-benchmark/": "absent"
   },
@@ -31,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-21T12:51:14.639Z",
-  "released_reason": "L5a closed on the owner's acceptance of INCONCLUSIVE, note appended, no edge changed, export refreshed",
-  "archived_at": "2026-09-21T12:51:14.640Z"
+  "released_at": "2026-09-21T13:10:46.191Z",
+  "released_reason": "L1.8 qualifying-host decision and NO-GO noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-21T13:10:46.192Z"
 }

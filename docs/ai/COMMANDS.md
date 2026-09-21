@@ -460,7 +460,7 @@ npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceilin
 npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
 npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
-npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings; NOT RUN without runtime + pack
+npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings, on the qualifying host (this dev machine, all logical CPUs); NOT RUN without runtime + pack or on any other host
 npm run verify:ai-inference-profile
                                   # DIAGNOSTIC counterpart to the benchmark: splits one inference into prompt
                                   # evaluation, decode and JSON-grammar cost so a missed ceiling says WHY. Asserts
