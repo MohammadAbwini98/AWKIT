@@ -1,14 +1,17 @@
 /**
- * benchmark:ai-model — the L1.8 performance go/no-go (Phase L), on a constrained 6-logical-CPU
- * harness. It is not a VMware measurement: numbers from this development host do not establish the
- * production server's latency.
+ * benchmark:ai-model — the L1.8 performance go/no-go (Phase L), on the qualifying host.
  *
- * The Electron harness is started under `start /affinity 3F`, so it, the utility host and any
- * Chromium it launches share logical CPUs 0-5, and inference uses the threads the product derives
- * for 6 CPUs (3). Scenarios run one per invocation, because the tool running this has a 10-minute
- * limit. Results persist in docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json, keyed by a
- * fingerprint (runtime build, pack SHA-256, CPU, mask, threads); a different fingerprint starts over.
- * Run it until it reports every scenario complete, then it evaluates the ceilings below.
+ * Owner decision 2026-09-21: L1.8 is judged on THIS development machine with no CPU constraint (all
+ * logical CPUs), model and ceilings unchanged. It is not a VMware measurement. The earlier run,
+ * constrained to 6 logical CPUs by `start /affinity 3F` (3 physical cores), FAILED and stays on record
+ * in docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark.json; this harness never writes that file.
+ *
+ * Inference uses the threads the product derives for the host's logical CPUs. Scenarios run one per
+ * invocation, because the tool running this has a 10-minute limit. Results persist in
+ * L1.8-benchmark-full-host.json, keyed by a fingerprint (runtime build, pack SHA-256, CPU, threads);
+ * a different fingerprint starts over. Any other machine is NOT RUN, so it can neither overwrite nor
+ * stand in for the qualifying host. Run it until it reports every scenario complete, then it
+ * evaluates the ceilings below.
  *
  * The ceilings were committed BEFORE the first measurement, so the verdict is not fitted to the
  * numbers. They are product requirements for the target envelope, not observations.
@@ -35,9 +38,9 @@ import {
   stageModelRoot
 } from "./ai-harness/launch.mts";
 
-const RESULTS = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence", "L1.8-benchmark.json");
-const LOGICAL_CPUS = 6;
-const AFFINITY_MASK = "3F";
+const RESULTS = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence", "L1.8-benchmark-full-host.json");
+/** The machine the owner qualified (2026-09-21), as `os.cpus()` reports it. */
+const QUALIFYING_HOST = Object.freeze({ cpuModel: "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz", logicalCpus: 12 });
 const SCENARIOS = [
   "load",
   "packets:locatorUpgrade",
@@ -75,7 +78,7 @@ interface Results {
   verdict?: unknown;
 }
 
-console.log("benchmark:ai-model — L1.8 constrained-CPU go/no-go (development host, not VMware)\n");
+console.log("benchmark:ai-model — L1.8 go/no-go on the qualifying host (this development machine, all logical CPUs, not VMware)\n");
 const runtime = runtimeInstalled();
 if (!runtime.installed) {
   console.log("NOT RUN: node-llama-cpp and its Windows CPU prebuilt are not installed (owner step 1 in L1-ai-foundation.md).");
@@ -87,14 +90,14 @@ if (!candidate) {
   process.exit(0);
 }
 const host = machine();
-if (host.logicalCpus < LOGICAL_CPUS) {
-  console.log(`INCONCLUSIVE: this host has ${host.logicalCpus} logical CPUs; the harness needs ${LOGICAL_CPUS} to constrain to.`);
+if (host.cpuModel !== QUALIFYING_HOST.cpuModel || host.logicalCpus !== QUALIFYING_HOST.logicalCpus) {
+  console.log(`NOT RUN: this host (${host.cpuModel}, ${host.logicalCpus} logical CPUs) is not the qualifying host (${QUALIFYING_HOST.cpuModel}, ${QUALIFYING_HOST.logicalCpus}).`);
   process.exit(0);
 }
 
 const measured = await measurePack(candidate);
-const threads = deriveInferenceThreads(LOGICAL_CPUS);
-const fingerprint = { runtimeBuild: runtime.build, packSha256: measured.sha256, cpuModel: host.cpuModel, affinityMask: AFFINITY_MASK, logicalCpus: LOGICAL_CPUS, threads };
+const threads = deriveInferenceThreads(host.logicalCpus);
+const fingerprint = { runtimeBuild: runtime.build, packSha256: measured.sha256, cpuModel: host.cpuModel, affinityMask: null, logicalCpus: host.logicalCpus, threads };
 
 let results: Results | null = null;
 try {
@@ -112,7 +115,7 @@ const save = () => {
 
 const pending = SCENARIOS.filter((scenario) => !results!.scenarios[scenario]?.ok);
 console.log(`  host: ${host.cpuModel}, ${host.logicalCpus} logical CPUs, ${host.totalMemoryGb} GB`);
-console.log(`  constrained to ${LOGICAL_CPUS} logical CPUs (mask 0x${AFFINITY_MASK}), ${threads} inference threads`);
+console.log(`  unconstrained: all ${host.logicalCpus} logical CPUs, ${threads} inference threads (derived by the product)`);
 console.log(`  runtime ${runtime.build}, pack ${measured.sha256.slice(0, 16)}…`);
 console.log(`  completed: ${SCENARIOS.length - pending.length}/${SCENARIOS.length}\n`);
 
@@ -136,7 +139,7 @@ if (pending.length > 0) {
         AWKIT_HARNESS_ITERATIONS: "2",
         AWKIT_HARNESS_REPO_ROOT: ROOT
       },
-      { timeoutMs: 540_000, affinityMask: AFFINITY_MASK }
+      { timeoutMs: 540_000 }
     );
     if (!report) {
       console.error(`  ✗ scenario "${scenario}" wrote no report (timed out or Electron never started)`);
@@ -217,7 +220,7 @@ const verdict = {
   criteria,
   packets: packetsSummary,
   informational: { playwrightSlowdownBesideInference: playwright?.slowdownBesideInference ?? null, batch: batch ?? null },
-  scope: "Development host constrained to 6 logical CPUs. Not a measurement of the production VMware server."
+  scope: "The qualifying host (owner, 2026-09-21): this development machine, all logical CPUs, no affinity mask. Not a measurement of the production VMware server."
 };
 results.verdict = verdict;
 save();
