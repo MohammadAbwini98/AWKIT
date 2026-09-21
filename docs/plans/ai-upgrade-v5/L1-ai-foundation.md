@@ -260,7 +260,7 @@ block pre-closed applies as-is, and no host or runtime change is needed.
 | Pack (lmstudio-community, Q4_K_M, Apache-2.0) | Bytes | Published SHA-256 | Evidence file | Command |
 |---|---|---|---|---|
 | `Qwen3.5-2B-Q4_K_M.gguf` | 1,270,808,032 | `0bfe35afc9f05b7fac3fa04925e051ac7939a42a8a17ea11afc99701bea826cc` | `L1.8-benchmark-full-host-Qwen3.5-2B-Q4_K_M.json` | `npm run benchmark:ai-model-2b` |
-| `Qwen3.5-0.8B-Q4_K_M.gguf` | 527,502,816 | `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec` | `L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json` | `npm run benchmark:ai-model-0.8b` |
+| `Qwen3.5-0.8B-Q4_K_M.gguf` | 527,502,816 | `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec` | `L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json` | `npm run benchmark:ai-model-0-8b` |
 
 Each SHA-256 was read twice, from the Hugging Face tree API and from the file's own page, and the two
 agree. The harness refuses a download whose size or SHA-256 differs, so a truncated file under the

@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-21, latest) — L1.8 re-scoped to smaller models; waiting on the owner's two downloads
+## HANDOFF (2026-09-21, latest) — the two smaller packs are not on disk yet; nothing was measured
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Found:** the owner reported both packs downloaded, but neither file is in
+  `C:\Users\moham\Downloads`, not even as a partial, and neither is under OneDrive.
+  `benchmark:ai-model-2b` answered NOT RUN for the same reason. The Terminal panel shows no command
+  run.
+- **Fixed:** `benchmark:ai-model-0.8b` → `benchmark:ai-model-0-8b`, because the guard refuses a dot in
+  a script name.
+- **Next:**
+  1. **Owner:** confirm the files are at the exact paths in the L1 plan's `curl.exe` commands.
+     `Get-Item "$env:USERPROFILE\Downloads\Qwen3.5-*.gguf"` lists them.
+  2. `npm run benchmark:ai-model-0-8b`, then `npm run benchmark:ai-model-2b`, each once, one call per
+     scenario.
+- **The rest is unchanged:** see the superseded entry below for the GO/NO-GO follow-through and the
+  do-nots.
+
+## HANDOFF (2026-09-21, superseded) — L1.8 re-scoped to smaller models; waiting on the owner's two downloads
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:** the owner re-scoped L1.8 to a smaller model and chose to measure Qwen3.5-2B and

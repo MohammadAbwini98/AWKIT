@@ -17,7 +17,8 @@
  * starts over. Any other machine is NOT RUN, so it can neither overwrite nor stand in for the
  * qualifying host. Run it until it reports every scenario complete, then it evaluates the ceilings.
  *
- * Run: npm run benchmark:ai-model | benchmark:ai-model-2b | benchmark:ai-model-0.8b   (repeat until complete)
+ * Run: npm run benchmark:ai-model | benchmark:ai-model-2b | benchmark:ai-model-0-8b   (repeat until complete;
+ * no dot in a script name: the lease guard admits `benchmark:[a-z0-9:_-]+` only)
  *
  * The ceilings were committed BEFORE the first measurement, so the verdict is not fitted to the
  * numbers. They are product requirements for the target envelope, not observations.

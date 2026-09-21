@@ -10,7 +10,7 @@
   non-hybrid model would change more than size and was not what the owner chose.
 - **Unchanged:** the qualifying host, every ceiling, the thread derivation, the 4B's evidence, and the
   pinned manifest. Nothing is pinned before a measured download passes.
-- **Harness:** `benchmark:ai-model-2b` and `benchmark:ai-model-0.8b` each measure one pack into its own
+- **Harness:** `benchmark:ai-model-2b` and `benchmark:ai-model-0-8b` each measure one pack into its own
   evidence file. A pack whose size or SHA-256 differs from its published identity is refused.
 - **State:** both are NOT RUN until the owner downloads them. The download is an owner step, because the
   lease guard has no download verb.

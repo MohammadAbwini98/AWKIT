@@ -1,5 +1,18 @@
 # TASK_LOG
 
+## 2026-09-21 — L1.8 smaller packs: not on disk; 0.8B script renamed for the guard (Claude)
+
+- **Task:** measure both smaller packs, which the owner reported as downloaded.
+- **Found:** neither file exists in `~/Downloads` or under OneDrive. `benchmark:ai-model-2b`: NOT RUN
+  (pack absent). That was the first run of the not-downloaded refusal, and it behaved correctly.
+- **Fixed:** `benchmark:ai-model-0.8b` → `benchmark:ai-model-0-8b`. The guard admits `[a-z0-9:_-]`
+  only, and its refusal of the dotted name was terminal this session.
+- **Files:** `package.json`, `scripts/benchmark-ai-model.mts` (comment), COMMANDS, the L1 plan,
+  DECISIONS, KNOWN_ISSUES (corrected: plain `npm run` is not blanket-accepted), CURRENT_STATE,
+  HANDOFF.
+- **Checks:** `verify:verifier-classification` 241 · `verify:roadmap-dashboard` 177/177.
+- **Result:** nothing measured. L1.8 waits on the files being where the commands put them.
+
 ## 2026-09-21 — L1.8 re-scoped to smaller models: Qwen3.5-2B and 0.8B prepared, NOT RUN (Claude)
 
 - **Task:** apply the owner's decision to re-scope L1.8 to a smaller model. The owner chose to measure

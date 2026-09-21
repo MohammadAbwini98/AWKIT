@@ -4,19 +4,25 @@
 
 - **Refused in direct work (no lease):**
   - `npm run <script> -- <args>` for any script outside the `agent:*` family.
+  - Any npm script name outside the allowlisted patterns. A **dot** is enough:
+    `benchmark:ai-model-0.8b` was refused, and `benchmark:ai-model-0-8b` is its replacement.
   - `git add <paths>`, `node tools/agents/lease-cli.mjs …`, `node -e …`, `ls`, `grep`.
   - Output redirection and background shell commands.
   - PowerShell CIM queries.
 - **Accepted:**
   - `git add -- <paths>`.
   - `npm run agent:lease-grant -- …` and `npm run agent:lease-release -- …`.
-  - Plain `npm run <script>`.
+  - `npm run build`, `typecheck` or `typecheck:scripts`.
+  - `npm run verify:<name>`, `validate:<name>` or `benchmark:<name>`, where the name matches
+    `[a-z0-9:_-]+` (`tools/agents/lease-guard.mjs`).
   - `bd` reads before a lease, and `bd update`/`close`/`export` inside a `project-state` lease.
     (`bd dep list` is refused inside one.)
+- **Read the allowlist before naming a new npm script.** Guessing costs a denial, and this session
+  lost its last one for the 0.8B gate to a dot.
 - **The counter is per denial class, not per command.** Three *different* refused commands with the
   same "bounded routine commands" message end the gate as TERMINAL for the session.
 - **So:** use the Grep/Read tools for inspection. Expose a parameterized script as a named npm script
-  rather than passing arguments, as `benchmark:ai-model-2b` does.
+  that fits the pattern, rather than passing arguments, as `benchmark:ai-model-2b` does.
 
 ## `SemanticRedactor` missed a key/value whose value starts with `{`, a quoted space or punctuation (2026-09-21, FIXED — the pattern is the lesson)
 

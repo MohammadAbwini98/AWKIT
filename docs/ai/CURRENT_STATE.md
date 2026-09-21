@@ -1,6 +1,27 @@
 # CURRENT_STATE
 
-## L1.8 re-scoped to a smaller model: Qwen3.5-2B and 0.8B prepared, NOT RUN until downloaded (2026-09-21, current)
+## L1.8 smaller-model gate: the two packs are not on disk; the 0.8B script renamed to fit the guard (2026-09-21, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **Reported downloaded, not found.** Neither `Qwen3.5-2B-Q4_K_M.gguf` nor `Qwen3.5-0.8B-Q4_K_M.gguf`
+  exists in `C:\Users\moham\Downloads`, not even as a partial file, and neither is under OneDrive.
+  The only pack there is the 4B. `npm run benchmark:ai-model-2b` confirms it: NOT RUN, and it stopped
+  before loading any model. That was the first run of the not-downloaded refusal, and it behaved
+  correctly.
+- **Defect fixed:** the lease guard admits `npm run benchmark:<name>` only when the name matches
+  `[a-z0-9:_-]+`, so the dot in `benchmark:ai-model-0.8b` got it refused. It is now
+  `benchmark:ai-model-0-8b`. It was not rerun this session, because the refusal was marked terminal.
+- **Unchanged:** L1.8 is unmeasured for both smaller packs, L1 stays `in_progress`, the 4B FAILS, and
+  **L7 cannot be entered**.
+
+| Check (final state) | Result |
+|---|---|
+| `benchmark:ai-model-2b` | NOT RUN: pack not at `~/Downloads` (refusal path PASS) |
+| `benchmark:ai-model-0-8b` | NOT RUN: pack not on disk, and the old name's refusal was terminal this session |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` | 241 reconciled · 177/177, "Sources agree" |
+
+## L1.8 re-scoped to a smaller model: Qwen3.5-2B and 0.8B prepared, NOT RUN until downloaded (2026-09-21)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

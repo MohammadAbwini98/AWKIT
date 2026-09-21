@@ -305,7 +305,7 @@
     "verify:ai-inference-profile": "tsx scripts/verify-ai-inference-profile.mts",
     "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts",
     "benchmark:ai-model-2b": "tsx scripts/benchmark-ai-model.mts --pack Qwen3.5-2B-Q4_K_M.gguf",
-    "benchmark:ai-model-0.8b": "tsx scripts/benchmark-ai-model.mts --pack Qwen3.5-0.8B-Q4_K_M.gguf",
+    "benchmark:ai-model-0-8b": "tsx scripts/benchmark-ai-model.mts --pack Qwen3.5-0.8B-Q4_K_M.gguf",
     "verify:authoring-diagnostics": "tsx scripts/verify-authoring-diagnostics.mts",
     "verify:failure-cause-baseline": "tsx scripts/verify-failure-cause-baseline.mts",
     "verify:ui-error-evidence": "node scripts/benchmark/run.mjs scripts/verify-ui-error-evidence.mts",
