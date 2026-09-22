@@ -12,6 +12,11 @@
  * heading), UI alerts, toasts and field validation from the init script, and the runner's own
  * failure. Response bodies, request bodies, headers and cookies are never read.
  *
+ * Request provenance (2026-09-22): each network event carries its request's stable id, the step it was
+ * issued in (from the context's `request` event), its frame, and a link when the runner itself holds the
+ * request for a step (`RunnerProgressReporter.observe`). The failure record carries the page and frame
+ * the failed step acted on. `requestRelations` reads these; nothing is inferred from co-occurrence.
+ *
  * Protected-login surfaces are excluded entirely (docs/ai/DECISIONS.md, Phase L privacy policy):
  * nothing page-derived is kept from a document carrying a password or one-time-code field (the init
  * script reports it, and whatever was already collected from that document is retracted), from a
@@ -28,7 +33,7 @@ import type { BrowserContext, ConsoleMessage, Frame, Page, Request, Response } f
 
 import { PROTECTED_LOGIN_STEP_TYPES } from "../../profiles/FlowProfile";
 import { classifyError } from "../runtime/ErrorClassifier";
-import type { RunnerProgressEvent } from "../RunnerProgress";
+import type { RunnerProgressEvent, StepProvenanceObservation } from "../RunnerProgress";
 import {
   EvidenceBuffer,
   EvidenceRunBudget,
@@ -36,7 +41,8 @@ import {
   type EvidenceLimits,
   type EvidenceSeverity,
   type EvidenceSummary,
-  type ExecutionEvidenceEvent
+  type ExecutionEvidenceEvent,
+  type RequestProvenance
 } from "./ExecutionEvidence";
 import { deriveFailureCause, type FailureCauseBaseline, type RunnerFailure, type RunnerFailureKind } from "./FailureCauseBaseline";
 import { buildUiEvidenceFlush, buildUiEvidenceScript, type UiEvidenceKind } from "./uiEvidenceScript";
@@ -143,6 +149,15 @@ function pageOfRequest(request: Request): Page | undefined {
   }
 }
 
+/** Which frame of its page issued a request; undefined when Playwright cannot say. */
+function frameOfRequest(request: Request, page: Page): "main" | "child" | undefined {
+  try {
+    return request.frame() === page.mainFrame() ? "main" : "child";
+  } catch {
+    return undefined;
+  }
+}
+
 interface GenerationBinding {
   context: BrowserContext;
   /** False once the generation stopped: its context-level listeners are inert from then on. */
@@ -169,6 +184,16 @@ export class FailureEvidenceCollector {
   private readonly suppressUiText: boolean;
   private readonly uiScript: string;
   private pageSequence = 0;
+  /**
+   * Request provenance, per Playwright `Request` (the same object across its `request`, `response` and
+   * `requestfailed` events, so it is the identity). Plain data only: nothing here keeps a Request alive.
+   */
+  private readonly requests = new WeakMap<Request, RequestProvenance>();
+  private requestSequence = 0;
+  /** Each step's latest execution index, for the runner's links (parallel branches run several steps). */
+  private readonly stepIndexes = new Map<string, number>();
+  /** The page and frame the current step acts on, once the runner has resolved them. */
+  private stepTarget: { pageId?: string; frame?: "main" | "child" } | undefined;
   private stepIndex = 0;
   private stepId: string | undefined;
   private stepStartOffsetMs: number | undefined;
@@ -221,6 +246,8 @@ export class FailureEvidenceCollector {
         if (!this.detachers.has(page)) this.attachPage(page, binding);
         if (this.detachers.has(page)) handle(page);
       });
+    // Only when a request is issued is its step known: its response may come steps later.
+    context.on("request", (request: Request) => this.guard(() => binding.active && this.onRequest(request)));
     context.on("response", (response: Response) => route(pageOfRequest(response.request()), (page) => this.onResponse(page, response)));
     context.on("requestfailed", (request: Request) => route(pageOfRequest(request), (page) => this.onRequestFailed(page, request)));
     if (this.captureConsole) context.on("console", (message: ConsoleMessage) => route(message.page(), (page) => this.onConsole(page, message)));
@@ -272,6 +299,8 @@ export class FailureEvidenceCollector {
       // A retry of the step already running keeps its index.
       if (!(event.retryCount && event.stepId === this.stepId)) this.stepIndex += 1;
       this.stepId = event.stepId;
+      this.stepIndexes.set(event.stepId, this.stepIndex);
+      this.stepTarget = undefined;
       this.stepStartOffsetMs = this.buffer.offsetNow();
       this.stepType = event.stepType;
       this.buffer.setStep({ flowId: event.flowId, nodeId: event.stepId, stepIndex: this.stepIndex });
@@ -289,7 +318,13 @@ export class FailureEvidenceCollector {
       severity: "error",
       payload: { kind, stepType: event.stepType ?? this.stepType ?? "", message: this.suppressUiText ? message.replace(/"[^"]*"/g, '"[hidden]"') : message },
       dedupeFields: ["kind", "stepType", "message"],
-      context: { flowId: event.flowId, nodeId: event.stepId, stepIndex: event.stepId === this.stepId ? this.stepIndex : undefined }
+      context: {
+        flowId: event.flowId,
+        nodeId: event.stepId,
+        stepIndex: event.stepId === this.stepId ? this.stepIndex : undefined,
+        // The page and frame the failed step acted on, when the runner had resolved them.
+        ...(event.stepId === this.stepId ? this.stepTarget : undefined)
+      }
     });
     this.failure = {
       kind,
@@ -297,6 +332,27 @@ export class FailureEvidenceCollector {
       failedAtOffsetMs: this.buffer.offsetNow(),
       evidenceId: recorded?.id
     };
+  }
+
+  /**
+   * Request provenance from the runner (`RunnerProgressReporter.observe`): the page and frame the
+   * current step acts on, and a request a step holds. Never throws into the step.
+   */
+  observe(observation: StepProvenanceObservation): void {
+    this.guard(() => {
+      if (observation.kind === "target") {
+        if (observation.stepId !== this.stepId) return;
+        const pageId = this.pageIds.get(observation.page);
+        this.stepTarget = { ...(pageId ? { pageId } : {}), ...(observation.frame ? { frame: observation.frame } : {}) };
+        return;
+      }
+      const facts = this.requestFacts(observation.request);
+      const at = this.stepIndexes.get(observation.stepId);
+      // A link whose step execution is unknown is not recorded: it would be a link to nothing.
+      if (at === undefined) return;
+      facts.link = observation.link;
+      facts.linkStepIndex = at;
+    });
   }
 
   /**
@@ -421,6 +477,31 @@ export class FailureEvidenceCollector {
 
   // ── Signals ──────────────────────────────────────────────────────────────────────────────────
 
+  /** A request was issued: record its step and time. Only resource types whose failure is ever kept. */
+  private onRequest(request: Request): void {
+    if (this.requests.has(request) || !RELEVANT_RESOURCES.has(request.resourceType())) return;
+    this.requestFacts(request, true);
+  }
+
+  /**
+   * The provenance object for a request, created on first sight. A redirect hop keeps its chain's id and
+   * issue; a request first seen after it was issued (a page that was loading before the collector
+   * attached) gets an id and no issue, so its relation to any step stays unknown.
+   */
+  private requestFacts(request: Request, issuedNow = false): RequestProvenance {
+    const known = this.requests.get(request);
+    if (known) return known;
+    const from = request.redirectedFrom();
+    const root = from ? this.requestFacts(from) : undefined;
+    const facts: RequestProvenance = root
+      ? { id: root.id, redirects: root.redirects + 1, issuedAtOffsetMs: root.issuedAtOffsetMs, issuedStepIndex: root.issuedStepIndex }
+      : issuedNow
+        ? { id: `rq${++this.requestSequence}`, redirects: 0, issuedAtOffsetMs: this.buffer.offsetNow(), issuedStepIndex: this.stepIndex }
+        : { id: `rq${++this.requestSequence}`, redirects: 0 };
+    this.requests.set(request, facts);
+    return facts;
+  }
+
   private onResponse(page: Page, response: Response): void {
     const status = response.status();
     if (status < 400) return;
@@ -432,7 +513,7 @@ export class FailureEvidenceCollector {
       isDocument = false;
     }
     if (isDocument) {
-      this.captureErrorDocument(page, status, response.url());
+      this.captureErrorDocument(page, status, response.url(), this.requestFacts(request));
       return;
     }
     const resourceType = request.resourceType();
@@ -442,7 +523,9 @@ export class FailureEvidenceCollector {
       source: "http.error",
       severity: resourceType === "script" && status < 500 ? "warning" : "error",
       payload: { method: request.method(), url: response.url(), status, resourceType },
-      dedupeFields: ["method", "url", "status"]
+      dedupeFields: ["method", "url", "status"],
+      context: { frame: frameOfRequest(request, page) },
+      request: this.requestFacts(request)
     });
   }
 
@@ -450,7 +533,7 @@ export class FailureEvidenceCollector {
    * Status and URL at once; title and heading once the document parses, still at the response's
    * offset. A capture still pending when the instance finishes is recorded without them.
    */
-  private captureErrorDocument(page: Page, status: number, url: string): void {
+  private captureErrorDocument(page: Page, status: number, url: string, request: RequestProvenance): void {
     const atOffsetMs = this.buffer.offsetNow();
     let settled = false;
     const record = (details?: ErrorDocumentDetails) => {
@@ -467,7 +550,9 @@ export class FailureEvidenceCollector {
         severity: "error",
         payload: details && !this.suppressUiText ? { status, url, title: details.title, heading: details.heading } : { status, url },
         dedupeFields: ["status", "url"],
-        atOffsetMs
+        atOffsetMs,
+        context: { frame: "main" },
+        request
       });
     };
     const flush = () => record();
@@ -494,7 +579,9 @@ export class FailureEvidenceCollector {
       source: "network.failed",
       severity: "error",
       payload: { method: request.method(), url: request.url(), failure, resourceType },
-      dedupeFields: ["method", "url", "failure"]
+      dedupeFields: ["method", "url", "failure"],
+      context: { frame: frameOfRequest(request, page) },
+      request: this.requestFacts(request)
     });
   }
 

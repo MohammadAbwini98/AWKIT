@@ -65,8 +65,104 @@ export interface EvidenceContext {
   instanceId: string;
   flowId?: string;
   nodeId?: string;
+  /** The step execution running when the event was captured (for a request: when it completed or failed). */
   stepIndex?: number;
+  /** The page the event came from. On a `runner.failure`, the page the failed step acted on. */
   pageId?: string;
+  /**
+   * Which frame of that page: a request's own frame, or on a `runner.failure` the frame the failed step
+   * targeted. Absent when not known (reports written before 2026-09-22 never carry it).
+   */
+  frame?: "main" | "child";
+}
+
+/**
+ * Runtime provenance of the request behind an `http.error`, `network.failed` or `page.errorDocument`
+ * event. Only what the browser and the runner observed; nothing here is inferred from text, status,
+ * URL or timing coincidence. Absent on reports written before 2026-09-22 and on non-request events.
+ */
+export interface RequestProvenance {
+  /**
+   * Stable within the instance report: one id per request, kept across its redirect hops, its response
+   * and a later failure. Two events with the same id are the same request.
+   */
+  id: string;
+  /** Redirect hops before the one this event describes (0: not redirected). */
+  redirects: number;
+  /** When the request was issued, on the instance's evidence clock. Absent when its start was not observed. */
+  issuedAtOffsetMs?: number;
+  /** The step execution running when it was issued (0: before the first step). Absent when not observed. */
+  issuedStepIndex?: number;
+  /**
+   * The runner itself holds this request for a step: its navigation returned it (`navigation`), or its
+   * response wait matched it (`responseWait`). The only confirmed request-to-step link.
+   */
+  link?: "navigation" | "responseWait";
+  /** The step execution that holds the link. */
+  linkStepIndex?: number;
+}
+
+/**
+ * A request event's relation to the failed step, from {@link RequestProvenance} and the failure record.
+ *
+ * Confirmed (observed, not inferred):
+ *  - `linkedToFailedStep`: the failed step's own navigation returned it, or its response wait matched it.
+ *  - `linkedToOtherStep`: another step's navigation or response wait holds it.
+ *  - `issuedBeforeFailedStep`: issued before the failed step began, so not by its action (it may have
+ *    completed during it; it may still be a precondition).
+ *  - `issuedAfterFailure`: issued after the failure was recorded, so it cannot have caused it.
+ * Uncertain (time only, never a cause by itself):
+ *  - `duringFailedStep`: issued while the failed step ran, on its target page and frame, or where the
+ *    target is not known. The step's action and unrelated page activity look the same here.
+ *  - `offTargetDuringFailedStep`: issued while the failed step ran, from another page or frame.
+ * `unknown`: the request's start was not observed, or the failure record carries no step.
+ */
+export type RequestRelation =
+  | "linkedToFailedStep"
+  | "linkedToOtherStep"
+  | "issuedBeforeFailedStep"
+  | "issuedAfterFailure"
+  | "duringFailedStep"
+  | "offTargetDuringFailedStep"
+  | "unknown";
+
+export const CONFIRMED_REQUEST_RELATIONS: ReadonlySet<RequestRelation> = new Set([
+  "linkedToFailedStep",
+  "linkedToOtherStep",
+  "issuedBeforeFailedStep",
+  "issuedAfterFailure"
+]);
+
+/**
+ * Every request event's {@link RequestRelation} to the failed step: by default the last runner failure
+ * record (an instance that went on past an earlier failure failed at its last one). Events without
+ * request provenance, including every event of an older report, get no entry.
+ */
+export function requestRelations(
+  events: readonly ExecutionEvidenceEvent[],
+  failed: ExecutionEvidenceEvent | undefined = events.filter((event) => event.source === "runner.failure").pop()
+): Map<string, RequestRelation> {
+  const at = failed?.context?.stepIndex;
+  const relations = new Map<string, RequestRelation>();
+  for (const event of events) {
+    const request = event.request;
+    if (!request) continue;
+    relations.set(event.id, relationOf(event, request, failed, at));
+  }
+  return relations;
+}
+
+function relationOf(event: ExecutionEvidenceEvent, request: RequestProvenance, failed: ExecutionEvidenceEvent | undefined, at: number | undefined): RequestRelation {
+  if (failed === undefined || at === undefined) return "unknown";
+  if (request.link !== undefined && request.linkStepIndex !== undefined) return request.linkStepIndex === at ? "linkedToFailedStep" : "linkedToOtherStep";
+  if (request.issuedStepIndex === undefined || request.issuedAtOffsetMs === undefined) return "unknown";
+  if (request.issuedStepIndex < at) return "issuedBeforeFailedStep";
+  if (request.issuedStepIndex > at || request.issuedAtOffsetMs > failed.offsetMs) return "issuedAfterFailure";
+  const target = failed.context;
+  const offPage = target.pageId !== undefined && event.context.pageId !== undefined && event.context.pageId !== target.pageId;
+  // "child" against "child" stays on target: which child frame the step acted in is not recorded.
+  const offFrame = target.frame !== undefined && event.context.frame !== undefined && event.context.frame !== target.frame;
+  return offPage || offFrame ? "offTargetDuringFailedStep" : "duringFailedStep";
 }
 
 export type EvidenceValue = string | number | boolean;
@@ -87,6 +183,12 @@ export interface ExecutionEvidenceEvent {
   repeatCount: number;
   /** A field or the payload was cut to fit a cap. */
   truncated: boolean;
+  /**
+   * The request behind a network event, describing its FIRST occurrence like every other field here
+   * (a folded repeat is counted in `repeatCount`, not described). Fixed-shape collector metadata like
+   * `context`: never page text, and not counted in the payload byte caps.
+   */
+  request?: RequestProvenance;
 }
 
 export interface EvidenceLimits {
@@ -161,6 +263,8 @@ export interface EvidenceInput {
   context?: Partial<Omit<EvidenceContext, "executionId" | "instanceId">>;
   /** When the event happened, if earlier than now (details gathered after the fact). */
   atOffsetMs?: number;
+  /** The request behind a network event. Kept by reference, so a link the runner reports later shows. */
+  request?: RequestProvenance;
 }
 
 const FIELD_NAME = /^[A-Za-z][A-Za-z0-9]{0,39}$/;
@@ -296,7 +400,8 @@ export class EvidenceBuffer {
       payload,
       dedupeKey,
       repeatCount: 1,
-      truncated
+      truncated,
+      ...(input.request ? { request: input.request } : {})
     };
     this.events.push(event);
     this.byKey.set(dedupeKey, event);

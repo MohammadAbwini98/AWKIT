@@ -4,6 +4,8 @@
  * polls instances every ~1s) can show true live per-flow/per-step progress before the final report
  * is written. No secrets are carried — messages are produced from step names/types only.
  */
+import type { Page, Request } from "playwright";
+
 import type { HandoffInfo } from "@src/security/ProtectedLoginHandoff";
 
 export type LiveStepStatus =
@@ -39,8 +41,19 @@ export interface RunnerProgressEvent {
   sideEffectLevel?: string;
 }
 
+/**
+ * Runtime provenance for failure evidence (L5a), never sent to the renderer: the page and frame a step
+ * acts on, and a request the runner itself holds for a step (the response its navigation returned, or
+ * the response its response wait matched).
+ */
+export type StepProvenanceObservation =
+  | { kind: "target"; stepId: string; page: Page; frame?: "main" | "child" }
+  | { kind: "request"; stepId: string; request: Request; link: "navigation" | "responseWait" };
+
 export interface RunnerProgressReporter {
   report(event: RunnerProgressEvent): void;
+  /** Optional and synchronous; must never throw into the step. */
+  observe?(observation: StepProvenanceObservation): void;
 }
 
 /** Per-step state accumulated in the live snapshot (bounded). */

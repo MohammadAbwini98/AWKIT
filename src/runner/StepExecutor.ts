@@ -1,7 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import type { Locator, Page } from "playwright";
-import type { AsyncCompletionMode, DialogExpectation, FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
+import type { Locator, Page, Response } from "playwright";
+import { locatorFrameChain, type AsyncCompletionMode, type DialogExpectation, type FlowStep, type NodeConfig, type StepLocator, type WaitCondition } from "@src/profiles/FlowProfile";
 import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
 import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
@@ -196,9 +196,9 @@ export class StepExecutor {
     page: Page,
     url: string,
     options: { timeout: number; waitUntil?: "domcontentloaded" | "load" | "networkidle" | "commit" }
-  ): Promise<void> {
+  ): Promise<Response | null> {
     try {
-      await this.limitOp("navigation", () => page.goto(url, options));
+      return await this.limitOp("navigation", () => page.goto(url, options));
     } catch (error) {
       const ignoreHttpsErrors = this.context.ignoreHttpsErrors ?? false;
       if (!ignoreHttpsErrors && isCertificateError(error)) {
@@ -291,6 +291,23 @@ export class StepExecutor {
       );
     }
     return page;
+  }
+
+  /**
+   * L5a request provenance: hand the evidence collector a request this step holds — the response its
+   * navigation returned, or the response its response wait matched. Never throws into the step.
+   */
+  private observeRequest(step: FlowStep, response: Response | null, link: "navigation" | "responseWait"): void {
+    if (response) this.progress?.observe?.({ kind: "request", stepId: step.id, request: response.request(), link });
+  }
+
+  /**
+   * The frame a step acts in, where its definition says so: a locator without a frame chain resolves in
+   * the page's main frame, one with a chain in a child frame, and a navigation loads the main frame.
+   */
+  private static targetFrame(step: FlowStep): "main" | "child" | undefined {
+    if (step.locator) return locatorFrameChain(step.locator.context).length > 0 ? "child" : "main";
+    return step.type === "goto" ? "main" : undefined;
   }
 
   /** Emit a live progress event (no-op when no reporter is wired). */
@@ -713,6 +730,7 @@ export class StepExecutor {
     // Temporarily bind execution to the target page for this step
     this.activePage = stepPage;
     this.locatorFactory.setPage(stepPage);
+    this.progress?.observe?.({ kind: "target", stepId: step.id, page: stepPage, frame: StepExecutor.targetFrame(step) });
 
     try {
       for (const wait of step.beforeWaits ?? []) {
@@ -836,7 +854,7 @@ export class StepExecutor {
         }
         case "response": {
           const response = await this.buildResponseWait(wait, timeout);
-          this.validateResponseStatus(wait, response);
+          this.validateResponseStatus(step, wait, response);
           return;
         }
         case "tableHasRows": {
@@ -940,7 +958,9 @@ export class StepExecutor {
    * {@link ResponseStatusError} with a clear, status-specific message when it falls outside — so the
    * runner distinguishes "the API returned HTTP 500" from "the response never arrived (timeout)".
    */
-  private validateResponseStatus(wait: Extract<WaitCondition, { type: "response" }>, response: import("playwright").Response): void {
+  private validateResponseStatus(step: FlowStep, wait: Extract<WaitCondition, { type: "response" }>, response: import("playwright").Response): void {
+    // The matched response is this step's own: a confirmed request-to-step link, whatever its status.
+    this.observeRequest(step, response, "responseWait");
     const [lo, hi] = wait.statusRange ?? [200, 399];
     const status = response.status();
     if (status < lo || status > hi) {
@@ -1165,7 +1185,7 @@ export class StepExecutor {
     this.emitWaiting(step, entry.wait, entry.timeout, "network");
     try {
       const response = await this.withCancellation(entry.promise);
-      this.validateResponseStatus(entry.wait, response);
+      this.validateResponseStatus(step, entry.wait, response);
     } catch (error) {
       if (error instanceof CancelledError) throw error;
       if (error instanceof ResponseStatusError) {
@@ -1783,11 +1803,12 @@ export class StepExecutor {
         const url = await this.resolveStepValue(step, step.url);
         if (!url) throw new Error(`Step ${step.id} is missing a URL.`);
         assertNavigableUrl(url);
-        await this.navigate(this.activePage, url, {
+        const response = await this.navigate(this.activePage, url, {
           timeout: step.timeoutMs ?? 30_000,
           // Absent = Playwright's default ("load"). Existing flows are unaffected.
           ...(step.waitUntil ? { waitUntil: step.waitUntil } : {})
         });
+        this.observeRequest(step, response, "navigation");
         return { status: "passed" };
       }
 
@@ -2210,7 +2231,7 @@ export class StepExecutor {
       case "navigateCurrentPage": {
         if (!urlValue) throw new Error(`Route Change step ${step.id} requires a URL value.`);
         assertNavigableUrl(urlValue);
-        await this.navigate(this.activePage, urlValue, { timeout });
+        this.observeRequest(step, await this.navigate(this.activePage, urlValue, { timeout }), "navigation");
         target = this.activePage;
         break;
       }

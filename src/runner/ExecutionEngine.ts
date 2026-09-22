@@ -1874,6 +1874,8 @@ export class ExecutionEngine {
     const openAttempts = new Map<string, NodeAttempt>();
 
     return {
+      // L5a request provenance: the step's target and the requests the runner holds for it.
+      observe: (observation) => extras?.evidence?.observe(observation),
       report: (event: RunnerProgressEvent) => {
         const now = event.timestamp;
         // L5a step-window correlation. Synchronous and bounded; never throws into progress.

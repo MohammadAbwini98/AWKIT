@@ -310,6 +310,54 @@ const server = createServer(async (req, res) => {
     req.socket.destroy();
     return;
   }
+  // Request-provenance lab (L5a, 2026-09-22). Each request names itself in its path, so its evidence
+  // is recognisable after the query is stripped; `code` is allow-listed and `ms` bounded, as for
+  // `/api/status`. `redirect` answers 302 to `moved`; `truncated` sends HTTP 500 headers, then drops the
+  // connection mid-body, so one request produces both a response and a transport failure.
+  if (req.method === "GET" && path === "/api/provenance/redirect") {
+    res.writeHead(302, { Location: "/api/provenance/moved?code=500" });
+    res.end();
+    return;
+  }
+  if (req.method === "GET" && path === "/api/provenance/truncated") {
+    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8", "Content-Length": "256" });
+    res.write('{"ok":false,');
+    setTimeout(() => req.socket.destroy(), 50);
+    return;
+  }
+  const provenanceMatch = /^\/api\/provenance\/([a-z-]{1,24})$/.exec(path);
+  if (req.method === "GET" && provenanceMatch) {
+    const requestedCode = Number(url.searchParams.get("code") ?? 500);
+    const code = ALLOWED_STATUS_CODES.has(requestedCode) ? requestedCode : 500;
+    const requestedMs = Number(url.searchParams.get("ms") ?? 0);
+    const delayMs = Math.max(0, Math.min(Number.isFinite(requestedMs) ? requestedMs : 0, 3000));
+    if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    if (res.destroyed) return;
+    res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(code === 204 ? undefined : JSON.stringify({ ok: code < 400, name: provenanceMatch[1], status: code }));
+    return;
+  }
+  // The frame and popup that issue their own request `ms` after loading: not the step's target.
+  if (req.method === "GET" && (path === "/runner-lab/provenance-frame" || path === "/runner-lab/provenance-popup")) {
+    const name = path.endsWith("frame") ? "widget" : "popup";
+    const requestedMs = Number(url.searchParams.get("ms") ?? 600);
+    const delayMs = Math.max(0, Math.min(Number.isFinite(requestedMs) ? requestedMs : 600, 3000));
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Provenance ${name}</title></head>
+  <body>
+    <p data-testid="rp-${name}-state">loaded</p>
+    <script>
+      setTimeout(async () => {
+        const response = await fetch("/api/provenance/${name}?code=500");
+        document.querySelector('[data-testid="rp-${name}-state"]').textContent = "HTTP " + response.status;
+      }, ${delayMs});
+    </script>
+  </body>
+</html>`);
+    return;
+  }
   if (req.method === "GET" && path === "/iframe-lab") return serveStatic(res, "iframe-lab.html");
   if (req.method === "GET" && path === "/iframe-child") return serveStatic(res, "iframe-child.html");
   // Nested frame chain (main → outer → inner → leaf) for the guaranteed-unique frame-chain feature.

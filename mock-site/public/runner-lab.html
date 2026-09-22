@@ -153,6 +153,25 @@
         <p>Sign-in: <span data-testid="fe-login-result">not signed in</span></p>
 
         <p><a href="/runner-lab/error-page?code=503" data-testid="fe-error-page-link">Open order history (error page, HTTP 503)</a></p>
+
+        <h3>Request provenance</h3>
+        <p>
+          <em>Prepare checkout</em> issues a slow inventory request, then, while the next step runs:
+          a heartbeat from this page, a widget request from a child frame and a request from a popup,
+          none of them caused by that step. <em>Save checkout</em> appears 1.4 s later and issues the
+          save request plus an audit request nothing waits for. Every request answers with an error.
+        </p>
+        <button type="button" data-testid="rp-arm">Prepare checkout</button>
+        <button type="button" data-testid="rp-save" hidden>Save checkout</button>
+        <p>Checkout: <span data-testid="rp-state">idle</span> · inventory <span data-testid="rp-inventory">-</span> · save <span data-testid="rp-save-result">-</span></p>
+        <div data-testid="rp-frame-host"></div>
+        <button type="button" data-testid="rp-redirect">Load moved report (redirect, then HTTP 500)</button>
+        <button type="button" data-testid="rp-truncated">Load truncated export (HTTP 500, then the connection drops)</button>
+        <button type="button" data-testid="rp-cancel">Start and cancel a lookup</button>
+        <p>
+          Redirect <span data-testid="rp-redirect-result">-</span> · truncated
+          <span data-testid="rp-truncated-result">-</span> · lookup <span data-testid="rp-cancel-result">-</span>
+        </p>
       </section>
     </main>
 
@@ -325,6 +344,46 @@
         host.appendChild(alert);
         await fetch("/api/status?code=401");
         text("fe-login-result", "sign-in failed");
+      });
+
+      // Request provenance. Timers, the frame and the popup are created on demand, never at load, so
+      // no other scenario on this page gains requests.
+      onClick("rp-arm", () => {
+        void fetch("/api/provenance/inventory?code=502&ms=1000").then((response) => text("rp-inventory", `HTTP ${response.status}`));
+        setTimeout(() => void fetch("/api/provenance/heartbeat?code=503"), 600);
+        const frame = document.createElement("iframe");
+        frame.src = "/runner-lab/provenance-frame?ms=550";
+        frame.dataset.testid = "rp-frame";
+        byTestId("rp-frame-host").appendChild(frame);
+        window.open("/runner-lab/provenance-popup?ms=500", "rp-popup");
+        setTimeout(() => (byTestId("rp-save").hidden = false), 1400);
+        text("rp-state", "prepared");
+      });
+      onClick("rp-save", () => {
+        void fetch("/api/provenance/save?code=500").then((response) => text("rp-save-result", `HTTP ${response.status}`));
+        void fetch("/api/provenance/audit?code=500");
+      });
+      onClick("rp-redirect", async () => {
+        const response = await fetch("/api/provenance/redirect");
+        text("rp-redirect-result", `HTTP ${response.status}`);
+      });
+      onClick("rp-truncated", async () => {
+        try {
+          await (await fetch("/api/provenance/truncated")).text();
+          text("rp-truncated-result", "complete");
+        } catch {
+          text("rp-truncated-result", "interrupted");
+        }
+      });
+      onClick("rp-cancel", async () => {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 100);
+        try {
+          await fetch("/api/provenance/lookup?code=500&ms=2000", { signal: controller.signal });
+          text("rp-cancel-result", "answered");
+        } catch {
+          text("rp-cancel-result", "cancelled");
+        }
       });
     </script>
   </body>

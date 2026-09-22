@@ -522,6 +522,41 @@ try {
   );
   check("the error page answers 500 when asked", (await page.request.get(`${BASE}/runner-lab/error-page?code=500`)).status() === 500);
 
+  console.log("Runner Lab - request provenance:");
+  await page.goto(`${BASE}/runner-lab`);
+  const rpSeen = [];
+  const rpListener = (response) => {
+    const match = /\/api\/provenance\/([a-z-]+)/.exec(response.url());
+    if (match) rpSeen.push({ name: match[1], status: response.status(), main: response.frame() === response.frame().page().mainFrame(), page: response.frame().page() });
+  };
+  page.context().on("response", rpListener);
+  const rpPopup = page.waitForEvent("popup", { timeout: 5000 });
+  await page.getByTestId("rp-arm").click();
+  check("the popup opens on demand", (await rpPopup).url().includes("/runner-lab/provenance-popup"));
+  check("no request fires before the step that follows (heartbeat at 600 ms)", !rpSeen.some((entry) => entry.name === "heartbeat"));
+  await page.getByTestId("rp-save").waitFor({ state: "visible", timeout: 3000 });
+  await page.getByTestId("rp-save").click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="rp-save-result"]').textContent === "HTTP 500", null, { timeout: 5000 });
+  const rpOf = (name) => rpSeen.find((entry) => entry.name === name);
+  check("inventory 502 (slow), heartbeat 503, save 500, audit 500 from the lab's main frame", rpOf("inventory")?.status === 502 && rpOf("heartbeat")?.status === 503 && rpOf("save")?.status === 500 && rpOf("audit")?.status === 500 && ["inventory", "heartbeat", "save", "audit"].every((name) => rpOf(name)?.main && rpOf(name)?.page === page), rpSeen.map(({ name, status }) => `${name}:${status}`));
+  check("the widget request comes from a child frame of the lab", rpOf("widget")?.status === 500 && rpOf("widget")?.main === false && rpOf("widget")?.page === page);
+  check("the popup request comes from another page", rpOf("popup")?.status === 500 && rpOf("popup")?.page !== page);
+  const rpRedirect = page.waitForResponse((response) => response.url().includes("/api/provenance/moved"), { timeout: 5000 });
+  await page.getByTestId("rp-redirect").click();
+  const rpMoved = await rpRedirect;
+  check("the redirect lands on HTTP 500 one hop later", rpMoved.status() === 500 && rpMoved.request().redirectedFrom()?.url().includes("/api/provenance/redirect") === true);
+  const rpTruncatedFailed = page.waitForEvent("requestfailed", { predicate: (request) => request.url().includes("/api/provenance/truncated"), timeout: 5000 });
+  await page.getByTestId("rp-truncated").click();
+  const rpTruncated = await rpTruncatedFailed;
+  check("the truncated export answers 500 and then fails in transfer", (await rpTruncated.response())?.status() === 500 && !/ERR_ABORTED/.test(rpTruncated.failure()?.errorText ?? ""), rpTruncated.failure()?.errorText);
+  await page.getByTestId("rp-cancel").click();
+  const rpCancelled = await page
+    .waitForFunction(() => document.querySelector('[data-testid="rp-cancel-result"]').textContent !== "-", null, { timeout: 5000 })
+    .then(() => page.getByTestId("rp-cancel-result").textContent(), () => "no outcome");
+  check("the lookup is cancelled by the page (never answered)", rpCancelled === "cancelled", rpCancelled);
+  page.context().off("response", rpListener);
+  await (await rpPopup).close();
+
   console.log("Iframe Lab - frame-scoped locators:");
   await page.goto(`${BASE}/iframe-lab`);
   const frame = page.frameLocator("[data-testid='lab-frame']");
