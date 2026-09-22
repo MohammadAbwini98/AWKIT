@@ -9,7 +9,9 @@
  * insufficient evidence. Three cases beyond L5's list (`ANCHORING_ITEMS`, 2026-09-22): a second baseline
  * that takes an unrelated earlier event; the reverse, an unrelated error just after the real cause, where
  * the baseline is right; and a timeout beside only an unrelated console error, where the right answer is
- * to decline.
+ * to decline. Two cases with a real step boundary (`PROVENANCE_ITEMS`, 2026-09-22): the only relevance
+ * the collector records is the step each event was captured in, and every other case keeps all its
+ * events in the failed step.
  *
  * Every event that explains its failure is labelled `cause` and every one that does not is labelled
  * `unrelated`, by the scenario's construction, never by what a model said. That is what lets the gate
@@ -33,7 +35,8 @@ import {
   parseFailureAnalysis,
   redactFailureAnalysis,
   type FailureAnalysis,
-  type FailureAnalysisRequest
+  type FailureAnalysisRequest,
+  type StepRelation
 } from "@src/ai/failureAnalysis";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import { EvidenceBuffer, EvidenceRunBudget } from "@src/runner/evidence/ExecutionEvidence";
@@ -48,7 +51,8 @@ export const CANARY = "QX7CANARY";
 /** A route carrying the canary in its userinfo, an identifier segment and its query: L5a keeps only the template. */
 const route = (path: string) => `https://${CANARY.toLowerCase()}:pw@shop.example${path}?token=${CANARY}-9f2`;
 
-export type LabelledEvent = FixtureEvent & { tag?: "cause" | "unrelated" };
+/** `stepsBefore`: captured that many steps before the failed step (default 0, the failed step itself). */
+export type LabelledEvent = FixtureEvent & { tag?: "cause" | "unrelated"; stepsBefore?: number };
 export interface LabelledRow {
   events: LabelledEvent[];
   kind: RunnerFailureKind;
@@ -306,7 +310,63 @@ export const ERROR_SET: readonly ErrorCase[] = Object.freeze([
     baselineCause: "timeout",
     expectsCall: true,
     batch: { failures: 1, signatures: 1, analyses: 1 }
+  },
+  // Step provenance (2026-09-22), the only relevance the collector records: each event carries the step
+  // running when it was captured. Every case above keeps all its events in the failed step, as it always
+  // did, so provenance cannot separate them; these two carry a real step boundary. The first is
+  // `unrelated-server-error-first` event for event, with the 503 captured one step earlier: the A/B.
+  {
+    id: "earlier-step-unrelated-error",
+    covers: ["an unrelated server error in an earlier step"],
+    rows: [
+      {
+        kind: "assertion",
+        events: [
+          { atMs: 300, source: "http.error", severity: "error", payload: { method: "GET", url: route("/api/recommendations"), status: 503, resourceType: "fetch" }, tag: "unrelated", stepsBefore: 1 },
+          {
+            atMs: 1_400,
+            source: "page.error",
+            severity: "error",
+            payload: { name: "TypeError", message: "Cannot read properties of null (reading 'addEventListener') at bindSaveAddressButton" },
+            tag: "cause"
+          },
+          runner(1_900, "assertion", "The address saved banner did not appear.")
+        ]
+      }
+    ],
+    ask: [0],
+    // The step window starts at the page error, so the baseline takes it: right by construction.
+    baselineCause: "scriptError",
+    expectsCall: true,
+    batch: { failures: 1, signatures: 1, analyses: 1 }
+  },
+  // The reverse, so "prefer the failed step" cannot win by provenance alone: the save failed one step
+  // before the assertion that noticed it, and an unrelated console error lands in the failed step.
+  {
+    id: "earlier-step-cause",
+    covers: ["the cause in an earlier step, an unrelated console error in the failed step"],
+    rows: [
+      {
+        kind: "assertion",
+        events: [
+          { atMs: 600, source: "http.error", severity: "error", payload: { method: "POST", url: route(`/api/addresses/${CANARY}5521/save`), status: 500, resourceType: "fetch" }, tag: "cause", stepsBefore: 1 },
+          { atMs: 1_600, source: "console.error", severity: "error", payload: { text: "Analytics beacon rejected: the tracking endpoint answered 403." }, tag: "unrelated" },
+          runner(1_900, "assertion", "The address saved banner did not appear.")
+        ]
+      }
+    ],
+    ask: [0],
+    // Nothing direct in the failed step, so the baseline takes the 500 from its preceding window: right.
+    baselineCause: "httpError",
+    expectsCall: true,
+    batch: { failures: 1, signatures: 1, analyses: 1 }
   }
+]);
+
+/** Cases with a real step boundary (2026-09-22). Every other case keeps all its events in the failed step. */
+export const PROVENANCE_ITEMS = Object.freeze([
+  "an unrelated server error in an earlier step",
+  "the cause in an earlier step, an unrelated console error in the failed step"
 ]);
 
 /** Cases beyond L5's list, added for baseline anchoring (2026-09-22). The rows of 4f81424a are the other nine cases. */
@@ -356,9 +416,11 @@ export function buildCase(c: ErrorCase): { report: ConcurrentRunReport & { id: s
     const context = { flowId: "flow-checkout", nodeId: "n-confirm", stepIndex: 6 };
     const cause = new Set<string>();
     const unrelated = new Set<string>();
-    for (const { atMs, tag, ...event } of row.events) {
+    for (const { atMs, tag, stepsBefore, ...event } of row.events) {
       clock = atMs;
-      const stored = buffer.add({ ...event, context });
+      // As the collector stamps it: the step running when the event was captured.
+      const step = stepsBefore ? { ...context, nodeId: `n-step${context.stepIndex - stepsBefore}`, stepIndex: context.stepIndex - stepsBefore } : context;
+      const stored = buffer.add({ ...event, context: step });
       if (stored && tag === "cause") cause.add(stored.id);
       if (stored && tag === "unrelated") unrelated.add(stored.id);
     }
@@ -373,7 +435,15 @@ export function buildCase(c: ErrorCase): { report: ConcurrentRunReport & { id: s
       evidence,
       summary: buffer.summary(),
       ...(status === "failed"
-        ? { cause: deriveFailureCause(evidence, { kind: row.kind, stepStartOffsetMs: row.events[0]?.atMs ?? 0, failedAtOffsetMs: failedAt, ...(runnerEvent ? { evidenceId: runnerEvent.id } : {}) }) }
+        ? {
+            cause: deriveFailureCause(evidence, {
+              kind: row.kind,
+              // The failed step starts with its first event (for a one-step case, the row's first event).
+              stepStartOffsetMs: row.events.find((event) => !event.stepsBefore)?.atMs ?? 0,
+              failedAtOffsetMs: failedAt,
+              ...(runnerEvent ? { evidenceId: runnerEvent.id } : {})
+            })
+          }
         : {})
     };
     return { instanceId, status, durationMs: failedAt, ...(status === "failed" ? { error: "The step failed." } : {}), screenshots: [], downloadedFiles: [], diagnostics };
@@ -434,6 +504,8 @@ export interface FailureJudgement {
   baselineLeadLabel: "cause" | "unrelated" | "other";
   /** Concluded, citing the event the baseline rests on first as primary: where the baseline is wrong, the echo. */
   citesBaselineLead: boolean;
+  /** The product's step relation of each primary id, from the request, never from a label. */
+  primarySteps: StepRelation[];
   cited: number;
   citedShownWhole: number;
 }
@@ -457,6 +529,7 @@ export function judgeFailureAnswer(request: FailureAnalysisRequest, answer: Fail
     primaryLabels: primary.map(labelOf),
     baselineLeadLabel: labelOf(lead),
     citesBaselineLead: concluded && primary.includes(lead),
+    primarySteps: primary.map((id) => request.stepRelations[id] ?? "unknown"),
     cited: cited.length,
     citedShownWhole: cited.filter((id) => shownWhole(request, promptUser, id)).length
   };

@@ -44,6 +44,7 @@ import {
   failureAnalysisDecision,
   failureSignature,
   parseFailureAnalysis,
+  stepRelations,
   type FailureAnalysisRequest,
   type FailureBatchEntry
 } from "@src/ai/failureAnalysis";
@@ -66,6 +67,7 @@ import {
   CANARY as ERROR_CANARY,
   ERROR_SET,
   L5_LABELLED_ITEMS,
+  PROVENANCE_ITEMS,
   buildCase,
   errorControlFailures,
   noCauseControlFailures,
@@ -619,6 +621,161 @@ check("...and no analyses", none.stats.analyses === 0 && none.stats.failures ===
 const events: readonly ExecutionEvidenceEvent[] = sample.events;
 check("the evidence this suite reasoned over was real, not empty", events.length > 0 && events.every((e) => typeof e.id === "string" && e.id.length > 0));
 
+// ── 12. Step relevance: the step each event was captured in ───────────────────────────────────
+console.log("\n12 — step relevance: provenance from the collector's step stamp, never from text, status or URL");
+{
+  type Spec = { at: number; step: number | undefined; source: "http.error" | "page.error" | "console.error" | "runner.failure"; payload: Record<string, string | number> };
+  /** Through the real buffer and baseline, each event stamped with the step it was captured in. */
+  const stepped = (specs: Spec[], stepStartOffsetMs: number): FailureBatchEntry => {
+    let clock = 0;
+    const buffer = new EvidenceBuffer({ executionId: "exec-steps", instanceId: "i-steps" }, new EvidenceRunBudget(), { redactor: new SemanticRedactor(), now: () => clock });
+    for (const spec of specs) {
+      clock = spec.at;
+      buffer.add({ source: spec.source, severity: "error", payload: spec.payload, context: { flowId: "flow-steps", nodeId: `n-${spec.step ?? "x"}`, ...(spec.step === undefined ? {} : { stepIndex: spec.step }) } });
+    }
+    const all = [...buffer.list()];
+    const runner = [...all].reverse().find((event) => event.source === "runner.failure");
+    const failedAt = specs.find((spec) => spec.source === "runner.failure")?.at ?? 0;
+    const baseline = deriveFailureCause(all, { kind: "assertion", stepStartOffsetMs, failedAtOffsetMs: failedAt, ...(runner ? { evidenceId: runner.id } : {}) });
+    return { instanceId: "i-steps", flowId: "flow-steps", nodeId: "n-6", stepIndex: 6, baseline, events: all };
+  };
+  const idOf = (entry: FailureBatchEntry, source: string, at: number) => entry.events.find((event) => event.source === source && event.offsetMs === at)!.id;
+  const lineFor = (of: FailureAnalysisRequest, id: string) => (of.prompt.fields[0].text ?? "").split("\n").find((line) => line.startsWith(`${id}: `)) ?? "";
+  const enumOf = (of: FailureAnalysisRequest, field: string) => {
+    const conclusion = (of.schema as ObjectSchema).properties.conclusion as ArraySchema;
+    return (((conclusion.items as ObjectSchema).properties[field] as ArraySchema).items as { enum: readonly string[] }).enum;
+  };
+  const primaryEnum = (of: FailureAnalysisRequest) => enumOf(of, "primaryEvidenceIds");
+  const secondaryEnum = (of: FailureAnalysisRequest) => enumOf(of, "secondaryEvidenceIds");
+  const conclusionOn = (primary: string[], secondary: string[] = []) => ({
+    version: 1,
+    conclusion: [{ primaryEvidenceIds: primary, secondaryEvidenceIds: secondary, category: "script error", explanation: "The save button was never bound.", investigationSteps: [] }]
+  });
+
+  // An unrelated 503 in the step before, the real cause in the failed step, and an error-handler step after it.
+  const spans = stepped(
+    [
+      { at: 300, step: 5, source: "http.error", payload: { method: "GET", url: `https://${ERROR_CANARY.toLowerCase()}:pw@shop.example/api/recommendations?token=${ERROR_CANARY}`, status: 503, resourceType: "fetch" } },
+      { at: 1_400, step: 6, source: "page.error", payload: { name: "TypeError", message: "Cannot read properties of null (reading 'addEventListener')" } },
+      { at: 1_900, step: 6, source: "runner.failure", payload: { kind: "assertion", message: "The address saved banner did not appear." } },
+      { at: 2_600, step: 7, source: "http.error", payload: { method: "POST", url: "https://shop.example/api/audit/errors", status: 500, resourceType: "fetch" } }
+    ],
+    1_400
+  );
+  const [earlier, inStep, runnerId, after] = [idOf(spans, "http.error", 300), idOf(spans, "page.error", 1_400), idOf(spans, "runner.failure", 1_900), idOf(spans, "http.error", 2_600)];
+  const relations = stepRelations(spans);
+  check(
+    "each event's relation is read from its step stamp: earlier, failed, failed (the runner's own), after",
+    relations.get(earlier) === "earlierStep" && relations.get(inStep) === "failedStep" && relations.get(runnerId) === "failedStep" && relations.get(after) === "afterFailure",
+    JSON.stringify([...relations])
+  );
+  const spanRequest = requestFor(spans);
+  check("the request carries each offered event's relation", JSON.stringify(spanRequest.stepRelations) === JSON.stringify(Object.fromEntries(spanRequest.evidence.map((event) => [event.id, relations.get(event.id)]))));
+  check("an event from after the failed step is never primary evidence in the grammar", !primaryEnum(spanRequest).includes(after) && primaryEnum(spanRequest).includes(inStep), JSON.stringify(primaryEnum(spanRequest)));
+  check("...an earlier step's event still may be (a precondition, as the baseline's preceding window allows)", primaryEnum(spanRequest).includes(earlier));
+  check("...and the after-failure event may still be cited as a consequence", secondaryEnum(spanRequest).includes(after));
+  check(
+    "with more than one step offered, every line states its step in product words",
+    lineFor(spanRequest, earlier).includes("[during an earlier step]") &&
+      lineFor(spanRequest, inStep).includes("[during the failed step]") &&
+      lineFor(spanRequest, runnerId).includes("[during the failed step]") &&
+      lineFor(spanRequest, after).includes("[after the failed step]"),
+    spanRequest.prompt.fields[0].text
+  );
+  const parsed = (value: unknown) => parseFailureAnalysis(value, spanRequest);
+  const onAfter = parsed(conclusionOn([after]));
+  check("a conclusion resting on an event from after the failed step is refused as unsupported", !onAfter.ok && onAfter.code === "UNSUPPORTED_CONCLUSION", JSON.stringify(onAfter));
+  check("...and the output contract refuses it before the parser", validateAiOutput(conclusionOn([after]), spanRequest.schema).length > 0);
+  const onCause = parsed(conclusionOn([inStep], [after]));
+  check("the failed step's own event as primary, the later one as a consequence, is accepted", onCause.ok && !onCause.insufficient, JSON.stringify(onCause));
+  const onEarlier = parsed(conclusionOn([earlier]));
+  check("an earlier step's event as primary is accepted: provenance informs, it does not decide", onEarlier.ok && !onEarlier.insufficient, JSON.stringify(onEarlier));
+  const onRunner = parsed(conclusionOn([runnerId]));
+  check("the runner's own record is still refused as primary", !onRunner.ok && onRunner.code === "UNSUPPORTED_CONCLUSION");
+  const spanPrompt = buildAiPrompt(spanRequest.prompt, new SemanticRedactor(), "0123456789abcdef");
+  check(
+    "the earlier step's route keeps no canary, userinfo or query, and the prompt passes the residual rescan",
+    spanPrompt.ok && !`${spanPrompt.system}\n${spanPrompt.user}`.toUpperCase().includes(ERROR_CANARY) && !spanPrompt.user.includes("token="),
+    spanPrompt.ok ? "" : JSON.stringify(spanPrompt)
+  );
+  check(
+    "a step label is product text: nothing between the brackets but the four labels",
+    (spanRequest.prompt.fields[0].text ?? "")
+      .split("\n")
+      .filter((line) => /^ev\d+: /.test(line))
+      .every((line) => /^ev\d+: \S+ \((?:error|warning|info)\) at \d+ms \[(?:during the failed step|during an earlier step|after the failed step|step unknown)\] /.test(line))
+  );
+
+  // Under a tight budget the failed step outranks what came after it, which "closest to the failure" alone put first.
+  const tight = buildFailureAnalysisRequest(
+    { signature: failureSignature(spans), instanceIds: [spans.instanceId], count: 1, representative: spans, analyse: true },
+    { ...FAILURE_ANALYSIS_LIMITS, maxEvidencePerAnalysis: 3 }
+  )!;
+  check(
+    "(precondition) the baseline cites the failed step's page error and the runner's record, not the later 500",
+    spans.baseline.evidenceIds[0] === inStep && spans.baseline.evidenceIds.includes(runnerId) && !spans.baseline.evidenceIds.includes(after)
+  );
+  check(
+    "with room for one more event, the earlier step's is offered over the later, closer one",
+    tight.evidence.some((event) => event.id === earlier) && !tight.evidence.some((event) => event.id === after),
+    JSON.stringify(tight.evidence.map((event) => event.id))
+  );
+
+  // One step only: nothing to say, so the request is exactly what it was before relevance existed.
+  const oneStep = stepped(
+    [
+      { at: 300, step: 6, source: "http.error", payload: { method: "GET", url: "https://shop.example/api/recommendations", status: 503, resourceType: "fetch" } },
+      { at: 1_400, step: 6, source: "page.error", payload: { name: "TypeError", message: "Cannot read properties of null" } },
+      { at: 1_900, step: 6, source: "runner.failure", payload: { kind: "assertion", message: "The address saved banner did not appear." } }
+    ],
+    300
+  );
+  const oneStepRequest = requestFor(oneStep);
+  check("ambiguous: two errors in the failed step are both failed-step events", Object.values(oneStepRequest.stepRelations).every((relation) => relation === "failedStep"));
+  check("...both stay primary candidates: provenance cannot choose between them, so the request does not", primaryEnum(oneStepRequest).length === 2);
+  check("...and no line carries a step label, so a one-step prompt is unchanged", !(oneStepRequest.prompt.fields[0].text ?? "").includes("["), oneStepRequest.prompt.fields[0].text);
+
+  // No step stamp (a report written before steps were stamped): unknown, and nothing is excluded.
+  const unstamped = stepped(
+    [
+      { at: 300, step: undefined, source: "http.error", payload: { method: "GET", url: "https://shop.example/api/recommendations", status: 503, resourceType: "fetch" } },
+      { at: 1_900, step: undefined, source: "runner.failure", payload: { kind: "assertion", message: "The banner did not appear." } }
+    ],
+    300
+  );
+  const unstampedRequest = requestFor(unstamped);
+  check(
+    "missing context: an unstamped event is unknown, never excluded, and no label is shown",
+    Object.values(unstampedRequest.stepRelations).every((relation) => relation === "unknown") &&
+      primaryEnum(unstampedRequest).length === 1 &&
+      !(unstampedRequest.prompt.fields[0].text ?? "").includes("[")
+  );
+  const runnerUnstamped = stepped(
+    [
+      { at: 300, step: 5, source: "http.error", payload: { method: "GET", url: "https://shop.example/api/recommendations", status: 503, resourceType: "fetch" } },
+      { at: 1_900, step: undefined, source: "runner.failure", payload: { kind: "assertion", message: "The banner did not appear." } }
+    ],
+    300
+  );
+  check("...and with no step on the failure record, every relation is unknown", [...stepRelations(runnerUnstamped).values()].every((relation) => relation === "unknown"));
+
+  // Everything but the runner's record came after the failed step: nothing can be the cause.
+  const onlyAfter = stepped(
+    [
+      { at: 1_900, step: 6, source: "runner.failure", payload: { kind: "assertion", message: "The banner did not appear." } },
+      { at: 2_600, step: 7, source: "http.error", payload: { method: "POST", url: "https://shop.example/api/audit/errors", status: 500, resourceType: "fetch" } }
+    ],
+    1_000
+  );
+  const onlyAfterRequest = requestFor(onlyAfter);
+  check("(precondition) the baseline does not rest on the later event", onlyAfter.baseline.cause === "assertionFailed", onlyAfter.baseline.cause);
+  check("insufficient: with only after-failure evidence beside the runner's record, declining is the only decodable answer", !onlyAfterRequest.mustConclude && ((onlyAfterRequest.schema as ObjectSchema).properties.conclusion as ArraySchema).maxItems === 0);
+  const declined = parseFailureAnalysis({ version: 1, conclusion: [] }, onlyAfterRequest);
+  check("...a decline is accepted as insufficient", declined.ok && declined.insufficient);
+  const forced = parseFailureAnalysis(conclusionOn([idOf(onlyAfter, "http.error", 2_600)]), onlyAfterRequest);
+  check("...and a conclusion on the later event is refused as unsupported", !forced.ok && forced.code === "UNSUPPORTED_CONCLUSION", JSON.stringify(forced));
+}
+
 // ── The main-process adapter behind ai:analyzeFailure ───────────────────────────────────────────
 // `app/main/ai/aiAssist.ts#analyzeFailure` is what the IPC channel calls: the renderer names a stored
 // run and one instance, main reads that report's own L5a diagnostics. Every negative is production.
@@ -939,8 +1096,8 @@ await leakedHost.service.shutdown();
 console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judge");
 {
   const covered = new Set(ERROR_SET.flatMap((c) => c.covers));
-  const items = [...L5_LABELLED_ITEMS, ...ANCHORING_ITEMS];
-  check("the set realises every item of L5's labelled set, and the anchoring cases", items.every((item) => covered.has(item)) && covered.size === items.length, JSON.stringify([...covered]));
+  const items = [...L5_LABELLED_ITEMS, ...ANCHORING_ITEMS, ...PROVENANCE_ITEMS];
+  check("the set realises every item of L5's labelled set, the anchoring cases and the provenance cases", items.every((item) => covered.has(item)) && covered.size === items.length, JSON.stringify([...covered]));
   for (const labelled of ERROR_SET) {
     const { report, labels } = buildCase(labelled);
     const stats = coalesceFailures(failureBatch(report)).stats;
@@ -976,6 +1133,20 @@ console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judg
           `${labelled.id} row ${row + 1}: the baseline's pick is offered but not presented: newest first, no "rests on", no cause code`,
           offered.has(lead) && !named && !/rests on/i.test(`${prompt.system}\n${prompt.user}`) && inTimeOrder,
           JSON.stringify(shownIds)
+        );
+        // Provenance from the step stamp only: a case whose events all share the failed step sends the
+        // prompt it sent before relevance existed; a provenance case states each line's step.
+        const provenanceCase = labelled.covers.some((item) => PROVENANCE_ITEMS.includes(item));
+        const labelledLines = prompt.user.split("\n").filter((line) => /^ev\d+: /.test(line));
+        check(
+          provenanceCase
+            ? `${labelled.id} row ${row + 1}: every line states the step it was captured in`
+            : `${labelled.id} row ${row + 1}: every event is from the failed step, so no line carries a step label`,
+          provenanceCase
+            ? labelledLines.every((line) => / \[during (?:the failed|an earlier) step\] /.test(line)) && labelledLines.some((line) => line.includes("[during an earlier step]"))
+            : Object.values(request.stepRelations).every((relation) => relation === "failedStep") &&
+                labelledLines.every((line) => !/ \[(?:during the failed step|during an earlier step|after the failed step|step unknown)\] /.test(line)),
+          JSON.stringify(labelledLines)
         );
       }
     }

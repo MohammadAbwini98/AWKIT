@@ -229,6 +229,40 @@ export interface FailureAnalysisRequest {
    * above the AI's answer: "not enough evidence" beside it would be the report contradicting itself.
    */
   mustConclude: boolean;
+  /** Each offered event's {@link StepRelation}: what may be primary evidence, and what the lines say. */
+  stepRelations: Readonly<Record<string, StepRelation>>;
+}
+
+/**
+ * Where an event was captured relative to the step that failed, read from the collector's own step
+ * stamp (`context.stepIndex`, the Nth step execution in the instance) against the runner's failure
+ * record. Never from an event's text, status, URL, or its order among one step's events.
+ *
+ *  - `failedStep`: captured while the failed step ran. Related by provenance, NOT proven the cause:
+ *    unrelated page activity shares the window, and nothing recorded tells the two apart.
+ *  - `earlierStep`: captured during an earlier step. A possible precondition (a save that failed one step
+ *    before the assertion that noticed it: the baseline's preceding window), so it may still be cited.
+ *  - `afterFailure`: captured during a step that started after the failed one. It cannot have caused the
+ *    failure, so it is never primary evidence; it may be cited as a consequence.
+ *  - `unknown`: the event or the failure record carries no step.
+ */
+export type StepRelation = "failedStep" | "earlierStep" | "afterFailure" | "unknown";
+
+/**
+ * Every event's {@link StepRelation}. The failed step is the one whose runner record the baseline cites,
+ * else the last runner record: an instance that went on past an earlier failure failed at its last one.
+ */
+export function stepRelations(entry: Pick<FailureBatchEntry, "baseline" | "events">): Map<string, StepRelation> {
+  const runners = entry.events.filter((event) => event.source === "runner.failure");
+  const failed = runners.find((event) => entry.baseline.evidenceIds.includes(event.id)) ?? runners[runners.length - 1];
+  const at = failed?.context?.stepIndex;
+  return new Map(
+    entry.events.map((event): [string, StepRelation] => {
+      const step = event.context?.stepIndex;
+      if (at === undefined || step === undefined) return [event.id, "unknown"];
+      return [event.id, step === at ? "failedStep" : step < at ? "earlierStep" : "afterFailure"];
+    })
+  );
 }
 
 /** A conclusion's fields, in the order the grammar writes them: cite first, then explain. */
@@ -236,9 +270,19 @@ const CONCLUSION_FIELDS = ["primaryEvidenceIds", "secondaryEvidenceIds", "catego
 
 /**
  * Whether an event can be a conclusion's primary evidence. The runner's own failure record says THAT
- * the step failed, never why: on a bare timeout Qwen3.5-0.8B cited it as its own cause (2026-09-22).
+ * the step failed, never why: on a bare timeout Qwen3.5-0.8B cited it as its own cause (2026-09-22). And
+ * nothing captured after the failed step can have caused it.
  */
-const isCauseEvidence = (event: ExecutionEvidenceEvent): boolean => event.source !== "runner.failure";
+const isCauseEvidence = (event: ExecutionEvidenceEvent, relation: StepRelation | undefined): boolean =>
+  event.source !== "runner.failure" && relation !== "afterFailure";
+
+/** A line's step, stated only when the offered events do not all share one. Product text, never page text. */
+const STEP_LABEL: Readonly<Record<StepRelation, string>> = {
+  failedStep: "during the failed step",
+  earlierStep: "during an earlier step",
+  afterFailure: "after the failed step",
+  unknown: "step unknown"
+};
 
 // A conclusion's fields in the grammar's order. v1 said "set insufficient to true and say so": the one
 // answer its own parser refused. The model never sees the schema, so only this text can ask for brevity:
@@ -264,14 +308,19 @@ const INSTRUCTIONS =
  * Which events are offered when there are more than the budget holds, most important first.
  *
  * The baseline's own citations go first, and its FIRST id absolutely, so every event the report's
- * deterministic cause names is one the model can see and cite. Everything else follows by severity, then
- * by closeness to the failure. This decides WHAT is shown, not the order it is shown in: the lines are
- * shown newest first, so the baseline's pick is not presented as the answer.
+ * deterministic cause names is one the model can see and cite. Everything else follows by step (the
+ * failed step's own, then earlier or unknown, then after the failure, which "closest to the failure"
+ * alone would have put first), then severity, then closeness to the failure. This decides WHAT is shown,
+ * not the order it is shown in: the lines are shown newest first, so the baseline's pick is not presented
+ * as the answer.
  */
-function rankEvidence(entry: FailureBatchEntry, limit: number): ExecutionEvidenceEvent[] {
+function rankEvidence(entry: FailureBatchEntry, relations: ReadonlyMap<string, StepRelation>, limit: number): ExecutionEvidenceEvent[] {
   const citedRank = new Map(entry.baseline.evidenceIds.map((id, index) => [id, index]));
+  const stepRank = (id: string) => ({ failedStep: 0, earlierStep: 1, unknown: 1, afterFailure: 2 })[relations.get(id) ?? "unknown"];
   const weight = (event: ExecutionEvidenceEvent): number =>
-    citedRank.has(event.id) ? (citedRank.get(event.id) as number) : 1_000 + (event.severity === "error" ? 0 : event.severity === "warning" ? 1 : 2);
+    citedRank.has(event.id)
+      ? (citedRank.get(event.id) as number)
+      : 1_000 + stepRank(event.id) * 10 + (event.severity === "error" ? 0 : event.severity === "warning" ? 1 : 2);
   return [...entry.events].sort((a, b) => weight(a) - weight(b) || b.offsetMs - a.offsetMs).slice(0, limit);
 }
 
@@ -294,13 +343,19 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
   // travels through the `ids` channel instead, which is unredacted but still rescanned for residual
   // secrets. Without it the model would be told a request failed and never told which one.
   const isUrlField = (key: string): boolean => /(?:url|Url|URL)$/.test(key);
+  const relations = stepRelations(entry);
+  const ranked = rankEvidence(entry, relations, limits.maxEvidencePerAnalysis);
+  // A step stated on every line only where the candidates span more than one: a failure whose evidence
+  // all comes from one step (every labelled case, and the benchmark's packet) is sent as it was before.
+  const mixedSteps = new Set(ranked.map((event) => relations.get(event.id))).size > 1;
   const lineOf = (event: ExecutionEvidenceEvent): string => {
     const fields = Object.entries(event.payload)
       .filter(([key]) => !isUrlField(key))
       .map(([key, value]) => `${key}=${String(value)}`)
       .join(" ");
     const repeat = event.repeatCount > 1 ? ` x${event.repeatCount}` : "";
-    return `${event.id}: ${event.source} (${event.severity}) at ${event.offsetMs}ms${repeat} ${fields}`;
+    const step = mixedSteps ? ` [${STEP_LABEL[relations.get(event.id) ?? "unknown"]}]` : "";
+    return `${event.id}: ${event.source} (${event.severity}) at ${event.offsetMs}ms${step}${repeat} ${fields}`;
   };
 
   // Whole lines, most important first, while they fit `maxEvidenceChars`, so every id the grammar offers
@@ -308,7 +363,7 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
   // cut to the budget only if it alone would not fit.
   const shownLines = new Map<string, string>();
   let used = 0;
-  for (const event of rankEvidence(entry, limits.maxEvidencePerAnalysis)) {
+  for (const event of ranked) {
     const line = lineOf(event);
     if (shownLines.size > 0 && used + line.length > limits.maxEvidenceChars) continue;
     const shown = line.slice(0, limits.maxEvidenceChars);
@@ -325,7 +380,7 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
     .sort((a, b) => a.offsetMs - b.offsetMs)
     .reverse();
   const ids = evidence.map((event) => event.id);
-  const causeIds = evidence.filter(isCauseEvidence).map((event) => event.id);
+  const causeIds = evidence.filter((event) => isCauseEvidence(event, relations.get(event.id))).map((event) => event.id);
   // The deterministic cause still decides the evidence tier: it is not shown, but it is authoritative.
   const mustConclude = causeIds.length > 0 && DIRECT_FAILURE_CAUSES.has(entry.baseline.cause);
   const routes = evidence.flatMap((event) =>
@@ -378,7 +433,8 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
             required: [...CONCLUSION_FIELDS],
             properties: {
               // Closed enum: the grammar cannot name an event this request did not offer, nor rest a
-              // conclusion on the runner's own record. (With no cause evidence it is never decoded.)
+              // conclusion on the runner's own record or on anything captured after the failed step.
+              // (With no cause evidence it is never decoded.)
               primaryEvidenceIds: {
                 type: "array",
                 minItems: 1,
@@ -396,7 +452,8 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
     },
     group,
     evidence,
-    mustConclude
+    mustConclude,
+    stepRelations: Object.fromEntries(evidence.map((event) => [event.id, relations.get(event.id) ?? "unknown"]))
   };
 }
 
@@ -418,7 +475,7 @@ export type FailureAnalysisRejectionCode =
   /** An evidence id this request did not offer. The closed enum should have stopped it; this is the re-check. */
   | "UNKNOWN_EVIDENCE"
   | "DUPLICATE_EVIDENCE"
-  /** A conclusion citing no evidence of cause — none at all, or only the runner's own failure record. A guess wearing a verdict. */
+  /** A conclusion citing no evidence of cause — none at all, only the runner's own failure record, or an event from after the failed step. A guess wearing a verdict. */
   | "UNSUPPORTED_CONCLUSION"
   /** An answer that declines and concludes: the retired `insufficient` flag against the list, or a decline beside a direct cause. */
   | "CONTRADICTORY"
@@ -467,7 +524,7 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
   const raw = conclusions[0];
   if (!isRecord(raw) || Object.keys(raw).some((key) => !(CONCLUSION_FIELDS as readonly string[]).includes(key))) return reject("MALFORMED", at);
   const offered = new Set(request.evidence.map((event) => event.id));
-  const causes = new Set(request.evidence.filter(isCauseEvidence).map((event) => event.id));
+  const causes = new Set(request.evidence.filter((event) => isCauseEvidence(event, request.stepRelations[event.id])).map((event) => event.id));
   const seen = new Set<string>();
   const readIds = (field: "primaryEvidenceIds" | "secondaryEvidenceIds"): string[] | FailureAnalysisRejection => {
     const list = raw[field];
