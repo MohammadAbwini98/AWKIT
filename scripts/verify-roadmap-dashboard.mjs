@@ -131,8 +131,8 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  // 311 since 2026-09-22: Phase M epic `awkit-akb` and its seven planned milestones were filed.
-  check("311 issues parse", beads.stats.total === 311, `got ${beads.stats.total}`);
+  // 320 since 2026-09-22: Phase N epic `awkit-vra` and its eight planned workstreams were filed.
+  check("320 issues parse", beads.stats.total === 320, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -601,8 +601,10 @@ try {
   // contract `awkit-g555-kill-restart-0921`. Closing removes no edge, so the edge pin stays at 135.
   // Then 17/294 of 311 on 2026-09-22: Phase M registered PLANNED as epic `awkit-akb` with seven
   // open milestone children. Nothing closed and no Phase L status changed.
-    "17 outstanding / 294 closed",
-    beads.stats.outstanding === 17 && beads.stats.closed === 294,
+  // Then 26/294 of 320 on 2026-09-22: Phase N registered NOT STARTED as epic `awkit-vra` with eight
+  // open workstream children. Nothing closed and no Phase L or Phase M status changed.
+    "26 outstanding / 294 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 294,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -673,9 +675,12 @@ try {
   // Then 155 on 2026-09-22: Phase M added seven parent-child edges and thirteen blocks edges:
   // the epic after Phase L, M1 after L7, M2 after M1, M3/M4/M5 after M2, M6 after M3/M4/M5,
   // and M7 after M3/M4/M5/M6.
+  // Then 180 on 2026-09-22: Phase N added eight parent-child edges and seventeen blocks edges:
+  // the epic after Phase L, N1 after L7, N2 after N1, N3 after N2, N4 after N3, N5 after N2/N3,
+  // N6 after N3/N4/N5, N7 after N3/N5/N6, and N8 after N4/N5/N6/N7. Phase M is not an edge.
   check(
-    "155 edges are present to classify",
-    beads.stats.edges === 155,
+    "180 edges are present to classify",
+    beads.stats.edges === 180,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
@@ -746,10 +751,10 @@ try {
   console.log("Roadmap phase module:");
   const phasesText = readSource("phases").text;
   const phases = extractPhases(phasesText, null, 0);
-  // 13 since 2026-09-22: Phase M (Optional Application Knowledge Base) registered as pending.
-  check("13 phases", phases.phases.length === 13, `got ${phases.phases.length}`);
+  // 14 since 2026-09-22: Phase N (Visual Recognition and Automation) registered as pending.
+  check("14 phases", phases.phases.length === 14, `got ${phases.phases.length}`);
   check(
-    "phase ids are exactly A..M",
+    "phase ids are exactly A..N",
     phases.phases.map((p) => p.id).join("") === EXPECTED_PHASE_IDS,
     phases.phases.map((p) => p.id).join("")
   );
@@ -811,8 +816,8 @@ try {
   );
   // Live-data guards. Cardinality first, so neither `every` can pass over an empty list.
   check(
-    "all 13 live phase notes parsed non-empty",
-    phases.phases.length === 13 && phases.phases.every((p) => p.implementationNote.length > 0),
+    "all 14 live phase notes parsed non-empty",
+    phases.phases.length === 14 && phases.phases.every((p) => p.implementationNote.length > 0),
     "a silently truncated string value would leave a phase with no note"
   );
   check(
