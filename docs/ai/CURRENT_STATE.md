@@ -1,6 +1,56 @@
 # CURRENT_STATE
 
-## L4b: the owner's four decisions implemented; the adopted quality target is NOT MET (2026-09-22, current)
+## L4b: the corrective action is the product's; the adopted quality target is still NOT MET (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **The change (`ddcfc35b`).** It answers the owner's review of the 11 screen-clear answers at `97996c48`
+  (6/11 correct and actionable; wrong corrections for a branch pair, a connector leaving End and a
+  duplicate id; the value rule read backwards; steps cut off at 160 characters):
+  - every validator rule has a **product-authored corrective action** (`correctiveStep`), naming a safe
+    fix only where the validator emitted one;
+  - it is sent on each issue's line (`Action:`), and the model is asked for it first and as given;
+  - it reaches the designer beside the model's text, labelled **Corrective action**, never taken from
+    the model;
+  - a sentence the 160-character limit cut is never shown; an unfinished tail is dropped;
+  - the value and locator summaries name their subject first;
+  - the judge is stricter: a wrong-remedy screen and an action-as-a-step-name screen, never actionable.
+- **L1.8, re-measured because the request changed:** GO on all 8. The explanation request has 340 prompt
+  tokens (was 395) and takes 83,345 ms at cap against 120,000. The projection at the slowest rates leaves
+  8.5 s of margin (was 2.7 s). The cap, the limit, the ceiling and the deadline are unchanged.
+- **Real Qwen3.5-0.8B, two complete runs of the final request:**
+
+| Measure | Run 1 | Run 2 |
+|---|---|---|
+| Responses | 9 accepted | 9 accepted |
+| On subject (proxy) | 17/17 | 17/17 |
+| **Actionable (proxy)** | **9/17** | **7/17** |
+| Misattributed · screen hits | 0 · 0 | 0 · 0 |
+| Ranked · withheld | 0 of 5 · 0 | 0 of 5 · 0 |
+| Inference | 43.3–69.5 s | 50.5–74.6 s |
+
+- **Target readout: NOT MET.** (3) actionable: NOT MET. (1) and (4): PENDING, 16 screen-clear answers
+  unread. (2), (5), (6): MET.
+- **What the text shows:** every answer that states the action states the right one; the misses omit
+  it (an echoed opening plus the character limit, the summary alone, or the bare rule code). Two more
+  request variants were measured at 2/10 each and reverted.
+- **Human review:** the owner's review of the `97996c48` answers is not yet recorded; per-answer
+  verdicts are proposed in HANDOFF for confirmation. No person has read the 16 new answers.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 257/257 (was 239). Mutations: trim removed 255/257, wrong-remedy screen disabled 256/257 |
+| `verify:ai-authoring-quality-live-part1` · `-part2` (real 0.8B), two runs | 9/0 · 8/0, then 9/0 · 8/0 |
+| `verify:ai-authoring-review` | FAIL (exit 1): TARGET NOT MET |
+| `benchmark:ai-model-0-8b` | GO on all 8; explanation 83,345 ms at cap |
+| `verify:ai-explanation-live` (real 0.8B) | 5/0: 80.5 s and 69.7 s of inference, cancel settled in 64 ms |
+| `verify:ai-assist-gui` · `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-redaction` · `verify:security` | 101/0 · 117/0 · 38/0 · 52/0 · 61/0 |
+| `verify:validation` (the summaries changed) · `verify:failure-capture-overhead` | 163/0 · 18/0 (appends run 8 to its evidence file) |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 260 scripts · PASS · PASS |
+
+## L4b: the owner's four decisions implemented; the adopted quality target is NOT MET (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).

@@ -1341,15 +1341,45 @@ re-measured.**
   **`verify:ai-authoring-review`: TARGET NOT MET** on criterion 3, with 11 screen-clear answers
   awaiting a person. See L4 › "The owner's L4b decisions, implemented and measured".
 
+**Then (`ddcfc35b`, 2026-09-23): the corrective action becomes the product's, so L1.8 is re-measured.**
+
+- **The request change.** Each issue's line now ends with a product-authored corrective action in place
+  of the fix kind/field/summary parenthetical, and the instruction is 616 characters against 875. The
+  schema, the 192-token output cap, the 160-character limit, the 120,000 ms ceiling and the 125,000 ms
+  deadline are unchanged.
+- **`benchmark:ai-model-0-8b`: GO on all 8.** Only `packets:validationExplanation` was measured again.
+
+| Measure | `97996c48` | `ddcfc35b` |
+|---|---|---|
+| Prompt tokens | 395 | **340** |
+| Prompt evaluation | 24,145–27,955 ms | 18,174–29,260 ms (11.6–18.7 tok/s) |
+| Output | 144 tokens, `stop` | 174 tokens, 2 of 2 explained, `stop` |
+| Decode rate | 4.41–4.77 tok/s | 3.43–3.55 tok/s |
+| **At cap** | 71,492 ms | **83,345 ms**, against 120,000 |
+
+- **Why at-cap rose although the prompt shrank:** this run decoded at 3.43–3.55 tok/s against 4.41–4.77.
+  That is host variance, the same effect in reverse as last time.
+- **Projection, not evidence:** at the slowest rates this host has shown (prompt 9.4 tok/s, decode
+  2.55 tok/s), 340 prompt tokens plus the 192-token cap come to about 111.5 s: **8.5 s of margin**, up
+  from 2.7 s.
+- **`verify:ai-explanation-live`: 5/0** on the changed request, delivered at 80.5 s and 69.7 s of
+  inference (336 prompt tokens), a cancel settled in 64 ms, and a kill during prompt evaluation was
+  followed by a reload and a delivered explanation.
+- **Quality on the 0.8B,** two complete runs: 17/17 and 17/17 on subject, **9/17 and 7/17 actionable by
+  proxy** (was 6/17 and 5/17 under a looser judge), 0 misattributed, 0 screen hits, nothing ranked.
+  **`verify:ai-authoring-review`: TARGET NOT MET** on criterion 3, with 16 screen-clear answers awaiting
+  a person. See L4 › "The corrective action made the product's, measured".
+
 **Still owed before L1 can be accepted:**
 
-1. L4b's explanation quality target, **adopted provisionally on 2026-09-22 and NOT MET**. The request
-   now asks for a corrective step (L1.8 re-measured: GO, 71,492 ms at cap). The 0.8B reaches 6/17 and
-   5/17 actionable by proxy against 80 % (criterion 3), and no person has yet reviewed the 11 screen-clear
-   answers (criteria 1 and 4).
+1. L4b's explanation quality target, **adopted provisionally on 2026-09-22 and NOT MET**. Since
+   `ddcfc35b` the corrective action a person sees is the product's (L1.8 re-measured: GO, 83,345 ms at
+   cap). The 0.8B's own sentence states it in 9/17 and 7/17 answers against 80 % (criterion 3), which
+   needs an owner decision, and no person has recorded a review of either request's screen-clear answers
+   (criteria 1 and 4).
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
-   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 16–17/17 on subject
-   by proxy but 5–6/17 actionable with no ranking (target not met), and failure analysis tying the baseline on the labelled set, with or without
+   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject
+   by proxy but 7–9/17 actionable in the model's own text with no ranking (target not met), and failure analysis tying the baseline on the labelled set, with or without
    the conclusion in its prompt and with step provenance, and falling below it (−2 over 17 rows) once the
    request states runtime request provenance. The gap is −5 since the baseline itself reads the confirmed
    link (`14c0ad84`): 9/17 against 14/17.

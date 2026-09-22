@@ -1,5 +1,47 @@
 # TASK_LOG
 
+## 2026-09-23 — L4b: corrective-action quality failures, the action made the product's (Claude)
+
+- **Task:** resolve the corrective-action failures the owner's review found in the 11 screen-clear
+  answers at `97996c48` (6/11 correct and actionable), without changing the 80 % target, the 192-token
+  cap, the 120 s ceiling or the 125 s deadline; re-measure L1.8; present review verdicts for the owner.
+- **Files:**
+  - `ddcfc35b`:
+    - `src/ai/authoringExplanation.ts`: `correctiveStep` (33 rules, safe-fix actions), the `Action:`
+      line, the shorter instruction, `endAtCompleteSentence`, `step` and `cut` on each explanation;
+    - `src/validation/FlowValidator.ts`: the missingRequiredValue/Locator summaries;
+    - `src/ai/contracts/AiApi.ts`, `app/main/ai/aiAssist.ts`: `step` in the view;
+    - `app/renderer/components/workflow/AuthoringAssist.tsx`, `app/renderer/pages/FlowChartDesigner.tsx`,
+      `app/renderer/styles/global.css`: the "Corrective action" line;
+    - `scripts/ai-harness/authoringQualitySet.ts`: `WRONG_REMEDY`, `ACTION_AS_NAME`, complete-sentence
+      actionability, `correctiveControlFailures`;
+    - `authoringQualityLive.ts`, `authoringQualityReview.ts`, `verify-ai-authoring-review.mts`: the
+      controls run live, and captures carry the action;
+    - `scripts/verify-ai-authoring.mts` §1, §11, §12, §13 and a failure list at the end;
+      `scripts/verify-ai-assist-gui.mts`: the action is rendered;
+    - the L1.8 0.8B evidence file and `L5a-overhead-gate.json` (run 8).
+  - This closeout: the L4 and L1 plans, CURRENT_STATE, HANDOFF, DECISIONS, KNOWN_ISSUES; notes on
+    `awkit-djnl.6` and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-authoring` 257/257 (was 239); mutations caught: trim removed 255/257, wrong-remedy screen
+    disabled 256/257.
+  - Real 0.8B: `benchmark:ai-model-0-8b` GO on all 8 (340 prompt tokens, 83,345 ms at cap);
+    `verify:ai-explanation-live` 5/0; quality, two complete runs, 9/0 8/0 9/0 8/0;
+    `verify:ai-authoring-review` exit 1, **TARGET NOT MET**. Before the final runs, three variants were
+    measured on part 1: "Step:" label 8/10 with 3 misreadings, action before summary 2/10, no opening
+    sentence 2/10 (the last two reverted).
+  - `verify:ai-assist-gui` 101/0, `verify:ai-adapter` 117/0, `verify:ai-fallback` 38/0,
+    `verify:ai-redaction` 52/0, `verify:security` 61/0, `verify:validation` 163/0,
+    `verify:failure-capture-overhead` 18/0, `verify:verifier-classification` 260, `typecheck:scripts`
+    and build PASS.
+- **Result:**
+  - Actionable by proxy 9/17 and 7/17 (was 6/17 and 5/17 under a looser judge); on subject 17/17 twice;
+    0 misattributed, 0 screen hits; nothing ranked.
+  - Every answer that states the action states the right one; criterion 3 fails because the model's
+    sentence often omits it. The delivered explanation carries the product's action in every case.
+  - No verdict recorded: proposed verdicts for the 11 old answers await the owner; 16 new answers await
+    a person. L4b stays `in_progress`.
+
 ## 2026-09-22 — L4b: the owner's four decisions implemented and measured on the real 0.8B (Claude)
 
 - **Task:** implement the owner's four L4b decisions and measure them on the real 0.8B:

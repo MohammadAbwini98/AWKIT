@@ -346,14 +346,139 @@ with nothing to review; (5) not exercised; (6) one run. The current measurement 
   - *Privacy:* no canary in any prompt, answer or capture, no residual secret, and nothing withheld.
   - *Two runs.* The prompt nonce still varies answers between runs.
 
+### The corrective action made the product's, measured (2026-09-23, `ddcfc35b`)
+
+**Starting evidence (the owner's review of the 11 screen-clear answers at `97996c48`, in chat, not yet
+recorded):** 6/11 correct and actionable against 80 %. Wrong corrections for a lone conditional
+connector, a connector leaving End and a duplicate connector id; "requires a value and has none" read
+twice as the value not being required; steps cut off by the 160-character limit.
+
+**Root causes, from the captures:**
+
+1. **The request held no remedy.** Each line carried a rule summary, which says what is wrong, never what
+   to do. The 0.8B guessed the step, and guessed wrong where the obvious-sounding verb is the wrong one
+   (add a connector *into* End, add a condition "to the runner", remove the duplicate connector).
+2. **The step came last.** The instruction asked for what is wrong, then the step. The model restates
+   the summary first, so the 160-character grammar limit cut the step, and the product showed the cut
+   sentence ("The person should check the configuration definition to").
+3. **The value summary was ambiguous.** "Step type requires a value and has none" reads as "the step
+   type does not specify a required value" to the 0.8B.
+4. **The proxy counted wrong steps.** "Specify" is a corrective verb, so the inverted reading counted as
+   actionable. That was recorded, not tuned, at `97996c48`.
+
+**What changed (`ddcfc35b`):**
+
+- **A product-authored corrective action per rule** (`correctiveStep`, `src/ai/authoringExplanation.ts`).
+  - Every one of the 33 rules has one, by an exhaustive `Record`, so a new rule does not type-check
+    without one.
+  - It is tied to "this step" or "this connector" and rests on the rule alone. Where the validator's own
+    message names a remedy (branch pair, cycle, condition priority, ignored binding), it is that remedy.
+  - A safe fix is named only where the validator emitted one, and then only through its preview:
+    "Review and apply the offered safe fix, which gives this connector a new id." No other action names a
+    fix (`verify:ai-authoring` §13).
+- **It travels in the request.** Each issue's line ends `Action: <the action>`, replacing the fix
+  kind/field/summary parenthetical. The instruction asks for that action first and as given, and no
+  other. It is 616 characters against 875, so the benchmark prompt fell from 395 to 340 tokens.
+  - The label is "Action", never "Step". Labelled "Step:", the 0.8B read the action as a step's *name*
+    ("The step 'Add a locator to this step' is missing a locator") in 3 of 10 answers.
+- **It travels in the answer, beside the model's text,** never taken from the model: the answer schema
+  has no field for it. The designer shows it under each finding, labelled "Corrective action", apart from
+  the "AI interpretation" (`verify:ai-assist-gui` 101/0). So what the person is told to do never rests on
+  model wording alone. With AI off, nothing changes.
+- **Complete sentences only** (`endAtCompleteSentence`). An unfinished tail is dropped, never completed
+  or rewritten. A text with no complete sentence keeps its fragment, marked with an ellipsis.
+- **The two "requires … and has none" summaries** now name their subject first: "The step has no value,
+  and its type needs one."
+- **The judge got stricter, never looser:**
+  - a `WRONG_REMEDY` screen per rule where the wrong direction is unambiguous: a connector into End, the
+    value or locator rule inverted, a condition added "to the runner", a connector or id removed for a
+    duplicate id, a high timeout raised;
+  - the action given as a step's name counts as a fabricated name;
+  - neither is ever actionable, and only a complete sentence can be.
+  These screens were written **after** the answers were read, as regression screens at the owner's
+  request. They can only lower a rate. The `CORRECTIVE` and `REMEDY` patterns are unchanged.
+- **Regression controls** (`correctiveControlFailures`): the reviewed failures replayed as scripted
+  answers the judge must refuse, each beside a correct twin, plus every product action restated as the
+  whole answer, which must be judged actionable and screen-clear for all 14 labelled codes.
+
+**Proven without a model** (`verify:ai-authoring` 257/257, was 239). Mutations, each run once and
+reverted: the trim removed, 255/257; the wrong-remedy screen disabled, 256/257.
+
+**Three request variants on the real 0.8B** (one part each, 10 issues, before the final runs):
+
+| Variant | Actionable (proxy) | What the text showed |
+|---|---|---|
+| "Step:" after the summary | 8/10 | 3 answers read the action as a step's name |
+| **"Action:" after the summary (final)** | **7/10** | every answer read correctly |
+| "Action:" before the summary, instruction to match | 2/10 | the raw line copied, or the action dropped |
+| no opening sentence, "word for word" | 2/10 | answers collapsed to bare labels ("Unsupported Operator…") |
+
+**The final request, two complete runs** (`-part1` 9/0, `-part2` 8/0, twice):
+
+| Measure | `97996c48` run 1 · run 2 | `ddcfc35b` run 1 · run 2 |
+|---|---|---|
+| On subject (proxy) | 17/17 · 16/17 | 17/17 · 17/17 |
+| **Actionable (proxy)** | **6/17 · 5/17** | **9/17 · 7/17** |
+| Misattributed · screen hits | 0 · 0 | 0 · 0 |
+| Screen-clear, for a person | 11 | 16 |
+| Ranked | 0 of 5 · 0 of 5 | 0 of 5 · 0 of 5 |
+| Inference | 51.4–86.1 s | 43.3–74.6 s |
+
+The `97996c48` column was judged by the looser judge. Under the new one, its two inverted value answers
+and its two duplicate-id removals are no longer actionable, so the true gain is larger than it reads.
+
+`verify:ai-authoring-review` over the final request: **TARGET NOT MET.**
+
+| Criterion | Status | Detail |
+|---|---|---|
+| (1) no confirmed claim, no misattribution | PENDING | 0 misattributed, 0 screen hits; 16 screen-clear answers unread |
+| (2) ≥ 90 % on subject, every run | MET | 17/17, 17/17 |
+| (3) ≥ 80 % actionable, every run | **NOT MET** | 9/17, 7/17 |
+| (4) a person reads every screen-clear answer, ≥ 80 % correct and actionable | PENDING | 0 of 16 reviewed |
+| (5) no order violation when the model ranks | MET | nothing ranked |
+| (6) ≥ 2 runs | MET | 2 |
+
+**Reading the captured text, not the proxy** (an agent's engineering reading, not a review verdict):
+
+- **Every answer that states the action states the right one**, because it is the product's. No wrong
+  correction, inverted rule, invented fix or fabricated value appears in either run. The failures the
+  owner found are gone from these captures.
+- **What is still missing is the action itself, not its correctness.** The 18 answers that are not
+  actionable take three shapes:
+  - the answer opens by echoing the instruction ("The automation flow failed validation because…") and
+    restates the summary, and the character limit cuts it before the action;
+  - the answer is the summary alone, with no action;
+  - the answer is the bare rule code ("unsupportedOperator…", "Unsupported Operator…").
+- **Run-to-run variance is large.** The same request gave 7/10 and 3/10 on the same five cases, because
+  the prompt nonce varies.
+- **Cause of the criterion 3 shortfall:** the 0.8B does not reliably follow an instruction about the
+  order or content of its own sentence. Prose-level ordering (three variants) moved the rate between
+  2/10 and 8/10, never to 80 %. The product now guarantees the corrective action the person sees; the
+  model's own sentence contains it about half the time.
+
+**Owner decision needed on criterion 3.** Every delivered explanation now carries the product's
+validated corrective action, so the explanation a person reads is actionable 17/17 by construction.
+Criterion 3 was written when the model's text was the whole explanation, and it still measures that
+text alone. Whether it should measure the delivered explanation instead is a change to what the target
+measures, so it is the owner's to make; it was **not** changed here. The alternatives are a different
+model, or accepting the shortfall.
+
+**Performance:** L1.8 re-measured, GO on all 8. The explanation request is 340 prompt tokens and takes
+83,345 ms at cap against 120,000. At this host's slowest rates (prompt 9.4 tok/s, decode 2.55 tok/s)
+it projects to about 111.5 s, so the margin is 8.5 s, up from 2.7 s. The 192-token cap, the
+160-character limit, the 120 s ceiling and the 125 s deadline are unchanged.
+
 ### What L4b acceptance still needs
 
-- **Criterion 3:** at least 80 % actionable by proxy in every run. On the 0.8B it is 29–35 %. Closing
-  that means another request change, a different model, or an owner decision on the target. Each
-  request change re-opens L1.8, and the 160-character limit and the 192-token cap are fixed by it.
-- **A person's review of the 11 screen-clear answers** (criteria 1 and 4). Run `npm run
-  verify:ai-authoring-review -- --pending`, then `-- --record` for each. Any request change produces new
-  captures, and those need their own review.
+- **Criterion 3:** at least 80 % actionable by proxy in every run; the final request gives 9/17 and
+  7/17. It needs an owner decision: what the criterion measures (above), a different model, or the
+  shortfall accepted. A threshold is not lowered to fit a result.
+- **A person's review.** Two sets are unread:
+  - the 11 screen-clear answers of `97996c48`. The owner's review found 6/11 correct and actionable; its
+    per-answer verdicts are proposed in the 2026-09-23 HANDOFF and await the owner's confirmation and
+    recording. They count only for that earlier request, which is ignored by the evaluation;
+  - the 16 screen-clear answers of the final request (criteria 1 and 4). Run `npm run
+    verify:ai-authoring-review -- --pending`, then `-- --record` for each.
 - The target is provisional; the owner may confirm it or change it.
 
 Until the target is MET, L4b stays `in_progress`.
@@ -397,12 +522,15 @@ Apply / Show on Canvas / Dismiss.
 `verify:authoring-diagnostics` (every family, Flow/Workflow parity, legacy profiles), `verify:ai-authoring`
 (fake provider: unknown IDs rejected, non-emitted fix rejected; §11 audits the live labelled set and its judge), live
 `verify:ai-authoring-quality-live` (built, 10/0 on the real 0.8B; since `3e37f2c1` nine cases in two parts,
-`-part1` 9/0 and `-part2` 8/0; since `97996c48` each part writes a redacted local review capture),
-`verify:ai-authoring-review` (the adopted target over captured runs and a person's verdicts: NOT MET at `97996c48`);
+`-part1` 9/0 and `-part2` 8/0; since `97996c48` each part writes a redacted local review capture; since
+`ddcfc35b` the capture holds the corrective action shown beside each answer),
+`verify:ai-authoring-review` (the adopted target over captured runs and a person's verdicts: NOT MET at `97996c48`
+and at `ddcfc35b`, criterion 3);
 existing validation, legacy-compat and profile-store gates; `npm run build`.
 
 ## Acceptance
 
 Validators remain the single source of truth; SafeFixApplier remains the only mutation authority; AI never adds a fix
 kind; explanation quality target recorded and met before release. **Recorded** (adopted provisionally, 2026-09-22);
-**not met** (criterion 3; criteria 1 and 4 await a person).
+**not met** (criterion 3 at 9/17 and 7/17 on `ddcfc35b`; criteria 1 and 4 await a person). Since `ddcfc35b` the
+corrective action a person sees is the product's, never model text.

@@ -1,6 +1,62 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — L4b decisions implemented; the adopted target is NOT MET, and review awaits a person
+## HANDOFF (2026-09-23, latest) — L4b's corrective action is the product's; criterion 3 needs an owner decision, and two reviews await a person
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`ddcfc35b`, then this closeout):** see L4 › "The corrective action made the product's,
+  measured". Every rule has a product-authored corrective action, sent in the request and shown in the
+  designer labelled "Corrective action", apart from the AI text; a cut sentence is never shown; the value
+  summary names its subject; the judge is stricter and replays the reviewed failures as controls.
+- **Measured on the real 0.8B:** L1.8 GO on all 8 (340 prompt tokens, 83,345 ms at cap, 8.5 s projected
+  margin). Two complete runs: 17/17 and 17/17 on subject, **9/17 and 7/17 actionable**, 0 misattributed,
+  0 screen hits, nothing ranked. **TARGET NOT MET** (criterion 3); criteria 1 and 4 PENDING on 16
+  screen-clear answers.
+- **Proposed verdicts for the owner's review of the 11 `97996c48` answers** — written by the agent from
+  the owner's stated result (6/11) and the captured text, **not recorded, and not a person's verdict**.
+  C = correct, A = actionable, G = grounded, U = unsupported claim. Item ids are
+  `<capture>/<case>/<issue>`, with the capture prefix `2026-09-22T19-…`:
+
+  | # | Item | C | A | G | U | Why |
+  |---|---|---|---|---|---|---|
+  | 1 | `41-45-755Z-f4dfe8/branch/i0` | no | no | no | yes | "add a condition to the runner": the fix is the matching branch, a fallback or a standard connector; cut at 160 |
+  | 2 | `41-45-755Z-f4dfe8/branch/i1` | yes | yes | yes | no | sets the comparison value or variable path |
+  | 3 | `41-45-755Z-f4dfe8/cycle/i0` | yes | yes | yes | no | adds a Loop Back connector; the explanation, not the action, was cut |
+  | 4 | `41-45-755Z-f4dfe8/cycle/i1` | yes | yes | yes | no | removes the connector that leaves End |
+  | 5 | `41-45-755Z-f4dfe8/values/i0` | no | no | no | yes | says the step type does not specify a required value: the rule inverted, and no step |
+  | 6 | `46-57-593Z-1e094a/priority/i1` | yes | yes | yes | yes | "regenerate the id" is the emitted fix; "remove the duplicate edge" beside it is an unsupported structural change |
+  | 7 | `53-40-734Z-f6e114/locator-orphan/i0` | yes | yes | yes | no | adds a locator |
+  | 8 | `53-40-734Z-f6e114/cycle/i0` | yes | yes | yes | no | adds a Loop Back connector to break the cycle |
+  | 9 | `53-40-734Z-f6e114/cycle/i1` | no | no | no | yes | adds a connector INTO End for a connector leaving it |
+  | 10 | `53-40-734Z-f6e114/values/i0` | no | no | no | yes | the value rule inverted again |
+  | 11 | `58-17-214Z-d6e814/priority/i1` | no | no | no | yes | "remove the duplicate edge ID from the connector list": not the emitted fix, and an id cannot be removed |
+
+  That is 6/11 correct and actionable (items 2, 3, 4, 6, 7, 8). Item 6 is the judgement call: if the
+  owner counts its removal alternative as making it incorrect, the tally is 5/11. Once confirmed, the
+  owner records each with `npm run verify:ai-authoring-review -- --record <full item id> --correct
+  yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --reviewer <owner's label> --note
+  "<why>"`. These answers belong to an earlier request, so the evaluation lists and ignores them; they
+  are the audit trail for the review that drove `ddcfc35b`. The lease guard admits no argument after
+  `npm run verify:*`, so an agent cannot run `--record` here at all, and the harness says an agent never
+  does.
+- **Next, not started:**
+  1. **The owner** confirms or corrects the table above and records it.
+  2. **A person** reviews the 16 screen-clear answers of the final request: `npm run
+     verify:ai-authoring-review -- --pending`, then `-- --record` for each. An agent's reading of the
+     text (not a verdict): all 16 state the product's action and read correctly; one echoes the raw issue
+     line ("highTimeout (warning, …) —") before it.
+  3. **The owner decides criterion 3.** The delivered explanation is actionable 17/17 by construction;
+     the model's own sentence is 9/17 and 7/17. Options: measure the delivered explanation (a change to
+     what the target measures, so the owner's), a different model, or accept the shortfall. Prose-level
+     reordering was measured three ways and does not reach 80 %.
+  4. Then L1's go/no-go. The next Phase L item stays L5b's baseline gap (−5).
+- **Do not:**
+  - record a review verdict as an agent, or present the table above as a person's;
+  - count a screen-clear or unreviewed answer as correct;
+  - lower a threshold, or change what criterion 3 measures without the owner;
+  - let the model supply the corrective action, or show one it wrote as the rule's;
+  - re-sort a withheld fix order.
+
+## HANDOFF (2026-09-22, superseded) — L4b decisions implemented; the adopted target is NOT MET, and review awaits a person
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`97996c48`, then this closeout):** the owner's four L4b decisions are implemented. Details are

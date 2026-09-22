@@ -1,33 +1,39 @@
 # KNOWN_ISSUES
 
-## The 0.8B's validation explanations are rarely corrective, even when asked for a step, and never rank a fix (2026-09-22, OPEN — `awkit-djnl.6`)
+## The 0.8B's own sentence often omits the corrective action, and it never ranks a fix (2026-09-23, OPEN — `awkit-djnl.6`)
 
 - **Symptom:**
-  - At `3e37f2c1`, on L4b's labelled set (9 cases, 17 issues), the real Qwen3.5-0.8B named every issue's
-    subject (17/17 by proxy) but gave no corrective step (0/17 actionable).
-  - At `97996c48` the request asks for a step, following owner decision 2. Two complete runs give 6/17
-    and 5/17 actionable by proxy, against the adopted 80 % target. Subject is 17/17 and 16/17.
-  - In no run has the model ranked any of the 5 fixable issues, so the designer's AI fix order is always
-    empty. That is acceptable under owner decision 4.
-- **What the captures show** (engineering observations, not a person's review):
-  - some answers restate the rule summary and stop;
-  - the two casing issues get the "say what to check" fallback, although the request marks them fixable;
-  - 12 of 34 texts end at the 160-character limit, some before or inside the step.
-- **A proxy false positive:** "does not specify a required value" reads as actionable, because
-  "specify" is a corrective verb. It was not tuned away. A person's review (criteria 1 and 4) is the
-  control for it, and 11 screen-clear answers await one.
-- **Settled:** the `3e37f2c1` `SEVERITY_OVERSTATED` hit belonged to the old request. Neither run of the
-  new one has any screen hit.
-- **Impact:** `verify:ai-authoring-review` reports **TARGET NOT MET** (criterion 3), so L4b cannot be
-  accepted. Explanations are still delivered, labelled as AI, grounded in the validator's issues and leak
-  nothing.
+  - `3e37f2c1`: 0/17 actionable by proxy. `97996c48` (the request asks for a step): 6/17 and 5/17, and
+    the owner's review found wrong corrections, the value rule read backwards and steps cut at 160
+    characters (6/11 correct and actionable).
+  - `ddcfc35b` (the product's corrective action in the request, stated first): **9/17 and 7/17**, against
+    the adopted 80 %. On subject 17/17 twice, 0 screen hits, 0 misattributed.
+  - In no run has the model ranked any of the 5 fixable issues. That is acceptable under owner decision 4.
+- **Fixed by `ddcfc35b`:** wrong or unsupported corrections, the inverted value rule and half-said steps.
+  The action a person sees is the product's, never model text, and a cut sentence is dropped. Every
+  captured answer that states an action states the right one.
+- **Still open — the model omits the action.** The misses take three shapes (engineering observations,
+  not a person's review):
+  - it echoes the instruction's opening ("The automation flow failed validation because…") and the
+    summary, and the 160-character limit cuts it before the action;
+  - it gives the summary alone;
+  - it gives the bare rule code ("unsupportedOperator…").
+  Run-to-run variance is large: the same request gave 7/10 and 3/10 on the same cases.
+- **Tried and measured, each reverted:** the action before the summary (2/10); no opening sentence and
+  "word for word" (2/10, answers collapsed to labels); "Step:" as the label (8/10, but 3 answers read the
+  action as a step's name).
+- **Impact:** `verify:ai-authoring-review` reports **TARGET NOT MET** (criterion 3). The delivered
+  explanation is actionable in every case, because the product attaches the action; whether criterion 3
+  should measure that is the owner's decision.
 - **Do not "fix" by:**
-  - widening `CORRECTIVE` or `REMEDY` after seeing a result;
-  - lowering a threshold;
-  - counting a screen-clear answer as correct unread;
-  - recording a review verdict as an agent;
-  - changing the instruction without re-measuring L1.8's `explanationAtCapMs`. Only 2.7 s of margin is
-    projected at the slowest rates, and the 160-character limit and the 192-token cap are fixed by it.
+  - widening `CORRECTIVE` or `REMEDY`, or loosening any screen, after seeing a result (a screen that
+    only makes the judge stricter, like `WRONG_REMEDY`, is allowed and was added);
+  - lowering a threshold, or changing what criterion 3 measures without the owner;
+  - forcing the action through an enum field: the model would copy the product's string, and criterion 3
+    would pass with nothing learned;
+  - counting a screen-clear answer as correct unread, or recording a review verdict as an agent;
+  - changing the request without re-measuring L1.8's `explanationAtCapMs` (8.5 s of projected margin at
+    `ddcfc35b`; the 160-character limit and the 192-token cap are fixed by it).
 
 ## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
 

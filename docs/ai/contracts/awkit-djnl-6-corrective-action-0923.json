@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-6-corrective-action-0923",
+    "title": "Record the L4b corrective-action change at ddcfc35b on L4b and L1",
+    "objective": "At ddcfc35b the L4b corrective-action failures the owner's review found at 97996c48 (6/11 correct and actionable) are addressed: every validator rule has a product-authored corrective action, sent in the request and shown in the designer apart from the AI text, a sentence the character limit cut is never shown, the value and locator summaries name their subject first, and the judge is stricter. On the real Qwen3.5-0.8B: benchmark:ai-model-0-8b GO on all 8 (340 prompt tokens, 83,345 ms at cap against 120,000), verify:ai-explanation-live 5/0, two complete quality runs (9/0, 8/0, 9/0, 8/0) at 17/17 and 17/17 on subject, 9/17 and 7/17 actionable by proxy, 0 misattributed, 0 screen hits, nothing ranked, and verify:ai-authoring-review TARGET NOT MET on criterion 3 with 16 screen-clear answers awaiting a person. Append a note to awkit-djnl.6 and to awkit-djnl.1 giving the commit, the result and what stays open (criterion 3 needs an owner decision, the owner's proposed verdicts for the 11 earlier answers await confirmation and recording, 16 new answers await a person, the go/no-go). Refresh the JSONL export. Nothing closes: both stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ddcfc35b",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.6 and awkit-djnl.1 stay in_progress, each with a note naming ddcfc35b and its live result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after the two `bd update --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents: 320 issues, 26 outstanding / 294 closed, 180 edges, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-6-corrective-action-0923:project-state:2026-09-22T21:50:26.101Z",
+        "task": "awkit-djnl-6-corrective-action-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T21:50:26.101Z",
+        "acquired_at_commit": "ddcfc35b26a76ebfce7989a25a73b56ba3b30964",
+        "released_at": "2026-09-22T21:51:21.353Z",
+        "released_reason": "L4b corrective action noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

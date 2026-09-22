@@ -1,6 +1,33 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L4b: the quality target is adopted, the request asks for a corrective step, a person reviews locally, and a fix order is optional and blocking-first (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-23 (latest) — Phase L L4b: the corrective action is the product's, and the model restates it (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Context:** the owner's review found 6/11 screen-clear answers correct and actionable at `97996c48`,
+  with wrong corrections, an inverted rule and cut-off steps, and asked for "a deterministic, validated
+  corrective-action representation over relying solely on free-form model wording".
+- **Decided by the implementer (`ddcfc35b`):**
+  - **One product-authored corrective action per rule** (`correctiveStep`), exhaustive by type. A safe
+    fix is named only where the validator emitted one, and only through its preview. It is product text,
+    never the model's: the answer schema has no field for it, and the designer shows it labelled
+    "Corrective action", apart from the AI interpretation.
+  - **The model is given the action and asked to state it first.** This supersedes the 2026-09-22
+    "instruction-only, no product-authored remedy text" choice: the smallest change had been measured,
+    and it was not enough. The action replaced the fix parenthetical, so the prompt shrank (395 → 340
+    tokens) and the L1.8 margin grew (2.7 s → 8.5 s projected).
+  - **Labelled "Action", never "Step"**, because a step is a node in this product and the 0.8B read
+    "Step:" as a step's name.
+  - **Complete sentences only.** An unfinished tail is dropped, never completed; a lone fragment is
+    marked with an ellipsis.
+  - **The judge only gets stricter.** Regression screens written after reading answers (wrong remedy,
+    action as a name) may lower a rate and never raise one; `CORRECTIVE` and `REMEDY` are unchanged.
+- **Not decided here (the owner's):**
+  - **what criterion 3 measures.** It still measures the model's text alone (9/17, 7/17), not the
+    delivered explanation, which is actionable 17/17 by construction;
+  - **no enum-forced action field.** A grammar-forced copy of the product's string would pass criterion 3
+    without the model contributing anything, and would cost about 40 output tokens.
+- **Result:** TARGET NOT MET on criterion 3; criteria 1 and 4 await a person.
+
+### 2026-09-22 — Phase L L4b: the quality target is adopted, the request asks for a corrective step, a person reviews locally, and a fix order is optional and blocking-first (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Owner decisions (2026-09-22):**
   1. Adopt the proposed quality target provisionally, with its exact thresholds. Do not lower them for
