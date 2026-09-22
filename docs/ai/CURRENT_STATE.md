@@ -1,6 +1,42 @@
 # CURRENT_STATE
 
-## `verify:ai-authoring-quality-live` is built: the 0.8B explains L4b's labelled set, 10/0 (2026-09-22, current)
+## `verify:ai-error-quality-live` is built: on L5's labelled set the 0.8B ties the deterministic baseline, 13/0 (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **The gate (`4f81424a`):**
+  - All 14 items of L5's labelled set, as nine run reports built through L5a's real buffer and cause
+    baseline, with every event labelled `cause` or `unrelated`.
+  - Each asked row goes through `analyzeFailure` on the real 0.8B.
+  - Judged hard: coalescing (500 → 1, 2 → 2), no call for a pass or an insufficient baseline, the
+    product's own request and its 185 s deadline, delivered and saved, no canary or residual secret,
+    and citations shown whole.
+  - Recorded, not judged: L5's metrics, and whether the AI beats the baseline (ROADMAP rule 7).
+  - Controls: 11 scripted answers, in `verify:ai-error-analysis` and first in the live gate.
+- **Results, two runs, both 13/0 with the same metrics:**
+  - baseline 7/8, AI 7/8, improvement 0;
+  - 1 false attribution, 0 declines;
+  - evidence links 19/19 and 18/18;
+  - 39–80 s per answer.
+- **Findings:**
+  - The AI never corrected the baseline. On the case where the baseline is wrong by construction, it
+    cited the baseline's unrelated lead event beside the real cause.
+  - So the AI does not beat the baseline, and L5b's automatic analysis stays off under rule 7.
+  - Five texts per run ended at their grammar limit, mid-sentence.
+- **L1 now has every live quality gate it names.** Still owed: an L4b explanation quality target, and
+  the owner's go/no-go, including whether the 4B stays pinned. L1, L4b and L5b stay `in_progress`.
+  **L7 cannot be entered.** No `src/` or `app/` change.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-error-quality-live` (new, real 0.8B) | 13/0, twice |
+| `verify:ai-error-analysis` (new labelled-set section) | 252/252 (was 203) |
+| `verify:verifier-classification` · `typecheck:scripts` | 251 scripts · PASS |
+| `npm run build` | NOT RUN: no `src/` or `app/` input changed since its PASS at `d6b306f0` |
+| `verify:ai-failure-analysis-live` | NOT RUN: its path is unchanged; the launcher gained one feature entry |
+
+## `verify:ai-authoring-quality-live` is built: the 0.8B explains L4b's labelled set, 10/0 (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

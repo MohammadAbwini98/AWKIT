@@ -1,6 +1,25 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L4b: the real-model authoring quality gate (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L5b: the real-model error quality gate (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:** build `verify:ai-error-quality-live`.
+- **Implementer's choices within it:**
+  - **L5's own set and metrics.** All 14 labelled items, realised as nine reports so that items which
+    belong together share one run. The 409 and the 422 are one batch; the 500 runs over 500 rows; the
+    transport failure carries both unrelated signals. That keeps the model calls at eight, inside the
+    10-minute tool limit.
+  - **Ground truth by construction.** Each event is labelled `cause` or `unrelated` when the scenario is
+    written, never after an answer. Accuracy means the primary evidence includes a cause event and no
+    unrelated one; naming an unrelated event beside the cause is a false attribution.
+  - **One case where the baseline is wrong on purpose.** A blocked analytics pixel comes before the real
+    failed submit, and the baseline takes the earliest direct event. Without it, "beats the baseline"
+    could never be observed.
+  - **Hard: the product's contract. Recorded: the metrics and rule 7's "beats the baseline".** Rule 7
+    decides whether the not-yet-built automatic analysis may run; it is not a pass mark for this gate.
+- **Not decided here:** whether to change the request so the model is not led by the baseline's first
+  event (the product's current design), and the automatic analysis itself.
+
+### 2026-09-22 — Phase L L4b: the real-model authoring quality gate (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:** build `verify:ai-authoring-quality-live`.
 - **Implementer's choices within it:**

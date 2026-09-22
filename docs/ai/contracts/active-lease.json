@@ -1,33 +1,33 @@
 {
-  "task": "awkit-djnl-6-authoring-quality-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-6-authoring-quality-0922.json",
+  "task": "awkit-djnl-8-error-quality-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-8-error-quality-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T10:51:51.821Z",
-  "acquired_at_commit": "1126c1b6f3613606b5232bb36305290380c2183d",
+  "acquired_at": "2026-09-22T11:41:18.620Z",
+  "acquired_at_commit": "4f81424a8fc9a28b51fc0bc5171f0d32e35dd5e1",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-6-authoring-quality-0922.json",
+    "docs/ai/contracts/awkit-djnl-8-error-quality-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "ae549433f491e2d1299df38b13fd18b39e1386a7bce54eca031dd12ec254c214",
-    "docs/ai/CURRENT_STATE.md": "ce1940a611765958e4726ceebbe2a48293aec9aecfdd211ab175203a2f79224e",
-    "docs/ai/DECISIONS.md": "4687ea87c08552380a445766b48983b9b243adc0e22bfcfeb30a6ee90ba5f7d1",
-    "docs/ai/HANDOFF.md": "fc3db1dc77b40bb0b87b5311b11e62a000fcdf5ef81080fb5417f76b31967f9c",
-    "docs/ai/TASK_LOG.md": "cdee7c2fc500c8fdbc2f2fc89dc7fa83591f1e81885f413fe45c5a33798204cf",
-    "docs/ai/contracts/awkit-djnl-6-authoring-quality-0922.json": "08f77c61d64cb19a497690346d6fa1b1a1d0ec80abe6a560c64ba979ac60d100",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "114ea2df2db9edea7771a2c62be4a0f218606c79d2fb8e4d9a9ec469c4ef63f5",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "1aa5b93c28269acb58fd8e13d4b367595d46190e51beecf81056a5adc8f9dc53",
+    "docs/ai/COMMANDS.md": "5e7c39ad8c12c40bedffac56c15e7ad2a7af57a46a54395ea90b469017e81bca",
+    "docs/ai/CURRENT_STATE.md": "fa6518d55e2114bf1566a035e2c74f5b46a8e7a0d05ad7908d552ba88d81cded",
+    "docs/ai/DECISIONS.md": "a46064a489726e492ad2b370c10065922c771b256c83bc4ce9ca828b6520d3da",
+    "docs/ai/HANDOFF.md": "e0dbafe1f16a57c787881f8de36fee7721b1bffc6500d177acbee808c1fe10ec",
+    "docs/ai/TASK_LOG.md": "a8cf293bc640420fc2ba75e02ecc7213070b8564d41414807480a6f1197b37f9",
+    "docs/ai/contracts/awkit-djnl-8-error-quality-0922.json": "3186686752c8d392795f23b6505c9a04c6bdd412ce83c1db195ff17e29477d61",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "ce12bbbbfd0eb5495fd8c275ebb972190b4b6f8157718be9a4a827950a24899d",
+    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "fb203f73c01e1b4c8a1d97982c5e3b295b0e1f5572e29a0e54f7004745923a6c",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -43,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T10:52:30.805Z",
-  "released_reason": "authoring quality gate noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T10:52:30.806Z"
+  "released_at": "2026-09-22T11:41:55.456Z",
+  "released_reason": "error quality gate noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T11:41:55.457Z"
 }

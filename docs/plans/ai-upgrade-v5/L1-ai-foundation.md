@@ -683,7 +683,8 @@ explanation beside `insufficient: true`.
 - **The largest conclusion cites all 11 cause candidates as primary.** It is accepted and grounded (each
   id is offered evidence), but it does not single out a cause. Primary citations are capped at the
   evidence offered, as in v1; a tighter cap is a quality decision for the labelled set
-  (`verify:ai-error-quality-live`, not built).
+  (`verify:ai-error-quality-live`, not built; *built at `4f81424a`, see L5 › "The live quality gate as
+  built"*).
 - **Latency is unchanged and still open.** At the 512-token cap the typical request projects to 127 s and
   the largest to 199 s, against the 180 s ceiling (see the section above). *(Fixed at `42655904`; see the
   next section.)*
@@ -1165,11 +1166,21 @@ sends L4b's labelled set of six flows, twelve issues and both fix kinds. All six
 and all twelve issues explained with no leak, and 12/12 were on subject by the proxy. No explanation
 quality target is recorded; see L4 › "The live quality gate as built".
 
+**And (`4f81424a`):** `verify:ai-error-quality-live` is built. It sends all 14 items of L5's labelled
+set through `analyzeFailure` on the 0.8B and passed 13/0 on two runs.
+- Baseline accuracy 7/8, AI accuracy 7/8, improvement 0.
+- One false attribution: the AI kept the baseline's wrong lead event.
+- Evidence links all shown whole, coalescing 500 → 1, no leak.
+
+The AI does not beat the baseline, so L5b's automatic analysis stays off under ROADMAP rule 7; see L5 ›
+"The live quality gate as built". **Every live quality gate L1 names now exists and passes.**
+
 **Still owed before L1 can be accepted:**
 
-1. The last live quality gate, `verify:ai-error-quality-live`, not built.
-2. An explanation quality target for L4b, which L4's acceptance requires before release.
-3. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned.
+1. An explanation quality target for L4b, which L4's acceptance requires before release.
+2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
+   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 12/12 on subject
+   by proxy with no ranking, and failure analysis tying the baseline.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 

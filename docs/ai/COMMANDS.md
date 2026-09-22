@@ -496,6 +496,13 @@ npm run verify:ai-authoring-quality-live
                                   # its 125 s deadline, every issue explained, no canary or residual secret.
                                   # Recorded: on-subject and misattribution proxies, cut texts, ranking. A
                                   # scripted control of the judge runs first. ~5.5 min. NOT RUN without pack (10)
+npm run verify:ai-error-quality-live
+                                  # the same launcher: L5's labelled set (all 14 items as 9 run reports, events
+                                  # labelled cause/unrelated) through analyzeFailure on the real 0.8B. Hard:
+                                  # coalescing (500 -> 1 call), no call for a pass or insufficient baseline, the
+                                  # product's request, 185 s deadline, delivered and saved, no canary, citations
+                                  # shown whole. Recorded: baseline vs AI accuracy, improvement, false attribution,
+                                  # latency, beats-baseline (rule 7). ~8 min. NOT RUN without pack (13)
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every

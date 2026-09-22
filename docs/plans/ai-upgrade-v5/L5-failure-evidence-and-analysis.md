@@ -385,9 +385,11 @@ The owner took the third option above: **INCONCLUSIVE is accepted as this machin
 proven by `verify:ai-error-analysis` (76/76, three mutations caught) over L5a's real `EvidenceBuffer`
 and real `deriveFailureCause`. **The on-demand reports UX was built the same day** (see "L5b on-demand
 surface as built"). **The `diagnostics` persistence extension was built on 2026-09-21** (see "L5b
-analysis persistence as built"). `awkit-djnl.8` is `in_progress`: the automatic analysis and the live
-quality gate are not built, and the milestone cannot close under the conditional development
-authorization.
+analysis persistence as built"). `awkit-djnl.8` is `in_progress`: the automatic analysis is not built,
+and the milestone cannot close under the conditional development authorization. The live quality gate
+`verify:ai-error-quality-live` is built (2026-09-22, 13/0 on two runs; see "The live quality gate as
+built"). On the labelled set the AI does **not** beat the baseline, so ROADMAP rule 7 does not yet let
+the automatic analysis run.
 
 ### L5b as built
 
@@ -450,8 +452,8 @@ Deterministic provider only; `awkit-djnl.8` is `in_progress` and cannot close.
 - **Decision recorded:** the per-batch budget governs the AUTOMATIC post-run analysis, which is **not
   built** (it needs the live quality gate). An explicit click on one failure is one deliberate call, so a
   failure past that budget is still answered. An insufficient baseline is still never analysed.
-- **Not built:** the automatic analysis, `verify:ai-error-quality-live`. (The `diagnostics` persistence
-  extension, listed here when this section was written, was built later the same day; see below.)
+- **Not built:** the automatic analysis. (The `diagnostics` persistence extension and
+  `verify:ai-error-quality-live`, listed here when this section was written, were built later; see below.)
 - **Verifiers:** `verify:ai-error-analysis` 100/100 (a 24-check adapter section), `verify:ai-assist-gui` in
   real Electron (seeded through the real `SqliteRuntimeStore`); mutations caught: analysing the group's
   first member, ignoring the coalesced count, dropping the citation marker.
@@ -498,6 +500,53 @@ recomputable*.
   the pre-persistence contract. It now asserts the intent across both representations: everything the
   run wrote is unchanged, exactly one analysis is added, and deleting it restores the original bytes.
 
+### The live quality gate as built (2026-09-22, `4f81424a`)
+
+- **What it sends:** all 14 items of the labelled set below, realised as nine run reports
+  (`scripts/ai-harness/errorQualitySet.ts`) built through L5a's real `EvidenceBuffer` and
+  `deriveFailureCause`. Every event is labelled `cause` or `unrelated` by the scenario's construction.
+  - 409 + message and 422 + field validation are one batch, two signatures.
+  - 500 + error page runs over 500 identical rows.
+  - The transport failure sits beside an unrelated console error, a neutral status note and an earlier
+    blocked analytics pixel. The baseline takes the pixel, so it is wrong by construction.
+  - Each asked row goes through `analyzeFailure` on the real Qwen3.5-0.8B.
+- **Judged hard:**
+  - coalescing as labelled: 500 → 1 call, 2 → 2;
+  - no call for the pass with a warning or the insufficient baseline;
+  - the product's own request, with its 185 s deadline, delivered and saved;
+  - no canary in the prompt or an answer (planted in URL userinfo, query and id segments, and in a
+    bearer token), no residual secret, and every citation shown whole.
+- **Recorded, not judged:** this section's metrics, and whether the AI beats the baseline (rule 7).
+  The controls (right, wrong, mixed, wrong baseline, canary both ways, unknown id, runner as cause,
+  decline) run in `verify:ai-error-analysis` and first in the live gate.
+- **Results, two runs, both 13/0 with the same metrics:**
+
+| Metric | Run 1 | Run 2 |
+|---|---|---|
+| Baseline accuracy | 7/8 | 7/8 |
+| AI accuracy | 7/8 | 7/8 |
+| AI improvement over baseline | 0 | 0 |
+| False attribution | 1 | 1 |
+| Declined | 0 | 0 |
+| Evidence-link accuracy | 19/19 | 18/18 |
+| Coalescing | 500 → 1, 2 → 2 | 500 → 1, 2 → 2 |
+| Calls per batch | 1 or 2; 0 for pass and insufficient | same |
+| Inference per answer | 49.7–80.5 s | 39.4–75.4 s |
+| Privacy | 0 canaries, 0 residual secrets | same |
+
+- **The one false attribution is the case built to test it.** On `transport-noise` the AI's primary
+  evidence was `[unrelated, cause]`: it kept the baseline's wrong lead event (the blocked pixel) and added
+  the real failed submit beside it. It never corrected the baseline, it only agreed with it. That is
+  expected of the design, which gives the model the deterministic conclusion first and ranks its cited
+  event first. It means that on this set the AI adds interpretation text, not accuracy.
+- **Texts cut mid-sentence.** Five texts per run ended at their grammar limit (the 260-character
+  explanation, or a 150-character step).
+- **What it does not show:**
+  - a person's reading of the explanations;
+  - a rate stable across more than two samples;
+  - a batch past the `maxAnalyses` budget with a live model;
+  - the automatic analysis, which is not built.
+
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
   Never before terminal outcome.
@@ -524,7 +573,8 @@ latency, privacy correctness.
 ## Verifiers
 
 New `verify:ui-error-evidence`, `verify:failure-capture-overhead`, `verify:failure-cause-baseline`,
-`verify:ai-error-analysis`, live `verify:ai-error-quality-live`. Existing: `verify:failure-evidence(-live)`,
+`verify:ai-error-analysis` (its last section audits the live labelled set and its judge), live
+`verify:ai-error-quality-live` (built, 13/0 on the real 0.8B). Existing: `verify:failure-evidence(-live)`,
 `verify:run-report-compatibility`, `verify:telemetry`, `verify:reports`, `verify:runner`, `verify:mock-site`,
 `validate:offline`, `npm run build`. Mock-site scenarios for each signal and a fast `<3s` run with zero model calls.
 

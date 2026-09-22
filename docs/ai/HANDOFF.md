@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — `verify:ai-authoring-quality-live` built; the 0.8B explains L4b's labelled set, 10/0
+## HANDOFF (2026-09-22, latest) — `verify:ai-error-quality-live` built; the 0.8B ties the baseline on L5's labelled set, 13/0
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`4f81424a`):**
+  - The labelled set and its judge are in `scripts/ai-harness/errorQualitySet.ts`, audited by
+    `verify:ai-error-analysis` (252/252).
+  - The live mode is `scripts/ai-harness/errorQualityLive.ts`.
+  - Two runs, both 13/0: baseline 7/8, AI 7/8, improvement 0, 1 false attribution.
+  - Details are in L5 › "The live quality gate as built".
+- **Not done, and owner decisions:**
+  - L1 has every live quality gate it names. Still owed: an L4b explanation quality target, and the
+    go/no-go, including whether the 4B stays pinned.
+  - L5b's automatic analysis stays off: the AI does not beat the baseline (rule 7).
+  - L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+- **Do not:**
+  - relabel an event after seeing a model's answer: labels come from the scenario's construction;
+  - count "arrived" or "cited something" as accuracy: primary evidence must include a cause event and
+    no unrelated one;
+  - add rows without timing the run: eight calls take ~8 min inside the 10-minute tool limit.
+
+## HANDOFF (2026-09-22, superseded) — `verify:ai-authoring-quality-live` built; the 0.8B explains L4b's labelled set, 10/0
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`1126c1b6`):**

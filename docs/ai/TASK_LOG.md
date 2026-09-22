@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-09-22 — verify:ai-error-quality-live: L5's labelled set on the real 0.8B (Claude)
+
+- **Task:** build `verify:ai-error-quality-live`.
+- **Found:**
+  - L5 defines the labelled set (14 items) and its metrics, and ROADMAP rule 7 makes "beats the
+    baseline" the condition for automatic analysis. So the gate computes those and judges only the
+    product contract.
+  - The request gives the model the baseline's conclusion first. On the one case where the baseline is
+    wrong by construction, the AI kept its wrong lead event (both runs), so AI accuracy ties the
+    baseline at 7/8.
+  - A name clash (`requestFor`) inside `verify-ai-error-analysis.mts` was caught on the first run and
+    fixed by renaming the import.
+- **Files:** `4f81424a`:
+  - new `scripts/ai-harness/errorQualitySet.ts` and `errorQualityLive.ts`;
+  - `harnessMain.ts`, `scripts/verify-ai-explanation-live.mts` (`errorQuality`),
+    `scripts/verify-ai-error-analysis.mts` (new section), `scripts/lib/verifier-classification.ts`,
+    `package.json`.
+
+  Then the L5 and L1 plans, COMMANDS, DECISIONS, CURRENT_STATE, HANDOFF, and notes on `awkit-djnl.8`
+  and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-error-quality-live` 13/0, run twice (the second after recording each primary id's label).
+  - `verify:ai-error-analysis` 252/252 · `verify:verifier-classification` 251 · `typecheck:scripts` PASS.
+  - NOT RUN: build (no `src/`/`app/` change) and `verify:ai-failure-analysis-live` (path unchanged).
+- **Result:** built and PASS. L1 has every live quality gate it names. It still owes an L4b quality
+  target and the go/no-go.
+
 ## 2026-09-22 — verify:ai-authoring-quality-live: L4b's labelled set on the real 0.8B (Claude)
 
 - **Task:** build `verify:ai-authoring-quality-live`.
