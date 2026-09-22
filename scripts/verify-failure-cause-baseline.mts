@@ -18,7 +18,8 @@ import {
   EvidenceRunBudget,
   urlPathTemplate,
   type EvidenceInput,
-  type ExecutionEvidenceEvent
+  type ExecutionEvidenceEvent,
+  type RequestProvenance
 } from "../src/runner/evidence/ExecutionEvidence";
 import { deriveFailureCause, type FailureCauseCode, type RunnerFailure } from "../src/runner/evidence/FailureCauseBaseline";
 
@@ -352,6 +353,177 @@ section("Deterministic cause baseline: windows and ordering");
   const a = JSON.stringify(cause(events, { kind: "timeout", stepStartOffsetMs: 1_000, failedAtOffsetMs: 5_000 }));
   const b = JSON.stringify(cause([...events].reverse(), { kind: "timeout", stepStartOffsetMs: 1_000, failedAtOffsetMs: 5_000 }));
   check("the baseline is deterministic and independent of input order", a === b);
+}
+
+section("Deterministic cause baseline: confirmed request provenance");
+// The failed step is step execution 4, acting on page p1's main frame, from 1 000 ms; it fails at 3 000 ms.
+const STEP = { stepIndex: 4, pageId: "p1", frame: "main" as const };
+const request = (name: string, status: number, provenance: RequestProvenance, context: Partial<ExecutionEvidenceEvent["context"]> = {}): EvidenceInput => ({
+  ...http(status, `https://shop.example/api/${name}`),
+  context: { ...STEP, ...context },
+  request: provenance
+});
+const transportFailed = (name: string, provenance: RequestProvenance): EvidenceInput => ({
+  source: "network.failed",
+  severity: "error",
+  payload: { method: "GET", url: `https://shop.example/api/${name}`, failure: "net::ERR_CONNECTION_RESET" },
+  context: STEP,
+  request: provenance
+});
+const scriptError: EvidenceInput = { source: "page.error", severity: "error", payload: { name: "TypeError", message: "Cannot read properties of null (reading 'total')" }, context: STEP };
+/** The failed step's response wait matched it: the only confirmed request-to-step link. */
+const own = (id: string, issuedAtOffsetMs: number, extra: Partial<RequestProvenance> = {}): RequestProvenance => ({ id, redirects: 0, issuedAtOffsetMs, issuedStepIndex: 4, link: "responseWait", linkStepIndex: 4, ...extra });
+/** Issued while the failed step ran, not linked to it: uncertain. */
+const during = (id: string, issuedAtOffsetMs: number): RequestProvenance => ({ id, redirects: 0, issuedAtOffsetMs, issuedStepIndex: 4 });
+const failedStep = (kind: string): EvidenceInput => ({ ...runnerFailure(kind), context: STEP });
+const stepFailure = (runner: ExecutionEvidenceEvent, kind: RunnerFailure["kind"] = "timeout"): RunnerFailure => ({ kind, stepStartOffsetMs: 1_000, failedAtOffsetMs: 3_000, evidenceId: runner.id });
+/** The same events as a report written before request provenance existed. */
+const legacy = (events: readonly ExecutionEvidenceEvent[]) => events.map(({ request: _request, ...event }) => event);
+{
+  const { at, buf } = buffer();
+  const heartbeat = at(1_200, request("heartbeat", 503, during("rq1", 1_190)));
+  const save = at(2_000, request("save", 500, own("rq2", 1_900)));
+  const runner = at(3_000, failedStep("timeout"));
+  const got = cause(buf.list(), stepFailure(runner));
+  expectCause("the failed step's own request beside an earlier same-page background error", got, "httpError", save.id);
+  check("...the background error is still cited, after it", JSON.stringify(got.evidenceIds) === JSON.stringify([save.id, heartbeat.id, runner.id]), got);
+  const old = cause(legacy(buf.list()), stepFailure(runner));
+  check(
+    "the same events without provenance (an older report): the earliest direct event, exactly as before",
+    JSON.stringify(old) === JSON.stringify({ ...got, evidenceIds: [heartbeat.id, save.id, runner.id] }),
+    old
+  );
+}
+{
+  const { at, buf } = buffer();
+  at(1_100, request("recommendations", 404, { id: "rq1", redirects: 0 }));
+  const doc = at(2_000, {
+    source: "page.errorDocument",
+    severity: "error",
+    payload: { status: 503, url: "https://shop.example/checkout" },
+    context: STEP,
+    request: { id: "rq2", redirects: 0, issuedAtOffsetMs: 1_950, issuedStepIndex: 4, link: "navigation", linkStepIndex: 4 }
+  });
+  const runner = at(3_000, failedStep("navigation"));
+  expectCause("an earlier HTTP error whose start was not seen, then the step's own navigation to an error page", cause(buf.list(), stepFailure(runner, "navigation")), "errorPage", doc.id);
+}
+{
+  const { at, buf } = buffer();
+  const inventory = at(1_100, request("inventory", 502, { id: "rq1", redirects: 0, issuedAtOffsetMs: 800, issuedStepIndex: 3 }));
+  const save = at(2_000, request("save", 500, own("rq2", 1_900)));
+  const runner = at(3_000, failedStep("timeout"));
+  const got = cause(buf.list(), stepFailure(runner));
+  expectCause("a request issued in the step before and answered during the failed one, beside the step's own", got, "httpError", save.id);
+  check("...it stays cited as context", got.evidenceIds.includes(inventory.id), got);
+}
+{
+  const { at, buf } = buffer();
+  const inventory = at(1_100, request("inventory", 502, { id: "rq1", redirects: 0, issuedAtOffsetMs: 800, issuedStepIndex: 3 }));
+  at(2_000, scriptError);
+  const runner = at(3_000, failedStep("timeout"));
+  expectCause("...with nothing linked to the failed step it is still the cause: an earlier request may be a precondition", cause(buf.list(), stepFailure(runner)), "httpError", inventory.id);
+}
+{
+  const { at, buf } = buffer();
+  const earlier = at(700, request("addresses", 500, { id: "rq1", redirects: 0, issuedAtOffsetMs: 650, issuedStepIndex: 3, link: "responseWait", linkStepIndex: 3 }, { stepIndex: 3 }));
+  at(1_600, { ...consoleError("Analytics beacon rejected: the tracking endpoint answered 403."), context: STEP });
+  const runner = at(3_000, failedStep("assertion"));
+  const got = cause(buf.list(), stepFailure(runner, "assertion"));
+  check(
+    "an earlier step's own failed request, with nothing direct in the failed step, is still the cause (preceding window)",
+    got.cause === "httpError" && got.window === "preceding" && got.evidenceIds[0] === earlier.id,
+    got
+  );
+}
+{
+  // The step's own request answered 200, so the collector recorded no event for it.
+  const { at, buf } = buffer();
+  const script = at(1_500, scriptError);
+  at(1_800, request("heartbeat", 503, during("rq1", 1_790)));
+  const runner = at(3_000, failedStep("timeout"));
+  expectCause("the step's own request succeeded and a script error failed the step", cause(buf.list(), stepFailure(runner)), "scriptError", script.id);
+}
+{
+  const { at, buf } = buffer();
+  const message = at(1_100, { ...toast("Payment declined"), context: STEP });
+  at(1_900, request("pay", 402, own("rq1", 1_850)));
+  const runner = at(3_000, failedStep("timeout"));
+  expectCause("a link never outranks earlier evidence it does not describe: the message shown before the step's own request", cause(buf.list(), stepFailure(runner)), "uiErrorMessage", message.id);
+}
+{
+  const { at, buf } = buffer();
+  const heartbeat = at(1_100, request("heartbeat", 503, during("rq1", 1_090)));
+  const script = at(1_500, scriptError);
+  const save = at(2_000, request("save", 500, own("rq2", 1_900)));
+  const runner = at(3_000, failedStep("timeout"));
+  const got = cause(buf.list(), stepFailure(runner));
+  check(
+    "...the step's own request moves ahead of other requests only, never into their place: a script error between them keeps its turn",
+    JSON.stringify(got.evidenceIds) === JSON.stringify([script.id, save.id, heartbeat.id, runner.id]),
+    got
+  );
+}
+{
+  const { at, buf } = buffer();
+  const popup = at(1_100, request("popup", 500, during("rq1", 1_090), { pageId: "p2" }));
+  const widget = at(1_200, request("widget", 500, during("rq2", 1_190), { frame: "child" }));
+  const save = at(2_000, request("save", 500, own("rq3", 1_900)));
+  const runner = at(3_000, failedStep("timeout"));
+  const got = cause(buf.list(), stepFailure(runner));
+  expectCause("requests from another page and a child frame, beside the step's own", got, "httpError", save.id);
+  check("...both stay cited, in time order", JSON.stringify(got.evidenceIds) === JSON.stringify([save.id, popup.id, widget.id, runner.id]), got);
+}
+{
+  const { at, buf } = buffer();
+  const popup = at(1_100, request("popup", 500, during("rq1", 1_090), { pageId: "p2" }));
+  at(2_000, request("save", 500, during("rq2", 1_900)));
+  const runner = at(3_000, failedStep("timeout"));
+  expectCause("with nothing linked, another page's request is not guessed away: the earliest, as before", cause(buf.list(), stepFailure(runner)), "httpError", popup.id);
+}
+{
+  const { at, buf } = buffer();
+  at(700, request("moved", 500, { id: "rq1", redirects: 1, issuedAtOffsetMs: 650, issuedStepIndex: 3, link: "responseWait", linkStepIndex: 3 }, { stepIndex: 3 }));
+  const save = at(2_000, request("save", 500, during("rq2", 1_900)));
+  const runner = at(3_000, failedStep("locator"));
+  expectCause("an unlinked (uncertain) save in the failed step, an earlier step's own request before it", cause(buf.list(), stepFailure(runner, "locator")), "httpError", save.id);
+}
+{
+  const { at, buf } = buffer();
+  const heartbeat = at(1_200, request("heartbeat", 503, during("rq1", 1_190)));
+  at(2_000, request("save", 500, own("rq2", 1_900)));
+  const runner = at(3_000, runnerFailure("timeout"));
+  expectCause("a runner record without its step confirms no link: the earliest, as before", cause(buf.list(), stepFailure(runner)), "httpError", heartbeat.id);
+}
+{
+  const { at, buf } = buffer();
+  const background = during("rq1", 1_050);
+  const backgroundHttp = at(1_100, request("heartbeat", 503, background));
+  const backgroundNet = at(1_150, { ...transportFailed("heartbeat", background) });
+  const saved = own("rq2", 1_800, { redirects: 1 });
+  const saveHttp = at(2_000, request("save", 500, saved));
+  const saveNet = at(2_050, transportFailed("save", saved));
+  const runner = at(3_000, failedStep("timeout"));
+  const got = cause(buf.list(), stepFailure(runner));
+  check(
+    "one request across a redirect, its response and its transfer failure: the step's own leads, and each request keeps both its events",
+    got.evidenceIds[0] === saveHttp.id && [backgroundHttp.id, backgroundNet.id, saveNet.id].every((id) => got.evidenceIds.includes(id)),
+    got
+  );
+}
+{
+  const { at, buf } = buffer();
+  const runner = at(3_000, failedStep("timeout"));
+  at(3_300, request("retry", 500, during("rq1", 3_100)));
+  const got = cause(buf.list(), stepFailure(runner));
+  check("a request issued after the failure, answered within the grace period, is never the cause", got.cause === "timeout" && got.evidenceIds[0] === runner.id, got);
+}
+{
+  const { at, buf } = buffer();
+  const heartbeat = at(1_200, request("heartbeat", 503, during("rq1", 1_190)));
+  const runner = at(3_000, failedStep("timeout"));
+  const retry = at(3_300, request("retry", 500, during("rq2", 3_100)));
+  const got = cause(buf.list(), stepFailure(runner));
+  check("...nor cited beside one", got.evidenceIds[0] === heartbeat.id && !got.evidenceIds.includes(retry.id), got);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

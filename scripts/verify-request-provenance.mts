@@ -17,8 +17,9 @@
  *    page cancelled leaves no event;
  *  - a request whose start was not observed (a page loading before the collector attached) stays
  *    `unknown` rather than being guessed;
- *  - provenance survives report.json, an older report without it gets no relation at all, and neither
- *    the deterministic cause baseline nor the failure-analysis request changes because of it.
+ *  - provenance survives report.json and an older report without it gets no relation at all;
+ *  - the deterministic cause baseline (production collector, report.json) rests on the failed step's own
+ *    request, while an older report's baseline is the earliest direct event, as it always was.
  *
  * Run: npm run verify:request-provenance   (node scripts/benchmark/run.mjs → tsx + the electron stub)
  */
@@ -46,6 +47,7 @@ import {
 } from "@src/runner/evidence/ExecutionEvidence";
 import { deriveFailureCause } from "@src/runner/evidence/FailureCauseBaseline";
 import { FailureEvidenceCollector, liveEvidenceAttachments } from "@src/runner/evidence/FailureEvidenceCollector";
+import { capturedFailure } from "./ai-harness/errorQualitySet";
 import { buildDirs, cleanupRoot, installBenchGuards } from "./benchmark/engineHarness.mts";
 
 installBenchGuards();
@@ -433,7 +435,21 @@ try {
         lines(without)
       );
       const failure = { kind: "other" as const, failedAtOffsetMs: runnerOf(checkout)?.offsetMs ?? 0, evidenceId: runnerOf(checkout)?.id };
-      check("the deterministic cause baseline is identical with and without provenance", JSON.stringify(deriveFailureCause(checkout!.events, failure)) === JSON.stringify(deriveFailureCause(old, failure)));
+      const save = named(checkout, "save");
+      const withLink = deriveFailureCause(checkout!.events, failure);
+      check("the deterministic cause baseline reads the link: it rests on the failed step's own request", withLink.cause === "httpError" && withLink.evidenceIds[0] === save?.id, withLink);
+      check(
+        "...and report.json's cause, from the production collector, does too",
+        checkout?.instance.diagnostics?.cause?.cause === "httpError" && checkout.instance.diagnostics.cause.evidenceIds[0] === save?.id,
+        checkout?.instance.diagnostics?.cause
+      );
+      // An older report keeps the rule it was written under: the earliest direct event, by class at one instant.
+      const order = ["page.errorDocument", "network.failed", "http.error"];
+      const earliest = old
+        .filter((event) => order.includes(event.source))
+        .sort((a, b) => a.offsetMs - b.offsetMs || order.indexOf(a.source) - order.indexOf(b.source) || a.id.localeCompare(b.id))[0];
+      const withoutLink = deriveFailureCause(old, failure);
+      check("an older report's baseline is unchanged: the earliest direct event, as before provenance existed", withoutLink.evidenceIds[0] === earliest?.id, { withoutLink, earliest: earliest?.id });
     } else {
       check("the checkout failure has a deterministic cause to compare against", false);
     }
@@ -530,6 +546,16 @@ try {
         check(`${key}: ${Object.entries(expected).map(([name, relation]) => `${name} is ${relation}`).join(", ")}`, JSON.stringify(actual) === JSON.stringify(expected), actual) && intended;
       const requestEvents = outcome?.events.filter((event) => event.request) ?? [];
       intended = check(`${key}: no other request reached the evidence`, requestEvents.length === Object.keys(expected).length, requestEvents.map(urlOf)) && intended;
+      // The save is every case's cause by construction (errorQualitySet.ts labels it so).
+      const persisted = outcome?.instance.diagnostics?.cause;
+      check(`${key}: report.json's deterministic cause rests on the save`, persisted?.cause === "httpError" && persisted.evidenceIds[0] === named(outcome, "save")?.id, persisted);
+      // The quality harness derives a capture's cause again; this is what makes that the production cause.
+      const events = outcome?.events ?? [];
+      check(
+        `${key}: the quality harness's failure record reproduces report.json's cause exactly`,
+        persisted !== undefined && JSON.stringify(deriveFailureCause(events, capturedFailure(events))) === JSON.stringify(persisted),
+        { persisted, derived: events.length ? deriveFailureCause(events, capturedFailure(events)) : null }
+      );
     }
     if (WRITE_CASES) {
       // Only a capture whose relations are the intended ones is written: its labels depend on them.

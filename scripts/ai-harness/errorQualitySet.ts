@@ -44,7 +44,7 @@ import {
 } from "@src/ai/failureAnalysis";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import { EvidenceBuffer, EvidenceRunBudget, type ExecutionEvidenceEvent, type RequestRelation } from "@src/runner/evidence/ExecutionEvidence";
-import { deriveFailureCause, type FailureCauseCode, type RunnerFailureKind } from "@src/runner/evidence/FailureCauseBaseline";
+import { deriveFailureCause, type FailureCauseBaseline, type FailureCauseCode, type RunnerFailure, type RunnerFailureKind } from "@src/runner/evidence/FailureCauseBaseline";
 import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
@@ -545,6 +545,11 @@ interface CapturedCase {
   diagnostics: InstanceDiagnostics;
 }
 
+/** The cause the production collector stored when the case was captured. */
+export function capturedStoredCause(key: string): FailureCauseBaseline | undefined {
+  return (capturedCases.cases as unknown as CapturedCase[]).find((entry) => entry.key === key)?.diagnostics.cause;
+}
+
 /** Every trace of provenance removed, as a report written before 2026-09-22 has it (the verifier's `asOldReport`). */
 export function withoutProvenance(events: readonly ExecutionEvidenceEvent[]): ExecutionEvidenceEvent[] {
   return (JSON.parse(JSON.stringify(events)) as ExecutionEvidenceEvent[]).map(({ request: _request, ...event }) => {
@@ -557,15 +562,34 @@ export function withoutProvenance(events: readonly ExecutionEvidenceEvent[]): Ex
 const ECHO = /^Failed to load resource: the server responded with a status of (\d{3})\b/;
 
 /**
+ * The runner failure record a stored report implies, which the report itself does not keep: its last runner
+ * record's kind, offset and id, and the failed step's start as the first event the collector stamped with
+ * that step (the same rule `buildCase` uses). `verify:request-provenance` proves it reproduces the production
+ * collector's cause on fresh real runs.
+ */
+export function capturedFailure(events: readonly ExecutionEvidenceEvent[]): RunnerFailure {
+  const runner = events.filter((event) => event.source === "runner.failure").pop();
+  if (!runner) throw new Error("a captured failure has no runner record");
+  const step = runner.context.stepIndex;
+  const starts = events.filter((event) => step !== undefined && event.context.stepIndex === step).map((event) => event.offsetMs);
+  return { kind: runner.payload.kind as RunnerFailureKind, stepStartOffsetMs: Math.min(...starts), failedAtOffsetMs: runner.offsetMs, evidenceId: runner.id };
+}
+
+/**
  * A captured failure as the report stored it, with its labels as ids: each `/api/provenance/<name>` event
  * takes its name's label, and the browser's console echo of a response takes that response's label where
  * exactly one labelled response on the same page answered that status. An echo folded with others
  * (`repeatCount` > 1) stands for several responses, so it stays unlabelled, as does any other echo.
+ *
+ * The cause is derived again from the stored evidence, not taken from the capture: the baseline is a pure
+ * function of the evidence and the failure record, so a legacy control gets the cause an older report was
+ * given, and every case gets the one the current baseline gives.
  */
 function capturedInstance(instanceId: string, captured: NonNullable<ErrorCase["captured"]>) {
   const stored = (capturedCases.cases as unknown as CapturedCase[]).find((entry) => entry.key === captured.key);
   if (!stored) throw new Error(`requestProvenanceCases.json has no "${captured.key}": run npm run verify:request-provenance`);
   const evidence = captured.legacy ? withoutProvenance(stored.diagnostics.evidence) : (JSON.parse(JSON.stringify(stored.diagnostics.evidence)) as ExecutionEvidenceEvent[]);
+  const cause = deriveFailureCause(evidence, capturedFailure(evidence));
   const tags = new Map<string, "cause" | "unrelated">();
   for (const event of evidence) {
     const name = /\/api\/provenance\/([a-z-]+)$/.exec(String(event.payload.url ?? ""))?.[1];
@@ -583,8 +607,13 @@ function capturedInstance(instanceId: string, captured: NonNullable<ErrorCase["c
     instanceId,
     durationMs: stored.durationMs,
     labels: { cause: labelsOf("cause"), unrelated: labelsOf("unrelated") },
-    report: { instanceId, status: stored.status, durationMs: stored.durationMs, error: "The step failed.", screenshots: [], downloadedFiles: [], diagnostics: { ...stored.diagnostics, evidence } }
+    report: { instanceId, status: stored.status, durationMs: stored.durationMs, error: "The step failed.", screenshots: [], downloadedFiles: [], diagnostics: { ...stored.diagnostics, evidence, cause } }
   };
+}
+
+/** The deterministic cause rests first on a cause event; where there is none, not on an unrelated one. */
+export function baselineCorrect(lead: string, labels: RowLabels): boolean {
+  return labels.cause.length === 0 ? !labels.unrelated.includes(lead) : labels.cause.includes(lead);
 }
 
 /** The request `analyzeFailure` builds for one named instance: its own evidence, its group's count. */
@@ -642,7 +671,7 @@ export function judgeFailureAnswer(request: FailureAnalysisRequest, answer: Fail
   // A row with no cause event: the right answer is "not enough evidence", for the baseline and the AI.
   const noCause = cause.size === 0;
   return {
-    baselineCorrect: noCause ? !unrelated.has(lead) : cause.has(lead),
+    baselineCorrect: baselineCorrect(lead, labels),
     concluded,
     aiCorrect: noCause ? !concluded : concluded && !falseAttribution,
     falseAttribution,

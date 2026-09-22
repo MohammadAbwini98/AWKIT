@@ -9,6 +9,12 @@
  *  2. Direct evidence in the failing step's window wins, earliest first: an error document, a
  *     transport failure, an HTTP error, an uncaught script error, a field that failed validation, a
  *     UI error message. The earliest is usually the root cause; later ones are its consequences.
+ *     Runtime request provenance refines this, and only where the runner observed it: the failed
+ *     step's own request (its response wait matched it, or its navigation returned it) comes before
+ *     every other request event that preceded it, and a request issued after the failure is never a
+ *     cause. The link says which request the step depended on, not that it caused the failure, so it
+ *     never moves ahead of earlier evidence the provenance does not describe (a script error, a UI
+ *     message). Without provenance, as in every report written before 2026-09-22, nothing changes.
  *  3. Otherwise the same classes in a bounded window before the step.
  *  4. Otherwise the runner's own failure (timeout, assertion, locator, navigation), citing its own
  *     event first and, as context, the step's console errors (else those just before the step).
@@ -20,7 +26,7 @@
  * Framework-agnostic and pure.
  */
 
-import type { EvidenceSource, ExecutionEvidenceEvent } from "./ExecutionEvidence";
+import { requestRelations, type EvidenceSource, type ExecutionEvidenceEvent, type RequestRelation } from "./ExecutionEvidence";
 
 export const FAILURE_CAUSE_SCHEMA_VERSION = 1;
 
@@ -105,6 +111,20 @@ function byTimeThenRank(a: ExecutionEvidenceEvent, b: ExecutionEvidenceEvent): n
   return a.offsetMs - b.offsetMs || (DIRECT_RANK.get(a.source) ?? 99) - (DIRECT_RANK.get(b.source) ?? 99) || a.id.localeCompare(b.id);
 }
 
+/**
+ * Time-ordered direct evidence, with the failed step's own request moved ahead of the other request events
+ * before it (background, off-target, earlier-issued, another step's, or of unknown relation): they follow
+ * it, in their own order. Evidence without provenance keeps its place, so the link never outranks it.
+ */
+function ownRequestFirst(direct: ExecutionEvidenceEvent[], relations: ReadonlyMap<string, RequestRelation>): ExecutionEvidenceEvent[] {
+  const own = direct.findIndex((event) => relations.get(event.id) === "linkedToFailedStep");
+  if (own <= 0) return direct;
+  const displaced = direct.slice(0, own).filter((event) => relations.has(event.id));
+  const kept = direct.filter((event) => !displaced.includes(event));
+  const after = kept.indexOf(direct[own]) + 1;
+  return [...kept.slice(0, after), ...displaced, ...kept.slice(after)];
+}
+
 export function deriveFailureCause(events: readonly ExecutionEvidenceEvent[], failure: RunnerFailure): FailureCauseBaseline {
   const limits = CAUSE_WINDOW_LIMITS;
   const withRunner = (ids: string[]) => (failure.evidenceId && !ids.includes(failure.evidenceId) ? [...ids, failure.evidenceId] : ids);
@@ -122,12 +142,15 @@ export function deriveFailureCause(events: readonly ExecutionEvidenceEvent[], fa
   const stepEnd = failure.failedAtOffsetMs + limits.graceAfterFailureMs;
   const inStep = (event: ExecutionEvidenceEvent) => event.offsetMs >= stepStart && event.offsetMs <= stepEnd;
   const inPreceding = (event: ExecutionEvidenceEvent) => event.offsetMs >= stepStart - limits.precedingWindowMs && event.offsetMs < stepStart;
+  // Against the runner record this failure names, as the failure-analysis request reads it.
+  const relations = requestRelations(events, events.find((event) => event.id === failure.evidenceId));
 
   for (const [window, within] of [
     ["failingStep", inStep],
     ["preceding", inPreceding]
   ] as const) {
-    const direct = events.filter((event) => within(event) && isDirect(event)).sort(byTimeThenRank);
+    const candidates = events.filter((event) => within(event) && isDirect(event) && relations.get(event.id) !== "issuedAfterFailure").sort(byTimeThenRank);
+    const direct = ownRequestFirst(candidates, relations);
     const primary = direct[0];
     if (!primary) continue;
     const entry = DIRECT.find((candidate) => candidate.source === primary.source) as (typeof DIRECT)[number];

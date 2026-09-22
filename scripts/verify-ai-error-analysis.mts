@@ -29,6 +29,7 @@
  *
  * Run: npm run verify:ai-error-analysis
  */
+import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve as resolvePath } from "node:path";
@@ -69,7 +70,10 @@ import {
   L5_LABELLED_ITEMS,
   PROVENANCE_ITEMS,
   REQUEST_PROVENANCE_ITEMS,
+  baselineCorrect,
   buildCase,
+  capturedFailure,
+  capturedStoredCause,
   errorControlFailures,
   noCauseControlFailures,
   requestFor as labelledRequestFor,
@@ -790,7 +794,12 @@ console.log("\n13 — request provenance: the runner's own record of each reques
     frame?: "main" | "child";
     request?: RequestProvenance;
   };
-  /** Through the real buffer and baseline, as the collector writes them: step stamp, page, frame, provenance. */
+  /**
+   * Through the real buffer and baseline, as the collector writes them: step stamp, page, frame, provenance.
+   * The baseline is the one a report written between 3699617f and the baseline reading provenance stores:
+   * provenance recorded, the cause derived without it. That is the case where selection alone must offer
+   * the step's own request; the current baseline cites it itself (checked below).
+   */
   const built = (specs: Spec[], stepStartOffsetMs: number) => {
     let clock = 0;
     const buffer = new EvidenceBuffer({ executionId: "exec-requests", instanceId: "i-requests" }, new EvidenceRunBudget(), { redactor: new SemanticRedactor(), now: () => clock });
@@ -809,9 +818,10 @@ console.log("\n13 — request provenance: the runner's own record of each reques
     const all = [...buffer.list()];
     const runner = [...all].reverse().find((event) => event.source === "runner.failure");
     const failedAt = specs.find((spec) => spec.source === "runner.failure")?.at ?? 0;
-    const baseline = deriveFailureCause(all, { kind: "assertion", stepStartOffsetMs, failedAtOffsetMs: failedAt, ...(runner ? { evidenceId: runner.id } : {}) });
+    const failure = { kind: "assertion" as const, stepStartOffsetMs, failedAtOffsetMs: failedAt, ...(runner ? { evidenceId: runner.id } : {}) };
+    const baseline = deriveFailureCause(withoutProvenance(all), failure);
     const entry: FailureBatchEntry = { instanceId: "i-requests", flowId: "flow-requests", nodeId: "n-6", stepIndex: 6, baseline, events: all };
-    return { entry, id: (name: string) => ids.get(name) ?? `missing:${name}` };
+    return { entry, id: (name: string) => ids.get(name) ?? `missing:${name}`, current: deriveFailureCause(all, failure) };
   };
   const http = (path: string, status: number) => ({ method: "GET", url: `https://shop.example${path}`, status, resourceType: "fetch" });
   const issued = (id: string, at: number, step: number, link?: { link: "navigation" | "responseWait"; linkStepIndex: number }): RequestProvenance => ({
@@ -838,7 +848,7 @@ console.log("\n13 — request provenance: the runner's own record of each reques
     // Issued after the failure was recorded, though still stamped with the failed step.
     { name: "late", at: 2_100, step: 6, source: "http.error", payload: http("/api/audit", 500), frame: "main", request: issued("rq8", 2_050, 6) }
   ];
-  const { entry, id } = built(specs, 800);
+  const { entry, id, current } = built(specs, 800);
   const roomy = { ...FAILURE_ANALYSIS_LIMITS, maxEvidenceChars: 10_000, maxDataChars: 12_000 };
   const build = (of: FailureBatchEntry, limits = roomy) =>
     buildFailureAnalysisRequest({ signature: failureSignature(of), instanceIds: [of.instanceId], count: 1, representative: of, analyse: true }, limits)!;
@@ -857,6 +867,11 @@ console.log("\n13 — request provenance: the runner's own record of each reques
     "(precondition) the baseline cites the five earlier errors and the runner record, not the step's own request",
     entry.baseline.evidenceIds.length === 6 && !entry.baseline.evidenceIds.includes(id("save")) && entry.baseline.evidenceIds[0] === id("heartbeat"),
     JSON.stringify(entry.baseline.evidenceIds)
+  );
+  check(
+    "the current baseline, reading the same provenance, rests on the step's own request and keeps the five as context, never the after-failure one",
+    JSON.stringify(current.evidenceIds) === JSON.stringify([id("save"), id("heartbeat"), id("widget"), id("inventory"), id("exportHttp"), id("runner")]),
+    JSON.stringify(current.evidenceIds)
   );
   const sorted = (relations: Record<string, string>) => JSON.stringify(Object.entries(relations).sort(([a], [b]) => a.localeCompare(b)));
   check(
@@ -1306,6 +1321,7 @@ await leakedHost.service.shutdown();
 
 console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judge");
 {
+  const asked: Array<{ labelled: (typeof ERROR_SET)[number]; row: number; lead: string; label: { cause: string[]; unrelated: string[] }; digest: string }> = [];
   const covered = new Set(ERROR_SET.flatMap((c) => c.covers));
   const items = [...L5_LABELLED_ITEMS, ...ANCHORING_ITEMS, ...PROVENANCE_ITEMS, ...REQUEST_PROVENANCE_ITEMS];
   check(
@@ -1325,6 +1341,13 @@ console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judg
       check(`${labelled.id} row ${row + 1}: it ${labelled.expectsCall ? "earns" : "never earns"} a model call`, Boolean(request) === labelled.expectsCall);
       if (!request) continue;
       const label = labels.get(instance.instanceId)!;
+      asked.push({
+        labelled,
+        row,
+        lead: instance.diagnostics?.cause?.evidenceIds[0] ?? "",
+        label,
+        digest: createHash("sha256").update(JSON.stringify([request.prompt, request.schema])).digest("hex").slice(0, 16)
+      });
       const offered = new Set(request.evidence.map((event) => event.id));
       // A row with no cause event must leave declining decodable, or its right answer could not be written.
       check(
@@ -1336,6 +1359,14 @@ console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judg
         // A capture's labels come from its request names: every name must still find its request.
         const named = Object.keys(labelled.captured.labels).every((name) => request.evidence.some((event) => String(event.payload.url ?? "").endsWith(`/api/provenance/${name}`)));
         check(`${labelled.id} row ${row + 1}: every labelled request of the capture is present, and it has a cause and an unrelated event`, named && label.cause.length > 0 && label.unrelated.length > 0, JSON.stringify(label));
+        // The harness derives the capture's cause again (the report does not keep the failure record). It must
+        // be the one the production collector stored at capture: under the current rule, or, for a capture made
+        // before the baseline read provenance, under the legacy rule, which is the current one without it.
+        const events = instance.diagnostics?.evidence ?? [];
+        const stripped = withoutProvenance(events);
+        const stored = JSON.stringify(capturedStoredCause(labelled.captured.key));
+        const derived = [deriveFailureCause(events, capturedFailure(events)), deriveFailureCause(stripped, capturedFailure(stripped))].map((cause) => JSON.stringify(cause));
+        check(`${labelled.id} row ${row + 1}: the cause derived from the capture's evidence is the one the production collector stored`, derived.includes(stored), JSON.stringify({ stored, derived }));
       }
       const prompt = buildAiPrompt(request.prompt, new SemanticRedactor(), "0123456789abcdef");
       check(`${labelled.id} row ${row + 1}: the canary never reaches the prompt`, prompt.ok && !`${prompt.system}\n${prompt.user}`.toUpperCase().includes(ERROR_CANARY));
@@ -1382,6 +1413,78 @@ console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judg
       }
     }
   }
+  // What each row shows the model (its prompt and schema, sha256), as the live gate last measured it at
+  // e27e15bd. A change to the baseline may change what a report concludes; this says whether it changed
+  // what the model sees, so a recorded live result is reused only for the request it measured.
+  const MEASURED_REQUESTS: Record<string, string> = {
+    "toast-timeout#1": "a9ec6de1d7fa5742",
+    "native-validation#1": "d294a8b4542a771d",
+    "conflict-and-validation#1": "835eba25194f4d80",
+    "conflict-and-validation#2": "1e29ad6a1987c1ba",
+    "server-error-rows#1": "92767199db093855",
+    "transport-noise#1": "dbadd738c571ce32",
+    "pageerror-timeout#1": "e0ed5fb483a689f0",
+    "burst#1": "24d4332f002adfb7",
+    "unrelated-server-error-first#1": "10e4f7240695de5e",
+    "cause-then-unrelated-console#1": "132a303aa6711ff0",
+    "timeout-unrelated-console#1": "06ed21fc4c772d3c",
+    "earlier-step-unrelated-error#1": "98874e86dd0cc68b",
+    "earlier-step-cause#1": "a1761b75edc930c8",
+    "rq-linked-vs-background#1": "28504e2bdf7b5490",
+    "rq-linked-earlier-step#1": "4764be4cf397680c",
+    "rq-issued-before#1": "c68b785d5f37f914",
+    "rq-off-target#1": "b95e9b691cbdc729",
+    "rq-uncertain#1": "03219bb555d0c050",
+    "rq-legacy#1": "201b75eae52614fc"
+  };
+  const requests = Object.fromEntries(asked.map((entry) => [`${entry.labelled.id}#${entry.row + 1}`, entry.digest]));
+  check(
+    `every one of the ${asked.length} asked rows sends the model the request the live gate measured at e27e15bd, byte for byte`,
+    asked.length === 19 && JSON.stringify(requests) === JSON.stringify(MEASURED_REQUESTS),
+    JSON.stringify(requests)
+  );
+
+  // The deterministic baseline on the rows the live gate judges, measured without a model by the judge's own
+  // rule. Which rows it gets right is fixed here: a baseline that ignores a confirmed request link, or that
+  // promotes unrelated activity, fails by name. Not a label: the labels are the set's, fixed before inference.
+  const BASELINE_RIGHT: Record<string, boolean> = {
+    "toast-timeout": true,
+    "native-validation": true,
+    "conflict-and-validation": true,
+    "server-error-rows": true,
+    "transport-noise": false,
+    "pageerror-timeout": true,
+    burst: true,
+    "unrelated-server-error-first": false,
+    "cause-then-unrelated-console": true,
+    "timeout-unrelated-console": true,
+    "earlier-step-unrelated-error": true,
+    "earlier-step-cause": true,
+    "rq-linked-vs-background": true,
+    "rq-linked-earlier-step": true,
+    "rq-issued-before": true,
+    "rq-off-target": true,
+    "rq-uncertain": true,
+    // The same events as `rq-linked-vs-background` without provenance: nothing tells the heartbeat apart.
+    "rq-legacy": false
+  };
+  for (const entry of asked) {
+    const right = baselineCorrect(entry.lead, entry.label);
+    check(`${entry.labelled.id} row ${entry.row + 1}: the baseline is ${BASELINE_RIGHT[entry.labelled.id] ? "right" : "wrong"}`, right === BASELINE_RIGHT[entry.labelled.id], `rests on ${entry.lead}`);
+  }
+  const inGroup = (items: readonly string[]) => (entry: (typeof asked)[number]) => entry.labelled.covers.some((item) => items.includes(item));
+  const tally = (rows: typeof asked) =>
+    `${rows.filter((entry) => baselineCorrect(entry.lead, entry.label)).length}/${rows.length} right, ` +
+    `${rows.filter((entry) => entry.label.unrelated.includes(entry.lead)).length} false attribution(s), ` +
+    `${rows.filter((entry) => entry.label.cause.length === 0 && baselineCorrect(entry.lead, entry.label)).length} correct decline(s)`;
+  const labelledSet = asked.filter((entry) => !inGroup(PROVENANCE_ITEMS)(entry) && !inGroup(REQUEST_PROVENANCE_ITEMS)(entry));
+  const requestCases = asked.filter(inGroup(REQUEST_PROVENANCE_ITEMS));
+  console.log(`  (measured) baseline, labelled set: ${tally(labelledSet)}`);
+  console.log(`  (measured) baseline, request-provenance cases: ${tally(requestCases)}`);
+  console.log(`  (measured) baseline, all ${labelledSet.length + requestCases.length} rows: ${tally([...labelledSet, ...requestCases])}`);
+  console.log(`  (measured) baseline, step-provenance cases: ${tally(asked.filter(inGroup(PROVENANCE_ITEMS)))}`);
+  check("the measurement covers the 11 labelled rows and the 6 request-provenance rows", labelledSet.length === 11 && requestCases.length === 6);
+
   check("(precondition) the canary really is in what the cases carry", ERROR_SET.filter((c) => JSON.stringify(c.rows).includes(ERROR_CANARY)).length >= 3);
   const burst = buildCase(ERROR_SET.find((c) => c.id === "burst")!);
   check("the duplicate burst folds into one event with a repeat count of 3", burst.report.instances[0].diagnostics?.evidence.some((event) => event.source === "ui.toast" && event.repeatCount === 3) === true);
