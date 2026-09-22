@@ -303,6 +303,7 @@
     "verify:ai-host": "tsx scripts/verify-ai-host.mts",
     "verify:ai-host-electron": "tsx scripts/verify-ai-host-electron.mts",
     "verify:ai-model-live": "tsx scripts/verify-ai-model-live.mts",
+    "verify:ai-model-live-0-8b": "tsx scripts/verify-ai-model-live.mts --pack Qwen3.5-0.8B-Q4_K_M.gguf",
     "verify:ai-explanation-live": "tsx scripts/verify-ai-explanation-live.mts",
     "verify:ai-failure-analysis-live": "tsx scripts/verify-ai-explanation-live.mts --feature failureAnalysis",
     "verify:ai-failure-analysis-budget": "tsx scripts/verify-ai-failure-analysis-budget.mts",

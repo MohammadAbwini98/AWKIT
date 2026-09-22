@@ -510,6 +510,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."
   },
+  "verify:ai-model-live-0-8b": {
+    class: "real-browser",
+    why: "verify:ai-model-live on the re-scoped Qwen3.5-0.8B pack from ~/Downloads (NOT RUN without the runtime or the pack; a pack that is not the published object fails): the same pins, the pack's own GGUF header against its manifest entry (architecture, context length, quantization), import through AiModelPackStore with the real manifest, and the live harness against the real host in a real utility process."
+  },
   "verify:ai-explanation-live": {
     class: "real-browser",
     why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that sends the product's validation explanation through explainFlowValidation, the production AiService with AUTHORING_LIMITS.timeoutMs, AiUtilityHostManager and the real ai-host.cjs over the L1.8 benchmark's flow — a real explanation delivered under its own deadline, a user cancel after 30 s settling within 3 s, and a deadline in prompt evaluation killing the host before a reloaded explanation is delivered."
