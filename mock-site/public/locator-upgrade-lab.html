@@ -52,6 +52,31 @@
         </table>
       </section>
 
+      <section data-testid="lu-scope">
+        <h2>Addresses (the same action in two named regions)</h2>
+        <p>Both regions carry an <em>Edit address</em> button, so its role and name match twice; only the named region it sits in tells them apart.</p>
+        <section aria-label="Billing address" data-testid="lu-scope-billing">
+          <p>Billing address</p>
+          <button type="button" data-lu="edit-billing">Edit address</button>
+        </section>
+        <section aria-label="Shipping address" data-testid="lu-scope-shipping">
+          <p>Shipping address</p>
+          <button type="button" data-lu="edit-shipping">Edit address</button>
+        </section>
+      </section>
+
+      <section data-testid="lu-dynamic">
+        <h2>Reports (rendered asynchronously)</h2>
+        <p>
+          The list renders shortly after load, and <em>Reload reports</em> empties it and renders it again, as new
+          elements, 4 seconds later. The status reads <code>loading</code> while the list is empty and
+          <code>ready</code> once it is rendered, so a test synchronizes on it and never on a clock.
+        </p>
+        <p>Status: <output data-testid="lu-dynamic-status">loading</output></p>
+        <ul aria-label="Reports" data-testid="lu-dynamic-list"></ul>
+        <button type="button" data-testid="lu-dynamic-reload" onclick="luRenderReports(4000)">Reload reports</button>
+      </section>
+
       <section data-testid="lu-repair">
         <h2>Repair (L3 §8: the saved locator breaks, the element does not)</h2>
         <p>
@@ -111,6 +136,19 @@
         save.removeAttribute("id");
         save.removeAttribute("data-testid");
       }
+      function luRenderReports(delay) {
+        var list = document.querySelector('[data-testid="lu-dynamic-list"]');
+        var status = document.querySelector('[data-testid="lu-dynamic-status"]');
+        list.innerHTML = "";
+        status.textContent = "loading";
+        setTimeout(function () {
+          list.innerHTML =
+            '<li>Revenue <button type="button" data-lu="download-summary">Download summary</button></li>' +
+            '<li>Headcount <button type="button" data-lu="download-details">Download details</button></li>';
+          status.textContent = "ready";
+        }, delay);
+      }
+      luRenderReports(300);
       var open = document.querySelector('[data-testid="lu-shadow-host"]').attachShadow({ mode: "open" });
       open.innerHTML = '<button type="button" class="save">Shadow save</button>';
       open.querySelector("button").addEventListener("click", function () { result.textContent = "shadow-save"; });

@@ -1,7 +1,8 @@
 /**
- * verify:ai-explanation-live, verify:ai-failure-analysis-live, verify:ai-locator-upgrade-live — one
- * product AI feature's own request on the real Qwen3.5-0.8B, through the production path and under that
- * feature's own deadline (Phase L, L1.8 follow-up). `--feature` picks it; the explanation is the default.
+ * verify:ai-explanation-live, verify:ai-failure-analysis-live, verify:ai-locator-upgrade-live,
+ * verify:ai-locator-quality-live — one product AI feature's own request on the real Qwen3.5-0.8B, through
+ * the production path and under that feature's own deadline (Phase L, L1.8 follow-up). `--feature` picks
+ * it; the explanation is the default.
  *
  * `benchmark:ai-model-0-8b` measures stand-in requests on the host directly, under a 240 s harness
  * deadline, so it could not see that the product gave every real answer 30 s. Each feature is driven
@@ -14,6 +15,9 @@
  *     which must be ACCEPTED as a conclusion (the typical one citing its cause), and a bare runner
  *     timeout, which must be accepted as insufficient.
  *   - locatorUpgrade: `runLocatorUpgradeAttempts` over a typical and the largest L2 capture context.
+ *   - locatorQuality: the same job over real Recorder captures on the Feature Test Lab, served here, with
+ *     every plan proven by the product in real Chromium and each accepted one judged by the page
+ *     (scripts/ai-harness/locatorQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
  *
  * NOT RUN (exit 0) without the runtime or the pack at ~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf. A pack that
@@ -21,14 +25,19 @@
  * root; `AI_MODEL_MANIFEST` is not touched.
  *
  * Run: npm run verify:ai-explanation-live | verify:ai-failure-analysis-live | verify:ai-locator-upgrade-live
+ *      | verify:ai-locator-quality-live
  */
 
+import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
+import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
-import { HOST_PATH, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot } from "./ai-harness/launch.mts";
+import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot } from "./ai-harness/launch.mts";
+// Type-only: esbuild bundles the harness without checking it, so this puts the modes under typecheck:scripts.
+import type {} from "./ai-harness/harnessMain";
 
 /** The published object, as `benchmark:ai-model-0-8b` accepts it. */
 const PACK = Object.freeze({
@@ -38,11 +47,34 @@ const PACK = Object.freeze({
 });
 
 /** Harness mode, its step count, and a launcher budget under the 10-minute limit of the tool running it. */
-const FEATURES = Object.freeze({
+const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs: number; mockSite?: boolean }>> = Object.freeze({
   validationExplanation: { mode: "explain", steps: 4, timeoutMs: 480_000 },
   failureAnalysis: { mode: "failureAnalysis", steps: 4, timeoutMs: 560_000 },
-  locatorUpgrade: { mode: "locatorUpgrade", steps: 3, timeoutMs: 560_000 }
+  locatorUpgrade: { mode: "locatorUpgrade", steps: 3, timeoutMs: 560_000 },
+  // hello, 5 controls, 6 scenarios, the labelled-set verdict. Eleven model calls took ~520 s of harness
+  // time on this host, so it gets what the 600 s tool ceiling leaves after the build and the launch.
+  locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true }
 });
+
+/** The Feature Test Lab on a free loopback port, for the modes that drive a real page. */
+async function startMockSite(): Promise<{ server: ChildProcess; lab: string }> {
+  const port = await new Promise<number>((resolve, reject) => {
+    const probe = createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      probe.close(() => (typeof address === "object" && address ? resolve(address.port) : reject(new Error("no port"))));
+    });
+  });
+  const lab = `http://127.0.0.1:${port}/recorder-lab/locator-upgrade`;
+  const server = spawn(process.execPath, [path.join(ROOT, "mock-site", "server.mjs")], { env: { ...process.env, MOCK_SITE_PORT: String(port) }, stdio: ["ignore", "ignore", "inherit"], windowsHide: true });
+  for (let i = 0; i < 100; i += 1) {
+    if (await fetch(lab).then((r) => r.ok, () => false)) return { server, lab };
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  server.kill();
+  throw new Error(`the mock site never served ${lab}`);
+}
 const featureFlag = process.argv.indexOf("--feature");
 const featureName = featureFlag >= 0 ? (process.argv[featureFlag + 1] ?? "") : "validationExplanation";
 const feature = FEATURES[featureName as keyof typeof FEATURES];
@@ -84,7 +116,9 @@ console.log(`  runtime ${runtime.build}, pack ${PACK.file} ${measured.sha256.sli
 
 const staged = stageModelRoot(candidate, measured.sha256);
 const harnessDir = await buildAiHarness();
+let mockSite: Awaited<ReturnType<typeof startMockSite>> | undefined;
 try {
+  mockSite = feature.mockSite ? await startMockSite() : undefined;
   const report = await runAiHarness(
     harnessDir,
     {
@@ -94,7 +128,8 @@ try {
       AWKIT_HARNESS_MODEL_PATH: staged.modelPath,
       AWKIT_HARNESS_MODEL_ID: "Qwen3.5-0.8B-unpinned",
       AWKIT_HARNESS_THREADS: String(threads),
-      AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? ""
+      AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? "",
+      ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {})
     },
     { timeoutMs: feature.timeoutMs }
   );
@@ -107,6 +142,7 @@ try {
     for (const s of report.steps) if (s.detail) console.log(`    ${s.label}: ${JSON.stringify(s.detail)}`);
   }
 } finally {
+  mockSite?.server.kill();
   fs.rmSync(harnessDir, { recursive: true, force: true });
   fs.rmSync(staged.root, { recursive: true, force: true });
 }

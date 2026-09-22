@@ -18,6 +18,8 @@
  *     `ai:explainValidation` runs, under the explanation's own deadline.
  *   - failureAnalysis / locatorUpgrade: those features' own requests on the real model, typical and
  *     largest, under each feature's own deadline (scripts/ai-harness/featureLive.ts).
+ *   - locatorQuality: the real model's locator plans proven by the product in real Chromium on the
+ *     Feature Test Lab and judged by the page (scripts/ai-harness/locatorQualityLive.ts).
  *   - failureAnalysisBudget / locatorUpgradeBudget: that request's prompt and longest acceptable answer,
  *     counted on the pack's own tokenizer, vocabulary only (scripts/ai-harness/failureAnalysisBudget.ts,
  *     scripts/ai-harness/locatorUpgradeBudget.ts).
@@ -51,6 +53,7 @@ import {
 import { runBench } from "./bench";
 import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
+import { runLocatorQualityLive } from "./locatorQualityLive";
 import { runLocatorUpgradeBudget } from "./locatorUpgradeBudget";
 import { runProfile } from "./profile";
 import { FLOW as EXPLANATION_FLOW } from "./validationExplanationPacket";
@@ -223,7 +226,8 @@ async function protocolMode(): Promise<void> {
     return { hostPath: path.basename(hostPath) };
   });
   await step("the main process never loads the runtime", () => {
-    const loaded = process.moduleLoadList.filter((entry) => /llama/i.test(entry));
+    // An internal Node list, absent from @types/node.
+    const loaded = (process as unknown as { moduleLoadList: string[] }).moduleLoadList.filter((entry) => /llama/i.test(entry));
     if (loaded.length > 0) throw new Error(`runtime modules loaded in main: ${loaded.join(", ")}`);
     return { loaded: 0 };
   });
@@ -693,7 +697,9 @@ async function explainMode(): Promise<void> {
     const started = Date.now();
     outcome = undefined;
     const view = await explainFlowValidation(1, { requestId, profile: EXPLANATION_FLOW }, deps);
-    const usage = outcome?.status === "ok" ? outcome.usage : null;
+    // Assigned inside `deps.submit`, which TypeScript's narrowing cannot see, so it reads the reset above as final.
+    const settled = outcome as AiJobOutcome | undefined;
+    const usage = settled?.status === "ok" ? settled.usage : null;
     return {
       code: view.code,
       sent: job.issues.length,
@@ -764,6 +770,7 @@ async function run(): Promise<void> {
     else if (mode === "explain") await explainMode();
     else if (mode === "failureAnalysis") await runFailureAnalysisLive({ step, record, makeLiveContext });
     else if (mode === "locatorUpgrade") await runLocatorUpgradeLive({ step, record, makeLiveContext });
+    else if (mode === "locatorQuality") await runLocatorQualityLive({ step, record, makeLiveContext });
     else if (mode === "failureAnalysisBudget") await runFailureAnalysisBudget({ step, record });
     else if (mode === "locatorUpgradeBudget") await runLocatorUpgradeBudget({ step, record });
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });

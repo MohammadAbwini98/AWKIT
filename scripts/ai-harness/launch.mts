@@ -46,9 +46,20 @@ export async function buildAiHarness(): Promise<string> {
     platform: "node",
     format: "cjs",
     target: "node20",
-    // The runtime must never be bundled into, or loaded by, the main process; Playwright is loaded
-    // from the repository at run time by the bench.
-    external: ["electron", "node-llama-cpp", "playwright"],
+    // The runtime must never be bundled into, or loaded by, the main process.
+    external: ["electron", "node-llama-cpp"],
+    // Playwright stays external but by its absolute repository path: the app directory is in the temp
+    // folder, where a bare `require("playwright")` finds nothing, and product code that imports it
+    // (`LocatorFactory` → `closedShadowBridge`) loads with the bundle, not on demand.
+    plugins: [
+      {
+        name: "repository-playwright",
+        setup(build) {
+          const resolved = createRequire(path.join(ROOT, "package.json")).resolve("playwright");
+          build.onResolve({ filter: /^playwright$/ }, () => ({ path: resolved, external: true }));
+        }
+      }
+    ],
     alias: { "@main": path.join(ROOT, "app", "main"), "@src": path.join(ROOT, "src") },
     logLevel: "silent"
   });

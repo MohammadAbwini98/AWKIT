@@ -661,6 +661,20 @@ try {
   check("...and the look-alike is untouched", (await page.getByTestId("lu-repair-other").count()) === 1);
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   check("...and the broken target still reports only its own name", (await page.getByTestId("lu-result").textContent()) === "repair-save");
+  // verify:ai-locator-quality-live's scope and dynamic cases. The scope case needs the button to be
+  // ambiguous on its own and unique inside its named region, or it tests nothing about scoping.
+  check("Edit address matches twice by role and name", (await page.getByRole("button", { name: "Edit address", exact: true }).count()) === 2);
+  check("...and once inside its named region", (await page.getByRole("region", { name: "Shipping address", exact: true }).getByRole("button", { name: "Edit address", exact: true }).count()) === 1);
+  await page.getByRole("region", { name: "Shipping address", exact: true }).getByRole("button", { name: "Edit address" }).click();
+  check("...and the scoped one reports only its own name", (await page.getByTestId("lu-result").textContent()) === "edit-shipping");
+  const reportsReady = () => page.waitForFunction(() => document.querySelector('[data-testid="lu-dynamic-status"]')?.textContent === "ready", undefined, { timeout: 8_000 });
+  await reportsReady();
+  check("the reports list renders after load and says ready", (await page.getByRole("button", { name: "Download summary", exact: true }).count()) === 1);
+  await page.getByRole("button", { name: "Download summary", exact: true }).evaluate((el) => { el.dataset.oldNode = "1"; });
+  await page.getByTestId("lu-dynamic-reload").click();
+  check("reload empties the list and says loading", (await page.getByTestId("lu-dynamic-status").textContent()) === "loading" && (await page.getByTestId("lu-dynamic-list").locator("button").count()) === 0);
+  await reportsReady();
+  check("...then renders it again as NEW elements", (await page.getByRole("button", { name: "Download summary", exact: true }).count()) === 1 && (await page.locator("[data-old-node]").count()) === 0);
 
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);

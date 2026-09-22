@@ -46,7 +46,7 @@ const HELLO = { type: "hello", expected: { protocolVersion: AI_HOST_PROTOCOL_VER
 const ANSWERED = new Set(["MALFORMED_OUTPUT", "SCHEMA_REJECTED"]);
 
 /** A live context whose job outcomes, and the deadline the manager gave each inference, are kept. */
-function observed(api: FeatureLiveApi) {
+export function observed(api: FeatureLiveApi) {
   const ctx = api.makeLiveContext();
   const deadlines: number[] = [];
   const call = ctx.manager.call.bind(ctx.manager);
@@ -64,7 +64,7 @@ function observed(api: FeatureLiveApi) {
 }
 
 /** One answer's counts and timings, and the L1.8 worst case: its prompt time plus the request's own output cap. */
-function measured(outcome: AiJobOutcome, maxOutputTokens: number) {
+export function measured(outcome: AiJobOutcome, maxOutputTokens: number) {
   if (outcome.status !== "ok") return { status: outcome.status, ...("code" in outcome ? { code: outcome.code } : {}) };
   const { promptTokens, outputTokens, firstTokenMs, generationMs } = outcome.usage;
   const rate = outputTokens > 1 && generationMs > 0 ? (outputTokens - 1) / (generationMs / 1000) : null;
@@ -81,7 +81,7 @@ function measured(outcome: AiJobOutcome, maxOutputTokens: number) {
 }
 
 /** Delivered, or refused on its content: either way the model answered before the deadline. */
-function answeredInTime(outcome: AiJobOutcome | undefined): boolean {
+export function answeredInTime(outcome: AiJobOutcome | undefined): boolean {
   return outcome?.status === "ok" || (outcome?.status === "failed" && ANSWERED.has(outcome.code));
 }
 
@@ -102,7 +102,7 @@ async function hostBusyPct(ms = 3_000): Promise<number> {
   return all > 0 ? Math.round((1 - (after.idle - before.idle) / all) * 100) : 0;
 }
 
-async function hello(api: FeatureLiveApi, ctx: LiveContext): Promise<void> {
+export async function hello(api: FeatureLiveApi, ctx: LiveContext): Promise<void> {
   await api.step("the host reports a compatible runtime", async () => {
     const answer = await ctx.manager.call<AiHostHello>(HELLO, 15_000);
     if (!answer.compatible) throw new Error(`incompatible: ${JSON.stringify(answer.runtime)}`);

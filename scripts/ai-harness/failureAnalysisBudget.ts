@@ -51,7 +51,7 @@ type Schema = Record<string, any>;
 
 /** The longest answer `request`'s grammar admits that the parser also accepts: distinct ids, every list and string full. */
 function longestAnswer(request: FailureAnalysisRequest, idsOf?: (count: number, offset: number) => string[]): unknown {
-  const conclusion = (request.schema.properties as Schema).conclusion as Schema;
+  const conclusion = ((request.schema as Schema).properties as Schema).conclusion as Schema;
   if (conclusion.maxItems === 0) return { version: 1, conclusion: [] };
   const item = conclusion.items.properties as Schema;
   const primaryMax: number = item.primaryEvidenceIds.maxItems;
