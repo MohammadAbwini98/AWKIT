@@ -20,7 +20,8 @@
  *     (scripts/ai-harness/locatorQualityLive.ts).
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
  *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts);
- *     `--cases` runs it in parts.
+ *     `--cases` runs it in parts. Each part also writes a redacted review capture to the local review
+ *     store, the only place model text is kept (scripts/ai-harness/authoringQualityReview.ts).
  *   - errorQuality: `analyzeFailure` over L5's labelled set, each row delivered and saved with no canary
  *     leaked, L5's metrics recorded (scripts/ai-harness/errorQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
@@ -40,6 +41,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
+import { reviewDir } from "./ai-harness/authoringQualityReview";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot } from "./ai-harness/launch.mts";
 // Type-only: esbuild bundles the harness without checking it, so this puts the modes under typecheck:scripts.
 import type {} from "./ai-harness/harnessMain";
@@ -147,7 +149,9 @@ try {
       AWKIT_HARNESS_THREADS: String(threads),
       AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? "",
       ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {}),
-      ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {})
+      ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {}),
+      // The redacted answers a person reviews: local, outside the repository (authoringQualityReview.ts).
+      ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: reviewDir() } : {})
     },
     // A part stays under the tool ceiling, as the whole set did before it grew past it.
     { timeoutMs: cases.length > 0 ? Math.min(feature.timeoutMs, 575_000) : feature.timeoutMs }

@@ -13,9 +13,10 @@
  *  - actionable: one sentence holds a corrective verb and its issue's remedy (`REMEDY`);
  *  - unsupported: a screen found a claim the request does not support (`UnsupportedKind`).
  * A screen can prove an explanation WRONG; nothing here can prove one right. So an explanation that
- * clears every screen is `unverified`, for a person to judge, never `accepted`. No plan sets a target
- * for these rates (L4's acceptance asks for one before release), so the live gate records them and
- * judges only the product's own contract.
+ * clears every screen is `unverified`, for a person to judge, never `accepted`. The live gate records
+ * these rates and judges only the product's own contract; the quality target (adopted provisionally,
+ * 2026-09-22) is evaluated over every captured run and a person's verdicts by `verify:ai-authoring-review`
+ * (scripts/ai-harness/authoringQualityReview.ts).
  *
  * The labels (codes, fixes, which issue blocks the run, what is truncated) and every pattern were
  * written from the validator's rules, before any model output was seen.
@@ -23,7 +24,7 @@
  * Electron-free: `verify:ai-authoring` audits the set and runs the judge's controls without a model.
  */
 
-import { AUTHORING_LIMITS, parseAuthoringAnswer, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
+import { AUTHORING_LIMITS, parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FlowEdge, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
 import { isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
@@ -294,11 +295,16 @@ export interface AuthoringJudgement {
   categories: Record<ExplanationCategory, number>;
   /** Codes whose explanation cleared every screen: the ones a person must still judge. */
   review: FlowValidationCode[];
+  /** Each explanation's own reading, in answer order: what the review capture records beside its text. */
+  perExplanation: Array<{ issueId: string; onSubject: boolean; misattributed: boolean; actionable: boolean; unsupported: UnsupportedKind[]; category: ExplanationCategory }>;
   /**
-   * Whether the ranking puts every fix for a blocking issue before any other. `null` when nothing was
-   * ranked or no fix is more urgent than another, so there is nothing to order.
+   * Whether the model's ranking puts every fix for a blocking issue before any other (the product's
+   * `rankingKeepsPriority`). `false` when the product withheld it for breaking that; `null` when nothing
+   * was ranked or no fix is more urgent than another, so there is nothing to order.
    */
   rankingOrderCorrect: boolean | null;
+  /** The product withheld the model's order for breaking the blocking-first priority. */
+  rankingWithheld: boolean;
   /** Ended at `maxExplanationChars`: cut by the grammar, not by the model. */
   cutByGrammar: number;
   /** Texts carrying the canary. The product never sends it, so any is a leak through the request. */
@@ -306,17 +312,6 @@ export interface AuthoringJudgement {
   residualSecrets: number;
   ranked: number;
   textChars: number[];
-}
-
-/** Whether a ranking orders blocking fixes first. See {@link AuthoringJudgement.rankingOrderCorrect}. */
-export function rankingOrderCorrect(request: AuthoringRequest, ranking: readonly string[]): boolean | null {
-  const blocking = new Map(request.issues.map((ref) => [ref.id, isExecutionBlocking(ref.issue)]));
-  const urgencies = new Set(request.fixableIds.map((id) => blocking.get(id)));
-  if (ranking.length === 0 || urgencies.size < 2) return null;
-  // Blocking fixes first, and none of them left out ahead of a fix that can wait.
-  const ordered = ranking.every((id, index) => index === 0 || blocking.get(ranking[index - 1]) === true || blocking.get(id) !== true);
-  const unranked = request.fixableIds.filter((id) => blocking.get(id) && !ranking.includes(id));
-  return ordered && (unranked.length === 0 || ranking.every((id) => blocking.get(id)));
 }
 
 /** The judge, on an answer the product accepted. Counts and codes only. */
@@ -328,6 +323,7 @@ export function judgeAuthoringAnswer(request: AuthoringRequest, answer: Authorin
   const unsupported: Partial<Record<UnsupportedKind, number>> = {};
   const categories: Record<ExplanationCategory, number> = { defect: 0, offSubject: 0, notActionable: 0, unverified: 0 };
   const review: FlowValidationCode[] = [];
+  const perExplanation: AuthoringJudgement["perExplanation"] = [];
   let onSubject = 0;
   let misattributed = 0;
   let actionable = 0;
@@ -345,6 +341,7 @@ export function judgeAuthoringAnswer(request: AuthoringRequest, answer: Authorin
     const category: ExplanationCategory = other || hits.length > 0 ? "defect" : !own ? "offSubject" : !acts ? "notActionable" : "unverified";
     categories[category] += 1;
     if (category === "unverified") review.push(code);
+    perExplanation.push({ issueId: e.issueId, onSubject: own, misattributed: other, actionable: acts, unsupported: hits, category });
   }
   return {
     sent: request.issues.length,
@@ -355,7 +352,9 @@ export function judgeAuthoringAnswer(request: AuthoringRequest, answer: Authorin
     unsupported,
     categories,
     review,
-    rankingOrderCorrect: rankingOrderCorrect(request, answer.ranking),
+    perExplanation,
+    rankingOrderCorrect: answer.rankingWithheld ? false : rankingKeepsPriority(request, answer.ranking),
+    rankingWithheld: answer.rankingWithheld !== undefined,
     cutByGrammar: answer.explanations.filter((e) => e.text.length >= AUTHORING_LIMITS.maxExplanationChars).length,
     canaryInText: answer.explanations.filter((e) => e.text.toUpperCase().includes(CANARY)).length,
     residualSecrets: answer.explanations.reduce((n, e) => n + findResidualSecrets(e.text).length, 0),
@@ -462,9 +461,10 @@ export function rankingControlFailures(request: AuthoringRequest): string[] {
   };
   expect("the blocking fix first is in order", judge([a.id, b.id])?.rankingOrderCorrect === true);
   expect("the blocking fix alone is in order", judge([a.id])?.rankingOrderCorrect === true);
-  expect("the off-path fix first is out of order", judge([b.id, a.id])?.rankingOrderCorrect === false);
-  expect("the off-path fix alone, the blocking one left out, is out of order", judge([b.id])?.rankingOrderCorrect === false);
-  expect("no ranking has no order to judge", judge(undefined)?.rankingOrderCorrect === null);
+  expect("the off-path fix first is out of order, and the product withholds it", judge([b.id, a.id])?.rankingOrderCorrect === false && judge([b.id, a.id])?.rankingWithheld === true && judge([b.id, a.id])?.ranked === 0);
+  expect("the off-path fix alone, the blocking one left out, is out of order and withheld", judge([b.id])?.rankingOrderCorrect === false && judge([b.id])?.rankingWithheld === true);
+  expect("an order in priority is shown whole", judge([a.id, b.id])?.rankingWithheld === false && judge([a.id, b.id])?.ranked === 2);
+  expect("no ranking has no order to judge, and nothing is withheld", judge(undefined)?.rankingOrderCorrect === null && judge(undefined)?.rankingWithheld === false);
   expect("both texts clear every screen and are actionable", judge([a.id, b.id])?.categories.unverified === 2);
   expect("saying the application fixes an issue it DID emit a fix for is supported", judge(undefined, " The application can fix this automatically.")?.unsupported.AUTO_FIX_CLAIMED === undefined);
   return failures;

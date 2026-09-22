@@ -14,6 +14,11 @@
  *     decoding grammar, and `parseAuthoringAnswer` re-checks every id against the report afterwards,
  *     because a grammar is one layer and L1.3 requires runtime validation after decoding.
  *
+ * Owner decisions (2026-09-22): each explanation names a corrective step grounded in the issue it was
+ * given, and invents no name, selector, value, connection or automatic fix. A fix order is optional;
+ * where it is given, a fix for an issue that blocks the run comes first — the one documented priority
+ * between fixes — and an order that breaks it is withheld, never shown and never re-sorted.
+ *
  * What crosses to the model: issue codes, severities, active-path flags, the anchor's KIND (node,
  * connector or flow), rule summaries (product-authored constants) and the `kind`/`field` of each emitted
  * fix. Never an anchor id, a validator message, a locator value, a typed value, a step name or any
@@ -98,8 +103,14 @@ export interface AuthoringAnswer {
   /**
    * T1. Emitted-fix issue ids, most worth applying first. A subset, because a model declining to rank
    * an issue is information; never a superset, and never anything the validator did not emit a fix for.
+   * Empty when the model ranked nothing, or when its order was withheld.
    */
   ranking: string[];
+  /**
+   * Set when the model's order put a fix that can wait ahead of one for an issue that blocks the run.
+   * The order is withheld rather than re-sorted: re-sorting would show the product's order as the AI's.
+   */
+  rankingWithheld?: "PRIORITY_VIOLATION";
 }
 
 export type AuthoringRejectionCode =
@@ -123,14 +134,22 @@ export interface AuthoringRejection {
   field: string;
 }
 
+/**
+ * Every clause is load-bearing, and `verify:ai-authoring` §12 holds each one: the corrective step, its
+ * grounding in the issue given, the fallback when the issue says too little, the list of things never
+ * to invent, the automatic-fix limit and the ranking's priority. Its length is L1.8 prompt time.
+ */
 const INSTRUCTIONS =
   "You explain why an automation flow failed validation, for the person editing it. " +
   "You are given validation issues by id, each with its rule code, severity, where it is and the rule's " +
-  "own one-line summary. For each issue, write one or two plain sentences saying what is wrong and " +
-  "what the person should look at. Do not invent issues, ids, rules or fixes. " +
+  "own one-line summary. For each issue, write one or two short sentences: what is wrong, then the step " +
+  "the person should take in the editor, starting with a verb such as add, set, connect, remove or change. " +
+  "Base the step only on that issue; if it gives too little for a specific step, say what to check. " +
+  "Never invent issues, ids, rules, step names, selectors, values or connections, and never say the " +
+  "application can fix an issue that is not marked fixable. " +
   "An issue marked fixable has a repair the application already knows how to perform safely; " +
-  "you may put those ids in order of which is most worth doing first. " +
-  "You may not describe a repair of your own, and you may not rank an id that is not marked fixable.";
+  "you may put those ids in order of which is most worth doing first, errors on the run path first. " +
+  "You may not rank an id that is not marked fixable.";
 
 /** Product-authored, one line per kind. The model is told what a fix IS; it never chooses one. */
 const FIX_KIND_SUMMARY: Readonly<Record<SafeFixKind, string>> = Object.freeze({
@@ -264,7 +283,24 @@ export function parseAuthoringAnswer(value: unknown, request: AuthoringRequest):
     }
   }
 
+  // A decodable order is still only a suggestion: one that breaks the documented priority is not
+  // justified, so there is no fix order. The explanations stand; they are not what was wrong.
+  if (rankingKeepsPriority(request, ranking) === false) return { ok: true, explanations, ranking: [], rankingWithheld: "PRIORITY_VIOLATION" };
   return { ok: true, explanations, ranking };
+}
+
+/**
+ * Whether a ranking keeps the one documented priority between fixes: every fix for an issue that
+ * blocks the run (`isExecutionBlocking`) comes before any fix that can wait, and none is left out
+ * ahead of one that can. `null` when nothing is ranked or no fix is more urgent than another: there is
+ * then no order to keep, and none is invented.
+ */
+export function rankingKeepsPriority(request: AuthoringRequest, ranking: readonly string[]): boolean | null {
+  const blocking = new Map(request.issues.map((ref) => [ref.id, isExecutionBlocking(ref.issue)]));
+  if (ranking.length === 0 || new Set(request.fixableIds.map((id) => blocking.get(id))).size < 2) return null;
+  const ordered = ranking.every((id, index) => index === 0 || blocking.get(ranking[index - 1]) === true || blocking.get(id) !== true);
+  const blockingLeftOut = request.fixableIds.some((id) => blocking.get(id) && !ranking.includes(id));
+  return ordered && (!blockingLeftOut || ranking.every((id) => blocking.get(id)));
 }
 
 /**

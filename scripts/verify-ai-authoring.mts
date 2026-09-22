@@ -22,13 +22,20 @@
  * 30 s. Every feature's deadline side by side is `verify:ai-deadlines`. Section 11 audits the labelled set
  * `verify:ai-authoring-quality-live` sends to the real model (codes, fixes, which issue blocks the run,
  * truncation, blocking-first), and runs its judge's controls: subject, corrective action, the five
- * unsupported-claim screens each with a negative twin, and the ranking order.
+ * unsupported-claim screens each with a negative twin, and the ranking order. Section 12 holds the
+ * owner's four L4b decisions (2026-09-22): each clause of the corrective-step instruction; a fix order
+ * that puts a fix that can wait ahead of a blocking one withheld (never re-sorted) with the explanations
+ * kept, through the adapter too; the review capture redacted before it is written, with a residual
+ * secret withheld and nothing from the flow stored; verdicts validated and redacted; and the adopted
+ * target, which can say MET and says PENDING or NOT MET for each way short of it, never counting an
+ * unreviewed explanation as correct.
  *
  * Run: npm run verify:ai-authoring
  */
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve as resolvePath } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { AI_SERVICE_LIMITS, AiService, type AiServiceLimits, type AiServiceSettings } from "@src/ai/AiService";
@@ -42,6 +49,7 @@ import {
   authoringRankingDecision,
   buildAuthoringRequest,
   parseAuthoringAnswer,
+  rankingKeepsPriority,
   type AuthoringRequest
 } from "@src/ai/authoringExplanation";
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
@@ -54,7 +62,19 @@ import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, typ
 
 import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
 import { virtualClock } from "./lib/virtual-clock.mts";
-import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, rankingControlFailures } from "./ai-harness/authoringQualitySet";
+import {
+  QUALITY_TARGET,
+  buildReviewCapture,
+  evaluateQualityTarget,
+  instructionsSha256,
+  loadReviewStore,
+  recordVerdict,
+  writeReviewCapture,
+  type ReviewCapture,
+  type ReviewItem,
+  type ReviewVerdict
+} from "./ai-harness/authoringQualityReview";
+import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, judgeAuthoringAnswer, rankingControlFailures } from "./ai-harness/authoringQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -689,6 +709,197 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
   const priority = LABELLED_SET.find((c) => c.id === "priority")!;
   const ranking = rankingControlFailures(buildAuthoringRequest(reportOf(priority))!);
   check("the ranking-order controls all hold (blocking first, off-path first, blocking left out, none)", ranking.length === 0, ranking.join("; "));
+}
+
+// ── 12. The owner's L4b decisions (2026-09-22) ──────────────────────────────────────────────────
+// (1) the quality target adopted provisionally, (2) an evidence-grounded corrective step, (3) a local,
+// redacted human review, (4) an optional fix order that keeps blocking fixes first.
+console.log("\n12 — corrective step, fix priority, the review store and the adopted target");
+{
+  const reportOf = (c: (typeof LABELLED_SET)[number]) => validateFlowDefinition(c.flow, { referenceableFlowIds: new Set([c.flow.id]) });
+  const requestFor = (id: string) => buildAuthoringRequest(reportOf(LABELLED_SET.find((c) => c.id === id)!))!;
+
+  // (2) The instruction: each clause is a behaviour the owner asked for, so each is held on its own.
+  const instructions = request.prompt.instructions;
+  check("the instruction asks for a corrective step after what is wrong", /what is wrong, then the step the person should take in the editor/.test(instructions));
+  check("...phrased as an instruction to the person, starting with a verb", /starting with a verb such as add, set, connect, remove or change/.test(instructions));
+  check("...grounded in the issue given", /Base the step only on that issue/.test(instructions));
+  check("...and says what to check when the issue gives too little for a specific step", /if it gives too little for a specific step, say what to check/.test(instructions));
+  check("...never inventing a step name, selector, value or connection", /Never invent issues, ids, rules, step names, selectors, values or connections/.test(instructions));
+  check("...nor an automatic fix for an issue with no emitted fix", /never say the application can fix an issue that is not marked fixable/.test(instructions));
+  check("...and asks for fixes on the run path first when it orders them", /errors on the run path first/.test(instructions));
+  check("the old ban on describing any repair is gone: it forbade the corrective step itself", !/may not describe a repair/.test(instructions));
+  check("the ranking is still limited to fixable ids", /You may not rank an id that is not marked fixable/.test(instructions));
+
+  // (4) The fix order: optional, and blocking fixes first where one fix is more urgent than another.
+  const priority = requestFor("priority");
+  const [blockingFix, offPathFix] = priority.issues;
+  const texts = priority.issues.map((ref) => ({ issueId: ref.id, text: "Change the value to a legal one." }));
+  const answerWith = (ranking?: string[]) => parseAuthoringAnswer({ version: 1, explanations: texts, ...(ranking ? { ranking } : {}) }, priority);
+  check("(precondition) the priority case has a blocking fix and one that can wait", priority.fixableIds.length === 2 && isExecutionBlocking(blockingFix.issue) && !isExecutionBlocking(offPathFix.issue));
+  const inOrder = answerWith([blockingFix.id, offPathFix.id]);
+  check("a ranking with the blocking fix first is shown whole", inOrder.ok && JSON.stringify(inOrder.ranking) === JSON.stringify([blockingFix.id, offPathFix.id]) && inOrder.rankingWithheld === undefined, JSON.stringify(inOrder));
+  const reversed = answerWith([offPathFix.id, blockingFix.id]);
+  check("a ranking with the fix that can wait first is withheld: no fix order", reversed.ok && reversed.ranking.length === 0 && reversed.rankingWithheld === "PRIORITY_VIOLATION", JSON.stringify(reversed));
+  check("...never re-sorted into the product's order and shown as the AI's", reversed.ok && !reversed.ranking.includes(blockingFix.id));
+  check("...and the explanations still stand", reversed.ok && reversed.explanations.length === 2);
+  const leftOut = answerWith([offPathFix.id]);
+  check("ranking only the fix that can wait, leaving the blocking one out, is withheld too", leftOut.ok && leftOut.ranking.length === 0 && leftOut.rankingWithheld === "PRIORITY_VIOLATION");
+  const blockingOnly = answerWith([blockingFix.id]);
+  check("ranking only the blocking fix is kept", blockingOnly.ok && blockingOnly.ranking.length === 1 && blockingOnly.rankingWithheld === undefined);
+  const none = answerWith();
+  check("no ranking at all is an accepted answer with an empty fix order", none.ok && none.ranking.length === 0 && none.rankingWithheld === undefined);
+  const casing = requestFor("casing");
+  check("(precondition) the casing case's two fixes are equally urgent", casing.fixableIds.length === 2 && casing.issues.every((ref) => isExecutionBlocking(ref.issue)));
+  const either = parseAuthoringAnswer({ version: 1, explanations: casing.issues.map((ref) => ({ issueId: ref.id, text: "Change the casing." })), ranking: [...casing.fixableIds].reverse() }, casing);
+  check("with no documented priority between two fixes, any order is kept: none is invented", either.ok && either.ranking.length === 2 && either.rankingWithheld === undefined);
+  check("rankingKeepsPriority has nothing to judge when nothing is ranked or nothing is more urgent", rankingKeepsPriority(priority, []) === null && rankingKeepsPriority(casing, casing.fixableIds) === null);
+
+  // Through the adapter behind ai:explainValidation: a withheld order reaches the designer as no order.
+  const priorityFlow = LABELLED_SET.find((c) => c.id === "priority")!.flow;
+  const viewOf = async (ranking: string[]) => {
+    const h = harness([JSON.stringify({ version: 1, explanations: texts, ranking })]);
+    const v = await explainFlowValidation(WINDOW, { requestId: "p12", profile: priorityFlow }, assistDeps(h.service, POLICY, [priorityFlow.id]));
+    await h.service.shutdown();
+    return v;
+  };
+  const shownReversed = await viewOf([offPathFix.id, blockingFix.id]);
+  check("the designer shows the explanations and NO fix order for a withheld ranking", shownReversed.code === "OK" && shownReversed.explanations.length === 2 && shownReversed.ranking.length === 0, JSON.stringify(shownReversed).slice(0, 200));
+  const shownInOrder = await viewOf([blockingFix.id, offPathFix.id]);
+  check("...and the model's order when it keeps the priority", shownInOrder.code === "OK" && shownInOrder.ranking.length === 2 && shownInOrder.ranking[0].code === blockingFix.issue.code);
+
+  // (3) The review capture: redacted BEFORE it is written, and nothing from the flow in it.
+  const reviewRoot = join(work, "review");
+  const cycleRequest = requestFor("cycle");
+  const PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----";
+  const leaky = {
+    version: 1,
+    explanations: [
+      { issueId: cycleRequest.issues[0].id, text: `Loop ${CANARY}; mail ops@example.com, token=abcd1234efgh, see https://x.test/a?b=c or C:\\Users\\bob\\f.` },
+      { issueId: cycleRequest.issues[1].id, text: `Remove it. ${PRIVATE_KEY}` }
+    ]
+  };
+  const leakyAnswer = parseAuthoringAnswer(leaky, cycleRequest);
+  if (!leakyAnswer.ok) throw new Error("the leaky scripted answer must parse");
+  const capture = buildReviewCapture("fake-l4b-model", [
+    { caseId: "cycle", request: cycleRequest, answer: leakyAnswer, judged: judgeAuthoringAnswer(cycleRequest, leakyAnswer), inferMs: 1 },
+    { caseId: "single", request: requestFor("single"), answer: null, judged: null, inferMs: null }
+  ]);
+  const captureFile = await writeReviewCapture(reviewRoot, capture);
+  const onDisk = readFileSync(captureFile, "utf8");
+  check("the capture is written under the review directory given, and nowhere else", dirname(captureFile) === reviewRoot && readdirSync(reviewRoot).length === 1);
+  check("no canary reaches the capture", !onDisk.toUpperCase().includes(CANARY));
+  check("no email, token value, URL or user path reaches the capture", !/ops@example\.com|abcd1234efgh|x\.test|bob/.test(onDisk), onDisk.slice(0, 400));
+  check("...they are redacted in place, so the rest of the text is still reviewable", capture.items[0].text?.includes("[redacted]") === true && capture.items[0].text.startsWith("Loop"));
+  check("a text in which a secret survives redaction is not written at all", capture.items[1].text === null && capture.items[1].withheld === "RESIDUAL_SECRET" && !onDisk.includes("PRIVATE KEY"));
+  check("each item carries the product's own Issues line as its evidence", capture.items.every((item) => item.evidence.startsWith(`${item.issueId}: ${item.code} `)));
+  check("nothing from the flow is stored: no step name, flow name or connector id", !/Orders |click |"e[1-5]"/.test(onDisk));
+  check("an undelivered case is captured with its sent issues and no answer, so it cannot raise a rate", capture.cases[1].delivered === false && capture.cases[1].sent === 1 && capture.items.every((i) => i.caseId === "cycle"));
+  check("the capture is keyed to the product's instructions", capture.instructionsSha256 === instructionsSha256(request));
+
+  // A person's verdict: validated, redacted, one per explanation.
+  const item = capture.items[0].id;
+  const verdict = { itemId: item, correct: true, actionable: true, grounded: true, unsupportedClaim: false, reviewer: "MA" };
+  check("a verdict on an unknown explanation is refused", !(await recordVerdict(reviewRoot, { ...verdict, itemId: "nope/cycle/i0" })).ok);
+  check("a verdict on a withheld explanation is refused: nothing to review", !(await recordVerdict(reviewRoot, { ...verdict, itemId: capture.items[1].id })).ok);
+  check("a verdict with a missing yes/no is refused", !(await recordVerdict(reviewRoot, { ...verdict, grounded: undefined as unknown as boolean })).ok);
+  check("a verdict without a reviewer label is refused", !(await recordVerdict(reviewRoot, { ...verdict, reviewer: "" })).ok);
+  check("a note in which a secret survives redaction is refused", !(await recordVerdict(reviewRoot, { ...verdict, note: PRIVATE_KEY })).ok);
+  check("a valid verdict is recorded", (await recordVerdict(reviewRoot, { ...verdict, note: "fine; mail ops@example.com" })).ok);
+  check("...once per explanation: a second verdict replaces the first", (await recordVerdict(reviewRoot, { ...verdict, correct: false, note: "on reflection, wrong; ops@example.com" })).ok);
+  const stored = loadReviewStore(reviewRoot);
+  check("the store reads back one capture and one verdict", stored.captures.length === 1 && stored.verdicts.length === 1 && stored.malformed.length === 0, JSON.stringify({ c: stored.captures.length, v: stored.verdicts.length, m: stored.malformed }));
+  check("...the latest verdict, with its note redacted", stored.verdicts[0].correct === false && !JSON.stringify(stored.verdicts).includes("ops@example.com"));
+  writeFileSync(join(reviewRoot, "capture-broken.json"), "{ not json");
+  check("an unreadable capture is reported, never silently skipped", loadReviewStore(reviewRoot).malformed.includes("capture-broken.json"));
+
+  // (1) The adopted target, on synthetic captures over the real labelled set: it can say MET, and
+  // every way short of it says so.
+  const caseIds = LABELLED_SET.map((c) => c.id);
+  const sha = instructionsSha256(request);
+  type Judged = ReviewItem["judged"];
+  const clear: Judged = { onSubject: true, misattributed: false, actionable: true, unsupported: [], category: "unverified" };
+  const synth = (capturedAt: string, o: { cases?: string[]; judged?: (index: number) => Partial<Judged>; undelivered?: string[]; orderViolation?: string } = {}): ReviewCapture => {
+    const captureId = `synthetic-${capturedAt}`;
+    let index = 0;
+    const cases = o.cases ?? caseIds;
+    const items: ReviewItem[] = cases
+      .filter((caseId) => !o.undelivered?.includes(caseId))
+      .flatMap((caseId) =>
+        LABELLED_SET.find((c) => c.id === caseId)!.sent.map((s, n) => ({
+          id: `${captureId}/${caseId}/i${n}`,
+          caseId,
+          issueId: `i${n}`,
+          code: s.code,
+          blocking: s.blocking,
+          fixable: s.fixable,
+          evidence: "",
+          text: "Add what the step needs.",
+          judged: { ...clear, ...o.judged?.(index++) }
+        }))
+      );
+    return {
+      version: 1,
+      captureId,
+      capturedAt,
+      modelId: "synthetic",
+      instructionsSha256: sha,
+      cases: cases.map((caseId) => ({
+        caseId,
+        sent: LABELLED_SET.find((c) => c.id === caseId)!.sent.length,
+        delivered: !o.undelivered?.includes(caseId),
+        ranking: [],
+        rankingWithheld: caseId === o.orderViolation,
+        rankingOrderCorrect: caseId === o.orderViolation ? false : null,
+        inferMs: 1
+      })),
+      items
+    };
+  };
+  const approve = (captures: ReviewCapture[], edit: (v: ReviewVerdict) => ReviewVerdict = (v) => v): ReviewVerdict[] =>
+    captures.flatMap((c) => c.items.map((i) => edit({ itemId: i.id, correct: true, actionable: true, grounded: true, unsupportedClaim: false, reviewer: "MA", reviewedAt: "2026-09-22T00:00:00Z" })));
+  const status = (e: ReturnType<typeof evaluateQualityTarget>, id: number) => e.criteria.find((c) => c.id === id)!.status;
+  const twoRuns = [synth("2026-09-22T01"), synth("2026-09-22T02")];
+  const passing = evaluateQualityTarget(twoRuns, approve(twoRuns), caseIds);
+  check("two clean, fully reviewed runs meet the target: the evaluator can say MET", passing.verdict === "MET" && passing.completeRuns === 2, JSON.stringify(passing.criteria));
+  check("the thresholds are the proposal's, unlowered", QUALITY_TARGET.minOnSubject === 0.9 && QUALITY_TARGET.minActionable === 0.8 && QUALITY_TARGET.minReviewedCorrectAndActionable === 0.8 && QUALITY_TARGET.minRuns === 2);
+  const oneUnreviewed = approve(twoRuns).slice(1);
+  const pendingOne = evaluateQualityTarget(twoRuns, oneUnreviewed, caseIds);
+  check("one screen-clear explanation without a person's verdict is PENDING, never MET: unreviewed is not correct", status(pendingOne, 4) === "PENDING" && pendingOne.verdict === "PENDING");
+  check("no verdicts at all is PENDING too", evaluateQualityTarget(twoRuns, [], caseIds).verdict === "PENDING");
+  check("...and criterion 1 cannot be MET while a screen-clear answer is unread: a person may still confirm a claim", status(pendingOne, 1) === "PENDING");
+  const judgedWrong = evaluateQualityTarget(twoRuns, approve(twoRuns).map((v, i) => (i < 7 ? { ...v, correct: false } : v)), caseIds);
+  check("a person judging 7 of 34 screen-clear explanations wrong (79 %) fails criterion 4", status(judgedWrong, 4) === "NOT MET" && judgedWrong.verdict === "NOT MET");
+  const oneRun = [synth("2026-09-22T01")];
+  check("one run does not meet criterion 6", status(evaluateQualityTarget(oneRun, approve(oneRun), caseIds), 6) === "NOT MET");
+  const parts = [synth("2026-09-22T01", { cases: caseIds.slice(0, 5) }), synth("2026-09-22T02", { cases: caseIds.slice(5) }), ...twoRuns];
+  check("two parts over different cases make one run", evaluateQualityTarget(parts, approve(parts), caseIds).completeRuns === 3);
+  const actionable = (misses: number) => {
+    const runs = [synth("2026-09-22T01", { judged: (i) => (i < misses ? { actionable: false, category: "notActionable" } : {}) }), synth("2026-09-22T02")];
+    return status(evaluateQualityTarget(runs, approve(runs), caseIds), 3);
+  };
+  check("13 of 17 actionable in one run (76 %) fails criterion 3; 14 of 17 (82 %) meets it", actionable(4) === "NOT MET" && actionable(3) === "MET");
+  const onSubject = (misses: number) => {
+    const runs = [synth("2026-09-22T01"), synth("2026-09-22T02", { judged: (i) => (i < misses ? { onSubject: false, category: "offSubject" } : {}) })];
+    return status(evaluateQualityTarget(runs, approve(runs), caseIds), 2);
+  };
+  check("15 of 17 on subject in one run (88 %) fails criterion 2; 16 of 17 (94 %) meets it", onSubject(2) === "NOT MET" && onSubject(1) === "MET");
+  const undelivered = [synth("2026-09-22T01", { undelivered: ["values"] }), synth("2026-09-22T02")];
+  const lost = evaluateQualityTarget(undelivered, approve(undelivered), caseIds);
+  check("an undelivered answer still counts its issues, so it lowers the rate instead of vanishing", lost.runs[0].sent === 17 && lost.runs[0].onSubject === 15 && status(lost, 2) === "NOT MET");
+  const hit = [synth("2026-09-22T01", { judged: (i) => (i === 0 ? { unsupported: ["SEVERITY_OVERSTATED"], category: "defect" } : {}) }), synth("2026-09-22T02")];
+  const hitItem = hit[0].items[0].id;
+  check("an unconfirmed screen hit leaves criterion 1 PENDING", status(evaluateQualityTarget(hit, approve(hit).filter((v) => v.itemId !== hitItem), caseIds), 1) === "PENDING");
+  check("...a person dismissing it meets criterion 1", status(evaluateQualityTarget(hit, approve(hit), caseIds), 1) === "MET");
+  check("...a person confirming it fails criterion 1", status(evaluateQualityTarget(hit, approve(hit, (v) => (v.itemId === hitItem ? { ...v, unsupportedClaim: true } : v)), caseIds), 1) === "NOT MET");
+  check("a person finding an answer ungrounded fails criterion 1 as well", status(evaluateQualityTarget(twoRuns, approve(twoRuns, (v) => (v.itemId === twoRuns[0].items[3].id ? { ...v, grounded: false } : v)), caseIds), 1) === "NOT MET");
+  const misattributed = [synth("2026-09-22T01", { judged: (i) => (i === 2 ? { misattributed: true, onSubject: false, category: "defect" } : {}) }), synth("2026-09-22T02")];
+  check("a misattributed explanation fails criterion 1 whatever a person says", status(evaluateQualityTarget(misattributed, approve(misattributed), caseIds), 1) === "NOT MET");
+  const violated = [synth("2026-09-22T01", { orderViolation: "priority" }), synth("2026-09-22T02")];
+  check("a fix order that breaks the priority fails criterion 5", status(evaluateQualityTarget(violated, approve(violated), caseIds), 5) === "NOT MET");
+  check("nothing ranked meets criterion 5: an empty fix order is acceptable", status(passing, 5) === "MET" && passing.runs.every((r) => r.ranked === 0));
+  const nothingClear = [synth("2026-09-22T01", { judged: () => ({ actionable: false, category: "notActionable" }) }), synth("2026-09-22T02", { judged: () => ({ actionable: false, category: "notActionable" }) })];
+  check("with nothing screen-clear there is nothing a person could accept: criterion 4 is NOT MET, not vacuously MET", status(evaluateQualityTarget(nothingClear, [], caseIds), 4) === "NOT MET");
 }
 
 console.log(`\nL4b authoring explanations and fix ranking: ${passed}/${passed + failed} checks passed.`);

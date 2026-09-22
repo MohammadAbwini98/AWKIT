@@ -313,6 +313,7 @@
     "verify:ai-authoring-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality",
     "verify:ai-authoring-quality-live-part1": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality --cases casing,locator-orphan,branch,cycle,values",
     "verify:ai-authoring-quality-live-part2": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality --cases duplicate-timeout,priority,warnings,single",
+    "verify:ai-authoring-review": "tsx scripts/verify-ai-authoring-review.mts",
     "verify:ai-error-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality",
     "verify:ai-error-quality-live-part1": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases toast-timeout,native-validation,conflict-and-validation,server-error-rows,pass-with-warning,insufficient,cause-then-unrelated-console",
     "verify:ai-error-quality-live-part2": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases transport-noise,pageerror-timeout,burst,unrelated-server-error-first,timeout-unrelated-console",

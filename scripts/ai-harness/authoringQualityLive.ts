@@ -12,10 +12,12 @@
  * the labelled codes, fixes and blocking order; the inference gets the feature's own deadline; the
  * answer is accepted and explains every sent issue; no canary planted in the flow's names and values
  * reaches the prompt or an answer; no residual secret. Recorded, not judged: on subject, misattributed,
- * actionable, unsupported claims by kind, each explanation's category, the ranking's order, texts cut
- * by the grammar. No plan sets a target for those (L4's acceptance asks for one before release), so a
- * rate is evidence for the owner, never a pass mark, and an explanation that clears every screen is
- * listed for a person to review, never counted as correct.
+ * actionable, unsupported claims by kind, each explanation's category, the ranking's order and whether
+ * the product withheld it, texts cut by the grammar. One part is not a run, so the quality target
+ * (adopted provisionally, 2026-09-22) is not judged here: every case, delivered or not, goes into a
+ * redacted review capture (`AWKIT_HARNESS_REVIEW_DIR`, scripts/ai-harness/authoringQualityReview.ts),
+ * and `verify:ai-authoring-review` judges the target over every captured run and a person's verdicts.
+ * An explanation that clears every screen is for a person to review, never counted as correct.
  *
  * Scripted controls run first and end the run if one fails: a judge that cannot tell a correct answer
  * from a swapped, vague, leaking, partial, over-ranking, unactionable, unsupported or misordered one
@@ -23,7 +25,7 @@
  *
  * `AWKIT_HARNESS_CASES` runs part of the set, so a caller with the 600 s tool ceiling can run it in parts.
  *
- * Counts, codes and timings only, never model text.
+ * The report holds counts, codes and timings only, never model text: that goes only into the capture.
  */
 
 import { explainFlowValidation, type AiAssistDeps } from "@main/ai/aiAssist";
@@ -43,6 +45,7 @@ import {
   type LabelledCase,
   type UnsupportedKind
 } from "./authoringQualitySet";
+import { buildReviewCapture, writeReviewCapture, type CapturedCase } from "./authoringQualityReview";
 import { hello, measured, observed, type FeatureLiveApi } from "./featureLive";
 
 /** The request `explainFlowValidation` builds for a case, with no saved library beside it. */
@@ -74,6 +77,8 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
 
   const deps: AiAssistDeps = { submit: ctx.submit, policy: async () => ({ enabled: true, featureTiers: {} }), savedFlowIds: async () => [] };
   const results: Array<{ labelled: LabelledCase; judged: AuthoringJudgement; inferMs: number | null }> = [];
+  // Every case the model was asked, delivered or not: a failure left out of the capture would raise a rate.
+  const captured: CapturedCase[] = [];
   // Accepted: the product parsed the answer. Rejected: the model answered and the product refused it.
   // Inconclusive: no answer to judge (a deadline, a host failure).
   const responses = { accepted: 0, rejected: 0, inconclusive: 0 };
@@ -103,6 +108,8 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
       responses[answer?.ok ? "accepted" : answer || refusedOnContent ? "rejected" : "inconclusive"] += 1;
       const deadlines = ctx.deadlines.slice(deadlinesBefore);
       const timing = measured(job.outcome, job.request.maxOutputTokens);
+      const inferMs = "inferMs" in timing ? (timing.inferMs ?? null) : null;
+      captured.push({ caseId: labelled.id, request, answer: answer?.ok ? answer : null, judged, inferMs });
       const summary = {
         code: view.code,
         sent: sent.map((s) => `${s.code}${s.fixable ? "+fix" : ""}${s.blocking ? "+blocks" : ""}`),
@@ -120,12 +127,12 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
       if (deadlines.length !== 1 || deadlines[0] !== AUTHORING_LIMITS.timeoutMs) throw new Error(`the inference was given ${deadlines.join(", ") || "no"} ms, not ${AUTHORING_LIMITS.timeoutMs}`);
       // Delivered, every sent issue explained, nothing leaked. Arriving is not enough.
       if (view.code !== "OK" || violations.length > 0 || !judged || view.explanations.length !== sent.length) throw new Error(JSON.stringify(summary));
-      results.push({ labelled, judged, inferMs: "inferMs" in timing ? (timing.inferMs ?? null) : null });
+      results.push({ labelled, judged, inferMs });
       return summary;
     });
   }
 
-  await api.step("the labelled set: every answer delivered, every issue explained, nothing leaked; quality recorded", () => {
+  await api.step("the labelled set: every answer delivered, every issue explained, nothing leaked; quality recorded", async () => {
     const total = (key: "sent" | "explained" | "onSubject" | "misattributed" | "actionable" | "cutByGrammar" | "ranked") => results.reduce((n, r) => n + r.judged[key], 0);
     const sum = <K extends string>(pick: (j: AuthoringJudgement) => Partial<Record<K, number>>) =>
       results.reduce<Partial<Record<K, number>>>((acc, r) => {
@@ -150,17 +157,25 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
       forReview: Object.fromEntries(results.filter((r) => r.judged.review.length > 0).map((r) => [r.labelled.id, r.judged.review])),
       ranked: `${total("ranked")} of ${fixableSent} fixable`,
       rankingOrder: `${orders.filter(Boolean).length} in order, ${orders.filter((v) => !v).length} out of order, of ${orderable} case(s) where one fix is more urgent`,
+      rankingWithheld: results.filter((r) => r.judged.rankingWithheld).length,
       cutByGrammar: total("cutByGrammar"),
       textChars: results.flatMap((r) => r.judged.textChars),
       inferMs: infer.length > 0 ? { min: Math.min(...infer), max: Math.max(...infer), median: [...infer].sort((a, b) => a - b)[Math.floor(infer.length / 2)] } : null,
       perCase: Object.fromEntries(
         results.map((r) => [r.labelled.id, `${r.judged.onSubject}/${r.judged.sent} on subject, ${r.judged.actionable} actionable, ${r.judged.misattributed} misattributed, ${JSON.stringify(r.judged.categories)}`])
       ),
-      target: "none recorded: L4's acceptance asks for an explanation quality target before release"
+      target: "adopted provisionally (2026-09-22); judged over every captured run and a person's verdicts by verify:ai-authoring-review, never by one part"
     };
-    api.record("quality", quality);
+    // Written before the delivery verdict, so a part with a refused answer still leaves its evidence.
+    const dir = process.env.AWKIT_HARNESS_REVIEW_DIR;
+    const capture = dir && captured.length > 0 ? buildReviewCapture(ctx.modelId, captured) : null;
+    if (dir && capture) await writeReviewCapture(dir, capture);
+    const reviewCapture = capture
+      ? { captureId: capture.captureId, cases: capture.cases.length, items: capture.items.length, withheld: capture.items.filter((i) => i.text === null).length }
+      : "not written: AWKIT_HARNESS_REVIEW_DIR is not set";
+    api.record("quality", { ...quality, reviewCapture });
     if (results.length !== cases.length) throw new Error(`${results.length} of ${cases.length} cases delivered`);
-    return quality;
+    return { ...quality, reviewCapture };
   });
   await ctx.service.shutdown();
   api.record("counters", (await ctx.service.status()).counters);
