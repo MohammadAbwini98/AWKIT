@@ -20,6 +20,8 @@
  *     largest, under each feature's own deadline (scripts/ai-harness/featureLive.ts).
  *   - locatorQuality: the real model's locator plans proven by the product in real Chromium on the
  *     Feature Test Lab and judged by the page (scripts/ai-harness/locatorQualityLive.ts).
+ *   - authoringQuality: the real model's validation explanations over L4b's labelled set, through
+ *     `explainFlowValidation` (scripts/ai-harness/authoringQualityLive.ts).
  *   - failureAnalysisBudget / locatorUpgradeBudget: that request's prompt and longest acceptable answer,
  *     counted on the pack's own tokenizer, vocabulary only (scripts/ai-harness/failureAnalysisBudget.ts,
  *     scripts/ai-harness/locatorUpgradeBudget.ts).
@@ -50,6 +52,7 @@ import {
   type AiInferResult
 } from "@src/ai/contracts/AiHostProtocol";
 
+import { runAuthoringQualityLive } from "./authoringQualityLive";
 import { runBench } from "./bench";
 import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
@@ -771,6 +774,7 @@ async function run(): Promise<void> {
     else if (mode === "failureAnalysis") await runFailureAnalysisLive({ step, record, makeLiveContext });
     else if (mode === "locatorUpgrade") await runLocatorUpgradeLive({ step, record, makeLiveContext });
     else if (mode === "locatorQuality") await runLocatorQualityLive({ step, record, makeLiveContext });
+    else if (mode === "authoringQuality") await runAuthoringQualityLive({ step, record, makeLiveContext });
     else if (mode === "failureAnalysisBudget") await runFailureAnalysisBudget({ step, record });
     else if (mode === "locatorUpgradeBudget") await runLocatorUpgradeBudget({ step, record });
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });

@@ -18,6 +18,8 @@
  *   - locatorQuality: the same job over real Recorder captures on the Feature Test Lab, served here, with
  *     every plan proven by the product in real Chromium and each accepted one judged by the page
  *     (scripts/ai-harness/locatorQualityLive.ts).
+ *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
+ *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
  *
  * NOT RUN (exit 0) without the runtime or the pack at ~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf. A pack that
@@ -25,7 +27,7 @@
  * root; `AI_MODEL_MANIFEST` is not touched.
  *
  * Run: npm run verify:ai-explanation-live | verify:ai-failure-analysis-live | verify:ai-locator-upgrade-live
- *      | verify:ai-locator-quality-live
+ *      | verify:ai-locator-quality-live | verify:ai-authoring-quality-live
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -53,7 +55,9 @@ const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs
   locatorUpgrade: { mode: "locatorUpgrade", steps: 3, timeoutMs: 560_000 },
   // hello, 5 controls, 6 scenarios, the labelled-set verdict. Eleven model calls took ~520 s of harness
   // time on this host, so it gets what the 600 s tool ceiling leaves after the build and the launch.
-  locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true }
+  locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true },
+  // hello, the control, 6 labelled cases, the set's verdict. Six explanations at ~50–90 s each.
+  authoringQuality: { mode: "authoringQuality", steps: 9, timeoutMs: 575_000 }
 });
 
 /** The Feature Test Lab on a free loopback port, for the modes that drive a real page. */

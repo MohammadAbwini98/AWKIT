@@ -19,7 +19,8 @@
  * when the feature is off, and no prompt carries a validator message, step name, locator or typed value.
  * Section 10 holds the explanation to its OWN deadline on a virtual clock: an answer past the old
  * shared 30 s is delivered, one past `AUTHORING_LIMITS.timeoutMs` is not, and the fragment summary keeps
- * 30 s. Every feature's deadline side by side is `verify:ai-deadlines`.
+ * 30 s. Every feature's deadline side by side is `verify:ai-deadlines`. Section 11 audits the labelled set
+ * `verify:ai-authoring-quality-live` sends to the real model, and runs its judge's controls.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -51,6 +52,7 @@ import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, typ
 
 import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
 import { virtualClock } from "./lib/virtual-clock.mts";
+import { CANARY, LABELLED_SET, SUBJECT, authoringControlFailures } from "./ai-harness/authoringQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -653,6 +655,26 @@ try {
   await stop(slowSummary);
 } finally {
   clock.uninstall();
+}
+
+console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, and its judge");
+{
+  check("the set has six cases, each sending two issues", LABELLED_SET.length === 6 && LABELLED_SET.every((c) => c.sent.length === 2));
+  for (const labelled of LABELLED_SET) {
+    const request = buildAuthoringRequest(validateFlowDefinition(labelled.flow, { referenceableFlowIds: new Set([labelled.flow.id]) }));
+    const sent = request?.issues.map((ref) => ({ code: ref.issue.code, fixable: ref.fixable })) ?? [];
+    check(`${labelled.id}: the report sends exactly its labelled codes, fixes as labelled`, JSON.stringify(sent) === JSON.stringify(labelled.sent), JSON.stringify(sent));
+    check(`${labelled.id}: every sent code has a subject to judge by`, sent.every((ref) => SUBJECT[ref.code] instanceof RegExp));
+    const prompt = request ? buildAiPrompt(request.prompt, new SemanticRedactor(), "0123456789abcdef") : null;
+    check(`${labelled.id}: the canary in its names and values never reaches the prompt`, Boolean(prompt?.ok) && prompt!.ok && !`${prompt!.system}\n${prompt!.user}`.toUpperCase().includes(CANARY));
+  }
+  // Non-vacuity: the canary really is in what the flows carry, or the check above proves nothing.
+  check("(precondition) every case carries the canary in what it does not send", LABELLED_SET.every((c) => JSON.stringify(c.flow).includes(CANARY)));
+  check("the families across the set are 12 distinct codes", new Set(LABELLED_SET.flatMap((c) => c.sent.map((s) => s.code))).size === 12);
+  check("both fix kinds are sent", ["normalizeEnumCasing", "regenerateId"].every((kind) => LABELLED_SET.some((c) => buildAuthoringRequest(validateFlowDefinition(c.flow, { referenceableFlowIds: new Set([c.flow.id]) }))?.issues.some((ref) => ref.issue.safeFix?.kind === kind))));
+  const cycle = LABELLED_SET.find((c) => c.id === "cycle")!;
+  const controls = authoringControlFailures(buildAuthoringRequest(validateFlowDefinition(cycle.flow, { referenceableFlowIds: new Set([cycle.flow.id]) }))!);
+  check("the judge's controls all hold (correct, swapped, vague, canary, partial, unemitted ranking)", controls.length === 0, controls.join("; "));
 }
 
 console.log(`\nL4b authoring explanations and fix ranking: ${passed}/${passed + failed} checks passed.`);
