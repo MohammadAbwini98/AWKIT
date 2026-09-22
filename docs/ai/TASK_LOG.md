@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-22 — integrate the Phase L baseline commits with the concurrent Phase M registration (Claude)
+
+- **Task:** reconcile local `14c0ad84` and `a36cb1d6` with `origin/main`'s `4951b366` (Phase M
+  registration), verify the integrated history, and push. No Phase L or Phase M feature work.
+- **How:**
+  - The lease guard admits no merge or rebase for any role. Both `git rebase origin/main` and
+    `git merge --no-edit origin/main` were refused. So the owner ran the merge (`880fd602`, parents
+    `a36cb1d6` and `4951b366`) and `bd import .beads/issues.jsonl`.
+  - The merge had no conflict. The only shared file, `.beads/issues.jsonl`, was changed on lines far
+    apart: Phase L lines 138 and 144, Phase M appended after line 303.
+- **Files:**
+  - `.beads/issues.jsonl`: the database's export after the import. It keeps all 311 records. The 8
+    Phase M issues are sorted in with unchanged content and dependency sets. `awkit-djnl` and
+    `awkit-djnl.10` now show `dependent_count` 1, correcting the hand-appended lines.
+  - This entry and HANDOFF.
+- **Checks on the integrated tree:**
+  - `git diff --check` clean; build PASS (embedded snapshot 481 records); `typecheck:scripts` PASS;
+  - `verify:failure-cause-baseline` 90/0; `verify:ai-error-analysis` 429/429 (baseline 9/11, 5/6,
+    14/17); `verify:request-provenance` 93/0; `verify:verifier-classification` 257;
+  - `verify:roadmap-dashboard` 177/177 "Sources agree": 311 issues, 17 outstanding / 294 closed,
+    155 edges, 13 phases A..M, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED.
+- **Result:** both histories are preserved. Phase L statuses are unchanged (L1, L4b and L5b
+  `in_progress`), and Phase M stays planned with zero implementation.
+
 ## 2026-09-22 — the deterministic failure cause reads confirmed request provenance (Claude)
 
 - **Task:** make `deriveFailureCause` use the confirmed request-to-step links the runner records, and

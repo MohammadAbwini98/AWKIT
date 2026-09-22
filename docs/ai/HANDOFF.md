@@ -13,6 +13,13 @@
   - Request-provenance cases 5/6 (was 2/6).
   - All 17 rows 14/17 (was 11/17), false attributions 3 (was 6), no regression.
   - The model's requests are byte-identical, so the recorded AI 9/17 stands. The gap is now −5.
+- **Integrated (`880fd602`):** merged with the concurrent Phase M registration (`4951b366`). The
+  tracker database was re-imported, and Phase M's 8 issues are in both the database and the export.
+  The dashboard is 177/177 "Sources agree" at 311 issues, 17 outstanding / 294 closed, 155 edges and 13
+  phases A..M.
+  - The lease guard admits no merge or rebase, so the owner ran both.
+  - Any agent pulling a concurrent `.beads/issues.jsonl` must `bd import` it before its next `bd`
+    write. Auto-export is on and would otherwise drop the new issues.
 - **Next L1/L5 blocker, not started:**
   - L5b's automatic analysis needs an AI that beats a now-stronger baseline. The 0.8B is five rows
     below it.
