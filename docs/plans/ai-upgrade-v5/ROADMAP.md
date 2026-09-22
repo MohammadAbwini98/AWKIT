@@ -169,3 +169,86 @@ as-is; *New* = no owner exists yet.
 - Every automatic change is audited and one-click revertible; T3 unreachable.
 - One inference at a time, yielding to Playwright; every queue, cap, and retry bounded.
 - No raw prompt/response persistence by default.
+
+## Phase M — Optional Application Knowledge Base (AKB)
+
+Status: **PLANNED — zero implementation progress**. Roadmap Phase `M` (`pending`), Beads epic
+`awkit-akb`. Phase M follows Phase L and does not change Phase L's status or acceptance.
+
+### Objective and non-negotiable boundary
+
+Enable SpecterStudio to optionally use an application's authorized UI source code as a local
+knowledge base for enhanced locator suggestions, failure diagnosis and expected-result
+recommendations.
+
+Providing UI source code must **never** become a prerequisite for any part of the SpecterStudio
+lifecycle. Recording, workflow design, execution, sessions, data binding, assertions, failure
+analysis and reporting remain fully operational without the knowledge base or an AI model. The
+knowledge base is optional, offline-capable and loosely coupled to the existing architecture.
+
+This section registers planning only. It does not authorize implementation, dependencies, schemas,
+services, UI components, model integrations or runtime behavior.
+
+### Planned milestones and dependencies
+
+| ID | Planned milestone | Depends | Beads |
+|---|---|---|---|
+| M1 | Optional source registration and deterministic indexing | Phase L release confirmation (L7) | `awkit-akb.1` |
+| M2 | Hybrid source retrieval and model compatibility | M1 | `awkit-akb.2` |
+| M3 | Source-aware locator assistance | M2 | `awkit-akb.3` |
+| M4 | Source-aware failure analysis | M2 | `awkit-akb.4` |
+| M5 | Expected-result and assertion assistance | M2 | `awkit-akb.5` |
+| M6 | Indexing lifecycle and user-facing readiness | M3, M4, M5 | `awkit-akb.6` |
+| M7 | Performance, security and verification | M3, M4, M5, M6 | `awkit-akb.7` |
+
+The Beads `blocks` edges are the source of truth for this order. The Phase M epic is also blocked by
+the Phase L epic, while M1 is explicitly blocked by L7 so implementation cannot be inferred ready
+before Phase L release confirmation.
+
+#### M1 — Optional source registration and deterministic indexing
+
+- Support authorized UI repositories larger than 300 MB.
+- Plan local structural indexing, incremental updates, source-version tracking and sensitive-data
+  exclusions.
+- Indexing must not require AI inference.
+
+#### M2 — Hybrid source retrieval and model compatibility
+
+- Use deterministic structural and full-text retrieval to provide relevant source context.
+- Support the existing 0.8B model for narrowly scoped tasks only where measured accuracy is
+  sufficient, while preserving optional compatibility with larger models.
+- Never load the entire repository into model context.
+
+#### M3 — Source-aware locator assistance
+
+- Plan optional locator generation, comparison and recovery using indexed source metadata.
+- Validate every candidate against the actual browser.
+- Preserve existing locator behavior when source knowledge is unavailable.
+
+#### M4 — Source-aware failure analysis
+
+- Extend the Phase L failure-analysis architecture with relevant source context, evidence
+  provenance, source-version checks and evidence-backed root-cause suggestions.
+- Runtime evidence and deterministic safety gates remain authoritative.
+
+#### M5 — Expected-result and assertion assistance
+
+- Distinguish approved business expectations, source-derived implementation behavior and actual
+  runtime observations.
+- Require independent validation and approval before persisting proposed assertions.
+
+#### M6 — Indexing lifecycle and user-facing readiness
+
+- Plan source discovery, indexing, partial readiness, ready, updating, source mismatch and error
+  states.
+- Allow source-aware assistance for an individual component as soon as its relevant context is
+  indexed and validated.
+- Provide actual progress indicators, file counters, source coverage and contextual readiness.
+- Keep normal automation available throughout processing.
+
+#### M7 — Performance, security and verification
+
+- Plan benchmarks for repositories of at least 300 MB, indexing and retrieval performance,
+  resource consumption, 0.8B model effectiveness, retrieval accuracy, failure-diagnosis accuracy,
+  offline operation, source security and AI-disabled fallback.
+- Do not invent benchmark results or guaranteed processing times.
