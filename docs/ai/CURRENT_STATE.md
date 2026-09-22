@@ -1,6 +1,60 @@
 # CURRENT_STATE
 
-## Failure evidence records request-to-step provenance at runtime (2026-09-22, current)
+## Failure analysis reads runtime request provenance; the 0.8B falls below the baseline on it (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L5b quality is
+not a ledger case).
+
+- **The change (`e27e15bd`, `src/ai/failureAnalysis.ts`):**
+  - `buildFailureAnalysisRequest` reads L5a's `requestRelations` against the same failed-step record
+    `stepRelations` uses.
+  - Each request line states what the runner observed: the failed step's own request, another step's,
+    requested before the step, during it and not linked, during it from another page or frame, or after
+    the failure. A request whose start was not seen falls back to its step label.
+  - One instruction sentence is added only where a relation is stated.
+  - Selection ranks the failed step's own request first, after the baseline's citations.
+  - The grammar and parser refuse a request issued after the failure as primary evidence
+    (`UNSUPPORTED_CONCLUSION`). Every other relation stays a candidate.
+  - A request without provenance is byte-identical: older reports, the labelled rows, the benchmark
+    packet.
+  - The baseline, tiers, redaction, refusals, deadline, cap and model are unchanged.
+- **Six real-runner cases,** captured by `verify:request-provenance` and labelled by request name before
+  inference, run by the new `verify:ai-error-quality-live-requests1` and `-requests2`.
+- **Technical verification: PASS.** Every live row was accepted, delivered and saved inside its 185 s
+  deadline, with no leak and every citation shown whole (33/33).
+- **Model quality: not met.** The real 0.8B, one run of each part:
+
+| Rows | Baseline | AI | Improvement | False attribution |
+|---|---|---|---|---|
+| Labelled set (`-part1` 11/0, `-part2` 9/0) | 9/11 | 9/11 | 0 | 2 |
+| Request-provenance cases (`-requests1` 7/0, `-requests2` 7/0) | 2/6 | 0/6 | −2 | 6 |
+| All 17 rows | 11/17 | 9/17 | −2 | 8 |
+
+- **What it shows:**
+  - The model never cited the request marked as the failed step's own.
+  - Where the baseline was wrong it took the baseline's pick (4 of 4). Where the baseline was right it
+    chose a request another step waited for.
+  - The legacy control gives the same wrong answer as its provenance twin.
+  - So the limit is the 0.8B's own cause selection. **The AI does not beat the baseline, and rule 7 keeps
+    the automatic analysis off.**
+- **Latency:** the six requests took 77.3–99.0 s and project to 94.9–129.1 s at the 256-token cap,
+  inside the 180 s ceiling. The benchmark packet has no provenance, so `benchmark:ai-model-0-8b` is 7/7
+  current at GO on all 8 (`failureAnalysisAtCap` 120,389 ms), re-evaluated with no inference.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-error-analysis` | 401/401 (was 328). Seven mutations caught, at 394, 399, 398, 397, 400, 398 and 400 |
+| `verify:request-provenance` | 81/0 (was 59). Drift-guard mutation caught at 80/1 |
+| `verify:mock-site` · `verify:failure-capture-overhead` · `verify:ai-assist-gui` | 242/242 · 18/0 PASS · 100/100 |
+| `verify:ai-fallback` · `verify:ai-redaction` · `verify:ai-adapter` · `verify:ai-host` | 38/0 · 52/0 · 117/0 · 135/0 |
+| `verify:failure-cause-baseline` · `verify:ai-failure-analysis-budget` | 71/0 · 7/0 (prompts 417 / 342 / 798) |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 257 scripts · PASS · PASS |
+| Live quality (`-part1` · `-part2` · `-requests1` · `-requests2`) | 11/0 · 9/0 · 7/0 · 7/0. Technical PASS; quality not met (above) |
+| `benchmark:ai-model-0-8b` | 7/7 current, GO on all 8 |
+| `verify:ai-error-quality-live-provenance` · `verify:ai-failure-analysis-live` | NOT RUN: their fixtures carry no request provenance, so the requests are unchanged |
+
+## Failure evidence records request-to-step provenance at runtime (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L5a provenance
 is not a ledger case).

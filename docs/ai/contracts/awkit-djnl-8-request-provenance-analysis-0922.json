@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-8-request-provenance-analysis-0922",
+    "title": "Record the failure-analysis request-provenance integration and its real-model result on L5b and L1",
+    "objective": "At e27e15bd buildFailureAnalysisRequest reads L5a's requestRelations: request lines state what the runner observed, the failed step's own request is ranked first after the baseline's citations, a request issued after the failure is barred from primary evidence, and a request without provenance is byte-identical. Technical verification passes (verify:ai-error-analysis 401/401 with seven mutations caught, verify:request-provenance 81/0, every live row delivered and saved with citations 33/33). Model quality is not met on the real Qwen3.5-0.8B: labelled set 9/11 vs 9/11, six real-runner provenance cases AI 0/6 vs baseline 2/6, all 17 rows AI 9/17 vs baseline 11/17 (improvement -2, 8 false attributions), the model never citing the failed step's own request. Append a note to awkit-djnl.8 and to awkit-djnl.1 giving the change, the technical result, the quality result and the remaining blocker. Refresh the JSONL export. Nothing closes: both stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "e27e15bd",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.8 and awkit-djnl.1 stay in_progress, each with a note naming the change commit, its technical result and its unmet model-quality result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after the two `bd update --append-notes`, `bd export -o .beads/issues.jsonl` (303 issues) and the already-edited state documents: 9 outstanding / 294 closed with 135 edges, unchanged, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. verify:verifier-classification reconciled 257 scripts. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-8-request-provenance-analysis-0922:project-state:2026-09-22T17:03:28.052Z",
+        "task": "awkit-djnl-8-request-provenance-analysis-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T17:03:28.052Z",
+        "acquired_at_commit": "e27e15bdd3add3dfacdcf138514a2a889f80a8aa",
+        "released_at": "2026-09-22T17:04:11.426Z",
+        "released_reason": "request-provenance analysis result noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

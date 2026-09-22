@@ -1,6 +1,34 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5a: request-to-step provenance is recorded, and only a runner-held request is a confirmed link (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L5b: the failure-analysis request reads request provenance, and only a request issued after the failure is barred as a cause (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:** make the failure-analysis request use L5a's `requestRelations`, and
+  keep the baseline, tiers, redaction, refusals, the model and older reports unchanged. Measure it on
+  labelled cases built from real-runner provenance, and record the result whatever it is.
+- **Implementer's choices within it:**
+  - **Read against one failed-step record.** Request and step relations both use the runner record the
+    baseline cites, else the last one, so a line never mixes two readings of "the failed step".
+  - **Only `issuedAfterFailure` is barred from primary evidence,** in the grammar and in the parser.
+    Uncertain, off-target, earlier-issued and other-step requests stay candidates. A link says which
+    request the step waited for, not that nothing else could matter. "Requested during the step" is
+    timing, which neither proves nor rules out a cause.
+  - **A confirmed link is ranked, not asserted.** The failed step's own request is ranked first among
+    the non-cited events, but lines are still shown newest first, so neither a link nor the baseline's
+    pick is presented as the answer.
+  - **The extra instruction appears only where a relation is stated,** so every request without
+    provenance, the benchmark packet included, keeps its prompt and its L1.8 measurement.
+  - **Cases are captured, not synthesised.** They come from real engine runs, are committed as a
+    capture, and are guarded against drift. They were labelled by request name before inference, and
+    one legacy twin isolates what provenance adds.
+- **Outcome:**
+  - Technical verification: PASS.
+  - The real 0.8B scored 0/6 against the baseline's 2/6 on the new cases, and 9/17 against 11/17
+    overall. It never cited the failed step's own request, and its legacy twin gave the same answer.
+  - Rule 7 keeps the automatic analysis off. On-demand analysis ships with the relations stated.
+- **Not decided here:** whether the deterministic baseline should read a confirmed link, and which model
+  L1 adopts.
+
+### 2026-09-22 — Phase L L5a: request-to-step provenance is recorded, and only a runner-held request is a confirmed link (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:**
   - Record reliable relationships between steps, their targets and network requests.

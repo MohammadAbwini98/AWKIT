@@ -503,16 +503,21 @@ npm run verify:ai-error-quality-live
                                   # product's request, 185 s deadline, delivered and saved, no canary, citations
                                   # shown whole. Recorded: baseline vs AI accuracy, improvement, false attribution,
                                   # echoes of a wrong baseline, latency, beats-baseline (rule 7). Since c44a6e2c
-                                  # the set has 3 more anchoring cases, and since 407d6080 2 step-provenance
-                                  # cases: 13 calls, ~15-17 min, past a 600 s tool ceiling. NOT RUN without
-                                  # pack (17)
+                                  # the set has 3 more anchoring cases, since 407d6080 2 step-provenance
+                                  # cases, and since e27e15bd 6 real-runner request-provenance cases: 19
+                                  # calls, ~25 min, past a 600 s tool ceiling. NOT RUN without pack
 npm run verify:ai-error-quality-live-part1
 npm run verify:ai-error-quality-live-part2
 npm run verify:ai-error-quality-live-provenance
+npm run verify:ai-error-quality-live-requests1
+npm run verify:ai-error-quality-live-requests2
                                   # the same gate in parts (--cases), each under 600 s: part1 6 calls
                                   # (~7.5 min, 11 checks) and part2 5 calls (~5.5 min, 9 checks) are the
                                   # eleven-row labelled set; -provenance runs the 2 step-provenance cases
-                                  # (~2.5 min, 6 checks). Their cases sum to the whole set
+                                  # (~2.5 min, 6 checks); -requests1 (linked vs background, issued before,
+                                  # the legacy twin) and -requests2 (off target, earlier-step link,
+                                  # uncertain) run the 6 cases captured by verify:request-provenance, 3 calls
+                                  # each (~5 min, 7 checks). Their cases sum to the whole set
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every
@@ -549,7 +554,9 @@ npm run verify:ui-error-evidence      # L5a end to end: 14 concurrent runs, real
                                       # read back from report.json; protected-login exclusion, cancel, handoff (74)
 npm run verify:request-provenance     # L5a request-to-step provenance: 3 failing runs, real engine + Chromium + mock site
                                       # (/runner-lab Request provenance): linked vs uncertain vs off-target vs issued-earlier,
-                                      # one id across redirect / response + transfer failure, unknown start, old reports (59)
+                                      # one id across redirect / response + transfer failure, unknown start, old reports;
+                                      # since e27e15bd also captures the 6 live-quality cases to
+                                      # scripts/ai-harness/requestProvenanceCases.json and fails on drift (81)
 npm run verify:failure-capture-overhead # L5a gate (owner-approved C+D+E): 21 rounds x 1 instance, three-way median-interval verdict, binding p95; exit 2 = INCONCLUSIVE or gate NOT RUN. One run takes about 5 minutes
 npm run verify:failure-capture-gate-stats # L5a gate rules, in-process (interval vs exact binomial, verdict boundaries, p95 eligibility, configurations, evidence appends, re-derived recorded verdicts)
 npm run benchmark:failure-capture-saturated # L5a informational saturated run (3 per workload); never decides the gate

@@ -1,33 +1,37 @@
 {
-  "task": "awkit-djnl-8-request-provenance-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-8-request-provenance-0922.json",
+  "task": "awkit-djnl-8-request-provenance-analysis-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-8-request-provenance-analysis-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T15:42:35.696Z",
-  "acquired_at_commit": "3699617f1c05f99ef9d738da6fad7eb20d1ca55e",
+  "acquired_at": "2026-09-22T17:03:28.052Z",
+  "acquired_at_commit": "e27e15bdd3add3dfacdcf138514a2a889f80a8aa",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-8-request-provenance-0922.json",
+    "docs/ai/contracts/awkit-djnl-8-request-provenance-analysis-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
     "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
+    "docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "49a7c4db011ca9c3ae83b6b03f9fdcda17abc2422e54598d3c037ec504af88e7",
-    "docs/ai/CURRENT_STATE.md": "f24ef0f48722c6d323e50109a1e2e3a51cb4d702ebdc2c1337953bb93246d454",
-    "docs/ai/DECISIONS.md": "cf7a66f6a102b20e0ecc6224e001286a53173fdc8d49b1a218b73d2acf1c4c74",
-    "docs/ai/HANDOFF.md": "ced85f954a45705158681112b1792819d4a7d14087134bace532e6ff8cc378d7",
-    "docs/ai/TASK_LOG.md": "ecf29bf97953bb5797f3e7b457be717349b124f125e31b8f36518478d1018200",
-    "docs/ai/contracts/awkit-djnl-8-request-provenance-0922.json": "e546807df804e9475de7d35dff83486bc15ed3b775a02e5b129392486c8dafa3",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "7b2cd966b9af2b1f8e24c3bc6fdc72d3788ea5d2ccefd8267195a69af50999f5",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "1017e720d0bbb3ea0c924b0d559d21ac9659308ad8da8e92b387784a24764011",
+    "docs/ai/COMMANDS.md": "f4ece0db2f871b68b8e3056becba5655f42a1ad80e9abe05dceeb24b5f0b1688",
+    "docs/ai/CURRENT_STATE.md": "bb2a855ac4494db8ad89442c2cd59291b687bb0145d29cc4bef7efe91b9bb9b4",
+    "docs/ai/DECISIONS.md": "774e484316cef23d956c567db05bb54a5d222ddfeadee51b82e029fb02d4f2c4",
+    "docs/ai/HANDOFF.md": "6f30a368e2ebd6148238029523bd3bb5e664c937a667fe6b06d20711cc5e0801",
+    "docs/ai/KNOWN_ISSUES.md": "ab418fd537fee624b230d9f0e64caf5b9e65a553e1a83c89f0e299d10fb5f3b0",
+    "docs/ai/TASK_LOG.md": "64bcc207d252ab2a91661392a91c260eb5f0338540454d9c4ec51b41df25e1a3",
+    "docs/ai/contracts/awkit-djnl-8-request-provenance-analysis-0922.json": "0c8716d2246f2c907c7712803725e6c16365bd139ec6fdf336a4edfec0af7636",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "68c84f074abcf8c3f7cba99dc9f4897aec59c468c6ce85bfb11717d3a30577eb",
+    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "d0563c2d43971e0b3f088ee3f6a1354957a3435a761c6544765a629272dc5b9c",
+    "docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json": "05a1f7e54cc375f2609a0b477e534364307320f6973c2998dd6dd4307f51fcfc",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -43,7 +47,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T15:43:08.914Z",
-  "released_reason": "request-provenance change noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T15:43:08.915Z"
+  "released_at": "2026-09-22T17:04:11.426Z",
+  "released_reason": "request-provenance analysis result noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T17:04:11.427Z"
 }

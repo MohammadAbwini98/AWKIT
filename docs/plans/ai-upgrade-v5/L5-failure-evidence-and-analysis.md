@@ -391,7 +391,9 @@ and the milestone cannot close under the conditional development authorization. 
 built"). On the labelled set the AI does **not** beat the baseline, so ROADMAP rule 7 does not yet let
 the automatic analysis run. Hiding the deterministic conclusion from the model (`c44a6e2c`, 2026-09-22)
 did not change that: see "Baseline anchoring, removed and measured". Nor did telling it which step each
-event came from (`407d6080`): see "Step relevance, from the collector's step stamp".
+event came from (`407d6080`): see "Step relevance, from the collector's step stamp". Nor did telling it
+what the runner observed of each request (`e27e15bd`): on six real-runner cases the AI fell below the
+baseline, 0/6 against 2/6. See "Request provenance in the failure-analysis request, measured".
 
 ### L5b as built
 
@@ -830,6 +832,158 @@ endpoint the step depends on turns its request into a confirmed link.
 **Not done here, on purpose:** the failure-analysis request does not read `requestRelations` yet.
 Ranking a confirmed link first, or treating a confirmed-unrelated request differently, is a
 cause-selection change: it needs labelled cases built from real-runner provenance before it is measured.
+*(Done at `e27e15bd` with six such cases; measured in the next section.)*
+
+### Request provenance in the failure-analysis request, measured (2026-09-22, `e27e15bd`)
+
+The request now reads L5a's runtime request provenance. On the real 0.8B the product side passes every
+hard check, and the model's cause selection does not improve: on the six new cases it scores 0/6 against
+the baseline's 2/6. **Technical verification: PASS. Model-quality acceptance: not met.**
+
+**The change (`src/ai/failureAnalysis.ts`):**
+
+- `buildFailureAnalysisRequest` calls `requestRelations` against the same failed-step record
+  `stepRelations` uses: the runner record the baseline cites, else the last one.
+- A request line with observed provenance states it in product words:
+
+| Relation | The line says |
+|---|---|
+| `linkedToFailedStep` | "the failed step waited for this request", or "the failed step's own navigation" |
+| `linkedToOtherStep` | "an earlier step waited for this request" (or "a later step", or "…'s own navigation") |
+| `issuedBeforeFailedStep` | "requested before the failed step began" |
+| `issuedAfterFailure` | "requested after the failure" |
+| `duringFailedStep` | "requested during the failed step, not linked to it" |
+| `offTargetDuringFailedStep` | "requested during the failed step by another page or frame" |
+| `unknown`, or no provenance | the step label from `407d6080`, shown only when steps differ |
+
+- **Instructions:** one sentence is added, and only where a line states a relation. It says a request the
+  failed step waited for or navigated to is that step's own, and that being requested while the step ran
+  does not make it the step's.
+- **Selection** (`relevanceRank`): the order that decides which events fit the budget.
+  1. The baseline's citations, as before.
+  2. The failed step's own request (`linkedToFailedStep`).
+  3. The failed step's other events, including `duringFailedStep` requests.
+  4. Earlier, unknown, off-target, earlier-issued and other-step events.
+  5. Anything from after the failure.
+
+  Without provenance this is exactly `407d6080`'s step order. Lines are still shown newest first, so
+  neither the baseline's pick nor a link is presented as the answer.
+- **Grammar and parser:** a request `issuedAfterFailure` can never be primary evidence
+  (`UNSUPPORTED_CONCLUSION`), like an event from after the failed step. Every other relation stays a
+  candidate. A link says which request the step waited for, not that nothing else could matter, and
+  "requested during the step" is time alone.
+- **The request carries `requestRelations`,** for the offered events that have provenance.
+- **Unchanged:** the deterministic baseline, the evidence tier (`mustConclude`), redaction, the rescan,
+  every refusal, the 185 s deadline, the 256-token cap and the model.
+- **A request without provenance is byte-identical to `407d6080`'s:** older reports, the buffer-built
+  labelled rows and the benchmark packet. Prompts stay 417 / 342 / 798 tokens
+  (`verify:ai-failure-analysis-budget` 7/0).
+
+**Six real-runner cases (`REQUEST_PROVENANCE_ITEMS`), run by `-requests1` and `-requests2`:**
+
+- **Built from real runs.** `verify:request-provenance` runs five analysis-case flows from the Runner Lab
+  (`?rp=` starts only the named extras) through the real engine and Chromium. It captures them to
+  `scripts/ai-harness/requestProvenanceCases.json` and fails if a fresh run drifts from the committed
+  capture.
+- **Labelled by request name before any inference.** In each case the failed step depends on the checkout
+  save, which answers 500: that is the cause. Every other named request is unrelated by the lab's
+  construction.
+
+| Case | What it isolates | The save | Baseline |
+|---|---|---|---|
+| `rq-linked-vs-background` | the step's own save beside a same-page heartbeat 503 | linked (response wait) | wrong: takes the heartbeat |
+| `rq-linked-earlier-step` | the save beside a request an earlier step waited for | linked | right |
+| `rq-issued-before` | an inventory request issued one step earlier, answered first in the failed step | linked | wrong: takes the inventory |
+| `rq-off-target` | popup and child-frame requests during the step | linked | wrong: takes the popup |
+| `rq-uncertain` | no response wait: the step waited for the save's success text | `duringFailedStep` | right |
+| `rq-legacy` | `rq-linked-vs-background` with its provenance stripped (the A/B control) | none | wrong: takes the heartbeat |
+
+**Results on the real 0.8B, one run of each part at `e27e15bd`, every hard check passing:**
+
+| Rows | Checks | Baseline | AI | Improvement | False attr. | Rests on a wrong baseline's pick | Links |
+|---|---|---|---|---|---|---|---|
+| `-part1`, labelled set | 11/0 | 6/6 | 6/6 | 0 | 0 | 0 | 9/9 |
+| `-part2`, labelled set | 9/0 | 3/5 | 3/5 | 0 | 2 | 1 | 6/6 |
+| **Labelled set, 11 rows** | 20/0 | **9/11** | **9/11** | **0** | **2** | 1 | 15/15 |
+| `-requests1` | 7/0 | 0/3 | 0/3 | 0 | 3 | 3 | 9/9 |
+| `-requests2` | 7/0 | 2/3 | 0/3 | −2 | 3 | 1 | 9/9 |
+| **Request-provenance cases, 6 rows** | 14/0 | **2/6** | **0/6** | **−2** | **6** | 4 | 18/18 |
+| **All 17 rows** | 34/0 | **11/17** | **9/17** | **−2** | **8** | 5 | 33/33 |
+
+- **The labelled set is unchanged** from `c44a6e2c` and `407d6080`: 9/11 against 9/11, false
+  attributions on `transport-noise` and `unrelated-server-error-first`, and 1 correct decline
+  (`timeout-unrelated-console`). Its rows carry no request provenance, so their requests did not change.
+- **Held on every row:** coalescing 500 → 1 and 2 → 2, zero calls for the pass and the insufficient
+  baseline, the product's own request under its 185 s deadline, delivered and saved, 0 canaries, 0
+  residual secrets, and every citation shown whole.
+
+**What the model cited on the six new rows:**
+
+| Case | AI's primary evidence |
+|---|---|
+| `rq-linked-vs-background` | the heartbeat (`duringFailedStep`) and an unrelated event, not the save marked "the failed step waited for this request" |
+| `rq-issued-before` | the inventory (`issuedBeforeFailedStep`) and an unrelated event |
+| `rq-off-target` | the popup and the widget, both `offTargetDuringFailedStep` |
+| `rq-linked-earlier-step` | the request an earlier step waited for (`linkedToOtherStep`), where the baseline was right |
+| `rq-uncertain` | the request another step waited for (`linkedToOtherStep`), where the baseline was right |
+| `rq-legacy` | the heartbeat and an unrelated event: the same answer as with provenance |
+
+**What it shows:**
+
+- **Technical verification passes.** Every answer was accepted, classified, delivered and saved, and cited
+  only offered ids shown whole (33/33). There was no leak, and every call finished inside its deadline.
+- **Model quality does not.** The 0.8B never cited the request marked as the failed step's own (0 of the 5
+  rows that have one).
+  - Where the baseline was wrong, it rested on the baseline's own pick in 4 of 4 rows.
+  - Where the baseline was right, it chose a request another step waited for, and fell below the baseline
+    (improvement −2).
+  - The A/B pair (`rq-linked-vs-background` against `rq-legacy`) gives the same wrong answer with and
+    without provenance. The request labels did not move the model.
+- **This matches `407d6080`:** the 0.8B does not use the step or request provenance stated in its
+  prompt. The limit is the model's own cause selection.
+- **So the AI does not beat the baseline, and ROADMAP rule 7 keeps the automatic analysis off.**
+  On-demand analysis is unchanged. What provenance adds without the model is deterministic: a request
+  issued after the failure can no longer be offered first or cited as the cause.
+- **Not tuned on the set.** The labels were fixed by request name before inference. No label, acceptance
+  criterion or model output was changed after seeing an answer, and one prompt was measured.
+
+**Latency, measured on the six new rows:** 655–770 prompt tokens and 77.3–99.0 s of inference. At the
+256-token cap they project to 94.9–129.1 s: first-token time plus the cap at the measured decode rate.
+All are under the 180 s ceiling and the 185 s deadline. The labelled rows took 30.8–71.6 s.
+
+**L1.8 is unchanged.** The benchmark packet has no provenance, so its identity did not move.
+`benchmark:ai-model-0-8b` re-evaluated at `e27e15bd`: 7/7 current, GO on all 8, `failureAnalysisAtCap`
+120,389 ms. It ran no inference. See L1 › "`failureAnalysis` inside its ceiling at its own output cap".
+
+**Regression suites:**
+
+- `verify:ai-error-analysis` 401/401 (was 328). Seven mutations were caught:
+
+  | Mutation | Checks passed |
+  |---|---|
+  | link ignored | 394/401 |
+  | background promoted | 399/401 |
+  | identity lost | 398/401 |
+  | earlier-issued misread | 397/401 |
+  | unknown read as observed | 400/401 |
+  | after-failure request accepted | 398/401 |
+  | link not ranked | 400/401 |
+
+- `verify:request-provenance` 81/0 (was 59). Its capture-drift guard was mutation-tested and caught at
+  80/1.
+
+**What it does not show:**
+
+- a rate: each part ran once at `e27e15bd`;
+- a person's reading of the explanations;
+- the two step-provenance cases at `e27e15bd`. `-provenance` was not rerun: its buffer-built rows carry
+  no request provenance, so their request is unchanged from `407d6080` (AI 1/2 against the baseline's
+  2/2, twice);
+- the worst-case provenance request. `verify:ai-failure-analysis-budget` counts only requests without
+  provenance. A request that states provenance adds one instruction sentence, and its labels come out of
+  the unchanged 1,500-character evidence budget. The largest measured one was 770 prompt tokens.
+- whether the deterministic baseline reading a confirmed link would be right on these rows. The
+  baseline was deliberately left unchanged.
 
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
@@ -859,9 +1013,10 @@ latency, privacy correctness.
 New `verify:ui-error-evidence`, `verify:failure-capture-overhead`, `verify:failure-cause-baseline`,
 `verify:ai-error-analysis` (its last section audits the live labelled set and its judge), live
 `verify:ai-error-quality-live` (built, 13/0 on the real 0.8B; since `c44a6e2c` the extended set runs as
-`-part1` 11/0 and `-part2` 9/0, twice; since `407d6080` also `-provenance` 6/0, twice), and
+`-part1` 11/0 and `-part2` 9/0, twice; since `407d6080` also `-provenance` 6/0, twice; since `e27e15bd`
+also `-requests1` 7/0 and `-requests2` 7/0, once, over six real-runner request-provenance cases), and
 `verify:request-provenance` (59/0 since `3699617f`: runtime request-to-step provenance through the real
-engine). Existing: `verify:failure-evidence(-live)`,
+engine; 81/0 since `e27e15bd`, which also captures the six cases and guards them against drift). Existing: `verify:failure-evidence(-live)`,
 `verify:run-report-compatibility`, `verify:telemetry`, `verify:reports`, `verify:runner`, `verify:mock-site`,
 `validate:offline`, `npm run build`. Mock-site scenarios for each signal and a fast `<3s` run with zero model calls.
 

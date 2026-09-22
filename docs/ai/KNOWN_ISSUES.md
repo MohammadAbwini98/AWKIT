@@ -1,5 +1,27 @@
 # KNOWN_ISSUES
 
+## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
+
+- **Symptom:** on L5b's labelled set the real Qwen3.5-0.8B ties the deterministic baseline (9/11 against
+  9/11). On six real-runner request-provenance cases (`e27e15bd`) it falls below it: 0/6 against 2/6.
+  Across all 17 rows it scores 9/17 against 11/17, with 8 false attributions.
+- **Measured, not guessed.** Three changes were each measured on the real model, and none moved it:
+  - hiding the deterministic conclusion (`c44a6e2c`);
+  - stating each event's step (`407d6080`);
+  - stating each request's runtime relation to the failed step (`e27e15bd`).
+
+  The model never cited the request marked as the failed step's own. Where the baseline was wrong it took
+  the baseline's pick (4 of 4). A legacy twin without provenance gave the same answer as the case with it.
+- **Impact:** ROADMAP rule 7 keeps the automatic post-run analysis off. On-demand analysis works, and
+  every answer is grounded (cited ids offered and shown whole), but it is not more accurate than the
+  baseline shown beside it.
+- **Do not "fix" by:**
+  - relabelling cases or relaxing the judge;
+  - barring uncertain requests from primary evidence. That infers cause from timing.
+
+  The product side passes every hard check. The open question is the model, and whether the baseline
+  should read a confirmed link. Both are owner decisions (L1 go/no-go).
+
 ## No real locator plan had been proven on a real page, and the AI harness was never type-checked (2026-09-22, FIXED — `858ffd17`)
 
 - **Symptom:** every live locator run stubbed the browser proof as page-unavailable. A plan that decoded,

@@ -844,6 +844,22 @@ measures changed.**
   offered ids and tier byte-identical.
 - No model setting, deadline, output cap or benchmark ceiling was touched, and no model was run.
 
+**The request reads request provenance (`e27e15bd`, 2026-09-22): still GO. The packet is unchanged, and
+the new requests were measured live.** See L5 › "Request provenance in the failure-analysis request,
+measured".
+- A request without provenance is byte-identical, and the benchmark packet is one.
+  `benchmark:ai-model-0-8b` re-evaluated at `e27e15bd`: 7/7 current, GO on all 8,
+  `failureAnalysisAtCap` still 120,389 ms, with no inference run.
+- `verify:ai-failure-analysis-budget`: 7/0, prompts unchanged at 417 / 342 / 798 tokens.
+- A request that states provenance adds one instruction sentence, and its line labels come out of the
+  unchanged 1,500-character evidence budget. The six real-runner requests measured live:
+  - 655–770 prompt tokens and 77.3–99.0 s of inference;
+  - 94.9–129.1 s projected at the 256-token cap, under the 180 s ceiling.
+- **Not measured:** a provenance request at every bound. The budget verifier counts only requests
+  without provenance. `verify:ai-failure-analysis-live` was not rerun: its fixtures carry no provenance,
+  so their requests are unchanged.
+- No model setting, deadline, output cap or benchmark ceiling was touched.
+
 #### `locatorUpgrade` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:locatorUpgrade` (now the product's request) and `verify:ai-locator-upgrade-live` at `4a846c41`
 
 **Root cause: the output cap, a prompt that was mostly delimiters, and an answer no small cap could hold.**
@@ -1243,13 +1259,31 @@ Nothing the model sees changed, and the ceiling was not re-measured. The failure
 not read the provenance yet: doing so is a cause-selection decision for L5b. See L5 › "Request-to-step
 provenance, recorded at runtime".
 
+**And (`e27e15bd`):** the failure-analysis request now reads that provenance. Each request line states
+what the runner observed, the failed step's own request is ranked first after the baseline's
+citations, and a request issued after the failure can never be the cause. Six real-runner cases were
+added, labelled before inference.
+- **Technical verification: PASS.** `verify:ai-error-analysis` 401/401 with seven mutations caught;
+  `verify:request-provenance` 81/0. Every live row was delivered and saved inside its deadline, with no
+  leak and every citation shown whole (33/33).
+- **Model quality: not met.**
+  - The labelled set is unchanged at 9/11 against 9/11, with 2 false attributions.
+  - On the six new cases the AI scored 0/6 against the baseline's 2/6, with 6 false attributions.
+  - Across all 17 rows: baseline 11/17, AI 9/17, improvement −2.
+  - The 0.8B never cited the request marked as the failed step's own. With and without provenance it
+    gave the same wrong answer.
+- **Unchanged:** the ceiling (GO on all 8), because the benchmark packet has no provenance.
+
+See L5 › "Request provenance in the failure-analysis request, measured".
+
 **Still owed before L1 can be accepted:**
 
 1. An explanation quality target for L4b, which L4's acceptance requires before release.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 12/12 on subject
-   by proxy with no ranking, and failure analysis tying the baseline, with or without the conclusion in
-   its prompt and with step provenance.
+   by proxy with no ranking, and failure analysis tying the baseline on the labelled set, with or without
+   the conclusion in its prompt and with step provenance, and falling below it (−2 over 17 rows) once the
+   request states runtime request provenance.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 

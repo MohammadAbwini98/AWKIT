@@ -1,5 +1,48 @@
 # TASK_LOG
 
+## 2026-09-22 — failure analysis reads runtime request provenance, measured on the real 0.8B (Claude)
+
+- **Task:** make `buildFailureAnalysisRequest` consume L5a's `requestRelations`, add real-runner
+  provenance cases, measure the 0.8B on them, and record the result. The session was interrupted after
+  the live runs. This closeout resumed from the pushed `e27e15bd` without repeating implementation or
+  model runs.
+- **Files:**
+  - `e27e15bd`: `src/ai/failureAnalysis.ts`, `scripts/ai-harness/errorQualitySet.ts`,
+    `errorQualityLive.ts` and `requestProvenanceCases.json` (new),
+    `scripts/verify-ai-error-analysis.mts`, `verify-request-provenance.mts`,
+    `verify-ai-explanation-live.mts`, `lib/verifier-classification.ts`, `package.json`,
+    `mock-site/public/runner-lab.html` and `README.md`, and the L5a overhead evidence JSON.
+  - This closeout: the L5 and L1 plans, CURRENT_STATE, HANDOFF, KNOWN_ISSUES, DECISIONS and COMMANDS; the
+    L1.8 benchmark evidence (verdict re-evaluated); contract
+    `awkit-djnl-8-request-provenance-analysis-0922`; notes on `awkit-djnl.8` and `awkit-djnl.1`.
+- **Checks:**
+  - At `e27e15bd`, confirmed against the interrupted session's own output:
+    - `verify:ai-error-analysis` 401/401, with seven mutations caught at 394, 399, 398, 397, 400, 398
+      and 400;
+    - `verify:request-provenance` 81/0, drift mutation caught at 80/1;
+    - `verify:mock-site` 242/242, `verify:failure-capture-overhead` 18/0, `verify:ai-assist-gui` 100/100;
+    - `verify:ai-fallback` 38/0, `verify:ai-redaction` 52/0, `verify:ai-adapter` 117/0,
+      `verify:ai-host` 135/0, `verify:failure-cause-baseline` 71/0, `verify:ai-failure-analysis-budget`
+      7/0;
+    - `verify:verifier-classification` 257, `typecheck:scripts` PASS, build PASS.
+  - Live, real 0.8B, one run each:
+    - `-part1` 11/0 (baseline 6/6, AI 6/6), `-part2` 9/0 (3/5, 3/5, 2 false attributions);
+    - `-requests1` 7/0 (0/3, 0/3, 3 false attributions), `-requests2` 7/0 (2/3, 0/3, 3 false
+      attributions).
+  - This closeout:
+    - `benchmark:ai-model-0-8b` 7/7 current, GO on all 8 (no inference);
+    - `verify:verifier-classification` 257 reconciled;
+    - `verify:roadmap-dashboard` 177/177 "Sources agree" on both rounds: 9 outstanding / 294 closed,
+      135 edges.
+  - NOT RUN: `verify:ai-error-quality-live-provenance` and `verify:ai-failure-analysis-live`. Their
+    fixtures carry no request provenance, so their requests are unchanged.
+- **Result:**
+  - Technical verification: PASS.
+  - Model quality: not met. All 17 rows: baseline 11/17, AI 9/17, improvement −2, 8 false
+    attributions.
+  - The 0.8B ignores the request provenance it is given, so rule 7 keeps the automatic analysis off.
+    L1, L4b and L5b stay `in_progress`.
+
 ## 2026-09-22 — runtime request-to-step provenance for failure evidence (Claude)
 
 - **Task:** record reliable relationships between steps, their targets and network requests, separating

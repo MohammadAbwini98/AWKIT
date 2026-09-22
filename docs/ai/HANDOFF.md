@@ -1,6 +1,38 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — failure evidence records request-to-step provenance at runtime
+## HANDOFF (2026-09-22, latest) — failure analysis reads runtime request provenance; the 0.8B falls below the baseline on it
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`e27e15bd`, then this closeout):**
+  - The failure-analysis request states each request's runtime relation to the failed step, and ranks
+    the step's own request first.
+  - A request issued after the failure can never be the cause.
+  - A request without provenance is byte-identical.
+  - Six real-runner cases were added, run by `verify:ai-error-quality-live-requests1` and `-requests2`.
+  - Details are in L5 › "Request provenance in the failure-analysis request, measured".
+- **Result:**
+  - Technical verification: PASS.
+  - Model quality: not met.
+    - Labelled set: 9/11 against 9/11.
+    - Six new cases: AI 0/6 against the baseline's 2/6.
+    - All 17 rows: 9/17 against 11/17, improvement −2, 8 false attributions.
+  - The 0.8B never cited the failed step's own request. Rule 7 keeps the automatic analysis off.
+- **Next L1/L5 blocker, not started:**
+  - L5b's automatic analysis needs an AI that beats the baseline on the labelled set, and the 0.8B does
+    not. Prompt, anchoring, step and request provenance have all been measured without moving it.
+  - Two owner decisions remain, neither measured here:
+    - the model, inside L1's go/no-go: whether a larger pack uses the provenance the 0.8B ignores;
+    - the deterministic baseline, which was deliberately not changed: whether it should read a confirmed
+      link. The baseline was wrong on 4 of the 6 new cases.
+  - L1 also still owes the L4b explanation quality target. L1, L4b and L5b stay `in_progress`. **L7
+    cannot be entered.**
+- **Do not:**
+  - relabel a case, relax the judge or change a recorded answer to move these numbers;
+  - bar uncertain or off-target requests from primary evidence to force a score. That infers cause from
+    timing, and would copy a rule into the grammar that the model cannot then be right against;
+  - report the live quality gates' technical PASS as quality acceptance.
+
+## HANDOFF (2026-09-22, superseded) — failure evidence records request-to-step provenance at runtime
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`3699617f`):**
