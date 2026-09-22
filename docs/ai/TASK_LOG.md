@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-09-22 — the deterministic failure cause reads confirmed request provenance (Claude)
+
+- **Task:** make `deriveFailureCause` use the confirmed request-to-step links the runner records, and
+  measure the baseline on the unchanged 17 labelled rows. No prompt or model work.
+- **Files:**
+  - `14c0ad84`: `src/runner/evidence/FailureCauseBaseline.ts`, `scripts/ai-harness/errorQualitySet.ts`,
+    `scripts/verify-failure-cause-baseline.mts`, `verify-ai-error-analysis.mts`,
+    `verify-request-provenance.mts`.
+  - This closeout: the L5 and L1 plans, CURRENT_STATE, HANDOFF, KNOWN_ISSUES and DECISIONS; the L5a
+    overhead and L1.8 benchmark evidence JSON; contract `awkit-djnl-8-baseline-provenance-0922`; notes
+    on `awkit-djnl.8` and `awkit-djnl.1`.
+- **Checks:**
+  - Before the change:
+    - `verify:failure-cause-baseline` 80/10, the new section red;
+    - `verify:ai-error-analysis` 424/428, with the three corrected rows red and the digest table empty;
+    - the measured baseline was 9/11, 2/6 and 11/17, matching the live gate's record.
+  - After the change:
+    - `verify:failure-cause-baseline` 90/0, and a link-outranks-everything mutation was caught at 88/2;
+    - `verify:ai-error-analysis` 429/429;
+    - `verify:request-provenance` 93/0;
+    - `verify:ui-error-evidence` 85/0, `verify:runner` 138/0, `verify:mock-site` 242/242;
+    - `verify:failure-evidence` 35/0, `verify:ai-fallback` 38/0, `verify:ai-redaction` 52/0,
+      `verify:run-report-compatibility` 27/0;
+    - `verify:failure-capture-overhead` 18/0 PASS;
+    - `benchmark:ai-model-0-8b` 7/7 current, GO on all 8;
+    - `verify:verifier-classification` 257, `typecheck:scripts` PASS, build PASS.
+  - NOT RUN: the live quality gates and `verify:ai-failure-analysis-budget`. Every model-facing request
+    is byte-identical to the one they measured.
+- **Result:** baseline 9/11 on the labelled set (unchanged), 5/6 on the provenance cases (was 2/6), 14/17
+  overall (was 11/17), 3 false attributions (was 6), no regression. The recorded AI 9/17 stands, so the
+  gap widened to −5. L1, L4b and L5b stay `in_progress`.
+
 ## 2026-09-22 — failure analysis reads runtime request provenance, measured on the real 0.8B (Claude)
 
 - **Task:** make `buildFailureAnalysisRequest` consume L5a's `requestRelations`, add real-runner

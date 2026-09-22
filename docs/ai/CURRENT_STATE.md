@@ -1,6 +1,53 @@
 # CURRENT_STATE
 
-## Failure analysis reads runtime request provenance; the 0.8B falls below the baseline on it (2026-09-22, current)
+## The deterministic failure cause reads confirmed request provenance: 14/17, from 11/17 (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L5b quality is
+not a ledger case).
+
+- **Root cause:** `deriveFailureCause` took the earliest direct event in the window and never read the
+  request provenance L5a records. So a request that answered before the failed step's own save won: a
+  same-page heartbeat, an inventory issued one step earlier, a popup's request.
+- **The change (`14c0ad84`, `src/runner/evidence/FailureCauseBaseline.ts`):**
+  - The baseline reads `requestRelations` against the runner record the failure names.
+  - In each window, the failed step's own request (its response wait matched it, or its navigation returned
+    it) moves ahead of every other request event before it.
+  - Evidence the provenance does not describe keeps its time order: a script error, a UI message, a field
+    validation. So a link never makes an awaited request the cause by itself.
+  - A request issued after the failure is never cited.
+  - Without a link, without provenance, or with a runner record that has no step, the order is exactly the
+    earliest-first rule. Older reports are unchanged.
+- **Measured without a model, on the unchanged labelled set** (`verify:ai-error-analysis`, the judge's own
+  rule):
+
+| Rows | Before | After | False attributions |
+|---|---|---|---|
+| Labelled set, 11 rows | 9/11 | 9/11 | 2 → 2 (1 correct decline, kept) |
+| Request-provenance cases, 6 rows | 2/6 | 5/6 | 4 → 1 |
+| All 17 rows | 11/17 | 14/17 | 6 → 3 |
+
+- No row regressed. `rq-legacy` stays wrong by design: its provenance is stripped.
+- **The AI request did not change.** The prompt and schema are byte-identical on all 19 asked rows
+  (sha256-guarded against `e27e15bd`). Only the coalescing signature of the three corrected rows moved, to
+  the save's route.
+  - So the live gates were NOT RUN, and the recorded AI 9/17 stands.
+  - Against the new baseline its improvement is −5 (was −2), re-scored from the recorded verdicts.
+  - Rule 7 keeps the automatic analysis off.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:failure-cause-baseline` | 90/0 (was 71). Red at 80/10 before the change; link-outranks-everything mutation caught at 88/2 |
+| `verify:ai-error-analysis` | 429/429 (was 401). Red at 424/428 before the change |
+| `verify:request-provenance` (real engine and Chromium) | 93/0 (was 81). `report.json`'s cause rests on the save in all six failing flows that have one |
+| `verify:ui-error-evidence` · `verify:runner` · `verify:mock-site` | 85/0 · 138/0 · 242/242 |
+| `verify:failure-evidence` · `verify:ai-fallback` · `verify:ai-redaction` · `verify:run-report-compatibility` | 35/0 · 38/0 · 52/0 · 27/0 |
+| `verify:failure-capture-overhead` | 18/0 PASS (paired medians fast −18 ms, evidence −14 ms, Node CPU −8.5 ms) |
+| `benchmark:ai-model-0-8b` | 7/7 current, GO on all 8 (no inference) |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 257 scripts · PASS · PASS |
+| Live quality gates · `verify:ai-failure-analysis-budget` | NOT RUN: every model-facing request is byte-identical to the one they measured |
+
+## Failure analysis reads runtime request provenance; the 0.8B falls below the baseline on it (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L5b quality is
 not a ledger case).

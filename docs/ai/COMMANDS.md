@@ -549,14 +549,16 @@ npm run verify:verifier-classification
 # ── Authoring diagnostics and failure evidence (Phase L, L4a / L5a) — no model ─────────────────────
 npm run verify:authoring-diagnostics  # L4a family matrix over FlowValidator/PreRunValidator/FlowDependencyResolver,
                                       # legacy profile, FlowExecutor premises, one designer implementation (94)
-npm run verify:failure-cause-baseline # L5a evidence buffer (masking, caps, dedupe, retraction) + cause baseline (60)
+npm run verify:failure-cause-baseline # L5a evidence buffer (masking, caps, dedupe, retraction) + cause baseline;
+                                      # since 14c0ad84 also the baseline over confirmed request provenance (90)
 npm run verify:ui-error-evidence      # L5a end to end: 14 concurrent runs, real engine + Chromium + mock site,
                                       # read back from report.json; protected-login exclusion, cancel, handoff (74)
 npm run verify:request-provenance     # L5a request-to-step provenance: 3 failing runs, real engine + Chromium + mock site
                                       # (/runner-lab Request provenance): linked vs uncertain vs off-target vs issued-earlier,
                                       # one id across redirect / response + transfer failure, unknown start, old reports;
                                       # since e27e15bd also captures the 6 live-quality cases to
-                                      # scripts/ai-harness/requestProvenanceCases.json and fails on drift (81)
+                                      # scripts/ai-harness/requestProvenanceCases.json and fails on drift; since
+                                      # 14c0ad84 checks report.json's cause rests on the step's own request (93)
 npm run verify:failure-capture-overhead # L5a gate (owner-approved C+D+E): 21 rounds x 1 instance, three-way median-interval verdict, binding p95; exit 2 = INCONCLUSIVE or gate NOT RUN. One run takes about 5 minutes
 npm run verify:failure-capture-gate-stats # L5a gate rules, in-process (interval vs exact binomial, verdict boundaries, p95 eligibility, configurations, evidence appends, re-derived recorded verdicts)
 npm run benchmark:failure-capture-saturated # L5a informational saturated run (3 per workload); never decides the gate

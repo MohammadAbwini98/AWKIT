@@ -860,6 +860,14 @@ measured".
   so their requests are unchanged.
 - No model setting, deadline, output cap or benchmark ceiling was touched.
 
+**The deterministic baseline reads the confirmed link (`14c0ad84`, 2026-09-22): still GO, and nothing the
+model sees changed.** See L5 › "Deterministic cause selection reads confirmed request provenance".
+- The prompt and schema of all 19 asked labelled rows are byte-identical to `e27e15bd`'s (sha256-guarded in
+  `verify:ai-error-analysis`). So the six live request timings above still describe the requests sent.
+- `benchmark:ai-model-0-8b` re-evaluated at `14c0ad84`: 7/7 current, GO on all 8, `failureAnalysisAtCap`
+  still 120,389 ms, no inference. Its packet has no provenance.
+- No model setting, deadline, output cap or benchmark ceiling was touched.
+
 #### `locatorUpgrade` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:locatorUpgrade` (now the product's request) and `verify:ai-locator-upgrade-live` at `4a846c41`
 
 **Root cause: the output cap, a prompt that was mostly delimiters, and an answer no small cap could hold.**
@@ -1276,6 +1284,17 @@ added, labelled before inference.
 
 See L5 › "Request provenance in the failure-analysis request, measured".
 
+**Then (`14c0ad84`):** the deterministic baseline reads the same confirmed link. The failed step's own
+request moves ahead of other requests, and never ahead of other evidence. Measured without a model on the
+unchanged labelled set:
+- the labelled set is unchanged at 9/11;
+- the six request-provenance cases rise from 2/6 to 5/6;
+- all 17 rows rise from 11/17 to 14/17, with false attributions falling from 6 to 3.
+
+The model's requests are byte-identical, so the AI's recorded 9/17 stands. Against the new baseline its
+improvement is −5 (was −2). That figure is re-scored from the recorded verdicts; no model was rerun. See
+L5 › "Deterministic cause selection reads confirmed request provenance".
+
 **Still owed before L1 can be accepted:**
 
 1. An explanation quality target for L4b, which L4's acceptance requires before release.
@@ -1283,7 +1302,8 @@ See L5 › "Request provenance in the failure-analysis request, measured".
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 12/12 on subject
    by proxy with no ranking, and failure analysis tying the baseline on the labelled set, with or without
    the conclusion in its prompt and with step provenance, and falling below it (−2 over 17 rows) once the
-   request states runtime request provenance.
+   request states runtime request provenance. The gap is −5 since the baseline itself reads the confirmed
+   link (`14c0ad84`): 9/17 against 14/17.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 

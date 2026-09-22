@@ -1,6 +1,34 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5b: the failure-analysis request reads request provenance, and only a request issued after the failure is barred as a cause (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L5a/L5b: the deterministic baseline reads a confirmed request link, ranking it among requests only (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:**
+  - Improve deterministic cause selection using the existing confirmed request provenance, and measure it
+    on the unchanged labelled set.
+  - A confirmed link is association, not causation.
+  - Missing or ambiguous provenance stays unknown, and legacy reports keep their behaviour.
+  - No second provenance model, no collector redesign, no AI or prompt change.
+- **Implementer's choices within it:**
+  - **The link reorders requests, not evidence.** The failed step's own request moves ahead of the
+    request events before it. A script error, UI message or field validation before it keeps its place,
+    because provenance says nothing about them. Letting the link jump over them would make an awaited
+    request the cause by itself. A mutation doing exactly that is caught at 88/2.
+  - **Nothing is demoted without a link.** Uncertain, off-target, earlier-issued and unknown requests keep
+    earliest-first order when the failed step holds no request. Demoting them would infer cause from
+    timing. An earlier-issued request may also be a precondition.
+  - **Only `issuedAfterFailure` is excluded,** matching the grammar. It is the one relation that
+    confirms a request cannot be the cause.
+  - **The quality harness derives a capture's cause again** instead of re-recording the capture. The
+    derivation is proven equal to the production collector's cause on the committed capture and on fresh
+    real runs. The legacy control therefore still gets the legacy rule.
+- **Outcome:**
+  - Request-provenance cases 5/6 (was 2/6); all 17 rows 14/17 (was 11/17); labelled set unchanged at
+    9/11; no regression.
+  - The model's requests are byte-identical, so no live gate was rerun.
+- **Not decided here:** which model L1 adopts, and whether the automatic analysis can ever beat this
+  baseline.
+
+### 2026-09-22 — Phase L L5b: the failure-analysis request reads request provenance, and only a request issued after the failure is barred as a cause (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:** make the failure-analysis request use L5a's `requestRelations`, and
   keep the baseline, tiers, redaction, refusals, the model and older reports unchanged. Measure it on

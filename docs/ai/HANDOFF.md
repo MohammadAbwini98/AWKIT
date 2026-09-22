@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — failure analysis reads runtime request provenance; the 0.8B falls below the baseline on it
+## HANDOFF (2026-09-22, latest) — the deterministic failure cause reads confirmed request provenance: 14/17
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`14c0ad84`, then this closeout):**
+  - `deriveFailureCause` moves the failed step's own request ahead of other requests, never ahead of other
+    evidence, and never cites a request issued after the failure.
+  - Without provenance nothing changes.
+  - Details are in L5 › "Deterministic cause selection reads confirmed request provenance".
+- **Result, measured without a model:**
+  - Labelled set 9/11, unchanged.
+  - Request-provenance cases 5/6 (was 2/6).
+  - All 17 rows 14/17 (was 11/17), false attributions 3 (was 6), no regression.
+  - The model's requests are byte-identical, so the recorded AI 9/17 stands. The gap is now −5.
+- **Next L1/L5 blocker, not started:**
+  - L5b's automatic analysis needs an AI that beats a now-stronger baseline. The 0.8B is five rows
+    below it.
+  - The model choice in L1's go/no-go is the owner's decision: whether a larger pack is measured on the
+    same 17 rows.
+  - L1 also still owes the L4b explanation quality target. L1, L4b and L5b stay `in_progress`. **L7
+    cannot be entered.**
+- **Do not:**
+  - relabel a case or relax the judge;
+  - demote uncertain or off-target requests without a link. That is cause from timing.
+  - claim the AI was re-measured. Its numbers are `e27e15bd`'s, re-scored against the new baseline.
+
+## HANDOFF (2026-09-22, superseded) — failure analysis reads runtime request provenance; the 0.8B falls below the baseline on it
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`e27e15bd`, then this closeout):**

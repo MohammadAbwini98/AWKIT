@@ -5,6 +5,9 @@
 - **Symptom:** on L5b's labelled set the real Qwen3.5-0.8B ties the deterministic baseline (9/11 against
   9/11). On six real-runner request-provenance cases (`e27e15bd`) it falls below it: 0/6 against 2/6.
   Across all 17 rows it scores 9/17 against 11/17, with 8 false attributions.
+- **Wider since `14c0ad84`:** the baseline now reads the confirmed link itself, scoring 5/6 on those
+  cases and 14/17 overall. The model's requests are byte-identical, so the recorded 9/17 stands and the
+  gap is −5.
 - **Measured, not guessed.** Three changes were each measured on the real model, and none moved it:
   - hiding the deterministic conclusion (`c44a6e2c`);
   - stating each event's step (`407d6080`);
@@ -19,8 +22,8 @@
   - relabelling cases or relaxing the judge;
   - barring uncertain requests from primary evidence. That infers cause from timing.
 
-  The product side passes every hard check. The open question is the model, and whether the baseline
-  should read a confirmed link. Both are owner decisions (L1 go/no-go).
+  The product side passes every hard check. The baseline question is settled (`14c0ad84`: it reads the
+  link). The open question is the model, an owner decision in L1's go/no-go.
 
 ## No real locator plan had been proven on a real page, and the AI harness was never type-checked (2026-09-22, FIXED — `858ffd17`)
 

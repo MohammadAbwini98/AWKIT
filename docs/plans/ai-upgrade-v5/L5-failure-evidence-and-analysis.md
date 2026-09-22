@@ -393,7 +393,10 @@ the automatic analysis run. Hiding the deterministic conclusion from the model (
 did not change that: see "Baseline anchoring, removed and measured". Nor did telling it which step each
 event came from (`407d6080`): see "Step relevance, from the collector's step stamp". Nor did telling it
 what the runner observed of each request (`e27e15bd`): on six real-runner cases the AI fell below the
-baseline, 0/6 against 2/6. See "Request provenance in the failure-analysis request, measured".
+baseline, 0/6 against 2/6. See "Request provenance in the failure-analysis request, measured". The
+deterministic baseline then read the same confirmed link (`14c0ad84`) and rose to 5/6 on those cases and
+14/17 overall, with the model's requests byte-identical, so the gap widened to −5. See "Deterministic
+cause selection reads confirmed request provenance".
 
 ### L5b as built
 
@@ -985,6 +988,169 @@ All are under the 180 s ceiling and the 185 s deadline. The labelled rows took 3
 - whether the deterministic baseline reading a confirmed link would be right on these rows. The
   baseline was deliberately left unchanged.
 
+### Deterministic cause selection reads confirmed request provenance (2026-09-22, `14c0ad84`)
+
+The baseline now uses the link the runner records. Measured without a model on the unchanged labelled
+set, it moves from 2/6 to 5/6 on the six request-provenance cases and from 11/17 to 14/17 overall. The
+eleven labelled rows stay at 9/11 and nothing regressed. The model is shown byte-identical requests, so the
+AI results recorded at `e27e15bd` still stand, and the AI is now further below the baseline.
+
+**Why the baseline was wrong.** `deriveFailureCause` took the earliest direct event in the window,
+tie-broken by class, and never read `request`. On the three wrong rows, a request that answered before
+the step's own save won:
+
+| Case | What the baseline took | Its relation |
+|---|---|---|
+| `rq-linked-vs-background` | the same-page heartbeat 503 | `duringFailedStep` (not linked) |
+| `rq-issued-before` | the inventory 502 | `issuedBeforeFailedStep` |
+| `rq-off-target` | the popup's 500 | `offTargetDuringFailedStep` |
+
+`rq-linked-earlier-step` and `rq-uncertain` were right only because the other request fell into the
+window before the step. `rq-legacy` has its provenance stripped, so no rule can tell its heartbeat apart.
+
+**The change (`src/runner/evidence/FailureCauseBaseline.ts`):**
+
+- It reads `requestRelations` against the runner record the failure names. That is the record the
+  failure-analysis request reads too.
+- In each window, the failed step's own request (`linkedToFailedStep`) moves ahead of every other request
+  event that came before it. Those requests follow it, in their own order.
+- Evidence the provenance does not describe keeps its time order: a script error, a UI message, a field
+  validation. A link says which request the step depended on, not that it caused the failure. So a toast
+  shown before the step's own 402 is still the cause.
+- A request `issuedAfterFailure` is never a candidate, neither primary nor supporting. It could
+  previously lead within the 500 ms grace period.
+- Nothing else moves. Without a link, without provenance, or with a runner record that has no step, the
+  order is exactly the earliest-first rule. Specifically:
+  - uncertain, off-target, earlier-issued and unknown requests are never demoted on their own;
+  - an earlier-issued request with nothing linked is still the cause, because it may be a precondition;
+  - an earlier step's own failed request still wins from the window before the step.
+- Cause codes, windows, reasons and the schema version are unchanged. There is no second provenance
+  model, no collector change and no AI dependency.
+
+| Relation of a request event | Before | After |
+|---|---|---|
+| `linkedToFailedStep` | earliest first | ahead of every earlier request event, never ahead of earlier non-request evidence |
+| `duringFailedStep`, `offTargetDuringFailedStep`, `issuedBeforeFailedStep`, `linkedToOtherStep`, `unknown` | earliest first | after the step's own request where one exists, otherwise unchanged |
+| `issuedAfterFailure` | could lead inside the grace period | never cited |
+| no provenance (older reports) | earliest first | unchanged |
+
+**The labelled set, measured without a model.** `verify:ai-error-analysis` applies the judge's own rule
+(`baselineCorrect`) to every asked row. The expected result of each row is fixed in the verifier, so a
+baseline that ignores the link, or promotes unrelated activity, fails by name. The "before" column is the
+same code and judge at `e27e15bd`, and it reproduced the live gate's recorded numbers exactly.
+
+| Rows | Before | After | False attributions | Correct declines |
+|---|---|---|---|---|
+| Labelled set, 11 rows | 9/11 | 9/11 | 2 → 2 | 1 → 1 |
+| Request-provenance cases, 6 rows | 2/6 | **5/6** | 4 → 1 | 0 |
+| **All 17 rows** | 11/17 | **14/17** | 6 → 3 | 1 → 1 |
+| Step-provenance pair (not in the 17) | 2/2 | 2/2 | 0 | 0 |
+
+- Three rows went from wrong to right: `rq-linked-vs-background`, `rq-issued-before`, `rq-off-target`.
+- No row that was right became wrong.
+- The three false attributions left: `transport-noise` and `unrelated-server-error-first` are buffer-built
+  and carry no provenance, and `rq-legacy` has had its provenance stripped. Each takes an unrelated event
+  that comes first.
+- No label, case or judge was changed.
+
+**How a captured case gets the current baseline.** A report stores its cause, not the failure record it
+was derived from. The harness now derives each capture's cause again from its stored evidence, through
+`capturedFailure`: the runner record's kind, offset and id, and the step start taken as the first event
+the collector stamped with the failed step (the rule `buildCase` already uses). This is proven two ways:
+
+- On the committed capture, the derived cause equals the cause the production collector stored (6 of 6).
+  The capture predates this change, so its stored cause is the legacy rule's.
+- On fresh real runs, `verify:request-provenance` checks that the derived cause equals `report.json`'s
+  byte for byte (5 of 5).
+
+So the legacy control gets the cause an older report was given, and the five provenance cases get the
+production collector's current one. The capture itself was not re-recorded.
+
+**Effect on the AI request.** The baseline's citations feed the failure-analysis request: its coalescing
+signature, its selection order and its tier. Measured:
+
+- **What the model sees did not change.** The prompt and schema are byte-identical on all 19 asked rows.
+  A sha256 table in `verify:ai-error-analysis` guards this against `e27e15bd`. Every offered event fits
+  the budget and lines are shown newest first, so the new citation order changes nothing. The tier
+  (`mustConclude`) is unchanged because the cause code is.
+- **The coalescing signature changed on the three corrected rows.** Its route is now the save's, not the
+  heartbeat's, inventory's or popup's. So failures that differ only in which background request answered
+  first now coalesce into one analysis.
+- **The live gates were NOT RUN.** Their requests are byte-identical to the ones measured at `e27e15bd`, so
+  the recorded answers describe exactly these requests. Re-scored against the new baseline, from those
+  recorded verdicts and with no new inference:
+  - all 17 rows: AI 9/17 against 14/17, improvement −5 (was −2);
+  - the six request-provenance cases: 0/6 against 5/6.
+
+  This is arithmetic on recorded verdicts, not a new measurement of the model.
+- `benchmark:ai-model-0-8b` was re-evaluated: 7/7 current, GO on all 8, `failureAnalysisAtCap` 120,389 ms,
+  no inference. Its packet has no provenance. `verify:ai-failure-analysis-budget` was not rerun, because
+  its prompts are the packet's and are unchanged.
+
+**Regression and real-browser evidence:**
+
+- `verify:failure-cause-baseline` 90/0 (was 71). Its new request-provenance section has 19 checks.
+  - Red at 80/10 on the unchanged baseline.
+  - A mutation letting the link move ahead of every earlier event was caught at 88/2.
+  - It covers each case this task named:
+    - the step's own request beside a background error;
+    - an earlier unrelated error before the step's own navigation;
+    - an earlier-issued request, with and without a link;
+    - an earlier step's own failed request (the window before the step);
+    - a successful own request beside a script error;
+    - a UI message before the own request;
+    - another page and a child frame, with and without a link;
+    - an uncertain save;
+    - a runner record without a step;
+    - legacy evidence;
+    - one request across a redirect, a response and a transfer failure;
+    - a request issued after the failure.
+- `verify:ai-error-analysis` 429/429 (was 401), red at 424/428 before the change. It adds:
+  - the per-row baseline table;
+  - the request digest guard;
+  - the capture-cause check;
+  - a current-baseline check in section 13.
+
+  Section 13's fixture now stores the old-rule baseline, as every report written between `3699617f` and
+  `14c0ad84` does. So its selection test still covers what it was written for: a link that the stored
+  baseline does not cite.
+- `verify:request-provenance` 93/0 (was 81). It checks the following through the real engine and Chromium:
+  - `report.json`'s cause rests on the save, in the checkout flow and in all five quality flows;
+  - an older report's baseline is still the earliest direct event;
+  - the harness's derivation reproduces `report.json` exactly.
+
+  It replaces the check that the baseline was identical with and without provenance, which this change
+  makes false by design.
+- Also passing:
+
+  | Verifier | Result |
+  |---|---|
+  | `verify:ui-error-evidence` | 85/0 |
+  | `verify:runner` | 138/0 |
+  | `verify:mock-site` | 242/242 |
+  | `verify:failure-evidence` | 35/0 |
+  | `verify:ai-fallback` | 38/0 |
+  | `verify:ai-redaction` | 52/0 |
+  | `verify:run-report-compatibility` | 27/0 |
+  | `verify:failure-capture-overhead` | 18/0 PASS; paired medians: fast −18 ms, evidence −14 ms, Node CPU −8.5 ms |
+  | `typecheck:scripts`, build | PASS |
+
+**Remaining limits:**
+
+- The link does not record whether the step accepted the response's status. An example is a response wait
+  whose range admits a 4xx, as in a negative test. Such a request still moves ahead of other requests,
+  though never ahead of other evidence.
+- A request the step's action issued but nothing awaited looks the same as background activity
+  (`duringFailedStep`). Without a link the baseline cannot tell them apart, and it does not try.
+- The limits of `requestRelations` carry over:
+  - a runner failure folded into an earlier identical one is read against the earlier record;
+  - parallel branches are not handled;
+  - `apiPolling` holds no link.
+- This is one deterministic measurement at one commit. No rate is claimed.
+
+**Status:** L5b and L1 stay `in_progress`. Rule 7 keeps the automatic analysis off, and the AI is now five
+rows below the baseline instead of two.
+
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
   Never before terminal outcome.
@@ -1016,7 +1182,10 @@ New `verify:ui-error-evidence`, `verify:failure-capture-overhead`, `verify:failu
 `-part1` 11/0 and `-part2` 9/0, twice; since `407d6080` also `-provenance` 6/0, twice; since `e27e15bd`
 also `-requests1` 7/0 and `-requests2` 7/0, once, over six real-runner request-provenance cases), and
 `verify:request-provenance` (59/0 since `3699617f`: runtime request-to-step provenance through the real
-engine; 81/0 since `e27e15bd`, which also captures the six cases and guards them against drift). Existing: `verify:failure-evidence(-live)`,
+engine; 81/0 since `e27e15bd`, which also captures the six cases and guards them against drift; 93/0 since
+`14c0ad84`, which also checks the persisted baseline rests on the step's own request). Since `14c0ad84`,
+`verify:failure-cause-baseline` is 90/0 and `verify:ai-error-analysis` 429/429, which measures the
+baseline on the labelled set without a model. Existing: `verify:failure-evidence(-live)`,
 `verify:run-report-compatibility`, `verify:telemetry`, `verify:reports`, `verify:runner`, `verify:mock-site`,
 `validate:offline`, `npm run build`. Mock-site scenarios for each signal and a fast `<3s` run with zero model calls.
 
