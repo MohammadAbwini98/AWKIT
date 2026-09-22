@@ -20,7 +20,9 @@
  * Section 10 holds the explanation to its OWN deadline on a virtual clock: an answer past the old
  * shared 30 s is delivered, one past `AUTHORING_LIMITS.timeoutMs` is not, and the fragment summary keeps
  * 30 s. Every feature's deadline side by side is `verify:ai-deadlines`. Section 11 audits the labelled set
- * `verify:ai-authoring-quality-live` sends to the real model, and runs its judge's controls.
+ * `verify:ai-authoring-quality-live` sends to the real model (codes, fixes, which issue blocks the run,
+ * truncation, blocking-first), and runs its judge's controls: subject, corrective action, the five
+ * unsupported-claim screens each with a negative twin, and the ranking order.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -52,7 +54,7 @@ import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, typ
 
 import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
 import { virtualClock } from "./lib/virtual-clock.mts";
-import { CANARY, LABELLED_SET, SUBJECT, authoringControlFailures } from "./ai-harness/authoringQualitySet";
+import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, rankingControlFailures } from "./ai-harness/authoringQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -659,22 +661,34 @@ try {
 
 console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, and its judge");
 {
-  check("the set has six cases, each sending two issues", LABELLED_SET.length === 6 && LABELLED_SET.every((c) => c.sent.length === 2));
+  const reportOf = (c: (typeof LABELLED_SET)[number]) => validateFlowDefinition(c.flow, { referenceableFlowIds: new Set([c.flow.id]) });
+  check("the set has nine cases, each sending one or two issues", LABELLED_SET.length === 9 && LABELLED_SET.every((c) => c.sent.length >= 1 && c.sent.length <= 2));
   for (const labelled of LABELLED_SET) {
-    const request = buildAuthoringRequest(validateFlowDefinition(labelled.flow, { referenceableFlowIds: new Set([labelled.flow.id]) }));
-    const sent = request?.issues.map((ref) => ({ code: ref.issue.code, fixable: ref.fixable })) ?? [];
-    check(`${labelled.id}: the report sends exactly its labelled codes, fixes as labelled`, JSON.stringify(sent) === JSON.stringify(labelled.sent), JSON.stringify(sent));
-    check(`${labelled.id}: every sent code has a subject to judge by`, sent.every((ref) => SUBJECT[ref.code] instanceof RegExp));
+    const request = buildAuthoringRequest(reportOf(labelled));
+    const sent = request?.issues.map((ref) => ({ code: ref.issue.code, fixable: ref.fixable, blocking: isExecutionBlocking(ref.issue) })) ?? [];
+    check(`${labelled.id}: the report sends exactly its labelled codes, fixes and blocking as labelled`, JSON.stringify(sent) === JSON.stringify(labelled.sent), JSON.stringify(sent));
+    check(`${labelled.id}: truncates what is labelled`, request?.truncated === (labelled.truncated ?? 0), `${request?.truncated}`);
+    check(`${labelled.id}: blocking issues are sent first`, sent.every((s, i) => i === 0 || sent[i - 1].blocking || !s.blocking));
+    check(`${labelled.id}: every sent code has a subject and a remedy to judge by`, sent.every((ref) => SUBJECT[ref.code] instanceof RegExp && REMEDY[ref.code] instanceof RegExp));
     const prompt = request ? buildAiPrompt(request.prompt, new SemanticRedactor(), "0123456789abcdef") : null;
     check(`${labelled.id}: the canary in its names and values never reaches the prompt`, Boolean(prompt?.ok) && prompt!.ok && !`${prompt!.system}\n${prompt!.user}`.toUpperCase().includes(CANARY));
   }
   // Non-vacuity: the canary really is in what the flows carry, or the check above proves nothing.
   check("(precondition) every case carries the canary in what it does not send", LABELLED_SET.every((c) => JSON.stringify(c.flow).includes(CANARY)));
-  check("the families across the set are 12 distinct codes", new Set(LABELLED_SET.flatMap((c) => c.sent.map((s) => s.code))).size === 12);
-  check("both fix kinds are sent", ["normalizeEnumCasing", "regenerateId"].every((kind) => LABELLED_SET.some((c) => buildAuthoringRequest(validateFlowDefinition(c.flow, { referenceableFlowIds: new Set([c.flow.id]) }))?.issues.some((ref) => ref.issue.safeFix?.kind === kind))));
+  check("the families across the set are 14 distinct codes", new Set(LABELLED_SET.flatMap((c) => c.sent.map((s) => s.code))).size === 14);
+  check("both fix kinds are sent", ["normalizeEnumCasing", "regenerateId"].every((kind) => LABELLED_SET.some((c) => buildAuthoringRequest(reportOf(c))?.issues.some((ref) => ref.issue.safeFix?.kind === kind))));
+  // Blocking-first is only proven where the report's own order puts a non-blocking issue first.
+  for (const id of ["locator-orphan", "priority"]) {
+    const report = reportOf(LABELLED_SET.find((c) => c.id === id)!);
+    check(`${id}: (precondition) the report itself lists a non-blocking issue first, so the builder reordered it`, report.issues.length > 0 && !isExecutionBlocking(report.issues[0]));
+  }
+  check("the set holds a warnings-only case, a lone issue and a truncated one", LABELLED_SET.some((c) => c.sent.every((s) => !s.blocking)) && LABELLED_SET.some((c) => c.sent.length === 1) && LABELLED_SET.some((c) => (c.truncated ?? 0) > 0));
   const cycle = LABELLED_SET.find((c) => c.id === "cycle")!;
-  const controls = authoringControlFailures(buildAuthoringRequest(validateFlowDefinition(cycle.flow, { referenceableFlowIds: new Set([cycle.flow.id]) }))!);
-  check("the judge's controls all hold (correct, swapped, vague, canary, partial, unemitted ranking)", controls.length === 0, controls.join("; "));
+  const controls = authoringControlFailures(buildAuthoringRequest(reportOf(cycle))!);
+  check("the judge's controls all hold (correct, swapped, vague, canary, partial, unemitted ranking; actionable, five unsupported screens and their negatives)", controls.length === 0, controls.join("; "));
+  const priority = LABELLED_SET.find((c) => c.id === "priority")!;
+  const ranking = rankingControlFailures(buildAuthoringRequest(reportOf(priority))!);
+  check("the ranking-order controls all hold (blocking first, off-path first, blocking left out, none)", ranking.length === 0, ranking.join("; "));
 }
 
 console.log(`\nL4b authoring explanations and fix ranking: ${passed}/${passed + failed} checks passed.`);

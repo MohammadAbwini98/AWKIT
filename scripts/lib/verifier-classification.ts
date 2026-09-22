@@ -537,7 +537,15 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-authoring-quality-live": {
     class: "real-browser",
-    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that sends L4b's labelled set (six broken flows, two issues each, twelve L4a codes, both fix kinds) through explainFlowValidation, the production AiService with AUTHORING_LIMITS, AiUtilityHostManager and the real ai-host.cjs. Each case must be the request the product builds with the labelled codes, get the feature's own deadline, be delivered with every sent issue explained, and leak no canary planted in the flow's names and values and no residual secret; whether each explanation names its own issue's subject or another's is recorded, not judged, since no target is set. A scripted control of the judge runs first and ends the run if it fails."
+    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that sends L4b's labelled set (nine broken flows, seventeen issues, fourteen L4a codes, both fix kinds, a truncated report whose two fixes differ in urgency, a warnings-only report and a lone issue) through explainFlowValidation, the production AiService with AUTHORING_LIMITS, AiUtilityHostManager and the real ai-host.cjs. Each case must be the request the product builds with the labelled codes, fixes and blocking order, get the feature's own deadline, be delivered with every sent issue explained, and leak no canary planted in the flow's names and values and no residual secret. Recorded, not judged, since no target is set: on subject, misattributed, actionable (a corrective verb with its issue's remedy), five unsupported-claim screens (an invented automatic fix, an off-domain remedy, a fabricated literal, a warning said to block the run, a blocking error called harmless), each explanation's category, and the ranking order; an explanation clearing every screen is listed for a person to review, never counted as correct. Scripted controls of the judge run first and end the run if one fails. Nine answers pass the 600 s tool ceiling, so -part1 and -part2 run it in two."
+  },
+  "verify:ai-authoring-quality-live-part1": {
+    class: "real-browser",
+    why: "verify:ai-authoring-quality-live over five of the nine labelled cases (casing, locator-orphan, branch, cycle, values; five model calls). Same hard checks, controls and recorded metrics as the whole gate; -part2 runs the others."
+  },
+  "verify:ai-authoring-quality-live-part2": {
+    class: "real-browser",
+    why: "verify:ai-authoring-quality-live over the other four labelled cases (duplicate-timeout, priority, warnings, single; four model calls): the fix-order case, the warnings-only case and the lone issue. Same hard checks, controls and recorded metrics as the whole gate; -part1 runs the others."
   },
   "verify:ai-error-quality-live": {
     class: "real-browser",

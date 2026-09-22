@@ -19,7 +19,8 @@
  *     every plan proven by the product in real Chromium and each accepted one judged by the page
  *     (scripts/ai-harness/locatorQualityLive.ts).
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
- *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts).
+ *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts);
+ *     `--cases` runs it in parts.
  *   - errorQuality: `analyzeFailure` over L5's labelled set, each row delivered and saved with no canary
  *     leaked, L5's metrics recorded (scripts/ai-harness/errorQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
@@ -58,8 +59,9 @@ const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs
   // hello, 5 controls, 6 scenarios, the labelled-set verdict. Eleven model calls took ~520 s of harness
   // time on this host, so it gets what the 600 s tool ceiling leaves after the build and the launch.
   locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true },
-  // hello, the control, 6 labelled cases, the set's verdict. Six explanations at ~50–90 s each.
-  authoringQuality: { mode: "authoringQuality", steps: 9, timeoutMs: 575_000 },
+  // hello, the control, 9 labelled cases, the set's verdict. Nine explanations at ~45–90 s each pass the
+  // 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
+  authoringQuality: { mode: "authoringQuality", steps: 12, timeoutMs: 1_200_000 },
   // hello, the control, 20 labelled cases (19 model calls, 2 rows with none), the set's verdict. Nineteen
   // analyses at ~35–100 s each pass the 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
   errorQuality: { mode: "errorQuality", steps: 23, timeoutMs: 1_800_000 }
@@ -91,10 +93,11 @@ if (!feature) {
   console.error(`unknown --feature "${featureName}"; one of ${Object.keys(FEATURES).join(", ")}`);
   process.exit(1);
 }
-// errorQuality only: `--cases id,id` runs part of the labelled set (hello, control, each case, verdict),
-// so a caller with the 600 s tool ceiling can run it in parts. An unknown id fails the step count.
+// errorQuality and authoringQuality: `--cases id,id` runs part of the labelled set (hello, control, each
+// case, verdict), so a caller with the 600 s tool ceiling can run it in parts. An unknown id fails the
+// step count.
 const casesFlag = process.argv.indexOf("--cases");
-const cases = casesFlag >= 0 && feature.mode === "errorQuality" ? (process.argv[casesFlag + 1] ?? "").split(",").filter(Boolean) : [];
+const cases = casesFlag >= 0 && ["errorQuality", "authoringQuality"].includes(feature.mode) ? (process.argv[casesFlag + 1] ?? "").split(",").filter(Boolean) : [];
 const expectedSteps = cases.length > 0 ? 3 + cases.length : feature.steps;
 
 let passed = 0;
