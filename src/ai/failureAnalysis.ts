@@ -16,6 +16,10 @@
  *  2. **The request/answer contract.** Evidence ids are a closed `enum` in the decoding grammar, built
  *     from the representative's own bounded evidence, and re-checked after decoding. "Insufficient
  *     evidence" is a first-class answer, because a model that must always name a cause will invent one.
+ *     It is an EMPTY conclusion list, not a flag beside one: the runtime's grammar writes every schema
+ *     property, so a flag let the model decline and conclude in the same answer — and every real v1
+ *     answer on Qwen3.5-0.8B did exactly that, and was refused. Where declining is allowed at all is
+ *     decided from the evidence, never by the model: see {@link buildFailureAnalysisRequest}.
  *
  * What L5b may never do, and cannot express here: change a run's status, retry anything, alter policy
  * or touch a workflow. The answer carries an interpretation and evidence ids. There is no field for a
@@ -28,7 +32,7 @@ import type { AiPromptSpec } from "./AiPromptBuilder";
 import type { AiOutputSchema } from "./AiOutputContract";
 import type { ConcurrentRunReport, FailureAnalysisBody, StoredFailureAnalysis } from "../reports/ExecutionReport";
 import type { ExecutionEvidenceEvent } from "../runner/evidence/ExecutionEvidence";
-import type { FailureCauseBaseline } from "../runner/evidence/FailureCauseBaseline";
+import { DIRECT_FAILURE_CAUSES, type FailureCauseBaseline } from "../runner/evidence/FailureCauseBaseline";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "../security/authz/AiAutonomyPolicy";
 import { findResidualSecrets } from "../semantic/SemanticPolicyValidator";
 import type { SemanticRedactor } from "../semantic/SemanticRedactor";
@@ -199,17 +203,32 @@ export interface FailureAnalysisRequest {
   group: CoalescedFailureGroup;
   /** The evidence offered, in the order shown. The ONLY ids an answer may cite. */
   evidence: ExecutionEvidenceEvent[];
+  /**
+   * The baseline rests on direct evidence, so the answer must conclude. The drawer shows that cause right
+   * above the AI's answer: "not enough evidence" beside it would be the report contradicting itself.
+   */
+  mustConclude: boolean;
 }
 
+/** A conclusion's fields, in the order the grammar writes them: cite first, then explain. */
+const CONCLUSION_FIELDS = ["primaryEvidenceIds", "secondaryEvidenceIds", "category", "explanation", "investigationSteps"] as const;
+
+/**
+ * Whether an event can be a conclusion's primary evidence. The runner's own failure record says THAT
+ * the step failed, never why: on a bare timeout Qwen3.5-0.8B cited it as its own cause (2026-09-22).
+ */
+const isCauseEvidence = (event: ExecutionEvidenceEvent): boolean => event.source !== "runner.failure";
+
+// A conclusion's fields in the grammar's order. v1 said "set insufficient to true and say so": the one
+// answer its own parser refused.
 const INSTRUCTIONS =
   "You interpret why an automation run failed, for the person who will investigate it. " +
   "You are given the application's own deterministic conclusion, and the evidence events it rests on, " +
-  "each with an id. Name the evidence that best explains the failure, by id. " +
-  "Do not name evidence that is not in the list, and do not invent evidence. " +
-  "If the evidence does not support a conclusion, set insufficient to true and say so — that is a " +
-  "correct answer, and a guess is not. " +
-  "You are describing a run that has already finished. You cannot change its result, retry it, or " +
-  "change any setting; write only what a person should look at.";
+  "each with an id. A runner.failure event only records that the step failed. If no other event shows " +
+  "why, leave the conclusion list empty rather than guess. Otherwise write one conclusion: the ids of " +
+  "the events that explain the failure, the ids of events that only followed from it, a category, an " +
+  "explanation and what to check. Use only ids from the list, and do not invent evidence. " +
+  "The run has already finished; you cannot change its result, retry it, or change any setting.";
 
 /**
  * The events most likely to carry the cause, most important first.
@@ -238,6 +257,8 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
   const evidence = rankEvidence(entry, limits.maxEvidencePerAnalysis);
   if (evidence.length === 0) return undefined;
   const ids = evidence.map((event) => event.id);
+  const causeIds = evidence.filter(isCauseEvidence).map((event) => event.id);
+  const mustConclude = causeIds.length > 0 && DIRECT_FAILURE_CAUSES.has(entry.baseline.cause);
 
   // The payload is already redacted, id-stripped and capped by L5a's buffer, so it is rendered as-is
   // rather than re-derived here: a second normalization is a second place for the rules to drift.
@@ -277,23 +298,50 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
         { name: "AffectedInstances", ids: [String(group.count)] }
       ]
     },
+    // Every key is `required` because the runtime's grammar writes every key anyway, in this order
+    // (node-llama-cpp marks each property required): calling one optional misstates what the model
+    // must write. So declining is the ONE decision `[]` versus `[{`, and "insufficient beside a
+    // conclusion", or a conclusion citing nothing, cannot be decoded at all.
+    //
+    // Whether declining is TRUE is decided here, from the evidence, not left to the model's first
+    // token: Qwen3.5-0.8B declined a failure with eleven error events and concluded on a bare timeout.
+    // A direct cause must be interpreted (`minItems`); with nothing but the runner's own record, a
+    // decline is the only answer (`maxItems` 0, so the conclusion schema below is never decoded).
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["version", "insufficient"],
+      required: ["version", "conclusion"],
       properties: {
         version: { type: "integer", minimum: FAILURE_ANALYSIS_VERSION, maximum: FAILURE_ANALYSIS_VERSION },
-        insufficient: { type: "boolean" },
-        category: { type: "string", maxLength: limits.maxCategoryChars },
-        explanation: { type: "string", maxLength: limits.maxExplanationChars },
-        // Closed enum: the grammar cannot name an event this request did not offer.
-        primaryEvidenceIds: { type: "array", maxItems: ids.length, items: { type: "string", enum: ids } },
-        secondaryEvidenceIds: { type: "array", maxItems: ids.length, items: { type: "string", enum: ids } },
-        investigationSteps: { type: "array", maxItems: limits.maxSteps, items: { type: "string", maxLength: limits.maxStepChars } }
+        conclusion: {
+          type: "array",
+          ...(mustConclude ? { minItems: 1 } : {}),
+          maxItems: causeIds.length > 0 ? 1 : 0,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: [...CONCLUSION_FIELDS],
+            properties: {
+              // Closed enum: the grammar cannot name an event this request did not offer, nor rest a
+              // conclusion on the runner's own record. (With no cause evidence it is never decoded.)
+              primaryEvidenceIds: {
+                type: "array",
+                minItems: 1,
+                maxItems: Math.max(1, causeIds.length),
+                items: { type: "string", enum: causeIds.length > 0 ? causeIds : ids }
+              },
+              secondaryEvidenceIds: { type: "array", maxItems: ids.length, items: { type: "string", enum: ids } },
+              category: { type: "string", maxLength: limits.maxCategoryChars },
+              explanation: { type: "string", maxLength: limits.maxExplanationChars },
+              investigationSteps: { type: "array", maxItems: limits.maxSteps, items: { type: "string", maxLength: limits.maxStepChars } }
+            }
+          }
+        }
       }
     },
     group,
-    evidence
+    evidence,
+    mustConclude
   };
 }
 
@@ -301,7 +349,7 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
 
 export interface FailureAnalysis {
   ok: true;
-  /** True when the model declined to conclude. Everything below is then empty. */
+  /** True when the model declined to conclude: an empty conclusion list. Everything below is then empty. */
   insufficient: boolean;
   category: string;
   explanation: string;
@@ -315,9 +363,9 @@ export type FailureAnalysisRejectionCode =
   /** An evidence id this request did not offer. The closed enum should have stopped it; this is the re-check. */
   | "UNKNOWN_EVIDENCE"
   | "DUPLICATE_EVIDENCE"
-  /** A conclusion with no supporting evidence and no `insufficient` flag — a guess wearing a verdict. */
+  /** A conclusion citing no evidence of cause — none at all, or only the runner's own failure record. A guess wearing a verdict. */
   | "UNSUPPORTED_CONCLUSION"
-  /** `insufficient` is true, yet the answer still concludes. */
+  /** An answer that declines and concludes: the retired `insufficient` flag against the list, or a decline beside a direct cause. */
   | "CONTRADICTORY"
   | "UNSAFE_TEXT";
 
@@ -332,32 +380,50 @@ const hasControlChar = (value: string): boolean => [...value].some((c) => c.char
 /**
  * Validate a decoded analysis against the request that produced it.
  *
- * Beyond the id re-check, two rules the grammar cannot express and that decide whether this feature
- * is trustworthy at all:
+ * The grammar already makes the two failures that decide whether this feature is trustworthy at all
+ * undecodable; they are re-checked here, because a runtime need not honour every keyword:
  *
- *  - **A conclusion must cite evidence.** An answer that names a cause with no `primaryEvidenceIds`
- *    is a guess presented as a finding, and it is refused rather than shown with a caveat.
- *  - **`insufficient` means insufficient.** An answer that sets the flag and still concludes is
- *    contradictory; accepting either half would be choosing which one to believe.
+ *  - **A conclusion must cite evidence of cause.** A conclusion whose primary evidence is nothing, or
+ *    only the runner's own failure record, is a guess presented as a finding, and it is refused rather
+ *    than shown with a caveat.
+ *  - **Insufficient means insufficient.** Declining is an empty conclusion list and nothing else. An
+ *    answer still carrying v1's `insufficient` flag against its own conclusion list is contradictory,
+ *    and so is declining where the report's own cause rests on direct evidence; accepting either half
+ *    would be choosing which one to believe.
+ *
+ * Plus what no grammar can express: an id listed twice, and a conclusion that explains nothing.
  */
 export function parseFailureAnalysis(value: unknown, request: FailureAnalysisRequest): FailureAnalysis | FailureAnalysisRejection {
   const reject = (code: FailureAnalysisRejectionCode, field: string): FailureAnalysisRejection => ({ ok: false, code, field });
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return reject("MALFORMED", "$");
-  const raw = value as Record<string, unknown>;
-  if (raw.version !== FAILURE_ANALYSIS_VERSION) return reject("MALFORMED", "version");
-  if (typeof raw.insufficient !== "boolean") return reject("MALFORMED", "insufficient");
+  const isRecord = (candidate: unknown): candidate is Record<string, unknown> => typeof candidate === "object" && candidate !== null && !Array.isArray(candidate);
+  if (!isRecord(value)) return reject("MALFORMED", "$");
+  if (value.version !== FAILURE_ANALYSIS_VERSION) return reject("MALFORMED", "version");
+  const conclusions = value.conclusion;
+  if (!Array.isArray(conclusions) || conclusions.length > 1) return reject("MALFORMED", "conclusion");
+  if (typeof value.insufficient === "boolean" && value.insufficient !== (conclusions.length === 0)) return reject("CONTRADICTORY", "insufficient");
+  // Closed, as the schema is. The unexpected key is model output, so it is never echoed.
+  if (Object.keys(value).some((key) => key !== "version" && key !== "conclusion")) return reject("MALFORMED", "$");
+  if (conclusions.length === 0) {
+    if (request.mustConclude) return reject("CONTRADICTORY", "conclusion");
+    return { ok: true, insufficient: true, category: "", explanation: "", primaryEvidenceIds: [], secondaryEvidenceIds: [], investigationSteps: [] };
+  }
 
+  const at = "conclusion.0";
+  const raw = conclusions[0];
+  if (!isRecord(raw) || Object.keys(raw).some((key) => !(CONCLUSION_FIELDS as readonly string[]).includes(key))) return reject("MALFORMED", at);
   const offered = new Set(request.evidence.map((event) => event.id));
+  const causes = new Set(request.evidence.filter(isCauseEvidence).map((event) => event.id));
   const seen = new Set<string>();
   const readIds = (field: "primaryEvidenceIds" | "secondaryEvidenceIds"): string[] | FailureAnalysisRejection => {
     const list = raw[field];
     if (list === undefined) return [];
-    if (!Array.isArray(list)) return reject("MALFORMED", field);
+    if (!Array.isArray(list)) return reject("MALFORMED", `${at}.${field}`);
     const out: string[] = [];
     for (const [index, id] of list.entries()) {
-      const path = `${field}.${index}`;
+      const path = `${at}.${field}.${index}`;
       if (typeof id !== "string") return reject("MALFORMED", path);
       if (!offered.has(id)) return reject("UNKNOWN_EVIDENCE", path);
+      if (field === "primaryEvidenceIds" && !causes.has(id)) return reject("UNSUPPORTED_CONCLUSION", path);
       // Across BOTH lists: an id cannot be primary and secondary, or listed twice in either.
       if (seen.has(id)) return reject("DUPLICATE_EVIDENCE", path);
       seen.add(id);
@@ -373,10 +439,10 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
   const text = (field: "category" | "explanation", max: number): string | FailureAnalysisRejection => {
     const value_ = raw[field];
     if (value_ === undefined) return "";
-    if (typeof value_ !== "string") return reject("MALFORMED", field);
+    if (typeof value_ !== "string") return reject("MALFORMED", `${at}.${field}`);
     const trimmed = value_.trim();
-    if (trimmed.length > max) return reject("MALFORMED", field);
-    if (hasControlChar(trimmed)) return reject("UNSAFE_TEXT", field);
+    if (trimmed.length > max) return reject("MALFORMED", `${at}.${field}`);
+    if (hasControlChar(trimmed)) return reject("UNSAFE_TEXT", `${at}.${field}`);
     return trimmed;
   };
   const category = text("category", FAILURE_ANALYSIS_LIMITS.maxCategoryChars);
@@ -386,10 +452,10 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
 
   const steps: string[] = [];
   if (raw.investigationSteps !== undefined) {
-    if (!Array.isArray(raw.investigationSteps)) return reject("MALFORMED", "investigationSteps");
-    if (raw.investigationSteps.length > FAILURE_ANALYSIS_LIMITS.maxSteps) return reject("MALFORMED", "investigationSteps");
+    if (!Array.isArray(raw.investigationSteps)) return reject("MALFORMED", `${at}.investigationSteps`);
+    if (raw.investigationSteps.length > FAILURE_ANALYSIS_LIMITS.maxSteps) return reject("MALFORMED", `${at}.investigationSteps`);
     for (const [index, step] of raw.investigationSteps.entries()) {
-      const path = `investigationSteps.${index}`;
+      const path = `${at}.investigationSteps.${index}`;
       if (typeof step !== "string") return reject("MALFORMED", path);
       const trimmed = step.trim();
       if (!trimmed || trimmed.length > FAILURE_ANALYSIS_LIMITS.maxStepChars) return reject("MALFORMED", path);
@@ -398,13 +464,13 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
     }
   }
 
-  const concludes = category.length > 0 || explanation.length > 0;
-  if (raw.insufficient === true && concludes) return reject("CONTRADICTORY", "insufficient");
-  if (raw.insufficient !== true && concludes && primary.length === 0) return reject("UNSUPPORTED_CONCLUSION", "primaryEvidenceIds");
+  if (primary.length === 0) return reject("UNSUPPORTED_CONCLUSION", `${at}.primaryEvidenceIds`);
+  // A conclusion is shown as one, so it has to say something; declining is the empty list.
+  if (!explanation) return reject("MALFORMED", `${at}.explanation`);
 
   return {
     ok: true,
-    insufficient: raw.insufficient,
+    insufficient: false,
     category,
     explanation,
     primaryEvidenceIds: primary,

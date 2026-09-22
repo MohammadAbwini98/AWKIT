@@ -461,17 +461,19 @@ try {
   // Arriving after 31 s, past the 30 s every feature used to share: Qwen3.5-0.8B's real analyses took
   // 97–160 s on this host, longer when it ran hot, so everything below also proves a slow answer is
   // shown and saved.
-  provide({
-    text: JSON.stringify({
-      version: 1,
-      insufficient: false,
-      category: "server error",
-      explanation: "The order submit request failed with a server error before the confirmation could appear.",
-      primaryEvidenceIds: [primaryId],
-      investigationSteps: ["Check the order service at the time of the run."]
-    }),
-    delayMs: SLOW_ANSWER_MS
+  const serverError = JSON.stringify({
+    version: 1,
+    conclusion: [
+      {
+        primaryEvidenceIds: [primaryId],
+        secondaryEvidenceIds: [],
+        category: "server error",
+        explanation: "The order submit request failed with a server error before the confirmation could appear.",
+        investigationSteps: ["Check the order service at the time of the run."]
+      }
+    ]
   });
+  provide({ text: serverError, delayMs: SLOW_ANSWER_MS });
   const seededDetail = await win.evaluate((id) => window.playwrightFlowStudio.telemetry.runDetail(id), RUN_ID);
   check("(precondition) main's durable history holds the seeded failed run", seededDetail.run?.executionId === RUN_EXEC, JSON.stringify(seededDetail.run ?? null).slice(0, 200));
   const failuresView = await win.evaluate(() => window.playwrightFlowStudio.telemetry.failures("24h"));
@@ -539,7 +541,9 @@ try {
   await deleteButton.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
   check("a saved analysis offers a named Delete control", (await deleteButton.count()) === 1);
   const savedDigest = digestOf(reportFile);
-  provide({ text: JSON.stringify({ version: 1, insufficient: false, category: "guess", explanation: "L5B-MODEL-GUESS", primaryEvidenceIds: ["ev-999"] }) });
+  provide({
+    text: JSON.stringify({ version: 1, conclusion: [{ primaryEvidenceIds: ["ev-999"], secondaryEvidenceIds: [], category: "guess", explanation: "L5B-MODEL-GUESS", investigationSteps: [] }] })
+  });
   await drawer.getByTestId("failure-ai-analyze").click();
   check("an answer citing evidence the run never captured is refused", (await stateSettles(win, "failure-ai-analysis", "failed")) === "failed");
   check("...and none of its text reaches the page", !(await win.locator("body").innerText()).includes("L5B-MODEL-GUESS"));
@@ -548,6 +552,20 @@ try {
   check("main refuses a malformed analysis request directly", forgedAnalysis.code === "INVALID_REQUEST", JSON.stringify(forgedAnalysis));
   const forgedDelete = await win.evaluate((id) => window.playwrightFlowStudio.ai.deleteFailureAnalysis({ executionId: "../x", instanceId: id }), RUN_ID);
   check("...and a malformed delete request, deleting nothing", forgedDelete.code === "INVALID_REQUEST" && digestOf(reportFile) === savedDigest, JSON.stringify(forgedDelete));
+  // This run's cause rests on direct evidence (an HTTP 500), shown right above the AI section, so "not
+  // enough evidence to say why" beside it would be the drawer contradicting itself.
+  // Delayed, and seen loading first: the drawer is ALREADY "failed" from the refusal above, so waiting
+  // for "failed" alone would pass before this answer ever arrived.
+  provide({ text: JSON.stringify({ version: 1, conclusion: [] }), delayMs: 2_000 });
+  await drawer.getByTestId("failure-ai-analyze").click();
+  const declineAsked = (await stateSettles(win, "failure-ai-analysis", "loading", 5_000)) === "loading";
+  check("a decline beside the run's own direct cause is refused", declineAsked && (await stateSettles(win, "failure-ai-analysis", "failed")) === "failed", `asked: ${declineAsked}`);
+  check(
+    "...never shown as inconclusive: the saved, cited analysis stays on screen",
+    (await drawer.locator('[data-testid="failure-ai-result"][data-insufficient="true"]').count()) === 0 &&
+      /server error/.test(await drawer.getByTestId("failure-ai-result").innerText().catch(() => ""))
+  );
+  check("...and the report on disk is untouched", digestOf(reportFile) === savedDigest);
   await win.keyboard.press("Escape");
 
   drawer = await openDrawer();

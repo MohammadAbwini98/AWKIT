@@ -10,7 +10,9 @@
  *   - validationExplanation: `explainFlowValidation` over the benchmark's flow. A real explanation is
  *     delivered, a user cancel after 30 s settles within the 3 s ceiling, and a deadline that kills the
  *     host is followed by a reload and a delivered explanation.
- *   - failureAnalysis: `analyzeFailure` over a typical and the largest L5a failure it sends.
+ *   - failureAnalysis: `analyzeFailure` over a typical and the largest L5a failure it sends, each of
+ *     which must be ACCEPTED as a conclusion (the typical one citing its cause), and a bare runner
+ *     timeout, which must be accepted as insufficient.
  *   - locatorUpgrade: `runLocatorUpgradeAttempts` over a typical and the largest L2 capture context.
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
  *
@@ -38,7 +40,7 @@ const PACK = Object.freeze({
 /** Harness mode, its step count, and a launcher budget under the 10-minute limit of the tool running it. */
 const FEATURES = Object.freeze({
   validationExplanation: { mode: "explain", steps: 4, timeoutMs: 480_000 },
-  failureAnalysis: { mode: "failureAnalysis", steps: 3, timeoutMs: 560_000 },
+  failureAnalysis: { mode: "failureAnalysis", steps: 4, timeoutMs: 560_000 },
   locatorUpgrade: { mode: "locatorUpgrade", steps: 3, timeoutMs: 560_000 }
 });
 const featureFlag = process.argv.indexOf("--feature");

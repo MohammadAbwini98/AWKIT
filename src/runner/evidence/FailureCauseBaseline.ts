@@ -85,6 +85,9 @@ const DIRECT: ReadonlyArray<{ source: EvidenceSource; cause: FailureCauseCode; r
 ];
 const DIRECT_RANK = new Map(DIRECT.map((entry, index) => [entry.source, index]));
 
+/** Causes resting on direct evidence (precedence 2–3), rather than on the runner's own diagnosis or a console error. */
+export const DIRECT_FAILURE_CAUSES: ReadonlySet<FailureCauseCode> = new Set(DIRECT.map((entry) => entry.cause));
+
 const RUNNER_CAUSE: Record<Exclude<RunnerFailureKind, "cancelled" | "other">, { cause: FailureCauseCode; reason: string }> = {
   timeout: { cause: "timeout", reason: "The step timed out with no direct error captured." },
   assertion: { cause: "assertionFailed", reason: "An assertion did not match." },

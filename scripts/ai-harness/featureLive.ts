@@ -3,7 +3,10 @@
  * deadline (Phase L, L1.8 follow-up), run inside the AI harness (scripts/ai-harness/harnessMain.ts):
  *
  *   failureAnalysis  L5b through `analyzeFailure`, the function behind `ai:analyzeFailure`, over a run
- *                    report whose evidence and cause come from L5a's real buffer and baseline.
+ *                    report whose evidence and cause come from L5a's real buffer and baseline. Each
+ *                    answer must be ACCEPTED and classified as its fixture requires — a conclusion
+ *                    for the typical and the largest failure, insufficient for a bare runner timeout.
+ *                    Arriving in time is not enough: every real v1 answer arrived and was refused.
  *   locatorUpgrade   L3 §7 through `runLocatorUpgradeAttempts`, the job the product will queue once L1
  *                    is accepted (nothing queues it yet), over a capture context bounded by L2's own
  *                    `sanitizeUpgradeContext`. The browser proof is stubbed as "page unavailable": it
@@ -16,11 +19,11 @@
 
 import os from "node:os";
 
-import { analyzeFailure } from "@main/ai/aiAssist";
+import { analyzeFailure, failureBatch } from "@main/ai/aiAssist";
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
 import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
 import { AI_HOST_PROTOCOL_VERSION, type AiHostHello } from "@src/ai/contracts/AiHostProtocol";
-import { FAILURE_ANALYSIS_LIMITS, parseFailureAnalysis, redactFailureAnalysis, type FailureAnalysisRequest } from "@src/ai/failureAnalysis";
+import { FAILURE_ANALYSIS_LIMITS, buildFailureAnalysisRequest, failureSignature, parseFailureAnalysis, redactFailureAnalysis } from "@src/ai/failureAnalysis";
 import { LOCATOR_ATTEMPT_LIMITS, runLocatorUpgradeAttempts } from "@src/ai/locatorUpgradeAttempts";
 import type { FlowStep, StepLocator } from "@src/profiles/FlowProfile";
 import { markBoundValues, sanitizeUpgradeContext } from "@src/recorder/upgradeContext";
@@ -172,6 +175,11 @@ const LARGEST_FAILURE: FixtureEvent[] = [
   { atMs: 9_500, source: "runner.failure", severity: "error", payload: { kind: "timeout", message: "Timed out after 30000 ms waiting for the order confirmation heading to be visible." } }
 ];
 
+/** Only the runner's own timeout: the evidence shows THAT the step failed, and nothing about why. */
+const RUNNER_ONLY_FAILURE: FixtureEvent[] = [
+  { atMs: 31_000, source: "runner.failure", severity: "error", payload: { kind: "timeout", message: "Timed out after 30000 ms waiting for the order confirmation heading to be visible." } }
+];
+
 export async function runFailureAnalysisLive(api: FeatureLiveApi): Promise<void> {
   const ctx = observed(api);
   const reports = new Map<string, ConcurrentRunReport>();
@@ -188,23 +196,30 @@ export async function runFailureAnalysisLive(api: FeatureLiveApi): Promise<void>
   api.record("deadlineMs", FAILURE_ANALYSIS_LIMITS.timeoutMs);
   await hello(api, ctx);
 
-  const analyse = async (label: string, executionId: string, events: FixtureEvent[], kind: RunnerFailureKind) =>
+  /** `citesCause`: the conclusion must cite the event the deterministic cause rests on, not only the symptom. */
+  const analyse = async (label: string, executionId: string, events: FixtureEvent[], kind: RunnerFailureKind, expect: "conclusion" | "insufficient", citesCause = false) =>
     api.step(label, async () => {
       const report = failedRun(executionId, events, kind);
       reports.set(executionId, report);
+      const causeId = report.instances[0].diagnostics?.cause?.evidenceIds[0];
       const before = ctx.jobs.length;
       const started = Date.now();
       const view = await analyzeFailure(1, { requestId: `live-${executionId}`, executionId, instanceId: report.instances[0].instanceId }, deps);
       const elapsedMs = Date.now() - started;
       const job = ctx.jobs[before];
       if (!job) throw new Error(`no model call was made: ${view.code}`);
+      // The request `analyzeFailure` built, rebuilt from the same report: the parser needs its evidence
+      // and its tier. Proven the same by its schema, which carries both.
+      const [entry] = failureBatch(report);
+      const rebuilt = buildFailureAnalysisRequest({ signature: failureSignature(entry), instanceIds: [entry.instanceId], count: 1, representative: entry, analyse: true });
+      if (!rebuilt || JSON.stringify(rebuilt.schema) !== JSON.stringify(job.request.schema)) throw new Error("the rebuilt request is not the one the product sent");
       // Which offered evidence ids have their line in the prompt the product actually sends.
       const prompt = buildAiPrompt(job.request.prompt, new SemanticRedactor(), "0123456789abcdef");
-      const offered = ((job.request.schema.properties?.primaryEvidenceIds as { items?: { enum?: string[] } } | undefined)?.items?.enum ?? []) as string[];
+      const offered = rebuilt.evidence.map((event) => event.id);
       // The view says only OUTPUT_REJECTED; the product's own parser says why, as a code and a field path.
       const verdict = (() => {
         if (job.outcome.status !== "ok") return null;
-        const parsed = parseFailureAnalysis(job.outcome.value, { evidence: offered.map((id) => ({ id })) } as unknown as FailureAnalysisRequest);
+        const parsed = parseFailureAnalysis(job.outcome.value, rebuilt);
         if (!parsed.ok) return { refused: parsed.code, field: parsed.field };
         const { insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps } = parsed;
         const clean = redactFailureAnalysis({ insufficient, category, explanation, primaryEvidenceIds, secondaryEvidenceIds, investigationSteps }, new SemanticRedactor());
@@ -212,22 +227,33 @@ export async function runFailureAnalysisLive(api: FeatureLiveApi): Promise<void>
       })();
       const raw = job.outcome.status === "ok" && typeof job.outcome.value === "object" && job.outcome.value !== null ? (job.outcome.value as Record<string, unknown>) : null;
       const count = (list: unknown) => (Array.isArray(list) ? list.length : null);
+      const first = Array.isArray(raw?.conclusion) && typeof raw.conclusion[0] === "object" && raw.conclusion[0] !== null ? (raw.conclusion[0] as Record<string, unknown>) : null;
+      const chars = (value: unknown) => (typeof value === "string" ? value.trim().length : null);
+      // Key names come from the schema, never the model; they show the grammar wrote every one.
       const shape = raw && {
-        insufficient: raw.insufficient,
-        categoryChars: typeof raw.category === "string" ? raw.category.trim().length : null,
-        explanationChars: typeof raw.explanation === "string" ? raw.explanation.trim().length : null,
-        stepChars: Array.isArray(raw.investigationSteps) ? raw.investigationSteps.map((s) => (typeof s === "string" ? s.trim().length : -1)) : null,
-        primary: count(raw.primaryEvidenceIds),
-        secondary: count(raw.secondaryEvidenceIds)
+        keys: Object.keys(raw),
+        conclusions: count(raw.conclusion),
+        ...(first && {
+          conclusionKeys: Object.keys(first),
+          primary: count(first.primaryEvidenceIds),
+          secondary: count(first.secondaryEvidenceIds),
+          categoryChars: chars(first.category),
+          explanationChars: chars(first.explanation),
+          stepChars: Array.isArray(first.investigationSteps) ? first.investigationSteps.map((s) => chars(s) ?? -1) : null
+        })
       };
+      const analysis = view.analysis;
       const result = {
         code: view.code,
         verdict,
         shape,
-        analysed: view.analysis !== null,
+        classified: analysis === null ? null : analysis.insufficient ? "insufficient" : "conclusion",
+        expected: expect,
+        // What the evidence let the grammar decode: decided by the product, not the model.
+        decodable: rebuilt.mustConclude ? "conclusion" : rebuilt.evidence.some((event) => event.source !== "runner.failure") ? "either" : "insufficient",
         stored: view.stored === true,
-        insufficient: view.analysis?.insufficient ?? null,
-        cited: view.analysis?.primaryEvidenceIds.length ?? 0,
+        cited: analysis?.primaryEvidenceIds.length ?? 0,
+        citesCause: causeId !== undefined && analysis !== null && analysis.primaryEvidenceIds.includes(causeId),
         evidenceOffered: offered.length,
         evidenceShown: prompt.ok ? offered.filter((id) => prompt.user.includes(`\n${id}: `)).length : null,
         omittedFields: prompt.ok ? prompt.omittedFields : null,
@@ -235,12 +261,15 @@ export async function runFailureAnalysisLive(api: FeatureLiveApi): Promise<void>
         elapsedMs,
         ...measured(job.outcome, job.request.maxOutputTokens)
       };
-      if (!answeredInTime(job.outcome)) throw new Error(JSON.stringify(result));
       if (result.hostDeadlineMs !== FAILURE_ANALYSIS_LIMITS.timeoutMs) throw new Error(`the inference was given ${result.hostDeadlineMs} ms, not ${FAILURE_ANALYSIS_LIMITS.timeoutMs}`);
+      // Delivered, accepted, saved and classified as the fixture requires. Arriving is not enough, and
+      // neither is parsing: every real v1 answer did both, and none was accepted.
+      if (view.code !== "OK" || result.classified !== expect || !result.stored || (citesCause && !result.citesCause)) throw new Error(JSON.stringify(result));
       return result;
     });
-  await analyse("a typical failure is answered before its own deadline (after the model load)", "exec-live-typical", TYPICAL_FAILURE, "assertion");
-  await analyse("the largest failure the product sends is answered before its own deadline", "exec-live-largest", LARGEST_FAILURE, "timeout");
+  await analyse("a typical failure gets an accepted conclusion citing its cause, before its own deadline (after the model load)", "exec-live-typical", TYPICAL_FAILURE, "assertion", "conclusion", true);
+  await analyse("a failure whose only evidence is the runner's own timeout is answered insufficient", "exec-live-runner-only", RUNNER_ONLY_FAILURE, "timeout", "insufficient");
+  await analyse("the largest failure the product sends gets an accepted conclusion before its own deadline", "exec-live-largest", LARGEST_FAILURE, "timeout", "conclusion");
   await ctx.service.shutdown();
   api.record("counters", (await ctx.service.status()).counters);
 }

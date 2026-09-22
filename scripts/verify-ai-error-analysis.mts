@@ -16,6 +16,9 @@
  *     so, rather than being silently dropped.
  *   - **A conclusion must cite evidence**, `insufficient` is a first-class answer, and an answer that
  *     does both is refused rather than half-believed.
+ *   - **The grammar cannot write a refused answer.** The runtime's grammar writes every property, so
+ *     every answer it can decode must be accepted and classified — except an id listed twice, which no
+ *     grammar expresses. v1 failed this: every real 0.8B answer declined AND concluded (2026-09-22).
  *   - **Nothing can change the run.** The schema has no field for a status, retry, policy or edit.
  *   - **An answer is saved with its run report** (a real `JsonProfileStore`): one per signature,
  *     redacted and rescanned first, never resurrecting a report deleted meanwhile, and deletable
@@ -28,6 +31,7 @@ import { tmpdir } from "node:os";
 import { join, resolve as resolvePath } from "node:path";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
+import { validateAiOutput, type AiOutputSchema } from "@src/ai/AiOutputContract";
 import { AiService, type AiServiceSettings } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import {
@@ -147,6 +151,25 @@ function instanceFailure(input: {
   return { instanceId: input.instanceId, flowId: "flow-l5b", nodeId: input.nodeId, stepIndex: input.stepIndex, baseline, events };
 }
 
+/** A timeout with no direct evidence, through the same real buffer and baseline: the runner's own record, plus any console errors. */
+function runnerOnly(instanceId: string, nodeId: string, consoleMessages: string[] = []): FailureBatchEntry {
+  let clock = 0;
+  const buffer = new EvidenceBuffer({ executionId: "exec-l5b", instanceId }, new EvidenceRunBudget(), { redactor: new SemanticRedactor(), now: () => clock });
+  const step = { flowId: "flow-l5b", nodeId, stepIndex: 4 };
+  for (const message of consoleMessages) {
+    clock += 100;
+    buffer.add({ source: "console.error", severity: "error", context: step, payload: { message } });
+  }
+  clock = 5_000;
+  buffer.add({ source: "runner.failure", severity: "error", context: step, payload: { kind: "timeout", message: "Timed out waiting for the confirmation heading." } });
+  const events = [...buffer.list()];
+  const runnerEvent = events.find((event) => event.source === "runner.failure");
+  const baseline = deriveFailureCause(events, { kind: "timeout", stepStartOffsetMs: 0, failedAtOffsetMs: 5_000, ...(runnerEvent ? { evidenceId: runnerEvent.id } : {}) });
+  return { instanceId, flowId: "flow-l5b", nodeId, stepIndex: 4, baseline, events };
+}
+const requestFor = (entry: FailureBatchEntry) =>
+  buildFailureAnalysisRequest({ signature: failureSignature(entry), instanceIds: [entry.instanceId], count: 1, representative: entry, analyse: true }) as FailureAnalysisRequest;
+
 // Identifiers L5a must strip, and a secret its redactor must mask.
 const ROW_URL = (row: number) => `https://shop.example/orders/${40000 + row}/submit?token=abc123secret&row=${row}`;
 
@@ -219,8 +242,17 @@ check("a selected group builds a request", request !== undefined);
 check("a DECLINED group builds none, so a caller cannot analyse past the budget", buildFailureAnalysisRequest(tight.groups[2]) === undefined);
 check("the evidence offered is bounded", request.evidence.length <= FAILURE_ANALYSIS_LIMITS.maxEvidencePerAnalysis);
 check("...and leads with the events the baseline cited", request.evidence[0].id === group.representative.baseline.evidenceIds[0]);
-const idEnum = (request.schema as { properties: Record<string, { items?: { enum?: string[] } }> }).properties.primaryEvidenceIds.items!.enum;
-check("the id enum is exactly the evidence offered", JSON.stringify(idEnum) === JSON.stringify(request.evidence.map((e) => e.id)));
+type ObjectSchema = Extract<AiOutputSchema, { type: "object" }>;
+type ArraySchema = Extract<AiOutputSchema, { type: "array" }>;
+const conclusionSchema = ((request.schema as ObjectSchema).properties.conclusion as ArraySchema).items as ObjectSchema;
+const idEnum = (field: string) => ((conclusionSchema.properties[field] as ArraySchema).items as { enum: readonly string[] }).enum;
+check("the secondary id enum is exactly the evidence offered", JSON.stringify(idEnum("secondaryEvidenceIds")) === JSON.stringify(request.evidence.map((e) => e.id)));
+check(
+  "...and the primary one is the evidence offered less the runner's own failure record",
+  JSON.stringify(idEnum("primaryEvidenceIds")) === JSON.stringify(request.evidence.filter((e) => e.source !== "runner.failure").map((e) => e.id)) &&
+    request.evidence.some((e) => e.source === "runner.failure"),
+  JSON.stringify(idEnum("primaryEvidenceIds"))
+);
 const schemaText = JSON.stringify(request.schema);
 check("the schema has no field for a run status", !/"status"/.test(schemaText));
 check("...no field for a retry", !/retry/i.test(schemaText));
@@ -240,12 +272,15 @@ check("...and the affected-instance COUNT, never the instances", promptText.incl
 console.log("\n5 — a valid analysis");
 const good = JSON.stringify({
   version: 1,
-  insufficient: false,
-  category: "server-error",
-  explanation: "The submit endpoint answered 500, so the confirmation the step waited for never appeared.",
-  primaryEvidenceIds: [request.evidence[0].id],
-  secondaryEvidenceIds: [request.evidence[1].id],
-  investigationSteps: ["Check the submit endpoint's server logs for this route."]
+  conclusion: [
+    {
+      primaryEvidenceIds: [request.evidence[0].id],
+      secondaryEvidenceIds: [request.evidence[1].id],
+      category: "server-error",
+      explanation: "The submit endpoint answered 500, so the confirmation the step waited for never appeared.",
+      investigationSteps: ["Check the submit endpoint's server logs for this route."]
+    }
+  ]
 });
 const h = harness([good]);
 const outcome = await h.service.submit({
@@ -269,66 +304,143 @@ if (analysis?.ok) {
 await h.service.shutdown();
 
 // ── 6. "Insufficient evidence" is a first-class answer ──────────────────────────────────────────
-console.log("\n6 — declining to conclude is a correct answer");
-const declined = parseFailureAnalysis({ version: 1, insufficient: true }, request);
-check("an insufficient answer with nothing else is accepted", declined.ok === true && declined.insufficient === true, JSON.stringify(declined));
-check("...and carries no conclusion", declined.ok === true && declined.category === "" && declined.explanation === "");
+console.log("\n6 — declining to conclude is a correct answer, where it is true");
+// Three tiers, decided from the evidence: a direct cause (the HTTP 500 above), a runner timeout with
+// console errors beside it, and a bare runner timeout, whose only evidence is its own failure record.
+const indirectEntry = runnerOnly("i-console", "n-console", ["Uncaught TypeError: the payment widget failed to load"]);
+const quietEntry = runnerOnly("i-quiet", "n-quiet");
+const indirect = requestFor(indirectEntry);
+const quiet = requestFor(quietEntry);
+check("(precondition) the HTTP 500's baseline is direct, so it must conclude", request.mustConclude && group.representative.baseline.cause === "httpError");
+check("(precondition) the console-error timeout is the runner's own cause, with cause evidence beside it", !indirect.mustConclude && indirectEntry.baseline.cause === "timeout" && indirect.evidence.some((e) => e.source === "console.error"));
+check("(precondition) the bare timeout offers nothing but the runner's own record", !quiet.mustConclude && quiet.evidence.length === 1 && quiet.evidence[0].source === "runner.failure");
+const DECLINE_VALUE = { version: 1, conclusion: [] };
+const declined = parseFailureAnalysis(DECLINE_VALUE, indirect);
+check("an empty conclusion list is accepted as insufficient", declined.ok === true && declined.insufficient === true, JSON.stringify(declined));
+check("...and carries no conclusion: no text, no citation, no step", declined.ok === true && declined.category === "" && declined.explanation === "" && declined.primaryEvidenceIds.length === 0 && declined.investigationSteps.length === 0);
+const quietDeclined = parseFailureAnalysis(DECLINE_VALUE, quiet);
+check("a bare runner timeout is accepted as insufficient", quietDeclined.ok === true && quietDeclined.insufficient === true, JSON.stringify(quietDeclined));
+const directDeclined = parseFailureAnalysis(DECLINE_VALUE, request);
+check(
+  "declining beside a DIRECT cause is refused as contradictory: the drawer shows that cause right above the answer",
+  !directDeclined.ok && directDeclined.code === "CONTRADICTORY" && directDeclined.field === "conclusion",
+  JSON.stringify(directDeclined)
+);
+const instructions = request.prompt.instructions;
+check("the prompt tells the model to decline with an empty conclusion list", /leave the conclusion list empty/.test(instructions), instructions);
+check("...and never names v1's `insufficient` flag, which the schema no longer has", !/insufficient/i.test(instructions));
+
+// ── 6b. The grammar and the parser agree ────────────────────────────────────────────────────────
+// node-llama-cpp 3.21.1 writes EVERY property of an object, in schema order, whatever `required` says:
+// `getGbnfJsonTerminalForGbnfJsonSchema` marks each field required and `GbnfObjectMap` emits them all.
+// v1 left `insufficient` a free boolean beside `category` and `explanation`, so a model that declined
+// still had to write both — and the parser refused exactly that. Every real 0.8B answer did it.
+console.log("\n6b — every answer the grammar can decode is one the parser accepts and classifies");
+/** Every answer the grammar lets a model write, up to the words: each array empty and non-empty where allowed, each boolean either way, each free string written in, as a model writes it. */
+function grammarAnswers(schema: AiOutputSchema): unknown[] {
+  switch (schema.type) {
+    case "object":
+      return Object.entries(schema.properties).reduce<Record<string, unknown>[]>(
+        (partials, [key, child]) => partials.flatMap((partial) => grammarAnswers(child).map((value) => ({ ...partial, [key]: value }))),
+        [{}]
+      );
+    case "array": {
+      const min = schema.minItems ?? 0;
+      const lengths = [...new Set([min, Math.min(schema.maxItems, Math.max(min, 1))])];
+      return lengths.flatMap((length) => (length === 0 ? [[]] : grammarAnswers(schema.items).map((item) => Array.from({ length }, () => item))));
+    }
+    case "string":
+      return ["enum" in schema ? schema.enum[0] : "prose"];
+    case "integer":
+    case "number":
+      return [schema.minimum ?? 0];
+    case "boolean":
+      return [true, false];
+  }
+}
+const requiredEverywhere = (schema: AiOutputSchema): boolean =>
+  schema.type === "object"
+    ? Object.keys(schema.properties).every((key) => schema.required?.includes(key)) && Object.values(schema.properties).every(requiredEverywhere)
+    : schema.type === "array"
+      ? requiredEverywhere(schema.items)
+      : true;
+for (const [tier, tierRequest, declines, concludes] of [
+  ["a direct cause", request, false, true],
+  ["a runner timeout with console errors", indirect, true, true],
+  ["a bare runner timeout", quiet, true, false]
+] as Array<[string, FailureAnalysisRequest, boolean, boolean]>) {
+  console.log(`  — ${tier}`);
+  check("the schema marks every property required, as the grammar writes them all", requiredEverywhere(tierRequest.schema));
+  const reachable = grammarAnswers(tierRequest.schema).map((answer) => ({ answer, parsed: parseFailureAnalysis(answer, tierRequest) }));
+  check("(precondition) every enumerated answer passes the output contract", reachable.length > 0 && reachable.every(({ answer }) => validateAiOutput(answer, tierRequest.schema).length === 0));
+  const refusedReachable = reachable.flatMap(({ parsed }) => (parsed.ok || parsed.code === "DUPLICATE_EVIDENCE" ? [] : [parsed]));
+  check("every decodable answer is accepted, or refused only for an id listed twice — the one rule no grammar expresses", refusedReachable.length === 0, JSON.stringify(refusedReachable));
+  const declinesReachable = reachable.some(({ parsed }) => parsed.ok && parsed.insufficient && parsed.explanation === "" && parsed.primaryEvidenceIds.length === 0);
+  const concludesReachable = reachable.some(({ parsed }) => parsed.ok && !parsed.insufficient && parsed.primaryEvidenceIds.length > 0 && parsed.explanation.length > 0);
+  check(declines ? "...a decline is decodable, with nothing beside it" : "...a decline is NOT decodable", declinesReachable === declines);
+  check(concludes ? "...a conclusion citing cause evidence is decodable" : "...a conclusion is NOT decodable", concludesReachable === concludes);
+}
 
 // ── 7. Refusals ─────────────────────────────────────────────────────────────────────────────────
 console.log("\n7 — refusals: an interpretation must be supported, and bounded");
 const otherId = "evt-from-another-run";
+const e0 = request.evidence[0].id;
+const runnerIdOf = (of: FailureAnalysisRequest) => of.evidence.find((event) => event.source === "runner.failure")!.id;
+const V1_SHAPE = { version: 1, insufficient: true, category: "server-error", explanation: "It broke.", primaryEvidenceIds: [e0], secondaryEvidenceIds: [], investigationSteps: [] };
+const conclude = (fields: Record<string, unknown>) => ({
+  version: 1,
+  conclusion: [{ primaryEvidenceIds: [e0], secondaryEvidenceIds: [], category: "server-error", explanation: "It broke.", investigationSteps: [], ...fields }]
+});
 const refusals: Array<[string, unknown, string, string]> = [
-  ["an evidence id from another run is refused", { version: 1, insufficient: false, primaryEvidenceIds: [otherId] }, "UNKNOWN_EVIDENCE", "primaryEvidenceIds.0"],
-  ["the same id listed twice is refused", { version: 1, insufficient: false, primaryEvidenceIds: [request.evidence[0].id, request.evidence[0].id] }, "DUPLICATE_EVIDENCE", "primaryEvidenceIds.1"],
-  [
-    "an id that is both primary AND secondary is refused",
-    { version: 1, insufficient: false, primaryEvidenceIds: [request.evidence[0].id], secondaryEvidenceIds: [request.evidence[0].id] },
-    "DUPLICATE_EVIDENCE",
-    "secondaryEvidenceIds.0"
-  ],
-  [
-    "a conclusion with NO supporting evidence is refused as a guess",
-    { version: 1, insufficient: false, category: "server-error", explanation: "It broke." },
-    "UNSUPPORTED_CONCLUSION",
-    "primaryEvidenceIds"
-  ],
-  [
-    "claiming insufficient AND concluding is refused as contradictory",
-    { version: 1, insufficient: true, category: "server-error", explanation: "It broke.", primaryEvidenceIds: [request.evidence[0].id] },
-    "CONTRADICTORY",
-    "insufficient"
-  ],
-  ["a missing insufficient flag is refused", { version: 1, primaryEvidenceIds: [] }, "MALFORMED", "insufficient"],
-  ["a wrong version is refused", { version: 9, insufficient: true }, "MALFORMED", "version"],
+  ["an evidence id from another run is refused", conclude({ primaryEvidenceIds: [otherId] }), "UNKNOWN_EVIDENCE", "conclusion.0.primaryEvidenceIds.0"],
+  ["the same id listed twice is refused", conclude({ primaryEvidenceIds: [e0, e0] }), "DUPLICATE_EVIDENCE", "conclusion.0.primaryEvidenceIds.1"],
+  ["an id that is both primary AND secondary is refused", conclude({ secondaryEvidenceIds: [e0] }), "DUPLICATE_EVIDENCE", "conclusion.0.secondaryEvidenceIds.0"],
+  ["a conclusion with NO supporting evidence is refused as a guess", conclude({ primaryEvidenceIds: [] }), "UNSUPPORTED_CONCLUSION", "conclusion.0.primaryEvidenceIds"],
+  ["a conclusion resting on the runner's own failure record is refused as a guess", conclude({ primaryEvidenceIds: [runnerIdOf(request)] }), "UNSUPPORTED_CONCLUSION", "conclusion.0.primaryEvidenceIds.0"],
+  ["a conclusion that explains nothing is refused", conclude({ explanation: "  " }), "MALFORMED", "conclusion.0.explanation"],
+  ["claiming insufficient AND concluding is refused as contradictory", { ...conclude({}), insufficient: true }, "CONTRADICTORY", "insufficient"],
+  ["claiming a conclusion AND declining is refused as contradictory", { version: 1, insufficient: false, conclusion: [] }, "CONTRADICTORY", "insufficient"],
+  ["the v1 shape every real 0.8B answer took — insufficient, with a conclusion beside it — is refused", V1_SHAPE, "MALFORMED", "conclusion"],
+  ["a missing conclusion list is refused", { version: 1 }, "MALFORMED", "conclusion"],
+  ["two conclusions are refused", { version: 1, conclusion: [conclude({}).conclusion[0], conclude({}).conclusion[0]] }, "MALFORMED", "conclusion"],
+  ["a key the schema does not name is refused, and not echoed", { version: 1, conclusion: [], verdict: "passed" }, "MALFORMED", "$"],
+  ["...inside a conclusion too", conclude({ setStatus: "passed" }), "MALFORMED", "conclusion.0"],
+  ["a wrong version is refused", { version: 9, conclusion: [] }, "MALFORMED", "version"],
   ["a non-object answer is refused", "insufficient", "MALFORMED", "$"],
-  [
-    "control characters in prose are refused",
-    { version: 1, insufficient: false, explanation: `bad${String.fromCharCode(7)}text`, primaryEvidenceIds: [request.evidence[0].id] },
-    "UNSAFE_TEXT",
-    "explanation"
-  ],
-  [
-    "an over-long explanation is refused",
-    { version: 1, insufficient: false, explanation: "x".repeat(FAILURE_ANALYSIS_LIMITS.maxExplanationChars + 1), primaryEvidenceIds: [request.evidence[0].id] },
-    "MALFORMED",
-    "explanation"
-  ],
+  ["control characters in prose are refused", conclude({ explanation: `bad${String.fromCharCode(7)}text` }), "UNSAFE_TEXT", "conclusion.0.explanation"],
+  ["an over-long explanation is refused", conclude({ explanation: "x".repeat(FAILURE_ANALYSIS_LIMITS.maxExplanationChars + 1) }), "MALFORMED", "conclusion.0.explanation"],
   [
     "too many investigation steps are refused",
-    { version: 1, insufficient: true, investigationSteps: Array.from({ length: FAILURE_ANALYSIS_LIMITS.maxSteps + 1 }, () => "look") },
+    conclude({ investigationSteps: Array.from({ length: FAILURE_ANALYSIS_LIMITS.maxSteps + 1 }, () => "look") }),
     "MALFORMED",
-    "investigationSteps"
+    "conclusion.0.investigationSteps"
   ],
-  ["an empty investigation step is refused", { version: 1, insufficient: true, investigationSteps: ["  "] }, "MALFORMED", "investigationSteps.0"]
+  ["an empty investigation step is refused", conclude({ investigationSteps: ["  "] }), "MALFORMED", "conclusion.0.investigationSteps.0"]
 ];
 for (const [label, value, code, field] of refusals) {
   const result = parseFailureAnalysis(value, request);
   check(label, !result.ok && result.code === code && result.field === field, JSON.stringify(result));
 }
+const quietConclusion = { version: 1, conclusion: [{ primaryEvidenceIds: [runnerIdOf(quiet)], secondaryEvidenceIds: [], category: "timeout", explanation: "The heading never appeared.", investigationSteps: [] }] };
+const quietRefused = parseFailureAnalysis(quietConclusion, quiet);
+check("on a bare runner timeout, a conclusion — the one real 0.8B wrote — is refused as a guess", !quietRefused.ok && quietRefused.code === "UNSUPPORTED_CONCLUSION", JSON.stringify(quietRefused));
+const withConsequence = parseFailureAnalysis(conclude({ secondaryEvidenceIds: [runnerIdOf(request)] }), request);
+check("...while the runner's record may still be cited as a consequence", withConsequence.ok && withConsequence.secondaryEvidenceIds[0] === runnerIdOf(request), JSON.stringify(withConsequence));
+// The output contract mirrors the grammar, so these never reach the parser in the product.
+for (const [label, value, schema] of [
+  ["the v1 contradictory shape is refused by the output contract, before the parser", V1_SHAPE, request.schema],
+  ["...as is a conclusion carrying an `insufficient` flag", { ...conclude({}), insufficient: true }, request.schema],
+  ["...a conclusion citing nothing", conclude({ primaryEvidenceIds: [] }), request.schema],
+  ["...a conclusion resting on the runner's own record", conclude({ primaryEvidenceIds: [runnerIdOf(request)] }), request.schema],
+  ["...a decline beside a direct cause", DECLINE_VALUE, request.schema],
+  ["...and any conclusion on a bare runner timeout", quietConclusion, quiet.schema]
+] as Array<[string, unknown, AiOutputSchema]>) {
+  check(label, validateAiOutput(value, schema).length > 0);
+}
 
 // ── 8. A model that tries to change the run ─────────────────────────────────────────────────────
 console.log("\n8 — a model that tries to act rather than interpret");
-const acting = harness(['{"version":1,"insufficient":true,"setStatus":"passed","retry":true}']);
+const acting = harness(['{"version":1,"conclusion":[],"setStatus":"passed","retry":true}']);
 const actingOutcome = await acting.service.submit({
   requestId: "l5b-acting",
   feature: "failureAnalysis",
@@ -410,6 +522,9 @@ check("(precondition) the empty-evidence fixture really is an insufficient basel
 // Six more distinct signatures, so the automatic batch budget (5) is exhausted before `run-z`.
 const crowd = Array.from({ length: 6 }, (_, i) => instanceFailure({ instanceId: `crowd-${i}`, nodeId: `n-crowd-${i}`, stepIndex: i, url: ROW_URL(20 + i), status: 500 }));
 const lastSignature = instanceFailure({ instanceId: "run-z", nodeId: "n-last", stepIndex: 9, url: ROW_URL(30), status: 503 });
+// No direct cause: a timeout with a console error beside it (the model may decline), and a bare one (it may only).
+const consoleTimeout = runnerOnly("run-f", "n-console-main", ["Uncaught TypeError: the payment widget failed to load"]);
+const bareTimeout = runnerOnly("run-g", "n-quiet-main");
 const storedRun: ConcurrentRunReport = {
   executionId: "exec-main",
   scenarioId: "wf",
@@ -424,7 +539,7 @@ const storedRun: ConcurrentRunReport = {
   failedFlows: 12,
   skippedFlows: 0,
   instances: [
-    ...[sameA, sameB, sameC, different, insufficientEntry, ...crowd, lastSignature].map(asInstance),
+    ...[sameA, sameB, sameC, different, insufficientEntry, ...crowd, lastSignature, consoleTimeout, bareTimeout].map(asInstance),
     { instanceId: "run-passed", status: "passed", durationMs: 900, screenshots: [], downloadedFiles: [] }
   ],
   runtimeInputs: {}
@@ -450,7 +565,12 @@ const reportDeps = (service: AiService, policy: AiPolicyConfig = POLICY): Failur
   policy: async () => policy,
   ...reportAccess
 });
-const citing = (ids: string[]) => JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: "The submit request returned 500.", primaryEvidenceIds: ids, investigationSteps: ["Check the order service logs."] });
+const citing = (ids: string[]) =>
+  JSON.stringify({
+    version: 1,
+    conclusion: [{ primaryEvidenceIds: ids, secondaryEvidenceIds: [], category: "server error", explanation: "The submit request returned 500.", investigationSteps: ["Check the order service logs."] }]
+  });
+const DECLINE = JSON.stringify({ version: 1, conclusion: [] });
 const primaryOf = (entry: FailureBatchEntry) => entry.baseline.evidenceIds[0];
 
 const onDemand = harness([citing([primaryOf(sameB)])]);
@@ -493,20 +613,50 @@ await analyzeFailure(4, { requestId: "ui-11", executionId: "exec-main", instance
 check("...and none of those reached the model, forged evidence included", silentCalls() === 0, String(silentCalls()));
 await silent.service.shutdown();
 
-const guess = harness([JSON.stringify({ version: 1, insufficient: false, category: "guess", explanation: "MODEL-GUESS-TEXT" })]);
+const guess = harness([
+  JSON.stringify({ version: 1, conclusion: [{ primaryEvidenceIds: [], secondaryEvidenceIds: [], category: "guess", explanation: "MODEL-GUESS-TEXT", investigationSteps: [] }] })
+]);
 const guessView = await analyzeFailure(4, { requestId: "ui-12", executionId: "exec-main", instanceId: "run-a" }, reportDeps(guess.service));
 check("a conclusion citing no evidence is OUTPUT_REJECTED", guessView.code === "OUTPUT_REJECTED" && guessView.analysis === null, JSON.stringify(guessView));
 check("...and none of its text reaches the renderer", !JSON.stringify(guessView).includes("MODEL-GUESS-TEXT"));
 await guess.service.shutdown();
 
+// The shape every real v1 answer on Qwen3.5-0.8B took (2026-09-22): declined, then concluded anyway.
+const v1Answer = JSON.stringify({ version: 1, insufficient: true, category: "server error", explanation: "V1-BOTH-HALVES", primaryEvidenceIds: [primaryOf(sameA)], secondaryEvidenceIds: [], investigationSteps: ["Check it."] });
+const both = harness([v1Answer]);
+const bothView = await analyzeFailure(4, { requestId: "ui-12b", executionId: "exec-main", instanceId: "run-a" }, reportDeps(both.service));
+check("an answer that declines AND concludes is OUTPUT_REJECTED — neither half is shown", bothView.code === "OUTPUT_REJECTED" && bothView.analysis === null, JSON.stringify(bothView));
+check("...and none of its text reaches the renderer", !JSON.stringify(bothView).includes("V1-BOTH-HALVES"));
+await both.service.shutdown();
+
 const unknownCite = harness([citing(["ev-999"])]);
 check("citing evidence the run did not capture is OUTPUT_REJECTED", (await analyzeFailure(4, { requestId: "ui-13", executionId: "exec-main", instanceId: "run-a" }, reportDeps(unknownCite.service))).code === "OUTPUT_REJECTED");
 await unknownCite.service.shutdown();
 
-const declines = harness([JSON.stringify({ version: 1, insufficient: true })]);
-const declineView = await analyzeFailure(4, { requestId: "ui-14", executionId: "exec-main", instanceId: "run-a" }, reportDeps(declines.service));
-check("'insufficient' is a first-class answer, shown as such", declineView.ok && declineView.analysis?.insufficient === true, JSON.stringify(declineView));
+const declines = harness([DECLINE]);
+const declineView = await analyzeFailure(4, { requestId: "ui-14", executionId: "exec-main", instanceId: "run-f" }, reportDeps(declines.service));
+check("'insufficient' is a first-class answer where the cause is not direct, shown as such", declineView.ok && declineView.analysis?.insufficient === true, JSON.stringify(declineView));
+check(
+  "...with no cause, citation or step beside it",
+  declineView.analysis?.category === "" && declineView.analysis.explanation === "" && declineView.analysis.primaryEvidenceIds.length === 0 && declineView.analysis.investigationSteps.length === 0
+);
 await declines.service.shutdown();
+
+const beside = harness([DECLINE]);
+const besideView = await analyzeFailure(4, { requestId: "ui-14b", executionId: "exec-main", instanceId: "run-a" }, reportDeps(beside.service));
+check("declining beside the report's own DIRECT cause is OUTPUT_REJECTED, never shown", besideView.code === "OUTPUT_REJECTED" && besideView.analysis === null, JSON.stringify(besideView));
+await beside.service.shutdown();
+
+// What Qwen3.5-0.8B wrote for a bare timeout: its own failure record, cited as its cause.
+const circular = harness([citing([primaryOf(bareTimeout)])]);
+check("(precondition) a bare timeout's baseline cites only the runner's own record", bareTimeout.baseline.evidenceIds.length === 1 && bareTimeout.events.length === 1);
+const circularView = await analyzeFailure(4, { requestId: "ui-14c", executionId: "exec-main", instanceId: "run-g" }, reportDeps(circular.service));
+check("a bare timeout 'explained' by its own failure record is OUTPUT_REJECTED", circularView.code === "OUTPUT_REJECTED" && circularView.analysis === null, JSON.stringify(circularView));
+await circular.service.shutdown();
+const bareDecline = harness([DECLINE]);
+const bareView = await analyzeFailure(4, { requestId: "ui-14d", executionId: "exec-main", instanceId: "run-g" }, reportDeps(bareDecline.service));
+check("...and answered insufficient, which is the only answer its grammar allows", bareView.ok && bareView.analysis?.insufficient === true, JSON.stringify(bareView));
+await bareDecline.service.shutdown();
 
 // ── Persistence: the optional run-report `diagnostics` extension ────────────────────────────────
 // DECISIONS 2026-09-19: analyses live and die with their run report, and are deletable and
@@ -540,9 +690,17 @@ check("the run's evidence and baselines are untouched: only the extension was ad
 check("a coalesced member reads the saved analysis through its reference", storedFailureAnalysisFor(await readBack(), "run-a")?.instanceId === "run-b");
 check("...and a different failure does not", storedFailureAnalysisFor(await readBack(), "run-d") === null);
 
-await ask(JSON.stringify({ version: 1, insufficient: true }), "run-a", "p-2");
+const askedAgain = JSON.stringify({
+  version: 1,
+  conclusion: [{ primaryEvidenceIds: [primaryOf(sameA)], secondaryEvidenceIds: [], category: "server error", explanation: "Asked again for run-a.", investigationSteps: [] }]
+});
+await ask(askedAgain, "run-a", "p-2");
 onDisk = await analysesOnDisk();
-check("asking again replaces the saved analysis rather than adding one", onDisk.length === 1 && onDisk[0]?.instanceId === "run-a" && onDisk[0]?.analysis.insufficient === true, JSON.stringify(onDisk).slice(0, 300));
+check(
+  "asking again replaces the saved analysis rather than adding one",
+  onDisk.length === 1 && onDisk[0]?.instanceId === "run-a" && onDisk[0]?.analysis.explanation === "Asked again for run-a.",
+  JSON.stringify(onDisk).slice(0, 300)
+);
 await ask(citing([primaryOf(different)]), "run-d", "p-3");
 check("a different signature is saved beside it", (await analysesOnDisk()).length === 2);
 
@@ -554,7 +712,8 @@ check("...and leaves the saved analyses exactly as they were", JSON.stringify(aw
 // header is a shape it leaves (no rule names it) and only the independent rescan catches. Single
 // line on purpose: the parser refuses control characters, a newline included, before the rescan.
 // (`password: {…}` served here until 2026-09-21, when the redactor learned to remove it.)
-const leak = (text: string) => JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: text, primaryEvidenceIds: [primaryOf(sameB)], investigationSteps: [text] });
+const leak = (text: string) =>
+  JSON.stringify({ version: 1, conclusion: [{ primaryEvidenceIds: [primaryOf(sameB)], secondaryEvidenceIds: [], category: "server error", explanation: text, investigationSteps: [text] }] });
 const leakyView = await ask(leak("Order 4001123 for ops@shop.example failed."), "run-b", "p-5");
 const leakyStored = storedFailureAnalysisFor(await readBack(), "run-b");
 check("an e-mail or long id in the answer is redacted before it is shown", leakyView.ok && !/ops@shop|4001123/.test(JSON.stringify(leakyView)), JSON.stringify(leakyView.analysis));

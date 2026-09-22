@@ -162,7 +162,18 @@ const run = failedRun("exec-deadline");
 const instanceId = run.instances[0].instanceId;
 const primaryId = run.instances[0].diagnostics!.cause!.evidenceIds[0];
 const analysis = (marker: string) =>
-  JSON.stringify({ version: 1, insufficient: false, category: "server error", explanation: `${marker}: the order submit request failed with a server error.`, primaryEvidenceIds: [primaryId], investigationSteps: ["Check the order service."] });
+  JSON.stringify({
+    version: 1,
+    conclusion: [
+      {
+        primaryEvidenceIds: [primaryId],
+        secondaryEvidenceIds: [],
+        category: "server error",
+        explanation: `${marker}: the order submit request failed with a server error.`,
+        investigationSteps: ["Check the order service."]
+      }
+    ]
+  });
 
 /** `analyzeFailure` over an in-memory report store, as `ai.ipc.ts` wires it over the real one. */
 function analyzeWith(h: Harness, requestId: string, store: Map<string, ConcurrentRunReport>) {
