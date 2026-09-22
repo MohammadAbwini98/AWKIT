@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## The real 0.8B's locator plans are proven on real pages: `verify:ai-locator-quality-live` 14/0, false-target 0 (2026-09-22, current)
+## The Qwen3.5-0.8B pack is pinned, and `verify:ai-model-live` passes on it: 23/0 (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Measured, not copied (`3fa15327`):** `verify:ai-model-live` gained `--pack` and a GGUF header reader;
+  `verify:ai-model-live-0-8b` runs it on the 0.8B. Unpinned it was 17/1, the one failure the missing
+  entry. It measured:
+  - 527,502,816 bytes and SHA-256 `f5b14da9…`, equal to the published object;
+  - GGUF v3, 320 tensors, `qwen35`, `Qwen_Qwen3.5 0.8B`;
+  - context length 262,144 and file type 15 (Q4_K_M).
+- **Pinned (`d6b306f0`, release lease `awkit-djnl-1-pin-0-8b-0922`):**
+  - entry `qwen3.5-0.8b-q4-k-m` beside the 4B;
+  - an Apache-2.0 notice in `resources/THIRD_PARTY_NOTICES.md`;
+  - `AI_RUNTIME_PIN` unchanged.
+
+  The gate now fails if the entry's context length or quantization stops matching the header.
+- **Pinned result, 23/0:** imported through `AiModelPackStore` with the real manifest, re-hashed on
+  load, and all 13 live-harness steps passed.
+- **Still owed for L1:** `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live` (neither
+  built), and the owner's go/no-go, including whether the 4B stays pinned. L1 stays `in_progress`.
+  **L7 cannot be entered.** Nothing is wired.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-model-live-0-8b` (new script, real 0.8B, pinned) | 23/0 (17/1 unpinned, as expected) |
+| `verify:ai-model-pack` | 46/0, 2 pinned packs |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:verifier-classification` | reconciled, 249 scripts |
+| `verify:ai-model-live` (4B) · `validate:offline` | NOT RUN: the 4B path changed only in pack selection; no bundled input changed |
+
+## The real 0.8B's locator plans are proven on real pages: `verify:ai-locator-quality-live` 14/0, false-target 0 (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

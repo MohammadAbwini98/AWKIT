@@ -460,6 +460,8 @@ npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceilin
 npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
 npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
+npm run verify:ai-model-live-0-8b # the same gate on Qwen3.5-0.8B-Q4_K_M.gguf from ~/Downloads, the pack's own GGUF
+                                  # header checked against its manifest entry (context length, quantization) (23)
 npm run benchmark:ai-model        # L1.8 go/no-go harness with pre-registered ceilings, on the qualifying host (this dev machine, all logical CPUs); NOT RUN without runtime + pack or on any other host
 npm run benchmark:ai-model-2b     # the same gate on Qwen3.5-2B-Q4_K_M.gguf from ~/Downloads (own evidence file; refuses a pack that is not the published file)
 npm run benchmark:ai-model-0-8b   # the same gate on Qwen3.5-0.8B-Q4_K_M.gguf from ~/Downloads (no dot in the name: the lease guard refuses one)

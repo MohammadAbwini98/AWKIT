@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-22 — Qwen3.5-0.8B pinned in AI_MODEL_MANIFEST; verify:ai-model-live on it (Claude)
+
+- **Task:** pin the 0.8B pack and run `verify:ai-model-live` on it.
+- **Found:**
+  - `verify:ai-model-live` could only resolve the 4B, which is also in Downloads.
+  - Nothing read a pack's own GGUF header except the runtime.
+  - The store keeps one active pack matched by checksum, so a second entry needs no product change.
+- **Files:**
+  - `3fa15327`: `scripts/verify-ai-model-live.mts` (`--pack`, GGUF header reader, header-vs-entry
+    checks), `package.json`, `scripts/lib/verifier-classification.ts`.
+  - `d6b306f0` (release lease): `src/offline/AiModelManifest.ts`, `resources/THIRD_PARTY_NOTICES.md` and
+    the contract.
+  - Then the L1 plan, COMMANDS, DECISIONS, CURRENT_STATE, HANDOFF, and a note on `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-model-live-0-8b`: 17/1 unpinned, as expected; 23/0 pinned.
+  - `verify:ai-model-pack` 46/0 (2 packs) · build PASS · `typecheck:scripts` PASS ·
+    `verify:verifier-classification` 249.
+  - NOT RUN: `verify:ai-model-live` on the 4B (only its pack selection changed), and `validate:offline`
+    (a model pack is never bundled).
+- **Result:** pinned and PASS. L1 stays `in_progress`: two unbuilt quality gates and the owner's go/no-go
+  remain.
+
 ## 2026-09-22 — real-model locator quality gate: the 0.8B's plans proven on real pages (Claude)
 
 - **Task:** build `verify:ai-locator-quality-live`, which judges the real 0.8B's locator plans through

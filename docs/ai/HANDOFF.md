@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — the real 0.8B's locator plans are proven on real pages; `verify:ai-locator-quality-live` 14/0, false-target 0
+## HANDOFF (2026-09-22, latest) — the Qwen3.5-0.8B pack is pinned; `verify:ai-model-live-0-8b` 23/0
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:**
+  - `3fa15327`: `verify:ai-model-live --pack` and a GGUF header reader, plus the new script
+    `verify:ai-model-live-0-8b`.
+  - `d6b306f0`: the 0.8B entry, measured from the file and its own header, and its license notice. The
+    4B and `AI_RUNTIME_PIN` are unchanged.
+  - Pinned: 23/0, with the import through the real manifest and all 13 live steps.
+  - Details are in the L1 plan › "The 0.8B pinned, and `verify:ai-model-live` on it".
+- **Not done, and owner decisions:**
+  - `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live` are not built.
+  - The go/no-go on the re-scoped model, and whether the 4B stays pinned: it fails L1.8 on this host.
+  - L1 stays `in_progress`. **L7 cannot be entered.** Nothing is wired.
+- **Do not:**
+  - write a manifest field from a model card: `verify:ai-model-live-0-8b` checks context length and
+    quantization against the header;
+  - edit `src/offline/**` or `resources/THIRD_PARTY_NOTICES.md` without a release lease.
+
+## HANDOFF (2026-09-22, superseded) — the real 0.8B's locator plans are proven on real pages; `verify:ai-locator-quality-live` 14/0, false-target 0
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`858ffd17`):**

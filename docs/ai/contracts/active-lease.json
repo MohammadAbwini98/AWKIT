@@ -1,37 +1,35 @@
 {
-  "task": "awkit-djnl-1-l18-locator-quality-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-locator-quality-0922.json",
+  "task": "awkit-djnl-1-pin-note-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-pin-note-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T09:59:07.732Z",
-  "acquired_at_commit": "858ffd174c295262b2fc87b16d3592428b00371d",
+  "acquired_at": "2026-09-22T10:22:45.978Z",
+  "acquired_at_commit": "d6b306f0f76967c314d2cd5bafc398eb57379ed1",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-1-l18-locator-quality-0922.json",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-1-pin-0-8b-0922.json",
+    "docs/ai/contracts/awkit-djnl-1-pin-note-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
-    "mock-site/README.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "4332dc7d62d24af63839bbe0c6482525b573c02426b4254706f94cd39a33047c",
-    "docs/ai/CURRENT_STATE.md": "6072ef23f459f0570881ca0320e685e1da49e3495a2ca34ff40674420afe689e",
-    "docs/ai/DECISIONS.md": "3df45678d5ab023012b912122b41dcc4a70a4034c9d58bb079b1cecad842a2fc",
-    "docs/ai/HANDOFF.md": "49341289b59bbc8216f220102ce10366094bf346ea6520db455eff382dcae54d",
-    "docs/ai/KNOWN_ISSUES.md": "26025290534747e9f17bcd9b2fcc337b1aa9ba15da774bd65c29165ebe7ca721",
-    "docs/ai/TASK_LOG.md": "d9ee7432a272a50a073ca35d87776224c4c76b4d0a2012bfc8670e249a64c2d5",
-    "docs/ai/contracts/awkit-djnl-1-l18-locator-quality-0922.json": "2e07a3b7f663a3758a8003178709c7201c1b9915025965fa5d042822866a854c",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "d73f0c48408159cd820bea2cc8d652f9457e00350f6b8ed5baee2f584c7ed9d2",
-    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md": "3ac7a1855cb5020cd32c8060e1b1632531b08c2194c5e0eb7dd539a91532a2e7",
-    "mock-site/README.md": "0fb0dc5e4684969b2a58ece7de9b9f2b758593de76511f997b0c991eecb9cc6e",
+    "docs/ai/COMMANDS.md": "e4b4009298fe1f44663ddbc52dc74796fc3770f278a796d384ca2bd0465504b2",
+    "docs/ai/CURRENT_STATE.md": "15312424d325c371b0ac7f8ed80a9d40fe07862c634c23777c321364f91ad78b",
+    "docs/ai/DECISIONS.md": "d41d2862b09248a85c7df385bedc2c50c11c0c1e8e21d2784dff053cf6f11e21",
+    "docs/ai/HANDOFF.md": "a6c802d6d71843022fa26a72eaf952eb16d50252de5d550485db48d2bfc32783",
+    "docs/ai/TASK_LOG.md": "18fac8a4908bac789f1162bb8bd02608d425a74abd96924e594dd3185a414bb2",
+    "docs/ai/contracts/active-lease.json": "e70fa199158674748061d0e866a19fd9376b00cc421ba79e4745a6cba9fd2056",
+    "docs/ai/contracts/awkit-djnl-1-pin-0-8b-0922.json": "98d518b233d9ab888165a7234a327a8b17531d71d26d3c925d5648314f379edd",
+    "docs/ai/contracts/awkit-djnl-1-pin-note-0922.json": "ad91746ac99dcedb8399203b64bd1c6a42e4ded376e1a5f1e2293b19157c1d7d",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "ef1305d0768d6a8cfa245d2956deb45e1c033e13eaf05856408b38c9cbba7069",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -47,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T09:59:49.098Z",
-  "released_reason": "locator quality gate noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T09:59:49.099Z"
+  "released_at": "2026-09-22T10:23:14.995Z",
+  "released_reason": "0.8B pin noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T10:23:14.996Z"
 }

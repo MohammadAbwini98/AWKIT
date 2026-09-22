@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L1.8/L3: the real-model locator quality gate (`awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L1.2: the Qwen3.5-0.8B pack is pinned beside the 4B (`awkit-djnl.1`)
+
+- **Owner instruction, in session:** pin the 0.8B pack and run `verify:ai-model-live` on it.
+- **Implementer's choices within it:**
+  - **Added, not replaced.** The 4B entry stays. Retiring an accepted pack would make an installed 4B
+    read incompatible, and that was not asked for. The store keeps one active pack by checksum, so
+    either can be imported. Whether the 4B, which fails L1.8 here, stays pinned is the owner's call.
+  - **Every field measured.** Size and SHA-256 come from the file, and context length and quantization
+    from its own GGUF header, read by the verifier (not the runtime) so the check is independent of the
+    runtime being in-process. `verify:ai-model-live-0-8b` now fails if the entry and the header disagree,
+    and it requires a `qwen35` architecture, the one the host's template is written for.
+  - **`--pack` on the existing gate, not a copy.** It follows `benchmark:ai-model`'s pattern, and the
+    named script exists because the lease guard refuses `npm run x -- args`.
+- **Not decided here:** retiring the 4B; the unbuilt quality gates; the go/no-go.
+
+### 2026-09-22 — Phase L L1.8/L3: the real-model locator quality gate (`awkit-djnl.1`)
 
 - **Owner instruction, in session:** implement `verify:ai-locator-quality-live`. It validates the real
   0.8B's locator plans against actual browser elements, through the production compiler and Playwright

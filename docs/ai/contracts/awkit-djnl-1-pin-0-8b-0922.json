@@ -102,5 +102,26 @@
     "qa_basis": "The pinned entry is measured, not copied: size and SHA-256 from the file, context length and quantization from its own GGUF header, each asserted by verify:ai-model-live-0-8b 23/0, with verify:ai-model-pack 46/0 and the build passing.",
     "qa_known_limitations": "The 4B entry stays pinned: retiring an accepted pack was not requested and is the owner's call. validate:offline was NOT RUN: it checks the packaged runtime, browser and dependency manifest, and the model pack is never bundled. verify:ai-model-live on the 4B was NOT RUN after the --pack change. No independent QC review was run: subagents were not requested. L1 stays open.",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-pin-0-8b-0922:release:2026-09-22T10:13:30.233Z",
+        "task": "awkit-djnl-1-pin-0-8b-0922",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/THIRD_PARTY_NOTICES.md",
+          "src/offline/AiModelManifest.ts"
+        ],
+        "acquired_at": "2026-09-22T10:13:30.233Z",
+        "acquired_at_commit": "3fa1532731a1b5ebc4e98cd41f47fb54bf2337ab",
+        "released_at": "2026-09-22T10:21:12.772Z",
+        "released_reason": "Qwen3.5-0.8B pinned in d6b306f0, verify:ai-model-live-0-8b 23/0, verify:ai-model-pack 46/0, build PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

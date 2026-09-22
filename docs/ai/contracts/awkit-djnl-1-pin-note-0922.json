@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-pin-note-0922",
+    "title": "Record the Qwen3.5-0.8B pin and verify:ai-model-live on it on L1",
+    "objective": "At d6b306f0 the re-scoped Qwen3.5-0.8B pack is pinned in AI_MODEL_MANIFEST beside the 4B, measured from the file and its own GGUF header, with its Apache-2.0 notice, and verify:ai-model-live-0-8b passes 23/0 (17/1 unpinned at 3fa15327, the one failure the missing entry), verify:ai-model-pack 46/0 with 2 pinned packs. Append a note to awkit-djnl.1 giving the pin, the results and what stays open (verify:ai-authoring-quality-live and verify:ai-error-quality-live not built, the owner's go/no-go and whether the 4B stays pinned). Refresh the JSONL export. Nothing closes: awkit-djnl.1 stays in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d6b306f0",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.1 stays in_progress with a note naming the pin commit and the live result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents: 9 outstanding / 294 closed with 135 edges, unchanged, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-pin-note-0922:project-state:2026-09-22T10:22:45.978Z",
+        "task": "awkit-djnl-1-pin-note-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T10:22:45.978Z",
+        "acquired_at_commit": "d6b306f0f76967c314d2cd5bafc398eb57379ed1",
+        "released_at": "2026-09-22T10:23:14.995Z",
+        "released_reason": "0.8B pin noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

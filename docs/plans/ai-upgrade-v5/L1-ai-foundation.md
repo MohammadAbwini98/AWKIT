@@ -1045,6 +1045,53 @@ from the temporary app directory.
 `verify:mock-site` 234/234, `verify:verifier-classification` 248 scripts. Build PASS,
 `typecheck:scripts` PASS.
 
+#### The 0.8B pinned, and `verify:ai-model-live` on it (2026-09-22): PASS. Evidence: `verify:ai-model-live-0-8b` at `d6b306f0`
+
+**How the pin was measured.** `verify:ai-model-live` gained `--pack` (a `PACKS` table: the 4B default,
+found as before, and the 0.8B from `~/Downloads`, each with its published size and SHA-256) and a GGUF
+v2/v3 header reader. The reader walks every key/value and skips the tokenizer arrays.
+`verify:ai-model-live-0-8b` runs it on the 0.8B.
+
+**Run first unpinned** (`3fa15327`): 17 passed, 1 failed. The one failure was the expected "lists the
+measured pack", and that run is where the entry's values come from.
+
+| Field | Measured | Source |
+|---|---|---|
+| Size | 527,502,816 bytes | the file on disk (equal to the published object) |
+| SHA-256 | `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec` | the file on disk (equal to the published object) |
+| Format | GGUF v3, 320 tensors, 34 keys | its header |
+| `general.architecture` / `general.name` | `qwen35` / `Qwen_Qwen3.5 0.8B` | its header |
+| `qwen35.context_length` → `contextTokens` | 262,144 | its header |
+| `general.file_type` → `quantization` | 15 → Q4_K_M | its header |
+
+**The pin** (`d6b306f0`, release lease `awkit-djnl-1-pin-0-8b-0922`):
+
+- A second entry, `qwen3.5-0.8b-q4-k-m`, beside the 4B.
+- Apache-2.0, with its notice in `resources/THIRD_PARTY_NOTICES.md`.
+- `AI_RUNTIME_PIN` unchanged.
+- The 4B stays pinned: retiring an accepted pack was not requested. The store keeps one active pack,
+  matched by checksum, so either can be imported.
+
+**Pinned: `verify:ai-model-live-0-8b` 23/0.**
+
+- The pack is the published object, the runtime pin holds and the entry is listed.
+- The pack is a `qwen35` model, the architecture the host's template is written for.
+- The entry's context length and quantization are the header's. The gate fails if either stops matching.
+- It imported through `AiModelPackStore` with the real manifest in 3 s, reads installed, and load
+  verification re-hashed and accepted it.
+- All 13 live-harness steps passed, among them determinism, injection text, the think block, prompt
+  bound, truncation, deadline, yield and shutdown. Cancel settled in 4.0 s, and a host killed
+  mid-inference restarted and reloaded.
+
+**Also:** `verify:ai-model-pack` 46/0 with 2 pinned packs, build PASS.
+
+**Not run:**
+
+- `verify:ai-model-live` on the 4B after the `--pack` change;
+- `validate:offline`, which checks the packaged runtime, browser and dependency manifest, while a model
+  pack is never bundled;
+- an independent QC review (no subagent requested).
+
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
 The owner has read the NO-GO above and decided that Phase L **development** continues without waiting
@@ -1056,7 +1103,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1 task | State | Counts toward |
 |---|---|---|
 | L1.1 AiService host | PASS — `verify:ai-host` 135/0 + 12/12 mutations; `verify:ai-host-electron` 20/0 (`7f441a38`) | development + release |
-| L1.2 Model pack, manifest and runtime pin | PASS — `verify:ai-model-pack` 46/46, 1 pinned pack (`a28050c7`) | development + release |
+| L1.2 Model pack, manifest and runtime pin | PASS — `verify:ai-model-pack` 46/46, 1 pinned pack (`a28050c7`); the re-scoped Qwen3.5-0.8B pinned beside the 4B from its own measurements, with its notice (`d6b306f0`): `verify:ai-model-pack` 46/0 with 2 pinned packs, `verify:ai-model-live-0-8b` 23/0 | development + release |
 | L1.3 Output contract | PASS — `verify:ai-adapter` 102/0, `verify:ai-redaction` 52/0 | development + release |
 | L1.4 Autonomy policy, audit, revert | PASS — `verify:ai-autonomy-policy` 62/0, `verify:ai-audit-revert` 69/0 | development + release |
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
@@ -1089,7 +1136,9 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
    passes. L7 cannot be entered on this authorization. *(2026-09-22: on the re-scoped 0.8B,
    `benchmark:ai-model-0-8b` is GO on all 8 and `verify:ai-locator-quality-live` passes, 14/0 at
    `858ffd17`. `verify:ai-model-live` has not run on it and the pack is not pinned, so L1.8 is still
-   unmet for release and L7 still cannot be entered.)*
+   unmet for release and L7 still cannot be entered. Later the same day the pack was pinned and
+   `verify:ai-model-live-0-8b` passed 23/0 (`d6b306f0`). L1 still owes two unbuilt quality gates and
+   the owner's go/no-go, so L7 still cannot be entered.)*
 
 **Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
 machine with all 12 logical CPUs, and the 4B still FAILS there (see "Re-scoped to the qualifying
@@ -1106,15 +1155,15 @@ ceiling at its own 256-token cap too, and `packets:locatorUpgrade` measures the 
 stand-in any more. Real model plans are now proven on real pages: `verify:ai-locator-quality-live` is
 14/0 with 0 false targets (`858ffd17`; see "The real 0.8B's locator plans proven on real pages").
 
+**Done since (`d6b306f0`; see "The 0.8B pinned, and `verify:ai-model-live` on it"):** the 0.8B is pinned in
+`AI_MODEL_MANIFEST` with its license notice, and `AI_RUNTIME_PIN.build` was already set.
+`verify:ai-model-pack` is 46/0 with 2 pinned packs, and `verify:ai-model-live-0-8b` is 23/0.
+
 **Still owed before L1 can be accepted:**
 
-1. The measured 0.8B pinned in `AI_MODEL_MANIFEST`, and `AI_RUNTIME_PIN.build` set.
-2. Its license in the third-party notices.
-3. `verify:ai-model-pack` on the pinned pack.
-4. `verify:ai-model-live` on the 0.8B. The script still looks for the 4B pack.
-5. The other live quality gates: `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live`,
+1. The other live quality gates: `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live`,
    neither built.
-6. The owner's go/no-go on the re-scoped model.
+2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 
@@ -1123,7 +1172,8 @@ So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,
 `verify:ai-autonomy-policy` (tier matrix, T3 unreachable, cap, self-demotion), `verify:ai-audit-revert`;
 `verify:ai-deadlines` (every feature's own deadline, on a virtual clock);
-live: `verify:ai-model-live` (`NOT RUN` without pack), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
+live: `verify:ai-model-live` (`NOT RUN` without pack; `verify:ai-model-live-0-8b` runs it on the 0.8B, with the pack's own
+GGUF header checked against its manifest entry), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
 and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline, each failure
 analysis accepted and classified as its fixture requires, and each locator job accepted; `NOT RUN` without pack),
 `verify:ai-locator-quality-live` (the 0.8B's locator plans proven by the product in real Chromium on the Feature Test Lab
