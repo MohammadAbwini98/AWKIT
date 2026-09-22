@@ -31,7 +31,7 @@
 import type { AiPromptSpec } from "./AiPromptBuilder";
 import type { AiOutputSchema } from "./AiOutputContract";
 import type { ConcurrentRunReport, FailureAnalysisBody, StoredFailureAnalysis } from "../reports/ExecutionReport";
-import type { ExecutionEvidenceEvent } from "../runner/evidence/ExecutionEvidence";
+import { requestRelations, type ExecutionEvidenceEvent, type RequestRelation } from "../runner/evidence/ExecutionEvidence";
 import { DIRECT_FAILURE_CAUSES, type FailureCauseBaseline } from "../runner/evidence/FailureCauseBaseline";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "../security/authz/AiAutonomyPolicy";
 import { findResidualSecrets } from "../semantic/SemanticPolicyValidator";
@@ -231,6 +231,12 @@ export interface FailureAnalysisRequest {
   mustConclude: boolean;
   /** Each offered event's {@link StepRelation}: what may be primary evidence, and what the lines say. */
   stepRelations: Readonly<Record<string, StepRelation>>;
+  /**
+   * Each offered request event's runtime {@link RequestRelation}, from L5a's request provenance. Only
+   * events that carry provenance have an entry: an older report's events, and every non-request event,
+   * have none, and are judged by their step alone.
+   */
+  requestRelations: Readonly<Record<string, RequestRelation>>;
 }
 
 /**
@@ -253,9 +259,7 @@ export type StepRelation = "failedStep" | "earlierStep" | "afterFailure" | "unkn
  * else the last runner record: an instance that went on past an earlier failure failed at its last one.
  */
 export function stepRelations(entry: Pick<FailureBatchEntry, "baseline" | "events">): Map<string, StepRelation> {
-  const runners = entry.events.filter((event) => event.source === "runner.failure");
-  const failed = runners.find((event) => entry.baseline.evidenceIds.includes(event.id)) ?? runners[runners.length - 1];
-  const at = failed?.context?.stepIndex;
+  const at = failedStepRecord(entry)?.context?.stepIndex;
   return new Map(
     entry.events.map((event): [string, StepRelation] => {
       const step = event.context?.stepIndex;
@@ -265,16 +269,25 @@ export function stepRelations(entry: Pick<FailureBatchEntry, "baseline" | "event
   );
 }
 
+/** The failed step's runner record: the one the baseline cites, else the last. Both relations read it. */
+function failedStepRecord(entry: Pick<FailureBatchEntry, "baseline" | "events">): ExecutionEvidenceEvent | undefined {
+  const runners = entry.events.filter((event) => event.source === "runner.failure");
+  return runners.find((event) => entry.baseline.evidenceIds.includes(event.id)) ?? runners[runners.length - 1];
+}
+
 /** A conclusion's fields, in the order the grammar writes them: cite first, then explain. */
 const CONCLUSION_FIELDS = ["primaryEvidenceIds", "secondaryEvidenceIds", "category", "explanation", "investigationSteps"] as const;
 
 /**
  * Whether an event can be a conclusion's primary evidence. The runner's own failure record says THAT
  * the step failed, never why: on a bare timeout Qwen3.5-0.8B cited it as its own cause (2026-09-22). And
- * nothing captured after the failed step can have caused it.
+ * nothing captured after the failed step, or requested after its failure was recorded, can have caused it.
+ * Every other request relation stays a candidate: a link says which request was the step's own, not that
+ * nothing else could matter, and "requested during the step, not linked" is time alone, which neither
+ * proves nor rules out a cause.
  */
-const isCauseEvidence = (event: ExecutionEvidenceEvent, relation: StepRelation | undefined): boolean =>
-  event.source !== "runner.failure" && relation !== "afterFailure";
+const isCauseEvidence = (event: ExecutionEvidenceEvent, relation: StepRelation | undefined, request: RequestRelation | undefined): boolean =>
+  event.source !== "runner.failure" && relation !== "afterFailure" && request !== "issuedAfterFailure";
 
 /** A line's step, stated only when the offered events do not all share one. Product text, never page text. */
 const STEP_LABEL: Readonly<Record<StepRelation, string>> = {
@@ -282,6 +295,48 @@ const STEP_LABEL: Readonly<Record<StepRelation, string>> = {
   earlierStep: "during an earlier step",
   afterFailure: "after the failed step",
   unknown: "step unknown"
+};
+
+/**
+ * What a line says about its event's relation to the failed step. A request with runtime provenance says
+ * what the runner observed of it, which is more than its step stamp: that stamp is when it was ANSWERED,
+ * so a request an earlier step issued, or another step waited for, reads "during the failed step" by
+ * stamp alone. Confirmed links are named as such; a request that only ran at the same time says it is
+ * not linked. Without provenance, or where its start was not seen, the step stamp speaks, as before.
+ */
+function relevanceLabel(event: ExecutionEvidenceEvent, step: StepRelation, request: RequestRelation | undefined, failedAt: number | undefined): string {
+  const via = event.request?.link === "navigation" ? "navigation" : "wait";
+  switch (request) {
+    case "linkedToFailedStep":
+      return via === "navigation" ? "the failed step's own navigation" : "the failed step waited for this request";
+    case "linkedToOtherStep": {
+      const other = failedAt !== undefined && (event.request?.linkStepIndex ?? failedAt) > failedAt ? "a later step" : "an earlier step";
+      return via === "navigation" ? `${other}'s own navigation` : `${other} waited for this request`;
+    }
+    case "issuedBeforeFailedStep":
+      return "requested before the failed step began";
+    case "issuedAfterFailure":
+      return "requested after the failure";
+    case "duringFailedStep":
+      return "requested during the failed step, not linked to it";
+    case "offTargetDuringFailedStep":
+      return "requested during the failed step by another page or frame";
+    default:
+      return STEP_LABEL[step];
+  }
+}
+
+/**
+ * Selection rank by relevance: the failed step's own request, then the failed step's other events, then
+ * earlier, unknown or off-target ones, then anything from after the failure. Without provenance this is
+ * exactly the step order it replaced (failed, then earlier or unknown, then after).
+ */
+const relevanceRank = (step: StepRelation, request: RequestRelation | undefined): number => {
+  if (request === "issuedAfterFailure" || step === "afterFailure") return 3;
+  if (request === "linkedToFailedStep") return 0;
+  if (request === "duringFailedStep") return 1;
+  if (request !== undefined && request !== "unknown") return 2;
+  return step === "failedStep" ? 1 : 2;
 };
 
 // A conclusion's fields in the grammar's order. v1 said "set insufficient to true and say so": the one
@@ -304,23 +359,34 @@ const INSTRUCTIONS =
   "brief things to check. Use only ids from the list, and do not invent evidence. The run has already " +
   "finished; you cannot change its result, retry it, or change any setting.";
 
+// Added only where a line states a request's runtime provenance, so every request without it (an older
+// report, the labelled set's buffer-built rows, the benchmark packet) keeps the prompt it had.
+const REQUEST_INSTRUCTIONS =
+  " A request line may say how the runner saw it: one the failed step waited for or navigated to is that " +
+  "step's own request; one only requested while the step ran is not linked to it, and that timing alone " +
+  "does not make it the step's.";
+
 /**
  * Which events are offered when there are more than the budget holds, most important first.
  *
  * The baseline's own citations go first, and its FIRST id absolutely, so every event the report's
- * deterministic cause names is one the model can see and cite. Everything else follows by step (the
- * failed step's own, then earlier or unknown, then after the failure, which "closest to the failure"
- * alone would have put first), then severity, then closeness to the failure. This decides WHAT is shown,
- * not the order it is shown in: the lines are shown newest first, so the baseline's pick is not presented
- * as the answer.
+ * deterministic cause names is one the model can see and cite. Everything else follows by relevance
+ * ({@link relevanceRank}: the failed step's own request, the failed step's other events, earlier, unknown
+ * or off-target ones, then after the failure, which "closest to the failure" alone would have put first),
+ * then severity, then closeness to the failure. This decides WHAT is shown, not the order it is shown in:
+ * the lines are shown newest first, so neither the baseline's pick nor a link is presented as the answer.
  */
-function rankEvidence(entry: FailureBatchEntry, relations: ReadonlyMap<string, StepRelation>, limit: number): ExecutionEvidenceEvent[] {
+function rankEvidence(
+  entry: FailureBatchEntry,
+  relations: ReadonlyMap<string, StepRelation>,
+  requests: ReadonlyMap<string, RequestRelation>,
+  limit: number
+): ExecutionEvidenceEvent[] {
   const citedRank = new Map(entry.baseline.evidenceIds.map((id, index) => [id, index]));
-  const stepRank = (id: string) => ({ failedStep: 0, earlierStep: 1, unknown: 1, afterFailure: 2 })[relations.get(id) ?? "unknown"];
   const weight = (event: ExecutionEvidenceEvent): number =>
     citedRank.has(event.id)
       ? (citedRank.get(event.id) as number)
-      : 1_000 + stepRank(event.id) * 10 + (event.severity === "error" ? 0 : event.severity === "warning" ? 1 : 2);
+      : 1_000 + relevanceRank(relations.get(event.id) ?? "unknown", requests.get(event.id)) * 10 + (event.severity === "error" ? 0 : event.severity === "warning" ? 1 : 2);
   return [...entry.events].sort((a, b) => weight(a) - weight(b) || b.offsetMs - a.offsetMs).slice(0, limit);
 }
 
@@ -344,17 +410,23 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
   // secrets. Without it the model would be told a request failed and never told which one.
   const isUrlField = (key: string): boolean => /(?:url|Url|URL)$/.test(key);
   const relations = stepRelations(entry);
-  const ranked = rankEvidence(entry, relations, limits.maxEvidencePerAnalysis);
-  // A step stated on every line only where the candidates span more than one: a failure whose evidence
-  // all comes from one step (every labelled case, and the benchmark's packet) is sent as it was before.
-  const mixedSteps = new Set(ranked.map((event) => relations.get(event.id))).size > 1;
+  const failed = failedStepRecord(entry);
+  // The same failed step as `relations`, so a request and its step stamp are read against one record.
+  const requests = requestRelations(entry.events, failed);
+  const ranked = rankEvidence(entry, relations, requests, limits.maxEvidencePerAnalysis);
+  const labelOf = (event: ExecutionEvidenceEvent) => relevanceLabel(event, relations.get(event.id) ?? "unknown", requests.get(event.id), failed?.context?.stepIndex);
+  // A request's provenance is stated wherever the runner observed it; a step only where the candidates
+  // span more than one. A failure without provenance whose evidence all comes from one step (every
+  // buffer-built labelled case, and the benchmark's packet) is sent exactly as it was before.
+  const provenanceShown = ranked.some((event) => (requests.get(event.id) ?? "unknown") !== "unknown");
+  const labelled = provenanceShown || new Set(ranked.map(labelOf)).size > 1;
   const lineOf = (event: ExecutionEvidenceEvent): string => {
     const fields = Object.entries(event.payload)
       .filter(([key]) => !isUrlField(key))
       .map(([key, value]) => `${key}=${String(value)}`)
       .join(" ");
     const repeat = event.repeatCount > 1 ? ` x${event.repeatCount}` : "";
-    const step = mixedSteps ? ` [${STEP_LABEL[relations.get(event.id) ?? "unknown"]}]` : "";
+    const step = labelled ? ` [${labelOf(event)}]` : "";
     return `${event.id}: ${event.source} (${event.severity}) at ${event.offsetMs}ms${step}${repeat} ${fields}`;
   };
 
@@ -380,7 +452,7 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
     .sort((a, b) => a.offsetMs - b.offsetMs)
     .reverse();
   const ids = evidence.map((event) => event.id);
-  const causeIds = evidence.filter((event) => isCauseEvidence(event, relations.get(event.id))).map((event) => event.id);
+  const causeIds = evidence.filter((event) => isCauseEvidence(event, relations.get(event.id), requests.get(event.id))).map((event) => event.id);
   // The deterministic cause still decides the evidence tier: it is not shown, but it is authoritative.
   const mustConclude = causeIds.length > 0 && DIRECT_FAILURE_CAUSES.has(entry.baseline.cause);
   const routes = evidence.flatMap((event) =>
@@ -399,7 +471,7 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
 
   return {
     prompt: {
-      instructions: INSTRUCTIONS,
+      instructions: provenanceShown ? INSTRUCTIONS + REQUEST_INSTRUCTIONS : INSTRUCTIONS,
       maxDataChars: limits.maxDataChars,
       fields: [
         // Bounded by construction, so the field cap is the data budget: the 1,200-character default is
@@ -433,8 +505,8 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
             required: [...CONCLUSION_FIELDS],
             properties: {
               // Closed enum: the grammar cannot name an event this request did not offer, nor rest a
-              // conclusion on the runner's own record or on anything captured after the failed step.
-              // (With no cause evidence it is never decoded.)
+              // conclusion on the runner's own record, on anything captured after the failed step, or on
+              // a request issued after its failure. (With no cause evidence it is never decoded.)
               primaryEvidenceIds: {
                 type: "array",
                 minItems: 1,
@@ -453,7 +525,8 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
     group,
     evidence,
     mustConclude,
-    stepRelations: Object.fromEntries(evidence.map((event) => [event.id, relations.get(event.id) ?? "unknown"]))
+    stepRelations: Object.fromEntries(evidence.map((event) => [event.id, relations.get(event.id) ?? "unknown"])),
+    requestRelations: Object.fromEntries(evidence.flatMap((event) => (requests.has(event.id) ? [[event.id, requests.get(event.id) as RequestRelation]] : [])))
   };
 }
 
@@ -475,7 +548,7 @@ export type FailureAnalysisRejectionCode =
   /** An evidence id this request did not offer. The closed enum should have stopped it; this is the re-check. */
   | "UNKNOWN_EVIDENCE"
   | "DUPLICATE_EVIDENCE"
-  /** A conclusion citing no evidence of cause — none at all, only the runner's own failure record, or an event from after the failed step. A guess wearing a verdict. */
+  /** A conclusion citing no evidence of cause — none at all, only the runner's own failure record, an event from after the failed step, or a request issued after its failure. A guess wearing a verdict. */
   | "UNSUPPORTED_CONCLUSION"
   /** An answer that declines and concludes: the retired `insufficient` flag against the list, or a decline beside a direct cause. */
   | "CONTRADICTORY"
@@ -524,7 +597,9 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
   const raw = conclusions[0];
   if (!isRecord(raw) || Object.keys(raw).some((key) => !(CONCLUSION_FIELDS as readonly string[]).includes(key))) return reject("MALFORMED", at);
   const offered = new Set(request.evidence.map((event) => event.id));
-  const causes = new Set(request.evidence.filter((event) => isCauseEvidence(event, request.stepRelations[event.id])).map((event) => event.id));
+  const causes = new Set(
+    request.evidence.filter((event) => isCauseEvidence(event, request.stepRelations[event.id], request.requestRelations[event.id])).map((event) => event.id)
+  );
   const seen = new Set<string>();
   const readIds = (field: "primaryEvidenceIds" | "secondaryEvidenceIds"): string[] | FailureAnalysisRejection => {
     const list = raw[field];

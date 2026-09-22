@@ -1,0 +1,828 @@
+{
+  "generatedBy": "npm run verify:request-provenance (with no capture committed, or -- --write-analysis-cases)",
+  "capturedAt": "2026-09-22T16:06:49.075Z",
+  "cases": [
+    {
+      "key": "q-linked-heartbeat",
+      "status": "failed",
+      "durationMs": 7048,
+      "diagnostics": {
+        "schemaVersion": 1,
+        "evidence": [
+          {
+            "id": "ev1",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 5237,
+            "lastOffsetMs": 5237,
+            "context": {
+              "flowId": "rpv-flow-q-linked-heartbeat",
+              "nodeId": "qh-save",
+              "stepIndex": 4,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-linked-heartbeat-mucv9ogr",
+              "instanceId": "rpv-q-linked-heartbeat-mucv9ogr-2026-09-22T16-06-34-011Z-8d355032-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/heartbeat",
+              "status": 503,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/heartbeat|status=503",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq2",
+              "redirects": 0,
+              "issuedAtOffsetMs": 5235,
+              "issuedStepIndex": 4
+            }
+          },
+          {
+            "id": "ev2",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 5237,
+            "lastOffsetMs": 5237,
+            "context": {
+              "flowId": "rpv-flow-q-linked-heartbeat",
+              "nodeId": "qh-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "executionId": "rpv-q-linked-heartbeat-mucv9ogr",
+              "instanceId": "rpv-q-linked-heartbeat-mucv9ogr-2026-09-22T16-06-34-011Z-8d355032-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+            "repeatCount": 1,
+            "truncated": false
+          },
+          {
+            "id": "ev3",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 6185,
+            "lastOffsetMs": 6185,
+            "context": {
+              "flowId": "rpv-flow-q-linked-heartbeat",
+              "nodeId": "qh-save",
+              "stepIndex": 4,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-linked-heartbeat-mucv9ogr",
+              "instanceId": "rpv-q-linked-heartbeat-mucv9ogr-2026-09-22T16-06-34-011Z-8d355032-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/save",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/save|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq3",
+              "redirects": 0,
+              "issuedAtOffsetMs": 6185,
+              "issuedStepIndex": 4,
+              "link": "responseWait",
+              "linkStepIndex": 4
+            }
+          },
+          {
+            "id": "ev4",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 6186,
+            "lastOffsetMs": 6186,
+            "context": {
+              "flowId": "rpv-flow-q-linked-heartbeat",
+              "nodeId": "qh-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "executionId": "rpv-q-linked-heartbeat-mucv9ogr",
+              "instanceId": "rpv-q-linked-heartbeat-mucv9ogr-2026-09-22T16-06-34-011Z-8d355032-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "repeatCount": 1,
+            "truncated": false
+          },
+          {
+            "id": "ev5",
+            "schemaVersion": 1,
+            "source": "runner.failure",
+            "offsetMs": 6215,
+            "lastOffsetMs": 6215,
+            "context": {
+              "flowId": "rpv-flow-q-linked-heartbeat",
+              "nodeId": "qh-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "frame": "main",
+              "executionId": "rpv-q-linked-heartbeat-mucv9ogr",
+              "instanceId": "rpv-q-linked-heartbeat-mucv9ogr-2026-09-22T16-06-34-011Z-8d355032-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "kind": "timeout",
+              "stepType": "click",
+              "message": "Unexpected API status on step \"qh-save\" (id qh-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout."
+            },
+            "dedupeKey": "runner.failure|error|kind=timeout|stepType=click|message=Unexpected API status on step \"qh-save\" (id qh-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout.",
+            "repeatCount": 1,
+            "truncated": false
+          }
+        ],
+        "summary": {
+          "accepted": 5,
+          "repeats": 0,
+          "truncatedEvents": 0,
+          "dropped": {
+            "perSource": 0,
+            "perInstance": 0,
+            "instanceBytes": 0,
+            "runBytes": 0,
+            "eventBytes": 0,
+            "protected": 0
+          },
+          "bytes": 811,
+          "residualSecrets": 0
+        },
+        "cause": {
+          "schemaVersion": 1,
+          "cause": "httpError",
+          "evidenceIds": [
+            "ev1",
+            "ev3",
+            "ev5"
+          ],
+          "window": "failingStep",
+          "reason": "The server answered a request with an error status."
+        }
+      }
+    },
+    {
+      "key": "q-issued-before",
+      "status": "failed",
+      "durationMs": 2877,
+      "diagnostics": {
+        "schemaVersion": 1,
+        "evidence": [
+          {
+            "id": "ev1",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 2121,
+            "lastOffsetMs": 2121,
+            "context": {
+              "flowId": "rpv-flow-q-issued-before",
+              "nodeId": "qi-save",
+              "stepIndex": 4,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-issued-before-mucv9ogs",
+              "instanceId": "rpv-q-issued-before-mucv9ogs-2026-09-22T16-06-34-012Z-362f5e43-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/inventory",
+              "status": 502,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/inventory|status=502",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq2",
+              "redirects": 0,
+              "issuedAtOffsetMs": 1117,
+              "issuedStepIndex": 3
+            }
+          },
+          {
+            "id": "ev2",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 2121,
+            "lastOffsetMs": 2121,
+            "context": {
+              "flowId": "rpv-flow-q-issued-before",
+              "nodeId": "qi-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "executionId": "rpv-q-issued-before-mucv9ogs",
+              "instanceId": "rpv-q-issued-before-mucv9ogs-2026-09-22T16-06-34-012Z-362f5e43-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+            "repeatCount": 1,
+            "truncated": false
+          },
+          {
+            "id": "ev3",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 2642,
+            "lastOffsetMs": 2642,
+            "context": {
+              "flowId": "rpv-flow-q-issued-before",
+              "nodeId": "qi-save",
+              "stepIndex": 4,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-issued-before-mucv9ogs",
+              "instanceId": "rpv-q-issued-before-mucv9ogs-2026-09-22T16-06-34-012Z-362f5e43-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/save",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/save|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq3",
+              "redirects": 0,
+              "issuedAtOffsetMs": 2631,
+              "issuedStepIndex": 4,
+              "link": "responseWait",
+              "linkStepIndex": 4
+            }
+          },
+          {
+            "id": "ev4",
+            "schemaVersion": 1,
+            "source": "runner.failure",
+            "offsetMs": 2643,
+            "lastOffsetMs": 2643,
+            "context": {
+              "flowId": "rpv-flow-q-issued-before",
+              "nodeId": "qi-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "frame": "main",
+              "executionId": "rpv-q-issued-before-mucv9ogs",
+              "instanceId": "rpv-q-issued-before-mucv9ogs-2026-09-22T16-06-34-012Z-362f5e43-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "kind": "timeout",
+              "stepType": "click",
+              "message": "Unexpected API status on step \"qi-save\" (id qi-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout."
+            },
+            "dedupeKey": "runner.failure|error|kind=timeout|stepType=click|message=Unexpected API status on step \"qi-save\" (id qi-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout.",
+            "repeatCount": 1,
+            "truncated": false
+          },
+          {
+            "id": "ev5",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 2644,
+            "lastOffsetMs": 2644,
+            "context": {
+              "flowId": "rpv-flow-q-issued-before",
+              "nodeId": "qi-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "executionId": "rpv-q-issued-before-mucv9ogs",
+              "instanceId": "rpv-q-issued-before-mucv9ogs-2026-09-22T16-06-34-012Z-362f5e43-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "repeatCount": 1,
+            "truncated": false
+          }
+        ],
+        "summary": {
+          "accepted": 5,
+          "repeats": 0,
+          "truncatedEvents": 0,
+          "dropped": {
+            "perSource": 0,
+            "perInstance": 0,
+            "instanceBytes": 0,
+            "runBytes": 0,
+            "eventBytes": 0,
+            "protected": 0
+          },
+          "bytes": 803,
+          "residualSecrets": 0
+        },
+        "cause": {
+          "schemaVersion": 1,
+          "cause": "httpError",
+          "evidenceIds": [
+            "ev1",
+            "ev3",
+            "ev4"
+          ],
+          "window": "failingStep",
+          "reason": "The server answered a request with an error status."
+        }
+      }
+    },
+    {
+      "key": "q-off-target",
+      "status": "failed",
+      "durationMs": 2820,
+      "diagnostics": {
+        "schemaVersion": 1,
+        "evidence": [
+          {
+            "id": "ev1",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 1433,
+            "lastOffsetMs": 1433,
+            "context": {
+              "flowId": "rpv-flow-q-off-target",
+              "nodeId": "qo-save",
+              "stepIndex": 4,
+              "frame": "main",
+              "pageId": "p2",
+              "executionId": "rpv-q-off-target-mucv9ogt",
+              "instanceId": "rpv-q-off-target-mucv9ogt-2026-09-22T16-06-34-013Z-f9400416-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/popup",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/popup|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq4",
+              "redirects": 0,
+              "issuedAtOffsetMs": 1432,
+              "issuedStepIndex": 4
+            }
+          },
+          {
+            "id": "ev2",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 1433,
+            "lastOffsetMs": 2483,
+            "context": {
+              "flowId": "rpv-flow-q-off-target",
+              "nodeId": "qo-save",
+              "stepIndex": 4,
+              "pageId": "p2",
+              "executionId": "rpv-q-off-target-mucv9ogt",
+              "instanceId": "rpv-q-off-target-mucv9ogt-2026-09-22T16-06-34-013Z-f9400416-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "repeatCount": 3,
+            "truncated": false
+          },
+          {
+            "id": "ev3",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 1496,
+            "lastOffsetMs": 1496,
+            "context": {
+              "flowId": "rpv-flow-q-off-target",
+              "nodeId": "qo-save",
+              "stepIndex": 4,
+              "frame": "child",
+              "pageId": "p1",
+              "executionId": "rpv-q-off-target-mucv9ogt",
+              "instanceId": "rpv-q-off-target-mucv9ogt-2026-09-22T16-06-34-013Z-f9400416-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/widget",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/widget|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq5",
+              "redirects": 0,
+              "issuedAtOffsetMs": 1496,
+              "issuedStepIndex": 4
+            }
+          },
+          {
+            "id": "ev4",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 2481,
+            "lastOffsetMs": 2481,
+            "context": {
+              "flowId": "rpv-flow-q-off-target",
+              "nodeId": "qo-save",
+              "stepIndex": 4,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-off-target-mucv9ogt",
+              "instanceId": "rpv-q-off-target-mucv9ogt-2026-09-22T16-06-34-013Z-f9400416-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/save",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/save|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq6",
+              "redirects": 0,
+              "issuedAtOffsetMs": 2470,
+              "issuedStepIndex": 4,
+              "link": "responseWait",
+              "linkStepIndex": 4
+            }
+          },
+          {
+            "id": "ev5",
+            "schemaVersion": 1,
+            "source": "runner.failure",
+            "offsetMs": 2482,
+            "lastOffsetMs": 2482,
+            "context": {
+              "flowId": "rpv-flow-q-off-target",
+              "nodeId": "qo-save",
+              "stepIndex": 4,
+              "pageId": "p1",
+              "frame": "main",
+              "executionId": "rpv-q-off-target-mucv9ogt",
+              "instanceId": "rpv-q-off-target-mucv9ogt-2026-09-22T16-06-34-013Z-f9400416-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "kind": "timeout",
+              "stepType": "click",
+              "message": "Unexpected API status on step \"qo-save\" (id qo-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout."
+            },
+            "dedupeKey": "runner.failure|error|kind=timeout|stepType=click|message=Unexpected API status on step \"qo-save\" (id qo-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout.",
+            "repeatCount": 1,
+            "truncated": false
+          }
+        ],
+        "summary": {
+          "accepted": 5,
+          "repeats": 2,
+          "truncatedEvents": 0,
+          "dropped": {
+            "perSource": 0,
+            "perInstance": 0,
+            "instanceBytes": 0,
+            "runBytes": 0,
+            "eventBytes": 0,
+            "protected": 0
+          },
+          "bytes": 813,
+          "residualSecrets": 0
+        },
+        "cause": {
+          "schemaVersion": 1,
+          "cause": "httpError",
+          "evidenceIds": [
+            "ev1",
+            "ev3",
+            "ev4",
+            "ev5"
+          ],
+          "window": "failingStep",
+          "reason": "The server answered a request with an error status."
+        }
+      }
+    },
+    {
+      "key": "q-earlier-link",
+      "status": "failed",
+      "durationMs": 2704,
+      "diagnostics": {
+        "schemaVersion": 1,
+        "evidence": [
+          {
+            "id": "ev1",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 833,
+            "lastOffsetMs": 833,
+            "context": {
+              "flowId": "rpv-flow-q-earlier-link",
+              "nodeId": "qe-redirect",
+              "stepIndex": 3,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-earlier-link-mucv9ogu",
+              "instanceId": "rpv-q-earlier-link-mucv9ogu-2026-09-22T16-06-34-014Z-46f290cc-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/moved",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/moved|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq2",
+              "redirects": 1,
+              "issuedAtOffsetMs": 823,
+              "issuedStepIndex": 3,
+              "link": "responseWait",
+              "linkStepIndex": 3
+            }
+          },
+          {
+            "id": "ev2",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 839,
+            "lastOffsetMs": 2476,
+            "context": {
+              "flowId": "rpv-flow-q-earlier-link",
+              "nodeId": "qe-redirect",
+              "stepIndex": 3,
+              "pageId": "p1",
+              "executionId": "rpv-q-earlier-link-mucv9ogu",
+              "instanceId": "rpv-q-earlier-link-mucv9ogu-2026-09-22T16-06-34-014Z-46f290cc-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "repeatCount": 2,
+            "truncated": false
+          },
+          {
+            "id": "ev3",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 2474,
+            "lastOffsetMs": 2474,
+            "context": {
+              "flowId": "rpv-flow-q-earlier-link",
+              "nodeId": "qe-save",
+              "stepIndex": 5,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-earlier-link-mucv9ogu",
+              "instanceId": "rpv-q-earlier-link-mucv9ogu-2026-09-22T16-06-34-014Z-46f290cc-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/save",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/save|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq3",
+              "redirects": 0,
+              "issuedAtOffsetMs": 2456,
+              "issuedStepIndex": 5,
+              "link": "responseWait",
+              "linkStepIndex": 5
+            }
+          },
+          {
+            "id": "ev4",
+            "schemaVersion": 1,
+            "source": "runner.failure",
+            "offsetMs": 2475,
+            "lastOffsetMs": 2475,
+            "context": {
+              "flowId": "rpv-flow-q-earlier-link",
+              "nodeId": "qe-save",
+              "stepIndex": 5,
+              "pageId": "p1",
+              "frame": "main",
+              "executionId": "rpv-q-earlier-link-mucv9ogu",
+              "instanceId": "rpv-q-earlier-link-mucv9ogu-2026-09-22T16-06-34-014Z-46f290cc-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "kind": "timeout",
+              "stepType": "click",
+              "message": "Unexpected API status on step \"qe-save\" (id qe-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout."
+            },
+            "dedupeKey": "runner.failure|error|kind=timeout|stepType=click|message=Unexpected API status on step \"qe-save\" (id qe-save).\nWait type: response\nCondition: ANY response url~\"/api/provenance/save\" status 200-299 (armed before action)\nExpected status: 200–299\nCurrent URL: [redacted]\nDetail: API returned HTTP 500 for GET [redacted] (expected 200–299). The response arrived — this is a status error, not a timeout.",
+            "repeatCount": 1,
+            "truncated": false
+          }
+        ],
+        "summary": {
+          "accepted": 4,
+          "repeats": 1,
+          "truncatedEvents": 0,
+          "dropped": {
+            "perSource": 0,
+            "perInstance": 0,
+            "instanceBytes": 0,
+            "runBytes": 0,
+            "eventBytes": 0,
+            "protected": 0
+          },
+          "bytes": 708,
+          "residualSecrets": 0
+        },
+        "cause": {
+          "schemaVersion": 1,
+          "cause": "httpError",
+          "evidenceIds": [
+            "ev3",
+            "ev4"
+          ],
+          "window": "failingStep",
+          "reason": "The server answered a request with an error status."
+        }
+      }
+    },
+    {
+      "key": "q-uncertain",
+      "status": "failed",
+      "durationMs": 4366,
+      "diagnostics": {
+        "schemaVersion": 1,
+        "evidence": [
+          {
+            "id": "ev1",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 837,
+            "lastOffsetMs": 837,
+            "context": {
+              "flowId": "rpv-flow-q-uncertain",
+              "nodeId": "qu-redirect",
+              "stepIndex": 3,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-uncertain-mucv9ogu",
+              "instanceId": "rpv-q-uncertain-mucv9ogu-2026-09-22T16-06-34-014Z-6f21cf30-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/moved",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/moved|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq2",
+              "redirects": 1,
+              "issuedAtOffsetMs": 820,
+              "issuedStepIndex": 3,
+              "link": "responseWait",
+              "linkStepIndex": 3
+            }
+          },
+          {
+            "id": "ev2",
+            "schemaVersion": 1,
+            "source": "console.error",
+            "offsetMs": 842,
+            "lastOffsetMs": 2471,
+            "context": {
+              "flowId": "rpv-flow-q-uncertain",
+              "nodeId": "qu-redirect",
+              "stepIndex": 3,
+              "pageId": "p1",
+              "executionId": "rpv-q-uncertain-mucv9ogu",
+              "instanceId": "rpv-q-uncertain-mucv9ogu-2026-09-22T16-06-34-014Z-6f21cf30-i1"
+            },
+            "severity": "warning",
+            "payload": {
+              "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+            },
+            "dedupeKey": "console.error|warning|text=Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+            "repeatCount": 2,
+            "truncated": false
+          },
+          {
+            "id": "ev3",
+            "schemaVersion": 1,
+            "source": "http.error",
+            "offsetMs": 2471,
+            "lastOffsetMs": 2471,
+            "context": {
+              "flowId": "rpv-flow-q-uncertain",
+              "nodeId": "qu-save",
+              "stepIndex": 5,
+              "frame": "main",
+              "pageId": "p1",
+              "executionId": "rpv-q-uncertain-mucv9ogu",
+              "instanceId": "rpv-q-uncertain-mucv9ogu-2026-09-22T16-06-34-014Z-6f21cf30-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "method": "GET",
+              "url": "http://127.0.0.1:56776/api/provenance/save",
+              "status": 500,
+              "resourceType": "fetch"
+            },
+            "dedupeKey": "http.error|error|method=GET|url=http://127.0.0.1:56776/api/provenance/save|status=500",
+            "repeatCount": 1,
+            "truncated": false,
+            "request": {
+              "id": "rq3",
+              "redirects": 0,
+              "issuedAtOffsetMs": 2453,
+              "issuedStepIndex": 5
+            }
+          },
+          {
+            "id": "ev4",
+            "schemaVersion": 1,
+            "source": "runner.failure",
+            "offsetMs": 3981,
+            "lastOffsetMs": 3981,
+            "context": {
+              "flowId": "rpv-flow-q-uncertain",
+              "nodeId": "qu-save",
+              "stepIndex": 5,
+              "pageId": "p1",
+              "frame": "main",
+              "executionId": "rpv-q-uncertain-mucv9ogu",
+              "instanceId": "rpv-q-uncertain-mucv9ogu-2026-09-22T16-06-34-014Z-6f21cf30-i1"
+            },
+            "severity": "error",
+            "payload": {
+              "kind": "locator",
+              "stepType": "click",
+              "message": "Smart wait failed on step \"qu-save\" (id qu-save).\nPhase: after action\nWait type: textVisible\nCondition: text \"HTTP 200\"\nTimeout: 1500ms\nCurrent URL: [redacted]\nSuggestion: Confirm the target renders after the action; update the locator/text or increase timeoutMs.\nDetail: locator.waitFor: Timeout 1500ms exceeded."
+            },
+            "dedupeKey": "runner.failure|error|kind=locator|stepType=click|message=Smart wait failed on step \"qu-save\" (id qu-save).\nPhase: after action\nWait type: textVisible\nCondition: text \"HTTP 200\"\nTimeout: 1500ms\nCurrent URL: [redacted]\nSuggestion: Confirm the target renders after the action; update the locator/text or increase timeoutMs.\nDetail: locator.waitFor: Timeout 1500ms exceeded.",
+            "repeatCount": 1,
+            "truncated": false
+          }
+        ],
+        "summary": {
+          "accepted": 4,
+          "repeats": 1,
+          "truncatedEvents": 0,
+          "dropped": {
+            "perSource": 0,
+            "perInstance": 0,
+            "instanceBytes": 0,
+            "runBytes": 0,
+            "eventBytes": 0,
+            "protected": 0
+          },
+          "bytes": 682,
+          "residualSecrets": 0
+        },
+        "cause": {
+          "schemaVersion": 1,
+          "cause": "httpError",
+          "evidenceIds": [
+            "ev3",
+            "ev4"
+          ],
+          "window": "failingStep",
+          "reason": "The server answered a request with an error status."
+        }
+      }
+    }
+  ]
+}

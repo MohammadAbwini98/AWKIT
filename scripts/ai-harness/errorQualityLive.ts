@@ -14,8 +14,9 @@
  *
  * Recorded, not judged: L5's metrics. Baseline accuracy, AI accuracy, the AI's improvement over the
  * baseline, false attribution, declines, evidence-link accuracy, coalescing, calls per batch, latency;
- * for the rows run, again for the eleven-row labelled set without the step-provenance cases, again for the
- * eight rows `4f81424a` measured, and for the provenance cases alone.
+ * for the rows run, again for the eleven-row labelled set without the step- and request-provenance cases,
+ * again for the eight rows `4f81424a` measured, for the step-provenance cases alone, for the real-runner
+ * request-provenance cases alone, and for their legacy control.
  * ROADMAP rule 7 lets AI run automatically only where it beats the baseline on this set, so the gate
  * records whether it did; the automatic analysis that rule governs is not built.
  *
@@ -33,6 +34,7 @@ import {
   ANCHORING_ITEMS,
   ERROR_SET,
   PROVENANCE_ITEMS,
+  REQUEST_PROVENANCE_ITEMS,
   buildCase,
   deliveryViolations,
   errorControlFailures,
@@ -177,13 +179,22 @@ export async function runErrorQualityLive(api: FeatureLiveApi): Promise<void> {
     const inferMs = results.map((r) => r.inferMs).filter((ms): ms is number => ms !== null);
     const covering = (items: readonly string[]) => (r: (typeof results)[number]) => r.labelled.covers.some((item) => items.includes(item));
     const provenance = covering(PROVENANCE_ITEMS);
+    const requestProvenance = covering(REQUEST_PROVENANCE_ITEMS);
+    const legacy = (r: (typeof results)[number]) => r.labelled.captured?.legacy === true;
     const quality = {
       ...metrics(results),
       // The eleven rows c44a6e2c measured (every event in the failed step), and the eight of 4f81424a,
       // so a later change is compared like for like; the provenance cases apart, never folded in.
-      labelledSetOfC44a6e2c: metrics(results.filter((r) => !provenance(r))),
-      rowsOf4f81424a: metrics(results.filter((r) => !provenance(r) && !covering(ANCHORING_ITEMS)(r))),
+      labelledSetOfC44a6e2c: metrics(results.filter((r) => !provenance(r) && !requestProvenance(r))),
+      rowsOf4f81424a: metrics(results.filter((r) => !provenance(r) && !requestProvenance(r) && !covering(ANCHORING_ITEMS)(r))),
       provenanceCases: metrics(results.filter(provenance)),
+      // The real-runner cases with runtime request provenance, and apart from them the legacy control:
+      // `rq-linked-vs-background` without its provenance, so the pair shows what the provenance adds.
+      requestProvenanceCases: {
+        ...metrics(results.filter((r) => requestProvenance(r) && !legacy(r))),
+        citesFailedStepLink: results.filter((r) => requestProvenance(r) && !legacy(r) && r.judged?.primaryRequests.includes("linkedToFailedStep")).length
+      },
+      legacyControl: metrics(results.filter(legacy)),
       zeroCallRows: results.filter((r) => !r.labelled.expectsCall).length,
       coalescing: Object.fromEntries(
         cases.filter((c) => c.batch.failures > 1).map((c) => [c.id, `${c.batch.failures} failures → ${c.batch.signatures} signature(s) → ${c.batch.analyses} call(s)`])
@@ -191,7 +202,13 @@ export async function runErrorQualityLive(api: FeatureLiveApi): Promise<void> {
       callsPerBatch: Object.fromEntries(cases.map((c) => [c.id, c.batch.analyses])),
       inferMs: { min: Math.min(...inferMs), max: Math.max(...inferMs), total: inferMs.reduce((a, b) => a + b, 0) },
       privacy: "no canary in any prompt or answer, no residual secret (hard, per row)",
-      perRow: results.filter((r) => r.judged).map((r) => `${r.labelled.id}: baseline ${r.judged!.baselineCorrect ? "right" : "wrong"}, AI ${r.judged!.aiCorrect ? "right" : r.judged!.falseAttribution ? "false attribution" : "declined"}`)
+      perRow: results
+        .filter((r) => r.judged)
+        .map(
+          (r) =>
+            `${r.labelled.id}: baseline ${r.judged!.baselineCorrect ? "right" : "wrong"}, AI ${r.judged!.aiCorrect ? "right" : r.judged!.falseAttribution ? "false attribution" : "declined"}` +
+            (requestProvenance(r) ? ` (primary: ${r.judged!.primaryLabels.map((label, i) => `${label}/${r.judged!.primaryRequests[i]}`).join(", ") || "none"})` : "")
+        )
     };
     api.record("quality", quality);
     const expected = cases.reduce((n, c) => n + c.ask.length, 0);

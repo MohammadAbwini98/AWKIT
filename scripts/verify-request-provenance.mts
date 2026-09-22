@@ -23,7 +23,7 @@
  * Run: npm run verify:request-provenance   (node scripts/benchmark/run.mjs → tsx + the electron stub)
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
@@ -119,6 +119,25 @@ function flow(id: string, steps: FlowStep[]): FlowProfile {
   } as FlowProfile;
 }
 
+/**
+ * The failure-analysis quality cases captured from these runs, and the relation each named request must
+ * hold for its labels to mean what `scripts/ai-harness/errorQualitySet.ts` says they mean.
+ */
+const QUALITY_CASES = ["q-linked-heartbeat", "q-issued-before", "q-off-target", "q-earlier-link", "q-uncertain"] as const;
+const QUALITY_RELATIONS: Record<(typeof QUALITY_CASES)[number], Record<string, RequestRelation>> = {
+  "q-linked-heartbeat": { save: "linkedToFailedStep", heartbeat: "duringFailedStep" },
+  "q-issued-before": { save: "linkedToFailedStep", inventory: "issuedBeforeFailedStep" },
+  "q-off-target": { save: "linkedToFailedStep", widget: "offTargetDuringFailedStep", popup: "offTargetDuringFailedStep" },
+  "q-earlier-link": { save: "linkedToFailedStep", moved: "linkedToOtherStep" },
+  "q-uncertain": { save: "duringFailedStep", moved: "linkedToOtherStep" }
+};
+const CASES_PATH = join(ROOT, "scripts", "ai-harness", "requestProvenanceCases.json");
+/**
+ * With no committed capture, or with `-- --write-analysis-cases`, this run writes it; otherwise the run is
+ * compared with it. To recapture, delete the file (or pass the flag) and run the verifier.
+ */
+const WRITE_CASES = process.argv.includes("--write-analysis-cases") || !existsSync(CASES_PATH);
+
 /** Step execution ordinals: Start is 1, so a flow's first real step is 2. */
 const SCENARIOS: Array<{ key: string; steps: FlowStep[] }> = [
   {
@@ -145,8 +164,39 @@ const SCENARIOS: Array<{ key: string; steps: FlowStep[] }> = [
     // goto = 2: its navigation answers 503 and its after-wait then fails, so the failed step holds it.
     key: "navigation",
     steps: [goto("g-goto", `${BASE}/runner-lab/error-page?code=503`, [{ type: "elementVisible", locator: testId("rp-never"), timeoutMs: 1_500 } as WaitCondition])]
-  }
+  },
+  // The failure-analysis quality cases (`scripts/ai-harness/requestProvenanceCases.json`): one relation
+  // each beside the request the failed step depends on, through `?rp=` which starts only the named extras.
+  ...QUALITY_CASES.map((key) => ({ key, steps: qualitySteps(key) }))
 ];
+
+/**
+ * The quality cases' flows. The save the failed step waits for answers 500 in every one but `q-uncertain`,
+ * where the step only clicks Save and then waits for its success text, so nothing links the save to it.
+ */
+function qualitySteps(key: (typeof QUALITY_CASES)[number]): FlowStep[] {
+  const lab = (extras: string) => `${LAB}?rp=${extras}`;
+  const savedWithWait = (prefix: string) => click(`${prefix}-save`, "rp-save", [responseWait("/api/provenance/save", [200, 299])]);
+  // The earlier step's own request: the 500 it expects, so that step passes and holds the request.
+  const redirect = (prefix: string) => click(`${prefix}-redirect`, "rp-redirect", [responseWait("/api/provenance/moved", [500, 500])]);
+  switch (key) {
+    case "q-linked-heartbeat": // arm = 3, save = 4
+      return [goto("qh-goto", lab("heartbeat")), click("qh-arm", "rp-arm"), savedWithWait("qh")];
+    case "q-issued-before": // arm = 3 issues the inventory, answered during save = 4
+      return [goto("qi-goto", lab("inventory")), click("qi-arm", "rp-arm"), savedWithWait("qi")];
+    case "q-off-target": // arm = 3, save = 4; the widget frame and the popup request during it
+      return [goto("qo-goto", lab("frame,popup")), click("qo-arm", "rp-arm"), savedWithWait("qo")];
+    case "q-earlier-link": // redirect = 3, arm = 4, save = 5
+      return [goto("qe-goto", lab("none")), redirect("qe"), click("qe-arm", "rp-arm"), savedWithWait("qe")];
+    case "q-uncertain": // redirect = 3, arm = 4, save = 5 (no response wait: fails on its success text)
+      return [
+        goto("qu-goto", lab("none")),
+        redirect("qu"),
+        click("qu-arm", "rp-arm"),
+        click("qu-save", "rp-save", [{ type: "textVisible", text: "HTTP 200", timeoutMs: 1_500 } as WaitCondition])
+      ];
+  }
+}
 
 function scenarioProfile(id: string, flowId: string): ScenarioProfile {
   return {
@@ -360,12 +410,27 @@ try {
       check("the coalescing signature is identical", failureSignature({ ...entry, events: checkout!.events }) === failureSignature({ ...entry, events: old }));
       const withProvenance = buildFailureAnalysisRequest(coalesceFailures([{ ...entry, events: checkout!.events }]).groups[0]);
       const without = buildFailureAnalysisRequest(coalesceFailures([{ ...entry, events: old }]).groups[0]);
+      const lines = (request: typeof without) => (request?.prompt.fields[0].text ?? "").split("\n");
+      const saveLine = lines(withProvenance).find((line) => line.startsWith(`${named(checkout, "save")?.id}: `)) ?? "";
+      const heartbeatLine = lines(withProvenance).find((line) => line.startsWith(`${named(checkout, "heartbeat")?.id}: `)) ?? "";
       check(
-        "the failure-analysis request (prompt, offered ids, tier) is byte-identical: provenance never reaches the model",
+        "the failure-analysis request reads the provenance: the save is the step's own request, the heartbeat is not linked",
+        saveLine.includes("[the failed step waited for this request]") && heartbeatLine.includes("[requested during the failed step, not linked to it]"),
+        { saveLine, heartbeatLine }
+      );
+      // Labelled lines are longer, so the character budget may offer fewer of the six errors: which ones is
+      // the ranking's choice, and the step's own request must be among them.
+      check(
+        "...the step's own request is offered either way, and the tier is unchanged",
         withProvenance !== undefined &&
-          JSON.stringify(withProvenance.prompt) === JSON.stringify(without?.prompt) &&
-          JSON.stringify(withProvenance.evidence.map((event) => event.id)) === JSON.stringify(without?.evidence.map((event) => event.id)) &&
-          withProvenance.mustConclude === without?.mustConclude
+          [withProvenance, without].every((request) => request?.evidence.some((event) => event.id === named(checkout, "save")?.id)) &&
+          withProvenance.mustConclude === without?.mustConclude,
+        { with: withProvenance?.evidence.map((event) => event.id), without: without?.evidence.map((event) => event.id) }
+      );
+      check(
+        "an older report's request states no request relation and carries none: nothing is fabricated",
+        without !== undefined && !lines(without).some((line) => /\[(?:the failed step|an earlier step|a later step|requested )/.test(line)) && Object.keys(without.requestRelations).length === 0,
+        lines(without)
       );
       const failure = { kind: "other" as const, failedAtOffsetMs: runnerOf(checkout)?.offsetMs ?? 0, evidenceId: runnerOf(checkout)?.id };
       check("the deterministic cause baseline is identical with and without provenance", JSON.stringify(deriveFailureCause(checkout!.events, failure)) === JSON.stringify(deriveFailureCause(old, failure)));
@@ -444,6 +509,48 @@ try {
     check("an event without provenance gets no relation", !relations.has("noRequest") && relations.size === 5);
     check("a failure record without a step makes every relation unknown", [...requestRelations(events, at("f2", "runner.failure", 5_000, {})).values()].every((value) => value === "unknown"));
     check("no failure record at all makes every relation unknown", [...requestRelations(events.filter((event) => event.source !== "runner.failure")).values()].every((value) => value === "unknown"));
+  }
+
+  console.log("\n7. The failure-analysis quality cases, captured from these real runs");
+  {
+    // What a capture must keep for its labels to hold: the failed step, and each request's name and relation.
+    const shapeOf = (events: readonly ExecutionEvidenceEvent[]) => {
+      const relations = requestRelations(events);
+      const runner = events.filter((event) => event.source === "runner.failure").pop();
+      const requests = events.filter((event) => event.request).map((event) => `${event.source}:${urlOf(event).split("/").pop()}=${relations.get(event.id)}`);
+      return [`runner:${runner?.context.nodeId}@${runner?.context.stepIndex}`, ...requests.sort()].join(" ");
+    };
+    let intended = true;
+    for (const key of QUALITY_CASES) {
+      const outcome = outcomes.get(key);
+      const relations = requestRelations(outcome?.events ?? []);
+      const expected = QUALITY_RELATIONS[key];
+      const actual = Object.fromEntries(Object.keys(expected).map((name) => [name, relations.get(named(outcome, name)?.id ?? "-")]));
+      intended =
+        check(`${key}: ${Object.entries(expected).map(([name, relation]) => `${name} is ${relation}`).join(", ")}`, JSON.stringify(actual) === JSON.stringify(expected), actual) && intended;
+      const requestEvents = outcome?.events.filter((event) => event.request) ?? [];
+      intended = check(`${key}: no other request reached the evidence`, requestEvents.length === Object.keys(expected).length, requestEvents.map(urlOf)) && intended;
+    }
+    if (WRITE_CASES) {
+      // Only a capture whose relations are the intended ones is written: its labels depend on them.
+      if (intended) {
+        const cases = QUALITY_CASES.map((key) => {
+          const instance = outcomes.get(key)!.instance;
+          return { key, status: instance.status, durationMs: instance.durationMs, diagnostics: instance.diagnostics };
+        });
+        const generatedBy = "npm run verify:request-provenance (with no capture committed, or -- --write-analysis-cases)";
+        writeFileSync(CASES_PATH, `${JSON.stringify({ generatedBy, capturedAt: new Date().toISOString(), cases }, null, 2)}\n`);
+      }
+      check(`the ${QUALITY_CASES.length} captured cases were written to scripts/ai-harness/requestProvenanceCases.json`, intended);
+    } else {
+      const committed = existsSync(CASES_PATH) ? (JSON.parse(readFileSync(CASES_PATH, "utf8")) as { cases: Array<{ key: string; diagnostics?: { evidence: ExecutionEvidenceEvent[] } }> }) : { cases: [] };
+      for (const key of QUALITY_CASES) {
+        const stored = committed.cases.find((entry) => entry.key === key);
+        const now = shapeOf(outcomes.get(key)?.events ?? []);
+        const then = stored?.diagnostics ? shapeOf(stored.diagnostics.evidence) : "missing";
+        check(`${key}: the committed capture still matches what the real runner records (failed step, requests, relations)`, then === now, { committed: then, now });
+      }
+    }
   }
 
   console.log("\nTeardown");

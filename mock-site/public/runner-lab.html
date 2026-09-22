@@ -160,6 +160,7 @@
           a heartbeat from this page, a widget request from a child frame and a request from a popup,
           none of them caused by that step. <em>Save checkout</em> appears 1.4 s later and issues the
           save request plus an audit request nothing waits for. Every request answers with an error.
+          Opened as <code>/runner-lab?rp=heartbeat,audit</code>, only the named extras start.
         </p>
         <button type="button" data-testid="rp-arm">Prepare checkout</button>
         <button type="button" data-testid="rp-save" hidden>Save checkout</button>
@@ -347,21 +348,27 @@
       });
 
       // Request provenance. Timers, the frame and the popup are created on demand, never at load, so
-      // no other scenario on this page gains requests.
+      // no other scenario on this page gains requests. `?rp=heartbeat,audit` starts only the named
+      // extras (inventory, heartbeat, frame, popup, audit; `none` for none), so one failure-analysis case
+      // holds one relation; without it, every extra starts, as the lab always did.
+      const rpExtras = new URLSearchParams(location.search).get("rp");
+      const rpOn = (name) => rpExtras === null || rpExtras.split(",").includes(name);
       onClick("rp-arm", () => {
-        void fetch("/api/provenance/inventory?code=502&ms=1000").then((response) => text("rp-inventory", `HTTP ${response.status}`));
-        setTimeout(() => void fetch("/api/provenance/heartbeat?code=503"), 600);
-        const frame = document.createElement("iframe");
-        frame.src = "/runner-lab/provenance-frame?ms=550";
-        frame.dataset.testid = "rp-frame";
-        byTestId("rp-frame-host").appendChild(frame);
-        window.open("/runner-lab/provenance-popup?ms=500", "rp-popup");
+        if (rpOn("inventory")) void fetch("/api/provenance/inventory?code=502&ms=1000").then((response) => text("rp-inventory", `HTTP ${response.status}`));
+        if (rpOn("heartbeat")) setTimeout(() => void fetch("/api/provenance/heartbeat?code=503"), 600);
+        if (rpOn("frame")) {
+          const frame = document.createElement("iframe");
+          frame.src = "/runner-lab/provenance-frame?ms=550";
+          frame.dataset.testid = "rp-frame";
+          byTestId("rp-frame-host").appendChild(frame);
+        }
+        if (rpOn("popup")) window.open("/runner-lab/provenance-popup?ms=500", "rp-popup");
         setTimeout(() => (byTestId("rp-save").hidden = false), 1400);
         text("rp-state", "prepared");
       });
       onClick("rp-save", () => {
         void fetch("/api/provenance/save?code=500").then((response) => text("rp-save-result", `HTTP ${response.status}`));
-        void fetch("/api/provenance/audit?code=500");
+        if (rpOn("audit")) void fetch("/api/provenance/audit?code=500");
       });
       onClick("rp-redirect", async () => {
         const response = await fetch("/api/provenance/redirect");

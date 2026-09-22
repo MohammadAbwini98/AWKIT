@@ -11,7 +11,11 @@
  * the baseline is right; and a timeout beside only an unrelated console error, where the right answer is
  * to decline. Two cases with a real step boundary (`PROVENANCE_ITEMS`, 2026-09-22): the only relevance
  * the collector records is the step each event was captured in, and every other case keeps all its
- * events in the failed step.
+ * events in the failed step. Six cases with runtime request provenance (`REQUEST_PROVENANCE_ITEMS`,
+ * 2026-09-22): failures the REAL runner produced through the production collector, captured by
+ * `verify:request-provenance` into `requestProvenanceCases.json` (which that verifier re-checks against a
+ * fresh run), each labelled by request name here, before any model saw it; the sixth is the first with
+ * its provenance stripped, the shape of an older report, as its control.
  *
  * Every event that explains its failure is labelled `cause` and every one that does not is labelled
  * `unrelated`, by the scenario's construction, never by what a model said. That is what lets the gate
@@ -39,12 +43,13 @@ import {
   type StepRelation
 } from "@src/ai/failureAnalysis";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
-import { EvidenceBuffer, EvidenceRunBudget } from "@src/runner/evidence/ExecutionEvidence";
+import { EvidenceBuffer, EvidenceRunBudget, type ExecutionEvidenceEvent, type RequestRelation } from "@src/runner/evidence/ExecutionEvidence";
 import { deriveFailureCause, type FailureCauseCode, type RunnerFailureKind } from "@src/runner/evidence/FailureCauseBaseline";
 import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
 import type { FixtureEvent } from "./failureAnalysisPacket";
+import capturedCases from "./requestProvenanceCases.json";
 
 /** Planted where the product promises to strip it. */
 export const CANARY = "QX7CANARY";
@@ -64,6 +69,11 @@ export interface ErrorCase {
   /** Which items of L5's labelled set it realises. */
   covers: string[];
   rows: LabelledRow[];
+  /**
+   * Instead of `rows`: one failure the real runner produced (`requestProvenanceCases.json`, by its key),
+   * labelled by request name (`/api/provenance/<name>`). `legacy` strips its provenance first.
+   */
+  captured?: { key: string; labels: Readonly<Record<string, "cause" | "unrelated">>; legacy?: boolean };
   /** Rows the gate asks about, by index. Each is one explicit request, as the drawer makes it. */
   ask: number[];
   /** L5a's deterministic cause for the asked rows, or `null` for a pass (no cause is derived). */
@@ -360,7 +370,57 @@ export const ERROR_SET: readonly ErrorCase[] = Object.freeze([
     baselineCause: "httpError",
     expectsCall: true,
     batch: { failures: 1, signatures: 1, analyses: 1 }
+  },
+  // Runtime request provenance (2026-09-22): real runner failures. In each, the failed step depends on the
+  // checkout save (its response wait, or in `rq-uncertain` its success text), which answers 500; every
+  // other named request is activity the step did not depend on, by the Runner Lab's construction. The
+  // browser's own "Failed to load resource" echo of a response takes that response's label.
+  ...(
+    [
+      // The baseline takes the heartbeat, the earliest error in the step: wrong by construction.
+      ["rq-linked-vs-background", "a confirmed failed-step request beside an unrelated background request", "q-linked-heartbeat", { save: "cause", heartbeat: "unrelated" }],
+      ["rq-linked-earlier-step", "a confirmed request linked to an earlier step", "q-earlier-link", { save: "cause", moved: "unrelated" }],
+      // The inventory the step before issued is answered first in the failed step: the baseline takes it.
+      ["rq-issued-before", "a request issued earlier and answered during the failed step", "q-issued-before", { save: "cause", inventory: "unrelated" }],
+      // The popup's request comes first: the baseline takes it.
+      ["rq-off-target", "requests from another page and a child frame", "q-off-target", { save: "cause", widget: "unrelated", popup: "unrelated" }],
+      // Nothing links the save to the step (no response wait): the step waited for its success text.
+      ["rq-uncertain", "an uncertain request relationship", "q-uncertain", { save: "cause", moved: "unrelated" }]
+    ] as const
+  ).map(
+    ([id, item, key, labels]): ErrorCase => ({
+      id,
+      covers: [item],
+      rows: [],
+      captured: { key, labels },
+      ask: [0],
+      baselineCause: "httpError",
+      expectsCall: true,
+      batch: { failures: 1, signatures: 1, analyses: 1 }
+    })
+  ),
+  // `rq-linked-vs-background` with its provenance removed, as a report written before 2026-09-22 has it:
+  // the same events and baseline, so the pair isolates what the provenance adds.
+  {
+    id: "rq-legacy",
+    covers: ["a legacy record without provenance"],
+    rows: [],
+    captured: { key: "q-linked-heartbeat", labels: { save: "cause", heartbeat: "unrelated" }, legacy: true },
+    ask: [0],
+    baselineCause: "httpError",
+    expectsCall: true,
+    batch: { failures: 1, signatures: 1, analyses: 1 }
   }
+]);
+
+/** Real-runner cases with runtime request provenance (2026-09-22), the last a legacy control. */
+export const REQUEST_PROVENANCE_ITEMS = Object.freeze([
+  "a confirmed failed-step request beside an unrelated background request",
+  "a confirmed request linked to an earlier step",
+  "a request issued earlier and answered during the failed step",
+  "requests from another page and a child frame",
+  "an uncertain request relationship",
+  "a legacy record without provenance"
 ]);
 
 /** Cases with a real step boundary (2026-09-22). Every other case keeps all its events in the failed step. */
@@ -409,6 +469,12 @@ export function buildCase(c: ErrorCase): { report: ConcurrentRunReport & { id: s
   const budget = new EvidenceRunBudget();
   const labels = new Map<string, RowLabels>();
   let longest = 0;
+  if (c.captured) {
+    const instance = capturedInstance(`${executionId}-row1`, c.captured);
+    labels.set(instance.instanceId, instance.labels);
+    longest = instance.durationMs;
+    return { report: runReport(executionId, started, longest, [instance.report]), labels };
+  }
   const instances = c.rows.map((row, index) => {
     const instanceId = `${executionId}-row${index + 1}`;
     let clock = 0;
@@ -448,8 +514,12 @@ export function buildCase(c: ErrorCase): { report: ConcurrentRunReport & { id: s
     };
     return { instanceId, status, durationMs: failedAt, ...(status === "failed" ? { error: "The step failed." } : {}), screenshots: [], downloadedFiles: [], diagnostics };
   });
+  return { report: runReport(executionId, started, longest, instances), labels };
+}
+
+function runReport(executionId: string, started: number, longest: number, instances: Array<{ status: string }>): ConcurrentRunReport & { id: string } {
   const failed = instances.filter((instance) => instance.status === "failed").length;
-  const report = {
+  return {
     id: executionId,
     executionId,
     scenarioId: "wf-checkout",
@@ -466,7 +536,55 @@ export function buildCase(c: ErrorCase): { report: ConcurrentRunReport & { id: s
     instances,
     runtimeInputs: {}
   } as unknown as ConcurrentRunReport & { id: string };
-  return { report, labels };
+}
+
+interface CapturedCase {
+  key: string;
+  status: string;
+  durationMs: number;
+  diagnostics: InstanceDiagnostics;
+}
+
+/** Every trace of provenance removed, as a report written before 2026-09-22 has it (the verifier's `asOldReport`). */
+export function withoutProvenance(events: readonly ExecutionEvidenceEvent[]): ExecutionEvidenceEvent[] {
+  return (JSON.parse(JSON.stringify(events)) as ExecutionEvidenceEvent[]).map(({ request: _request, ...event }) => {
+    const { frame: _frame, ...context } = event.context;
+    if (event.source === "runner.failure") delete (context as { pageId?: string }).pageId;
+    return { ...event, context };
+  });
+}
+
+const ECHO = /^Failed to load resource: the server responded with a status of (\d{3})\b/;
+
+/**
+ * A captured failure as the report stored it, with its labels as ids: each `/api/provenance/<name>` event
+ * takes its name's label, and the browser's console echo of a response takes that response's label where
+ * exactly one labelled response on the same page answered that status. An echo folded with others
+ * (`repeatCount` > 1) stands for several responses, so it stays unlabelled, as does any other echo.
+ */
+function capturedInstance(instanceId: string, captured: NonNullable<ErrorCase["captured"]>) {
+  const stored = (capturedCases.cases as unknown as CapturedCase[]).find((entry) => entry.key === captured.key);
+  if (!stored) throw new Error(`requestProvenanceCases.json has no "${captured.key}": run npm run verify:request-provenance`);
+  const evidence = captured.legacy ? withoutProvenance(stored.diagnostics.evidence) : (JSON.parse(JSON.stringify(stored.diagnostics.evidence)) as ExecutionEvidenceEvent[]);
+  const tags = new Map<string, "cause" | "unrelated">();
+  for (const event of evidence) {
+    const name = /\/api\/provenance\/([a-z-]+)$/.exec(String(event.payload.url ?? ""))?.[1];
+    const tag = name === undefined ? undefined : captured.labels[name];
+    if (tag) tags.set(event.id, tag);
+  }
+  for (const event of evidence) {
+    const status = event.source === "console.error" && event.repeatCount === 1 ? ECHO.exec(String(event.payload.text ?? ""))?.[1] : undefined;
+    if (status === undefined) continue;
+    const echoed = evidence.filter((other) => other.source === "http.error" && tags.has(other.id) && String(other.payload.status) === status && other.context.pageId === event.context.pageId);
+    if (echoed.length === 1) tags.set(event.id, tags.get(echoed[0].id)!);
+  }
+  const labelsOf = (tag: "cause" | "unrelated") => [...tags].filter(([, value]) => value === tag).map(([id]) => id);
+  return {
+    instanceId,
+    durationMs: stored.durationMs,
+    labels: { cause: labelsOf("cause"), unrelated: labelsOf("unrelated") },
+    report: { instanceId, status: stored.status, durationMs: stored.durationMs, error: "The step failed.", screenshots: [], downloadedFiles: [], diagnostics: { ...stored.diagnostics, evidence } }
+  };
 }
 
 /** The request `analyzeFailure` builds for one named instance: its own evidence, its group's count. */
@@ -506,6 +624,8 @@ export interface FailureJudgement {
   citesBaselineLead: boolean;
   /** The product's step relation of each primary id, from the request, never from a label. */
   primarySteps: StepRelation[];
+  /** The product's request relation of each primary id (`none`: no provenance), from the request. */
+  primaryRequests: Array<RequestRelation | "none">;
   cited: number;
   citedShownWhole: number;
 }
@@ -530,6 +650,7 @@ export function judgeFailureAnswer(request: FailureAnalysisRequest, answer: Fail
     baselineLeadLabel: labelOf(lead),
     citesBaselineLead: concluded && primary.includes(lead),
     primarySteps: primary.map((id) => request.stepRelations[id] ?? "unknown"),
+    primaryRequests: primary.map((id) => request.requestRelations[id] ?? "none"),
     cited: cited.length,
     citedShownWhole: cited.filter((id) => shownWhole(request, promptUser, id)).length
   };

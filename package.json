@@ -315,6 +315,8 @@
     "verify:ai-error-quality-live-part1": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases toast-timeout,native-validation,conflict-and-validation,server-error-rows,pass-with-warning,insufficient,cause-then-unrelated-console",
     "verify:ai-error-quality-live-part2": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases transport-noise,pageerror-timeout,burst,unrelated-server-error-first,timeout-unrelated-console",
     "verify:ai-error-quality-live-provenance": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases earlier-step-unrelated-error,earlier-step-cause",
+    "verify:ai-error-quality-live-requests1": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases rq-linked-vs-background,rq-legacy,rq-issued-before",
+    "verify:ai-error-quality-live-requests2": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality --cases rq-off-target,rq-linked-earlier-step,rq-uncertain",
     "verify:ai-inference-profile": "tsx scripts/verify-ai-inference-profile.mts",
     "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts",
     "benchmark:ai-model-2b": "tsx scripts/benchmark-ai-model.mts --pack Qwen3.5-2B-Q4_K_M.gguf",

@@ -60,9 +60,9 @@ const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs
   locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true },
   // hello, the control, 6 labelled cases, the set's verdict. Six explanations at ~50–90 s each.
   authoringQuality: { mode: "authoringQuality", steps: 9, timeoutMs: 575_000 },
-  // hello, the control, 14 labelled cases (13 model calls, 2 rows with none), the set's verdict. Thirteen
-  // analyses at ~35–80 s each pass the 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
-  errorQuality: { mode: "errorQuality", steps: 17, timeoutMs: 1_260_000 }
+  // hello, the control, 20 labelled cases (19 model calls, 2 rows with none), the set's verdict. Nineteen
+  // analyses at ~35–100 s each pass the 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
+  errorQuality: { mode: "errorQuality", steps: 23, timeoutMs: 1_800_000 }
 });
 
 /** The Feature Test Lab on a free loopback port, for the modes that drive a real page. */
