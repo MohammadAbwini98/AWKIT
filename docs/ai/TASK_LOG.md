@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-09-22 — L4b: validation-explanation quality measured past the subject, on the real 0.8B (Claude)
+
+- **Task:** establish evidence for L4b explanation quality on the real 0.8B, beyond delivery and subject.
+  Cover corrective action, unsupported recommendations, prioritization, insufficient information and
+  privacy. No product, model or performance change.
+- **Found:**
+  - The gate judged only the product's contract, and recorded only the subject. No case had two fixes of
+    different urgency, so a fix order had no right answer to measure.
+  - The product's instruction asks for "what the person should look at" and forbids "a repair of your
+    own".
+- **Files:**
+  - `3e37f2c1`: `scripts/ai-harness/authoringQualitySet.ts` (three new cases, blocking labels, remedy
+    table, five screens, categories, ranking order, controls), `authoringQualityLive.ts` (parts,
+    responses, latency), `scripts/verify-ai-authoring.mts` §11, `scripts/verify-ai-explanation-live.mts`,
+    `package.json` (two part scripts), `scripts/lib/verifier-classification.ts`.
+  - This closeout: the L4 and L1 plans, CURRENT_STATE, HANDOFF, DECISIONS, COMMANDS and KNOWN_ISSUES; notes
+    on `awkit-djnl.6` and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-authoring` 179/179, with four judge mutations caught at 178/179 each. It was 148, not the
+    85 that `3e37f2c1`'s message states; 85 was the count before §10 and §11 existed.
+  - Real 0.8B: `verify:ai-authoring-quality-live-part1` 9/0 and `-part2` 8/0. That is 9/9 accepted,
+    17/17 on subject, 0/17 actionable, 1 unconfirmed `SEVERITY_OVERSTATED`, 0 of 5 fixable ranked, and
+    37.7–65.1 s per answer. `verify:ai-explanation-live` 5/0.
+  - `verify:ai-assist-gui` 100/0, `verify:ai-adapter` 117/0, `verify:ai-fallback` 38/0,
+    `verify:ai-redaction` 52/0, `verify:verifier-classification` 259, `typecheck:scripts` and build PASS.
+  - NOT RUN: `benchmark:ai-model-0-8b`. The request, grammar and inference configuration are unchanged.
+- **Result:** the evidence is recorded and a target is proposed, not adopted. Corrective-action quality is
+  not established. L4b stays `in_progress`.
+
 ## 2026-09-22 — integrate the Phase L baseline commits with the concurrent Phase M registration (Claude)
 
 - **Task:** reconcile local `14c0ad84` and `a36cb1d6` with `origin/main`'s `4951b366` (Phase M

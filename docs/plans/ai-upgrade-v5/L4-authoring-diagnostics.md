@@ -55,7 +55,11 @@ design-time data-source/secret reference checks (needs a library context like `r
 the same day** (see "L4b renderer surface as built"). `awkit-djnl.6` is `in_progress`: a live-model caller is not built, the
 explanation quality target is not recorded, and the milestone cannot close under the conditional
 development authorization. The live quality gate `verify:ai-authoring-quality-live` is built (2026-09-22,
-10/0; see "The live quality gate as built").
+10/0; see "The live quality gate as built"). **Since `3e37f2c1` it also reads corrective action,
+unsupported claims and fix priority: on the real 0.8B, 17/17 on subject, 0/17 actionable, nothing
+ranked** (see "Corrective action, unsupported claims and fix priority, measured"). L4b stays
+`in_progress`: the quality target is the owner's decision, and corrective-action quality is not
+established.
 
 ### L4b as built
 
@@ -128,6 +132,109 @@ development authorization. The live quality gate `verify:ai-authoring-quality-li
   - **A stable rate.** One run, and `AiService`'s random prompt nonce varies answers between runs.
   - **The explanation quality target L4's acceptance requires.** It is still not recorded.
 
+### Corrective action, unsupported claims and fix priority, measured (2026-09-22, `3e37f2c1`)
+
+- **Why:** the gate as built judged the product's contract and recorded the subject only. A delivered
+  answer, valid JSON or a named subject do not show that an explanation says what to do, invents no
+  cause or fix, or keeps a blocking issue ahead of one that can wait.
+- **The set, 6 → 9 cases** (17 issues, 14 L4a codes, both fix kinds). Every sent issue now carries a
+  ground-truth `blocking` label (an error on the run path), written from the validator's rules before any
+  model output. The three new cases:
+  - `priority`: a blocking `unsupportedOperator` fix and an off-path `duplicateEdgeId` fix, with two more
+    issues truncated. The report lists the off-path duplicate first, so the builder must reorder it. At
+    `maxIssues` 2 this is the only shape in which a fix order has a right answer.
+  - `warnings`: `highTimeout` and `deadEndNode`. Nothing here blocks the run.
+  - `single`: one `invalidTimeout`. The request holds neither the step nor its value, so any value or
+    name in an answer is invented. This is the insufficient-information case.
+- **What each answer is now read for.** These are lexical proxies, because model text is never recorded:
+  - *Actionable:* one sentence holds a base-form corrective verb and that issue's own remedy (`REMEDY`,
+    per code). Restating the rule summary never counts. Passive forms ("should be connected") and
+    pointers ("check", "look at", "ensure") do not count either.
+  - *Unsupported,* five screens:
+    - `AUTO_FIX_CLAIMED`: the application repairs an issue it emitted no fix for;
+    - `OFF_DOMAIN`: a restart, the network, a cache, credentials or support;
+    - `FABRICATED_LITERAL`: a quoted name, a selector, a URL, or a value the request never held;
+    - `SEVERITY_OVERSTATED`: a non-blocking issue said to stop the flow running;
+    - `SEVERITY_UNDERSTATED`: a blocking issue called harmless or only a warning.
+  - *Category,* worst first: `defect` (misattributed, or a screen hit), `offSubject`, `notActionable`,
+    `unverified`. **A screen can prove an explanation wrong. Nothing here can prove one right.** So an
+    explanation that clears every screen is `unverified` and listed for a person, never counted correct.
+  - *Ranking order:* every fix for a blocking issue comes before any other, and none is left out ahead
+    of an off-path one. It is `null` when nothing is ranked.
+  - *Responses:* accepted (the product parsed it), rejected (the model answered and the product refused
+    it) or inconclusive (no answer).
+- **Proven without a model** (`verify:ai-authoring` §11, 179/179, was 148):
+  - Every case sends its labelled codes, fixes and blocking flags, truncates what is labelled, and sends
+    blocking issues first. `locator-orphan` and `priority` prove the builder reordered a report that
+    lists a non-blocking issue first.
+  - Each screen fires on a scripted bad answer and stays quiet on its correct twin: a negated auto-fix,
+    a quote of the request's own words, the same "cannot run" claim about a blocking error, a warning
+    called a warning, and a fix claim on an issue that has one.
+  - Four mutations were caught, each at 178/179: the auto-fix guard dropped, the severity screen applied
+    to blocking issues, the blocking-left-out clause dropped, and the remedy ignored.
+- **Result on the real Qwen3.5-0.8B,** one run in two parts (`-part1` 9/0, `-part2` 8/0):
+
+| Measure | Result |
+|---|---|
+| Responses | 9 accepted, 0 rejected, 0 inconclusive |
+| Issues explained | 17/17, no canary, no residual secret |
+| On subject (proxy) | 17/17 |
+| Misattributed | 0 |
+| **Actionable (proxy)** | **0/17** |
+| Unsupported claims | 1 `SEVERITY_OVERSTATED`, unconfirmed (below); none of the other four kinds |
+| Categories | 1 defect, 0 off subject, 16 not actionable, 0 unverified |
+| Listed for a person | none: no explanation cleared every screen |
+| Ranking | 0 of 5 fixable issues ranked; the one orderable case (`priority`) unexercised |
+| Texts ended at 160 characters | 4 |
+| Inference | 37.7–65.1 s, median 56.0 s, against the 125 s deadline |
+
+- **Reading it:**
+  - *Identification holds by proxy:* 17/17 on subject, 0 misattributed. It is still an upper bound,
+    because several subjects are common words.
+  - *Corrective action is not established.* No explanation names a corrective step with its remedy.
+    That matches the product's own instruction, which asks for "what is wrong and what the person should
+    look at" and forbids the model describing "a repair of your own". So the gap is at least partly in
+    the request, not only in the model. Changing that instruction changes the product's request, and the
+    L1.8 ceiling would need re-measuring. Not done here.
+  - *The one screen hit is unconfirmed.* It is `locator-orphan`'s `unreachableNode`, an error off the run
+    path. The screen's "cannot run" and "from running" forms cannot tell "the flow cannot run" (wrong,
+    the issue is off path) from "this step never runs" (right). Without the text, nobody can settle it.
+    The screen was not tuned after the hit.
+  - *Nothing else is fabricated:* no invented automatic fix, no off-domain remedy, no quoted name,
+    selector or value. That holds even on `single`, where the request holds nothing specific.
+  - *Prioritization:* the builder's blocking-first order is proven without a model. The model's fix order
+    (T1) is still unmeasured, because it ranked nothing again. So the fix order the UI shows stays empty.
+  - *Privacy:* no canary in any prompt or answer, no residual secret, and no text recorded.
+  - *One run.* The prompt nonce varies answers between runs, so these are not stable rates.
+
+### Proposed explanation quality target (NOT adopted; the owner's decision)
+
+This is a proposal, so the owner has something concrete to accept, change or reject. The gate does not
+enforce it.
+
+1. No confirmed unsupported claim of any kind, and no misattributed explanation.
+2. At least 90 % on subject by proxy.
+3. At least 80 % actionable by proxy, once the product's instruction asks for a corrective step.
+4. A person reads every screen-clear explanation, and judges at least 80 % correct and actionable.
+5. When the model ranks, no order violation. Whether an empty T1 fix order is acceptable for release is
+   a separate decision.
+6. Measured on at least two runs.
+
+Against it, measured: (1) one unconfirmed hit; (2) met; (3) and (4) not met, at 0/17 with nothing to
+review; (5) not exercised; (6) one run.
+
+### What L4b acceptance still needs
+
+- The owner's quality target: the proposal above, or another.
+- Whether the product's instruction should ask for a corrective step. That is a request change, and the
+  L1.8 ceiling would be re-measured.
+- How a person reviews answers. The harness never records model text, by design. Either the owner
+  approves a review capture of the synthetic set, or a reviewer reads the designer's AI panel on the
+  same flows.
+- Whether an empty fix order, from a model that never ranks, is acceptable.
+
+Until then L4b stays `in_progress`.
+
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
 Deterministic provider only; `awkit-djnl.6` is `in_progress` and cannot close under the conditional
@@ -166,7 +273,8 @@ Apply / Show on Canvas / Dismiss.
 
 `verify:authoring-diagnostics` (every family, Flow/Workflow parity, legacy profiles), `verify:ai-authoring`
 (fake provider: unknown IDs rejected, non-emitted fix rejected; §11 audits the live labelled set and its judge), live
-`verify:ai-authoring-quality-live` (built, 10/0 on the real 0.8B);
+`verify:ai-authoring-quality-live` (built, 10/0 on the real 0.8B; since `3e37f2c1` nine cases in two parts,
+`-part1` 9/0 and `-part2` 8/0);
 existing validation, legacy-compat and profile-store gates; `npm run build`.
 
 ## Acceptance

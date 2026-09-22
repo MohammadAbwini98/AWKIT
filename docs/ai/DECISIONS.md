@@ -1,6 +1,37 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5a/L5b: the deterministic baseline reads a confirmed request link, ranking it among requests only (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L4b: explanation quality is judged by screens that can prove an answer wrong, never right (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:**
+  - Establish L4b explanation quality on the real 0.8B by extending the existing gate.
+  - Keep ground truth independent of model output.
+  - Do not count a schema, a length or an identifier as quality.
+  - Record what cannot be verified, rather than accepting it.
+  - Propose a threshold separately, never adopt one.
+- **Implementer's choices within it:**
+  - **Screens, not a score.** Five lexical screens each look for evidence that an answer is wrong: an
+    invented automatic fix, an off-domain remedy, a fabricated literal, and a severity misstated either
+    way. An answer that clears them all is `unverified`, for a person, because no pattern proves an
+    explanation right.
+  - **Actionable is strict.** It needs a base-form corrective verb and the issue's own remedy in one
+    sentence. Pointers ("check", "look at") and passive forms do not count, so the 0/17 is a lower bound
+    on implied guidance, and an upper bound on imperative correction.
+  - **A fix order needs a case that has one.** At `maxIssues` 2, only a blocking fix beside an off-path
+    fix makes the order meaningful, so `priority` was built for that. Where nothing is ranked the order
+    is `null`, not a pass.
+  - **The judge was frozen before the run.** The one screen hit may be a false positive, because "cannot
+    run" does not say whether the flow or the step cannot run. It is recorded as unconfirmed, not tuned
+    away.
+  - **Text stays unrecorded.** A review capture would change the harness's privacy rule, so it is left
+    to the owner.
+- **Not decided here:**
+  - the quality target itself;
+  - whether the product's instruction should ask for a corrective step, which would change the request
+    and re-open L1.8;
+  - how a person reviews answers;
+  - whether an empty fix order is acceptable.
+
+### 2026-09-22 — Phase L L5a/L5b: the deterministic baseline reads a confirmed request link, ranking it among requests only (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:**
   - Improve deterministic cause selection using the existing confirmed request provenance, and measure it

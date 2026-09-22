@@ -1,13 +1,13 @@
 {
-  "task": "awkit-djnl-8-baseline-provenance-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-8-baseline-provenance-0922.json",
+  "task": "awkit-djnl-6-quality-evidence-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-6-quality-evidence-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T17:36:06.529Z",
-  "acquired_at_commit": "14c0ad8452077ed2a0082d30244996040771fa23",
+  "acquired_at": "2026-09-22T18:55:31.642Z",
+  "acquired_at_commit": "3e37f2c1411f8f27c318314e0468494fc45b0e70",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
@@ -15,25 +15,21 @@
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-8-baseline-provenance-0922.json",
+    "docs/ai/contracts/awkit-djnl-6-quality-evidence-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
-    "docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "bf0dc155d5c22787181c6f711a93b8dd3e84cdd48061f5872a556957124ee4fe",
-    "docs/ai/CURRENT_STATE.md": "c257ceb5d8ddc027ca190267173590e83a3d6e8bdb21d7a4c51630f1352703eb",
-    "docs/ai/DECISIONS.md": "81dbf93b6d9ab641dfdecd1467379a52027f5edcf7593336bbe09ede5d1172f4",
-    "docs/ai/HANDOFF.md": "15ed678c7d6a31db82f3ad392e621e537c34f5b63ecf9a08107d474eb58300d2",
-    "docs/ai/KNOWN_ISSUES.md": "fd013d52e405bfc937a16afc20159be6badbe8bea6ead05bbf8cfa7c799357dd",
-    "docs/ai/TASK_LOG.md": "00648963c37667e30e88525a9a4e16192c14a3050ab0d4298bb4d84b60d298c1",
-    "docs/ai/contracts/awkit-djnl-8-baseline-provenance-0922.json": "ba4a3e82e1a12393ee370a9faac4c200ab320a73fde8d06ab1d07b6e4fc2527e",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "d5fb0fdcce18b664c311407d81cab8733c47e8ff8304bac0e92517be631dbce3",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "98a2d28c15dead6d84dbe2d6e0d1fc6012fdf4381e045aa26cbffe56ad67185f",
-    "docs/plans/ai-upgrade-v5/evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json": "aafa156dbedd1b1a607dbcfa5cd9fd1e4a83813c5f5796b16d0d320c09eb3637",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "3e24ce1e7950d3533f38b922e874cb4911c4beda310b8de268d4bb87341fa104",
+    "docs/ai/COMMANDS.md": "8e4c9110b2c2bee80c34aed8a7c76fa46224855328d7fec47171077821aaf481",
+    "docs/ai/CURRENT_STATE.md": "e71cf14421ef5afe22ed74a895a209841270c37cd9836ac37dee84a97ca01d45",
+    "docs/ai/DECISIONS.md": "26582e93478df7b2ac33ca81245bbed44aed61f1ede3b7696ab3a3e14dd2be0f",
+    "docs/ai/HANDOFF.md": "d0afda94c64edd68b875d684ab71b621eebb2f91713ccb2125020fdb45096004",
+    "docs/ai/KNOWN_ISSUES.md": "3a05399c93b3877397f7016056b6c3439335e0c61f69f84dbfea7260b386fc5e",
+    "docs/ai/TASK_LOG.md": "c040ef282d016aaf1158a4cbd31d9cf19f7efa633abc76936374765415cb345b",
+    "docs/ai/contracts/awkit-djnl-6-quality-evidence-0922.json": "91daa5e9d06e921ad349244a7250650ecf9e23f6e0c42b1391d6e5189742eaf5",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "992dbd55f3d0e8fe0e016862ee2684b0cc8f34903b48b32e477796ad2cf05f30",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "3835847a84055448ffd26715802256ad42403203e91382c0c0507db555e726a0",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -49,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T17:37:09.109Z",
-  "released_reason": "baseline-provenance result noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T17:37:09.110Z"
+  "released_at": "2026-09-22T18:56:16.971Z",
+  "released_reason": "L4b quality evidence noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T18:56:16.972Z"
 }

@@ -491,11 +491,20 @@ npm run verify:ai-locator-quality-live
                                   # Five scripted controls run first and stop the run if one fails. ~9 min,
                                   # inside the 10-minute tool limit. NOT RUN without runtime + pack (14)
 npm run verify:ai-authoring-quality-live
-                                  # the same launcher: L4b's labelled set (6 flows, 12 issues, both fix kinds)
-                                  # through explainFlowValidation on the real 0.8B. Hard: the product's request,
-                                  # its 125 s deadline, every issue explained, no canary or residual secret.
-                                  # Recorded: on-subject and misattribution proxies, cut texts, ranking. A
-                                  # scripted control of the judge runs first. ~5.5 min. NOT RUN without pack (10)
+                                  # the same launcher: L4b's labelled set (9 flows, 17 issues, 14 codes, both
+                                  # fix kinds, a truncated report with two fixes of different urgency, warnings
+                                  # only, a lone issue) through explainFlowValidation on the real 0.8B. Hard: the
+                                  # product's request with its labelled codes, fixes and blocking order, its 125 s
+                                  # deadline, every issue explained, no canary or residual secret. Recorded:
+                                  # on subject, misattributed, actionable, five unsupported-claim screens,
+                                  # categories, ranking order, accepted/rejected/inconclusive, latency. Screen-
+                                  # clear explanations are listed for a person, never counted correct. Scripted
+                                  # controls run first. ~9 min, past the 10-minute tool limit: from such a tool
+                                  # run the two parts instead. NOT RUN without pack (12)
+npm run verify:ai-authoring-quality-live-part1
+                                  # casing, locator-orphan, branch, cycle, values: 5 model calls, ~5.5 min (9)
+npm run verify:ai-authoring-quality-live-part2
+                                  # duplicate-timeout, priority, warnings, single: 4 model calls, ~4 min (8)
 npm run verify:ai-error-quality-live
                                   # the same launcher: L5's labelled set (all 14 items as 9 run reports, events
                                   # labelled cause/unrelated) through analyzeFailure on the real 0.8B. Hard:

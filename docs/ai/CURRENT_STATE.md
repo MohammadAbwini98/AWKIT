@@ -1,6 +1,49 @@
 # CURRENT_STATE
 
-## The deterministic failure cause reads confirmed request provenance: 14/17, from 11/17 (2026-09-22, current)
+## L4b explanation quality, measured past the subject: 17/17 on subject, 0/17 actionable, nothing ranked (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **The change (`3e37f2c1`, verification only):** no product, prompt, grammar or inference change.
+  - `scripts/ai-harness/authoringQualitySet.ts`: the labelled set grows from 6 to 9 cases (17 issues, 14
+    codes). The new cases are a truncated report whose two fixes differ in urgency, a warnings-only
+    report, and a lone issue with nothing specific to quote. Every sent issue carries a `blocking` label.
+  - The judge adds *actionable* (a corrective verb with the issue's remedy), five unsupported-claim
+    screens, per-explanation categories and the ranking order.
+  - An explanation that clears every screen is listed for a person, never counted correct.
+  - The live gate records accepted, rejected and inconclusive responses, and runs in two parts:
+    `verify:ai-authoring-quality-live-part1` and `-part2`.
+- **Real Qwen3.5-0.8B, one run** (part1 9/0, part2 8/0):
+
+| Measure | Result |
+|---|---|
+| Responses | 9 accepted, 0 rejected, 0 inconclusive |
+| On subject / misattributed (proxy) | 17/17 / 0 |
+| **Actionable (proxy)** | **0/17** |
+| Unsupported claims | 1 `SEVERITY_OVERSTATED`, unconfirmed, on an off-path `unreachableNode`; no other kind |
+| Ranking | 0 of 5 fixable issues ranked; the fix-order case is unexercised |
+| Inference | 37.7–65.1 s against the 125 s deadline |
+
+- **Reading it:**
+  - Identification holds by proxy.
+  - Corrective action is **not established**. The product's own instruction asks for "what the person
+    should look at" and forbids describing a repair.
+  - Blocking-first is proven deterministically. The model's fix order is still unmeasured.
+  - No text is recorded, so no answer has had a person's review.
+- **Status:** a quality target is proposed in L4, **not adopted**. L1, L4b and L5b stay `in_progress`.
+  **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 179/179 (was 148). Four judge mutations caught, each at 178/179 |
+| `verify:ai-authoring-quality-live-part1` · `-part2` (real 0.8B) | 9/0 · 8/0 |
+| `verify:ai-explanation-live` (real 0.8B) | 5/0: delivered at 45.1 s, cancel settled in 34 ms, deadline kill then reload delivered |
+| `verify:ai-assist-gui` · `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-redaction` | 100/0 · 117/0 · 38/0 · 52/0 |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 259 scripts · PASS · PASS |
+| `benchmark:ai-model-0-8b` | NOT RUN: the request, grammar and inference configuration are unchanged |
+
+## The deterministic failure cause reads confirmed request provenance: 14/17, from 11/17 (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L5b quality is
 not a ledger case).

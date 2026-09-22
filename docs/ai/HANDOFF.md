@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — the deterministic failure cause reads confirmed request provenance: 14/17
+## HANDOFF (2026-09-22, latest) — L4b explanation quality measured past the subject: 0/17 actionable, nothing ranked
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`3e37f2c1`, then this closeout):**
+  - `verify:ai-authoring-quality-live` now reads corrective action, five unsupported-claim screens,
+    per-explanation categories and the fix order, over 9 cases (17 issues, 14 codes).
+  - It runs in two parts under the tool ceiling: `-part1` and `-part2`.
+  - No product change. Details are in L4 › "Corrective action, unsupported claims and fix priority,
+    measured".
+- **Result on the real 0.8B, one run:**
+  - 9/9 accepted, 17/17 on subject by proxy, 0 misattributed.
+  - **0/17 actionable.** There was 1 unconfirmed severity hit, and no fabricated fix, value or remedy.
+  - Nothing ranked, so the T1 fix order is unmeasured.
+- **Next, not started; each is the owner's call:**
+  1. Adopt, change or reject L4's proposed quality target.
+  2. Decide whether the product's instruction should ask for a corrective step. It currently forbids
+     describing a repair. Changing it changes the request, and L1.8's `explanationAtCapMs` must then be
+     re-measured.
+  3. Choose how a person reviews answers, since the harness never records model text.
+  4. Then L1's go/no-go. The next Phase L item after that stays L5b's baseline gap (−5).
+- **Do not:**
+  - count a screen-clear explanation as correct;
+  - tune a screen after seeing a result. The one hit was left as registered;
+  - claim a fix order was measured.
+
+## HANDOFF (2026-09-22, superseded) — the deterministic failure cause reads confirmed request provenance: 14/17
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`14c0ad84`, then this closeout):**

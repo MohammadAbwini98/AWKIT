@@ -1295,12 +1295,29 @@ The model's requests are byte-identical, so the AI's recorded 9/17 stands. Again
 improvement is −5 (was −2). That figure is re-scored from the recorded verdicts; no model was rerun. See
 L5 › "Deterministic cause selection reads confirmed request provenance".
 
+**Then (`3e37f2c1`):** `verify:ai-authoring-quality-live` also reads corrective action, five kinds of
+unsupported claim and fix priority, over nine cases (17 issues, 14 codes). On the 0.8B, one run in two
+parts (9/0, 8/0):
+- 9/9 answers accepted, 17/17 on subject by proxy, 0 misattributed;
+- **0/17 actionable by proxy.** The product's own instruction asks for what to look at and forbids
+  describing a repair;
+- 1 unconfirmed severity-overstated hit, and no invented fix, off-domain remedy or fabricated value;
+- nothing ranked (0 of 5 fixable), so the T1 fix order is still unmeasured;
+- inference 37.7–65.1 s against the 125 s deadline.
+
+The request, the grammar and the inference configuration are unchanged, so L1.8 is not re-measured
+(`verify:ai-explanation-live` 5/0 on the same run). A quality target is proposed, **not adopted**. See
+L4 › "Corrective action, unsupported claims and fix priority, measured".
+
 **Still owed before L1 can be accepted:**
 
-1. An explanation quality target for L4b, which L4's acceptance requires before release.
+1. An explanation quality target for L4b, which L4's acceptance requires before release. One is proposed
+   in L4 for the owner to accept, change or reject. Against it the 0.8B fails on corrective action
+   (0/17), and a person has not reviewed any answer. Whether the product's instruction should ask for a
+   corrective step is also the owner's call; it would change the request and re-open L1.8.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
-   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 12/12 on subject
-   by proxy with no ranking, and failure analysis tying the baseline on the labelled set, with or without
+   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject
+   by proxy but 0/17 actionable with no ranking, and failure analysis tying the baseline on the labelled set, with or without
    the conclusion in its prompt and with step provenance, and falling below it (−2 over 17 rows) once the
    request states runtime request provenance. The gap is −5 since the baseline itself reads the confirmed
    link (`14c0ad84`): 9/17 against 14/17.

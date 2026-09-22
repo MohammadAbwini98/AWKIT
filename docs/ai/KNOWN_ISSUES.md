@@ -1,5 +1,26 @@
 # KNOWN_ISSUES
 
+## The 0.8B's validation explanations name the issue but never say what to do, and never rank a fix (2026-09-22, OPEN — `awkit-djnl.6`)
+
+- **Symptom:** on L4b's labelled set (`3e37f2c1`, 9 cases, 17 issues), the real Qwen3.5-0.8B names every
+  issue's subject (17/17 by proxy, 0 misattributed). But none of the 17 explanations gives a corrective
+  step with its remedy (0/17 actionable). It ranked none of 5 fixable issues, so the designer's AI fix
+  order is always empty.
+- **Likely cause, partly in the request.** `authoringExplanation.ts`'s instruction asks for "what is
+  wrong and what the person should look at", and forbids the model describing "a repair of your own".
+  The model follows it. The ranking is optional in the schema, and the 0.8B has never used it in any run.
+- **Unconfirmed:** one `SEVERITY_OVERSTATED` screen hit, on an off-path `unreachableNode`. The screen
+  cannot tell "the flow cannot run" from "this step never runs", and no text is recorded to settle it.
+- **Impact:** L4b cannot meet the proposed quality target (L4 › "Proposed explanation quality target").
+  Explanations are delivered, labelled as AI, grounded in the validator's issues and leak nothing. They
+  are just not corrective.
+- **Do not "fix" by:**
+  - widening `CORRECTIVE` or `REMEDY` after seeing this result;
+  - counting "look at" as a corrective action;
+  - editing the instruction without re-measuring L1.8's `explanationAtCapMs`.
+
+  Whether the instruction should ask for a corrective step is the owner's decision.
+
 ## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
 
 - **Symptom:** on L5b's labelled set the real Qwen3.5-0.8B ties the deterministic baseline (9/11 against
