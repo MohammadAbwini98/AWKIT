@@ -71,7 +71,7 @@ export const SOURCES = [
   {
     id: "phases",
     rel: "src/roadmap/ImplementationRoadmap.ts",
-    label: "Implementation roadmap phases (A-L)",
+    label: "Implementation roadmap phases (A-M)",
     parsed: true,
     role: "The phase model rendered in-app. Read as 'what this file says', with its own staleness shown."
   },

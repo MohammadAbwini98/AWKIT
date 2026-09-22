@@ -1,7 +1,8 @@
 /**
- * The A-L phase model the app renders on its Roadmap page, and the only source the Program Status
+ * The A-M phase model the app renders on its Roadmap page, and the only source the Program Status
  * dashboard reads for phase state. L (Local AI & Intelligent Automation) was registered pending on
- * 2026-09-19; its milestone order lives in Beads epic awkit-djnl, not in this file.
+ * 2026-09-19; M (Optional Application Knowledge Base) was registered pending on 2026-09-22. Their
+ * milestone order lives in Beads, not in this file.
  *
  * THIS FILE IS HAND-MAINTAINED. Nothing derives it, so it goes stale silently: between the initial
  * commit (2026-07-04) and the 2026-07-27 reconciliation it was untouched across 282 commits, which
@@ -17,7 +18,7 @@
 export type RoadmapStatus = "complete" | "in-progress" | "partially-completed" | "pending" | "blocked";
 
 export interface RoadmapPhase {
-  id: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L";
+  id: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M";
   title: string;
   status: RoadmapStatus;
   deliverables: string[];
@@ -121,6 +122,14 @@ export const implementationRoadmap: RoadmapPhase[] = [
     deliverables: ["L0 Decisions & owner audit", "L1 AI foundation, autonomy policy & performance gate", "L2 Deterministic Recorder & Element Spy", "L3 Intelligent locators", "L4 Authoring diagnostics & AI explanations", "L5 Failure evidence & failure intelligence", "L6 Reusable fragments & templates", "L7 Release confirmation"],
     acceptance: "With no model installed the product behaves exactly as today; with the model, every automatic change is proven, audited and one-click revertible, and no model call runs on the synchronous execution path.",
     implementationNote: "Plan: docs/plans/ai-upgrade-v5/ROADMAP.md (commit 0d6e0fd) - one local CPU-only model (Qwen3.5-4B GGUF, separate offline model pack) with event-driven automation under policy-tiered autonomy T0-T3. Tracked as Beads epic awkit-djnl with ten dependency-ordered milestones: L0 .2, L1 .1, L2 .3, L3 .4, L4a .5, L4b .6, L5a .7, L5b .8, L6 .9 and L7 .10. L0 completed 2026-09-19 (awkit-djnl.2 closed): owner audit in the plan ROADMAP and decisions in docs/ai/DECISIONS.md, so L1, L2, L4a and L5a are ready. No product code has changed and no model is bundled or required."
+  },
+  {
+    id: "M",
+    title: "Optional Application Knowledge Base (AKB)",
+    status: "pending",
+    deliverables: ["M1 Optional source registration & deterministic indexing", "M2 Hybrid source retrieval & model compatibility", "M3 Source-aware locator assistance", "M4 Source-aware failure analysis", "M5 Expected-result & assertion assistance", "M6 Indexing lifecycle & user-facing readiness", "M7 Performance, security & verification"],
+    acceptance: "Authorized UI source may optionally improve locator suggestions, failure diagnosis and expected-result recommendations, while recording, design, execution, sessions, data binding, assertions, failure analysis and reporting remain fully operational without the knowledge base or an AI model.",
+    implementationNote: "PLANNED with zero implementation progress. The optional, offline-capable and loosely coupled plan is registered in docs/plans/ai-upgrade-v5/ROADMAP.md and tracked as Beads epic awkit-akb with seven milestones. Deterministic indexing and retrieval never require AI inference; source context is bounded rather than loading a repository into model context; browser/runtime evidence remains authoritative; normal automation remains available during indexing; no benchmark result or processing time is claimed."
   }
 ];
 
