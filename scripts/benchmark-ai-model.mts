@@ -46,6 +46,7 @@ import {
   stageModelRoot
 } from "./ai-harness/launch.mts";
 import { failureAnalysisPacket } from "./ai-harness/failureAnalysisPacket";
+import { locatorUpgradePacket } from "./ai-harness/locatorUpgradePacket";
 import { validationExplanationPacket } from "./ai-harness/validationExplanationPacket";
 
 const EVIDENCE = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence");
@@ -163,6 +164,7 @@ const save = () => {
  * belong to a request the product no longer makes, so the scenario is measured again.
  */
 const PACKET_IDENTITY: Partial<Record<Scenario, string>> = {
+  "packets:locatorUpgrade": locatorUpgradePacket().identity,
   "packets:validationExplanation": validationExplanationPacket().identity,
   "packets:failureAnalysis": failureAnalysisPacket().identity
 };

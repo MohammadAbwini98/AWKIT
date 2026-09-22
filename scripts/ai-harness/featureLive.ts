@@ -9,8 +9,9 @@
  *                    Arriving in time is not enough: every real v1 answer arrived and was refused.
  *   locatorUpgrade   L3 §7 through `runLocatorUpgradeAttempts`, the job the product will queue once L1
  *                    is accepted (nothing queues it yet), over a capture context bounded by L2's own
- *                    `sanitizeUpgradeContext`. The browser proof is stubbed as "page unavailable": it
- *                    runs after the model answers and is not part of any deadline.
+ *                    `sanitizeUpgradeContext`. Each job must end ACCEPTED: its plan decoded, compiled and
+ *                    past the intent guard. The browser proof is stubbed as "page unavailable": it runs
+ *                    after the model answers, needs a page, and is not part of any deadline.
  *
  * Each runs a typical request and the largest one the product builds. The benchmark measured synthetic
  * stand-ins for both features, at output caps the product does not use, so this is what the product's
@@ -24,9 +25,7 @@ import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
 import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
 import { AI_HOST_PROTOCOL_VERSION, type AiHostHello } from "@src/ai/contracts/AiHostProtocol";
 import { FAILURE_ANALYSIS_LIMITS, parseFailureAnalysis, redactFailureAnalysis } from "@src/ai/failureAnalysis";
-import { LOCATOR_ATTEMPT_LIMITS, runLocatorUpgradeAttempts } from "@src/ai/locatorUpgradeAttempts";
-import type { FlowStep, StepLocator } from "@src/profiles/FlowProfile";
-import { markBoundValues, sanitizeUpgradeContext } from "@src/recorder/upgradeContext";
+import { LOCATOR_ATTEMPT_LIMITS, locatorAttemptJob, runLocatorUpgradeAttempts } from "@src/ai/locatorUpgradeAttempts";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import type { RunnerFailureKind } from "@src/runner/evidence/FailureCauseBaseline";
 import type { LocatorProofResult } from "@src/runner/locatorProof";
@@ -34,6 +33,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
 import { LARGEST_FAILURE, RUNNER_ONLY_FAILURE, TYPICAL_FAILURE, answerShape, failedRun, productFailureRequest, type FixtureEvent } from "./failureAnalysisPacket";
 import type { LiveContext } from "./harnessMain";
+import { LARGEST_CONTEXT, PROMPT_NONCE, TYPICAL_CONTEXT, locatorInput, planShape } from "./locatorUpgradePacket";
 
 export interface FeatureLiveApi {
   step: <T>(label: string, fn: () => Promise<T> | T) => Promise<T | undefined>;
@@ -196,65 +196,7 @@ export async function runFailureAnalysisLive(api: FeatureLiveApi): Promise<void>
 }
 
 // ── locatorUpgrade ───────────────────────────────────────────────────────────────────────────────
-
-/** A guarded-positional baseline: the weak class L3 §1 queues a job for. */
-const GUARDED: StepLocator = {
-  strategy: "css",
-  value: ".row > button",
-  quality: { strategy: "fallback", isUnique: false, matchCount: 3, confidence: "low", disambiguation: "positional" },
-  guard: {
-    container: [],
-    candidateSelector: ".row > button",
-    siblingCount: 3,
-    index: 1,
-    confidence: "high",
-    fingerprint: { tag: "button", role: "button", name: "aaaa", text: "bbbb", attributes: {}, ancestry: ["cccc"] }
-  }
-};
-const WEAK_STEP = { id: "s-archive", type: "click", name: "Archive item", locator: GUARDED } as FlowStep;
-const BOUND_VALUES = ["Alice Smith", "Bob Jones"];
-
-/** What L3 §7's verifier captures on the Feature Test Lab's locator-upgrade page. */
-const TYPICAL_CONTEXT = {
-  target: { tag: "button", role: "button", name: "Archive", type: "" },
-  candidates: [{ strategy: "role", value: "button", name: "Archive", count: 2, fallback: false }],
-  containers: [{ kind: "card", tag: "section", role: "region", name: "Guarded baselines" }],
-  heading: "Locator Upgrade Lab",
-  siblingActions: ["Remove", "Swap twins"],
-  pageKey: "/recorder-lab/locator-upgrade"
-};
-
-const text = (seed: string, length: number): string => seed.repeat(Math.ceil(length / seed.length)).slice(0, length);
-
-/** Every field at L2's own caps: five candidates, six containers, six sibling actions, 80-character texts. */
-const LARGEST_CONTEXT = {
-  target: { tag: "button", role: "button", name: text("Archive the selected customer order and notify the account owner ", 80), type: "button" },
-  candidates: [
-    { strategy: "role", value: "button", name: text("Archive the selected customer order and notify the account owner ", 80), count: 3, fallback: false },
-    { strategy: "text", value: text("Archive the selected customer order and notify the account owner ", 200), count: 3, fallback: false },
-    { strategy: "testId", value: text("orders-table-row-actions-archive-button-", 200), count: 2, fallback: false },
-    { strategy: "css", value: text("main#content > section.orders-panel > div.table-wrapper > table.orders > tbody > tr.order-row > td.actions > ", 200), count: 3, fallback: true },
-    { strategy: "xpath", value: text("//main[@id='content']/section[contains(@class,'orders-panel')]/div/table/tbody/tr/td[last()]/", 200), count: 3, fallback: true }
-  ],
-  containers: [
-    { kind: "row", tag: "tr", role: "row", name: text("Order 40001 placed by Alice Smith on 21 September, awaiting fulfilment ", 80) },
-    { kind: "form", tag: "form", role: "form", name: text("Bulk order actions for the selected rows in the current filtered view ", 80) },
-    { kind: "card", tag: "section", role: "region", name: text("Open orders across every warehouse and every sales channel this week ", 80) },
-    { kind: "dialog", tag: "div", role: "dialog", name: text("Review the orders you are about to archive before you confirm the change ", 80) },
-    { kind: "landmark", tag: "main", role: "main", name: text("Order management workspace for the regional fulfilment operations team ", 80) },
-    { kind: "listItem", tag: "li", role: "listitem", name: text("Saved view: open orders older than seven days with a pending payment ", 80) }
-  ],
-  heading: text("Open orders awaiting fulfilment across all warehouses and sales channels ", 80),
-  siblingActions: [
-    text("Mark the selected order as shipped and email the tracking link ", 60),
-    text("Duplicate this order into a new draft for the same customer ", 60),
-    text("Print the packing slip and the shipping label for this order ", 60),
-    text("Refund the remaining balance to the original payment method ", 60),
-    text("Assign this order to another fulfilment agent in the team ", 60),
-    text("Open the full order history and every note left by support ", 60)
-  ],
-  pageKey: "/orders/open"
-};
+// The fixtures live in locatorUpgradePacket.ts, which `benchmark:ai-model` also measures.
 
 /** "Page unavailable", as `proveLocatorPlan` answers when the page has gone: stored for replay to settle. */
 const PAGE_UNAVAILABLE: LocatorProofResult = {
@@ -275,35 +217,55 @@ export async function runLocatorUpgradeLive(api: FeatureLiveApi): Promise<void> 
 
   const upgrade = async (label: string, requestId: string, raw: unknown) =>
     api.step(label, async () => {
-      const captured = sanitizeUpgradeContext(raw, { pageAlias: "main", frameDepth: 0 });
-      if (!captured) throw new Error("the capture context did not sanitize");
-      const upgradeContext = markBoundValues(captured, BOUND_VALUES.map((value) => value.toLowerCase()));
+      const input = locatorInput(raw, requestId);
       const before = ctx.jobs.length;
       const deadlinesBefore = ctx.deadlines.length;
       const started = Date.now();
-      const result = await runLocatorUpgradeAttempts(
-        { requestId, step: WEAK_STEP, boundValues: BOUND_VALUES, upgradeContext },
-        { ai: { submit: ctx.submit, cancel: (id) => ctx.service.cancel(id) }, prove: async () => PAGE_UNAVAILABLE, annotate: async () => ({ code: "OK" as const }) }
-      );
+      const result = await runLocatorUpgradeAttempts(input, {
+        ai: { submit: ctx.submit, cancel: (id) => ctx.service.cancel(id) },
+        prove: async () => PAGE_UNAVAILABLE,
+        annotate: async () => ({ code: "OK" as const })
+      });
       const calls = ctx.jobs.slice(before);
+      // Each call is the request `locatorAttemptJob` builds for its attempt, the one the benchmark measures,
+      // and every line of it reaches the model whole: delimited on both sides, since a prefix is not a line.
+      const rebuilt = calls.map((call, index) => locatorAttemptJob(input, result.attempts.slice(0, index), call.request.requestId));
+      const sameRequest = calls.every((call, index) => JSON.stringify([call.request.prompt, call.request.schema, call.request.maxOutputTokens]) === JSON.stringify([rebuilt[index].prompt, rebuilt[index].schema, rebuilt[index].maxOutputTokens]));
+      const prompts = calls.map((call) => buildAiPrompt(call.request.prompt, new SemanticRedactor(), PROMPT_NONCE));
+      const linesWhole = calls.every((call, index) => {
+        const prompt = prompts[index];
+        return prompt.ok && prompt.omittedFields.length === 0 && call.request.prompt.fields.every((field) => (field.text ?? "").split("\n").every((line) => prompt.user.includes(`\n${line}\n`)));
+      });
       const summary = {
         outcome: result.outcome,
         code: result.code,
         attemptsUsed: result.attemptsUsed,
-        refusals: result.attempts.map((attempt) => `${attempt.stage}:${attempt.code}`),
+        refusals: result.attempts.map((attempt) => `${attempt.stage}:${attempt.code}${attempt.field ? `@${attempt.field}` : ""}`),
         elapsedMs: Date.now() - started,
         hostDeadlinesMs: ctx.deadlines.slice(deadlinesBefore),
-        calls: calls.map((call) => measured(call.outcome, call.request.maxOutputTokens))
+        sameRequest,
+        linesWhole,
+        calls: calls.map((call, index) => {
+          const prompt = prompts[index];
+          return {
+            ...measured(call.outcome, call.request.maxOutputTokens),
+            shape: call.outcome.status === "ok" && prompt.ok ? planShape(call.outcome.value, prompt.user) : null
+          };
+        })
       };
       if (calls.length === 0 || !calls.every((call) => answeredInTime(call.outcome))) throw new Error(JSON.stringify(summary));
       // One deadline per call, or `every` below would pass on none at all.
       if (summary.hostDeadlinesMs.length !== calls.length || !summary.hostDeadlinesMs.every((ms) => ms === LOCATOR_ATTEMPT_LIMITS.timeoutMs)) {
         throw new Error(`the inferences were given ${summary.hostDeadlinesMs.join(", ") || "no"} ms deadlines, not ${LOCATOR_ATTEMPT_LIMITS.timeoutMs} each`);
       }
+      if (!sameRequest || !linesWhole) throw new Error(`the product sent a request other than the one measured, or cut a line: ${JSON.stringify(summary)}`);
+      // Answering in time is not enough: the plan must decode, compile and pass the intent guard, and be
+      // stored for the proof to settle. Arriving and being refused is what every real v1 failure analysis did.
+      if (result.outcome !== "accepted" || !result.pending) throw new Error(JSON.stringify(summary));
       return summary;
     });
-  await upgrade("a typical upgrade job ends on its merits under its own deadline (after the model load)", "live-locator-typical", TYPICAL_CONTEXT);
-  await upgrade("the largest capture context the product sends ends on its merits under its own deadline", "live-locator-largest", LARGEST_CONTEXT);
+  await upgrade("a typical upgrade job is accepted under its own deadline (after the model load)", "live-locator-typical", TYPICAL_CONTEXT);
+  await upgrade("the largest capture context the product sends is accepted under its own deadline", "live-locator-largest", LARGEST_CONTEXT);
   await ctx.service.shutdown();
   api.record("counters", (await ctx.service.status()).counters);
 }

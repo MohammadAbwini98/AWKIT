@@ -14,7 +14,10 @@
  * element, a bound data value, a positional selector or an invented frame reaching `pendingUpgrade`; a
  * protected-login refusal followed by another proposal; an expired capture context triggering a call;
  * a cancelled or superseded request storing a late answer; a provider timeout, crash or absence
- * changing a run's outcome; a pending candidate promoting itself.
+ * changing a run's outcome; a pending candidate promoting itself. And (§17, L1.8) an attempt grammar
+ * looser than the plan schema, a second scope or a cut candidate value decodable, a captured candidate
+ * that cannot be written whole, a context line cut rather than dropped, a Recorder fallback shown, a
+ * refusal carrying page text, or a benchmark packet that is not the job the product submits.
  *
  * Run: npm run verify:ai-locator-attempts
  */
@@ -26,18 +29,22 @@ import { join, resolve as resolvePath } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
-import { AiService, type AiServiceSettings } from "@src/ai/AiService";
+import { isBoundedSchema, validateAiOutput, type AiOutputSchema } from "@src/ai/AiOutputContract";
+import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
+import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import {
   LOCATOR_ATTEMPT_LIMITS,
+  LOCATOR_ATTEMPT_SCHEMA,
   buildAttemptFeedback,
   isLocatorUpgradeEligible,
+  locatorAttemptJob,
   runLocatorUpgradeAttempts,
   upgradeContextUsable,
   type LocatorAttemptResult,
   type LocatorUpgradeAttemptInput
 } from "@src/ai/locatorUpgradeAttempts";
-import { compileLocatorPlan } from "@src/ai/locatorPlan";
+import { LOCATOR_PLAN_SCHEMA, compileLocatorPlan } from "@src/ai/locatorPlan";
 import { annotatePendingUpgrade } from "@src/ai/pendingUpgrade";
 import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
 import { hasPositionalIdentityGuard } from "@src/profiles/locatorApproval";
@@ -51,7 +58,10 @@ import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { proveLocatorPlan } from "@src/runner/locatorProof";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { ValueResolver } from "@src/runner/ValueResolver";
+import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { JsonProfileStore } from "@src/storage/ProfileStore";
+
+import { LARGEST_CONTEXT, LONGEST_REFUSAL, locatorInput, locatorUpgradePacket, productLocatorRequest } from "./ai-harness/locatorUpgradePacket";
 
 let passed = 0;
 let failed = 0;
@@ -512,6 +522,140 @@ try {
   check("...the saved primary is unchanged", storedStep.locator?.strategy === archive.locator?.strategy && storedStep.locator?.value === archive.locator?.value);
   check("...and the guarded baseline still carries its positional guard", hasPositionalIdentityGuard(storedStep));
   await provenPage.close();
+  await page.close();
+
+  // ── 17. The request an attempt sends, and the plans its grammar can decode (L1.8) ────────────────
+  console.log("\n17 — the request an attempt sends, and the plans its grammar can decode (L1.8)");
+  // The attempt grammar must sit inside the plan schema: same keys, `required` and enums, no looser
+  // bound. Then whatever it decodes is a plan the trusted compiler still judges in full.
+  const looser = (attempt: AiOutputSchema, plan: AiOutputSchema, path = "$"): string[] => {
+    if (attempt.type !== plan.type) return [`${path}: type`];
+    if (attempt.type === "object" && plan.type === "object") {
+      const same = JSON.stringify([Object.keys(attempt.properties), attempt.required]) === JSON.stringify([Object.keys(plan.properties), plan.required]);
+      return [...(same ? [] : [`${path}: keys`]), ...Object.keys(attempt.properties).flatMap((key) => (plan.properties[key] ? looser(attempt.properties[key], plan.properties[key], `${path}.${key}`) : []))];
+    }
+    if (attempt.type === "array" && plan.type === "array") {
+      return [...(attempt.maxItems <= plan.maxItems && (attempt.minItems ?? 0) >= (plan.minItems ?? 0) ? [] : [`${path}: items`]), ...looser(attempt.items, plan.items, `${path}[]`)];
+    }
+    if (attempt.type === "string" && plan.type === "string" && "maxLength" in attempt && "maxLength" in plan) return attempt.maxLength <= plan.maxLength ? [] : [`${path}: maxLength`];
+    return JSON.stringify(attempt) === JSON.stringify(plan) ? [] : [`${path}: bounds`];
+  };
+  check("the attempt grammar is bounded", isBoundedSchema(LOCATOR_ATTEMPT_SCHEMA));
+  check("...and is the plan schema narrowed: same keys and enums, no bound looser", looser(LOCATOR_ATTEMPT_SCHEMA, LOCATOR_PLAN_SCHEMA).length === 0, looser(LOCATOR_ATTEMPT_SCHEMA, LOCATOR_PLAN_SCHEMA).join(", "));
+  const loosened = JSON.parse(JSON.stringify(LOCATOR_ATTEMPT_SCHEMA)) as { properties: { scopes: { maxItems: number } } };
+  loosened.properties.scopes.maxItems = 99;
+  check("(non-vacuity) a copy with a looser bound IS flagged", looser(loosened as unknown as AiOutputSchema, LOCATOR_PLAN_SCHEMA).length > 0);
+
+  const long = (seed: string, chars: number): string => seed.repeat(Math.ceil(chars / seed.length)).slice(0, chars);
+  const planWith = (value: string, scopes: unknown[]) => ({ version: 1, target: { strategy: "testId", value, name: "", exact: false }, scopes });
+  const scope = (name: string) => ({ strategy: "role", value: "region", name, exact: false, kind: "card", hasText: "", visibleOnly: false });
+  const capturedLong = sanitizeUpgradeContext({ target: { tag: "a" }, candidates: [{ strategy: "testId", value: long("orders-archive-", 300), count: 2 }] }, { pageAlias: "lab", frameDepth: 0 });
+  const longestCandidate = capturedLong?.candidates[0]?.value ?? "";
+  check("(precondition) a capture keeps a candidate value at its 200-character bound", longestCandidate.length === 200, String(longestCandidate.length));
+  check("a candidate value as long as any capture offers is decodable whole", validateAiOutput(planWith(longestCandidate, []), LOCATOR_ATTEMPT_SCHEMA).length === 0);
+  check("...and a container name as long as any capture shows is decodable as a scope", validateAiOutput(planWith("lu-archive", [scope(long("Guarded baselines ", 80))]), LOCATOR_ATTEMPT_SCHEMA).length === 0);
+  check("a second scope is not decodable: two do not fit the cap with their texts", validateAiOutput(planWith("lu-archive", [scope("A"), scope("B")]), LOCATOR_ATTEMPT_SCHEMA).length > 0);
+  check("...nor a scope text longer than any the capture shows", validateAiOutput(planWith("lu-archive", [scope(long("Guarded baselines ", 81))]), LOCATOR_ATTEMPT_SCHEMA).length > 0);
+
+  const attempt = (upgradeContext: UpgradeContext, records: Parameters<typeof locatorAttemptJob>[1] = []) =>
+    locatorAttemptJob({ requestId: "req-17", step: archive, boundValues: ["Alice Smith", "Bob Jones"], upgradeContext }, records, "req-17.a1");
+  const shownBy = (request: AiJobRequest) => {
+    const built = buildAiPrompt(request.prompt, new SemanticRedactor(), "0123456789abcdef");
+    return built.ok && built.omittedFields.length === 0 ? built.user : "";
+  };
+  const typicalJob = attempt(context);
+  const typicalShown = shownBy(typicalJob);
+  check("an attempt sends ONE data block, built whole", typicalJob.prompt.fields.length === 1 && typicalShown.split("<<<DATA ").length === 2, typicalShown);
+  check("...decoded against the attempt grammar at the attempt's output cap", typicalJob.schema === LOCATOR_ATTEMPT_SCHEMA && typicalJob.maxOutputTokens === LOCATOR_ATTEMPT_LIMITS.maxOutputTokens);
+  const expected = [`current locator: ${archive.locator?.strategy}, guarded-positional`, "target: tag=button role=button name=Archive", "candidate: role=button name=Archive matches=2", "container: card region Guarded baselines", "heading: Locator Upgrade Lab", "sibling action: Remove", "data-bound, not shown: siblingActions.1"];
+  check("...showing the saved locator's strategy and class only, the target, candidate, container, heading and actions", expected.every((line) => typicalShown.includes(`\n${line}\n`)), typicalShown);
+  check("...and never the sibling flagged as a bound value", !typicalShown.includes("Swap twins"));
+
+  // A capture at every L2 bound: four distinct 200-character candidates, a Recorder fallback, and
+  // more context than fits. Every line is shown whole or not at all.
+  const boundRaw = {
+    target: { tag: long("button", 20), role: long("button", 30), name: long("Archive the selected order ", 80), type: long("button", 20) },
+    candidates: [
+      ...["alpha-", "bravo-", "charlie-", "delta-"].map((seed) => ({ strategy: "placeholder", value: long(seed, 200), name: long("Archive ", 80), count: 10_000 })),
+      { strategy: "css", value: "main > section:nth-of-type(3) > div.row > button", count: 3, fallback: true }
+    ],
+    containers: Array.from({ length: 6 }, (_, index) => ({ kind: "listItem", tag: "li", role: long("listitem", 30), name: long(`Panel ${index} of the orders workspace `, 80) })),
+    heading: long("Open orders ", 80),
+    siblingActions: Array.from({ length: 6 }, (_, index) => long(`Action ${index} for this order `, 60))
+  };
+  const boundCaptured = sanitizeUpgradeContext(boundRaw, { pageAlias: "lab", frameDepth: 0 });
+  if (!boundCaptured) throw new Error("the bound capture did not sanitize");
+  const boundJob = attempt(markBoundValues(boundCaptured, []), [LONGEST_REFUSAL]);
+  const boundText = boundJob.prompt.fields[0].text ?? "";
+  const boundLines = boundText.split("\n");
+  const semantic = boundCaptured.candidates.filter((candidate) => !candidate.fallback);
+  // Every line this capture can produce, whole. A cut line is none of them: every line shown is checked,
+  // not only those whose label survived, since a cut can land inside a label.
+  const { tag, role, type, name } = boundCaptured.target;
+  const wholeLines = new Set([
+    `current locator: ${archive.locator?.strategy}, guarded-positional`,
+    `target: tag=${tag} role=${role} type=${type} name=${name}`,
+    `refused ${buildAttemptFeedback([LONGEST_REFUSAL])}`,
+    ...semantic.map((candidate) => `candidate: ${candidate.strategy}=${candidate.value} name=${candidate.name} matches=${candidate.count}`),
+    ...boundCaptured.containers.map((container) => `container: ${container.kind} ${container.role} ${container.name}`),
+    `heading: ${boundCaptured.heading}`,
+    ...boundCaptured.siblingActions.map((action) => `sibling action: ${action}`)
+  ]);
+  check("at every L2 bound the context stays within its budget and builds whole", boundText.length <= LOCATOR_ATTEMPT_LIMITS.maxContextChars && shownBy(boundJob) !== "", String(boundText.length));
+  check("...(precondition) and more was offered than fits, so lines were dropped", boundLines.length < wholeLines.size && boundLines.length > 3, `${boundLines.length} of ${wholeLines.size}`);
+  check("...and every line shown is whole, never cut", boundLines.every((line) => wholeLines.has(line)), boundLines.filter((line) => !wholeLines.has(line)).join(" | "));
+  check("...with every candidate among them, since they come first", semantic.every((candidate) => boundLines.some((line) => line.startsWith(`candidate: ${candidate.strategy}=${candidate.value} `))));
+  check("...and the refusal survives the budget", boundText.includes("refused attempt 1: refused at intent (INTENT_BOUND_VALUE) on scopes.0.hasText"));
+  check("a Recorder fallback (structural or positional CSS/XPath) is never shown", !boundText.includes("nth-of-type") && !boundText.includes("(fallback)"));
+
+  const largestText = productLocatorRequest(LARGEST_CONTEXT, [LONGEST_REFUSAL]).prompt.fields[0].text ?? "";
+  const largestCaptured = locatorInput(LARGEST_CONTEXT, "req-largest").upgradeContext!;
+  check(
+    "the largest fixture's request drops nothing: every semantic candidate, action and the heading, whole",
+    largestCaptured.candidates.every((candidate) => candidate.fallback !== largestText.includes(`candidate: ${candidate.strategy}=${candidate.value} `)) &&
+      [...largestCaptured.siblingActions.map((action) => `sibling action: ${action}`), `heading: ${largestCaptured.heading}`].every((line) => largestText.split("\n").includes(line)),
+    largestText
+  );
+
+  // The benchmark's packet is the second attempt of the largest job after a real intent refusal: run
+  // the product's own loop to that point and compare what it submits.
+  const submitted: AiJobRequest[] = [];
+  const refusedFirst = await runLocatorUpgradeAttempts(locatorInput(LARGEST_CONTEXT, "req-packet"), {
+    ai: {
+      submit: async (request) => {
+        submitted.push(request);
+        return submitted.length === 1
+          ? { status: "ok", value: JSON.parse(PLANS.dataBound), modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0 }
+          : { status: "cancelled", yields: 0 };
+      },
+      cancel: () => false
+    },
+    prove: async () => {
+      throw new Error("a refused plan reached the proof");
+    },
+    annotate: async () => ({ code: "OK" as const })
+  });
+  const secondText = submitted[1]?.prompt.fields[0].text ?? "";
+  check("(precondition) the first plan was refused by the intent guard on its scope's text", refusedFirst.attempts[0]?.code === "INTENT_BOUND_VALUE" && submitted.length === 2, JSON.stringify(refusedFirst));
+  check("a refusal reaches the next attempt as its code and field path, never the value", secondText.includes("refused attempt 1: refused at intent (INTENT_BOUND_VALUE) on scopes.0.hasText") && !/alice|bob/i.test(secondText), secondText);
+  const packet = locatorUpgradePacket();
+  check(
+    "the benchmark's packet IS the job the product submits on that second attempt",
+    JSON.stringify([submitted[1]?.prompt, submitted[1]?.schema, submitted[1]?.maxOutputTokens]) === JSON.stringify([packet.spec, packet.schema, packet.maxOutputTokens])
+  );
+
+  // Through the real AiService and output contract: what the grammar cannot decode is refused before the
+  // compiler and never reaches the page, and a plan at the capture's own bounds still reaches the proof.
+  await seedFlow(FLOW_ID);
+  page = await freshPage();
+  before = proofs;
+  const twoScopes = JSON.stringify(planWith("lu-archive", [scope("Guarded baselines"), scope("Lab")]));
+  const refusedScopes = await job(page, [twoScopes, twoScopes]);
+  check("a two-scope plan is refused by the output contract (SCHEMA_REJECTED)", refusedScopes.result.outcome === "attempts-exhausted" && refusedScopes.result.code === "SCHEMA_REJECTED", JSON.stringify(refusedScopes.result));
+  check("...and never reached the browser", proofs === before, `${proofs - before} proofs ran`);
+  before = proofs;
+  const longValue = await job(page, [JSON.stringify(planWith(longestCandidate, [])), PLANS.notJson]);
+  check("a plan carrying a 200-character captured value passes the contract and compiler to the proof", proofs === before + 1 && longValue.result.attempts[0]?.stage === "proof", JSON.stringify(longValue.result));
   await page.close();
 } finally {
   await browser?.close().catch(() => undefined);

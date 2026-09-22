@@ -12,9 +12,8 @@
  *   playwright a Chromium workload alone, beside a running inference, and with inference yielding
  *   batch      a coalesced burst through AiService: queue cap, drain time, hold while runs are active
  *
- * Everything recorded is a count, a code or a timing. Prompts are synthetic, except the validation
- * explanation's and the failure analysis's, which are the product's own requests over fixture data.
- * Model text is never recorded.
+ * Everything recorded is a count, a code or a timing. The three packets are the product's own requests
+ * over fixture data; the cancel, playwright and batch workloads are synthetic. Model text is never recorded.
  */
 
 import { app } from "electron";
@@ -31,6 +30,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
 import { failureAnalysisPacket } from "./failureAnalysisPacket";
 import type { LiveContext } from "./harnessMain";
+import { locatorUpgradePacket } from "./locatorUpgradePacket";
 import { validationExplanationPacket } from "./validationExplanationPacket";
 
 export interface BenchApi {
@@ -113,39 +113,7 @@ const SYNTHETIC_FAILURE = {
 };
 
 function packets(): Packet[] {
-  const candidates = ids("cand", 8);
-  return [
-    {
-      name: "locatorUpgrade",
-      spec: {
-        instructions:
-          "You propose a durable semantic locator for one recorded element. Choose the candidate that best identifies the " +
-          "same element by role, accessible name and a stable container. Never choose by position when a named candidate " +
-          "exists. Give a confidence from 0 to 100 and a one-sentence rationale.",
-        fields: [
-          { name: "candidates", ids: candidates },
-          { name: "element", text: prose(900, 3) },
-          { name: "ancestors", text: prose(1_400, 5) },
-          { name: "page", text: prose(5_400, 11) }
-        ],
-        maxDataChars: 9_000
-      },
-      schema: {
-        type: "object",
-        properties: {
-          choice: { type: "string", enum: candidates },
-          scope: { type: "string", enum: ["none", "form", "dialog", "row", "region"] },
-          confidence: { type: "integer", minimum: 0, maximum: 100 },
-          rationale: { type: "string", maxLength: 240 }
-        },
-        required: ["choice", "scope", "confidence", "rationale"],
-        additionalProperties: false
-      },
-      maxOutputTokens: 192
-    },
-    validationExplanationPacket(),
-    failureAnalysisPacket()
-  ];
+  return [locatorUpgradePacket(), validationExplanationPacket(), failureAnalysisPacket()];
 }
 
 function built(spec: AiPromptSpec, nonce = NONCE): { system: string; user: string } {

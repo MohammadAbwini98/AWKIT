@@ -22,6 +22,7 @@
  * against `FakeAiHostTransport` with no Electron and, for the pure cases, no browser. Node's `crypto`
  * reaches this module through `pendingUpgrade`, so it is main/runner-side, not renderer-safe.
  */
+import type { AiOutputSchema } from "./AiOutputContract";
 import type { AiJobOutcome, AiJobPriority, AiJobRequest } from "./AiService";
 import type { AiPromptSpec } from "./AiPromptBuilder";
 import {
@@ -48,11 +49,47 @@ export const LOCATOR_ATTEMPT_LIMITS = Object.freeze({
    * (`verify:ai-locator-upgrade-live`).
    */
   timeoutMs: 185_000,
-  /** The plan grammar is small; a longer answer is a malformed one. */
-  maxOutputTokens: 512,
+  /**
+   * At 512 the cap alone projected past the 180 s L1.8 ceiling. 256 is the lowest cap every valid plan
+   * fits: any candidate the capture offers, whole, scoped by any container it offers. One cut at the cap
+   * is invalid JSON and is refused whole (`verify:ai-locator-upgrade-budget`).
+   */
+  maxOutputTokens: 256,
+  /**
+   * The answer's own bounds, each at or inside `LOCATOR_PLAN_SCHEMA`'s (see {@link LOCATOR_ATTEMPT_SCHEMA}),
+   * taken from what `sanitizeUpgradeContext` lets a capture show, so a plan copying it is never cut:
+   * the target's value as long as a candidate's, every other text as long as a name or container text.
+   * One scope: two do not fit the cap with their texts.
+   */
+  maxScopes: 1,
+  maxValueChars: 200,
+  maxTextChars: 80,
+  /** Context lines go whole, most useful first, while they fit: a line never reaches the model cut. */
+  maxContextChars: 2_800,
   /** Delimited context handed to the model, before `AiPromptBuilder`'s own global cap. */
   maxDataChars: 3_000
 });
+
+/**
+ * The grammar one attempt decodes against: `LOCATOR_PLAN_SCHEMA` with the same keys and enums and
+ * tighter bounds, so every answer it admits is a plan the trusted compiler still judges in full.
+ * node-llama-cpp writes every key in schema order whatever `required` says, so these bounds, not the
+ * model, set how long an answer can get.
+ */
+function narrowed(schema: AiOutputSchema, key = "", scoped = false): AiOutputSchema {
+  const limits = LOCATOR_ATTEMPT_LIMITS;
+  switch (schema.type) {
+    case "object":
+      return { ...schema, properties: Object.fromEntries(Object.entries(schema.properties).map(([name, child]) => [name, narrowed(child, name, scoped)])) };
+    case "array":
+      return { ...schema, items: narrowed(schema.items, "", true), maxItems: Math.min(schema.maxItems, limits.maxScopes) };
+    case "string":
+      return "maxLength" in schema ? { ...schema, maxLength: Math.min(schema.maxLength, key === "value" && !scoped ? limits.maxValueChars : limits.maxTextChars) } : schema;
+    default:
+      return schema;
+  }
+}
+export const LOCATOR_ATTEMPT_SCHEMA: AiOutputSchema = narrowed(LOCATOR_PLAN_SCHEMA);
 
 /** L3 §1: only a weak finalized locator is queued on its own. Stronger classes are left alone. */
 const WEAK_CLASSES: ReadonlySet<LocatorQualityClass> = new Set(["guarded-positional", "review-required"]);
@@ -75,7 +112,7 @@ const MODES = Object.freeze({
     instructions:
       "You propose one replacement locator for a web element whose current locator is fragile. " +
       "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
-      "three semantic scopes. Prefer role with an accessible name, label, placeholder or a test id. " +
+      "one semantic scope. Prefer role with an accessible name, label, placeholder or a test id. " +
       "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
       "value the flow fills in. Scope by stable page structure, never by row content. " +
       "If a previous attempt was refused, the refusal names the field and the rule it broke: fix that field."
@@ -85,7 +122,7 @@ const MODES = Object.freeze({
     instructions:
       "You propose one replacement locator for a web element whose saved locator no longer matches it. " +
       "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
-      "three semantic scopes. Prefer role with an accessible name, label, placeholder or a test id. " +
+      "one semantic scope. Prefer role with an accessible name, label, placeholder or a test id. " +
       "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
       "value the flow fills in. Scope by stable page structure, never by row content. " +
       "The replacement must be the SAME element the step always acted on, not a similar one nearby. " +
@@ -244,35 +281,48 @@ const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, strin
   TARGET_UNFINGERPRINTABLE: "the matched element's identity could not be read"
 });
 
-const line = (label: string, value: string): string => (value ? `${label}: ${value}\n` : "");
-
 /**
- * The delimited, redacted data one attempt may see. Any context field the L2 marker pass flagged as
- * carrying a bound data value is DROPPED here rather than relied on being caught downstream, so the
- * model is never shown a row's contents in the first place.
+ * The context one attempt may see, as lines in the order they are worth keeping: what is being
+ * replaced, the target, a previous refusal, then the neighbourhood.
+ *
+ * - Any context field the L2 marker pass flagged as carrying a bound data value is DROPPED here rather
+ *   than relied on being caught downstream, so the model is never shown a row's contents.
+ * - The baseline's VALUE is never sent, and neither are the Recorder's fallback candidates (structural
+ *   or positional CSS/XPath): both are the fragile form being replaced, which the compiler refuses.
+ * - It is one DATA block. Each block costs about 45 prompt tokens of nonce delimiters, and the seven it
+ *   used to be were most of a typical prompt.
  */
-function contextFields(context: UpgradeContext | undefined): AiPromptSpec["fields"] {
-  if (!context) return [];
-  const bound = new Set(context.boundValues.map((marker) => marker.field));
-  const target = line("tag", context.target.tag) + line("role", context.target.role) + line("type", context.target.type) +
-    (bound.has("target.name") ? "" : line("name", context.target.name));
-  const candidates = context.candidates
-    .map((candidate, index) => (bound.has(`candidates.${index}`) ? "" : `${candidate.strategy}=${candidate.value}${candidate.name ? ` name=${candidate.name}` : ""} matches=${candidate.count}${candidate.fallback ? " (fallback)" : ""}`))
-    .filter(Boolean)
-    .join("\n");
-  const containers = context.containers
-    .map((container, index) => (bound.has(`containers.${index}.name`) ? `${container.kind} ${container.role}` : `${container.kind} ${container.role} ${container.name}`.trim()))
-    .join("\n");
-  const siblings = context.siblingActions.filter((_, index) => !bound.has(`siblingActions.${index}`)).join("\n");
+function contextLines(input: LocatorUpgradeAttemptInput, records: readonly LocatorAttemptRecord[]): string[] {
+  const baseline = input.step.locator;
+  const context = input.upgradeContext;
+  const bound = new Set(context?.boundValues.map((marker) => marker.field));
+  const pairs = (entries: Array<[string, string]>) => entries.filter(([, value]) => value).map(([key, value]) => `${key}=${value}`).join(" ");
+  const target = context ? pairs([["tag", context.target.tag], ["role", context.target.role], ["type", context.target.type], ["name", bound.has("target.name") ? "" : context.target.name]]) : "";
   return [
-    { name: "TargetElement", text: target },
-    { name: "UniqueCandidates", text: candidates },
-    { name: "Containers", text: containers },
-    ...(bound.has("heading") ? [] : [{ name: "PageHeading" as const, text: context.heading }]),
-    { name: "SiblingActions", text: siblings },
+    `current locator: ${baseline?.strategy ?? "unknown"}, ${classifyLocatorQuality(baseline)?.class ?? "unknown"}`,
+    target ? `target: ${target}` : "",
+    ...(records.length ? buildAttemptFeedback(records).split("\n").map((refusal) => `refused ${refusal}`) : []),
+    ...(context?.candidates ?? []).map((candidate, index) =>
+      candidate.fallback || bound.has(`candidates.${index}`) ? "" : `candidate: ${candidate.strategy}=${candidate.value}${candidate.name ? ` name=${candidate.name}` : ""} matches=${candidate.count}`
+    ),
+    ...(context?.containers ?? []).map((container, index) => `container: ${container.kind} ${container.role}${bound.has(`containers.${index}.name`) ? "" : ` ${container.name}`}`.trim()),
+    context && !bound.has("heading") && context.heading ? `heading: ${context.heading}` : "",
+    ...(context?.siblingActions ?? []).map((action, index) => (bound.has(`siblingActions.${index}`) ? "" : `sibling action: ${action}`)),
     // Field PATHS, so the model is told which slots are data-bound without being shown the data.
-    { name: "DataBoundFields", ids: [...bound].slice(0, 32) }
-  ];
+    bound.size ? `data-bound, not shown: ${[...bound].slice(0, 32).join(", ")}` : ""
+  ].filter(Boolean);
+}
+
+/** Whole lines, in order, while they fit. One that does not fit is skipped, never cut. */
+function fitLines(lines: readonly string[], budget: number): string {
+  const kept: string[] = [];
+  let left = budget;
+  for (const text of lines) {
+    if (text.length + 1 > left) continue;
+    kept.push(text);
+    left -= text.length + 1;
+  }
+  return kept.join("\n");
 }
 
 /** Structured deterministic feedback for the next attempt: codes and field paths, nothing else. */
@@ -285,19 +335,25 @@ export function buildAttemptFeedback(records: readonly LocatorAttemptRecord[]): 
     .join("\n");
 }
 
-function buildPrompt(input: LocatorUpgradeAttemptInput, records: readonly LocatorAttemptRecord[]): AiPromptSpec {
-  const baseline = input.step.locator;
-  const quality = classifyLocatorQuality(baseline)?.class;
-  return {
-    instructions: MODES[input.mode ?? "upgrade"].instructions,
+/**
+ * The job one attempt submits, `records` being the refusals so far. Exported so the L1.8 benchmark and
+ * the live gate measure exactly this request, never a stand-in for it.
+ */
+export function locatorAttemptJob(input: LocatorUpgradeAttemptInput, records: readonly LocatorAttemptRecord[], requestId: string): AiJobRequest {
+  const mode = input.mode ?? "upgrade";
+  const prompt: AiPromptSpec = {
+    instructions: MODES[mode].instructions,
     maxDataChars: LOCATOR_ATTEMPT_LIMITS.maxDataChars,
-    fields: [
-      // Strategy and quality only: the baseline's VALUE is the fragile string we are replacing and
-      // the model has no use for it, so it is never sent.
-      { name: "CurrentLocator", ids: [baseline?.strategy ?? "unknown", quality ?? "unknown"] },
-      ...contextFields(input.upgradeContext),
-      ...(records.length ? [{ name: "PreviousRefusals", text: buildAttemptFeedback(records) }] : [])
-    ]
+    fields: [{ name: "Element", text: fitLines(contextLines(input, records), LOCATOR_ATTEMPT_LIMITS.maxContextChars), maxChars: LOCATOR_ATTEMPT_LIMITS.maxContextChars }]
+  };
+  return {
+    requestId,
+    feature: MODES[mode].feature,
+    priority: input.priority ?? "background",
+    prompt,
+    schema: LOCATOR_ATTEMPT_SCHEMA,
+    maxOutputTokens: LOCATOR_ATTEMPT_LIMITS.maxOutputTokens,
+    timeoutMs: LOCATOR_ATTEMPT_LIMITS.timeoutMs
   };
 }
 
@@ -351,15 +407,7 @@ export async function runLocatorUpgradeAttempts(
     let outcome: AiJobOutcome;
     calls += 1;
     try {
-      outcome = await deps.ai.submit({
-        requestId,
-        feature: MODES[mode].feature,
-        priority: input.priority ?? "background",
-        prompt: buildPrompt(input, records),
-        schema: LOCATOR_PLAN_SCHEMA,
-        maxOutputTokens: LOCATOR_ATTEMPT_LIMITS.maxOutputTokens,
-        timeoutMs: LOCATOR_ATTEMPT_LIMITS.timeoutMs
-      });
+      outcome = await deps.ai.submit(locatorAttemptJob(input, records, requestId));
     } catch {
       return done("provider-unavailable", "PROVIDER_ERROR");
     } finally {

@@ -63,53 +63,115 @@
       }
     },
     "packets:locatorUpgrade": {
-      "completedAt": "2026-09-21T17:03:59.979Z",
+      "completedAt": "2026-09-22T08:46:37.565Z",
       "ok": true,
       "steps": [
         {
           "label": "packets: locatorUpgrade #1",
           "ok": true,
-          "durationMs": 80877,
+          "durationMs": 73641,
           "detail": {
-            "promptTokens": 956,
-            "outputTokens": 105,
+            "promptTokens": 618,
+            "outputTokens": 112,
             "stopReason": "stop",
-            "promptMs": 57971,
-            "firstTokenMs": 57971,
-            "generationMs": 22620,
-            "wallMs": 80623,
-            "promptTokensPerSec": 16.5,
-            "generationTokensPerSec": 4.6,
-            "hostPeakWorkingSetMb": 1051,
-            "hostMaxWorkingSetMb": 1017,
-            "hostCpuAvgPct": 32,
+            "promptMs": 42141,
+            "firstTokenMs": 42141,
+            "generationMs": 31476,
+            "wallMs": 73627,
+            "promptTokensPerSec": 14.7,
+            "generationTokensPerSec": 3.53,
+            "hostPeakWorkingSetMb": 798,
+            "hostMaxWorkingSetMb": 798,
+            "hostCpuAvgPct": 31,
             "hostCpuMaxPct": 34,
             "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 38,
-            "maxOutputTokens": 192
+            "mainLoopDelayMaxMs": 36,
+            "maxOutputTokens": 256,
+            "answer": {
+              "accepted": true,
+              "meaningChange": true,
+              "shape": {
+                "keys": [
+                  "version",
+                  "target",
+                  "scopes"
+                ],
+                "targetKeys": [
+                  "strategy",
+                  "value",
+                  "name",
+                  "exact"
+                ],
+                "strategy": "role",
+                "scopes": 1,
+                "scopeKinds": [
+                  "section"
+                ],
+                "chars": [
+                  6,
+                  64,
+                  64,
+                  64,
+                  4
+                ],
+                "cutByGrammar": 0,
+                "ungrounded": 1
+              }
+            }
           }
         },
         {
           "label": "packets: locatorUpgrade #2",
           "ok": true,
-          "durationMs": 97230,
+          "durationMs": 77081,
           "detail": {
-            "promptTokens": 956,
-            "outputTokens": 105,
+            "promptTokens": 618,
+            "outputTokens": 112,
             "stopReason": "stop",
-            "promptMs": 69571,
-            "firstTokenMs": 69571,
-            "generationMs": 27622,
-            "wallMs": 97228,
-            "promptTokensPerSec": 13.7,
-            "generationTokensPerSec": 3.77,
-            "hostPeakWorkingSetMb": 1051,
-            "hostMaxWorkingSetMb": 1004,
-            "hostCpuAvgPct": 32,
+            "promptMs": 47775,
+            "firstTokenMs": 47775,
+            "generationMs": 29270,
+            "wallMs": 77078,
+            "promptTokensPerSec": 12.9,
+            "generationTokensPerSec": 3.79,
+            "hostPeakWorkingSetMb": 798,
+            "hostMaxWorkingSetMb": 714,
+            "hostCpuAvgPct": 31,
             "hostCpuMaxPct": 33,
             "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 39,
-            "maxOutputTokens": 192
+            "mainLoopDelayMaxMs": 34,
+            "maxOutputTokens": 256,
+            "answer": {
+              "accepted": true,
+              "meaningChange": true,
+              "shape": {
+                "keys": [
+                  "version",
+                  "target",
+                  "scopes"
+                ],
+                "targetKeys": [
+                  "strategy",
+                  "value",
+                  "name",
+                  "exact"
+                ],
+                "strategy": "role",
+                "scopes": 1,
+                "scopeKinds": [
+                  "section"
+                ],
+                "chars": [
+                  6,
+                  64,
+                  64,
+                  64,
+                  4
+                ],
+                "cutByGrammar": 0,
+                "ungrounded": 1
+              }
+            }
           }
         }
       ],
@@ -119,43 +181,106 @@
         "benchThreads": 4,
         "packets:locatorUpgrade": {
           "threads": 4,
-          "loadMs": 7193,
+          "loadMs": 7219,
+          "packetIdentity": "a3d4f3866b224d00f93973f2e8323a6be8f5d98869a29b13b065e5cf44a631d7",
           "iterations": [
             {
-              "promptTokens": 956,
-              "outputTokens": 105,
+              "promptTokens": 618,
+              "outputTokens": 112,
               "stopReason": "stop",
-              "promptMs": 57971,
-              "firstTokenMs": 57971,
-              "generationMs": 22620,
-              "wallMs": 80623,
-              "promptTokensPerSec": 16.5,
-              "generationTokensPerSec": 4.6,
-              "hostPeakWorkingSetMb": 1051,
-              "hostMaxWorkingSetMb": 1017,
-              "hostCpuAvgPct": 32,
+              "promptMs": 42141,
+              "firstTokenMs": 42141,
+              "generationMs": 31476,
+              "wallMs": 73627,
+              "promptTokensPerSec": 14.7,
+              "generationTokensPerSec": 3.53,
+              "hostPeakWorkingSetMb": 798,
+              "hostMaxWorkingSetMb": 798,
+              "hostCpuAvgPct": 31,
               "hostCpuMaxPct": 34,
               "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 38,
-              "maxOutputTokens": 192
+              "mainLoopDelayMaxMs": 36,
+              "maxOutputTokens": 256,
+              "answer": {
+                "accepted": true,
+                "meaningChange": true,
+                "shape": {
+                  "keys": [
+                    "version",
+                    "target",
+                    "scopes"
+                  ],
+                  "targetKeys": [
+                    "strategy",
+                    "value",
+                    "name",
+                    "exact"
+                  ],
+                  "strategy": "role",
+                  "scopes": 1,
+                  "scopeKinds": [
+                    "section"
+                  ],
+                  "chars": [
+                    6,
+                    64,
+                    64,
+                    64,
+                    4
+                  ],
+                  "cutByGrammar": 0,
+                  "ungrounded": 1
+                }
+              }
             },
             {
-              "promptTokens": 956,
-              "outputTokens": 105,
+              "promptTokens": 618,
+              "outputTokens": 112,
               "stopReason": "stop",
-              "promptMs": 69571,
-              "firstTokenMs": 69571,
-              "generationMs": 27622,
-              "wallMs": 97228,
-              "promptTokensPerSec": 13.7,
-              "generationTokensPerSec": 3.77,
-              "hostPeakWorkingSetMb": 1051,
-              "hostMaxWorkingSetMb": 1004,
-              "hostCpuAvgPct": 32,
+              "promptMs": 47775,
+              "firstTokenMs": 47775,
+              "generationMs": 29270,
+              "wallMs": 77078,
+              "promptTokensPerSec": 12.9,
+              "generationTokensPerSec": 3.79,
+              "hostPeakWorkingSetMb": 798,
+              "hostMaxWorkingSetMb": 714,
+              "hostCpuAvgPct": 31,
               "hostCpuMaxPct": 33,
               "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 39,
-              "maxOutputTokens": 192
+              "mainLoopDelayMaxMs": 34,
+              "maxOutputTokens": 256,
+              "answer": {
+                "accepted": true,
+                "meaningChange": true,
+                "shape": {
+                  "keys": [
+                    "version",
+                    "target",
+                    "scopes"
+                  ],
+                  "targetKeys": [
+                    "strategy",
+                    "value",
+                    "name",
+                    "exact"
+                  ],
+                  "strategy": "role",
+                  "scopes": 1,
+                  "scopeKinds": [
+                    "section"
+                  ],
+                  "chars": [
+                    6,
+                    64,
+                    64,
+                    64,
+                    4
+                  ],
+                  "cutByGrammar": 0,
+                  "ungrounded": 1
+                }
+              }
             }
           ]
         }
@@ -718,7 +843,7 @@
     }
   },
   "verdict": {
-    "evaluatedAt": "2026-09-22T07:57:34.144Z",
+    "evaluatedAt": "2026-09-22T08:46:37.573Z",
     "decision": "GO",
     "criteria": [
       {
@@ -735,7 +860,7 @@
       },
       {
         "id": "locatorUpgradeAtCap",
-        "measured": 120499,
+        "measured": 115321,
         "ceiling": 180000,
         "pass": true
       },
@@ -773,14 +898,14 @@
     "packets": {
       "locatorUpgrade": {
         "runs": 2,
-        "promptTokens": 956,
-        "promptTokensPerSec": 16.5,
-        "generationTokensPerSec": 4.6,
-        "firstTokenMsMedian": 69571,
-        "wallMsMedian": 97228,
-        "wallMsMax": 97228,
-        "atOutputCapMs": 120499,
-        "hostPeakWorkingSetMb": 1051,
+        "promptTokens": 618,
+        "promptTokensPerSec": 14.7,
+        "generationTokensPerSec": 3.79,
+        "firstTokenMsMedian": 47775,
+        "wallMsMedian": 77078,
+        "wallMsMax": 77078,
+        "atOutputCapMs": 115321,
+        "hostPeakWorkingSetMb": 798,
         "mainLoopDelayP99Ms": 30
       },
       "validationExplanation": {

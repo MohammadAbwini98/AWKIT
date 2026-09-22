@@ -18,8 +18,9 @@
  *     `ai:explainValidation` runs, under the explanation's own deadline.
  *   - failureAnalysis / locatorUpgrade: those features' own requests on the real model, typical and
  *     largest, under each feature's own deadline (scripts/ai-harness/featureLive.ts).
- *   - failureAnalysisBudget: that request's prompt and longest acceptable answer, counted on the pack's
- *     own tokenizer, vocabulary only (scripts/ai-harness/failureAnalysisBudget.ts).
+ *   - failureAnalysisBudget / locatorUpgradeBudget: that request's prompt and longest acceptable answer,
+ *     counted on the pack's own tokenizer, vocabulary only (scripts/ai-harness/failureAnalysisBudget.ts,
+ *     scripts/ai-harness/locatorUpgradeBudget.ts).
  *   - profile: the L1.8 inference diagnosis (scripts/ai-harness/profile.ts). The one mode that
  *     drives the runtime directly in this process rather than through the host, because the split
  *     it measures (grammar vs decode vs prefill) is unobservable through a host that returns its
@@ -50,6 +51,7 @@ import {
 import { runBench } from "./bench";
 import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
+import { runLocatorUpgradeBudget } from "./locatorUpgradeBudget";
 import { runProfile } from "./profile";
 import { FLOW as EXPLANATION_FLOW } from "./validationExplanationPacket";
 
@@ -763,6 +765,7 @@ async function run(): Promise<void> {
     else if (mode === "failureAnalysis") await runFailureAnalysisLive({ step, record, makeLiveContext });
     else if (mode === "locatorUpgrade") await runLocatorUpgradeLive({ step, record, makeLiveContext });
     else if (mode === "failureAnalysisBudget") await runFailureAnalysisBudget({ step, record });
+    else if (mode === "locatorUpgradeBudget") await runLocatorUpgradeBudget({ step, record });
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });
     else if (mode === "profile") await runProfile({ step, record, flush });
     else await step(`unknown mode ${mode}`, () => Promise.reject(new Error("unknown mode")));

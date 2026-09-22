@@ -525,7 +525,12 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-locator-upgrade-live": {
     class: "real-browser",
-    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that runs L3 §7's own job, runLocatorUpgradeAttempts, through the production AiService with LOCATOR_ATTEMPT_LIMITS.timeoutMs, AiUtilityHostManager and the real ai-host.cjs, over a typical and the largest L2 capture context (the browser proof stubbed as page-unavailable); every attempt must be answered before the feature's own deadline and the job must end on its merits, recorded with tokens, timings and worst case at the output cap."
+    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that runs L3 §7's own job, runLocatorUpgradeAttempts, through the production AiService with LOCATOR_ATTEMPT_LIMITS.timeoutMs, AiUtilityHostManager and the real ai-host.cjs, over a typical and the largest L2 capture context (the browser proof stubbed as page-unavailable); every attempt must be answered before the feature's own deadline, be the request locatorAttemptJob builds with every line shown whole, and the job must end accepted (decoded, compiled, past the intent guard, stored), recorded with tokens, timings, plan shape and worst case at the output cap."
+  },
+  "verify:ai-locator-upgrade-budget": {
+    class: "real-browser",
+    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that loads only the pack's vocabulary through node-llama-cpp, builds L3 §7's own requests through locatorAttemptJob over L2-sanitized capture contexts, and counts on the model's own tokenizer: each prompt with the host's template and every line shown whole, the longest prompt a capture at every L2 bound can send, the longest plan LOCATOR_ATTEMPT_SCHEMA admits (English names and test ids) and the longest plan using only the texts its strategies read (names with numbers included), in both indentation layouts, within LOCATOR_ATTEMPT_LIMITS.maxOutputTokens. No inference.",
+    guards: ["native-hosts/ai/ai-host.cjs"]
   },
   "verify:ai-inference-profile": {
     class: "real-browser",
