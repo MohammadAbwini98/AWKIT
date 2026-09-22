@@ -50,6 +50,8 @@ export interface FailureAnalysisLimits {
   maxSignatures: number;
   maxAnalyses: number;
   maxEvidencePerAnalysis: number;
+  maxEvidenceChars: number;
+  maxCitedIds: number;
   maxCategoryChars: number;
   maxExplanationChars: number;
   maxStepChars: number;
@@ -66,17 +68,36 @@ export const FAILURE_ANALYSIS_LIMITS: Readonly<FailureAnalysisLimits> = Object.f
   maxAnalyses: 5,
   /** Evidence events offered to one analysis, highest severity and closest to the failure first. */
   maxEvidencePerAnalysis: 12,
+  /**
+   * Characters of evidence lines shown, whole lines only. The prompt builder's 1,200-character default
+   * field cap used to cut the list instead, while the grammar still offered every id: the largest live
+   * fixture's twelfth line reached the model as `ev8: http.error (err`, its status gone. Twelve lines of
+   * about 125 characters fit.
+   */
+  maxEvidenceChars: 1_500,
+  /**
+   * Ids per citation list, primary and secondary each. An id costs about 6.5 output tokens in indented
+   * JSON, and the largest real answer cited all 11 cause candidates as primary, singling out none.
+   */
+  maxCitedIds: 2,
   maxCategoryChars: 40,
-  maxExplanationChars: 600,
-  maxStepChars: 200,
-  maxSteps: 4,
+  maxExplanationChars: 260,
+  maxStepChars: 150,
+  maxSteps: 2,
   /**
    * This feature's own deadline: its L1.8 ceiling, 180 s at the output cap (`backgroundJobAtCapMs` in
    * `benchmark:ai-model`), plus the same 5 s over measured overhead as `AUTHORING_LIMITS.timeoutMs`. The
    * shared 30 s cancelled every real analysis on Qwen3.5-0.8B (`verify:ai-failure-analysis-live`).
    */
   timeoutMs: 185_000,
-  maxOutputTokens: 512,
+  /**
+   * This feature's L1.8 output budget. At 512, the cap alone projected to 110–200 s of generation at the
+   * decode rates Qwen3.5-0.8B has shown on the qualifying host, before any prompt evaluation. The longest
+   * answer the parser can accept — every list and text above at its limit — must still fit, because an
+   * answer cut at the cap is invalid JSON and is discarded whole. `verify:ai-failure-analysis-budget`
+   * counts it on the model's own tokenizer.
+   */
+  maxOutputTokens: 256,
   maxDataChars: 3_000
 });
 
@@ -220,15 +241,17 @@ const CONCLUSION_FIELDS = ["primaryEvidenceIds", "secondaryEvidenceIds", "catego
 const isCauseEvidence = (event: ExecutionEvidenceEvent): boolean => event.source !== "runner.failure";
 
 // A conclusion's fields in the grammar's order. v1 said "set insufficient to true and say so": the one
-// answer its own parser refused.
+// answer its own parser refused. The model never sees the schema, so only this text can ask for brevity:
+// a text the grammar cuts off at its `maxLength` ends mid-sentence.
 const INSTRUCTIONS =
   "You interpret why an automation run failed, for the person who will investigate it. " +
   "You are given the application's own deterministic conclusion, and the evidence events it rests on, " +
   "each with an id. A runner.failure event only records that the step failed. If no other event shows " +
   "why, leave the conclusion list empty rather than guess. Otherwise write one conclusion: the ids of " +
-  "the events that explain the failure, the ids of events that only followed from it, a category, an " +
-  "explanation and what to check. Use only ids from the list, and do not invent evidence. " +
-  "The run has already finished; you cannot change its result, retry it, or change any setting.";
+  "the events that explain the failure, the ids of events that only followed from it, a short category, " +
+  "a one- or two-sentence explanation and up to two brief things to check. Use only ids from the list, " +
+  "and do not invent evidence. The run has already finished; you cannot change its result, retry it, or " +
+  "change any setting.";
 
 /**
  * The events most likely to carry the cause, most important first.
@@ -254,11 +277,6 @@ function rankEvidence(entry: FailureBatchEntry, limit: number): ExecutionEvidenc
 export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits = FAILURE_ANALYSIS_LIMITS): FailureAnalysisRequest | undefined {
   if (!group.analyse) return undefined;
   const entry = group.representative;
-  const evidence = rankEvidence(entry, limits.maxEvidencePerAnalysis);
-  if (evidence.length === 0) return undefined;
-  const ids = evidence.map((event) => event.id);
-  const causeIds = evidence.filter(isCauseEvidence).map((event) => event.id);
-  const mustConclude = causeIds.length > 0 && DIRECT_FAILURE_CAUSES.has(entry.baseline.cause);
 
   // The payload is already redacted, id-stripped and capped by L5a's buffer, so it is rendered as-is
   // rather than re-derived here: a second normalization is a second place for the rules to drift.
@@ -269,33 +287,59 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
   // travels through the `ids` channel instead, which is unredacted but still rescanned for residual
   // secrets. Without it the model would be told a request failed and never told which one.
   const isUrlField = (key: string): boolean => /(?:url|Url|URL)$/.test(key);
-  const lines = evidence
-    .map((event) => {
-      const fields = Object.entries(event.payload)
-        .filter(([key]) => !isUrlField(key))
-        .map(([key, value]) => `${key}=${String(value)}`)
-        .join(" ");
-      const repeat = event.repeatCount > 1 ? ` x${event.repeatCount}` : "";
-      return `${event.id}: ${event.source} (${event.severity}) at ${event.offsetMs}ms${repeat} ${fields}`;
-    })
-    .join("\n");
+  const lineOf = (event: ExecutionEvidenceEvent): string => {
+    const fields = Object.entries(event.payload)
+      .filter(([key]) => !isUrlField(key))
+      .map(([key, value]) => `${key}=${String(value)}`)
+      .join(" ");
+    const repeat = event.repeatCount > 1 ? ` x${event.repeatCount}` : "";
+    return `${event.id}: ${event.source} (${event.severity}) at ${event.offsetMs}ms${repeat} ${fields}`;
+  };
+
+  // Whole lines, most important first, while they fit `maxEvidenceChars`, so every id the grammar offers
+  // is one whose line the model was shown. The lead event, the one the baseline rests on, always goes,
+  // cut to the budget only if it alone would not fit.
+  const evidence: ExecutionEvidenceEvent[] = [];
+  const lines: string[] = [];
+  let used = 0;
+  for (const event of rankEvidence(entry, limits.maxEvidencePerAnalysis)) {
+    const line = lineOf(event);
+    if (evidence.length > 0 && used + line.length > limits.maxEvidenceChars) continue;
+    const shown = line.slice(0, limits.maxEvidenceChars);
+    lines.push(shown);
+    used += shown.length + 1;
+    evidence.push(event);
+  }
+  if (evidence.length === 0) return undefined;
+  const ids = evidence.map((event) => event.id);
+  const causeIds = evidence.filter(isCauseEvidence).map((event) => event.id);
+  const mustConclude = causeIds.length > 0 && DIRECT_FAILURE_CAUSES.has(entry.baseline.cause);
   const routes = evidence.flatMap((event) =>
     Object.entries(event.payload)
       .filter(([key, value]) => isUrlField(key) && typeof value === "string")
       .map(([, value]) => `${event.id}=${String(value)}`)
   );
+  const { baseline } = entry;
+  // One text block where there were four. Each DATA block costs two nonce delimiters, about 45 prompt
+  // tokens on Qwen3.5-0.8B's tokenizer: 225 of a typical request's 523 carried no evidence at all.
+  const failure = [
+    `Deterministic conclusion: ${baseline.cause}: ${baseline.reason} (window: ${baseline.window})`,
+    `It rests on: ${baseline.evidenceIds.filter((id) => ids.includes(id)).join(", ") || "none"}`,
+    // Counts only: the batch shape is useful context, and it carries nothing about any row.
+    ...(group.count > 1 ? [`Instances that failed the same way: ${group.count}`] : []),
+    "Evidence:",
+    ...lines
+  ].join("\n");
 
   return {
     prompt: {
       instructions: INSTRUCTIONS,
       maxDataChars: limits.maxDataChars,
       fields: [
-        { name: "DeterministicConclusion", text: `${entry.baseline.cause}: ${entry.baseline.reason} (window: ${entry.baseline.window})` },
-        { name: "ConclusionEvidenceIds", ids: entry.baseline.evidenceIds.length ? entry.baseline.evidenceIds : ["none"] },
-        { name: "Evidence", text: lines },
-        ...(routes.length ? [{ name: "EvidenceRoutes" as const, ids: routes }] : []),
-        // Counts only: the batch shape is useful context, and it carries nothing about any row.
-        { name: "AffectedInstances", ids: [String(group.count)] }
+        // Bounded by construction, so the field cap is the data budget: the 1,200-character default is
+        // what cut the evidence list mid-line.
+        { name: "Failure", text: failure, maxChars: limits.maxDataChars },
+        ...(routes.length ? [{ name: "EvidenceRoutes" as const, ids: routes }] : [])
       ]
     },
     // Every key is `required` because the runtime's grammar writes every key anyway, in this order
@@ -327,10 +371,10 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
               primaryEvidenceIds: {
                 type: "array",
                 minItems: 1,
-                maxItems: Math.max(1, causeIds.length),
+                maxItems: Math.max(1, Math.min(limits.maxCitedIds, causeIds.length)),
                 items: { type: "string", enum: causeIds.length > 0 ? causeIds : ids }
               },
-              secondaryEvidenceIds: { type: "array", maxItems: ids.length, items: { type: "string", enum: ids } },
+              secondaryEvidenceIds: { type: "array", maxItems: Math.min(limits.maxCitedIds, ids.length), items: { type: "string", enum: ids } },
               category: { type: "string", maxLength: limits.maxCategoryChars },
               explanation: { type: "string", maxLength: limits.maxExplanationChars },
               investigationSteps: { type: "array", maxItems: limits.maxSteps, items: { type: "string", maxLength: limits.maxStepChars } }
@@ -417,7 +461,7 @@ export function parseFailureAnalysis(value: unknown, request: FailureAnalysisReq
   const readIds = (field: "primaryEvidenceIds" | "secondaryEvidenceIds"): string[] | FailureAnalysisRejection => {
     const list = raw[field];
     if (list === undefined) return [];
-    if (!Array.isArray(list)) return reject("MALFORMED", `${at}.${field}`);
+    if (!Array.isArray(list) || list.length > FAILURE_ANALYSIS_LIMITS.maxCitedIds) return reject("MALFORMED", `${at}.${field}`);
     const out: string[] = [];
     for (const [index, id] of list.entries()) {
       const path = `${at}.${field}.${index}`;

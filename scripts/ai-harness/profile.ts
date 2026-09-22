@@ -89,7 +89,7 @@ const TINY: AiPromptSpec = {
  * `./package.json` entry, so resolving through the specifier throws ERR_PACKAGE_PATH_NOT_EXPORTED.
  * This is the same install `runtimeInstalled()` in launch.mts reports on.
  */
-async function loadRuntime(repoRoot: string): Promise<Record<string, any>> {
+export async function loadRuntime(repoRoot: string): Promise<Record<string, any>> {
   const entry = path.join(repoRoot, "node_modules", "node-llama-cpp", "dist", "index.js");
   return (await import(pathToFileURL(entry).href)) as Record<string, any>;
 }

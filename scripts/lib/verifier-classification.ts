@@ -518,6 +518,11 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that sends L5b's own request through analyzeFailure, the production AiService with FAILURE_ANALYSIS_LIMITS.timeoutMs, AiUtilityHostManager and the real ai-host.cjs, over a typical failure and the largest one the product sends, both built by L5a's real evidence buffer and cause baseline; every answer must arrive before the feature's own deadline, recorded with its tokens, timings and worst case at the output cap."
   },
+  "verify:ai-failure-analysis-budget": {
+    class: "real-browser",
+    why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that loads only the pack's vocabulary through node-llama-cpp, builds L5b's own requests through buildFailureAnalysisRequest over L5a's real evidence buffer and cause baseline, and counts on the model's own tokenizer: each prompt with the host's template, every offered evidence line shown whole, and the longest answer the grammar admits and the parser accepts, in both indentation layouts and with the longest ids L5a mints, within FAILURE_ANALYSIS_LIMITS.maxOutputTokens. No inference.",
+    guards: ["native-hosts/ai/ai-host.cjs"]
+  },
   "verify:ai-locator-upgrade-live": {
     class: "real-browser",
     why: "Gate on the owner-installed runtime and the downloaded Qwen3.5-0.8B pack (NOT RUN without them; a pack that is not the published object is refused): launches a real Electron app directory that runs L3 §7's own job, runLocatorUpgradeAttempts, through the production AiService with LOCATOR_ATTEMPT_LIMITS.timeoutMs, AiUtilityHostManager and the real ai-host.cjs, over a typical and the largest L2 capture context (the browser proof stubbed as page-unavailable); every attempt must be answered before the feature's own deadline and the job must end on its merits, recorded with tokens, timings and worst case at the output cap."

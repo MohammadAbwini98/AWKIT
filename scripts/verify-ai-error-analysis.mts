@@ -32,7 +32,7 @@ import { join, resolve as resolvePath } from "node:path";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { validateAiOutput, type AiOutputSchema } from "@src/ai/AiOutputContract";
-import { AiService, type AiServiceSettings } from "@src/ai/AiService";
+import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import {
   FAILURE_ANALYSIS_LIMITS,
@@ -57,6 +57,7 @@ import { redactFailureAnalysis, withoutStoredFailureAnalysis } from "@src/ai/fai
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 import { analyzeFailure, deleteFailureAnalysis, failureBatch, type FailureAssistDeps, type FailureReportAccess } from "../app/main/ai/aiAssist";
+import { LARGEST_FAILURE, failedRun, failureAnalysisPacket } from "./ai-harness/failureAnalysisPacket";
 
 let passed = 0;
 let failed = 0;
@@ -268,6 +269,96 @@ check("the path TEMPLATE does, which is what makes the analysis useful", promptT
 check("...as does the deterministic conclusion the model must not contradict", promptText.includes("httpError"));
 check("...and the affected-instance COUNT, never the instances", promptText.includes("500"));
 
+// ── 4b. The request's size: one block, whole lines, bounded answers ────────────────────────────
+// Qwen3.5-0.8B's tokenizer (verify:ai-failure-analysis-budget): every DATA block costs ~45 prompt tokens
+// of nonce delimiters, and the output cap is honest only if the longest acceptable answer fits it.
+console.log("\n4b — one data block, every offered line whole, a bounded answer");
+const failureText = request.prompt.fields.find((field) => field.name === "Failure")?.text ?? "";
+check(
+  "the prompt is ONE text block, plus the routes in the unredacted ids channel",
+  JSON.stringify(request.prompt.fields.map((field) => field.name)) === JSON.stringify(["Failure", "EvidenceRoutes"]),
+  JSON.stringify(request.prompt.fields.map((field) => field.name))
+);
+check(
+  "...carrying the deterministic conclusion, the events it rests on and the instance count",
+  failureText.includes("Deterministic conclusion: httpError:") &&
+    failureText.includes(`It rests on: ${group.representative.baseline.evidenceIds.join(", ")}`) &&
+    failureText.includes("Instances that failed the same way: 500"),
+  failureText.slice(0, 300)
+);
+const shownWhole = (of: FailureAnalysisRequest, user: string) => {
+  const lines = (of.prompt.fields.find((field) => field.name === "Failure")?.text ?? "").split("\n");
+  return of.evidence.every((event) => lines.some((line) => line.startsWith(`${event.id}: ${event.source} `) && user.includes(`\n${line}\n`)));
+};
+check("every offered event's line reaches the model whole", shownWhole(request, rendered.user));
+check("a single-instance failure carries no count line", !requestFor(sample).prompt.fields[0].text?.includes("Instances that failed"));
+
+// Twelve long console errors beside a timeout: far more than the evidence budget holds.
+const crowdEntry = runnerOnly("i-crowd", "n-crowd", Array.from({ length: 12 }, (_, i) => `Widget ${i} failed: ${"the inventory service answered with an unexpected payload shape ".repeat(4)}`));
+const crowded = requestFor(crowdEntry);
+const crowdedPrompt = buildAiPrompt(crowded.prompt, new SemanticRedactor(), "0123456789abcdef");
+const crowdedLines = (crowded.prompt.fields[0].text ?? "").split("\n").filter((line) => /^ev\d+: /.test(line));
+check("(precondition) the crowded failure has more evidence than the budget holds", crowdEntry.events.length > crowded.evidence.length && crowdedLines.join("\n").length > FAILURE_ANALYSIS_LIMITS.maxEvidenceChars / 2);
+check("...so only whole lines are offered, within the evidence budget", crowdedLines.join("\n").length <= FAILURE_ANALYSIS_LIMITS.maxEvidenceChars, String(crowdedLines.join("\n").length));
+check("...each offered id's line whole in the prompt the model gets", crowdedPrompt.ok && shownWhole(crowded, crowdedPrompt.user));
+check("...and no id offered whose line was left out", JSON.stringify(crowded.evidence.map((event) => event.id)) === JSON.stringify(crowdedLines.map((line) => line.split(":")[0])));
+check("...led by the event the baseline rests on", crowded.evidence[0].id === crowdEntry.baseline.evidenceIds[0]);
+const crowdedConclusion = ((crowded.schema as ObjectSchema).properties.conclusion as ArraySchema).items as ObjectSchema;
+const listOf = (schema: ObjectSchema, field: string) => schema.properties[field] as ArraySchema;
+check(
+  "each citation list holds at most maxCitedIds, however many causes are offered",
+  crowded.evidence.filter((event) => event.source !== "runner.failure").length > FAILURE_ANALYSIS_LIMITS.maxCitedIds &&
+    listOf(crowdedConclusion, "primaryEvidenceIds").maxItems === FAILURE_ANALYSIS_LIMITS.maxCitedIds &&
+    listOf(crowdedConclusion, "secondaryEvidenceIds").maxItems === FAILURE_ANALYSIS_LIMITS.maxCitedIds
+);
+check(
+  "...and the answer's texts and steps are bounded by the same limits the parser applies",
+  listOf(crowdedConclusion, "investigationSteps").maxItems === FAILURE_ANALYSIS_LIMITS.maxSteps &&
+    JSON.stringify(crowdedConclusion.properties.explanation) === JSON.stringify({ type: "string", maxLength: FAILURE_ANALYSIS_LIMITS.maxExplanationChars })
+);
+// One event whose line alone exceeds the budget: the lead is still shown, cut, and nothing else fits.
+let hugeClock = 0;
+const hugeBuffer = new EvidenceBuffer({ executionId: "exec-l5b", instanceId: "i-huge" }, new EvidenceRunBudget(), { redactor: new SemanticRedactor(), now: () => hugeClock });
+const hugeStep = { flowId: "flow-l5b", nodeId: "n-huge", stepIndex: 1 };
+hugeClock = 1_000;
+hugeBuffer.add({ source: "page.error", severity: "error", context: hugeStep, payload: Object.fromEntries(["a", "b", "c", "d"].map((key) => [`detail${key}`, `${key} `.repeat(240)])) });
+hugeClock = 1_500;
+hugeBuffer.add({ source: "runner.failure", severity: "error", context: hugeStep, payload: { kind: "assertion", message: "The receipt did not appear." } });
+const hugeEvents = [...hugeBuffer.list()];
+const hugeRunner = hugeEvents.find((event) => event.source === "runner.failure");
+const hugeEntry: FailureBatchEntry = {
+  instanceId: "i-huge",
+  baseline: deriveFailureCause(hugeEvents, { kind: "assertion", stepStartOffsetMs: 500, failedAtOffsetMs: 1_500, ...(hugeRunner ? { evidenceId: hugeRunner.id } : {}) }),
+  events: hugeEvents
+};
+const huge = requestFor(hugeEntry);
+const hugeLines = (huge.prompt.fields[0].text ?? "").split("\n").filter((line) => /^ev\d+: /.test(line));
+check("(precondition) the lead event's line alone exceeds the evidence budget", hugeEntry.baseline.cause === "scriptError" && hugeEvents[0].id === hugeEntry.baseline.evidenceIds[0]);
+check(
+  "a lead line longer than the budget is still offered, cut to the budget, and nothing past it",
+  JSON.stringify(huge.evidence.map((event) => event.id)) === JSON.stringify([hugeEvents[0].id]) && hugeLines.length === 1 && hugeLines[0].length === FAILURE_ANALYSIS_LIMITS.maxEvidenceChars,
+  JSON.stringify({ offered: huge.evidence.map((event) => event.id), chars: hugeLines.map((line) => line.length) })
+);
+
+// The benchmark measures THIS request: `packets:failureAnalysis` is the job `analyzeFailure` submits.
+const benchReport = failedRun("exec-bench-largest", LARGEST_FAILURE, "timeout");
+let benchJob: AiJobRequest | undefined;
+await analyzeFailure(4, { requestId: "bench-1", executionId: benchReport.executionId, instanceId: benchReport.instances[0].instanceId }, {
+  submit: async (job) => {
+    benchJob = job;
+    return { status: "cancelled", yields: 0 };
+  },
+  policy: async () => POLICY,
+  report: async () => benchReport,
+  updateReport: async () => undefined
+});
+const benchPacket = failureAnalysisPacket();
+check(
+  "benchmark:ai-model's failureAnalysis packet is the job analyzeFailure submits: prompt, schema and output cap",
+  benchJob !== undefined && JSON.stringify([benchJob.prompt, benchJob.schema, benchJob.maxOutputTokens]) === JSON.stringify([benchPacket.spec, benchPacket.schema, benchPacket.maxOutputTokens])
+);
+check("...at the product's own output cap", benchJob?.maxOutputTokens === FAILURE_ANALYSIS_LIMITS.maxOutputTokens && benchPacket.maxOutputTokens === FAILURE_ANALYSIS_LIMITS.maxOutputTokens);
+
 // ── 5. A valid answer through the real output contract ──────────────────────────────────────────
 console.log("\n5 — a valid analysis");
 const good = JSON.stringify({
@@ -415,11 +506,22 @@ const refusals: Array<[string, unknown, string, string]> = [
     "MALFORMED",
     "conclusion.0.investigationSteps"
   ],
-  ["an empty investigation step is refused", conclude({ investigationSteps: ["  "] }), "MALFORMED", "conclusion.0.investigationSteps.0"]
+  ["an empty investigation step is refused", conclude({ investigationSteps: ["  "] }), "MALFORMED", "conclusion.0.investigationSteps.0"],
+  ["an over-long investigation step is refused", conclude({ investigationSteps: ["x".repeat(FAILURE_ANALYSIS_LIMITS.maxStepChars + 1)] }), "MALFORMED", "conclusion.0.investigationSteps.0"]
 ];
 for (const [label, value, code, field] of refusals) {
   const result = parseFailureAnalysis(value, request);
   check(label, !result.ok && result.code === code && result.field === field, JSON.stringify(result));
+}
+// The parser re-checks the citation caps the grammar enforces, on a request with more causes than a list holds.
+const crowdedCauses = crowded.evidence.filter((event) => event.source !== "runner.failure").map((event) => event.id);
+for (const [label, fields, field] of [
+  ["more primary ids than a citation list holds are refused", { primaryEvidenceIds: crowdedCauses.slice(0, FAILURE_ANALYSIS_LIMITS.maxCitedIds + 1) }, "conclusion.0.primaryEvidenceIds"],
+  ["...and more secondary ids", { secondaryEvidenceIds: [runnerIdOf(crowded), ...crowdedCauses.slice(1, FAILURE_ANALYSIS_LIMITS.maxCitedIds + 1)] }, "conclusion.0.secondaryEvidenceIds"]
+] as Array<[string, Record<string, unknown>, string]>) {
+  const value = { version: 1, conclusion: [{ primaryEvidenceIds: [crowdedCauses[0]], secondaryEvidenceIds: [], category: "timeout", explanation: "It broke.", investigationSteps: [], ...fields }] };
+  const result = parseFailureAnalysis(value, crowded);
+  check(label, !result.ok && result.code === "MALFORMED" && result.field === field && validateAiOutput(value, crowded.schema).length > 0, JSON.stringify(result));
 }
 const quietConclusion = { version: 1, conclusion: [{ primaryEvidenceIds: [runnerIdOf(quiet)], secondaryEvidenceIds: [], category: "timeout", explanation: "The heading never appeared.", investigationSteps: [] }] };
 const quietRefused = parseFailureAnalysis(quietConclusion, quiet);

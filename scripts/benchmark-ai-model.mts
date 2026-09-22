@@ -45,6 +45,7 @@ import {
   runtimeInstalled,
   stageModelRoot
 } from "./ai-harness/launch.mts";
+import { failureAnalysisPacket } from "./ai-harness/failureAnalysisPacket";
 import { validationExplanationPacket } from "./ai-harness/validationExplanationPacket";
 
 const EVIDENCE = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence");
@@ -161,7 +162,10 @@ const save = () => {
  * A packet built by product code changes whenever the product's request does. Its old numbers then
  * belong to a request the product no longer makes, so the scenario is measured again.
  */
-const PACKET_IDENTITY: Partial<Record<Scenario, string>> = { "packets:validationExplanation": validationExplanationPacket().identity };
+const PACKET_IDENTITY: Partial<Record<Scenario, string>> = {
+  "packets:validationExplanation": validationExplanationPacket().identity,
+  "packets:failureAnalysis": failureAnalysisPacket().identity
+};
 const current = (scenario: Scenario) =>
   results!.scenarios[scenario]?.ok === true &&
   (results!.scenarios[scenario]?.data[scenario] as { packetIdentity?: string } | undefined)?.packetIdentity === PACKET_IDENTITY[scenario];

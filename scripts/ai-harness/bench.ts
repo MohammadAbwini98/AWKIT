@@ -12,8 +12,9 @@
  *   playwright a Chromium workload alone, beside a running inference, and with inference yielding
  *   batch      a coalesced burst through AiService: queue cap, drain time, hold while runs are active
  *
- * Everything recorded is a count, a code or a timing. Prompts are synthetic (the validation
- * explanation's is the product's own request over a synthetic flow) and model text is never recorded.
+ * Everything recorded is a count, a code or a timing. Prompts are synthetic, except the validation
+ * explanation's and the failure analysis's, which are the product's own requests over fixture data.
+ * Model text is never recorded.
  */
 
 import { app } from "electron";
@@ -28,6 +29,7 @@ import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
 import { AI_HOST_PROTOCOL_VERSION, AiHostCallError, type AiInferResult } from "@src/ai/contracts/AiHostProtocol";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
+import { failureAnalysisPacket } from "./failureAnalysisPacket";
 import type { LiveContext } from "./harnessMain";
 import { validationExplanationPacket } from "./validationExplanationPacket";
 
@@ -78,9 +80,40 @@ interface Packet {
   assess?: (value: unknown) => Record<string, unknown>;
 }
 
+/**
+ * The synthetic failure packet `packets:failureAnalysis` measured until the product's own request replaced
+ * it. Kept, unchanged, as the workload of the `cancel` and `playwright` scenarios, whose recorded results
+ * were measured with it: a long prompt to cancel inside, and an inference to contend with.
+ */
+const steps = ids("step", 12);
+const SYNTHETIC_FAILURE = {
+  spec: {
+    instructions:
+      "Analyze the failed run. Pick the most likely primary cause from the offered categories, the related steps by id, " +
+      "a confidence from 0 to 100 and a short summary for the operator.",
+    fields: [
+      { name: "steps", ids: steps },
+      { name: "baseline", ids: ["uiValidation", "httpError", "scriptError", "locatorNotFound", "timeout", "unknown"] },
+      { name: "evidence", text: prose(4_200, 29) },
+      { name: "run", text: prose(4_000, 31) }
+    ],
+    maxDataChars: 9_000
+  } satisfies AiPromptSpec,
+  schema: {
+    type: "object",
+    properties: {
+      primaryCause: { type: "string", enum: ["uiValidation", "httpError", "scriptError", "locatorNotFound", "timeout", "unknown"] },
+      confidence: { type: "integer", minimum: 0, maximum: 100 },
+      relatedSteps: { type: "array", maxItems: 4, items: { type: "string", enum: steps } },
+      summary: { type: "string", maxLength: 400 }
+    },
+    required: ["primaryCause", "confidence", "relatedSteps", "summary"],
+    additionalProperties: false
+  } satisfies AiOutputSchema
+};
+
 function packets(): Packet[] {
   const candidates = ids("cand", 8);
-  const steps = ids("step", 12);
   return [
     {
       name: "locatorUpgrade",
@@ -111,33 +144,7 @@ function packets(): Packet[] {
       maxOutputTokens: 192
     },
     validationExplanationPacket(),
-    {
-      name: "failureAnalysis",
-      spec: {
-        instructions:
-          "Analyze the failed run. Pick the most likely primary cause from the offered categories, the related steps by id, " +
-          "a confidence from 0 to 100 and a short summary for the operator.",
-        fields: [
-          { name: "steps", ids: steps },
-          { name: "baseline", ids: ["uiValidation", "httpError", "scriptError", "locatorNotFound", "timeout", "unknown"] },
-          { name: "evidence", text: prose(4_200, 29) },
-          { name: "run", text: prose(4_000, 31) }
-        ],
-        maxDataChars: 9_000
-      },
-      schema: {
-        type: "object",
-        properties: {
-          primaryCause: { type: "string", enum: ["uiValidation", "httpError", "scriptError", "locatorNotFound", "timeout", "unknown"] },
-          confidence: { type: "integer", minimum: 0, maximum: 100 },
-          relatedSteps: { type: "array", maxItems: 4, items: { type: "string", enum: steps } },
-          summary: { type: "string", maxLength: 400 }
-        },
-        required: ["primaryCause", "confidence", "relatedSteps", "summary"],
-        additionalProperties: false
-      },
-      maxOutputTokens: 256
-    }
+    failureAnalysisPacket()
   ];
 }
 
@@ -313,7 +320,7 @@ async function scenarioPackets(api: BenchApi, threads: number, iterations: numbe
 }
 
 async function scenarioCancel(api: BenchApi, threads: number): Promise<void> {
-  const [failure] = packets().filter((p) => p.name === "failureAnalysis");
+  const failure = SYNTHETIC_FAILURE;
   const longPrompt = built(failure.spec);
   const shortPrompt = built({ instructions: failure.spec.instructions, fields: [{ name: "run", text: prose(300, 41) }], maxDataChars: 9_000 });
   const result: Record<string, unknown> = {};
@@ -388,7 +395,7 @@ async function scenarioPlaywright(api: BenchApi, threads: number): Promise<void>
     result.alone = alone;
 
     const { manager } = await loadedManager(api, threads);
-    const [failure] = packets().filter((p) => p.name === "failureAnalysis");
+    const failure = SYNTHETIC_FAILURE;
     const prompt = built(failure.spec);
     const beside = await api.step("playwright: workload beside a running inference (yield off)", async () => {
       const runs: number[] = [];

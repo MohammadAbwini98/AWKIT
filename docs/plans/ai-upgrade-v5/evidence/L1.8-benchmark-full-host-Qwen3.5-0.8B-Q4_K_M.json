@@ -314,53 +314,111 @@
       }
     },
     "packets:failureAnalysis": {
-      "completedAt": "2026-09-21T17:10:22.676Z",
+      "completedAt": "2026-09-22T07:57:34.135Z",
       "ok": true,
       "steps": [
         {
           "label": "packets: failureAnalysis #1",
           "ok": true,
-          "durationMs": 104040,
+          "durationMs": 87187,
           "detail": {
-            "promptTokens": 829,
-            "outputTokens": 128,
+            "promptTokens": 788,
+            "outputTokens": 143,
             "stopReason": "stop",
-            "promptMs": 68116,
-            "firstTokenMs": 68116,
-            "generationMs": 35379,
-            "wallMs": 103520,
-            "promptTokensPerSec": 12.2,
-            "generationTokensPerSec": 3.59,
-            "hostPeakWorkingSetMb": 1038,
-            "hostMaxWorkingSetMb": 1017,
-            "hostCpuAvgPct": 32,
-            "hostCpuMaxPct": 35,
-            "mainLoopDelayP99Ms": 20,
-            "mainLoopDelayMaxMs": 41,
-            "maxOutputTokens": 256
+            "promptMs": 48003,
+            "firstTokenMs": 48003,
+            "generationMs": 39158,
+            "wallMs": 87174,
+            "promptTokensPerSec": 16.4,
+            "generationTokensPerSec": 3.63,
+            "hostPeakWorkingSetMb": 1101,
+            "hostMaxWorkingSetMb": 1059,
+            "hostCpuAvgPct": 31,
+            "hostCpuMaxPct": 34,
+            "mainLoopDelayP99Ms": 21,
+            "mainLoopDelayMaxMs": 31,
+            "maxOutputTokens": 256,
+            "answer": {
+              "accepted": true,
+              "classified": "conclusion",
+              "citesCause": true,
+              "offered": 12,
+              "shape": {
+                "keys": [
+                  "version",
+                  "conclusion"
+                ],
+                "conclusions": 1,
+                "conclusionKeys": [
+                  "primaryEvidenceIds",
+                  "secondaryEvidenceIds",
+                  "category",
+                  "explanation",
+                  "investigationSteps"
+                ],
+                "primary": 2,
+                "secondary": 2,
+                "categoryChars": 7,
+                "explanationChars": 170,
+                "stepChars": [
+                  55,
+                  98
+                ],
+                "cutByGrammar": 0
+              }
+            }
           }
         },
         {
           "label": "packets: failureAnalysis #2",
           "ok": true,
-          "durationMs": 104648,
+          "durationMs": 101989,
           "detail": {
-            "promptTokens": 829,
-            "outputTokens": 128,
+            "promptTokens": 788,
+            "outputTokens": 143,
             "stopReason": "stop",
-            "promptMs": 70238,
-            "firstTokenMs": 70238,
-            "generationMs": 34371,
-            "wallMs": 104644,
-            "promptTokensPerSec": 11.8,
-            "generationTokensPerSec": 3.69,
-            "hostPeakWorkingSetMb": 1038,
-            "hostMaxWorkingSetMb": 655,
-            "hostCpuAvgPct": 32,
+            "promptMs": 64235,
+            "firstTokenMs": 64235,
+            "generationMs": 37738,
+            "wallMs": 101987,
+            "promptTokensPerSec": 12.3,
+            "generationTokensPerSec": 3.76,
+            "hostPeakWorkingSetMb": 1101,
+            "hostMaxWorkingSetMb": 729,
+            "hostCpuAvgPct": 31,
             "hostCpuMaxPct": 33,
-            "mainLoopDelayP99Ms": 19,
-            "mainLoopDelayMaxMs": 34,
-            "maxOutputTokens": 256
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 33,
+            "maxOutputTokens": 256,
+            "answer": {
+              "accepted": true,
+              "classified": "conclusion",
+              "citesCause": true,
+              "offered": 12,
+              "shape": {
+                "keys": [
+                  "version",
+                  "conclusion"
+                ],
+                "conclusions": 1,
+                "conclusionKeys": [
+                  "primaryEvidenceIds",
+                  "secondaryEvidenceIds",
+                  "category",
+                  "explanation",
+                  "investigationSteps"
+                ],
+                "primary": 2,
+                "secondary": 2,
+                "categoryChars": 7,
+                "explanationChars": 170,
+                "stepChars": [
+                  55,
+                  98
+                ],
+                "cutByGrammar": 0
+              }
+            }
           }
         }
       ],
@@ -370,43 +428,102 @@
         "benchThreads": 4,
         "packets:failureAnalysis": {
           "threads": 4,
-          "loadMs": 8222,
+          "loadMs": 7252,
+          "packetIdentity": "c25190290fa6a73eeeedf3f4ed2f86b0c7ea5cd3cd09716568c8b1a092e3d616",
           "iterations": [
             {
-              "promptTokens": 829,
-              "outputTokens": 128,
+              "promptTokens": 788,
+              "outputTokens": 143,
               "stopReason": "stop",
-              "promptMs": 68116,
-              "firstTokenMs": 68116,
-              "generationMs": 35379,
-              "wallMs": 103520,
-              "promptTokensPerSec": 12.2,
-              "generationTokensPerSec": 3.59,
-              "hostPeakWorkingSetMb": 1038,
-              "hostMaxWorkingSetMb": 1017,
-              "hostCpuAvgPct": 32,
-              "hostCpuMaxPct": 35,
-              "mainLoopDelayP99Ms": 20,
-              "mainLoopDelayMaxMs": 41,
-              "maxOutputTokens": 256
+              "promptMs": 48003,
+              "firstTokenMs": 48003,
+              "generationMs": 39158,
+              "wallMs": 87174,
+              "promptTokensPerSec": 16.4,
+              "generationTokensPerSec": 3.63,
+              "hostPeakWorkingSetMb": 1101,
+              "hostMaxWorkingSetMb": 1059,
+              "hostCpuAvgPct": 31,
+              "hostCpuMaxPct": 34,
+              "mainLoopDelayP99Ms": 21,
+              "mainLoopDelayMaxMs": 31,
+              "maxOutputTokens": 256,
+              "answer": {
+                "accepted": true,
+                "classified": "conclusion",
+                "citesCause": true,
+                "offered": 12,
+                "shape": {
+                  "keys": [
+                    "version",
+                    "conclusion"
+                  ],
+                  "conclusions": 1,
+                  "conclusionKeys": [
+                    "primaryEvidenceIds",
+                    "secondaryEvidenceIds",
+                    "category",
+                    "explanation",
+                    "investigationSteps"
+                  ],
+                  "primary": 2,
+                  "secondary": 2,
+                  "categoryChars": 7,
+                  "explanationChars": 170,
+                  "stepChars": [
+                    55,
+                    98
+                  ],
+                  "cutByGrammar": 0
+                }
+              }
             },
             {
-              "promptTokens": 829,
-              "outputTokens": 128,
+              "promptTokens": 788,
+              "outputTokens": 143,
               "stopReason": "stop",
-              "promptMs": 70238,
-              "firstTokenMs": 70238,
-              "generationMs": 34371,
-              "wallMs": 104644,
-              "promptTokensPerSec": 11.8,
-              "generationTokensPerSec": 3.69,
-              "hostPeakWorkingSetMb": 1038,
-              "hostMaxWorkingSetMb": 655,
-              "hostCpuAvgPct": 32,
+              "promptMs": 64235,
+              "firstTokenMs": 64235,
+              "generationMs": 37738,
+              "wallMs": 101987,
+              "promptTokensPerSec": 12.3,
+              "generationTokensPerSec": 3.76,
+              "hostPeakWorkingSetMb": 1101,
+              "hostMaxWorkingSetMb": 729,
+              "hostCpuAvgPct": 31,
               "hostCpuMaxPct": 33,
-              "mainLoopDelayP99Ms": 19,
-              "mainLoopDelayMaxMs": 34,
-              "maxOutputTokens": 256
+              "mainLoopDelayP99Ms": 30,
+              "mainLoopDelayMaxMs": 33,
+              "maxOutputTokens": 256,
+              "answer": {
+                "accepted": true,
+                "classified": "conclusion",
+                "citesCause": true,
+                "offered": 12,
+                "shape": {
+                  "keys": [
+                    "version",
+                    "conclusion"
+                  ],
+                  "conclusions": 1,
+                  "conclusionKeys": [
+                    "primaryEvidenceIds",
+                    "secondaryEvidenceIds",
+                    "category",
+                    "explanation",
+                    "investigationSteps"
+                  ],
+                  "primary": 2,
+                  "secondary": 2,
+                  "categoryChars": 7,
+                  "explanationChars": 170,
+                  "stepChars": [
+                    55,
+                    98
+                  ],
+                  "cutByGrammar": 0
+                }
+              }
             }
           ]
         }
@@ -601,7 +718,7 @@
     }
   },
   "verdict": {
-    "evaluatedAt": "2026-09-21T18:31:26.151Z",
+    "evaluatedAt": "2026-09-22T07:57:34.144Z",
     "decision": "GO",
     "criteria": [
       {
@@ -612,7 +729,7 @@
       },
       {
         "id": "hostMemory",
-        "measured": 1051,
+        "measured": 1101,
         "ceiling": 6144,
         "pass": true
       },
@@ -624,7 +741,7 @@
       },
       {
         "id": "failureAnalysisAtCap",
-        "measured": 139615,
+        "measured": 132320,
         "ceiling": 180000,
         "pass": true
       },
@@ -680,15 +797,15 @@
       },
       "failureAnalysis": {
         "runs": 2,
-        "promptTokens": 829,
-        "promptTokensPerSec": 12.2,
-        "generationTokensPerSec": 3.69,
-        "firstTokenMsMedian": 70238,
-        "wallMsMedian": 104644,
-        "wallMsMax": 104644,
-        "atOutputCapMs": 139615,
-        "hostPeakWorkingSetMb": 1038,
-        "mainLoopDelayP99Ms": 20
+        "promptTokens": 788,
+        "promptTokensPerSec": 16.4,
+        "generationTokensPerSec": 3.76,
+        "firstTokenMsMedian": 64235,
+        "wallMsMedian": 101987,
+        "wallMsMax": 101987,
+        "atOutputCapMs": 132320,
+        "hostPeakWorkingSetMb": 1101,
+        "mainLoopDelayP99Ms": 30
       }
     },
     "informational": {

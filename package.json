@@ -305,6 +305,7 @@
     "verify:ai-model-live": "tsx scripts/verify-ai-model-live.mts",
     "verify:ai-explanation-live": "tsx scripts/verify-ai-explanation-live.mts",
     "verify:ai-failure-analysis-live": "tsx scripts/verify-ai-explanation-live.mts --feature failureAnalysis",
+    "verify:ai-failure-analysis-budget": "tsx scripts/verify-ai-failure-analysis-budget.mts",
     "verify:ai-locator-upgrade-live": "tsx scripts/verify-ai-explanation-live.mts --feature locatorUpgrade",
     "verify:ai-inference-profile": "tsx scripts/verify-ai-inference-profile.mts",
     "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts",
