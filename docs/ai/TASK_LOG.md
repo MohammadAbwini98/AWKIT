@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-09-22 — failure-analysis answer contract fixed; real 0.8B analyses accepted and classified (Claude)
+
+- **Task:** fix the output contract that refused every real 0.8B failure analysis as `CONTRADICTORY`.
+- **Found:**
+  - node-llama-cpp 3.21.1 writes every schema key in order, whatever `required` says. v1 made the model
+    decide `insufficient` first and then write a category and an explanation, which the parser refused.
+  - With a contradiction-free v2 left to the model, all three real answers were accepted but
+    misclassified; with a concrete prompt, one of three was right.
+  - The v1 live gate was green while every answer was refused: it counted arrival, not acceptance.
+- **Files:**
+  - Commit `5ef4852f`: `src/ai/failureAnalysis.ts` (schema, prompt, parser, `mustConclude`),
+    `src/runner/evidence/FailureCauseBaseline.ts` (`DIRECT_FAILURE_CAUSES` export),
+    `scripts/verify-ai-error-analysis.mts`, `scripts/verify-ai-assist-gui.mts`,
+    `scripts/verify-ai-deadlines.mts`, `scripts/ai-harness/featureLive.ts` (acceptance, classification,
+    a bare-timeout case) and `scripts/verify-ai-explanation-live.mts` (4 steps).
+  - Then the L1 and L5 plans, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF, COMMANDS, and a note on
+    `awkit-djnl.8` and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-failure-analysis-live` 5/5 on the real 0.8B: typical conclusion citing its HTTP 500
+    (63.8 s), bare timeout insufficient (35.0 s), largest conclusion (128.1 s).
+  - `verify:ai-error-analysis` 185/185, mutation-tested (178, 183, 183 and 182 of 185) ·
+    `verify:ai-assist-gui` 100/0 · `verify:ai-deadlines` 41/41 · `verify:failure-cause-baseline` 71/0.
+  - `verify:ai-adapter` 117/117 · `verify:ai-fallback` 38/38 · `verify:ai-redaction` 52/52 ·
+    `verify:ai-host` 135/0 (12/12 mutations) · `verify:ai-host-electron` 26/0.
+  - `verify:verifier-classification` 245 · build PASS · `typecheck:scripts` PASS.
+  - NOT RUN: `verify:failure-capture-overhead` (past the 10-minute foreground limit, background shells
+    refused; the runner change is one constant), and the locator and explanation live gates (unchanged).
+- **Result:** fixed and pushed. L1 stays `in_progress`; latency at the output cap is still open.
+
 ## 2026-09-22 — failure analysis and locator upgrade measured through the product; own 185 s deadlines (Claude)
 
 - **Task:** measure `locatorUpgrade` and `failureAnalysis` through the product, and fix their timeouts.

@@ -410,6 +410,13 @@ authorization.
   re-checked after decoding; a conclusion with no cited evidence is refused as a guess
   (`UNSUPPORTED_CONCLUSION`); and `insufficient` is a first-class answer, with an answer that both
   declines and concludes refused as `CONTRADICTORY` rather than half-believed.
+  - **Rebuilt 2026-09-22 (`5ef4852f`), same three rules.** The runtime's grammar writes every schema
+    key, so v1's separate `insufficient` flag made every real Qwen3.5-0.8B answer decline *and* conclude,
+    and all were refused. Declining is now an empty `conclusion` list, the only thing that can be written
+    in its place. Where it is allowed is decided from the evidence: a baseline resting on direct evidence
+    must conclude (the drawer shows that cause above the answer), a failure offering nothing but the
+    runner's own record can only decline, and that record is never primary evidence. Measurements and
+    mutations: L1 plan › "The failure-analysis answer contract, fixed".
 - **L5b cannot change the run, and not because it is told not to.** The schema has no field for a
   status, a retry, a policy or an edit — a model that emits one is refused by `AiOutputContract`
   before this module sees it.

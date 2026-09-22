@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — failure analysis and locator upgrade have their own 185 s deadlines; their requests still exceed the ceiling at their own cap
+## HANDOFF (2026-09-22, latest) — real failure analyses are accepted and correctly classified; latency at the cap is still open
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`5ef4852f`):**
+  - The failure-analysis answer contract is rebuilt. Declining is an empty `conclusion` list, a direct
+    cause must be interpreted, a bare runner failure can only be declined, and the runner's own failure
+    record is never primary evidence.
+  - On the real 0.8B, all three live cases are accepted and correctly classified
+    (`verify:ai-failure-analysis-live` 5/5, which now asserts acceptance and classification).
+  - Details are in the L1 plan › "The failure-analysis answer contract, fixed".
+- **Not done, and owner decisions:**
+  - Both failure analysis and locator upgrade still exceed the 180 s ceiling at their 512-token caps.
+  - The largest real conclusion cites all 11 cause candidates as primary. A tighter cap is a quality
+    decision for the labelled set.
+  - A bare runner timeout still costs one model call whose only answer is a decline.
+  - The pin, license notice, `verify:ai-model-pack`, `verify:ai-model-live` and the live quality gates
+    are still owed. L1 stays `in_progress`. **L7 cannot be entered.**
+- **Do not:**
+  - add a field beside `conclusion` that can say "insufficient": the grammar writes every key, so it
+    can always be written against the list;
+  - leave a decision to the model's first token when the product already knows the answer;
+  - count an answer that arrived as a pass in a live gate: assert that it was accepted and classified.
+
+## HANDOFF (2026-09-22, superseded) — failure analysis and locator upgrade have their own 185 s deadlines; their requests still exceed the ceiling at their own cap
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`d71ee244`):**

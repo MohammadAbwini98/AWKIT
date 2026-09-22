@@ -598,7 +598,7 @@ nothing analysed and no plan.
 - **Every real failure analysis was refused by the answer contract.** The recorded refusals (runs B and
   D) are all `CONTRADICTORY`: the model set `insufficient: true` and still wrote a conclusion. The
   grammar allows that shape and the parser refuses it. This is flagged as its own task; it is not a
-  deadline issue, and it was not changed here.
+  deadline issue, and it was not changed here. *(Fixed at `5ef4852f`; see the next section.)*
 
 **Owner decisions this leaves:**
 
@@ -625,6 +625,79 @@ nothing analysed and no plan.
   transport reports the deadline at once, or the host dies 2 s in; the exact deadline is proven in
   `verify:ai-deadlines`.
 
+#### The failure-analysis answer contract, fixed (2026-09-22): the real 0.8B's analyses are accepted and classified. Evidence: `verify:ai-failure-analysis-live` at `5ef4852f`
+
+**Root cause.** node-llama-cpp 3.21.1 builds its JSON grammar with **every property required, in
+schema order**, whatever the schema's `required` says (`getGbnfJsonTerminalForGbnfJsonSchema` marks each
+field required, and `GbnfObjectMap` emits them all). v1's answer had seven keys, two of them `required`:
+
+- the model therefore decided `insufficient` as its second token, before writing anything;
+- it then had to write a `category` and an `explanation` anyway;
+- the prompt told it to "set insufficient to true and say so";
+- and the parser refused any category or explanation beside `insufficient: true` as `CONTRADICTORY`.
+
+The grammar, the prompt and the parser disagreed, and every real answer landed in that gap.
+
+**The contract now (`src/ai/failureAnalysis.ts`):**
+
+- The answer is `{version: 1, conclusion: [...]}`, with at most one conclusion. **An empty list is the
+  insufficient answer**, and nothing can be written beside it: declining is one decision, `[]` or `[{`.
+- A conclusion cites first — `primaryEvidenceIds` (at least one), `secondaryEvidenceIds` — then
+  `category`, `explanation` and `investigationSteps`. Every key is `required`, as the grammar writes
+  them all.
+- **Where declining is true is decided from the evidence, not by the model.** Left to the model, the
+  0.8B chose wrongly on all three requests (table below). So:
+  - a baseline resting on **direct** evidence (`DIRECT_FAILURE_CAUSES`, exported from L5a's own table)
+    must conclude (`minItems` 1). The drawer shows that cause directly above the AI's answer, so "not
+    enough evidence" beside it would be the report contradicting itself;
+  - a request offering **nothing but the runner's own failure record** can only decline (`maxItems` 0);
+  - otherwise — a runner cause with console errors beside it — the model decides.
+- **The runner's own failure record is never primary evidence.** It records that the step failed, never
+  why, and the 0.8B cited it as the cause of a bare timeout. It may still be cited as a consequence.
+- The parser re-checks every rule the grammar enforces: `CONTRADICTORY` for a decline beside a direct
+  cause, or v1's flag against the list; `UNSUPPORTED_CONCLUSION` for a conclusion resting on nothing or
+  on the runner's record; `MALFORMED` for an empty explanation or a key the schema does not name.
+- **Unchanged:** the stored body, the IPC view, the renderer, redaction and the residual-secret rescan,
+  the evidence bounds, the 185 s deadline, the 512-token output cap, the model and the benchmark.
+
+**Measured on the real 0.8B** through `analyzeFailure`, `AiService`, `AiUtilityHostManager` and
+`ai-host.cjs`. The gate now fails unless each answer is delivered, accepted, saved and classified as its
+fixture requires; the typical conclusion must also cite the event its cause rests on.
+
+| Contract | Typical (HTTP 500, then the assertion) | Bare runner timeout | Largest (15 events, 12 offered) |
+|---|---|---|---|
+| v1 (runs B and D above) | refused `CONTRADICTORY` | — | refused `CONTRADICTORY`, or TIMEOUT |
+| v2, the model decides | accepted as insufficient (wrong) | a conclusion citing its own failure record (wrong) | accepted as insufficient (wrong) |
+| v2, concrete decline rule in the prompt | accepted conclusion citing the HTTP 500 | same conclusion (wrong) | accepted as insufficient (wrong) |
+| **v2, evidence tiers (`5ef4852f`)** | **accepted conclusion citing the HTTP 500**, 63.8 s (463 / 181 tokens) | **accepted as insufficient**, 35.0 s (428 / 22) | **accepted conclusion**, 128.1 s (897 / 227) |
+
+The final run started with the CPU 13% busy. The grammar premise is read from node-llama-cpp's source,
+not measured; the v1 refusals are consistent with it, since every recorded one wrote a category or an
+explanation beside `insufficient: true`.
+
+**What the gate does not show:**
+
+- **The largest conclusion cites all 11 cause candidates as primary.** It is accepted and grounded (each
+  id is offered evidence), but it does not single out a cause. Primary citations are capped at the
+  evidence offered, as in v1; a tighter cap is a quality decision for the labelled set
+  (`verify:ai-error-quality-live`, not built).
+- **Latency is unchanged and still open.** At the 512-token cap the typical request projects to 127 s and
+  the largest to 199 s, against the 180 s ceiling (see the section above).
+- **A bare runner timeout still costs one model call** (35 s here) whose only decodable answer is a
+  decline. Answering it without the model, as an insufficient baseline already is, would change what is
+  analysed, so it is left to the owner.
+
+**Regression suites:**
+
+- **`verify:ai-error-analysis`, 185/185 (was 140).** A new section enumerates every answer the grammar
+  can decode in each evidence tier and requires each one to be accepted and correctly classified; the
+  only permitted refusal is an id listed twice, which no grammar can express.
+- **Mutation-tested:** v1's free flag restored → 178/185, naming `CONTRADICTORY` as decodable; the
+  runner's record accepted as primary → 183/185; a decline decodable beside a direct cause → 183/185;
+  the parser's decline check and v1's prompt together → 182/185, each failing only its own checks.
+- **`verify:ai-assist-gui`, 100/0 (was 97).** In real Electron, a decline beside the run's direct cause
+  is refused, and the saved, cited analysis stays on screen.
+
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
 The owner has read the NO-GO above and decided that Phase L **development** continues without waiting
@@ -642,7 +715,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`), but their product requests exceed the 180 s ceiling at their 512-token caps | **release only — unmet** until the pin and live gates |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`), but their product requests exceed the 180 s ceiling at their 512-token caps. Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`) | **release only — unmet** until the pin and live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -675,10 +748,10 @@ host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The c
 explanation request was fixed (88.3 s against 120 s; see "`validationExplanation` fixed in the
 product"). It still owes the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live`,
 and the live quality gates. Every feature now has its own deadline (`d2f5feb2`, `d71ee244`). But
-failure analysis and locator upgrade exceed their 180 s ceiling at their own 512-token output caps, and
-every real failure analysis was refused by its answer contract (see "`failureAnalysis` and
-`locatorUpgrade` measured through the product"). So L1 is not accepted. The 2B is NOT RUN because it is
-not downloaded.
+failure analysis and locator upgrade exceed their 180 s ceiling at their own 512-token output caps (see
+"`failureAnalysis` and `locatorUpgrade` measured through the product"). The answer contract that refused
+every real failure analysis is fixed (`5ef4852f`; see "The failure-analysis answer contract, fixed"). So
+L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 
 ## Verifiers
 
@@ -686,8 +759,8 @@ not downloaded.
 `verify:ai-autonomy-policy` (tier matrix, T3 unreachable, cap, self-demotion), `verify:ai-audit-revert`;
 `verify:ai-deadlines` (every feature's own deadline, on a virtual clock);
 live: `verify:ai-model-live` (`NOT RUN` without pack), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
-and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline; `NOT RUN` without
-pack). Cover runtime/model missing, checksum mismatch, timeout,
+and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline, and each failure
+analysis accepted and classified as its fixture requires; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
 
 `verify:ai-inference-profile` (`NOT RUN` without pack) is the **diagnostic** counterpart to

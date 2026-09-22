@@ -1,5 +1,34 @@
 # DECISIONS
 
+### 2026-09-22 (latest) — Phase L L5b: the failure-analysis answer contract decides from the evidence where declining is true (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:** fix the output contract that refused every real 0.8B failure
+  analysis as `CONTRADICTORY`. Accept valid analyses, handle genuinely insufficient evidence as an
+  explicit inconclusive result, and keep rejecting malformed, contradictory and unsupported output.
+  Keep redaction, evidence limits, refusal handling and fail-closed behaviour. Leave the model, the
+  185 s deadline, the ceilings, the output budget and the benchmark alone.
+- **Implementer's choices within it:**
+  - **Declining is an empty `conclusion` list, not a flag.** The runtime's grammar writes every key,
+    so any flag beside the conclusion fields can be written against them. With one list, declining
+    and concluding are one decision and cannot both be written. Every key is `required`, as the
+    grammar writes them all.
+  - **Where declining is true is decided from the evidence, not by the model.** Left to its first
+    token, the 0.8B declined both failures with error evidence and concluded on a bare timeout.
+    - A baseline resting on **direct** evidence must conclude. The drawer shows that cause directly
+      above the AI's answer, so "not enough evidence" beside it is the same contradiction, split across
+      two sections. A decline there is refused as `CONTRADICTORY`.
+    - A request offering **nothing but the runner's own failure record** can only decline.
+    - Otherwise (a runner cause with console errors beside it) the model decides.
+  - **The runner's own failure record is never primary evidence.** It records that the step failed,
+    never why; citing it as the cause is `UNSUPPORTED_CONCLUSION`. It may be cited as a consequence.
+  - **An empty explanation is refused.** A conclusion is shown as one, so it must say something.
+  - **The answer stays `version: 1`, and the stored body, the view and the renderer are unchanged.**
+    Answers are never persisted in the model's wire shape, and a bumped version would be one more
+    thing for a 0.8B to get wrong; the v1 shape is refused by the schema either way.
+  - **The direct-cause set is exported from L5a's own table** (`DIRECT_FAILURE_CAUSES`), not copied.
+- **Not decided here:** a cap on primary citations below the evidence offered (the largest real
+  answer cited all 11), answering a bare runner timeout without a model call, and the output budget.
+
 ### 2026-09-22 — Phase L L1.8: failure analysis and locator upgrade get their own deadlines (`awkit-djnl.1`)
 
 - **Owner instruction, in session:** measure `locatorUpgrade` and `failureAnalysis` through the product

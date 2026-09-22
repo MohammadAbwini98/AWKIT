@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## Failure analysis and locator upgrade measured through the product: own 185 s deadlines set, and both exceed their ceiling at their own output cap (2026-09-22, current)
+## Real failure analyses are accepted and correctly classified on the 0.8B: the answer contract decides from the evidence where declining is true (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Root cause:** node-llama-cpp writes every schema key, in order, whatever `required` says. v1 made the
+  model decide `insufficient` first and then write a category and an explanation anyway, and the parser
+  refused that as `CONTRADICTORY`. Every real answer was refused.
+- **The fix (`5ef4852f`, `src/ai/failureAnalysis.ts`):**
+  - declining is an empty `conclusion` list, so it cannot be written beside a conclusion;
+  - a direct cause must be interpreted, a bare runner failure can only be declined, and the runner's own
+    failure record is never primary evidence;
+  - the stored analysis, the IPC view and the renderer are unchanged.
+- **Measured on the real 0.8B (`verify:ai-failure-analysis-live`, 5/5):**
+  - the typical failure: an accepted conclusion citing its HTTP 500, after 63.8 s;
+  - a bare runner timeout: accepted as insufficient, after 35.0 s;
+  - the largest failure: an accepted conclusion, after 128.1 s, citing all 11 cause candidates as primary.
+- **Still open, owner decisions:**
+  - latency at the 512-token cap (typical 127 s, largest 199 s projected, against 180 s);
+  - whether to cap primary citations, and whether a bare runner timeout needs a model call at all;
+  - L1 stays `in_progress`, and **L7 cannot be entered**.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-failure-analysis-live` (real 0.8B, now asserts acceptance and classification) | 5/5 |
+| `verify:ai-error-analysis` | 185/185 (was 140), mutation-tested: 178, 183, 183 and 182 of 185 |
+| `verify:ai-assist-gui` (real Electron) | 100/0 (was 97) |
+| `verify:ai-deadlines` · `verify:failure-cause-baseline` | 41/41 · 71/0 |
+| `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-redaction` | 117/117 · 38/38 · 52/52 |
+| `verify:ai-host` · `verify:ai-host-electron` | 135/0 with 12/12 mutations · 26/0 |
+| `verify:verifier-classification` | reconciled, 245 scripts |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:failure-capture-overhead` | NOT RUN: a 21-round benchmark past the 10-minute foreground limit, and the lease guard refuses background shells. The runner change is one exported constant, and `verify:ai-fallback` proves the execution tree still cannot reach the model |
+| `verify:ai-locator-upgrade-live` · `verify:ai-explanation-live` | NOT RUN: their code paths did not change |
+
+## Failure analysis and locator upgrade measured through the product: own 185 s deadlines set, and both exceed their ceiling at their own output cap (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

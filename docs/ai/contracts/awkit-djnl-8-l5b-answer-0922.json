@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-8-l5b-answer-0922",
+    "title": "Record the rebuilt failure-analysis answer contract on L5b and L1",
+    "objective": "The failure-analysis answer contract was rebuilt at 5ef4852f: declining is an empty conclusion list, a direct cause must be interpreted, a bare runner failure can only be declined, and the runner's own failure record is never primary evidence. On the real Qwen3.5-0.8B, verify:ai-failure-analysis-live is 5/5 with all three analyses accepted and correctly classified, where under v1 every real answer was refused as CONTRADICTORY. Append a note to awkit-djnl.8 giving the fix, the measurement and what stays open (latency at the 512-token cap, the largest conclusion citing all 11 candidates as primary, a model call spent on a bare runner timeout). Append a note to awkit-djnl.1 that failure-analysis answers are now accepted and that its latency gap is unchanged. Refresh the JSONL export. Nothing closes: awkit-djnl.8 and awkit-djnl.1 stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "5ef4852f",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.8 and awkit-djnl.1 stay in_progress, each with a note naming the fix commit and the live result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, against the state after `bd update awkit-djnl.8 --append-notes`, `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents. The tracker measured 9 outstanding / 294 closed with 135 edges, unchanged, so the hardcoded tracker pin did not move. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-8-l5b-answer-0922:project-state:2026-09-22T06:54:01.649Z",
+        "task": "awkit-djnl-8-l5b-answer-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T06:54:01.649Z",
+        "acquired_at_commit": "5ef4852f2f93ded6b6df2b8925bcb311135a5cae",
+        "released_at": "2026-09-22T06:54:50.495Z",
+        "released_reason": "failure-analysis contract fix noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

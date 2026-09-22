@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## Every real failure analysis was refused: the grammar made the model write what the parser refuses (2026-09-22, FIXED — `5ef4852f`)
+
+- **Symptom:** on the real 0.8B, every failure analysis was refused as `CONTRADICTORY`, so none was
+  ever shown. The live gate was 4/4 green at the same time.
+- **Cause:** node-llama-cpp 3.21.1 writes every property of a JSON-schema object, in order, whatever
+  `required` says. v1's answer put `insufficient` second, so the model decided it before writing
+  anything, then had to write a category and an explanation anyway. The prompt said "set insufficient
+  to true and say so", and the parser refused exactly that combination.
+- **Fixed:** declining is an empty `conclusion` list, the one thing that can be written in place of a
+  conclusion. Where declining is true is decided from the evidence: a direct cause must be
+  interpreted, a bare runner failure can only be declined, and the runner's own record is never
+  primary evidence. All three real answers are now accepted and correctly classified
+  (L1 plan › "The failure-analysis answer contract, fixed").
+- **The lessons (pattern):**
+  - **`required` in a JSON schema is not what the grammar enforces.** A field the parser treats as
+    optional is one the model must fill. Model each schema as the runtime's grammar writes it; the
+    verifier now enumerates every answer the grammar can decode and requires each to be accepted.
+  - **A decision the grammar asks for first is made before the model has written anything.** At that
+    token the 0.8B's choice is a prior, not a reading of the evidence: it declined failures with eleven
+    error events and concluded on a bare timeout. Decide what the product already knows, and leave the
+    model only the genuinely ambiguous case.
+  - **Two sections of one screen are one answer.** An AI "not enough evidence" beside a deterministic
+    direct cause is a contradiction, even though each part passes its own contract.
+  - **A live gate must assert acceptance and classification, not arrival.** The v1 gate counted an
+    answer that arrived in time as a pass, so it was green while every answer was refused.
+- **Still open:** the largest real conclusion cites all 11 candidates as primary (a quality question
+  for the labelled set), and latency at the output cap (next entry).
+
 ## Failure analysis and locator upgrade exceed their 180 s ceiling at their own output cap (2026-09-22, OPEN — deadlines fixed at `d71ee244`)
 
 - **Fixed:** both were still on the shared 30 s, and through the product on the real 0.8B every request
@@ -11,6 +39,7 @@
     still reached 185 s. The remedy is the request's size, an owner decision, as with `d2a81262`.
   - **Answer contract.** Every real failure analysis was refused as `CONTRADICTORY`: `insufficient`
     true, with a conclusion. The grammar allows that shape and the parser refuses it. A task is flagged.
+    *(Fixed at `5ef4852f`; see the entry above.)*
   - **Locator job not wired.** Nothing queues it yet, so its new deadline takes effect only once it is
     wired, after L1.
 - **The lessons (pattern):**
