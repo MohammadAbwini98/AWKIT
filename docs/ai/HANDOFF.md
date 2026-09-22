@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — failure analysis no longer shows the deterministic conclusion; the 0.8B still ties the baseline
+## HANDOFF (2026-09-22, latest) — failure analysis knows which step each event came from; the 0.8B still ties the baseline
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`407d6080`):**
+  - `stepRelations` reads each event's collector step stamp.
+  - After-failure events are never primary and are offered last.
+  - Lines state their step only when steps differ.
+  - Two provenance cases added, run by `verify:ai-error-quality-live-provenance`.
+  - The labelled set is unchanged at 9/11 vs 9/11. The provenance cases scored AI 1/2 vs baseline 2/2,
+    twice.
+  - Details are in L5 › "Step relevance, from the collector's step stamp".
+- **Not done, and owner decisions:**
+  - The AI does not beat the baseline, so the automatic analysis stays off (rule 7).
+  - The 0.8B ignores step labels, and the labelled set's two misses are within one step.
+  - What remains is a model or new runtime provenance (a request's initiating action, the failed step's
+    page), both outside this task.
+  - L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+- **Do not:**
+  - bar earlier-step events when the failed step has direct evidence. That copies the baseline's window
+    precedence into the grammar;
+  - add text or URL matching between the step and an event as "relevance";
+  - restamp the labelled set's events into several steps to make provenance score. They were built as
+    one step.
+
+## HANDOFF (2026-09-22, superseded) — failure analysis no longer shows the deterministic conclusion; the 0.8B still ties the baseline
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`c44a6e2c`):**

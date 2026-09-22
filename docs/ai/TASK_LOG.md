@@ -1,5 +1,41 @@
 # TASK_LOG
 
+## 2026-09-22 — failure-analysis step relevance from the collector's step stamp, measured on the real 0.8B (Claude)
+
+- **Task:** improve cause selection with deterministic step-to-evidence relevance, and re-measure
+  accuracy and the L1.8 ceiling.
+- **Found:**
+  - The only recorded provenance is each event's step stamp and page, plus the failed step on the
+    runner's record. There is no request initiator, no step page and no request start time, and
+    `ERR_BLOCKED_BY_CLIENT` is not AWKIT's own block.
+  - Every event in the eleven-row labelled set shares the failed step's stamp, so provenance cannot
+    separate them.
+  - On two new cases with a real step boundary, the 0.8B ignored the step labels.
+  - `failureBatch` takes an entry's step from the baseline's lead event, not the runner's record. It was
+    left alone because the coalescing signature depends on it, and relevance reads the runner's record
+    directly.
+- **Files:** `407d6080`:
+  - `src/ai/failureAnalysis.ts`;
+  - `scripts/ai-harness/errorQualitySet.ts` and `errorQualityLive.ts`;
+  - `scripts/verify-ai-error-analysis.mts` (section 12) and `scripts/verify-ai-explanation-live.mts`;
+  - `scripts/lib/verifier-classification.ts` and `package.json` (`-provenance`);
+  - the L1.8 evidence JSON (verdict re-evaluated, packet unchanged).
+
+  Then the L5 and L1 plans, COMMANDS, DECISIONS, CURRENT_STATE, HANDOFF, and notes on `awkit-djnl.8`
+  and `awkit-djnl.1`.
+- **Checks:**
+  - `-part1` 11/0, `-part2` 9/0, `-provenance` 6/0 twice.
+  - `benchmark:ai-model-0-8b` 7/7 current, GO on all 8.
+  - `verify:ai-failure-analysis-live` 5/0 and `verify:ai-failure-analysis-budget` 7/0.
+  - `verify:ai-error-analysis` 328/328, with three mutations caught.
+  - adapter 117, fallback 38, redaction 52, host 135 with 12/12 mutations, assist-gui 100/100.
+  - `verify:verifier-classification` 254, `typecheck:scripts` PASS, build PASS.
+  - NOT RUN: `verify:failure-capture-overhead` (no import changed) and the whole gate in one invocation
+    (over the 600 s ceiling).
+- **Result:** implemented and measured. The labelled set is unchanged at 9/11 vs 9/11, and the
+  provenance cases scored AI 1/2 vs baseline 2/2. The AI does not beat the baseline, so the automatic
+  analysis stays off.
+
 ## 2026-09-22 — failure-analysis baseline anchoring: conclusion removed from the prompt, measured on the real 0.8B (Claude)
 
 - **Task:** fix the baseline anchoring `verify:ai-error-quality-live` found, and re-measure accuracy

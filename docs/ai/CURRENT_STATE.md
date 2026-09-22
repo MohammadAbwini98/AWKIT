@@ -1,6 +1,46 @@
 # CURRENT_STATE
 
-## Failure analysis no longer shows the model the deterministic conclusion; the 0.8B still ties the baseline (2026-09-22, current)
+## Failure analysis knows which step each event came from; the 0.8B still ties the baseline (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **What the runtime records** (traced first): each event's step stamp (`context.stepIndex`) and page,
+  and the failed step on the runner's record.
+  - Not recorded: request initiators, the failed step's page, or request start times.
+  - `ERR_BLOCKED_BY_CLIENT` is not AWKIT's own block.
+  - So the step stamp is the only deterministic relevance signal.
+- **The mechanism (`407d6080`, `src/ai/failureAnalysis.ts`):**
+  - `stepRelations` classifies each event as `failedStep`, `earlierStep`, `afterFailure` (cannot be the
+    cause) or `unknown`.
+  - An after-failure event is ranked last and can never be primary evidence, in the grammar or the parser.
+  - Each line states its step only when the offered events span steps, so single-step requests are
+    byte-identical.
+  - The baseline, the tier rule and every refusal are unchanged.
+- **Results on the real 0.8B:**
+  - Labelled set (`-part1` 11/0, `-part2` 9/0): baseline 9/11, AI 9/11, 2 false attributions, 1
+    correct decline, links 12/12. This is unchanged: every event in those rows is in the failed step.
+  - Two new provenance cases (`-provenance` 6/0, twice): baseline 2/2, AI 1/2 both times. The model
+    cited an earlier step's 503 over the failed step's page error despite the labels.
+- **Finding:**
+  - The labelled set's two false attributions sit within one step, where nothing recorded separates
+    the events.
+  - Where provenance exists, the 0.8B doesn't use it.
+  - The AI does not beat the baseline, so **rule 7 keeps the automatic analysis off**.
+- **L1.8:** the packet identity is unchanged, so the benchmark is 7/7 current and GO on all 8
+  (`failureAnalysisAtCap` 120,389 ms). L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-error-quality-live-part1` / `-part2` / `-provenance` (real 0.8B) | 11/0 · 9/0 · 6/0 twice |
+| `verify:ai-error-quality-live` (whole set, one invocation) | NOT RUN: 13 calls exceed the 600 s tool ceiling. The three parts run the same cases |
+| `benchmark:ai-model-0-8b` · `verify:ai-failure-analysis-live` · `verify:ai-failure-analysis-budget` | GO on all 8, 7/7 current · 5/0 · 7/0 |
+| `verify:ai-error-analysis` | 328/328 (was 279). Three mutations caught at 323, 327 and 324 |
+| `verify:ai-adapter` · `-fallback` · `-redaction` · `-host` · `-assist-gui` | 117 · 38 · 52 · 135 + 12/12 mutations · 100/100 |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 254 scripts · PASS · PASS |
+| `verify:failure-capture-overhead` | NOT RUN: `src/ai` only, with no import change. Its `src/ai` concern, the import closure, is proven by `verify:ai-fallback` |
+
+## Failure analysis no longer shows the model the deterministic conclusion; the 0.8B still ties the baseline (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

@@ -390,7 +390,8 @@ and the milestone cannot close under the conditional development authorization. 
 `verify:ai-error-quality-live` is built (2026-09-22, 13/0 on two runs; see "The live quality gate as
 built"). On the labelled set the AI does **not** beat the baseline, so ROADMAP rule 7 does not yet let
 the automatic analysis run. Hiding the deterministic conclusion from the model (`c44a6e2c`, 2026-09-22)
-did not change that: see "Baseline anchoring, removed and measured".
+did not change that: see "Baseline anchoring, removed and measured". Nor did telling it which step each
+event came from (`407d6080`): see "Step relevance, from the collector's step stamp".
 
 ### L5b as built
 
@@ -627,6 +628,81 @@ Coalescing (500 → 1, 2 → 2), zero calls for the pass and the insufficient ba
 **What it does not show:** a rate over more than two samples; which unrelated event run 1's
 `transport-noise` answer cited (`citesBaselineLead` was added after it); a person's reading of the texts.
 
+### Step relevance, from the collector's step stamp (2026-09-22, `407d6080`)
+
+**What the runtime records about an event's relation to the failed step.** It was traced before
+anything was built:
+
+- **Recorded:** the collector stamps every event with the step running when it was captured
+  (`context.stepIndex` and `nodeId`, via `setStep`) and with its page (`pageId`). The runner's failure
+  record carries the failed step's own `stepIndex`.
+- **Not recorded, anywhere in the product:**
+  - which request a step's action issued. No initiator is captured, and `NetworkDiagnosticsObserver` is
+    armed only for stream waits;
+  - the page the failed step acted on;
+  - request start time.
+- **Not provenance:** `ERR_BLOCKED_BY_CLIENT` is not AWKIT's own block. `ResourceRoutingPolicy` aborts
+  with the default code.
+- **So the step stamp is the only deterministic relevance signal.** The report does not keep the step's
+  time window: only the stamps survive.
+
+**The mechanism (`src/ai/failureAnalysis.ts`):** `stepRelations` compares each event's step stamp with
+the failed step, meaning the runner record the baseline cites, else the last one.
+
+| Relation | Meaning | May be primary evidence |
+|---|---|---|
+| `failedStep` | captured while the failed step ran: related by provenance, not proven the cause | yes |
+| `earlierStep` | captured during an earlier step: a possible precondition (the baseline's preceding window) | yes |
+| `afterFailure` | captured during a step that started after the failed one: cannot have caused it (unrelated) | **no**, in the grammar and the parser (`UNSUPPORTED_CONCLUSION`); it may be a consequence |
+| `unknown` | the event or the failure record has no stamp | yes |
+
+- **Offered events:** the baseline's citations first, as before, then the failed step's events, then
+  earlier or unknown ones, then after-failure ones. Before, "closest to the failure" put after-failure
+  events first.
+- **Per-line tags, only when needed:** each line states its step (`[during an earlier step]`) only when
+  the offered events span more than one step. A single-step request is byte-identical to `c44a6e2c`'s:
+  every labelled row, and the benchmark packet.
+- **Nothing else moves:** no instruction change, no causality from order, status, URL or text, and no
+  benchmark label anywhere. The baseline, the tier rule and every refusal are unchanged.
+
+**Two cases added (`PROVENANCE_ITEMS`), run by `verify:ai-error-quality-live-provenance`:**
+
+- `earlier-step-unrelated-error`: `unrelated-server-error-first` event for event, but with the 503
+  captured one step before the failed step. This is the A/B.
+- `earlier-step-cause`: the reverse. A save's 500 comes one step before an assertion whose step holds
+  only an unrelated console error, so "prefer the failed step" cannot win by provenance alone.
+- Both baselines are right by construction; the baseline's step window already separates these.
+
+**Results on the real 0.8B, every hard check passing:**
+
+| | Baseline | AI | False attr. | Correct declines | Links |
+|---|---|---|---|---|---|
+| Labelled set, 11 rows (`-part1` 11/0 + `-part2` 9/0) | 9/11 | 9/11 | 2 | 1 | 12/12 |
+| Same rows at `c44a6e2c` (two runs) | 9/11 | 9/11 | 2 | 1 | 14/14, 11/11 |
+| Provenance cases, run 1 (6/0) | 2/2 | 1/2 | 1 | 0 | 2/2 |
+| Provenance cases, run 2 (6/0) | 2/2 | 1/2 | 1 | 0 | 2/2 |
+
+- **The labelled set could not move.** Every event in it is stamped with the failed step, so every
+  relation is `failedStep` and the request is unchanged. Its two false attributions (`transport-noise`,
+  `unrelated-server-error-first`) are within one step, where no recorded provenance separates the
+  events.
+- **Where provenance exists, the 0.8B ignored it.** On `earlier-step-unrelated-error` it cited the 503
+  marked `[during an earlier step]` over the page error marked `[during the failed step]`, on both runs.
+  On `earlier-step-cause` it cited the earlier 500 and was right. Both times it chose the HTTP error,
+  whatever step it came from.
+- **Latency:** answers took 38.6–87.2 s. The provenance requests were 458–463 prompt tokens and 92–101 s
+  at the cap.
+- **So the AI still does not beat the baseline, and rule 7 keeps the automatic analysis off.** The
+  relevance that holds without the model is deterministic: an after-failure event can no longer be
+  offered first or cited as the cause.
+
+**Not done, on purpose:** barring earlier-step events whenever the failed step has direct evidence.
+That would copy the baseline's window precedence into the grammar. The AI could then never be right
+where the baseline's window is wrong, and it would infer cause from step order.
+
+**What would change the result** is not a prompt: a model that reasons over the step, or runtime
+provenance the product does not record (a request's initiating action, the failed step's page).
+
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
   Never before terminal outcome.
@@ -655,7 +731,7 @@ latency, privacy correctness.
 New `verify:ui-error-evidence`, `verify:failure-capture-overhead`, `verify:failure-cause-baseline`,
 `verify:ai-error-analysis` (its last section audits the live labelled set and its judge), live
 `verify:ai-error-quality-live` (built, 13/0 on the real 0.8B; since `c44a6e2c` the extended set runs as
-`-part1` 11/0 and `-part2` 9/0, twice). Existing: `verify:failure-evidence(-live)`,
+`-part1` 11/0 and `-part2` 9/0, twice; since `407d6080` also `-provenance` 6/0, twice). Existing: `verify:failure-evidence(-live)`,
 `verify:run-report-compatibility`, `verify:telemetry`, `verify:reports`, `verify:runner`, `verify:mock-site`,
 `validate:offline`, `npm run build`. Mock-site scenarios for each signal and a fast `<3s` run with zero model calls.
 

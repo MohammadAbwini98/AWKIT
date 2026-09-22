@@ -826,6 +826,16 @@ decode seen that run. The largest answer (live and both benchmark iterations) di
 the baseline rests on (`citesCause` false). That is recorded, not required: the fixture's payment
 gateway 502 is an equally grounded reading of that run.
 
+**Step relevance (`407d6080`, 2026-09-22): still GO, not re-measured, because nothing it measures
+changed.** A request whose events all share one step, every fixture above included, is byte-identical
+to `c44a6e2c`'s, so the benchmark's packet identity did not move. `benchmark:ai-model-0-8b` reported 7/7
+current and GO on all 8, with `failureAnalysisAtCap` still 120,389 ms.
+- `verify:ai-failure-analysis-budget`: 7/0, prompts unchanged at 417 / 342 / 798 tokens.
+- `verify:ai-failure-analysis-live`: 5/0, at the cap 77.7 / 108.6 / 117.7 s.
+- A request spanning steps adds a label of at most 25 characters per line. That is inside the unchanged
+  1,500-character evidence budget, so a line is dropped rather than the prompt growing past it. The two
+  provenance requests measured 458–463 prompt tokens and 92–101 s at the cap.
+
 #### `locatorUpgrade` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:locatorUpgrade` (now the product's request) and `verify:ai-locator-upgrade-live` at `4a846c41`
 
 **Root cause: the output cap, a prompt that was mostly delimiters, and an answer no small cap could hold.**
@@ -1203,13 +1213,24 @@ parts, each 20/0 across both parts on two runs.
 
 See L5 › "Baseline anchoring, removed and measured".
 
+**And then (`407d6080`):** the request now knows the step each event was captured in, from the
+collector's step stamp. An event from after the failed step can no longer be the cause or be offered
+first. A line states its step only when the offered events span more than one.
+- The labelled set is unchanged at 9/11 vs 9/11. Every one of its events is in the failed step, so its
+  requests are byte-identical.
+- On two new provenance cases the AI scored 1/2 twice against the baseline's 2/2: it ignored the step
+  labels.
+- The packet identity is unchanged, so the benchmark is current at GO on all 8.
+
+See L5 › "Step relevance, from the collector's step stamp".
+
 **Still owed before L1 can be accepted:**
 
 1. An explanation quality target for L4b, which L4's acceptance requires before release.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 12/12 on subject
    by proxy with no ranking, and failure analysis tying the baseline, with or without the conclusion in
-   its prompt.
+   its prompt and with step provenance.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 

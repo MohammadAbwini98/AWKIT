@@ -1,6 +1,35 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5b: the failure-analysis prompt no longer carries the deterministic conclusion (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L5b: failure-analysis relevance comes from the collector's step stamp (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:** improve cause selection from step-to-evidence relevance.
+  - Use only real runtime metadata.
+  - Distinguish related, unrelated and unknown.
+  - No causality from order, status or URL similarity.
+  - Keep the labelled set and the baseline.
+- **Implementer's choices within it:**
+  - **The step stamp is the only provenance the product records.** Request initiators, the failed step's
+    page and request start times are not captured, and `ERR_BLOCKED_BY_CLIENT` is not AWKIT's block.
+    So relevance is `failedStep` (related), `afterFailure` (unrelated: cannot be the cause),
+    `earlierStep` (a precondition candidate) or `unknown`.
+  - **One hard rule, the provable one.** An event from a later step is never primary evidence, and is
+    ranked last. Barring earlier-step events when the failed step has direct evidence was rejected: that
+    is the baseline's window precedence, and it would stop the AI ever being right where that window is
+    wrong.
+  - **Tags only when steps differ,** with no instruction change. Single-step requests stay
+    byte-identical, so the labelled set and the benchmark packet are unchanged and nothing was re-tuned.
+  - **Two new cases rather than restamping old ones.** The eleven rows were built as one step, and
+    splitting them would manufacture a result. The A/B case reuses `unrelated-server-error-first`'s
+    events with a real step boundary.
+- **Outcome:**
+  - Labelled set 9/11 vs 9/11 (unchanged by construction). Provenance cases AI 1/2 vs baseline 2/2, twice.
+  - The 0.8B does not use step labels. Rule 7 is not met, so the automatic analysis stays off.
+  - The mechanism stays: its after-failure rule and ranking hold without the model, and it adds no
+    latency to single-step requests.
+- **Not decided here:** a different model, or new runtime provenance (the request a step's action
+  initiated, the failed step's page). Both are owner calls, and both are outside this task's scope.
+
+### 2026-09-22 — Phase L L5b: the failure-analysis prompt no longer carries the deterministic conclusion (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:** fix the baseline anchoring that `verify:ai-error-quality-live`
   found. Keep the deterministic baseline, the security protections and L5's acceptance rules. Change no
