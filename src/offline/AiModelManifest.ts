@@ -35,7 +35,9 @@ export interface AiModelManifestEntry {
 }
 
 /**
- * Pinned 2026-09-20. Every field below was MEASURED from the downloaded artifact, not copied from a
+ * Two packs. Either may be imported; the store keeps one active pack, matched by checksum.
+ *
+ * The 4B, pinned 2026-09-20. Every field below was MEASURED from the downloaded artifact, not copied from a
  * model card: the size and SHA-256 from the file on disk (`certutil -hashfile … SHA256`), and the
  * identity fields from the GGUF header itself — `GGUF v3`, `general.architecture = qwen35`,
  * `qwen35.context_length = 262144`, `general.name = Qwen_Qwen3.5 4B`, 426 tensors. The published
@@ -55,6 +57,26 @@ export const AI_MODEL_MANIFEST: readonly AiModelManifestEntry[] = Object.freeze(
     license: { spdx: "Apache-2.0", notice: "resources/THIRD_PARTY_NOTICES.md" },
     // Constrained decoding is mandatory. Qwen3.5 is a hybrid reasoning model, so thinking is a real
     // toggle — the host closes it by pre-filling an empty think block on the assistant turn.
+    capabilities: { jsonSchemaGrammar: true, thinkingToggle: true }
+  }),
+  /**
+   * Pinned 2026-09-22, the pack L1.8 was re-scoped to (the owner, 2026-09-21), measured the same way by
+   * `verify:ai-model-live-0-8b`: size and SHA-256 from the file on disk (equal to the published object),
+   * and from its own GGUF header `GGUF v3`, 320 tensors, `general.architecture = qwen35`,
+   * `general.name = Qwen_Qwen3.5 0.8B`, `qwen35.context_length = 262144`, `general.file_type = 15`
+   * (Q4_K_M). That verifier fails if the context length or quantization below stops matching the header.
+   */
+  Object.freeze({
+    id: "qwen3.5-0.8b-q4-k-m",
+    displayName: "Qwen3.5 0.8B (Q4_K_M)",
+    fileName: "Qwen3.5-0.8B-Q4_K_M.gguf",
+    sizeBytes: 527_502_816,
+    sha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
+    format: "gguf",
+    contextTokens: 262_144,
+    quantization: "Q4_K_M",
+    license: { spdx: "Apache-2.0", notice: "resources/THIRD_PARTY_NOTICES.md" },
+    // Same family and template as the 4B: the host pre-closes the think block the same way.
     capabilities: { jsonSchemaGrammar: true, thinkingToggle: true }
   })
 ]);

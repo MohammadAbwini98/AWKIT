@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-pin-0-8b-0922",
+    "title": "Pin the re-scoped Qwen3.5-0.8B pack in AI_MODEL_MANIFEST and run verify:ai-model-live on it",
+    "objective": "Add the Qwen3.5-0.8B Q4_K_M pack to src/offline/AiModelManifest.ts from values measured on the downloaded file at 3fa15327: 527,502,816 bytes and SHA-256 f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec (equal to the published object), and from its own GGUF header GGUF v3, 320 tensors, general.architecture qwen35, general.name Qwen_Qwen3.5 0.8B, qwen35.context_length 262144, general.file_type 15 (Q4_K_M). Record its Apache-2.0 license in resources/THIRD_PARTY_NOTICES.md. The 4B entry and AI_RUNTIME_PIN stay as they are: retiring an accepted pack is not requested. Then run verify:ai-model-live-0-8b, which imports the pack through AiModelPackStore with the real manifest and requires the entry to match the header, plus verify:ai-model-pack and the build. The model artifact, deadlines, output budgets and benchmark criteria are unchanged, nothing is wired, and L7 is not entered.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "3fa15327",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "offline_boundary_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release"
+    ],
+    "expected_paths": [
+      "src/offline/AiModelManifest.ts",
+      "resources/THIRD_PARTY_NOTICES.md"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "src/offline/AiModelManifest.ts",
+        "resources/THIRD_PARTY_NOTICES.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PIN-MEASURED",
+      "description": "The 0.8B entry's size and SHA-256 are the downloaded file's, and its context length and quantization are its own GGUF header's, each asserted by verify:ai-model-live-0-8b, and the pack imports through AiModelPackStore with the real manifest and passes load verification.",
+      "evidence_required": [
+        "verify:ai-model-live-0-8b",
+        "verify:ai-model-pack"
+      ]
+    },
+    {
+      "id": "PIN-BUILD",
+      "description": "The typecheck and bundles pass with the new entry.",
+      "evidence_required": [
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-model-live-0-8b",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-model-live-0-8b",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "23/0 on the pinned state. Before the pin the same gate was 17/1 at 3fa15327, the one failure the expected 'AI_MODEL_MANIFEST lists the measured pack', which is where the entry's values come from. Pinned: published object, runtime pin, entry listed; GGUF v3, 320 tensors, qwen35, Qwen_Qwen3.5 0.8B, context 262144 and file type 15 equal to the entry's contextTokens and quantization; imported through AiModelPackStore with the real manifest in 3 s, status installed, load verification re-hashed and accepted; all 13 live harness steps passed (constrained decoding, determinism, injection text, no think block, special-token literalness, prompt bound, truncation, cancel in 4.0 s, deadline, yield, crash recovery with reload, shutdown)."
+    },
+    {
+      "id": "verify:ai-model-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-model-pack",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "46/0: every production entry well formed, ids and checksums unique, 2 pinned packs, runtime build node-llama-cpp@3.21.1+llama.cpp@v0.4.0."
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build passed with the new entry; typecheck:scripts also passed at 3fa15327."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "The pinned entry is measured, not copied: size and SHA-256 from the file, context length and quantization from its own GGUF header, each asserted by verify:ai-model-live-0-8b 23/0, with verify:ai-model-pack 46/0 and the build passing.",
+    "qa_known_limitations": "The 4B entry stays pinned: retiring an accepted pack was not requested and is the owner's call. validate:offline was NOT RUN: it checks the packaged runtime, browser and dependency manifest, and the model pack is never bundled. verify:ai-model-live on the 4B was NOT RUN after the --pack change. No independent QC review was run: subagents were not requested. L1 stays open.",
+    "qc_status": "pending"
+  }
+}

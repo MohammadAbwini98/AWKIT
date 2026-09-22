@@ -58,9 +58,20 @@ staged beside the host in the same way as the Zvec native host.
   `25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c`. Identity is the checksum, never
   the file name.
 
-**The model pack is NOT bundled and is NOT redistributed.** It ships in no installer and appears in
+## Local AI model pack (Qwen3.5-0.8B GGUF)
+
+- Product: `Qwen3.5-0.8B-Q4_K_M.gguf`, from `lmstudio-community/Qwen3.5-0.8B-GGUF`
+- Purpose: the optional local model for Phase L AI features, the pack the L1.8 performance gate was
+  re-scoped to
+- License: Apache License 2.0
+- Upstream: <https://huggingface.co/lmstudio-community/Qwen3.5-0.8B-GGUF> and the upstream Qwen release
+- Identity pinned in `src/offline/AiModelManifest.ts`: 527,502,816 bytes, SHA-256
+  `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec`. Identity is the checksum, never
+  the file name.
+
+**The model packs are NOT bundled and are NOT redistributed.** They ship in no installer and appear in
 no signed dependency manifest. The user supplies the file themselves and imports it through
-Settings, where it is refused unless its checksum matches the entry above. Any future decision to
+Settings, where it is refused unless its checksum matches one of the entries above. Any future decision to
 redistribute the weights requires a separate review of the upstream licence terms.
 
 ## Release responsibility
