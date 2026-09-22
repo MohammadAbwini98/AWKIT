@@ -479,6 +479,15 @@ npm run verify:ai-locator-upgrade-live
                                   # must reach the prompt whole. Each locator job must end ACCEPTED, each call
                                   # must be the request locatorAttemptJob builds, every line shown whole.
                                   # NOT RUN without runtime + pack (5 failure analysis, 4 locator)
+npm run verify:ai-locator-quality-live
+                                  # the same launcher, which also serves the mock site: the real 0.8B's locator
+                                  # plans over six real Recorder captures on /recorder-lab/locator-upgrade, each
+                                  # compiled plan proven by proveLocatorPlan / proveRepairPlan in real Chromium,
+                                  # each accepted one judged by the page (one match, the recorded data-lu, replay
+                                  # or repair proof again, a click the page attributes to it). False-target 0,
+                                  # the twins refused after a real second attempt, >= 1 plan browser-proven.
+                                  # Five scripted controls run first and stop the run if one fails. ~9 min,
+                                  # inside the 10-minute tool limit. NOT RUN without runtime + pack (14)
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every

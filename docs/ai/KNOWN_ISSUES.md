@@ -1,5 +1,35 @@
 # KNOWN_ISSUES
 
+## No real locator plan had been proven on a real page, and the AI harness was never type-checked (2026-09-22, FIXED — `858ffd17`)
+
+- **Symptom:** every live locator run stubbed the browser proof as page-unavailable. A plan that decoded,
+  compiled and was stored counted as accepted, so no gate had seen a real plan reach the right element.
+  Separately, `typecheck:scripts` covered only `.mts` entry points, and nothing type-checks the esbuilt
+  AI harness. It held five type errors.
+- **Fixed:** `verify:ai-locator-quality-live` runs the product's job on the real 0.8B over six real
+  Recorder captures, proves every plan in real Chromium, and judges each accepted candidate by the page.
+  It passed 14/0 twice with 0 false targets. The launcher now pulls the harness into `typecheck:scripts`,
+  and the five errors are fixed with no behavior change.
+- **The lessons (pattern):**
+  - **Judge an accepted candidate by the page, not by the gate that accepted it.** The page's own outcome
+    line (`lu-result` ← `data-lu`) and a match count on a fresh page make an oracle a broken gate cannot
+    satisfy. The controls prove it: a bypassed gate C or B still gets caught.
+  - **A stub the job cannot tell from a proof must be one the gate can.** The judge counts a proof only if
+    the product's real proof function returned it for that attempt, so a claimed `PROVEN` stub and the old
+    page-unavailable stub both read "no real proof".
+  - **Re-derive the first attempt's outcome; do not read it back.** The second-attempt check recomputes the
+    refusal from the first answer and its real proof, so a misrecorded feedback line cannot agree with
+    itself.
+  - **A random prompt nonce makes temperature 0 non-reproducible across runs.** `multiple-matches` was
+    accepted in one run and refused in the next. Never read one run's rate as the model's rate.
+  - **A bundler that does not type-check hides type errors indefinitely.** Reference the bundled entry
+    from a type-checked file, even type-only.
+- **Still open:**
+  - The 0.8B never delivered a scoped upgrade: the region case was refused in both runs.
+  - A repair without a capture context was not measured.
+  - One run is ~510 s of harness time against a 575 s budget.
+  - Product-level mutation runs were not executed: the session's permission classifier denied them.
+
 ## The locator-upgrade request exceeded its ceiling at its own output cap, and its benchmark packet was a stand-in (2026-09-22, FIXED — `4a846c41`)
 
 - **Symptom:** measured through the product at `4608eaec`, the largest capture projected to 186.4 s at
@@ -24,7 +54,7 @@
     filtered by label before checking, so a context cut inside a label (`sibling a`) passed; only the
     mutation run showed it. Capture permissively, validate strictly.
 - **Still open:** no real model plan has been proven on a real page (`verify:ai-locator-quality-live`, not
-  built); a capture at every L2 bound (1,017 prompt tokens, counted) was not measured; plans of
+  built; *built and passing at `858ffd17`, see above*); a capture at every L2 bound (1,017 prompt tokens, counted) was not measured; plans of
   number-dense text at every limit exceed the cap and are refused; host heat, as for failure analysis.
 
 ## Failure analysis missed its ceiling at its own output cap, and its prompt cut an offered evidence line (2026-09-22, FIXED — `42655904`)

@@ -906,7 +906,8 @@ Counted and live differ by a few tokens because the live nonce is random and hex
 - **A proof on a real page.** The live gate stubs the browser proof as page-unavailable. Whether a real
   model plan proves on its page is `verify:ai-locator-quality-live`, not built. The typical plan is
   `role=button name=Archive` with no scope, over a capture that counted two matches; the proof decides
-  whether it is unique.
+  whether it is unique. *(Built at `858ffd17`; see "The real 0.8B's locator plans proven on real
+  pages".)*
 - **A request at every bound was not measured.** Counted at 1,017 prompt tokens with numbered names; at the
   benchmark's prompt and decode rates (12.9–14.7 and 3.53–3.79 tokens/s) that projects to 137–151 s at
   the cap, and at the
@@ -914,7 +915,8 @@ Counted and live differ by a few tokens because the live nonce is random and hex
 - **Number-dense pages.** A plan with every text at its limit in number-dense or code-dense text exceeds
   256 tokens. It would be cut at the cap and refused, spending an attempt, never accepted truncated.
 - **A second attempt on the real model.** Both jobs were accepted first time; the benchmark measured the
-  second-attempt request, but no live job needed one.
+  second-attempt request, but no live job needed one. *(Measured at `858ffd17`: 5 of 6 quality jobs took
+  one; see the next section.)*
 
 **Regression suites:**
 
@@ -934,6 +936,115 @@ Counted and live differ by a few tokens because the live nonce is random and hex
   fails 1. That last mutation first **survived**: the check read only lines whose label survived, and the
   cut landed inside a label (`sibling a`). It now judges every line.
 
+#### The real 0.8B's locator plans proven on real pages (2026-09-22): PASS. Evidence: `verify:ai-locator-quality-live` at `858ffd17`
+
+**What was missing.** Every live locator run so far stubbed the browser proof as page-unavailable, so
+a real plan had been decoded, compiled and stored, but never proven on a page.
+`verify:ai-locator-quality-live` removes the stub. It keeps the model artifact, the 256-token cap, the
+185 s per-attempt deadline, 2 attempts and every benchmark ceiling unchanged. Nothing wires the job into
+the app.
+
+**How it runs** (`scripts/ai-harness/locatorQualityLive.ts`, harness mode `locatorQuality`):
+
+- **Six real Recorder captures** on `/recorder-lab/locator-upgrade`, taken the way `RecorderService`
+  takes them: the context is lifted off the action, then sanitized and marked.
+- **The product's own job and proof.** Each capture goes through `runLocatorUpgradeAttempts`, the
+  production `AiService` and the real `ai-host.cjs`. Every plan that compiles is proven by
+  `proveLocatorPlan` (or `proveRepairPlan`) in real Chromium.
+- **Judged by the page, not by the product's gates.** An accepted candidate is re-checked on a fresh
+  page:
+  - exactly one match;
+  - that element's `data-lu` is the one the Recorder clicked;
+  - the product's replay proof (or repair proof) passes again;
+  - a click on it makes the page report that element.
+- **Every later attempt is checked against the real outcome of the one before it.** That outcome is
+  re-derived from the earlier answer and its real proof, never read back from the job's own record.
+
+**Acceptance: L3's own rule, not a new threshold** (L3 › "Labelled quality set" and "Acceptance"):
+
+- **false-target = 0**, applied here to every accepted candidate, not only a promoted one;
+- the impossible case stays honestly guarded;
+- nothing refused is stored, and a pending candidate never executes (the saved locator and its
+  alternatives are unchanged);
+- **non-vacuity:** at least one real plan must be browser-proven, or the gate has judged nothing.
+
+Upgrade and proof rates, rejection reasons and latency are **recorded, not judged**: no plan sets a
+threshold for them.
+
+**Results, two full runs** (the second is the final state):
+
+| Scenario | Situation | Baseline | Run 1 | Run 2 (final) |
+|---|---|---|---|---|
+| `unique` | a uniquely identifiable element (Open Gamma, Element Spy request) | strong-semantic | compiler `UNSUPPORTED`, then `testId` **capture-proven** | the same |
+| `multiple-matches` | the initial locator matched twice (Archive's hidden duplicate) | guarded-positional | `section` scope `NO_MATCH`, then unscoped `role` **capture-proven** | refused: two scoped plans, each `NO_MATCH` |
+| `scope` | needs its container (Edit address in the Shipping region; new `lu-scope`) | acceptable-semantic | refused: `card` scope not strict, then unscoped `NOT_UNIQUE` (2) | the same |
+| `stale` | a broken saved test-id locator, through repair (`lu-repair`) | strong-semantic | `role` **repair-proven** on the first attempt | the same |
+| `dynamic` | the list re-renders as new elements while the job runs (new `lu-dynamic`) | strong-semantic | `listItem` scope `NO_MATCH`, then `role` **capture-proven** | the same |
+| `impossible` | identical twins | guarded-positional | refused: `NOT_UNIQUE` twice | refused: `NO_MATCH`, then `NOT_UNIQUE` |
+
+| Measure | Run 1 | Run 2 (final) |
+|---|---|---|
+| Solvable scenarios accepted and browser-proven | 4 / 5 | 3 / 5 |
+| False targets | **0** | **0** |
+| Impossible case accepted | 0 | 0 |
+| Jobs that took a second attempt | 5 / 6 | 5 / 6 |
+| Model calls; inference per call | 11; 33.7–51.0 s | 11; 36.0–48.6 s |
+| Worst call at the 256-token cap (against 180 s) | 103.4 s | 97.0 s |
+
+- **Every accepted candidate passed the page's re-check.** It had one match, it was the recorded
+  element, its replay or repair proof passed on a fresh page, and a click on it acted on that element.
+- **The dynamic case synchronized on the page's own signal.** A proof taken while the status read
+  `loading` came back `unprovable-now TARGET_MISSING` every time, never proven. The proof the job
+  received waited for `ready`.
+- **Second-attempt evidence.** Each second request carried the first attempt's actual refusal (stage,
+  code, field) as the product builds it. Three second attempts succeeded: `unique` after a compiler
+  refusal, `dynamic` after `NO_MATCH`, and in run 1 `multiple-matches`. None accepted an unproven
+  candidate.
+
+**Controls, run before any model call; a failed one ends the run:**
+
+- A correct scripted plan through the real proof passes the judge.
+- A wrong element let through by a bypassed gate C is caught as a false target, and so is an ambiguous
+  match let through by a bypassed gate B. Both bypasses tamper with the real proof's answer, and the
+  control first asserts that the untampered product refused (`WRONG_ELEMENT`, `CANDIDATE_NOT_UNIQUE`).
+- A claimed `PROVEN` stub and the old page-unavailable stub are never counted as browser proofs.
+- A second attempt whose refusal is dropped, misrecorded or skipped is caught
+  (`ATTEMPT_2_DOES_NOT_CARRY_THE_REFUSAL`, `ATTEMPT_1_RECORD_IS_NOT_ITS_OUTCOME`, `ATTEMPT_2_MISSING`).
+
+**What this does not show:**
+
+- **A stable rate.** `AiService` draws a random prompt nonce per job, so temperature 0 and seed 0 do
+  not make answers reproducible across runs: `multiple-matches` was accepted in one run and refused in
+  the other. One run's rate is one sample. A rate claim would need repeated runs, and no plan sets a
+  rate threshold.
+- **Scoped upgrades.** In both runs the 0.8B never proposed the region scope the `scope` case needs.
+  Its scopes (`card`, `section`, `listItem`, sometimes with a 4-character `hasText` that is not in its
+  prompt) were refused as `NO_MATCH` or non-strict. The product guarded every one; the model did not
+  deliver a scoped upgrade.
+- **A repair without a capture context.** The repair job carries the Recorder's capture context from
+  before the break, inside its 10-minute TTL. No production caller exists yet, and a runtime repair
+  long after capture would have none. That case was not measured.
+- **Replay tallies, promotion, frames, shadow roots and protected login with real plans.** Those stay
+  covered by the scripted-plan suites.
+- **Product-level mutation runs.** One run of the gate against a deliberately weakened gate C was
+  denied by this session's permission classifier. The product was restored with zero diff and was
+  never executed mutated. The controls above are the negative evidence instead.
+- **Margin on time.** One run is ~506–519 s of harness time against a 575 s budget, held inside the
+  10-minute tool limit. A slower host times out and reads FAIL: truthful, but uninformative.
+
+**Also fixed on the way.** The harness modes had never been type-checked, because esbuild bundles
+without checking. They are now under `typecheck:scripts`, which surfaced five latent type errors in
+`harnessMain.ts` and `failureAnalysisBudget.ts`. All five were fixed with no behavior change. The
+harness bundle now resolves `playwright` by its repository path, so product code that imports it loads
+from the temporary app directory.
+
+**Regression suites at the final state:** `verify:ai-locator-quality-live` 14/0,
+`verify:ai-locator-upgrade-live` 4/0, `verify:locator-upgrade-proof` 75/0, `verify:ai-locator-upgrade`
+78/0, `verify:ai-locator-attempts` 112/112, `verify:ai-locator-repair` 85/85, `verify:ai-adapter`
+117/0, `verify:ai-host` 135/0 with 12/12 mutations, `verify:ai-host-electron` 26/0,
+`verify:mock-site` 234/234, `verify:verifier-classification` 248 scripts. Build PASS,
+`typecheck:scripts` PASS.
+
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
 The owner has read the NO-GO above and decided that Phase L **development** continues without waiting
@@ -951,7 +1062,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`). Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`), and the product's own failure-analysis request meets its ceiling at its own 256-token cap (132.3 s, `42655904`), as does the product's own locator-upgrade request at its own 256-token cap (115.3 s, every live job accepted, `4a846c41`) | **release only — unmet** until the pin and live gates |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`). Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`), and the product's own failure-analysis request meets its ceiling at its own 256-token cap (132.3 s, `42655904`), as does the product's own locator-upgrade request at its own 256-token cap (115.3 s, every live job accepted, `4a846c41`). The real model's locator plans are proven on real pages by `verify:ai-locator-quality-live`: 14/0 twice, 0 false targets, the twins refused, 3–4 of 5 solvable scenarios browser-proven (`858ffd17`) | **release only — unmet** until the pin and the remaining live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -975,7 +1086,10 @@ L1 stayed open. Building them now is what makes the eventual model decision a *s
    deterministic provider is a **test** substitute, never a shipped one.
 4. **No release claim.** The live gates `verify:ai-model-live`, `benchmark:ai-model` and
    `verify:ai-locator-quality-live` remain the only evidence that would satisfy L1.8, and none of them
-   passes. L7 cannot be entered on this authorization.
+   passes. L7 cannot be entered on this authorization. *(2026-09-22: on the re-scoped 0.8B,
+   `benchmark:ai-model-0-8b` is GO on all 8 and `verify:ai-locator-quality-live` passes, 14/0 at
+   `858ffd17`. `verify:ai-model-live` has not run on it and the pack is not pinned, so L1.8 is still
+   unmet for release and L7 still cannot be entered.)*
 
 **Still outstanding for L1 acceptance:** the qualifying hardware was re-scoped on 2026-09-21 to this
 machine with all 12 logical CPUs, and the 4B still FAILS there (see "Re-scoped to the qualifying
@@ -989,9 +1103,20 @@ now meets its ceiling at its own output cap, measured on the product's own reque
 "`failureAnalysis` inside its ceiling at its own output cap"). The locator-upgrade request now meets its
 ceiling at its own 256-token cap too, and `packets:locatorUpgrade` measures the product's own request
 (`4a846c41`; see "`locatorUpgrade` inside its ceiling at its own output cap"), so no benchmark packet is a
-stand-in any more. A real model plan has still never been proven on a real page: that is
-`verify:ai-locator-quality-live`, one of the live quality gates above. So L1 is not accepted. The 2B is
-NOT RUN because it is not downloaded.
+stand-in any more. Real model plans are now proven on real pages: `verify:ai-locator-quality-live` is
+14/0 with 0 false targets (`858ffd17`; see "The real 0.8B's locator plans proven on real pages").
+
+**Still owed before L1 can be accepted:**
+
+1. The measured 0.8B pinned in `AI_MODEL_MANIFEST`, and `AI_RUNTIME_PIN.build` set.
+2. Its license in the third-party notices.
+3. `verify:ai-model-pack` on the pinned pack.
+4. `verify:ai-model-live` on the 0.8B. The script still looks for the 4B pack.
+5. The other live quality gates: `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live`,
+   neither built.
+6. The owner's go/no-go on the re-scoped model.
+
+So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 
 ## Verifiers
 
@@ -1000,7 +1125,10 @@ NOT RUN because it is not downloaded.
 `verify:ai-deadlines` (every feature's own deadline, on a virtual clock);
 live: `verify:ai-model-live` (`NOT RUN` without pack), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
 and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline, each failure
-analysis accepted and classified as its fixture requires, and each locator job accepted; `NOT RUN` without pack), and
+analysis accepted and classified as its fixture requires, and each locator job accepted; `NOT RUN` without pack),
+`verify:ai-locator-quality-live` (the 0.8B's locator plans proven by the product in real Chromium on the Feature Test Lab
+and judged by the page: false-target 0, the twins refused after a real second attempt, at least one plan browser-proven,
+behind five scripted controls; `NOT RUN` without pack), and
 `verify:ai-failure-analysis-budget` and `verify:ai-locator-upgrade-budget` (each request's prompt and its longest
 acceptable answer counted on the 0.8B's own tokenizer against the output cap; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.

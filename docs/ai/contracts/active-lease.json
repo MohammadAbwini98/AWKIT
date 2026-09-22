@@ -1,13 +1,13 @@
 {
-  "task": "awkit-djnl-1-l18-locator-latency-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-locator-latency-0922.json",
+  "task": "awkit-djnl-1-l18-locator-quality-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-locator-quality-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T09:03:17.609Z",
-  "acquired_at_commit": "4a846c4176078c7307da5344f44d953ddc1ef3d3",
+  "acquired_at": "2026-09-22T09:59:07.732Z",
+  "acquired_at_commit": "858ffd174c295262b2fc87b16d3592428b00371d",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
@@ -15,19 +15,23 @@
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-1-l18-locator-latency-0922.json",
+    "docs/ai/contracts/awkit-djnl-1-l18-locator-quality-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
+    "mock-site/README.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "f65f8edf3600c1d8aa44b5ff55a4399c2e1563a95d59964a7b0b914b046e086e",
-    "docs/ai/CURRENT_STATE.md": "5efee7d329ec9d129f6fb6206c34cf097891820ff893e42062c4331b6aab769a",
-    "docs/ai/DECISIONS.md": "3f15085ed50ed61df19d77f1563da9f126b18f0785bea5d9423971f095d742ac",
-    "docs/ai/HANDOFF.md": "218f94ac8f8eb04f814fec017776e9205491df201ee767c468432db84da542b5",
-    "docs/ai/KNOWN_ISSUES.md": "70e9fc46359c1b148034f4d2335de29bea10c0ff97aa8d42e994cbaca6107c9c",
-    "docs/ai/TASK_LOG.md": "fb014f62cff284ab25a87e40fbfd968871fcf0f5a46b5bc04b86123f03147575",
-    "docs/ai/contracts/awkit-djnl-1-l18-locator-latency-0922.json": "500e95ff8d382e68668c111aea9946280ead434e9f5c057b132d3ae796ae739f",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "840184443715f1029ed4f5fa77c17e911ef01f4f7ab954a463e5739557a401d8",
+    "docs/ai/COMMANDS.md": "4332dc7d62d24af63839bbe0c6482525b573c02426b4254706f94cd39a33047c",
+    "docs/ai/CURRENT_STATE.md": "6072ef23f459f0570881ca0320e685e1da49e3495a2ca34ff40674420afe689e",
+    "docs/ai/DECISIONS.md": "3df45678d5ab023012b912122b41dcc4a70a4034c9d58bb079b1cecad842a2fc",
+    "docs/ai/HANDOFF.md": "49341289b59bbc8216f220102ce10366094bf346ea6520db455eff382dcae54d",
+    "docs/ai/KNOWN_ISSUES.md": "26025290534747e9f17bcd9b2fcc337b1aa9ba15da774bd65c29165ebe7ca721",
+    "docs/ai/TASK_LOG.md": "d9ee7432a272a50a073ca35d87776224c4c76b4d0a2012bfc8670e249a64c2d5",
+    "docs/ai/contracts/awkit-djnl-1-l18-locator-quality-0922.json": "2e07a3b7f663a3758a8003178709c7201c1b9915025965fa5d042822866a854c",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "d73f0c48408159cd820bea2cc8d652f9457e00350f6b8ed5baee2f584c7ed9d2",
+    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md": "3ac7a1855cb5020cd32c8060e1b1632531b08c2194c5e0eb7dd539a91532a2e7",
+    "mock-site/README.md": "0fb0dc5e4684969b2a58ece7de9b9f2b758593de76511f997b0c991eecb9cc6e",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -43,7 +47,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T09:03:55.839Z",
-  "released_reason": "locator-upgrade latency fix noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T09:03:55.840Z"
+  "released_at": "2026-09-22T09:59:49.098Z",
+  "released_reason": "locator quality gate noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T09:59:49.099Z"
 }

@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — the locator-upgrade request meets its 180 s ceiling at its own 256-token cap; no benchmark packet is a stand-in any more
+## HANDOFF (2026-09-22, latest) — the real 0.8B's locator plans are proven on real pages; `verify:ai-locator-quality-live` 14/0, false-target 0
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`858ffd17`):**
+  - New `verify:ai-locator-quality-live`: six real Recorder captures through the product's job and the
+    real host. The product proves each plan in real Chromium; the page judges each accepted candidate
+    on a fresh page.
+  - Results: 14/0 twice, 0 false targets, twins refused, 3–4 of 5 solvable scenarios browser-proven,
+    and 5 of 6 jobs took a real second attempt.
+  - Fixtures `lu-scope` and `lu-dynamic` added to the locator-upgrade lab. The harness is now
+    type-checked.
+  - Details are in the L1 plan › "The real 0.8B's locator plans proven on real pages".
+- **Not done, and owner decisions:**
+  - Still owed for L1: the pin, license notice, `verify:ai-model-pack`, and `verify:ai-model-live` on
+    the 0.8B (the script still looks for the 4B).
+  - `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live` are not built.
+  - The owner's go/no-go. L1 stays `in_progress`. **L7 cannot be entered.** The job is still not wired.
+  - Open: the 0.8B never delivered a scoped upgrade; rates vary run to run with the random nonce.
+- **Do not:**
+  - count a stubbed or page-unavailable proof as a browser proof;
+  - judge an accepted candidate by the product's own gates alone. Re-check it on a fresh page against
+    the page's own outcome.
+  - add scenarios without timing the run: one run is ~510 s against a 575 s budget inside the
+    10-minute tool limit.
+
+## HANDOFF (2026-09-22, superseded) — the locator-upgrade request meets its 180 s ceiling at its own 256-token cap; no benchmark packet is a stand-in any more
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`4a846c41`):**

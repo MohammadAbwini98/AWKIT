@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l18-locator-quality-0922",
+    "title": "Record the real-model locator quality gate on L1",
+    "objective": "At 858ffd17 verify:ai-locator-quality-live proves the real Qwen3.5-0.8B's locator plans on real pages: six real Recorder captures on /recorder-lab/locator-upgrade through runLocatorUpgradeAttempts, the production AiService and the real ai-host.cjs, every compiled plan proven by proveLocatorPlan / proveRepairPlan in real Chromium and each accepted candidate judged by the page on a fresh page. It passed 14/0 twice with 0 false targets, the twins refused, 3-4 of 5 solvable scenarios browser-proven and 5 of 6 jobs taking a real second attempt, behind five scripted controls. Append a note to awkit-djnl.1 giving the gate, the results and what stays open (the pin, the license notice, verify:ai-model-pack and verify:ai-model-live on the 0.8B, verify:ai-authoring-quality-live and verify:ai-error-quality-live not built, the owner's go/no-go). Refresh the JSONL export. Nothing closes: awkit-djnl.1 stays in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "858ffd17",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.1 stays in_progress with a note naming the gate commit and its live results, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, against the state after `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents. The tracker measured 9 outstanding / 294 closed with 135 edges, unchanged, so the hardcoded tracker pin did not move. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l18-locator-quality-0922:project-state:2026-09-22T09:59:07.732Z",
+        "task": "awkit-djnl-1-l18-locator-quality-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T09:59:07.732Z",
+        "acquired_at_commit": "858ffd174c295262b2fc87b16d3592428b00371d",
+        "released_at": "2026-09-22T09:59:49.098Z",
+        "released_reason": "locator quality gate noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

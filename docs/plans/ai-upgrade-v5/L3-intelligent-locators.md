@@ -21,7 +21,9 @@ Electron by `verify:ai-locator-upgrade-gui` (65/65). **§8 runtime repair is bui
 `promoteLocatorUpgrade`, proven in real Chromium by `verify:ai-locator-repair` (85/85, four mutations
 caught) on the new `lu-repair` mock-site fixture. **§9 flow health sweep is built** (`src/ai/locatorSweep.ts`,
 `verify:ai-locator-sweep` 60/60 pure, three mutations caught): the durability audit and the bounded,
-idle-gated job queue. Not built: `verify:ai-locator-quality-live`, and the production callers of §7/§8/§9,
+idle-gated job queue. **`verify:ai-locator-quality-live` is built** (2026-09-22, `858ffd17`): the real
+Qwen3.5-0.8B's plans for six labelled cases, proven by §4/§8 in real Chromium and judged by the page, 14/0
+with false-target 0 (details and results in the L1 plan). Not built: the production callers of §7/§8/§9,
 which all need the AI caller L1 gates.
 
 §7 as built:
@@ -331,8 +333,21 @@ refused for `auto` and accepted for a user with an empty replay tally, the audit
 wording. `verify:ai-locator-sweep` (built, 60/60, `unit`) covers §9: the sweep held by an active or
 queued run and by every other admission hold, the durability report complete for every scanned step,
 T3 counted as both forbidden and weak, the lifecycle exclusions, and the cap bounding the queue without
-truncating the audit. Still to build:
-live `verify:ai-locator-quality-live`. Existing: recorder/locator suites from L2,
+truncating the audit. `verify:ai-locator-quality-live` (built, 14/0, `real-browser`, real 0.8B) covers six
+cases of the labelled set on `/recorder-lab/locator-upgrade`:
+
+- a unique element;
+- a guarded baseline whose CSS matched twice;
+- a region-scoped duplicate (`lu-scope`);
+- a broken saved locator through repair;
+- a list re-rendered while the job runs (`lu-dynamic`);
+- identical twins (impossible).
+
+Each accepted candidate must be the recorded element on a fresh page: one match, its `data-lu`, replay or
+repair proof again, and the click. False-target is 0 over every accepted candidate. Five scripted controls
+show that a bypassed gate B or C, a stubbed proof and a second attempt without the real refusal are each
+caught. The cases it does not cover (frames, shadow, rows, protected login, replay across rows) stay with
+the scripted suites. Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 
 ## Acceptance

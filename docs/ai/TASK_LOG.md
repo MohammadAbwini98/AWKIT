@@ -1,5 +1,47 @@
 # TASK_LOG
 
+## 2026-09-22 — real-model locator quality gate: the 0.8B's plans proven on real pages (Claude)
+
+- **Task:** build `verify:ai-locator-quality-live`, which judges the real 0.8B's locator plans through
+  the product's real browser proof on deterministic Test Lab scenarios, with negative controls, without
+  wiring locator upgrade into the app.
+- **Found:**
+  - With the stub removed, over two full runs:
+    - false targets were 0, and the twins were refused both times;
+    - 4 / 5, then 3 / 5, solvable scenarios were accepted and browser-proven;
+    - 5 of 6 jobs took a real second attempt, and three of those succeeded.
+  - `multiple-matches` flipped between the runs: `AiService`'s random prompt nonce varies the answer at
+    temperature 0.
+  - The 0.8B never proposed the region scope the `scope` case needs.
+  - The AI harness had never been type-checked; five latent type errors were fixed with no behavior
+    change.
+  - The harness bundle could not load product code that imports `playwright` from its temporary app
+    directory, so it now resolves `playwright` by its repository path.
+- **Files:**
+  - Commit `858ffd17`:
+    - new `scripts/ai-harness/locatorQualityLive.ts`;
+    - `featureLive.ts` (shared helpers exported), `harnessMain.ts` (mode, two type fixes),
+      `failureAnalysisBudget.ts` (a type fix), `launch.mts` (`playwright` resolution);
+    - `scripts/verify-ai-explanation-live.mts` (`locatorQuality`, serves the mock site, puts the harness
+      under `typecheck:scripts`);
+    - `mock-site/public/locator-upgrade-lab.html` (`lu-scope`, `lu-dynamic`),
+      `scripts/verify-mock-site.mjs`, `scripts/lib/verifier-classification.ts`, `package.json`.
+  - Then the L1 and L3 plans, the mock-site README, COMMANDS, DECISIONS, KNOWN_ISSUES, CURRENT_STATE,
+    HANDOFF, and a note on `awkit-djnl.1`. `src/` and `app/` are unchanged, and
+    `scripts/offline-benchmark/` stays untracked and unchanged.
+- **Checks:**
+  - `verify:ai-locator-quality-live` 14/0 (run twice) · `verify:ai-locator-upgrade-live` 4/0.
+  - `verify:locator-upgrade-proof` 75/0 · `verify:ai-locator-upgrade` 78/0 · `verify:ai-locator-attempts`
+    112/112 · `verify:ai-locator-repair` 85/85.
+  - `verify:ai-adapter` 117/0 · `verify:ai-host` 135/0 (12/12 mutations) · `verify:ai-host-electron` 26/0.
+  - `verify:mock-site` 234/234 · `verify:verifier-classification` 248 · build PASS ·
+    `typecheck:scripts` PASS.
+  - NOT RUN: `verify:ai-locator-upgrade-gui` (it seeds its own profiles; no `src/` or `app/` change), and
+    product-level mutation runs, which were denied by the session's permission classifier. The one
+    attempted mutation was reverted without being executed.
+- **Result:** built and PASS. L1 stays `in_progress`: the pin, `verify:ai-model-pack`,
+  `verify:ai-model-live` on the 0.8B, two unbuilt quality gates and the owner's go/no-go remain.
+
 ## 2026-09-22 — locator-upgrade request sized to its 180 s ceiling at its own output cap; benchmark re-pointed at the product's request (Claude)
 
 - **Task:** bring the production `runLocatorUpgradeAttempts` request inside the 180 s L1.8 ceiling at its

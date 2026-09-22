@@ -1,6 +1,47 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L1.8/L3 §7: the locator-upgrade request is sized to its ceiling at its own output cap, and the benchmark measures it (`awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L1.8/L3: the real-model locator quality gate (`awkit-djnl.1`)
+
+- **Owner instruction, in session:** implement `verify:ai-locator-quality-live`. It validates the real
+  0.8B's locator plans against actual browser elements, through the production compiler and Playwright
+  proof, on authorized, deterministic Test Lab scenarios:
+  - a unique element;
+  - multiple matches;
+  - a needed scope;
+  - a stale original;
+  - dynamic content;
+  - an impossible case;
+  - the second-attempt or repair path.
+
+  It must include negative controls, use the plans' existing quality acceptance criteria without
+  inventing thresholds, and never count inference as proof. Leave the model, deadlines, output budget,
+  benchmark criteria, pinning, licensing, packaging, the app wiring and L7 alone.
+- **Implementer's choices within it:**
+  - **An accepted candidate is judged by the page.** A fresh page is checked for one match, the recorded
+    element's `data-lu`, the product's replay or repair proof again, and a click the page attributes to
+    that element. The product's own gates are what is under test, so they cannot be the oracle.
+  - **The acceptance rule is L3's:** false-target = 0, the impossible case honestly guarded, nothing
+    refused stored, a pending candidate never executed. False-target is applied to every accepted
+    candidate, which is stricter than "promoted". No plan sets a rate threshold, so upgrade and proof
+    rates, rejection reasons and latency are recorded, not judged.
+  - **Non-vacuity, not a threshold:** at least one real plan must be browser-proven, or the gate has
+    judged nothing.
+  - **One live harness mode, not a new launcher.** It reuses `verify-ai-explanation-live.mts`, which now
+    serves the mock site for this feature, and the existing live helpers.
+  - **Controls run first and end the run if one fails.** A judge whose controls fail cannot judge the
+    model.
+  - **The gates are bypassed on the proof's answer, not in product source.** A tamper hook turns the real
+    `WRONG_ELEMENT` / `CANDIDATE_NOT_UNIQUE` into a pass. Each control first asserts that the untampered
+    product refused.
+  - **The repair case carries the Recorder's capture context from before the break,** inside its TTL.
+    That is the only context the job can carry today, since no production caller exists.
+  - **Two lab fixtures rather than a new page:** `lu-scope` (a duplicate isolated by its named region)
+    and `lu-dynamic` (a list that re-renders as new elements, behind an observable `loading` / `ready`
+    status).
+- **Not decided here:** a rate threshold for the labelled set; handling of a scoped upgrade the 0.8B
+  does not deliver; a repair without a capture context; the pin; wiring the job.
+
+### 2026-09-22 — Phase L L1.8/L3 §7: the locator-upgrade request is sized to its ceiling at its own output cap, and the benchmark measures it (`awkit-djnl.1`)
 
 - **Owner instruction, in session:** optimize the production `runLocatorUpgradeAttempts` request so the
   real 0.8B meets the existing 180 s L1.8 background ceiling at its configured output limit, and replace

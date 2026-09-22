@@ -1,6 +1,56 @@
 # CURRENT_STATE
 
-## The locator-upgrade request meets its 180 s ceiling at its own output cap on the 0.8B; the benchmark measures the product's request (2026-09-22, current)
+## The real 0.8B's locator plans are proven on real pages: `verify:ai-locator-quality-live` 14/0, false-target 0 (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **What was missing:** every live locator run stubbed the browser proof as page-unavailable, so no
+  real plan had ever been proven on a page.
+- **The gate (`858ffd17`, `scripts/ai-harness/locatorQualityLive.ts`, harness mode `locatorQuality`):**
+  - Six real Recorder captures on `/recorder-lab/locator-upgrade` go through `runLocatorUpgradeAttempts`,
+    the production `AiService` and the real `ai-host.cjs`.
+  - Every compiled plan is proven by `proveLocatorPlan` / `proveRepairPlan` in real Chromium.
+  - Each accepted candidate is judged by the page on a fresh page: one match, the recorded element's
+    `data-lu`, the replay or repair proof again, and a click the page attributes to that element.
+  - Every second attempt is checked against the first attempt's re-derived real outcome.
+  - Five scripted controls run first and end the run if any fails.
+  - The lab gains `lu-scope` and `lu-dynamic`. No product source changed, and the job is still not
+    wired into the app.
+- **Results, two runs:** false targets **0** both times, and the twins were refused both times.
+  - Solvable scenarios accepted and browser-proven: 4 / 5 in run 1, 3 / 5 in the final run
+    (`unique`, `stale` via repair, `dynamic`).
+  - 5 of 6 jobs took a real second attempt; three second attempts succeeded.
+  - 11 model calls of 36–49 s each; the worst at the cap was 97 s against the 180 s ceiling.
+- **Findings:**
+  - Run-to-run variation comes from `AiService`'s random prompt nonce, so a rate is one sample.
+  - The 0.8B never produced the region scope the `scope` case needs.
+  - The harness modes had never been type-checked. Five latent type errors were fixed with no
+    behavior change.
+  - A product-mutation run was denied by the permission classifier and was not executed. The product
+    was restored with zero diff.
+- **Still owed for L1:**
+  - the 0.8B pin and license notice;
+  - `verify:ai-model-pack` and `verify:ai-model-live` on it (the latter still looks for the 4B);
+  - `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live`, neither built;
+  - the owner's go/no-go.
+
+  L1 stays `in_progress`. **L7 cannot be entered.** `scripts/offline-benchmark/` stays untracked and
+  unchanged.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-locator-quality-live` (new, real 0.8B, real Chromium) | 14/0 (run twice, both 14/0) |
+| `verify:ai-locator-upgrade-live` (its launcher changed) | 4/0 |
+| `verify:locator-upgrade-proof` · `verify:ai-locator-upgrade` | 75/0 · 78/0 |
+| `verify:ai-locator-attempts` · `verify:ai-locator-repair` | 112/112 · 85/85 |
+| `verify:ai-adapter` · `verify:ai-host` · `verify:ai-host-electron` | 117/0 · 135/0 with 12/12 mutations · 26/0 |
+| `verify:mock-site` | 234/234 |
+| `verify:verifier-classification` | reconciled, 248 scripts |
+| `npm run build` · `typecheck:scripts` (now covers the harness) | PASS · PASS |
+| `verify:ai-locator-upgrade-gui` | NOT RUN: it seeds its own profiles, and neither `src/` nor `app/` changed |
+
+## The locator-upgrade request meets its 180 s ceiling at its own output cap on the 0.8B; the benchmark measures the product's request (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).
