@@ -252,3 +252,99 @@ before Phase L release confirmation.
   resource consumption, 0.8B model effectiveness, retrieval accuracy, failure-diagnosis accuracy,
   offline operation, source security and AI-disabled fallback.
 - Do not invent benchmark results or guaranteed processing times.
+
+## Phase N — Visual Recognition and Automation
+
+Status: **NOT STARTED — zero implementation progress**. Roadmap Phase `N` (`pending`), Beads epic
+`awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
+Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
+not a prerequisite for Phase N.
+
+### Purpose and non-negotiable boundary
+
+Introduce optional screenshot-based recognition, visual verification and image-assisted automation
+for headed and headless Chromium.
+
+Visual recognition must remain optional throughout the SpecterStudio lifecycle. Existing Playwright
+locators remain the primary interaction mechanism, and normal recording, workflow design, execution,
+sessions, data binding, assertions, failure analysis and reporting remain fully operational when
+visual recognition, a vision model and the existing language model are disabled or unavailable.
+
+Phase N preserves the existing Electron, React, TypeScript and Playwright architecture; operates
+offline without admin rights or global runtime dependencies; reuses the Recorder, Runner, workflow
+persistence and reporting owners; and respects screenshot privacy, redaction, protected-authentication
+handoff and local-data storage policies. It introduces no mandatory AI, model, cloud or external-service
+dependency. This section registers planning only and does not authorize implementation, dependencies,
+schemas, services, UI components, models or runtime behavior.
+
+### Planned workstreams and dependencies
+
+| ID | Planned workstream | Depends | Beads |
+|---|---|---|---|
+| N1 | Visual capture infrastructure | Phase L release confirmation (L7) | `awkit-vra.1` |
+| N2 | Visual reference management | N1 | `awkit-vra.2` |
+| N3 | Deterministic image recognition | N2 | `awkit-vra.3` |
+| N4 | Visual locator fallback | N3 | `awkit-vra.4` |
+| N5 | Visual assertions and failure evidence | N2, N3 | `awkit-vra.5` |
+| N6 | Headed and headless compatibility | N3, N4, N5 | `awkit-vra.6` |
+| N7 | Optional local vision assistance | N3, N5, N6 | `awkit-vra.7` |
+| N8 | Integration and acceptance verification | N4, N5, N6, N7 | `awkit-vra.8` |
+
+The Beads `blocks` edges are the source of truth for this order. The Phase N epic is blocked by the
+Phase L epic and N1 is explicitly blocked by L7, establishing the safe integration foundation. No
+Phase N item depends on Phase M, so the two phases remain independently implementable.
+
+#### N1 — Visual Capture Infrastructure
+
+- Plan automatic, manual and event-triggered screenshot capture during authorized workflow recording
+  and execution.
+- Include element, region, viewport and full-page capture with configurable policies and privacy
+  safeguards.
+
+#### N2 — Visual Reference Management
+
+- Plan local persistence of visual references and their association with workflow nodes.
+- Include capture metadata, viewport dimensions, device pixel ratio, frame context, image retention
+  and backward-compatible workflow serialization.
+
+#### N3 — Deterministic Image Recognition
+
+- Plan offline image matching and visual-state recognition without requiring an AI model.
+- Include template matching, visual similarity, bounded confidence handling and explicit ambiguity
+  reporting.
+
+#### N4 — Visual Locator Fallback
+
+- Plan optional visual recognition only when existing Playwright locators cannot reliably identify an
+  element.
+- Preserve DOM-first execution, target verification, uniqueness checks and existing locator-proof
+  requirements.
+- Never accept an unverified visual match as a successful interaction.
+
+#### N5 — Visual Assertions and Failure Evidence
+
+- Plan screenshot-based assertions, expected visual-state verification, visual regression detection
+  and screenshot evidence for failed executions.
+- Integrate through the existing execution-reporting architecture.
+
+#### N6 — Headed and Headless Compatibility
+
+- Plan consistent recognition and execution across headed and headless Chromium.
+- Include viewport normalization, browser zoom, device pixel ratio, scrolling, frame-coordinate
+  translation and safe coordinate-based interaction.
+
+#### N7 — Optional Local Vision Assistance
+
+- Plan optional local vision-model assistance for enhanced image understanding only when an approved
+  model is available.
+- Keep the deterministic recognition engine functional without the vision model or existing language
+  model.
+- Require separate offline, security, resource, performance, licensing and quality acceptance before
+  any vision model can be approved.
+
+#### N8 — Integration and Acceptance Verification
+
+- Plan real-browser Test Lab scenarios, Recorder/Runner integration verification, privacy and
+  accessibility checks, visual-match accuracy tests and fresh packaged-artifact validation.
+- Explicitly verify that normal recording and workflow execution remain functional when visual
+  recognition is disabled or unavailable.

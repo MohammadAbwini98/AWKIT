@@ -1,8 +1,8 @@
 /**
- * The A-M phase model the app renders on its Roadmap page, and the only source the Program Status
+ * The A-N phase model the app renders on its Roadmap page, and the only source the Program Status
  * dashboard reads for phase state. L (Local AI & Intelligent Automation) was registered pending on
- * 2026-09-19; M (Optional Application Knowledge Base) was registered pending on 2026-09-22. Their
- * milestone order lives in Beads, not in this file.
+ * 2026-09-19; M (Optional Application Knowledge Base) and N (Visual Recognition and Automation)
+ * were registered pending on 2026-09-22. Their milestone order lives in Beads, not in this file.
  *
  * THIS FILE IS HAND-MAINTAINED. Nothing derives it, so it goes stale silently: between the initial
  * commit (2026-07-04) and the 2026-07-27 reconciliation it was untouched across 282 commits, which
@@ -18,7 +18,7 @@
 export type RoadmapStatus = "complete" | "in-progress" | "partially-completed" | "pending" | "blocked";
 
 export interface RoadmapPhase {
-  id: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M";
+  id: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N";
   title: string;
   status: RoadmapStatus;
   deliverables: string[];
@@ -130,6 +130,14 @@ export const implementationRoadmap: RoadmapPhase[] = [
     deliverables: ["M1 Optional source registration & deterministic indexing", "M2 Hybrid source retrieval & model compatibility", "M3 Source-aware locator assistance", "M4 Source-aware failure analysis", "M5 Expected-result & assertion assistance", "M6 Indexing lifecycle & user-facing readiness", "M7 Performance, security & verification"],
     acceptance: "Authorized UI source may optionally improve locator suggestions, failure diagnosis and expected-result recommendations, while recording, design, execution, sessions, data binding, assertions, failure analysis and reporting remain fully operational without the knowledge base or an AI model.",
     implementationNote: "PLANNED with zero implementation progress. The optional, offline-capable and loosely coupled plan is registered in docs/plans/ai-upgrade-v5/ROADMAP.md and tracked as Beads epic awkit-akb with seven milestones. Deterministic indexing and retrieval never require AI inference; source context is bounded rather than loading a repository into model context; browser/runtime evidence remains authoritative; normal automation remains available during indexing; no benchmark result or processing time is claimed."
+  },
+  {
+    id: "N",
+    title: "Visual Recognition and Automation",
+    status: "pending",
+    deliverables: ["N1 Visual capture infrastructure", "N2 Visual reference management", "N3 Deterministic image recognition", "N4 Visual locator fallback", "N5 Visual assertions & failure evidence", "N6 Headed & headless compatibility", "N7 Optional local vision assistance", "N8 Integration & acceptance verification"],
+    acceptance: "Optional screenshot-based recognition, visual verification and image-assisted automation work offline in headed and headless Chromium while DOM-first Playwright locators remain primary, every visual target is independently verified, and normal recording and execution remain fully functional when visual recognition and all models are disabled or unavailable.",
+    implementationNote: "NOT STARTED with zero implementation progress. The planning-only phase is registered in docs/plans/ai-upgrade-v5/ROADMAP.md and tracked as Beads epic awkit-vra with eight workstreams. Phase N reuses the existing Recorder, Runner, workflow persistence and reporting architecture after Phase L release confirmation, but has no dependency on Phase M. Deterministic recognition remains functional without a language or vision model; no runtime, schema, UI, dependency, model or service implementation is authorized by this registration."
   }
 ];
 

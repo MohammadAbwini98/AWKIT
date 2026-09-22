@@ -1,5 +1,5 @@
 /**
- * Parse src/roadmap/ImplementationRoadmap.ts — the A-M phase model the app itself renders.
+ * Parse src/roadmap/ImplementationRoadmap.ts — the A-N phase model the app itself renders.
  *
  * The module is TypeScript under src/, so it cannot be imported from a plain-node process without
  * tsx (a devDependency we deliberately do not take a runtime dependency on) and Node 18 has no
@@ -16,7 +16,7 @@
 
 import { readSource } from "./read-cache.mjs";
 
-export const EXPECTED_PHASE_IDS = "ABCDEFGHIJKLM";
+export const EXPECTED_PHASE_IDS = "ABCDEFGHIJKLMN";
 export const PHASE_STATUSES = new Set([
   "complete",
   "in-progress",
@@ -132,7 +132,7 @@ export function extractPhases(text, readError = null, mtimeMs = 0) {
     });
   }
 
-  // Shape guards. The app's own page assumes A-M; a silently truncated list would understate the
+  // Shape guards. The app's own page assumes A-N; a silently truncated list would understate the
   // roadmap without any visible symptom.
   const ids = phases.map((p) => p.id).join("");
   if (ids !== EXPECTED_PHASE_IDS) {

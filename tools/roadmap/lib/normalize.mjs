@@ -326,7 +326,7 @@ export function normalizeDefects(defects) {
  * Roadmap phases -> WorkItem.
  *
  * Phases are deliberately given NO dependsOn edges. No source links a phase to an issue, and the
- * alphabetical order of A-M is a naming convention, not a declared prerequisite chain. Inferring
+ * alphabetical order of A-N is a naming convention, not a declared prerequisite chain. Inferring
  * "B depends on A" would be invention.
  *
  * @param {import("./parse-roadmap-phases.mjs").RoadmapPhase[]} phases
