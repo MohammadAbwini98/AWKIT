@@ -1,13 +1,13 @@
 {
-  "task": "awkit-djnl-1-l18-failure-latency-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-failure-latency-0922.json",
+  "task": "awkit-djnl-1-l18-locator-latency-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-1-l18-locator-latency-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T08:08:37.072Z",
-  "acquired_at_commit": "4265590499f04972097d4b4879ed8a891c322aa4",
+  "acquired_at": "2026-09-22T09:03:17.609Z",
+  "acquired_at_commit": "4a846c4176078c7307da5344f44d953ddc1ef3d3",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
@@ -15,23 +15,19 @@
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-1-l18-failure-latency-0922.json",
+    "docs/ai/contracts/awkit-djnl-1-l18-locator-latency-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
-    "scripts/ai-harness/locatorUpgradePacket.ts",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "da158b7f048883df1d0c39c0620c6b62abe64e9bf1aa77a37cfc52aff4e10a05",
-    "docs/ai/CURRENT_STATE.md": "34ac9874cedc444b085f2b4db5ce846d1772d853a04c034cc4ef702354d7c095",
-    "docs/ai/DECISIONS.md": "fbda3a79647fd2dc4178e4a2bea1d3c965a355d20ceb404fd8b6ef64c9cb1101",
-    "docs/ai/HANDOFF.md": "eb11a896b024b395adebc9ec9f730ad15d9fa12889b46100f9d949dd86e299f4",
-    "docs/ai/KNOWN_ISSUES.md": "184f0a7ab351e67b897aa397f6e3ff80e13f4c4e67cc8afea9f3312673c109ec",
-    "docs/ai/TASK_LOG.md": "ed1c75bf3a91c06205fb760342e376623486cd7a50707dc4d34e2e55127d21f4",
-    "docs/ai/contracts/awkit-djnl-1-l18-failure-latency-0922.json": "21cabaea6594da7a6959a519dfd666f325b12cb84c2fe05d55f9fb818deb3140",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "23032679652b952da986f81fbb9052cf04059401b51c8dba499726aa1b6bdee9",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "9ff78034e8a8646ba45c1f98e80ec81530fb7b53aa3138f0264994d6a69cbcbb",
-    "scripts/ai-harness/locatorUpgradePacket.ts": "ff72a79245e6638d6d286071ccfd073201a94b2137cf760e14f1927467ba9d5f",
+    "docs/ai/COMMANDS.md": "f65f8edf3600c1d8aa44b5ff55a4399c2e1563a95d59964a7b0b914b046e086e",
+    "docs/ai/CURRENT_STATE.md": "5efee7d329ec9d129f6fb6206c34cf097891820ff893e42062c4331b6aab769a",
+    "docs/ai/DECISIONS.md": "3f15085ed50ed61df19d77f1563da9f126b18f0785bea5d9423971f095d742ac",
+    "docs/ai/HANDOFF.md": "218f94ac8f8eb04f814fec017776e9205491df201ee767c468432db84da542b5",
+    "docs/ai/KNOWN_ISSUES.md": "70e9fc46359c1b148034f4d2335de29bea10c0ff97aa8d42e994cbaca6107c9c",
+    "docs/ai/TASK_LOG.md": "fb014f62cff284ab25a87e40fbfd968871fcf0f5a46b5bc04b86123f03147575",
+    "docs/ai/contracts/awkit-djnl-1-l18-locator-latency-0922.json": "500e95ff8d382e68668c111aea9946280ead434e9f5c057b132d3ae796ae739f",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "840184443715f1029ed4f5fa77c17e911ef01f4f7ab954a463e5739557a401d8",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -47,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T08:09:27.124Z",
-  "released_reason": "failure-analysis latency fix noted on awkit-djnl.1 and awkit-djnl.8, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T08:09:27.125Z"
+  "released_at": "2026-09-22T09:03:55.839Z",
+  "released_reason": "locator-upgrade latency fix noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T09:03:55.840Z"
 }

@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — the failure-analysis request meets its 180 s ceiling at its own 256-token cap; the benchmark measures the product's request
+## HANDOFF (2026-09-22, latest) — the locator-upgrade request meets its 180 s ceiling at its own 256-token cap; no benchmark packet is a stand-in any more
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`4a846c41`):**
+  - `locatorAttemptJob`: one block of whole lines within 2,800 characters, no Recorder fallbacks,
+    `LOCATOR_ATTEMPT_SCHEMA` (one scope, 200-character value, 80-character texts), a 256-token cap.
+  - Real 0.8B: both live jobs accepted; largest 62.2 s of inference (was 74.9), 98.3 s at the cap (was
+    186.4). Benchmark `packets:locatorUpgrade` is the product's own request: 115.3 s at the cap, **GO on
+    all 8**.
+  - The owner's `scripts/ai-harness/locatorUpgradePacket.ts` now builds that request and is committed;
+    `scripts/offline-benchmark/` is untouched and untracked. New `verify:ai-locator-upgrade-budget`.
+    Details are in the L1 plan › "`locatorUpgrade` inside its ceiling at its own output cap".
+- **Not done, and owner decisions:**
+  - No real model plan has been proven on a real page: `verify:ai-locator-quality-live` is not built.
+  - The pin, license notice, `verify:ai-model-pack`, `verify:ai-model-live` and the live quality gates are
+    still owed. L1 stays `in_progress`. **L7 cannot be entered.** The job is still not wired.
+  - Open: a capture at every L2 bound (1,017 prompt tokens, counted) was not measured; number-dense
+    plans at every limit exceed the cap.
+- **Do not:**
+  - raise `maxScopes` or any locator text limit without running `verify:ai-locator-upgrade-budget`;
+  - narrow the target value below 200 characters: the grammar would cut a candidate the model copied;
+  - check "whole lines" through a filter on each line's label: a cut can land inside the label.
+
+## HANDOFF (2026-09-22, superseded) — the failure-analysis request meets its 180 s ceiling at its own 256-token cap; the benchmark measures the product's request
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`42655904`):**

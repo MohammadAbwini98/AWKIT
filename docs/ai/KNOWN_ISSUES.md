@@ -1,5 +1,32 @@
 # KNOWN_ISSUES
 
+## The locator-upgrade request exceeded its ceiling at its own output cap, and its benchmark packet was a stand-in (2026-09-22, FIXED — `4a846c41`)
+
+- **Symptom:** measured through the product at `4608eaec`, the largest capture projected to 186.4 s at
+  its 512-token cap (typical 140.9 s; earlier, slower runs 233–300 s), against the 180 s ceiling.
+  `packets:locatorUpgrade` measured a synthetic choose-a-candidate packet at 192 tokens and passed.
+- **Cause:** the 512 cap; seven nonce-delimited DATA blocks, most of the 527-token typical prompt; the
+  Recorder's fallback CSS/XPath paths sent as candidates the compiler refuses; and a plan grammar that
+  admitted three scopes of 120-character texts, which no cap much below 550 tokens holds whole.
+- **Fixed:** one block of whole lines, no fallbacks, a narrowed attempt grammar (one scope, a
+  200-character value, 80-character texts) at a 256-token cap. Largest: 62.2 s of inference, 98.3 s at the
+  cap; benchmark on the product's own request 115.3 s, GO on all 8 (L1 plan › "`locatorUpgrade` inside its
+  ceiling at its own output cap").
+- **The lessons (pattern):**
+  - **Derive the cap from what a valid answer carries, not from a table.** L1.8's 192 could not hold a
+    200-character captured candidate and a named container once a name carries a number: this tokenizer
+    spends a token per digit, 258 tokens per 1,000 characters against 154 for English. Bound each text by
+    what the capture can show, then take the lowest cap that holds those plans.
+  - **"Every string at its limit" overstates a plan whose slots only some strategies read.** `name` is read
+    only for `role`. Judge that bound too, and record the registers where each bound stops holding
+    instead of tuning the filler until it passes.
+  - **A wholeness check must judge every line, not the lines whose label survived.** The first version
+    filtered by label before checking, so a context cut inside a label (`sibling a`) passed; only the
+    mutation run showed it. Capture permissively, validate strictly.
+- **Still open:** no real model plan has been proven on a real page (`verify:ai-locator-quality-live`, not
+  built); a capture at every L2 bound (1,017 prompt tokens, counted) was not measured; plans of
+  number-dense text at every limit exceed the cap and are refused; host heat, as for failure analysis.
+
 ## Failure analysis missed its ceiling at its own output cap, and its prompt cut an offered evidence line (2026-09-22, FIXED — `42655904`)
 
 - **Symptom:** at its 512-token cap the largest real analysis projected to 219 s against the 180 s ceiling
@@ -57,15 +84,15 @@
   for the labelled set), and latency at the output cap (next entry). *(Both addressed at `42655904`:
   2 ids per citation list and a 256-token cap; see the first entry.)*
 
-## Failure analysis and locator upgrade exceed their 180 s ceiling at their own output cap (2026-09-22, OPEN for the locator job — failure analysis FIXED at `42655904`, deadlines at `d71ee244`)
+## Failure analysis and locator upgrade exceed their 180 s ceiling at their own output cap (2026-09-22, FIXED — failure analysis at `42655904`, the locator job at `4a846c41`, deadlines at `d71ee244`)
 
 - **Fixed:** both were still on the shared 30 s, and through the product on the real 0.8B every request
   ended TIMEOUT. Both now get 185 s: the 180 s ceiling plus 5 s, per attempt for the locator job.
 - **Still open:**
   - **Output caps.** Both requests use a 512-token output cap. At it, every measured answer projects to
     181–300 s, against the 180 s ceiling. The benchmark passed on stand-ins at 192 and 256 tokens.
-    *(Failure analysis fixed at `42655904`, 256-token cap, measured on its own request; see the first
-    entry. The locator request and its stand-in packet are unchanged.)*
+    *(Failure analysis fixed at `42655904` and the locator request at `4a846c41`, each at a 256-token
+    cap and measured on its own request; see the first two entries.)*
   - **Host speed.** On a hot CPU, back to back, the largest failure analysis (and once the typical one)
     still reached 185 s. The remedy is the request's size, an owner decision, as with `d2a81262`.
   - **Answer contract.** Every real failure analysis was refused as `CONTRADICTORY`: `insufficient`

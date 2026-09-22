@@ -1,6 +1,45 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L1.8/L5b: the failure-analysis request is sized to its ceiling at its own output cap (`awkit-djnl.1`, `awkit-djnl.8`)
+### 2026-09-22 (latest) — Phase L L1.8/L3 §7: the locator-upgrade request is sized to its ceiling at its own output cap, and the benchmark measures it (`awkit-djnl.1`)
+
+- **Owner instruction, in session:** optimize the production `runLocatorUpgradeAttempts` request so the
+  real 0.8B meets the existing 180 s L1.8 background ceiling at its configured output limit, and replace
+  the synthetic `locatorUpgradeAtCap` packet with the production request built by the product's own
+  builder and output contract. Remove redundant prompt content first; lower the 512-token cap only after
+  verifying that valid candidates and required fields fit without truncation. Keep the capture-context
+  and locator-safety rules, the proof and acceptance contract, refusal handling, redaction, the 185 s
+  per-attempt deadline, the 180 s ceiling and the 2 attempts. Inspect the owner's untracked
+  `scripts/ai-harness/locatorUpgradePacket.ts` and preserve or integrate it. Leave the model, pinning,
+  licensing, packaging, failure analysis and L7 alone, and do not wire the job into the app.
+- **Implementer's choices within it:**
+  - **One DATA block of whole lines,** in the order worth keeping (the saved locator's strategy and
+    class, the target, a refusal, then the neighbourhood), within 2,800 characters. A line that does not
+    fit is skipped, never cut. Seven blocks cost about 45 prompt tokens of delimiters each.
+  - **The Recorder's fallback candidates are no longer sent.** They are structural or positional CSS/XPath
+    paths, the fragile form being replaced, and the compiler refuses them; the baseline's own value was
+    already withheld for the same reason.
+  - **The model decodes against a narrowed copy of the plan schema, not a new one.** Same keys, `required`
+    and enums, tighter bounds, so every decodable answer is a plan the unchanged compiler judges in full.
+    The plan schema itself is untouched, because the compiler and replay (`planFromCandidate`) use it.
+  - **Bounds come from what a capture can show:** a 200-character target value (a captured candidate's
+    bound, so a copied candidate is never cut) and 80-character texts (any name or container text).
+  - **One scope, where the plan schema allows three.** Every key is written, so each scope costs about 60
+    tokens before its texts; two do not fit any cap near the ceiling with their texts. Stored locators
+    keep their three-container chain.
+  - **The cap is 256, not the L1.8 table's 192.** 192 cannot hold a 200-character candidate and a named
+    container once a name carries a number (a token per digit). 256 is the lowest cap at which every plan
+    the grammar admits fits in English names and test ids, and every plan using only the texts its
+    strategies read fits with numbered names. Number-dense text is recorded, not judged.
+  - **The benchmark packet is the largest capture's second attempt,** after the longest refusal line: the
+    largest request the product sends for that capture. It lives in the owner's module, whose grammar
+    translation, template and limits are kept, so the untracked offline runner that imports it measures
+    the same request. The runner itself is not committed or changed.
+  - **The live gate now requires each job to end accepted,** each call to be the request
+    `locatorAttemptJob` builds, and every line to be shown whole. The browser proof stays stubbed.
+- **Not decided here:** proving a real model plan on a real page (`verify:ai-locator-quality-live`),
+  bounding a capture at every L2 bound further, number-dense pages, the pin, and wiring the job.
+
+### 2026-09-22 — Phase L L1.8/L5b: the failure-analysis request is sized to its ceiling at its own output cap (`awkit-djnl.1`, `awkit-djnl.8`)
 
 - **Owner instruction, in session:** optimize the production `analyzeFailure` request so the real 0.8B
   meets the existing 180 s L1.8 background ceiling at its configured output limit. Remove redundant

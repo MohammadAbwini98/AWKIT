@@ -604,10 +604,11 @@ nothing analysed and no plan.
 
 1. Bring both requests inside their ceiling, as `d2a81262` did for the explanation: output budgets at
    the L1.8 figures, and, for failure analysis, a smaller answer, since its measured answers exceed 256
-   tokens. Or re-scope the ceilings. *(Done for failure analysis at `42655904`; see "`failureAnalysis`
-   inside its ceiling at its own output cap". The locator request is unchanged.)*
+   tokens. Or re-scope the ceilings. *(Done for failure analysis at `42655904` and for the locator
+   upgrade at `4a846c41`; see "`failureAnalysis` inside its ceiling at its own output cap" and
+   "`locatorUpgrade` inside its ceiling at its own output cap".)*
 2. Re-point the benchmark's two packets at the product's requests, as `7f0e931e` did for the
-   explanation. *(Done for failure analysis at `42655904`; `packets:locatorUpgrade` is still a stand-in.)*
+   explanation. *(Done for failure analysis at `42655904` and for the locator upgrade at `4a846c41`.)*
 
 **Regression suites:**
 
@@ -806,6 +807,133 @@ with the longest ids L5a mints (`ev200`) **240 / 254 ≤ 256**.
 - **`verify:ai-failure-analysis-live`** now fails if an offered line is not shown whole, and records how
   many texts the grammar ended (`cutByGrammar`).
 
+#### `locatorUpgrade` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:locatorUpgrade` (now the product's request) and `verify:ai-locator-upgrade-live` at `4a846c41`
+
+**Root cause: the output cap, a prompt that was mostly delimiters, and an answer no small cap could hold.**
+
+- **The cap.** `LOCATOR_ATTEMPT_LIMITS.maxOutputTokens` was 512. At the 3.5–4.5 tokens/s this host decodes,
+  512 tokens alone are 114–146 s before any prompt evaluation.
+- **The prompt.** Seven nonce-delimited DATA blocks (`CurrentLocator`, `TargetElement`,
+  `UniqueCandidates`, `Containers`, `PageHeading`, `SiblingActions`, `DataBoundFields`), each about 45
+  prompt tokens of delimiters before its content. The Recorder's fallback CSS/XPath candidates were sent
+  too, though the compiler refuses a CSS path, and XPath without policy.
+- **The answer.** The grammar writes every key, whatever `required` says (the failure-analysis finding at
+  `5ef4852f`), and the plan schema admitted three scopes of seven keys with 120-character texts. No cap
+  much below 550 tokens held every plan it could decode.
+
+**Baseline, measured through the product at `4608eaec`** (`verify:ai-locator-upgrade-live`, host 11%
+busy): typical 527 prompt / 94 output tokens, 27.8 s prompt evaluation + 20.5 s generation = 48.3 s,
+**140.9 s at the cap**; largest 887 / 69, 57.8 s + 17.1 s = 74.9 s, **186.4 s at the cap**. Both jobs
+accepted. Earlier runs on a slower host projected 233–300 s (above).
+
+**The change (`4a846c41`, `src/ai/locatorUpgradeAttempts.ts`):**
+
+- **One DATA block of whole lines.** `locatorAttemptJob`, now exported, is the job the loop submits, the
+  benchmark measures and the live gate compares against. It sends one `Element` block: the saved
+  locator's strategy and class, the target, a previous refusal, the candidates, containers, heading,
+  sibling actions and the bound field paths, in that order, whole, while they fit `maxContextChars`
+  (2,800). A line that does not fit is skipped, never cut. The old per-field 1,200-character default cut
+  text, not lines, so at L2's bounds a candidate could have reached the model mid-value.
+- **No Recorder fallbacks.** Structural and positional CSS/XPath candidates are dropped, as the baseline's
+  own value always was: both are the fragile form being replaced.
+- **A narrowed grammar.** `LOCATOR_ATTEMPT_SCHEMA` is `LOCATOR_PLAN_SCHEMA` with the same keys, `required`
+  and enums, and tighter bounds taken from what `sanitizeUpgradeContext` lets a capture show: one scope, a
+  200-character target value (a captured candidate's own bound) and 80-character texts (any name or
+  container text). Every plan it decodes is one the compiler still judges in full. The plan schema, which
+  the compiler and replay use, is unchanged.
+- **Output cap 512 → 256**, the lowest cap every valid plan fits (below). The instructions now say "at most
+  one semantic scope".
+- **Unchanged:** the compiler, intent guard and proof gates; dropping bound values; redaction and the
+  residual-secret rescan; the refusal feedback; the 185 s per-attempt deadline; 2 attempts; the 180 s
+  ceiling; the model; and the job's wiring (nothing queues it yet).
+
+**Why 256 and not the L1.8 table's 192.** Counted on the pack's tokenizer
+(`verify:ai-locator-upgrade-budget`). Digits cost a token each here: English names and test ids run 154
+and 151 tokens per 1,000 characters, a name with an order number 258.
+
+| Longest plan | Spaces / tabs | ≤ 192 | ≤ 256 |
+|---|---|---|---|
+| Any the grammar admits, in English names and test ids (judged) | 200 / 209 | no | **yes** |
+| Using only the texts its strategies read (`name` only for `role`), names with an order number (judged) | 221 / 230 | no | **yes** |
+| Any the grammar admits, names with an order number (recorded) | 267 / 276 | no | no |
+| Texts read, a number every few characters / codes (recorded) | 252 / 261; 358 / 367 | no | no |
+
+At 192, a plan copying a 200-character captured candidate and a named container would be cut by the cap.
+Keeping it under 192 would have meant a value limit below what a capture offers, so the grammar itself
+would cut the candidate the model copied.
+
+**Where the prompt went** (tokens, host template included):
+
+| Request | Before: 7 blocks, live | After: 1 block, counted | After, live |
+|---|---|---|---|
+| Typical | 527 | 271 | 261 |
+| Largest, first attempt | 887 | 574 | 572 |
+| Largest, second attempt (the benchmark's packet) | — | 618 | 618 |
+| A capture at every L2 bound, second attempt, names with numbers | — | 1,017 | — |
+
+Counted and live differ by a few tokens because the live nonce is random and hex tokenizes unevenly.
+
+**Measured on the real 0.8B after the change:**
+
+| Run | Typical | Largest |
+|---|---|---|
+| `verify:ai-locator-upgrade-live`, host 10% busy | accepted: 261 / 39 tokens, 14.9 + 9.4 = **24.3 s**, 78.0 s at the cap | accepted: 572 / 112, 34.5 + 27.7 = **62.2 s**, 98.3 s at the cap |
+| `benchmark:ai-model-0-8b`, `packets:locatorUpgrade` #1 / #2 | — | second attempt: 618 / 112, `stop` at 112 of 256; wall **73.6 s / 77.1 s**; at the cap 114.7 s / **115.3 s** |
+
+- **Measured versus projected.** Wall and inference times are measured. "At the cap" is the benchmark's
+  rule: the measured prompt time plus all 256 tokens at the measured decode rate. No answer ran to the cap
+  (39–112 of 256 tokens). `locatorUpgradeAtCap` is **115,321 ms ≤ 180,000**, and the benchmark verdict is
+  **GO on all 8**. The other scenarios are the unchanged `d8162f86`, `f58cf28f` and `42655904`
+  measurements.
+- **Accepted, not just answered.** Both live jobs ended `accepted`: decoded, compiled, past the intent
+  guard, and stored as unprovable-now with the proof stubbed. Both benchmark answers were accepted by the
+  product's output contract, compiler and intent guard. No text ended at its grammar limit
+  (`cutByGrammar` 0). The live gate now fails unless each job is accepted, each call is the request
+  `locatorAttemptJob` builds, and every line is shown whole.
+- **Quality proxies, never model text.** The typical plan is a `role` target with no scope (two texts, 6
+  and 7 characters). The largest is a `role` target with one `section` scope and a 4-character `hasText`,
+  flagged `meaningChange` by the intent guard's own rule, so it would be a T1 suggestion; one of its five
+  texts is not a substring of the prompt.
+- **The benchmark measures the product.** `packets:locatorUpgrade` is built by `locatorAttemptJob` over the
+  live gate's largest capture, on its second attempt after the longest refusal line. It lives in the
+  owner's `scripts/ai-harness/locatorUpgradePacket.ts`, integrated rather than copied: its grammar
+  translation, template and host limits are kept and its synthetic packet is replaced, so the portable
+  offline runner that imports it (`scripts/offline-benchmark/`, still untracked) measures the same request.
+  `verify:ai-locator-attempts` proves the packet equal to what the loop submits.
+
+**What this does not show:**
+
+- **A proof on a real page.** The live gate stubs the browser proof as page-unavailable. Whether a real
+  model plan proves on its page is `verify:ai-locator-quality-live`, not built. The typical plan is
+  `role=button name=Archive` with no scope, over a capture that counted two matches; the proof decides
+  whether it is unique.
+- **A request at every bound was not measured.** Counted at 1,017 prompt tokens with numbered names; at the
+  benchmark's prompt and decode rates (12.9–14.7 and 3.53–3.79 tokens/s) that projects to 137–151 s at
+  the cap, and at the
+  5.9 tokens/s once seen on a hot CPU to about 245 s.
+- **Number-dense pages.** A plan with every text at its limit in number-dense or code-dense text exceeds
+  256 tokens. It would be cut at the cap and refused, spending an attempt, never accepted truncated.
+- **A second attempt on the real model.** Both jobs were accepted first time; the benchmark measured the
+  second-attempt request, but no live job needed one.
+
+**Regression suites:**
+
+- **New `verify:ai-locator-upgrade-budget`, 8/0** (tokenizer only, seconds): the counted template is the
+  host's; each request is one block with every line whole, within the host's limits; the longest prompt a
+  capture at every L2 bound can send is counted; and both judged plan bounds fit the cap.
+- **`verify:ai-locator-attempts`, 112/112 (was 87)**, new §17: the attempt grammar is the plan schema
+  narrowed, with a non-vacuity check; a captured 200-character value and an 80-character container name
+  decode whole; a second scope and a longer scope text do not; one block, with the saved locator's
+  strategy and class only and no bound sibling; at every L2 bound every line shown is whole; no Recorder
+  fallback shown; the largest fixture loses nothing; a refusal reaches the next attempt as a code and a
+  field path; the benchmark packet equals the loop's second-attempt job; through the real `AiService`, a
+  two-scope plan is refused before the browser and a 200-character value reaches the proof.
+- **Mutation-tested, 7 of 7 caught:** three scopes fails 3 checks and both budget bounds; an 80-character
+  value limit fails 2; the full plan schema submitted fails 3; fallback candidates shown fail 3; the
+  packet built from the first attempt fails 1; a bound sibling shown fails 1; a context cut at its budget
+  fails 1. That last mutation first **survived**: the check read only lines whose label survived, and the
+  cut landed inside a label (`sibling a`). It now judges every line.
+
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
 The owner has read the NO-GO above and decided that Phase L **development** continues without waiting
@@ -823,7 +951,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`). Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`), and the product's own failure-analysis request meets its ceiling at its own 256-token cap (132.3 s, `42655904`); the locator request still exceeds it at its 512-token cap | **release only — unmet** until the pin and live gates |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`). Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`), and the product's own failure-analysis request meets its ceiling at its own 256-token cap (132.3 s, `42655904`), as does the product's own locator-upgrade request at its own 256-token cap (115.3 s, every live job accepted, `4a846c41`) | **release only — unmet** until the pin and live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -858,9 +986,11 @@ product"). It still owes the pin, its license notice, `verify:ai-model-pack`, `v
 and the live quality gates. Every feature now has its own deadline (`d2f5feb2`, `d71ee244`). The answer
 contract that refused every real failure analysis is fixed (`5ef4852f`), and the failure-analysis request
 now meets its ceiling at its own output cap, measured on the product's own request (`42655904`; see
-"`failureAnalysis` inside its ceiling at its own output cap"). The locator upgrade still exceeds its
-180 s ceiling at its own 512-token output cap, and `packets:locatorUpgrade` is still a stand-in (see
-"`failureAnalysis` and `locatorUpgrade` measured through the product"). So L1 is not accepted. The 2B is
+"`failureAnalysis` inside its ceiling at its own output cap"). The locator-upgrade request now meets its
+ceiling at its own 256-token cap too, and `packets:locatorUpgrade` measures the product's own request
+(`4a846c41`; see "`locatorUpgrade` inside its ceiling at its own output cap"), so no benchmark packet is a
+stand-in any more. A real model plan has still never been proven on a real page: that is
+`verify:ai-locator-quality-live`, one of the live quality gates above. So L1 is not accepted. The 2B is
 NOT RUN because it is not downloaded.
 
 ## Verifiers
@@ -869,10 +999,10 @@ NOT RUN because it is not downloaded.
 `verify:ai-autonomy-policy` (tier matrix, T3 unreachable, cap, self-demotion), `verify:ai-audit-revert`;
 `verify:ai-deadlines` (every feature's own deadline, on a virtual clock);
 live: `verify:ai-model-live` (`NOT RUN` without pack), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
-and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline, and each failure
-analysis accepted and classified as its fixture requires; `NOT RUN` without pack), and `verify:ai-failure-analysis-budget`
-(the failure-analysis prompt and its longest acceptable answer counted on the 0.8B's own tokenizer against the output cap;
-`NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
+and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline, each failure
+analysis accepted and classified as its fixture requires, and each locator job accepted; `NOT RUN` without pack), and
+`verify:ai-failure-analysis-budget` and `verify:ai-locator-upgrade-budget` (each request's prompt and its longest
+acceptable answer counted on the 0.8B's own tokenizer against the output cap; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
 
 `verify:ai-inference-profile` (`NOT RUN` without pack) is the **diagnostic** counterpart to

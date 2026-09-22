@@ -476,8 +476,9 @@ npm run verify:ai-locator-upgrade-live
                                   # cap and the host's CPU load. Each failure analysis must also be ACCEPTED and
                                   # classified: a conclusion for both (the typical one citing its cause), and a
                                   # third case, a bare runner timeout, insufficient; every offered evidence line
-                                  # must reach the prompt whole. NOT RUN without runtime + pack (5 failure
-                                  # analysis, 4 locator)
+                                  # must reach the prompt whole. Each locator job must end ACCEPTED, each call
+                                  # must be the request locatorAttemptJob builds, every line shown whole.
+                                  # NOT RUN without runtime + pack (5 failure analysis, 4 locator)
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every
@@ -485,6 +486,14 @@ npm run verify:ai-failure-analysis-budget
                                   # FAILURE_ANALYSIS_LIMITS.maxOutputTokens in both indentation layouts and with
                                   # the longest ids L5a mints. Run it after touching any failure-analysis limit.
                                   # NOT RUN without runtime + pack (7)
+npm run verify:ai-locator-upgrade-budget
+                                  # the same launcher (--feature locatorUpgrade): the locator request on the same
+                                  # tokenizer (seconds): each prompt one block with every line whole, the longest
+                                  # prompt a capture at every L2 bound sends, and the longest plan
+                                  # LOCATOR_ATTEMPT_SCHEMA admits (English names, test ids) and the longest using
+                                  # only the texts its strategies read (names with numbers) within
+                                  # LOCATOR_ATTEMPT_LIMITS.maxOutputTokens, both layouts. Run it after touching any
+                                  # locator attempt limit. NOT RUN without runtime + pack (8)
 npm run verify:ai-deadlines       # every AI feature's own deadline on a virtual clock through its product entry
                                   # point: delivered past 30 s, TIMEOUT at exactly its deadline, cancel, late
                                   # answer, kill and reload; the deadline table against the service limit (41)

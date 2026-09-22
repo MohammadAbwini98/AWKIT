@@ -1,6 +1,47 @@
 # CURRENT_STATE
 
-## The failure-analysis request meets its 180 s ceiling at its own output cap on the 0.8B; the benchmark measures the product's request (2026-09-22, current)
+## The locator-upgrade request meets its 180 s ceiling at its own output cap on the 0.8B; the benchmark measures the product's request (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Root cause:** the 512-token cap alone was 114–146 s of generation at this host's decode rates; the
+  prompt was seven nonce-delimited DATA blocks at ~45 tokens of delimiters each, plus Recorder fallback
+  paths the compiler refuses; and the plan grammar admitted three scopes of long texts, which no small cap
+  holds whole. `packets:locatorUpgrade` was a synthetic stand-in at 192 tokens.
+- **The fix (`4a846c41`, `src/ai/locatorUpgradeAttempts.ts`):** `locatorAttemptJob` sends one block of
+  whole lines within 2,800 characters, without fallback candidates, and decodes against
+  `LOCATOR_ATTEMPT_SCHEMA` (the plan schema narrowed: one scope, a 200-character value, 80-character
+  texts) at a 256-token cap, the lowest every valid plan fits. The compiler, intent guard, proof gates,
+  redaction, the 185 s per-attempt deadline, 2 attempts and the 180 s ceiling are unchanged. The job is
+  still not wired into the app.
+- **Measured on the real 0.8B:**
+  - `verify:ai-locator-upgrade-live` 4/4, both jobs now required to end accepted: typical 261 / 39 tokens,
+    24.3 s (was 527 / 94, 48.3 s), 78.0 s at the cap (was 140.9); largest 572 / 112, 62.2 s (was
+    887 / 69, 74.9 s), 98.3 s at the cap (was 186.4).
+  - `benchmark:ai-model-0-8b` `packets:locatorUpgrade`, now the product's largest request (the largest
+    capture's second attempt), built in the owner's `locatorUpgradePacket.ts`: 73.6 / 77.1 s wall,
+    **115,321 ms at the cap against 180,000**; the benchmark is **GO on all 8**, and no packet is a
+    stand-in any more.
+- **Still open:** no real model plan has been proven on a real page (`verify:ai-locator-quality-live`, not
+  built); the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live` and the other live
+  quality gates are owed. L1 stays `in_progress`, and **L7 cannot be entered**. The owner's
+  `scripts/offline-benchmark/` stays untracked and unchanged.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-locator-upgrade-live` (real 0.8B, production path) | 4/4 |
+| `benchmark:ai-model-0-8b` (`packets:locatorUpgrade` re-measured) | GO on all 8; `locatorUpgradeAtCap` 115,321 ≤ 180,000 |
+| `verify:ai-locator-upgrade-budget` (new, the 0.8B's own tokenizer) | 8/0 |
+| `verify:ai-locator-attempts` | 112/112 (was 87); 7 of 7 mutations caught |
+| `verify:ai-locator-repair` · `verify:ai-locator-upgrade` · `verify:ai-deadlines` | 85/85 · 78/0 · 41/41 |
+| `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-redaction` | 117/0 · 38/0 · 52/0 |
+| `verify:ai-host` · `verify:ai-host-electron` · `verify:ai-failure-analysis-budget` | 135/0 with 12/12 mutations · 26/0 · 7/0 |
+| `verify:verifier-classification` | reconciled, 247 scripts |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:ai-failure-analysis-live` · `verify:ai-explanation-live` · `verify:ai-error-analysis` | NOT RUN: their requests and code paths did not change |
+
+## The failure-analysis request meets its 180 s ceiling at its own output cap on the 0.8B; the benchmark measures the product's request (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

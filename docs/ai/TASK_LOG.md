@@ -1,5 +1,45 @@
 # TASK_LOG
 
+## 2026-09-22 — locator-upgrade request sized to its 180 s ceiling at its own output cap; benchmark re-pointed at the product's request (Claude)
+
+- **Task:** bring the production `runLocatorUpgradeAttempts` request inside the 180 s L1.8 ceiling at its
+  configured output limit on the real 0.8B, and replace the synthetic `packets:locatorUpgrade` with the
+  product's request.
+- **Found:**
+  - Baseline through the product at `4608eaec` (host 11% busy): typical 48.3 s (140.9 s at the 512
+    cap), largest 74.9 s (186.4 s at the cap).
+  - Seven nonce-delimited DATA blocks (~45 tokens each); Recorder fallback CSS/XPath paths sent as
+    candidates; a grammar that writes every key and admitted three scopes of 120-character texts.
+  - On the model's tokenizer a digit is a token: English names cost 154 tokens per 1,000 characters, a
+    name with an order number 258. At 192 no valid plan with a 200-character candidate and a named,
+    numbered container fits; 256 is the lowest cap that holds every valid plan.
+  - The owner's untracked `locatorUpgradePacket.ts` held the synthetic packet for a portable offline
+    runner; it was integrated, not copied.
+- **Files:**
+  - Commit `4a846c41`: `src/ai/locatorUpgradeAttempts.ts` (limits, `LOCATOR_ATTEMPT_SCHEMA`,
+    `locatorAttemptJob`, one block of whole lines, no fallbacks, instructions);
+    `scripts/ai-harness/locatorUpgradePacket.ts` (the owner's module, now the product request, shared
+    fixtures, `planShape`), new `scripts/ai-harness/locatorUpgradeBudget.ts`; `featureLive.ts`
+    (acceptance, request identity, whole lines), `bench.ts`, `harnessMain.ts`,
+    `scripts/benchmark-ai-model.mts` (identity), `scripts/verify-ai-failure-analysis-budget.mts`
+    (`--feature`), `scripts/verify-ai-locator-attempts.mts` (§17), `scripts/lib/verifier-classification.ts`,
+    `package.json`, and the benchmark evidence JSON.
+  - Then the L1 plan, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF, COMMANDS, and a note on
+    `awkit-djnl.1`. `scripts/offline-benchmark/` stays untracked and unchanged.
+- **Checks:**
+  - `verify:ai-locator-upgrade-live` 4/4 on the real 0.8B: typical 24.3 s (78.0 s at the cap), largest
+    62.2 s (98.3 s at the cap), both accepted.
+  - `benchmark:ai-model-0-8b`: `packets:locatorUpgrade` 618 / 112 tokens, 73.6 and 77.1 s wall,
+    115,321 ms at the cap; GO on all 8.
+  - `verify:ai-locator-upgrade-budget` 8/0 · `verify:ai-locator-attempts` 112/112 · 7 of 7 mutations
+    caught (one only after its check was fixed to judge every line).
+  - `verify:ai-locator-repair` 85/85 · `verify:ai-locator-upgrade` 78/0 · `verify:ai-deadlines` 41/41 ·
+    `verify:ai-adapter` 117/0 · `verify:ai-fallback` 38/0 · `verify:ai-redaction` 52/0 · `verify:ai-host`
+    135/0 (12/12 mutations) · `verify:ai-host-electron` 26/0 · `verify:ai-failure-analysis-budget` 7/0.
+  - `verify:verifier-classification` 247 · build PASS · `typecheck:scripts` PASS.
+  - NOT RUN: the failure-analysis and explanation live gates and `verify:ai-error-analysis` (unchanged).
+- **Result:** fixed. L1 stays `in_progress`: the pin and the live quality gates remain.
+
 ## 2026-09-22 — failure-analysis request sized to its 180 s ceiling at its own output cap; benchmark re-pointed at the product's request (Claude)
 
 - **Task:** bring the production `analyzeFailure` request inside the 180 s L1.8 ceiling at its configured

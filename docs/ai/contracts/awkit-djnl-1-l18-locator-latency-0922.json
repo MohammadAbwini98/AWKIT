@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l18-locator-latency-0922",
+    "title": "Record the locator-upgrade request brought inside its L1.8 ceiling on L1",
+    "objective": "At 4a846c41 the production locator-upgrade request meets the 180 s L1.8 ceiling at its own output cap on the real Qwen3.5-0.8B: one block of whole lines within 2800 characters, no Recorder fallback candidates, LOCATOR_ATTEMPT_SCHEMA (the plan schema narrowed to one scope, a 200-character value and 80-character texts) at a 256-token cap. verify:ai-locator-upgrade-live is 4/4 with both jobs accepted, largest 62.2 s of inference and 98.3 s at the cap where it was 74.9 s and 186.4 s, and benchmark:ai-model-0-8b now measures the product's own request, locatorUpgradeAtCap 115321 ms, GO on all 8. Append a note to awkit-djnl.1 giving the fix, the measurement and what stays open (a real model plan never proven on a real page, the pin, the license notice, verify:ai-model-pack, verify:ai-model-live and the live quality gates). Refresh the JSONL export. Nothing closes: awkit-djnl.1 stays in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "4a846c41",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.1 stays in_progress with a note naming the fix commit and the live and benchmark results, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, against the state after `bd update awkit-djnl.1 --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents. The tracker measured 9 outstanding / 294 closed with 135 edges, unchanged, so the hardcoded tracker pin did not move. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l18-locator-latency-0922:project-state:2026-09-22T09:03:17.609Z",
+        "task": "awkit-djnl-1-l18-locator-latency-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T09:03:17.609Z",
+        "acquired_at_commit": "4a846c4176078c7307da5344f44d953ddc1ef3d3",
+        "released_at": "2026-09-22T09:03:55.839Z",
+        "released_reason": "locator-upgrade latency fix noted on awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
