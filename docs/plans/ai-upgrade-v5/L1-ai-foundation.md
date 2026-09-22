@@ -1309,15 +1309,47 @@ The request, the grammar and the inference configuration are unchanged, so L1.8 
 (`verify:ai-explanation-live` 5/0 on the same run). A quality target is proposed, **not adopted**. See
 L4 › "Corrective action, unsupported claims and fix priority, measured".
 
+**Then (`97996c48`): the owner's four L4b decisions change the explanation request, so L1.8 is
+re-measured.**
+
+- **The request change.** The instruction now asks for a corrective step and adds a list of things never
+  to invent. The schema, the 192-token output cap and the 160-character limit are unchanged. So are the
+  120,000 ms ceiling (`explanationAtCapMs`) and the 125,000 ms product deadline.
+- **`benchmark:ai-model-0-8b`: GO on all 8.** The packet's identity changed, so only
+  `packets:validationExplanation` was measured again; the other six scenarios keep their results.
+
+| Measure | `f58cf28f` | `97996c48` |
+|---|---|---|
+| Prompt tokens | 334 | **395** |
+| Prompt evaluation | 24,275–29,929 ms | 24,145–27,955 ms (14.1–16.4 tok/s) |
+| Output | 151 tokens, 2 of 2 explained | 144 tokens, 2 of 2 explained, `stop` |
+| Decode rate | 3.29 tok/s | 4.41–4.77 tok/s |
+| **At cap** | **88,288 ms** | **71,492 ms**, against 120,000 |
+
+- **Why at-cap fell although the prompt grew:** this run decoded faster, at 4.41 tok/s against 3.29.
+  That is host variance, not an effect of the change. The live gates on the same day decoded at
+  3.0–3.75 tok/s, which puts them at 81.5–95.2 s at cap.
+- **Projection, not evidence:** at the slowest rates this host has shown for this pack (prompt 9.4 tok/s,
+  decode 2.55 tok/s), 395 prompt tokens plus the 192-token cap come to about 117.3 s. That is still under
+  the ceiling, but with 2.7 s of margin, down from 9.2 s. Any further growth of the request is likely to
+  cross it.
+- **`verify:ai-explanation-live`: 5/0** on the changed request. Explanations were delivered at 73.9 s
+  and 77.9 s of inference (387 and 389 prompt tokens), a cancel settled in 454 ms, and a kill during
+  prompt evaluation was followed by a reload and a delivered explanation.
+- **Quality on the 0.8B,** two complete runs: 17/17 and 16/17 on subject, **6/17 and 5/17 actionable by
+  proxy** (was 0/17), 0 misattributed, 0 screen hits, nothing ranked, 51.4–86.1 s per answer.
+  **`verify:ai-authoring-review`: TARGET NOT MET** on criterion 3, with 11 screen-clear answers
+  awaiting a person. See L4 › "The owner's L4b decisions, implemented and measured".
+
 **Still owed before L1 can be accepted:**
 
-1. An explanation quality target for L4b, which L4's acceptance requires before release. One is proposed
-   in L4 for the owner to accept, change or reject. Against it the 0.8B fails on corrective action
-   (0/17), and a person has not reviewed any answer. Whether the product's instruction should ask for a
-   corrective step is also the owner's call; it would change the request and re-open L1.8.
+1. L4b's explanation quality target, **adopted provisionally on 2026-09-22 and NOT MET**. The request
+   now asks for a corrective step (L1.8 re-measured: GO, 71,492 ms at cap). The 0.8B reaches 6/17 and
+   5/17 actionable by proxy against 80 % (criterion 3), and no person has yet reviewed the 11 screen-clear
+   answers (criteria 1 and 4).
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
-   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject
-   by proxy but 0/17 actionable with no ranking, and failure analysis tying the baseline on the labelled set, with or without
+   quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 16–17/17 on subject
+   by proxy but 5–6/17 actionable with no ranking (target not met), and failure analysis tying the baseline on the labelled set, with or without
    the conclusion in its prompt and with step provenance, and falling below it (−2 over 17 rows) once the
    request states runtime request provenance. The gap is −5 since the baseline itself reads the confirmed
    link (`14c0ad84`): 9/17 against 14/17.

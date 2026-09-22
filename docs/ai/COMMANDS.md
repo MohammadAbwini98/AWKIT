@@ -505,6 +505,19 @@ npm run verify:ai-authoring-quality-live-part1
                                   # casing, locator-orphan, branch, cycle, values: 5 model calls, ~5.5 min (9)
 npm run verify:ai-authoring-quality-live-part2
                                   # duplicate-timeout, priority, warnings, single: 4 model calls, ~4 min (8)
+                                  # Since 97996c48 each part (~5.5-6.5 min) also writes one redacted review
+                                  # capture to %LOCALAPPDATA%/SpecterStudio/ai-quality-review/authoring (or
+                                  # AWKIT_AI_REVIEW_DIR): local, outside the repo, the only place model text is kept
+npm run verify:ai-authoring-review
+                                  # L4b's quality target (adopted provisionally 2026-09-22) over every complete
+                                  # run of the CURRENT request and a person's verdicts: exit 0 only when MET;
+                                  # PENDING review or NOT MET exit 1; NOT RUN with nothing captured
+npm run verify:ai-authoring-review -- --pending
+                                  # every captured answer still awaiting a person, with its evidence line and
+                                  # proxy reading; "required" marks the target's criteria 1 and 4
+npm run verify:ai-authoring-review -- --record <item id> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --reviewer <label> [--note <text>]
+                                  # one PERSON's verdict, redacted before it is stored; a second replaces the
+                                  # first. An agent never records one
 npm run verify:ai-error-quality-live
                                   # the same launcher: L5's labelled set (all 14 items as 9 run reports, events
                                   # labelled cause/unrelated) through analyzeFailure on the real 0.8B. Hard:

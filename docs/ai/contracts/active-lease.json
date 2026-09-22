@@ -1,13 +1,13 @@
 {
-  "task": "awkit-djnl-6-quality-evidence-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-6-quality-evidence-0922.json",
+  "task": "awkit-djnl-6-decisions-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-6-decisions-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T18:55:31.642Z",
-  "acquired_at_commit": "3e37f2c1411f8f27c318314e0468494fc45b0e70",
+  "acquired_at": "2026-09-22T20:08:39.943Z",
+  "acquired_at_commit": "97996c487e73ab9206f7f72a7d0c596a17331847",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
@@ -15,21 +15,21 @@
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-6-quality-evidence-0922.json",
+    "docs/ai/contracts/awkit-djnl-6-decisions-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
     "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "8e4c9110b2c2bee80c34aed8a7c76fa46224855328d7fec47171077821aaf481",
-    "docs/ai/CURRENT_STATE.md": "e71cf14421ef5afe22ed74a895a209841270c37cd9836ac37dee84a97ca01d45",
-    "docs/ai/DECISIONS.md": "26582e93478df7b2ac33ca81245bbed44aed61f1ede3b7696ab3a3e14dd2be0f",
-    "docs/ai/HANDOFF.md": "d0afda94c64edd68b875d684ab71b621eebb2f91713ccb2125020fdb45096004",
-    "docs/ai/KNOWN_ISSUES.md": "3a05399c93b3877397f7016056b6c3439335e0c61f69f84dbfea7260b386fc5e",
-    "docs/ai/TASK_LOG.md": "c040ef282d016aaf1158a4cbd31d9cf19f7efa633abc76936374765415cb345b",
-    "docs/ai/contracts/awkit-djnl-6-quality-evidence-0922.json": "91daa5e9d06e921ad349244a7250650ecf9e23f6e0c42b1391d6e5189742eaf5",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "992dbd55f3d0e8fe0e016862ee2684b0cc8f34903b48b32e477796ad2cf05f30",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "3835847a84055448ffd26715802256ad42403203e91382c0c0507db555e726a0",
+    "docs/ai/COMMANDS.md": "348ed8cf30142cd114b1f07c98e30ff7e98451e3557fc0ed2ce39becfcd91da1",
+    "docs/ai/CURRENT_STATE.md": "52c5c4f2b6b6c591a06be71246bd15ff5e8f17d0ab7c1ba27f10e28d45db4d2b",
+    "docs/ai/DECISIONS.md": "923006b5836159d17a7840a0e0cde23d506fa80eced7661302c48082383f4f95",
+    "docs/ai/HANDOFF.md": "9f6c9e9f28169276b7fb1f41dd5110f3dc134155e1b201da914bb9ffe18c4c8c",
+    "docs/ai/KNOWN_ISSUES.md": "0823a777a53ead895878bfff08545c5ef141863225d597dd09a8c4f82a78f40a",
+    "docs/ai/TASK_LOG.md": "23013c3e0b81ecf2e11868575ddf4e8279f66edbea80ad7b37c1ffabc940677b",
+    "docs/ai/contracts/awkit-djnl-6-decisions-0922.json": "7eed2c9c504b673e53883843286e232d100f8f99129765d34441932486567857",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "3e0259dd24fe71548e0483c2377283254204dd73a5f741740bf86761762cbfa1",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "460be24dc2a11c70cead44c80295d73c2185e3d49bfb56b3d2e479facd98510b",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -45,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T18:56:16.971Z",
-  "released_reason": "L4b quality evidence noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T18:56:16.972Z"
+  "released_at": "2026-09-22T20:09:32.322Z",
+  "released_reason": "L4b decisions noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T20:09:32.323Z"
 }

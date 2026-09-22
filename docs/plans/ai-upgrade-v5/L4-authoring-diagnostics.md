@@ -57,9 +57,11 @@ explanation quality target is not recorded, and the milestone cannot close under
 development authorization. The live quality gate `verify:ai-authoring-quality-live` is built (2026-09-22,
 10/0; see "The live quality gate as built"). **Since `3e37f2c1` it also reads corrective action,
 unsupported claims and fix priority: on the real 0.8B, 17/17 on subject, 0/17 actionable, nothing
-ranked** (see "Corrective action, unsupported claims and fix priority, measured"). L4b stays
-`in_progress`: the quality target is the owner's decision, and corrective-action quality is not
-established.
+ranked** (see "Corrective action, unsupported claims and fix priority, measured"). **Since `97996c48`
+the owner's four decisions are implemented** (a corrective step in the request, a blocking-first fix
+order, a local redacted human review, the target adopted provisionally). On two runs the 0.8B reaches
+6/17 and 5/17 actionable by proxy, so **the target is NOT MET**, and no person has reviewed an answer
+yet (see "The owner's L4b decisions, implemented and measured"). L4b stays `in_progress`.
 
 ### L4b as built
 
@@ -207,33 +209,154 @@ established.
   - *Privacy:* no canary in any prompt or answer, no residual secret, and no text recorded.
   - *One run.* The prompt nonce varies answers between runs, so these are not stable rates.
 
-### Proposed explanation quality target (NOT adopted; the owner's decision)
+### Explanation quality target (adopted provisionally by the owner, 2026-09-22)
 
-This is a proposal, so the owner has something concrete to accept, change or reject. The gate does not
-enforce it.
+Proposed on 2026-09-22 and adopted the same day as proposed, **thresholds unchanged**; they are not
+lowered to fit a result. `verify:ai-authoring-review` evaluates it (`QUALITY_TARGET` in
+`scripts/ai-harness/authoringQualityReview.ts`).
 
-1. No confirmed unsupported claim of any kind, and no misattributed explanation.
-2. At least 90 % on subject by proxy.
-3. At least 80 % actionable by proxy, once the product's instruction asks for a corrective step.
-4. A person reads every screen-clear explanation, and judges at least 80 % correct and actionable.
-5. When the model ranks, no order violation. Whether an empty T1 fix order is acceptable for release is
-   a separate decision.
-6. Measured on at least two runs.
+1. No confirmed unsupported claim of any kind, and no misattributed explanation. It stays `PENDING`
+   while any answer the target sends to a person is unread, because a person can still confirm a claim
+   the screens missed. A person marking an answer ungrounded counts as a confirmed claim.
+2. At least 90 % on subject by proxy, **in every complete run**.
+3. At least 80 % actionable by proxy, **in every complete run**.
+4. A person reads every screen-clear explanation, and judges at least 80 % correct and actionable. With
+   nothing screen-clear it is NOT MET, never vacuously met.
+5. When the model ranks, no order violation. **An empty fix order is acceptable** (owner decision 4).
+6. At least two complete runs. Run *k* is each case's *k*-th measurement, so two parts make one run.
 
-Against it, measured: (1) one unconfirmed hit; (2) met; (3) and (4) not met, at 0/17 with nothing to
-review; (5) not exercised; (6) one run.
+`PENDING` is never `MET`. An undelivered answer still counts its sent issues, so a failure lowers a rate
+instead of vanishing from it.
+
+The 3e37f2c1 measurement against it: (1) one unconfirmed hit; (2) met; (3) and (4) not met, at 0/17
+with nothing to review; (5) not exercised; (6) one run. The current measurement is in the next section.
+
+### The owner's L4b decisions, implemented and measured (2026-09-22, `97996c48`)
+
+**The decisions (owner, 2026-09-22):**
+
+1. **Quality target:** adopt the proposal above provisionally, with its exact thresholds. Record any
+   unresolved criterion explicitly.
+2. **Corrective action:** require concise, evidence-grounded corrective guidance when the validation
+   information supports it. Never invent node names, selectors, values, connections or unsupported
+   automatic fixes.
+3. **Human review:** a privacy-safe, locally stored review of the labelled set, in which a reviewer
+   judges real answers for correctness, actionability, grounding and unsupported claims. Redact before
+   persistence. Never expose credentials or protected authentication information.
+4. **Fix order:** an empty order is allowed when ordering does not apply or cannot be justified. Where
+   issues have a documented priority, blocking issues come first. Never invent dependencies, and never
+   modify a flow automatically.
+
+**What changed:**
+
+- **The request** (`src/ai/authoringExplanation.ts`). The instruction asks for "what is wrong, then the
+  step the person should take in the editor, starting with a verb such as add, set, connect, remove or
+  change". The step rests only on that issue. When the issue gives too little for a specific step, the
+  model says what to check. It must never invent issues, ids, rules, step names, selectors, values or
+  connections, or say the application can fix an issue that is not marked fixable. Fixes on the run path
+  are ranked first. The old ban on describing any repair is gone, because it forbade the corrective step
+  itself. The schema, the 192-token cap, the 160-character limit and the deadline are unchanged.
+- **The output contract.** `parseAuthoringAnswer` withholds a fix order that breaks the one documented
+  priority: every fix for an issue that blocks the run (`isExecutionBlocking`) comes before any fix that
+  can wait, and none is left out ahead of one. This rule is `rankingKeepsPriority`, now shared with the
+  judge.
+  - The order is withheld as `rankingWithheld: "PRIORITY_VIOLATION"`, with the explanations kept. It is
+    **never re-sorted**, because a re-sorted order would present the product's order as the AI's.
+  - Two equally urgent fixes keep any order, since no priority between them is invented. An empty order
+    is an accepted answer.
+  - The designer shows no fix order for a withheld one; no renderer change was needed.
+- **The review store** (`scripts/ai-harness/authoringQualityReview.ts`). Each run part of
+  `verify:ai-authoring-quality-live` writes one capture, `capture-<id>.json`. Every case the model was
+  asked is captured, delivered or not.
+  - **Location:** `%LOCALAPPDATA%/SpecterStudio/ai-quality-review/authoring`, or `AWKIT_AI_REVIEW_DIR`.
+    It is local, outside the repository, never committed and never sent anywhere.
+  - **What an item holds:** the product's own Issues line for that issue (product constants), the
+    model's text after `SemanticRedactor` with the canary as a sensitive term, and the proxy reading.
+  - **What is refused:** a text in which a residual secret or the canary survives redaction is not
+    written at all. No flow, name, value, selector, nonce or path is stored. A reviewer's label and note
+    are redacted, and refused if a secret survives.
+  - **Scope:** captures are keyed to a SHA-256 of the instructions, so a capture of another request is
+    listed and ignored.
+- **The review.** `npm run verify:ai-authoring-review -- --pending` lists each unread answer with its
+  evidence and proxy reading. `-- --record <item> --correct yes|no --actionable yes|no --grounded yes|no
+  --unsupported yes|no --reviewer <label> [--note <text>]` stores one verdict; a second verdict replaces
+  the first. A person records verdicts. **An agent never does.**
+
+**Proven without a model** (`verify:ai-authoring` §12, 239/239, was 179):
+
+- each instruction clause is present, and the repair ban is gone;
+- priority: a blocking-first order is kept, a reversed order or one leaving the blocking fix out is
+  withheld and never re-sorted, equal fixes keep any order, no order is accepted, and the adapter shows
+  no fix order for a withheld one;
+- privacy: the capture holds no canary, email, token, URL, user path or flow data, a surviving private
+  key block is withheld, and an undelivered case is kept;
+- verdicts: unknown, withheld and malformed verdicts are refused, a note is redacted, and an unreadable
+  file is reported;
+- the evaluator can say MET, and says PENDING or NOT MET at each boundary: 13/17 and 14/17 actionable,
+  15/17 and 16/17 on subject, 27/34 correct, one run, an unconfirmed, dismissed or confirmed hit, an
+  ungrounded answer, a misattribution, an order violation, an undelivered answer, nothing screen-clear.
+- **Mutations caught, each run once and reverted,** out of 238 checks: priority withholding removed
+  (233), unreviewed answers counted correct (236), the capture written unredacted (231), undelivered
+  issues dropped from the rate (237). Reverting the instruction was not run as a mutation; its checks
+  assert the text directly.
+
+**Real Qwen3.5-0.8B:** two complete runs, each in two parts: run 1 `-part1` 9/0 and `-part2` 8/0, run 2
+9/0 and 8/0.
+
+| Measure | 3e37f2c1 (old request) | Run 1 | Run 2 |
+|---|---|---|---|
+| Responses | 9 accepted | 9 accepted, 0 rejected, 0 inconclusive | 9 accepted, 0 rejected, 0 inconclusive |
+| On subject (proxy) | 17/17 | 17/17 | 16/17 (`warnings`' `deadEndNode`) |
+| Misattributed | 0 | 0 | 0 |
+| **Actionable (proxy)** | **0/17** | **6/17 (35 %)** | **5/17 (29 %)** |
+| Screen hits | 1, unconfirmed | 0 | 0 |
+| Screen-clear, for a person | 0 | 6 | 5 |
+| Ranked | 0 of 5 fixable | 0 of 5 | 0 of 5 |
+| Orders withheld | – | 0 | 0 |
+| Texts ended at 160 characters | 4 | 7 | 5 |
+| Inference per answer | 37.7–65.1 s | 53.7–86.1 s | 51.4–79.3 s |
+
+`verify:ai-authoring-review` over both runs gives **TARGET: NOT MET**:
+
+| Criterion | Status | Detail |
+|---|---|---|
+| (1) no confirmed claim, no misattribution | PENDING | 0 misattributed, 0 confirmed; 11 screen-clear answers unread |
+| (2) ≥ 90 % on subject, every run | MET | 17/17, 16/17 |
+| (3) ≥ 80 % actionable, every run | **NOT MET** | 6/17, 5/17 |
+| (4) a person reads every screen-clear answer, ≥ 80 % correct and actionable | PENDING | 0 of 11 reviewed |
+| (5) no order violation when the model ranks | MET | nothing ranked; an empty order is acceptable |
+| (6) ≥ 2 runs | MET | 2 |
+
+- **Reading it:**
+  - *Corrective action rose from 0/17 to 5–6/17 by proxy,* far below 80 %. Where it lands is uneven:
+    `cycle` 2/2 in both runs, while `casing`, `duplicate-timeout`, `warnings` and `single` stay at 0.
+  - *Engineering observations from the capture, not review verdicts:*
+    - several answers restate the rule summary and give no step;
+    - the two casing issues get "check the … definition", which is the insufficient-information
+      fallback, although the request marks them fixable;
+    - 12 of 34 texts end at the 160-character limit, some just before or inside the step.
+  - *The proxy is only a proxy.* An answer saying a step "does not specify a required value" reads as
+    actionable, because "specify" is a corrective verb. That is exactly why a person must read every
+    screen-clear answer, and why none counts as correct unread. The screens were not tuned after the
+    result.
+  - *Nothing was fabricated* by any screen: no invented fix, off-domain remedy, quoted name, selector or
+    value, including on `single`.
+  - *Fix order:* the model ranked nothing in either run, so no order was ever withheld. Criterion 5 is
+    met only because an empty order is now acceptable.
+  - *Privacy:* no canary in any prompt, answer or capture, no residual secret, and nothing withheld.
+  - *Two runs.* The prompt nonce still varies answers between runs.
 
 ### What L4b acceptance still needs
 
-- The owner's quality target: the proposal above, or another.
-- Whether the product's instruction should ask for a corrective step. That is a request change, and the
-  L1.8 ceiling would be re-measured.
-- How a person reviews answers. The harness never records model text, by design. Either the owner
-  approves a review capture of the synthetic set, or a reviewer reads the designer's AI panel on the
-  same flows.
-- Whether an empty fix order, from a model that never ranks, is acceptable.
+- **Criterion 3:** at least 80 % actionable by proxy in every run. On the 0.8B it is 29–35 %. Closing
+  that means another request change, a different model, or an owner decision on the target. Each
+  request change re-opens L1.8, and the 160-character limit and the 192-token cap are fixed by it.
+- **A person's review of the 11 screen-clear answers** (criteria 1 and 4). Run `npm run
+  verify:ai-authoring-review -- --pending`, then `-- --record` for each. Any request change produces new
+  captures, and those need their own review.
+- The target is provisional; the owner may confirm it or change it.
 
-Until then L4b stays `in_progress`.
+Until the target is MET, L4b stays `in_progress`.
 
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
@@ -274,10 +397,12 @@ Apply / Show on Canvas / Dismiss.
 `verify:authoring-diagnostics` (every family, Flow/Workflow parity, legacy profiles), `verify:ai-authoring`
 (fake provider: unknown IDs rejected, non-emitted fix rejected; §11 audits the live labelled set and its judge), live
 `verify:ai-authoring-quality-live` (built, 10/0 on the real 0.8B; since `3e37f2c1` nine cases in two parts,
-`-part1` 9/0 and `-part2` 8/0);
+`-part1` 9/0 and `-part2` 8/0; since `97996c48` each part writes a redacted local review capture),
+`verify:ai-authoring-review` (the adopted target over captured runs and a person's verdicts: NOT MET at `97996c48`);
 existing validation, legacy-compat and profile-store gates; `npm run build`.
 
 ## Acceptance
 
 Validators remain the single source of truth; SafeFixApplier remains the only mutation authority; AI never adds a fix
-kind; explanation quality target recorded and met before release.
+kind; explanation quality target recorded and met before release. **Recorded** (adopted provisionally, 2026-09-22);
+**not met** (criterion 3; criteria 1 and 4 await a person).

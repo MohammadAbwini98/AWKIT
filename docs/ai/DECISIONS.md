@@ -1,6 +1,40 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L4b: explanation quality is judged by screens that can prove an answer wrong, never right (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L4b: the quality target is adopted, the request asks for a corrective step, a person reviews locally, and a fix order is optional and blocking-first (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Owner decisions (2026-09-22):**
+  1. Adopt the proposed quality target provisionally, with its exact thresholds. Do not lower them for
+     the current model, and record any unresolved criterion.
+  2. Require concise, evidence-grounded corrective guidance where the validation information supports
+     it. Never invent node names, selectors, values, connections or unsupported automatic fixes.
+  3. A privacy-safe, locally stored human review of the labelled set, redacted before persistence, with
+     no credential or protected authentication information exposed.
+  4. An empty fix order is allowed. Where a documented priority exists, blocking issues come first.
+     Never invent dependencies, and never modify a flow automatically.
+- **Implementer's choices within them (`97996c48`):**
+  - **"Every complete run", not an aggregate.** Criteria 2 and 3 must hold in each run, which is the
+    stricter reading.
+  - **Criterion 1 stays PENDING while any answer the target sends to a person is unread.** A person can
+    still confirm a claim the screens missed. Finding an answer ungrounded counts as a confirmed claim.
+  - **Nothing screen-clear means criterion 4 is NOT MET,** never vacuously met.
+  - **An undelivered answer counts its issues.** Leaving it out would raise a rate.
+  - **A violating fix order is withheld, never re-sorted.** A re-sorted order would present the product's
+    order as the AI's. The explanations are kept, because they are not what was wrong.
+  - **The only documented priority** is `isExecutionBlocking`. Two equally urgent fixes keep any order,
+    so none is invented.
+  - **The review store sits outside the repository,** under `%LOCALAPPDATA%/SpecterStudio/`, so model
+    text can never be committed.
+    - It is keyed to a hash of the instructions, so a capture of another request never counts.
+    - A text in which a residual secret survives redaction is not stored.
+    - A person records verdicts; an agent never does.
+  - **Instruction-only.** No product-authored remedy text was added to the prompt. The smallest change
+    was measured first, and the L1.8 margin is thin: 2.7 s projected at the slowest rates.
+  - **Nothing was tuned after the result.** A proxy false positive (the "does not specify" case) is
+    recorded, not fixed.
+- **Result:** TARGET NOT MET on criterion 3, at 6/17 and 5/17 actionable. Criteria 1 and 4 await a
+  person.
+
+### 2026-09-22 — Phase L L4b: explanation quality is judged by screens that can prove an answer wrong, never right (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:**
   - Establish L4b explanation quality on the real 0.8B by extending the existing gate.

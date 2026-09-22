@@ -1,6 +1,41 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — L4b explanation quality measured past the subject: 0/17 actionable, nothing ranked
+## HANDOFF (2026-09-22, latest) — L4b decisions implemented; the adopted target is NOT MET, and review awaits a person
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`97996c48`, then this closeout):** the owner's four L4b decisions are implemented. Details are
+  in L4 › "The owner's L4b decisions, implemented and measured".
+  - the quality target is adopted provisionally, thresholds unchanged;
+  - the request asks for an evidence-grounded corrective step;
+  - there is a local, redacted human-review store;
+  - a fix order is optional and blocking-first, and a violating order is withheld.
+- **Measured on the real 0.8B:**
+  - L1.8 re-measured: GO on all 8, with 71,492 ms at cap against 120,000. The projection margin at the
+    slowest rates is 2.7 s.
+  - Two complete quality runs: 17/17 and 16/17 on subject, **6/17 and 5/17 actionable**, 0
+    misattributed, 0 screen hits, nothing ranked.
+  - `verify:ai-authoring-review`: **TARGET NOT MET** (criterion 3). Criteria 1 and 4 are PENDING, with
+    11 screen-clear answers unread.
+- **Next, not started:**
+  1. **A person** reviews the 11 answers. Run `npm run verify:ai-authoring-review -- --pending`, then
+     `-- --record <item> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no
+     --reviewer <label>` for each.
+  2. The owner decides how to close criterion 3. The options are another request change, a different
+     model, or a change to the target. From the captures, not from review:
+     - some answers restate the rule;
+     - the casing issues get the "check" fallback;
+     - 12 of 34 texts end at 160 characters.
+     Any request change re-opens L1.8, where only 2.7 s of margin is projected.
+  3. Then L1's go/no-go. The next Phase L item stays L5b's baseline gap (−5).
+- **Do not:**
+  - record a review verdict as an agent;
+  - count a screen-clear or unreviewed answer as correct;
+  - tune a screen or the proxy after seeing a result. A proxy false positive ("does not specify") was
+    left as registered;
+  - lower a threshold;
+  - re-sort a withheld fix order.
+
+## HANDOFF (2026-09-22, superseded) — L4b explanation quality measured past the subject: 0/17 actionable, nothing ranked
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`3e37f2c1`, then this closeout):**

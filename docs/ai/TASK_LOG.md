@@ -1,5 +1,51 @@
 # TASK_LOG
 
+## 2026-09-22 — L4b: the owner's four decisions implemented and measured on the real 0.8B (Claude)
+
+- **Task:** implement the owner's four L4b decisions and measure them on the real 0.8B:
+  1. adopt the proposed quality target provisionally;
+  2. ask for an evidence-grounded corrective step;
+  3. build a local, redacted human review;
+  4. make the fix order optional and blocking-first.
+  Re-measure L1.8 on the changed request.
+- **Files:**
+  - `97996c48`:
+    - `src/ai/authoringExplanation.ts`: the instruction, `rankingKeepsPriority`, and a violating order
+      withheld;
+    - `scripts/ai-harness/authoringQualityReview.ts` (new): the store, redaction, verdicts and the target
+      evaluator;
+    - `authoringQualitySet.ts`: per-explanation readings, and the product's priority rule;
+    - `authoringQualityLive.ts`: every case captured, delivered or not;
+    - `scripts/verify-ai-authoring-review.mts` (new);
+    - `scripts/verify-ai-authoring.mts` §12;
+    - `scripts/verify-ai-explanation-live.mts`, `package.json`, `scripts/lib/verifier-classification.ts`;
+    - the L1.8 0.8B evidence file;
+    - `L5a-overhead-gate.json`, to which `verify:failure-capture-overhead` appends run 7 each time it runs.
+  - This closeout: the L4 and L1 plans, CURRENT_STATE, HANDOFF, DECISIONS, COMMANDS and KNOWN_ISSUES;
+    notes on `awkit-djnl.6` and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-authoring`: 239/239 (was 179). Four mutations were each run once and reverted, out of 238
+    checks:
+    - priority withholding removed: 233;
+    - unreviewed answers counted correct: 236;
+    - the capture written unredacted: 231;
+    - undelivered issues dropped from the rate: 237.
+  - Real 0.8B:
+    - `benchmark:ai-model-0-8b`: GO on all 8. The explanation request has 395 prompt tokens and takes
+      71,492 ms at cap.
+    - `verify:ai-explanation-live`: 5/0.
+    - Quality, two complete runs of `-part1` and `-part2`: 9/0, 8/0, then 9/0, 8/0.
+    - `verify:ai-authoring-review`: exit 1, **TARGET NOT MET**.
+  - `verify:ai-assist-gui` 100/0, `verify:ai-adapter` 117/0, `verify:ai-fallback` 38/0,
+    `verify:ai-redaction` 52/0, `verify:security` 61/0.
+  - `verify:failure-capture-overhead` 18/0 (the structural gate for `src/ai`),
+    `verify:verifier-classification` 260, `typecheck:scripts` and build PASS.
+- **Result:**
+  - Actionable by proxy rose from 0/17 to 6/17 and 5/17, against the 80 % target.
+  - On subject was 17/17 and 16/17, with 0 misattributed and 0 screen hits. Nothing was ranked.
+  - No person has reviewed the 11 screen-clear answers.
+  - L4b stays `in_progress`.
+
 ## 2026-09-22 — L4b: validation-explanation quality measured past the subject, on the real 0.8B (Claude)
 
 - **Task:** establish evidence for L4b explanation quality on the real 0.8B, beyond delivery and subject.

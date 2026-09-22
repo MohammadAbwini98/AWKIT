@@ -1,25 +1,33 @@
 # KNOWN_ISSUES
 
-## The 0.8B's validation explanations name the issue but never say what to do, and never rank a fix (2026-09-22, OPEN — `awkit-djnl.6`)
+## The 0.8B's validation explanations are rarely corrective, even when asked for a step, and never rank a fix (2026-09-22, OPEN — `awkit-djnl.6`)
 
-- **Symptom:** on L4b's labelled set (`3e37f2c1`, 9 cases, 17 issues), the real Qwen3.5-0.8B names every
-  issue's subject (17/17 by proxy, 0 misattributed). But none of the 17 explanations gives a corrective
-  step with its remedy (0/17 actionable). It ranked none of 5 fixable issues, so the designer's AI fix
-  order is always empty.
-- **Likely cause, partly in the request.** `authoringExplanation.ts`'s instruction asks for "what is
-  wrong and what the person should look at", and forbids the model describing "a repair of your own".
-  The model follows it. The ranking is optional in the schema, and the 0.8B has never used it in any run.
-- **Unconfirmed:** one `SEVERITY_OVERSTATED` screen hit, on an off-path `unreachableNode`. The screen
-  cannot tell "the flow cannot run" from "this step never runs", and no text is recorded to settle it.
-- **Impact:** L4b cannot meet the proposed quality target (L4 › "Proposed explanation quality target").
-  Explanations are delivered, labelled as AI, grounded in the validator's issues and leak nothing. They
-  are just not corrective.
+- **Symptom:**
+  - At `3e37f2c1`, on L4b's labelled set (9 cases, 17 issues), the real Qwen3.5-0.8B named every issue's
+    subject (17/17 by proxy) but gave no corrective step (0/17 actionable).
+  - At `97996c48` the request asks for a step, following owner decision 2. Two complete runs give 6/17
+    and 5/17 actionable by proxy, against the adopted 80 % target. Subject is 17/17 and 16/17.
+  - In no run has the model ranked any of the 5 fixable issues, so the designer's AI fix order is always
+    empty. That is acceptable under owner decision 4.
+- **What the captures show** (engineering observations, not a person's review):
+  - some answers restate the rule summary and stop;
+  - the two casing issues get the "say what to check" fallback, although the request marks them fixable;
+  - 12 of 34 texts end at the 160-character limit, some before or inside the step.
+- **A proxy false positive:** "does not specify a required value" reads as actionable, because
+  "specify" is a corrective verb. It was not tuned away. A person's review (criteria 1 and 4) is the
+  control for it, and 11 screen-clear answers await one.
+- **Settled:** the `3e37f2c1` `SEVERITY_OVERSTATED` hit belonged to the old request. Neither run of the
+  new one has any screen hit.
+- **Impact:** `verify:ai-authoring-review` reports **TARGET NOT MET** (criterion 3), so L4b cannot be
+  accepted. Explanations are still delivered, labelled as AI, grounded in the validator's issues and leak
+  nothing.
 - **Do not "fix" by:**
-  - widening `CORRECTIVE` or `REMEDY` after seeing this result;
-  - counting "look at" as a corrective action;
-  - editing the instruction without re-measuring L1.8's `explanationAtCapMs`.
-
-  Whether the instruction should ask for a corrective step is the owner's decision.
+  - widening `CORRECTIVE` or `REMEDY` after seeing a result;
+  - lowering a threshold;
+  - counting a screen-clear answer as correct unread;
+  - recording a review verdict as an agent;
+  - changing the instruction without re-measuring L1.8's `explanationAtCapMs`. Only 2.7 s of margin is
+    projected at the slowest rates, and the 160-character limit and the 192-token cap are fixed by it.
 
 ## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
 

@@ -1,6 +1,56 @@
 # CURRENT_STATE
 
-## L4b explanation quality, measured past the subject: 17/17 on subject, 0/17 actionable, nothing ranked (2026-09-22, current)
+## L4b: the owner's four decisions implemented; the adopted quality target is NOT MET (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **The change (`97996c48`).** It implements the owner's four L4b decisions of 2026-09-22:
+  1. **Quality target:** the target proposed in L4 is adopted provisionally, with its thresholds
+     unchanged. `verify:ai-authoring-review` evaluates it over captured runs and a person's verdicts.
+  2. **Corrective step:** the explanation request now asks for what is wrong, then a corrective step
+     grounded in that issue, or what to check when the issue gives too little. It forbids inventing step
+     names, selectors, values, connections, or an automatic fix for an unfixable issue.
+  3. **Human review:** each run part writes a redacted capture to a local store,
+     `%LOCALAPPDATA%/SpecterStudio/ai-quality-review/authoring`, which is outside the repository. A
+     person records verdicts with `verify:ai-authoring-review -- --record`.
+  4. **Fix order:** an empty fix order is accepted. A model order that puts a fix that can wait ahead of
+     a blocking one is withheld, never re-sorted.
+- **L1.8, re-measured because the request changed:** GO on all 8. The explanation request has 395 prompt
+  tokens (was 334) and takes 71,492 ms at cap, against a 120,000 ms ceiling. The 192-token cap, the
+  120 s ceiling and the 125 s deadline are unchanged. A projection at this host's slowest rates leaves
+  2.7 s of margin.
+- **Real Qwen3.5-0.8B, two complete runs:**
+
+| Measure | Run 1 | Run 2 |
+|---|---|---|
+| Responses | 9 accepted | 9 accepted |
+| On subject (proxy) | 17/17 | 16/17 |
+| **Actionable (proxy)** | **6/17** | **5/17** |
+| Misattributed · screen hits | 0 · 0 | 0 · 0 |
+| Ranked · withheld | 0 of 5 · 0 | 0 of 5 · 0 |
+| Inference | 53.7–86.1 s | 51.4–79.3 s |
+
+- **Target readout: NOT MET.**
+  - (3) actionable: NOT MET, at 6/17 and 5/17 against 80 %.
+  - (1) no confirmed claim and (4) review: PENDING, because 11 screen-clear answers await a person.
+    No person has reviewed any answer.
+  - (2) on subject, (5) fix order and (6) runs: MET. (5) is met only because the model ranked nothing,
+    and an empty order is now acceptable.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 239/239 (was 179). Four mutations caught, out of 238 checks: 233, 236, 231, 237 |
+| `verify:ai-authoring-quality-live-part1` · `-part2` (real 0.8B), two runs | 9/0 · 8/0, then 9/0 · 8/0 |
+| `verify:ai-authoring-review` | FAIL (exit 1): TARGET NOT MET |
+| `benchmark:ai-model-0-8b` | GO on all 8; explanation 71,492 ms at cap |
+| `verify:ai-explanation-live` (real 0.8B) | 5/0: 73.9 s and 77.9 s of inference, cancel settled in 454 ms |
+| `verify:ai-assist-gui` · `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-redaction` · `verify:security` | 100/0 · 117/0 · 38/0 · 52/0 · 61/0 |
+| `verify:failure-capture-overhead` (the structural gate for `src/ai`) | 18/0; it appends run 7 to its evidence file |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 260 scripts · PASS · PASS |
+
+## L4b explanation quality, measured past the subject: 17/17 on subject, 0/17 actionable, nothing ranked (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).
