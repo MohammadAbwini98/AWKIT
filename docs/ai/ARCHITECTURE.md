@@ -667,12 +667,17 @@ src/runner/evidence/
                               string, URL → origin + path template, per-field/event/source/instance caps,
                               a per-run byte budget shared by the execution's instances, dedupe with repeat
                               counts, retraction (protected-login) returning bytes to both budgets.
+                              Optional request provenance per network event (stable request id, issue step,
+                              frame, runner-held link) and the pure requestRelations classifier.
   uiEvidenceScript.ts         Page-side init script (a string): MutationObserver on added/changed candidate
                               nodes, native `invalid`, aria-invalid; announces each document's protected-login
                               state; queues until the binding lands.
   FailureEvidenceCollector.ts Per instance. ExecutionEngine starts/stops it with PassiveCdpTrace on the
                               onBrowserRuntime / onRuntimeClosing generation lifecycle; progress events give
                               step correlation; finish() hands InstanceReport.diagnostics to the report.
+                              StepExecutor reports each step's target page/frame and the requests it holds
+                              (navigation response, response-wait match) through the optional
+                              RunnerProgressReporter.observe; that data never goes to the renderer.
   FailureCauseBaseline.ts     Pure precedence table → cause code + evidence ids (or `insufficient`).
 ```
 

@@ -1,33 +1,33 @@
 {
-  "task": "awkit-djnl-8-step-relevance-0922",
-  "contract_path": "docs/ai/contracts/awkit-djnl-8-step-relevance-0922.json",
+  "task": "awkit-djnl-8-request-provenance-0922",
+  "contract_path": "docs/ai/contracts/awkit-djnl-8-request-provenance-0922.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T15:04:43.738Z",
-  "acquired_at_commit": "407d60804c223127a83258f97cf0d0bc74afdf0a",
+  "acquired_at": "2026-09-22T15:42:35.696Z",
+  "acquired_at_commit": "3699617f1c05f99ef9d738da6fad7eb20d1ca55e",
   "baseline_dirty": [
     "docs/ai/COMMANDS.md",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-8-step-relevance-0922.json",
+    "docs/ai/contracts/awkit-djnl-8-request-provenance-0922.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
     "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "fd8e69b3441d4610d43320c9cb8f8e2081b306fd73f2643d8d314fab206eb1ab",
-    "docs/ai/CURRENT_STATE.md": "245f70a40cc96b3b71bdc94e3b6d656573af3446b893a68f239e2b9b012417fc",
-    "docs/ai/DECISIONS.md": "c18b6d51efa6a82ad990bda7da31b28b7dcffbd87f92f33d4a27212a5954cc8b",
-    "docs/ai/HANDOFF.md": "8ca8bc35aa0783f49313a4ecde6d78bc9c2c5092096dcd129eb6fa56973e38da",
-    "docs/ai/TASK_LOG.md": "0e7f25365581548c273b087e873847c31e29a7ccd9407bf8a8f2f8f8f1011ece",
-    "docs/ai/contracts/awkit-djnl-8-step-relevance-0922.json": "ba7145be1f88e384bfcef57479c0ccfe583052a852c3f4566b7c2e35a9981f87",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "cfa128431681d5b7f0de45e18dea7d9355bcb730b6506523dd88da650a21b8fc",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "1ba6c60e4f8e668e91a83e94c2a98a4a1b7772a376aee42474d3ee5803a3ac6d",
+    "docs/ai/COMMANDS.md": "49a7c4db011ca9c3ae83b6b03f9fdcda17abc2422e54598d3c037ec504af88e7",
+    "docs/ai/CURRENT_STATE.md": "f24ef0f48722c6d323e50109a1e2e3a51cb4d702ebdc2c1337953bb93246d454",
+    "docs/ai/DECISIONS.md": "cf7a66f6a102b20e0ecc6224e001286a53173fdc8d49b1a218b73d2acf1c4c74",
+    "docs/ai/HANDOFF.md": "ced85f954a45705158681112b1792819d4a7d14087134bace532e6ff8cc378d7",
+    "docs/ai/TASK_LOG.md": "ecf29bf97953bb5797f3e7b457be717349b124f125e31b8f36518478d1018200",
+    "docs/ai/contracts/awkit-djnl-8-request-provenance-0922.json": "e546807df804e9475de7d35dff83486bc15ed3b775a02e5b129392486c8dafa3",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "7b2cd966b9af2b1f8e24c3bc6fdc72d3788ea5d2ccefd8267195a69af50999f5",
+    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md": "1017e720d0bbb3ea0c924b0d559d21ac9659308ad8da8e92b387784a24764011",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -43,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T15:05:27.978Z",
-  "released_reason": "step-relevance change noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T15:05:27.979Z"
+  "released_at": "2026-09-22T15:43:08.914Z",
+  "released_reason": "request-provenance change noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-22T15:43:08.915Z"
 }

@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — failure analysis knows which step each event came from; the 0.8B still ties the baseline
+## HANDOFF (2026-09-22, latest) — failure evidence records request-to-step provenance at runtime
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`3699617f`):**
+  - Request events carry optional provenance: a stable id across redirects, the response and a transfer
+    failure; the issue step and time; the frame; and a confirmed link when the runner holds the request
+    (navigation response, response-wait match).
+  - The failure record carries the failed step's target page and frame.
+  - `requestRelations` separates confirmed from uncertain relations.
+  - New verifier: `verify:request-provenance` 59/0, with three mutations caught. The Runner Lab gains a
+    Request provenance section.
+  - Details are in L5 › "Request-to-step provenance, recorded at runtime".
+- **Next L1/L5 blocker, not started:**
+  - The failure-analysis request does not read `requestRelations`. Using it (ranking a confirmed link
+    first, or treating a confirmed-unrelated request differently) is a L5b cause-selection decision.
+  - It needs labelled cases built from real-runner provenance, written before the 0.8B is measured on
+    them.
+  - L1 still owes the L4b explanation quality target and the owner's go/no-go. L1, L4b and L5b stay
+    `in_progress`. **L7 cannot be entered.**
+- **Do not:**
+  - call a request `linkedToFailedStep` because it was issued during the step or matches its URL. Only a
+    runner-held request is a link;
+  - move provenance into `payload`: that would change the dedupe key, the byte caps and every prompt;
+  - read `hasUserGesture` or `Sec-Fetch-User` as a link. User activation outlives a click by about 5 s.
+
+## HANDOFF (2026-09-22, superseded) — failure analysis knows which step each event came from; the 0.8B still ties the baseline
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`407d6080`):**

@@ -836,6 +836,14 @@ current and GO on all 8, with `failureAnalysisAtCap` still 120,389 ms.
   1,500-character evidence budget, so a line is dropped rather than the prompt growing past it. The two
   provenance requests measured 458–463 prompt tokens and 92–101 s at the cap.
 
+**Runtime request provenance (`3699617f`, 2026-09-22): still GO, not re-measured, because nothing it
+measures changed.**
+- The change is runtime-only: L5a's evidence events gain optional request provenance.
+- The failure-analysis request is built from payloads, ids and step stamps, none of which moved.
+  `verify:request-provenance` builds it from a real run with and without provenance and finds the prompt,
+  offered ids and tier byte-identical.
+- No model setting, deadline, output cap or benchmark ceiling was touched, and no model was run.
+
 #### `locatorUpgrade` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:locatorUpgrade` (now the product's request) and `verify:ai-locator-upgrade-live` at `4a846c41`
 
 **Root cause: the output cap, a prompt that was mostly delimiters, and an answer no small cap could hold.**
@@ -1223,6 +1231,17 @@ first. A line states its step only when the offered events span more than one.
 - The packet identity is unchanged, so the benchmark is current at GO on all 8.
 
 See L5 › "Step relevance, from the collector's step stamp".
+
+**Then (`3699617f`):** the runtime now records the provenance the step stamp lacked:
+
+- each request's stable id, the step it was issued in, its frame, and the failed step's target page
+  and frame;
+- a confirmed link for the requests the runner itself holds (its navigation's response, its response
+  wait's match).
+
+Nothing the model sees changed, and the ceiling was not re-measured. The failure-analysis request does
+not read the provenance yet: doing so is a cause-selection decision for L5b. See L5 › "Request-to-step
+provenance, recorded at runtime".
 
 **Still owed before L1 can be accepted:**
 

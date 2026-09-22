@@ -1,6 +1,62 @@
 # CURRENT_STATE
 
-## Failure analysis knows which step each event came from; the 0.8B still ties the baseline (2026-09-22, current)
+## Failure evidence records request-to-step provenance at runtime (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L5a provenance
+is not a ledger case).
+
+- **Traced first:**
+  - Playwright gives the collector one `Request` object across its request, response and failure
+    events.
+  - The context's `request` event fires at issue.
+  - The runner knows each step's page and holds some requests itself: its navigation's response, and
+    its response wait's match.
+  - Not observable without a parallel capture: which script call issued a request. User-gesture flags
+    outlive a click by about 5 s.
+- **The mechanism (`3699617f`):**
+  - Each `http.error`, `network.failed` and `page.errorDocument` event carries optional `request`
+    provenance:
+    - a stable id, kept across redirects, the response and a later transfer failure;
+    - the redirect count;
+    - the step and time of issue;
+    - a `navigation` or `responseWait` link when the runner holds the request.
+  - Each such event also carries `context.frame`.
+  - The failure record carries the failed step's target page and frame.
+  - The runner reports these through an optional `RunnerProgressReporter.observe`.
+  - The pure `requestRelations` classifies each request against the failed step:
+    - confirmed: `linkedToFailedStep`, `linkedToOtherStep`, `issuedBeforeFailedStep`,
+      `issuedAfterFailure`;
+    - uncertain: `duringFailedStep`, `offTargetDuringFailedStep`;
+    - otherwise `unknown`.
+  - Nothing is inferred from co-occurrence.
+- **Test Lab:** `/runner-lab` gains a Request provenance section: a slow request from the step before,
+  a same-page heartbeat, child-frame and popup requests, an awaited save plus an un-awaited audit, a
+  redirect, a truncated transfer and a cancelled lookup.
+- **Result, through the real engine:**
+  - Only the awaited save is linked to the failed step.
+  - The heartbeat and the audit (issued by the same click, awaited by nothing) are both uncertain.
+    Nothing observable separates them.
+  - Frame and popup requests are off target.
+  - A request issued one step earlier is confirmed as such, where the step stamp alone reads "failed
+    step".
+  - A request whose start the collector never saw is `unknown`.
+- **Unchanged, and proven on a real run:** step relations, the coalescing signature, the cause baseline,
+  and the failure-analysis request (prompt, offered ids, tier) are byte-identical with and without
+  provenance. An older report gets no relation.
+- **Not changed:** prompts, model, deadlines, output schemas, benchmark ceilings and cause selection.
+  The automatic analysis stays off. L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:request-provenance` (new, real engine + Chromium) | 59/0. Three mutations caught: identity 21, target page 7, issue step 8 failures |
+| `verify:mock-site` · `verify:ui-error-evidence` · `verify:runner` | 242/242 · 85/0 · 138/0 |
+| `verify:failure-capture-overhead` (21 rounds) | 18/0 PASS: paired medians fast −3 ms, evidence +14 ms, Node CPU −8 ms, bytes 3,941 ≤ 4,096 |
+| `verify:failure-cause-baseline` · `verify:ai-error-analysis` · `verify:failure-evidence` · `verify:run-report-compatibility` · `verify:flow-fragments` | 71/0 · 328/328 · 35/0 · 27/0 · 103/0 |
+| `verify:ai-fallback` · `verify:ai-redaction` | 38/0 · 52/0 |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` · `validate:offline` | 255 scripts · PASS · PASS · PASS |
+| Live model gates (`verify:ai-error-quality-live*`, `benchmark:ai-model-0-8b`) | NOT RUN: nothing the model sees changed (the request is proven byte-identical) |
+
+## Failure analysis knows which step each event came from; the 0.8B still ties the baseline (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

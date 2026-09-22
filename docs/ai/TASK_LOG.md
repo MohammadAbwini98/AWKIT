@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-09-22 — runtime request-to-step provenance for failure evidence (Claude)
+
+- **Task:** record reliable relationships between steps, their targets and network requests, separating
+  confirmed from uncertain, without changing prompts, the model or cause selection.
+- **Found:**
+  - Playwright's `Request` object is stable across its request, response and failure events, and
+    `redirectedFrom()` links a chain.
+  - The context's `request` event gives the issue time.
+  - The runner holds a navigation's response and a response wait's match.
+  - A request's initiating script call needs CDP, a parallel capture, so it is not recorded.
+  - The step stamp records when a request was answered, so a request issued one step earlier reads as
+    "failed step".
+- **Files:** `3699617f`:
+  - `src/runner/evidence/ExecutionEvidence.ts` (fields and `requestRelations`),
+    `FailureEvidenceCollector.ts`, `StepExecutor.ts`, `RunnerProgress.ts` and `ExecutionEngine.ts`;
+  - `mock-site/server.mjs`, `public/runner-lab.html` and `README.md`;
+  - `scripts/verify-request-provenance.mts` (new), `verify-mock-site.mjs`,
+    `lib/verifier-classification.ts` and `package.json`;
+  - the L5a overhead evidence JSON (run 4).
+
+  Then the L5 and L1 plans, COMMANDS, DECISIONS, CURRENT_STATE, HANDOFF, and notes on `awkit-djnl.8`
+  and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:request-provenance` 59/0, with mutations caught: identity 21, target page 7, issue step 8.
+  - `verify:mock-site` 242/242, `verify:ui-error-evidence` 85/0, `verify:runner` 138/0.
+  - `verify:failure-capture-overhead` 18/0 PASS.
+  - `verify:failure-cause-baseline` 71/0, `verify:ai-error-analysis` 328/328, `verify:failure-evidence`
+    35/0, `verify:run-report-compatibility` 27/0, `verify:flow-fragments` 103/0.
+  - `verify:ai-fallback` 38/0, `verify:ai-redaction` 52/0.
+  - `verify:verifier-classification` 255, `typecheck:scripts` PASS, build PASS, `validate:offline` PASS.
+  - `verify:roadmap-dashboard` 177/177 "Sources agree" on both rounds: 9 outstanding / 294 closed, 135
+    edges.
+  - NOT RUN: the live model gates. Nothing the model sees changed, and the request is proven
+    byte-identical.
+- **Result:** implemented and verified. A request the failed step holds is distinguishable from
+  same-step background activity. An un-awaited request from the action stays uncertain, like background
+  activity, because nothing observable separates them.
+
 ## 2026-09-22 — failure-analysis step relevance from the collector's step stamp, measured on the real 0.8B (Claude)
 
 - **Task:** improve cause selection with deterministic step-to-evidence relevance, and re-measure

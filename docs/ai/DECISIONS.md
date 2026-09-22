@@ -1,6 +1,41 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5b: failure-analysis relevance comes from the collector's step stamp (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L5a: request-to-step provenance is recorded, and only a runner-held request is a confirmed link (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:**
+  - Record reliable relationships between steps, their targets and network requests.
+  - Distinguish confirmed relationships from uncertain associations, and never attribute a request to a
+    step because it occurred during it.
+  - Keep new fields optional, add no parallel network capture, and change no prompt, model setting or
+    cause-selection rule.
+- **Implementer's choices within it:**
+  - **Identity is Playwright's own `Request` object.** It is the same object across the `request`,
+    `response` and `requestfailed` events, and `redirectedFrom()` links a chain. So one id covers a
+    redirect, a response and a later transfer failure, with no URL matching.
+  - **Issue time comes from the context's `request` event.** This is one more subscription per
+    generation, measured inside the overhead gate.
+  - **The only confirmed request-to-step link is a request the runner itself holds:** the response its
+    navigation returned, or the response its response wait matched. Time ordering gives two more
+    confirmed facts: issued before the failed step, or after its failure. Everything else issued during
+    the failed step stays uncertain: on target, off target, or unknown.
+  - **CDP initiators and user-gesture flags were rejected.** The first needs a second, per-page network
+    capture. The second outlives the click by about 5 s, so it is time association again.
+  - **The failed step's target** is the page the runner bound for it. The frame comes from the step's
+    definition. Which child frame a frame-chain step acted in is not recorded, so child against child
+    stays on target.
+  - **Provenance is fixed-shape metadata beside `context`,** not payload. So it never enters the prompt,
+    the dedupe key or the payload byte caps, and it describes an event's first occurrence like every
+    other field.
+- **Outcome:**
+  - `verify:request-provenance` 59/0: a same-page background request and an un-awaited request from the
+    same action are both uncertain, only the awaited save is linked, and a request issued one step
+    earlier is confirmed as such.
+  - The failure-analysis request is byte-identical with and without provenance.
+  - Overhead gate 18/0 PASS.
+- **Not decided here:** whether the failure-analysis request reads `requestRelations`. That is a
+  cause-selection change for L5b and needs labelled cases built from real-runner provenance first.
+
+### 2026-09-22 — Phase L L5b: failure-analysis relevance comes from the collector's step stamp (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:** improve cause selection from step-to-evidence relevance.
   - Use only real runtime metadata.

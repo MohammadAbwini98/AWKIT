@@ -703,6 +703,134 @@ where the baseline's window is wrong, and it would infer cause from step order.
 **What would change the result** is not a prompt: a model that reasons over the step, or runtime
 provenance the product does not record (a request's initiating action, the failed step's page).
 
+### Request-to-step provenance, recorded at runtime (2026-09-22, `3699617f`)
+
+L5a now records the runtime provenance the step stamp lacked. No prompt, model setting, deadline,
+grammar, baseline or cause-selection rule changed, and the automatic analysis stays off.
+
+**Traced first: what Playwright and the runner can observe.**
+
+- **Observable, and now recorded:**
+  - **Request identity.** Playwright passes the collector the same `Request` object in its `request`,
+    `response` and `requestfailed` events. `redirectedFrom()` links a redirect hop to its chain.
+  - **When a request was issued.** The context's `request` event fires at issue. The existing step stamp
+    (`context.stepIndex`) records when it was answered, which can be steps later.
+  - **The request's page and frame**, from `request.frame()`.
+  - **The failed step's target.** The runner already knows the page it bound for the step
+    (`resolveStepPage`). The frame comes from the step's own definition: a locator with no frame chain
+    resolves in the main frame, one with a chain in a child frame, and a `goto` loads the main frame.
+  - **The requests the runner itself holds.** These are the response a `goto` or `routeChange`
+    navigation returned, and the response a response wait matched (`validateResponseStatus`, the single
+    path for armed, deferred and before-action response waits).
+- **Not observable without a second capture system, so not recorded:**
+  - which script call or DOM event issued a request. CDP's `requestWillBeSent.initiator` needs a CDP
+    session per page, which would be a parallel network capture;
+  - `hasUserGesture` and `Sec-Fetch-User` do not tie a request to the action either: user activation
+    lasts about 5 s after any click;
+  - which child frame a frame-chain step acted in. Only that it was a child frame is known.
+
+**The mechanism (`ExecutionEvidence.ts`, `FailureEvidenceCollector.ts`, `StepExecutor.ts`):**
+
+| Where | Field | Meaning |
+|---|---|---|
+| `http.error`, `network.failed`, `page.errorDocument` | `request.id` | `rq<N>`, one per request, kept across its redirect hops, its response and a later transfer failure |
+| | `request.redirects` | hops before the one this event describes |
+| | `request.issuedStepIndex`, `issuedAtOffsetMs` | the step execution and evidence-clock time at issue (0: before the first step). Absent when the start was not seen |
+| | `request.link`, `linkStepIndex` | `navigation` or `responseWait`: the runner holds this request for that step. **The only confirmed link** |
+| | `context.frame` | `main` or `child` frame of the event's page |
+| `runner.failure` | `context.pageId`, `context.frame` | the page and frame the failed step acted on |
+
+- **The seam:** the runner reports through an optional `RunnerProgressReporter.observe`, the progress
+  reporter it already passes to every executor. This call is synchronous and never throws into a step,
+  and `observe` data is never sent to the renderer.
+- **The classifier:** the pure `requestRelations(events, failed?)` reads these fields against the failed
+  step, by default the last runner record:
+
+| Relation | Class | When |
+|---|---|---|
+| `linkedToFailedStep` | confirmed | the failed step's navigation returned it, or its response wait matched it |
+| `linkedToOtherStep` | confirmed | another step's navigation or response wait holds it |
+| `issuedBeforeFailedStep` | confirmed | issued before the failed step began, so not by its action (it may have been answered during it, and may still be a precondition) |
+| `issuedAfterFailure` | confirmed | issued after the failure was recorded |
+| `duringFailedStep` | uncertain | issued while the failed step ran, on its target page and frame, or with the target unknown |
+| `offTargetDuringFailedStep` | uncertain | issued while the failed step ran, from another page or frame |
+| `unknown` | — | its start was not observed, or the failure record has no step |
+
+Nothing is inferred from co-occurrence: a request issued during the failed step with no link stays
+uncertain, whatever its URL, status or timing.
+
+**Results through the real engine (`verify:request-provenance`, 59/0).** The run used real Chromium,
+`StepExecutor` and the production collector against the Runner Lab's new Request provenance section,
+read back from `report.json`. In one failing checkout, step 4 clicks Save with a response wait on the
+save endpoint:
+
+| Request | Step stamp (answered) | Issued | Provenance relation |
+|---|---|---|---|
+| save 500, the step's response wait matched it | 4 | 4 | **`linkedToFailedStep`**, the only one |
+| audit 500, issued by the same click, awaited by nothing | 4 | 4 | `duringFailedStep` |
+| heartbeat 503, a same-page timer | 4 | 4 | `duringFailedStep` |
+| widget 500, from a child frame | 4 | 4 | `offTargetDuringFailedStep` |
+| popup 500, from another page | 4 | 4 | `offTargetDuringFailedStep` |
+| inventory 502, issued by the step before | **4** | **3** | `issuedBeforeFailedStep`, where `stepRelations` says `failedStep` |
+
+- **The failed step's own navigation:** a `goto` answered 503 and its after-wait failed. The error
+  document is `linkedToFailedStep` through `navigation`.
+- **Redirect:** the 302 to a 500 is `redirects: 1`, keeps its chain's issue step, and is linked to the
+  step whose response wait matched it.
+- **Truncated transfer:** HTTP 500 headers followed by a dropped connection
+  (`net::ERR_CONTENT_LENGTH_MISMATCH`). This gives two events (`http.error` and `network.failed`) with
+  one request id.
+- **Cancelled request:** a request the page aborted leaves no event, as before (`ERR_ABORTED` is not a
+  failure).
+- **Missing start:** the production collector was attached to a real page after it had issued a
+  request. That request has an id and no issue, so its relation is `unknown`, not guessed from when it
+  was answered.
+- **Mutation-tested:**
+  - identity not cached: 21 failures;
+  - failed step's target not recorded: 7;
+  - issue step taken at completion: 8.
+
+**What it cannot tell apart, by design:** the audit (caused by the action) and the heartbeat
+(background) are the same class, because nothing observable separates them. A response wait on the
+endpoint the step depends on turns its request into a confirmed link.
+
+**Compatibility, privacy and cost:**
+
+- **Compatibility:**
+  - Every new field is optional, and `EVIDENCE_SCHEMA_VERSION` stays 1.
+  - An older report gets no relation at all: the verifier strips the fields from a real report to check
+    this.
+  - With and without provenance, these are byte-identical: step relations, the coalescing signature, the
+    deterministic baseline, and the failure-analysis request (prompt, offered ids, tier). The labelled
+    set and the benchmark packet never pass through the collector.
+- **Privacy:**
+  - Provenance holds ids, counts, offsets and link kinds only. No URL, header, cookie or body is kept.
+  - The payload path (redaction, rescan, path templates) is unchanged.
+  - Protected-login exclusion is unchanged, and provenance has no text of its own.
+- **Size:**
+  - Provenance is fixed-shape metadata, like `context`. It is about 130 bytes per request event and is
+    not counted in the payload byte caps.
+  - The event caps (50 per source) bound it to about 20 KB per instance.
+- **Overhead** (`verify:failure-capture-overhead`, 18/0 PASS, 21 rounds, run 4 in the evidence file):
+  - paired median deltas: fast −3 ms [−47, 37], evidence +14 ms [−35, 50], Node CPU −8 ms
+    [−31.5, 23.5];
+  - evidence bytes per instance 3,941 ≤ 4,096;
+  - the `request` subscription is one per browser generation, and it records facts only for the resource
+    types whose failure is ever kept.
+
+**Known limits:**
+
+- **Folding:** an event describes its first occurrence. A linked request folded into an earlier
+  identical event (same method, path and status) is counted in `repeatCount`, not described.
+- **Parallel branches:** they share the instance's single step stamp. Links use each step's own latest
+  execution index, and a target is recorded only for the step the collector considers current.
+- **Failed navigations:** a navigation that throws (for example a transport failure) returns no
+  `Response`, so that navigation's own request is not linked. `apiPolling` waits are not linked either.
+
+**Not done here, on purpose:** the failure-analysis request does not read `requestRelations` yet.
+Ranking a confirmed link first, or treating a confirmed-unrelated request differently, is a
+cause-selection change: it needs labelled cases built from real-runner provenance before it is measured.
+
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
   Never before terminal outcome.
@@ -731,7 +859,9 @@ latency, privacy correctness.
 New `verify:ui-error-evidence`, `verify:failure-capture-overhead`, `verify:failure-cause-baseline`,
 `verify:ai-error-analysis` (its last section audits the live labelled set and its judge), live
 `verify:ai-error-quality-live` (built, 13/0 on the real 0.8B; since `c44a6e2c` the extended set runs as
-`-part1` 11/0 and `-part2` 9/0, twice; since `407d6080` also `-provenance` 6/0, twice). Existing: `verify:failure-evidence(-live)`,
+`-part1` 11/0 and `-part2` 9/0, twice; since `407d6080` also `-provenance` 6/0, twice), and
+`verify:request-provenance` (59/0 since `3699617f`: runtime request-to-step provenance through the real
+engine). Existing: `verify:failure-evidence(-live)`,
 `verify:run-report-compatibility`, `verify:telemetry`, `verify:reports`, `verify:runner`, `verify:mock-site`,
 `validate:offline`, `npm run build`. Mock-site scenarios for each signal and a fast `<3s` run with zero model calls.
 
