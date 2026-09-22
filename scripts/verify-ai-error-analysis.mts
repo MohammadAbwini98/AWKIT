@@ -24,6 +24,9 @@
  *     redacted and rescanned first, never resurrecting a report deleted meanwhile, and deletable
  *     through any coalesced member back to the report the run wrote, byte for byte.
  *
+ * The last section audits the labelled set `verify:ai-error-quality-live` sends to the real model, and
+ * runs its judge's controls.
+ *
  * Run: npm run verify:ai-error-analysis
  */
 import { mkdtemp } from "node:fs/promises";
@@ -58,6 +61,7 @@ import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 import { analyzeFailure, deleteFailureAnalysis, failureBatch, type FailureAssistDeps, type FailureReportAccess } from "../app/main/ai/aiAssist";
 import { LARGEST_FAILURE, failedRun, failureAnalysisPacket } from "./ai-harness/failureAnalysisPacket";
+import { CANARY as ERROR_CANARY, ERROR_SET, L5_LABELLED_ITEMS, buildCase, errorControlFailures, requestFor as labelledRequestFor } from "./ai-harness/errorQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -910,6 +914,38 @@ check("...the model is never called", leakedHost.fake.inferRequests().length ===
 check("...none of the header reaches the renderer", !JSON.stringify(leakedView).includes("PRIVATE KEY"));
 check("...and the report is left exactly as it was, with nothing saved", JSON.stringify(await reportStore.get("exec-legacy")) === leakedBefore);
 await leakedHost.service.shutdown();
+
+console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judge");
+{
+  const covered = new Set(ERROR_SET.flatMap((c) => c.covers));
+  check("the set realises every item of L5's labelled set", L5_LABELLED_ITEMS.every((item) => covered.has(item)) && covered.size === L5_LABELLED_ITEMS.length, JSON.stringify([...covered]));
+  for (const labelled of ERROR_SET) {
+    const { report, labels } = buildCase(labelled);
+    const stats = coalesceFailures(failureBatch(report)).stats;
+    check(`${labelled.id}: the batch coalesces as labelled`, JSON.stringify(stats) === JSON.stringify(labelled.batch), JSON.stringify(stats));
+    for (const row of labelled.ask) {
+      const instance = report.instances[row];
+      const cause = instance.diagnostics?.cause?.cause ?? null;
+      check(`${labelled.id} row ${row + 1}: L5a's deterministic cause is ${labelled.baselineCause}`, cause === labelled.baselineCause, String(cause));
+      const request = labelledRequestFor(report, instance.instanceId);
+      check(`${labelled.id} row ${row + 1}: it ${labelled.expectsCall ? "earns" : "never earns"} a model call`, Boolean(request) === labelled.expectsCall);
+      if (!request) continue;
+      const label = labels.get(instance.instanceId)!;
+      const offered = new Set(request.evidence.map((event) => event.id));
+      check(`${labelled.id} row ${row + 1}: every labelled event is offered, so the model can cite it or be judged for not doing so`, label.cause.length > 0 && [...label.cause, ...label.unrelated].every((id) => offered.has(id)), JSON.stringify({ label, offered: [...offered] }));
+      const prompt = buildAiPrompt(request.prompt, new SemanticRedactor(), "0123456789abcdef");
+      check(`${labelled.id} row ${row + 1}: the canary never reaches the prompt`, prompt.ok && !`${prompt.system}\n${prompt.user}`.toUpperCase().includes(ERROR_CANARY));
+    }
+  }
+  check("(precondition) the canary really is in what the cases carry", ERROR_SET.filter((c) => JSON.stringify(c.rows).includes(ERROR_CANARY)).length >= 3);
+  const burst = buildCase(ERROR_SET.find((c) => c.id === "burst")!);
+  check("the duplicate burst folds into one event with a repeat count of 3", burst.report.instances[0].diagnostics?.evidence.some((event) => event.source === "ui.toast" && event.repeatCount === 3) === true);
+  const noise = buildCase(ERROR_SET.find((c) => c.id === "transport-noise")!);
+  const noiseRequest = labelledRequestFor(noise.report, noise.report.instances[0].instanceId)!;
+  const noisePrompt = buildAiPrompt(noiseRequest.prompt, new SemanticRedactor(), "0123456789abcdef");
+  const controls = noisePrompt.ok ? errorControlFailures(noiseRequest, noise.labels.get(noise.report.instances[0].instanceId)!, noisePrompt) : ["the prompt did not build"];
+  check("the judge's controls all hold (right, wrong, mixed, wrong baseline, canary both ways, unknown id, runner as cause, decline)", controls.length === 0, controls.join("; "));
+}
 
 console.log(`\nL5b failure intelligence: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

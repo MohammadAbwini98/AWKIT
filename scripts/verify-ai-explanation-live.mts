@@ -20,6 +20,8 @@
  *     (scripts/ai-harness/locatorQualityLive.ts).
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
  *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts).
+ *   - errorQuality: `analyzeFailure` over L5's labelled set, each row delivered and saved with no canary
+ *     leaked, L5's metrics recorded (scripts/ai-harness/errorQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
  *
  * NOT RUN (exit 0) without the runtime or the pack at ~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf. A pack that
@@ -27,7 +29,7 @@
  * root; `AI_MODEL_MANIFEST` is not touched.
  *
  * Run: npm run verify:ai-explanation-live | verify:ai-failure-analysis-live | verify:ai-locator-upgrade-live
- *      | verify:ai-locator-quality-live | verify:ai-authoring-quality-live
+ *      | verify:ai-locator-quality-live | verify:ai-authoring-quality-live | verify:ai-error-quality-live
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -57,7 +59,9 @@ const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs
   // time on this host, so it gets what the 600 s tool ceiling leaves after the build and the launch.
   locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true },
   // hello, the control, 6 labelled cases, the set's verdict. Six explanations at ~50–90 s each.
-  authoringQuality: { mode: "authoringQuality", steps: 9, timeoutMs: 575_000 }
+  authoringQuality: { mode: "authoringQuality", steps: 9, timeoutMs: 575_000 },
+  // hello, the control, 9 labelled cases (8 model calls, 2 rows with none), the set's verdict.
+  errorQuality: { mode: "errorQuality", steps: 12, timeoutMs: 575_000 }
 });
 
 /** The Feature Test Lab on a free loopback port, for the modes that drive a real page. */

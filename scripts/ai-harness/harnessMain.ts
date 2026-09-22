@@ -22,6 +22,8 @@
  *     Feature Test Lab and judged by the page (scripts/ai-harness/locatorQualityLive.ts).
  *   - authoringQuality: the real model's validation explanations over L4b's labelled set, through
  *     `explainFlowValidation` (scripts/ai-harness/authoringQualityLive.ts).
+ *   - errorQuality: the real model's failure analyses over L5's labelled set, through `analyzeFailure`
+ *     (scripts/ai-harness/errorQualityLive.ts).
  *   - failureAnalysisBudget / locatorUpgradeBudget: that request's prompt and longest acceptable answer,
  *     counted on the pack's own tokenizer, vocabulary only (scripts/ai-harness/failureAnalysisBudget.ts,
  *     scripts/ai-harness/locatorUpgradeBudget.ts).
@@ -54,6 +56,7 @@ import {
 
 import { runAuthoringQualityLive } from "./authoringQualityLive";
 import { runBench } from "./bench";
+import { runErrorQualityLive } from "./errorQualityLive";
 import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
 import { runLocatorQualityLive } from "./locatorQualityLive";
@@ -775,6 +778,7 @@ async function run(): Promise<void> {
     else if (mode === "locatorUpgrade") await runLocatorUpgradeLive({ step, record, makeLiveContext });
     else if (mode === "locatorQuality") await runLocatorQualityLive({ step, record, makeLiveContext });
     else if (mode === "authoringQuality") await runAuthoringQualityLive({ step, record, makeLiveContext });
+    else if (mode === "errorQuality") await runErrorQualityLive({ step, record, makeLiveContext });
     else if (mode === "failureAnalysisBudget") await runFailureAnalysisBudget({ step, record });
     else if (mode === "locatorUpgradeBudget") await runLocatorUpgradeBudget({ step, record });
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });

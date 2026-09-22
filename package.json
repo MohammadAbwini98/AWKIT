@@ -311,6 +311,7 @@
     "verify:ai-locator-upgrade-budget": "tsx scripts/verify-ai-failure-analysis-budget.mts --feature locatorUpgrade",
     "verify:ai-locator-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature locatorQuality",
     "verify:ai-authoring-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality",
+    "verify:ai-error-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature errorQuality",
     "verify:ai-inference-profile": "tsx scripts/verify-ai-inference-profile.mts",
     "benchmark:ai-model": "tsx scripts/benchmark-ai-model.mts",
     "benchmark:ai-model-2b": "tsx scripts/benchmark-ai-model.mts --pack Qwen3.5-2B-Q4_K_M.gguf",
