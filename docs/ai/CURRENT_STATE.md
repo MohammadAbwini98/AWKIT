@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## The Qwen3.5-0.8B pack is pinned, and `verify:ai-model-live` passes on it: 23/0 (2026-09-22, current)
+## `verify:ai-authoring-quality-live` is built: the 0.8B explains L4b's labelled set, 10/0 (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **The gate (`1126c1b6`):**
+  - L4b's labelled set: six broken flows, two issues each, twelve L4a codes and both fix kinds.
+  - Each goes through `explainFlowValidation`, the production `AiService` and the real host.
+  - Judged hard: the product's own request with the labelled codes, the 125 s deadline, every issue
+    explained, and no planted canary or residual secret in the prompt or an answer.
+  - Recorded, not judged: on-subject and misattribution proxies, cut texts, ranking. No plan sets a
+    target for them.
+  - Controls: six scripted answers. They run in `verify:ai-authoring` §11 and first in the live gate,
+    which they end on failure.
+- **Result, one run:** 6/6 delivered, 12/12 explained, 0 leaks, 12/12 on subject, 0 misattributed,
+  1 text at the 160-character limit, and 0 of 3 fixable issues ranked. Answers took 44.5–60.0 s.
+- **Findings:**
+  - The model never used the optional ranking, so L4b's T1 fix order is empty in practice.
+  - The on-subject proxy is coarse: common words make 12/12 an upper bound.
+  - One run is one sample under the random prompt nonce.
+- **Still owed for L1:**
+  - `verify:ai-error-quality-live`, not built;
+  - an L4b explanation quality target, which L4's acceptance requires before release;
+  - the owner's go/no-go.
+
+  L1 and L4b stay `in_progress`. **L7 cannot be entered.** No `src/` or `app/` change.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring-quality-live` (new, real 0.8B) | 10/0 |
+| `verify:ai-authoring` (new §11) | 148/148 (was 125) |
+| `verify:verifier-classification` · `typecheck:scripts` | 250 scripts · PASS |
+| `npm run build` | NOT RUN: no `src/` or `app/` input changed since its PASS at `d6b306f0` |
+| `verify:ai-explanation-live` | NOT RUN: its launcher gained one feature entry, and its own path is unchanged |
+
+## The Qwen3.5-0.8B pack is pinned, and `verify:ai-model-live` passes on it: 23/0 (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).

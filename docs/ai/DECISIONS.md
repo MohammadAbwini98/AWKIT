@@ -1,6 +1,23 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L1.2: the Qwen3.5-0.8B pack is pinned beside the 4B (`awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L4b: the real-model authoring quality gate (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:** build `verify:ai-authoring-quality-live`.
+- **Implementer's choices within it:**
+  - **The product's contract is hard; quality is recorded.** Hard: the product's own request with the
+    labelled codes, its deadline, delivery with every issue explained, no canary and no residual
+    secret. The on-subject and misattribution rates are evidence: L4's acceptance asks for a target
+    before release, and none is recorded, so inventing one here would be a pass mark nobody set.
+  - **A labelled set, not one flow.** Six flows, two issues each: twelve L4a codes, both severities and
+    both fix kinds. Each case sends two different codes, so attribution between them can be judged.
+  - **The judge is a proxy, and says so.** Model text is never recorded, so relevance is "names its
+    issue's subject" by a per-code pattern written before any model output was seen. The three the
+    benchmark packet already used are unchanged.
+  - **The set lives Electron-free**, so `verify:ai-authoring` audits its sent codes and runs the judge's
+    controls without a model, and the live gate runs the same controls first.
+- **Not decided here:** the L4b quality target itself, and what to do about a model that never ranks.
+
+### 2026-09-22 — Phase L L1.2: the Qwen3.5-0.8B pack is pinned beside the 4B (`awkit-djnl.1`)
 
 - **Owner instruction, in session:** pin the 0.8B pack and run `verify:ai-model-live` on it.
 - **Implementer's choices within it:**

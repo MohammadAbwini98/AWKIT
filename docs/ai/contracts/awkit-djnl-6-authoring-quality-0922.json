@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-6-authoring-quality-0922",
+    "title": "Record the real-model authoring quality gate on L4b and L1",
+    "objective": "At 1126c1b6 verify:ai-authoring-quality-live sends L4b's labelled set (six flows, two issues each, twelve L4a codes, both fix kinds) through explainFlowValidation on the real Qwen3.5-0.8B and passes 10/0: 6 of 6 delivered, 12 of 12 explained, no canary or residual secret, 12 of 12 on subject by the proxy, 0 misattributed, 0 of 3 fixable issues ranked. Append a note to awkit-djnl.6 and to awkit-djnl.1 giving the gate, the result and what stays open (no explanation quality target is recorded, which L4b's acceptance criteria require; verify:ai-error-quality-live not built; the owner's go/no-go). Refresh the JSONL export. Nothing closes: both stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "1126c1b6",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.6 and awkit-djnl.1 stay in_progress, each with a note naming the gate commit and its live result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after the two `bd update --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents: 9 outstanding / 294 closed with 135 edges, unchanged, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-6-authoring-quality-0922:project-state:2026-09-22T10:51:51.821Z",
+        "task": "awkit-djnl-6-authoring-quality-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T10:51:51.821Z",
+        "acquired_at_commit": "1126c1b6f3613606b5232bb36305290380c2183d",
+        "released_at": "2026-09-22T10:52:30.805Z",
+        "released_reason": "authoring quality gate noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

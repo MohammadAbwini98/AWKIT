@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-22 — verify:ai-authoring-quality-live: L4b's labelled set on the real 0.8B (Claude)
+
+- **Task:** build `verify:ai-authoring-quality-live`.
+- **Found:**
+  - No explanation quality target exists (L4's acceptance asks for one), so rates are recorded, not
+    judged.
+  - The benchmark's flow sends `unsupportedOperator` twice, so it cannot test attribution; the casing
+    case has its own flow.
+  - On the real 0.8B the optional ranking was never used.
+- **Files:** `1126c1b6`:
+  - new `scripts/ai-harness/authoringQualitySet.ts` and `authoringQualityLive.ts`;
+  - `harnessMain.ts`, `scripts/verify-ai-explanation-live.mts` (`authoringQuality`),
+    `scripts/verify-ai-authoring.mts` (§11), `scripts/lib/verifier-classification.ts`, `package.json`.
+
+  Then the L4 and L1 plans, COMMANDS, DECISIONS, CURRENT_STATE, HANDOFF, and notes on `awkit-djnl.6`
+  and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-authoring-quality-live` 10/0 (one run).
+  - `verify:ai-authoring` 148/148 · `verify:verifier-classification` 250 · `typecheck:scripts` PASS.
+  - NOT RUN: `npm run build` (no `src/`/`app/` change since its PASS) and `verify:ai-explanation-live`
+    (its path is unchanged).
+- **Result:** built and PASS. L1 still owes `verify:ai-error-quality-live`, an L4b quality target and the
+  go/no-go.
+
 ## 2026-09-22 — Qwen3.5-0.8B pinned in AI_MODEL_MANIFEST; verify:ai-model-live on it (Claude)
 
 - **Task:** pin the 0.8B pack and run `verify:ai-model-live` on it.

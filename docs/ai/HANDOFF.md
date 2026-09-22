@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — the Qwen3.5-0.8B pack is pinned; `verify:ai-model-live-0-8b` 23/0
+## HANDOFF (2026-09-22, latest) — `verify:ai-authoring-quality-live` built; the 0.8B explains L4b's labelled set, 10/0
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`1126c1b6`):**
+  - The labelled set and its judge are in `scripts/ai-harness/authoringQualitySet.ts`, audited by
+    `verify:ai-authoring` §11 (148/148).
+  - The live mode is `scripts/ai-harness/authoringQualityLive.ts`.
+  - Result: 10/0. 12/12 issues explained, 0 leaks, 12/12 on subject, 0 misattributed, 0 of 3 fixable
+    issues ranked.
+  - Details are in L4 › "The live quality gate as built".
+- **Not done, and owner decisions:**
+  - An L4b explanation quality target: L4's acceptance requires one before release, and none is
+    recorded.
+  - `verify:ai-error-quality-live` is not built.
+  - The go/no-go, and whether the 4B stays pinned. L1 and L4b stay `in_progress`. **L7 cannot be
+    entered.**
+- **Do not:**
+  - tune `SUBJECT` to a run's output. It was written before any model text was seen, and a rate is
+    evidence, not a pass mark.
+  - read one run's rate as the model's: the prompt nonce is random.
+  - add cases without timing the run: six take ~5.5 min inside the 10-minute tool limit.
+
+## HANDOFF (2026-09-22, superseded) — the Qwen3.5-0.8B pack is pinned; `verify:ai-model-live-0-8b` 23/0
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**

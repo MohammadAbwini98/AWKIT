@@ -447,7 +447,8 @@ counts, never text. A refused answer fails the step.
 - 116 characters each, 0 residual secrets, nothing ranked (the ranking is optional).
 - `stop` at 151 of 192 tokens: the answer ended by itself, not at the cap.
 - **Limit of this evidence:** model text is never recorded, so "actionable" rests on these proxies,
-  not on a person reading the answers. `verify:ai-authoring-quality-live` is still not built.
+  not on a person reading the answers. `verify:ai-authoring-quality-live` is still not built. *(Built
+  at `1126c1b6`: L4 › "The live quality gate as built".)*
 
 **Margin.** 88,288 ms is 26 % under the ceiling. *Projection, not evidence:* at the slowest rates this
 host has shown for this pack (prompt 9.4 tok/s, decode 2.55 tok/s), 334 tokens plus the 192-token cap
@@ -1159,11 +1160,16 @@ stand-in any more. Real model plans are now proven on real pages: `verify:ai-loc
 `AI_MODEL_MANIFEST` with its license notice, and `AI_RUNTIME_PIN.build` was already set.
 `verify:ai-model-pack` is 46/0 with 2 pinned packs, and `verify:ai-model-live-0-8b` is 23/0.
 
+**Also done since (`1126c1b6`):** `verify:ai-authoring-quality-live` is built and 10/0 on the 0.8B. It
+sends L4b's labelled set of six flows, twelve issues and both fix kinds. All six answers were delivered
+and all twelve issues explained with no leak, and 12/12 were on subject by the proxy. No explanation
+quality target is recorded; see L4 › "The live quality gate as built".
+
 **Still owed before L1 can be accepted:**
 
-1. The other live quality gates: `verify:ai-authoring-quality-live` and `verify:ai-error-quality-live`,
-   neither built.
-2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned.
+1. The last live quality gate, `verify:ai-error-quality-live`, not built.
+2. An explanation quality target for L4b, which L4's acceptance requires before release.
+3. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 

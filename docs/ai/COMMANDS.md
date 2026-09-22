@@ -490,6 +490,12 @@ npm run verify:ai-locator-quality-live
                                   # the twins refused after a real second attempt, >= 1 plan browser-proven.
                                   # Five scripted controls run first and stop the run if one fails. ~9 min,
                                   # inside the 10-minute tool limit. NOT RUN without runtime + pack (14)
+npm run verify:ai-authoring-quality-live
+                                  # the same launcher: L4b's labelled set (6 flows, 12 issues, both fix kinds)
+                                  # through explainFlowValidation on the real 0.8B. Hard: the product's request,
+                                  # its 125 s deadline, every issue explained, no canary or residual secret.
+                                  # Recorded: on-subject and misattribution proxies, cut texts, ranking. A
+                                  # scripted control of the judge runs first. ~5.5 min. NOT RUN without pack (10)
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every

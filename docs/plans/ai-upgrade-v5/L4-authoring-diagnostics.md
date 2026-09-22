@@ -52,9 +52,10 @@ design-time data-source/secret reference checks (needs a library context like `r
 **Status (2026-09-21): the contract is BUILT** — `src/ai/authoringExplanation.ts`, proven by
 `verify:ai-authoring` (55/55, three mutations caught) over the real `FlowValidator`, the real
 `AiService` and the real output contract with a deterministic transport. **The renderer surface was built
-the same day** (see "L4b renderer surface as built"). `awkit-djnl.6` is `in_progress`: the live quality
-gate and a live-model caller are not built, and the milestone cannot close under the conditional
-development authorization.
+the same day** (see "L4b renderer surface as built"). `awkit-djnl.6` is `in_progress`: a live-model caller is not built, the
+explanation quality target is not recorded, and the milestone cannot close under the conditional
+development authorization. The live quality gate `verify:ai-authoring-quality-live` is built (2026-09-22,
+10/0; see "The live quality gate as built").
 
 ### L4b as built
 
@@ -84,8 +85,48 @@ development authorization.
 - **Mutation-tested three for three:** allowing a ranking of an unemitted fix → 54/55; widening the
   ranking enum to every issue id → 54/55; sending the validator message instead of the rule summary →
   51/55 (caught by four separate privacy assertions).
-- **Not built:** `verify:ai-authoring-quality-live`, and a live-model caller, for the same L1-gated reason
-  as L3 §7–§9. (The renderer surface was built on 2026-09-21 — below.)
+- **Not built:** a live-model caller, for the same L1-gated reason as L3 §7–§9. (The renderer surface
+  was built on 2026-09-21, and `verify:ai-authoring-quality-live` on 2026-09-22, both below.)
+
+### The live quality gate as built (2026-09-22, `1126c1b6`)
+
+- **What it sends:** L4b's labelled set (`scripts/ai-harness/authoringQualitySet.ts`), six broken flows
+  with two issues each. Together they cover twelve L4a codes and both fix kinds:
+  - `unsupportedOperator` + `unsupportedConfiguration` (both `normalizeEnumCasing`);
+  - `missingRequiredLocator` + `unreachableNode`;
+  - `incompleteBranchPair` + `incompleteCondition`;
+  - `unguardedCycle` + `connectorFromEndNode`;
+  - `missingRequiredValue` + `incompleteValueSource`;
+  - `duplicateEdgeId` (`regenerateId`) + `highTimeout`.
+
+  Each goes through `explainFlowValidation`, the production `AiService` and the real host, on the
+  real Qwen3.5-0.8B. The flows' names and values carry a canary the product never sends.
+- **Judged hard:**
+  - the request is the one the product builds, and it sends the labelled codes;
+  - the inference gets the feature's own 125 s deadline;
+  - the answer is delivered with every sent issue explained;
+  - no canary reaches the prompt or an answer, and no residual secret appears.
+- **Recorded, not judged** (no target exists; see "Acceptance"):
+  - whether each explanation names its own issue's subject (`SUBJECT`, a per-code proxy written before
+    any model output was seen);
+  - whether it describes another sent issue instead;
+  - texts ended by the 160-character limit;
+  - the ranking.
+- **Controls:** six scripted answers (correct, swapped, vague, canary, partial, a ranking of an
+  unemitted fix) run first and end the run if the judge misreads one. `verify:ai-authoring` §11 runs the
+  same controls without a model and audits every case's sent codes.
+- **Result, one run:** 10/0. All 6 cases were delivered and all 12 issues explained, with no canary and
+  no residual secret, at 44.5–60.0 s per answer.
+  - Quality: 12/12 on subject, 0 misattributed.
+  - 1 text ended at the limit.
+  - **0 of 3 fixable issues ranked**: the model never used the optional ranking, so the T1 fix order
+    stays empty.
+- **What it does not show:**
+  - **A person's judgement.** The on-subject proxy is coarse: several subjects (value, time, source)
+    are common words, so 12/12 is an upper bound on relevance. It does catch an explanation that
+    ignores its issue, and swapped texts, as the controls prove.
+  - **A stable rate.** One run, and `AiService`'s random prompt nonce varies answers between runs.
+  - **The explanation quality target L4's acceptance requires.** It is still not recorded.
 
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
@@ -124,7 +165,8 @@ Apply / Show on Canvas / Dismiss.
 ## Verifiers
 
 `verify:authoring-diagnostics` (every family, Flow/Workflow parity, legacy profiles), `verify:ai-authoring`
-(fake provider: unknown IDs rejected, non-emitted fix rejected), live `verify:ai-authoring-quality-live`;
+(fake provider: unknown IDs rejected, non-emitted fix rejected; §11 audits the live labelled set and its judge), live
+`verify:ai-authoring-quality-live` (built, 10/0 on the real 0.8B);
 existing validation, legacy-compat and profile-store gates; `npm run build`.
 
 ## Acceptance
