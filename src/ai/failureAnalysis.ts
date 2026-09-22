@@ -243,23 +243,30 @@ const isCauseEvidence = (event: ExecutionEvidenceEvent): boolean => event.source
 // A conclusion's fields in the grammar's order. v1 said "set insufficient to true and say so": the one
 // answer its own parser refused. The model never sees the schema, so only this text can ask for brevity:
 // a text the grammar cuts off at its `maxLength` ends mid-sentence.
+//
+// The deterministic conclusion is NOT given. Told it first, with its events ranked first, Qwen3.5-0.8B
+// never corrected it: where L5a took an unrelated earlier event, the answer cited that event beside the
+// real cause (`verify:ai-error-quality-live`, 2026-09-22). The report already shows L5a's cause beside the
+// answer; the model's value is a second reading of the same evidence, not an echo of the first.
 const INSTRUCTIONS =
   "You interpret why an automation run failed, for the person who will investigate it. " +
-  "You are given the application's own deterministic conclusion, and the evidence events it rests on, " +
-  "each with an id. A runner.failure event only records that the step failed. If no other event shows " +
-  "why, leave the conclusion list empty rather than guess. Otherwise write one conclusion: the ids of " +
-  "the events that explain the failure, the ids of events that only followed from it, a short category, " +
-  "a one- or two-sentence explanation and up to two brief things to check. Use only ids from the list, " +
-  "and do not invent evidence. The run has already finished; you cannot change its result, retry it, or " +
-  "change any setting.";
+  "You are given the evidence events captured around the failure, newest first, each with an id. " +
+  "A runner.failure event only records that the step failed and what it was waiting for. Decide from " +
+  "the events themselves which of them shows why that step failed. An event is not the cause because " +
+  "it came first or is an error: one about something other than what the step was doing is unrelated, " +
+  "and is not cited. If no other event shows why the step failed, leave the conclusion list empty rather " +
+  "than guess. Otherwise write one conclusion: the ids of the events that explain the failure, the ids of " +
+  "events that only followed from it, a short category, a one- or two-sentence explanation and up to two " +
+  "brief things to check. Use only ids from the list, and do not invent evidence. The run has already " +
+  "finished; you cannot change its result, retry it, or change any setting.";
 
 /**
- * The events most likely to carry the cause, most important first.
+ * Which events are offered when there are more than the budget holds, most important first.
  *
- * The baseline's own citation order leads, and its FIRST id leads absolutely: that is the event the
- * deterministic conclusion rests on, so burying it under a later, louder event would invite the model
- * to contradict a conclusion it was told to respect. Everything else follows by severity, then by
- * closeness to the failure.
+ * The baseline's own citations go first, and its FIRST id absolutely, so every event the report's
+ * deterministic cause names is one the model can see and cite. Everything else follows by severity, then
+ * by closeness to the failure. This decides WHAT is shown, not the order it is shown in: the lines are
+ * shown newest first, so the baseline's pick is not presented as the answer.
  */
 function rankEvidence(entry: FailureBatchEntry, limit: number): ExecutionEvidenceEvent[] {
   const citedRank = new Map(entry.baseline.evidenceIds.map((id, index) => [id, index]));
@@ -299,36 +306,40 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
   // Whole lines, most important first, while they fit `maxEvidenceChars`, so every id the grammar offers
   // is one whose line the model was shown. The lead event, the one the baseline rests on, always goes,
   // cut to the budget only if it alone would not fit.
-  const evidence: ExecutionEvidenceEvent[] = [];
-  const lines: string[] = [];
+  const shownLines = new Map<string, string>();
   let used = 0;
   for (const event of rankEvidence(entry, limits.maxEvidencePerAnalysis)) {
     const line = lineOf(event);
-    if (evidence.length > 0 && used + line.length > limits.maxEvidenceChars) continue;
+    if (shownLines.size > 0 && used + line.length > limits.maxEvidenceChars) continue;
     const shown = line.slice(0, limits.maxEvidenceChars);
-    lines.push(shown);
+    shownLines.set(event.id, shown);
     used += shown.length + 1;
-    evidence.push(event);
   }
-  if (evidence.length === 0) return undefined;
+  if (shownLines.size === 0) return undefined;
+  // Shown newest first, so the step's own failure record leads, and never in the baseline's order.
+  // Qwen3.5-0.8B cites the first error lines it is shown: in the baseline's order it echoed the baseline,
+  // and oldest first IS the baseline's rule (the earliest direct event), which it echoed just the same
+  // (`verify:ai-error-quality-live`, 2026-09-22). Exactly reversed time order, ties included.
+  const evidence = entry.events
+    .filter((event) => shownLines.has(event.id))
+    .sort((a, b) => a.offsetMs - b.offsetMs)
+    .reverse();
   const ids = evidence.map((event) => event.id);
   const causeIds = evidence.filter(isCauseEvidence).map((event) => event.id);
+  // The deterministic cause still decides the evidence tier: it is not shown, but it is authoritative.
   const mustConclude = causeIds.length > 0 && DIRECT_FAILURE_CAUSES.has(entry.baseline.cause);
   const routes = evidence.flatMap((event) =>
     Object.entries(event.payload)
       .filter(([key, value]) => isUrlField(key) && typeof value === "string")
       .map(([, value]) => `${event.id}=${String(value)}`)
   );
-  const { baseline } = entry;
   // One text block where there were four. Each DATA block costs two nonce delimiters, about 45 prompt
   // tokens on Qwen3.5-0.8B's tokenizer: 225 of a typical request's 523 carried no evidence at all.
   const failure = [
-    `Deterministic conclusion: ${baseline.cause}: ${baseline.reason} (window: ${baseline.window})`,
-    `It rests on: ${baseline.evidenceIds.filter((id) => ids.includes(id)).join(", ") || "none"}`,
     // Counts only: the batch shape is useful context, and it carries nothing about any row.
     ...(group.count > 1 ? [`Instances that failed the same way: ${group.count}`] : []),
-    "Evidence:",
-    ...lines
+    "Evidence, newest first:",
+    ...evidence.map((event) => shownLines.get(event.id) as string)
   ].join("\n");
 
   return {

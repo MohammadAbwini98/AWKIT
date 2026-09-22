@@ -13,7 +13,8 @@
  * no residual secret; every cited id's line was shown whole.
  *
  * Recorded, not judged: L5's metrics. Baseline accuracy, AI accuracy, the AI's improvement over the
- * baseline, false attribution, declines, evidence-link accuracy, coalescing, calls per batch, latency.
+ * baseline, false attribution, declines, evidence-link accuracy, coalescing, calls per batch, latency;
+ * for the whole set and again for the eight rows `4f81424a` measured, before the two anchoring cases.
  * ROADMAP rule 7 lets AI run automatically only where it beats the baseline on this set, so the gate
  * records whether it did; the automatic analysis that rule governs is not built.
  *
@@ -27,7 +28,18 @@ import { FAILURE_ANALYSIS_LIMITS, coalesceFailures, parseFailureAnalysis } from 
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
-import { ERROR_SET, buildCase, deliveryViolations, errorControlFailures, judgeFailureAnswer, requestFor, type ErrorCase, type FailureJudgement } from "./errorQualitySet";
+import {
+  ANCHORING_ITEMS,
+  ERROR_SET,
+  buildCase,
+  deliveryViolations,
+  errorControlFailures,
+  judgeFailureAnswer,
+  noCauseControlFailures,
+  requestFor,
+  type ErrorCase,
+  type FailureJudgement
+} from "./errorQualitySet";
 import { NONCE, answerShape } from "./failureAnalysisPacket";
 import { hello, measured, observed, type FeatureLiveApi } from "./featureLive";
 
@@ -37,13 +49,20 @@ export async function runErrorQualityLive(api: FeatureLiveApi): Promise<void> {
   await hello(api, ctx);
 
   const controls = await api.step("control: the judge and the delivery check hold on scripted answers", () => {
-    const noise = ERROR_SET.find((c) => c.id === "transport-noise");
-    if (!noise) throw new Error("no transport-noise case");
-    const { report, labels } = buildCase(noise);
-    const instanceId = report.instances[0].instanceId;
-    const request = requestFor(report, instanceId);
-    const prompt = request ? buildAiPrompt(request.prompt, new SemanticRedactor(), NONCE) : null;
-    const failures = request && prompt?.ok ? errorControlFailures(request, labels.get(instanceId)!, prompt) : ["no request or prompt"];
+    const failures = (
+      [
+        ["transport-noise", errorControlFailures],
+        ["timeout-unrelated-console", noCauseControlFailures]
+      ] as const
+    ).flatMap(([id, controlsOf]) => {
+      const labelled = ERROR_SET.find((c) => c.id === id);
+      if (!labelled) return [`no ${id} case`];
+      const { report, labels } = buildCase(labelled);
+      const instanceId = report.instances[0].instanceId;
+      const request = requestFor(report, instanceId);
+      const prompt = request ? buildAiPrompt(request.prompt, new SemanticRedactor(), NONCE) : null;
+      return request && prompt?.ok ? controlsOf(request, labels.get(instanceId)!, prompt) : [`${id}: no request or prompt`];
+    });
     if (failures.length > 0) throw new Error(failures.join("; "));
     return { failures: 0 };
   });
@@ -67,8 +86,12 @@ export async function runErrorQualityLive(api: FeatureLiveApi): Promise<void> {
     }
   };
   const results: Array<{ labelled: ErrorCase; judged: FailureJudgement | null; inferMs: number | null; stats: ReturnType<typeof coalesceFailures>["stats"] }> = [];
+  // The whole set by default. A named subset (`--cases`) lets a caller with a time limit run it in parts.
+  const only = (process.env.AWKIT_HARNESS_CASES ?? "").split(",").filter(Boolean);
+  const cases = only.length > 0 ? ERROR_SET.filter((c) => only.includes(c.id)) : ERROR_SET;
+  api.record("cases", cases.map((c) => c.id));
 
-  for (const labelled of ERROR_SET) {
+  for (const labelled of cases) {
     await api.step(`${labelled.id}: ${labelled.covers.join(", ")}`, async () => {
       const { report, labels } = buildCase(labelled);
       reports.set(report.executionId, report);
@@ -128,34 +151,43 @@ export async function runErrorQualityLive(api: FeatureLiveApi): Promise<void> {
   }
 
   await api.step("the labelled set: every row delivered as the product contract requires; L5's metrics recorded", () => {
-    const judged = results.map((r) => r.judged).filter((j): j is FailureJudgement => j !== null);
-    const count = (test: (j: FailureJudgement) => boolean) => judged.filter(test).length;
-    const cited = judged.reduce((n, j) => n + j.cited, 0);
+    const metrics = (rows: typeof results) => {
+      const judged = rows.map((r) => r.judged).filter((j): j is FailureJudgement => j !== null);
+      const count = (test: (j: FailureJudgement) => boolean) => judged.filter(test).length;
+      const cited = judged.reduce((n, j) => n + j.cited, 0);
+      const baselineRight = count((j) => j.baselineCorrect);
+      const aiRight = count((j) => j.aiCorrect);
+      return {
+        rowsAnalysed: judged.length,
+        baselineAccuracy: `${baselineRight}/${judged.length}`,
+        aiAccuracy: `${aiRight}/${judged.length}`,
+        // L5's "AI improvement over baseline": rows the AI got right that the baseline did not, less the reverse.
+        aiImprovementOverBaseline: count((j) => j.aiCorrect && !j.baselineCorrect) - count((j) => !j.aiCorrect && j.baselineCorrect),
+        falseAttributions: count((j) => j.falseAttribution),
+        // Anchoring, measured: the baseline is wrong and the AI rests on the same event it did.
+        echoesWrongBaseline: count((j) => !j.baselineCorrect && j.citesBaselineLead),
+        declined: count((j) => !j.concluded),
+        evidenceLinkAccuracy: `${judged.reduce((n, j) => n + j.citedShownWhole, 0)}/${cited}`,
+        // ROADMAP rule 7: AI runs automatically only where it beats the baseline on the labelled set.
+        beatsBaseline: aiRight > baselineRight
+      };
+    };
     const inferMs = results.map((r) => r.inferMs).filter((ms): ms is number => ms !== null);
-    const baselineRight = count((j) => j.baselineCorrect);
-    const aiRight = count((j) => j.aiCorrect);
     const quality = {
-      rowsAnalysed: judged.length,
+      ...metrics(results),
+      // The eight rows 4f81424a measured, so a later prompt is compared like for like.
+      rowsOf4f81424a: metrics(results.filter((r) => !r.labelled.covers.some((item) => ANCHORING_ITEMS.includes(item)))),
       zeroCallRows: results.filter((r) => !r.labelled.expectsCall).length,
-      baselineAccuracy: `${baselineRight}/${judged.length}`,
-      aiAccuracy: `${aiRight}/${judged.length}`,
-      // L5's "AI improvement over baseline": rows the AI got right that the baseline did not, less the reverse.
-      aiImprovementOverBaseline: count((j) => j.aiCorrect && !j.baselineCorrect) - count((j) => !j.aiCorrect && j.baselineCorrect),
-      falseAttributions: count((j) => j.falseAttribution),
-      declined: count((j) => !j.concluded),
-      evidenceLinkAccuracy: `${judged.reduce((n, j) => n + j.citedShownWhole, 0)}/${cited}`,
       coalescing: Object.fromEntries(
-        ERROR_SET.filter((c) => c.batch.failures > 1).map((c) => [c.id, `${c.batch.failures} failures → ${c.batch.signatures} signature(s) → ${c.batch.analyses} call(s)`])
+        cases.filter((c) => c.batch.failures > 1).map((c) => [c.id, `${c.batch.failures} failures → ${c.batch.signatures} signature(s) → ${c.batch.analyses} call(s)`])
       ),
-      callsPerBatch: Object.fromEntries(ERROR_SET.map((c) => [c.id, c.batch.analyses])),
+      callsPerBatch: Object.fromEntries(cases.map((c) => [c.id, c.batch.analyses])),
       inferMs: { min: Math.min(...inferMs), max: Math.max(...inferMs), total: inferMs.reduce((a, b) => a + b, 0) },
       privacy: "no canary in any prompt or answer, no residual secret (hard, per row)",
-      // ROADMAP rule 7: AI runs automatically only where it beats the baseline on the labelled set.
-      beatsBaseline: aiRight > baselineRight,
       perRow: results.filter((r) => r.judged).map((r) => `${r.labelled.id}: baseline ${r.judged!.baselineCorrect ? "right" : "wrong"}, AI ${r.judged!.aiCorrect ? "right" : r.judged!.falseAttribution ? "false attribution" : "declined"}`)
     };
     api.record("quality", quality);
-    const expected = ERROR_SET.reduce((n, c) => n + c.ask.length, 0);
+    const expected = cases.reduce((n, c) => n + c.ask.length, 0);
     if (results.length !== expected) throw new Error(`${results.length} of ${expected} rows completed`);
     return quality;
   });

@@ -439,34 +439,34 @@
       }
     },
     "packets:failureAnalysis": {
-      "completedAt": "2026-09-22T07:57:34.135Z",
+      "completedAt": "2026-09-22T13:19:21.968Z",
       "ok": true,
       "steps": [
         {
           "label": "packets: failureAnalysis #1",
           "ok": true,
-          "durationMs": 87187,
+          "durationMs": 101781,
           "detail": {
-            "promptTokens": 788,
-            "outputTokens": 143,
+            "promptTokens": 798,
+            "outputTokens": 183,
             "stopReason": "stop",
-            "promptMs": 48003,
-            "firstTokenMs": 48003,
-            "generationMs": 39158,
-            "wallMs": 87174,
-            "promptTokensPerSec": 16.4,
-            "generationTokensPerSec": 3.63,
-            "hostPeakWorkingSetMb": 1101,
-            "hostMaxWorkingSetMb": 1059,
+            "promptMs": 58007,
+            "firstTokenMs": 58007,
+            "generationMs": 43748,
+            "wallMs": 101765,
+            "promptTokensPerSec": 13.8,
+            "generationTokensPerSec": 4.16,
+            "hostPeakWorkingSetMb": 756,
+            "hostMaxWorkingSetMb": 756,
             "hostCpuAvgPct": 31,
             "hostCpuMaxPct": 34,
-            "mainLoopDelayP99Ms": 21,
-            "mainLoopDelayMaxMs": 31,
+            "mainLoopDelayP99Ms": 30,
+            "mainLoopDelayMaxMs": 38,
             "maxOutputTokens": 256,
             "answer": {
               "accepted": true,
               "classified": "conclusion",
-              "citesCause": true,
+              "citesCause": false,
               "offered": 12,
               "shape": {
                 "keys": [
@@ -483,13 +483,13 @@
                 ],
                 "primary": 2,
                 "secondary": 2,
-                "categoryChars": 7,
-                "explanationChars": 170,
+                "categoryChars": 23,
+                "explanationChars": 260,
                 "stepChars": [
-                  55,
-                  98
+                  123,
+                  138
                 ],
-                "cutByGrammar": 0
+                "cutByGrammar": 1
               }
             }
           }
@@ -497,28 +497,28 @@
         {
           "label": "packets: failureAnalysis #2",
           "ok": true,
-          "durationMs": 101989,
+          "durationMs": 102127,
           "detail": {
-            "promptTokens": 788,
-            "outputTokens": 143,
+            "promptTokens": 798,
+            "outputTokens": 183,
             "stopReason": "stop",
-            "promptMs": 64235,
-            "firstTokenMs": 64235,
-            "generationMs": 37738,
-            "wallMs": 101987,
-            "promptTokensPerSec": 12.3,
-            "generationTokensPerSec": 3.76,
-            "hostPeakWorkingSetMb": 1101,
-            "hostMaxWorkingSetMb": 729,
-            "hostCpuAvgPct": 31,
+            "promptMs": 57179,
+            "firstTokenMs": 57179,
+            "generationMs": 44929,
+            "wallMs": 102125,
+            "promptTokensPerSec": 14,
+            "generationTokensPerSec": 4.05,
+            "hostPeakWorkingSetMb": 756,
+            "hostMaxWorkingSetMb": 645,
+            "hostCpuAvgPct": 32,
             "hostCpuMaxPct": 33,
             "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 33,
+            "mainLoopDelayMaxMs": 32,
             "maxOutputTokens": 256,
             "answer": {
               "accepted": true,
               "classified": "conclusion",
-              "citesCause": true,
+              "citesCause": false,
               "offered": 12,
               "shape": {
                 "keys": [
@@ -535,13 +535,13 @@
                 ],
                 "primary": 2,
                 "secondary": 2,
-                "categoryChars": 7,
-                "explanationChars": 170,
+                "categoryChars": 23,
+                "explanationChars": 260,
                 "stepChars": [
-                  55,
-                  98
+                  123,
+                  138
                 ],
-                "cutByGrammar": 0
+                "cutByGrammar": 1
               }
             }
           }
@@ -553,30 +553,30 @@
         "benchThreads": 4,
         "packets:failureAnalysis": {
           "threads": 4,
-          "loadMs": 7252,
-          "packetIdentity": "c25190290fa6a73eeeedf3f4ed2f86b0c7ea5cd3cd09716568c8b1a092e3d616",
+          "loadMs": 22719,
+          "packetIdentity": "a38f687c75e94f59b8d183c5634b07389a39bd99bc28b2e0f38ece49d9d905e2",
           "iterations": [
             {
-              "promptTokens": 788,
-              "outputTokens": 143,
+              "promptTokens": 798,
+              "outputTokens": 183,
               "stopReason": "stop",
-              "promptMs": 48003,
-              "firstTokenMs": 48003,
-              "generationMs": 39158,
-              "wallMs": 87174,
-              "promptTokensPerSec": 16.4,
-              "generationTokensPerSec": 3.63,
-              "hostPeakWorkingSetMb": 1101,
-              "hostMaxWorkingSetMb": 1059,
+              "promptMs": 58007,
+              "firstTokenMs": 58007,
+              "generationMs": 43748,
+              "wallMs": 101765,
+              "promptTokensPerSec": 13.8,
+              "generationTokensPerSec": 4.16,
+              "hostPeakWorkingSetMb": 756,
+              "hostMaxWorkingSetMb": 756,
               "hostCpuAvgPct": 31,
               "hostCpuMaxPct": 34,
-              "mainLoopDelayP99Ms": 21,
-              "mainLoopDelayMaxMs": 31,
+              "mainLoopDelayP99Ms": 30,
+              "mainLoopDelayMaxMs": 38,
               "maxOutputTokens": 256,
               "answer": {
                 "accepted": true,
                 "classified": "conclusion",
-                "citesCause": true,
+                "citesCause": false,
                 "offered": 12,
                 "shape": {
                   "keys": [
@@ -593,37 +593,37 @@
                   ],
                   "primary": 2,
                   "secondary": 2,
-                  "categoryChars": 7,
-                  "explanationChars": 170,
+                  "categoryChars": 23,
+                  "explanationChars": 260,
                   "stepChars": [
-                    55,
-                    98
+                    123,
+                    138
                   ],
-                  "cutByGrammar": 0
+                  "cutByGrammar": 1
                 }
               }
             },
             {
-              "promptTokens": 788,
-              "outputTokens": 143,
+              "promptTokens": 798,
+              "outputTokens": 183,
               "stopReason": "stop",
-              "promptMs": 64235,
-              "firstTokenMs": 64235,
-              "generationMs": 37738,
-              "wallMs": 101987,
-              "promptTokensPerSec": 12.3,
-              "generationTokensPerSec": 3.76,
-              "hostPeakWorkingSetMb": 1101,
-              "hostMaxWorkingSetMb": 729,
-              "hostCpuAvgPct": 31,
+              "promptMs": 57179,
+              "firstTokenMs": 57179,
+              "generationMs": 44929,
+              "wallMs": 102125,
+              "promptTokensPerSec": 14,
+              "generationTokensPerSec": 4.05,
+              "hostPeakWorkingSetMb": 756,
+              "hostMaxWorkingSetMb": 645,
+              "hostCpuAvgPct": 32,
               "hostCpuMaxPct": 33,
               "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 33,
+              "mainLoopDelayMaxMs": 32,
               "maxOutputTokens": 256,
               "answer": {
                 "accepted": true,
                 "classified": "conclusion",
-                "citesCause": true,
+                "citesCause": false,
                 "offered": 12,
                 "shape": {
                   "keys": [
@@ -640,13 +640,13 @@
                   ],
                   "primary": 2,
                   "secondary": 2,
-                  "categoryChars": 7,
-                  "explanationChars": 170,
+                  "categoryChars": 23,
+                  "explanationChars": 260,
                   "stepChars": [
-                    55,
-                    98
+                    123,
+                    138
                   ],
-                  "cutByGrammar": 0
+                  "cutByGrammar": 1
                 }
               }
             }
@@ -843,7 +843,7 @@
     }
   },
   "verdict": {
-    "evaluatedAt": "2026-09-22T08:46:37.573Z",
+    "evaluatedAt": "2026-09-22T13:19:21.984Z",
     "decision": "GO",
     "criteria": [
       {
@@ -854,7 +854,7 @@
       },
       {
         "id": "hostMemory",
-        "measured": 1101,
+        "measured": 1033,
         "ceiling": 6144,
         "pass": true
       },
@@ -866,7 +866,7 @@
       },
       {
         "id": "failureAnalysisAtCap",
-        "measured": 132320,
+        "measured": 120389,
         "ceiling": 180000,
         "pass": true
       },
@@ -922,14 +922,14 @@
       },
       "failureAnalysis": {
         "runs": 2,
-        "promptTokens": 788,
-        "promptTokensPerSec": 16.4,
-        "generationTokensPerSec": 3.76,
-        "firstTokenMsMedian": 64235,
-        "wallMsMedian": 101987,
-        "wallMsMax": 101987,
-        "atOutputCapMs": 132320,
-        "hostPeakWorkingSetMb": 1101,
+        "promptTokens": 798,
+        "promptTokensPerSec": 14,
+        "generationTokensPerSec": 4.16,
+        "firstTokenMsMedian": 58007,
+        "wallMsMedian": 102125,
+        "wallMsMax": 102125,
+        "atOutputCapMs": 120389,
+        "hostPeakWorkingSetMb": 756,
         "mainLoopDelayP99Ms": 30
       }
     },

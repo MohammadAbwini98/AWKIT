@@ -61,7 +61,16 @@ import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 import { analyzeFailure, deleteFailureAnalysis, failureBatch, type FailureAssistDeps, type FailureReportAccess } from "../app/main/ai/aiAssist";
 import { LARGEST_FAILURE, failedRun, failureAnalysisPacket } from "./ai-harness/failureAnalysisPacket";
-import { CANARY as ERROR_CANARY, ERROR_SET, L5_LABELLED_ITEMS, buildCase, errorControlFailures, requestFor as labelledRequestFor } from "./ai-harness/errorQualitySet";
+import {
+  ANCHORING_ITEMS,
+  CANARY as ERROR_CANARY,
+  ERROR_SET,
+  L5_LABELLED_ITEMS,
+  buildCase,
+  errorControlFailures,
+  noCauseControlFailures,
+  requestFor as labelledRequestFor
+} from "./ai-harness/errorQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -246,7 +255,12 @@ const request = buildFailureAnalysisRequest(group) as FailureAnalysisRequest;
 check("a selected group builds a request", request !== undefined);
 check("a DECLINED group builds none, so a caller cannot analyse past the budget", buildFailureAnalysisRequest(tight.groups[2]) === undefined);
 check("the evidence offered is bounded", request.evidence.length <= FAILURE_ANALYSIS_LIMITS.maxEvidencePerAnalysis);
-check("...and leads with the events the baseline cited", request.evidence[0].id === group.representative.baseline.evidenceIds[0]);
+check(
+  "...offering every event the baseline cited, shown newest first rather than in the baseline's order",
+  group.representative.baseline.evidenceIds.every((id) => request.evidence.some((event) => event.id === id)) &&
+    request.evidence.every((event, index, all) => index === 0 || all[index - 1].offsetMs >= event.offsetMs) &&
+    request.evidence[0].source === "runner.failure"
+);
 type ObjectSchema = Extract<AiOutputSchema, { type: "object" }>;
 type ArraySchema = Extract<AiOutputSchema, { type: "array" }>;
 const conclusionSchema = ((request.schema as ObjectSchema).properties.conclusion as ArraySchema).items as ObjectSchema;
@@ -270,7 +284,11 @@ check("no row identifier reaches the prompt", !promptText.includes("40001") && !
 check("no query token reaches the prompt", !promptText.includes("abc123secret"));
 check("no instance id reaches the prompt", !promptText.includes("i-0") && !promptText.includes("exec-l5b"));
 check("the path TEMPLATE does, which is what makes the analysis useful", promptText.includes("/orders/:id/submit"));
-check("...as does the deterministic conclusion the model must not contradict", promptText.includes("httpError"));
+// Told the conclusion first, the real 0.8B only ever agreed with it, even where it was wrong.
+check(
+  "...but NOT the deterministic conclusion, so the model reads the evidence itself",
+  !promptText.includes("httpError") && !promptText.includes(group.representative.baseline.reason) && !/deterministic conclusion|rests on/i.test(promptText)
+);
 check("...and the affected-instance COUNT, never the instances", promptText.includes("500"));
 
 // ── 4b. The request's size: one block, whole lines, bounded answers ────────────────────────────
@@ -284,10 +302,11 @@ check(
   JSON.stringify(request.prompt.fields.map((field) => field.name))
 );
 check(
-  "...carrying the deterministic conclusion, the events it rests on and the instance count",
-  failureText.includes("Deterministic conclusion: httpError:") &&
-    failureText.includes(`It rests on: ${group.representative.baseline.evidenceIds.join(", ")}`) &&
-    failureText.includes("Instances that failed the same way: 500"),
+  "...carrying the instance count and the evidence newest first, and neither the conclusion nor the ids it rests on",
+  failureText.includes("Instances that failed the same way: 500") &&
+    failureText.includes("Evidence, newest first:") &&
+    !failureText.includes("Deterministic conclusion") &&
+    !failureText.includes("rests on"),
   failureText.slice(0, 300)
 );
 const shownWhole = (of: FailureAnalysisRequest, user: string) => {
@@ -306,7 +325,7 @@ check("(precondition) the crowded failure has more evidence than the budget hold
 check("...so only whole lines are offered, within the evidence budget", crowdedLines.join("\n").length <= FAILURE_ANALYSIS_LIMITS.maxEvidenceChars, String(crowdedLines.join("\n").length));
 check("...each offered id's line whole in the prompt the model gets", crowdedPrompt.ok && shownWhole(crowded, crowdedPrompt.user));
 check("...and no id offered whose line was left out", JSON.stringify(crowded.evidence.map((event) => event.id)) === JSON.stringify(crowdedLines.map((line) => line.split(":")[0])));
-check("...led by the event the baseline rests on", crowded.evidence[0].id === crowdEntry.baseline.evidenceIds[0]);
+check("...still offering the event the baseline rests on", crowded.evidence.some((event) => event.id === crowdEntry.baseline.evidenceIds[0]));
 const crowdedConclusion = ((crowded.schema as ObjectSchema).properties.conclusion as ArraySchema).items as ObjectSchema;
 const listOf = (schema: ObjectSchema, field: string) => schema.properties[field] as ArraySchema;
 check(
@@ -365,12 +384,14 @@ check("...at the product's own output cap", benchJob?.maxOutputTokens === FAILUR
 
 // ── 5. A valid answer through the real output contract ──────────────────────────────────────────
 console.log("\n5 — a valid analysis");
+// By source, not position: the list is newest first, so the runner's own record leads it.
+const causeIdOf = (of: FailureAnalysisRequest) => of.evidence.find((event) => event.source !== "runner.failure")!.id;
 const good = JSON.stringify({
   version: 1,
   conclusion: [
     {
-      primaryEvidenceIds: [request.evidence[0].id],
-      secondaryEvidenceIds: [request.evidence[1].id],
+      primaryEvidenceIds: [causeIdOf(request)],
+      secondaryEvidenceIds: [request.evidence.find((event) => event.source === "runner.failure")!.id],
       category: "server-error",
       explanation: "The submit endpoint answered 500, so the confirmation the step waited for never appeared.",
       investigationSteps: ["Check the submit endpoint's server logs for this route."]
@@ -391,7 +412,7 @@ check("the job completes", outcome.status === "ok", JSON.stringify(outcome));
 const analysis = outcome.status === "ok" ? parseFailureAnalysis(outcome.value, request) : undefined;
 check("the analysis parses", analysis?.ok === true, JSON.stringify(analysis));
 if (analysis?.ok) {
-  check("...with its primary evidence", JSON.stringify(analysis.primaryEvidenceIds) === JSON.stringify([request.evidence[0].id]));
+  check("...with its primary evidence", JSON.stringify(analysis.primaryEvidenceIds) === JSON.stringify([causeIdOf(request)]));
   check("...its secondary consequence", analysis.secondaryEvidenceIds.length === 1);
   check("...a category and an investigation step", analysis.category === "server-error" && analysis.investigationSteps.length === 1);
   check("...and it is not marked insufficient", analysis.insufficient === false);
@@ -479,7 +500,7 @@ for (const [tier, tierRequest, declines, concludes] of [
 // ── 7. Refusals ─────────────────────────────────────────────────────────────────────────────────
 console.log("\n7 — refusals: an interpretation must be supported, and bounded");
 const otherId = "evt-from-another-run";
-const e0 = request.evidence[0].id;
+const e0 = causeIdOf(request);
 const runnerIdOf = (of: FailureAnalysisRequest) => of.evidence.find((event) => event.source === "runner.failure")!.id;
 const V1_SHAPE = { version: 1, insufficient: true, category: "server-error", explanation: "It broke.", primaryEvidenceIds: [e0], secondaryEvidenceIds: [], investigationSteps: [] };
 const conclude = (fields: Record<string, unknown>) => ({
@@ -918,7 +939,8 @@ await leakedHost.service.shutdown();
 console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judge");
 {
   const covered = new Set(ERROR_SET.flatMap((c) => c.covers));
-  check("the set realises every item of L5's labelled set", L5_LABELLED_ITEMS.every((item) => covered.has(item)) && covered.size === L5_LABELLED_ITEMS.length, JSON.stringify([...covered]));
+  const items = [...L5_LABELLED_ITEMS, ...ANCHORING_ITEMS];
+  check("the set realises every item of L5's labelled set, and the anchoring cases", items.every((item) => covered.has(item)) && covered.size === items.length, JSON.stringify([...covered]));
   for (const labelled of ERROR_SET) {
     const { report, labels } = buildCase(labelled);
     const stats = coalesceFailures(failureBatch(report)).stats;
@@ -932,9 +954,30 @@ console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judg
       if (!request) continue;
       const label = labels.get(instance.instanceId)!;
       const offered = new Set(request.evidence.map((event) => event.id));
-      check(`${labelled.id} row ${row + 1}: every labelled event is offered, so the model can cite it or be judged for not doing so`, label.cause.length > 0 && [...label.cause, ...label.unrelated].every((id) => offered.has(id)), JSON.stringify({ label, offered: [...offered] }));
+      // A row with no cause event must leave declining decodable, or its right answer could not be written.
+      check(
+        `${labelled.id} row ${row + 1}: every labelled event is offered, so the model can cite it or be judged for not doing so`,
+        (label.cause.length > 0 || (label.unrelated.length > 0 && !request.mustConclude)) && [...label.cause, ...label.unrelated].every((id) => offered.has(id)),
+        JSON.stringify({ label, offered: [...offered] })
+      );
       const prompt = buildAiPrompt(request.prompt, new SemanticRedactor(), "0123456789abcdef");
       check(`${labelled.id} row ${row + 1}: the canary never reaches the prompt`, prompt.ok && !`${prompt.system}\n${prompt.user}`.toUpperCase().includes(ERROR_CANARY));
+      const lead = instance.diagnostics?.cause?.evidenceIds[0] ?? "";
+      if (prompt.ok) {
+        // Nothing in the prompt may present the baseline's pick as the answer: it is offered, but unnamed
+        // (a direct cause's code; a runner cause's code is its own record's kind), and listed where its time
+        // puts it, newest first, not where the baseline ranks it. Oldest first is the baseline's own rule,
+        // and the real 0.8B echoed it just the same.
+        const shownIds = prompt.user.split("\n").filter((line) => /^ev\d+: /.test(line)).map((line) => line.split(":")[0]);
+        const offsetOf = new Map(request.evidence.map((event) => [event.id, event.offsetMs]));
+        const inTimeOrder = shownIds.length === request.evidence.length && shownIds.every((id, index) => index === 0 || (offsetOf.get(shownIds[index - 1]) ?? -1) >= (offsetOf.get(id) ?? Infinity));
+        const named = request.mustConclude && prompt.user.includes(String(labelled.baselineCause));
+        check(
+          `${labelled.id} row ${row + 1}: the baseline's pick is offered but not presented: newest first, no "rests on", no cause code`,
+          offered.has(lead) && !named && !/rests on/i.test(`${prompt.system}\n${prompt.user}`) && inTimeOrder,
+          JSON.stringify(shownIds)
+        );
+      }
     }
   }
   check("(precondition) the canary really is in what the cases carry", ERROR_SET.filter((c) => JSON.stringify(c.rows).includes(ERROR_CANARY)).length >= 3);
@@ -945,6 +988,11 @@ console.log("\nThe labelled set verify:ai-error-quality-live sends, and its judg
   const noisePrompt = buildAiPrompt(noiseRequest.prompt, new SemanticRedactor(), "0123456789abcdef");
   const controls = noisePrompt.ok ? errorControlFailures(noiseRequest, noise.labels.get(noise.report.instances[0].instanceId)!, noisePrompt) : ["the prompt did not build"];
   check("the judge's controls all hold (right, wrong, mixed, wrong baseline, canary both ways, unknown id, runner as cause, decline)", controls.length === 0, controls.join("; "));
+  const quiet = buildCase(ERROR_SET.find((c) => c.id === "timeout-unrelated-console")!);
+  const quietRequest = labelledRequestFor(quiet.report, quiet.report.instances[0].instanceId)!;
+  const quietPrompt = buildAiPrompt(quietRequest.prompt, new SemanticRedactor(), "0123456789abcdef");
+  const quietControls = quietPrompt.ok ? noCauseControlFailures(quietRequest, quiet.labels.get(quiet.report.instances[0].instanceId)!, quietPrompt) : ["the prompt did not build"];
+  check("the judge's no-cause controls hold (a decline is right and delivered, a conclusion on the unrelated event is a false attribution)", quietControls.length === 0, quietControls.join("; "));
 }
 
 console.log(`\nL5b failure intelligence: ${passed}/${passed + failed} checks passed.`);

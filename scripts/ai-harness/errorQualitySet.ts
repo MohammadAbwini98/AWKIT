@@ -6,7 +6,10 @@
  * validation, a 409 with a message and a 422 with field validation (one batch, two signatures), a 500 with
  * an error page over 500 identical rows, a transport failure beside an unrelated console error and an
  * unrelated warning, a page error before a timeout, a duplicate burst, a pass with a warning, and
- * insufficient evidence.
+ * insufficient evidence. Three cases beyond L5's list (`ANCHORING_ITEMS`, 2026-09-22): a second baseline
+ * that takes an unrelated earlier event; the reverse, an unrelated error just after the real cause, where
+ * the baseline is right; and a timeout beside only an unrelated console error, where the right answer is
+ * to decline.
  *
  * Every event that explains its failure is labelled `cause` and every one that does not is labelled
  * `unrelated`, by the scenario's construction, never by what a model said. That is what lets the gate
@@ -236,7 +239,81 @@ export const ERROR_SET: readonly ErrorCase[] = Object.freeze([
     baselineCause: "insufficient",
     expectsCall: false,
     batch: { failures: 1, signatures: 1, analyses: 0 }
+  },
+  // Added for baseline anchoring (2026-09-22), after the prompt change was designed, so not tuned on:
+  // a second failure whose baseline takes an unrelated earlier event, of a different shape.
+  {
+    id: "unrelated-server-error-first",
+    covers: ["an unrelated earlier server error the baseline takes"],
+    rows: [
+      {
+        kind: "assertion",
+        events: [
+          { atMs: 300, source: "http.error", severity: "error", payload: { method: "GET", url: route("/api/recommendations"), status: 503, resourceType: "fetch" }, tag: "unrelated" },
+          {
+            atMs: 1_400,
+            source: "page.error",
+            severity: "error",
+            payload: { name: "TypeError", message: "Cannot read properties of null (reading 'addEventListener') at bindSaveAddressButton" },
+            tag: "cause"
+          },
+          runner(1_900, "assertion", "The address saved banner did not appear.")
+        ]
+      }
+    ],
+    ask: [0],
+    // The baseline takes the earliest direct event, the recommendations 503: wrong by construction.
+    baselineCause: "httpError",
+    expectsCall: true,
+    batch: { failures: 1, signatures: 1, analyses: 1 }
+  },
+  // The reverse trap, added with the newest-first order so that order cannot win by position alone: the
+  // real cause comes first and an unrelated error lands just before the failure. The baseline is right.
+  {
+    id: "cause-then-unrelated-console",
+    covers: ["an unrelated console error after the real cause"],
+    rows: [
+      {
+        kind: "assertion",
+        events: [
+          { atMs: 600, source: "http.error", severity: "error", payload: { method: "POST", url: route(`/api/payments/${CANARY}7730/authorize`), status: 502, resourceType: "fetch" }, tag: "cause" },
+          { atMs: 700, source: "ui.alert", severity: "error", payload: { text: "We could not take your payment. You have not been charged." }, tag: "cause" },
+          { atMs: 1_600, source: "console.error", severity: "error", payload: { text: "Analytics beacon rejected: the tracking endpoint answered 403." }, tag: "unrelated" },
+          runner(1_900, "assertion", "The order confirmation did not appear.")
+        ]
+      }
+    ],
+    ask: [0],
+    baselineCause: "httpError",
+    expectsCall: true,
+    batch: { failures: 1, signatures: 1, analyses: 1 }
+  },
+  // The tier where the model decides: nothing but an unrelated console error beside the runner's timeout.
+  // Declining is the right answer; concluding on the console error is a false attribution.
+  {
+    id: "timeout-unrelated-console",
+    covers: ["a timeout beside only an unrelated console error"],
+    rows: [
+      {
+        kind: "timeout",
+        events: [
+          { atMs: 500, source: "console.error", severity: "error", payload: { text: "Failed to load resource: the server responded with a status of 404 (favicon.ico)" }, tag: "unrelated" },
+          runner(30_500, "timeout", "Timed out after 30000 ms waiting for the invoice download link to be visible.")
+        ]
+      }
+    ],
+    ask: [0],
+    baselineCause: "timeout",
+    expectsCall: true,
+    batch: { failures: 1, signatures: 1, analyses: 1 }
   }
+]);
+
+/** Cases beyond L5's list, added for baseline anchoring (2026-09-22). The rows of 4f81424a are the other nine cases. */
+export const ANCHORING_ITEMS = Object.freeze([
+  "an unrelated earlier server error the baseline takes",
+  "an unrelated console error after the real cause",
+  "a timeout beside only an unrelated console error"
 ]);
 
 /** L5's list, so the set can be checked to realise every item. */
@@ -345,16 +422,18 @@ function shownWhole(request: FailureAnalysisRequest, promptUser: string, id: str
 }
 
 export interface FailureJudgement {
-  /** The deterministic cause rests first on a cause event. */
+  /** The deterministic cause rests first on a cause event; where there is none, not on an unrelated one. */
   baselineCorrect: boolean;
   concluded: boolean;
-  /** Concluded, with a cause event among the primary evidence and no unrelated one. */
+  /** Concluded, with a cause event among the primary evidence and no unrelated one; where there is no cause event, declined. */
   aiCorrect: boolean;
   /** Concluded, with an unrelated event as primary evidence, or no cause event there at all. */
   falseAttribution: boolean;
   /** The label of each primary id, in the answer's order, and of the one the baseline rests on first. */
   primaryLabels: Array<"cause" | "unrelated" | "other">;
   baselineLeadLabel: "cause" | "unrelated" | "other";
+  /** Concluded, citing the event the baseline rests on first as primary: where the baseline is wrong, the echo. */
+  citesBaselineLead: boolean;
   cited: number;
   citedShownWhole: number;
 }
@@ -368,13 +447,16 @@ export function judgeFailureAnswer(request: FailureAnalysisRequest, answer: Fail
   const falseAttribution = concluded && (primary.some((id) => unrelated.has(id)) || !primary.some((id) => cause.has(id)));
   const labelOf = (id: string) => (cause.has(id) ? "cause" : unrelated.has(id) ? "unrelated" : "other");
   const lead = request.group.representative.baseline.evidenceIds[0] ?? "";
+  // A row with no cause event: the right answer is "not enough evidence", for the baseline and the AI.
+  const noCause = cause.size === 0;
   return {
-    baselineCorrect: cause.has(lead),
+    baselineCorrect: noCause ? !unrelated.has(lead) : cause.has(lead),
     concluded,
-    aiCorrect: concluded && !falseAttribution,
+    aiCorrect: noCause ? !concluded : concluded && !falseAttribution,
     falseAttribution,
     primaryLabels: primary.map(labelOf),
     baselineLeadLabel: labelOf(lead),
+    citesBaselineLead: concluded && primary.includes(lead),
     cited: cited.length,
     citedShownWhole: cited.filter((id) => shownWhole(request, promptUser, id)).length
   };
@@ -430,10 +512,44 @@ export function errorControlFailures(request: FailureAnalysisRequest, labels: Ro
   const mixed = judge(answer([unrelated, cause]));
   expect("naming an unrelated event beside the cause is still a false attribution", mixed?.falseAttribution === true);
   expect("the case's baseline is judged wrong, as constructed", right?.baselineCorrect === false);
+  const lead = request.group.representative.baseline.evidenceIds[0];
+  expect(
+    "citing the baseline's own lead is recorded as an echo, and citing the cause is not",
+    labels.unrelated.includes(lead) && judge(answer([lead]))?.citesBaselineLead === true && right?.citesBaselineLead === false
+  );
   expect("a canary in the answer is refused", deliveryViolations(request, answer([cause], `Reset while sending ${CANARY}.`), prompt).includes("CANARY_IN_ANSWER"));
   expect("a canary in the prompt is refused", deliveryViolations(request, answer([cause]), { ...prompt, user: `${prompt.user}\n${CANARY.toLowerCase()}` }).includes("CANARY_IN_PROMPT"));
   expect("an id the request did not offer is refused", deliveryViolations(request, answer(["ev999"]), prompt).includes("REFUSED_UNKNOWN_EVIDENCE"));
   expect("the runner's own record as the cause is refused", deliveryViolations(request, answer([runnerId]), prompt).includes("REFUSED_UNSUPPORTED_CONCLUSION"));
   expect("declining beside a direct cause is refused", deliveryViolations(request, { version: 1, conclusion: [] }, prompt).includes("REFUSED_CONTRADICTORY"));
+  return failures;
+}
+
+/**
+ * The judge on a row with no cause event (`timeout-unrelated-console`): a decline is right and delivered,
+ * a conclusion on the unrelated event is a false attribution, and a baseline resting on the runner's own
+ * record is right.
+ */
+export function noCauseControlFailures(request: FailureAnalysisRequest, labels: RowLabels, prompt: { system: string; user: string }): string[] {
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  const [unrelated] = labels.unrelated;
+  if (labels.cause.length > 0 || !unrelated || request.mustConclude) return ["the no-cause controls need a case with no cause event, an unrelated one, and a decline allowed"];
+  const judge = (value: unknown) => {
+    const parsed = parseFailureAnalysis(value, request);
+    return parsed.ok ? judgeFailureAnswer(request, parsed, labels, prompt.user) : null;
+  };
+  const decline = { version: 1, conclusion: [] };
+  const declined = judge(decline);
+  expect("with no cause event, declining is correct and no false attribution", declined?.aiCorrect === true && declined.falseAttribution === false && declined.concluded === false);
+  expect("...and delivered", deliveryViolations(request, decline, prompt).length === 0);
+  expect("...and the baseline resting on the runner's own record is correct", declined?.baselineCorrect === true);
+  const blamed = judge({
+    version: 1,
+    conclusion: [{ primaryEvidenceIds: [unrelated], secondaryEvidenceIds: [], category: "missing icon", explanation: "The favicon failed to load.", investigationSteps: [] }]
+  });
+  expect("with no cause event, a conclusion on the unrelated event is a false attribution", blamed?.falseAttribution === true && blamed.aiCorrect === false);
   return failures;
 }

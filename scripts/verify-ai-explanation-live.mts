@@ -60,8 +60,9 @@ const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs
   locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true },
   // hello, the control, 6 labelled cases, the set's verdict. Six explanations at ~50–90 s each.
   authoringQuality: { mode: "authoringQuality", steps: 9, timeoutMs: 575_000 },
-  // hello, the control, 9 labelled cases (8 model calls, 2 rows with none), the set's verdict.
-  errorQuality: { mode: "errorQuality", steps: 12, timeoutMs: 575_000 }
+  // hello, the control, 12 labelled cases (11 model calls, 2 rows with none), the set's verdict. Eleven
+  // analyses at ~35–80 s each pass the 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
+  errorQuality: { mode: "errorQuality", steps: 15, timeoutMs: 1_080_000 }
 });
 
 /** The Feature Test Lab on a free loopback port, for the modes that drive a real page. */
@@ -90,6 +91,11 @@ if (!feature) {
   console.error(`unknown --feature "${featureName}"; one of ${Object.keys(FEATURES).join(", ")}`);
   process.exit(1);
 }
+// errorQuality only: `--cases id,id` runs part of the labelled set (hello, control, each case, verdict),
+// so a caller with the 600 s tool ceiling can run it in parts. An unknown id fails the step count.
+const casesFlag = process.argv.indexOf("--cases");
+const cases = casesFlag >= 0 && feature.mode === "errorQuality" ? (process.argv[casesFlag + 1] ?? "").split(",").filter(Boolean) : [];
+const expectedSteps = cases.length > 0 ? 3 + cases.length : feature.steps;
 
 let passed = 0;
 let failed = 0;
@@ -137,15 +143,17 @@ try {
       AWKIT_HARNESS_MODEL_ID: "Qwen3.5-0.8B-unpinned",
       AWKIT_HARNESS_THREADS: String(threads),
       AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? "",
-      ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {})
+      ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {}),
+      ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {})
     },
-    { timeoutMs: feature.timeoutMs }
+    // A part stays under the tool ceiling, as the whole set did before it grew past it.
+    { timeoutMs: cases.length > 0 ? Math.min(feature.timeoutMs, 575_000) : feature.timeoutMs }
   );
   if (!report) {
     check("the harness wrote a report", false, "no report: Electron never reached app.whenReady() or timed out");
   } else {
     printSteps(report, check);
-    check("the harness ran every step", report.steps.length === feature.steps, `${report.steps.length} steps`);
+    check("the harness ran every step", report.steps.length === expectedSteps, `${report.steps.length} steps`);
     // Counts, codes and timings only: the harness never records model text.
     for (const s of report.steps) if (s.detail) console.log(`    ${s.label}: ${JSON.stringify(s.detail)}`);
   }
