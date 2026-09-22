@@ -502,7 +502,14 @@ npm run verify:ai-error-quality-live
                                   # coalescing (500 -> 1 call), no call for a pass or insufficient baseline, the
                                   # product's request, 185 s deadline, delivered and saved, no canary, citations
                                   # shown whole. Recorded: baseline vs AI accuracy, improvement, false attribution,
-                                  # latency, beats-baseline (rule 7). ~8 min. NOT RUN without pack (13)
+                                  # echoes of a wrong baseline, latency, beats-baseline (rule 7). Since c44a6e2c
+                                  # the set has 3 more anchoring cases, 11 calls, ~13-15 min: past a 600 s tool
+                                  # ceiling. NOT RUN without pack (15)
+npm run verify:ai-error-quality-live-part1
+npm run verify:ai-error-quality-live-part2
+                                  # the same gate in two parts (--cases), each under 600 s: part1 6 calls
+                                  # (~7.5 min, 11 checks), part2 5 calls (~5 min, 9 checks). Their cases sum to
+                                  # the whole set
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every

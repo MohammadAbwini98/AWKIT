@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — `verify:ai-error-quality-live` built; the 0.8B ties the baseline on L5's labelled set, 13/0
+## HANDOFF (2026-09-22, latest) — failure analysis no longer shows the deterministic conclusion; the 0.8B still ties the baseline
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`c44a6e2c`):**
+  - The failure-analysis prompt no longer carries the deterministic conclusion, and lists the evidence
+    newest first.
+  - Three anchoring cases were added, plus an echo diagnostic.
+  - The live gate now runs in two parts.
+  - Two runs, each 20/0: whole set 9/11 vs 9/11, 2 false attributions, 1 correct decline. The eight
+    rows of `4f81424a` are unchanged at 7/8.
+  - L1.8 is still GO: `failureAnalysisAtCap` 120.4 s.
+  - Details are in L5 › "Baseline anchoring, removed and measured".
+- **Not done, and owner decisions:**
+  - The AI does not beat the baseline, so the automatic analysis stays off (rule 7).
+  - The remaining limit is the model's own cause selection, not the prompt.
+  - L1 still owes an L4b explanation quality target and the go/no-go. L1, L4b and L5b stay
+    `in_progress`. **L7 cannot be entered.**
+- **Do not:**
+  - tune the prompt's wording against these eleven rows and report the result as an improvement. A
+    change needs cases written before it is measured;
+  - run the whole `verify:ai-error-quality-live` from a tool with a 600 s ceiling. Use `-part1` then
+    `-part2`.
+
+## HANDOFF (2026-09-22, superseded) — `verify:ai-error-quality-live` built; the 0.8B ties the baseline on L5's labelled set, 13/0
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`4f81424a`):**

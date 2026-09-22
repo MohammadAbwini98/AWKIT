@@ -1,5 +1,38 @@
 # TASK_LOG
 
+## 2026-09-22 — failure-analysis baseline anchoring: conclusion removed from the prompt, measured on the real 0.8B (Claude)
+
+- **Task:** fix the baseline anchoring `verify:ai-error-quality-live` found, and re-measure accuracy
+  and the L1.8 ceiling.
+- **Found:**
+  - An earlier, interrupted session had left this change uncommitted in the working tree: the prompt, the
+    three cases and the part scripts. It was reviewed, kept and measured here. The owner's untracked
+    `scripts/offline-benchmark/` was left alone.
+  - Without the conclusion, the 0.8B still chose a wrong event on both rows where the baseline is wrong,
+    once the baseline's own pick. Anchoring was not the whole cause.
+  - Two commit attempts were refused by the lease guard, because the message contained `<`/`>` and then
+    `;`. Commit messages here must be one line, without `; & | < >`, backticks, `$(` or `^`.
+- **Files:** `c44a6e2c`:
+  - `src/ai/failureAnalysis.ts`;
+  - `scripts/ai-harness/errorQualitySet.ts` and `errorQualityLive.ts`;
+  - `scripts/verify-ai-error-analysis.mts` and `scripts/verify-ai-explanation-live.mts`;
+  - `scripts/lib/verifier-classification.ts` and `package.json`;
+  - the L1.8 benchmark evidence JSON.
+
+  Then the L5 and L1 plans, COMMANDS, DECISIONS, CURRENT_STATE, HANDOFF, and notes on `awkit-djnl.8`
+  and `awkit-djnl.1`.
+- **Checks:**
+  - `verify:ai-error-quality-live-part1` 11/0 and `-part2` 9/0, each run twice.
+  - `benchmark:ai-model-0-8b` GO on all 8 (`failureAnalysisAtCap` 120,389 ms).
+  - `verify:ai-failure-analysis-live` 5/0 and `verify:ai-failure-analysis-budget` 7/0.
+  - `verify:ai-error-analysis` 279/279, with a mutation caught at 267.
+  - adapter 117, fallback 38, redaction 52, host 135 with 12/12 mutations, assist-gui 100/100.
+  - `verify:verifier-classification` 253, `typecheck:scripts` PASS, build PASS.
+  - NOT RUN: `verify:failure-capture-overhead` (no import changed; the import closure is proven by
+    `verify:ai-fallback`), and the whole gate in one invocation (it exceeds the 600 s tool ceiling).
+- **Result:** implemented and measured. Accuracy is unchanged at 9/11 vs 9/11 (7/8 on the old rows).
+  The AI does not beat the baseline, so the automatic analysis stays off.
+
 ## 2026-09-22 — verify:ai-error-quality-live: L5's labelled set on the real 0.8B (Claude)
 
 - **Task:** build `verify:ai-error-quality-live`.

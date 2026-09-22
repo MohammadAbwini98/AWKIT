@@ -1,6 +1,30 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5b: the real-model error quality gate (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L5b: the failure-analysis prompt no longer carries the deterministic conclusion (`awkit-djnl.8`, `awkit-djnl.1`)
+
+- **Owner instruction, in session:** fix the baseline anchoring that `verify:ai-error-quality-live`
+  found. Keep the deterministic baseline, the security protections and L5's acceptance rules. Change no
+  label or threshold. Do not enable the automatic analysis unless rule 7 is independently satisfied.
+- **Implementer's choices within it:**
+  - **Hide the conclusion, not the evidence.** The cause code, reason and "rests on" ids leave the
+    prompt. The baseline still decides which events are offered (its citations first, so the report's
+    cause is always citable) and the evidence tier (`mustConclude`). The drawer still shows it beside
+    the answer.
+  - **Newest first.** Not the baseline's order, and not oldest first, which is the baseline's own rule.
+    The runner's record leads, so the model starts from what the step was waiting for.
+  - **Cases written for the change, and one prompt measured.** Three anchoring cases were added with
+    labels by construction, including the reverse trap (an unrelated error after the cause), so the new
+    order cannot score by position alone. The wording was not iterated against the set.
+  - **The whole set runs in two parts**, because eleven calls pass the 600 s tool ceiling and background
+    shell commands are refused.
+- **Outcome, and what it decides:** no accuracy change (9/11 vs 9/11; 7/8 on the old rows). The model
+  still chose a wrong event where the baseline was wrong, once independently choosing the baseline's own
+  pick. The change stays: it removes the echo path, adds no latency (GO, 120.4 s at the cap) and weakens
+  no contract. Rule 7 is not met, so the automatic analysis stays off.
+- **Not decided here:** whether a larger model, or a deterministic relatedness signal given to the model
+  (for example, events that mention the step's target), should be tried next. Either is an owner call.
+
+### 2026-09-22 — Phase L L5b: the real-model error quality gate (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:** build `verify:ai-error-quality-live`.
 - **Implementer's choices within it:**

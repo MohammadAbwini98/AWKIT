@@ -809,6 +809,23 @@ with the longest ids L5a mints (`ev200`) **240 / 254 ≤ 256**.
 - **`verify:ai-failure-analysis-live`** now fails if an offered line is not shown whole, and records how
   many texts the grammar ended (`cutByGrammar`).
 
+**Re-measured after the prompt lost the deterministic conclusion (`c44a6e2c`, 2026-09-22): still GO.**
+The `Failure` block no longer carries the conclusion or its ids, and the instructions grew by a sentence
+about unrelated events. See L5 › "Baseline anchoring, removed and measured".
+
+| Measure | Before (`42655904`) | After (`c44a6e2c`) |
+|---|---|---|
+| Prompt, typical / bare timeout / largest (`verify:ai-failure-analysis-budget` 7/0) | 396 / 317 / 788 | 417 / 342 / 798 (system 179 → 231) |
+| Longest acceptable answer (tabs, longest ids) | 254 ≤ 256 | 254 ≤ 256, unchanged |
+| `benchmark:ai-model-0-8b` `packets:failureAnalysis` #1 / #2 | 788 / 143, wall 87.2 / 102.0 s | 798 / 183, `stop`, wall 101.8 / 102.1 s |
+| `failureAnalysisAtCap` | 132,320 ms | **120,389 ms ≤ 180,000**, GO on all 8 |
+| `verify:ai-failure-analysis-live` (5/0), at the cap: typical / bare / largest | 74.0 / — / 126.4 s | 106.4 / 136.2 / 120.5 s |
+
+The bare timeout's 136.2 s is 24 prompt tokens and a decline, projected at 2.42 tokens/s, the slowest
+decode seen that run. The largest answer (live and both benchmark iterations) did not cite the CDN script
+the baseline rests on (`citesCause` false). That is recorded, not required: the fixture's payment
+gateway 502 is an equally grounded reading of that run.
+
 #### `locatorUpgrade` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:locatorUpgrade` (now the product's request) and `verify:ai-locator-upgrade-live` at `4a846c41`
 
 **Root cause: the output cap, a prompt that was mostly delimiters, and an answer no small cap could hold.**
@@ -1175,12 +1192,24 @@ set through `analyzeFailure` on the 0.8B and passed 13/0 on two runs.
 The AI does not beat the baseline, so L5b's automatic analysis stays off under ROADMAP rule 7; see L5 ›
 "The live quality gate as built". **Every live quality gate L1 names now exists and passes.**
 
+**Then (`c44a6e2c`):** the failure-analysis request no longer shows the model the deterministic
+conclusion, and lists the evidence newest first. The set gained three anchoring cases and runs in two
+parts, each 20/0 across both parts on two runs.
+- Whole set: baseline 9/11, AI 9/11, improvement 0, 2 false attributions, 1 correct decline.
+- On the eight rows of `4f81424a`: unchanged at 7/8 and 7/8, with 1 false attribution.
+- Without the conclusion, the model still chose a wrong event where the baseline was wrong. So the limit
+  is its own cause selection, not only the prompt.
+- The request still meets its ceiling: `failureAnalysisAtCap` 120,389 ms, GO on all 8.
+
+See L5 › "Baseline anchoring, removed and measured".
+
 **Still owed before L1 can be accepted:**
 
 1. An explanation quality target for L4b, which L4's acceptance requires before release.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 12/12 on subject
-   by proxy with no ranking, and failure analysis tying the baseline.
+   by proxy with no ranking, and failure analysis tying the baseline, with or without the conclusion in
+   its prompt.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 

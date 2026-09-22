@@ -389,7 +389,8 @@ analysis persistence as built"). `awkit-djnl.8` is `in_progress`: the automatic 
 and the milestone cannot close under the conditional development authorization. The live quality gate
 `verify:ai-error-quality-live` is built (2026-09-22, 13/0 on two runs; see "The live quality gate as
 built"). On the labelled set the AI does **not** beat the baseline, so ROADMAP rule 7 does not yet let
-the automatic analysis run.
+the automatic analysis run. Hiding the deterministic conclusion from the model (`c44a6e2c`, 2026-09-22)
+did not change that: see "Baseline anchoring, removed and measured".
 
 ### L5b as built
 
@@ -547,6 +548,85 @@ recomputable*.
   - a batch past the `maxAnalyses` budget with a live model;
   - the automatic analysis, which is not built.
 
+### Baseline anchoring, removed and measured (2026-09-22, `c44a6e2c`)
+
+**The hypothesis.** The request gave the model L5a's conclusion first ("Deterministic conclusion:
+<code>: <reason>", "It rests on: <ids>") and ranked the cited events first. On `transport-noise` the AI
+kept the baseline's unrelated lead event, so the prompt looked like the cause.
+
+**The change (`src/ai/failureAnalysis.ts`), prompt only:**
+
+- The cause code, reason and "rests on" ids are no longer sent.
+- The offered lines are shown newest first, so the runner's own record leads. They are not in the
+  baseline's order, and not oldest first, which is the baseline's own rule (the earliest direct event).
+- The instructions say an event is not the cause because it came first or is an error. An event about
+  something other than what the step was doing is unrelated and is not cited.
+- **Unchanged:**
+  - which events are offered: the baseline's citations are still ranked first under the budget, so
+    every event the report names can be cited;
+  - the evidence tier: `mustConclude` still comes from the baseline;
+  - the grammar, the parser, redaction, the rescan, every refusal, the 185 s deadline and the
+    256-token cap;
+  - L5a's baseline, which the drawer still shows beside the answer.
+
+**Three cases added beyond L5's list** (`ANCHORING_ITEMS`), labelled by construction:
+
+- `unrelated-server-error-first`: a recommendations 503 at 300 ms is the baseline's pick, and a
+  `TypeError` in the address form's save button at 1,400 ms is the cause. The baseline is wrong.
+- `cause-then-unrelated-console`: the reverse. A payment 502 and its alert come first, then an
+  analytics 403 in the console just before the failure. The baseline is right, so newest-first order
+  cannot score by position alone.
+- `timeout-unrelated-console`: a timeout beside only a favicon 404. The right answer is to decline.
+  The judge now scores a row with no cause event as right only when declined.
+
+The judge also records `citesBaselineLead`. The live mode reports `echoesWrongBaseline` (baseline wrong,
+AI rests on its lead event), and the metrics again for the eight rows of `4f81424a`. Eleven model calls
+pass the 600 s tool ceiling, so `verify:ai-error-quality-live-part1` and `-part2` run the set in two
+parts (`--cases`). The parts' cases sum to the whole set.
+
+**Results on the real 0.8B, two runs, each 20/0 across both parts:**
+
+| Metric | Before (`4f81424a`, 8 rows) | Run 1, 8 rows | Run 1, all 11 | Run 2, 8 rows | Run 2, all 11 |
+|---|---|---|---|---|---|
+| Baseline accuracy | 7/8 | 7/8 | 9/11 | 7/8 | 9/11 |
+| AI accuracy | 7/8 | 7/8 | 9/11 | 7/8 | 9/11 |
+| AI improvement over baseline | 0 | 0 | 0 | 0 | 0 |
+| False attribution | 1 | 1 | 2 | 1 | 2 |
+| Rests on the wrong baseline's lead | — | not recorded | not recorded | 0 | 1 |
+| Declined | 0 | 0 | 1 (correct) | 0 | 1 (correct) |
+| Evidence-link accuracy | 19/19, 18/18 | 10/10 | 14/14 | 9/9 | 11/11 |
+| Inference per answer | 39.4–80.5 s | — | 35.0–73.2 s | — | 38.1–79.5 s |
+
+Coalescing (500 → 1, 2 → 2), zero calls for the pass and the insufficient baseline, delivery, saving,
+0 canaries and 0 residual secrets held on every row of both runs.
+
+**What it shows:**
+
+- **The prompt was not the whole cause.** With nothing naming the baseline's pick, the model still
+  made a wrong choice on both rows where the baseline is wrong:
+  - `transport-noise`: primary evidence `[unrelated]` on both runs. Before, it was `[unrelated, cause]`.
+    On run 2 the event was **not** the baseline's lead (the blocked pixel), so the model chose its own
+    wrong event and dropped the real cause.
+  - `unrelated-server-error-first`: the recommendations 503 on both runs. That is the baseline's pick,
+    though it was shown last and never named. This is the same wrong choice reached independently, not
+    an echo of the prompt.
+- **What the change did do.** The model concluded correctly where the only other error came after the
+  real cause (`cause-then-unrelated-console`). It declined where nothing but an unrelated error sat
+  beside a timeout. Where it agrees with the baseline, that agreement is now a second reading, not a
+  repetition.
+- **So the limit is the model's own cause selection:** it does not tie an event to what the step was
+  waiting for. It is not anchoring alone. The AI still does not beat the baseline, so **rule 7 keeps the
+  automatic analysis off**. On-demand analysis is unchanged.
+- **Not tuned on the set.** The three cases were written for this change, and no label was changed
+  after seeing an answer. One prompt was measured, with no wording iterated against these rows.
+
+**L1.8 with the new prompt:** see L1 › "`failureAnalysis` inside its ceiling at its own output cap".
+`benchmark:ai-model-0-8b` re-measured `packets:failureAnalysis` at 798 prompt tokens, with
+`failureAnalysisAtCap` 120,389 ms ≤ 180,000 and GO on all 8.
+
+**What it does not show:** a rate over more than two samples; which unrelated event run 1's
+`transport-noise` answer cited (`citesBaselineLead` was added after it); a person's reading of the texts.
+
 - Invocation: PASS + no evidence → nothing; PASS + evidence → baseline, AI on demand; FAIL → baseline immediately,
   AI only if enabled, admitted, not coalesced away, and the feature earned auto-run (beats baseline on labelled set).
   Never before terminal outcome.
@@ -574,7 +654,8 @@ latency, privacy correctness.
 
 New `verify:ui-error-evidence`, `verify:failure-capture-overhead`, `verify:failure-cause-baseline`,
 `verify:ai-error-analysis` (its last section audits the live labelled set and its judge), live
-`verify:ai-error-quality-live` (built, 13/0 on the real 0.8B). Existing: `verify:failure-evidence(-live)`,
+`verify:ai-error-quality-live` (built, 13/0 on the real 0.8B; since `c44a6e2c` the extended set runs as
+`-part1` 11/0 and `-part2` 9/0, twice). Existing: `verify:failure-evidence(-live)`,
 `verify:run-report-compatibility`, `verify:telemetry`, `verify:reports`, `verify:runner`, `verify:mock-site`,
 `validate:offline`, `npm run build`. Mock-site scenarios for each signal and a fast `<3s` run with zero model calls.
 

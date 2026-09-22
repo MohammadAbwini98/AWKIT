@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-8-anchoring-0922",
+    "title": "Record the failure-analysis baseline-anchoring change on L5b and L1",
+    "objective": "At c44a6e2c the failure-analysis request no longer shows the model the deterministic conclusion and lists the evidence newest first; the labelled set gained three anchoring cases and runs as verify:ai-error-quality-live-part1/-part2, each 20/0 across both parts on two runs: whole set baseline 9/11, AI 9/11, improvement 0, 2 false attributions, 1 correct decline, the eight rows of 4f81424a unchanged at 7/8 and 7/8. Without the conclusion the 0.8B still chose a wrong event where the baseline was wrong, so the AI does not beat the baseline and ROADMAP rule 7 keeps the automatic analysis off. benchmark:ai-model-0-8b is GO on all 8 with failureAnalysisAtCap 120389 ms. Append a note to awkit-djnl.8 and to awkit-djnl.1 giving the change, the result and what stays open. Refresh the JSONL export. Nothing closes: both stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "c44a6e2c",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.8 and awkit-djnl.1 stay in_progress, each with a note naming the change commit and its live result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after the two `bd update --append-notes`, `bd export -o .beads/issues.jsonl` (303 issues) and the already-edited state documents: 9 outstanding / 294 closed with 135 edges, unchanged, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-8-anchoring-0922:project-state:2026-09-22T13:27:33.290Z",
+        "task": "awkit-djnl-8-anchoring-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T13:27:33.290Z",
+        "acquired_at_commit": "c44a6e2c945e28fedb0ff71d7ca8dfafc9d744cc",
+        "released_at": "2026-09-22T13:28:10.402Z",
+        "released_reason": "anchoring change noted on awkit-djnl.8 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## `verify:ai-error-quality-live` is built: on L5's labelled set the 0.8B ties the deterministic baseline, 13/0 (2026-09-22, current)
+## Failure analysis no longer shows the model the deterministic conclusion; the 0.8B still ties the baseline (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **The change (`c44a6e2c`, `src/ai/failureAnalysis.ts`, prompt only):**
+  - The request no longer sends L5a's cause code, reason or the ids it rests on.
+  - The offered lines are listed newest first.
+  - The instructions say an event is not the cause because it came first or is an error.
+  - The baseline still decides which events are offered and the evidence tier (`mustConclude`).
+  - The grammar, parser, redaction, rescan, refusals, deadline and cap are unchanged.
+- **The gate grew:**
+  - Three anchoring cases: a second wrong baseline, an unrelated error after the real cause, and a
+    timeout beside only an unrelated error, where the right answer is to decline.
+  - A `citesBaselineLead` / `echoesWrongBaseline` diagnostic, and metrics for the eight rows of
+    `4f81424a`.
+  - Two part scripts (`-part1`, `-part2`), so the eleven model calls fit the 600 s tool ceiling.
+- **Results, two runs, each 20/0 across both parts:**
+  - Whole set: baseline 9/11, AI 9/11, improvement 0, 2 false attributions, 1 correct decline.
+  - Evidence links 14/14 and 11/11. Answers took 35–80 s.
+  - The eight rows of `4f81424a` are unchanged: 7/8 and 7/8, with 1 false attribution.
+- **Finding:** anchoring was not the whole cause. Without the conclusion, the model still chose a wrong
+  event on both rows where the baseline is wrong. On one of them it independently chose the baseline's
+  own pick. So the AI does not beat the baseline, and **rule 7 keeps the automatic analysis off**.
+- **L1.8:** `failureAnalysisAtCap` 120,389 ms ≤ 180,000 (was 132,320), GO on all 8. L1, L4b and L5b stay
+  `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-error-quality-live-part1` / `-part2` (real 0.8B) | 11/0 and 9/0, twice |
+| `verify:ai-error-quality-live` (whole set, one invocation) | NOT RUN: eleven calls exceed the 600 s tool ceiling. The two parts run the same cases |
+| `benchmark:ai-model-0-8b` · `verify:ai-failure-analysis-live` · `verify:ai-failure-analysis-budget` | GO on all 8 · 5/0 · 7/0 |
+| `verify:ai-error-analysis` | 279/279 (was 252). An oldest-first mutation was caught at 267/279 |
+| `verify:ai-adapter` · `-fallback` · `-redaction` · `-host` · `-assist-gui` | 117 · 38 · 52 · 135 + 12/12 mutations · 100/100 |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 253 scripts · PASS · PASS |
+| `verify:failure-capture-overhead` | NOT RUN: no import changed. Its `src/ai` concern, the import closure, is proven by `verify:ai-fallback` |
+
+## `verify:ai-error-quality-live` is built: on L5's labelled set the 0.8B ties the deterministic baseline, 13/0 (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).
