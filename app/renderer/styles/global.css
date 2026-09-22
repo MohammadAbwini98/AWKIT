@@ -1642,6 +1642,17 @@ div.validation-issue-row {
   font-weight: var(--weight-semibold);
 }
 
+/* L4b: the rule's own corrective step, product text, set apart from the AI's interpretation above it. */
+.ai-explanation-step {
+  color: var(--awkit-text);
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.ai-explanation-step-label {
+  font-weight: var(--weight-semibold);
+}
+
 /* L6: the fragment summary sits inside the insert dialog's detail, so the bar drops its divider. */
 .fragment-ai-summary {
   display: grid;

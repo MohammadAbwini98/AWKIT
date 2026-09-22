@@ -296,6 +296,14 @@ try {
   const explanations = win.getByTestId("ai-explanation");
   check("one explanation per finding", (await explanations.count()) === ids.length, String(await explanations.count()));
   check("each is labelled as an AI interpretation", (await explanations.allInnerTexts()).every((text) => text.startsWith("AI interpretation")));
+  // The corrective step is the product's (L4b, 2026-09-23): shown inside each explanation, labelled as
+  // the rule's, and the one the product built for that finding, whatever the model wrote.
+  const stepTexts = await win.getByTestId("ai-explanation-step").allInnerTexts();
+  check(
+    "...and shows the rule's own corrective action beside it, labelled apart from the AI's text, one per finding",
+    stepTexts.length === ids.length && stepTexts.every((text) => text.startsWith("Corrective action")) && expected!.issues.every((ref) => stepTexts.some((text) => text.includes(ref.step))),
+    JSON.stringify(stepTexts)
+  );
   const misplaced = await misplacedExplanations(win);
   check("...and sits under the row of the validator issue it names", misplaced.length === 0, JSON.stringify(misplaced));
   const ranks = win.getByTestId("ai-fix-rank");

@@ -19,12 +19,19 @@
  * where it is given, a fix for an issue that blocks the run comes first — the one documented priority
  * between fixes — and an order that breaks it is withheld, never shown and never re-sorted.
  *
+ * The corrective step itself is the product's, not the model's (2026-09-23): every rule has one
+ * product-authored step (`correctiveStep`), the one that names the safe fix only where the validator
+ * emitted one. It travels in the request, so the model restates a step that is right instead of guessing
+ * one, and it travels in the answer beside the model's text, so what the person is told to do never
+ * rests on model wording alone. A reviewed 0.8B answer had told the person to add a connector INTO End
+ * for a connector leaving it, and read "requires a value and has none" as the value not being required.
+ *
  * What crosses to the model: issue codes, severities, active-path flags, the anchor's KIND (node,
- * connector or flow), rule summaries (product-authored constants) and the `kind`/`field` of each emitted
- * fix. Never an anchor id, a validator message, a locator value, a typed value, a step name or any
- * profile literal — `safeFix.from`/`to` are deliberately withheld even though they are usually enum
- * casing, because "usually" is not a contract. So the prompt's size is a function of product constants
- * alone, which is what lets L1.8 bound its worst case.
+ * connector or flow), rule summaries and corrective steps (product-authored constants) and whether the
+ * validator emitted a fix. Never an anchor id, a validator message, a locator value, a typed value, a step
+ * name or any profile literal — `safeFix.from`/`to` are deliberately withheld even though they are usually
+ * enum casing, because "usually" is not a contract. So the prompt's size is a function of product
+ * constants alone, which is what lets L1.8 bound its worst case.
  *
  * Pure: no Electron, no filesystem, no clock, no Playwright, no model.
  */
@@ -34,6 +41,7 @@ import type { AiOutputSchema } from "./AiOutputContract";
 import {
   FLOW_VALIDATION_RULES,
   isExecutionBlocking,
+  type FlowValidationCode,
   type FlowValidationIssue,
   type FlowValidationReport,
   type SafeFixKind
@@ -76,6 +84,8 @@ export interface AuthoringIssueRef {
   issue: FlowValidationIssue;
   /** The validator emitted a `safeFix` for this issue, so it may appear in a ranking. */
   fixable: boolean;
+  /** The product's corrective step for this issue (`correctiveStep`). Never model text. */
+  step: string;
 }
 
 export interface AuthoringRequest {
@@ -92,8 +102,15 @@ export interface AuthoringRequest {
 export interface AuthoringExplanation {
   issueId: string;
   issue: FlowValidationIssue;
-  /** Model prose. Always rendered as an AI interpretation, never as a validator message. */
+  /**
+   * Model prose, complete sentences only. Always rendered as an AI interpretation, never as a validator
+   * message. A sentence the character limit cut off is dropped, never completed (`cut`).
+   */
   text: string;
+  /** The product's corrective step for the issue, from the request: never taken from the answer. */
+  step: string;
+  /** The model's text ran into the character limit mid-sentence; see {@link endAtCompleteSentence}. */
+  cut?: true;
 }
 
 export interface AuthoringAnswer {
@@ -135,27 +152,92 @@ export interface AuthoringRejection {
 }
 
 /**
- * Every clause is load-bearing, and `verify:ai-authoring` §12 holds each one: the corrective step, its
- * grounding in the issue given, the fallback when the issue says too little, the list of things never
- * to invent, the automatic-fix limit and the ranking's priority. Its length is L1.8 prompt time.
+ * Every clause is load-bearing, and `verify:ai-authoring` §12 holds each one: the given action (the
+ * corrective step) first, so the character limit cuts the explanation rather than the action; no other
+ * action; the list of things never to invent; the fix limit; and the ranking's priority. Its length is
+ * L1.8 prompt time: it is shorter than the one it replaced, because each issue's line carries its action.
  */
+// The 0.8B often opens an answer by echoing the first sentence ("The automation flow failed validation
+// because…"), and the character limit then cuts the action. Removing that sentence was worse: answers
+// collapsed to bare labels ("Unsupported Operator…"), 2 of 10 actionable against 7 of 10 (2026-09-23).
 const INSTRUCTIONS =
   "You explain why an automation flow failed validation, for the person editing it. " +
-  "You are given validation issues by id, each with its rule code, severity, where it is and the rule's " +
-  "own one-line summary. For each issue, write one or two short sentences: what is wrong, then the step " +
-  "the person should take in the editor, starting with a verb such as add, set, connect, remove or change. " +
-  "Base the step only on that issue; if it gives too little for a specific step, say what to check. " +
-  "Never invent issues, ids, rules, step names, selectors, values or connections, and never say the " +
-  "application can fix an issue that is not marked fixable. " +
-  "An issue marked fixable has a repair the application already knows how to perform safely; " +
-  "you may put those ids in order of which is most worth doing first, errors on the run path first. " +
+  "Each issue has an id, its rule code, severity, where it is, the rule's one-line summary and the action " +
+  "that corrects it. For each issue, write one or two short sentences: first its action as given, then " +
+  "what is wrong. Never suggest another action, and never invent issues, ids, rules, step names, selectors, " +
+  "values or connections. Only an issue marked fixable has a safe fix the application can apply; you may " +
+  "put those ids in order of which is most worth doing first, errors on the run path first. " +
   "You may not rank an id that is not marked fixable.";
 
-/** Product-authored, one line per kind. The model is told what a fix IS; it never chooses one. */
-const FIX_KIND_SUMMARY: Readonly<Record<SafeFixKind, string>> = Object.freeze({
-  normalizeEnumCasing: "rewrites a setting whose spelling differs from a legal value only by casing",
-  regenerateId: "assigns a fresh id where nothing refers to the old one ambiguously"
+/**
+ * The corrective step for each rule, product-authored: an instruction to the person, tied to the node or
+ * connector the finding anchors ("this step", "this connector"), resting on the rule alone. Where the
+ * validator's own message already names a remedy (a branch pair, a cycle, a condition's priority, an
+ * ignored binding) this is that remedy. Exhaustive, so a new rule does not type-check without one.
+ */
+const CORRECTIVE_STEP: Readonly<Record<FlowValidationCode, string>> = Object.freeze({
+  missingStartNode: "Add a Start node and connect it to the first step.",
+  multipleStartNodes: "Keep one Start node and remove the others.",
+  missingEndNode: "Add an End node and connect the last step to it.",
+  unreachableEndNode: "Connect the steps so that a path leads from Start to an End node.",
+  duplicateNodeId: "Delete one of the steps that share this id, add it again so it gets a new id, and reconnect it.",
+  duplicateEdgeId: "Give each connector that shares this id its own id.",
+  duplicateFlowId: "Give one of the flows that share this id a new id by saving it as a new flow.",
+  brokenConnectorEndpoint: "Reconnect this connector to a step that exists, or delete it.",
+  unreachableNode: "Connect this step from a step that runs, or delete it if it is not needed.",
+  missingFlowReference: "Choose a saved flow for this Run Another Flow step.",
+  flowReferenceCycle: "Change one of these Run Another Flow steps so that the flows no longer run each other in a loop.",
+  missingRequiredLocator: "Add a locator to this step so that it knows which element to act on.",
+  missingRequiredValue: "Set the value this step needs in its settings, or bind a value source to it.",
+  invalidTimeout: "Set this step's timeout to a positive number of milliseconds.",
+  invalidWaitCondition: "Fill in the field this Smart Wait condition needs, or remove the condition.",
+  invalidLoopBounds: "Set the loop's iteration limit to a number from 1 to 1000.",
+  unsupportedOperator: "Change the condition's operator to one of the listed operators.",
+  unsupportedConfiguration: "Change this setting to one of its listed values.",
+  connectorStructure: "Change or remove the connector this finding points to, as the finding describes.",
+  degradedWaitCondition: "Fill in the field this optional Smart Wait condition needs, or remove the condition.",
+  highTimeout: "Lower this step's timeout unless the step really needs to wait that long.",
+  largeLoopBounds: "Lower the loop's iteration limit unless the run needs that many passes.",
+  locatorNeedsReview: "Review and approve this step's locator, or record the element again.",
+  interactionPrerequisiteBlocked: "Review this step's prerequisite and choose how the step should run.",
+  ignoredConditionValueSource: "Remove the value source binding, or put its value into the condition's expression.",
+  incompleteBranchPair: "Add the matching branch or a fallback connector from the same step, or change this connector to a standard one.",
+  unguardedCycle: "Change the connector that closes this cycle to a Loop Back connector with a maximum count, or remove it.",
+  connectorFromEndNode: "Remove this connector from the End step, or move its target so that it runs before End.",
+  deadEndNode: "Add an outgoing connector from this step to the next step or to an End step.",
+  incompleteCondition: "Set the condition's comparison value, or the variable path it reads.",
+  emptyLoopValues: "Add values to this loop's static list, or choose another loop mode.",
+  ambiguousConditionPriority: "Give each conditional connector from this step its own priority.",
+  incompleteValueSource: "Set the missing key this value source reads, or remove the binding."
 });
+
+/** What each fix kind does, for the step of an issue the validator emitted it for. It names the issue's own subject. */
+const SAFE_FIX_EFFECT: Readonly<Record<SafeFixKind, (issue: FlowValidationIssue) => string>> = Object.freeze({
+  normalizeEnumCasing: (issue: FlowValidationIssue) => `corrects ${issue.code === "unsupportedOperator" ? "the operator's" : "this setting's"} casing to a listed value`,
+  regenerateId: () => "gives this connector a new id"
+});
+
+/**
+ * The product's corrective step for one issue. Deterministic: the same issue always gets the same step.
+ * Where the validator emitted a fix, the step is that fix through its preview; no other step ever names one.
+ */
+export function correctiveStep(issue: FlowValidationIssue): string {
+  return issue.safeFix ? `Review and apply the offered safe fix, which ${SAFE_FIX_EFFECT[issue.safeFix.kind](issue)}.` : CORRECTIVE_STEP[issue.code];
+}
+
+/**
+ * Keep only complete sentences. The grammar ends a text at `maxExplanationChars` wherever it is, and a
+ * cut sentence read as an instruction ("The person should add a condition to the") is incomplete or
+ * misleading. So an unfinished tail is dropped, never completed or rewritten; a text with no complete
+ * sentence at all keeps its fragment, marked with an ellipsis so it cannot pass for a finished one.
+ */
+export function endAtCompleteSentence(text: string): { text: string; cut: boolean } {
+  if (/[.!?]["')\]]?$/.test(text)) return { text, cut: false };
+  // A sentence ends where the next one starts with a capital, so "e.g. the value" is not an end.
+  const ends = [...text.matchAll(/[.!?]["')\]]?(?=\s+[A-Z])/g)].map((m) => (m.index ?? 0) + m[0].length);
+  if (ends.length > 0) return { text: text.slice(0, ends[ends.length - 1]), cut: true };
+  return { text: `${text.slice(0, AUTHORING_LIMITS.maxExplanationChars - 1).trimEnd()}…`, cut: true };
+}
 
 const hasControlChar = (value: string): boolean => [...value].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127);
 
@@ -173,19 +255,23 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
   // With room for only a few, the issues that stop the flow from running go first, each group in the
   // report's own deterministic order.
   const sent = [...all.filter(isExecutionBlocking), ...all.filter((issue) => !isExecutionBlocking(issue))].slice(0, limit);
-  const issues: AuthoringIssueRef[] = sent.map((issue, index) => ({ id: `i${index}`, issue, fixable: issue.safeFix !== undefined }));
+  const issues: AuthoringIssueRef[] = sent.map((issue, index) => ({ id: `i${index}`, issue, fixable: issue.safeFix !== undefined, step: correctiveStep(issue) }));
   const fixableIds = issues.filter((ref) => ref.fixable).map((ref) => ref.id);
   const ids = issues.map((ref) => ref.id);
 
   // Only the anchor's kind, never its id: an id is the user's (a recorded step's is a UUID, dozens of
   // prompt tokens the model cannot use), and an answer is mapped back through `issues`, not through it.
-  // Never a step name, a locator or a validator message, which can carry a profile literal either.
+  // Never a step name, a locator or a validator message, which can carry a profile literal either. A
+  // fixable issue's step says what its fix does, so the fix's kind and field are not repeated here.
   const issueLines = issues
     .map((ref) => {
       const { issue } = ref;
       const anchor = issue.nodeId ? "at a node" : issue.edgeId ? "at a connector" : "flow-wide";
-      const fix = issue.safeFix ? ` fixable=${issue.safeFix.kind} at ${issue.safeFix.field} (${FIX_KIND_SUMMARY[issue.safeFix.kind]})` : "";
-      return `${ref.id}: ${issue.code} (${issue.severity}, ${issue.onActivePath ? "on the run path" : "off the run path"}, ${anchor})${fix} — ${FLOW_VALIDATION_RULES[issue.code].summary}`;
+      // "Action", never "Step": a step is a node here, and labelled "Step:" the 0.8B read the corrective
+      // step as a step's NAME ("The step 'Add a locator to this step' is missing a locator"). The action
+      // stays after the summary: put first, with the instruction to match, the 0.8B stopped restating
+      // it (2 of 10 actionable against 7 of 10, 2026-09-23).
+      return `${ref.id}: ${issue.code} (${issue.severity}, ${issue.onActivePath ? "on the run path" : "off the run path"}, ${anchor}${ref.fixable ? ", fixable" : ""}) — ${FLOW_VALIDATION_RULES[issue.code].summary} Action: ${ref.step}`;
     })
     .join("\n");
 
@@ -263,7 +349,8 @@ export function parseAuthoringAnswer(value: unknown, request: AuthoringRequest):
     if (trimmed.length > AUTHORING_LIMITS.maxExplanationChars) return reject("MALFORMED", `${path}.text`);
     if (hasControlChar(trimmed)) return reject("UNSAFE_TEXT", `${path}.text`);
     explained.add(issueId);
-    explanations.push({ issueId, issue: ref.issue, text: trimmed });
+    const ended = endAtCompleteSentence(trimmed);
+    explanations.push({ issueId, issue: ref.issue, text: ended.text, step: ref.step, ...(ended.cut ? { cut: true as const } : {}) });
   }
 
   const ranking: string[] = [];

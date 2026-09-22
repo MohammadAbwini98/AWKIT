@@ -146,8 +146,10 @@ export const FLOW_VALIDATION_RULES: Record<FlowValidationCode, RuleSpec> = {
   unreachableNode: { severity: "error", summary: "Node cannot be reached from Start." },
   missingFlowReference: { severity: "error", summary: "A Run Another Flow step targets a flow that does not exist." },
   flowReferenceCycle: { severity: "error", summary: "Run Another Flow references form a cycle." },
-  missingRequiredLocator: { severity: "error", summary: "Step type requires a locator and has none." },
-  missingRequiredValue: { severity: "error", summary: "Step type requires a value and has none." },
+  // Subject first: "Step type requires a value and has none" was read by the 0.8B as the type NOT
+  // requiring one (L4b review, 2026-09-22).
+  missingRequiredLocator: { severity: "error", summary: "The step has no locator, and its type needs one." },
+  missingRequiredValue: { severity: "error", summary: "The step has no value, and its type needs one." },
   invalidTimeout: { severity: "error", summary: "Timeout is zero, negative or not a finite number." },
   invalidWaitCondition: { severity: "error", summary: "A required Smart Wait condition is missing a field its own type needs, or matches vacuously." },
   invalidLoopBounds: { severity: "error", summary: "Loop iteration bound is outside 1…1000." },

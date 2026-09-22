@@ -16,7 +16,8 @@ export interface AuthoringAssist {
   stale: boolean;
   explain: () => void;
   cancel: () => void;
-  explanationsFor: (findingKey: string) => string[];
+  /** The AI's text, and the rule's own corrective step beside it (product text, not AI). */
+  explanationsFor: (findingKey: string) => Array<{ text: string; step: string }>;
   /** 1-based position in the AI's suggested fix order, or null. */
   rankOf: (findingKey: string) => number | null;
 }
@@ -35,10 +36,10 @@ export function useAuthoringAssist(flowId: string, profile: FlowProfile, snapsho
 
   const current = phase.kind === "done" && phase.subject === snapshot ? phase.view : null;
   const explanations = useMemo(() => {
-    const byKey = new Map<string, string[]>();
-    for (const { issue, text } of current?.explanations ?? []) {
+    const byKey = new Map<string, Array<{ text: string; step: string }>>();
+    for (const { issue, text, step } of current?.explanations ?? []) {
       const key = validationFindingKey(issue);
-      byKey.set(key, [...(byKey.get(key) ?? []), text]);
+      byKey.set(key, [...(byKey.get(key) ?? []), { text, step }]);
     }
     return byKey;
   }, [current]);

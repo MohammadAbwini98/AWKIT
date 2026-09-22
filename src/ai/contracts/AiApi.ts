@@ -262,8 +262,11 @@ export interface AuthoringAssistRequest {
 }
 
 export interface AuthoringAssistView extends AiAssistStatus {
-  /** T0 prose, each attached to the validator's own issue. Always shown labelled as AI. */
-  explanations: Array<{ issue: FlowValidationIssue; text: string }>;
+  /**
+   * T0 prose, each attached to the validator's own issue. Always shown labelled as AI. `step` is the
+   * product's corrective step for the issue, never model text, and is shown labelled as the rule's.
+   */
+  explanations: Array<{ issue: FlowValidationIssue; text: string; step: string }>;
   /** T1: validator-emitted safe-fix issues in the suggested order. Empty unless the tier permits suggesting. */
   ranking: FlowValidationIssue[];
   /** Issues beyond the per-request cap that were not sent, so the UI never implies completeness. */

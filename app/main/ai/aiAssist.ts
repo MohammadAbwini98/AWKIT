@@ -142,7 +142,7 @@ export async function explainFlowValidation(senderId: number, input: unknown, de
   const issueById = new Map(job.issues.map((ref) => [ref.id, ref.issue]));
   return {
     ...assistStatus("OK", outcome.modelId),
-    explanations: answer.explanations.map(({ issue, text }) => ({ issue, text })),
+    explanations: answer.explanations.map(({ issue, text, step }) => ({ issue, text, step })),
     ranking: ranked.map((id) => issueById.get(id)!),
     truncated: job.truncated
   };

@@ -37,6 +37,7 @@ import { isExecutionBlocking, validateFlowDefinition } from "@src/validation/Flo
 import {
   LABELLED_SET,
   authoringControlFailures,
+  correctiveControlFailures,
   deliveryViolations,
   judgeAuthoringAnswer,
   rankingControlFailures,
@@ -63,7 +64,11 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
     };
     const cycle = byId("cycle");
     const priority = byId("priority");
-    const failures = [...(cycle ? authoringControlFailures(cycle) : ["no cycle case"]), ...(priority ? rankingControlFailures(priority) : ["no priority case"])];
+    const failures = [
+      ...(cycle ? authoringControlFailures(cycle) : ["no cycle case"]),
+      ...(priority ? rankingControlFailures(priority) : ["no priority case"]),
+      ...correctiveControlFailures(byId)
+    ];
     if (failures.length > 0) throw new Error(failures.join("; "));
     return { failures: 0 };
   });

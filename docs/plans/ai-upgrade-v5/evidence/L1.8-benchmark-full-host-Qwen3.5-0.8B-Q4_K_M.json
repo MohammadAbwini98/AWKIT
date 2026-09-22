@@ -287,29 +287,29 @@
       }
     },
     "packets:validationExplanation": {
-      "completedAt": "2026-09-22T19:31:30.341Z",
+      "completedAt": "2026-09-22T21:35:45.330Z",
       "ok": true,
       "steps": [
         {
           "label": "packets: validationExplanation #1",
           "ok": true,
-          "durationMs": 54124,
+          "durationMs": 68618,
           "detail": {
-            "promptTokens": 395,
-            "outputTokens": 144,
+            "promptTokens": 340,
+            "outputTokens": 174,
             "stopReason": "stop",
-            "promptMs": 24145,
-            "firstTokenMs": 24145,
-            "generationMs": 29961,
-            "wallMs": 54120,
-            "promptTokensPerSec": 16.4,
-            "generationTokensPerSec": 4.77,
-            "hostPeakWorkingSetMb": 771,
-            "hostMaxWorkingSetMb": 771,
-            "hostCpuAvgPct": 31,
+            "promptMs": 18174,
+            "firstTokenMs": 18174,
+            "generationMs": 50433,
+            "wallMs": 68613,
+            "promptTokensPerSec": 18.7,
+            "generationTokensPerSec": 3.43,
+            "hostPeakWorkingSetMb": 1047,
+            "hostMaxWorkingSetMb": 1032,
+            "hostCpuAvgPct": 30,
             "hostCpuMaxPct": 35,
-            "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 37,
+            "mainLoopDelayP99Ms": 17,
+            "mainLoopDelayMaxMs": 40,
             "maxOutputTokens": 192,
             "answer": {
               "accepted": true,
@@ -318,8 +318,8 @@
               "explained": 2,
               "onSubject": 2,
               "textChars": [
-                159,
-                159
+                150,
+                150
               ],
               "ranked": 0,
               "residualSecrets": 0
@@ -329,23 +329,23 @@
         {
           "label": "packets: validationExplanation #2",
           "ok": true,
-          "durationMs": 60373,
+          "durationMs": 77949,
           "detail": {
-            "promptTokens": 395,
-            "outputTokens": 144,
+            "promptTokens": 340,
+            "outputTokens": 174,
             "stopReason": "stop",
-            "promptMs": 27955,
-            "firstTokenMs": 27955,
-            "generationMs": 32399,
-            "wallMs": 60372,
-            "promptTokensPerSec": 14.1,
-            "generationTokensPerSec": 4.41,
-            "hostPeakWorkingSetMb": 771,
-            "hostMaxWorkingSetMb": 679,
+            "promptMs": 29260,
+            "firstTokenMs": 29260,
+            "generationMs": 48681,
+            "wallMs": 77947,
+            "promptTokensPerSec": 11.6,
+            "generationTokensPerSec": 3.55,
+            "hostPeakWorkingSetMb": 1047,
+            "hostMaxWorkingSetMb": 1019,
             "hostCpuAvgPct": 31,
             "hostCpuMaxPct": 33,
-            "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 37,
+            "mainLoopDelayP99Ms": 17,
+            "mainLoopDelayMaxMs": 22,
             "maxOutputTokens": 192,
             "answer": {
               "accepted": true,
@@ -354,8 +354,8 @@
               "explained": 2,
               "onSubject": 2,
               "textChars": [
-                159,
-                159
+                150,
+                150
               ],
               "ranked": 0,
               "residualSecrets": 0
@@ -369,25 +369,25 @@
         "benchThreads": 4,
         "packets:validationExplanation": {
           "threads": 4,
-          "loadMs": 7229,
-          "packetIdentity": "48b4e5762638f2a156ddd396672c33b8bb23cfa70fa83a870ab5da27c7853ce5",
+          "loadMs": 7470,
+          "packetIdentity": "505e3b9b1e81fbc2fc12b5f1f2a7a7e45ed280915e7a4bf80609b17df9976b05",
           "iterations": [
             {
-              "promptTokens": 395,
-              "outputTokens": 144,
+              "promptTokens": 340,
+              "outputTokens": 174,
               "stopReason": "stop",
-              "promptMs": 24145,
-              "firstTokenMs": 24145,
-              "generationMs": 29961,
-              "wallMs": 54120,
-              "promptTokensPerSec": 16.4,
-              "generationTokensPerSec": 4.77,
-              "hostPeakWorkingSetMb": 771,
-              "hostMaxWorkingSetMb": 771,
-              "hostCpuAvgPct": 31,
+              "promptMs": 18174,
+              "firstTokenMs": 18174,
+              "generationMs": 50433,
+              "wallMs": 68613,
+              "promptTokensPerSec": 18.7,
+              "generationTokensPerSec": 3.43,
+              "hostPeakWorkingSetMb": 1047,
+              "hostMaxWorkingSetMb": 1032,
+              "hostCpuAvgPct": 30,
               "hostCpuMaxPct": 35,
-              "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 37,
+              "mainLoopDelayP99Ms": 17,
+              "mainLoopDelayMaxMs": 40,
               "maxOutputTokens": 192,
               "answer": {
                 "accepted": true,
@@ -396,29 +396,29 @@
                 "explained": 2,
                 "onSubject": 2,
                 "textChars": [
-                  159,
-                  159
+                  150,
+                  150
                 ],
                 "ranked": 0,
                 "residualSecrets": 0
               }
             },
             {
-              "promptTokens": 395,
-              "outputTokens": 144,
+              "promptTokens": 340,
+              "outputTokens": 174,
               "stopReason": "stop",
-              "promptMs": 27955,
-              "firstTokenMs": 27955,
-              "generationMs": 32399,
-              "wallMs": 60372,
-              "promptTokensPerSec": 14.1,
-              "generationTokensPerSec": 4.41,
-              "hostPeakWorkingSetMb": 771,
-              "hostMaxWorkingSetMb": 679,
+              "promptMs": 29260,
+              "firstTokenMs": 29260,
+              "generationMs": 48681,
+              "wallMs": 77947,
+              "promptTokensPerSec": 11.6,
+              "generationTokensPerSec": 3.55,
+              "hostPeakWorkingSetMb": 1047,
+              "hostMaxWorkingSetMb": 1019,
               "hostCpuAvgPct": 31,
               "hostCpuMaxPct": 33,
-              "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 37,
+              "mainLoopDelayP99Ms": 17,
+              "mainLoopDelayMaxMs": 22,
               "maxOutputTokens": 192,
               "answer": {
                 "accepted": true,
@@ -427,8 +427,8 @@
                 "explained": 2,
                 "onSubject": 2,
                 "textChars": [
-                  159,
-                  159
+                  150,
+                  150
                 ],
                 "ranked": 0,
                 "residualSecrets": 0
@@ -843,7 +843,7 @@
     }
   },
   "verdict": {
-    "evaluatedAt": "2026-09-22T19:31:30.347Z",
+    "evaluatedAt": "2026-09-22T21:35:45.337Z",
     "decision": "GO",
     "criteria": [
       {
@@ -854,7 +854,7 @@
       },
       {
         "id": "hostMemory",
-        "measured": 798,
+        "measured": 1047,
         "ceiling": 6144,
         "pass": true
       },
@@ -872,7 +872,7 @@
       },
       {
         "id": "validationExplanationAtCap",
-        "measured": 71492,
+        "measured": 83345,
         "ceiling": 120000,
         "pass": true
       },
@@ -910,15 +910,15 @@
       },
       "validationExplanation": {
         "runs": 2,
-        "promptTokens": 395,
-        "promptTokensPerSec": 16.4,
-        "generationTokensPerSec": 4.77,
-        "firstTokenMsMedian": 27955,
-        "wallMsMedian": 60372,
-        "wallMsMax": 60372,
-        "atOutputCapMs": 71492,
-        "hostPeakWorkingSetMb": 771,
-        "mainLoopDelayP99Ms": 30
+        "promptTokens": 340,
+        "promptTokensPerSec": 18.7,
+        "generationTokensPerSec": 3.55,
+        "firstTokenMsMedian": 29260,
+        "wallMsMedian": 77947,
+        "wallMsMax": 77947,
+        "atOutputCapMs": 83345,
+        "hostPeakWorkingSetMb": 1047,
+        "mainLoopDelayP99Ms": 17
       },
       "failureAnalysis": {
         "runs": 2,

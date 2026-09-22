@@ -58,6 +58,8 @@ export interface ReviewItem {
   fixable: boolean;
   /** What the model was told about this issue: the product's own Issues line. */
   evidence: string;
+  /** The product's corrective step shown beside the text (captures since 2026-09-23; absent before). */
+  step?: string;
   /** The model's explanation after redaction; `null` when it was withheld. */
   text: string | null;
   withheld?: "RESIDUAL_SECRET";
@@ -146,6 +148,7 @@ export function buildReviewCapture(modelId: string, cases: readonly CapturedCase
         blocking: isExecutionBlocking(ref.issue),
         fixable: ref.fixable,
         evidence: lines.find((line) => line.startsWith(`${ref.id}: `)) ?? "",
+        step: explanation.step,
         text,
         ...(text === null ? { withheld: "RESIDUAL_SECRET" as const } : {}),
         judged: { onSubject: reading.onSubject, misattributed: reading.misattributed, actionable: reading.actionable, unsupported: reading.unsupported, category: reading.category }

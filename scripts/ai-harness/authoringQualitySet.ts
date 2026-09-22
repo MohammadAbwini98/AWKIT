@@ -24,7 +24,7 @@
  * Electron-free: `verify:ai-authoring` audits the set and runs the judge's controls without a model.
  */
 
-import { AUTHORING_LIMITS, parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
+import { parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FlowEdge, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
 import { isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
@@ -219,6 +219,26 @@ export const REMEDY: Readonly<Partial<Record<FlowValidationCode, RegExp>>> = Obj
   invalidTimeout: /timeout|time|wait|positive|number|value/i
 });
 
+/**
+ * Corrections a rule contradicts, one pattern per rule whose wrong direction is unambiguous. Unlike the
+ * patterns above, these were written AFTER real answers were read: each is a regression screen for a
+ * correction the 97996c48 captures gave (an agent's reading, pending a person's review), generalised
+ * from the rule rather than from the wording. A hit is an unsupported claim, and never actionable.
+ */
+export const WRONG_REMEDY: Readonly<Partial<Record<FlowValidationCode, RegExp>>> = Object.freeze({
+  // The connector LEAVING End is the defect; another connector into End leaves it in place.
+  connectorFromEndNode: /\b(?:add|connect|draw|create|insert)\b[^.;]{0,40}\bconnectors?\b[^.;]{0,30}\b(?:to|into|reach(?:es)?)\b[^.;]{0,15}\bend\b/i,
+  // The step's type needs one: saying it is not needed or not required inverts the rule.
+  missingRequiredValue: /\b(?:not|never)\b[^.;]{0,20}\b(?:need|requir)\w*[^.;]{0,20}\bvalues?\b/i,
+  missingRequiredLocator: /\b(?:not|never)\b[^.;]{0,20}\b(?:need|requir)\w*[^.;]{0,20}\blocators?\b/i,
+  // The emitted fix gives the duplicate a new id. Removing a connector, or an id, is a structural change no rule asks for.
+  duplicateEdgeId: /\b(?:remove|delete|drop)\b[^.;]{0,25}\b(?:edges?|connectors?|connections?|ids?|identifiers?)\b/i,
+  // The connector already carries its condition, and the runner is nothing the editor changes.
+  incompleteBranchPair: /\badd (?:a |another |the )?condition\b|\b(?:add|set|change|configure)\b[^.;]{0,30}\b(?:to|in) the runner\b/i,
+  // A timeout that is already unusually high is not corrected by raising it.
+  highTimeout: /\b(?:increase|raise|extend|lengthen)\b[^.;]{0,20}\btimeouts?\b/i
+});
+
 /** A corrective verb in its base form: an instruction to the person, not a description of the problem. */
 const CORRECTIVE =
   /\b(?:add|apply|attach|assign|break|change|choose|connect|convert|configure|decrease|define|delete|disconnect|drop|edit|enter|give|insert|lower|make|move|pick|provide|reconnect|reduce|regenerate|remove|rename|replace|rewrite|select|shorten|specify|supply|switch|update|use)\b|\bset (?:the|a|an|it|its|this|that|one)\b/i;
@@ -227,11 +247,13 @@ const CORRECTIVE =
  * Claims the request does not support, each one evidence an explanation is wrong:
  *  - AUTO_FIX_CLAIMED: the application can repair an issue it emitted no fix for (AI inventing a fix);
  *  - OFF_DOMAIN: a cause or remedy outside the flow (restart, network, cache, credentials, support);
- *  - FABRICATED_LITERAL: a quoted name, a selector, a URL or a value the request never held;
+ *  - FABRICATED_LITERAL: a quoted name, a selector, a URL or a value the request never held, or the
+ *    corrective action given as a step's name (`ACTION_AS_NAME`);
  *  - SEVERITY_OVERSTATED: an issue that does not block the run is said to stop the flow running;
- *  - SEVERITY_UNDERSTATED: an issue that blocks the run is said to be harmless or only a warning.
+ *  - SEVERITY_UNDERSTATED: an issue that blocks the run is said to be harmless or only a warning;
+ *  - WRONG_REMEDY: a correction the issue's own rule contradicts (`WRONG_REMEDY`).
  */
-export type UnsupportedKind = "AUTO_FIX_CLAIMED" | "OFF_DOMAIN" | "FABRICATED_LITERAL" | "SEVERITY_OVERSTATED" | "SEVERITY_UNDERSTATED";
+export type UnsupportedKind = "AUTO_FIX_CLAIMED" | "OFF_DOMAIN" | "FABRICATED_LITERAL" | "SEVERITY_OVERSTATED" | "SEVERITY_UNDERSTATED" | "WRONG_REMEDY";
 
 const AUTO_FIX =
   /\b(?:app|application|tool|designer|editor|validator|system|awkit)\b[^.;]{0,20}\b(?:can|will|could)\b[^.;]{0,15}\b(?:fix|repair|correct|resolve|regenerate|rewrite|normalize)\b|\bapply (?:the |a |its )?(?:safe |suggested |available |automatic )?(?:fix|repair)\b|\bauto-?fix|\bone[- ]click\b|\b(?:is|marked) fixable\b|\bfix(?:ed)? (?:it |this )?automatically\b/i;
@@ -243,15 +265,24 @@ const BLOCKS_RUN =
 const HARMLESS =
   /\b(?:harmless|(?:safe|okay|ok|fine) to ignore|can (?:safely )?(?:be )?ignored?|(?:only|just) a warning|not (?:a )?(?:real |serious |critical |blocking )?(?:problem|issue|error)|does(?:n't| not) matter)\b/i;
 const QUOTED = /["`“”]([^"`“”]{2,})["`“”]/g;
+/**
+ * The corrective action given as the NAME of a step ("The step 'Add a locator to this step' is missing
+ * a locator"): a step name the request never held, and no instruction. Written after the first 2026-09-23
+ * capture showed it, while the request still labelled the action "Step:".
+ */
+const ACTION_AS_NAME = /\bstep\s+["'`“‘]?(?:add|apply|change|choose|connect|delete|fill|give|keep|lower|move|reconnect|remove|review|set)\b/i;
 const NUMBER = /\b(\d+(?:[.,]\d+)*)\s*(ms|milliseconds?|s|secs?|seconds?|mins?|minutes?|h|hours?|%|px|times)?\b/gi;
 const SELECTOR = /https?:\/\/|www\.|(?:^|\s)[#.][a-z][\w-]*|\[data-[\w-]+/i;
 
 const sentencesOf = (text: string): string[] => text.split(/[.!?;]+/).filter((s) => s.trim());
+/** Complete sentences only: an unfinished tail, or a fragment the product marked "…", instructs nothing. */
+const completeSentencesOf = (text: string): string[] => sentencesOf(/[.!?]["')\]]?$/.test(text) ? text : text.replace(/[^.!?]*$/, ""));
 
 /** Everything the model was given: the instructions and the Issues block, never the nonce. */
 const supportedTextOf = (request: AuthoringRequest): string => [request.prompt.instructions, ...request.prompt.fields.map((f) => f.text)].join("\n");
 
 function fabricatesLiteral(text: string, supported: string): boolean {
+  if (ACTION_AS_NAME.test(text)) return true;
   const known = supported.toLowerCase();
   for (const quote of text.matchAll(QUOTED)) if (!known.includes(quote[1].trim().toLowerCase())) return true;
   for (const number of text.matchAll(NUMBER)) {
@@ -271,6 +302,7 @@ export function unsupportedClaims(ref: AuthoringIssueRef, text: string, supporte
   const blocking = isExecutionBlocking(ref.issue);
   if (!blocking && BLOCKS_RUN.test(text)) hits.push("SEVERITY_OVERSTATED");
   if (blocking && HARMLESS.test(text)) hits.push("SEVERITY_UNDERSTATED");
+  if (WRONG_REMEDY[ref.issue.code]?.test(text)) hits.push("WRONG_REMEDY");
   return hits;
 }
 
@@ -305,7 +337,7 @@ export interface AuthoringJudgement {
   rankingOrderCorrect: boolean | null;
   /** The product withheld the model's order for breaking the blocking-first priority. */
   rankingWithheld: boolean;
-  /** Ended at `maxExplanationChars`: cut by the grammar, not by the model. */
+  /** Ran into `maxExplanationChars` mid-sentence, so the product kept its complete sentences only. */
   cutByGrammar: number;
   /** Texts carrying the canary. The product never sends it, so any is a leak through the request. */
   canaryInText: number;
@@ -332,8 +364,10 @@ export function judgeAuthoringAnswer(request: AuthoringRequest, answer: Authorin
     const own = names(code, e.text);
     const other = !own && codes.some((c) => c !== code && names(c, e.text));
     const remedy = REMEDY[code];
-    const acts = remedy !== undefined && sentencesOf(e.text).some((s) => CORRECTIVE.test(s) && remedy.test(s));
     const hits = unsupportedClaims(byId.get(e.issueId) as AuthoringIssueRef, e.text, supported);
+    // A correction its own rule contradicts is not the issue's remedy, however it is worded, and an
+    // action quoted as a step's name instructs nothing.
+    const acts = remedy !== undefined && !hits.includes("WRONG_REMEDY") && completeSentencesOf(e.text).some((s) => CORRECTIVE.test(s) && remedy.test(s) && !ACTION_AS_NAME.test(s));
     for (const hit of hits) unsupported[hit] = (unsupported[hit] ?? 0) + 1;
     onSubject += own ? 1 : 0;
     misattributed += other ? 1 : 0;
@@ -355,7 +389,7 @@ export function judgeAuthoringAnswer(request: AuthoringRequest, answer: Authorin
     perExplanation,
     rankingOrderCorrect: answer.rankingWithheld ? false : rankingKeepsPriority(request, answer.ranking),
     rankingWithheld: answer.rankingWithheld !== undefined,
-    cutByGrammar: answer.explanations.filter((e) => e.text.length >= AUTHORING_LIMITS.maxExplanationChars).length,
+    cutByGrammar: answer.explanations.filter((e) => e.cut).length,
     canaryInText: answer.explanations.filter((e) => e.text.toUpperCase().includes(CANARY)).length,
     residualSecrets: answer.explanations.reduce((n, e) => n + findResidualSecrets(e.text).length, 0),
     ranked: answer.ranking.length,
@@ -406,7 +440,8 @@ export function authoringControlFailures(request: AuthoringRequest): string[] {
   expect("swapped texts are misattributed twice and on subject never", swapped?.onSubject === 0 && swapped.misattributed === 2);
   const vague = judge(answer(["Please look at this part of the flow again.", "Please look at this part of the flow again, too."]));
   expect("a vague answer is on subject never and misattributed never", vague?.onSubject === 0 && vague.misattributed === 0);
-  expect("a canary in an answer is refused", deliveryViolations(request, answer([`${onA} ${CANARY}`, onB]), "prompt").includes("CANARY_IN_ANSWER"));
+  // Inside a complete sentence: an unfinished tail is dropped before delivery, so it is never shown.
+  expect("a canary in an answer is refused", deliveryViolations(request, answer([`${CANARY} ${onA}`, onB]), "prompt").includes("CANARY_IN_ANSWER"));
   expect("a canary in the prompt is refused", deliveryViolations(request, answer([onA, onB]), `step ${CANARY.toLowerCase()}`).includes("CANARY_IN_PROMPT"));
   expect("one of two explained is refused", deliveryViolations(request, { version: 1, explanations: [{ issueId: a.id, text: onA }] }, "prompt").includes("NOT_EVERY_ISSUE_EXPLAINED"));
   expect("ranking an issue with no emitted fix is refused", deliveryViolations(request, answer([onA, onB], { ranking: [a.id] }), "prompt").includes("REFUSED_FIX_NOT_EMITTED"));
@@ -467,5 +502,81 @@ export function rankingControlFailures(request: AuthoringRequest): string[] {
   expect("no ranking has no order to judge, and nothing is withheld", judge(undefined)?.rankingOrderCorrect === null && judge(undefined)?.rankingWithheld === false);
   expect("both texts clear every screen and are actionable", judge([a.id, b.id])?.categories.unverified === 2);
   expect("saying the application fixes an issue it DID emit a fix for is supported", judge(undefined, " The application can fix this automatically.")?.unsupported.AUTO_FIX_CLAIMED === undefined);
+  return failures;
+}
+
+/**
+ * The corrections the 97996c48 captures got wrong, replayed as scripted answers the judge must refuse to
+ * count, each beside a correct twin: incorrect (a connector into End, the value rule inverted), irrelevant
+ * (a condition added "to the runner"), unsupported (a connector removed for a duplicate id) and truncated
+ * (the step cut off by the character limit). `requestFor` builds a labelled case's request; the
+ * texts are the captured answers, ended with a full stop where the capture was cut so that the screen,
+ * not the product's trim, is what each one tests, and every one goes through the product's parser first.
+ */
+export function correctiveControlFailures(requestFor: (caseId: string) => AuthoringRequest | undefined): string[] {
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  /** The judge's reading of `texts` as one answer to `caseId`, after the product parsed it. */
+  const read = (caseId: string, texts: string[]) => {
+    const request = requestFor(caseId);
+    if (!request || request.issues.length !== texts.length) return null;
+    const parsed = parseAuthoringAnswer({ version: 1, explanations: request.issues.map((ref, i) => ({ issueId: ref.id, text: texts[i] })) }, request);
+    return parsed.ok ? { answer: parsed, judged: judgeAuthoringAnswer(request, parsed) } : null;
+  };
+  const wrong = (reading: ReturnType<typeof read>, index: number) => {
+    const p = reading?.judged.perExplanation[index];
+    return p !== undefined && !p.actionable && p.category === "defect" && p.unsupported.includes("WRONG_REMEDY");
+  };
+  const good = (reading: ReturnType<typeof read>, index: number) => {
+    const p = reading?.judged.perExplanation[index];
+    return p !== undefined && p.actionable && p.category === "unverified";
+  };
+
+  const endAnswer = read("cycle", ["Add a Loop Back connector to break the cycle.", "The flow finishes at an End node, so it never runs. The person should add a connector that connects to an End node to ensure the flow runs."]);
+  expect("incorrect: a connector INTO End for one leaving it is a wrong remedy, never actionable", wrong(endAnswer, 1));
+  expect("...and removing the connector that leaves End is actionable", good(read("cycle", ["Add a Loop Back connector to break the cycle.", "The flow finishes at an End node, so it never runs. The person should remove the connector that leaves the End node."]), 1));
+
+  const inverted = "The automation flow requires a value at a node on the run path, but the step type does not specify a required value, causing the validation to fail.";
+  const valueAnswer = read("values", [inverted, "Set the missing key this value source reads."]);
+  expect("incorrect: the value rule inverted is a wrong remedy, never actionable (the old proxy counted it)", wrong(valueAnswer, 0));
+  expect("...and the correct reading, 'has no value, and its type needs one', is not", good(read("values", ["Set the value this step needs. The step has no value, and its type needs one.", "Set the missing key this value source reads."]), 0));
+
+  // Captured at exactly 160 characters; "The person should" goes so that the full stop fits.
+  const branch = "The runner ignores the condition or runs the branch twice because the conditional connector is its only way out. Add a condition to the runner.";
+  expect("irrelevant: adding a condition 'to the runner' for a lone conditional connector is a wrong remedy", wrong(read("branch", [branch, "Set the comparison value for the condition."]), 0));
+  expect("...and adding the matching branch is actionable", good(read("branch", ["Add the matching branch or a fallback connector from the same step. The conditional connector is its only way out.", "Set the comparison value for the condition."]), 0));
+
+  const removeEdge = "Two or more connectors share one id, causing a duplicate edge error. The person should remove the duplicate edge or regenerate the id for the connector.";
+  expect("unsupported: removing a connector for a duplicate id is a wrong remedy", wrong(read("priority", ["Change the operator's casing to a listed operator.", removeEdge]), 1));
+  expect("...as is removing 'the duplicate edge ID'", wrong(read("priority", ["Change the operator's casing to a listed operator.", "The duplicate edge ID means two connectors share the same identifier. The person should remove the duplicate edge ID from the connector list."]), 1));
+  expect("...and regenerating the duplicate's id is actionable", good(read("priority", ["Change the operator's casing to a listed operator.", "Regenerate the id of the duplicate connector. Two connectors share one id."]), 1));
+
+  // The corrective action read as a step's NAME (first 2026-09-23 capture, when the line said "Step:").
+  const named = (caseId: string, texts: string[], index: number) => {
+    const p = read(caseId, texts)?.judged.perExplanation[index];
+    return p !== undefined && !p.actionable && p.category === "defect" && p.unsupported.includes("FABRICATED_LITERAL");
+  };
+  expect("misread: the action quoted as a step's name is a fabricated name, never actionable", named("locator-orphan", ["The step 'Add a locator to this step' is missing a locator, which is required to know which element to act on.", "Connect this step from a step that runs."], 0));
+  expect("...unquoted too", named("values", ["The step Set the value this step needs in its settings, or bind a value source to it, has no value, and its type needs one.", "Set the missing key this value source reads."], 0));
+
+  // Truncated: the step came after the explanation and the limit cut it. The product keeps the complete
+  // sentence, and a sentence with no step is not actionable; a lone fragment is marked and never counts.
+  const cut = read("cycle", ["The automation flow has a cycle where the connector stops the run, causing a runtime-cycle error. The person should add a Loop Back connector to ensure the flow", "Remove the connector that leaves the End node."]);
+  expect("truncated: a step cut off mid-sentence is dropped by the product, not shown half-said", cut?.answer.explanations[0].text === "The automation flow has a cycle where the connector stops the run, causing a runtime-cycle error." && cut.answer.explanations[0].cut === true);
+  expect("...so it is not actionable", cut?.judged.perExplanation[0].actionable === false && cut.judged.cutByGrammar === 1);
+  const fragment = read("cycle", ["The person should add a Loop Back connector to break the cycle so that the flow", "Remove the connector that leaves the End node."]);
+  expect("truncated: a lone fragment is marked with an ellipsis and is not actionable", fragment?.answer.explanations[0].text.endsWith("…") === true && fragment.judged.perExplanation[0].actionable === false);
+  const stepFirst = read("cycle", ["Add a Loop Back connector to break the cycle. The connectors repeat the same steps and the run stops with a runtime-cy", "Remove the connector that leaves the End node."]);
+  expect("...while a step given first survives the limit and is actionable", stepFirst?.answer.explanations[0].text === "Add a Loop Back connector to break the cycle." && good(stepFirst, 0));
+
+  // The product's own step, as the model's whole text, is the answer the request asks for: it must be
+  // judged actionable and clear every screen, including the one above, for every labelled code.
+  for (const labelled of LABELLED_SET) {
+    const request = requestFor(labelled.id);
+    const reading = request ? read(labelled.id, request.issues.map((ref) => ref.step)) : null;
+    expect(`${labelled.id}: the product's steps, restated, are actionable and screen-clear`, reading !== null && reading.judged.perExplanation.every((p) => p.actionable && p.category === "unverified"));
+  }
   return failures;
 }

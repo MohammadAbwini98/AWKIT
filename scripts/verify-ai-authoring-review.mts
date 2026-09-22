@@ -62,6 +62,7 @@ if (args[0] === "--pending") {
     console.log(`  case ${item.caseId}, ${item.issueId} ${item.code} (${item.blocking ? "blocks the run" : "does not block the run"}, ${item.fixable ? "fixable" : "no emitted fix"})`);
     console.log(`  evidence: ${item.evidence}`);
     console.log(`  answer:   ${item.text ?? "(withheld: something sensitive survived redaction)"}`);
+    if (item.step) console.log(`  shown beside it, the rule step: ${item.step}`);
     console.log(`  proxy:    on subject ${item.judged.onSubject ? "yes" : "no"}, actionable ${item.judged.actionable ? "yes" : "no"}, ${item.judged.category}\n`);
   }
   process.exit(0);

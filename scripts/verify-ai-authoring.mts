@@ -28,7 +28,10 @@
  * kept, through the adapter too; the review capture redacted before it is written, with a residual
  * secret withheld and nothing from the flow stored; verdicts validated and redacted; and the adopted
  * target, which can say MET and says PENDING or NOT MET for each way short of it, never counting an
- * unreviewed explanation as correct.
+ * unreviewed explanation as correct. Section 13 holds the corrective step to the product (2026-09-23):
+ * every rule has one, a fix is named only where the validator emitted one, the designer gets the
+ * product's step whatever the model wrote, and a sentence the character limit cut is never shown; §11
+ * replays the reviewed failures (incorrect, inverted, irrelevant, unsupported, truncated) as controls.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -48,6 +51,8 @@ import {
   authoringExplanationDecision,
   authoringRankingDecision,
   buildAuthoringRequest,
+  correctiveStep,
+  endAtCompleteSentence,
   parseAuthoringAnswer,
   rankingKeepsPriority,
   type AuthoringRequest
@@ -74,16 +79,19 @@ import {
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
-import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, judgeAuthoringAnswer, rankingControlFailures } from "./ai-harness/authoringQualitySet";
+import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, correctiveControlFailures, judgeAuthoringAnswer, rankingControlFailures } from "./ai-harness/authoringQualitySet";
 
 let passed = 0;
 let failed = 0;
+/** Repeated at the end: a long run's output is often read from its tail. */
+const failedLabels: string[] = [];
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
     passed += 1;
     console.log(`  ✓ ${label}`);
   } else {
     failed += 1;
+    failedLabels.push(`${label}${detail ? ` — ${detail.slice(0, 300)}` : ""}`);
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
 }
@@ -182,7 +190,8 @@ check("the step name never reaches the prompt", !promptText.includes(SECRET_NAME
 check("the typed value never reaches the prompt", !promptText.includes(SECRET_VALUE));
 check("the locator value never reaches the prompt", !promptText.includes(SECRET_LOCATOR));
 check("no validator message reaches the prompt", !report.issues.some((issue) => promptText.includes(issue.message)));
-check("the rule summary DOES, because it is a product-authored constant", promptText.includes("Step type requires a locator and has none."));
+check("the rule summary DOES, because it is a product-authored constant", promptText.includes("The step has no locator, and its type needs one."));
+check("...as does the product's corrective step for each issue sent, labelled an action, never 'Step:'", request.issues.every((ref) => promptText.includes(`Action: ${correctiveStep(ref.issue)}`)) && !promptText.includes("Step:"));
 check("...as do the issue codes", promptText.includes("missingRequiredLocator"));
 check("...and each anchor's KIND, so the model knows where an issue sits", promptText.includes("at a node") && promptText.includes("at a connector"));
 // An anchor id is the user's (a recorded step's is a UUID, dozens of prompt tokens), and nothing maps
@@ -200,7 +209,7 @@ function seesEveryOfferedIssue(req: AuthoringRequest): boolean {
   const built = buildAiPrompt(req.prompt, new SemanticRedactor(), "0123456789abcdef");
   if (!built.ok || built.omittedFields.length > 0) return false;
   const lines = built.user.split("\n");
-  return req.issues.every((ref) => lines.some((line) => line.startsWith(`${ref.id}: ${ref.issue.code} `) && line.endsWith(FLOW_VALIDATION_RULES[ref.issue.code].summary)));
+  return req.issues.every((ref) => lines.some((line) => line.startsWith(`${ref.id}: ${ref.issue.code} `) && line.includes(FLOW_VALIDATION_RULES[ref.issue.code].summary) && line.endsWith(`Action: ${ref.step}`)));
 }
 check("every id the grammar offers has its whole line in the prompt", seesEveryOfferedIssue(request));
 
@@ -219,7 +228,9 @@ check(
 );
 // `safeFix.from`/`to` are withheld even though they are usually enum casing: "usually" is not a contract.
 check("a fix's from/to literals are withheld", emitted.every((issue) => !promptText.includes(`${issue.safeFix!.from}"`)), JSON.stringify(emitted.map((i) => i.safeFix!.from)));
-check("the fix KIND and field are sent, so the model knows what is repairable", promptText.includes(emitted[0].safeFix!.kind) && promptText.includes(emitted[0].safeFix!.field));
+const lineOf = (ref: AuthoringRequest["issues"][number]) => promptText.split("\n").find((line) => line.startsWith(`${ref.id}: `)) ?? "";
+check("an issue is marked fixable on its line exactly when the validator emitted a fix", request.issues.every((ref) => lineOf(ref).includes(", fixable)") === ref.fixable) && request.issues.some((ref) => ref.fixable));
+check("...and a fixable issue's step is that fix through its preview, saying what it does", request.issues.filter((ref) => ref.fixable).every((ref) => ref.step.startsWith("Review and apply the offered safe fix, which ")));
 
 // ── 2. The grammar itself closes the id space ───────────────────────────────────────────────────
 console.log("\n2 — the decoding grammar cannot produce an id this report does not have");
@@ -709,6 +720,15 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
   const priority = LABELLED_SET.find((c) => c.id === "priority")!;
   const ranking = rankingControlFailures(buildAuthoringRequest(reportOf(priority))!);
   check("the ranking-order controls all hold (blocking first, off-path first, blocking left out, none)", ranking.length === 0, ranking.join("; "));
+  const corrective = correctiveControlFailures((id) => {
+    const labelled = LABELLED_SET.find((c) => c.id === id);
+    return labelled ? buildAuthoringRequest(reportOf(labelled)) : undefined;
+  });
+  check(
+    "the reviewed failures are refused as controls: incorrect, inverted, irrelevant, unsupported and truncated guidance is never actionable, each correct twin is, and every product step restated clears the judge",
+    corrective.length === 0,
+    corrective.join("; ")
+  );
 }
 
 // ── 12. The owner's L4b decisions (2026-09-22) ──────────────────────────────────────────────────
@@ -721,15 +741,17 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
 
   // (2) The instruction: each clause is a behaviour the owner asked for, so each is held on its own.
   const instructions = request.prompt.instructions;
-  check("the instruction asks for a corrective step after what is wrong", /what is wrong, then the step the person should take in the editor/.test(instructions));
-  check("...phrased as an instruction to the person, starting with a verb", /starting with a verb such as add, set, connect, remove or change/.test(instructions));
-  check("...grounded in the issue given", /Base the step only on that issue/.test(instructions));
-  check("...and says what to check when the issue gives too little for a specific step", /if it gives too little for a specific step, say what to check/.test(instructions));
-  check("...never inventing a step name, selector, value or connection", /Never invent issues, ids, rules, step names, selectors, values or connections/.test(instructions));
-  check("...nor an automatic fix for an issue with no emitted fix", /never say the application can fix an issue that is not marked fixable/.test(instructions));
+  check("the instruction says each issue comes with the action that corrects it", /the rule's one-line summary and the action that corrects it/.test(instructions));
+  check("...and asks for that action FIRST and as given, so the character limit cuts the explanation and not the action", /first its action as given, then what is wrong/.test(instructions));
+  check("...and no other action: the action is the product's, grounded in the rule", /Never suggest another action/.test(instructions));
+  check("...never inventing a step name, selector, value or connection", /never invent issues, ids, rules, step names, selectors, values or connections/.test(instructions));
+  check("...nor a fix for an issue with no emitted fix", /Only an issue marked fixable has a safe fix the application can apply/.test(instructions));
   check("...and asks for fixes on the run path first when it orders them", /errors on the run path first/.test(instructions));
-  check("the old ban on describing any repair is gone: it forbade the corrective step itself", !/may not describe a repair/.test(instructions));
+  check("the old ban on describing any repair stays gone: it forbade the corrective step itself", !/may not describe a repair/.test(instructions));
   check("the ranking is still limited to fixable ids", /You may not rank an id that is not marked fixable/.test(instructions));
+  // L1.8's margin was 2.7 s at the slowest rates with the 97996c48 instruction (875 characters); the
+  // step moved into each issue's line, so the instruction must not grow to pay for it.
+  check("the instruction is shorter than the 97996c48 one it replaced", instructions.length < 875, String(instructions.length));
 
   // (4) The fix order: optional, and blocking fixes first where one fix is more urgent than another.
   const priority = requestFor("priority");
@@ -776,7 +798,8 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
     version: 1,
     explanations: [
       { issueId: cycleRequest.issues[0].id, text: `Loop ${CANARY}; mail ops@example.com, token=abcd1234efgh, see https://x.test/a?b=c or C:\\Users\\bob\\f.` },
-      { issueId: cycleRequest.issues[1].id, text: `Remove it. ${PRIVATE_KEY}` }
+      // The key block before the full stop: an unfinished tail would be dropped before redaction ever saw it.
+      { issueId: cycleRequest.issues[1].id, text: `${PRIVATE_KEY} Remove it.` }
     ]
   };
   const leakyAnswer = parseAuthoringAnswer(leaky, cycleRequest);
@@ -902,5 +925,48 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   check("with nothing screen-clear there is nothing a person could accept: criterion 4 is NOT MET, not vacuously MET", status(evaluateQualityTarget(nothingClear, [], caseIds), 4) === "NOT MET");
 }
 
+// ── 13. The corrective step is the product's, and a cut sentence is never shown ─────────────────
+// The 97996c48 captures: steps cut off by the 160-character limit, a connector added INTO End, the value
+// rule read backwards. The step now comes from the rule, and only complete sentences reach the person.
+console.log("\n13 — the product's corrective step, and complete sentences only");
+{
+  const codes = Object.keys(FLOW_VALIDATION_RULES) as Array<keyof typeof FLOW_VALIDATION_RULES>;
+  const stepOf = (code: (typeof codes)[number]) => correctiveStep({ code, severity: FLOW_VALIDATION_RULES[code].severity, onActivePath: true, flowId: "f", message: "m" });
+  const oneSentence = (step: string) => /^[A-Z][^.!?]*[.]$/.test(step);
+  const reportOf13 = (id: string) => {
+    const labelled = LABELLED_SET.find((c) => c.id === id)!;
+    return validateFlowDefinition(labelled.flow, { referenceableFlowIds: new Set([labelled.flow.id]) });
+  };
+  check(`every one of the ${codes.length} rules has a corrective step: one sentence, an instruction, room to spare in an answer`, codes.every((code) => oneSentence(stepOf(code)) && stepOf(code).length <= 120), codes.filter((code) => !oneSentence(stepOf(code)) || stepOf(code).length > 120).join(", "));
+  check("...none of which offers a fix the validator did not emit", codes.every((code) => !/\bfix|automatic|repair/i.test(stepOf(code))), codes.filter((code) => /\bfix|automatic|repair/i.test(stepOf(code))).join(", "));
+  check("...and each is tied to its node or connector, never to a name, selector or value", codes.every((code) => !/["'`](?!s\b)/.test(stepOf(code))));
+  const fixableIssue = report.issues.find((issue) => issue.safeFix !== undefined)!;
+  check("an issue the validator emitted a fix for gets that fix, through its preview", correctiveStep(fixableIssue) === "Review and apply the offered safe fix, which gives this connector a new id.", correctiveStep(fixableIssue));
+  check("the same issue always gets the same step", request.issues.every((ref) => ref.step === correctiveStep(ref.issue)));
+  const casingSteps = buildAuthoringRequest(reportOf13("casing"))!.issues.map((ref) => ref.step);
+  check("a casing fix names its own issue's subject: the operator for one, the setting for the other", /the operator's casing/.test(casingSteps[0]) && /this setting's casing/.test(casingSteps[1]), JSON.stringify(casingSteps));
+  check("the value rule's summary names its subject first, so it cannot be read as 'the value is not required'", FLOW_VALIDATION_RULES.missingRequiredValue.summary === "The step has no value, and its type needs one.");
+
+  // The step reaches the designer from the request, whatever the model wrote.
+  const nonsense = harness([JSON.stringify({ version: 1, explanations: ids.map((id) => ({ issueId: id, text: "Add a connector into the End step." })) })]);
+  const stepView = await explainFlowValidation(WINDOW, { requestId: "s13", profile: brokenFlow }, assistDeps(nonsense.service));
+  check("the designer receives the product's step beside each explanation, not the model's", stepView.code === "OK" && stepView.explanations.length === request.issues.length && stepView.explanations.every((e, i) => e.step === correctiveStep(request.issues[i].issue) && e.text === "Add a connector into the End step."), JSON.stringify(stepView).slice(0, 300));
+  await nonsense.service.shutdown();
+  const withStep = parseAiOutput(JSON.stringify({ version: 1, explanations: ids.map((id) => ({ issueId: id, text: "Fine.", step: "Delete the flow." })) }), request.schema);
+  check("a model cannot supply a step: the answer schema has no field for one", !withStep.ok && withStep.code === "SCHEMA_REJECTED", JSON.stringify(withStep));
+
+  // Complete sentences only.
+  const ends = (text: string) => endAtCompleteSentence(text);
+  check("a complete text is kept as written", JSON.stringify(ends("Add a locator. The step has none.")) === JSON.stringify({ text: "Add a locator. The step has none.", cut: false }));
+  check("...as is one ending in a question mark or a closing parenthesis", !ends("Is the value set?").cut && !ends("Set the value (the text to type).").cut);
+  check("an unfinished tail is dropped, never completed", JSON.stringify(ends("Add a Loop Back connector to break the cycle. The connectors repeat the same st")) === JSON.stringify({ text: "Add a Loop Back connector to break the cycle.", cut: true }));
+  check("...and an abbreviation before a lower-case word is not a sentence end", ends("Set the value, e.g. the text to type. It has no value and the step nee").text === "Set the value, e.g. the text to type." && ends("Set the value, e.g. the text to ty").text === "Set the value, e.g. the text to ty…");
+  const lone = ends(`The person should add a Loop Back connector to break ${"the cycle ".repeat(20)}`.slice(0, AUTHORING_LIMITS.maxExplanationChars));
+  check("a text with no complete sentence keeps its fragment, marked with an ellipsis, inside the limit", lone.cut && lone.text.endsWith("…") && lone.text.length <= AUTHORING_LIMITS.maxExplanationChars, `${lone.text.length}: ${lone.text}`);
+  const cutAnswer = parseAuthoringAnswer({ version: 1, explanations: [{ issueId: ids[0], text: "Regenerate the duplicate's id. Two connectors share one id and the runner cannot tell which one the flow me" }, { issueId: ids[1], text: "Add a locator to this step." }] }, request);
+  check("the parser applies it and says so, and the step survives the cut", cutAnswer.ok && cutAnswer.explanations[0].text === "Regenerate the duplicate's id." && cutAnswer.explanations[0].cut === true && cutAnswer.explanations[0].step === request.issues[0].step && cutAnswer.explanations[1].cut === undefined, JSON.stringify(cutAnswer));
+}
+
+for (const label of failedLabels) console.error(`  ✗ ${label}`);
 console.log(`\nL4b authoring explanations and fix ranking: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

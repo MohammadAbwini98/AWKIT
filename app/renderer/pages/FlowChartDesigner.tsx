@@ -1615,9 +1615,12 @@ function FlowChartDesignerContent() {
                       </span>
                     ) : null}
                   </button>
-                  {authoringAssist.explanationsFor(issue.key).map((text, index) => (
+                  {authoringAssist.explanationsFor(issue.key).map(({ text, step }, index) => (
                     <p key={index} className="ai-explanation" data-testid="ai-explanation" data-finding-key={issue.key}>
                       <span className="ai-explanation-label">AI interpretation</span> {text}
+                      <span className="ai-explanation-step" data-testid="ai-explanation-step">
+                        <span className="ai-explanation-step-label">Corrective action</span> {step}
+                      </span>
                     </p>
                   ))}
                 </Fragment>
