@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-1-l18-failure-latency-0922",
+    "title": "Record the failure-analysis request brought inside its L1.8 ceiling on L1 and L5b",
+    "objective": "At 42655904 the production failure-analysis request meets the 180 s L1.8 ceiling at its own output cap on the real Qwen3.5-0.8B: a 256-token cap with an answer sized to fit it, one text block plus routes, and whole-line evidence with only shown ids offered. verify:ai-failure-analysis-live is 5/5 with every answer accepted and classified, largest 94.0 s of inference and 126.4 s at the cap where it was 135.0 s and 219.3 s, and benchmark:ai-model-0-8b now measures the product's own request, failureAnalysisAtCap 132320 ms, GO on all 8. Append a note to awkit-djnl.1 giving the fix, the measurement and what stays open (the locator request at its 512-token cap, the pin, the license notice, verify:ai-model-pack, verify:ai-model-live and the live quality gates). Append a note to awkit-djnl.8 that its request and answer were resized under the same three trust rules. Refresh the JSONL export. Nothing closes: awkit-djnl.1 and awkit-djnl.8 stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/ai-harness/locatorUpgradePacket.ts and scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "42655904",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.1 and awkit-djnl.8 stay in_progress, each with a note naming the fix commit and the live and benchmark results, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, against the state after `bd update awkit-djnl.1 --append-notes`, `bd update awkit-djnl.8 --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents. The tracker measured 9 outstanding / 294 closed with 135 edges, unchanged, so the hardcoded tracker pin did not move. Both narratives restate the measured 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-1-l18-failure-latency-0922:project-state:2026-09-22T08:08:37.072Z",
+        "task": "awkit-djnl-1-l18-failure-latency-0922",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-22T08:08:37.072Z",
+        "acquired_at_commit": "4265590499f04972097d4b4879ed8a891c322aa4",
+        "released_at": "2026-09-22T08:09:27.124Z",
+        "released_reason": "failure-analysis latency fix noted on awkit-djnl.1 and awkit-djnl.8, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

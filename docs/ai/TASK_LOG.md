@@ -1,5 +1,42 @@
 # TASK_LOG
 
+## 2026-09-22 — failure-analysis request sized to its 180 s ceiling at its own output cap; benchmark re-pointed at the product's request (Claude)
+
+- **Task:** bring the production `analyzeFailure` request inside the 180 s L1.8 ceiling at its configured
+  output limit on the real 0.8B, and make the benchmark measure that request.
+- **Found:**
+  - Baseline through the product at `82b83c6c`: typical 73.8 s (142.5 s at the 512 cap), largest
+    135.0 s (219.3 s at the cap). The cap alone was 110–200 s of generation.
+  - On the model's own tokenizer, each DATA block cost ~45 tokens of delimiters; four of five carried no
+    evidence.
+  - The 1,200-character field cap cut the largest failure's twelfth line to `ev8: http.error (err` while
+    `ev8` stayed citable; the live gate's prefix check reported it shown.
+- **Files:**
+  - Commit `42655904`: `src/ai/failureAnalysis.ts` (limits, instructions, one block, whole-line evidence,
+    parser list caps); new `scripts/ai-harness/failureAnalysisPacket.ts` (shared fixtures, the product
+    request, the benchmark packet) and `scripts/ai-harness/failureAnalysisBudget.ts`,
+    `scripts/verify-ai-failure-analysis-budget.mts`; `featureLive.ts` (whole-line check,
+    `cutByGrammar`), `bench.ts`, `harnessMain.ts`, `profile.ts` (`loadRuntime` exported),
+    `scripts/benchmark-ai-model.mts` (identity), `scripts/verify-ai-error-analysis.mts`,
+    `scripts/lib/verifier-classification.ts`, `package.json`, and the benchmark evidence JSON.
+  - Then the L1 and L5 plans, DECISIONS, KNOWN_ISSUES, CURRENT_STATE, HANDOFF, COMMANDS, and a note on
+    `awkit-djnl.1` and `awkit-djnl.8`.
+- **Checks:**
+  - `verify:ai-failure-analysis-live` 5/5 on the real 0.8B: typical 50.2 s, bare timeout 27.8 s,
+    largest 94.0 s (126.4 s at the cap), all accepted and classified.
+  - `benchmark:ai-model-0-8b`: `packets:failureAnalysis` 788 / 143 tokens, 87.2 and 102.0 s wall,
+    132,320 ms at the cap; GO on all 8.
+  - `verify:ai-failure-analysis-budget` 7/0 · `verify:ai-error-analysis` 203/203 · 5 of 5 mutations
+    caught across both.
+  - `verify:ai-assist-gui` 100/0 · `verify:ai-deadlines` 41/41 · `verify:ai-adapter` 117/117 ·
+    `verify:ai-fallback` 38/38 · `verify:ai-redaction` 52/52 · `verify:ai-host` 135/0 (12/12
+    mutations) · `verify:ai-host-electron` 26/0.
+  - `verify:verifier-classification` 246 · build PASS · `typecheck:scripts` PASS.
+  - NOT RUN: `verify:failure-capture-overhead` (no new import under `src/ai`; `verify:ai-fallback` holds
+    the same claim), and the locator and explanation live gates (unchanged).
+- **Result:** fixed and pushed. L1 stays `in_progress`: the locator request, the pin and the live quality
+  gates remain.
+
 ## 2026-09-22 — failure-analysis answer contract fixed; real 0.8B analyses accepted and classified (Claude)
 
 - **Task:** fix the output contract that refused every real 0.8B failure analysis as `CONTRADICTORY`.

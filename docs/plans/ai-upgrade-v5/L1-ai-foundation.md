@@ -604,9 +604,10 @@ nothing analysed and no plan.
 
 1. Bring both requests inside their ceiling, as `d2a81262` did for the explanation: output budgets at
    the L1.8 figures, and, for failure analysis, a smaller answer, since its measured answers exceed 256
-   tokens. Or re-scope the ceilings.
+   tokens. Or re-scope the ceilings. *(Done for failure analysis at `42655904`; see "`failureAnalysis`
+   inside its ceiling at its own output cap". The locator request is unchanged.)*
 2. Re-point the benchmark's two packets at the product's requests, as `7f0e931e` did for the
-   explanation.
+   explanation. *(Done for failure analysis at `42655904`; `packets:locatorUpgrade` is still a stand-in.)*
 
 **Regression suites:**
 
@@ -682,7 +683,8 @@ explanation beside `insufficient: true`.
   evidence offered, as in v1; a tighter cap is a quality decision for the labelled set
   (`verify:ai-error-quality-live`, not built).
 - **Latency is unchanged and still open.** At the 512-token cap the typical request projects to 127 s and
-  the largest to 199 s, against the 180 s ceiling (see the section above).
+  the largest to 199 s, against the 180 s ceiling (see the section above). *(Fixed at `42655904`; see the
+  next section.)*
 - **A bare runner timeout still costs one model call** (35 s here) whose only decodable answer is a
   decline. Answering it without the model, as an insufficient baseline already is, would change what is
   analysed, so it is left to the owner.
@@ -697,6 +699,112 @@ explanation beside `insufficient: true`.
   the parser's decline check and v1's prompt together → 182/185, each failing only its own checks.
 - **`verify:ai-assist-gui`, 100/0 (was 97).** In real Electron, a decline beside the run's direct cause
   is refused, and the saved, cited analysis stays on screen.
+
+#### `failureAnalysis` inside its ceiling at its own output cap (2026-09-22): GO. Evidence: `packets:failureAnalysis` (now the product's request) and `verify:ai-failure-analysis-live` at `42655904`
+
+**Root cause: the output cap alone was most of the ceiling, and most of the prompt was delimiters.**
+
+- **The cap.** `FAILURE_ANALYSIS_LIMITS.maxOutputTokens` was 512. At the decode rates this host has shown
+  for the 0.8B (2.55–4.6 tokens/s), 512 tokens alone project to 110–200 s, before any prompt
+  evaluation. No prompt trim can meet 180 s at that cap.
+- **The prompt.** Counted on the pack's own tokenizer (`verify:ai-failure-analysis-budget`), each
+  nonce-delimited DATA block costs about 45 tokens before its content. Four of the request's five
+  blocks carried no evidence: the typical failure's `AffectedInstances` spent 50 tokens to say `["1"]`.
+- **A grounding defect beside it.** The evidence list was one text field under the prompt builder's
+  1,200-character default cap, which cuts text, not lines. The largest failure's twelfth line reached
+  the model as `ev8: http.error (err`, its status gone, while the grammar still offered `ev8`. The
+  live gate reported 12 of 12 shown because it checked only each line's prefix.
+
+**Baseline, measured through the product at `82b83c6c`** (`verify:ai-failure-analysis-live`, host 12%
+busy): typical 513 prompt / 198 output tokens, 30.8 s prompt evaluation + 43.0 s generation = 73.8 s,
+**142.5 s at the cap**; bare runner timeout 412 / 22, 42.5 s; largest 887 / 211, 76.3 s + 58.7 s =
+135.0 s, **219.3 s at the cap**. The longest answer the old grammar admitted: 398 (typical) and 463
+(largest) tokens.
+
+**The change (`42655904`, `src/ai/failureAnalysis.ts`):**
+
+- **Output budget 512 → 256**, this feature's L1.8 budget (§L1.8, item 4).
+- **An answer sized to fit it,** because an answer cut at the cap is invalid JSON and is discarded whole:
+  2 ids per citation list (was up to 11 primary and 12 secondary), explanation 600 → 260 characters,
+  steps 4 × 200 → 2 × 150, category unchanged at 40. The parser re-checks the list caps.
+- **Brevity asked for,** since the model never sees the schema: the instructions now ask for "a short
+  category, a one- or two-sentence explanation and up to two brief things to check". A text the
+  grammar ends at its `maxLength` would end mid-sentence. The decline sentence is unchanged.
+- **One DATA block where there were four.** The deterministic conclusion, the ids it rests on, the
+  instance count (only when more than one) and the evidence lines are one `Failure` text block. The
+  routes stay in the unredacted `ids` channel, as L5b decided.
+- **Whole-line evidence.** Lines are taken most important first while they fit `maxEvidenceChars`
+  (1,500), and only shown ids are offered. 1,500 keeps all twelve of the largest failure's lines whole
+  (1,255 characters); 1,200 would have dropped its payment gateway's 502. The lead event always goes,
+  cut only if it alone exceeds the budget.
+- **Unchanged:** the tiered decline/conclude contract, the runner-record rule, every payload field and
+  its rendering, redaction and the residual-secret rescan, the stored body, IPC and renderer, the 185 s
+  deadline, the 180 s ceiling and the model.
+
+**Where the prompt went** (tokens, fixed 16-hex nonce, template included):
+
+| Request | Before (5 blocks) | After (1 block + routes) |
+|---|---|---|
+| Typical | 523: system 168, conclusion 67, its ids 55, evidence 102, routes 60, count 50 | **396**: system 179, `Failure` 139, routes 60 |
+| Bare runner timeout | 444 | **317** |
+| Largest | 897, its twelfth line cut | **788**, all twelve lines whole |
+
+**The answer against its cap** (the longest the grammar admits and the parser accepts, digit-dense
+English at every limit): typical 220 / 232 tokens (4-space / tab indentation), largest 236 / 250, and
+with the longest ids L5a mints (`ev200`) **240 / 254 ≤ 256**.
+
+**Measured on the real 0.8B after the change:**
+
+| Run | Typical | Bare runner timeout | Largest |
+|---|---|---|---|
+| `verify:ai-failure-analysis-live`, host 8% busy | accepted conclusion citing its HTTP 500: 388 / 141 tokens, 21.6 + 28.6 = **50.2 s**, 74.0 s at the cap | accepted as insufficient: 313 / 23, **27.8 s** | accepted conclusion: 772 / 134, 59.0 + 35.0 = **94.0 s**, 126.4 s at the cap; 12 of 12 lines whole |
+| `benchmark:ai-model-0-8b`, `packets:failureAnalysis` #1 / #2 | — | — | 788 / 143, `stop` at 143 of 256; wall **87.2 s / 102.0 s**; at the cap 118.5 s / **132.3 s** |
+
+- **Measured versus projected.** The wall and inference times above are measured. "At the cap" is the
+  benchmark's rule, the measured prompt time plus all 256 tokens at the measured decode rate; no answer
+  ran to the cap (134–143 of 256 tokens). `failureAnalysisAtCap` **132,320 ms ≤ 180,000**, and the
+  benchmark verdict is **GO on all 8**. The other scenarios are the unchanged `d8162f86` and `f58cf28f`
+  measurements; host memory (1,101 MB) and main-loop delay (30 ms) are recomputed across every packet,
+  the new one included.
+- **Quality proxies, never model text:** every answer accepted and classified as its evidence tier
+  requires; both conclusions cite the event the deterministic cause rests on; no text ended at its
+  grammar limit (`cutByGrammar` 0); explanations 143–170 characters; the typical wrote 2 steps (91, 113
+  characters), the benchmark's largest 2 (55, 98). **The live largest wrote no step**, as it did before
+  the change.
+- **The benchmark measures the product.** `packets:failureAnalysis` is now built by the product's own
+  functions over the live gate's largest fixture (`scripts/ai-harness/failureAnalysisPacket.ts`),
+  judged by the product's output contract, parser, redaction and rescan, and re-measured whenever its
+  identity (prompt, schema, cap) changes. The `cancel` and `playwright` scenarios keep the old synthetic
+  packet, because their recorded results were measured with it.
+
+**What this does not show:**
+
+- **A request at every bound was not measured.** Evidence lines are bounded by `maxEvidenceChars`, but
+  routes only by the 3,000-character data budget; a failure with twelve long routes would send a longer
+  prompt than the largest fixture's.
+- **Host heat.** Earlier back-to-back runs slowed prompt evaluation to 5.9 tokens/s. At that rate the
+  largest prompt alone takes about 134 s, and at the cap it would project to about 205 s, over the
+  ceiling. Both runs here were at 12.3–16.4 tokens/s.
+- **The bound's margin in the tab layout is 2 tokens,** for an answer at every limit with digit-dense
+  text. An answer denser than that would be cut and discarded whole, never shown truncated.
+- **The runner-cause-with-console-errors tier** (the one where the model decides) is still not
+  exercised on the real model. A bare runner timeout still costs a model call (27.8 s).
+
+**Regression suites:**
+
+- **New `verify:ai-failure-analysis-budget`, 7/0** (vocabulary only, seconds): the counted template is the
+  host's, the filler is at least as token-dense as plain English, each fixture's offered lines reach the
+  prompt whole, and the longest acceptable answer fits the cap in both layouts, including with the
+  longest ids L5a mints.
+- **`verify:ai-error-analysis`, 203/203 (was 185):** one text block plus routes; whole lines within the
+  budget and no id offered without its line; a lead line longer than the budget still offered; both
+  citation lists capped; the parser refusing a longer list or step; and the benchmark packet equal to
+  the job `analyzeFailure` submits.
+- **Mutation-tested, 5 of 5 caught:** an explanation limit of 400 fails 3 budget checks; the old field
+  cap fails 1 contract and 2 budget checks; no whole-line selection fails 3 contract checks; uncapped
+  citation lists fail 3 contract and 2 budget checks; no parser re-check fails 2 contract checks.
+- **`verify:ai-failure-analysis-live`** now fails if an offered line is not shown whole, and records how
+  many texts the grammar ended (`cutByGrammar`).
 
 ## L1 status: PARTIAL PASS — CONDITIONAL FOR DEVELOPMENT, NOT APPROVED FOR RELEASE (owner, 2026-09-20)
 
@@ -715,7 +823,7 @@ is still a **FAIL**, and nothing below reclassifies it.
 | L1.5 Permissions and Settings | PASS — `verify:ai-permissions` 75/0 | development + release |
 | L1.6 Resource integration | PASS — `verify:ai-adapter` yield/admission sections | development + release |
 | L1.7 Fake provider | PASS — `verify:ai-fallback` 38/0 | development + release |
-| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`), but their product requests exceed the 180 s ceiling at their 512-token caps. Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`) | **release only — unmet** until the pin and live gates |
+| **L1.8 live inference latency** | 4B: **FAIL** — `locatorUpgrade` >240,000 ms against a 180,000 ms ceiling; product path `TIMEOUT` at 120 s. Re-scoped Qwen3.5-0.8B: benchmark **GO on all 8** (`f58cf28f`), not pinned; its explanation is delivered in the product under its own 125 s deadline (`d2f5feb2`). Failure analysis and locator upgrade have their own 185 s deadlines (`d71ee244`). Real failure analyses are accepted and classified since the answer contract was rebuilt (`5ef4852f`), and the product's own failure-analysis request meets its ceiling at its own 256-token cap (132.3 s, `42655904`); the locator request still exceeds it at its 512-token cap | **release only — unmet** until the pin and live gates |
 
 **What the authorization permits.** Building the AI-dependent features — L3 §8/§9, L4b, L5b and the L6
 *Intelligence* section — against the **deterministic providers that already exist**
@@ -747,11 +855,13 @@ host"). The owner then re-scoped the model to Qwen3.5-2B and Qwen3.5-0.8B. The c
 `awkit-g555` is fixed and closed. The 0.8B's benchmark is **GO on all 8** since the product's
 explanation request was fixed (88.3 s against 120 s; see "`validationExplanation` fixed in the
 product"). It still owes the pin, its license notice, `verify:ai-model-pack`, `verify:ai-model-live`,
-and the live quality gates. Every feature now has its own deadline (`d2f5feb2`, `d71ee244`). But
-failure analysis and locator upgrade exceed their 180 s ceiling at their own 512-token output caps (see
-"`failureAnalysis` and `locatorUpgrade` measured through the product"). The answer contract that refused
-every real failure analysis is fixed (`5ef4852f`; see "The failure-analysis answer contract, fixed"). So
-L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
+and the live quality gates. Every feature now has its own deadline (`d2f5feb2`, `d71ee244`). The answer
+contract that refused every real failure analysis is fixed (`5ef4852f`), and the failure-analysis request
+now meets its ceiling at its own output cap, measured on the product's own request (`42655904`; see
+"`failureAnalysis` inside its ceiling at its own output cap"). The locator upgrade still exceeds its
+180 s ceiling at its own 512-token output cap, and `packets:locatorUpgrade` is still a stand-in (see
+"`failureAnalysis` and `locatorUpgrade` measured through the product"). So L1 is not accepted. The 2B is
+NOT RUN because it is not downloaded.
 
 ## Verifiers
 
@@ -760,7 +870,9 @@ L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 `verify:ai-deadlines` (every feature's own deadline, on a virtual clock);
 live: `verify:ai-model-live` (`NOT RUN` without pack), and `verify:ai-explanation-live`, `verify:ai-failure-analysis-live`
 and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B under its own deadline, and each failure
-analysis accepted and classified as its fixture requires; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
+analysis accepted and classified as its fixture requires; `NOT RUN` without pack), and `verify:ai-failure-analysis-budget`
+(the failure-analysis prompt and its longest acceptable answer counted on the 0.8B's own tokenizer against the output cap;
+`NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
 
 `verify:ai-inference-profile` (`NOT RUN` without pack) is the **diagnostic** counterpart to

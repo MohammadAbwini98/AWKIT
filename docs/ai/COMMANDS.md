@@ -475,8 +475,16 @@ npm run verify:ai-locator-upgrade-live
                                   # feature's own 185 s deadline, with tokens, timings, worst case at the output
                                   # cap and the host's CPU load. Each failure analysis must also be ACCEPTED and
                                   # classified: a conclusion for both (the typical one citing its cause), and a
-                                  # third case, a bare runner timeout, insufficient. NOT RUN without runtime +
-                                  # pack (5 failure analysis, 4 locator)
+                                  # third case, a bare runner timeout, insufficient; every offered evidence line
+                                  # must reach the prompt whole. NOT RUN without runtime + pack (5 failure
+                                  # analysis, 4 locator)
+npm run verify:ai-failure-analysis-budget
+                                  # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
+                                  # only, no inference (seconds): each prompt with the host's template, every
+                                  # offered line whole, and the longest acceptable answer within
+                                  # FAILURE_ANALYSIS_LIMITS.maxOutputTokens in both indentation layouts and with
+                                  # the longest ids L5a mints. Run it after touching any failure-analysis limit.
+                                  # NOT RUN without runtime + pack (7)
 npm run verify:ai-deadlines       # every AI feature's own deadline on a virtual clock through its product entry
                                   # point: delivered past 30 s, TIMEOUT at exactly its deadline, cancel, late
                                   # answer, kill and reload; the deadline table against the service limit (41)

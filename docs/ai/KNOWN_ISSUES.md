@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## Failure analysis missed its ceiling at its own output cap, and its prompt cut an offered evidence line (2026-09-22, FIXED — `42655904`)
+
+- **Symptom:** at its 512-token cap the largest real analysis projected to 219 s against the 180 s ceiling
+  (typical 142 s). Separately, the largest failure's twelfth evidence line reached the model as
+  `ev8: http.error (err`, its status gone, while the grammar still offered `ev8`. The live gate reported
+  12 of 12 lines shown, because it checked only each line's prefix.
+- **Cause:** the cap alone was 110–200 s of generation at this host's decode rates; four of the five DATA
+  blocks carried no evidence but cost about 45 prompt tokens of nonce delimiters each; and the evidence
+  list was one text field under the prompt builder's 1,200-character default cap, which cuts text, not
+  lines.
+- **Fixed:** a 256-token cap with an answer sized to fit it, one text block plus routes, whole-line
+  evidence within 1,500 characters with only shown ids offered, and brevity asked in the instructions.
+  The largest now takes 94.0 s of inference, 126.4 s at the cap; the benchmark is GO at 132.3 s
+  (L1 plan › "`failureAnalysis` inside its ceiling at its own output cap").
+- **The lessons (pattern):**
+  - **An output cap is latency, not headroom.** The benchmark judges the prompt plus the whole cap at the
+    decode rate, so at ~3.6 tokens/s a 512 cap is 143 s of generation whether or not an answer uses it.
+  - **Size the answer to the cap on the model's own tokenizer, in every layout the grammar admits.** The
+    same answer costs ~15 more tokens with tab indentation than with spaces, and each cited id ~6.5.
+  - **A character cap on a list field is a mid-line cut.** Build lists from whole lines within a budget,
+    offer only what was shown, and check whole lines, never prefixes: the prefix check passed on a cut
+    line.
+  - **Delimiters are prompt tokens.** A nonce-delimited block costs ~45 tokens here; merge fields that do
+    not need their own channel.
+- **Still open:** a request at every bound (twelve long routes) was not measured; the longest acceptable
+  answer in tab layout, with digit-dense text at every limit, sits 2 tokens under the cap; the largest
+  live answer wrote no investigation step, before and after.
+
 ## Every real failure analysis was refused: the grammar made the model write what the parser refuses (2026-09-22, FIXED — `5ef4852f`)
 
 - **Symptom:** on the real 0.8B, every failure analysis was refused as `CONTRADICTORY`, so none was
@@ -26,15 +54,18 @@
   - **A live gate must assert acceptance and classification, not arrival.** The v1 gate counted an
     answer that arrived in time as a pass, so it was green while every answer was refused.
 - **Still open:** the largest real conclusion cites all 11 candidates as primary (a quality question
-  for the labelled set), and latency at the output cap (next entry).
+  for the labelled set), and latency at the output cap (next entry). *(Both addressed at `42655904`:
+  2 ids per citation list and a 256-token cap; see the first entry.)*
 
-## Failure analysis and locator upgrade exceed their 180 s ceiling at their own output cap (2026-09-22, OPEN — deadlines fixed at `d71ee244`)
+## Failure analysis and locator upgrade exceed their 180 s ceiling at their own output cap (2026-09-22, OPEN for the locator job — failure analysis FIXED at `42655904`, deadlines at `d71ee244`)
 
 - **Fixed:** both were still on the shared 30 s, and through the product on the real 0.8B every request
   ended TIMEOUT. Both now get 185 s: the 180 s ceiling plus 5 s, per attempt for the locator job.
 - **Still open:**
   - **Output caps.** Both requests use a 512-token output cap. At it, every measured answer projects to
     181–300 s, against the 180 s ceiling. The benchmark passed on stand-ins at 192 and 256 tokens.
+    *(Failure analysis fixed at `42655904`, 256-token cap, measured on its own request; see the first
+    entry. The locator request and its stand-in packet are unchanged.)*
   - **Host speed.** On a hot CPU, back to back, the largest failure analysis (and once the typical one)
     still reached 185 s. The remedy is the request's size, an owner decision, as with `d2a81262`.
   - **Answer contract.** Every real failure analysis was refused as `CONTRADICTORY`: `insufficient`

@@ -417,6 +417,11 @@ authorization.
     must conclude (the drawer shows that cause above the answer), a failure offering nothing but the
     runner's own record can only decline, and that record is never primary evidence. Measurements and
     mutations: L1 plan › "The failure-analysis answer contract, fixed".
+  - **Sized to its L1.8 ceiling 2026-09-22 (`42655904`), same three rules.** The request is one text
+    block plus the routes; evidence is whole lines within 1,500 characters, and only shown ids are
+    offered (the old field cap had cut the largest failure's twelfth line while its id stayed citable);
+    the answer holds 2 ids per list, a 260-character explanation and 2 steps of 150, inside a 256-token
+    output cap. Measurements: L1 plan › "`failureAnalysis` inside its ceiling at its own output cap".
 - **L5b cannot change the run, and not because it is told not to.** The schema has no field for a
   status, a retry, a policy or an edit — a model that emits one is refused by `AiOutputContract`
   before this module sees it.

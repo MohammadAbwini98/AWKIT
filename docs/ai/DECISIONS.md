@@ -1,6 +1,40 @@
 # DECISIONS
 
-### 2026-09-22 (latest) — Phase L L5b: the failure-analysis answer contract decides from the evidence where declining is true (`awkit-djnl.8`, `awkit-djnl.1`)
+### 2026-09-22 (latest) — Phase L L1.8/L5b: the failure-analysis request is sized to its ceiling at its own output cap (`awkit-djnl.1`, `awkit-djnl.8`)
+
+- **Owner instruction, in session:** optimize the production `analyzeFailure` request so the real 0.8B
+  meets the existing 180 s L1.8 background ceiling at its configured output limit. Remove redundant
+  prompt content and unnecessary evidence serialization, produce concise conclusions, and lower the
+  512-token cap only if answers still meet the quality and evidence-grounding requirements. Keep the
+  tiered evidence contract, the direct-cause and insufficient classifications, evidence references,
+  corrective steps, redaction, fail-closed behaviour, the 185 s deadline and the 180 s ceiling. Re-point
+  the benchmark at the production request. Leave the model, the locator job, pinning, licensing,
+  packaging and L7 alone, and do not mark L1 complete.
+- **Implementer's choices within it:**
+  - **The cap moves to this feature's L1.8 budget, 512 → 256.** At this host's decode rates, 512 tokens
+    alone project to 110–200 s; no prompt trim reaches 180 s at that cap.
+  - **The answer is sized so its longest acceptable form fits the cap,** counted on the model's own
+    tokenizer in both indentation layouts the grammar allows, with the longest ids L5a mints: 2 ids per
+    citation list, explanation 260 characters, 2 steps of 150. An answer cut at the cap is invalid JSON
+    and discarded whole, so a cap the answer can outgrow discards answers. Three ids per list did not
+    fit in either layout without cutting the texts well below what real answers use.
+  - **Brevity is asked for in the instructions,** because the model never sees the schema. The decline
+    sentence is unchanged.
+  - **One text block where there were four** (conclusion, its ids, the count, the evidence), the count
+    only when more than one instance failed. The routes stay in the unredacted `ids` channel, as L5b
+    decided; stripping their scheme to carry them as text was considered and not done.
+  - **Evidence is whole lines within 1,500 characters, and only shown ids are offered.** 1,500 keeps the
+    largest fixture's twelve lines whole; 1,200, the old field cap, would have dropped its payment
+    gateway's 502. The lead event always goes, cut only if it alone exceeds the budget. Payload
+    rendering is unchanged.
+  - **The benchmark measures the live gate's largest fixture** through the product's own functions and
+    verdict path, identity-tracked like the explanation's; `cancel` and `playwright` keep the synthetic
+    workload their recorded results were measured with.
+- **Not decided here:** answering a bare runner timeout without the model, requiring at least one
+  investigation step (the largest live answer wrote none, before and after), bounding the routes, the
+  locator request's size, and the pin.
+
+### 2026-09-22 — Phase L L5b: the failure-analysis answer contract decides from the evidence where declining is true (`awkit-djnl.8`, `awkit-djnl.1`)
 
 - **Owner instruction, in session:** fix the output contract that refused every real 0.8B failure
   analysis as `CONTRADICTORY`. Accept valid analyses, handle genuinely insufficient evidence as an

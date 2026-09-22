@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-22, latest) — real failure analyses are accepted and correctly classified; latency at the cap is still open
+## HANDOFF (2026-09-22, latest) — the failure-analysis request meets its 180 s ceiling at its own 256-token cap; the benchmark measures the product's request
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`42655904`):**
+  - `FAILURE_ANALYSIS_LIMITS`: 256-token cap, 2 ids per citation list, 260-character explanation,
+    2 steps of 150, whole-line evidence within 1,500 characters. One text block plus routes.
+  - Real 0.8B: every live answer accepted and classified; largest 94.0 s of inference (was 135.0),
+    126.4 s at the cap (was 219.3). Benchmark `packets:failureAnalysis` is the product's own request:
+    132.3 s at the cap, **GO on all 8**.
+  - New `verify:ai-failure-analysis-budget` (tokenizer only, seconds). Details are in the L1 plan ›
+    "`failureAnalysis` inside its ceiling at its own output cap".
+- **Not done, and owner decisions:**
+  - The locator request still exceeds its ceiling at its 512-token cap, and its benchmark packet is a
+    stand-in. The owner's untracked `scripts/ai-harness/locatorUpgradePacket.ts` and
+    `scripts/offline-benchmark/` were left untouched.
+  - The pin, license notice, `verify:ai-model-pack`, `verify:ai-model-live` and the live quality gates
+    are still owed. L1 stays `in_progress`. **L7 cannot be entered.**
+  - Open: a bare runner timeout still costs a model call (27.8 s); the largest live answer wrote no
+    investigation step; a request with twelve long routes was not measured.
+- **Do not:**
+  - raise any `FAILURE_ANALYSIS_LIMITS` text, list or step limit without running
+    `verify:ai-failure-analysis-budget`: an answer that outgrows the cap is discarded whole;
+  - put evidence back under a character cap that cuts lines, or offer an id whose line was not shown;
+  - check "shown" by a line's prefix.
+
+## HANDOFF (2026-09-22, superseded) — real failure analyses are accepted and correctly classified; latency at the cap is still open
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`5ef4852f`):**

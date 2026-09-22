@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## Real failure analyses are accepted and correctly classified on the 0.8B: the answer contract decides from the evidence where declining is true (2026-09-22, current)
+## The failure-analysis request meets its 180 s ceiling at its own output cap on the 0.8B; the benchmark measures the product's request (2026-09-22, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
+ledger case).
+
+- **Root cause:** the 512-token output cap alone projected to 110–200 s of generation, and four of the
+  request's five DATA blocks carried no evidence while costing ~45 prompt tokens of delimiters each.
+  Beside it, a grounding defect: the 1,200-character field cap cut the largest failure's twelfth line to
+  `ev8: http.error (err` while `ev8` stayed citable.
+- **The fix (`42655904`, `src/ai/failureAnalysis.ts`):** a 256-token cap with an answer sized to fit it
+  (2 ids per list, 260-character explanation, 2 steps of 150), one text block plus routes, whole-line
+  evidence within 1,500 characters with only shown ids offered, and brevity asked in the instructions.
+  The tiered contract, redaction, the rescan, the 185 s deadline and the 180 s ceiling are unchanged.
+- **Measured on the real 0.8B:**
+  - `verify:ai-failure-analysis-live` 5/5: typical 50.2 s (was 73.8), 74.0 s at the cap (was 142.5);
+    bare timeout 27.8 s (was 42.5); largest 94.0 s (was 135.0), 126.4 s at the cap (was 219.3). All
+    accepted and classified, all 12 lines whole, no text cut by the grammar.
+  - `benchmark:ai-model-0-8b` `packets:failureAnalysis`, now the product's own largest request:
+    87.2 / 102.0 s wall, **132,320 ms at the cap against 180,000**; the benchmark is **GO on all 8**.
+- **Still open:** the locator request still exceeds its ceiling at its 512-token cap; the pin, its
+  license notice, `verify:ai-model-pack`, `verify:ai-model-live` and the live quality gates are owed.
+  L1 stays `in_progress`, and **L7 cannot be entered**.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-failure-analysis-live` (real 0.8B, production path) | 5/5 |
+| `benchmark:ai-model-0-8b` (`packets:failureAnalysis` re-measured) | GO on all 8; `failureAnalysisAtCap` 132,320 ≤ 180,000 |
+| `verify:ai-failure-analysis-budget` (new, the 0.8B's own tokenizer) | 7/0 |
+| `verify:ai-error-analysis` | 203/203 (was 185); 5 of 5 mutations caught |
+| `verify:ai-assist-gui` (real Electron) · `verify:ai-deadlines` | 100/0 · 41/41 |
+| `verify:ai-adapter` · `verify:ai-fallback` · `verify:ai-redaction` | 117/117 · 38/38 · 52/52 |
+| `verify:ai-host` · `verify:ai-host-electron` | 135/0 with 12/12 mutations · 26/0 |
+| `verify:verifier-classification` | reconciled, 246 scripts |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:failure-capture-overhead` | NOT RUN: `failureAnalysis.ts` imports nothing new, and `verify:ai-fallback` proves the execution tree still cannot reach the model |
+| `verify:ai-locator-upgrade-live` · `verify:ai-explanation-live` · `verify:failure-cause-baseline` | NOT RUN: their code paths did not change |
+
+## Real failure analyses are accepted and correctly classified on the 0.8B: the answer contract decides from the evidence where declining is true (2026-09-22)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L1.8 is not a
 ledger case).
