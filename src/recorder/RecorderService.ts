@@ -125,6 +125,9 @@ export class RecorderService {
   private inspectMode = false;
   private inspection: ElementInspection | null = null;
   private inspectionRefused = false;
+  /** Committed navigations per frame, and the frame and count the current inspection was taken at. */
+  private frameNavigations = new WeakMap<Frame, number>();
+  private inspectedDocument: { frame: Frame; navigations: number } | null = null;
   /** An inspect-only browser session: the Recorder browser is open but nothing is recorded. */
   private inspectSession = false;
   /** Pages whose current document protected-login detection flagged; never inspected. */
@@ -599,21 +602,27 @@ export class RecorderService {
    * context but not a separate browser handle). Best-effort; never throws.
    */
   private async closeBrowser(): Promise<void> {
+    // The handles THIS call closes. Closing fires the liveness watch, which starts a second close while
+    // this one still awaits; whichever finishes last must not reset a NEWER session opened in between
+    // (Close Spy, then Open Element Spy at once, left the new browser ownerless and the Spy "closed").
+    const { browser, context } = this;
     try {
-      if (this.context) await this.context.close();
+      if (context) await context.close();
     } catch {
       /* ignore */
     }
     try {
-      if (this.browser) await this.browser.close();
+      if (browser) await browser.close();
     } catch {
       /* ignore */
     }
+    if (this.browser !== browser || this.context !== context) return;
     this.browser = null;
     this.context = null;
     this.page = null;
     this.inspectMode = false;
     this.inspection = null;
+    this.inspectedDocument = null;
     this.inspectionRefused = false;
     this.inspectSession = false;
     this.protectedPages = new WeakSet<Page>();
@@ -926,6 +935,15 @@ export class RecorderService {
     context.on("page", (opened) => {
       void this.registerPopup(opened).catch((error) => this.noteInstrumentationError(error));
     });
+
+    // An inspection belongs to the document it was taken in (L3 §1). Playwright's own navigation
+    // events, never the page's word, tell when that document is gone. Same-document navigations
+    // count too, so a SPA route change also asks for a fresh inspection: it can only refuse, never mislead.
+    const countNavigations = (page: Page): void => {
+      page.on("framenavigated", (frame) => this.frameNavigations.set(frame, (this.frameNavigations.get(frame) ?? 0) + 1));
+    };
+    for (const page of context.pages()) countNavigations(page);
+    context.on("page", countNavigations);
 
     await context.exposeBinding("__awtkit_recordAction", async (source, action: Omit<RecordedAction, "id">) => {
       const page = source.page;
@@ -1898,11 +1916,13 @@ export class RecorderService {
   /**
    * L3 §1's Element Spy trigger: the current inspection, the live page it was taken on, and the values
    * typed earlier in this recording, which an AI scope must never contain. Null when the inspection
-   * expired, was refused, or its page closed.
+   * expired, was refused, or its page closed — or when the document it was taken in is gone (reload,
+   * navigation, detached frame): the Recorder's locator could then resolve to a node never inspected.
    */
   public getInspectionTarget(): { inspection: ElementInspection; page: Page; boundValues: string[] } | null {
     const inspection = this.getInspectionState().inspection;
-    if (!inspection) return null;
+    const taken = this.inspectedDocument;
+    if (!inspection || !taken || taken.frame.isDetached() || (this.frameNavigations.get(taken.frame) ?? 0) !== taken.navigations) return null;
     const page = inspection.pageAlias === "main" ? this.page : this.popupPages.get(inspection.pageAlias);
     return page && !page.isClosed() ? { inspection, page, boundValues: boundValueSources(this.actions) } : null;
   }
@@ -1932,6 +1952,10 @@ export class RecorderService {
       await this.refuseInspection();
       return;
     }
+    // Read before any await: a navigation landing during the frame walk below must not be counted as
+    // the document this click was made in.
+    const frame = sourceFrame ?? sourcePage.mainFrame();
+    const navigations = this.frameNavigations.get(frame) ?? 0;
     let pageAlias = "main";
     for (const [alias, page] of this.popupPages) if (page === sourcePage) pageAlias = alias;
     // Frame identity comes from Playwright's Frame graph (trusted), never from the page's claim.
@@ -1950,6 +1974,7 @@ export class RecorderService {
       return;
     }
     this.inspection = result;
+    this.inspectedDocument = { frame, navigations };
     this.inspectionRefused = false;
   }
 

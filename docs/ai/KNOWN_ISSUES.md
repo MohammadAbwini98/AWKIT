@@ -1,17 +1,29 @@
 # KNOWN_ISSUES
 
-## GUI verifiers cannot click inside the Recorder's own browser (2026-09-23, OPEN — verification gap, L3 §1)
+## Element Spy AI in real Electron: the Recorder browser is now driven, and two lifecycle defects it found are fixed (2026-09-23, FIXED — L3 §1)
 
-- The Recorder and Element Spy browser is launched by main through Playwright. No GUI harness can reach
-  it: no CDP port, no test hook. So no real-Electron verifier can create an inspection. Element Spy's
-  **Find stronger locator with AI** is therefore proven in three pieces:
-  - `verify:element-spy` §H: the real RecorderService, the product's loop and proof, a scripted provider;
-  - §E, which checks the IPC and preload wiring in source, and §F, which renders the panel;
-  - `verify:ai-assist-gui`: the channel answers over real IPC.
-
-  The click-through itself is NOT RUN.
-- Adding a harness path into that browser would be a test hook on a security-sensitive surface (protected
-  login is handed off from it). It needs its own design and must not be improvised.
+- **The gap is closed without a product hook.** Element Spy inspects only a trusted click, which page
+  script cannot forge, and the renderer cannot reach the Recorder's browser. `verify:ai-assist-gui` goes
+  through the Recorder's own Playwright connection instead. `app.evaluate` in main uses `createRequire` on
+  the externalized `playwright` module — the same cached `playwright-core` main's ESM import resolves — and
+  wraps `chromium.launch` before the Spy opens. It then clicks through the Browser the product launched
+  (verifier-only; no second browser, no CDP port, no product code). Limit: it relies on `playwright` staying
+  external to the main bundle and on the dev (non-packaged) launch path, `chromium.launch` with no
+  `userDataDir`. The installed-Chrome `launchPersistentContext` path is not wrapped.
+- **Found and fixed end to end:**
+  - A reload of the inspected page while a proposal was pending showed the old inspection's answer as
+    proven on the new document. The Recorder now pins each inspection to its frame's navigation count
+    (L3 plan, §1).
+  - Close Spy, then Open Element Spy at once: the close's liveness-triggered second `closeBrowser()`
+    reset the new session, leaving its browser without an owner. `closeBrowser()` now compare-and-clears.
+- **Traps for the next GUI verifier on the Recorder:**
+  - `isolatedLaunchEnv` moves `%LOCALAPPDATA%`, and with it Playwright's browser cache. A dev-mode
+    Recorder then cannot find Chromium. Set `PLAYWRIGHT_BROWSERS_PATH` to the real cache, or use
+    `PRODUCTION_OFFLINE` as `verify:recorder-gui` does.
+  - `getInspection().inspecting` turns true before the Spy's browser has launched. Wait for the page's
+    "Element Spy opened" message.
+  - The renderer's stale-result token in `useAiAssistJob` was guarded by no check before the Spy's
+    "new inspection" checks: removing it passed every authoring, fragment and failure check.
 - **Related trap, fixed:** `4b2dfa7b` did not run `typecheck:scripts`, and a `navigate` fixture step (not a
   `StepType`) broke it. Run `typecheck:scripts` whenever a verifier changes.
 

@@ -13,6 +13,12 @@
  * reopening, and deletable with AI off back to the report the run wrote — and no flow or fragment on
  * disk touched by any of it.
  *
+ * L3 §1 (Element Spy, "Find stronger locator with AI") runs end to end here too: the real Recorder page
+ * opens the Recorder's own Chromium on the Feature Test Lab, an element is inspected by a trusted click,
+ * the request crosses the real preload and IPC, and main's §7 loop compiles, guards and proves the
+ * scripted plan on that live page before the panel shows it — or refuses, cancels, or withholds it when
+ * the page or the inspection it was asked for is gone.
+ *
  * The provider is the DETERMINISTIC one: `AWKIT_TEST_AI_PROVIDER` names a file holding the next
  * scripted answer, read only by a non-packaged build (the `AWKIT_TEST_LICENSE_BYPASS` pattern). It
  * replaces the transport and the model pack; queue, prompt builder and output contract are production.
@@ -20,11 +26,12 @@
  *
  * Needs `npm run build` first (it launches `out/`). Run: npm run verify:ai-assist-gui
  */
+import { spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { _electron as electron, type Page } from "playwright";
+import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 
 import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FakeInferStep } from "@src/ai/FakeAiHostTransport";
@@ -54,7 +61,10 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const probe = isolatedLaunchEnv("awkit-ai-assist-gui");
 const providerFile = path.join(probe.dataRoot, "test-ai-provider.json");
-const { env, electronArgs, dataRoot, cleanup } = { ...probe, env: { ...probe.env, AWKIT_TEST_AI_PROVIDER: providerFile } };
+// The isolated LOCALAPPDATA would also move Playwright's browser cache (%LOCALAPPDATA%\ms-playwright),
+// so the dev-mode Recorder is pointed back at the one already installed, as verify:element-spy uses.
+const browsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(process.env.LOCALAPPDATA ?? "", "ms-playwright");
+const { env, electronArgs, dataRoot, cleanup } = { ...probe, env: { ...probe.env, AWKIT_TEST_AI_PROVIDER: providerFile, PLAYWRIGHT_BROWSERS_PATH: browsersPath } };
 const appData = path.join(dataRoot, "SpecterStudio");
 
 let passed = 0;
@@ -262,8 +272,149 @@ async function assistSettles(win: Page, want: string, timeout = 20_000): Promise
   return bar(win).getAttribute("data-assist-state");
 }
 
+// ── L3 §1: the Element Spy on the real Recorder browser ───────────────────────────────────────────
+const spyPort = Number(process.env.AWKIT_AI_ASSIST_GUI_PORT ?? 4436);
+const spyOrigin = `http://127.0.0.1:${spyPort}`;
+const SPY_LAB = "/recorder-lab/element-spy";
+const SPY_FRAME = '[data-testid="spy-frame"]';
+const spyPlan = (target: Record<string, unknown>) => JSON.stringify({ version: 1, target, scopes: [] });
+const SAVE_PROFILE_PLAN = spyPlan({ strategy: "role", value: "button", name: "Save profile", exact: true });
+const spyAi = (win: Page) => win.getByTestId("element-spy-ai");
+
+async function until<T>(probe: () => Promise<T | null | undefined | false>, timeout = 15_000): Promise<T | null> {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const value = await probe().catch(() => null);
+    if (value) return value;
+    if (Date.now() > deadline) return null;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+/**
+ * Element Spy inspects only a TRUSTED click (`event.isTrusted`), which no page script can forge, and the
+ * renderer has no reach into the Recorder's browser. So the harness goes through the Recorder's OWN
+ * Playwright connection: in the Electron main process it wraps `chromium.launch` on the shared
+ * `playwright` module before the Spy opens, keeping the Browser the product itself launched — never a
+ * second one — and a click through it arrives exactly as a person's does. Main's ESM import and this
+ * `createRequire` resolve to one cached `playwright-core`, so this is the `chromium` RecorderService
+ * calls. Verifier-only: no product code knows about it. (No named inner functions: esbuild's `__name`
+ * does not exist in main.)
+ */
+async function captureRecorderBrowsers(electronApp: ElectronApplication): Promise<void> {
+  await electronApp.evaluate(({ app: mainApp }) => {
+    const store = globalThis as unknown as { __awkitRecorderBrowsers?: unknown[] };
+    if (store.__awkitRecorderBrowsers) return;
+    const browsers: unknown[] = [];
+    store.__awkitRecorderBrowsers = browsers;
+    const nodeModule = (process as unknown as { getBuiltinModule(id: string): typeof import("node:module") }).getBuiltinModule("node:module");
+    const { chromium } = nodeModule.createRequire(`${mainApp.getAppPath()}/package.json`)("playwright") as typeof import("playwright");
+    const launch = chromium.launch.bind(chromium);
+    chromium.launch = async (...args: Parameters<typeof chromium.launch>) => {
+      const browser = await launch(...args);
+      browsers.push(browser);
+      return browser;
+    };
+  });
+}
+
+type RecorderPageOp = { op: "count" | "goto" | "close" | "click" | "text" | "data-spy"; path?: string; to?: string; selector?: string; frame?: string };
+
+/** One operation on the live Recorder page at `path`, through the Recorder's own connection. */
+async function recorderPage(electronApp: ElectronApplication, request: RecorderPageOp): Promise<string> {
+  return electronApp.evaluate(async (_electron, a) => {
+    const browsers = (globalThis as unknown as { __awkitRecorderBrowsers?: import("playwright").Browser[] }).__awkitRecorderBrowsers ?? [];
+    const pages = browsers.flatMap((browser) => browser.contexts()).flatMap((context) => context.pages()).filter((page) => !page.isClosed());
+    if (a.op === "count") return `${browsers.length} browser(s), open pages: ${pages.map((page) => new URL(page.url()).pathname).join(" ")}`;
+    const page = pages.find((candidate) => new URL(candidate.url()).pathname === a.path);
+    if (!page) throw new Error(`no open Recorder page at ${a.path}; open: ${pages.map((candidate) => candidate.url()).join(", ")}`);
+    if (a.op === "goto") {
+      await page.goto(a.to ?? page.url());
+      return page.url();
+    }
+    if (a.op === "close") {
+      await page.close();
+      return "";
+    }
+    const target = (a.frame ? page.frameLocator(a.frame) : page).locator(a.selector ?? "");
+    if (a.op === "click") {
+      await target.click({ timeout: 10_000 });
+      return "";
+    }
+    if (a.op === "data-spy") return `${await target.count()}:${(await target.first().getAttribute("data-spy", { timeout: 5_000 })) ?? ""}`;
+    return target.innerText({ timeout: 10_000 });
+  }, request);
+}
+
+/**
+ * Click an element while inspecting and wait until main holds a NEW inspection of it and the Spy panel
+ * shows it. Consecutive inspections are of differently named elements wherever the renderer's 800 ms
+ * poll would otherwise be indistinguishable from "already shown".
+ */
+async function inspectInSpy(electronApp: ElectronApplication, win: Page, target: { selector: string; frame?: string }, name: string) {
+  const before = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection?.inspectedAt ?? null;
+  await recorderPage(electronApp, { op: "click", path: SPY_LAB, ...target });
+  const inspection = await until(async () => {
+    const state = await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection());
+    return state.inspection && state.inspection.inspectedAt !== before && state.inspection.owner.name === name ? state.inspection : null;
+  });
+  if (inspection) {
+    await win.getByTestId("element-spy-name").filter({ hasText: name }).waitFor({ state: "visible", timeout: 10_000 });
+    await win.getByTestId("element-spy-ai").waitFor({ state: "visible", timeout: 10_000 });
+  }
+  return inspection;
+}
+
+/**
+ * Open Element Spy through its button. The service reports `inspecting` before its browser has even
+ * launched, so the signal is the page's own confirmation, set once the Target URL has loaded.
+ */
+async function openSpy(win: Page): Promise<string | null> {
+  await win.getByTestId("element-spy-start").click();
+  return until(async () => {
+    const message = await win.getByTestId("element-spy-message").innerText();
+    return /^Element Spy opened/.test(message) ? message : null;
+  }, 60_000);
+}
+
+/** Main holds the AI job, then lets it go: the precondition and the proof of every cancel below. */
+async function aiBusy(win: Page): Promise<boolean> {
+  return Boolean(await until(async () => (await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus())).state === "busy", 10_000));
+}
+async function aiReleased(win: Page, timeout = 5_000): Promise<boolean> {
+  return Boolean(
+    await until(async () => {
+      const now = await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus());
+      return now.state !== "busy" && now.queueDepth === 0;
+    }, timeout)
+  );
+}
+
+/** Every file a proposal must not touch: flows, fragments, reports, and any Recorder draft. */
+function persistedState(): string {
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/^(flows|fragments|reports)[\\/]/.test(path.relative(appData, full)) || /draft/i.test(entry.name)) files.push(`${path.relative(appData, full)}=${digestOf(full)}`);
+    }
+  };
+  walk(appData);
+  return files.sort().join("\n");
+}
+
 let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
+let spySite: ChildProcess | undefined;
 try {
+  spySite = spawn(process.execPath, ["mock-site/server.mjs"], {
+    cwd: root,
+    env: { ...process.env, MOCK_SITE_PORT: String(spyPort) },
+    stdio: ["ignore", "ignore", "ignore"],
+    windowsHide: true
+  });
+  if (!(await until(async () => (await fetch(`${spyOrigin}${SPY_LAB}`).catch(() => null))?.ok, 30_000))) throw new Error(`the Feature Test Lab did not start on ${spyOrigin}`);
   app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
   const win: Page = await resolveMainWindow(app);
   const console_ = watchConsole(win);
@@ -280,6 +431,178 @@ try {
   // itself runs on a Recorder browser page, which verify:element-spy drives directly.
   const spyAnswer = await win.evaluate(() => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId: "gui-spy-none" }));
   check("the Element Spy proposal answers NOT_FOUND over real IPC when nothing is inspected", spyAnswer.code === "NOT_FOUND" && spyAnswer.proposal === null, JSON.stringify(spyAnswer));
+
+  console.log("\nL3 §1 — Element Spy: a trusted click in the Recorder's own browser, then Find stronger locator with AI");
+  console_.setLabel("element spy");
+  await navClick(win, "Recorder");
+  await win.waitForSelector(".recorder-page", { timeout: 20_000 });
+  const spyState = persistedState();
+  const actionsBeforeSpy = JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions()));
+  const flowsBeforeSpy = JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.flows.list()));
+  await captureRecorderBrowsers(app);
+  await win.getByLabel("Target URL").fill(`${spyOrigin}${SPY_LAB}`);
+  const spyOpened = await openSpy(win);
+  check(
+    "Open Element Spy starts an inspect-only session",
+    Boolean(spyOpened),
+    `${await win.getByTestId("element-spy-status").innerText().catch(() => "")} | ${await win.getByTestId("element-spy-message").innerText().catch(() => "no message")}`
+  );
+  const opened = await recorderPage(app, { op: "count" });
+  check("(precondition) the harness holds the one browser the Recorder launched, on the Feature Test Lab", opened.startsWith("1 browser(s)") && opened.includes(SPY_LAB), opened);
+
+  const save = await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
+  check("a trusted click inspects the element in the real Recorder browser", Boolean(save), JSON.stringify(save?.owner ?? null));
+  check("...and the Spy offers Find stronger locator with AI, idle, with nothing proposed yet", (await stateSettles(win, "element-spy-ai", "idle")) === "idle" && (await win.getByTestId("element-spy-ai-result").count()) === 0);
+  const spyPrimary = await win.getByTestId("element-spy-primary").innerText();
+  const candidatesBefore = JSON.stringify(save?.candidates ?? null);
+  check("(precondition) the scripted plan resolves to exactly the inspected element in that page", (await recorderPage(app, { op: "data-spy", path: SPY_LAB, selector: 'internal:role=button[name="Save profile"s]' })) === "1:save-profile");
+
+  console.log("\n  A plan proven on the live page is shown, labelled AI, and applied nowhere");
+  provide({ text: SAVE_PROFILE_PLAN });
+  await win.getByTestId("element-spy-ai-propose").click();
+  const proposed = await stateSettles(win, "element-spy-ai", "done");
+  check("the proposal completes through real IPC, the §7 loop and the browser proof", proposed === "done", `${proposed} — ${await win.getByTestId("element-spy-ai-message").innerText().catch(() => "")}`);
+  const proposalText = await win.getByTestId("element-spy-ai-proposal").innerText().catch(() => "");
+  check("...the displayed locator is the proven one for the inspected element", /button/.test(proposalText) && proposalText.includes("Save profile"), proposalText);
+  check("...labelled as an AI suggestion from local AI", /^AI suggestion/.test(await win.getByTestId("element-spy-ai-result").innerText()) && (await spyAi(win).locator(".ai-assist-label").innerText()).includes("Local AI"));
+  check("...saying it was proven on this page and nothing was saved or applied", /Proven on this page[\s\S]*Nothing was saved or applied/.test(await win.getByTestId("element-spy-ai-message").innerText()));
+  check("...while the Recorder's own primary locator and candidates are unchanged", (await win.getByTestId("element-spy-primary").innerText()) === spyPrimary && JSON.stringify((await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection?.candidates ?? null) === candidatesBefore);
+  check("...and nothing on the page was performed", (await recorderPage(app, { op: "text", path: SPY_LAB, selector: '[data-testid="spy-clicks"]' })) === "0");
+
+  console.log("\n  A plan that reaches a different element is refused in the browser");
+  provide({ text: spyPlan({ strategy: "testId", value: "spy-submit-order" }) });
+  check("(precondition) the scripted plan is a real, unique element of the page — just not the inspected one", (await recorderPage(app, { op: "data-spy", path: SPY_LAB, selector: '[data-testid="spy-submit-order"]' })) === "1:submit-order");
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("the wrong-element proposal is refused", (await stateSettles(win, "element-spy-ai", "failed")) === "failed");
+  check("...saying none could be proven, and no proposal is displayed — not even the earlier one", /could be proven on this page/.test(await win.getByTestId("element-spy-ai-message").innerText()) && (await win.getByTestId("element-spy-ai-result").count()) === 0);
+  check("...and the page was only observed", (await recorderPage(app, { op: "text", path: SPY_LAB, selector: '[data-testid="spy-clicks"]' })) === "0");
+
+  console.log("\n  A sensitive element is refused before any model call");
+  const approve = await inspectInSpy(app, win, { frame: SPY_FRAME, selector: '[data-testid="spy-frame-approve"]' }, "Approve in frame");
+  check("(precondition) an approval control inside the frame is inspected", Boolean(approve), JSON.stringify(approve?.owner ?? null));
+  // A model call would hang forever on this provider, so an answer at all proves none was made.
+  provide({ hang: true });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("the sensitive element is refused at once", (await stateSettles(win, "element-spy-ai", "failed", 10_000)) === "failed");
+  check("...saying why", /never proposes locators for sensitive or sign-in elements/.test(await win.getByTestId("element-spy-ai-message").innerText()));
+  check("...and main never started a model job", (await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus())).state !== "busy" && (await aiReleased(win)));
+
+  console.log("\n  Cancel ends the job in main, and nothing arrives after it");
+  await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
+  provide({ hang: true });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("a pending proposal shows loading with Cancel", (await stateSettles(win, "element-spy-ai", "loading")) === "loading" && (await win.getByTestId("element-spy-ai-cancel").isEnabled()));
+  check("(precondition) main is holding the model job", await aiBusy(win));
+  await win.getByTestId("element-spy-ai-cancel").click();
+  check("Cancel reports it cancelled", (await stateSettles(win, "element-spy-ai", "failed")) === "failed" && /Cancelled/.test(await win.getByTestId("element-spy-ai-message").innerText()));
+  check("...and main let the job go at once", await aiReleased(win));
+  const LATE_MS = 3_000;
+  provide({ text: SAVE_PROFILE_PLAN, delayMs: LATE_MS });
+  const lateStarted = Date.now();
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("(precondition) a slow proposal is pending", (await stateSettles(win, "element-spy-ai", "loading")) === "loading" && (await aiBusy(win)));
+  await win.getByTestId("element-spy-ai-cancel").click();
+  check("cancelling it releases main before its answer was due", (await aiReleased(win)) && Date.now() - lateStarted < LATE_MS);
+  await until(async () => Date.now() - lateStarted > LATE_MS + 1_500, LATE_MS + 5_000);
+  check("...and its answer never reaches the panel", (await spyAi(win).getAttribute("data-assist-state")) === "failed" && (await win.getByTestId("element-spy-ai-result").count()) === 0);
+
+  console.log("\n  A new inspection abandons the job for the old one");
+  provide({ text: SAVE_PROFILE_PLAN, delayMs: LATE_MS });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("(precondition) a proposal for Save profile is pending", (await stateSettles(win, "element-spy-ai", "loading")) === "loading" && (await aiBusy(win)));
+  const supersededAt = Date.now();
+  const displayName = await inspectInSpy(app, win, { selector: '[data-testid="spy-display-name"]' }, "Display name");
+  check("inspecting another element resets the panel for it", Boolean(displayName) && (await stateSettles(win, "element-spy-ai", "idle")) === "idle");
+  check("...and the old job is cancelled in main", await aiReleased(win));
+  await until(async () => Date.now() - supersededAt > LATE_MS + 1_500, LATE_MS + 5_000);
+  check("...so no answer for Save profile is ever painted under Display name", (await spyAi(win).getAttribute("data-assist-state")) === "idle" && (await win.getByTestId("element-spy-ai-result").count()) === 0);
+
+  console.log("\n  The inspected document is replaced while a proposal is pending");
+  const reloaded = await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
+  provide({ text: SAVE_PROFILE_PLAN, delayMs: LATE_MS });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("(precondition) a proposal for the inspected element is pending", Boolean(reloaded) && (await stateSettles(win, "element-spy-ai", "loading")) === "loading" && (await aiBusy(win)));
+  await recorderPage(app, { op: "goto", path: SPY_LAB, to: `${spyOrigin}${SPY_LAB}?reloaded=1` });
+  const afterReload = await until(async () => {
+    const state = await spyAi(win).getAttribute("data-assist-state").catch(() => "gone");
+    return state === "loading" ? null : state;
+  }, LATE_MS + 20_000);
+  check(
+    "an answer for an element whose document is gone is never shown as proven",
+    afterReload !== null && (await win.getByTestId("element-spy-ai-result").count()) === 0,
+    `${afterReload} — ${await win.getByTestId("element-spy-ai-message").innerText().catch(() => "")}`
+  );
+  check("...and main is released", await aiReleased(win));
+  provide({ text: SAVE_PROFILE_PLAN });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check(
+    "asking again for the old inspection is refused, not proven on the new document",
+    (await stateSettles(win, "element-spy-ai", "failed")) === "failed" && (await win.getByTestId("element-spy-ai-result").count()) === 0,
+    await win.getByTestId("element-spy-ai-message").innerText().catch(() => "")
+  );
+  const fresh = await inspectInSpy(app, win, { selector: '[data-testid="spy-display-name"]' }, "Display name");
+  const freshSave = fresh ? await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile") : null;
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("inspecting it again on the new document proves normally", Boolean(freshSave) && (await stateSettles(win, "element-spy-ai", "done")) === "done");
+
+  console.log("\n  Local AI switched off: the Spy still works and says why AI does not");
+  aiSettings(false);
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("a proposal after the switch-off is refused as unavailable", (await stateSettles(win, "element-spy-ai", "unavailable")) === "unavailable");
+  check("...the button is disabled", await win.getByTestId("element-spy-ai-propose").isDisabled());
+  check("...and the panel says the Recorder's candidates work without it", /Local AI is turned off\. The candidates above work without it\./.test(await win.getByTestId("element-spy-ai-message").innerText()));
+  const offInspection = await inspectInSpy(app, win, { selector: '[data-testid="spy-display-name"]' }, "Display name");
+  check("inspecting still works with AI off", Boolean(offInspection) && (await win.getByTestId("element-spy-candidates").count()) === 1);
+  const offDirect = await win.evaluate(() => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId: "spy-after-off" }));
+  check("...and main refuses a direct request as DISABLED", offDirect.code === "DISABLED" && offDirect.proposal === null, JSON.stringify(offDirect));
+  aiSettings(true);
+
+  console.log("\n  A protected sign-in page is never inspected, so AI is never offered on it");
+  await recorderPage(app, { op: "goto", path: SPY_LAB, to: `${spyOrigin}/mock/protected-login` });
+  const refused = await until(async () => (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).refused === "protected-login", 20_000);
+  const refusedShown = await until(async () => /protected login surface was detected/.test(await win.getByTestId("element-spy-status").innerText()), 10_000);
+  check("the Spy refuses the protected surface and says so", Boolean(refused) && Boolean(refusedShown), await win.getByTestId("element-spy-status").innerText().catch(() => ""));
+  await win.getByTestId("element-spy-ai").waitFor({ state: "detached", timeout: 10_000 }).catch(() => undefined);
+  check("...so the AI control is gone", (await win.getByTestId("element-spy-ai").count()) === 0);
+  const protectedDirect = await win.evaluate(() => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId: "spy-protected" }));
+  check("...and main answers NOT_FOUND: there is nothing to propose for", protectedDirect.code === "NOT_FOUND" && protectedDirect.proposal === null, JSON.stringify(protectedDirect));
+  await recorderPage(app, { op: "goto", path: "/mock/protected-login", to: `${spyOrigin}${SPY_LAB}` });
+  await win.getByTestId("element-spy-toggle").click();
+  await until(async () => (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspecting, 10_000);
+
+  console.log("\n  Close Spy while a proposal is pending");
+  const beforeClose = await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
+  check("(precondition) with AI back on, a new inspection offers the proposal", Boolean(beforeClose) && (await stateSettles(win, "element-spy-ai", "idle")) === "idle" && (await win.getByTestId("element-spy-ai-propose").isEnabled()));
+  provide({ hang: true });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("(precondition) the proposal is pending in main", (await stateSettles(win, "element-spy-ai", "loading")) === "loading" && (await aiBusy(win)));
+  await win.getByTestId("element-spy-stop").click();
+  check("closing the Spy removes the pending proposal from the page", Boolean(await until(async () => (await win.getByTestId("element-spy-ai").count()) === 0)));
+  check("...and main let the job go", await aiReleased(win));
+  check("...with the session's browser closed", (await recorderPage(app, { op: "count" })).endsWith("open pages: "), await recorderPage(app, { op: "count" }));
+
+  console.log("\n  The Recorder browser page is closed while a proposal is pending");
+  const reopened = await openSpy(win);
+  check("(precondition) the Spy reopens in a new Recorder browser", Boolean(reopened) && (await recorderPage(app, { op: "count" })).includes(SPY_LAB), `${await recorderPage(app, { op: "count" })} | ${await win.getByTestId("element-spy-message").innerText().catch(() => "")}`);
+  const beforePageClose = await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
+  check(
+    "(precondition) the reopened Spy inspects the element",
+    Boolean(beforePageClose),
+    `${JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection()))} clicks=${await recorderPage(app, { op: "text", path: SPY_LAB, selector: '[data-testid="spy-clicks"]' }).catch((error) => String(error))}`
+  );
+  provide({ hang: true });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("(precondition) a proposal is pending on the reopened Spy", Boolean(beforePageClose) && (await stateSettles(win, "element-spy-ai", "loading")) === "loading" && (await aiBusy(win)));
+  await recorderPage(app, { op: "close", path: SPY_LAB });
+  check("closing the inspected page ends the session and removes the pending proposal", Boolean(await until(async () => (await win.getByTestId("element-spy-ai").count()) === 0)));
+  check("...and main let the job go", await aiReleased(win));
+  const afterPageClose = await win.evaluate(() => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId: "spy-page-closed" }));
+  check("...and a request for the closed page is NOT_FOUND", afterPageClose.code === "NOT_FOUND" && afterPageClose.proposal === null, JSON.stringify(afterPageClose));
+
+  check("no flow, fragment, report or Recorder draft on disk changed across the Spy journey", persistedState() === spyState);
+  check("...no recorded step changed", JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())) === actionsBeforeSpy);
+  check("...and the flow library is as it was", JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.flows.list())) === flowsBeforeSpy);
+  provide({ text: goodAnswer });
 
   console.log("\nThe designer offers the explanation inside the validation panel");
   console_.setLabel("flow designer");
@@ -618,6 +941,7 @@ try {
   console.error(`  ✗ unexpected error — ${error instanceof Error ? error.stack : String(error)}`);
 } finally {
   await app?.close().catch(() => undefined);
+  spySite?.kill();
   try {
     cleanup();
   } catch {

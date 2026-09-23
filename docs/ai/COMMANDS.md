@@ -435,12 +435,17 @@ npm run verify:ai-locator-upgrade-gui # L3 §6 + §10 in real Electron: the Flow
                                   # keyboard-operable evidence disclosure, an unproven candidate, a
                                   # forbidden (T3) step, step and flow switching, light/dark token
                                   # resolution, and the AI-unavailable line (65)
-npm run verify:ai-assist-gui      # L4b + L5b + L6 user-facing AI in real Electron, via the NON-PACKAGED
+npm run verify:ai-assist-gui      # L3 §1 + L4b + L5b + L6 user-facing AI in real Electron, via the NON-PACKAGED
                                   # test provider (AWKIT_TEST_AI_PROVIDER names a file holding the next
-                                  # scripted FakeInferStep): explain/cancel/stale/refused/AI-off in the
-                                  # validation panel, fragment Describe + the no-model similarity hint, and
-                                  # the run-detail drawer's cause/evidence/on-demand analysis. Needs
-                                  # `npm run build` first. Says nothing about live-model quality (76)
+                                  # scripted FakeInferStep): Element Spy's Find stronger locator with AI on
+                                  # the Recorder's own browser (proven/wrong-element/T3/cancel/new
+                                  # inspection/reload/AI-off/protected page/Close Spy/page closed),
+                                  # explain/cancel/stale/refused/AI-off in the validation panel, fragment
+                                  # Describe + the no-model similarity hint, and the run-detail drawer's
+                                  # cause/evidence/on-demand analysis. Needs `npm run build` first; starts
+                                  # the Feature Test Lab on AWKIT_AI_ASSIST_GUI_PORT (default 4436) and uses
+                                  # Playwright's installed Chromium (PLAYWRIGHT_BROWSERS_PATH, default the
+                                  # real %LOCALAPPDATA%\ms-playwright). Says nothing about live-model quality (159)
 npm run verify:ai-locator-attempts # L3 §7 bounded synthesis attempts in real Chromium over the real
                                   # AiService + fake transport: the 2-attempt budget, repeats, every refusal
                                   # stage, protected login, expired context, cancellation, supersession,

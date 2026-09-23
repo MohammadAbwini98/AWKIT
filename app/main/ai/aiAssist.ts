@@ -400,6 +400,10 @@ export async function proposeInspectionLocator(senderId: number, input: unknown,
     const at = inspection.inspectedAt;
     switch (result.outcome) {
       case "accepted":
+        // The proof ran on whatever the page held when the answer came. It is this inspection's only
+        // while that inspection is still current and its document still loaded: a reload or a new
+        // inspection while the model was answering means the proof saw something never inspected.
+        if (deps.target()?.inspection !== inspection) return view("NOT_FOUND", at, result.attemptsUsed);
         // `unprovable-now` is storable for a saved step, which replay settles later. The Spy has no replay.
         return proposal?.proof === "capture-proven"
           ? {

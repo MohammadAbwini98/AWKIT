@@ -152,18 +152,39 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
   Spy candidate changes, so using a proposal stays a person's separate act. Applying it through
   "Use in action" with provenance and audit is not built. It would need a decision on how a draft step
   carries AI provenance before it is saved.
+- **An answer belongs to its document (fixed 2026-09-23, found end to end).** Navigation does not clear
+  an inspection, and the proof runs on whatever the page holds when the answer arrives. A reload while
+  the model was answering therefore showed the old inspection's answer as "proven … it is the inspected
+  one", and asking again proved it on the new document. Now the Recorder counts Playwright's
+  `framenavigated` per frame and pins the count when an element is inspected. `getInspectionTarget()`
+  returns null once that frame has navigated or detached. `proposeInspectionLocator` re-reads the target
+  before it shows an accepted answer, and answers `NOT_FOUND` unless it is the same inspection. Ceiling:
+  same-document navigations count too, so a SPA route change also asks for a fresh inspection.
+- **Close, then reopen (fixed 2026-09-23, found end to end).** Close Spy fired the liveness watch, which
+  started a second, un-awaited `closeBrowser()`. When it finished after Open Element Spy, it reset the new
+  session, leaving its browser without an owner and the Spy reading "closed". `closeBrowser()` now resets
+  state only while the fields still hold the handles it closed.
 - **Proven:**
-  - `verify:element-spy` 114/0 (was 89). Section H runs the real RecorderService Spy session, the
-    product's loop, compiler, intent guard and proof, with a scripted provider in place of the model. It
-    covers a proven proposal, two wrong-element plans refused in the browser, a row scope on a value typed
-    earlier refused by the intent guard (and never shown to the model), a T3 element refused before any
-    call, Cancel, AI off and no inspection. It also shows that nothing was written.
-  - The E section checks the IPC gates and wiring; the F section renders the panel's states.
-  - The mutation dropping `userRequested` was caught at 107/7.
-  - `verify:ai-assist-gui` 102/0: the channel is registered and answers over real IPC.
+  - **End to end in real Electron, `verify:ai-assist-gui` 159/0 (was 102).** The Recorder page opens the
+    Recorder's own Chromium on the Feature Test Lab. A trusted click inspects through that browser's own
+    Playwright connection: the verifier wraps `chromium.launch` in main before the Spy opens, never a
+    second browser, and no product code knows about it. The request crosses the real preload and IPC,
+    and the loop, compiler, intent guard and proof run on the live page. The scripted provider replaces
+    only the transport. Covered: a proven proposal (labelled, applied nowhere); a wrong-element plan
+    refused in the browser; T3 refused before any model call; Cancel, and a new inspection, each releasing
+    the job in main with no late answer painted; a reload while pending and after; AI off; a protected
+    page never inspected; Close Spy and closing the page while pending. Flows, fragments, reports and
+    drafts on disk are unchanged. Red first: the two reload checks failed on the unfixed source (50/3,
+    with the reopen race as the third failure). Mutations were caught and reverted: dropping the final
+    same-inspection check (158/1), and dropping the renderer's stale-result token (157/2 — no older check
+    caught it).
+  - `verify:element-spy` 120/0 (was 114). Section H adds the reload cases, and a close-then-reopen check,
+    which was red with the close guard removed (118/2).
+  - The E section checks the IPC gates and wiring; the F section renders the panel's states. The mutation
+    dropping `userRequested` was caught at 107/7.
   - `verify:ai-permissions` 96/0 and `verify:ai-fallback` 38/0 admit the channel in their exact rosters.
-- **NOT RUN:** clicking the button in real Electron. No GUI harness can click inside the Recorder's own
-  browser, so no inspection exists there to ask about.
+    `verify:recorder-gui` 205/0/0 after the `closeBrowser()` change.
+  - **Not shown by any of this:** real-model quality. The live 0.8B evidence stays in the L1 plan.
 
 ## 2. Locator plan DSL → trusted compiler
 

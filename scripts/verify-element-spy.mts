@@ -303,6 +303,13 @@ async function main(): Promise<void> {
         return settle !== null;
       }
     };
+    /** Let a hanging attempt answer now, with `value`. */
+    const answerHanging = (value: unknown): boolean => {
+      const settle = hanging;
+      hanging = null;
+      settle?.({ status: "ok", value, modelId: "test-fake", usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 }, yields: 0 });
+      return settle !== null;
+    };
     // The same wiring as ai.ipc.ts's inspectionTarget (asserted in E): the Recorder's live target, the product's proof.
     const spyTarget = (): InspectionTarget | null => {
       const live = recorder.getInspectionTarget();
@@ -363,6 +370,20 @@ async function main(): Promise<void> {
     check("Cancel reaches the in-flight model job and ends it", cancelled && proposal.code === "CANCELLED" && proposal.proposal === null, JSON.stringify(proposal));
     check("a finished job can no longer be aborted", !abortInspectionLocator(`assist.7.h-${askCount}`));
 
+    // The inspected document is replaced: the proof would find the same button in the NEW document.
+    await inspect(() => spy.getByTestId("spy-save-profile").click(), "Save profile");
+    plans.push("hang");
+    const pendingReload = ask();
+    await until(() => (hanging ? true : null));
+    await spy.reload();
+    check("(precondition) the answer arrives after the reload", answerHanging(rolePlan("Save profile")));
+    proposal = await pendingReload;
+    check("an answer that arrives after the inspected document was reloaded is withheld", proposal.code === "NOT_FOUND" && proposal.proposal === null, JSON.stringify(proposal));
+    const jobsAfterReload = jobs.length;
+    proposal = await ask();
+    check("...and the old inspection is no longer an AI target, so nothing is asked", recorder.getInspectionTarget() === null && proposal.code === "NOT_FOUND" && jobs.length === jobsAfterReload, JSON.stringify(proposal));
+    check("...while the Spy still shows that inspection", recorder.getInspectionState().inspection !== null);
+
     check("proposals wrote nothing: recorded steps unchanged", JSON.stringify(recorder.getActions()) === actionsBeforeAi);
     check("proposals wrote nothing: the draft file unchanged", (await readFile(draftPath, "utf8")) === draftAfterApplyText);
     check("proposals never join the Spy's own candidates", JSON.stringify(recorder.getInspectionState().inspection?.candidates) === candidatesBeforeAi);
@@ -412,6 +433,19 @@ async function main(): Promise<void> {
 
     state = await recorder.stopInspection();
     check("closing the Spy clears the session, mode and result and closes its browser", !state.session && !state.inspecting && state.inspection === null && internal.context === null, JSON.stringify(state));
+
+    // Close Spy, then Open Element Spy at once. Closing fires the liveness watch's own close, and one
+    // finishing late must not reset the session opened since (it left that browser ownerless).
+    const reopened = await recorder.startInspection(LAB);
+    const reopenedPage = internal.page as Page | null;
+    const reinspected = reopenedPage ? await inspect(() => reopenedPage.getByTestId("spy-save-profile").click(), "Save profile") : null;
+    check(
+      "reopening the Spy at once keeps the new session, its browser and its inspection",
+      reopened.session && reopened.inspecting && Boolean(reinspected) && recorder.getInspectionState().session && internal.context !== null && recorder.getInspectionTarget() !== null,
+      JSON.stringify({ reopened, now: recorder.getInspectionState().session, context: internal.context !== null })
+    );
+    state = await recorder.stopInspection();
+    check("...and that session closes cleanly too", !state.session && internal.context === null, JSON.stringify(state));
 
     // ── C: save, reload, edit, re-save and replay ─────────────────────────────────────────────────
     console.log("C  Save, reload and replay after locator replacement");
