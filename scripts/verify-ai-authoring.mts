@@ -867,6 +867,21 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const stored = loadReviewStore(reviewRoot);
   check("the store reads back one capture and one verdict", stored.captures.length === 1 && stored.verdicts.length === 1 && stored.malformed.length === 0, JSON.stringify({ c: stored.captures.length, v: stored.verdicts.length, m: stored.malformed }));
   check("...the latest verdict, with its note redacted", stored.verdicts[0].correct === false && !JSON.stringify(stored.verdicts).includes("ops@example.com"));
+  // A placeholder is not a reviewer: `YOUR_LABEL`, the CLI's documented example, reached the real store (2026-09-23).
+  const refusedLabels = ["YOUR_LABEL", "your label", "<label>", "<owner's label>", "Claude", "   "];
+  const acceptedLabels: string[] = [];
+  for (const reviewer of refusedLabels) if ((await recordVerdict(reviewRoot, { ...verdict, reviewer })).ok) acceptedLabels.push(reviewer);
+  check("a verdict under a placeholder or an agent's label is refused: YOUR_LABEL, your label, <label>, <owner's label>, Claude, blank", acceptedLabels.length === 0, JSON.stringify(acceptedLabels));
+  const placeholder: ReviewVerdict = { ...verdict, reviewer: "YOUR_LABEL", note: "optional", reviewedAt: "2026-09-23T08:27:19.233Z" };
+  writeFileSync(join(reviewRoot, "reviews.json"), JSON.stringify({ version: 1, verdicts: [placeholder] }));
+  await recordVerdict(reviewRoot, verdict);
+  const revised = await recordVerdict(reviewRoot, { ...verdict, correct: false });
+  const audited = loadReviewStore(reviewRoot).verdicts;
+  check(
+    "a stored placeholder verdict is kept for audit, unchanged, beside a person's verdict on the same item, which replaces only their own",
+    revised.ok && audited.length === 2 && JSON.stringify(audited[0]) === JSON.stringify(placeholder) && audited[1].reviewer === "MA" && audited[1].correct === false,
+    JSON.stringify(audited)
+  );
   writeFileSync(join(reviewRoot, "capture-broken.json"), "{ not json");
   check("an unreadable capture is reported, never silently skipped", loadReviewStore(reviewRoot).malformed.includes("capture-broken.json"));
 
@@ -926,6 +941,14 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   check("one screen-clear explanation without a person's verdict is PENDING, never MET: unreviewed is not correct", status(pendingOne, 4) === "PENDING" && pendingOne.verdict === "PENDING");
   check("no verdicts at all is PENDING too", evaluateQualityTarget(twoRuns, [], caseIds).verdict === "PENDING");
   check("...and criterion 1 cannot be MET while a screen-clear answer is unread: a person may still confirm a claim", status(pendingOne, 1) === "PENDING");
+  const underPlaceholder = evaluateQualityTarget(twoRuns, approve(twoRuns, (v) => ({ ...v, reviewer: "YOUR_LABEL" })), caseIds);
+  check(
+    "every answer 'approved' under YOUR_LABEL is unreviewed: 0 reviewed, criteria 1 and 4 PENDING, the target never MET",
+    underPlaceholder.review.screenClearReviewed === 0 && status(underPlaceholder, 1) === "PENDING" && status(underPlaceholder, 4) === "PENDING" && underPlaceholder.verdict === "PENDING",
+    JSON.stringify(underPlaceholder.review)
+  );
+  const onePlaceholder = evaluateQualityTarget(twoRuns, approve(twoRuns, (v) => (v.itemId === twoRuns[0].items[0].id ? { ...v, reviewer: "YOUR_LABEL" } : v)), caseIds);
+  check("...and one among a person's verdicts leaves its answer unread: 33 of 34 reviewed, the target PENDING, not MET", onePlaceholder.review.screenClearReviewed === 33 && onePlaceholder.verdict === "PENDING");
   const judgedWrong = evaluateQualityTarget(twoRuns, approve(twoRuns).map((v, i) => (i < 7 ? { ...v, correct: false } : v)), caseIds);
   check("a person judging 7 of 34 screen-clear explanations wrong (79 %) fails criterion 4", status(judgedWrong, 4) === "NOT MET" && judgedWrong.verdict === "NOT MET");
   const oneRun = [synth("2026-09-22T01")];

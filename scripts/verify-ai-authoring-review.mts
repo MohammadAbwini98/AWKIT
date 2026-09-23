@@ -18,7 +18,7 @@ import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
 import { LABELLED_SET } from "./ai-harness/authoringQualitySet";
-import { evaluateQualityTarget, instructionsSha256, loadReviewStore, recordVerdict, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
+import { evaluateQualityTarget, instructionsSha256, isGenuineReviewer, loadReviewStore, recordVerdict, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
 
 const requestFor = (caseId: string) => {
   const labelled = LABELLED_SET.find((c) => c.id === caseId);
@@ -53,10 +53,13 @@ const store = loadReviewStore(dir);
 // Every capture is judged by TODAY's judge, in memory; the files keep the reading they were taken with.
 const rereads = store.captures.map((c) => rereadCapture(c, requestFor));
 const captures = rereads.map((r) => r.capture).filter((c) => c.instructionsSha256 === current);
-const verdictOf = new Map(store.verdicts.map((v) => [v.itemId, v]));
+const byPerson = store.verdicts.filter((v) => isGenuineReviewer(v.reviewer));
+const notCounted = store.verdicts.filter((v) => !isGenuineReviewer(v.reviewer));
+const verdictOf = new Map(byPerson.map((v) => [v.itemId, v]));
 console.log(`L4b explanation quality target (adopted ${QUALITY_TARGET.adopted})`);
 console.log(`  review store: ${dir}`);
-console.log(`  captures: ${captures.length} of the current request, ${store.captures.length - captures.length} of an earlier one (ignored); verdicts: ${store.verdicts.length}`);
+console.log(`  captures: ${captures.length} of the current request, ${store.captures.length - captures.length} of an earlier one (ignored); verdicts: ${byPerson.length} by a person, ${notCounted.length} kept for audit and never counted`);
+for (const v of notCounted) console.log(`    not counted: ${v.itemId} under reviewer "${v.reviewer}" (a placeholder or an agent), recorded ${v.reviewedAt}`);
 if (store.malformed.length > 0) console.error(`  ✗ unreadable: ${store.malformed.join(", ")}`);
 const shown = store.captures.reduce((n, c) => n + c.items.filter((i) => i.text !== null).length, 0);
 const changed = rereads.flatMap((r) => r.changed.map((c) => ({ ...c, retained: r.instructionsRetained })));

@@ -273,9 +273,34 @@ export function loadReviewStore(dir: string): ReviewStore {
   return store;
 }
 
+/**
+ * Reviewer labels that name no person: the CLI's documented placeholders, generic words and agents. Compared
+ * lowercased with spaces and hyphens read as underscores. `YOUR_LABEL` reached the store before this guard.
+ */
+const NOT_A_REVIEWER = new Set([
+  "your_label", "yourlabel", "label", "reviewer", "reviewer_label", "your_name", "name", "placeholder", "example", "test",
+  "todo", "tbd", "xxx", "n/a", "none", "null", "undefined", "unknown", "anonymous",
+  "agent", "ai", "assistant", "claude", "claude_code", "codex", "gemini"
+]);
+
+/**
+ * A label a person chose for themselves: 1-40 characters, not a placeholder, not an agent, and not a template
+ * slot such as `<label>`. A verdict under any other label is refused, and one already stored is kept for
+ * audit but never counted toward the target.
+ */
+export function isGenuineReviewer(reviewer: unknown): boolean {
+  if (typeof reviewer !== "string") return false;
+  const label = reviewer.trim();
+  return label.length > 0 && label.length <= 40 && !/^[<{[(].*[>}\])]$/.test(label) && !NOT_A_REVIEWER.has(label.toLowerCase().replace(/[\s-]+/g, "_"));
+}
+
 export type VerdictInput = Omit<ReviewVerdict, "reviewedAt">;
 
-/** Record (or replace) one person's verdict on one captured explanation. Refuses rather than stores anything sensitive. */
+/**
+ * Record (or replace) one person's verdict on one captured explanation. Refuses rather than stores anything
+ * sensitive or anything under a label that names no person. A stored verdict under such a label is kept
+ * beside the new one, for audit; only a person's own earlier verdict on the item is replaced.
+ */
 export async function recordVerdict(dir: string, input: VerdictInput, now = new Date()): Promise<{ ok: true } | { ok: false; reason: string }> {
   const store = loadReviewStore(dir);
   if (store.malformed.includes(REVIEWS_FILE)) return { ok: false, reason: `${REVIEWS_FILE} is malformed; fix or move it first` };
@@ -283,6 +308,7 @@ export async function recordVerdict(dir: string, input: VerdictInput, now = new 
   for (const key of ["correct", "actionable", "grounded", "unsupportedClaim"] as const) if (typeof input[key] !== "boolean") return { ok: false, reason: `${key} must be yes or no` };
   const reviewer = input.reviewer ? redactForReview(input.reviewer) : null;
   if (!reviewer || reviewer.length > 40) return { ok: false, reason: "a reviewer label of 1-40 characters with nothing sensitive in it is required" };
+  if (!isGenuineReviewer(reviewer)) return { ok: false, reason: `"${reviewer}" is a placeholder or an agent, not a person's label; record the verdict under your own label` };
   const note = input.note === undefined ? undefined : redactForReview(input.note);
   if (input.note !== undefined && (note === null || (note ?? "").length > 400)) return { ok: false, reason: "the note must be at most 400 characters with nothing sensitive in it" };
   const verdict: ReviewVerdict = {
@@ -296,7 +322,7 @@ export async function recordVerdict(dir: string, input: VerdictInput, now = new 
     reviewedAt: now.toISOString()
   };
   fs.mkdirSync(dir, { recursive: true });
-  await writeJsonFileAtomic(path.join(dir, REVIEWS_FILE), { version: 1, verdicts: [...store.verdicts.filter((v) => v.itemId !== input.itemId), verdict] });
+  await writeJsonFileAtomic(path.join(dir, REVIEWS_FILE), { version: 1, verdicts: [...store.verdicts.filter((v) => v.itemId !== input.itemId || !isGenuineReviewer(v.reviewer)), verdict] });
   return { ok: true };
 }
 
@@ -332,7 +358,8 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
     for (const measured of capture.cases) measurements.get(measured.caseId)?.push({ capture, measured });
   }
   const completeRuns = caseIds.length === 0 ? 0 : Math.min(...[...measurements.values()].map((m) => m.length));
-  const verdictOf = new Map(verdicts.map((v) => [v.itemId, v]));
+  // Only a person's verdict counts: one under a placeholder or an agent's label is as good as none.
+  const verdictOf = new Map(verdicts.filter((v) => isGenuineReviewer(v.reviewer)).map((v) => [v.itemId, v]));
   const runs: TargetEvaluation["runs"] = [];
   const counted: ReviewItem[] = [];
   for (let k = 0; k < completeRuns; k += 1) {
