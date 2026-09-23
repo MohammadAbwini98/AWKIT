@@ -768,11 +768,17 @@ or capture changed.
 
 - **Criterion 3:** MET under option B, 17/17 in each run. The model's own rate (9/17 and 7/17, 0/34
   written by the model) is reported beside it, never credited.
-- **A person's review.** Two sets are unread (0 genuine verdicts in the store since `1b92298f`):
+- **The store on 2026-09-23 after `1b92298f`:** one verdict counts as a person's. It is on
+  `…adbc14/casing/i0` under reviewer `MA`, recorded 2026-09-23T10:15:07Z (correct, actionable,
+  grounded, no unsupported claim). That was after `1b92298f` (09:49:49Z), and no agent recorded it. The
+  store holds only the label, so the owner confirms it is theirs. Criterion 4 reads **1 of 16 reviewed**,
+  1 correct and actionable, and the TARGET stays PENDING. The `YOUR_LABEL` verdict beside it is untouched.
+- **A person's review.** Two sets are still unread:
   - the 11 screen-clear answers of `97996c48`. The owner's review found 6/11 correct and actionable. Its
     per-answer verdicts are proposed in the 2026-09-23 HANDOFF and await the owner's confirmation and
     recording. They count only for that earlier request, which is ignored by the evaluation;
-  - the 16 screen-clear answers of the final request (criteria 1 and 4), `…adbc14/casing/i0` among them.
+  - 15 of the 16 screen-clear answers of the final request (criteria 1 and 4); `…adbc14/casing/i0` is
+    the one reviewed.
     The placeholder on that item stays in the store for audit, and a person's verdict is recorded
     beside it. Run `npm run verify:ai-authoring-review -- --pending`, then `-- --record` for each under
     the reviewer's own label.

@@ -1,6 +1,40 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — 0.1.51 engineering + QC closed; two operator acceptance gates remain
+## HANDOFF (2026-09-23, latest) — L4b: 15 reviews await the owner; L1 decision record ready; L3 §9 report shipped
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead changed.
+- **L4b review (owner's):**
+  - The store counts 1 person's verdict: `…adbc14/casing/i0` (B1) under `MA` at 10:15:07Z. **Confirm
+    `MA` is yours.** No agent recorded it.
+  - B2–B16 are unread (criteria 1 and 4). The sheet was given in chat, not committed, because captured
+    model text stays local.
+  - A1–A11 (historical, never counted) are unrecorded. Look closely at A2, A3, A6 and A8: today's judge
+    reads them as not actionable, or (A6) as a wrong remedy.
+  - Record in your own terminal:
+    `npm run verify:ai-authoring-review -- --record <id> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --reviewer <label>`,
+    then run `npm run verify:ai-authoring-review`. The lease guard refuses both `--record` and
+    `--pending` for an agent.
+- **L1 go/no-go (owner's):** see the L1 plan, "Decision record for the owner's L1 go/no-go". It lays out
+  three options (limited on-demand GO on the 0.8B / deterministic only / more evaluation, 2B NOT RUN).
+  Record the decision in DECISIONS.
+- **Built:** L3 §9's durability report on the Flow Library (L3 plan). The sweep's queue and scheduler
+  still need the L1-gated AI caller.
+- **Consequence for the signed-license gate below:** `4b2dfa7b` changed `src/` and `app/` after
+  `fe343958`. That covers `src/ai/locatorSweep.ts`, `FlowLibrary.tsx` and `global.css`, with no licensing,
+  packaging or main-process code. So on this working tree:
+  - `git diff fe343958 HEAD -- src app` is no longer empty;
+  - the mtime guard now refuses `dist/win-unpacked` as stale.
+
+  **Route (a) is closed. Use route (b):** rebuild from clean `main`, and give the VM the rebuilt pair. The
+  0.1.51 hashes stay a record of what was tested; they are not the current source.
+- **Next agent work:** none independent that is not L1-gated. The candidates checked were:
+  - the L6 mapping review, which needs a workflow-side insertion surface that does not exist;
+  - L3 §7/§8 production callers, L1-gated;
+  - L5b automatic analysis, off by rule 7 at −5.
+- **Do not:** record a verdict as an agent; edit the placeholder; declare L1 GO or accept L4b; move a
+  ceiling; touch the `blocks` edges.
+
+## HANDOFF (2026-09-23, open) — 0.1.51 engineering + QC closed; two operator acceptance gates remain
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done:**
@@ -26,7 +60,8 @@
 - **Prerequisite, and a trap:** the gates drive `dist/win-unpacked` from a repo checkout with
   `node_modules`, and their freshness guard compares mtimes. On a fresh clone every source is newer
   than a copied `dist/`, so the guard refuses. Pick one route:
-  - **(a) Test these exact artifacts.** Copy this whole working tree, including `dist/` and
+  - **(a) Test these exact artifacts.** *Closed since `4b2dfa7b` (Phase L), which changed `src/`/`app/`;
+    see the newest HANDOFF. Use (b).* Copy this whole working tree, including `dist/` and
     `node_modules`, with timestamps preserved (`robocopy <src> <dst> /E /COPY:DAT /DCOPY:DAT`).
     Before running, prove identity by content, not mtime:
     - `git merge-base --is-ancestor fe343958 HEAD`;
@@ -90,9 +125,9 @@
   - claim release readiness while either gate is BLOCKED or NOT RUN.
 - **Owner:** `scripts/offline-benchmark/` is still absent from the working tree. Restore it from
   `C:\Users\moham\awkit-offline-benchmark-20260923` when convenient; no packaging depends on it now.
-- **Still open, unrelated:** the L4b handoff below (16 verdicts await the owner).
+- **Still open, unrelated:** the L4b review, now in the newest HANDOFF above (15 verdicts await the owner).
 
-## HANDOFF (2026-09-23, open) — L4b review integrity fixed; 16 current verdicts await the owner
+## HANDOFF (2026-09-23, superseded) — L4b review integrity fixed; 16 current verdicts await the owner
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`1b92298f`):** a verdict under a placeholder or an agent's label is refused and never counted.

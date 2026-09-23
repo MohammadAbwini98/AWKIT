@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## Packaged licensing QC closeout: approved with notes, two verifier blind spots closed (2026-09-23, current)
+## Phase L: L4b at 1 of 16 reviewed, L1 decision record prepared, L3 §9 durability report shipped (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead changed.
+
+- **L4b (`awkit-djnl.6`, in_progress):** the review store holds one verdict counted as a person's,
+  under `MA` on `…adbc14/casing/i0`, recorded 2026-09-23T10:15:07Z. That was after the integrity fix
+  `1b92298f`, and no agent recorded it. The owner is asked to confirm the label is theirs. The
+  `YOUR_LABEL` placeholder is still kept for audit and never counted. `verify:ai-authoring-review`:
+  criteria 2, 3, 5 and 6 MET; criterion 1 PENDING (15 unread); criterion 4 PENDING at 1 of 16;
+  **TARGET PENDING**. The 11 historical answers are unrecorded and never count toward the 16.
+- **L1 (`awkit-djnl.1`, in_progress):** unchanged evidence, now consolidated in the L1 plan's
+  "Decision record for the owner's L1 go/no-go". The owner has not decided.
+- **L3 §9 (`awkit-djnl.4`, in_progress):** the model-free locator durability report now shows on the
+  Flow Library. `buildLocatorDurabilityReport` shares one scan with the idle-gated sweep. The sweep's job
+  queue still has no caller (L1-gated). Details are in L3 › "§9's durability report on the Flow Library".
+- **Source moved past the 0.1.51 artifacts:** `src/ai/locatorSweep.ts`,
+  `app/renderer/pages/FlowLibrary.tsx` and `app/renderer/styles/global.css` changed. No licensing,
+  packaging or main-process code changed. The 0.1.51 artifacts do not contain the report, and route (a)
+  of the signed-license gate is closed on this working tree (HANDOFF, newest).
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-locator-sweep` | 64/64 (was 60); mutation caught at 62/64 |
+| `verify:flow-library` (real Electron) | 30/30 (was 19); red first with the render removed |
+| `verify:ai-fallback` · `verify:design-tokens` · build | 38/0 · 35/35 · PASS |
+| `verify:failure-capture-overhead` | structural PASS; 15 passed / 0 failed / 3 inconclusive (timing, as before) |
+| `verify:ai-authoring-review` | TARGET PENDING (exit 1): 1 of 16 reviewed |
+| L4b owner review · L1 go/no-go | NOT RUN: owner actions |
+
+## Packaged licensing QC closeout: approved with notes, two verifier blind spots closed (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead changed.
 

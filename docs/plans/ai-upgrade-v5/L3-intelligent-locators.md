@@ -23,8 +23,9 @@ caught) on the new `lu-repair` mock-site fixture. **§9 flow health sweep is bui
 `verify:ai-locator-sweep` 60/60 pure, three mutations caught): the durability audit and the bounded,
 idle-gated job queue. **`verify:ai-locator-quality-live` is built** (2026-09-22, `858ffd17`): the real
 Qwen3.5-0.8B's plans for six labelled cases, proven by §4/§8 in real Chromium and judged by the page, 14/0
-with false-target 0 (details and results in the L1 plan). Not built: the production callers of §7/§8/§9,
-which all need the AI caller L1 gates.
+with false-target 0 (details and results in the L1 plan). Not built: the production callers of §7/§8 and of
+§9's job queue, which all need the AI caller L1 gates. §9's model-free **durability report** does not, and
+is shown on the Flow Library since 2026-09-23 (see §9).
 
 §7 as built:
 - **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
@@ -268,6 +269,34 @@ Built: `src/ai/locatorSweep.ts` (`planFlowHealthSweep`), `verify:ai-locator-swee
   directions, so a name that quietly becomes sensitive fails loudly instead of voiding a section.
 - **Not built: the scheduler that calls it on idle,** and the job queueing itself — both need the
   production AI caller that L1 gates (see §8).
+
+### §9's durability report on the Flow Library (2026-09-23)
+
+The report half had no caller either, although it needs no model, browser, page or admission. It is
+now shown on its own. The queue and its idle gate are unchanged and still have no caller.
+
+- **One scan, two entry points.** `buildLocatorDurabilityReport(flows)` in `src/ai/locatorSweep.ts` and
+  `planFlowHealthSweep` share one private scan. The report and the queue therefore classify every step
+  the same way. Only the sweep checks `decideAiAdmission`.
+- **Where:** a one-line summary under the Flow Library's "Saved flows" heading
+  (`data-testid="flow-locator-durability"`). The renderer computes it from the flows it already lists,
+  with no new IPC and no new permission. It shows counts per class and the weak count, never a locator
+  value, and it shows with AI off.
+- **Not shown on purpose:** the T3, pending and already-upgraded counts. Those are AI-lifecycle numbers,
+  and they belong with the sweep's queue once it has a caller. The report still computes them.
+- **Proven:**
+  - `verify:ai-locator-sweep` 64/64 (was 60). Section 8 checks the standalone report equals the sweep's
+    report, exists while a run holds the sweep, and is not capped. A mutation dropping a flow from the
+    standalone report was caught at 62/64 and reverted.
+  - `verify:flow-library` 30/30 in real Electron (was 19). It seeds two flows, audits their locator
+    classes, and checks the page's counts against a tally made with the L2 classifier over the app's own
+    `flows.list()`, for Super User and Viewer. Red first: with the render removed, the first durability
+    check timed out.
+  - `verify:ai-fallback` 38/0, `verify:design-tokens` 35/35, build PASS.
+  - `verify:failure-capture-overhead` (the structural index names it for `src/ai`): its two zero-AI
+    run-path checks PASS. Its timing medians are INCONCLUSIVE as before, 15 passed, 0 failed,
+    3 inconclusive (run 9 appended to its evidence file). The owner accepted that state for L5a.
+- `awkit-djnl.4` stays `in_progress`: this closes no L3 acceptance item.
 
 ## 10. UX
 

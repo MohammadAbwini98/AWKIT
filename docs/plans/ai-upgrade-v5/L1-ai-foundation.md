@@ -1389,10 +1389,10 @@ re-measured.**
    - **The model's own rate, reported and never credited:** the 0.8B's own sentence states the action in
      9/17 and 7/17 answers. Every one of them repeats the product's action word for word, and 0/34 hold a
      correction the model wrote itself. Prompt work has stopped.
-   - **Still missing:** no person has recorded a review of either request's screen-clear answers
-     (criteria 1 and 4): 0 of 16 for the current request. The store's one verdict is a template
-     placeholder, which since `1b92298f` is kept for audit and never counted (L4 › "A placeholder
-     verdict never counts").
+   - **Still missing:** a person's review of the screen-clear answers (criteria 1 and 4). One of the
+     current request's 16 is reviewed, under reviewer `MA` at 2026-09-23T10:15:07Z (not recorded by an
+     agent; the owner is asked to confirm the label is theirs); 15 remain. The template placeholder is kept for audit and never counted (L4 ›
+     "A placeholder verdict never counts"). The 11 earlier answers are unrecorded.
    - **A MET target does not decide L1.** The model's own remediation quality is weighed in item 2.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject
@@ -1402,6 +1402,32 @@ re-measured.**
    link (`14c0ad84`): 9/17 against 14/17.
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
+
+## Decision record for the owner's L1 go/no-go (prepared 2026-09-23, NOT decided)
+
+A consolidation of the evidence above, for the owner to decide on. It adds no measurement and makes no
+decision. Nothing live was re-run to write it, because no input changed.
+
+| Area | Evidence | Reading |
+|---|---|---|
+| Latency (L1.8) | 4B: FAIL, `locatorUpgrade` >240 s against 180 s. Qwen3.5-0.8B: `benchmark:ai-model-0-8b` GO on all 8. `validationExplanation` at cap is 83,345 ms against 120,000 ms, about 8.5 s of projected margin at this host's slowest rates. Failure analysis at its cap is 120.4 s (`c44a6e2c`, last measured) and locator upgrade 115.3 s, both against 180 s. 2B: NOT RUN (not acquired). | The 0.8B meets every ceiling. The 4B does not. |
+| Locator quality | `verify:ai-locator-quality-live` 14/0 twice. 3–4 of 5 solvable scenarios are proven in real Chromium, with **0 false targets** and the twins refused. | Proof is deterministic. The model only proposes, and an unproven candidate never runs. |
+| Authoring explanations (L4b) | On subject 17/17 and 17/17. Corrective action a person sees 17/17 (criterion 3, option B, the product's action). The model's own text is actionable in 9/17 and 7/17, **all repeating the product's action**, so 0/34 are its own. Nothing ranked. A person has reviewed 1 of 16. | Target PENDING. The model adds wording, not remediation. |
+| Failure analysis (L5b) | Deterministic baseline 14/17, the 0.8B 9/17: **−5**. Automatic analysis stays off under ROADMAP rule 7. | The model is below the baseline. |
+| Operational | Per-feature deadlines (`verify:ai-deadlines`). Cancel settles in 64–454 ms, and a kill during prompt evaluation reloads and delivers (`verify:ai-explanation-live` 5/0). One inference at a time, yielding to runs, through weighted admission (L1.6). CPU-only on this 12-logical-CPU host. Two pinned packs with a GGUF header check (`verify:ai-model-pack` 46/0, `verify:ai-model-live-0-8b` 23/0). The pack ships outside the installer and is imported in Settings. AI off, missing or failing leaves behavior unchanged (`verify:ai-fallback` 38/0, re-run 2026-09-23). | Suitable for on-demand use on this host. The VMware target envelope was re-scoped to this host by the owner. Carrying the runtime in the installer is L7's scope, and L7 has not started, so no packaged AI gate has run. |
+
+**Options, for the owner.** Each changes a baseline or a scope, so each needs an owner decision recorded
+in `docs/ai/DECISIONS.md`:
+
+1. **Limited GO on the 0.8B.** Accept it for explicitly limited, on-demand features only: explanations
+   (T0, with the product's action), locator proposals (proven before use), and manual failure analysis.
+   Automatic failure analysis stays off, and the 4B's pin is decided with it. This does **not** by itself
+   satisfy L1's release gate or accept L3/L4b/L5b: each keeps its own acceptance (L4b still needs the
+   15 reviews).
+2. **Deterministic behavior only for now.** Keep L1 `in_progress` and every model-dependent acceptance
+   PENDING. The product keeps its deterministic behavior, which already works with AI off.
+3. **More evaluation first.** Acquire and measure Qwen3.5-2B (NOT RUN), or another model, against the
+   same ceilings and labelled sets before any broader AI function is authorized.
 
 ## Verifiers
 

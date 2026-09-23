@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: L4b review state, L1 decision record, L3 §9 durability report on the Flow Library (Claude)
+
+- **Task:** make the L4b review ready for the owner, consolidate the L1 evidence for the owner's
+  go/no-go, and do the next independent Phase L work.
+- **L4b:** `verify:ai-authoring-review` (no arguments; the lease guard refuses `-- --pending` for an
+  agent). It shows 1 verdict counted as a person's, under `MA` on `…adbc14/casing/i0` at 10:15:07Z,
+  after `1b92298f`. No agent recorded it; the owner is asked to confirm the label. Criterion 4 is 1 of
+  16, TARGET PENDING (exit 1). The review sheet (B2–B16 open, A1–A11 separate) was built from the store
+  files and given in chat, not committed. No verdict was recorded by an agent.
+- **L1:** the L1 plan gains a decision record with three options. It is not decided.
+- **Built:** `buildLocatorDurabilityReport` (`src/ai/locatorSweep.ts`) shares one scan with
+  `planFlowHealthSweep`, with no admission gate. The Flow Library shows it
+  (`data-testid="flow-locator-durability"`) using the global.css tokens.
+- **Checks:**
+  - `verify:ai-locator-sweep` 60 → 64/64, mutation caught at 62/64.
+  - `verify:flow-library` 30/30 in real Electron. Red first: with the render removed, it stopped at
+    the first durability check.
+  - `verify:ai-fallback` 38/0, `verify:design-tokens` 35/35, build PASS.
+  - `verify:failure-capture-overhead`: structural checks PASS, 15 passed / 0 failed / 3 inconclusive
+    (run 9 appended).
+- **Consequence:** `src/` and `app/` now differ from `fe343958`. Route (a) of the signed-license gate
+  is closed on this working tree (see HANDOFF). No artifact was rebuilt.
+- **Result:** L3 §9's report has a production caller. No milestone status changed, and no bead changed.
+
 ## 2026-09-23 — Packaged licensing QC closeout and operator handoffs (Claude)
 
 - **Task:** independent QC of `e2f703cb`/`927253f8`/`b2e85720`, resolve findings, prepare the
