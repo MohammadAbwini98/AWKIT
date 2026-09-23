@@ -1,33 +1,33 @@
 {
-  "task": "awkit-djnl-6-corrective-action-0923",
-  "contract_path": "docs/ai/contracts/awkit-djnl-6-corrective-action-0923.json",
+  "task": "awkit-djnl-6-criterion3-decision-0923",
+  "contract_path": "docs/ai/contracts/awkit-djnl-6-criterion3-decision-0923.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-22T21:50:26.101Z",
-  "acquired_at_commit": "ddcfc35b26a76ebfce7989a25a73b56ba3b30964",
+  "acquired_at": "2026-09-23T07:39:17.987Z",
+  "acquired_at_commit": "d2f9721f603114dbffa311e0535f4b5a16ae4d61",
   "baseline_dirty": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-6-corrective-action-0923.json",
+    "docs/ai/contracts/awkit-djnl-6-criterion3-decision-0923.json",
     "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
     "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "1f1fc22c6e525fa6a9065abb322ff6f75502d922a696b9c7df89d3828f6c3218",
-    "docs/ai/DECISIONS.md": "db0acf1840804ffc2d7624fe008f7bf7791fac964e02e3c6e529a7a47f01852d",
-    "docs/ai/HANDOFF.md": "72cf277836525232842f402b5a02a10ed2a108aed710f840af3f63730a124403",
-    "docs/ai/KNOWN_ISSUES.md": "f6b28f8b49da4e7c3a4befcfd1465e53e39213d49a27e3a2bf51383d5bf6625b",
-    "docs/ai/TASK_LOG.md": "e7e84cb5cbf8d3b86540a79762229b576469837cf1f1a31822ea5a326d647485",
-    "docs/ai/contracts/awkit-djnl-6-corrective-action-0923.json": "982cda3742f85f62552f8af7c04a1e15c2f241083b8bb47a5681a69b16d3ef57",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "aa4ba528cce2d3908fd7551ae377b5afc687565a3b70097baa7c46bed42879a5",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "53a5b7b88543c94ad84cfe9f8a0168f23a332959c730ddb2352bba1f0088c25b",
+    "docs/ai/CURRENT_STATE.md": "5032c6601758bea230de60cf9d7c3151e3cd213f727cdc9955b224c66cb1a17b",
+    "docs/ai/DECISIONS.md": "2d456c5bef59d72c4fa14ec2866a04b7247b698bcd5fe208f9fde39b01a93ddd",
+    "docs/ai/HANDOFF.md": "eccdfc076ad411adb9914d4d6b6d5d0c2561cd4af4535c6d558aa0478d45e74f",
+    "docs/ai/KNOWN_ISSUES.md": "79c8deab71023bf1806c9f0e0b98df9ae3aaecdd53662141865cdac7b541f7e6",
+    "docs/ai/TASK_LOG.md": "445554b21cb6a765d360e7b77c6bed40e105277231fa3e120e2e6655f6161deb",
+    "docs/ai/contracts/awkit-djnl-6-criterion3-decision-0923.json": "1eb1b429b512ecea292e901a43865c1181244b70f1411354c45005e5199b72ff",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "2083dae5d1cc3d266e1df924562a976478cfa18cd50203b5b3af3e837bf0cf5d",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "8db34f138f654f6059dc974e2a615fd1e6a4dfd3fec451311998f70384224e7c",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -43,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-22T21:51:21.353Z",
-  "released_reason": "L4b corrective action noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-22T21:51:21.355Z"
+  "released_at": "2026-09-23T07:39:57.340Z",
+  "released_reason": "L4b criterion 3 diagnosis and restored change noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-23T07:39:57.341Z"
 }

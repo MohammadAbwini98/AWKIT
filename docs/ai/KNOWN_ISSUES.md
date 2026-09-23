@@ -12,19 +12,25 @@
 - **Fixed by `ddcfc35b`:** wrong or unsupported corrections, the inverted value rule and half-said steps.
   The action a person sees is the product's, never model text, and a cut sentence is dropped. Every
   captured answer that states an action states the right one.
-- **Still open — the model omits the action.** The misses take three shapes (engineering observations,
-  not a person's review):
-  - it echoes the instruction's opening ("The automation flow failed validation because…") and the
-    summary, and the 160-character limit cuts it before the action;
-  - it gives the summary alone;
-  - it gives the bare rule code ("unsupportedOperator…").
-  Run-to-run variance is large: the same request gave 7/10 and 3/10 on the same cases.
-- **Tried and measured, each reverted:** the action before the summary (2/10); no opening sentence and
-  "word for word" (2/10, answers collapsed to labels); "Step:" as the label (8/10, but 3 answers read the
-  action as a step's name).
+- **Still open — the model omits the action** (diagnosed `d2f9721f`; engineering observations, not a
+  person's review). All 18 misses are omissions:
+  - 12 echo the task sentence as a cause ("The automation flow failed validation because…"), 6 of them
+    then cut at 160 characters;
+  - 4 copy the rule code that follows the id ("unsupportedOperator…");
+  - 2 lose the action to the character limit, which the product then trims away.
+  - **Structural:** for `connectorFromEndNode`, `incompleteValueSource`, `deadEndNode`, `unguardedCycle`
+    and `incompleteBranchPair`, summary plus " Action: " plus the action run to 171–242 characters.
+    Only an action-first answer can carry the action, and the 0.8B rarely gives one: 1/10, then 2/10.
+- **Tried and measured, each reverted:**
+  - the action before the summary (2/10);
+  - no opening sentence and "word for word" (2/10, answers collapsed to labels);
+  - "Step:" as the label (8/10, but 3 answers read the action as a step's name);
+  - a task sentence asking how to correct each issue: 8/17 and 8/17, the echo gone but invented values
+    back.
+  Prompt work has stopped.
 - **Impact:** `verify:ai-authoring-review` reports **TARGET NOT MET** (criterion 3). The delivered
-  explanation is actionable in every case, because the product attaches the action; whether criterion 3
-  should measure that is the owner's decision.
+  explanation is actionable in every case, because the product attaches the action. Whether criterion 3
+  should measure that is the owner's decision (L4 › "Owner decision record: criterion 3").
 - **Do not "fix" by:**
   - widening `CORRECTIVE` or `REMEDY`, or loosening any screen, after seeing a result (a screen that
     only makes the judge stricter, like `WRONG_REMEDY`, is allowed and was added);
@@ -34,6 +40,13 @@
   - counting a screen-clear answer as correct unread, or recording a review verdict as an agent;
   - changing the request without re-measuring L1.8's `explanationAtCapMs` (8.5 s of projected margin at
     `ddcfc35b`; the 160-character limit and the 192-token cap are fixed by it).
+- **Judge gap (OPEN, found 2026-09-23):** `FABRICATED_LITERAL` reads only double-quoted and backticked
+  literals (`QUOTED` in `scripts/ai-harness/authoringQualitySet.ts`). A single-quoted invented value,
+  such as "Correct the operator casing to 'operator'.", clears the screen.
+  - It was seen only in the restored variant's captures, which the evaluation ignores. No `ddcfc35b`
+    answer quotes a value.
+  - Such an answer is also not actionable, so it never reaches a person.
+  - A fix must make the judge stricter only, and must leave an apostrophe ("step's") alone.
 
 ## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
 

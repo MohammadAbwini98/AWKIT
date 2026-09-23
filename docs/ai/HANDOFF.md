@@ -1,6 +1,38 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L4b's corrective action is the product's; criterion 3 needs an owner decision, and two reviews await a person
+## HANDOFF (2026-09-23, latest) — L4b criterion 3: prompt work has stopped; the owner decides what it measures
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`d2f9721f`, then this closeout):** see L4 › "One corrective change, measured".
+  - The 18 misses are all omissions: 12 echo the task sentence, 4 copy the rule code, 2 lose the action
+    to the 160-character limit.
+  - For 5 of 14 labelled codes, summary plus action cannot fit in 160 characters.
+  - One change was measured, a task sentence asking "how to correct each validation issue": **8/17 and
+    8/17**, against 9/17 and 7/17, with invented values in 2 answers. It was restored byte for byte.
+  - Kept: the capture's `cut` flag and the new negative controls.
+  - L1.8 is unchanged (GO, 83,345 ms at cap).
+- **Proposed verdicts for the 11 `97996c48` answers:** unchanged. They are in the section below, still
+  the agent's proposal and **not recorded**.
+- **Next, not started:**
+  1. **The owner decides criterion 3:** A, keep it on the model's own text, or B, measure the complete
+     visible explanation. Both are laid out in L4 › "Owner decision record: criterion 3". Neither is
+     adopted.
+  2. **The owner** confirms or corrects the proposed verdicts below and records them.
+  3. **A person** reviews the 16 screen-clear answers of the current request: `npm run
+     verify:ai-authoring-review -- --pending`, then `-- --record` for each. The 16 answers of the
+     restored variant are listed and ignored, because their request is not the product's.
+  4. Optional, and not part of this task: make the fabricated-literal screen read single-quoted
+     literals (KNOWN_ISSUES). Only a stricter judge is allowed.
+  5. Then L1's go/no-go. The next Phase L item stays L5b's baseline gap (−5).
+- **Do not:**
+  - try another prompt variant for criterion 3: five are measured, and the 5 over-limit rules cap an
+    answer in the line's order at 12/17;
+  - record a review verdict as an agent, or count an unreviewed answer as correct;
+  - lower a threshold, raise the 160-character limit or the 192-token cap, or change what criterion 3
+    measures without the owner;
+  - let the model supply the corrective action, or show one it wrote as the rule's.
+
+## HANDOFF (2026-09-23, superseded) — L4b's corrective action is the product's; criterion 3 needs an owner decision, and two reviews await a person
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`ddcfc35b`, then this closeout):** see L4 › "The corrective action made the product's,

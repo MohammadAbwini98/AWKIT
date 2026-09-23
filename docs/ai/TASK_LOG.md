@@ -1,5 +1,45 @@
 # TASK_LOG
 
+## 2026-09-23 — L4b criterion 3: omissions diagnosed, one change measured and restored, owner decision prepared (Claude)
+
+- **Task:** find why the real 0.8B omits the corrective action from its own explanations (9/17 and 7/17
+  against 80 %), make at most one bounded change for a distinct cause, measure two complete runs, and
+  otherwise stop and prepare the owner's decision on criterion 3. Nothing adopted on the owner's behalf.
+- **Files:**
+  - `d2f9721f`:
+    - `src/ai/authoringExplanation.ts`: a comment only, recording the measured variant. The instruction
+      string is byte-identical to `ddcfc35b`'s;
+    - `scripts/ai-harness/authoringQualityReview.ts`: `cut` on each capture item;
+    - `scripts/ai-harness/authoringQualitySet.ts`: negative controls with correct twins;
+    - `scripts/verify-ai-authoring.mts` §12: the capture's `cut`;
+    - the L1.8 0.8B evidence file (`evaluatedAt` only).
+  - This closeout: the L4 and L1 plans, CURRENT_STATE, HANDOFF, KNOWN_ISSUES, DECISIONS; notes on
+    `awkit-djnl.6` and `awkit-djnl.1`.
+- **Diagnosis:** 18/18 misses are omissions, with no wrong action and no judge false negative:
+  - 12 are the task sentence echoed as a cause, 6 of those then cut at 160;
+  - 4 copy the rule code;
+  - 2 lose the action to the limit;
+  - for 5 of 14 labelled codes, summary plus action run to 171–242 characters.
+- **Checks:**
+  - The variant (task sentence "how to correct each validation issue"), real 0.8B, two complete runs:
+    9/0 8/0 9/0 8/0, **8/17 and 8/17** actionable by proxy, 17/17 on subject, 0 misattributed, 0 screen
+    hits, the echo 0/34, 20/34 cut by the limit, and 4 model-authored actions, 2 with invented values.
+    `verify:ai-authoring-review` exit 1, TARGET NOT MET.
+  - After the restore:
+    - `verify:ai-authoring` 258/258; mutations 257/259, each caught;
+    - `verify:ai-authoring-review` exit 1 (9/17, 7/17, as before);
+    - `benchmark:ai-model-0-8b` GO on all 8, 7/7 current (83,345 ms at cap);
+    - `verify:ai-explanation-live` 5/0, `verify:ai-assist-gui` 101/0, `verify:ai-fallback` 38/0,
+      `verify:ai-redaction` 52/0, `verify:security` 61/0;
+    - `verify:verifier-classification` 260, `typecheck:scripts` and build PASS.
+  - NOT RUN, their inputs unchanged: `verify:ai-adapter`, `verify:validation`,
+    `verify:failure-capture-overhead`.
+- **Result:**
+  - Criterion 3 still NOT MET: no request-level correction is left that is not already measured.
+  - Owner decision record prepared in L4, not adopted.
+  - No review verdict recorded. L4b stays `in_progress`.
+  - `d2f9721f`'s message gives the over-limit range as 172–241 characters; the exact figures are 171–242.
+
 ## 2026-09-23 — L4b: corrective-action quality failures, the action made the product's (Claude)
 
 - **Task:** resolve the corrective-action failures the owner's review found in the 11 screen-clear

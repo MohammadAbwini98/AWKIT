@@ -1,6 +1,46 @@
 # CURRENT_STATE
 
-## L4b: the corrective action is the product's; the adopted quality target is still NOT MET (2026-09-23, current)
+## L4b criterion 3: omissions diagnosed, one change measured and restored, an owner decision prepared (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **Diagnosis (`d2f9721f`).** The 18 non-actionable `ddcfc35b` answers are all model omissions: no wrong
+  action and no judge false negative.
+  - 12 echo the task sentence as a cause ("The automation flow failed validation because…"); 6 of them
+    are then cut at 160 characters.
+  - 4 copy the rule code that follows the id in the Issues line.
+  - 2 keep the summary, with the action trimmed away by the limit.
+  - **Structural:** for 5 of the 14 labelled codes, summary plus action run to 171–242 characters, so
+    only an action-first answer can carry the action. Those issues were actionable 1/10; the rest 15/24.
+- **The one change:** the task sentence asked "how to correct each validation issue".
+  - Two complete runs on the real 0.8B: **8/17 and 8/17** actionable by proxy (was 9/17 and 7/17);
+    17/17 on subject, 0 misattributed, 0 screen hits, the echo 0/34 (was 12/34).
+  - 20/34 texts were cut by the limit, and 4 answers carried the model's own action, 2 of them with
+    invented values.
+  - **Restored byte for byte:** criterion 3 did not move, and grounding got worse.
+- **Kept:** capture items record `cut`, and there are negative controls for each captured failure shape.
+- **Judge gap found:** the fabricated-literal screen reads double quotes only, so "'operator'" passes it
+  (KNOWN_ISSUES).
+- **L1.8:** the request is unchanged, so `benchmark:ai-model-0-8b` reports 7/7 current and GO on all 8
+  (83,345 ms at cap).
+- **Owner decision prepared, not adopted:** keep criterion 3 on the model's own text, or measure the
+  complete visible explanation (L4 › "Owner decision record: criterion 3"). Prompt experimentation has
+  stopped.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.**
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 258/258 (was 257). Mutations, run together with the variant in place: 257/259, each failing its own check |
+| `verify:ai-authoring-quality-live-part1` · `-part2` (real 0.8B, the variant), two runs | 9/0 · 8/0, then 9/0 · 8/0 |
+| `verify:ai-authoring-review` | FAIL (exit 1): TARGET NOT MET, for the variant (8/17, 8/17) and for the restored request (9/17, 7/17) |
+| `benchmark:ai-model-0-8b` | GO on all 8, 7/7 current, 83,345 ms at cap |
+| `verify:ai-explanation-live` (real 0.8B) | 5/0: 53.2 s and 73.0 s of inference, cancel settled in 74 ms |
+| `verify:ai-assist-gui` · `verify:ai-fallback` · `verify:ai-redaction` · `verify:security` | 101/0 · 38/0 · 52/0 · 61/0 |
+| `verify:verifier-classification` · `typecheck:scripts` · `npm run build` | 260 scripts · PASS · PASS |
+| `verify:ai-adapter` · `verify:validation` · `verify:failure-capture-overhead` | NOT RUN: their inputs did not change (the `src/ai` edit is a comment) |
+
+## L4b: the corrective action is the product's; the adopted quality target is still NOT MET (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).

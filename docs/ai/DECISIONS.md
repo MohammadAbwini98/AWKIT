@@ -1,6 +1,24 @@
 # DECISIONS
 
-### 2026-09-23 (latest) — Phase L L4b: the corrective action is the product's, and the model restates it (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-23 (latest) — Phase L L4b: one corrective change measured and not shipped; criterion 3 goes to the owner (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Context:** criterion 3 stood at 9/17 and 7/17. The task allowed at most one bounded change for a
+  distinct, evidence-backed cause, then a stop and an owner decision record.
+- **Decided by the implementer (`d2f9721f`):**
+  - **The one change was the task sentence**, the largest distinct cause: 12 of 18 misses echo it. The
+    three variants already rejected (action first, "Step:", no sentence) were not repeated.
+  - **Not shipped.** It measured 8/17 and 8/17, and it brought back model-authored actions with invented
+    values, which owner decision 2 forbids. The instruction is restored byte for byte, so L1.8 needed
+    no re-measurement.
+  - **Kept, because they only sharpen measurement:** capture items record `cut`, and there are negative
+    controls for each captured failure shape. The judge's patterns are unchanged.
+  - **Prompt work stops.** Five variants are measured, and 5 of the 14 labelled rules cannot carry both
+    the summary and the action in 160 characters.
+- **Not decided here (the owner's):** keep criterion 3 on the model's own text (A), or measure the
+  complete visible explanation (B). Both are laid out in L4 › "Owner decision record: criterion 3".
+  Neither is adopted, and the human-review requirement is unchanged in both.
+
+### 2026-09-23 — Phase L L4b: the corrective action is the product's, and the model restates it (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Context:** the owner's review found 6/11 screen-clear answers correct and actionable at `97996c48`,
   with wrong corrections, an inverted rule and cut-off steps, and asked for "a deterministic, validated

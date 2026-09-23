@@ -468,11 +468,130 @@ model, or accepting the shortfall.
 it projects to about 111.5 s, so the margin is 8.5 s, up from 2.7 s. The 192-token cap, the
 160-character limit, the 120 s ceiling and the 125 s deadline are unchanged.
 
+### One corrective change, measured (2026-09-23, `d2f9721f`)
+
+**Why the `ddcfc35b` answers omit the action.** The 18 answers not actionable in the final runs, read
+one by one. This is an agent's engineering reading, not a review verdict:
+
+| Cause | Answers | What the text shows |
+|---|---|---|
+| The task sentence echoed as a cause, then cut at 160 characters | 6 | "The automation flow failed validation because a reachable step had no way out, causing the run to…" (`warnings` ×2 runs, `branch` in run 2) |
+| The task sentence echoed as a cause, complete, no action | 6 | "…because connectors form a cycle with no Loop Back connector, causing a runtime-cycle error." (`cycle` ×2 runs, `single` ×2) |
+| The rule code copied from after the id, then stopped | 4 | "unsupportedOperator…", "Duplicate Edge ID…". The Issues line reads `i0: unsupportedOperator (…`, so the code is what follows the id |
+| The summary copied, and the action trimmed away by the limit | 2 | `values`' `incompleteValueSource` ×2: the summary alone. The later captures, which record cuts, show the identical text marked cut |
+
+- **No wrong action, no misread rule.** Every miss omits the action; none states a wrong one.
+- **No judge false negative.** None of the 18 texts holds a corrective action. None of the 16 counted
+  actionable states a wrong one. One copies the raw issue line whole ("highTimeout (warning, …) —"),
+  which is correct but reads poorly.
+- **The echo is the task sentence.** It opened 16 of the 2026-09-23 captured answers, and none of
+  them was actionable. It disappears when the sentence is removed.
+- **A structural limit the earlier diagnosis missed.** For 5 of the 14 labelled codes, the summary plus
+  " Action: " plus the action run past 160 characters: `connectorFromEndNode` 171, `incompleteValueSource`
+  173, `deadEndNode` 179, `unguardedCycle` 220, `incompleteBranchPair` 242. The other 9 fit, up to 156.
+  - An answer in the line's own order (summary, then action) cannot carry the action for those 5; the
+    product then trims the cut action away.
+  - Only an action-first answer fits, which the instruction asks for and the 0.8B rarely gives.
+  - Those 5 issues were actionable **1/10** across both runs; the other 12 were **15/24**.
+- **A measurement gap, now closed.** The capture kept only the trimmed text, so an action cut by the
+  limit looked like one never written. Each capture item now records `cut`.
+
+**The one change: the task sentence asks for the correction.** "You explain why an automation flow
+failed validation, for the person editing it." became "You tell the person editing an automation flow
+how to correct each validation issue." Nothing else changed: action after the summary, the "Action"
+label, the full instruction, the model, the display, redaction, the cap and the limit. It is distinct
+from the three rejected variants: it reorders nothing, relabels nothing and removes nothing.
+
+**Real Qwen3.5-0.8B, two complete runs** (`-part1` 9/0 and `-part2` 8/0, twice):
+
+| Measure | `ddcfc35b` run 1 · run 2 | Corrective task sentence, run 1 · run 2 |
+|---|---|---|
+| On subject (proxy) | 17/17 · 17/17 | 17/17 · 17/17 |
+| **Actionable (proxy)** | **9/17 · 7/17** | **8/17 · 8/17** |
+| Misattributed · screen hits | 0 · 0 | 0 · 0 |
+| Answers opening with the echo | 5 · 7 | 0 · 0 |
+| Texts cut by the 160-character limit | not recorded | 10 · 10 |
+| The 5 over-limit issues actionable | 1 · 0 | 1 · 1 |
+| Answers carrying the model's own action, not the product's | 0 · 0 | 1 · 3 |
+| Inference | 43.3–74.6 s | 52.7–92.3 s |
+
+`verify:ai-authoring-review` over the changed request: **TARGET NOT MET**, criterion 3 at 8/17 and 8/17,
+criteria 1 and 4 PENDING on 16 screen-clear answers.
+
+**Reading the text (an agent's reading, not a review verdict):**
+
+- The echo ended (0/34, was 12/34), but the answers it freed did not gain an action:
+  - they became descriptions cut at the limit (`cycle`, `warnings`' `deadEndNode`, `values`'
+    `incompleteValueSource`, 8 answers);
+  - or copies of the issue line from its rule code (`priority`, run 1's `casing`, 6);
+  - or a complete description with no action (`single`, 2).
+- **A new failure: the task sentence's verb came back as the model's own action.**
+  - Run 2's `casing` gave "Correct the operator casing to 'operator'." and "Correct the configuration
+    value to 'true'.": invented values, against the instruction.
+  - The proxy files both as not actionable, not as defects, because its fabricated-literal screen reads
+    double quotes only. So neither would reach a person. That is a judge gap (KNOWN_ISSUES).
+  - Both runs' `warnings`' `highTimeout` answers count as actionable by proxy, but they are the model's
+    own words, "Reduce the timeout value…", with an unsupported claim that the flow will "hang". One also
+    ends mid-phrase ("…to a reasonable duration for the current.").
+  - The keyword match is not proof: by this reading, 7/17 per run hold a correct action.
+- **Why it was restored:** criterion 3 did not move (16/34 either way), and grounding got worse.
+  - Every `ddcfc35b` action is the product's own. The change brought back model-authored actions and
+    invented values, which the owner's decision 2 forbids.
+  - The instruction is restored byte for byte. The variant is recorded beside it in
+    `authoringExplanation.ts`.
+
+**Kept, proven without a model** (`verify:ai-authoring` 258/258, was 257):
+
+- the capture's `cut` flag (§12);
+- negative controls from these captures, each with its correct twin:
+  - the echo given back as the cause;
+  - a corrective task sentence echoed with no action, and the same echo leading into the action;
+  - the echo cut by the limit;
+  - a bare rule code;
+  - summary then action past the limit (trimmed, not actionable), beside the action first (actionable).
+- **Mutations**, run once together while the variant was in place, then reverted: 257/259, each failing
+  exactly its own check. The two were "correct" added to the corrective verbs, and the capture's `cut`
+  dropped.
+
+**Performance:** the production request is byte-identical to `ddcfc35b`'s, so L1.8 had nothing to
+re-measure. `benchmark:ai-model-0-8b` reports 7/7 scenarios current and GO on all 8, with 83,345 ms at
+cap against 120,000; only its `evaluatedAt` was rewritten. The variant itself was never L1.8-measured,
+because it never shipped: its live requests were 276–361 prompt tokens, the `ddcfc35b` range.
+`verify:ai-explanation-live` 5/0 (336 prompt tokens, 53.2 s and 73.0 s of inference, a cancel in 74 ms).
+
+**Conclusion:** at the request level, no evidence-backed correction remains that is not already
+measured. Five variants have been measured at this stage:
+
+- "Step:" label: 8/10 on one part, 3 misreadings;
+- action before the summary: 2/10;
+- no task sentence: 2/10;
+- corrective task sentence: 8/17 and 8/17;
+- `ddcfc35b`: 9/17 and 7/17.
+
+The five over-limit rules cap an answer in the line's order at 12/17 (71 %) per run, below 80 %. Prompt
+experimentation stops here, as the task's stop condition requires.
+
+### Owner decision record: criterion 3 (prepared 2026-09-23, not adopted)
+
+Neither option is adopted. The thresholds, the proxy, the 192-token cap, the 160-character limit, the
+120 s ceiling and the 125 s deadline are unchanged in both. Criteria 1 and 4, a person's review, stay
+exactly as they are in both. The owner's confirmation of the 11 `97996c48` verdicts is separate.
+
+| | **A. Keep criterion 3 as written** | **B. Measure the complete visible explanation** |
+|---|---|---|
+| What it measures | Whether the model's own text holds a correct corrective action, in ≥ 80 % of issues per complete run | Whether the explanation a person sees holds one: the model's text plus the product's corrective action shown beside it |
+| Today's result | 9/17 and 7/17: **NOT MET** | 17/17 in every run, by construction: **MET** |
+| L4b acceptance | Blocked on criterion 3 with the 0.8B. Reaching 80 % needs the action first on at least 2 of the 5 over-limit issues per run (measured: 1/10 and 2/10), or something outside L4b: another model (L1 go/no-go), a longer limit (fixed by L1.8), or shorter product texts for those rules | Rests on criteria 1 and 4: a person reads every screen-clear answer, and no unsupported claim is confirmed. Criterion 3 then tests the product's table, already proven without a model (§13) and on screen (`verify:ai-assist-gui`) |
+| Quality reporting | The criterion stays a model-capability measure; L1's go/no-go reads "7–9/17 actionable in the model's text" | The model's own rate must still be reported beside it, labelled the model's, so the product's action is never credited to the model. The model's contribution is then the interpretation: on subject (criterion 2), grounded and correct (criteria 1 and 4) |
+| Follow-on questions | None new | Whether criterion 4's "correct and actionable" judges the visible explanation too, and whether the model should still restate the action, which uses characters the explanation could have |
+| Risk | L4b can stay open indefinitely on a model limit that users never see, since they always see the product's action | A model that adds nothing still passes criterion 3, so criteria 1, 2 and 4 carry the model-quality signal alone |
+
 ### What L4b acceptance still needs
 
 - **Criterion 3:** at least 80 % actionable by proxy in every run; the final request gives 9/17 and
-  7/17. It needs an owner decision: what the criterion measures (above), a different model, or the
-  shortfall accepted. A threshold is not lowered to fit a result.
+  7/17, and one further bounded change (the corrective task sentence) gave 8/17 and 8/17 and was
+  restored. It needs the owner's decision: see "Owner decision record: criterion 3" above. A threshold is
+  not lowered to fit a result.
 - **A person's review.** Two sets are unread:
   - the 11 screen-clear answers of `97996c48`. The owner's review found 6/11 correct and actionable; its
     per-answer verdicts are proposed in the 2026-09-23 HANDOFF and await the owner's confirmation and

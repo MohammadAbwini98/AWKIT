@@ -1370,13 +1370,24 @@ re-measured.**
   **`verify:ai-authoring-review`: TARGET NOT MET** on criterion 3, with 16 screen-clear answers awaiting
   a person. See L4 › "The corrective action made the product's, measured".
 
+**Then (`d2f9721f`, 2026-09-23): one corrective change measured and restored, so L1.8 is confirmed, not
+re-measured.**
+
+- A task sentence asking "how to correct each validation issue" gave 8/17 and 8/17 over two complete
+  runs, against 9/17 and 7/17. It also brought back model-authored actions with invented values, so the
+  instruction was restored byte for byte. See L4 › "One corrective change, measured".
+- **`benchmark:ai-model-0-8b`: GO on all 8, 7/7 scenarios current.** The packet identity is unchanged,
+  so nothing was re-measured: 83,345 ms at cap against 120,000. Only `evaluatedAt` was rewritten.
+- `verify:ai-explanation-live` 5/0: 336 prompt tokens, 53.2 s and 73.0 s of inference, a cancel in 74 ms.
+
 **Still owed before L1 can be accepted:**
 
 1. L4b's explanation quality target, **adopted provisionally on 2026-09-22 and NOT MET**. Since
-   `ddcfc35b` the corrective action a person sees is the product's (L1.8 re-measured: GO, 83,345 ms at
-   cap). The 0.8B's own sentence states it in 9/17 and 7/17 answers against 80 % (criterion 3), which
-   needs an owner decision, and no person has recorded a review of either request's screen-clear answers
-   (criteria 1 and 4).
+   `ddcfc35b` the corrective action a person sees is the product's (L1.8: GO, 83,345 ms at cap). The
+   0.8B's own sentence states it in 9/17 and 7/17 answers against 80 % (criterion 3). A further bounded
+   change did not move it (8/17 and 8/17, restored), and prompt work has stopped.
+   - Criterion 3 needs the owner's decision: see L4 › "Owner decision record: criterion 3".
+   - No person has recorded a review of either request's screen-clear answers (criteria 1 and 4).
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject
    by proxy but 7–9/17 actionable in the model's own text with no ranking (target not met), and failure analysis tying the baseline on the labelled set, with or without
