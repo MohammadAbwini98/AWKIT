@@ -80,6 +80,11 @@ const PROVIDER: Record<string, string> = {
   frameConfirm: '{"version":1,"target":{"strategy":"testId","value":"lu-frame-confirm"},"scopes":[]}',
   shadowSave: '{"version":1,"target":{"strategy":"role","value":"button","name":"Shadow save"},"scopes":[]}',
   aliceDelete: '{"version":1,"target":{"strategy":"role","value":"button","name":"Delete"},"scopes":[{"kind":"tableRow","strategy":"role","value":"row","hasText":"Alice Smith"}]}',
+  editAddress: '{"version":1,"target":{"strategy":"role","value":"button","name":"Edit address","exact":true},"scopes":[]}',
+  editShippingTestId: '{"version":1,"target":{"strategy":"role","value":"button","name":"Edit address","exact":true},"scopes":[{"kind":"section","strategy":"testId","value":"lu-scope-shipping"}]}',
+  editShippingRegion: '{"version":1,"target":{"strategy":"role","value":"button","name":"Edit address","exact":true},"scopes":[{"kind":"section","strategy":"role","value":"region","name":"Shipping address","exact":true}]}',
+  editBillingTestId: '{"version":1,"target":{"strategy":"role","value":"button","name":"Edit address","exact":true},"scopes":[{"kind":"section","strategy":"testId","value":"lu-scope-billing"}]}',
+  editInventedScope: '{"version":1,"target":{"strategy":"role","value":"button","name":"Edit address","exact":true},"scopes":[{"kind":"section","strategy":"testId","value":"lu-scope-invoices"}]}',
   inventedFrame: '{"version":1,"target":{"strategy":"testId","value":"lu-frame-confirm"},"scopes":[],"frameChain":[{"selector":"iframe"}]}',
   truncated: '{"version":1,"target":{"strategy":"role"'
 };
@@ -247,6 +252,21 @@ try {
   const topContext = sanitizeUpgradeContext({ target: { tag: "button" } }, { pageAlias: "main", frameDepth: 0 });
   expect("an L2 context captured in the top document for a framed step", await proveLocatorPlan(page, frame, propose("frameConfirm"), { boundValues: [], upgradeContext: topContext }), "rejected", "FRAME_CONTEXT_MISMATCH");
   expect("a fresh top-document L2 context for a top-document step", await proveLocatorPlan(page, cards, propose("openBeta"), { boundValues: [], upgradeContext: topContext }), "proven", "PROVEN");
+
+  // A duplicate control told apart by its container's own identity, never its content (lu-scope: the
+  // same "Edit address" button in two regions). The duplicate-row decision record rests on this.
+  const scoped = step("scope", { strategy: "css", value: '[data-testid="lu-scope"] > section:nth-of-type(2) button' });
+  expect("the same role and name in two regions, unscoped", await proveLocatorPlan(page, scoped, propose("editAddress"), { boundValues: [] }), "rejected", "CANDIDATE_NOT_UNIQUE");
+  for (const [label, key] of [["the region's stable test id", "editShippingTestId"], ["the region's authored accessible name", "editShippingRegion"]] as const) {
+    const proof = await proveLocatorPlan(page, scoped, propose(key), { boundValues: [] });
+    expect(`scoped by ${label}`, proof, "proven", "PROVEN");
+    check("...one match, the recorded element, and not a meaning change (no text scope)", proof.candidateMatchCount === 1 && proof.gates.sameElement === "pass" && proof.meaningChange === false, JSON.stringify(proof));
+    check("...and the result carries no scope text", !/Shipping|lu-scope/.test(JSON.stringify(proof)));
+  }
+  const sibling = await proveLocatorPlan(page, scoped, propose("editBillingTestId"), { boundValues: [] });
+  expect("scoped to the OTHER region's test id", sibling, "rejected", "WRONG_ELEMENT");
+  check("...unique, so it is identity (gate C) that refuses it, not the intent guard", sibling.gates.unique === "pass" && sibling.gates.sameElement === "fail" && sibling.intent !== "rejected", JSON.stringify(sibling));
+  expect("scoped to a container the page does not have", await proveLocatorPlan(page, scoped, propose("editInventedScope"), { boundValues: [] }), "rejected", "CANDIDATE_NO_MATCH");
   check("proof is observational: nothing was clicked", (await result(page)) === "none" && (await page.frameLocator('iframe[name="lu-frame"]').getByTestId("lu-frame-result").textContent()) === "none");
   check("...and nothing navigated", page.url() === LAB);
 

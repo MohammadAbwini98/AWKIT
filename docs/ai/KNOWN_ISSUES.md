@@ -1,5 +1,16 @@
 # KNOWN_ISSUES
 
+## The locator request shows row text its instructions forbid, and never shows a container's test id (2026-09-23, OPEN — owner decision D1, L3)
+
+- **Risky assumption:** `contextLines` sends each captured container's name unless it is a bound value. A
+  `<tr>`'s accessible name is its cells' text, so the model sees the row content that the sentence "never
+  by row content" forbids. The compiler and proof do not forbid row text; that sentence is the only rule.
+- **Gap:** `UpgradeContextContainer` has no test id, so a model cannot be told a row's or region's stable
+  id. It could only guess one.
+- **Not changed:** either fix is part of owner decision D1 (L3 plan, "§1 open owner decisions").
+- **Fragile area:** a scope's correctness is proven by gate C, not by the intent guard. Never relax gate B
+  or C to accept a duplicate. `verify:locator-upgrade-proof` covers container-scoped duplicates (85/85).
+
 ## The locator request wrote candidates in the form the compiler refuses; the live verifier miscounted an accepted attempt (2026-09-23, FIXED — L3 §7)
 
 - **Fixed: product request.** `contextLines` wrote each candidate as `<strategy>=<value>`, for example

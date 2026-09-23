@@ -1,6 +1,34 @@
 # CURRENT_STATE
 
-## Phase L: Element Spy live verifier closeout, counting regression proven, final-state live run INCONCLUSIVE (2026-09-23, current)
+## Phase L: L3 design review, duplicate rows (D1) and "Use in action" (D2) proposed for the owner; container-scope regression added (2026-09-23, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
+edge changed.
+
+- **Two design records, no decisions.** They are in the L3 plan, "§1 open owner decisions". Nothing was
+  enabled, and `DECISIONS.md` is unchanged.
+  - **D1:** INV-2002 has no container identity, so only row text tells its rows apart. The compiler and
+    proof already support test-id, authored-name and row-text scopes. Two gaps were found: the capture
+    never shows the model a container's test id, and the request shows row text that its instructions
+    forbid.
+  - **D2:** recommends attaching a proven proposal as the draft step's `pendingUpgrade`, so §5, §6 and
+    §10 do the rest. A draft has no flow or step id for an audit record, and `recorder:saveFlow` takes
+    the renderer's actions.
+- **Independent work, verifier only:** `verify:locator-upgrade-proof` 85/85 (was 75). Scripted plans on
+  `lu-scope` show a duplicate control proven through its region's test id or authored name, with no
+  `meaningChange`. The other region is refused `WRONG_ELEMENT`, and an invented container
+  `CANDIDATE_NO_MATCH`. Mutation: with container scoping disabled, the run is 72/85, and the mutation was
+  reverted. No product code changed.
+- **L1, L3, L4b, L5b:** unchanged. The limited GO stands, and no automatic locator feature is enabled.
+  L4b is at 1 of 16, TARGET PENDING.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:locator-upgrade-proof` | 85/85 (72/85 with container scoping disabled) |
+| `typecheck:scripts` | PASS |
+| build · live model · `verify:ai-spy-live` · `verify:mock-site` | NOT RUN: no product, model or fixture change |
+
+## Phase L: Element Spy live verifier closeout, counting regression proven, final-state live run INCONCLUSIVE (2026-09-23)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
 edge changed.

@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: L3 design review for duplicate rows (D1) and "Use in action" (D2) (Claude)
+
+- **Task:** turn the two open L3 questions into owner-ready decisions, and do any authorized independent
+  work.
+- **Design records** (L3 plan, "§1 open owner decisions"): each lists the supported behavior, the gaps,
+  the options with source files, privacy, tests and the exact decision needed. Nothing was enabled, and
+  `DECISIONS.md` is unchanged.
+- **Independent work** (verifier only): `scripts/verify-locator-upgrade-proof.mts` gains 10 checks on the
+  existing `lu-scope` fixture. They cover a duplicate control scoped by test id or authored name
+  (`PROVEN`), the other region (`WRONG_ELEMENT`) and an invented container (`CANDIDATE_NO_MATCH`).
+- **Checks:**
+  - `verify:locator-upgrade-proof` 85/85. With container scoping disabled in `LocatorFactory`, the run is
+    72/85, and the mutation was reverted.
+  - `typecheck:scripts` PASS.
+  - Build, live model and mock site NOT RUN: no product, model or fixture change.
+- **Result:** L3 is reduced to owner decisions D1 and D2. No milestone, bead status, edge or verdict
+  changed.
+
 ## 2026-09-23 — Phase L: Element Spy live verifier closeout (Claude)
 
 - **Task:** verify the corrected `verify:ai-spy-live` counting, with a deterministic regression and at

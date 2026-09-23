@@ -7,7 +7,8 @@ Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go P
 §2 plan DSL + trusted compiler and §3 intent guard in `src/ai/locatorPlan.ts`, proven by `verify:locator-plan`
 (53/53, pure, no model or browser). **§4, §5, §6 and §7 are built** (`src/runner/locatorProof.ts`,
 `src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook, `src/ai/locatorPromotion.ts`,
-`src/ai/locatorUpgradeAttempts.ts`), proven in real Chromium by `verify:locator-upgrade-proof` (75/75),
+`src/ai/locatorUpgradeAttempts.ts`), proven in real Chromium by `verify:locator-upgrade-proof` (75/75; 85/85 since
+2026-09-23, with container-scoped duplicates),
 `verify:ai-locator-upgrade` (78/78) and `verify:ai-locator-attempts` (87/87) on
 `/recorder-lab/locator-upgrade` and in real Electron by `verify:ai-locator-upgrade-gui` (24/24), with plan text
 from a deterministic fake provider parsed by the real output contract. §7 completes the model-independent
@@ -218,6 +219,180 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
     shown or written.
   - §9 acceptance is still not met. The row-content limit and "Use in action" for AI proposals still need
     owner decisions. Details are in the L1 plan, "Element Spy live verifier closeout".
+
+### §1 open owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23, design review)
+
+These are proposals, not decisions. Nothing below is enabled. `docs/ai/DECISIONS.md` gets an entry only after
+the owner chooses.
+
+#### D1: repeated controls in rows (the INV-2002 refusal)
+
+**Supported today (source-checked):**
+- The compiler accepts every scope form below (`compileLocatorPlan`, `src/ai/locatorPlan.ts`). A scope
+  `kind` is one of tableRow, card, listItem, section, landmark, form or dialog. Its strategy is role, label,
+  placeholder, text, testId, id or a stable `#id`, and it may add `hasText`. `LocatorFactory` resolves each
+  container strictly unique (the container chain in `src/runner/LocatorFactory.ts`).
+- Gate C (same DOM node) proves that a scope belongs to the inspected element. The intent guard does not.
+  It only refuses text that contains a bound value, and it flags a new `hasText` scope as `meaningChange`.
+- **New regression, `verify:locator-upgrade-proof` 85/85 (was 75):** scripted plans on the existing `lu-scope`
+  fixture, where "Edit address" sits in two regions.
+  - Unscoped: `CANDIDATE_NOT_UNIQUE`.
+  - Scoped by the region's test id, or by its authored accessible name: `PROVEN`, one match, the recorded
+    element, `meaningChange: false`.
+  - Scoped to the other region: `WRONG_ELEMENT`, refused by gate C and not by the intent guard.
+  - Scoped to a container the page lacks: `CANDIDATE_NO_MATCH`.
+  - Mutation: with container scoping disabled in `LocatorFactory`, the run is 72/85, with 7 of the 10 new
+    checks red. The mutation was reverted.
+- Row text already works mechanically. The same verifier proves `hasText: "Alice Smith"` as `PROVEN`, with
+  `meaningChange: true`, so policy only suggests. It refuses that scope when the text is a bound value. The
+  Recorder's own deterministic locator also scopes a duplicate row control by the row's accessible name,
+  which is row content (`detectContainer` in `src/recorder/recorderInitScript.ts`).
+
+**Why INV-2002 is refused:** the fixture has no container identity. Rows 2001 and 2002 carry no test id,
+label or id, and only their text differs. The request's sentence "never by row content" is the only rule
+against using that text. The refusal is correct, and the fixture stays as it is.
+
+**Two gaps found (neither is a defect, and neither was changed):**
+1. The capture never tells the model a container's test id. `UpgradeContextContainer` holds only kind, tag,
+   role and name. `detectContainer` also takes a row's name before its `data-testid`. So Option A compiles
+   and proves, but the model would have to guess the id.
+2. The request shows row text that it forbids. `contextLines` sends each container's name unless it is a
+   bound value, and a `<tr>`'s accessible name is the text of its cells. So the model is shown
+   "Invoice INV-2002 Edit Void" and told not to use it.
+
+**Options:**
+- **A: stable container test id.**
+  - Minimal change: capture an optional, bounded `testId` on `UpgradeContextContainer`
+    (`buildUpgradeContext`, `sanitizeUpgradeContext`) and show it on the request's `container:` line. The
+    compiler, proof and plan schema do not change.
+  - Risk: a test id can encode the record key (`row-2002`). That is row content in another form, and the
+    intent guard catches it only when the key is a bound value. So A needs a rule, for example: a
+    container test id that contains a digit run from the row's own text is treated as content and not
+    offered.
+  - Tests: a capture check (`verify:element-spy`), a request-line check (`verify:ai-locator-attempts`), a
+    new Spy fixture with test-id rows plus a record-keyed variant, and a scripted proof in real Electron
+    (`verify:ai-assist-gui`).
+  - A does not resolve INV-2002, because those rows have no id.
+- **B: authored container name.**
+  - Minimal change: record where each container name comes from at capture, an `aria-label` or
+    `aria-labelledby` versus text computed from content. `contextLines` then shows authored names only,
+    which also closes gap 2. Gate C still proves the scope.
+  - Tests: as for A, plus a check that a row's content name never reaches the request.
+  - B does not resolve INV-2002 either.
+- **C: row content, approved explicitly.**
+  - The machinery already exists: the compiler, `LocatorFactory`, the proof and `meaningChange`.
+  - What would change: the instruction sentence. The bound-value guard stays. `meaningChange: true` stays,
+    so policy only suggests. Replay already re-runs the intent guard with the run's row values.
+  - Privacy: the row text already enters the local request. A stored candidate would also persist it in
+    the flow, the same data class as the Recorder's own row-name scope.
+  - Data binding: at capture, the guard sees only values typed earlier in this recording, not data-source
+    columns.
+  - Stale content: if a row's text changes later, replay refuses `CANDIDATE_NO_MATCH`, and the step keeps
+    its own locator.
+  - False target: two rows with the same text fail gate B, and a different row fails gate C.
+- **Decision needed (D1):** choose any of A (with a rule for record-keyed ids), B, or C (suggest-only, with
+  `meaningChange`), or none. None keeps INV-2002 refused, which is today's correct behavior. A and B can be
+  combined. Only C makes INV-2002 provable.
+
+#### D2: "Use in action" for a proven AI proposal
+
+**Supported today (source-checked):**
+- Spy's "Use in action" (`RecorderService.applyInspection` → `locatorFromInspection`) replaces a draft
+  action's whole locator with a unique inspected candidate, with `resolvedBy: "user"`.
+  - It drops identity, guard, alternatives and the container scope.
+  - It keeps no copy of the previous locator, so there is no undo.
+- Main holds the draft (`RecorderService.actions`, `persistDraft`). But `recorder:saveFlow` builds the
+  flow from the actions the renderer sends back. `forwardLocatorFields` passes unknown locator keys through,
+  `pendingUpgrade` and `locatorProvenance` included. So by save time, anything on a draft action is
+  renderer-supplied and cannot serve as authorization.
+- `AiActionRecord.target` needs a `flowId` and a `stepId`, and a draft has neither: the flow id is created at
+  save, and `buildRecordedFlow` assigns the `step-N` ids.
+- `LocatorProvenance.binding` is `createLocatorApprovalBinding` of the saved step: its type, name, safety
+  and locator, context included. `buildRecordedFlow` finalizes `resolution` and `resolvedBy`, and the
+  renderer may rename the step. A binding computed on the draft would therefore not match, and the save
+  boundary would drop it.
+- `promoteLocatorUpgrade` requires replay-proven evidence for a semantic upgrade, at T1 as well
+  (`PROOF_NOT_SATISFIED`). No applied change has ever rested on capture proof alone.
+- `LocatorProvenance.previous` is stored verbatim. A draft locator can carry raw identity and guard
+  fingerprints, and `buildRecordedFlow` hashes those only for the step's own locator.
+
+**Options:**
+- **U1: attach as a pending candidate (recommended; reuses §5, §6 and §10 unchanged).**
+  - "Use in action" on an AI proposal does not replace the locator. The deterministic locator stays
+    authoritative.
+  - The proven candidate is attached to the draft action as `pendingUpgrade`, with `proof:
+    "capture-proven"`, `proofEvidence`, `modelId` and `meaningChange`.
+  - After save, the existing replay hook proves it on real runs. The Flow Designer's existing Apply (T1,
+    once `eligible`) promotes it through `promoteLocatorUpgrade`, which writes the provenance, the
+    `AiActionRecord` and the revert target.
+  - No new schema, no new audit semantics, and no change applied on capture proof alone.
+  - U1 never retargets a step. Retargeting stays the deterministic "Use in action".
+- **U2: apply now, with draft provenance and an audit record at save.**
+  - The draft locator is replaced at once.
+  - Needs a new draft-only field: `LocatorProvenance` minus `binding` and `actionId`, with `previous`.
+  - At save, main (never the renderer) turns it into `locatorProvenance`. The binding is computed on the
+    built step, and `previous` is hashed.
+  - Order: the flow is written first, then an `AiActionRecord` is appended (`locatorSemanticUpgrade`, T1,
+    `proof: { result: "capture-proven" }`).
+  - This is new audit semantics: the first applied change without replay proof.
+
+**U1 lifecycle, step by step:**
+1. The person inspects an element.
+2. The person asks for an AI locator.
+3. The existing loop, compiler, intent guard and live-page proof accept a candidate (as built).
+4. The person picks a recorded step and chooses "Use in action" on the AI result. A new channel,
+   `recorder:attachInspectionProposal({ requestId, actionId })`, carries ids only, never a candidate. It has
+   the same gates as `ai:proposeInspectionLocator`: AI_USE plus the Spy's Recorder-page and
+   `recorder.elementSpy` pair.
+5. **Main owns the candidate.** `proposeInspectionLocator` keeps its accepted `PendingLocatorUpgrade` in
+   memory, keyed by the assist job id and tied to that inspection object. It is cleared by a new
+   inspection, Close Spy, the inspection's 5-minute TTL, a protected-login refusal and page close. Before
+   attaching, main checks three things:
+   - `getInspectionTarget()` still returns the same inspection, with the same document and frame
+     navigation count.
+   - `proveLocatorPlan` still answers `capture-proven` on the live page.
+   - Proven against the chosen draft action as the step, its own locator is the baseline. So the proposal
+     must reach the same element as that step, or it is refused (`WRONG_ELEMENT`).
+   The applicability rules of `inspectionApplyBlocker` also apply: the same page and frame chain, an
+   applicable step type, and no shadow root.
+6. `action.locator.pendingUpgrade` is set in main's draft, and the draft is persisted. The locator itself
+   is untouched. An existing pending candidate is replaced only by a newer one, as `annotatePendingUpgrade`
+   does. Nothing is replaced silently.
+7. The draft shows the step as "AI suggestion pending proof". The pending record carries `modelId`, and
+   `resolvedBy` is unchanged.
+8. At save, main re-attaches its own copy by action id and drops any `pendingUpgrade` or
+   `locatorProvenance` the renderer sent on a recorded action. `buildRecordedFlow` then computes the
+   binding on the built step. The candidate is dropped when the finalized step is T3 or `needs-review`.
+   Every other field keeps today's round trip.
+9. **No audit record at draft or save time.** A pending candidate is not an applied change (see the
+   `AiActionRecord.ts` header). The record is written when a person applies the candidate in the Flow
+   Designer after replay eligibility, through the existing path. Before save, "Remove AI suggestion" deletes
+   the pending candidate. After a promotion, the existing one-click revert applies.
+10. **Stale or cancelled:** attaching is refused (`NOT_FOUND`) when the inspection changed, the document
+    navigated, the frame detached, the Spy closed, or the re-proof is not `capture-proven`. A job still
+    running cannot be attached. Protected login is refused before any call (T3). Discarding the draft
+    clears the pending candidate.
+
+**Tests (U1):**
+- `verify:element-spy`: the attach refusal matrix. Covers no proposal, a changed inspection, a navigated
+  document, another page or frame, a step whose element is not the inspected one, a T3 step, and an
+  older proposal.
+- `buildRecordedFlow`: the binding matches the built step, and a renderer-forged pending candidate is
+  dropped. No raw fingerprint is stored, and unknown fields survive.
+- Replay: an attached candidate on a saved recorded flow replays to `eligible`. The existing promotion then
+  writes the audit record, and revert works.
+- Real Electron (`verify:ai-assist-gui`): the flow is inspect, a scripted proposal, "Use in action", save,
+  then the Flow Designer. The §10 badge reads "AI suggestion pending proof", and the locator is unchanged.
+  A reload, Close Spy and a protected page are each covered.
+
+**Decisions needed (D2):**
+1. U1, U2, or keep "Use in action" off for AI proposals.
+2. For U1: confirm that the limited GO's "browser-proven before it is shown or stored" covers storing a
+   capture-proven proposal from the Recorder. Also confirm that replay proof may accrue during the person's
+   real runs. That proof is observational, needs no model, and the step always acts through its own
+   locator.
+3. For U2 only: authorize an applied change on capture proof alone, a new draft provenance field, and an
+   `AiActionRecord` with `proof.result: "capture-proven"` and no replay counts.
 
 ## 2. Locator plan DSL → trusted compiler
 

@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — Element Spy live verifier closed out: counting regression proven, final-state run INCONCLUSIVE
+## HANDOFF (2026-09-23, latest) — L3 duplicate-row (D1) and "Use in action" (D2) decisions are ready for the owner
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or
+  edge changed.
+- **Done:**
+  - Both design reviews are in the L3 plan, "§1 open owner decisions". Each lists the options, the
+    source files, the tests and the exact decision needed.
+  - One verifier regression: `verify:locator-upgrade-proof` 85/85, with container-scoped duplicates.
+    Mutation-tested.
+- **Waiting on the owner:**
+  - D1: A, B and/or C, or none.
+  - D2: U1 (recommended), U2, or off, plus the GO-scope confirmations it lists.
+  - L4b's B2–B16 verdicts.
+
+  The signed-license route (b) rebuild note below still applies.
+- **Next implementer:** build only the option the owner picks, with the tests the record lists.
+- **Do not:** add row-text or positional exceptions; enable "Use in action" for AI proposals; write
+  `DECISIONS.md` before the owner chooses; rerun the live model; close L3.
+
+## HANDOFF (2026-09-23, superseded) — Element Spy live verifier closed out: counting regression proven, final-state run INCONCLUSIVE
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or
   edge changed.
