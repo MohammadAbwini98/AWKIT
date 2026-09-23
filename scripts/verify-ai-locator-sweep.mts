@@ -16,6 +16,7 @@
  */
 import {
   LOCATOR_SWEEP_MAX_JOBS,
+  buildLocatorDurabilityReport,
   planFlowHealthSweep,
   type LocatorSweepResult
 } from "@src/ai/locatorSweep";
@@ -240,6 +241,21 @@ check("a flow of non-targeting steps queues nothing", noTargets.queued.length ==
 const switchedOff = ran(sweep([flow("f1", "Orders", [step("Open panel", GUARDED)])], { policy: { enabled: false, featureTiers: {} } }), "the switched-off report");
 check("with AI off the audit still runs, because it needs no model", switchedOff.report.weak === 1);
 check("...and the step is still queueable, since the job's own gate refuses it downstream", switchedOff.queued.length === 1);
+
+// ── 8. The report on its own, with no admission gate ────────────────────────────────────────────
+// The Flow Library renders the report whether or not a run is active, so it must not share the
+// queue's idleness gate, and it must be the SAME report the sweep produces rather than a second count.
+console.log("\n8 — the durability report on its own needs no idle host");
+const mixedFlows = [
+  flow("f1", "Orders", [step("Open orders", undefined), step("Save order", STRONG), step("Open row detail", GUARDED), step("Pick the label", REVIEW)]),
+  flow("f2", "Invoices", [step("Download", STRONG), step("Select row", GUARDED)])
+];
+const standalone = buildLocatorDurabilityReport(mixedFlows);
+check("the standalone report equals the sweep's own report", JSON.stringify(standalone) === JSON.stringify(ran(sweep(mixedFlows), "the comparison sweep").report), JSON.stringify(standalone));
+const heldSweep = sweep(mixedFlows, { admission: { ...IDLE, activeRuns: 1 } });
+check("...and exists while an active run holds the sweep", !heldSweep.ran && standalone.steps === 5 && standalone.weak === 3, JSON.stringify(standalone));
+check("...and is not bounded by the job cap", buildLocatorDurabilityReport([many]).weak === 12);
+check("...and carries no locator value, page text or typed value", !/save-order|\.row|div > div|needs-review/.test(JSON.stringify(standalone)));
 
 console.log(`\nL3 §9 flow health sweep: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

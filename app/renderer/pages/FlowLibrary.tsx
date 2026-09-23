@@ -1,11 +1,13 @@
 import { Boxes, CircleCheck, CircleDashed, Copy, Download, FilePlus2, LayoutGrid, Network, Trash2, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
 import { usePermissions } from "../security/usePermissions";
 import { Permission } from "@src/security/authz/Permissions";
 import { PromptDialog } from "../components/shared/PromptDialog";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
+import { buildLocatorDurabilityReport, type LocatorDurabilityReport } from "@src/ai/locatorSweep";
+import { LOCATOR_QUALITY_CLASS_LABEL, type LocatorQualityClass } from "@src/recorder/LocatorQualityClass";
 import { applyTable, useTableState, type RowAdapter } from "../components/table/tableState";
 import { AdvancedTableFilters, DataTablePagination, SortableHeaderCell, TableEmptyState, type FilterFieldDef } from "../components/table/TableUI";
 
@@ -69,6 +71,20 @@ export function rescanTitle(state: { rescanCapable: boolean; canRescan: boolean;
   return "Re-classify every flow and refresh Legacy Compatibility grants";
 }
 
+/**
+ * One line summarising how durable the saved flows' locators are (L3 §9's durability report). It needs
+ * no model and no idle host, so it shows whether or not local AI is enabled. Counts only, never a value.
+ */
+export function durabilitySummary(report: LocatorDurabilityReport): string {
+  if (report.steps === 0) return "Locator durability: no saved step has a locator yet.";
+  const classes = (Object.keys(LOCATOR_QUALITY_CLASS_LABEL) as LocatorQualityClass[])
+    .filter((cls) => report.byClass[cls] > 0)
+    .map((cls) => `${report.byClass[cls]} ${LOCATOR_QUALITY_CLASS_LABEL[cls].toLowerCase()}`);
+  const weakFlows = report.perFlow.filter((flow) => flow.weak > 0).length;
+  const weak = report.weak === 0 ? "none weak" : `${report.weak} weak in ${weakFlows} flow${weakFlows === 1 ? "" : "s"}`;
+  return `Locator durability: ${report.steps} locator${report.steps === 1 ? "" : "s"} (${classes.join(", ")}), ${weak}.`;
+}
+
 export function FlowLibrary() {
   const { navigateTo } = useNavigation();
   const { can } = usePermissions();
@@ -95,6 +111,7 @@ export function FlowLibrary() {
   // null = validation pending → the column shows "Checking…" instead of a cached/guessed verdict.
   const [validationStatus, setValidationStatus] = useState<Map<string, FlowValidationStatus> | null>(null);
   const table = useTableState("flows");
+  const durability = useMemo(() => buildLocatorDurabilityReport(flows), [flows]);
 
   // Runnable status is DERIVED, asynchronously, every time the list changes: reset to "Checking…"
   // then ask main (which owns the Legacy Compatibility grants) for the current verdicts. The
@@ -282,6 +299,9 @@ export function FlowLibrary() {
             <div className="table-surface-head">
               <h2>Saved flows</h2>
               <span className="table-surface-count">{status}</span>
+              <p className="table-surface-note" data-testid="flow-locator-durability" data-locator-steps={durability.steps} data-weak={durability.weak}>
+                {durabilitySummary(durability)}
+              </p>
             </div>
 
             {total === 0 ? (

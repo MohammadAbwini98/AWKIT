@@ -120,6 +120,14 @@ function upgradeInFlight(step: FlowStep): boolean {
 }
 
 /**
+ * The durability report alone, with no admission gate: it needs no model, so it is available whether
+ * or not the host is idle and whether or not local AI exists. The Flow Library renders it.
+ */
+export function buildLocatorDurabilityReport(flows: readonly FlowProfile[]): LocatorDurabilityReport {
+  return scanFlows(flows, 0).report;
+}
+
+/**
  * Audit every saved flow, and queue at most `cap` upgrade jobs.
  *
  * The report is produced for every scanned step regardless of the cap, so "how durable are my flows"
@@ -140,10 +148,15 @@ export function planFlowHealthSweep(input: {
   if (!admitted.admit) return { ran: false, reason: admitted.reason };
 
   const cap = Math.max(0, Math.min(input.cap ?? LOCATOR_SWEEP_MAX_JOBS, LOCATOR_SWEEP_MAX_JOBS));
+  return { ran: true, ...scanFlows(input.flows, cap), cap };
+}
+
+/** The one scan behind both answers, so the report and the queue can never classify a step differently. */
+function scanFlows(flows: readonly FlowProfile[], cap: number): Omit<Extract<LocatorSweepResult, { ran: true }>, "ran" | "cap"> {
   const queued: LocatorSweepCandidate[] = [];
   const skipped: LocatorSweepSkip[] = [];
   const report: LocatorDurabilityReport = {
-    flows: input.flows.length,
+    flows: flows.length,
     steps: 0,
     stepsWithoutLocator: 0,
     byClass: emptyByClass(),
@@ -155,7 +168,7 @@ export function planFlowHealthSweep(input: {
   };
   let deferred = 0;
 
-  for (const flow of input.flows) {
+  for (const flow of flows) {
     const perFlow = { flowId: flow.id, flowName: flow.name, steps: 0, weak: 0, forbidden: 0 };
     for (const step of flow.nodes) {
       const skip = (reason: LocatorSweepSkipReason, quality?: LocatorQualityClass): void => {
@@ -210,5 +223,5 @@ export function planFlowHealthSweep(input: {
     report.perFlow.push(perFlow);
   }
 
-  return { ran: true, report, queued, skipped, deferred, cap };
+  return { report, queued, skipped, deferred };
 }

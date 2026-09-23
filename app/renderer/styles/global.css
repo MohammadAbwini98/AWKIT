@@ -16155,6 +16155,13 @@ th {
   margin-right: auto;
 }
 
+.table-surface-note {
+  color: var(--awkit-text-muted);
+  flex-basis: 100%;
+  font-size: var(--text-xs);
+  margin: 0;
+}
+
 .table-surface-actions {
   display: flex;
   flex-wrap: wrap;

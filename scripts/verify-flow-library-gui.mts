@@ -32,12 +32,17 @@
 //      handler (Legacy Compatibility validation status changes as a result).
 //   6. Static guards over the five files in the chain: none contains an `actions.filter(`/
 //      `.actions = ` mutation, so no layer can silently drop an entry.
+//   7. Phase L L3 §9: the page shows the model-free locator durability report for the flows the app
+//      itself lists, checked against a tally made with the L2 classifier directly, for both roles.
 //
 // Run after `npm run build`: npm run verify:flow-library
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { _electron as electron } from "playwright";
+import { buildLocatorDurabilityReport } from "@src/ai/locatorSweep";
+import type { FlowProfile, StepLocator } from "@src/profiles/FlowProfile";
+import { classifyLocatorQuality } from "@src/recorder/LocatorQualityClass";
 import {
   isolatedLaunchEnv,
   resolveMainWindow,
@@ -55,10 +60,51 @@ import {
   submitForcedChange
 // @ts-expect-error Shared E2E helper is intentionally plain ESM JavaScript.
 } from "./lib/e2e-qa-lib.mjs";
-import { rescanTitle } from "../app/renderer/pages/FlowLibrary";
+import { durabilitySummary, rescanTitle } from "../app/renderer/pages/FlowLibrary";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { env, electronArgs, cleanup } = isolatedLaunchEnv("awkit-flow-library-gui");
+const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-flow-library-gui");
+
+// ── Seed: two flows whose locators are audited below to be the classes they are named for ─────
+// L3 §9's durability report is rendered on this page, so the profile carries one flow with a strong,
+// a guarded-positional and a review-required locator plus a step with none, and one all-strong flow.
+const STRONG: StepLocator = { strategy: "testId", value: "save-order", quality: { strategy: "testId", isUnique: true, matchCount: 1, confidence: "high" } };
+const GUARDED: StepLocator = {
+  strategy: "css",
+  value: ".row > button",
+  quality: { strategy: "fallback", isUnique: false, matchCount: 3, confidence: "low", disambiguation: "positional" },
+  guard: { container: [], candidateSelector: ".row > button", siblingCount: 3, index: 1, confidence: "high", fingerprint: { tag: "button", role: "button", name: "aaaa", text: "bbbb", attributes: {}, ancestry: ["cccc"] } }
+};
+const REVIEW: StepLocator = { strategy: "css", value: "div > div > span", resolution: "needs-review", reviewReason: "No stable attribute was found.", quality: { strategy: "fallback", isUnique: false, matchCount: 4, confidence: "low" } };
+const SEEDED_AT = "2026-09-23T00:00:00.000Z";
+const seededFlows: FlowProfile[] = [
+  {
+    id: "durability-mixed", name: "Durability mixed", version: 1, createdAt: SEEDED_AT, updatedAt: SEEDED_AT, edges: [],
+    nodes: [
+      { id: "m1", type: "navigate", name: "Open orders" },
+      { id: "m2", type: "click", name: "Save order", locator: STRONG },
+      { id: "m3", type: "click", name: "Open row detail", locator: GUARDED },
+      { id: "m4", type: "click", name: "Pick the label", locator: REVIEW }
+    ]
+  },
+  { id: "durability-strong", name: "Durability strong", version: 1, createdAt: SEEDED_AT, updatedAt: SEEDED_AT, edges: [], nodes: [{ id: "s1", type: "click", name: "Download", locator: STRONG }] }
+] as FlowProfile[];
+const flowsDir = path.join(dataRoot, "SpecterStudio", "flows");
+mkdirSync(flowsDir, { recursive: true });
+for (const flow of seededFlows) writeFileSync(path.join(flowsDir, `${flow.id}.json`), `${JSON.stringify(flow, null, 2)}\n`, "utf8");
+
+/** Counted here with the L2 classifier directly, NOT through the report, so the page's numbers are checked against an independent tally. */
+function independentTally(flows: FlowProfile[]): { steps: number; weak: number } {
+  const classes = flows.flatMap((flow) => flow.nodes.map((node) => classifyLocatorQuality(node.locator)?.class)).filter(Boolean);
+  return { steps: classes.length, weak: classes.filter((cls) => cls === "guarded-positional" || cls === "review-required").length };
+}
+
+async function readDurability(win: import("playwright").Page) {
+  const note = win.getByTestId("flow-locator-durability");
+  // A missing report must fail the checks below by name, not abort the suite with a timeout.
+  if (!(await note.waitFor({ state: "visible", timeout: 15000 }).then(() => true, () => false))) return { text: "(no durability report rendered)", steps: null, weak: null };
+  return { text: (await note.innerText()).trim(), steps: await note.getAttribute("data-locator-steps"), weak: await note.getAttribute("data-weak") };
+}
 
 // Seeds must not contain the username substring — the password policy rejects a password
 // containing the account's username, and "flowlibviewer" is literally inside "FlowLibViewer...".
@@ -115,6 +161,22 @@ check(
     rescanTitle({ rescanCapable: true, canRescan: false, rescanning: false, rescanError: null })
 );
 
+console.log("\nUnit coverage — the durability fixtures and durabilitySummary():");
+check(
+  "the seeded fixtures classify as named (strong, guarded positional, review required)",
+  classifyLocatorQuality(STRONG)?.class === "strong-semantic" && classifyLocatorQuality(GUARDED)?.class === "guarded-positional" && classifyLocatorQuality(REVIEW)?.class === "review-required"
+);
+check(
+  "the seeded library summarises every class present, and the weak flows",
+  durabilitySummary(buildLocatorDurabilityReport(seededFlows)) === "Locator durability: 4 locators (2 strong semantic, 1 guarded positional, 1 review required), 2 weak in 1 flow.",
+  durabilitySummary(buildLocatorDurabilityReport(seededFlows))
+);
+check(
+  "a library with no locator says so rather than printing zeros",
+  durabilitySummary(buildLocatorDurabilityReport([{ ...seededFlows[1], nodes: [{ id: "n", type: "navigate", name: "Open" }] } as FlowProfile])) === "Locator durability: no saved step has a locator yet."
+);
+check("an all-strong library reads none weak", /, none weak\.$/.test(durabilitySummary(buildLocatorDurabilityReport([seededFlows[1]]))));
+
 const app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
 try {
   const win = await resolveMainWindow(app);
@@ -131,6 +193,17 @@ try {
     JSON.stringify(superUserAction)
   );
   check("New Flow is present alongside it (not shifted into its slot)", (await readNewFlowAction(win))?.present === true);
+
+  // ── 2. L3 §9 durability report, from the flows the app itself lists ─────────────────────────
+  const listed = (await win.evaluate(() => window.playwrightFlowStudio.flows.list())) as FlowProfile[];
+  check("the app lists both seeded flows, so the report below is not vacuous", seededFlows.every((seed) => listed.some((flow) => flow.id === seed.id)), listed.map((flow) => flow.id).join(", "));
+  const tally = independentTally(listed);
+  const durability = await readDurability(win);
+  check("the Flow Library shows the durability report", durability.text.startsWith("Locator durability:"), durability.text);
+  check("...counting every listed locator, by an independent tally", tally.steps >= 4 && durability.steps === String(tally.steps), `page=${durability.steps} tally=${tally.steps}`);
+  check("...and every weak one", tally.weak >= 2 && durability.weak === String(tally.weak), `page=${durability.weak} tally=${tally.weak}`);
+  check("...in the exact wording of the report over those flows", durability.text === durabilitySummary(buildLocatorDurabilityReport(listed)), durability.text);
+  check("...and quotes no locator value", !/save-order|\.row|div > div/.test(durability.text));
 
   // Invoke it for real: reaches the real IPC handler, not a stub.
   await win.locator('[data-testid="page-action-rescan"]').click();
@@ -174,6 +247,8 @@ try {
     JSON.stringify(viewerAction)
   );
   check("New Flow is also present for Viewer (page chrome renders both regardless of permission)", (await readNewFlowAction(win))?.present === true);
+  const viewerDurability = await readDurability(win);
+  check("Viewer sees the same durability report (it is read-only information)", viewerDurability.steps === durability.steps && viewerDurability.text === durability.text, viewerDurability.text);
 
   // Renderer state is not the security boundary: prove main refuses the channel directly, even
   // though the (disabled) button could not have dispatched this call through the UI.
